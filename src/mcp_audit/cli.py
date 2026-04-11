@@ -22,6 +22,7 @@ from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
 from mcp_audit.models import Severity
 from mcp_audit.output.nucleus import format_nucleus
+from mcp_audit.output.sarif import format_sarif
 from mcp_audit.output.terminal import print_results
 from mcp_audit.scanner import run_scan
 
@@ -43,7 +44,7 @@ def scan(
     ),
     output_format: str = typer.Option(  # noqa: B008
         "terminal", "--format", "-f",
-        help="Output format: terminal, json, nucleus",
+        help="Output format: terminal, json, nucleus, sarif",
     ),
     output: Path | None = typer.Option(  # noqa: B008
         None, "--output", "-o", help="Write results to file"
@@ -97,11 +98,18 @@ def scan(
             output.write_text(out)
         else:
             typer.echo(out)
+    elif fmt == "sarif":
+        out = format_sarif(result)
+        if output:
+            output.write_text(out)
+        else:
+            typer.echo(out)
     elif fmt == "terminal":
         print_results(result, console=console)
     else:
         console.print(
-            f"[red]Unknown format: {fmt!r}. Choose terminal, json, or nucleus.[/red]"
+            "[red]Unknown format: "
+            f"{fmt!r}. Choose terminal, json, nucleus, or sarif.[/red]"
         )
         raise typer.Exit(2)  # noqa: B904
 
