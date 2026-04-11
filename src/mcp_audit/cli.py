@@ -11,9 +11,10 @@ import typer
 from rich.console import Console
 
 from mcp_audit.discovery import discover_configs
+from mcp_audit.models import Severity
+from mcp_audit.output.nucleus import format_nucleus
 from mcp_audit.output.terminal import print_results
 from mcp_audit.scanner import run_scan
-from mcp_audit.models import Severity
 
 app = typer.Typer(
     name="mcp-audit",
@@ -26,7 +27,7 @@ console = Console()
 @app.command()
 def scan(
     path: Optional[Path] = typer.Option(None, "--path", "-p", help="Scan a specific config file or directory"),
-    format: str = typer.Option("terminal", "--format", "-f", help="Output format: terminal, json"),
+    format: str = typer.Option("terminal", "--format", "-f", help="Output format: terminal, json, nucleus"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write results to file"),
     severity_threshold: str = typer.Option("INFO", "--severity-threshold", "-s", help="Minimum severity to report"),
     offline: bool = typer.Option(False, "--offline", help="Skip all network calls"),
@@ -52,13 +53,24 @@ def scan(
 
     # Output
     if fmt == "json":
-        json_str = result.model_dump_json(indent=2)
+        out = result.model_dump_json(indent=2)
         if output:
-            output.write_text(json_str)
+            output.write_text(out)
         else:
-            typer.echo(json_str)
-    else:
+            typer.echo(out)
+    elif fmt == "nucleus":
+        out = format_nucleus(result)
+        if output:
+            output.write_text(out)
+        else:
+            typer.echo(out)
+    elif fmt == "terminal":
         print_results(result, console=console)
+    else:
+        console.print(
+            f"[red]Unknown format: {fmt!r}. Choose terminal, json, or nucleus.[/red]"
+        )
+        raise typer.Exit(2)
 
     # Exit code
     if result.has_findings:

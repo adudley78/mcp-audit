@@ -64,6 +64,7 @@ class Finding(BaseModel):
     evidence: str
     remediation: str
     cwe: str | None = None
+    finding_path: str | None = None
 
 
 class ScanResult(BaseModel):

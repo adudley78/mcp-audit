@@ -58,6 +58,8 @@ def run_scan(
             for analyzer in analyzers:
                 try:
                     findings = analyzer.analyze(server)
+                    for finding in findings:
+                        finding.finding_path = str(server.config_path)
                     result.findings.extend(findings)
                 except Exception as e:
                     result.errors.append(f"{analyzer.name} error on {server.name}: {e}")
