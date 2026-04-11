@@ -11,9 +11,9 @@ from rich.console import Console
 from rich.table import Table
 
 from mcp_audit.analyzers.rug_pull import (
-    DEFAULT_STATE_PATH,
     build_state_entry,
     compute_hashes,
+    derive_state_path,
     load_state,
     save_state,
     server_key,
@@ -32,6 +32,28 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+
+
+# ── Internal helpers ──────────────────────────────────────────────────────────
+
+
+def _scoped_state_path(extra_paths: list[Path] | None) -> Path:
+    """Derive the scoped rug-pull state path for the given extra paths."""
+    from mcp_audit.discovery import discover_configs  # noqa: PLC0415
+    configs = discover_configs(extra_paths=extra_paths)
+    return derive_state_path(configs)
+
+
+def _reset_scoped_state(
+    extra_paths: list[Path] | None, con: Console
+) -> None:
+    """Delete the scoped state file if it exists, printing a status line."""
+    scoped = _scoped_state_path(extra_paths)
+    if scoped.exists():
+        scoped.unlink()
+        con.print(f"[dim]Reset state: {scoped.name}[/dim]\n")
+    else:
+        con.print(f"[dim]No state file to reset ({scoped.name}).[/dim]\n")
 
 
 # ── scan ──────────────────────────────────────────────────────────────────────
@@ -70,10 +92,21 @@ def scan(
             "analyze live tool descriptions (requires: pip install mcp-audit[mcp])"
         ),
     ),
+    reset_state: bool = typer.Option(  # noqa: B008
+        False,
+        "--reset-state",
+        help=(
+            "Delete the scoped rug-pull baseline before scanning, "
+            "giving a clean slate without manual file removal."
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     extra_paths = [path] if path else None
     fmt = "json" if json_flag else output_format
+
+    if reset_state:
+        _reset_scoped_state(extra_paths, console)
 
     result = run_scan(extra_paths=extra_paths, connect=connect)
 
@@ -183,8 +216,10 @@ def pin(
         console.print("[yellow]No MCP servers found — nothing to pin.[/yellow]")
         return
 
+    scoped_path = derive_state_path(configs)
+
     # Load existing state so we can preserve first_seen timestamps.
-    existing = load_state(DEFAULT_STATE_PATH)
+    existing = load_state(scoped_path)
     stored = existing.get("servers", {})
 
     now = datetime.now(UTC).isoformat()
@@ -193,11 +228,11 @@ def pin(
         first_seen = stored.get(key, {}).get("first_seen", now)
         stored[key] = build_state_entry(srv, first_seen=first_seen)
 
-    save_state({"version": 1, "servers": stored}, DEFAULT_STATE_PATH)
+    save_state({"version": 1, "servers": stored}, scoped_path)
 
     console.print(
         f"\n[bold green]Pinned baseline for {len(all_servers)} server(s).[/bold green]"
-        f"  (state → {DEFAULT_STATE_PATH})\n"
+        f"  (state → {scoped_path.name})\n"
     )
     for srv in all_servers:
         console.print(f"  [cyan]{server_key(srv)}[/cyan]  {srv.config_path}")
@@ -218,19 +253,21 @@ def diff(
     Does NOT run the full analyzer pipeline — only compares hashes.
     Exit code 1 if any changes detected, 0 if clean.
     """
-    if not DEFAULT_STATE_PATH.exists():
+    extra_paths = [path] if path else None
+    configs = discover_configs(extra_paths=extra_paths)
+    scoped_path = derive_state_path(configs)
+
+    if not scoped_path.exists():
         console.print(
             "[red]No baseline found.[/red]  "
-            "Run [bold]mcp-audit pin[/bold] or [bold]mcp-audit scan[/bold] first."
+            "Run [bold]mcp-audit pin[/bold] or [bold]mcp-audit scan[/bold] first.\n"
+            f"[dim](expected state file: {scoped_path.name})[/dim]"
         )
         raise typer.Exit(2)  # noqa: B904
 
-    state = load_state(DEFAULT_STATE_PATH)
+    state = load_state(scoped_path)
     stored: dict = state.get("servers", {})
     baseline_ts = _newest_last_seen(stored)
-
-    extra_paths = [path] if path else None
-    configs = discover_configs(extra_paths=extra_paths)
 
     all_servers = []
     for config in configs:
@@ -267,12 +304,18 @@ def diff(
     has_changes = bool(changed_rows or new_rows or removed_rows)
 
     if not has_changes:
-        ts = f" (baseline: {baseline_ts})" if baseline_ts else ""
-        console.print(f"[green]No changes detected since last baseline.[/green]{ts}")
+        ts = f", baseline: {baseline_ts}" if baseline_ts else ""
+        console.print(
+            f"[green]No changes detected since last baseline.[/green]"
+            f" [dim](state: {scoped_path.name}{ts})[/dim]"
+        )
         return
 
-    ts_label = f"[dim]baseline: {baseline_ts}[/dim]" if baseline_ts else ""
-    console.print(f"\n[bold]MCP configuration diff[/bold]  {ts_label}\n")
+    ts_label = f"baseline: {baseline_ts}" if baseline_ts else ""
+    console.print(
+        f"\n[bold]MCP configuration diff[/bold]  "
+        f"[dim]{scoped_path.name}  {ts_label}[/dim]\n"
+    )
 
     table = Table(show_header=True, header_style="bold")
     table.add_column("Server", style="cyan")

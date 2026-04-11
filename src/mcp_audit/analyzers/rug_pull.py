@@ -24,13 +24,40 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from mcp_audit.analyzers.base import BaseAnalyzer
+from mcp_audit.discovery import DiscoveredConfig
 from mcp_audit.models import Finding, ServerConfig, Severity
 
-DEFAULT_STATE_PATH: Path = Path.home() / ".mcp-audit" / "state.json"
+_STATE_DIR: Path = Path.home() / ".mcp-audit"
+DEFAULT_STATE_PATH: Path = _STATE_DIR / "state.json"
 _STATE_VERSION = 1
 
 
 # ── Public helpers (used by cli.py pin/diff commands) ─────────────────────────
+
+
+def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
+    """Return a scoped state file path derived from the set of config files.
+
+    Different invocations that scan different config files produce different
+    state paths, preventing cross-contamination between e.g. demo configs and
+    real machine configs.
+
+    The derivation is deterministic: sort the absolute config paths, join with
+    newlines, SHA-256 hash, take the first 8 hex characters.
+
+    Args:
+        configs: Discovered config files for the current scan.
+
+    Returns:
+        A path like ``~/.mcp-audit/state_a1b2c3d4.json``.  Falls back to
+        :data:`DEFAULT_STATE_PATH` when *configs* is empty so that there is
+        always a valid path to write to.
+    """
+    if not configs:
+        return DEFAULT_STATE_PATH
+    paths_str = "\n".join(sorted(str(c.path) for c in configs))
+    digest = hashlib.sha256(paths_str.encode()).hexdigest()[:8]
+    return _STATE_DIR / f"state_{digest}.json"
 
 
 def server_key(server: ServerConfig) -> str:

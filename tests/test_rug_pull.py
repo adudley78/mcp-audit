@@ -8,13 +8,16 @@ from pathlib import Path
 import pytest
 
 from mcp_audit.analyzers.rug_pull import (
+    DEFAULT_STATE_PATH,
     RugPullAnalyzer,
     build_state_entry,
     compute_hashes,
+    derive_state_path,
     load_state,
     save_state,
     server_key,
 )
+from mcp_audit.discovery import DiscoveredConfig
 from mcp_audit.models import ServerConfig, Severity, TransportType
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
@@ -436,3 +439,57 @@ class TestStatePersistence:
         first_seen_2 = state_after_second["servers"][server_key(srv)]["first_seen"]
 
         assert first_seen_1 == first_seen_2
+
+
+# ── derive_state_path ─────────────────────────────────────────────────────────
+
+
+def _discovered(path: str) -> DiscoveredConfig:
+    return DiscoveredConfig(
+        client_name="custom", root_key="mcpServers", path=Path(path)
+    )
+
+
+class TestDeriveStatePath:
+    def test_empty_configs_returns_default_path(self) -> None:
+        result = derive_state_path([])
+        assert result == DEFAULT_STATE_PATH
+
+    def test_returns_path_in_mcp_audit_dir(self) -> None:
+        configs = [_discovered("/tmp/mcp.json")]  # noqa: S108
+        result = derive_state_path(configs)
+        assert result.parent == DEFAULT_STATE_PATH.parent
+        assert result.name.startswith("state_")
+        assert result.name.endswith(".json")
+
+    def test_hash_suffix_is_eight_chars(self) -> None:
+        configs = [_discovered("/tmp/mcp.json")]  # noqa: S108
+        result = derive_state_path(configs)
+        suffix = result.stem.removeprefix("state_")
+        assert len(suffix) == 8
+
+    def test_deterministic_same_configs(self) -> None:
+        configs = [_discovered("/a/mcp.json"), _discovered("/b/mcp.json")]
+        assert derive_state_path(configs) == derive_state_path(configs)
+
+    def test_order_independent(self) -> None:
+        """Sorting means [A, B] and [B, A] produce the same path."""
+        ab = [_discovered("/a/mcp.json"), _discovered("/b/mcp.json")]
+        ba = [_discovered("/b/mcp.json"), _discovered("/a/mcp.json")]
+        assert derive_state_path(ab) == derive_state_path(ba)
+
+    def test_different_configs_different_paths(self) -> None:
+        demo = [_discovered("/demo/configs/a.json")]
+        real = [_discovered("/home/user/.cursor/mcp.json")]
+        assert derive_state_path(demo) != derive_state_path(real)
+
+    def test_superset_produces_different_path(self) -> None:
+        """Adding one more config file changes the derived path."""
+        one = [_discovered("/a.json")]
+        two = [_discovered("/a.json"), _discovered("/b.json")]
+        assert derive_state_path(one) != derive_state_path(two)
+
+    def test_result_is_not_default_state_path(self) -> None:
+        configs = [_discovered("/some/mcp.json")]
+        result = derive_state_path(configs)
+        assert result != DEFAULT_STATE_PATH

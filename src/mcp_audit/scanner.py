@@ -8,7 +8,7 @@ from pathlib import Path
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
-from mcp_audit.analyzers.rug_pull import RugPullAnalyzer
+from mcp_audit.analyzers.rug_pull import RugPullAnalyzer, derive_state_path
 from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
 from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
@@ -130,7 +130,12 @@ async def run_scan_async(
 
     # ── Rug-pull analysis (cross-server, stateful) ─────────────────────────────
     if not skip_rug_pull:
-        rug_pull = RugPullAnalyzer(state_path=state_path)
+        # Scope the state file to the exact set of configs being scanned so
+        # that demo configs and real-machine configs never share a baseline.
+        effective_state = (
+            state_path if state_path is not None else derive_state_path(configs)
+        )
+        rug_pull = RugPullAnalyzer(state_path=effective_state)
         try:
             result.findings.extend(rug_pull.analyze_all(all_servers))
         except Exception as e:  # noqa: BLE001
@@ -216,7 +221,10 @@ def run_scan(
                 )
 
     if not skip_rug_pull:
-        rug_pull = RugPullAnalyzer(state_path=state_path)
+        effective_state = (
+            state_path if state_path is not None else derive_state_path(configs)
+        )
+        rug_pull = RugPullAnalyzer(state_path=effective_state)
         try:
             result.findings.extend(rug_pull.analyze_all(all_servers))
         except Exception as e:  # noqa: BLE001
