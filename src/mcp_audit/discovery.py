@@ -29,7 +29,10 @@ def _get_client_specs() -> list[ClientSpec]:
 
     # Claude Desktop
     if system == "Darwin":
-        claude_desktop_path = home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+        claude_desktop_path = (
+            home / "Library" / "Application Support" / "Claude"
+            / "claude_desktop_config.json"
+        )
     elif system == "Windows":
         appdata = Path.home() / "AppData" / "Roaming"
         claude_desktop_path = appdata / "Claude" / "claude_desktop_config.json"
@@ -133,10 +136,11 @@ def discover_configs(extra_paths: list[Path] | None = None) -> list[DiscoveredCo
                     path=resolved,
                 ))
             elif resolved.is_dir():
-                # Look for common config filenames in the directory
-                for name in ["mcp.json", "mcp_config.json", "claude_desktop_config.json", ".mcp.json"]:
-                    candidate = resolved / name
-                    if candidate.exists():
+                # Scan all JSON files in the directory.  The parser handles
+                # root-key detection (mcpServers vs servers) and silently
+                # returns [] for files that contain neither key.
+                for candidate in sorted(resolved.glob("*.json")):
+                    if candidate.is_file():
                         discovered.append(DiscoveredConfig(
                             client_name="custom",
                             root_key="mcpServers",

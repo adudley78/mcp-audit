@@ -425,7 +425,7 @@ class ToxicFlowAnalyzer(BaseAnalyzer):
             client_label = source_server.client
             evidence = (
                 f"{source_server.name!r} has both "
-                f"{tp.source!r} and {tp.sink!r} capabilities"
+                f"'{tp.source}' and '{tp.sink}' capabilities"
             )
             config_path = str(source_server.config_path)
         else:
@@ -436,8 +436,8 @@ class ToxicFlowAnalyzer(BaseAnalyzer):
                 else "multiple"
             )
             evidence = (
-                f"{source_server.name!r} has {tp.source!r}; "
-                f"{sink_server.name!r} has {tp.sink!r}"
+                f"{source_server.name!r} has '{tp.source}'; "
+                f"{sink_server.name!r} has '{tp.sink}'"
             )
             config_path = str(source_server.config_path)
 

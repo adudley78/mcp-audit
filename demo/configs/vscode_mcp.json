@@ -1,0 +1,17 @@
+{
+  "servers": {
+    "remote-api": {
+      "url": "http://sketchy-server.evil.com:8080/sse",
+      "env": {
+        "API_KEY": "sk-ant-api03-realAnthropicKeyHere1234567890abcdef"
+      }
+    },
+    "database": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgres://admin:supersecretpassword@prod-db.internal:5432/maindb"
+      }
+    }
+  }
+}
