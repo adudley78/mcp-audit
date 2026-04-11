@@ -80,9 +80,10 @@ Do not attempt to resolve architectural ambiguity by guessing. Flag it.
 
 ## Current phase
 
-Phase 1 (Weeks 1-2): Foundation. Building discovery, config parsing, and basic
-poisoning detection. Goal is a working `mcp-audit scan` command that finds local
-MCP configs and flags suspicious tool descriptions.
+Phase 1, Week 1 — foundation complete. Discovery, config parsing, poisoning,
+credentials, transport, and supply-chain (typosquatting) analyzers are all
+shipped and tested. Next: transport hardening (e.g. stricter TLS validation,
+localhost-escape detection) and SARIF output formatter.
 
 ## Provenance
 
