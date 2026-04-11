@@ -1,0 +1,76 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-audit"
+version = "0.1.0"
+description = "Privacy-first security scanner for MCP server configurations"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Your Name", email = "you@example.com" },
+]
+keywords = ["mcp", "security", "scanner", "ai-agents", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "typer>=0.12,<1.0",
+    "rich>=13.0,<14.0",
+    "pydantic>=2.0,<3.0",
+    "pyyaml>=6.0,<7.0",
+    "httpx>=0.27,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "bandit>=1.7",
+    "mypy>=1.10",
+]
+mcp = [
+    "mcp>=1.0",
+]
+
+[project.scripts]
+mcp-audit = "mcp_audit.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/mcp-audit"
+Repository = "https://github.com/yourusername/mcp-audit"
+Issues = "https://github.com/yourusername/mcp-audit/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_audit"]
+
+[tool.ruff]
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "S", "B", "A", "C4", "SIM"]
+ignore = ["S101"]  # Allow assert in tests
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.bandit]
+exclude_dirs = ["tests"]

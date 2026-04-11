@@ -1,0 +1,149 @@
+"""Tests for config parsing and security analyzers."""
+
+from pathlib import Path
+
+import pytest
+
+from mcp_audit.config_parser import parse_config
+from mcp_audit.discovery import DiscoveredConfig
+from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
+from mcp_audit.analyzers.credentials import CredentialsAnalyzer
+from mcp_audit.analyzers.transport import TransportAnalyzer
+from mcp_audit.models import Severity, TransportType
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def clean_config():
+    return DiscoveredConfig(
+        client_name="test",
+        root_key="mcpServers",
+        path=FIXTURES / "clean_with_credential.json",
+    )
+
+
+@pytest.fixture
+def malicious_config():
+    return DiscoveredConfig(
+        client_name="test",
+        root_key="mcpServers",
+        path=FIXTURES / "malicious_config.json",
+    )
+
+
+class TestConfigParser:
+    def test_parse_clean_config(self, clean_config):
+        servers = parse_config(clean_config)
+        assert len(servers) == 2
+        assert servers[0].name == "filesystem"
+        assert servers[0].transport == TransportType.STDIO
+        assert servers[0].command == "npx"
+
+    def test_parse_malicious_config(self, malicious_config):
+        servers = parse_config(malicious_config)
+        assert len(servers) == 2
+        sus_api = next(s for s in servers if s.name == "sus-api")
+        assert sus_api.transport == TransportType.SSE
+        assert sus_api.url == "http://sketchy-server.evil.com:8080/sse"
+
+    def test_parse_nonexistent_file(self):
+        config = DiscoveredConfig(
+            client_name="test",
+            root_key="mcpServers",
+            path=Path("/nonexistent/config.json"),
+        )
+        with pytest.raises(ValueError, match="Cannot read"):
+            parse_config(config)
+
+    def test_parse_vscode_servers_key(self, tmp_path):
+        config_file = tmp_path / "mcp.json"
+        config_file.write_text('{"servers": {"test-server": {"command": "node", "args": ["server.js"]}}}')
+        config = DiscoveredConfig(client_name="vscode", root_key="servers", path=config_file)
+        servers = parse_config(config)
+        assert len(servers) == 1
+        assert servers[0].name == "test-server"
+
+
+class TestPoisoningAnalyzer:
+    def setup_method(self):
+        self.analyzer = PoisoningAnalyzer()
+
+    def test_detects_ssh_exfiltration(self, malicious_config):
+        servers = parse_config(malicious_config)
+        evil_calc = next(s for s in servers if s.name == "evil-calculator")
+        findings = self.analyzer.analyze(evil_calc)
+        critical_findings = [f for f in findings if f.severity == Severity.CRITICAL]
+        assert len(critical_findings) >= 1
+        assert any("ssh" in f.title.lower() or "ssh" in f.evidence.lower() for f in critical_findings)
+
+    def test_detects_instruction_injection(self, malicious_config):
+        servers = parse_config(malicious_config)
+        evil_calc = next(s for s in servers if s.name == "evil-calculator")
+        findings = self.analyzer.analyze(evil_calc)
+        high_findings = [f for f in findings if f.severity == Severity.HIGH]
+        assert len(high_findings) >= 1
+
+    def test_clean_server_no_poisoning(self, clean_config):
+        servers = parse_config(clean_config)
+        fs_server = next(s for s in servers if s.name == "filesystem")
+        findings = self.analyzer.analyze(fs_server)
+        # Filesystem server should have no poisoning findings
+        poisoning_findings = [f for f in findings if f.analyzer == "poisoning"]
+        assert len(poisoning_findings) == 0
+
+
+class TestCredentialsAnalyzer:
+    def setup_method(self):
+        self.analyzer = CredentialsAnalyzer()
+
+    def test_detects_github_token(self, clean_config):
+        servers = parse_config(clean_config)
+        github_server = next(s for s in servers if s.name == "github")
+        findings = self.analyzer.analyze(github_server)
+        assert len(findings) >= 1
+        assert any("GitHub" in f.title for f in findings)
+
+    def test_detects_anthropic_key(self, malicious_config):
+        servers = parse_config(malicious_config)
+        sus_api = next(s for s in servers if s.name == "sus-api")
+        findings = self.analyzer.analyze(sus_api)
+        assert len(findings) >= 1
+
+    def test_no_creds_in_clean_server(self, clean_config):
+        servers = parse_config(clean_config)
+        fs_server = next(s for s in servers if s.name == "filesystem")
+        findings = self.analyzer.analyze(fs_server)
+        assert len(findings) == 0
+
+
+class TestTransportAnalyzer:
+    def setup_method(self):
+        self.analyzer = TransportAnalyzer()
+
+    def test_detects_unencrypted_remote(self, malicious_config):
+        servers = parse_config(malicious_config)
+        sus_api = next(s for s in servers if s.name == "sus-api")
+        findings = self.analyzer.analyze(sus_api)
+        transport_findings = [f for f in findings if f.id == "TRANSPORT-001"]
+        assert len(transport_findings) == 1
+
+    def test_detects_npx_runtime_fetch(self, clean_config):
+        servers = parse_config(clean_config)
+        fs_server = next(s for s in servers if s.name == "filesystem")
+        findings = self.analyzer.analyze(fs_server)
+        npx_findings = [f for f in findings if f.id == "TRANSPORT-003"]
+        assert len(npx_findings) == 1
+
+    def test_localhost_http_is_ok(self):
+        from mcp_audit.models import ServerConfig
+        server = ServerConfig(
+            name="local-server",
+            client="test",
+            config_path=Path("/tmp/test.json"),
+            transport=TransportType.SSE,
+            url="http://localhost:3000/sse",
+        )
+        findings = self.analyzer.analyze(server)
+        unencrypted = [f for f in findings if f.id == "TRANSPORT-001"]
+        assert len(unencrypted) == 0
