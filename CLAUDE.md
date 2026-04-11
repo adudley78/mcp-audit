@@ -80,14 +80,28 @@ Do not attempt to resolve architectural ambiguity by guessing. Flag it.
 
 ## Current phase
 
-Phase 2 (Weeks 3-6): Core scanner. Cross-server analysis milestone complete —
-6 analyzers (poisoning, credentials, transport, supply-chain, rug-pull, toxic-flow),
-4 output formats (terminal, JSON, SARIF, Nucleus FlexConnect),
-MCP SDK live enumeration via `--connect` flag, 321 tests passing.
+Prototype complete (built on April 11, 2026).
 
-Currently building: DEF CON Demo Labs submission (due 2026-05-01).
+What's built:
+- 6 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow
+- 4 output formats: terminal, JSON, SARIF, Nucleus FlexConnect
+- 5 CLI commands: scan, discover, pin, diff, version
+- Live MCP server connection via --connect (optional, MCP SDK)
+- Scoped rug-pull state management (per-config-set hash isolation)
+- Demo environment with 27 findings across all analyzer categories
+- 329 tests passing, ruff clean
 
-Next after that: CI mode hardening, OSV.dev supply-chain lookups (`--no-offline`).
+What's next (non-code):
+- Disclose project to Nucleus colleagues, get expert feedback on detection logic
+- Validate FlexConnect output against real Nucleus instance (need Swagger docs)
+- Tune false positives (e.g., "base64 encode" in official filesystem server)
+- Update README to reflect full feature set
+
+What's next (code, after feedback):
+- Detection pattern tuning based on practitioner review
+- pip packaging for public release (pyproject.toml ready, needs TestPyPI run)
+- GitHub Actions CI (test on macOS, Linux, Windows)
+- Documentation (usage guide, rule-writing guide, Nucleus integration guide)
 
 ## Provenance
 
@@ -95,3 +109,4 @@ All detection patterns are original implementations based on published security
 research. No code was copied from existing scanners. Full source attribution is
 documented in PROVENANCE.md — read it before adding new detection patterns.
 Every new pattern must cite its research source.
+The project now has 6 analyzers with patterns sourced from the research listed in PROVENANCE.md. Update PROVENANCE.md when adding new detection patterns or analyzers.
