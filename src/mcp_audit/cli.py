@@ -62,12 +62,20 @@ def scan(
     json_flag: bool = typer.Option(  # noqa: B008
         False, "--json", help="Shortcut for --format json"
     ),
+    connect: bool = typer.Option(  # noqa: B008
+        False,
+        "--connect",
+        help=(
+            "Connect to running MCP servers via the protocol handshake and "
+            "analyze live tool descriptions (requires: pip install mcp-audit[mcp])"
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     extra_paths = [path] if path else None
     fmt = "json" if json_flag else output_format
 
-    result = run_scan(extra_paths=extra_paths)
+    result = run_scan(extra_paths=extra_paths, connect=connect)
 
     # Filter by severity threshold
     try:

@@ -80,13 +80,14 @@ Do not attempt to resolve architectural ambiguity by guessing. Flag it.
 
 ## Current phase
 
-Phase 2 (Weeks 3-6): Core scanner. Foundation complete ahead of schedule —
-5 analyzers shipped (poisoning, credentials, transport, supply-chain, rug-pull),
-4 output formats (terminal, JSON, SARIF, Nucleus FlexConnect), 204 tests passing.
+Phase 2 (Weeks 3-6): Core scanner. Cross-server analysis milestone complete —
+6 analyzers (poisoning, credentials, transport, supply-chain, rug-pull, toxic-flow),
+4 output formats (terminal, JSON, SARIF, Nucleus FlexConnect),
+MCP SDK live enumeration via `--connect` flag, 321 tests passing.
 
-Currently building: MCP SDK integration for live server enumeration (`--connect` flag).
+Currently building: DEF CON Demo Labs submission (due 2026-05-01).
 
-Next after that: DEF CON Demo Labs submission (due 2026-05-01), CI mode hardening.
+Next after that: CI mode hardening, OSV.dev supply-chain lookups (`--no-offline`).
 
 ## Provenance
 

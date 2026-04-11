@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     """Finding severity levels."""
 
     CRITICAL = "CRITICAL"
@@ -19,7 +19,7 @@ class Severity(str, Enum):
     INFO = "INFO"
 
 
-class TransportType(str, Enum):
+class TransportType(StrEnum):
     """MCP server transport types."""
 
     STDIO = "stdio"
@@ -50,6 +50,42 @@ class ServerConfig(BaseModel):
     raw: dict = Field(default_factory=dict)
 
 
+class ToolInfo(BaseModel):
+    """A tool exposed by a live MCP server."""
+
+    name: str
+    description: str | None = None
+    input_schema: dict = Field(default_factory=dict)
+
+
+class ResourceInfo(BaseModel):
+    """A resource exposed by a live MCP server."""
+
+    uri: str
+    name: str | None = None
+    description: str | None = None
+
+
+class PromptInfo(BaseModel):
+    """A prompt template exposed by a live MCP server."""
+
+    name: str
+    description: str | None = None
+
+
+class ServerEnumeration(BaseModel):
+    """Live enumeration results from connecting to an MCP server.
+
+    Populated by :func:`~mcp_audit.mcp_client.connect_and_enumerate`.
+    When ``error`` is set, the other fields are empty.
+    """
+
+    tools: list[ToolInfo] = Field(default_factory=list)
+    resources: list[ResourceInfo] = Field(default_factory=list)
+    prompts: list[PromptInfo] = Field(default_factory=list)
+    error: str | None = None
+
+
 class Finding(BaseModel):
     """A security finding from an analyzer."""
 
@@ -71,7 +107,7 @@ class ScanResult(BaseModel):
     """Complete results from a scan run."""
 
     version: str = "0.1.0"
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     clients_scanned: int = 0
     servers_found: int = 0
     findings: list[Finding] = Field(default_factory=list)
@@ -93,7 +129,10 @@ class ScanResult(BaseModel):
     def max_severity(self) -> Severity | None:
         if not self.findings:
             return None
-        order = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]
+        order = [
+            Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM,
+            Severity.LOW, Severity.INFO,
+        ]
         for sev in order:
             if any(f.severity == sev for f in self.findings):
                 return sev
