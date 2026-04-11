@@ -1,0 +1,57 @@
+# Known legitimate MCP server npm packages used for typosquatting detection.
+#
+# Source: https://github.com/modelcontextprotocol/servers (official registry)
+# Each entry is the exact npm package name as published.
+# Update this list as the ecosystem grows.
+#
+# Research basis: typosquatting via minimal edit-distance substitutions is the
+# dominant supply-chain attack vector for scoped npm packages.
+# Ref: "Typosquatting in Package Managers" — Vu et al., NDSS 2021
+#   https://www.ndss-symposium.org/ndss-paper/detecting-node-js-package-name-squatting/
+
+npm:
+  # ── Official @modelcontextprotocol servers ──────────────────────────────────
+  - "@modelcontextprotocol/server-filesystem"
+  - "@modelcontextprotocol/server-github"
+  - "@modelcontextprotocol/server-gitlab"
+  - "@modelcontextprotocol/server-google-drive"
+  - "@modelcontextprotocol/server-google-maps"
+  - "@modelcontextprotocol/server-memory"
+  - "@modelcontextprotocol/server-postgres"
+  - "@modelcontextprotocol/server-puppeteer"
+  - "@modelcontextprotocol/server-sequential-thinking"
+  - "@modelcontextprotocol/server-slack"
+  - "@modelcontextprotocol/server-sqlite"
+  - "@modelcontextprotocol/server-brave-search"
+  - "@modelcontextprotocol/server-fetch"
+  - "@modelcontextprotocol/server-everything"
+  - "@modelcontextprotocol/server-aws-kb-retrieval"
+  - "@modelcontextprotocol/server-sentry"
+  - "@modelcontextprotocol/server-redis"
+  - "@modelcontextprotocol/sdk"
+  - "@modelcontextprotocol/inspector"
+
+  # ── High-profile community servers ──────────────────────────────────────────
+  - "@upstash/context7-mcp"
+  - "@notionhq/notion-mcp-server"
+  - "@anthropic-ai/mcp-server-puppeteer"
+  - "mcp-server-notion"
+  - "mcp-server-time"
+  - "mcp-server-git"
+  - "mcp-server-linear"
+  - "mcp-server-jira"
+  - "mcp-server-stripe"
+  - "mcp-server-zendesk"
+  - "mcp-server-datadog"
+  - "mcp-server-newrelic"
+  - "mcp-server-pagerduty"
+  - "mcp-server-heroku"
+  - "mcp-server-vercel"
+  - "mcp-server-supabase"
+  - "mcp-server-firebase"
+  - "mcp-server-aws"
+  - "mcp-server-azure"
+  - "mcp-server-gcp"
+  - "mcp-server-kubernetes"
+  - "mcp-server-docker"
+  - "mcp-server-terraform"

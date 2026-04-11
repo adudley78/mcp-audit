@@ -68,6 +68,12 @@ mcp-audit scan --path ~/.cursor/mcp.json
   run: mcp-audit scan --ci --severity-threshold HIGH
 ```
 
+## Where the detection logic comes from
+
+All detection patterns were built from scratch based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration demos, the OWASP Agentic Top 10, MITRE ATLAS agent-specific techniques, and academic papers on MCP prompt injection. API key patterns follow publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, and others.
+
+See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
+
 ## Development
 
 ```bash

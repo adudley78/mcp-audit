@@ -70,8 +70,23 @@ src/mcp_audit/
 - Type hints on ALL function signatures
 - Docstrings on all public functions and classes
 
+### When to flag for Opus review
+
+If a task involves designing a new module interface, changing how analyzers
+interact with each other, restructuring data models, or you find yourself
+uncertain between two fundamentally different approaches — stop and say:
+"⚡ Architecture decision — consider switching to Opus for this."
+Do not attempt to resolve architectural ambiguity by guessing. Flag it.
+
 ## Current phase
 
 Phase 1 (Weeks 1-2): Foundation. Building discovery, config parsing, and basic
 poisoning detection. Goal is a working `mcp-audit scan` command that finds local
 MCP configs and flags suspicious tool descriptions.
+
+## Provenance
+
+All detection patterns are original implementations based on published security
+research. No code was copied from existing scanners. Full source attribution is
+documented in PROVENANCE.md — read it before adding new detection patterns.
+Every new pattern must cite its research source.
