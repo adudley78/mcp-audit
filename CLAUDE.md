@@ -80,10 +80,14 @@ Do not attempt to resolve architectural ambiguity by guessing. Flag it.
 
 ## Current phase
 
-Phase 1, Week 1 — foundation complete. Discovery, config parsing, poisoning,
-credentials, transport, and supply-chain (typosquatting) analyzers are all
-shipped and tested. Next: transport hardening (e.g. stricter TLS validation,
-localhost-escape detection) and SARIF output formatter.
+Phase 1, Week 1 — foundation complete. Shipped:
+- Discovery, config parsing, poisoning, credentials, transport analyzers
+- Supply-chain analyzer: typosquatting detection via Levenshtein distance
+- Nucleus FlexConnect output formatter (JSON, all required fields mapped)
+- 94 tests passing, ruff clean
+
+Next: rug-pull detection (`rug_pull.py`), SARIF output formatter, and
+DEF CON Demo Labs submission (due 2026-05-01).
 
 ## Provenance
 
