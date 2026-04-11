@@ -80,14 +80,13 @@ Do not attempt to resolve architectural ambiguity by guessing. Flag it.
 
 ## Current phase
 
-Phase 1, Week 1 — foundation complete. Shipped:
-- Discovery, config parsing, poisoning, credentials, transport analyzers
-- Supply-chain analyzer: typosquatting detection via Levenshtein distance
-- Nucleus FlexConnect output formatter (JSON, all required fields mapped)
-- 94 tests passing, ruff clean
+Phase 2 (Weeks 3-6): Core scanner. Foundation complete ahead of schedule —
+5 analyzers shipped (poisoning, credentials, transport, supply-chain, rug-pull),
+4 output formats (terminal, JSON, SARIF, Nucleus FlexConnect), 204 tests passing.
 
-Next: rug-pull detection (`rug_pull.py`), SARIF output formatter, and
-DEF CON Demo Labs submission (due 2026-05-01).
+Currently building: MCP SDK integration for live server enumeration (`--connect` flag).
+
+Next after that: DEF CON Demo Labs submission (due 2026-05-01), CI mode hardening.
 
 ## Provenance
 
