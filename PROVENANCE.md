@@ -51,6 +51,8 @@ Client configuration paths are sourced from each client's public documentation:
 | VS Code | VS Code MCP configuration docs (note: uses `"servers"` root key, not `"mcpServers"`) |
 | Windsurf | Codeium MCP integration docs |
 | Claude Code | Anthropic Claude Code configuration docs |
+| GitHub Copilot CLI | GitHub Copilot CLI documentation |
+| Augment Code | Augment Code documentation |
 
 ## Architecture
 
@@ -70,7 +72,7 @@ Detection rules are mapped to these public standards where applicable:
 - **MITRE ATLAS** — Agent-specific attack techniques added in late 2025 (AI Agent Context Poisoning, Exfiltration via AI Agent Tool Invocation, Publish Poisoned AI Agent Tool) inform our detection categories.
 - **OWASP Agentic Top 10** — Risk categories (ASI01–ASI10) inform our analyzer scope and severity mapping.
 
-## Contributing detection patterns
+/ ## Contributing detection patterns
 
 If you want to add new detection patterns, please include in your PR:
 

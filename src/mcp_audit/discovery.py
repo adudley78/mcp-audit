@@ -74,6 +74,20 @@ def _get_client_specs() -> list[ClientSpec]:
         config_paths=[home / ".claude.json"],
     ))
 
+    # GitHub Copilot CLI
+    clients.append(ClientSpec(
+        name="copilot-cli",
+        root_key="mcpServers",
+        config_paths=[home / ".copilot" / "mcp-config.json"],
+    ))
+
+    # Augment Code — settings.json may contain non-MCP keys alongside mcpServers
+    clients.append(ClientSpec(
+        name="augment",
+        root_key="mcpServers",
+        config_paths=[home / ".augment" / "settings.json"],
+    ))
+
     return clients
 
 

@@ -89,7 +89,7 @@ What's built:
 - Live MCP server connection via --connect (optional, MCP SDK)
 - Scoped rug-pull state management (per-config-set hash isolation)
 - Demo environment with 27 findings across all analyzer categories
-- 329 tests passing, ruff clean
+- 335 tests passing, ruff clean
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic
