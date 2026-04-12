@@ -6,6 +6,14 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 
 `mcp-audit` scans your local MCP configurations across all major AI coding clients, connects to running servers to inspect what agents actually see, and flags security issues across individual servers and dangerous cross-server combinations.
 
+## Why vulnerability management matters for MCP security
+
+MCP security findings today exist in isolation. A developer runs a scanner, sees terminal output, and maybe fixes something. But enterprises deploying AI agents across hundreds of developers need the same workflow they use for every other vulnerability class: ingest findings into a centralized platform, correlate with asset context, deduplicate across scans, assign ownership, track remediation, and report progress.
+
+mcp-audit's `--format nucleus` output maps findings directly to the Nucleus Security FlexConnect schema — the same ingestion pipeline that normalizes data from Qualys, Tenable, CrowdStrike, and 200+ other security tools. This means MCP server vulnerabilities appear alongside infrastructure, cloud, and application vulnerabilities in a single prioritized view, with the same automation, SLA tracking, and reporting that security teams already use.
+
+No other MCP scanner integrates with enterprise vulnerability management. Most output to terminal or JSON and stop there. The gap between "developer sees a finding" and "organization tracks and remediates a finding" is where MCP security currently breaks down — and it's exactly the gap that a platform with unified asset context, risk scoring, and remediation workflows is built to close.
+
 ## Features
 
 - 🔍 **Auto-discovers** MCP configs across 6 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code user-level, Claude Code project-level)
