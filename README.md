@@ -157,6 +157,10 @@ uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
 
+## Known limitations
+
+This tool is in early development. See [GAPS.md](GAPS.md) for known detection gaps, untested areas, and planned improvements.
+
 ## License
 
 License pending. This software is not yet licensed for redistribution.

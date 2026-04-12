@@ -110,3 +110,4 @@ research. No code was copied from existing scanners. Full source attribution is
 documented in PROVENANCE.md — read it before adding new detection patterns.
 Every new pattern must cite its research source.
 The project now has 6 analyzers with patterns sourced from the research listed in PROVENANCE.md. Update PROVENANCE.md when adding new detection patterns or analyzers.
+See GAPS.md for known detection quality limitations, severity calibration issues, and untested areas. Consult before claiming detection completeness or accuracy.
