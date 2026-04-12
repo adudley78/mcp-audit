@@ -9,6 +9,7 @@ imports inside :func:`~mcp_audit.mcp_client._enumerate` fire.
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ import pytest
 
 from mcp_audit.mcp_client import (
     MCP_NOT_INSTALLED,
+    SAFE_ENV_VARS,
     _collect,
     build_runtime_server_config,
     connect_and_enumerate,
@@ -397,6 +399,45 @@ class TestConnectAndEnumerateStdio:
             or (call_kwargs.args[2] if call_kwargs.args else {})
         )
         assert "API_KEY" in env_passed
+
+    @pytest.mark.asyncio
+    async def test_stdio_env_only_contains_allowlisted_and_server_vars(self) -> None:
+        """V-01: subprocess env must not leak the user's full environment."""
+        mock_mcp, mock_stdio, mock_sse = _mock_sdk()
+        server = _stdio_server(env={"MY_SERVER_KEY": "val123"})
+
+        fake_environ = {
+            "PATH": "/usr/bin",
+            "HOME": "/home/user",
+            "AWS_SECRET_ACCESS_KEY": "wJalrXUtnFEMI/K7MDENG/bPxRfi",
+            "GITHUB_TOKEN": "ghp_somethingsecret",
+            "RANDOM_VAR": "should_not_appear",
+        }
+        with (
+            patch.dict(os.environ, fake_environ, clear=True),
+            patch.dict(sys.modules, _modules(mock_mcp, mock_stdio, mock_sse)),
+        ):
+            await connect_and_enumerate(server)
+
+        call_kwargs = mock_stdio.StdioServerParameters.call_args
+        env_passed: dict = (
+            call_kwargs.kwargs.get("env")
+            or (call_kwargs.args[2] if call_kwargs.args else {})
+        )
+
+        # Server-specific vars are present
+        assert env_passed["MY_SERVER_KEY"] == "val123"
+        # Allowlisted host vars are present
+        assert env_passed["PATH"] == "/usr/bin"
+        assert env_passed["HOME"] == "/home/user"
+        # Non-allowlisted host vars must NOT be present
+        assert "AWS_SECRET_ACCESS_KEY" not in env_passed
+        assert "GITHUB_TOKEN" not in env_passed
+        assert "RANDOM_VAR" not in env_passed
+        # Every host-originated key must be in the allowlist
+        for key in env_passed:
+            if key != "MY_SERVER_KEY":
+                assert key in SAFE_ENV_VARS, f"{key} leaked into subprocess env"
 
     @pytest.mark.asyncio
     async def test_stdio_no_command_returns_error(self) -> None:

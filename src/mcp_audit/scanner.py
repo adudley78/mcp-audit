@@ -14,7 +14,35 @@ from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
-from mcp_audit.models import ScanResult, ServerConfig
+from mcp_audit.models import Finding, ScanResult, ServerConfig, Severity
+
+
+def _analyzer_crash_finding(
+    analyzer_name: str, server: ServerConfig, exc: Exception
+) -> Finding:
+    """Build a HIGH-severity finding when an analyzer throws an exception."""
+    return Finding(
+        id="SCAN-ERR",
+        severity=Severity.HIGH,
+        analyzer="scanner",
+        client=server.client,
+        server=server.name,
+        title=(
+            f"Analyzer '{analyzer_name}' crashed on server "
+            f"'{server.name}' — manual review required"
+        ),
+        description=(
+            f"The {analyzer_name} analyzer raised an unexpected exception. "
+            "Its findings for this server were not produced. A malicious "
+            "config may be crafted to trigger this failure."
+        ),
+        evidence=f"{type(exc).__name__}: {exc}",
+        remediation=(
+            "Manually inspect this server configuration. Report this error "
+            "to the mcp-audit maintainers if it persists."
+        ),
+        finding_path=str(server.config_path),
+    )
 
 
 def get_default_analyzers() -> list[BaseAnalyzer]:
@@ -38,6 +66,7 @@ async def run_scan_async(
     connect: bool = False,
     state_path: Path | None = None,
     skip_rug_pull: bool = False,
+    offline: bool = False,
 ) -> ScanResult:
     """Async scan entrypoint with optional live server enumeration.
 
@@ -58,10 +87,17 @@ async def run_scan_async(
         connect: When ``True``, attempt live MCP protocol connections.
         state_path: Override the rug-pull state file location (useful in tests).
         skip_rug_pull: Skip rug-pull analysis entirely.  Used by ``pin``/``diff``.
+        offline: When ``True``, forbid all network calls.
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
+
+    Raises:
+        ValueError: If *connect* and *offline* are both ``True``.
     """
+    if offline and connect:
+        raise ValueError("Cannot use --connect with --offline")
+
     if analyzers is None:
         analyzers = get_default_analyzers()
 
@@ -91,8 +127,8 @@ async def run_scan_async(
                     finding.finding_path = str(server.config_path)
                 result.findings.extend(findings)
             except Exception as e:  # noqa: BLE001
-                result.errors.append(
-                    f"{analyzer.name} error on {server.name}: {e}"
+                result.findings.append(
+                    _analyzer_crash_finding(analyzer.name, server, e)
                 )
 
     # ── Live enumeration (opt-in) ──────────────────────────────────────────────
@@ -124,8 +160,8 @@ async def run_scan_async(
                     finding.description = f"[runtime] {finding.description}"
                 result.findings.extend(runtime_findings)
             except Exception as e:  # noqa: BLE001
-                result.errors.append(
-                    f"poisoning (runtime) error on {server.name}: {e}"
+                result.findings.append(
+                    _analyzer_crash_finding("poisoning (runtime)", server, e)
                 )
 
     # ── Rug-pull analysis (cross-server, stateful) ─────────────────────────────
@@ -156,6 +192,7 @@ def run_scan(
     connect: bool = False,
     state_path: Path | None = None,
     skip_rug_pull: bool = False,
+    offline: bool = False,
 ) -> ScanResult:
     """Run a complete scan: discover configs, parse them, analyze, return results.
 
@@ -174,10 +211,17 @@ def run_scan(
         state_path: Override the rug-pull state file location.  Useful in tests.
         skip_rug_pull: When ``True``, skip rug-pull analysis entirely.  Used by
             the ``pin`` and ``diff`` CLI commands which manage state directly.
+        offline: When ``True``, forbid all network calls.
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
+
+    Raises:
+        ValueError: If *connect* and *offline* are both ``True``.
     """
+    if offline and connect:
+        raise ValueError("Cannot use --connect with --offline")
+
     if connect:
         return asyncio.run(
             run_scan_async(
@@ -186,6 +230,7 @@ def run_scan(
                 connect=True,
                 state_path=state_path,
                 skip_rug_pull=skip_rug_pull,
+                offline=offline,
             )
         )
 
@@ -216,8 +261,8 @@ def run_scan(
                     finding.finding_path = str(server.config_path)
                 result.findings.extend(findings)
             except Exception as e:  # noqa: BLE001
-                result.errors.append(
-                    f"{analyzer.name} error on {server.name}: {e}"
+                result.findings.append(
+                    _analyzer_crash_finding(analyzer.name, server, e)
                 )
 
     if not skip_rug_pull:

@@ -108,7 +108,7 @@ def scan(
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
-    result = run_scan(extra_paths=extra_paths, connect=connect)
+    result = run_scan(extra_paths=extra_paths, connect=connect, offline=offline)
 
     # Filter by severity threshold
     try:

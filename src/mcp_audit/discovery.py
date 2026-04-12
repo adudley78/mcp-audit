@@ -114,7 +114,11 @@ def discover_configs(extra_paths: list[Path] | None = None) -> list[DiscoveredCo
     # Check known client locations
     for spec in _get_client_specs():
         for config_path in spec.config_paths:
-            if config_path.exists() and config_path.is_file():
+            if (
+                config_path.exists()
+                and config_path.is_file()
+                and not config_path.is_symlink()
+            ):
                 discovered.append(DiscoveredConfig(
                     client_name=spec.name,
                     root_key=spec.root_key,
@@ -124,7 +128,7 @@ def discover_configs(extra_paths: list[Path] | None = None) -> list[DiscoveredCo
     # Check for VS Code / Claude Code project-level configs in CWD
     cwd = Path.cwd()
     vscode_mcp = cwd / ".vscode" / "mcp.json"
-    if vscode_mcp.exists():
+    if vscode_mcp.exists() and not vscode_mcp.is_symlink():
         discovered.append(DiscoveredConfig(
             client_name="vscode",
             root_key="servers",
@@ -132,7 +136,7 @@ def discover_configs(extra_paths: list[Path] | None = None) -> list[DiscoveredCo
         ))
 
     claude_code_project = cwd / ".mcp.json"
-    if claude_code_project.exists():
+    if claude_code_project.exists() and not claude_code_project.is_symlink():
         discovered.append(DiscoveredConfig(
             client_name="claude-code-project",
             root_key="mcpServers",
@@ -142,7 +146,10 @@ def discover_configs(extra_paths: list[Path] | None = None) -> list[DiscoveredCo
     # Check extra paths
     if extra_paths:
         for p in extra_paths:
-            resolved = Path(p).expanduser().resolve()
+            expanded = Path(p).expanduser()
+            if expanded.is_symlink():
+                continue
+            resolved = expanded.resolve()
             if resolved.is_file() and resolved.exists():
                 discovered.append(DiscoveredConfig(
                     client_name="custom",
@@ -154,7 +161,7 @@ def discover_configs(extra_paths: list[Path] | None = None) -> list[DiscoveredCo
                 # root-key detection (mcpServers vs servers) and silently
                 # returns [] for files that contain neither key.
                 for candidate in sorted(resolved.glob("*.json")):
-                    if candidate.is_file():
+                    if candidate.is_file() and not candidate.is_symlink():
                         discovered.append(DiscoveredConfig(
                             client_name="custom",
                             root_key="mcpServers",

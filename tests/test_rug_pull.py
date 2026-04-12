@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -448,6 +450,31 @@ def _discovered(path: str) -> DiscoveredConfig:
     return DiscoveredConfig(
         client_name="custom", root_key="mcpServers", path=Path(path)
     )
+
+
+class TestStateFilePermissions:
+    """V-05: state files must be created with restrictive permissions (0o600)."""
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX permissions only")
+    def test_state_file_has_restricted_permissions(self, tmp_path: Path) -> None:
+        state_path = tmp_path / "secure" / "state.json"
+        save_state({"version": 1, "servers": {}}, state_path)
+        mode = os.stat(state_path).st_mode & 0o777
+        assert mode == 0o600, f"Expected 0o600, got {oct(mode)}"
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX permissions only")
+    def test_state_dir_has_restricted_permissions(self, tmp_path: Path) -> None:
+        state_path = tmp_path / "secure_dir" / "state.json"
+        save_state({"version": 1, "servers": {}}, state_path)
+        dir_mode = os.stat(state_path.parent).st_mode & 0o777
+        assert dir_mode == 0o700, f"Expected 0o700, got {oct(dir_mode)}"
+
+    def test_round_trip_still_works_with_permissions(self, tmp_path: Path) -> None:
+        state_path = tmp_path / "perm_test" / "state.json"
+        original = {"version": 1, "servers": {"k": {"hashes": {"raw": "abc"}}}}
+        save_state(original, state_path)
+        loaded = load_state(state_path)
+        assert loaded == original
 
 
 class TestDeriveStatePath:

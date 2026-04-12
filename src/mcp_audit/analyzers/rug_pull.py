@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -108,12 +109,18 @@ def load_state(state_path: Path) -> dict:
 def save_state(state: dict, state_path: Path) -> None:
     """Persist the state dict to disk, creating parent directories as needed.
 
+    The directory is created with mode 0o700 and the file with mode 0o600
+    to prevent other users on the system from reading config path metadata.
+
     Args:
         state: State dict to serialise.
         state_path: Destination path.
     """
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    state_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    content = json.dumps(state, indent=2).encode("utf-8")
+    fd = os.open(str(state_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(content)
 
 
 def build_state_entry(server: ServerConfig, first_seen: str | None = None) -> dict:

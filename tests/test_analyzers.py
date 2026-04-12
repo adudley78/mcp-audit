@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
+from mcp_audit.analyzers.credentials import CredentialsAnalyzer
+from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
+from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import DiscoveredConfig
-from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
-from mcp_audit.analyzers.credentials import CredentialsAnalyzer
-from mcp_audit.analyzers.transport import TransportAnalyzer
-from mcp_audit.models import Severity, TransportType
+from mcp_audit.models import ServerConfig, Severity, TransportType
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -115,6 +115,46 @@ class TestCredentialsAnalyzer:
         fs_server = next(s for s in servers if s.name == "filesystem")
         findings = self.analyzer.analyze(fs_server)
         assert len(findings) == 0
+
+
+class TestCredentialEvidenceNoSecretLeakage:
+    """V-02: evidence strings must never contain any portion of the actual secret."""
+
+    def setup_method(self):
+        self.analyzer = CredentialsAnalyzer()
+
+    def test_env_evidence_contains_no_secret_value(self):
+        secret = "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"  # noqa: S105
+        server = ServerConfig(
+            name="test",
+            client="test",
+            config_path=Path("/tmp/test.json"),  # noqa: S108
+            transport=TransportType.STDIO,
+            command="node",
+            env={"GITHUB_TOKEN": secret},
+        )
+        findings = self.analyzer.analyze(server)
+        assert len(findings) >= 1
+        for f in findings:
+            assert secret not in f.evidence
+            assert secret[:8] not in f.evidence
+            assert secret[-4:] not in f.evidence
+
+    def test_args_evidence_contains_no_secret_value(self):
+        secret = "sk-ant-api03-realAnthropicKeyHere1234567890abcdef"  # noqa: S105
+        server = ServerConfig(
+            name="test",
+            client="test",
+            config_path=Path("/tmp/test.json"),  # noqa: S108
+            transport=TransportType.STDIO,
+            command="node",
+            args=["--token", secret],
+        )
+        findings = self.analyzer.analyze(server)
+        assert len(findings) >= 1
+        for f in findings:
+            assert secret not in f.evidence
+            assert secret[:12] not in f.evidence
 
 
 class TestTransportAnalyzer:

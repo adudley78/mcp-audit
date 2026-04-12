@@ -47,7 +47,7 @@ class CredentialsAnalyzer(BaseAnalyzer):
                         server=server.name,
                         title=f"{provider} credential in environment",
                         description=f"{secret_name} found in env var '{key}'",
-                        evidence=f"env.{key} = {value[:8]}...{value[-4:]}",
+                        evidence=f"env.{key} matches {secret_name} pattern",
                         remediation="Use a credential manager, keychain, or vault reference instead of inline secrets",
                         cwe="CWE-798",
                     ))
@@ -66,7 +66,7 @@ class CredentialsAnalyzer(BaseAnalyzer):
                     server=server.name,
                     title=f"{provider} credential in command arguments",
                     description=f"{secret_name} found in server args",
-                    evidence=f"args contain: ...{match.group()[:12]}...",
+                    evidence=f"args match {secret_name} pattern",
                     remediation="Pass secrets via environment variables or credential manager, not command args",
                     cwe="CWE-798",
                 ))

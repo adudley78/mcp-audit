@@ -34,6 +34,21 @@ from mcp_audit.models import (
     TransportType,
 )
 
+# Only these host environment variables are forwarded to MCP server
+# subprocesses.  Everything else (AWS keys, tokens, etc.) is withheld
+# to prevent leakage to potentially untrusted servers.
+SAFE_ENV_VARS: frozenset[str] = frozenset({
+    "PATH",
+    "HOME",
+    "LANG",
+    "TERM",
+    "SHELL",
+    "USER",
+    "TMPDIR",
+    "NODE_PATH",
+    "NODE_OPTIONS",
+})
+
 # Shown to the user when the optional mcp package is absent.
 MCP_NOT_INSTALLED = (
     "MCP SDK not installed. "
@@ -170,8 +185,10 @@ async def _enumerate_stdio(
     if not server.command:
         return ServerEnumeration(error="Stdio server has no command configured")
 
-    # Merge system env with server-specific env vars (server values take precedence).
-    env = {**os.environ, **server.env}
+    # Build a minimal env from the allowlist, then overlay server-specific vars.
+    # This prevents leaking the user's full environment to untrusted servers.
+    env = {k: v for k, v in os.environ.items() if k in SAFE_ENV_VARS}
+    env.update(server.env)
     params = params_cls(command=server.command, args=server.args, env=env)
 
     async with (
