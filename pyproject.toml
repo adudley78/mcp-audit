@@ -7,7 +7,8 @@ name = "mcp-audit"
 version = "0.1.0"
 description = "Privacy-first security scanner for MCP server configurations"
 readme = "README.md"
-license = "Apache-2.0"
+# License TBD — evaluating open source vs commercial
+license = "LicenseRef-Proprietary"
 requires-python = ">=3.11"
 authors = [
     { name = "Your Name", email = "you@example.com" },

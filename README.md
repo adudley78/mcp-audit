@@ -159,4 +159,4 @@ uv run bandit -r src/                # Security audit of the scanner itself
 
 ## License
 
-Apache 2.0
+License pending. This software is not yet licensed for redistribution.
