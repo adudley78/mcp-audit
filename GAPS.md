@@ -46,6 +46,36 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 **Linux not tested.** Same as Windows — paths are defined but not validated on actual Linux systems.
 
+## Internal security findings
+
+Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18bbf66`. The medium and low findings below are tracked for future hardening — normal for a prototype.
+
+### Medium
+
+**V-07: Poisoning detection bypassed by Unicode homoglyphs.** All poisoning regex patterns match ASCII only. An attacker can use visually identical Unicode characters (Cyrillic 'а' for Latin 'a', etc.) in tool descriptions to bypass detection while the LLM still interprets the instruction. Fix: normalize text to ASCII via `unicodedata.normalize('NFKD', ...)` before pattern matching. Add a dedicated homoglyph-presence pattern. CWE-116.
+
+**V-08: Poisoning detection bypassed by nesting depth > 10.** `_extract_text_fields` in `poisoning.py` stops recursing at depth 10. A malicious config can nest poisoned text at depth 11+ to evade extraction entirely. Fix: raise the limit significantly or remove it with a stack-depth guard.
+
+**V-09: Transport analyzer misses `0.0.0.0` as insecure binding.** `0.0.0.0` binds to all interfaces — worse than a remote endpoint — but is not flagged. IPv6 equivalents `[::]` and `[0:0:0:0:0:0:0:0]` are also unchecked. Fix: add these to the insecure-binding check, possibly as HIGH.
+
+**V-10: Privilege escalation check is trivially bypassable.** Only catches `sudo`, `doas`, and `/usr/sbin` prefix. Misses `pkexec`, `su`, `run0`, absolute paths to sudo (`/usr/bin/sudo`), and `sudo` appearing in args rather than command. Fix: expand the set and check `args[0]`.
+
+**V-11: Supply chain analyzer only covers npm; misses `yarn dlx`.** The `_NPX_LIKE` set is `{"npx", "bunx", "pnpx"}` — misses `yarn dlx`. No detection for Python-based MCP servers launched via `uvx` or `pipx`. Fix: add yarn support and consider a parallel PyPI known-packages list.
+
+**V-12: Unused `httpx` runtime dependency expands attack surface.** `httpx` is declared in `pyproject.toml` dependencies but imported nowhere in `src/`. Any CVE in httpx or its transitive deps is carried for zero benefit. Fix: remove from `dependencies` or move to an optional group for future OSV lookups.
+
+### Low
+
+**V-13: Version string hardcoded in 4 locations.** `"0.1.0"` appears in `pyproject.toml`, `models.py`, `cli.py`, `terminal.py`, and `sarif.py`. These will drift. Fix: use `importlib.metadata.version("mcp-audit")` or a single `__version__` constant.
+
+**V-14: License metadata contradiction.** `pyproject.toml` declares `LicenseRef-Proprietary` but the classifiers list `Apache Software License`. PyPI will reject or misclassify. Fix: align before publishing.
+
+**V-15: Placeholder URLs in SARIF and pyproject.toml.** `yourusername` placeholder URLs appear in `sarif.py` and `pyproject.toml`. If SARIF is uploaded to GitHub, broken links appear in the Security tab. Fix: replace before release.
+
+**V-16: `_home()` inconsistency in discovery.py.** `_home()` wraps `Path.home()` for test mocking, but `_get_client_specs()` calls `Path.home()` directly on one line, defeating the indirection. Fix: use `_home()` consistently.
+
+**V-17: Credential regex overlap and gaps.** The OpenAI pattern `sk-[A-Za-z0-9]{20,}` also matches Anthropic keys (`sk-ant-*`), causing double detection. No coverage for Google service account JSON, Azure SAS tokens, DigitalOcean tokens, Vercel tokens, or PEM-encoded keys. Generic secret pattern requires quotes around values, missing unquoted secrets. Fix: refine patterns and expand coverage incrementally.
+
 ## Missing capabilities (not started)
 
 - **GitHub Actions CI workflow** — no automated testing on push/PR
