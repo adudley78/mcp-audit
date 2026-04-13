@@ -76,10 +76,16 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **V-17: Credential regex overlap and gaps.** The OpenAI pattern `sk-[A-Za-z0-9]{20,}` also matches Anthropic keys (`sk-ant-*`), causing double detection. No coverage for Google service account JSON, Azure SAS tokens, DigitalOcean tokens, Vercel tokens, or PEM-encoded keys. Generic secret pattern requires quotes around values, missing unquoted secrets. Fix: refine patterns and expand coverage incrementally.
 
+## Binary distribution
+
+**Binary distribution is architecture-specific.** The PyInstaller build pipeline produces a single-file binary for the platform it is built on. The current build produces `mcp-audit-darwin-x86_64` only. Apple Silicon (arm64) Macs require Rosetta 2 or a native arm64 build; Linux and Windows users need their own platform builds. GitHub Actions matrix builds across `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` are needed to produce the full platform matrix automatically on each release.
+
+**Dashboard browser compatibility untested.** The D3 v7 force-directed graph dashboard has been developed and tested in Chrome and Safari on macOS only. Behavior in Firefox, Edge, mobile browsers, and WebView-based environments (Electron, VS Code webview) is unknown. CSS custom properties and D3's SVG rendering should be broadly compatible, but this has not been verified.
+
 ## Missing capabilities (not started)
 
-- **GitHub Actions CI workflow** — no automated testing on push/PR
-- **pip packaging and TestPyPI dry run** — installable from source only
+- **GitHub Actions CI workflow** — no automated testing on push/PR; no multi-arch binary release matrix
+- **pip packaging and TestPyPI dry run** — installable from source only (PyInstaller binary available as alternative)
 - **Documentation beyond README** — no usage guide, rule-writing guide, or Nucleus integration guide
 - **Telemetry or usage analytics** — no way to measure adoption (intentional for privacy-first positioning, but limits success measurement)
 - **Auto-update of known server lists** — the known npm packages YAML and known server capability mappings are static and require manual updates as the MCP ecosystem grows

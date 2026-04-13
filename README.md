@@ -26,7 +26,9 @@ Tenable WAS has added MCP server detection plugins that scan server-side code fo
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
 - **Interactive attack graph dashboard** — `mcp-audit dashboard` opens a D3 force-directed graph in your browser with light/dark mode, click-to-highlight attack paths, and hitting set recommendations
 - **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions
-- **4 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus FlexConnect
+- **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus FlexConnect, self-contained HTML dashboard
+- **Continuous monitoring** — `mcp-audit watch` monitors config files in real-time and re-scans on any change
+- **Fleet deployment** — machine-tagged output with `--asset-prefix` for enterprise-wide aggregation
 - **Fully offline by default** — no data leaves your machine
 
 ## Install
@@ -53,6 +55,7 @@ mcp-audit dashboard --path demo/configs               # Dashboard against demo d
 mcp-audit discover                                    # List detected clients and servers
 mcp-audit pin                                         # Lock current state as trusted baseline
 mcp-audit diff                                        # Show changes since last pin
+mcp-audit watch                                       # Monitor configs and re-scan on changes
 mcp-audit scan --ci --severity-threshold HIGH         # CI mode
 ```
 
@@ -176,7 +179,7 @@ State is stored in `~/.mcp-audit/state.json`.
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-446 tests validate detection accuracy and guard against regressions.
+509 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -184,11 +187,13 @@ See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framew
 
 | Command | Key flags | Description |
 |---------|-----------|-------------|
-| `mcp-audit scan` | `--connect`, `--format`, `--output`, `--ci`, `--severity-threshold` | Run all analyzers and report findings |
+| `mcp-audit scan` | `--connect`, `--format`, `--output`, `--ci`, `--severity-threshold`, `--asset-prefix` | Run all analyzers and report findings |
 | `mcp-audit dashboard` | `--path`, `--port`, `--connect`, `--no-open` | Generate and open the interactive attack graph dashboard |
+| `mcp-audit watch` | `--path`, `--format`, `--severity-threshold`, `--connect` | Monitor config files and re-scan on any change |
 | `mcp-audit discover` | — | List all detected MCP clients and their configured servers |
 | `mcp-audit pin` | — | Record current server state as a trusted baseline |
 | `mcp-audit diff` | — | Show configuration changes since the last `pin` |
+| `mcp-audit version` | — | Print version string |
 
 **`mcp-audit scan` flags**
 
@@ -200,13 +205,14 @@ See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framew
 | `--ci` | off | Exit 1 on any finding at or above threshold |
 | `--severity-threshold` | `LOW` | Minimum severity to report in CI mode |
 | `--path` | auto-detect | Directory to search for MCP configs |
+| `--asset-prefix` | hostname | Override machine identifier in Nucleus/SARIF output |
 
 **`mcp-audit dashboard` flags**
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--path` | auto-detect | Directory to search for MCP configs |
-| `--port` | `8787` | HTTP port for the local dashboard server |
+| `--port` | `8088` | HTTP port for the local dashboard server |
 | `--connect` | off | Include live-connection findings in the dashboard |
 | `--no-open` | off | Generate the report without opening a browser tab |
 
@@ -217,7 +223,7 @@ git clone https://github.com/yourusername/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 446 tests
+uv run pytest                        # Run all 509 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

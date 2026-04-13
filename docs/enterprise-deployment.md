@@ -48,6 +48,26 @@ Choose one installation method per your environment.
 curl -sSL https://yoursite.com/install.sh | sh
 ```
 
+### Option D — Standalone binary (no Python required)
+
+Download the pre-built binary for your platform from the GitHub Releases page:
+
+```bash
+# macOS (Apple Silicon)
+curl -sSL https://github.com/yourusername/mcp-audit/releases/latest/download/mcp-audit-darwin-arm64 \
+  -o /usr/local/bin/mcp-audit && chmod +x /usr/local/bin/mcp-audit
+
+# macOS (Intel)
+curl -sSL https://github.com/yourusername/mcp-audit/releases/latest/download/mcp-audit-darwin-x86_64 \
+  -o /usr/local/bin/mcp-audit && chmod +x /usr/local/bin/mcp-audit
+
+# Linux (x86_64)
+curl -sSL https://github.com/yourusername/mcp-audit/releases/latest/download/mcp-audit-linux-x86_64 \
+  -o /usr/local/bin/mcp-audit && chmod +x /usr/local/bin/mcp-audit
+```
+
+No Python installation required. The binary bundles the Python runtime and all dependencies.
+
 ### Option B — Python package (when published to PyPI)
 
 ```bash
@@ -124,7 +144,7 @@ curl -X POST \
   -H "Authorization: Bearer $NUCLEUS_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d @/tmp/mcp-audit-results.json \
-  "https://your-nucleus-instance.com/api/v1/flexconnect/import"
+  "https://your-nucleus-instance.com/api/v1/flexconnect/import"  # Verify this endpoint against your Nucleus instance API docs
 ```
 
 Wrap this in a shell script that runs immediately after `mcp-audit scan`.

@@ -27,31 +27,37 @@ src/mcp_audit/
 ├── scanner.py         # Orchestrator: discovery → parsing → analysis → output
 ├── discovery.py       # Finds MCP config files across all supported clients
 ├── config_parser.py   # Parses JSON configs, normalizes across client formats
-├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, Severity, AttackPath
+├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, Severity, AttackPath, MachineInfo
+├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch)
+├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect)
+├── _paths.py          # data_dir() — resolves data/ in both source and PyInstaller frozen modes
 ├── analyzers/
 │   ├── base.py        # BaseAnalyzer abstract class — all analyzers inherit this
 │   ├── poisoning.py   # Tool description poisoning detection (regex-based)
 │   ├── credentials.py # Secret/API key exposure in configs
 │   ├── transport.py   # Transport security (TLS, localhost binding, etc.)
-│   ├── supply_chain.py# Package provenance and known CVE checks
+│   ├── supply_chain.py# Package provenance and typosquatting detection
 │   ├── rug_pull.py    # Description change detection via hashing
+│   ├── toxic_flow.py  # Cross-server capability tagging and dangerous pair detection
 │   └── attack_paths.py# Multi-hop attack path detection and greedy hitting set algorithm
 ├── output/
 │   ├── terminal.py    # Rich-formatted console output (default)
-│   ├── json_out.py    # JSON formatter
 │   ├── sarif.py       # SARIF for GitHub Security integration
 │   ├── nucleus.py     # Nucleus FlexConnect formatter
 │   └── dashboard.py   # Self-contained HTML dashboard with embedded D3 v7 graph
 └── data/
-    ├── patterns.yaml       # Externalized detection regex patterns
-    ├── known_servers.yaml  # Hashes of known-good MCP server descriptions
-    └── d3.v7.min.js        # Bundled D3 v7 (embedded inline in dashboard HTML)
+    ├── known_npm_packages.yaml  # Known-legitimate npm MCP package names for typosquatting checks
+    └── d3.v7.min.js             # Bundled D3 v7 (embedded inline in dashboard HTML)
 ```
+
+Build and distribution scripts at project root:
+- `build.py` — PyInstaller build script; produces `dist/mcp-audit-{os}-{arch}` single-file binary
+- `scripts/install.sh` — curl-based end-user installer for GitHub Releases
 
 ## Key conventions
 
 - Every module has a corresponding test file in tests/ (e.g., test_discovery.py)
-- Detection patterns are externalized in data/patterns.yaml — NOT hardcoded in analyzers
+- Detection patterns are hardcoded in each analyzer (regex constants); supply-chain data is in data/known_npm_packages.yaml
 - All findings use the `Finding` Pydantic model from models.py
 - Analyzers inherit from `BaseAnalyzer` and implement an `analyze()` method
 - Output formatters inherit from `BaseFormatter` and implement a `format()` method
@@ -84,19 +90,23 @@ Do not attempt to resolve architectural ambiguity by guessing. Flag it.
 
 ## Current phase
 
-Prototype complete (April 11, 2026). Built in a single day.
+Prototype complete (April 11, 2026). Built in a single day; extended April 12–13.
 
 What's built:
 - 6 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow
 - Attack path engine with multi-hop detection and greedy hitting set algorithm
-- 4 output formats: terminal, JSON, SARIF, Nucleus FlexConnect
+- 5 output formats: terminal, JSON, SARIF, Nucleus FlexConnect, HTML dashboard
 - Interactive D3 attack graph dashboard with light/dark mode (`mcp-audit dashboard`)
+- `mcp-audit watch` command — continuous filesystem monitoring, re-scans on config change
+- Machine identification (MachineInfo) embedded in scan output; `--asset-prefix` flag for fleet deployment
+- PyInstaller binary builds — 16.6 MB standalone executable, no Python required
 - Live MCP server connection via --connect (optional, MCP SDK)
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
-- Demo environment producing 27 findings across all analyzer categories
-- 446 tests passing, ruff clean
+- Demo environment producing 27+ findings across all analyzer categories
+- 509 tests passing, ruff clean
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
+- 7 CLI commands: scan, discover, pin, diff, dashboard, watch, version
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic
@@ -105,8 +115,7 @@ What's next (non-code):
 
 What's next (code, after feedback):
 - Detection pattern tuning based on practitioner review
-- pip packaging for public release
-- GitHub Actions CI (test on macOS, Linux, Windows)
+- GitHub Actions CI (test on macOS, Linux, Windows; multi-arch binary matrix)
 - Documentation (usage guide, rule-writing guide, Nucleus integration guide)
 
 ## Provenance
