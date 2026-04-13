@@ -14,9 +14,9 @@ Usage (programmatic):
 
 from __future__ import annotations
 
-import importlib.resources
 import json
 
+from mcp_audit._paths import data_dir
 from mcp_audit.models import ScanResult
 
 # ── D3 loader ─────────────────────────────────────────────────────────────────
@@ -24,8 +24,7 @@ from mcp_audit.models import ScanResult
 
 def _load_d3() -> str:
     """Return the bundled D3.js v7 minified source."""
-    pkg = importlib.resources.files("mcp_audit") / "data" / "d3.v7.min.js"
-    return pkg.read_text(encoding="utf-8")
+    return (data_dir() / "d3.v7.min.js").read_text(encoding="utf-8")
 
 
 # ── Scan data builder ─────────────────────────────────────────────────────────

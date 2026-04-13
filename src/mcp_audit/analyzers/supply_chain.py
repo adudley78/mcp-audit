@@ -9,14 +9,12 @@ Ref: "Typosquatting in Package Managers" — Vu et al., NDSS 2021
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
 
 import yaml
 
+from mcp_audit._paths import data_dir
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.models import Finding, ServerConfig, Severity
-
-_DATA_FILE = Path(__file__).parent.parent / "data" / "known_npm_packages.yaml"
 
 # Commands that download and execute npm packages at runtime.
 _NPX_LIKE: frozenset[str] = frozenset({"npx", "bunx", "pnpx"})
@@ -28,7 +26,7 @@ _FLAGS_WITH_VALUE: frozenset[str] = frozenset({"-p", "--package", "--call", "-c"
 @lru_cache(maxsize=1)
 def _load_known_packages() -> frozenset[str]:
     """Load and cache known-legitimate npm package names from the data file."""
-    with _DATA_FILE.open() as fh:
+    with (data_dir() / "known_npm_packages.yaml").open() as fh:
         data = yaml.safe_load(fh)
     return frozenset(pkg.lower() for pkg in data.get("npm", []))
 
