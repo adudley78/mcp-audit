@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
@@ -117,6 +118,7 @@ async def run_scan_async(
             result.errors.append(str(e))
 
     result.servers_found = len(all_servers)
+    result.servers = all_servers
 
     # ── Per-server static analysis ─────────────────────────────────────────────
     for server in all_servers:
@@ -182,6 +184,13 @@ async def run_scan_async(
         result.findings.extend(ToxicFlowAnalyzer().analyze_all(all_servers))
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"toxic_flow error: {e}")
+
+    # ── Attack path summarization ──────────────────────────────────────────────
+    try:
+        toxic_findings = [f for f in result.findings if f.analyzer == "toxic_flow"]
+        result.attack_path_summary = summarize_attack_paths(all_servers, toxic_findings)
+    except Exception as e:  # noqa: BLE001
+        result.errors.append(f"attack_paths error: {e}")
 
     return result
 
@@ -252,6 +261,7 @@ def run_scan(
             result.errors.append(str(e))
 
     result.servers_found = len(all_servers)
+    result.servers = all_servers
 
     for server in all_servers:
         for analyzer in analyzers:
@@ -279,5 +289,12 @@ def run_scan(
         result.findings.extend(ToxicFlowAnalyzer().analyze_all(all_servers))
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"toxic_flow error: {e}")
+
+    # ── Attack path summarization ──────────────────────────────────────────────
+    try:
+        toxic_findings = [f for f in result.findings if f.analyzer == "toxic_flow"]
+        result.attack_path_summary = summarize_attack_paths(all_servers, toxic_findings)
+    except Exception as e:  # noqa: BLE001
+        result.errors.append(f"attack_paths error: {e}")
 
     return result

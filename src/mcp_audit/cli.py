@@ -21,6 +21,7 @@ from mcp_audit.analyzers.rug_pull import (
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
 from mcp_audit.models import Severity
+from mcp_audit.output.dashboard import generate_html
 from mcp_audit.output.nucleus import format_nucleus
 from mcp_audit.output.sarif import format_sarif
 from mcp_audit.output.terminal import print_results
@@ -336,6 +337,91 @@ def diff(
         f"{len(removed_rows)} removed\n"
     )
     raise typer.Exit(1)
+
+
+# ── dashboard ─────────────────────────────────────────────────────────────────
+
+
+@app.command()
+def dashboard(
+    path: Path | None = typer.Option(  # noqa: B008
+        None, "--path", "-p", help="Scan a specific config file or directory"
+    ),
+    port: int = typer.Option(  # noqa: B008
+        8088, "--port", help="Local port for the dashboard server"
+    ),
+    connect: bool = typer.Option(  # noqa: B008
+        False,
+        "--connect",
+        help="Connect to live MCP servers during scan",
+    ),
+    no_open: bool = typer.Option(  # noqa: B008
+        False, "--no-open", help="Don't auto-open browser"
+    ),
+) -> None:
+    """Run a full scan and open an interactive attack-graph dashboard."""
+    import http.server  # noqa: PLC0415
+    import tempfile  # noqa: PLC0415
+    import threading  # noqa: PLC0415
+    import webbrowser  # noqa: PLC0415
+
+    extra_paths = [path] if path else None
+
+    console.print("\n[cyan]Running scan…[/cyan]")
+    result = run_scan(extra_paths=extra_paths, connect=connect)
+
+    console.print("[cyan]Generating dashboard…[/cyan]")
+    html = generate_html(result)
+    html_bytes = html.encode("utf-8")
+
+    # Write a copy the user can open directly later.
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix="-mcp-audit-dashboard.html",
+        delete=False,
+        encoding="utf-8",
+    ) as fh:
+        fh.write(html)
+        html_path = Path(fh.name)
+
+    # In-memory HTTP handler — no I/O on every request.
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(html_bytes)))
+            self.end_headers()
+            self.wfile.write(html_bytes)
+
+        def log_message(self, *_args: object) -> None:  # type: ignore[override]
+            pass  # suppress default request logging
+
+    url = f"http://localhost:{port}"
+    try:
+        srv = http.server.HTTPServer(("127.0.0.1", port), _Handler)
+    except OSError as exc:
+        console.print(
+            f"[red]Cannot bind port {port}: {exc}.[/red]  "
+            "Try [bold]--port[/bold] with a different value."
+        )
+        raise typer.Exit(2)  # noqa: B904
+
+    console.print(
+        f"\n[bold cyan]Dashboard running at {url}[/bold cyan] — press Ctrl+C to stop"
+    )
+    console.print(f"[dim]HTML saved to: {html_path}[/dim]\n")
+
+    if not no_open:
+        threading.Timer(0.3, webbrowser.open, args=(url,)).start()
+
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        srv.server_close()
+        html_path.unlink(missing_ok=True)
+        console.print("\n[dim]Dashboard stopped.[/dim]")
 
 
 # ── version ───────────────────────────────────────────────────────────────────
