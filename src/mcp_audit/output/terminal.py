@@ -97,6 +97,11 @@ def print_results(result: ScanResult, console: Console | None = None) -> None:
     # Header
     console.print()
     console.print("[bold]mcp-audit[/bold] v0.1.0 — MCP Security Scanner", style="cyan")
+    console.print(
+        f"Machine: {result.machine.hostname} "
+        f"({result.machine.username}@{result.machine.os})",
+        style="dim",
+    )
     console.print()
 
     # Summary

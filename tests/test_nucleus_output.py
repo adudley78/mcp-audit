@@ -7,8 +7,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from mcp_audit.models import Finding, ScanResult, Severity
+from mcp_audit.models import Finding, MachineInfo, ScanResult, Severity
 from mcp_audit.output.nucleus import format_nucleus
+
+_TEST_PREFIX = "test-host"
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -54,8 +56,8 @@ def _make_result(findings: list[Finding] | None = None) -> ScanResult:
     return result
 
 
-def _parse(result: ScanResult) -> dict:
-    return json.loads(format_nucleus(result))
+def _parse(result: ScanResult, asset_prefix: str = _TEST_PREFIX) -> dict:
+    return json.loads(format_nucleus(result, asset_prefix=asset_prefix))
 
 
 # ── Top-level document structure ───────────────────────────────────────────────
@@ -111,7 +113,7 @@ class TestFindingMapping:
         self.row = self.doc["findings"][0]
 
     def test_asset_name_format(self) -> None:
-        assert self.row["asset_name"] == "cursor/filesystem-server"
+        assert self.row["asset_name"] == f"{_TEST_PREFIX}/cursor/filesystem-server"
 
     def test_finding_number_is_dedup_key(self) -> None:
         assert self.row["finding_number"] == "POISON-001"
@@ -214,8 +216,8 @@ class TestMultipleFindings:
         ]
         doc = _parse(_make_result(findings=findings))
         asset_names = {f["asset_name"] for f in doc["findings"]}
-        assert "claude/fs" in asset_names
-        assert "cursor/gh" in asset_names
+        assert f"{_TEST_PREFIX}/claude/fs" in asset_names
+        assert f"{_TEST_PREFIX}/cursor/gh" in asset_names
 
 
 # ── Output is pretty-printed JSON ─────────────────────────────────────────────

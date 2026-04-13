@@ -101,6 +101,15 @@ def scan(
             "giving a clean slate without manual file removal."
         ),
     ),
+    asset_prefix: str | None = typer.Option(  # noqa: B008
+        None,
+        "--asset-prefix",
+        help=(
+            "Override the hostname prefix used in Nucleus and SARIF output. "
+            "Useful when the hostname is not meaningful (e.g. 'MacBookAir') "
+            "and the team prefers an asset tag or employee ID."
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     extra_paths = [path] if path else None
@@ -135,13 +144,13 @@ def scan(
         else:
             typer.echo(out)
     elif fmt == "nucleus":
-        out = format_nucleus(result)
+        out = format_nucleus(result, asset_prefix=asset_prefix)
         if output:
             output.write_text(out)
         else:
             typer.echo(out)
     elif fmt == "sarif":
-        out = format_sarif(result)
+        out = format_sarif(result, asset_prefix=asset_prefix)
         if output:
             output.write_text(out)
         else:
@@ -422,6 +431,117 @@ def dashboard(
         srv.server_close()
         html_path.unlink(missing_ok=True)
         console.print("\n[dim]Dashboard stopped.[/dim]")
+
+
+# ── watch ─────────────────────────────────────────────────────────────────────
+
+
+@app.command()
+def watch(
+    path: Path | None = typer.Option(  # noqa: B008
+        None, "--path", "-p", help="Additional config file or directory to watch"
+    ),
+    severity_threshold: str = typer.Option(  # noqa: B008
+        "INFO", "--severity-threshold", "-s",
+        help="Minimum severity to report",
+    ),
+    output_format: str = typer.Option(  # noqa: B008
+        "terminal", "--format", "-f",
+        help="Output format: terminal, json, nucleus, sarif",
+    ),
+    connect: bool = typer.Option(  # noqa: B008
+        False,
+        "--connect",
+        help="Connect to live MCP servers during each re-scan",
+    ),
+) -> None:
+    """Continuously monitor MCP configs and scan on changes."""
+    import threading  # noqa: PLC0415
+    from datetime import datetime  # noqa: PLC0415
+
+    from rich.rule import Rule  # noqa: PLC0415
+
+    from mcp_audit.output.nucleus import format_nucleus  # noqa: PLC0415
+    from mcp_audit.output.sarif import format_sarif  # noqa: PLC0415
+    from mcp_audit.watcher import ConfigWatcher  # noqa: PLC0415
+
+    extra_paths = [path] if path else None
+
+    try:
+        threshold = Severity(severity_threshold.upper())
+    except ValueError:
+        console.print(f"[red]Invalid severity: {severity_threshold}[/red]")
+        raise typer.Exit(2)  # noqa: B904
+
+    severity_order = [
+        Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO
+    ]
+    threshold_idx = severity_order.index(threshold)
+
+    def _run_and_print(label: str) -> None:
+        """Execute a full scan and emit results with the configured formatter."""
+        result = run_scan(extra_paths=extra_paths, connect=connect)
+        result.findings = [
+            f for f in result.findings
+            if severity_order.index(f.severity) <= threshold_idx
+        ]
+
+        console.print()
+        console.print(Rule(f"[dim]{label}[/dim]"))
+
+        if output_format == "terminal":
+            print_results(result, console=console)
+        elif output_format == "json":
+            typer.echo(result.model_dump_json(indent=2))
+        elif output_format == "nucleus":
+            typer.echo(format_nucleus(result))
+        elif output_format == "sarif":
+            typer.echo(format_sarif(result))
+        else:
+            console.print(
+                f"[red]Unknown format: {output_format!r}. "
+                "Choose terminal, json, nucleus, or sarif.[/red]"
+            )
+
+        console.print()
+        console.print("[dim]Watching for changes…[/dim]")
+
+    def _on_change(changed_path: Path, event_type: str) -> None:
+        ts = datetime.now().strftime("%H:%M:%S")  # noqa: DTZ005
+        console.print(
+            f"\n[bold cyan][{ts}][/bold cyan] "
+            f"Config {event_type}: [cyan]{changed_path}[/cyan]"
+        )
+        _run_and_print(f"{ts} — triggered by {event_type}: {changed_path.name}")
+
+    watcher = ConfigWatcher(
+        on_change_callback=_on_change,
+        extra_paths=extra_paths,
+    )
+
+    n = len(watcher.watchable_dirs)
+    console.print(
+        f"\n[bold cyan]Watching {n} config location(s) for changes…"
+        "  (Ctrl+C to stop)[/bold cyan]\n"
+    )
+    for d in watcher.watchable_dirs:
+        console.print(f"  [green]✓[/green] {d}")
+    for d in watcher.skipped_dirs:
+        console.print(f"  [dim]✗ {d}  (not found — will watch if created)[/dim]")
+    console.print()
+
+    _run_and_print("initial scan")
+
+    watcher.start()
+    stop_event = threading.Event()
+    try:
+        while not stop_event.wait(timeout=1.0):
+            pass
+    except KeyboardInterrupt:
+        pass
+    finally:
+        watcher.stop()
+        console.print("\n[dim]Stopped watching.[/dim]")
 
 
 # ── version ───────────────────────────────────────────────────────────────────

@@ -148,15 +148,24 @@ def _build_result(finding: Finding, rule_index: int) -> dict:
     return result
 
 
-def format_sarif(result: ScanResult) -> str:
+def format_sarif(
+    result: ScanResult,
+    asset_prefix: str | None = None,
+) -> str:
     """Format a ScanResult as a SARIF 2.1.0 JSON string.
 
     Rules are deduplicated — if multiple findings share the same ``id``, only
     the first occurrence creates a rule entry; subsequent findings reference it
     by ``ruleIndex``.
 
+    Machine identity is recorded in ``runs[0].invocations[0]`` using the SARIF
+    ``machine``, ``account``, and ``operatingSystem`` properties.  *asset_prefix*
+    overrides the ``machine`` property when supplied (mirrors Nucleus behaviour).
+
     Args:
         result: The completed scan result to format.
+        asset_prefix: Override the hostname in the invocation ``machine``
+            property.  Useful when the hostname is not meaningful.
 
     Returns:
         Pretty-printed JSON string conforming to the SARIF 2.1.0 schema.
@@ -176,6 +185,17 @@ def format_sarif(result: ScanResult) -> str:
         _build_result(f, rule_index_map[f.id]) for f in result.findings
     ]
 
+    effective_machine = (
+        asset_prefix if asset_prefix is not None else result.machine.hostname
+    )
+
+    invocation = {
+        "executionSuccessful": True,
+        "machine": effective_machine,
+        "account": result.machine.username,
+        "operatingSystem": f"{result.machine.os} {result.machine.os_version}".strip(),
+    }
+
     document = {
         "$schema": _SCHEMA,
         "version": _VERSION,
@@ -189,6 +209,7 @@ def format_sarif(result: ScanResult) -> str:
                         "rules": rules,
                     }
                 },
+                "invocations": [invocation],
                 "results": sarif_results,
             }
         ],

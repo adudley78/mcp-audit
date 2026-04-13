@@ -8,6 +8,44 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+# ── Machine identification ─────────────────────────────────────────────────────
+
+
+class MachineInfo(BaseModel):
+    """Identifies the machine that produced scan results."""
+
+    hostname: str
+    username: str
+    os: str  # e.g., "Darwin", "Linux", "Windows"
+    os_version: str
+    scan_id: str  # UUID generated per scan run
+
+
+def _collect_machine_info() -> MachineInfo:
+    """Gather machine identification data at scan time.
+
+    Falls back to :func:`getpass.getuser` when :func:`os.getlogin` is
+    unavailable (e.g., inside CI containers or systemd services that lack a
+    controlling terminal).
+    """
+    import getpass  # noqa: PLC0415
+    import os as _os  # noqa: PLC0415
+    import platform  # noqa: PLC0415
+    import uuid  # noqa: PLC0415
+
+    try:
+        username = _os.getlogin()
+    except OSError:
+        username = getpass.getuser()
+
+    return MachineInfo(
+        hostname=platform.node(),
+        username=username,
+        os=platform.system(),
+        os_version=platform.version(),
+        scan_id=str(uuid.uuid4()),
+    )
+
 
 class Severity(StrEnum):
     """Finding severity levels."""
@@ -129,6 +167,7 @@ class ScanResult(BaseModel):
 
     version: str = "0.1.0"
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    machine: MachineInfo = Field(default_factory=_collect_machine_info)
     clients_scanned: int = 0
     servers_found: int = 0
     servers: list[ServerConfig] = Field(default_factory=list)

@@ -116,6 +116,13 @@ def _build_scan_data(result: ScanResult) -> dict:
     return {
         "version": result.version,
         "timestamp": result.timestamp.strftime("%Y-%m-%d %H:%M UTC"),
+        "machine": {
+            "hostname": result.machine.hostname,
+            "username": result.machine.username,
+            "os": result.machine.os,
+            "os_version": result.machine.os_version,
+            "scan_id": result.machine.scan_id,
+        },
         "clients_scanned": result.clients_scanned,
         "servers_found": result.servers_found,
         "finding_counts": finding_counts,
@@ -224,6 +231,12 @@ body{
 }
 .top-right{display:flex;align-items:center;gap:14px}
 .top-stats{display:flex;align-items:center;gap:18px}
+.machine-bar{
+  padding:3px 20px;background:var(--bg-deep);
+  border-bottom:1px solid var(--border);
+  font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;
+  letter-spacing:.2px;
+}
 
 /* ── Theme toggle ── */
 .theme-toggle{
@@ -442,6 +455,7 @@ body{
     </div>
     </div>
   </header>
+  <div class="machine-bar" id="machine-bar"></div>
 
   <!-- Graph panel -->
   <section class="graph-panel">
@@ -557,6 +571,12 @@ function initStats(){
     `${S.server_count} server${S.server_count!==1?'s':''} · `+
     `${f} finding${f!==1?'s':''} · `+
     `${p} attack path${p!==1?'s':''}`;
+
+  const M = SCAN_DATA.machine;
+  if(M){
+    document.getElementById('machine-bar').textContent =
+      `${M.hostname}  ·  ${M.username}@${M.os}  ·  scan ${M.scan_id}  ·  ${SCAN_DATA.timestamp}`;
+  }
 }
 
 // ── Graph ──────────────────────────────────────────────────────────────────
