@@ -62,7 +62,7 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **V-11: Supply chain analyzer only covers npm; misses `yarn dlx`.** The `_NPX_LIKE` set is `{"npx", "bunx", "pnpx"}` — misses `yarn dlx`. No detection for Python-based MCP servers launched via `uvx` or `pipx`. Fix: add yarn support and consider a parallel PyPI known-packages list.
 
-**V-12: Unused `httpx` runtime dependency expands attack surface.** `httpx` is declared in `pyproject.toml` dependencies but imported nowhere in `src/`. Any CVE in httpx or its transitive deps is carried for zero benefit. Fix: remove from `dependencies` or move to an optional group for future OSV lookups.
+**V-12: Resolved.** `httpx` moved from `dependencies` to the `mcp` optional group (`pip install 'mcp-audit[mcp]'`). It is not installed in the default distribution and carries no transitive attack surface for users who don't need live server connections.
 
 ### Low
 

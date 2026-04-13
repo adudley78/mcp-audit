@@ -443,7 +443,6 @@ name = "mcp-audit"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "httpx" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "rich" },
@@ -461,13 +460,14 @@ dev = [
     { name = "ruff" },
 ]
 mcp = [
+    { name = "httpx" },
     { name = "mcp" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7" },
-    { name = "httpx", specifier = ">=0.27,<1.0" },
+    { name = "httpx", marker = "extra == 'mcp'", specifier = ">=0.27,<1.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
     { name = "pydantic", specifier = ">=2.0,<3.0" },
