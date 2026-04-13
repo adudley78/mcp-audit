@@ -104,7 +104,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 27+ findings across all analyzer categories
-- 509 tests passing, ruff clean
+- 517 tests passing, ruff clean
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 7 CLI commands: scan, discover, pin, diff, dashboard, watch, version
 
