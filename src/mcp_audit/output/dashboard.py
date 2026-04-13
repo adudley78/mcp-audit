@@ -175,12 +175,23 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <title>mcp-audit — Security Dashboard</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-:root{
+[data-theme="dark"]{
   --bg-deep:#0c0c1a;--bg-panel:#13132a;--bg-card:#1a1a38;--bg-hover:#222250;
   --border:#2a2a55;--border-light:#3a3a6a;
   --text-primary:#e8e8f0;--text-secondary:#9898b8;--text-dim:#6868a0;
   --crit:#ff3b4f;--high:#ff8c2e;--med:#ffcc30;--low:#4a9eff;--info:#6b7280;
   --safe:#22cc66;--accent:#00ccff;--hit:#d946ef;
+  --tt-shadow:0 6px 24px rgba(0,0,0,.55);
+  --row-hl-bg:rgba(0,204,255,.06);
+}
+[data-theme="light"]{
+  --bg-deep:#f0f1f5;--bg-panel:#ffffff;--bg-card:#f5f5fa;--bg-hover:#eeeef5;
+  --border:#d8d8e8;--border-light:#c0c0d8;
+  --text-primary:#1a1a2e;--text-secondary:#5a5a78;--text-dim:#8888a8;
+  --crit:#dc2626;--high:#ea580c;--med:#ca8a04;--low:#2563eb;--info:#6b7280;
+  --safe:#16a34a;--accent:#0088cc;--hit:#a855f7;
+  --tt-shadow:0 2px 8px rgba(0,0,0,.1);
+  --row-hl-bg:rgba(0,136,204,.08);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -211,7 +222,27 @@ body{
   font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:400;
   color:var(--text-dim);
 }
+.top-right{display:flex;align-items:center;gap:14px}
 .top-stats{display:flex;align-items:center;gap:18px}
+
+/* ── Theme toggle ── */
+.theme-toggle{
+  width:36px;height:20px;border-radius:10px;border:1px solid var(--border);
+  background:var(--bg-card);cursor:pointer;position:relative;
+  transition:background .2s;display:flex;align-items:center;padding:0 3px;
+  flex-shrink:0;
+}
+.theme-toggle::after{
+  content:'';width:14px;height:14px;border-radius:50%;background:var(--accent);
+  transition:transform .2s;position:absolute;left:3px;
+}
+[data-theme="light"] .theme-toggle::after{transform:translateX(16px)}
+.theme-toggle::before{
+  content:'●';font-size:9px;color:var(--text-dim);
+  position:absolute;right:4px;top:50%;transform:translateY(-50%);
+  pointer-events:none;line-height:1;transition:opacity .15s;
+}
+[data-theme="light"] .theme-toggle::before{content:'☀';right:auto;left:4px}
 .sev-counter{display:flex;align-items:baseline;gap:5px}
 .sc-num{font-size:14px;font-weight:700;line-height:1}
 .sc-label{font-size:12px;color:var(--text-secondary)}
@@ -254,7 +285,7 @@ body{
   position:fixed;display:none;pointer-events:none;z-index:200;
   background:var(--bg-card);border:1px solid var(--border-light);
   border-radius:7px;padding:10px 13px;font-size:12px;max-width:240px;
-  line-height:1.55;box-shadow:0 6px 24px rgba(0,0,0,.55);
+  line-height:1.55;box-shadow:var(--tt-shadow);
 }
 .tt-name{
   font-family:'JetBrains Mono',monospace;font-weight:500;font-size:12px;
@@ -344,13 +375,13 @@ body{
 }
 .findings-table th:hover{color:var(--text-secondary)}
 .findings-table td{
-  padding:6px 11px;border-bottom:1px solid rgba(42,42,85,.6);
+  padding:6px 11px;border-bottom:1px solid var(--border);
   vertical-align:middle;max-width:300px;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;
 }
 .findings-table tr{cursor:pointer;transition:background .1s}
-.findings-table tr:hover td{background:rgba(34,34,80,.5)}
-.findings-table tr.row-hl td{background:rgba(0,204,255,.06)}
+.findings-table tr:hover td{background:var(--bg-hover)}
+.findings-table tr.row-hl td{background:var(--row-hl-bg)}
 .td-sev{display:flex;align-items:center;gap:6px;white-space:nowrap}
 .sev-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .td-mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary)}
@@ -358,7 +389,7 @@ body{
 /* ── Legend ── */
 .graph-legend{
   position:absolute;bottom:12px;left:12px;
-  background:rgba(12,12,26,.88);border:1px solid var(--border);
+  background:var(--bg-card);border:1px solid var(--border);
   border-radius:7px;padding:9px 12px;font-size:10px;color:var(--text-dim);
   pointer-events:none;
 }
@@ -380,7 +411,7 @@ body{
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 </style>
 </head>
-<body>
+<body class="dash" data-theme="dark">
 <div class="app">
 
   <!-- Top bar -->
@@ -389,6 +420,11 @@ body{
       <span class="logo-name">mcp-audit</span>
       <span class="logo-ver" id="logo-ver"></span>
     </div>
+    <div class="top-right">
+    <button class="theme-toggle" id="theme-toggle"
+            onclick="toggleTheme()"
+            aria-label="Toggle light/dark theme"
+            title="Toggle light/dark theme"></button>
     <div class="top-stats">
       <div class="sev-counter" id="crit-ctr" style="display:none">
         <span class="sc-num" style="color:var(--crit)" id="crit-num"></span>
@@ -403,6 +439,7 @@ body{
         <span class="sc-label">medium</span>
       </div>
       <span class="top-summary" id="top-summary"></span>
+    </div>
     </div>
   </header>
 
@@ -466,19 +503,30 @@ body{
 (function(){
 'use strict';
 
-const C = {
-  CRITICAL:'#ff3b4f', HIGH:'#ff8c2e', MEDIUM:'#ffcc30',
-  LOW:'#4a9eff', INFO:'#6b7280',
-  safe:'#22cc66', accent:'#00ccff', hit:'#d946ef',
-  border:'#2a2a55',
+// ── Theme-aware color palette ────────────────────────────────────────────────
+const PALETTE = {
+  dark:{
+    CRITICAL:'#ff3b4f',HIGH:'#ff8c2e',MEDIUM:'#ffcc30',LOW:'#4a9eff',INFO:'#6b7280',
+    safe:'#22cc66',accent:'#00ccff',hit:'#d946ef',border:'#2a2a55',
+    agentFill:'#0a1428',fillSuffix:'18',baseOpacity:0.3,toxicOpacity:0.6,
+    nodeText:'#e8e8f0',capText:'#6868a0',
+  },
+  light:{
+    CRITICAL:'#dc2626',HIGH:'#ea580c',MEDIUM:'#ca8a04',LOW:'#2563eb',INFO:'#6b7280',
+    safe:'#16a34a',accent:'#0088cc',hit:'#a855f7',border:'#d8d8e8',
+    agentFill:'#e0f4ff',fillSuffix:'20',baseOpacity:0.4,toxicOpacity:0.7,
+    nodeText:'#1a1a2e',capText:'#8888a8',
+  },
 };
+const C = Object.assign({}, PALETTE.dark);
+
 const SEV_ORDER = ['CRITICAL','HIGH','MEDIUM','LOW','INFO'];
 
 let state = {selPath:null, selServer:null, sevFilter:null, sortCol:'severity', sortAsc:true};
 let svgSel, nodeG, linkG, sim, nodeMap = {};
 
 function sevColor(s){ return C[s] || C.INFO; }
-function sevFill(s){ return sevColor(s)+'18'; }
+function sevFill(s){ return sevColor(s) + C.fillSuffix; }
 function nodeR(caps){ const n=(caps||[]).length; return n<=1?17:n===2?20:22; }
 function trunc(s,n){ return s&&s.length>n?s.slice(0,n)+'…':(s||''); }
 
@@ -547,9 +595,13 @@ function initGraph(){
     ...(D.toxic_edges||[]).map(e=>({source:e.source,target:e.target,kind:'toxic',severity:e.severity,label:e.label||''})),
   ];
 
+  // Pin agent at centre when alone; softer charge for small graphs so a single
+  // server doesn't fly to the edge of the canvas.
+  if(D.servers.length === 0){ nodes[0].fx = W/2; nodes[0].fy = H/2; }
+  const isSmall = D.servers.length <= 1;
   sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(links).id(d=>d.id).distance(d=>d.kind==='base'?150:110))
-    .force('charge', d3.forceManyBody().strength(-480))
+    .force('charge', d3.forceManyBody().strength(isSmall ? -150 : -480))
     .force('center', d3.forceCenter(W/2, H/2))
     .force('collision', d3.forceCollide(d=>(d.type==='agent'?28:nodeR(d.caps))+14));
 
@@ -557,13 +609,13 @@ function initGraph(){
   const linkSel = linkG.selectAll('line').data(links).join('line')
     .attr('stroke', d=>d.kind==='toxic'?sevColor(d.severity):C.border)
     .attr('stroke-width', d=>d.kind==='toxic'?(d.severity==='CRITICAL'?2.5:1.5):0.5)
-    .attr('opacity', d=>d.kind==='toxic'?0.6:0.3)
+    .attr('opacity', d=>d.kind==='toxic'?C.toxicOpacity:C.baseOpacity)
     .attr('stroke-linecap','round');
 
   // Hover brighten for toxic edges
   linkSel.filter(d=>d.kind==='toxic')
     .on('mouseover', function(){ d3.select(this).attr('opacity',1.0); })
-    .on('mouseout',  function(){ d3.select(this).attr('opacity',0.6); });
+    .on('mouseout',  function(){ d3.select(this).attr('opacity',C.toxicOpacity); });
 
   nodeG = svgSel.append('g');
   const nodeSel = nodeG.selectAll('g').data(nodes).join('g')
@@ -589,7 +641,7 @@ function initGraph(){
   nodeSel.append('circle')
     .attr('class','node-circle')
     .attr('r', d=>d.type==='agent'?28:nodeR(d.caps))
-    .attr('fill', d=>d.type==='agent'?'#0a1428':sevFill(d.max_severity)||sevFill(null))
+    .attr('fill', d=>d.type==='agent'?C.agentFill:sevFill(d.max_severity))
     .attr('stroke', d=>{
       if(d.type==='agent') return C.accent;
       if(d.in_hitting_set) return C.hit;
@@ -599,6 +651,7 @@ function initGraph(){
 
   // Hitting-set dashed outer ring (on top)
   nodeSel.filter(d=>d.type==='server'&&d.in_hitting_set).append('circle')
+    .attr('class','hs-dash-ring')
     .attr('r', d=>nodeR(d.caps)+4)
     .attr('fill','none').attr('stroke',C.hit)
     .attr('stroke-width',1.5).attr('stroke-dasharray','4 3').attr('opacity',.9);
@@ -611,13 +664,14 @@ function initGraph(){
     .attr('font-size', d=>d.type==='agent'?'11px':'10px')
     .attr('font-weight', d=>d.type==='agent'?'600':'400')
     .attr('font-family','JetBrains Mono, monospace')
-    .attr('fill','#e8e8f0').attr('pointer-events','none')
+    .attr('fill', C.nodeText).attr('pointer-events','none')
     .text(d=>trunc(d.label,12));
 
   // Capability sub-label for server nodes
   nodeSel.filter(d=>d.type==='server'&&d.caps&&d.caps.length>0).append('text')
+    .attr('class','cap-label')
     .attr('text-anchor','middle').attr('dy','0.9em')
-    .attr('font-size','8px').attr('fill','#6868a0').attr('pointer-events','none')
+    .attr('font-size','8px').attr('fill', C.capText).attr('pointer-events','none')
     .text(d=>trunc(d.caps.slice(0,2).join(', '),16));
 
   nodeSel
@@ -638,6 +692,24 @@ function initGraph(){
       .attr('x2',function(){ return +d3.select(this).attr('data-bx'); })
       .attr('y2',function(){ return +d3.select(this).attr('data-by'); });
   });
+
+  // No-servers empty state: guidance text below the centred AI Agent node
+  if(D.servers.length === 0){
+    svgSel.append('text')
+      .attr('class','graph-empty-text')
+      .attr('x', W/2).attr('y', H/2 + 52)
+      .attr('text-anchor','middle').attr('font-size','13px')
+      .attr('fill','var(--text-dim)')
+      .attr('font-family','DM Sans, system-ui, sans-serif')
+      .text('No MCP servers detected.');
+    svgSel.append('text')
+      .attr('class','graph-empty-text')
+      .attr('x', W/2).attr('y', H/2 + 72)
+      .attr('text-anchor','middle').attr('font-size','11px')
+      .attr('fill','var(--text-dim)')
+      .attr('font-family','JetBrains Mono, monospace')
+      .text('Run mcp-audit discover to check supported clients.');
+  }
 }
 
 // ── Tooltip ────────────────────────────────────────────────────────────────
@@ -734,8 +806,12 @@ function initPaths(){
 
   if(!D.attack_paths.length){
     list.innerHTML =
-      '<div style="padding:16px 4px;color:var(--safe);font-size:12px">'+
-      '✓ No exploitable attack paths detected.</div>';
+      '<div style="display:flex;align-items:center;justify-content:center;'+
+      'min-height:80px;padding:32px 16px;text-align:center;'+
+      'color:var(--text-dim);font-size:13px;line-height:1.6">'+
+      'No exploitable attack paths detected.</div>';
+    document.getElementById('hs-panel').style.display = 'none';
+    return;
   }
 
   D.attack_paths.forEach(p=>{
@@ -765,13 +841,10 @@ function initPaths(){
     list.appendChild(card);
   });
 
-  // Hitting set panel
+  // Hitting set panel — hide if no removal candidates (all paths broken by same set)
   const hsEl = document.getElementById('hs-panel');
   if(!D.hitting_set.length){
-    hsEl.innerHTML =
-      '<div class="hs-header" style="color:var(--safe)">Recommended action</div>'+
-      '<div style="font-size:11px;color:var(--safe)">✓ No attack paths to break.</div>';
-    hsEl.style.borderTopColor = 'var(--safe)';
+    hsEl.style.display = 'none';
     return;
   }
 
@@ -856,6 +929,16 @@ function renderFindings(){
 
   const tbody = document.getElementById('findings-tbody');
   tbody.innerHTML = '';
+
+  // Global zero-findings state — shown regardless of active filters
+  if(!SCAN_DATA.findings.length){
+    tbody.innerHTML =
+      '<tr><td colspan="4" style="padding:40px;text-align:center;'+
+      'color:var(--text-dim);font-size:13px;border:none">'+
+      'No security issues found</td></tr>';
+    return;
+  }
+
   data.forEach(f=>{
     const tr = document.createElement('tr');
     const hl = state.selServer&&(f.server===state.selServer||f.server.includes(state.selServer));
@@ -874,8 +957,47 @@ function renderFindings(){
   });
 }
 
+// ── Theme toggle ───────────────────────────────────────────────────────────
+function updateGraphTheme(){
+  // Agent outer ring stroke
+  nodeG.selectAll('g.node').filter(d=>d.type==='agent').select('circle:first-child')
+    .attr('stroke', C.accent);
+  // All main circles: fill + stroke
+  nodeG.selectAll('.node-circle')
+    .attr('fill', d=>d.type==='agent' ? C.agentFill : sevFill(d.max_severity))
+    .attr('stroke', d=>{
+      if(d.type==='agent') return C.accent;
+      if(d.in_hitting_set) return C.hit;
+      return d.max_severity ? sevColor(d.max_severity) : C.safe;
+    });
+  // HS rings
+  nodeG.selectAll('.hs-pulse-ring,.hs-dash-ring').attr('stroke', C.hit);
+  // Labels
+  nodeG.selectAll('.node-label').attr('fill', C.nodeText);
+  nodeG.selectAll('.cap-label').attr('fill', C.capText);
+  // Base edges
+  linkG.selectAll('line').filter(d=>d.kind==='base')
+    .attr('stroke', C.border)
+    .attr('opacity', C.baseOpacity);
+  // Toxic edges — update opacity and re-bind mouseout
+  const tox = C.toxicOpacity;
+  linkG.selectAll('line').filter(d=>d.kind==='toxic')
+    .attr('opacity', tox)
+    .on('mouseout', function(){ d3.select(this).attr('opacity', tox); });
+}
+
+function toggleTheme(){
+  const dash = document.querySelector('.dash');
+  const next = dash.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  dash.setAttribute('data-theme', next);
+  Object.assign(C, PALETTE[next]);
+  updateGraphTheme();
+  initFindings(); // rebuild filter buttons with updated severity colors
+}
+
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 window.focusServer = focusServer;
+window.toggleTheme = toggleTheme;
 
 document.addEventListener('DOMContentLoaded', ()=>{
   initStats();

@@ -282,7 +282,7 @@ class TestGenerateHtml:
         assert "<html" in html
         assert "</html>" in html
         assert "<head>" in html
-        assert "<body>" in html
+        assert "<body" in html  # may have class/data-theme attributes
 
     def test_scan_data_embedded(self, html: str) -> None:
         assert "const SCAN_DATA =" in html
@@ -383,6 +383,116 @@ class TestGenerateHtml:
         match = re.search(r"const SCAN_DATA = (.+?);</script>", html, re.DOTALL)
         data = json.loads(match.group(1))  # type: ignore[union-attr]
         assert data["findings"] == []
+
+    def test_theme_css_blocks_present(self, html: str) -> None:
+        # Both theme blocks must be defined so the toggle works in either state.
+        assert '[data-theme="dark"]' in html
+        assert '[data-theme="light"]' in html
+
+    def test_dark_theme_palette_values(self, html: str) -> None:
+        # Key dark-mode CSS custom properties.
+        assert "--bg-deep:#0c0c1a" in html
+        assert "--accent:#00ccff" in html
+        assert "--hit:#d946ef" in html
+
+    def test_light_theme_palette_values(self, html: str) -> None:
+        # Key light-mode CSS custom properties.
+        assert "--bg-deep:#f0f1f5" in html
+        assert "--bg-panel:#ffffff" in html
+        assert "--accent:#0088cc" in html
+        assert "--hit:#a855f7" in html
+
+    def test_theme_toggle_button_present(self, html: str) -> None:
+        assert 'class="theme-toggle"' in html
+        assert "toggleTheme()" in html
+
+    def test_body_has_dash_class_and_default_dark_theme(self, html: str) -> None:
+        assert 'class="dash"' in html
+        assert 'data-theme="dark"' in html
+
+    def test_no_root_css_block(self, html: str) -> None:
+        # :root must not be used for theme vars; all must be in [data-theme] blocks.
+        assert ":root{" not in html
+
+
+# ── Empty-state handling ──────────────────────────────────────────────────────
+
+
+class TestEmptyStates:
+    """Verify the JS template contains all empty-state handling code.
+
+    Since empty-state logic executes in the browser (not Python), we verify
+    that the literal message strings and JS guard expressions are present in
+    the generated HTML source.  The fixtures below use ``_minimal_result()``
+    (zero servers, zero findings) and a no-paths variant.
+    """
+
+    @pytest.fixture(scope="class")
+    def minimal_html(self) -> str:
+        return generate_html(_minimal_result())
+
+    def test_no_servers_message_present(self, minimal_html: str) -> None:
+        assert "No MCP servers detected." in minimal_html
+
+    def test_no_servers_discover_hint_present(self, minimal_html: str) -> None:
+        assert "mcp-audit discover" in minimal_html
+
+    def test_no_findings_message_present(self, minimal_html: str) -> None:
+        assert "No security issues found" in minimal_html
+
+    def test_no_attack_paths_message_present(self, minimal_html: str) -> None:
+        assert "No exploitable attack paths detected." in minimal_html
+
+    def test_hs_panel_hidden_when_no_paths(self, minimal_html: str) -> None:
+        # JS must set display:none on the hs-panel element when attack_paths is empty.
+        assert "hs-panel" in minimal_html
+        assert "display" in minimal_html and "'none'" in minimal_html
+
+    def test_no_servers_fixes_agent_at_centre(self, minimal_html: str) -> None:
+        # The JS guard that pins the agent node when there are no servers.
+        assert "nodes[0].fx = W/2" in minimal_html
+        assert "nodes[0].fy = H/2" in minimal_html
+
+    def test_adaptive_charge_for_small_graphs(self, minimal_html: str) -> None:
+        assert "isSmall" in minimal_html
+        assert "-150" in minimal_html  # weaker charge for small graphs
+
+    def test_no_servers_scan_data_is_valid(self, minimal_html: str) -> None:
+        match = re.search(r"const SCAN_DATA = (.+?);</script>", minimal_html, re.DOTALL)
+        data = json.loads(match.group(1))  # type: ignore[union-attr]
+        assert data["servers"] == []
+        assert data["findings"] == []
+        assert data["attack_paths"] == []
+        assert data["summary"]["server_count"] == 0
+        assert data["summary"]["total_findings"] == 0
+
+    def test_servers_no_findings_state(self) -> None:
+        """Servers present but zero findings — summary should reflect that."""
+        result = _minimal_result()
+        result.servers = [
+            _server("filesystem"),
+            _server("fetch", args=["-y", "@modelcontextprotocol/server-fetch"]),
+        ]
+        result.servers_found = 2
+        data = _build_scan_data(result)
+        assert data["summary"]["server_count"] == 2
+        assert data["summary"]["total_findings"] == 0
+        assert data["findings"] == []
+        assert data["toxic_edges"] == []
+
+    def test_servers_no_attack_paths_state(self) -> None:
+        """Servers + non-toxic findings — no attack paths, no hitting set."""
+        result = _minimal_result()
+        result.servers = [_server("filesystem")]
+        result.servers_found = 1
+        result.findings = [
+            _finding("filesystem", Severity.MEDIUM, "poisoning", "POISON-001")
+        ]
+        data = _build_scan_data(result)
+        assert data["attack_paths"] == []
+        assert data["hitting_set"] == []
+        assert data["summary"]["path_count"] == 0
+        assert data["summary"]["total_findings"] == 1
 
 
 # ── Dashboard CLI command ─────────────────────────────────────────────────────
