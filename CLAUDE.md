@@ -27,22 +27,25 @@ src/mcp_audit/
 ├── scanner.py         # Orchestrator: discovery → parsing → analysis → output
 ├── discovery.py       # Finds MCP config files across all supported clients
 ├── config_parser.py   # Parses JSON configs, normalizes across client formats
-├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, Severity
+├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, Severity, AttackPath
 ├── analyzers/
 │   ├── base.py        # BaseAnalyzer abstract class — all analyzers inherit this
 │   ├── poisoning.py   # Tool description poisoning detection (regex-based)
 │   ├── credentials.py # Secret/API key exposure in configs
 │   ├── transport.py   # Transport security (TLS, localhost binding, etc.)
 │   ├── supply_chain.py# Package provenance and known CVE checks
-│   └── rug_pull.py    # Description change detection via hashing
+│   ├── rug_pull.py    # Description change detection via hashing
+│   └── attack_paths.py# Multi-hop attack path detection and greedy hitting set algorithm
 ├── output/
 │   ├── terminal.py    # Rich-formatted console output (default)
 │   ├── json_out.py    # JSON formatter
 │   ├── sarif.py       # SARIF for GitHub Security integration
-│   └── nucleus.py     # Nucleus FlexConnect formatter
+│   ├── nucleus.py     # Nucleus FlexConnect formatter
+│   └── dashboard.py   # Self-contained HTML dashboard with embedded D3 v7 graph
 └── data/
-    ├── patterns.yaml  # Externalized detection regex patterns
-    └── known_servers.yaml  # Hashes of known-good MCP server descriptions
+    ├── patterns.yaml       # Externalized detection regex patterns
+    ├── known_servers.yaml  # Hashes of known-good MCP server descriptions
+    └── d3.v7.min.js        # Bundled D3 v7 (embedded inline in dashboard HTML)
 ```
 
 ## Key conventions
@@ -52,6 +55,7 @@ src/mcp_audit/
 - All findings use the `Finding` Pydantic model from models.py
 - Analyzers inherit from `BaseAnalyzer` and implement an `analyze()` method
 - Output formatters inherit from `BaseFormatter` and implement a `format()` method
+- The dashboard HTML template is a single large string (`_DASHBOARD_HTML`) embedded in `output/dashboard.py`. All scan data is injected via a `__SCAN_DATA_JSON__` placeholder at render time. D3 v7 is bundled from `data/d3.v7.min.js` and injected via `__D3_JS__`. Do not split the template into separate files.
 
 ## Critical implementation details
 
@@ -80,26 +84,28 @@ Do not attempt to resolve architectural ambiguity by guessing. Flag it.
 
 ## Current phase
 
-Prototype complete (built on April 11, 2026).
+Prototype complete (April 11, 2026). Built in a single day.
 
 What's built:
 - 6 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow
+- Attack path engine with multi-hop detection and greedy hitting set algorithm
 - 4 output formats: terminal, JSON, SARIF, Nucleus FlexConnect
-- 5 CLI commands: scan, discover, pin, diff, version
+- Interactive D3 attack graph dashboard with light/dark mode (`mcp-audit dashboard`)
 - Live MCP server connection via --connect (optional, MCP SDK)
 - Scoped rug-pull state management (per-config-set hash isolation)
-- Demo environment with 27 findings across all analyzer categories
-- 335 tests passing, ruff clean
+- 8 supported MCP clients including Copilot CLI and Augment
+- Demo environment producing 27 findings across all analyzer categories
+- 446 tests passing, ruff clean
+- Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic
 - Validate FlexConnect output against real Nucleus instance (need Swagger docs)
 - Tune false positives (e.g., "base64 encode" in official filesystem server)
-- Update README to reflect full feature set
 
 What's next (code, after feedback):
 - Detection pattern tuning based on practitioner review
-- pip packaging for public release (pyproject.toml ready, needs TestPyPI run)
+- pip packaging for public release
 - GitHub Actions CI (test on macOS, Linux, Windows)
 - Documentation (usage guide, rule-writing guide, Nucleus integration guide)
 
