@@ -82,6 +82,20 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **Dashboard browser compatibility untested.** The D3 v7 force-directed graph dashboard has been developed and tested in Chrome and Safari on macOS only. Behavior in Firefox, Edge, mobile browsers, and WebView-based environments (Electron, VS Code webview) is unknown. CSS custom properties and D3's SVG rendering should be broadly compatible, but this has not been verified.
 
+## License system
+
+**License verification key is a placeholder.** `_PUBLIC_KEY_BYTES` in `licensing.py` is currently an empty bytes literal. It must be replaced with the real 32-byte Ed25519 public key before the Pro gating is active. Run `python scripts/generate_license.py --generate-keypair` and paste the output into `licensing.py`.
+
+**License gating not tested with PyInstaller binary.** The license file path (`~/.config/mcp-audit/license.key`) uses `Path.home()` which should resolve correctly in frozen executables, but this has not been verified in a real `dist/` binary build.
+
+**No license revocation mechanism.** Issued keys are valid until their expiry date. There is no way to invalidate a specific key before it expires — the only mitigation is to rotate the signing keypair (which also invalidates all outstanding keys).
+
+**No telemetry on Pro feature usage.** By design (privacy-first), there is no tracking of who uses Pro features or how often. This means no conversion data from the gating implementation.
+
+**Purchase URL is a placeholder.** `https://mcp-audit.dev/pro` appears throughout the codebase but the domain is not yet registered or configured. Replace before any public release.
+
+**Lemon Squeezy / Gumroad integration not set up.** There is no automated key issuance pipeline. Keys are generated manually via `scripts/generate_license.py` and sent to customers out-of-band.
+
 ## Missing capabilities (not started)
 
 - **GitHub Actions CI workflow** — no automated testing on push/PR; no multi-arch binary release matrix

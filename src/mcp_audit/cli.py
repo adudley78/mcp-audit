@@ -20,6 +20,7 @@ from mcp_audit.analyzers.rug_pull import (
 )
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
+from mcp_audit.licensing import LicenseInfo, get_active_license, save_license
 from mcp_audit.models import Severity
 from mcp_audit.output.dashboard import generate_html
 from mcp_audit.output.nucleus import format_nucleus
@@ -144,7 +145,9 @@ def scan(
         else:
             typer.echo(out)
     elif fmt == "nucleus":
-        out = format_nucleus(result, asset_prefix=asset_prefix)
+        out = format_nucleus(result, asset_prefix=asset_prefix, console=console)
+        if out is None:
+            raise typer.Exit(0)
         if output:
             output.write_text(out)
         else:
@@ -380,7 +383,9 @@ def dashboard(
     result = run_scan(extra_paths=extra_paths, connect=connect)
 
     console.print("[cyan]Generating dashboard…[/cyan]")
-    html = generate_html(result)
+    html = generate_html(result, console=console)
+    if html is None:
+        raise typer.Exit(0)
     html_bytes = html.encode("utf-8")
 
     # Write a copy the user can open directly later.
@@ -494,7 +499,9 @@ def watch(
         elif output_format == "json":
             typer.echo(result.model_dump_json(indent=2))
         elif output_format == "nucleus":
-            typer.echo(format_nucleus(result))
+            out = format_nucleus(result, console=console)
+            if out is not None:
+                typer.echo(out)
         elif output_format == "sarif":
             typer.echo(format_sarif(result))
         else:
@@ -550,7 +557,59 @@ def watch(
 @app.command()
 def version() -> None:
     """Show version information."""
-    console.print("mcp-audit v0.1.0")
+    info = get_active_license()
+    if info is not None and info.is_valid:
+        tier_label = info.tier.capitalize()
+    else:
+        tier_label = "Community"
+    console.print(f"mcp-audit 0.1.0 ({tier_label})")
+
+
+# ── activate ──────────────────────────────────────────────────────────────────
+
+
+@app.command()
+def activate(
+    key: str = typer.Argument(help="License key string to activate"),  # noqa: B008
+) -> None:
+    """Activate a Pro or Enterprise license key."""
+    try:
+        info: LicenseInfo = save_license(key)
+    except ValueError:
+        console.print("[red]✗ Invalid license key. Check your key and try again.[/red]")
+        console.print(
+            "  Purchase a license at [link=https://mcp-audit.dev/pro]"
+            "https://mcp-audit.dev/pro[/link]"
+        )
+        raise typer.Exit(1)  # noqa: B904
+
+    tier_label = info.tier.capitalize()
+    console.print(f"[green]✓ License activated: {tier_label} tier[/green]")
+    console.print(f"  Email:   {info.email}")
+    console.print(f"  Expires: {info.expires.isoformat()}")
+
+
+# ── license ───────────────────────────────────────────────────────────────────
+
+
+@app.command()
+def license() -> None:  # noqa: A001
+    """Show current license status."""
+    info = get_active_license()
+    if info is None:
+        console.print("[bold]mcp-audit Community (free)[/bold]")
+        console.print(
+            "  Upgrade to Pro: [link=https://mcp-audit.dev/pro]"
+            "https://mcp-audit.dev/pro[/link]"
+        )
+        return
+
+    status = "[green]Active[/green]" if info.is_valid else "[red]Expired[/red]"
+    tier_label = info.tier.capitalize()
+    console.print(f"[bold]mcp-audit {tier_label}[/bold]")
+    console.print(f"  Email:   {info.email}")
+    console.print(f"  Expires: {info.expires.isoformat()}")
+    console.print(f"  Status:  {status}")
 
 
 # ── entry point ───────────────────────────────────────────────────────────────

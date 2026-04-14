@@ -25,6 +25,106 @@ assigned, and tracked per-endpoint.
 
 ---
 
+## License Activation
+
+mcp-audit requires a **Pro** or **Enterprise** license to use the interactive dashboard (`mcp-audit dashboard`) and Nucleus FlexConnect output (`--format nucleus`). The terminal, JSON, and SARIF output formats are available without a license.
+
+### Activating a license on a machine
+
+```bash
+mcp-audit activate eyJhb...your-license-key
+```
+
+On success:
+
+```
+✓ License activated: Enterprise tier
+  Email: your@company.com
+  Expires: 2027-04-14
+```
+
+### Where the license file is stored
+
+```
+~/.config/mcp-audit/license.key
+```
+
+File permissions are set to `0600` (owner read/write only) automatically on activation.
+
+### Verifying license status
+
+```bash
+mcp-audit license
+```
+
+Output for an active Enterprise license:
+
+```
+mcp-audit Enterprise
+  Email: your@company.com
+  Expires: 2027-04-14
+  Status: Active
+```
+
+Output when no license is present:
+
+```
+mcp-audit Community (free)
+  Upgrade to Pro: https://mcp-audit.dev/pro
+```
+
+### Fleet deployment — distributing the license file
+
+For teams deploying mcp-audit across many machines, distribute the license file via your existing configuration management tooling rather than activating each machine manually.
+
+**Ansible:**
+```yaml
+- name: Deploy mcp-audit license
+  ansible.builtin.copy:
+    content: "{{ mcp_audit_license_key }}\n"
+    dest: "{{ ansible_env.HOME }}/.config/mcp-audit/license.key"
+    mode: "0600"
+```
+
+Store the license key string in your Ansible Vault. The `mcp_audit_license_key` variable should contain the raw key string as issued.
+
+**Puppet:**
+```puppet
+file { "${facts['identity']['user']}/.config/mcp-audit/license.key":
+  ensure  => file,
+  content => "${mcp_audit_license_key}\n",
+  mode    => '0600',
+}
+```
+
+**Chef:**
+```ruby
+file "#{ENV['HOME']}/.config/mcp-audit/license.key" do
+  content "#{node['mcp_audit']['license_key']}\n"
+  mode    '0600'
+  action  :create
+end
+```
+
+### Offline verification
+
+License verification is **fully offline** — no network connectivity is required. The license key contains a cryptographic signature verified against a public key compiled into the binary. No license server is contacted at any point.
+
+### Feature availability by tier
+
+| Feature | Community | Pro | Enterprise |
+|---------|-----------|-----|------------|
+| Terminal output | ✓ | ✓ | ✓ |
+| JSON output | ✓ | ✓ | ✓ |
+| SARIF output | ✓ | ✓ | ✓ |
+| Interactive dashboard (`mcp-audit dashboard`) | — | ✓ | ✓ |
+| HTML report export | — | ✓ | ✓ |
+| Policy enforcement | — | ✓ | ✓ |
+| Nucleus FlexConnect output (`--format nucleus`) | — | — | ✓ |
+| Fleet deployment support | — | — | ✓ |
+
+---
+
 ## Prerequisites
 
 - **mcp-audit** binary or Python package installed on target machines

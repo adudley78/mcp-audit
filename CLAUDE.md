@@ -18,6 +18,7 @@ and flags security issues.
 - Testing: pytest + pytest-asyncio
 - Linting: Ruff + Bandit
 - Packaging: hatchling via pyproject.toml
+- License key crypto: `cryptography` (Ed25519)
 
 ## Project layout
 
@@ -28,6 +29,7 @@ src/mcp_audit/
 ├── discovery.py       # Finds MCP config files across all supported clients
 ├── config_parser.py   # Parses JSON configs, normalizes across client formats
 ├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, Severity, AttackPath, MachineInfo
+├── licensing.py       # Ed25519 license key verification; LicenseInfo model; is_pro_feature_available()
 ├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch)
 ├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect)
 ├── _paths.py          # data_dir() — resolves data/ in both source and PyInstaller frozen modes
@@ -53,6 +55,7 @@ src/mcp_audit/
 Build and distribution scripts at project root:
 - `build.py` — PyInstaller build script; produces `dist/mcp-audit-{os}-{arch}` single-file binary
 - `scripts/install.sh` — curl-based end-user installer for GitHub Releases
+- `scripts/generate_license.py` — **NOT shipped in the package** (excluded from wheel); offline tool for issuing Ed25519-signed Pro/Enterprise license keys to customers
 
 ## Key conventions
 
@@ -70,6 +73,9 @@ Build and distribution scripts at project root:
 - Core scanning MUST work fully offline — no network calls by default
 - OSV.dev lookups are opt-in, skipped with --offline flag
 - Rug-pull state is stored in ~/.mcp-audit/state.json
+- License key stored at `~/.config/mcp-audit/license.key` (permissions 0o600); activate with `mcp-audit activate <key>`
+- **Pro feature gating happens at the output/rendering layer only.** Analyzers and scan logic never check license state. Scans always run fully — gating only restricts which output formats are rendered.
+- License verification is fully offline (Ed25519 public key hardcoded in `licensing.py`); the private key never ships with the package
 - Exit codes: 0 = clean, 1 = findings found, 2 = error
 
 ## Quality gates
@@ -104,9 +110,10 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 27+ findings across all analyzer categories
-- 517 tests passing, ruff clean
+- 546 tests passing, ruff clean
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
-- 7 CLI commands: scan, discover, pin, diff, dashboard, watch, version
+- Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
+- 9 CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic

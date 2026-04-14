@@ -31,6 +31,24 @@ Tenable WAS has added MCP server detection plugins that scan server-side code fo
 - **Fleet deployment** — machine-tagged output with `--asset-prefix` for enterprise-wide aggregation
 - **Fully offline by default** — no data leaves your machine
 
+## Community vs Pro
+
+| Feature | Community (free) | Pro | Enterprise |
+|---------|-----------------|-----|------------|
+| All 6 analyzers (poisoning, credentials, transport, supply chain, rug-pull, toxic flow) | ✓ | ✓ | ✓ |
+| Terminal, JSON, SARIF output | ✓ | ✓ | ✓ |
+| Interactive attack graph dashboard | — | ✓ | ✓ |
+| HTML report export | — | ✓ | ✓ |
+| Policy enforcement | — | ✓ | ✓ |
+| Nucleus FlexConnect output | — | — | ✓ |
+| Fleet deployment features | — | — | ✓ |
+
+Upgrade: [https://mcp-audit.dev/pro](https://mcp-audit.dev/pro)
+
+Already have a key? Run `mcp-audit activate <your-key>` to unlock Pro features.
+
+---
+
 ## Install
 
 ```bash
@@ -49,14 +67,16 @@ pip install 'mcp-audit[mcp]'
 mcp-audit scan                                        # Scan all detected MCP configs
 mcp-audit scan --connect                              # Also connect to running servers
 mcp-audit scan --format sarif -o results.sarif        # SARIF for GitHub Security
-mcp-audit scan --format nucleus -o results.json       # Nucleus FlexConnect
-mcp-audit dashboard                                   # Open interactive attack graph dashboard
+mcp-audit scan --format nucleus -o results.json       # Nucleus FlexConnect (Enterprise)
+mcp-audit dashboard                                   # Open interactive attack graph dashboard (Pro)
 mcp-audit dashboard --path demo/configs               # Dashboard against demo data
 mcp-audit discover                                    # List detected clients and servers
 mcp-audit pin                                         # Lock current state as trusted baseline
 mcp-audit diff                                        # Show changes since last pin
 mcp-audit watch                                       # Monitor configs and re-scan on changes
 mcp-audit scan --ci --severity-threshold HIGH         # CI mode
+mcp-audit activate <your-key>                         # Activate a Pro/Enterprise license
+mcp-audit license                                     # Show current license status
 ```
 
 ## Supported clients
@@ -179,7 +199,7 @@ State is stored in `~/.mcp-audit/state.json`.
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-517 tests validate detection accuracy and guard against regressions.
+546 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -188,12 +208,14 @@ See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framew
 | Command | Key flags | Description |
 |---------|-----------|-------------|
 | `mcp-audit scan` | `--connect`, `--format`, `--output`, `--ci`, `--severity-threshold`, `--asset-prefix` | Run all analyzers and report findings |
-| `mcp-audit dashboard` | `--path`, `--port`, `--connect`, `--no-open` | Generate and open the interactive attack graph dashboard |
+| `mcp-audit dashboard` | `--path`, `--port`, `--connect`, `--no-open` | Generate and open the interactive attack graph dashboard *(Pro)* |
 | `mcp-audit watch` | `--path`, `--format`, `--severity-threshold`, `--connect` | Monitor config files and re-scan on any change |
 | `mcp-audit discover` | — | List all detected MCP clients and their configured servers |
 | `mcp-audit pin` | — | Record current server state as a trusted baseline |
 | `mcp-audit diff` | — | Show configuration changes since the last `pin` |
-| `mcp-audit version` | — | Print version string |
+| `mcp-audit activate` | `<key>` | Activate a Pro or Enterprise license key |
+| `mcp-audit license` | — | Show current license tier and expiry |
+| `mcp-audit version` | — | Print version string and active license tier |
 
 **`mcp-audit scan` flags**
 

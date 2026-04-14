@@ -16,8 +16,14 @@ from __future__ import annotations
 
 import json
 
+from rich.console import Console
+from rich.panel import Panel
+
 from mcp_audit._paths import data_dir
+from mcp_audit.licensing import is_pro_feature_available
 from mcp_audit.models import ScanResult
+
+_console = Console()
 
 # ── D3 loader ─────────────────────────────────────────────────────────────────
 
@@ -1035,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
-def generate_html(result: ScanResult) -> str:
+def generate_html(result: ScanResult, console: Console | None = None) -> str | None:
     """Generate a self-contained HTML dashboard for *result*.
 
     Embeds D3.js (bundled with the package) and the full scan data as an
@@ -1049,8 +1055,21 @@ def generate_html(result: ScanResult) -> str:
             path panels.
 
     Returns:
-        Complete HTML string ready to write to a ``.html`` file.
+        Complete HTML string ready to write to a ``.html`` file, or ``None``
+        if the feature is not available under the current license.
     """
+    _con = console or _console
+    if not is_pro_feature_available("dashboard"):
+        _con.print(Panel(
+            "[bold]The interactive dashboard requires mcp-audit Pro.[/bold]\n\n"
+            "Your scan completed successfully. Results are available in terminal and JSON formats.\n\n"
+            "Upgrade to Pro: [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]\n"
+            "Already have a key? Run: [bold]mcp-audit activate <your-key>[/bold]",
+            title="Pro Feature",
+            border_style="yellow",
+        ))
+        return None
+
     scan_data = _build_scan_data(result)
     d3_js = _load_d3()
     html = _DASHBOARD_HTML
