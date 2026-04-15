@@ -33,7 +33,7 @@ _LICENSE_FILE = Path.home() / ".config" / "mcp-audit" / "license.key"
 # Replace with your actual Ed25519 public key bytes (exactly 32 bytes) after
 # running:  python scripts/generate_license.py --generate-keypair
 # Until replaced, verify_license() will always return None for every key.
-_PUBLIC_KEY_BYTES: bytes = b""  # placeholder — replace before release
+_PUBLIC_KEY_BYTES: bytes = b'\xdcO\xb72w\x9e4\x1d\r\xdb\xce/\xaa\x16\x94x\xc4g\x92\xea\x17 9\xff 5sy\xb7\x97\xcd('
 
 # Maps each feature name to the set of tier names that include it.
 _FEATURE_TIERS: dict[str, frozenset[str]] = {
