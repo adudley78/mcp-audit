@@ -90,6 +90,7 @@ def _build_rule(finding: Finding) -> dict:
         "transport": "transport-security",
         "supply_chain": "supply-chain",
         "rug_pull": "rug-pull",
+        "governance": "governance-policy",
     }
     if finding.analyzer in analyzer_tags:
         tags.append(analyzer_tags[finding.analyzer])
@@ -124,7 +125,15 @@ def _build_result(finding: Finding, rule_index: int) -> dict:
         f"{finding.title} detected in {finding.client}/{finding.server}. "
         f"{finding.description}"
     )
-    uri = _finding_to_file_uri(finding.finding_path)
+    # Governance findings use the policy file as the artifact location.
+    if finding.analyzer == "governance":
+        uri = (
+            _finding_to_file_uri(finding.finding_path)
+            if finding.finding_path
+            else "policy"
+        )
+    else:
+        uri = _finding_to_file_uri(finding.finding_path)
 
     result: dict = {
         "ruleId": finding.id,

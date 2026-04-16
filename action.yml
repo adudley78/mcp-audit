@@ -162,18 +162,39 @@ runs:
                 + table_row + "\n\n"
             )
 
-            if results:
-                summary += "### Findings\n\n"
+            # Identify governance findings by ruleId prefix.
+            gov_results = [r for r in results if r.get("ruleId", "").startswith("GOV-")]
+            sec_results = [r for r in results if not r.get("ruleId", "").startswith("GOV-")]
+
+            if gov_results:
+                summary += "### Policy Violations\n\n"
+                summary += "| Status | Violations |\n"
+                summary += "|--------|------------|\n"
+                status = ":x: FAIL" if gov_results else ":white_check_mark: PASS"
+                summary += f"| {status} | {len(gov_results)} |\n\n"
                 summary += "| Level | Rule | Message |\n"
                 summary += "|-------|------|----------|\n"
-                for r in results[:20]:
+                for r in gov_results[:10]:
                     level = r.get("level", "")
                     rule_id = r.get("ruleId", "")
                     message = r.get("message", {}).get("text", "")[:120]
                     summary += f"| {level} | {rule_id} | {message} |\n"
-                if len(results) > 20:
-                    summary += f"\n_…and {len(results) - 20} more findings._\n"
-            else:
+                if len(gov_results) > 10:
+                    summary += f"\n_…and {len(gov_results) - 10} more policy violations._\n"
+                summary += "\n"
+
+            if sec_results:
+                summary += "### Findings\n\n"
+                summary += "| Level | Rule | Message |\n"
+                summary += "|-------|------|----------|\n"
+                for r in sec_results[:20]:
+                    level = r.get("level", "")
+                    rule_id = r.get("ruleId", "")
+                    message = r.get("message", {}).get("text", "")[:120]
+                    summary += f"| {level} | {rule_id} | {message} |\n"
+                if len(sec_results) > 20:
+                    summary += f"\n_…and {len(sec_results) - 20} more findings._\n"
+            elif not gov_results:
                 summary += "_No findings — configuration looks clean._\n"
 
             step_summary = os.environ.get("GITHUB_STEP_SUMMARY", "")

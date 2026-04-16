@@ -1,0 +1,82 @@
+# mcp-audit governance policy — Enterprise with Client Overrides
+#
+# Demonstrates per-client policy overrides. The base policy is strict
+# (like strict.yml), but specific clients have tailored rules:
+#
+#   - cursor: allowed to use an additional internal development server
+#   - claude-desktop: restricted to stdio only (no network transports)
+#
+# Usage:
+#   mcp-audit scan --policy examples/policies/enterprise.yml
+#   mcp-audit policy validate examples/policies/enterprise.yml
+#
+version: 1
+name: "Enterprise governance policy with client overrides"
+
+# ── Base policy (applies to all clients unless overridden) ───────────────────
+
+approved_servers:
+  mode: allowlist
+  violation_severity: high
+  message: "Server {server_name} is not on the approved server list"
+  entries:
+    - name: "@modelcontextprotocol/server-filesystem"
+      source: npm
+      notes: "Official filesystem server"
+    - name: "@modelcontextprotocol/server-fetch"
+      source: npm
+      notes: "Official fetch server"
+    - name: "@modelcontextprotocol/server-github"
+      source: npm
+      notes: "Official GitHub server"
+    # Add more approved servers here.
+
+score_threshold:
+  minimum: 80
+  violation_severity: high
+
+transport_policy:
+  require_tls: true
+  allow_stdio: true
+  allow_sse: true
+  block_http: true
+  violation_severity: high
+
+registry_policy:
+  require_known: true
+  violation_severity: medium
+
+finding_policy:
+  max_critical: 0
+  violation_severity: high
+
+# ── Per-client overrides ──────────────────────────────────────────────────────
+# Valid client keys: claude-desktop, cursor, vscode, windsurf, claude-code,
+#                    copilot-cli, augment
+client_overrides:
+
+  # Cursor developers may use an internal dev-only server not in the base list.
+  cursor:
+    approved_servers:
+      mode: allowlist
+      entries:
+        # All base-policy approved servers remain approved.
+        - name: "@modelcontextprotocol/server-filesystem"
+          source: npm
+        - name: "@modelcontextprotocol/server-fetch"
+          source: npm
+        - name: "@modelcontextprotocol/server-github"
+          source: npm
+        # Cursor-specific addition:
+        - name: "internal-dev-tools"
+          notes: "Internal Cursor plugin for our dev environment"
+
+  # Claude Desktop: allow only local stdio transports; no network servers.
+  claude-desktop:
+    transport_policy:
+      allow_stdio: true    # local subprocess servers are fine
+      allow_sse: false     # no SSE from Claude Desktop
+      allow_http: false    # no HTTP from Claude Desktop
+      block_http: true
+      require_tls: false   # moot since HTTP/SSE are both blocked
+      violation_severity: high

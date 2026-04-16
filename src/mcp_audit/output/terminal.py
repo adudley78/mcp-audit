@@ -199,6 +199,33 @@ def print_results(
         console.print(f"   [italic]ℹ {finding.remediation}[/italic]")
         console.print()
 
+    # Policy violations panel — distinct from security findings
+    gov_findings = [f for f in result.findings if f.analyzer == "governance"]
+    if gov_findings:
+        console.print()
+        gov_lines = []
+        sev_counts: dict[str, int] = {}
+        for gf in gov_findings:
+            sev_counts[gf.severity.value] = sev_counts.get(gf.severity.value, 0) + 1
+        sev_summary = ", ".join(
+            f"{count} {sev.lower()}" for sev, count in sev_counts.items()
+        )
+        gov_lines.append(
+            f"[bold]{len(gov_findings)} policy violation(s):[/bold] {sev_summary}"
+        )
+        for gf in gov_findings:
+            color = SEVERITY_COLORS[gf.severity]
+            gov_lines.append(
+                f"  [dim]{gf.client}/{gf.server}[/dim]  [{color}]{gf.title}[/{color}]"
+            )
+        console.print(
+            Panel(
+                "\n".join(gov_lines),
+                title="[bold yellow]Policy Violations[/bold yellow]",
+                style="yellow",
+            )
+        )
+
     # Score panel — after findings, before errors
     if show_score and result.score is not None:
         console.print()

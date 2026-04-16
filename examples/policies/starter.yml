@@ -1,0 +1,27 @@
+# mcp-audit governance policy — Starter
+#
+# A minimal policy that enforces a minimum scan score and prohibits
+# unencrypted HTTP transports. Good starting point for any team.
+#
+# Usage:
+#   mcp-audit scan --policy examples/policies/starter.yml
+#   mcp-audit policy validate examples/policies/starter.yml
+#
+version: 1
+name: "Starter governance policy"
+
+# Require configurations to score at least 60 out of 100.
+# Scores below this threshold indicate too many security findings.
+score_threshold:
+  minimum: 60
+  violation_severity: medium
+  message: "Configuration scored {score} ({grade}), below minimum of {minimum}"
+
+# Require TLS — reject any server that uses a plain http:// URL.
+# stdio servers (local processes) are not affected by this rule.
+transport_policy:
+  require_tls: true         # block http:// server URLs
+  allow_stdio: true         # local subprocess servers are fine
+  allow_sse: true           # SSE is fine if using https://
+  allow_http: true          # HTTP transport type allowed; require_tls blocks http://
+  violation_severity: high

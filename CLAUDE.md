@@ -55,6 +55,11 @@ src/mcp_audit/
 ├── rules/
 │   ├── __init__.py    # Package marker
 │   └── engine.py      # PolicyRule, RuleMatch, MatchCondition, RuleEngine; load_rules_from_file/dir; load_bundled_community_rules
+├── governance/
+│   ├── __init__.py    # Package marker
+│   ├── models.py      # GovernancePolicy, ApprovedServers, ScoreThreshold, TransportPolicy, RegistryPolicy, FindingPolicy, ClientOverride, PolicyMode
+│   ├── loader.py      # load_policy(); resolution order: explicit → cwd → repo root → user config
+│   └── evaluator.py   # evaluate_governance(); per-server policy checks; produces Finding objects with analyzer="governance"
 ├── output/
 │   ├── terminal.py    # Rich-formatted console output (default); renders score/grade panel
 │   ├── sarif.py       # SARIF for GitHub Security integration
@@ -125,6 +130,19 @@ Build and distribution scripts at project root:
 - `scan --rules-dir PATH` loads additional YAML rule files from PATH for this scan; requires Pro tier (gated via `is_pro_feature_available("custom_rules")`); community rules always run regardless
 - `update-registry` fetches `registry/known-servers.json` from GitHub and saves it to the user-local cache; requires Pro tier (gated via `is_pro_feature_available("update_registry")`; `update_registry` → pro, enterprise)
 - **Baseline storage** uses 0o700 dir / 0o600 file permissions, same pattern as rug-pull state files; env values are never stored, only key names (security — prevents secrets being persisted to disk)
+- `scan --policy PATH` loads a governance policy file; governance findings are appended to `result.findings` after the scan completes (and after baseline drift) so they flow through all output formatters automatically. `--policy` flag is free; `policy init` and `policy check` require Pro.
+- **Governance policy resolution order** when `--policy` is not given: explicit flag → cwd → git repo root → `~/.config/mcp-audit/policy.yml`. Returns `None` (no check) if no file found.
+
+## Governance vs Rule Engine
+
+The rule engine (`rules/`) pattern-matches inside server configs and produces `Finding` objects with `analyzer="rules"`. The governance engine (`governance/`) enforces *organisational requirements* — approved server lists, minimum scan scores, transport constraints, registry membership, finding tolerances — and produces `Finding` objects with `analyzer="governance"`. They are complementary: run together in every scan when a policy file is present.
+
+Key differences:
+- Rule engine: detects security issues in *how servers are configured* (e.g. credential leaks, poisoning patterns)
+- Governance engine: enforces *which servers are allowed and what quality bar* the configuration must meet
+- Community rules always run (free tier); custom rules are Pro-gated
+- Governance `--policy` flag is free; `policy init` / `policy check` authoring tools are Pro-gated
+- Governance findings appear in a distinct "Policy Violations" panel in terminal output (yellow border)
 
 ## Quality gates
 
@@ -158,10 +176,10 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 27+ findings across all analyzer categories
-- 851 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting)
+- 901 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
-- 13 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list)
+- 14 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check)
 - **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; Enterprise-gated via `fleet_merge` feature key; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action with `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif` inputs; uploads SARIF to GitHub Security tab; writes job summary; see `docs/github-action.md`
 - **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `~/.config/mcp-audit/baselines/` with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
@@ -169,6 +187,7 @@ What's built:
 - **Known-Server Registry** — 57-entry curated dataset of legitimate MCP servers replaces the hardcoded YAML in the supply chain analyzer; see `registry/known-servers.json` and `docs/registry.md`
 - **Policy-as-code rule engine** (Chain Reaction Feature) — YAML-based custom detection rules; 12 community rules ship bundled and run for ALL users; `rule validate` / `rule test` / `rule list` subcommands; `scan --rules-dir PATH` and `~/.config/mcp-audit/rules/` for Pro user-local rules; rule findings flow through all output formats automatically; `custom_rules` feature key in `_FEATURE_TIERS`; see `docs/writing-rules.md` and `rules/README.md`
 - **Pre-commit hook** (Chain Reaction Feature) — `.pre-commit-hooks.yaml` at repo root; `language: python`, `entry: mcp-audit`, `pass_filenames: false`, `types: [json]`; default threshold is HIGH; `examples/pre-commit/` has basic and strict configs; see `docs/pre-commit.md`
+- **Governance policy engine** — YAML-based organisational requirements (approved server lists, score thresholds, transport constraints, registry membership, finding tolerances); `policy validate` / `policy init` / `policy check` subcommands; `scan --policy PATH` flag (free) auto-discovers `.mcp-audit-policy.yml` in cwd / repo root; governance findings flow through all output formats; terminal output shows a distinct yellow "Policy Violations" panel; SARIF governance findings tagged `governance-policy` with `GOV-` rule IDs; `governance` + `fleet_governance` feature keys in `_FEATURE_TIERS`; see `docs/governance.md` and `examples/policies/`
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic

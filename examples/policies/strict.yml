@@ -1,0 +1,60 @@
+# mcp-audit governance policy — Strict
+#
+# Maximum security posture for teams that need full control over which MCP
+# servers developers can use. Every server must be explicitly approved.
+#
+# Usage:
+#   mcp-audit scan --policy examples/policies/strict.yml
+#   mcp-audit policy validate examples/policies/strict.yml
+#
+# HOW TO USE THIS POLICY:
+#   1. Run `mcp-audit scan --policy strict.yml` to discover all servers currently
+#      in use on this machine.
+#   2. For each server your team approves, add an entry under `entries:` below.
+#   3. Commit this file to your repo — it auto-discovered on every scan.
+#
+version: 1
+name: "Strict governance policy"
+
+# ── Approved server allowlist ─────────────────────────────────────────────────
+# Only servers explicitly listed here are permitted.
+# An empty entries list means ALL servers are a violation until approved.
+approved_servers:
+  mode: allowlist
+  violation_severity: high
+  message: "Server {server_name} is not on the approved server list"
+  entries: []
+  # Add approved servers here. Examples:
+  # entries:
+  #   - name: "@modelcontextprotocol/server-filesystem"
+  #     source: npm
+  #     notes: "Official filesystem server"
+  #   - name: "@modelcontextprotocol/*"
+  #     notes: "All official MCP servers (glob pattern)"
+
+# ── Minimum scan score ────────────────────────────────────────────────────────
+score_threshold:
+  minimum: 80
+  violation_severity: high
+  message: "Configuration scored {score} ({grade}), below required minimum of {minimum}"
+
+# ── Transport restrictions ────────────────────────────────────────────────────
+transport_policy:
+  require_tls: true     # block plain http:// URLs
+  allow_stdio: true     # local subprocess servers are permitted
+  allow_sse: true       # SSE allowed if using https://
+  block_http: true      # explicit block of unencrypted HTTP
+  violation_severity: high
+
+# ── Registry membership ───────────────────────────────────────────────────────
+registry_policy:
+  require_known: true   # server must appear in the Known-Server Registry
+  violation_severity: medium
+  message: "Server {server_name} is not in the Known-Server Registry"
+
+# ── Zero-tolerance for critical findings ─────────────────────────────────────
+finding_policy:
+  max_critical: 0       # no critical findings allowed
+  max_high: null        # no limit on high findings (score threshold covers this)
+  max_medium: null
+  violation_severity: high

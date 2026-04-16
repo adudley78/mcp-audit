@@ -198,6 +198,41 @@ is expected to fire on many legitimate configurations.
 
 **Hook not tested with `--from-ref`/`--to-ref` diff modes.** The pre-commit framework supports running hooks in diff mode (e.g., `pre-commit run --from-ref HEAD~1 --to-ref HEAD`). Because `pass_filenames: false` bypasses the normal file-list mechanism, diff-mode invocations produce the same full-machine scan rather than a diff-scoped scan. This is consistent with the hook's design intent but has not been tested end-to-end with the pre-commit framework's diff infrastructure.
 
+## Governance
+
+**Client name matching uses string comparison.** The `client_overrides` map is
+keyed by the client's `client` field value (e.g. `"cursor"`, `"claude-desktop"`).
+Typos in override keys are silently ignored — the base policy applies to those
+clients instead. Valid client keys are: `claude-desktop`, `cursor`, `vscode`,
+`windsurf`, `claude-code`, `copilot-cli`, `augment`. There is no validation that
+override keys match known client names; unknown keys are ignored without warning.
+
+**Score threshold check requires a completed scan.** `ScoreThreshold.minimum`
+is only evaluated when a `ScanResult` with a populated `score` field is passed to
+`evaluate_governance()`. Running `policy check` (governance-only mode) omits
+scores because no analyzers are run. Combine with a full `scan --policy` to
+enforce score thresholds.
+
+**Approved server glob matching is fnmatch-style, not full regex.** Pattern
+matching uses Python's `fnmatch.fnmatch()` which supports `*` (any characters),
+`?` (single character), and `[seq]` character classes. Unlike shell globbing,
+fnmatch `*` matches `/` characters, so `@modelcontextprotocol/*` matches
+`@modelcontextprotocol/server-filesystem` as expected. Full regex patterns are
+not supported.
+
+**Source detection is inferred from command basename only.** `npx`/`node`/`npm`
+→ npm; `python`/`python3`/`uvx`/`uv`/`pip`/`pipx` → pip. Servers launched via
+absolute paths, shell scripts, or custom wrappers return `None` source. Such
+servers will never match a `source:`-filtered approved-server entry regardless of
+the server name.
+
+**Finding policy counts exclude governance findings but not baseline findings.**
+`FindingPolicy.max_critical` etc. count only non-governance findings from
+`scan_result.findings` at the time `evaluate_governance()` is called. Baseline
+drift findings (injected before governance evaluation) are counted, which may
+cause unexpected policy violations when combining `--baseline` with
+`finding_policy`.
+
 ## Missing capabilities (not started)
 
 - **Multi-arch binary CI release matrix** — GitHub Actions matrix builds for `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` not yet set up
