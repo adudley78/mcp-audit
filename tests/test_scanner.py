@@ -6,9 +6,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner
 
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
+from mcp_audit.cli import app
 from mcp_audit.models import (
     Finding,
     RegistryStats,
@@ -199,3 +201,66 @@ class TestRegistryStatsInScanResult:
                 skip_rug_pull=True,
             )
         assert result.registry_stats is None
+
+
+# ── Invalid JSON path handling ─────────────────────────────────────────────────
+
+
+class TestInvalidJsonPathHandling:
+    """CLI must exit 2 with a clear error when a user-specified --path has invalid JSON.
+
+    This tests the fix in cli.py that surfaces parse failures for explicit
+    user-supplied paths, distinguishing them from auto-discovered configs which
+    record errors silently and continue.
+    """
+
+    def _invoke_with_bad_json(self, bad_json: Path) -> object:
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            return runner.invoke(app, ["scan", "--path", str(bad_json)])
+
+    def test_invalid_json_path_exits_2(self, tmp_path: Path) -> None:
+        """A user-specified file with invalid JSON must produce exit code 2."""
+        bad_json = tmp_path / "bad.json"
+        bad_json.write_text("{not valid json}")
+        result = self._invoke_with_bad_json(bad_json)
+        assert result.exit_code == 2
+
+    def test_invalid_json_path_shows_error_message(self, tmp_path: Path) -> None:
+        """Output must mention the filename so the user knows which file failed."""
+        bad_json = tmp_path / "bad.json"
+        bad_json.write_text("{not valid json}")
+        result = self._invoke_with_bad_json(bad_json)
+        assert "bad.json" in result.output
+
+    def test_valid_json_path_does_not_exit_2(self, tmp_path: Path) -> None:
+        """A user-specified file with valid (but server-free) JSON must not exit 2."""
+        good_json = tmp_path / "good.json"
+        good_json.write_text('{"mcpServers": {}}')
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["scan", "--path", str(good_json)])
+        # 0 = clean, 1 = findings; both are acceptable — just not 2
+        assert result.exit_code != 2
+
+    def test_auto_discovered_bad_json_does_not_exit_2(self, tmp_path: Path) -> None:
+        """Auto-discovered configs with invalid JSON must NOT cause exit 2.
+
+        Only user-specified paths (via --path) should trigger the hard failure.
+        Auto-discovered bad configs are silently recorded in result.errors.
+        """
+        bad_config = tmp_path / "claude_desktop_config.json"
+        bad_config.write_text("{not valid json}")
+
+        from mcp_audit.discovery import ClientSpec  # noqa: PLC0415
+
+        fake_spec = ClientSpec(
+            name="claude-desktop",
+            root_key="mcpServers",
+            config_paths=[bad_config],
+        )
+        runner = CliRunner()
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[fake_spec]):
+            # No --path flag — this is auto-discovered, not user-specified
+            result = runner.invoke(app, ["scan"])
+        assert result.exit_code != 2

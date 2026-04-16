@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -523,3 +525,74 @@ class TestSarifScoreProperties:
         result.score = None
         doc = _parse(result)
         assert "properties" not in _run(doc)
+
+
+# ── CLI-level --no-score SARIF integration ────────────────────────────────────
+
+
+class TestNoScoreSarifIntegration:
+    """Verify that the CLI's --no-score flag suppresses SARIF properties end-to-end.
+
+    These tests exercise the fix in cli.py (result.score = None when --no-score
+    is active) rather than the formatter in isolation, so they catch regressions
+    at the boundary between the CLI layer and the SARIF formatter.
+    """
+
+    _MCP_CONFIG = '{"mcpServers": {"srv": {"command": "node", "args": ["s.js"]}}}'
+
+    def test_no_score_flag_omits_sarif_properties(self, tmp_path: Path) -> None:
+        """--no-score must null result.score; SARIF must have no properties block."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        config = tmp_path / "mcp.json"
+        config.write_text(self._MCP_CONFIG)
+        sarif_out = tmp_path / "out.sarif"
+
+        runner = CliRunner()
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            runner.invoke(
+                app,
+                [
+                    "scan",
+                    "--path",
+                    str(config),
+                    "--format",
+                    "sarif",
+                    "--no-score",
+                    "--output-file",
+                    str(sarif_out),
+                ],
+            )
+
+        doc = json.loads(sarif_out.read_text())
+        assert "properties" not in doc["runs"][0]
+
+    def test_score_present_includes_sarif_properties(self, tmp_path: Path) -> None:
+        """Without --no-score, SARIF properties block must contain mcp-audit/grade."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        config = tmp_path / "mcp.json"
+        config.write_text(self._MCP_CONFIG)
+        sarif_out = tmp_path / "out.sarif"
+
+        runner = CliRunner()
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            runner.invoke(
+                app,
+                [
+                    "scan",
+                    "--path",
+                    str(config),
+                    "--format",
+                    "sarif",
+                    "--output-file",
+                    str(sarif_out),
+                ],
+            )
+
+        doc = json.loads(sarif_out.read_text())
+        assert "mcp-audit/grade" in doc["runs"][0]["properties"]

@@ -2,6 +2,12 @@
 
 This document catalogs the known limitations of mcp-audit in its current prototype state. These are areas that need work before the tool is ready for production use by security practitioners. Contributions and feedback welcome.
 
+## Recently resolved
+
+- **`--no-score` leaked score into SARIF `run.properties`** (fixed 2026-04-16): When `--no-score` was passed, the SARIF formatter still included the grade/score properties block because score suppression only reached the terminal renderer. Fix: `cli.py` now nulls `result.score` after scanning and before any formatter is called.
+
+- **Malformed JSON config silently swallowed** (fixed 2026-04-16): `mcp-audit scan --path /tmp/bad.json` (with invalid JSON content) produced "No security issues found" and exit 0. Fix: `cli.py` now checks `result.errors` for parse failures on user-specified paths, prints a `[red]Error:[/red]` line with the file path and parse error detail, and exits 2.
+
 ## Detection quality
 
 **False positive rate is unknown.** The poisoning analyzer has been tested against intentionally vulnerable fixtures and one real MCP server (the official filesystem server), which produced a false positive on "base64 encode" — a legitimate technical term in that server's tool description. The patterns have not been validated against a broad sample of real-world MCP server configurations. Before launch, the scanner should be tested against the 20-30 most popular MCP servers to establish a baseline false positive rate and tune patterns accordingly.
@@ -44,7 +50,7 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 **Nucleus FlexConnect not validated.** The FlexConnect output formatter was built from publicly available documentation snippets, not from the official Nucleus API specification (Swagger docs). The JSON structure has not been tested against a real Nucleus instance. Field mappings may be incorrect or incomplete. Validation against the actual ingestion API is required before claiming Nucleus integration.
 
-**SARIF not tested with GitHub.** The SARIF output follows the 2.1.0 specification but has not been uploaded to GitHub's code scanning API to verify it renders correctly in the Security tab and pull request annotations. Score properties (`mcp-audit/grade`, `mcp-audit/numericScore`, etc.) are now included in `run.properties` when a score is present.
+**SARIF not tested with GitHub.** The SARIF output follows the 2.1.0 specification but has not been uploaded to GitHub's code scanning API to verify it renders correctly in the Security tab and pull request annotations. Score properties (`mcp-audit/grade`, `mcp-audit/numericScore`, etc.) are included in `run.properties` when a score is present; the block is absent when `--no-score` is passed (fixed 2026-04-16).
 
 ## Platform coverage
 

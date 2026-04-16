@@ -243,6 +243,20 @@ def scan(
         extra_rules_dirs=extra_rules_dirs if extra_rules_dirs else None,
     )
 
+    # Surface parse failures for user-specified paths.
+    # Auto-discovered configs that fail are silently recorded in result.errors
+    # and surfaced in JSON output. User-specified paths must exit 2 — the user
+    # explicitly asked for that file and a clean result would be misleading.
+    if extra_paths and result.errors:
+        resolved_extra = {p.expanduser().resolve() for p in extra_paths}
+        user_path_errors = [
+            e for e in result.errors if any(str(rp) in e for rp in resolved_extra)
+        ]
+        if user_path_errors:
+            for err in user_path_errors:
+                console.print(f"[red]Error:[/red] {err}")
+            raise typer.Exit(2)  # noqa: B904
+
     # Baseline drift detection (opt-in via --baseline)
     if baseline_name is not None:
         from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
@@ -285,6 +299,12 @@ def scan(
     result.findings = [
         f for f in result.findings if severity_order.index(f.severity) <= threshold_idx
     ]
+
+    # Suppress score for non-terminal formatters when --no-score is requested.
+    # The scanner always calculates the score; suppression is a presentation-layer
+    # decision applied here, after scanning, before any formatter is called.
+    if no_score:
+        result.score = None
 
     # Output
     if fmt == "json":
