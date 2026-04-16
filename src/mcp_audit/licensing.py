@@ -33,7 +33,7 @@ _LICENSE_FILE = Path.home() / ".config" / "mcp-audit" / "license.key"
 # Replace with your actual Ed25519 public key bytes (exactly 32 bytes) after
 # running:  python scripts/generate_license.py --generate-keypair
 # Until replaced, verify_license() will always return None for every key.
-_PUBLIC_KEY_BYTES: bytes = b'\xdcO\xb72w\x9e4\x1d\r\xdb\xce/\xaa\x16\x94x\xc4g\x92\xea\x17 9\xff 5sy\xb7\x97\xcd('
+_PUBLIC_KEY_BYTES: bytes = b"\xdcO\xb72w\x9e4\x1d\r\xdb\xce/\xaa\x16\x94x\xc4g\x92\xea\x17 9\xff 5sy\xb7\x97\xcd("
 
 # Maps each feature name to the set of tier names that include it.
 _FEATURE_TIERS: dict[str, frozenset[str]] = {
@@ -44,6 +44,7 @@ _FEATURE_TIERS: dict[str, frozenset[str]] = {
     "fleet": frozenset({"enterprise"}),
     "fleet_merge": frozenset({"enterprise"}),
     "custom_rules": frozenset({"pro", "enterprise"}),
+    "update_registry": frozenset({"pro", "enterprise"}),
 }
 
 
@@ -182,7 +183,8 @@ def is_pro_feature_available(feature_name: str) -> bool:
 
     Args:
         feature_name: One of ``"dashboard"``, ``"nucleus"``, ``"html_report"``,
-            ``"policy"``, or ``"fleet"``.
+            ``"policy"``, ``"fleet"``, ``"fleet_merge"``, ``"custom_rules"``,
+            or ``"update_registry"``.
     """
     required_tiers = _FEATURE_TIERS.get(feature_name)
     if required_tiers is None:

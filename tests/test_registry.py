@@ -417,6 +417,56 @@ class TestUpdateRegistryProGate:
         assert "Registry updated" in result.output
         assert cache_path.exists()
 
+    def test_update_registry_uses_dedicated_feature_key(self) -> None:
+        """is_pro_feature_available("update_registry") must return False for
+        Community tier and True for Pro/Enterprise tier."""
+        from mcp_audit.licensing import is_pro_feature_available  # noqa: PLC0415
+
+        with patch("mcp_audit.licensing.get_active_license", return_value=None):
+            assert is_pro_feature_available("update_registry") is False
+
+        from datetime import date  # noqa: PLC0415
+
+        from mcp_audit.licensing import LicenseInfo  # noqa: PLC0415
+
+        pro_license = LicenseInfo(
+            tier="pro",
+            email="test@example.com",
+            issued=date(2026, 1, 1),
+            expires=date(2027, 1, 1),
+            is_valid=True,
+        )
+        with patch("mcp_audit.licensing.get_active_license", return_value=pro_license):
+            assert is_pro_feature_available("update_registry") is True
+
+        enterprise_license = LicenseInfo(
+            tier="enterprise",
+            email="test@example.com",
+            issued=date(2026, 1, 1),
+            expires=date(2027, 1, 1),
+            is_valid=True,
+        )
+        with patch(
+            "mcp_audit.licensing.get_active_license", return_value=enterprise_license
+        ):
+            assert is_pro_feature_available("update_registry") is True
+
+    def test_update_registry_gate_no_longer_uses_html_report_key(self) -> None:
+        """The update-registry command must call is_pro_feature_available with
+        'update_registry', not 'html_report'."""
+        import inspect  # noqa: PLC0415
+
+        import mcp_audit.cli as cli_module  # noqa: PLC0415
+
+        source = inspect.getsource(cli_module)
+        # Locate the update_registry function source to check its gate call.
+        # Verify the dedicated key is used and the proxy key is not.
+        func_start = source.find("def update_registry(")
+        assert func_start != -1, "update_registry function not found in cli.py"
+        func_source = source[func_start : func_start + 500]
+        assert 'is_pro_feature_available("update_registry")' in func_source
+        assert 'is_pro_feature_available("html_report")' not in func_source
+
 
 # ── levenshtein (registry module) ─────────────────────────────────────────────
 

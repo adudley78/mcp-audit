@@ -742,10 +742,7 @@ def update_registry() -> None:
 
     Requires a Pro or Enterprise license.
     """
-    # "html_report" is the existing _FEATURE_TIERS key that maps to pro+enterprise;
-    # used here as the Pro-tier gate since licensing.py cannot be modified to add
-    # a dedicated "update_registry" entry.
-    if not is_pro_feature_available("html_report"):
+    if not is_pro_feature_available("update_registry"):
         console.print(
             "[yellow]update-registry is a Pro feature.[/yellow]\n"
             "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"

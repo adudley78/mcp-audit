@@ -123,7 +123,7 @@ Build and distribution scripts at project root:
 - `scan --output-file PATH` (alias for `--output` / `-o`) writes scan results to a file; parent directories are created automatically; required for the GitHub Action SARIF upload step
 - `scan --severity-threshold LEVEL` filters findings to only those at or above the given level and drives exit code; default is `INFO` (all findings); `--severity-threshold high` exits 1 only if HIGH or CRITICAL findings exist
 - `scan --rules-dir PATH` loads additional YAML rule files from PATH for this scan; requires Pro tier (gated via `is_pro_feature_available("custom_rules")`); community rules always run regardless
-- `update-registry` fetches `registry/known-servers.json` from GitHub and saves it to the user-local cache; requires Pro tier (gated via `is_pro_feature_available("html_report")` as a proxy until a dedicated feature key is formalised)
+- `update-registry` fetches `registry/known-servers.json` from GitHub and saves it to the user-local cache; requires Pro tier (gated via `is_pro_feature_available("update_registry")`; `update_registry` → pro, enterprise)
 - **Baseline storage** uses 0o700 dir / 0o600 file permissions, same pattern as rug-pull state files; env values are never stored, only key names (security — prevents secrets being persisted to disk)
 
 ## Quality gates

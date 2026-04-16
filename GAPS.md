@@ -4,6 +4,8 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 ## Recently resolved
 
+- **`update-registry` Pro gate used a proxy feature key** (fixed 2026-04-16): The command was gated via `is_pro_feature_available("html_report")` as a temporary measure. Fix: `_FEATURE_TIERS` in `licensing.py` now contains a dedicated `"update_registry"` entry (`pro`, `enterprise`), and `cli.py` calls `is_pro_feature_available("update_registry")` directly.
+
 - **`--no-score` leaked score into SARIF `run.properties`** (fixed 2026-04-16): When `--no-score` was passed, the SARIF formatter still included the grade/score properties block because score suppression only reached the terminal renderer. Fix: `cli.py` now nulls `result.score` after scanning and before any formatter is called.
 
 - **Malformed JSON config silently swallowed** (fixed 2026-04-16): `mcp-audit scan --path /tmp/bad.json` (with invalid JSON content) produced "No security issues found" and exit 0. Fix: `cli.py` now checks `result.errors` for parse failures on user-specified paths, prints a `[red]Error:[/red]` line with the file path and parse error detail, and exits 2.
@@ -27,8 +29,6 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 **Registry size is below launch target.** The known-server registry ships with 57 entries as of April 2026. The launch target is 75+ entries to cover the most-installed community servers. Community contributions are needed before the August launch — open a PR against `registry/known-servers.json`. See `docs/registry-contributions.md` for the contribution guide.
 
 **Levenshtein threshold may produce false positives for short package names.** The typosquatting threshold is 3 edits. For package names of 5 characters or fewer (e.g., `mcp`, `next`), a threshold of 3 is too permissive — nearly any 5-character name is within 3 edits of any other 5-character name. Monitor the demo environment after the registry refactor for false positives on short names.
-
-**`update-registry` Pro gate uses a proxy feature key.** The `update-registry` command is gated via `is_pro_feature_available("html_report")` rather than a dedicated `"update_registry"` key, because `_FEATURE_TIERS` in `licensing.py` cannot be changed without a release. A dedicated feature key should be added when the Pro feature set is formalised.
 
 **No registry metadata enrichment.** The scanner does not query npm or PyPI registries for package metadata (publish date, download count, author history, version count). A package published yesterday with 3 downloads is riskier than one published two years ago with 100,000 weekly downloads, but the scanner can't distinguish them without network calls.
 
