@@ -60,7 +60,7 @@ runs:
       shell: bash
       id: scan
       run: |
-        ARGS="--format ${{ inputs.format }} --output-file mcp-audit-results.sarif"
+        ARGS="--format sarif --output-file mcp-audit-results.sarif"
         ARGS="$ARGS --severity-threshold ${{ inputs.severity-threshold }}"
 
         if [ -n "${{ inputs.config-paths }}" ]; then
@@ -71,46 +71,52 @@ runs:
           ARGS="$ARGS --baseline ${{ inputs.baseline }}"
         fi
 
-        # Run scan; capture exit code without failing the step so we can still
-        # upload SARIF and write the job summary even when findings exist.
-        set +e
-        mcp-audit scan $ARGS
-        SCAN_EXIT=$?
-        set -e
+        # Capture exit code without failing the step immediately.
+        # Exit 1 = findings found (expected; job continues).
+        # Exit 2 = tool error (propagated as a real failure).
+        mcp-audit scan $ARGS || SCAN_EXIT=$?
+
+        if [ "${SCAN_EXIT:-0}" -eq 2 ]; then
+          exit 2
+        fi
 
         echo "sarif-path=mcp-audit-results.sarif" >> "$GITHUB_OUTPUT"
+        echo "scan_exit=${SCAN_EXIT:-0}" >> "$GITHUB_OUTPUT"
 
-        # Parse JSON summary for finding count and grade outputs.
-        mcp-audit scan --format json --output-file mcp-audit-summary.json \
-          ${ARGS#--format sarif} 2>/dev/null || \
-        mcp-audit scan --format json --output-file mcp-audit-summary.json 2>/dev/null || \
-        true
-
+        # Parse finding count and grade directly from the SARIF output.
         python3 - << 'PYEOF'
         import json, os, sys
-        summary_path = "mcp-audit-summary.json"
+        sarif_path = "mcp-audit-results.sarif"
         try:
-            with open(summary_path) as f:
+            with open(sarif_path) as f:
                 data = json.load(f)
-            findings = data.get("findings", [])
-            score = data.get("score") or {}
-            grade = score.get("grade", "N/A")
-            count = len(findings)
+            runs = data.get("runs", [{}])
+            results = runs[0].get("results", []) if runs else []
+            props = runs[0].get("properties", {}) if runs else {}
+            grade = props.get("mcp-audit/grade", "N/A")
+            count = len(results)
             github_output = os.environ.get("GITHUB_OUTPUT", "")
             if github_output:
                 with open(github_output, "a") as out:
                     out.write(f"finding-count={count}\n")
                     out.write(f"grade={grade}\n")
         except Exception as e:
-            print(f"Warning: could not parse summary JSON: {e}", file=sys.stderr)
+            print(f"Warning: could not parse SARIF: {e}", file=sys.stderr)
         PYEOF
 
-        # Propagate the scan exit code so the workflow step fails correctly.
-        exit $SCAN_EXIT
+    - name: Verify SARIF output
+      shell: bash
+      if: always()
+      run: |
+        if [ ! -f "mcp-audit-results.sarif" ]; then
+          echo "SARIF file not found — writing empty SARIF so upload does not fail"
+          echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"mcp-audit","rules":[]}},"results":[]}]}' \
+            > mcp-audit-results.sarif
+        fi
 
     - name: Upload SARIF to GitHub Security tab
-      if: ${{ inputs.upload-sarif == 'true' && always() }}
-      uses: github/codeql-action/upload-sarif@v3
+      if: always() && inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: mcp-audit-results.sarif
         category: mcp-audit
@@ -122,38 +128,50 @@ runs:
         python3 - << 'PYEOF'
         import json, os, sys
 
+        sarif_path = "mcp-audit-results.sarif"
         try:
-            with open("mcp-audit-summary.json") as f:
+            with open(sarif_path) as f:
                 data = json.load(f)
-            findings = data.get("findings", [])
-            score = data.get("score") or {}
-            grade = score.get("grade", "N/A")
-            numeric = score.get("numeric_score", "N/A")
-            critical = sum(1 for f in findings if f.get("severity") == "CRITICAL")
-            high     = sum(1 for f in findings if f.get("severity") == "HIGH")
-            medium   = sum(1 for f in findings if f.get("severity") == "MEDIUM")
-            low      = sum(1 for f in findings if f.get("severity") == "LOW")
-            info     = sum(1 for f in findings if f.get("severity") == "INFO")
-            table_header = "| Grade | Score | Critical | High | Medium | Low | Info |"
-            table_sep    = "|-------|-------|----------|------|--------|-----|------|"
-            table_row    = f"| {grade} | {numeric}/100 | {critical} | {high} | {medium} | {low} | {info} |"
+
+            runs = data.get("runs", [{}])
+            results = runs[0].get("results", []) if runs else []
+            props = runs[0].get("properties", {}) if runs else {}
+
+            grade = props.get("mcp-audit/grade", "N/A")
+            numeric = props.get("mcp-audit/numericScore", "N/A")
+
+            # SARIF levels: error → CRITICAL/HIGH, warning → MEDIUM, note → LOW/INFO
+            severity_counts = {"error": 0, "warning": 0, "note": 0, "none": 0}
+            for r in results:
+                level = r.get("level", "warning")
+                severity_counts[level] = severity_counts.get(level, 0) + 1
+
+            table_header = "| Grade | Score | Errors | Warnings | Notes |"
+            table_sep    = "|-------|-------|--------|----------|-------|"
+            table_row    = (
+                f"| {grade} | {numeric}/100 "
+                f"| {severity_counts['error']} "
+                f"| {severity_counts['warning']} "
+                f"| {severity_counts['note']} |"
+            )
             summary = (
                 "## mcp-audit Security Scan\n\n"
                 + table_header + "\n"
                 + table_sep + "\n"
                 + table_row + "\n\n"
             )
-            if findings:
+
+            if results:
                 summary += "### Findings\n\n"
-                summary += "| Severity | Server | Title |\n"
-                summary += "|----------|--------|-------|\n"
-                for finding in findings[:20]:  # cap at 20 rows
-                    sev    = finding.get("severity", "")
-                    server = finding.get("server", "")
-                    title  = finding.get("title", "")
-                    summary += f"| {sev} | {server} | {title} |\n"
-                if len(findings) > 20:
-                    summary += f"\n_…and {len(findings) - 20} more findings._\n"
+                summary += "| Level | Rule | Message |\n"
+                summary += "|-------|------|----------|\n"
+                for r in results[:20]:
+                    level = r.get("level", "")
+                    rule_id = r.get("ruleId", "")
+                    message = r.get("message", {}).get("text", "")[:120]
+                    summary += f"| {level} | {rule_id} | {message} |\n"
+                if len(results) > 20:
+                    summary += f"\n_…and {len(results) - 20} more findings._\n"
             else:
                 summary += "_No findings — configuration looks clean._\n"
 
@@ -165,7 +183,7 @@ runs:
                 print(summary)
 
         except FileNotFoundError:
-            msg = "mcp-audit-summary.json not found — scan may have produced no output.\n"
+            msg = "mcp-audit-results.sarif not found — scan may have produced no output.\n"
             step_summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
             if step_summary:
                 with open(step_summary, "a") as f:

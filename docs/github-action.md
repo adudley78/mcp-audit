@@ -110,7 +110,7 @@ Full file: [`examples/github-actions/with-baseline.yml`](../examples/github-acti
 
 ## How findings appear in the Security tab
 
-When `upload-sarif: 'true'` and `permissions: security-events: write` are both set, findings are uploaded to GitHub's code scanning results using the [github/codeql-action/upload-sarif](https://github.com/github/codeql-action) action (v3). Each finding becomes a code scanning alert with:
+When `upload-sarif: 'true'` and `permissions: security-events: write` are both set, findings are uploaded to GitHub's code scanning results using the [github/codeql-action/upload-sarif](https://github.com/github/codeql-action) action (v4, Node.js 24). Each finding becomes a code scanning alert with:
 
 - **Severity** mapped from CRITICAL/HIGH → error, MEDIUM → warning, LOW/INFO → note
 - **Location** pointing to the MCP config file where the server is defined
@@ -167,7 +167,31 @@ mcp-audit baseline export ci-baseline > .mcp-audit-baseline.json
 git add .mcp-audit-baseline.json && git commit -m "chore: update mcp-audit baseline"
 ```
 
+## Exit code behaviour
+
+`mcp-audit` uses three distinct exit codes:
+
+| Exit code | Meaning | Action effect |
+|-----------|---------|---------------|
+| `0` | Clean scan — no findings at or above the threshold | Job continues normally |
+| `1` | Findings found at or above the threshold | Job continues; SARIF is uploaded; step exits 0 |
+| `2` | Tool error (bad args, unreadable config, etc.) | Step fails immediately; job fails |
+
+Exit code `1` is **not an error** — it is the normal signal that findings exist. The action's scan step explicitly converts exit `1` into a step exit `0` so that SARIF upload and the job summary always run. Only exit code `2` propagates as a real failure.
+
+## Action version requirements
+
+The action uses `github/codeql-action/upload-sarif@v4`, which runs on Node.js 24. GitHub is deprecating actions that run on Node.js 20 starting 2026-06-02. If you pin the composite action yourself, use `@v4` or later.
+
+`actions/checkout@v4` runs on Node.js 20 but is not affected by the 2026-06-02 deprecation (GitHub will update it transparently).
+
 ## Troubleshooting
+
+### "Path does not exist: mcp-audit-results.sarif"
+
+**Cause**: the scan step exited with code `1` (findings found) or `2` (error) before writing the SARIF file, and the upload step ran without a file present.
+
+**Fix**: this is resolved in the current action version. The scan step now captures the exit code with `|| SCAN_EXIT=$?` instead of letting the shell abort on non-zero. A `Verify SARIF output` step (runs with `if: always()`) writes an empty valid SARIF file if the scan step produced none, so the upload never fails due to a missing file. Ensure you are using the latest `action.yml`.
 
 ### SARIF upload silently fails with no Security tab results
 
