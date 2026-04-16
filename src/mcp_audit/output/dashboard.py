@@ -118,9 +118,19 @@ def _build_scan_data(result: ScanResult) -> dict:
 
     hitting_set_set = set(hitting_set)
 
+    score_data = None
+    if result.score is not None:
+        score_data = {
+            "numeric_score": result.score.numeric_score,
+            "grade": result.score.grade,
+            "positive_signals": result.score.positive_signals,
+            "deductions": result.score.deductions,
+        }
+
     return {
         "version": result.version,
         "timestamp": result.timestamp.strftime("%Y-%m-%d %H:%M UTC"),
+        "score": score_data,
         "machine": {
             "hostname": result.machine.hostname,
             "username": result.machine.username,
@@ -265,6 +275,9 @@ body{
 .sc-num{font-size:14px;font-weight:700;line-height:1}
 .sc-label{font-size:12px;color:var(--text-secondary)}
 .top-summary{font-size:12px;color:var(--text-dim)}
+.grade-badge{display:flex;align-items:baseline;gap:6px;padding:2px 10px;border-radius:6px;border:1px solid var(--border)}
+.grade-letter{font-size:22px;font-weight:700;line-height:1}
+.grade-num{font-size:13px;font-weight:600;color:var(--text-secondary)}
 
 /* ── Layout regions ── */
 .graph-panel{
@@ -443,6 +456,10 @@ body{
             onclick="toggleTheme()"
             aria-label="Toggle light/dark theme"
             title="Toggle light/dark theme"></button>
+    <div class="grade-badge" id="grade-badge" style="display:none" title="Security grade">
+      <span class="grade-letter" id="grade-letter"></span>
+      <span class="grade-num" id="grade-num"></span>
+    </div>
     <div class="top-stats">
       <div class="sev-counter" id="crit-ctr" style="display:none">
         <span class="sc-num" style="color:var(--crit)" id="crit-num"></span>
@@ -581,6 +598,19 @@ function initStats(){
   if(M){
     document.getElementById('machine-bar').textContent =
       `${M.hostname}  ·  ${M.username}@${M.os}  ·  scan ${M.scan_id}  ·  ${SCAN_DATA.timestamp}`;
+  }
+
+  const SC = SCAN_DATA.score;
+  if(SC){
+    const gradeColors = {A:'var(--safe)',B:'var(--safe)',C:'var(--med)',D:'var(--med)',F:'var(--crit)'};
+    const badge = document.getElementById('grade-badge');
+    const letterEl = document.getElementById('grade-letter');
+    const numEl = document.getElementById('grade-num');
+    letterEl.textContent = SC.grade;
+    letterEl.style.color = gradeColors[SC.grade] || 'var(--text-primary)';
+    numEl.textContent = SC.numeric_score;
+    badge.style.display = 'flex';
+    badge.title = `Grade ${SC.grade} · ${SC.numeric_score}/100`;
   }
 }
 

@@ -8,6 +8,7 @@ from rich.rule import Rule
 from rich.text import Text
 
 from mcp_audit.models import AttackPathSummary, ScanResult, Severity
+from mcp_audit.scoring import format_grade_terminal
 
 SEVERITY_COLORS = {
     Severity.CRITICAL: "red",
@@ -26,9 +27,7 @@ SEVERITY_ICONS = {
 }
 
 
-def _print_attack_path_summary(
-    summary: AttackPathSummary, console: Console
-) -> None:
+def _print_attack_path_summary(summary: AttackPathSummary, console: Console) -> None:
     """Print the attack path summary panel before the detailed findings list.
 
     Shows the top-3 paths (by severity) with plain-English descriptions,
@@ -47,8 +46,7 @@ def _print_attack_path_summary(
         icon = SEVERITY_ICONS[path.severity]
         hop_chain = " → ".join(path.hops)
         console.print(
-            f"{icon} [{color} bold]{path.id}[/{color} bold]  "
-            f"[bold]{path.title}[/bold]"
+            f"{icon} [{color} bold]{path.id}[/{color} bold]  [bold]{path.title}[/bold]"
         )
         console.print(f"   [dim]Chain:[/dim] {hop_chain}")
         console.print(f"   {path.description}")
@@ -89,8 +87,18 @@ def _print_attack_path_summary(
     console.print()
 
 
-def print_results(result: ScanResult, console: Console | None = None) -> None:
-    """Print scan results to the terminal with Rich formatting."""
+def print_results(
+    result: ScanResult,
+    console: Console | None = None,
+    show_score: bool = True,
+) -> None:
+    """Print scan results to the terminal with Rich formatting.
+
+    Args:
+        result: Completed scan result.
+        console: Rich console to write to.  A new one is created if omitted.
+        show_score: When ``False``, the score/grade panel is suppressed.
+    """
     if console is None:
         console = Console()
 
@@ -113,6 +121,14 @@ def print_results(result: ScanResult, console: Console | None = None) -> None:
 
     if not result.findings:
         console.print(Panel("✅ No security issues found", style="green"))
+        if show_score and result.score is not None:
+            console.print()
+            console.print(
+                Panel(
+                    format_grade_terminal(result.score),
+                    style="green",
+                )
+            )
         return
 
     # Attack path summary — printed before individual findings.
@@ -122,18 +138,23 @@ def print_results(result: ScanResult, console: Console | None = None) -> None:
     # Findings summary
     counts = []
     for sev in [
-        Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM,
-        Severity.LOW, Severity.INFO,
+        Severity.CRITICAL,
+        Severity.HIGH,
+        Severity.MEDIUM,
+        Severity.LOW,
+        Severity.INFO,
     ]:
         n = sum(1 for f in result.findings if f.severity == sev)
         if n > 0:
             color = SEVERITY_COLORS[sev]
             counts.append(f"[{color}]{n} {sev.value.lower()}[/{color}]")
 
-    console.print(Panel(
-        f"[bold]{len(result.findings)} finding(s):[/bold] {', '.join(counts)}",
-        style="red" if result.critical_count > 0 else "yellow",
-    ))
+    console.print(
+        Panel(
+            f"[bold]{len(result.findings)} finding(s):[/bold] {', '.join(counts)}",
+            style="red" if result.critical_count > 0 else "yellow",
+        )
+    )
     console.print()
 
     # Individual findings
@@ -153,6 +174,18 @@ def print_results(result: ScanResult, console: Console | None = None) -> None:
         console.print(f"   [dim]→ {finding.evidence}[/dim]")
         console.print(f"   [italic]ℹ {finding.remediation}[/italic]")
         console.print()
+
+    # Score panel — after findings, before errors
+    if show_score and result.score is not None:
+        console.print()
+        console.print(
+            Panel(
+                format_grade_terminal(result.score),
+                style="green"
+                if result.score.grade in ("A", "B")
+                else ("yellow" if result.score.grade in ("C", "D") else "red"),
+            )
+        )
 
     # Errors
     if result.errors:

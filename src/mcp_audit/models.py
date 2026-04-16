@@ -162,6 +162,15 @@ class AttackPathSummary(BaseModel):
     paths_broken_by: dict[str, list[str]] = Field(default_factory=dict)
 
 
+class ScanScore(BaseModel):
+    """Score and letter grade for a completed scan."""
+
+    numeric_score: int
+    grade: str
+    positive_signals: list[str]
+    deductions: list[str]
+
+
 class ScanResult(BaseModel):
     """Complete results from a scan run."""
 
@@ -174,6 +183,7 @@ class ScanResult(BaseModel):
     findings: list[Finding] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     attack_path_summary: AttackPathSummary | None = None
+    score: ScanScore | None = None
 
     @property
     def critical_count(self) -> int:
@@ -192,8 +202,11 @@ class ScanResult(BaseModel):
         if not self.findings:
             return None
         order = [
-            Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM,
-            Severity.LOW, Severity.INFO,
+            Severity.CRITICAL,
+            Severity.HIGH,
+            Severity.MEDIUM,
+            Severity.LOW,
+            Severity.INFO,
         ]
         for sev in order:
             if any(f.severity == sev for f in self.findings):

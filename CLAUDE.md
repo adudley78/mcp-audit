@@ -26,9 +26,10 @@ and flags security issues.
 src/mcp_audit/
 ├── cli.py             # Typer app — all CLI commands live here
 ├── scanner.py         # Orchestrator: discovery → parsing → analysis → output
+├── scoring.py         # Scan score calculation (0–100) and letter grade (A–F) formatting
 ├── discovery.py       # Finds MCP config files across all supported clients
 ├── config_parser.py   # Parses JSON configs, normalizes across client formats
-├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, Severity, AttackPath, MachineInfo
+├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, ScanScore, Severity, AttackPath, MachineInfo
 ├── licensing.py       # Ed25519 license key verification; LicenseInfo model; is_pro_feature_available()
 ├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch)
 ├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect)
@@ -38,19 +39,28 @@ src/mcp_audit/
 │   ├── poisoning.py   # Tool description poisoning detection (regex-based)
 │   ├── credentials.py # Secret/API key exposure in configs
 │   ├── transport.py   # Transport security (TLS, localhost binding, etc.)
-│   ├── supply_chain.py# Package provenance and typosquatting detection
+│   ├── supply_chain.py# Package provenance and typosquatting detection (registry-backed)
 │   ├── rug_pull.py    # Description change detection via hashing
 │   ├── toxic_flow.py  # Cross-server capability tagging and dangerous pair detection
 │   └── attack_paths.py# Multi-hop attack path detection and greedy hitting set algorithm
+├── baselines/
+│   ├── __init__.py    # Package marker
+│   └── manager.py     # BaselineManager, Baseline, BaselineServer, DriftFinding, DriftType; save/load/compare
+├── registry/
+│   ├── __init__.py    # Package marker
+│   └── loader.py      # KnownServerRegistry, RegistryEntry, load_registry(); Levenshtein helper
 ├── output/
-│   ├── terminal.py    # Rich-formatted console output (default)
+│   ├── terminal.py    # Rich-formatted console output (default); renders score/grade panel
 │   ├── sarif.py       # SARIF for GitHub Security integration
 │   ├── nucleus.py     # Nucleus FlexConnect formatter
-│   └── dashboard.py   # Self-contained HTML dashboard with embedded D3 v7 graph
+│   └── dashboard.py   # Self-contained HTML dashboard with embedded D3 v7 graph and grade badge
 └── data/
-    ├── known_npm_packages.yaml  # Known-legitimate npm MCP package names for typosquatting checks
+    ├── known_npm_packages.yaml  # Legacy npm package list (retained for reference; superseded by registry)
     └── d3.v7.min.js             # Bundled D3 v7 (embedded inline in dashboard HTML)
 ```
+
+Data files at project root:
+- `registry/known-servers.json` — curated dataset of 57 known-legitimate MCP servers; queried by the supply chain analyzer for typosquatting detection; ships in both the pip wheel and PyInstaller binary
 
 Build and distribution scripts at project root:
 - `build.py` — PyInstaller build script; produces `dist/mcp-audit-{os}-{arch}` single-file binary
@@ -60,11 +70,14 @@ Build and distribution scripts at project root:
 ## Key conventions
 
 - Every module has a corresponding test file in tests/ (e.g., test_discovery.py)
-- Detection patterns are hardcoded in each analyzer (regex constants); supply-chain data is in data/known_npm_packages.yaml
+- Detection patterns are hardcoded in each analyzer (regex constants); supply-chain data is now sourced from `registry/known-servers.json` via `registry/loader.py`
 - All findings use the `Finding` Pydantic model from models.py
 - Analyzers inherit from `BaseAnalyzer` and implement an `analyze()` method
 - Output formatters inherit from `BaseFormatter` and implement a `format()` method
 - The dashboard HTML template is a single large string (`_DASHBOARD_HTML`) embedded in `output/dashboard.py`. All scan data is injected via a `__SCAN_DATA_JSON__` placeholder at render time. D3 v7 is bundled from `data/d3.v7.min.js` and injected via `__D3_JS__`. Do not split the template into separate files.
+- **Scoring** runs after all analyzers complete inside `scanner.py` and attaches a `ScanScore` to `ScanResult`. Analyzers never call the scorer directly. See `scoring.py` and `docs/scoring.md`.
+- **Registry resolution order** for the supply chain analyzer: explicit `--registry PATH` CLI flag → user-local cache at `~/.config/mcp-audit/registry/known-servers.json` (written by `update-registry`) → PyInstaller `sys._MEIPASS/registry/` → `importlib.resources` (installed wheel) → dev repo-root fallback (`registry/known-servers.json`).
+- `SupplyChainAnalyzer` accepts `registry=KnownServerRegistry` or `registry_path=Path` in `__init__` to allow test injection without touching the filesystem.
 
 ## Critical implementation details
 
@@ -77,6 +90,12 @@ Build and distribution scripts at project root:
 - **Pro feature gating happens at the output/rendering layer only.** Analyzers and scan logic never check license state. Scans always run fully — gating only restricts which output formats are rendered.
 - License verification is fully offline (Ed25519 public key hardcoded in `licensing.py`); the private key never ships with the package
 - Exit codes: 0 = clean, 1 = findings found, 2 = error
+- JSON output includes top-level `score` and `grade` fields from `ScanScore`; HTML dashboard displays a colour-coded grade badge in the header
+- `scan --no-score` suppresses the grade panel in terminal output only; score is still calculated and present in JSON/HTML
+- `scan --registry PATH` overrides the bundled and cached registry for that run
+- `scan --baseline NAME` (or `--baseline latest`) loads a saved baseline and appends `DriftFinding`s converted to `Finding` objects (`analyzer="baseline"`) into all output formats after the normal scan
+- `update-registry` fetches `registry/known-servers.json` from GitHub and saves it to the user-local cache; requires Pro tier (gated via `is_pro_feature_available("html_report")` as a proxy until a dedicated feature key is formalised)
+- **Baseline storage** uses 0o700 dir / 0o600 file permissions, same pattern as rug-pull state files; env values are never stored, only key names (security — prevents secrets being persisted to disk)
 
 ## Quality gates
 
@@ -110,10 +129,13 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 27+ findings across all analyzer categories
-- 546 tests passing, ruff clean
+- 662 tests passing, ruff clean
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
-- 9 CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license
+- 10 CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry
+- **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `~/.config/mcp-audit/baselines/` with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
+- **Scan Score** — every scan now produces a numeric score (0–100) and letter grade (A–F); see `scoring.py` and `docs/scoring.md`
+- **Known-Server Registry** — 57-entry curated dataset of legitimate MCP servers replaces the hardcoded YAML in the supply chain analyzer; see `registry/known-servers.json` and `docs/registry.md`
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic

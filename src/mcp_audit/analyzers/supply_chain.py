@@ -8,60 +8,17 @@ Ref: "Typosquatting in Package Managers" — Vu et al., NDSS 2021
 
 from __future__ import annotations
 
-from functools import lru_cache
+from pathlib import Path
 
-import yaml
-
-from mcp_audit._paths import data_dir
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.models import Finding, ServerConfig, Severity
+from mcp_audit.registry.loader import KnownServerRegistry, levenshtein, load_registry
 
 # Commands that download and execute npm packages at runtime.
 _NPX_LIKE: frozenset[str] = frozenset({"npx", "bunx", "pnpx"})
 
 # Flags that consume the following token as their value, not as a package name.
 _FLAGS_WITH_VALUE: frozenset[str] = frozenset({"-p", "--package", "--call", "-c"})
-
-
-@lru_cache(maxsize=1)
-def _load_known_packages() -> frozenset[str]:
-    """Load and cache known-legitimate npm package names from the data file."""
-    with (data_dir() / "known_npm_packages.yaml").open() as fh:
-        data = yaml.safe_load(fh)
-    return frozenset(pkg.lower() for pkg in data.get("npm", []))
-
-
-def levenshtein(a: str, b: str) -> int:
-    """Compute the Levenshtein edit distance between two strings.
-
-    Uses a space-optimised two-row DP approach: O(min(|a|,|b|)) space,
-    O(|a| * |b|) time.
-
-    Args:
-        a: First string.
-        b: Second string.
-
-    Returns:
-        Non-negative integer edit distance.
-    """
-    if a == b:
-        return 0
-    # Keep `a` as the longer string so the inner row is shorter.
-    if len(a) < len(b):
-        a, b = b, a
-    m, n = len(a), len(b)
-    prev = list(range(n + 1))
-    for i in range(1, m + 1):
-        curr = [i] + [0] * n
-        for j in range(1, n + 1):
-            cost = 0 if a[i - 1] == b[j - 1] else 1
-            curr[j] = min(
-                curr[j - 1] + 1,   # insertion
-                prev[j] + 1,       # deletion
-                prev[j - 1] + cost,  # substitution
-            )
-        prev = curr
-    return prev[n]
 
 
 def extract_npm_package(args: list[str]) -> str | None:
@@ -100,10 +57,28 @@ class SupplyChainAnalyzer(BaseAnalyzer):
     For each server that invokes ``npx`` (or equivalent), the analyzer:
 
     1. Extracts the package name from the argument list.
-    2. Skips it if it matches a known-good package exactly.
-    3. Computes the minimum Levenshtein distance to any known-good package.
+    2. Skips it if it matches a known-good package exactly (via registry).
+    3. Finds the closest registry entry by Levenshtein distance.
     4. Emits a finding if the distance is ≤ 3, with severity scaled to proximity.
     """
+
+    def __init__(
+        self,
+        registry: KnownServerRegistry | None = None,
+        registry_path: Path | None = None,
+    ) -> None:
+        """Initialise the analyzer with an optional pre-loaded registry.
+
+        Args:
+            registry: Pre-built :class:`~mcp_audit.registry.loader.KnownServerRegistry`
+                instance.  When supplied, *registry_path* is ignored.
+            registry_path: Path to a custom registry JSON file.  Falls back to
+                the user-cached or bundled registry when ``None``.
+        """
+        if registry is not None:
+            self._registry = registry
+        else:
+            self._registry = load_registry(registry_path)
 
     @property
     def name(self) -> str:
@@ -129,17 +104,19 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         if package is None:
             return []
 
-        known = _load_known_packages()
-
-        if package in known:
+        if self._registry.is_known(package):
             return []
 
-        closest, min_dist = _closest_known(package, known)
+        closest_entry = self._registry.find_closest(package, threshold=3)
 
-        if closest is None or min_dist > 3:
+        if closest_entry is None:
             return []
 
+        # Compute actual distance so severity mapping stays accurate.
+        min_dist = levenshtein(package, closest_entry.name.lower())
         severity, finding_id = _severity_for_distance(min_dist)
+
+        verified_label = "verified" if closest_entry.verified else "unverified"
 
         return [
             Finding(
@@ -151,14 +128,22 @@ class SupplyChainAnalyzer(BaseAnalyzer):
                 title=f"Possible typosquatting: {package!r}",
                 description=(
                     f"Package {package!r} is {min_dist} edit(s) away from the "
-                    f"known-legitimate package {closest!r}. This pattern is consistent "
-                    "with a typosquatting supply-chain attack."
+                    f"known-legitimate package {closest_entry.name!r} "
+                    f"(maintainer: {closest_entry.maintainer}, {verified_label})."
+                    " This pattern is consistent with a typosquatting"
+                    " supply-chain attack."
                 ),
-                evidence=f"command: {server.command} {' '.join(server.args[:4])}",
+                evidence=(
+                    f"command: {server.command} {' '.join(server.args[:4])} | "
+                    f"closest: {closest_entry.name!r} (maintainer="
+                    f"{closest_entry.maintainer},"
+                    f" verified={closest_entry.verified})"
+                ),
                 remediation=(
-                    f"Verify {package!r} is intentional. If you meant {closest!r}, "
-                    "correct the configuration. Inspect the package's npm page and "
-                    "source repository before trusting it."
+                    f"Verify {package!r} is intentional. "
+                    f"If you meant {closest_entry.name!r}, "
+                    "correct the configuration. Inspect the package's npm page"
+                    " and source repository before trusting it."
                 ),
                 cwe="CWE-829",
             )
@@ -166,29 +151,6 @@ class SupplyChainAnalyzer(BaseAnalyzer):
 
 
 # ── Private helpers ────────────────────────────────────────────────────────────
-
-def _closest_known(
-    package: str, known: frozenset[str]
-) -> tuple[str | None, int]:
-    """Return the closest known package and its distance from *package*.
-
-    Args:
-        package: Lowercase npm package name to check.
-        known: Set of known-legitimate lowercase package names.
-
-    Returns:
-        ``(closest_name, distance)`` tuple, or ``(None, 0)`` if *known* is empty.
-    """
-    closest: str | None = None
-    min_dist = 10_000  # sentinel larger than any realistic distance
-    for candidate in known:
-        d = levenshtein(package, candidate)
-        if d < min_dist:
-            min_dist = d
-            closest = candidate
-            if d == 0:
-                break  # can't do better
-    return closest, min_dist
 
 
 def _severity_for_distance(distance: int) -> tuple[Severity, str]:

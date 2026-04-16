@@ -16,7 +16,13 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 ## Supply chain coverage
 
-**Only npm packages are checked for typosquatting.** The MCP ecosystem includes Python servers (installed via uvx/pip), Docker containers, Go binaries, and other package managers. The current analyzer only checks npm package names against 43 known-legitimate servers. PyPI typosquatting, Docker image verification, and other ecosystems are not covered.
+**Only npm packages are checked for typosquatting.** The MCP ecosystem includes Python servers (installed via uvx/pip), Docker containers, Go binaries, and other package managers. The supply chain analyzer only checks npm package names (npx/bunx/pnpx commands) against the known-server registry. PyPI typosquatting, Docker image verification, and other ecosystems are not covered.
+
+**Registry size is below launch target.** The known-server registry ships with 57 entries as of April 2026. The launch target is 75+ entries to cover the most-installed community servers. Community contributions are needed before the August launch — open a PR against `registry/known-servers.json`.
+
+**Levenshtein threshold may produce false positives for short package names.** The typosquatting threshold is 3 edits. For package names of 5 characters or fewer (e.g., `mcp`, `next`), a threshold of 3 is too permissive — nearly any 5-character name is within 3 edits of any other 5-character name. Monitor the demo environment after the registry refactor for false positives on short names.
+
+**`update-registry` Pro gate uses a proxy feature key.** The `update-registry` command is gated via `is_pro_feature_available("html_report")` rather than a dedicated `"update_registry"` key, because `_FEATURE_TIERS` in `licensing.py` cannot be changed without a release. A dedicated feature key should be added when the Pro feature set is formalised.
 
 **No registry metadata enrichment.** The scanner does not query npm or PyPI registries for package metadata (publish date, download count, author history, version count). A package published yesterday with 3 downloads is riskier than one published two years ago with 100,000 weekly downloads, but the scanner can't distinguish them without network calls.
 
@@ -96,10 +102,22 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **Lemon Squeezy / Gumroad integration not set up.** There is no automated key issuance pipeline. Keys are generated manually via `scripts/generate_license.py` and sent to customers out-of-band.
 
+## Scoring
+
+**INFO deductions are visible but cosmetically surprising.** INFO-severity findings produce a −1 deduction entry in the score breakdown. If positive signal bonuses (up to +10 total) exceed the total INFO deduction, the numeric score clamps to 100 even though deduction lines appear. The deduction entry is the intended signal to the practitioner. This is a known, accepted tradeoff — a clean scan with minor informational notes should still be achievable as a 100/A.
+
+**Scoring weights are not user-configurable.** The deduction table and bonus thresholds are hardcoded in `scoring.py`. Custom severity weights are a planned Pro feature (policy-as-code engine, Chain Reaction Feature 1) but are not yet implemented.
+
+## Baselines
+
+**Server matching uses exact (client, name) pair — renames appear as remove+add.** `BaselineManager.compare()` identifies servers by the `(client, name)` tuple. If a server is renamed in the config file it will show as `server_removed` (old name) and `server_added` (new name) rather than as a single `hash_changed` finding. There is no fuzzy matching on server identity. This is intentional — fuzzy matching would increase false-negative rates — but users should be aware that renaming a server resets its history.
+
+**Trend tracking (multi-baseline comparison) is not yet implemented.** The feature is documented as future work and will require Pro license gating via `is_pro_feature_available()`. The `BaselineManager` currently supports pairwise comparison (one baseline vs. current state) only. Historical trend views (e.g. "how has this server changed across 5 baselines") are not yet implemented.
+
 ## Missing capabilities (not started)
 
 - **GitHub Actions CI workflow** — no automated testing on push/PR; no multi-arch binary release matrix
 - **pip packaging and TestPyPI dry run** — installable from source only (PyInstaller binary available as alternative)
-- **Documentation beyond README** — no usage guide, rule-writing guide, or Nucleus integration guide
+- **Documentation beyond README** — no usage guide, rule-writing guide, or Nucleus integration guide (scoring and registry docs now exist in `docs/`)
 - **Telemetry or usage analytics** — no way to measure adoption (intentional for privacy-first positioning, but limits success measurement)
-- **Auto-update of known server lists** — the known npm packages YAML and known server capability mappings are static and require manual updates as the MCP ecosystem grows
+- **Registry auto-growth** — the known-server registry requires manual contributions as the MCP ecosystem grows; `update-registry` pulls the latest committed version but does not discover new servers automatically

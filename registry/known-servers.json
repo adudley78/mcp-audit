@@ -1,0 +1,577 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-04-15",
+  "entry_count": 57,
+  "entries": [
+    {
+      "name": "@modelcontextprotocol/server-filesystem",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "filesystem", "local"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-github",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "github", "remote"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-gitlab",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "gitlab", "remote"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-google-drive",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "google", "remote"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-google-maps",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "google", "remote"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-slack",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "slack", "remote"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-postgres",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "database", "local"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-sqlite",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "database", "local"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-puppeteer",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "browser", "local"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-brave-search",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "search", "remote"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-everart",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "image", "remote"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-fetch",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "http", "local"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-memory",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "memory", "local"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-sequentialthinking",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "reasoning", "local"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-aws-kb-retrieval",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "aws", "remote"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-everything",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "demo"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-sentry",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "monitoring", "remote"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-sequential-thinking",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "reasoning", "local"]
+    },
+    {
+      "name": "@modelcontextprotocol/server-redis",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "database", "local"]
+    },
+    {
+      "name": "@modelcontextprotocol/sdk",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/typescript-sdk",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "sdk"]
+    },
+    {
+      "name": "@modelcontextprotocol/inspector",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/inspector",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "dev-tools"]
+    },
+    {
+      "name": "@anthropic-ai/mcp-server-puppeteer",
+      "source": "npm",
+      "repo": "https://github.com/anthropics/anthropic-sdk-python",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "browser", "local"]
+    },
+    {
+      "name": "mcp",
+      "source": "pip",
+      "repo": "https://github.com/modelcontextprotocol/python-sdk",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "sdk"]
+    },
+    {
+      "name": "mcp-server-fetch",
+      "source": "pip",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["official", "http", "local"]
+    },
+    {
+      "name": "@upstash/context7-mcp",
+      "source": "npm",
+      "repo": "https://github.com/upstash/context7",
+      "maintainer": "Upstash",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["docs", "remote"]
+    },
+    {
+      "name": "@mintlify/mcp",
+      "source": "npm",
+      "repo": "https://github.com/mintlify/mcp",
+      "maintainer": "Mintlify",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["docs", "remote"]
+    },
+    {
+      "name": "@supabase/mcp-server-supabase",
+      "source": "npm",
+      "repo": "https://github.com/supabase-community/supabase-mcp",
+      "maintainer": "Supabase",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["database", "remote"]
+    },
+    {
+      "name": "@cloudflare/mcp-server-cloudflare",
+      "source": "npm",
+      "repo": "https://github.com/cloudflare/mcp-server-cloudflare",
+      "maintainer": "Cloudflare",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["cloud", "remote"]
+    },
+    {
+      "name": "@stripe/agent-toolkit",
+      "source": "npm",
+      "repo": "https://github.com/stripe/agent-toolkit",
+      "maintainer": "Stripe",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["payments", "remote"]
+    },
+    {
+      "name": "mcp-server-playwright",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["browser", "local"]
+    },
+    {
+      "name": "@browserbasehq/mcp",
+      "source": "npm",
+      "repo": "https://github.com/browserbase/mcp-server-browserbase",
+      "maintainer": "Browserbase",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["browser", "remote"]
+    },
+    {
+      "name": "mcp-server-docker",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["docker", "local"]
+    },
+    {
+      "name": "mcp-server-kubernetes",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["kubernetes", "local"]
+    },
+    {
+      "name": "mcp-server-linear",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["project-management", "remote"]
+    },
+    {
+      "name": "mcp-server-notion",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["productivity", "remote"]
+    },
+    {
+      "name": "mcp-server-obsidian",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["notes", "local"]
+    },
+    {
+      "name": "mcp-server-jira",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["project-management", "remote"]
+    },
+    {
+      "name": "mcp-server-confluence",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["docs", "remote"]
+    },
+    {
+      "name": "mcp-server-datadog",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["monitoring", "remote"]
+    },
+    {
+      "name": "mcp-server-aws",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["cloud", "remote"]
+    },
+    {
+      "name": "mcp-server-gcp",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["cloud", "remote"]
+    },
+    {
+      "name": "mcp-server-azure",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["cloud", "remote"]
+    },
+    {
+      "name": "mcp-server-redis",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["database", "local"]
+    },
+    {
+      "name": "mcp-server-mongodb",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["database", "local"]
+    },
+    {
+      "name": "mcp-server-mysql",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["database", "local"]
+    },
+    {
+      "name": "@notionhq/notion-mcp-server",
+      "source": "npm",
+      "repo": "https://github.com/makenotion/notion-mcp-server",
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["productivity", "remote"]
+    },
+    {
+      "name": "mcp-server-time",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["utility", "local"]
+    },
+    {
+      "name": "mcp-server-git",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["vcs", "local"]
+    },
+    {
+      "name": "mcp-server-stripe",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["payments", "remote"]
+    },
+    {
+      "name": "mcp-server-zendesk",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["support", "remote"]
+    },
+    {
+      "name": "mcp-server-newrelic",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["monitoring", "remote"]
+    },
+    {
+      "name": "mcp-server-pagerduty",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["monitoring", "remote"]
+    },
+    {
+      "name": "mcp-server-heroku",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["cloud", "remote"]
+    },
+    {
+      "name": "mcp-server-vercel",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["cloud", "remote"]
+    },
+    {
+      "name": "mcp-server-supabase",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["database", "remote"]
+    },
+    {
+      "name": "mcp-server-firebase",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["database", "remote"]
+    },
+    {
+      "name": "mcp-server-terraform",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-15",
+      "known_versions": [],
+      "tags": ["cloud", "local"]
+    }
+  ]
+}

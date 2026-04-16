@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import urllib.error
+import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -20,13 +22,23 @@ from mcp_audit.analyzers.rug_pull import (
 )
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
-from mcp_audit.licensing import LicenseInfo, get_active_license, save_license
+from mcp_audit.licensing import (
+    LicenseInfo,
+    get_active_license,
+    is_pro_feature_available,
+    save_license,
+)
 from mcp_audit.models import Severity
 from mcp_audit.output.dashboard import generate_html
 from mcp_audit.output.nucleus import format_nucleus
 from mcp_audit.output.sarif import format_sarif
 from mcp_audit.output.terminal import print_results
 from mcp_audit.scanner import run_scan
+
+_UPDATE_REGISTRY_URL = "https://raw.githubusercontent.com/adudley78/mcp-audit/main/registry/known-servers.json"
+_REGISTRY_CACHE_PATH = (
+    Path.home() / ".config" / "mcp-audit" / "registry" / "known-servers.json"
+)
 
 app = typer.Typer(
     name="mcp-audit",
@@ -35,6 +47,15 @@ app = typer.Typer(
 )
 console = Console()
 
+# ── baseline sub-app ──────────────────────────────────────────────────────────
+
+baseline_app = typer.Typer(
+    name="baseline",
+    help="Save and compare MCP configuration baselines.",
+    no_args_is_help=True,
+)
+app.add_typer(baseline_app, name="baseline")
+
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -42,13 +63,12 @@ console = Console()
 def _scoped_state_path(extra_paths: list[Path] | None) -> Path:
     """Derive the scoped rug-pull state path for the given extra paths."""
     from mcp_audit.discovery import discover_configs  # noqa: PLC0415
+
     configs = discover_configs(extra_paths=extra_paths)
     return derive_state_path(configs)
 
 
-def _reset_scoped_state(
-    extra_paths: list[Path] | None, con: Console
-) -> None:
+def _reset_scoped_state(extra_paths: list[Path] | None, con: Console) -> None:
     """Delete the scoped state file if it exists, printing a status line."""
     scoped = _scoped_state_path(extra_paths)
     if scoped.exists():
@@ -67,14 +87,18 @@ def scan(
         None, "--path", "-p", help="Scan a specific config file or directory"
     ),
     output_format: str = typer.Option(  # noqa: B008
-        "terminal", "--format", "-f",
+        "terminal",
+        "--format",
+        "-f",
         help="Output format: terminal, json, nucleus, sarif",
     ),
     output: Path | None = typer.Option(  # noqa: B008
         None, "--output", "-o", help="Write results to file"
     ),
     severity_threshold: str = typer.Option(  # noqa: B008
-        "INFO", "--severity-threshold", "-s",
+        "INFO",
+        "--severity-threshold",
+        "-s",
         help="Minimum severity to report",
     ),
     offline: bool = typer.Option(  # noqa: B008
@@ -111,6 +135,24 @@ def scan(
             "and the team prefers an asset tag or employee ID."
         ),
     ),
+    no_score: bool = typer.Option(  # noqa: B008
+        False,
+        "--no-score",
+        help="Suppress the score/grade panel in terminal output.",
+    ),
+    registry: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--registry",
+        help="Custom registry file path (overrides user cache and bundled registry)",
+    ),
+    baseline_name: str | None = typer.Option(  # noqa: B008
+        None,
+        "--baseline",
+        help=(
+            "Compare scan results against a named baseline. "
+            "Use 'latest' to select the most recent baseline automatically."
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     extra_paths = [path] if path else None
@@ -119,7 +161,51 @@ def scan(
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
-    result = run_scan(extra_paths=extra_paths, connect=connect, offline=offline)
+    # Build a custom analyzers list when a custom registry path is supplied.
+    analyzers = None
+    if registry is not None:
+        from mcp_audit.analyzers.credentials import CredentialsAnalyzer  # noqa: PLC0415, I001
+        from mcp_audit.analyzers.poisoning import PoisoningAnalyzer  # noqa: PLC0415, I001
+        from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer  # noqa: PLC0415, I001
+        from mcp_audit.analyzers.transport import TransportAnalyzer  # noqa: PLC0415, I001
+
+        analyzers = [
+            PoisoningAnalyzer(),
+            CredentialsAnalyzer(),
+            TransportAnalyzer(),
+            SupplyChainAnalyzer(registry_path=registry),
+        ]
+
+    result = run_scan(
+        extra_paths=extra_paths,
+        analyzers=analyzers,
+        connect=connect,
+        offline=offline,
+    )
+
+    # Baseline drift detection (opt-in via --baseline)
+    if baseline_name is not None:
+        from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
+
+        mgr = BaselineManager()
+        try:
+            if baseline_name == "latest":
+                bl = mgr.load_latest()
+                if bl is None:
+                    console.print(
+                        "[red]No baselines found.[/red]  "
+                        "Run [bold]mcp-audit baseline save[/bold] first."
+                    )
+                    raise typer.Exit(2)  # noqa: B904
+            else:
+                bl = mgr.load(baseline_name)
+        except FileNotFoundError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(2)  # noqa: B904
+
+        drift = mgr.compare(bl, result.servers)
+        drift_findings = _drift_to_findings(drift)
+        result.findings.extend(drift_findings)
 
     # Filter by severity threshold
     try:
@@ -129,12 +215,15 @@ def scan(
         raise typer.Exit(2)  # noqa: B904
 
     severity_order = [
-        Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO
+        Severity.CRITICAL,
+        Severity.HIGH,
+        Severity.MEDIUM,
+        Severity.LOW,
+        Severity.INFO,
     ]
     threshold_idx = severity_order.index(threshold)
     result.findings = [
-        f for f in result.findings
-        if severity_order.index(f.severity) <= threshold_idx
+        f for f in result.findings if severity_order.index(f.severity) <= threshold_idx
     ]
 
     # Output
@@ -159,7 +248,7 @@ def scan(
         else:
             typer.echo(out)
     elif fmt == "terminal":
-        print_results(result, console=console)
+        print_results(result, console=console, show_score=not no_score)
     else:
         console.print(
             "[red]Unknown format: "
@@ -303,7 +392,8 @@ def diff(
             stored_hashes = stored[key].get("hashes", {})
             if curr_hashes["raw"] != stored_hashes.get("raw"):
                 diff_fields = ", ".join(
-                    f for f in ("command", "args", "env_keys", "raw")
+                    f
+                    for f in ("command", "args", "env_keys", "raw")
                     if curr_hashes.get(f) != stored_hashes.get(f)
                 )
                 changed_rows.append(
@@ -447,11 +537,15 @@ def watch(
         None, "--path", "-p", help="Additional config file or directory to watch"
     ),
     severity_threshold: str = typer.Option(  # noqa: B008
-        "INFO", "--severity-threshold", "-s",
+        "INFO",
+        "--severity-threshold",
+        "-s",
         help="Minimum severity to report",
     ),
     output_format: str = typer.Option(  # noqa: B008
-        "terminal", "--format", "-f",
+        "terminal",
+        "--format",
+        "-f",
         help="Output format: terminal, json, nucleus, sarif",
     ),
     connect: bool = typer.Option(  # noqa: B008
@@ -479,7 +573,11 @@ def watch(
         raise typer.Exit(2)  # noqa: B904
 
     severity_order = [
-        Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO
+        Severity.CRITICAL,
+        Severity.HIGH,
+        Severity.MEDIUM,
+        Severity.LOW,
+        Severity.INFO,
     ]
     threshold_idx = severity_order.index(threshold)
 
@@ -487,7 +585,8 @@ def watch(
         """Execute a full scan and emit results with the configured formatter."""
         result = run_scan(extra_paths=extra_paths, connect=connect)
         result.findings = [
-            f for f in result.findings
+            f
+            for f in result.findings
             if severity_order.index(f.severity) <= threshold_idx
         ]
 
@@ -549,6 +648,62 @@ def watch(
     finally:
         watcher.stop()
         console.print("\n[dim]Stopped watching.[/dim]")
+
+
+# ── update-registry ───────────────────────────────────────────────────────────
+
+
+@app.command(name="update-registry")
+def update_registry() -> None:
+    """Fetch the latest known-server registry from the upstream repository.
+
+    Saves the registry to ``~/.config/mcp-audit/registry/known-servers.json``.
+    On the next scan the updated registry is used automatically.
+
+    Requires a Pro or Enterprise license.
+    """
+    # "html_report" is the existing _FEATURE_TIERS key that maps to pro+enterprise;
+    # used here as the Pro-tier gate since licensing.py cannot be modified to add
+    # a dedicated "update_registry" entry.
+    if not is_pro_feature_available("html_report"):
+        console.print(
+            "[yellow]update-registry is a Pro feature.[/yellow]\n"
+            "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"
+        )
+        raise typer.Exit(0)  # noqa: B904
+
+    console.print(f"[dim]Fetching registry from {_UPDATE_REGISTRY_URL}…[/dim]")
+
+    try:
+        with urllib.request.urlopen(_UPDATE_REGISTRY_URL, timeout=30) as resp:  # noqa: S310
+            raw = resp.read().decode("utf-8")
+    except urllib.error.URLError as exc:
+        console.print(f"[red]Network error fetching registry: {exc}[/red]")
+        raise typer.Exit(2)  # noqa: B904
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        console.print(f"[red]Invalid JSON in downloaded registry: {exc}[/red]")
+        raise typer.Exit(2)  # noqa: B904
+
+    if "entries" not in data or not isinstance(data.get("entries"), list):
+        console.print(
+            "[red]Malformed registry: missing or invalid 'entries' key.[/red]"
+        )
+        raise typer.Exit(2)  # noqa: B904
+
+    _REGISTRY_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _REGISTRY_CACHE_PATH.write_text(raw, encoding="utf-8")
+
+    count = data.get("entry_count", len(data["entries"]))
+    version_str = data.get("schema_version", "unknown")
+    last_updated = data.get("last_updated", "unknown")
+
+    console.print(
+        f"[green]Registry updated:[/green] {count} entries, "
+        f"version {version_str}, last updated {last_updated}"
+    )
 
 
 # ── version ───────────────────────────────────────────────────────────────────
@@ -635,3 +790,245 @@ def _newest_last_seen(stored: dict) -> str:
         if entry.get("last_seen")
     ]
     return max(timestamps) if timestamps else ""
+
+
+def _drift_to_findings(
+    drift: list,  # list[DriftFinding]
+) -> list:
+    """Convert DriftFinding objects to standard Finding objects.
+
+    Uses ``analyzer="baseline"`` so drift findings appear in all output
+    formats alongside analyzer findings.
+    """
+    from mcp_audit.models import Finding  # noqa: PLC0415
+
+    findings = []
+    for i, df in enumerate(drift):
+        evidence_parts = []
+        if df.baseline_value is not None:
+            evidence_parts.append(f"baseline: {df.baseline_value}")
+        if df.current_value is not None:
+            evidence_parts.append(f"current: {df.current_value}")
+        evidence = "; ".join(evidence_parts) if evidence_parts else "N/A"
+
+        findings.append(
+            Finding(
+                id=f"DRIFT-{i + 1:03d}",
+                severity=df.severity,
+                analyzer="baseline",
+                client=df.client,
+                server=df.server_name,
+                title=f"Baseline drift [{df.drift_type.value}]: {df.server_name}",
+                description=df.description,
+                evidence=evidence,
+                remediation=(
+                    "Review this change. If intentional, run "
+                    "'mcp-audit baseline save' to update your baseline."
+                ),
+            )
+        )
+    return findings
+
+
+# ── baseline save ─────────────────────────────────────────────────────────────
+
+
+@baseline_app.command(name="save")
+def baseline_save(
+    name: str | None = typer.Argument(  # noqa: B008
+        None, help="Baseline label (auto-generated if omitted)"
+    ),
+    path: Path | None = typer.Option(  # noqa: B008
+        None, "--path", "-p", help="Scan a specific config file or directory"
+    ),
+) -> None:
+    """Capture a baseline snapshot of the current MCP configuration."""
+    from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
+    from mcp_audit.config_parser import parse_config  # noqa: PLC0415
+
+    extra_paths = [path] if path else None
+    configs = discover_configs(extra_paths=extra_paths)
+
+    all_servers = []
+    for config in configs:
+        try:
+            all_servers.extend(parse_config(config))
+        except ValueError as exc:
+            console.print(f"[yellow]Warning: {exc}[/yellow]")
+
+    config_paths = [str(c.path) for c in configs]
+    mgr = BaselineManager()
+    baseline = mgr.save(all_servers, config_paths, name=name)
+    console.print(
+        f"[bold green]Baseline saved:[/bold green] {baseline.name} "
+        f"({baseline.server_count} server(s) captured)"
+    )
+
+
+# ── baseline list ─────────────────────────────────────────────────────────────
+
+
+@baseline_app.command(name="list")
+def baseline_list() -> None:
+    """List all saved baselines."""
+    from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
+
+    mgr = BaselineManager()
+    baselines = mgr.list()
+
+    if not baselines:
+        console.print(
+            "No baselines saved. "
+            "Run [bold]mcp-audit baseline save[/bold] to create one."
+        )
+        return
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Name", style="cyan")
+    table.add_column("Created")
+    table.add_column("Servers", justify="right")
+    table.add_column("Scanner Version")
+
+    for bl in baselines:
+        created = bl.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+        table.add_row(bl.name, created, str(bl.server_count), bl.scanner_version)
+
+    console.print(table)
+
+
+# ── baseline compare ──────────────────────────────────────────────────────────
+
+
+@baseline_app.command(name="compare")
+def baseline_compare(
+    baseline_name: str | None = typer.Option(  # noqa: B008
+        None,
+        "--baseline",
+        help="Baseline name to compare against (defaults to latest)",
+    ),
+    path: Path | None = typer.Option(  # noqa: B008
+        None, "--path", "-p", help="Scan a specific config file or directory"
+    ),
+) -> None:
+    """Compare the current MCP configuration against a saved baseline."""
+    from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
+    from mcp_audit.config_parser import parse_config  # noqa: PLC0415
+
+    mgr = BaselineManager()
+
+    if baseline_name is not None:
+        try:
+            bl = mgr.load(baseline_name)
+        except FileNotFoundError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(2)  # noqa: B904
+    else:
+        bl = mgr.load_latest()
+        if bl is None:
+            console.print(
+                "[red]No baselines found.[/red]  "
+                "Run [bold]mcp-audit baseline save[/bold] to create one."
+            )
+            raise typer.Exit(2)  # noqa: B904
+
+    extra_paths = [path] if path else None
+    configs = discover_configs(extra_paths=extra_paths)
+    all_servers = []
+    for config in configs:
+        try:
+            all_servers.extend(parse_config(config))
+        except ValueError as exc:
+            console.print(f"[yellow]Warning: {exc}[/yellow]")
+
+    drift = mgr.compare(bl, all_servers)
+
+    if not drift:
+        console.print(
+            f"[green]No drift detected[/green] — configuration matches "
+            f"baseline [bold]{bl.name!r}[/bold]"
+        )
+        return
+
+    _SEV_STYLE = {  # noqa: N806
+        "CRITICAL": "[bold red]CRITICAL[/bold red]",
+        "HIGH": "[red]HIGH[/red]",
+        "MEDIUM": "[yellow]MEDIUM[/yellow]",
+        "LOW": "[blue]LOW[/blue]",
+        "INFO": "[dim]INFO[/dim]",
+    }
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Severity")
+    table.add_column("Type")
+    table.add_column("Client", style="cyan")
+    table.add_column("Server", style="cyan")
+    table.add_column("Detail")
+
+    for df in drift:
+        sev_display = _SEV_STYLE.get(df.severity.value, df.severity.value)
+        detail = ""
+        if df.baseline_value is not None and df.current_value is not None:
+            detail = f"{df.baseline_value!r} → {df.current_value!r}"
+        elif df.baseline_value is not None:
+            detail = f"was: {df.baseline_value!r}"
+        elif df.current_value is not None:
+            detail = f"now: {df.current_value!r}"
+
+        table.add_row(
+            sev_display,
+            df.drift_type.value,
+            df.client,
+            df.server_name,
+            detail,
+        )
+
+    console.print(
+        f"\n[bold]Drift against baseline [cyan]{bl.name!r}[/cyan][/bold] "
+        f"(created {bl.created_at.strftime('%Y-%m-%d %H:%M UTC')})\n"
+    )
+    console.print(table)
+    console.print(f"\n[bold]{len(drift)} drift finding(s) detected.[/bold]\n")
+    raise typer.Exit(1)
+
+
+# ── baseline delete ───────────────────────────────────────────────────────────
+
+
+@baseline_app.command(name="delete")
+def baseline_delete(
+    name: str = typer.Argument(help="Name of the baseline to delete"),  # noqa: B008
+) -> None:
+    """Delete a saved baseline."""
+    from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
+
+    confirmed = typer.confirm(f"Delete baseline {name!r}?", default=False)
+    if not confirmed:
+        console.print("[dim]Cancelled.[/dim]")
+        raise typer.Exit(0)  # noqa: B904
+
+    mgr = BaselineManager()
+    try:
+        mgr.delete(name)
+        console.print(f"[green]Baseline {name!r} deleted.[/green]")
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2)  # noqa: B904
+
+
+# ── baseline export ───────────────────────────────────────────────────────────
+
+
+@baseline_app.command(name="export")
+def baseline_export(
+    name: str = typer.Argument(help="Name of the baseline to export"),  # noqa: B008
+) -> None:
+    """Write a baseline as raw JSON to stdout (pipeable)."""
+    from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
+
+    mgr = BaselineManager()
+    try:
+        raw = mgr.export(name)
+        typer.echo(raw)
+    except FileNotFoundError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2)  # noqa: B904

@@ -16,6 +16,7 @@ from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
 from mcp_audit.models import Finding, ScanResult, ServerConfig, Severity
+from mcp_audit.scoring import calculate_score
 
 
 def _analyzer_crash_finding(
@@ -146,9 +147,7 @@ async def run_scan_async(
             enumeration = await connect_and_enumerate(server)
 
             if enumeration.error:
-                result.errors.append(
-                    f"[connect] {server.name}: {enumeration.error}"
-                )
+                result.errors.append(f"[connect] {server.name}: {enumeration.error}")
                 continue
 
             runtime_config = build_runtime_server_config(server, enumeration)
@@ -191,6 +190,9 @@ async def run_scan_async(
         result.attack_path_summary = summarize_attack_paths(all_servers, toxic_findings)
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"attack_paths error: {e}")
+
+    # ── Scoring ────────────────────────────────────────────────────────────────
+    result.score = calculate_score(result.findings)
 
     return result
 
@@ -296,5 +298,8 @@ def run_scan(
         result.attack_path_summary = summarize_attack_paths(all_servers, toxic_findings)
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"attack_paths error: {e}")
+
+    # ── Scoring ────────────────────────────────────────────────────────────────
+    result.score = calculate_score(result.findings)
 
     return result
