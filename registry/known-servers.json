@@ -11,7 +11,14 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "filesystem", "local"]
+      "tags": [
+        "official",
+        "filesystem",
+        "local"
+      ],
+      "known_hashes": {
+        "2026.1.14": "sha256:e5635c070c21c4f5017260d2fb74df423d3339c2fa2eede862e5731aebf69eac"
+      }
     },
     {
       "name": "@modelcontextprotocol/server-github",
@@ -21,7 +28,14 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "github", "remote"]
+      "tags": [
+        "official",
+        "github",
+        "remote"
+      ],
+      "known_hashes": {
+        "2025.4.8": "sha256:1d5b1bca9305adf0c8055131f2286514c9bea6eb31100460899a1ed9ffece5c1"
+      }
     },
     {
       "name": "@modelcontextprotocol/server-gitlab",
@@ -31,7 +45,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "gitlab", "remote"]
+      "tags": [
+        "official",
+        "gitlab",
+        "remote"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-google-drive",
@@ -41,7 +59,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "google", "remote"]
+      "tags": [
+        "official",
+        "google",
+        "remote"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-google-maps",
@@ -51,7 +73,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "google", "remote"]
+      "tags": [
+        "official",
+        "google",
+        "remote"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-slack",
@@ -61,7 +87,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "slack", "remote"]
+      "tags": [
+        "official",
+        "slack",
+        "remote"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-postgres",
@@ -71,7 +101,14 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "database", "local"]
+      "tags": [
+        "official",
+        "database",
+        "local"
+      ],
+      "known_hashes": {
+        "0.6.2": "sha256:af55200a01b13ae31949fb4a8864ee6043b891d00ff83330d1779b18aa5ba26f"
+      }
     },
     {
       "name": "@modelcontextprotocol/server-sqlite",
@@ -81,7 +118,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "database", "local"]
+      "tags": [
+        "official",
+        "database",
+        "local"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-puppeteer",
@@ -91,7 +132,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "browser", "local"]
+      "tags": [
+        "official",
+        "browser",
+        "local"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-brave-search",
@@ -101,7 +146,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "search", "remote"]
+      "tags": [
+        "official",
+        "search",
+        "remote"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-everart",
@@ -111,7 +160,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "image", "remote"]
+      "tags": [
+        "official",
+        "image",
+        "remote"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-fetch",
@@ -121,7 +174,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "http", "local"]
+      "tags": [
+        "official",
+        "http",
+        "local"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-memory",
@@ -131,7 +188,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "memory", "local"]
+      "tags": [
+        "official",
+        "memory",
+        "local"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-sequentialthinking",
@@ -141,7 +202,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "reasoning", "local"]
+      "tags": [
+        "official",
+        "reasoning",
+        "local"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-aws-kb-retrieval",
@@ -151,7 +216,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "aws", "remote"]
+      "tags": [
+        "official",
+        "aws",
+        "remote"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-everything",
@@ -161,7 +230,10 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "demo"]
+      "tags": [
+        "official",
+        "demo"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-sentry",
@@ -171,7 +243,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "monitoring", "remote"]
+      "tags": [
+        "official",
+        "monitoring",
+        "remote"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-sequential-thinking",
@@ -181,7 +257,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "reasoning", "local"]
+      "tags": [
+        "official",
+        "reasoning",
+        "local"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-redis",
@@ -191,7 +271,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "database", "local"]
+      "tags": [
+        "official",
+        "database",
+        "local"
+      ]
     },
     {
       "name": "@modelcontextprotocol/sdk",
@@ -201,7 +285,10 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "sdk"]
+      "tags": [
+        "official",
+        "sdk"
+      ]
     },
     {
       "name": "@modelcontextprotocol/inspector",
@@ -211,7 +298,10 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "dev-tools"]
+      "tags": [
+        "official",
+        "dev-tools"
+      ]
     },
     {
       "name": "@anthropic-ai/mcp-server-puppeteer",
@@ -221,7 +311,11 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "browser", "local"]
+      "tags": [
+        "official",
+        "browser",
+        "local"
+      ]
     },
     {
       "name": "mcp",
@@ -231,7 +325,13 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "sdk"]
+      "tags": [
+        "official",
+        "sdk"
+      ],
+      "known_hashes": {
+        "1.27.0": "sha256:d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83"
+      }
     },
     {
       "name": "mcp-server-fetch",
@@ -241,7 +341,14 @@
       "verified": true,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["official", "http", "local"]
+      "tags": [
+        "official",
+        "http",
+        "local"
+      ],
+      "known_hashes": {
+        "2025.4.7": "sha256:56279e3c55cb1e506b958ca9bb23ed4413944a6f230bca21e044aee51734fe47"
+      }
     },
     {
       "name": "@upstash/context7-mcp",
@@ -251,7 +358,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["docs", "remote"]
+      "tags": [
+        "docs",
+        "remote"
+      ]
     },
     {
       "name": "@mintlify/mcp",
@@ -261,7 +371,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["docs", "remote"]
+      "tags": [
+        "docs",
+        "remote"
+      ]
     },
     {
       "name": "@supabase/mcp-server-supabase",
@@ -271,7 +384,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["database", "remote"]
+      "tags": [
+        "database",
+        "remote"
+      ]
     },
     {
       "name": "@cloudflare/mcp-server-cloudflare",
@@ -281,7 +397,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["cloud", "remote"]
+      "tags": [
+        "cloud",
+        "remote"
+      ]
     },
     {
       "name": "@stripe/agent-toolkit",
@@ -291,7 +410,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["payments", "remote"]
+      "tags": [
+        "payments",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-playwright",
@@ -301,7 +423,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["browser", "local"]
+      "tags": [
+        "browser",
+        "local"
+      ]
     },
     {
       "name": "@browserbasehq/mcp",
@@ -311,7 +436,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["browser", "remote"]
+      "tags": [
+        "browser",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-docker",
@@ -321,7 +449,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["docker", "local"]
+      "tags": [
+        "docker",
+        "local"
+      ]
     },
     {
       "name": "mcp-server-kubernetes",
@@ -331,7 +462,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["kubernetes", "local"]
+      "tags": [
+        "kubernetes",
+        "local"
+      ]
     },
     {
       "name": "mcp-server-linear",
@@ -341,7 +475,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["project-management", "remote"]
+      "tags": [
+        "project-management",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-notion",
@@ -351,7 +488,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["productivity", "remote"]
+      "tags": [
+        "productivity",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-obsidian",
@@ -361,7 +501,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["notes", "local"]
+      "tags": [
+        "notes",
+        "local"
+      ]
     },
     {
       "name": "mcp-server-jira",
@@ -371,7 +514,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["project-management", "remote"]
+      "tags": [
+        "project-management",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-confluence",
@@ -381,7 +527,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["docs", "remote"]
+      "tags": [
+        "docs",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-datadog",
@@ -391,7 +540,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["monitoring", "remote"]
+      "tags": [
+        "monitoring",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-aws",
@@ -401,7 +553,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["cloud", "remote"]
+      "tags": [
+        "cloud",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-gcp",
@@ -411,7 +566,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["cloud", "remote"]
+      "tags": [
+        "cloud",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-azure",
@@ -421,7 +579,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["cloud", "remote"]
+      "tags": [
+        "cloud",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-redis",
@@ -431,7 +592,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["database", "local"]
+      "tags": [
+        "database",
+        "local"
+      ]
     },
     {
       "name": "mcp-server-mongodb",
@@ -441,7 +605,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["database", "local"]
+      "tags": [
+        "database",
+        "local"
+      ]
     },
     {
       "name": "mcp-server-mysql",
@@ -451,7 +618,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["database", "local"]
+      "tags": [
+        "database",
+        "local"
+      ]
     },
     {
       "name": "@notionhq/notion-mcp-server",
@@ -461,7 +631,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["productivity", "remote"]
+      "tags": [
+        "productivity",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-time",
@@ -471,7 +644,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["utility", "local"]
+      "tags": [
+        "utility",
+        "local"
+      ]
     },
     {
       "name": "mcp-server-git",
@@ -481,7 +657,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["vcs", "local"]
+      "tags": [
+        "vcs",
+        "local"
+      ]
     },
     {
       "name": "mcp-server-stripe",
@@ -491,7 +670,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["payments", "remote"]
+      "tags": [
+        "payments",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-zendesk",
@@ -501,7 +683,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["support", "remote"]
+      "tags": [
+        "support",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-newrelic",
@@ -511,7 +696,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["monitoring", "remote"]
+      "tags": [
+        "monitoring",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-pagerduty",
@@ -521,7 +709,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["monitoring", "remote"]
+      "tags": [
+        "monitoring",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-heroku",
@@ -531,7 +722,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["cloud", "remote"]
+      "tags": [
+        "cloud",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-vercel",
@@ -541,7 +735,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["cloud", "remote"]
+      "tags": [
+        "cloud",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-supabase",
@@ -551,7 +748,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["database", "remote"]
+      "tags": [
+        "database",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-firebase",
@@ -561,7 +761,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["database", "remote"]
+      "tags": [
+        "database",
+        "remote"
+      ]
     },
     {
       "name": "mcp-server-terraform",
@@ -571,7 +774,10 @@
       "verified": false,
       "last_verified": "2026-04-15",
       "known_versions": [],
-      "tags": ["cloud", "local"]
+      "tags": [
+        "cloud",
+        "local"
+      ]
     }
   ]
 }

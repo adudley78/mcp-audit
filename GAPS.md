@@ -42,6 +42,16 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 **Severity assignments are intuition-based.** There is no formal framework mapping findings to severity levels. Levenshtein distance 1 is CRITICAL and distance 2 is HIGH because those felt right, not because of a quantified risk model. Before production use, severity should be mapped to an established framework — CVSS base scores, OWASP Agentic Top 10 risk categories, or a documented internal rubric with justification for each level.
 
+## Supply Chain Attestation (Layer 1)
+
+**Version extraction is best-effort.** mcp-audit recognises only the `npx package@version` invocation pattern when extracting the installed version from a server config. Servers installed via other mechanisms (pip, uvx, docker, system packages, direct binary path) cannot have their versions extracted automatically — an INFO finding is produced instead of a hash comparison.
+
+**npm hashes are computed by mcp-audit on download, not sourced from a signed manifest.** PyPI publishes authoritative SHA-256 digests in its JSON API (`digests.sha256` in `/pypi/<pkg>/<version>/json`). npm's `integrity` field uses SHA-512 SRI format, not SHA-256. mcp-audit normalises to SHA-256 by downloading the tarball — meaning the hash is trustworthy only to the extent that the download path (npmjs.org CDN) is trustworthy. This is a weaker guarantee than PyPI's API-published digests.
+
+**`--verify-hashes` requires outbound network access.** Scans run fully offline by default. When `--verify-hashes` is passed, mcp-audit makes HTTPS requests to registry.npmjs.org and pypi.org. If the network is unavailable, INFO findings are produced for packages that could not be verified — the scan does not fail.
+
+**Layer 2 (Sigstore signature verification) and Layer 3 (dependency SBOM) are not yet implemented.** Layer 1 covers hash pinning of the top-level package tarball. It does not verify the authenticity of the hash source, validate code-signing certificates, or inspect transitive dependencies. See `docs/supply-chain.md` for the roadmap.
+
 ## Supply chain coverage
 
 **Only npm packages are checked for typosquatting.** The MCP ecosystem includes Python servers (installed via uvx/pip), Docker containers, Go binaries, and other package managers. The supply chain analyzer only checks npm package names (npx/bunx/pnpx commands) against the known-server registry. PyPI typosquatting, Docker image verification, and other ecosystems are not covered.

@@ -203,6 +203,14 @@ def scan(
             "~/.config/mcp-audit/policy.yml."
         ),
     ),
+    verify_hashes: bool = typer.Option(  # noqa: B008
+        False,
+        "--verify-hashes",
+        help=(
+            "Download and verify package hashes against registry "
+            "(requires network access; free for all tiers)"
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     extra_paths = [path] if path else None
@@ -262,6 +270,24 @@ def scan(
         offline=offline,
         extra_rules_dirs=extra_rules_dirs if extra_rules_dirs else None,
     )
+
+    # ── Hash verification (opt-in via --verify-hashes) ────────────────────────
+    if verify_hashes and result.servers:
+        from mcp_audit.attestation.verifier import verify_server_hashes  # noqa: PLC0415
+        from mcp_audit.registry.loader import KnownServerRegistry  # noqa: PLC0415
+
+        _vh_registry = KnownServerRegistry(path=registry, offline=offline_registry)
+        _hashable = [
+            s
+            for s in result.servers
+            if _vh_registry.get(s.name) is not None
+            and _vh_registry.get(s.name).known_hashes  # type: ignore[union-attr]
+        ]
+        console.print(
+            f"[dim]Hash verification: checking {len(_hashable)} package(s)…[/dim]"
+        )
+        hash_findings = verify_server_hashes(result.servers, _vh_registry)
+        result.findings.extend(hash_findings)
 
     # Surface parse failures for user-specified paths.
     # Auto-discovered configs that fail are silently recorded in result.errors
@@ -1861,3 +1887,156 @@ def policy_check(
         console.print()
 
     raise typer.Exit(1)  # noqa: B904
+
+
+# ── verify ────────────────────────────────────────────────────────────────────
+
+
+@app.command()
+def verify(
+    server_name: str | None = typer.Argument(  # noqa: B008
+        None, help="Registry package name to verify (e.g. @scope/server-name)"
+    ),
+    all_servers: bool = typer.Option(  # noqa: B008
+        False,
+        "--all",
+        help="Verify all configured servers that have pinned hashes in the registry",
+    ),
+    registry: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--registry",
+        help="Custom registry file path (overrides user cache and bundled registry)",
+    ),
+) -> None:
+    """Verify package integrity by comparing hashes against registry pins.
+
+    Downloads each package tarball, computes SHA-256, and compares against the
+    pinned hash stored in the known-server registry.  Requires network access.
+
+    Exit codes: 0 = all pass or unknown, 1 = hash mismatch detected, 2 = error.
+    This command is free (Community tier) — verification is never paywalled.
+    """
+    from mcp_audit.attestation.hasher import verify_package_hash  # noqa: PLC0415
+    from mcp_audit.attestation.verifier import (
+        extract_version_from_server,  # noqa: PLC0415
+    )
+    from mcp_audit.registry.loader import KnownServerRegistry  # noqa: PLC0415
+
+    if not server_name and not all_servers:
+        console.print(
+            "[red]Provide a SERVER_NAME argument or use --all to verify all "
+            "configured servers.[/red]"
+        )
+        raise typer.Exit(2)  # noqa: B904
+
+    try:
+        reg = KnownServerRegistry(path=registry)
+    except FileNotFoundError as exc:
+        console.print(f"[red]Registry not found:[/red] {exc}")
+        raise typer.Exit(2)  # noqa: B904
+
+    # ── Build the list of (package_name, version, source) to verify ───────────
+    targets: list[tuple[str, str | None]] = []  # (package_name, version_or_None)
+
+    if server_name:
+        entry = reg.get(server_name)
+        if entry is None:
+            console.print(
+                f"[yellow]{server_name!r} is not in the registry.[/yellow]  "
+                "Only known-legitimate packages can be verified."
+            )
+            raise typer.Exit(0)  # noqa: B904
+        if not entry.known_hashes:
+            console.print(
+                f"[yellow]No hashes pinned for {server_name!r} "
+                "in the registry.[/yellow]"
+            )
+            raise typer.Exit(0)  # noqa: B904
+        # Verify all pinned versions for the named package.
+        for version in entry.known_hashes:
+            targets.append((entry.name, version))
+    else:
+        # --all: discover configured servers, cross-reference with registry.
+        import contextlib  # noqa: PLC0415
+
+        configs = discover_configs()
+        all_srv: list = []
+        for config in configs:
+            with contextlib.suppress(ValueError):
+                all_srv.extend(parse_config(config))
+
+        for srv in all_srv:
+            entry = reg.get(srv.name)
+            if entry is None or not entry.known_hashes:
+                continue
+            version = extract_version_from_server(srv)
+            if version and version in entry.known_hashes:
+                targets.append((entry.name, version))
+
+        if not targets:
+            console.print(
+                "[yellow]No configured servers have pinned hashes "
+                "in the registry.[/yellow]"
+            )
+            raise typer.Exit(0)  # noqa: B904
+
+    # ── Run verifications ──────────────────────────────────────────────────────
+    table = Table(
+        "Server",
+        "Version",
+        "Expected Hash",
+        "Computed Hash",
+        "Status",
+        title="[bold]Package Hash Verification[/bold]",
+        show_lines=True,
+    )
+
+    any_fail = False
+
+    for package_name, version in targets:
+        entry = reg.get(package_name)
+        if entry is None:
+            continue
+
+        if version is None:
+            table.add_row(package_name, "?", "—", "—", "[yellow]~ UNKNOWN[/yellow]")
+            continue
+
+        expected = entry.known_hashes.get(version) if entry.known_hashes else None
+        if expected is None:
+            table.add_row(package_name, version, "—", "—", "[yellow]~ UNKNOWN[/yellow]")
+            continue
+
+        console.print(f"[dim]Downloading {package_name}@{version}…[/dim]")
+        result = verify_package_hash(
+            package_name=package_name,
+            version=version,
+            source=entry.source,
+            expected_hash=expected,
+        )
+
+        exp_short = expected[7:15] + "…" if len(expected) > 15 else expected
+        computed_short = (
+            result.computed_hash[7:15] + "…"
+            if result.computed_hash and len(result.computed_hash) > 15
+            else (result.computed_hash or "—")
+        )
+
+        if result.match is True:
+            status = "[green]✓ PASS[/green]"
+        elif result.match is False:
+            status = "[red bold]✗ FAIL[/red bold]"
+            any_fail = True
+        else:
+            status = "[yellow]~ UNKNOWN[/yellow]"
+
+        table.add_row(package_name, version, exp_short, computed_short, status)
+
+    console.print(table)
+
+    if any_fail:
+        console.print(
+            "\n[red bold]⚠ Hash mismatch detected.[/red bold]  "
+            "One or more packages may have been tampered with."
+        )
+        raise typer.Exit(1)  # noqa: B904

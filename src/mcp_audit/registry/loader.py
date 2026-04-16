@@ -80,6 +80,12 @@ class RegistryEntry(BaseModel):
     known_versions: list[str]
     tags: list[str]
 
+    # Hash-based integrity pinning (Layer 1 supply chain attestation).
+    # key = version string (e.g. "0.6.2")
+    # value = "sha256:<hex>"
+    # None means no hashes have been pinned for this entry yet.
+    known_hashes: dict[str, str] | None = None
+
 
 # ── Registry class ─────────────────────────────────────────────────────────────
 
@@ -130,6 +136,18 @@ class KnownServerRegistry:
         }
 
     # ── Query methods ──────────────────────────────────────────────────────────
+
+    def get(self, name: str) -> RegistryEntry | None:
+        """Return the registry entry for *name*, or ``None`` if not found.
+
+        Args:
+            name: Package name to look up (case-insensitive).
+
+        Returns:
+            :class:`RegistryEntry` when the name is a known-legitimate entry,
+            otherwise ``None``.
+        """
+        return self._name_index.get(name.lower())
 
     def is_known(self, name: str) -> bool:
         """Return True if *name* exactly matches a registry entry (case-insensitive).
