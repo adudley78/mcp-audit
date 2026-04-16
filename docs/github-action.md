@@ -15,12 +15,16 @@ on:
   pull_request:
     branches: [main]
 
+# Required for SARIF upload to the GitHub Security tab.
+# Must be at the workflow level — job-level alone is not sufficient
+# for composite actions that call github/codeql-action/upload-sarif.
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   mcp-audit:
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write   # required for SARIF upload
-      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +36,13 @@ jobs:
           upload-sarif: 'true'
 ```
 
-The `permissions: security-events: write` block is **required** for the SARIF upload on public repositories. Without it the upload step fails silently and no findings appear in the Security tab.
+The `permissions` block is **required** for the SARIF upload. It must appear at the **workflow level** (before `jobs:`) — not only at the job level. Without it, the upload step fails with "Resource not accessible by integration" and no findings appear in the Security tab.
+
+```yaml
+permissions:
+  contents: read
+  security-events: write   # required for SARIF upload to GitHub Security tab
+```
 
 ## Inputs
 
@@ -193,16 +203,28 @@ The action uses `github/codeql-action/upload-sarif@v4`, which runs on Node.js 24
 
 **Fix**: this is resolved in the current action version. The scan step now captures the exit code with `|| SCAN_EXIT=$?` instead of letting the shell abort on non-zero. A `Verify SARIF output` step (runs with `if: always()`) writes an empty valid SARIF file if the scan step produced none, so the upload never fails due to a missing file. Ensure you are using the latest `action.yml`.
 
-### SARIF upload silently fails with no Security tab results
+### "Resource not accessible by integration" on the SARIF upload step
 
-**Cause**: missing `permissions: security-events: write`.
+**Cause**: the `security-events: write` permission is missing at the workflow level. GitHub Actions composite actions inherit the calling workflow's token permissions, but the permission must be declared at the **workflow level** (before `jobs:`) to propagate correctly.
 
-**Fix**: add to the job or step permissions block:
+**Fix**: add a `permissions` block before `jobs:` in your workflow file:
 ```yaml
 permissions:
-  security-events: write
   contents: read
+  security-events: write
+
+jobs:
+  mcp-audit:
+    ...
 ```
+
+Job-level permissions alone are not sufficient for composite actions that perform SARIF uploads via `github/codeql-action`.
+
+### SARIF upload silently fails with no Security tab results
+
+**Cause**: missing `permissions: security-events: write` at the workflow level.
+
+**Fix**: add the workflow-level permissions block as shown above.
 
 ### "No MCP configurations found" in the job summary
 

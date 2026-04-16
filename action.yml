@@ -114,6 +114,7 @@ runs:
             > mcp-audit-results.sarif
         fi
 
+    # Requires security-events: write permission in the calling workflow.
     - name: Upload SARIF to GitHub Security tab
       if: always() && inputs.upload-sarif == 'true'
       uses: github/codeql-action/upload-sarif@v4
