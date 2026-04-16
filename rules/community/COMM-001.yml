@@ -1,0 +1,17 @@
+id: COMM-001
+name: Prohibited network binary used as MCP server
+description: >
+  Detects netcat, socat, ncat, or netcat used as the MCP server binary.
+  These tools are designed for raw network data transfer and have no
+  legitimate use as an MCP server command.
+severity: HIGH
+category: network
+match:
+  field: command
+  pattern: "^(nc|ncat|socat|netcat)$"
+  type: regex
+message: "Server '{server_name}' uses prohibited network binary: {matched_value}"
+tags:
+  - network
+  - exfiltration
+enabled: true

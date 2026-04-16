@@ -1,0 +1,16 @@
+id: COMM-007
+name: eval or exec passed in args
+description: >
+  The words eval or exec appear as whole words in the server args. These are
+  dynamic code execution primitives in Python, JavaScript, and most shell
+  environments. Their presence in args is a strong indicator of code injection.
+severity: HIGH
+category: code-execution
+match:
+  field: args
+  pattern: "\\b(eval|exec)\\b"
+  type: regex
+message: "Server '{server_name}' passes eval/exec in args: {matched_value}"
+tags:
+  - code-execution
+enabled: true

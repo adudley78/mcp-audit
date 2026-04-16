@@ -1,0 +1,17 @@
+id: COMM-010
+name: npx used without pinned version
+description: >
+  Server uses npx as its binary without a pinned package version. npx without
+  a version pin fetches the latest published package on every execution, which
+  is a supply chain risk — a malicious publisher can push a new version that
+  executes with MCP client permissions.
+severity: LOW
+category: supply-chain
+match:
+  field: command
+  pattern: "npx"
+  type: exact
+message: "Server '{server_name}' uses npx without a pinned version — supply chain risk"
+tags:
+  - supply-chain
+enabled: true

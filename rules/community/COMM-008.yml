@@ -1,0 +1,17 @@
+id: COMM-008
+name: SSH agent socket exposed to server
+description: >
+  SSH_AUTH_SOCK appears in the server's environment variable keys, granting
+  the server access to the SSH agent socket. A compromised MCP server with
+  SSH agent access can authenticate to any SSH host the user has keys for.
+severity: MEDIUM
+category: credentials
+match:
+  field: env
+  pattern: "SSH_AUTH_SOCK"
+  type: contains
+message: "Server '{server_name}' has access to SSH agent socket via environment"
+tags:
+  - credentials
+  - ssh
+enabled: true

@@ -1,0 +1,17 @@
+id: COMM-011
+name: Broad Deno permission flags in use
+description: >
+  The server passes --allow-all, --allow-net, or --allow-run to the Deno
+  runtime. These flags grant the server unrestricted network, subprocess, or
+  all-permissions access, defeating Deno's security model.
+severity: MEDIUM
+category: permissions
+match:
+  field: args
+  pattern: "--(allow-all|allow-net|allow-run)"
+  type: regex
+message: "Server '{server_name}' uses broad Deno permission flags: {matched_value}"
+tags:
+  - permissions
+  - deno
+enabled: true

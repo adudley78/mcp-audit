@@ -1,0 +1,18 @@
+id: COMM-009
+name: AWS session token exposed to server
+description: >
+  AWS_SESSION_TOKEN appears in the server's environment variable keys. This
+  is a short-lived credential that grants full AWS API access within its
+  session scope. A compromised MCP server can use it to access AWS resources.
+severity: HIGH
+category: credentials
+match:
+  field: env
+  pattern: "AWS_SESSION_TOKEN"
+  type: contains
+message: "Server '{server_name}' has access to AWS session token via environment"
+tags:
+  - credentials
+  - cloud
+  - aws
+enabled: true

@@ -52,6 +52,9 @@ src/mcp_audit/
 ├── registry/
 │   ├── __init__.py    # Package marker
 │   └── loader.py      # KnownServerRegistry, RegistryEntry, load_registry(); Levenshtein helper
+├── rules/
+│   ├── __init__.py    # Package marker
+│   └── engine.py      # PolicyRule, RuleMatch, MatchCondition, RuleEngine; load_rules_from_file/dir; load_bundled_community_rules
 ├── output/
 │   ├── terminal.py    # Rich-formatted console output (default); renders score/grade panel
 │   ├── sarif.py       # SARIF for GitHub Security integration
@@ -64,6 +67,7 @@ src/mcp_audit/
 
 Data files at project root:
 - `registry/known-servers.json` — curated dataset of 57 known-legitimate MCP servers; queried by the supply chain analyzer for typosquatting detection; ships in both the pip wheel and PyInstaller binary
+- `rules/community/` — 12 bundled community detection rules (COMM-001 through COMM-012); ship in both pip wheel and PyInstaller binary; run for ALL users including Community tier; see `docs/writing-rules.md`
 
 GitHub Action at project root:
 - `action.yml` — composite GitHub Action definition; allows any repo to wire mcp-audit into CI with a single workflow addition; inputs: `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif`; outputs: `finding-count`, `grade`, `sarif-path`
@@ -90,6 +94,8 @@ Build and distribution scripts at project root:
 - **Scoring** runs after all analyzers complete inside `scanner.py` and attaches a `ScanScore` to `ScanResult`. Analyzers never call the scorer directly. See `scoring.py` and `docs/scoring.md`.
 - **Registry resolution order** for the supply chain analyzer: explicit `--registry PATH` CLI flag → user-local cache at `~/.config/mcp-audit/registry/known-servers.json` (written by `update-registry`) → PyInstaller `sys._MEIPASS/registry/` → `importlib.resources` (installed wheel) → dev repo-root fallback (`registry/known-servers.json`).
 - `SupplyChainAnalyzer` accepts `registry=KnownServerRegistry` or `registry_path=Path` in `__init__` to allow test injection without touching the filesystem.
+- **Community rules always run.** The policy-as-code rule engine loads `rules/community/` for every scan regardless of license tier. Pro gating applies only to authoring tools (`rule validate`, `rule test`) and custom rule directories (`--rules-dir`, `~/.config/mcp-audit/rules/`). The engine is invoked via `_run_rules_engine()` in `scanner.py` after all built-in analyzers complete. Rule findings use `analyzer="rules"` and `id=rule.id`.
+- **Rule engine resolution order** for community rules: PyInstaller `sys._MEIPASS/rules/community/` → `importlib.resources` (installed wheel at `mcp_audit/rules/community/`) → dev repo-root fallback (`rules/community/`).
 
 ## Critical implementation details
 
@@ -108,6 +114,7 @@ Build and distribution scripts at project root:
 - `scan --baseline NAME` (or `--baseline latest`) loads a saved baseline and appends `DriftFinding`s converted to `Finding` objects (`analyzer="baseline"`) into all output formats after the normal scan
 - `scan --output-file PATH` (alias for `--output` / `-o`) writes scan results to a file; parent directories are created automatically; required for the GitHub Action SARIF upload step
 - `scan --severity-threshold LEVEL` filters findings to only those at or above the given level and drives exit code; default is `INFO` (all findings); `--severity-threshold high` exits 1 only if HIGH or CRITICAL findings exist
+- `scan --rules-dir PATH` loads additional YAML rule files from PATH for this scan; requires Pro tier (gated via `is_pro_feature_available("custom_rules")`); community rules always run regardless
 - `update-registry` fetches `registry/known-servers.json` from GitHub and saves it to the user-local cache; requires Pro tier (gated via `is_pro_feature_available("html_report")` as a proxy until a dedicated feature key is formalised)
 - **Baseline storage** uses 0o700 dir / 0o600 file permissions, same pattern as rug-pull state files; env values are never stored, only key names (security — prevents secrets being persisted to disk)
 
@@ -143,15 +150,16 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 27+ findings across all analyzer categories
-- 662 tests passing, ruff clean
+- 783 tests passing, ruff clean
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
-- 11 CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge
+- 14 CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, rule validate, rule test, rule list
 - **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; Enterprise-gated via `fleet_merge` feature key; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action with `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif` inputs; uploads SARIF to GitHub Security tab; writes job summary; see `docs/github-action.md`
 - **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `~/.config/mcp-audit/baselines/` with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
 - **Scan Score** — every scan now produces a numeric score (0–100) and letter grade (A–F); see `scoring.py` and `docs/scoring.md`
 - **Known-Server Registry** — 57-entry curated dataset of legitimate MCP servers replaces the hardcoded YAML in the supply chain analyzer; see `registry/known-servers.json` and `docs/registry.md`
+- **Policy-as-code rule engine** (Chain Reaction Feature) — YAML-based custom detection rules; 12 community rules ship bundled and run for ALL users; `rule validate` / `rule test` / `rule list` subcommands; `scan --rules-dir PATH` and `~/.config/mcp-audit/rules/` for Pro user-local rules; rule findings flow through all output formats automatically; `custom_rules` feature key in `_FEATURE_TIERS`; see `docs/writing-rules.md` and `rules/README.md`
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic
@@ -160,8 +168,9 @@ What's next (non-code):
 
 What's next (code, after feedback):
 - Detection pattern tuning based on practitioner review
+- Community rule contributions — grow COMM-NNN library based on practitioner input
 - GitHub Actions CI (test on macOS, Linux, Windows; multi-arch binary matrix)
-- Documentation (usage guide, rule-writing guide, Nucleus integration guide)
+- Documentation (usage guide, Nucleus integration guide)
 
 ## Provenance
 

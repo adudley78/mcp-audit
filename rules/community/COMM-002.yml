@@ -1,0 +1,17 @@
+id: COMM-002
+name: curl used as MCP server binary
+description: >
+  Detects curl used directly as the MCP server binary. curl is an HTTP
+  client tool and should never be the primary binary for an MCP server.
+  Its presence may indicate an attempt to exfiltrate data to a remote URL.
+severity: MEDIUM
+category: network
+match:
+  field: command
+  pattern: "curl"
+  type: exact
+message: "Server '{server_name}' uses curl as its binary — potential exfiltration risk"
+tags:
+  - network
+  - exfiltration
+enabled: true

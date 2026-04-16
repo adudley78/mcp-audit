@@ -136,10 +136,40 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **Version mismatch detection uses string equality, not semver ordering.** A machine running `0.1.0` and a machine running `0.1.1` are both reported as mismatches against the majority version. There is no "close enough" tolerance — any version string difference triggers a warning.
 
+## Policy-as-code rule engine
+
+**`semver_range` match type falls back to exact match when `packaging` is unavailable.**
+The `semver_range` match type uses the `packaging` library for version comparisons.
+If `packaging` is not installed (it is a dependency of pip but not an explicit
+mcp-audit dependency), the engine falls back to exact string comparison and logs
+a warning. Rules using `semver_range` should be tested in environments where
+`packaging` is confirmed present.
+
+**Compound rule `matched_value` may be verbose for OR rules with many conditions.**
+For compound `OR` rules, `matched_value` is constructed by joining all matched
+condition values with `"; "`. If multiple conditions fire simultaneously, the
+resulting `matched_value` string in the finding description and evidence can be
+long and repetitive. This is intentional (full transparency) but may surprise
+users expecting only the first matched value.
+
+**Rule ID deduplication keeps first-alphabetical file, which may be surprising.**
+When `load_rules_from_dir()` encounters two files with the same rule ID, it keeps
+the rule from the alphabetically-first filename. Users who place a later-named file
+hoping to override an earlier one will find the earlier definition takes precedence.
+Use a `primary` + `secondary` pattern (via `merge_rules()`) for intentional
+overrides — user-supplied directories are always treated as primary over bundled
+community rules.
+
+**Community rule false-positive rate is unmeasured.**
+The 12 community rules were written to cover clear-cut cases (netcat as binary,
+eval in args, etc.) but have not been validated against a broad sample of
+real-world MCP server configurations. COMM-004 (`stdio transport`) in particular
+is expected to fire on many legitimate configurations.
+
 ## Missing capabilities (not started)
 
 - **Multi-arch binary CI release matrix** — GitHub Actions matrix builds for `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` not yet set up
 - **pip packaging and TestPyPI dry run** — installable from source only (PyInstaller binary available as alternative; `pip install mcp-audit` used in the action but not yet on PyPI)
-- **Documentation beyond README** — no usage guide, rule-writing guide, or Nucleus integration guide (scoring and registry docs now exist in `docs/`)
+- **Documentation beyond README** — no usage guide, Nucleus integration guide (scoring, registry, and rule-writing docs now exist in `docs/`)
 - **Telemetry or usage analytics** — no way to measure adoption (intentional for privacy-first positioning, but limits success measurement)
 - **Registry auto-growth** — the known-server registry requires manual contributions as the MCP ecosystem grows; `update-registry` pulls the latest committed version but does not discover new servers automatically

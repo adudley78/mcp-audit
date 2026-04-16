@@ -1,0 +1,16 @@
+id: COMM-004
+name: stdio transport in use
+description: >
+  Server is configured with stdio transport. This is normal for local MCP
+  servers but means the binary is executed directly by the MCP client.
+  Verify the command path is trusted and has not been tampered with.
+severity: LOW
+category: transport
+match:
+  field: transport
+  pattern: "stdio"
+  type: exact
+message: "Server '{server_name}' uses stdio transport — verify binary is trusted"
+tags:
+  - transport
+enabled: true

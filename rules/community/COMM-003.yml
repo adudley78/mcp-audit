@@ -1,0 +1,17 @@
+id: COMM-003
+name: Browser sandbox disabled
+description: >
+  Detects the --no-sandbox flag passed to Chrome or Chromium. Running a
+  browser without its sandbox removes a critical security boundary and
+  allows renderer exploits to directly compromise the host process.
+severity: MEDIUM
+category: browser
+match:
+  field: args
+  pattern: "--no-sandbox"
+  type: contains
+message: "Server '{server_name}' runs browser without sandbox: {matched_value}"
+tags:
+  - browser
+  - sandbox
+enabled: true

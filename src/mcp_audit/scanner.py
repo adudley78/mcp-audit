@@ -18,6 +18,8 @@ from mcp_audit.discovery import discover_configs
 from mcp_audit.models import Finding, ScanResult, ServerConfig, Severity
 from mcp_audit.scoring import calculate_score
 
+_USER_RULES_DIR = Path.home() / ".config" / "mcp-audit" / "rules"
+
 
 def _analyzer_crash_finding(
     analyzer_name: str, server: ServerConfig, exc: Exception
@@ -47,6 +49,48 @@ def _analyzer_crash_finding(
     )
 
 
+def _run_rules_engine(
+    servers: list[ServerConfig],
+    extra_rules_dirs: list[Path] | None,
+) -> list[Finding]:
+    """Load and run the policy-as-code rule engine against all servers.
+
+    Always loads bundled community rules.  When *extra_rules_dirs* is
+    provided (caller is responsible for Pro-gating), also loads rules from
+    those directories (user rules take precedence on ID conflicts).
+
+    Args:
+        servers: All discovered server configurations.
+        extra_rules_dirs: Additional directories to load rules from.
+
+    Returns:
+        List of Finding objects produced by matching rules.
+    """
+    from mcp_audit.rules.engine import (  # noqa: PLC0415
+        RuleEngine,
+        load_bundled_community_rules,
+        load_rules_from_dir,
+        merge_rules,
+    )
+
+    community_rules = load_bundled_community_rules()
+
+    if extra_rules_dirs:
+        user_rules: list = []
+        for d in extra_rules_dirs:
+            user_rules.extend(load_rules_from_dir(d))
+        # User rules take precedence on ID conflicts.
+        all_rules = merge_rules(user_rules, community_rules)
+    else:
+        all_rules = community_rules
+
+    engine = RuleEngine(all_rules)
+    findings: list[Finding] = []
+    for server in servers:
+        findings.extend(engine.match_server(server))
+    return findings
+
+
 def get_default_analyzers() -> list[BaseAnalyzer]:
     """Return the default set of per-server analyzers.
 
@@ -69,6 +113,7 @@ async def run_scan_async(
     state_path: Path | None = None,
     skip_rug_pull: bool = False,
     offline: bool = False,
+    extra_rules_dirs: list[Path] | None = None,
 ) -> ScanResult:
     """Async scan entrypoint with optional live server enumeration.
 
@@ -90,6 +135,7 @@ async def run_scan_async(
         state_path: Override the rug-pull state file location (useful in tests).
         skip_rug_pull: Skip rug-pull analysis entirely.  Used by ``pin``/``diff``.
         offline: When ``True``, forbid all network calls.
+        extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
@@ -191,6 +237,12 @@ async def run_scan_async(
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"attack_paths error: {e}")
 
+    # ── Policy-as-code rule engine ─────────────────────────────────────────────
+    try:
+        result.findings.extend(_run_rules_engine(all_servers, extra_rules_dirs))
+    except Exception as e:  # noqa: BLE001
+        result.errors.append(f"rules_engine error: {e}")
+
     # ── Scoring ────────────────────────────────────────────────────────────────
     result.score = calculate_score(result.findings)
 
@@ -204,6 +256,7 @@ def run_scan(
     state_path: Path | None = None,
     skip_rug_pull: bool = False,
     offline: bool = False,
+    extra_rules_dirs: list[Path] | None = None,
 ) -> ScanResult:
     """Run a complete scan: discover configs, parse them, analyze, return results.
 
@@ -223,6 +276,7 @@ def run_scan(
         skip_rug_pull: When ``True``, skip rug-pull analysis entirely.  Used by
             the ``pin`` and ``diff`` CLI commands which manage state directly.
         offline: When ``True``, forbid all network calls.
+        extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
@@ -242,6 +296,7 @@ def run_scan(
                 state_path=state_path,
                 skip_rug_pull=skip_rug_pull,
                 offline=offline,
+                extra_rules_dirs=extra_rules_dirs,
             )
         )
 
@@ -298,6 +353,12 @@ def run_scan(
         result.attack_path_summary = summarize_attack_paths(all_servers, toxic_findings)
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"attack_paths error: {e}")
+
+    # ── Policy-as-code rule engine ─────────────────────────────────────────────
+    try:
+        result.findings.extend(_run_rules_engine(all_servers, extra_rules_dirs))
+    except Exception as e:  # noqa: BLE001
+        result.errors.append(f"rules_engine error: {e}")
 
     # ── Scoring ────────────────────────────────────────────────────────────────
     result.score = calculate_score(result.findings)

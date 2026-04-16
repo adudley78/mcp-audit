@@ -1,0 +1,16 @@
+id: COMM-006
+name: Inline code execution via -c flag
+description: >
+  A Python, Node, or shell interpreter is passed -c to execute inline code.
+  This is a strong indicator of obfuscated or dynamically-generated payloads
+  that may be hard to audit and easy to inject via prompt manipulation.
+severity: HIGH
+category: code-execution
+match:
+  field: args
+  pattern: "-c "
+  type: contains
+message: "Server '{server_name}' executes inline code via -c flag: {matched_value}"
+tags:
+  - code-execution
+enabled: true

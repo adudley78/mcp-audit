@@ -1,0 +1,16 @@
+id: COMM-005
+name: /tmp referenced in server args
+description: >
+  Server args reference the /tmp directory. Temp directories are world-writable
+  on most systems, making them a common target for race conditions and symlink
+  attacks. Prefer application-specific directories with restricted permissions.
+severity: MEDIUM
+category: filesystem
+match:
+  field: args
+  pattern: "/tmp"
+  type: contains
+message: "Server '{server_name}' references /tmp in args — potential temp file abuse"
+tags:
+  - filesystem
+enabled: true

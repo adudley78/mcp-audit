@@ -1,0 +1,17 @@
+id: COMM-012
+name: Server binds to all interfaces (0.0.0.0)
+description: >
+  The server args include 0.0.0.0, which binds the server to all network
+  interfaces. An MCP server exposed on all interfaces is reachable from any
+  device on the local network, expanding its attack surface significantly.
+severity: HIGH
+category: network
+match:
+  field: args
+  pattern: "0.0.0.0"
+  type: contains
+message: "Server '{server_name}' binds to all interfaces (0.0.0.0): potential exposure"
+tags:
+  - network
+  - exposure
+enabled: true
