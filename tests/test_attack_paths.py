@@ -215,6 +215,7 @@ class TestMultiHopDetection:
         summary = summarize_attack_paths(servers, [])
         severities = [p.severity for p in summary.paths]
         from mcp_audit.analyzers.attack_paths import _SEVERITY_ORDER
+
         for i in range(len(severities) - 1):
             assert _SEVERITY_ORDER.index(severities[i]) <= _SEVERITY_ORDER.index(
                 severities[i + 1]
@@ -449,6 +450,7 @@ class TestUtilities:
     def test_build_adjacency_connects_file_to_network(self) -> None:
         servers = [_filesystem_server(), _fetch_server()]
         from mcp_audit.analyzers.toxic_flow import tag_server
+
         server_caps = {s.name: tag_server(s) for s in servers}
         adj = _build_adjacency(servers, server_caps)
         assert "fetch" in adj.get("filesystem", [])
@@ -456,6 +458,7 @@ class TestUtilities:
     def test_build_adjacency_no_self_loops(self) -> None:
         servers = [_filesystem_server(), _fetch_server()]
         from mcp_audit.analyzers.toxic_flow import tag_server
+
         server_caps = {s.name: tag_server(s) for s in servers}
         adj = _build_adjacency(servers, server_caps)
         for src, targets in adj.items():

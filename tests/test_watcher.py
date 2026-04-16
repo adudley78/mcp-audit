@@ -78,9 +78,7 @@ class TestConfigWatcherDirectories:
 
     def test_skipped_dirs_reported(self, tmp_path: Path) -> None:
         ghost = tmp_path / "nonexistent" / "mcp.json"
-        watcher = ConfigWatcher(
-            on_change_callback=MagicMock(), extra_paths=[ghost]
-        )
+        watcher = ConfigWatcher(on_change_callback=MagicMock(), extra_paths=[ghost])
         assert ghost.parent in watcher.skipped_dirs
 
     def test_extra_json_filename_added_to_known(self, tmp_path: Path) -> None:
@@ -94,9 +92,7 @@ class TestConfigWatcherDirectories:
 
 
 class TestEventFiltering:
-    def _make_handler(
-        self, callback: object | None = None
-    ) -> _McpConfigEventHandler:
+    def _make_handler(self, callback: object | None = None) -> _McpConfigEventHandler:
         cb = callback or MagicMock()
         known = frozenset({"mcp.json", "claude_desktop_config.json", ".mcp.json"})
         return _McpConfigEventHandler(cb, known)  # type: ignore[arg-type]
@@ -186,9 +182,7 @@ class TestConfigWatcherLifecycle:
     def test_start_and_stop_without_error(self, tmp_path: Path) -> None:
         cfg = tmp_path / "mcp.json"
         cfg.write_text('{"mcpServers": {}}')
-        watcher = ConfigWatcher(
-            on_change_callback=MagicMock(), extra_paths=[cfg]
-        )
+        watcher = ConfigWatcher(on_change_callback=MagicMock(), extra_paths=[cfg])
         watcher.start()
         watcher.stop()  # must not raise
 
@@ -303,9 +297,12 @@ class TestWatchCLI:
                 app,
                 [
                     "watch",
-                    "--path", str(cfg),
-                    "--severity-threshold", "HIGH",
-                    "--format", "terminal",
+                    "--path",
+                    str(cfg),
+                    "--severity-threshold",
+                    "HIGH",
+                    "--format",
+                    "terminal",
                 ],
                 catch_exceptions=False,
             )

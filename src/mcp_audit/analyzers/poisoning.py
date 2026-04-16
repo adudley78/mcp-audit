@@ -33,16 +33,25 @@ PATTERNS: list[DetectionPattern] = [
     DetectionPattern(
         id="POISON-001",
         name="SSH key exfiltration",
-        pattern=re.compile(r"(\.ssh[/\\]|id_rsa|id_ed25519|authorized_keys)", re.IGNORECASE),
+        pattern=re.compile(
+            r"(\.ssh[/\\]|id_rsa|id_ed25519|authorized_keys)",
+            re.IGNORECASE,
+        ),
         severity=Severity.CRITICAL,
-        description="Tool description references SSH key files, suggesting data exfiltration",
+        description=(
+            "Tool description references SSH key files,"
+            " suggesting data exfiltration"
+        ),
         remediation="Remove this MCP server immediately and rotate SSH keys",
         cwe="CWE-200",
     ),
     DetectionPattern(
         id="POISON-002",
         name="Cloud credential exfiltration",
-        pattern=re.compile(r"(\.aws[/\\]credentials|\.azure[/\\]|\.gcloud[/\\]|\.kube[/\\]config)", re.IGNORECASE),
+        pattern=re.compile(
+            r"(\.aws[/\\]credentials|\.azure[/\\]|\.gcloud[/\\]|\.kube[/\\]config)",
+            re.IGNORECASE,
+        ),
         severity=Severity.CRITICAL,
         description="Tool description references cloud credential files",
         remediation="Remove this MCP server and rotate cloud credentials",
@@ -51,7 +60,10 @@ PATTERNS: list[DetectionPattern] = [
     DetectionPattern(
         id="POISON-003",
         name="Environment file exfiltration",
-        pattern=re.compile(r"(read|access|cat|contents?\s+of)\s+.*\.env\b", re.IGNORECASE),
+        pattern=re.compile(
+            r"(read|access|cat|contents?\s+of)\s+.*\.env\b",
+            re.IGNORECASE,
+        ),
         severity=Severity.CRITICAL,
         description="Tool description instructs reading .env files containing secrets",
         remediation="Remove this MCP server and rotate any exposed secrets",
@@ -62,16 +74,28 @@ PATTERNS: list[DetectionPattern] = [
     DetectionPattern(
         id="POISON-010",
         name="XML instruction injection",
-        pattern=re.compile(r"<(IMPORTANT|SYSTEM|INSTRUCTION|OVERRIDE|PRIORITY)>", re.IGNORECASE),
+        pattern=re.compile(
+            r"<(IMPORTANT|SYSTEM|INSTRUCTION|OVERRIDE|PRIORITY)>",
+            re.IGNORECASE,
+        ),
         severity=Severity.HIGH,
-        description="Tool description contains XML-style instruction injection markers",
-        remediation="Remove this MCP server; these markers are used to hijack agent behavior",
+        description=(
+            "Tool description contains XML-style"
+            " instruction injection markers"
+        ),
+        remediation=(
+            "Remove this MCP server; these markers"
+            " are used to hijack agent behavior"
+        ),
         cwe="CWE-74",
     ),
     DetectionPattern(
         id="POISON-011",
         name="LLM prompt injection markers",
-        pattern=re.compile(r"(\[INST\]|<<SYS>>|<\|im_start\|>|<\|system\|>)", re.IGNORECASE),
+        pattern=re.compile(
+            r"(\[INST\]|<<SYS>>|<\|im_start\|>|<\|system\|>)",
+            re.IGNORECASE,
+        ),
         severity=Severity.HIGH,
         description="Tool description contains LLM prompt format injection markers",
         remediation="Remove this MCP server; these exploit LLM instruction parsing",
@@ -107,7 +131,10 @@ PATTERNS: list[DetectionPattern] = [
         ),
         severity=Severity.HIGH,
         description="Tool description contains data exfiltration language",
-        remediation="Remove this MCP server; it may exfiltrate data via encoded channels",
+        remediation=(
+            "Remove this MCP server;"
+            " it may exfiltrate data via encoded channels"
+        ),
         cwe="CWE-200",
     ),
     DetectionPattern(
@@ -137,7 +164,10 @@ PATTERNS: list[DetectionPattern] = [
         ),
         severity=Severity.MEDIUM,
         description="Tool description attempts to influence usage of other tools",
-        remediation="Review this MCP server; cross-tool instructions may indicate tool shadowing",
+        remediation=(
+            "Review this MCP server; cross-tool instructions"
+            " may indicate tool shadowing"
+        ),
         cwe="CWE-441",
     ),
 
@@ -147,8 +177,14 @@ PATTERNS: list[DetectionPattern] = [
         name="Zero-width Unicode characters",
         pattern=re.compile(r"[\u200b\u200c\u200d\ufeff\u2060\u00ad\u034f]"),
         severity=Severity.MEDIUM,
-        description="Tool description contains invisible Unicode characters used for stealth",
-        remediation="Investigate this MCP server; zero-width chars hide malicious instructions",
+        description=(
+            "Tool description contains invisible Unicode"
+            " characters used for stealth"
+        ),
+        remediation=(
+            "Investigate this MCP server;"
+            " zero-width chars hide malicious instructions"
+        ),
         cwe="CWE-116",
     ),
 
@@ -158,7 +194,10 @@ PATTERNS: list[DetectionPattern] = [
         name="Excessive description length",
         pattern=re.compile(r".{2000,}", re.DOTALL),
         severity=Severity.LOW,
-        description="Tool description is unusually long (>2000 chars), which may hide injected content",
+        description=(
+            "Tool description is unusually long (>2000 chars),"
+            " which may hide injected content"
+        ),
         remediation="Review the full tool description for hidden instructions",
     ),
 ]
@@ -192,22 +231,28 @@ class PoisoningAnalyzer(BaseAnalyzer):
             for pattern in PATTERNS:
                 match = pattern.pattern.search(text)
                 if match:
-                    findings.append(Finding(
-                        id=pattern.id,
-                        severity=pattern.severity,
-                        analyzer=self.name,
-                        client=server.client,
-                        server=server.name,
-                        title=pattern.name,
-                        description=pattern.description,
-                        evidence=f"Matched: {match.group()[:100]}",
-                        remediation=pattern.remediation,
-                        cwe=pattern.cwe,
-                    ))
+                    findings.append(
+                        Finding(
+                            id=pattern.id,
+                            severity=pattern.severity,
+                            analyzer=self.name,
+                            client=server.client,
+                            server=server.name,
+                            title=pattern.name,
+                            description=pattern.description,
+                            evidence=f"Matched: {match.group()[:100]}",
+                            remediation=pattern.remediation,
+                            cwe=pattern.cwe,
+                        )
+                    )
 
         return findings
 
-    def _extract_text_fields(self, data: dict | list | str, depth: int = 0) -> list[str]:
+    def _extract_text_fields(
+        self,
+        data: dict | list | str,
+        depth: int = 0,
+    ) -> list[str]:
         """Recursively extract all string values from a nested structure."""
         if depth > 10:
             return []

@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from mcp_audit import __version__
 from mcp_audit.models import Finding, ScanResult, Severity
 
 _SCHEMA = (
@@ -22,9 +23,9 @@ _SCHEMA = (
 )
 _VERSION = "2.1.0"
 _TOOL_NAME = "mcp-audit"
-_TOOL_VERSION = "0.1.0"
-_TOOL_URI = "https://github.com/yourusername/mcp-audit"
-_HELP_URI = "https://github.com/yourusername/mcp-audit#what-it-detects"
+_TOOL_VERSION = __version__
+_TOOL_URI = "https://github.com/adudley78/mcp-audit"
+_HELP_URI = "https://github.com/adudley78/mcp-audit#what-it-detects"
 
 # Maps our severity enum to SARIF result levels.
 # SARIF levels: "error" | "warning" | "note" | "none"

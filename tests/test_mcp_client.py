@@ -219,9 +219,7 @@ class TestBuildRuntimeServerConfig:
         return _stdio_server()
 
     def test_returns_none_when_all_empty(self) -> None:
-        result = build_runtime_server_config(
-            self._server(), ServerEnumeration()
-        )
+        result = build_runtime_server_config(self._server(), ServerEnumeration())
         assert result is None
 
     def test_returns_none_on_error_enumeration(self) -> None:
@@ -394,9 +392,8 @@ class TestConnectAndEnumerateStdio:
             await connect_and_enumerate(server)
 
         call_kwargs = mock_stdio.StdioServerParameters.call_args
-        env_passed = (
-            call_kwargs.kwargs.get("env")
-            or (call_kwargs.args[2] if call_kwargs.args else {})
+        env_passed = call_kwargs.kwargs.get("env") or (
+            call_kwargs.args[2] if call_kwargs.args else {}
         )
         assert "API_KEY" in env_passed
 
@@ -420,9 +417,8 @@ class TestConnectAndEnumerateStdio:
             await connect_and_enumerate(server)
 
         call_kwargs = mock_stdio.StdioServerParameters.call_args
-        env_passed: dict = (
-            call_kwargs.kwargs.get("env")
-            or (call_kwargs.args[2] if call_kwargs.args else {})
+        env_passed: dict = call_kwargs.kwargs.get("env") or (
+            call_kwargs.args[2] if call_kwargs.args else {}
         )
 
         # Server-specific vars are present
@@ -611,7 +607,9 @@ class TestSyntheticConfigPoisoningIntegration:
         from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 
         enum = ServerEnumeration(
-            tools=[ToolInfo(name="read_file", description="Read the specified file path.")]  # noqa: E501
+            tools=[
+                ToolInfo(name="read_file", description="Read the specified file path.")
+            ]  # noqa: E501
         )
         config = build_runtime_server_config(_stdio_server(), enum)
         assert config is not None

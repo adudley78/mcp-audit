@@ -52,8 +52,7 @@ def _build_scan_data(result: ScanResult) -> dict:
 
     # Per-server capability tags.
     server_caps: dict[str, list[str]] = {
-        s.name: sorted(str(c) for c in tag_server(s))
-        for s in result.servers
+        s.name: sorted(str(c) for c in tag_server(s)) for s in result.servers
     }
 
     # Per-server finding stats.
@@ -1090,14 +1089,16 @@ def generate_html(result: ScanResult, console: Console | None = None) -> str | N
     """
     _con = console or _console
     if not is_pro_feature_available("dashboard"):
-        _con.print(Panel(
-            "[bold]The interactive dashboard requires mcp-audit Pro.[/bold]\n\n"
-            "Your scan completed successfully. Results are available in terminal and JSON formats.\n\n"
-            "Upgrade to Pro: [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]\n"
-            "Already have a key? Run: [bold]mcp-audit activate <your-key>[/bold]",
-            title="Pro Feature",
-            border_style="yellow",
-        ))
+        _con.print(
+            Panel(
+                "[bold]The interactive dashboard requires mcp-audit Pro.[/bold]\n\n"
+                "Your scan completed successfully. Results are available in terminal and JSON formats.\n\n"
+                "Upgrade to Pro: [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]\n"
+                "Already have a key? Run: [bold]mcp-audit activate <your-key>[/bold]",
+                title="Pro Feature",
+                border_style="yellow",
+            )
+        )
         return None
 
     scan_data = _build_scan_data(result)

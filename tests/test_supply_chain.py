@@ -44,10 +44,13 @@ class TestLevenshtein:
 
     def test_scoped_package_one_char_diff(self) -> None:
         # "@modelcontextprotocol/server-filesyste" vs the real name — 1 deletion
-        assert levenshtein(
-            "@modelcontextprotocol/server-filesystem",
-            "@modelcontextprotocol/server-filesyste",
-        ) == 1
+        assert (
+            levenshtein(
+                "@modelcontextprotocol/server-filesystem",
+                "@modelcontextprotocol/server-filesyste",
+            )
+            == 1
+        )
 
     def test_longer_vs_shorter_direction(self) -> None:
         # Ensure the swap-to-keep-longer logic doesn't break correctness.

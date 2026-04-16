@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from mcp_audit.models import Finding, MachineInfo, ScanResult, Severity
+from mcp_audit.models import Finding, ScanResult, Severity
 from mcp_audit.output.nucleus import format_nucleus
 
 _TEST_PREFIX = "test-host"
@@ -98,7 +98,11 @@ class TestDocumentStructure:
     def test_required_top_level_keys_complete(self) -> None:
         doc = _parse(_make_result())
         required = {
-            "nucleus_import_version", "scan_tool", "scan_type", "scan_date", "findings"
+            "nucleus_import_version",
+            "scan_tool",
+            "scan_type",
+            "scan_date",
+            "findings",
         }
         assert required.issubset(doc.keys())
 

@@ -160,8 +160,14 @@ class TestBuildScanData:
         data = _build_scan_data(_rich_result())
         assert len(data["servers"]) == 3
         for s in data["servers"]:
-            for key in ("id", "name", "client", "capabilities", "finding_count",
-                        "in_hitting_set"):
+            for key in (
+                "id",
+                "name",
+                "client",
+                "capabilities",
+                "finding_count",
+                "in_hitting_set",
+            ):
                 assert key in s, f"Missing key {key!r} in server {s}"
 
     def test_server_id_equals_name(self) -> None:
@@ -251,8 +257,16 @@ class TestBuildScanData:
     def test_summary_structure(self) -> None:
         data = _build_scan_data(_rich_result())
         s = data["summary"]
-        for key in ("total_findings", "critical", "high", "medium", "low", "info",
-                    "server_count", "path_count"):
+        for key in (
+            "total_findings",
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info",
+            "server_count",
+            "path_count",
+        ):
             assert key in s, f"Missing summary key {key!r}"
         assert s["server_count"] == 3
         assert s["path_count"] == 2
@@ -302,9 +316,17 @@ class TestGenerateHtml:
         match = re.search(r"const SCAN_DATA = (.+?);</script>", html, re.DOTALL)
         data = json.loads(match.group(1))  # type: ignore[union-attr]
         required = {
-            "version", "timestamp", "clients_scanned", "servers_found",
-            "finding_counts", "findings", "servers",
-            "toxic_edges", "attack_paths", "hitting_set", "paths_broken_by",
+            "version",
+            "timestamp",
+            "clients_scanned",
+            "servers_found",
+            "finding_counts",
+            "findings",
+            "servers",
+            "toxic_edges",
+            "attack_paths",
+            "hitting_set",
+            "paths_broken_by",
             "summary",
         }
         assert required <= set(data.keys())
@@ -316,7 +338,7 @@ class TestGenerateHtml:
 
     def test_no_external_script_tags(self, html: str) -> None:
         # Must be fully self-contained — no src= on <script> tags.
-        external = re.findall(r'<script[^>]+src\s*=', html, re.IGNORECASE)
+        external = re.findall(r"<script[^>]+src\s*=", html, re.IGNORECASE)
         assert external == [], f"Found external script tags: {external}"
 
     def test_no_external_link_tags(self, html: str) -> None:
@@ -348,12 +370,20 @@ class TestGenerateHtml:
         assert "JetBrains Mono" in html
         assert "fonts.googleapis.com" in html
         # Must NOT be a <link> tag
-        link_tags = re.findall(r'<link[^>]+fonts\.googleapis\.com', html, re.IGNORECASE)
+        link_tags = re.findall(r"<link[^>]+fonts\.googleapis\.com", html, re.IGNORECASE)
         assert link_tags == [], "Font should use @import, not <link>"
 
     def test_new_css_classes_present(self, html: str) -> None:
-        for cls in (".path-card", ".sev-badge", ".hs-panel", ".findings-table",
-                    ".filter-btn", ".top-bar", ".graph-panel", ".sidebar"):
+        for cls in (
+            ".path-card",
+            ".sev-badge",
+            ".hs-panel",
+            ".findings-table",
+            ".filter-btn",
+            ".top-bar",
+            ".graph-panel",
+            ".sidebar",
+        ):
             assert cls in html, f"Expected CSS class {cls!r} not found in HTML"
 
     def test_summary_in_embedded_json(self, html: str) -> None:

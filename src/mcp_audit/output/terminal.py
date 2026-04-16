@@ -7,6 +7,7 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.text import Text
 
+from mcp_audit import __version__
 from mcp_audit.models import AttackPathSummary, RegistryStats, ScanResult, Severity
 from mcp_audit.scoring import format_grade_terminal
 
@@ -119,7 +120,10 @@ def print_results(
 
     # Header
     console.print()
-    console.print("[bold]mcp-audit[/bold] v0.1.0 — MCP Security Scanner", style="cyan")
+    console.print(
+        f"[bold]mcp-audit[/bold] v{__version__} — MCP Security Scanner",
+        style="cyan",
+    )
     console.print(
         f"Machine: {result.machine.hostname} "
         f"({result.machine.username}@{result.machine.os})",

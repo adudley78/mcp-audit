@@ -77,9 +77,7 @@ def _gmail() -> ServerConfig:
 
 def _puppeteer() -> ServerConfig:
     """Puppeteer server — BROWSER + NETWORK_OUT."""
-    return _server(
-        "puppeteer", args=["-y", "@modelcontextprotocol/server-puppeteer"]
-    )
+    return _server("puppeteer", args=["-y", "@modelcontextprotocol/server-puppeteer"])
 
 
 def _shell_server() -> ServerConfig:
@@ -94,9 +92,7 @@ def _vault_server() -> ServerConfig:
 
 def _memory() -> ServerConfig:
     """Memory server — no dangerous capabilities."""
-    return _server(
-        "memory", args=["-y", "@modelcontextprotocol/server-memory"]
-    )
+    return _server("memory", args=["-y", "@modelcontextprotocol/server-memory"])
 
 
 # ── tag_server — known-package lookup ────────────────────────────────────────
@@ -583,4 +579,5 @@ class TestToxicPairsIntegrity:
     @pytest.mark.parametrize("tp", TOXIC_PAIRS, ids=lambda tp: tp.finding_id)
     def test_critical_and_high_only_severities(self, tp: ToxicPair) -> None:
         from mcp_audit.models import Severity
+
         assert tp.severity in {Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM}

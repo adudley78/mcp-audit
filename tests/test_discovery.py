@@ -44,9 +44,7 @@ class TestClientSpecs:
     def test_augment_spec(self):
         spec = next(s for s in _get_client_specs() if s.name == "augment")
         assert spec.root_key == "mcpServers"
-        assert any(
-            str(p).endswith(".augment/settings.json") for p in spec.config_paths
-        )
+        assert any(str(p).endswith(".augment/settings.json") for p in spec.config_paths)
 
 
 class TestDiscoverConfigs:
@@ -73,13 +71,15 @@ class TestDiscoverConfigs:
         # Augment settings.json may contain non-MCP keys alongside mcpServers
         config_file = tmp_path / "settings.json"
         config_file.write_text(
-            json.dumps({
-                "theme": "dark",
-                "telemetry": False,
-                "mcpServers": {
-                    "aug-tool": {"command": "python", "args": ["-m", "aug_tool"]},
-                },
-            })
+            json.dumps(
+                {
+                    "theme": "dark",
+                    "telemetry": False,
+                    "mcpServers": {
+                        "aug-tool": {"command": "python", "args": ["-m", "aug_tool"]},
+                    },
+                }
+            )
         )
 
         spec = ClientSpec(

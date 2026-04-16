@@ -45,7 +45,12 @@ Final score is capped at 100.
   `numeric_score`, `grade`, `positive_signals` (list of strings), and
   `deductions` (list of strings).
 - **HTML dashboard** — a colour-coded grade badge appears in the report header.
-- **SARIF / Nucleus** — score data is not currently embedded in these formats.
+- **SARIF** — when `result.score` is present, `run.properties` includes
+  `mcp-audit/grade`, `mcp-audit/numericScore`, `mcp-audit/positiveSignals`,
+  and `mcp-audit/deductions`. When `--no-score` is passed, `cli.py` nulls
+  the score before formatting, so the properties block is omitted.
+- **Nucleus** — score data is not currently embedded in FlexConnect output
+  (blocked on Swagger spec validation).
 
 ## Suppressing the Score
 

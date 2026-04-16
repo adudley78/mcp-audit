@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from mcp_audit import __version__
 from mcp_audit.analyzers.rug_pull import (
     build_state_entry,
     compute_hashes,
@@ -132,7 +133,8 @@ def scan(
         "--connect",
         help=(
             "Connect to running MCP servers via the protocol handshake and "
-            "analyze live tool descriptions (requires: pip install mcp-audit[mcp])"
+            "analyze live tool descriptions "
+            "(requires: pip install 'mcp-audit\\[mcp]')"
         ),
     ),
     reset_state: bool = typer.Option(  # noqa: B008
@@ -911,7 +913,7 @@ def version() -> None:
         tier_label = info.tier.capitalize()
     else:
         tier_label = "Community"
-    console.print(f"mcp-audit 0.1.0 ({tier_label})")
+    console.print(f"mcp-audit {__version__} ({tier_label})")
 
 
 # ── activate ──────────────────────────────────────────────────────────────────

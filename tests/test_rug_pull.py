@@ -399,9 +399,7 @@ class TestCombinationScenarios:
         # All previously tracked servers should appear as RUGPULL-003
         assert all(f.id == "RUGPULL-003" for f in findings)
 
-    def test_first_scan_empty_list_no_findings(
-        self, analyzer: RugPullAnalyzer
-    ) -> None:
+    def test_first_scan_empty_list_no_findings(self, analyzer: RugPullAnalyzer) -> None:
         findings = analyzer.analyze_all([])
         assert findings == []
 
@@ -416,9 +414,7 @@ class TestCombinationScenarios:
 
 
 class TestStatePersistence:
-    def test_second_instance_reads_first_scan(
-        self, state_file: Path
-    ) -> None:
+    def test_second_instance_reads_first_scan(self, state_file: Path) -> None:
         """Two RugPullAnalyzer instances sharing a state file behave correctly."""
         srv = _make_server()
         RugPullAnalyzer(state_path=state_file).analyze_all([srv])

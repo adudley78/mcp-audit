@@ -58,8 +58,14 @@ class TestConfigParser:
 
     def test_parse_vscode_servers_key(self, tmp_path):
         config_file = tmp_path / "mcp.json"
-        config_file.write_text('{"servers": {"test-server": {"command": "node", "args": ["server.js"]}}}')
-        config = DiscoveredConfig(client_name="vscode", root_key="servers", path=config_file)
+        config_file.write_text(
+            '{"servers": {"test-server": {"command": "node", "args": ["server.js"]}}}'
+        )
+        config = DiscoveredConfig(
+            client_name="vscode",
+            root_key="servers",
+            path=config_file,
+        )
         servers = parse_config(config)
         assert len(servers) == 1
         assert servers[0].name == "test-server"
@@ -75,7 +81,10 @@ class TestPoisoningAnalyzer:
         findings = self.analyzer.analyze(evil_calc)
         critical_findings = [f for f in findings if f.severity == Severity.CRITICAL]
         assert len(critical_findings) >= 1
-        assert any("ssh" in f.title.lower() or "ssh" in f.evidence.lower() for f in critical_findings)
+        assert any(
+            "ssh" in f.title.lower() or "ssh" in f.evidence.lower()
+            for f in critical_findings
+        )
 
     def test_detects_instruction_injection(self, malicious_config):
         servers = parse_config(malicious_config)
@@ -175,12 +184,13 @@ class TestTransportAnalyzer:
         npx_findings = [f for f in findings if f.id == "TRANSPORT-003"]
         assert len(npx_findings) == 1
 
-    def test_localhost_http_is_ok(self):
+    def test_localhost_http_is_ok(self, tmp_path):
         from mcp_audit.models import ServerConfig
+
         server = ServerConfig(
             name="local-server",
             client="test",
-            config_path=Path("/tmp/test.json"),
+            config_path=tmp_path / "test.json",
             transport=TransportType.SSE,
             url="http://localhost:3000/sse",
         )

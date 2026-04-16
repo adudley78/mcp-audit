@@ -353,6 +353,7 @@ class TestDashboardFormatter:
 
     def test_machine_bar_element_in_html(self) -> None:
         from mcp_audit.output.dashboard import generate_html
+
         result = _make_result(machine=_make_machine(hostname="html-host"))
         html = generate_html(result)
         assert "machine-bar" in html

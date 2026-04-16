@@ -270,8 +270,10 @@ def test_compare_detects_server_added(
 ) -> None:
     bl = mgr.save(servers, config_paths=[])
     new_server = _make_server(
-        "github", "claude-desktop",
-        command="npx", args=["@modelcontextprotocol/server-github"],
+        "github",
+        "claude-desktop",
+        command="npx",
+        args=["@modelcontextprotocol/server-github"],
     )
     drift = mgr.compare(bl, [*servers, new_server])
 
@@ -396,7 +398,9 @@ def test_compare_distinguishes_same_name_different_clients(
 
     # Modify only the cursor one
     cursor_fs_modified = _make_server(
-        "filesystem", "cursor", command="bunx",
+        "filesystem",
+        "cursor",
+        command="bunx",
         raw={
             "command": "bunx",
             "args": ["-y", "@modelcontextprotocol/server-filesystem"],
@@ -436,7 +440,9 @@ def test_compare_sorted_by_severity_descending(mgr: BaselineManager) -> None:
     bl = mgr.save([original, extra], config_paths=[])
 
     modified_alpha = _make_server(
-        "alpha", "claude-desktop", command="bunx",
+        "alpha",
+        "claude-desktop",
+        command="bunx",
         raw={
             "command": "bunx",
             "args": ["-y", "@modelcontextprotocol/server-filesystem"],
@@ -446,7 +452,11 @@ def test_compare_sorted_by_severity_descending(mgr: BaselineManager) -> None:
 
     severities = [d.severity for d in drift]
     sev_order = [
-        Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO
+        Severity.CRITICAL,
+        Severity.HIGH,
+        Severity.MEDIUM,
+        Severity.LOW,
+        Severity.INFO,
     ]
     indices = [sev_order.index(s) for s in severities]
     assert indices == sorted(indices), "Findings are not sorted by severity descending"
@@ -518,9 +528,7 @@ def test_baseline_export_outputs_json(
 
     monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", tmp_path / "baselines")
     fake_config_path = tmp_path / "mcp.json"
-    fake_config_path.write_text(
-        json.dumps({"mcpServers": {}}), encoding="utf-8"
-    )
+    fake_config_path.write_text(json.dumps({"mcpServers": {}}), encoding="utf-8")
 
     with patch(
         "mcp_audit.cli.discover_configs",
@@ -556,9 +564,7 @@ def test_scan_baseline_latest_flag(
     from mcp_audit.models import ScanResult
 
     fake_result = ScanResult()
-    fake_result.servers = [
-        _make_server("new-server", "claude-desktop", command="uvx")
-    ]
+    fake_result.servers = [_make_server("new-server", "claude-desktop", command="uvx")]
 
     with patch("mcp_audit.cli.run_scan", return_value=fake_result):
         result = runner.invoke(
@@ -592,7 +598,9 @@ def test_scan_baseline_drift_in_json_output(
     fake_result = ScanResult()
     fake_result.servers = [
         _make_server(
-            "fs", "claude-desktop", command="bunx",
+            "fs",
+            "claude-desktop",
+            command="bunx",
             raw={
                 "command": "bunx",
                 "args": ["-y", "@modelcontextprotocol/server-filesystem"],

@@ -122,8 +122,16 @@ KEYWORD_RULES: list[KeywordRule] = [
     ),
     KeywordRule(
         keywords=(
-            "postgres", "postgresql", "mysql", "mariadb", "sqlite",
-            "mongo", "mongodb", "database", " db ", "sql",
+            "postgres",
+            "postgresql",
+            "mysql",
+            "mariadb",
+            "sqlite",
+            "mongo",
+            "mongodb",
+            "database",
+            " db ",
+            "sql",
         ),
         capabilities=frozenset({Capability.DATABASE}),
     ),
@@ -208,8 +216,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "Malicious content could be read from a file and executed."
         ),
         remediation=(
-            "Review whether both servers are necessary. "
-            "Restrict shell execution scope."
+            "Review whether both servers are necessary. Restrict shell execution scope."
         ),
         cwe="CWE-78",
     ),
@@ -258,8 +265,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "exfiltrated."
         ),
         remediation=(
-            "Review whether both servers are necessary. "
-            "Consider read-only git access."
+            "Review whether both servers are necessary. Consider read-only git access."
         ),
         cwe="CWE-200",
     ),
@@ -296,9 +302,13 @@ def tag_server(server: ServerConfig) -> frozenset[Capability]:
             caps.update(KNOWN_SERVERS[token])
 
     # Layer 2 — keyword matching on the full token string.
-    search_text = " " + " ".join(
-        t for t in [server.command or "", server.name, *server.args] if t
-    ).lower() + " "
+    search_text = (
+        " "
+        + " ".join(
+            t for t in [server.command or "", server.name, *server.args] if t
+        ).lower()
+        + " "
+    )
 
     for rule in KEYWORD_RULES:
         for kw in rule.keywords:
@@ -309,11 +319,15 @@ def tag_server(server: ServerConfig) -> frozenset[Capability]:
     # Layer 3 — tool-name matching from live enumeration data.
     tools: list[dict] = server.raw.get("tools", []) if server.raw else []
     if tools:
-        tool_text = " " + " ".join(
-            f"{t.get('name', '')} {t.get('description', '')}"
-            for t in tools
-            if isinstance(t, dict)
-        ).lower() + " "
+        tool_text = (
+            " "
+            + " ".join(
+                f"{t.get('name', '')} {t.get('description', '')}"
+                for t in tools
+                if isinstance(t, dict)
+            ).lower()
+            + " "
+        )
 
         for rule in KEYWORD_RULES:
             for kw in rule.keywords:

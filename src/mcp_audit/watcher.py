@@ -186,9 +186,7 @@ class ConfigWatcher:
             for p in extra_paths:
                 ep = p.expanduser()
                 if ep.suffix == ".json":
-                    self._known_filenames = frozenset(
-                        self._known_filenames | {ep.name}
-                    )
+                    self._known_filenames = frozenset(self._known_filenames | {ep.name})
 
         self._watchable, self._skipped = _watch_directories(extra_paths)
         self._handler = _McpConfigEventHandler(self._callback, self._known_filenames)

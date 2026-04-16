@@ -22,10 +22,10 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from mcp_audit import __version__
 from mcp_audit.models import Finding, ScanScore, Severity
 
-# Keep in sync with ScanResult.version — used for version-mismatch detection.
-_SCANNER_VERSION = "0.1.0"
+_SCANNER_VERSION = __version__
 
 _SEVERITY_ORDER: dict[Severity, int] = {
     Severity.CRITICAL: 0,

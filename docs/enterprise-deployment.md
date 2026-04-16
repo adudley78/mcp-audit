@@ -145,7 +145,7 @@ Choose one installation method per your environment.
 ### Option A — Binary download (when available)
 
 ```bash
-curl -sSL https://yoursite.com/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/adudley78/mcp-audit/main/scripts/install.sh | sh
 ```
 
 ### Option D — Standalone binary (no Python required)
@@ -154,15 +154,15 @@ Download the pre-built binary for your platform from the GitHub Releases page:
 
 ```bash
 # macOS (Apple Silicon)
-curl -sSL https://github.com/yourusername/mcp-audit/releases/latest/download/mcp-audit-darwin-arm64 \
+curl -sSL https://github.com/adudley78/mcp-audit/releases/latest/download/mcp-audit-darwin-arm64 \
   -o /usr/local/bin/mcp-audit && chmod +x /usr/local/bin/mcp-audit
 
 # macOS (Intel)
-curl -sSL https://github.com/yourusername/mcp-audit/releases/latest/download/mcp-audit-darwin-x86_64 \
+curl -sSL https://github.com/adudley78/mcp-audit/releases/latest/download/mcp-audit-darwin-x86_64 \
   -o /usr/local/bin/mcp-audit && chmod +x /usr/local/bin/mcp-audit
 
 # Linux (x86_64)
-curl -sSL https://github.com/yourusername/mcp-audit/releases/latest/download/mcp-audit-linux-x86_64 \
+curl -sSL https://github.com/adudley78/mcp-audit/releases/latest/download/mcp-audit-linux-x86_64 \
   -o /usr/local/bin/mcp-audit && chmod +x /usr/local/bin/mcp-audit
 ```
 
@@ -183,7 +183,7 @@ pip install mcp-audit==0.1.0
 ### Option C — Source install (current method for internal alpha)
 
 ```bash
-git clone https://github.com/yourorg/mcp-audit.git /opt/mcp-audit
+git clone https://github.com/adudley78/mcp-audit.git /opt/mcp-audit
 cd /opt/mcp-audit
 uv tool install -e ".[mcp]"
 ```
@@ -216,7 +216,7 @@ mcp-audit scan \
 | `-o /path/to/file.json` | Write results to a file instead of stdout. Required for automated collection. |
 | `--severity-threshold HIGH` | Optional. Only report HIGH and CRITICAL findings. Reduces noise in initial rollouts. |
 | `--connect` | Optional. Attempt live MCP protocol connections to enumerate server tools at runtime. Adds latency (5–30 s per server). Not recommended for scheduled scans unless you need runtime poisoning detection. |
-| `--offline` | Ensure zero network calls. Disables OSV.dev supply-chain lookups. Use this if your endpoints have no internet access or if you want fully deterministic output. |
+| `--offline` | Ensure zero network calls. Use this if your endpoints have no internet access or if you want fully deterministic output. |
 
 **Example with asset tag and severity filter:**
 
@@ -278,7 +278,7 @@ automates ingestion without a separate push script.
 
 ### macOS — launchd plist (daily at 09:00)
 
-Save to `/Library/LaunchDaemons/com.yourorg.mcp-audit.plist`:
+Save to `/Library/LaunchDaemons/com.mcpaudit.scan.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -287,7 +287,7 @@ Save to `/Library/LaunchDaemons/com.yourorg.mcp-audit.plist`:
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.yourorg.mcp-audit</string>
+  <string>com.mcpaudit.scan</string>
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/mcp-audit</string>
@@ -318,7 +318,7 @@ Save to `/Library/LaunchDaemons/com.yourorg.mcp-audit.plist`:
 Load it:
 
 ```bash
-sudo launchctl load /Library/LaunchDaemons/com.yourorg.mcp-audit.plist
+sudo launchctl load /Library/LaunchDaemons/com.mcpaudit.scan.plist
 ```
 
 ### Linux — cron
@@ -404,7 +404,7 @@ compromises and tool-poisoning attacks within seconds of a config modification.
 
 ### macOS — launchd persistent service
 
-Save to `/Library/LaunchDaemons/com.yourorg.mcp-audit-watch.plist`:
+Save to `/Library/LaunchDaemons/com.mcpaudit.watch.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -413,7 +413,7 @@ Save to `/Library/LaunchDaemons/com.yourorg.mcp-audit-watch.plist`:
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.yourorg.mcp-audit-watch</string>
+  <string>com.mcpaudit.watch</string>
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/mcp-audit</string>
@@ -432,7 +432,7 @@ Save to `/Library/LaunchDaemons/com.yourorg.mcp-audit-watch.plist`:
 ```
 
 ```bash
-sudo launchctl load /Library/LaunchDaemons/com.yourorg.mcp-audit-watch.plist
+sudo launchctl load /Library/LaunchDaemons/com.mcpaudit.watch.plist
 ```
 
 ### Linux — systemd unit
@@ -529,6 +529,6 @@ findings; use `--severity-threshold MEDIUM` to catch more.
 | **Poisoning** | Tool descriptions that contain data exfiltration commands, prompt injection markers, or instructions targeting SSH keys, cloud credentials, or `.env` files. |
 | **Credentials** | API keys, tokens, passwords, and database connection strings hardcoded in server environment variables or command arguments. |
 | **Transport** | Insecure transport configurations: HTTP (non-TLS) remote URLs, servers bound to all interfaces, and runtime package fetchers (`npx`, `uvx`) that download arbitrary code. |
-| **Supply Chain** | Packages with no version pin, known-malicious package names, and (when online) CVE matches from OSV.dev. |
+| **Supply Chain** | Typosquatted package names detected via Levenshtein distance against the known-server registry. Packages with no version pin and known-malicious package names. |
 | **Rug Pull** | Detects changes to server descriptions since the last pinned baseline — the mechanism used in supply-chain substitution attacks. |
 | **Toxic Flow** | Multi-hop attack paths where a server with read capability (file system, database) is co-installed with a server with write/network capability, enabling data exfiltration chains. |

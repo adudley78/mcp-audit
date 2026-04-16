@@ -37,24 +37,24 @@ from mcp_audit.models import (
 # Only these host environment variables are forwarded to MCP server
 # subprocesses.  Everything else (AWS keys, tokens, etc.) is withheld
 # to prevent leakage to potentially untrusted servers.
-SAFE_ENV_VARS: frozenset[str] = frozenset({
-    "PATH",
-    "HOME",
-    "LANG",
-    "TERM",
-    "SHELL",
-    "USER",
-    "TMPDIR",
-    "NODE_PATH",
-    "NODE_OPTIONS",
-})
+SAFE_ENV_VARS: frozenset[str] = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "LANG",
+        "TERM",
+        "SHELL",
+        "USER",
+        "TMPDIR",
+        "NODE_PATH",
+        "NODE_OPTIONS",
+    }
+)
 
 # Shown to the user when the optional mcp package is absent.
 MCP_NOT_INSTALLED = (
-    "MCP SDK not installed. "
-    "Run: pip install 'mcp-audit[mcp]'  or  pip install mcp"
+    "MCP SDK not installed. Run: pip install 'mcp-audit[mcp]'  or  pip install mcp"
 )
-
 
 
 async def connect_and_enumerate(
@@ -80,9 +80,7 @@ async def connect_and_enumerate(
     try:
         return await asyncio.wait_for(_enumerate(server), timeout=timeout)
     except TimeoutError:
-        return ServerEnumeration(
-            error=f"Connection timed out after {timeout:.0f}s"
-        )
+        return ServerEnumeration(error=f"Connection timed out after {timeout:.0f}s")
     except Exception as exc:  # noqa: BLE001
         return ServerEnumeration(error=f"Enumeration failed: {exc}")
 
@@ -236,32 +234,38 @@ async def _collect(session: Any) -> ServerEnumeration:
     try:
         resp = await session.list_tools()
         for t in resp.tools:
-            tools.append(ToolInfo(
-                name=t.name,
-                description=getattr(t, "description", None),
-                input_schema=dict(getattr(t, "inputSchema", {})),
-            ))
+            tools.append(
+                ToolInfo(
+                    name=t.name,
+                    description=getattr(t, "description", None),
+                    input_schema=dict(getattr(t, "inputSchema", {})),
+                )
+            )
     except Exception:  # noqa: BLE001, S110
         pass  # Server may not implement tools capability.
 
     try:
         resp = await session.list_resources()
         for r in resp.resources:
-            resources.append(ResourceInfo(
-                uri=str(r.uri),
-                name=getattr(r, "name", None),
-                description=getattr(r, "description", None),
-            ))
+            resources.append(
+                ResourceInfo(
+                    uri=str(r.uri),
+                    name=getattr(r, "name", None),
+                    description=getattr(r, "description", None),
+                )
+            )
     except Exception:  # noqa: BLE001, S110
         pass  # Server may not implement resources capability.
 
     try:
         resp = await session.list_prompts()
         for p in resp.prompts:
-            prompts.append(PromptInfo(
-                name=p.name,
-                description=getattr(p, "description", None),
-            ))
+            prompts.append(
+                PromptInfo(
+                    name=p.name,
+                    description=getattr(p, "description", None),
+                )
+            )
     except Exception:  # noqa: BLE001, S110
         pass  # Server may not implement prompts capability.
 

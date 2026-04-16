@@ -133,4 +133,5 @@ See GAPS.md (Supply chain coverage section) for:
 
 - Registry size vs. launch target
 - Levenshtein threshold false-positive risk for short package names
-- Pro gate proxy key (`html_report`) pending formalisation
+- `update-registry` is gated via the dedicated `update_registry` feature key
+  (resolved 2026-04-16; previously used the `html_report` proxy key)

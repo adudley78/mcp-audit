@@ -72,7 +72,11 @@ def calculate_score(findings: list[Finding]) -> ScanScore:
     raw_score = 100
     deductions: list[str] = []
     for sev in (
-        Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO
+        Severity.CRITICAL,
+        Severity.HIGH,
+        Severity.MEDIUM,
+        Severity.LOW,
+        Severity.INFO,
     ):
         n = counts[sev]
         if n == 0:

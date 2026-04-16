@@ -66,13 +66,23 @@ For reference, the existing MCP security tools we studied during design (but did
 
 ### Supply chain (analyzers/supply_chain.py)
 
-The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated list of 43 known-legitimate MCP npm packages.
+The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 57 known-legitimate MCP servers.
 
 **Research sources:**
 
 - **Vu et al., "Typosquatting in the npm Ecosystem," NDSS 2021** ([Paper](https://www.ndss-symposium.org/ndss-paper/detecting-node-js-package-name-squatting/)) — Academic basis for Levenshtein distance-based typosquatting detection. Demonstrates that single-edit-distance substitutions, additions, and deletions are the dominant technique in real npm package name squatting attacks. Distance-1 is flagged CRITICAL and distance-2 HIGH in our analyzer, reflecting their finding that single-character changes are almost always malicious.
 - **WorkOS** — Analysis of MCP supply chain risks via runtime package fetching (npx/uvx). ([Blog post](https://workos.com/blog/mcp-supply-chain-security))
 - **OWASP Agentic Skills Top 10** — Documents real-world supply chain attacks on agent tool registries, including the ClawHub registry poisoning incident.
+
+### Rug-pull detection (analyzers/rug_pull.py)
+
+The rug-pull analyzer detects changes to MCP server configurations between scans by maintaining SHA-256 hashes of each server's configuration state and comparing them across scan invocations.
+
+**Research sources:**
+
+- **Invariant Labs** — Coined the "rug pull" terminology in the MCP context: a server publishes clean, trusted tool descriptions during initial review, then silently swaps them for malicious versions after developers have granted access. This is the server-side analog of the npm/PyPI typosquatting lifecycle — gain trust, then exploit.
+- **Trail of Bits** — Research on software supply chain integrity verification, establishing the pattern of cryptographic hash comparison for detecting unauthorized modifications to trusted artifacts.
+- The SHA-256 hash-and-compare approach is a standard integrity verification technique. The novel contribution is applying it to MCP tool description metadata rather than to package binaries or source code.
 
 ### Toxic flow (analyzers/toxic_flow.py)
 
@@ -111,3 +121,27 @@ If you want to add new detection patterns, please include in your PR:
 4. A CWE mapping if one exists
 
 We don't accept detection patterns based on undisclosed or private research.
+
+## Community rules (rules/community/)
+
+12 bundled community detection rules (COMM-001 through COMM-012) ship with
+mcp-audit and run for all users regardless of license tier.
+
+| Rule | Description | Basis |
+|------|-------------|-------|
+| COMM-001 | Netcat binary in server command | Original — common security practice (netcat as a lateral movement / exfiltration tool) |
+| COMM-002 | Eval in command arguments | Original — CWE-95 (eval injection); standard static analysis pattern |
+| COMM-003 | Curl piped to shell | Original — common supply chain risk pattern (arbitrary code execution via pipe-to-shell) |
+| COMM-004 | Stdio transport advisory | Original — informational; stdio servers inherit the parent process's full environment |
+| COMM-005 | Wildcard environment variables | Original — excessive environment exposure reduces isolation |
+| COMM-006 | World-writable config path | Original — CWE-732 (incorrect permission assignment); standard filesystem security check |
+| COMM-007 | Known-malicious package name | Community-sourced — based on published MCP supply chain incident reports |
+| COMM-008 | Insecure binding (0.0.0.0) | Original — common network security practice; see V-09 in GAPS.md |
+| COMM-009 | Debug mode enabled | Original — debug flags in production expose internal state |
+| COMM-010 | Excessive argument count | Original — heuristic for overly complex server invocations |
+| COMM-011 | Temporary directory as working directory | Original — CWE-377 (insecure temporary file); /tmp is world-writable |
+| COMM-012 | Non-HTTPS remote URL | Original — transport security; mirrors TRANSPORT-001 for rule-engine coverage |
+
+All community rules are original implementations based on common security
+practice and published CWE categories. None are derived from proprietary
+research or other scanner rulesets.

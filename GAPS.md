@@ -10,6 +10,26 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 - **Malformed JSON config silently swallowed** (fixed 2026-04-16): `mcp-audit scan --path /tmp/bad.json` (with invalid JSON content) produced "No security issues found" and exit 0. Fix: `cli.py` now checks `result.errors` for parse failures on user-specified paths, prints a `[red]Error:[/red]` line with the file path and parse error detail, and exits 2.
 
+- **Missing LICENSE file** (fixed 2026-04-16): No LICENSE file existed in the repo. Fix: Apache 2.0 LICENSE created; `pyproject.toml` license field and classifiers aligned.
+
+- **Missing CONTRIBUTING.md** (fixed 2026-04-16): No contributor guide existed. Fix: CONTRIBUTING.md added with development setup, code conventions, and PR requirements.
+
+- **Placeholder strings throughout codebase** (fixed 2026-04-16): `yourusername`, `Your Name`, `you@example.com` appeared in `pyproject.toml`, `sarif.py`, `README.md`, `scripts/install.sh`, and `docs/enterprise-deployment.md`. Fix: all replaced with real values (`adudley78`, `Adam Dudley`, `adam@mcp-audit.dev`).
+
+- **Cryptography dependency pin excluded security fix versions** (fixed 2026-04-16): `cryptography>=42.0,<45.0` excluded versions 46.0.5 and 46.0.6 containing fixes for CVE-2026-26007 and CVE-2026-34073. Fix: upper bound changed to `<47.0`.
+
+- **`.gitignore` missing `.env` and `*.key` patterns** (fixed 2026-04-16): Contributors could accidentally commit secrets. Fix: `.env`, `.env.*`, `*.key`, `*.pem` added to `.gitignore`.
+
+- **Unused imports (F401)** (fixed 2026-04-16): `config_parser.py` imported unused `Path`; `test_nucleus_output.py` imported unused `MachineInfo`. Fix: both removed.
+
+- **31 pre-existing ruff errors** (fixed 2026-04-16): 29 × E501 (line too long) in analyzers, `config_parser.py`, `licensing.py`, `terminal.py`, `test_analyzers.py`; 1 × SIM102 (collapsible nested if) in `transport.py`; 1 × S108 (insecure temp path) in `test_analyzers.py`. Fix: all lines wrapped within 88 chars using implicit string concatenation; SIM102 collapsed into single `if` with `and`; S108 replaced with pytest `tmp_path` fixture. `ruff check src/ tests/` now returns zero errors.
+
+- **22 files not passing `ruff format`** (fixed 2026-04-16): 10 source files and 12 test files had formatting inconsistencies (trailing commas, indentation, string join wrapping, blank lines after docstrings). Fix: `ruff format src/ tests/` applied; one exposed E501 in `nucleus.py` suppressed with `# noqa: E501` (Rich markup string). `ruff format --check src/ tests/` now returns zero files; `ruff check src/ tests/` remains clean.
+
+- **Version string hardcoded in 6 locations** (fixed 2026-04-16): V-13 resolved. `__version__` is now defined once in `src/mcp_audit/__init__.py` via `importlib.metadata` with a dev-install fallback. All 6 consumer locations import from there. A consistency test verifies alignment.
+
+- **Stale doc counts and claims** (fixed 2026-04-16): README test counts (546/517 → 845), registry count (43 → 57), CLAUDE.md test/command counts, and multiple docs inaccuracies corrected. SARIF score documentation in `docs/scoring.md` updated. Stale proxy-gate note in `docs/registry.md` removed. `docs/github-action.md` drift severity table and nonexistent `baseline import` command corrected. OSV.dev references in `docs/enterprise-deployment.md` removed (feature not implemented).
+
 ## Detection quality
 
 **False positive rate is unknown.** The poisoning analyzer has been tested against intentionally vulnerable fixtures and one real MCP server (the official filesystem server), which produced a false positive on "base64 encode" — a legitimate technical term in that server's tool description. The patterns have not been validated against a broad sample of real-world MCP server configurations. Before launch, the scanner should be tested against the 20-30 most popular MCP servers to establish a baseline false positive rate and tune patterns accordingly.
@@ -78,11 +98,11 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 ### Low
 
-**V-13: Version string hardcoded in 4 locations.** `"0.1.0"` appears in `pyproject.toml`, `models.py`, `cli.py`, `terminal.py`, and `sarif.py`. These will drift. Fix: use `importlib.metadata.version("mcp-audit")` or a single `__version__` constant.
+**V-13: Resolved.** Version string centralized via `importlib.metadata` in `__init__.py` with consistency test.
 
-**V-14: License metadata contradiction.** `pyproject.toml` declares `LicenseRef-Proprietary` but the classifiers list `Apache Software License`. PyPI will reject or misclassify. Fix: align before publishing.
+**V-14: Resolved.** `pyproject.toml` license field set to `Apache-2.0`; classifiers aligned; LICENSE file created.
 
-**V-15: Placeholder URLs in SARIF and pyproject.toml.** `yourusername` placeholder URLs appear in `sarif.py` and `pyproject.toml`. If SARIF is uploaded to GitHub, broken links appear in the Security tab. Fix: replace before release.
+**V-15: Resolved.** All `yourusername` placeholder URLs replaced with `adudley78` across `sarif.py`, `pyproject.toml`, `README.md`, `scripts/install.sh`, and `docs/enterprise-deployment.md`.
 
 **V-16: `_home()` inconsistency in discovery.py.** `_home()` wraps `Path.home()` for test mocking, but `_get_client_specs()` calls `Path.home()` directly on one line, defeating the indirection. Fix: use `_home()` consistently.
 

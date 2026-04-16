@@ -22,9 +22,10 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from mcp_audit import __version__
 from mcp_audit.models import ServerConfig, Severity
 
-_SCANNER_VERSION = "0.1.0"
+_SCANNER_VERSION = __version__
 _DEFAULT_STORAGE_DIR = Path.home() / ".config" / "mcp-audit" / "baselines"
 
 logger = logging.getLogger(__name__)
@@ -110,9 +111,7 @@ def _compute_config_hash(server: ServerConfig) -> str:
     Uses the same algorithm as the rug-pull analyzer's ``raw`` hash so that
     the two systems are directly comparable.
     """
-    return hashlib.sha256(
-        json.dumps(server.raw, sort_keys=True).encode()
-    ).hexdigest()
+    return hashlib.sha256(json.dumps(server.raw, sort_keys=True).encode()).hexdigest()
 
 
 def _server_to_baseline_server(server: ServerConfig) -> BaselineServer:

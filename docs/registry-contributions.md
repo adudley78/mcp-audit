@@ -19,7 +19,7 @@ Each entry requires these fields:
 |-------|----------|-------------|
 | `name` | Yes | Package name as it appears in MCP config (e.g. `@scope/package`) |
 | `source` | Yes | One of: `npm`, `pip`, `github`, `docker` |
-| `repo` | Yes | URL to the source repository |
+| `repo` | Required for `verified: true`; recommended for `verified: false` | URL to the source repository (may be `null` for unverified community entries) |
 | `maintainer` | Yes | Organization or individual maintaining the package |
 | `verified` | Yes | `true` if the maintainer has been confirmed, `false` for community entries |
 | `last_verified` | Yes | Date in `YYYY-MM-DD` format |
@@ -60,4 +60,6 @@ Use existing tags where possible to keep the registry consistent:
   the repository, and a named maintainer organization
 - `verified: false` is acceptable for community entries where the maintainer
   is less clear — these still help typosquatting detection
-- Entries will not be added for packages with no public source repository
+- `verified: true` entries will not be added without a public source repository
+- `verified: false` entries may have `repo: null` if the source is unknown,
+  but a repo URL is strongly recommended

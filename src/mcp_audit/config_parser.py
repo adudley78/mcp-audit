@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from mcp_audit.discovery import DiscoveredConfig
 from mcp_audit.models import ServerConfig, TransportType
@@ -46,7 +45,9 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
         raise ValueError(f"Invalid JSON in {config.path}: {e}") from e
 
     if not isinstance(data, dict):
-        raise ValueError(f"Expected JSON object in {config.path}, got {type(data).__name__}")
+        raise ValueError(
+            f"Expected JSON object in {config.path}, got {type(data).__name__}"
+        )
 
     # Try the expected root key first, then the alternative
     servers_dict = data.get(config.root_key)
@@ -65,16 +66,18 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
 
         transport = _detect_transport(server_data)
 
-        servers.append(ServerConfig(
-            name=name,
-            client=config.client_name,
-            config_path=config.path,
-            transport=transport,
-            command=server_data.get("command"),
-            args=server_data.get("args", []),
-            env=server_data.get("env", {}),
-            url=server_data.get("url"),
-            raw=server_data,
-        ))
+        servers.append(
+            ServerConfig(
+                name=name,
+                client=config.client_name,
+                config_path=config.path,
+                transport=transport,
+                command=server_data.get("command"),
+                args=server_data.get("args", []),
+                env=server_data.get("env", {}),
+                url=server_data.get("url"),
+                raw=server_data,
+            )
+        )
 
     return servers

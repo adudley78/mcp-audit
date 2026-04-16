@@ -7,11 +7,10 @@ name = "mcp-audit"
 version = "0.1.0"
 description = "Privacy-first security scanner for MCP server configurations"
 readme = "README.md"
-# License TBD — evaluating open source vs commercial
-license = "LicenseRef-Proprietary"
+license = {text = "Apache-2.0"}
 requires-python = ">=3.11"
 authors = [
-    { name = "Your Name", email = "you@example.com" },
+    { name = "Adam Dudley", email = "adam@mcp-audit.dev" },
 ]
 keywords = ["mcp", "security", "scanner", "ai-agents", "llm"]
 classifiers = [
@@ -32,7 +31,7 @@ dependencies = [
     "pydantic>=2.0,<3.0",
     "pyyaml>=6.0,<7.0",
     "watchdog>=4.0,<6.0",
-    "cryptography>=42.0,<45.0",
+    "cryptography>=42.0,<47.0",
 ]
 
 [project.optional-dependencies]
@@ -53,9 +52,9 @@ mcp = [
 mcp-audit = "mcp_audit.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/mcp-audit"
-Repository = "https://github.com/yourusername/mcp-audit"
-Issues = "https://github.com/yourusername/mcp-audit/issues"
+Homepage = "https://github.com/adudley78/mcp-audit"
+Repository = "https://github.com/adudley78/mcp-audit"
+Issues = "https://github.com/adudley78/mcp-audit/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mcp_audit"]

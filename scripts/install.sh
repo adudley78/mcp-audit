@@ -2,7 +2,7 @@
 set -euo pipefail
 
 VERSION="0.1.0"
-BASE_URL="https://github.com/yourusername/mcp-audit/releases/download/v${VERSION}"
+BASE_URL="https://github.com/adudley78/mcp-audit/releases/download/v${VERSION}"
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)

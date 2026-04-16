@@ -20,7 +20,7 @@ Tenable WAS has added MCP server detection plugins that scan server-side code fo
 - **Tool poisoning detection** — 14 regex patterns across 5 severity tiers
 - **Credential exposure** — 9 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges, runtime package fetching
-- **Supply chain** — typosquatting detection via Levenshtein distance against 43 known-legitimate npm MCP packages
+- **Supply chain** — typosquatting detection via Levenshtein distance against 57 known-legitimate MCP servers
 - **Rug-pull detection** — stateful SHA-256 hash comparison of tool descriptions across scans
 - **Cross-server toxic flows** — capability tagging and 7 dangerous pair patterns detecting multi-server attack paths
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
@@ -51,14 +51,18 @@ Already have a key? Run `mcp-audit activate <your-key>` to unlock Pro features.
 
 ## Install
 
+> **Note:** mcp-audit is not yet published to PyPI. Install from source or
+> download a standalone binary from
+> [GitHub Releases](https://github.com/adudley78/mcp-audit/releases).
+
 ```bash
-pip install mcp-audit
+pip install git+https://github.com/adudley78/mcp-audit.git
 ```
 
 For live server connection support:
 
 ```bash
-pip install 'mcp-audit[mcp]'
+pip install 'mcp-audit[mcp] @ git+https://github.com/adudley78/mcp-audit.git'
 ```
 
 ## Quick start
@@ -199,7 +203,7 @@ State is stored in `~/.mcp-audit/state.json`.
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-546 tests validate detection accuracy and guard against regressions.
+845 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -216,6 +220,16 @@ See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framew
 | `mcp-audit activate` | `<key>` | Activate a Pro or Enterprise license key |
 | `mcp-audit license` | — | Show current license tier and expiry |
 | `mcp-audit version` | — | Print version string and active license tier |
+| `mcp-audit update-registry` | — | Fetch the latest known-server registry from upstream *(Pro)* |
+| `mcp-audit merge` | `--dir`, `--format`, `--asset-prefix` | Merge JSON scan outputs from multiple machines into a fleet report *(Enterprise)* |
+| `mcp-audit baseline save` | `--name` | Capture a baseline snapshot of the current MCP configuration |
+| `mcp-audit baseline list` | — | List all saved baselines |
+| `mcp-audit baseline compare` | `--name` | Compare the current configuration against a saved baseline |
+| `mcp-audit baseline delete` | `--name` | Delete a saved baseline |
+| `mcp-audit baseline export` | `--name` | Write a baseline as raw JSON to stdout |
+| `mcp-audit rule validate` | `<file>` | Validate a rule file without running a scan *(Pro)* |
+| `mcp-audit rule test` | `<rule> <config>` | Test a rule file against a specific MCP config file *(Pro)* |
+| `mcp-audit rule list` | — | List all currently loaded rules (bundled + user-local) |
 
 **`mcp-audit scan` flags**
 
@@ -228,6 +242,11 @@ See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framew
 | `--severity-threshold` | `INFO` | Filter findings and set exit code; exit 1 if any finding at or above this level |
 | `--path` | auto-detect | Directory to search for MCP configs |
 | `--asset-prefix` | hostname | Override machine identifier in Nucleus/SARIF output |
+| `--no-score` | off | Suppress the score/grade panel in terminal output |
+| `--registry` | bundled | Custom registry file path (overrides user cache and bundled registry) |
+| `--baseline` | none | Compare scan results against a named baseline (`latest` selects most recent) |
+| `--rules-dir` | none | Load additional detection rules from this directory *(Pro)* |
+| `--offline-registry` | off | Use bundled registry only, skip user cache |
 
 **`mcp-audit dashboard` flags**
 
@@ -341,11 +360,11 @@ See [`examples/pre-commit/`](examples/pre-commit/) for ready-to-copy config patt
 ## Development
 
 ```bash
-git clone https://github.com/yourusername/mcp-audit.git
+git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 517 tests
+uv run pytest                        # Run all 845 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
@@ -356,4 +375,4 @@ This tool is in early development. See [GAPS.md](GAPS.md) for known detection ga
 
 ## License
 
-License pending. This software is not yet licensed for redistribution.
+Apache License 2.0 — see [LICENSE](LICENSE).

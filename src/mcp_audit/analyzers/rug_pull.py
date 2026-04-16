@@ -75,6 +75,7 @@ def compute_hashes(server: ServerConfig) -> dict[str, str]:
     Returns:
         Dict with keys ``command``, ``args``, ``env_keys``, and ``raw``.
     """
+
     def _h(value: str) -> str:
         return hashlib.sha256(value.encode()).hexdigest()
 
@@ -215,7 +216,8 @@ class RugPullAnalyzer(BaseAnalyzer):
                 current_hashes = compute_hashes(srv)
                 if current_hashes["raw"] != stored_hashes.get("raw"):
                     changed = [
-                        f for f in ("command", "args", "env_keys", "raw")
+                        f
+                        for f in ("command", "args", "env_keys", "raw")
                         if current_hashes.get(f) != stored_hashes.get(f)
                     ]
                     findings.append(self._changed_finding(srv, key, changed))

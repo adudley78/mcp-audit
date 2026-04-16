@@ -82,9 +82,7 @@ _SINK_CAPS: frozenset[Capability] = frozenset(
 
 # Severity mapping for (source_cap, sink_cap) pairs used in multi-hop paths.
 _PAIR_SEVERITY: dict[tuple[Capability, Capability], Severity] = {
-    tp: p.severity
-    for p in TOXIC_PAIRS
-    for tp in [(p.source, p.sink)]
+    tp: p.severity for p in TOXIC_PAIRS for tp in [(p.source, p.sink)]
 }
 
 _SEVERITY_ORDER: list[Severity] = [

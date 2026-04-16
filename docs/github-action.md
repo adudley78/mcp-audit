@@ -137,14 +137,14 @@ Drift detection compares the current scan against a named baseline to surface se
    git commit -m "chore: add mcp-audit ci baseline"
    ```
 
-3. **Import it on CI** before the scan step (see [`examples/github-actions/with-baseline.yml`](../examples/github-actions/with-baseline.yml)):
+3. **Copy it into the baselines directory on CI** before the scan step (see [`examples/github-actions/with-baseline.yml`](../examples/github-actions/with-baseline.yml)):
    ```yaml
-   - name: Import baseline
+   - name: Load baseline
      shell: bash
      run: |
        if [ -f .mcp-audit-baseline.json ]; then
-         pip install mcp-audit --quiet
-         mcp-audit baseline import ci-baseline < .mcp-audit-baseline.json || true
+         mkdir -p ~/.config/mcp-audit/baselines/
+         cp .mcp-audit-baseline.json ~/.config/mcp-audit/baselines/ci-baseline.json
        fi
    ```
 
@@ -153,10 +153,12 @@ Drift detection compares the current scan against a named baseline to surface se
 ### What drift findings look like
 
 Drift findings appear alongside normal security findings in SARIF output and the job summary. They have `analyzer: baseline` and IDs in the `DRIFT-NNN` range. Drift finding severity follows the baseline drift rules:
-- Server added: INFO
+- Server added: MEDIUM
 - Server removed: INFO
-- Description changed: HIGH
-- Command/args changed: HIGH
+- Hash changed (description/config content): HIGH
+- Command changed: HIGH
+- Args changed: MEDIUM
+- Env changed: MEDIUM
 
 Update the committed baseline whenever you make intentional config changes:
 ```bash
@@ -219,11 +221,11 @@ The action uses `shell: bash` on all steps, which on Windows runners resolves to
 
 **Fix**: ensure Git for Windows is installed on self-hosted Windows runners, or add a setup step to install it.
 
-### Baseline import fails on CI
+### Baseline not detected on CI
 
-**Cause**: the `mcp-audit baseline import` sub-command may not exist in all versions.
+**Cause**: the baseline JSON file was not copied to the expected directory before the scan step.
 
-**Fix**: check the action's `with-baseline.yml` example for the correct import pattern, or use a direct JSON copy approach:
+**Fix**: copy the exported baseline to the baselines directory:
 ```bash
 mkdir -p ~/.config/mcp-audit/baselines/
 cp .mcp-audit-baseline.json ~/.config/mcp-audit/baselines/ci-baseline.json

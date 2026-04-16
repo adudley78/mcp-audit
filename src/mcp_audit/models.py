@@ -8,6 +8,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from mcp_audit import __version__
+
 # ── Machine identification ─────────────────────────────────────────────────────
 
 
@@ -182,7 +184,7 @@ class RegistryStats(BaseModel):
 class ScanResult(BaseModel):
     """Complete results from a scan run."""
 
-    version: str = "0.1.0"
+    version: str = __version__
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     machine: MachineInfo = Field(default_factory=_collect_machine_info)
     clients_scanned: int = 0

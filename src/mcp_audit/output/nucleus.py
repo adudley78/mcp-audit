@@ -87,14 +87,16 @@ def format_nucleus(
     """
     _con = console or _console
     if not is_pro_feature_available("nucleus"):
-        _con.print(Panel(
-            "[bold]Nucleus FlexConnect output requires mcp-audit Enterprise.[/bold]\n\n"
-            "Your scan completed successfully. Results are available in terminal, JSON, and SARIF formats.\n\n"  # noqa: E501
-            "Upgrade to Enterprise: [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]\n"
-            "Already have a key? Run: [bold]mcp-audit activate <your-key>[/bold]",
-            title="Enterprise Feature",
-            border_style="yellow",
-        ))
+        _con.print(
+            Panel(
+                "[bold]Nucleus FlexConnect output requires mcp-audit Enterprise.[/bold]\n\n"  # noqa: E501
+                "Your scan completed successfully. Results are available in terminal, JSON, and SARIF formats.\n\n"  # noqa: E501
+                "Upgrade to Enterprise: [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]\n"
+                "Already have a key? Run: [bold]mcp-audit activate <your-key>[/bold]",
+                title="Enterprise Feature",
+                border_style="yellow",
+            )
+        )
         return None
 
     scan_date = result.timestamp.strftime("%Y-%m-%d %H:%M:%S")

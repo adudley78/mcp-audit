@@ -100,12 +100,15 @@ class TestVerifyLicense:
     ) -> None:
         private_key, _ = ed25519_keypair
         today = date.today()
-        key = _sign_payload(private_key, {
-            "tier": "pro",
-            "email": "user@example.com",
-            "issued": today.isoformat(),
-            "expires": (today + timedelta(days=365)).isoformat(),
-        })
+        key = _sign_payload(
+            private_key,
+            {
+                "tier": "pro",
+                "email": "user@example.com",
+                "issued": today.isoformat(),
+                "expires": (today + timedelta(days=365)).isoformat(),
+            },
+        )
         info = verify_license(key)
         assert info is not None
         assert info.tier == "pro"
@@ -119,12 +122,15 @@ class TestVerifyLicense:
     ) -> None:
         private_key, _ = ed25519_keypair
         today = date.today()
-        key = _sign_payload(private_key, {
-            "tier": "enterprise",
-            "email": "corp@example.com",
-            "issued": today.isoformat(),
-            "expires": (today + timedelta(days=730)).isoformat(),
-        })
+        key = _sign_payload(
+            private_key,
+            {
+                "tier": "enterprise",
+                "email": "corp@example.com",
+                "issued": today.isoformat(),
+                "expires": (today + timedelta(days=730)).isoformat(),
+            },
+        )
         info = verify_license(key)
         assert info is not None
         assert info.tier == "enterprise"
@@ -137,12 +143,15 @@ class TestVerifyLicense:
     ) -> None:
         private_key, _ = ed25519_keypair
         yesterday = date.today() - timedelta(days=1)
-        key = _sign_payload(private_key, {
-            "tier": "pro",
-            "email": "expired@example.com",
-            "issued": (yesterday - timedelta(days=365)).isoformat(),
-            "expires": yesterday.isoformat(),
-        })
+        key = _sign_payload(
+            private_key,
+            {
+                "tier": "pro",
+                "email": "expired@example.com",
+                "issued": (yesterday - timedelta(days=365)).isoformat(),
+                "expires": yesterday.isoformat(),
+            },
+        )
         info = verify_license(key)
         assert info is not None
         assert info.is_valid is False
@@ -159,20 +168,26 @@ class TestVerifyLicense:
     ) -> None:
         private_key, _ = ed25519_keypair
         today = date.today()
-        key = _sign_payload(private_key, {
-            "tier": "pro",
-            "email": "original@example.com",
-            "issued": today.isoformat(),
-            "expires": (today + timedelta(days=365)).isoformat(),
-        })
+        key = _sign_payload(
+            private_key,
+            {
+                "tier": "pro",
+                "email": "original@example.com",
+                "issued": today.isoformat(),
+                "expires": (today + timedelta(days=365)).isoformat(),
+            },
+        )
         # Tamper with the payload portion of the key.
         parts = key.split(".")
-        evil_payload = json.dumps({
-            "tier": "enterprise",  # upgraded tier
-            "email": "original@example.com",
-            "issued": today.isoformat(),
-            "expires": (today + timedelta(days=3650)).isoformat(),
-        }, separators=(",", ":")).encode()
+        evil_payload = json.dumps(
+            {
+                "tier": "enterprise",  # upgraded tier
+                "email": "original@example.com",
+                "issued": today.isoformat(),
+                "expires": (today + timedelta(days=3650)).isoformat(),
+            },
+            separators=(",", ":"),
+        ).encode()
         tampered = (
             base64.urlsafe_b64encode(evil_payload).rstrip(b"=").decode()
             + "."
@@ -198,12 +213,15 @@ class TestVerifyLicense:
         monkeypatch.setattr(lic_mod, "_PUBLIC_KEY_BYTES", other_pub)
 
         today = date.today()
-        key = _sign_payload(private_key, {
-            "tier": "pro",
-            "email": "user@example.com",
-            "issued": today.isoformat(),
-            "expires": (today + timedelta(days=365)).isoformat(),
-        })
+        key = _sign_payload(
+            private_key,
+            {
+                "tier": "pro",
+                "email": "user@example.com",
+                "issued": today.isoformat(),
+                "expires": (today + timedelta(days=365)).isoformat(),
+            },
+        )
         assert verify_license(key) is None
 
     def test_placeholder_public_key_returns_none(
@@ -215,12 +233,15 @@ class TestVerifyLicense:
         monkeypatch.setattr(lic_mod, "_PUBLIC_KEY_BYTES", b"")
         private_key, _ = ed25519_keypair
         today = date.today()
-        key = _sign_payload(private_key, {
-            "tier": "pro",
-            "email": "user@example.com",
-            "issued": today.isoformat(),
-            "expires": (today + timedelta(days=365)).isoformat(),
-        })
+        key = _sign_payload(
+            private_key,
+            {
+                "tier": "pro",
+                "email": "user@example.com",
+                "issued": today.isoformat(),
+                "expires": (today + timedelta(days=365)).isoformat(),
+            },
+        )
         assert verify_license(key) is None
 
     def test_unknown_tier_returns_none(
@@ -230,12 +251,15 @@ class TestVerifyLicense:
     ) -> None:
         private_key, _ = ed25519_keypair
         today = date.today()
-        key = _sign_payload(private_key, {
-            "tier": "superadmin",  # not a known tier
-            "email": "user@example.com",
-            "issued": today.isoformat(),
-            "expires": (today + timedelta(days=365)).isoformat(),
-        })
+        key = _sign_payload(
+            private_key,
+            {
+                "tier": "superadmin",  # not a known tier
+                "email": "user@example.com",
+                "issued": today.isoformat(),
+                "expires": (today + timedelta(days=365)).isoformat(),
+            },
+        )
         assert verify_license(key) is None
 
 
@@ -461,12 +485,15 @@ class TestIsProFeatureAvailable:
         monkeypatch.setattr(lic_mod, "_PUBLIC_KEY_BYTES", pub_bytes)
 
         yesterday = date.today() - timedelta(days=1)
-        key = _sign_payload(private_key, {
-            "tier": "enterprise",
-            "email": "expired@example.com",
-            "issued": (yesterday - timedelta(days=365)).isoformat(),
-            "expires": yesterday.isoformat(),
-        })
+        key = _sign_payload(
+            private_key,
+            {
+                "tier": "enterprise",
+                "email": "expired@example.com",
+                "issued": (yesterday - timedelta(days=365)).isoformat(),
+                "expires": yesterday.isoformat(),
+            },
+        )
         patched_license_file.parent.mkdir(parents=True, exist_ok=True)
         patched_license_file.write_text(key + "\n")
 
