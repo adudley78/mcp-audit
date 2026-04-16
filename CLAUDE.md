@@ -69,6 +69,11 @@ src/mcp_audit/
 │   ├── sarif.py       # SARIF for GitHub Security integration
 │   ├── nucleus.py     # Nucleus FlexConnect formatter
 │   └── dashboard.py   # Self-contained HTML dashboard with embedded D3 v7 graph and grade badge
+├── extensions/
+│   ├── __init__.py    # Package marker
+│   ├── models.py      # ExtensionManifest, ExtensionVulnEntry Pydantic models
+│   ├── discovery.py   # discover_extensions(), parse_manifest(); EXTENSION_PATHS per-client config
+│   └── analyzer.py    # analyze_extensions(); check_known_vulns, check_permissions, check_wildcard_activation, check_provenance, check_sideloaded, check_stale; load_vuln_registry()
 ├── sast/
 │   ├── __init__.py    # Package marker
 │   ├── runner.py      # SastResult; find_semgrep(); find_rules_dir(); run_semgrep(); parse_semgrep_output(); severity mapping
@@ -191,10 +196,10 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 27+ findings across all analyzer categories
-- 957 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting)
+- 1010 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
-- 16 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, verify, sast, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check)
+- 18 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, verify, sast, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan)
 - **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; Enterprise-gated via `fleet_merge` feature key; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action with `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif` inputs; uploads SARIF to GitHub Security tab; writes job summary; see `docs/github-action.md`
 - **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `~/.config/mcp-audit/baselines/` with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
@@ -204,6 +209,7 @@ What's built:
 - **Pre-commit hook** (Chain Reaction Feature) — `.pre-commit-hooks.yaml` at repo root; `language: python`, `entry: mcp-audit`, `pass_filenames: false`, `types: [json]`; default threshold is HIGH; `examples/pre-commit/` has basic and strict configs; see `docs/pre-commit.md`
 - **Governance policy engine** — YAML-based organisational requirements (approved server lists, score thresholds, transport constraints, registry membership, finding tolerances); `policy validate` / `policy init` / `policy check` subcommands; `scan --policy PATH` flag (free) auto-discovers `.mcp-audit-policy.yml` in cwd / repo root; governance findings flow through all output formats; terminal output shows a distinct yellow "Policy Violations" panel; SARIF governance findings tagged `governance-policy` with `GOV-` rule IDs; `governance` + `fleet_governance` feature keys in `_FEATURE_TIERS`; see `docs/governance.md` and `examples/policies/`
 - **SAST rule pack** — 37 Semgrep rules (28 Python, 9 TypeScript) detecting injection, poisoning, credential, protocol, and transport vulnerabilities in MCP server source code; standalone (`semgrep --config semgrep-rules/ <path>`) or integrated (`mcp-audit scan --sast <path>`); Pro-gated integration; `mcp-audit sast <path>` standalone command; SAST findings have `analyzer="sast"` and flow through all output formats; `sast` feature key in `_FEATURE_TIERS`; `semgrep-rules/` bundled in pip wheel and PyInstaller binary; see `docs/sast-rules.md`, `docs/contributing-rules.md`, and `semgrep-rules/README.md`
+- **IDE extension scanner** — discovers installed extensions across VS Code and Cursor (+ Windsurf/Augment paths for portability); 6 analysis layers: known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions; `mcp-audit extensions discover` (free) and `mcp-audit extensions scan` (Pro); `scan --include-extensions` flag (Pro); `registry/known-extension-vulns.json` seed dataset (5 entries); `extensions` + `fleet_extensions` feature keys in `_FEATURE_TIERS`; findings use `analyzer="extensions"` and flow through all output formats; see `docs/extensions.md`
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic

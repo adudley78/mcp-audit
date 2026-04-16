@@ -1,0 +1,56 @@
+{
+  "schema_version": "1",
+  "last_updated": "2026-04-16",
+  "entries": [
+    {
+      "extension_id": "ritwickdey.liveserver",
+      "affected_versions": "*",
+      "cve": "CVE-2025-65717",
+      "severity": "high",
+      "title": "Live Server: Remote Unauthenticated File Exfiltration",
+      "description": "Live Server (72M+ downloads) allows remote unauthenticated access to files served by the extension. Affects Cursor and Windsurf users. Update to latest version or disable the extension.",
+      "reference": "https://nvd.nist.gov/vuln/detail/CVE-2025-65717",
+      "reported_date": "2025-09-01"
+    },
+    {
+      "extension_id": "ms-python.python",
+      "affected_versions": "<2024.0.0",
+      "cve": null,
+      "severity": "medium",
+      "title": "Python Extension: Older versions lack workspace trust enforcement",
+      "description": "Python extension versions prior to 2024 may execute code in untrusted workspaces without prompting for trust. Update to 2024.0.0 or later.",
+      "reference": "https://github.com/microsoft/vscode-python/security",
+      "reported_date": "2024-01-15"
+    },
+    {
+      "extension_id": "streetsidesoftware.code-spell-checker",
+      "affected_versions": "<3.0.0",
+      "cve": null,
+      "severity": "low",
+      "title": "Code Spell Checker: Reads all workspace files including sensitive config",
+      "description": "Versions prior to 3.0.0 read all workspace files for spell checking, including .env and credential files. Update to 3.0.0+ which respects .gitignore and excludes config files.",
+      "reference": "https://github.com/streetsidesoftware/vscode-spell-checker/releases",
+      "reported_date": "2023-06-01"
+    },
+    {
+      "extension_id": "ms-vscode-remote.remote-ssh",
+      "affected_versions": "<0.107.0",
+      "cve": null,
+      "severity": "medium",
+      "title": "Remote SSH: Credential forwarding without explicit consent in older versions",
+      "description": "Remote SSH extension versions prior to 0.107.0 may forward SSH agent credentials to remote hosts without explicit per-connection consent.",
+      "reference": "https://github.com/microsoft/vscode-remote-release/issues",
+      "reported_date": "2024-03-01"
+    },
+    {
+      "extension_id": "vscodevim.vim",
+      "affected_versions": "<1.27.0",
+      "cve": null,
+      "severity": "low",
+      "title": "Vim Extension: Arbitrary command execution via modelines in older versions",
+      "description": "VSCodeVim versions prior to 1.27.0 may execute arbitrary commands via vim modelines in opened files.",
+      "reference": "https://github.com/VSCodeVim/Vim/security/advisories",
+      "reported_date": "2024-07-01"
+    }
+  ]
+}

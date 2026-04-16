@@ -65,6 +65,7 @@ packages = ["src/mcp_audit"]
 # Bundle the known-server registry inside the installed package so that
 # importlib.resources can locate it at mcp_audit/registry/known-servers.json.
 "registry/known-servers.json" = "mcp_audit/registry/known-servers.json"
+"registry/known-extension-vulns.json" = "mcp_audit/registry/known-extension-vulns.json"
 # Bundle the community rules inside the installed package so that
 # importlib.resources can locate them at mcp_audit/rules/community/.
 "rules/community" = "mcp_audit/rules/community"

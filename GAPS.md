@@ -266,6 +266,38 @@ The Semgrep SAST rule pack (`semgrep-rules/`) has the following known limitation
 **No taint analysis:**
 - Current rules are pattern-based, not dataflow-aware. A variable URL used for SSRF only fires if the HTTP call is in the same function, not if the URL is passed from an outer scope. Full taint tracking requires Semgrep Pro rules (dataflow mode).
 
+## IDE Extension Scanner
+
+**Capability classification is heuristic.**  False positives are possible on complex
+extensions with unconventional manifests.  The `filesystem`, `network`, `terminal`,
+`authentication`, `debuggers`, and `ai_related` capability tags are inferred from
+keywords, description text, contributes keys, and activation events in `package.json`.
+Runtime behaviour (JS bundle analysis) is not examined.
+
+**Version matching uses simplified prefix comparison, not full semver ranges.**
+The `check_known_vulns()` function handles `"*"` (any version) and `"<X.Y.Z"` (integer
+tuple comparison only).  Ranges like `">=1.0.0 <2.0.0"`, `"^1.0.0"`, `"~1.2.3"`, and
+compound expressions are not parsed and will not match.  Track this as a future task if
+the vuln registry grows entries with complex version constraints.
+
+**Discovery paths are hardcoded per-client and may not cover all configurations.**
+The paths in `EXTENSION_PATHS` were validated on macOS with VS Code and Cursor; Windsurf
+and Augment paths were not found on the build machine.  Paths may differ by:
+- OS version (macOS vs Linux vs Windows)
+- Client version (path changes between major versions)
+- Custom install location (non-default `--extensions-dir`)
+
+**Windows extension paths are not validated.**  The standard Windows path
+(`%USERPROFILE%\.vscode\extensions`) is not yet included in `EXTENSION_PATHS`.
+
+**No runtime behaviour monitoring.**  The scanner analyses static manifest data only.
+Malicious extensions that hide capabilities inside their JS bundle (e.g. deferred
+imports, obfuscated network calls) will not be detected by this approach.
+
+**Fleet extension inventory via `merge` not yet implemented.**  The `fleet_extensions`
+feature key is reserved but `mcp-audit merge` does not yet aggregate extension findings
+across machines (Enterprise, post-launch roadmap).
+
 ## Missing capabilities (not started)
 
 - **Multi-arch binary CI release matrix** — GitHub Actions matrix builds for `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` not yet set up

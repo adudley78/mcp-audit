@@ -20,6 +20,7 @@ def build() -> None:
     datas = [
         (str(root / "src" / "mcp_audit" / "data"), "mcp_audit/data"),
         (str(root / "registry" / "known-servers.json"), "registry"),
+        (str(root / "registry" / "known-extension-vulns.json"), "registry"),
         (str(root / "rules" / "community"), "rules/community"),
         (str(root / "semgrep-rules"), "semgrep-rules"),
     ]

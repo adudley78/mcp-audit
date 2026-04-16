@@ -51,6 +51,8 @@ _FEATURE_TIERS: dict[str, frozenset[str]] = {
     "governance": frozenset({"pro", "enterprise"}),
     "fleet_governance": frozenset({"enterprise"}),
     "sast": frozenset({"pro", "enterprise"}),
+    "extensions": frozenset({"pro", "enterprise"}),
+    "fleet_extensions": frozenset({"enterprise"}),
 }
 
 
