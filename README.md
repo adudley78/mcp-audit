@@ -303,6 +303,41 @@ See [`examples/github-actions/`](examples/github-actions/) for:
 
 Full reference, troubleshooting, and baseline setup instructions: [`docs/github-action.md`](docs/github-action.md).
 
+## Pre-Commit Hook
+
+`mcp-audit` ships as a [pre-commit](https://pre-commit.com) hook, catching MCP misconfigurations before they land in the repository. The hook fires only when a JSON file is staged — no false triggers on Python-only or markdown-only commits — and exits 1 to block the commit when findings at or above your chosen severity threshold exist.
+
+### Minimal setup
+
+Add this to your `.pre-commit-config.yaml` (replace `rev` with the [latest release tag](https://github.com/adudley78/mcp-audit/releases)):
+
+```yaml
+repos:
+  - repo: https://github.com/adudley78/mcp-audit
+    rev: v0.1.0  # Replace with the latest release tag
+    hooks:
+      - id: mcp-audit
+```
+
+Then install the hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+The hook uses `--severity-threshold high` by default. To lower the bar to MEDIUM, override `args`:
+
+```yaml
+hooks:
+  - id: mcp-audit
+    args: [scan, --severity-threshold, medium]
+```
+
+**Note:** `pass_filenames: false` is set intentionally. pre-commit would otherwise pass individual staged JSON filenames to the command, but `mcp-audit scan` requires full config files discovered through its own client-aware logic. The hook re-scans all MCP configs (not just staged ones) each time it fires.
+
+See [`examples/pre-commit/`](examples/pre-commit/) for ready-to-copy config patterns and [`docs/pre-commit.md`](docs/pre-commit.md) for the full reference.
+
 ## Development
 
 ```bash

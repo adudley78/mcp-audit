@@ -72,11 +72,16 @@ Data files at project root:
 GitHub Action at project root:
 - `action.yml` — composite GitHub Action definition; allows any repo to wire mcp-audit into CI with a single workflow addition; inputs: `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif`; outputs: `finding-count`, `grade`, `sarif-path`
 
+Pre-commit hook at project root:
+- `.pre-commit-hooks.yaml` — pre-commit hook definition; `language: python`, `entry: mcp-audit`, `pass_filenames: false` (mcp-audit uses its own discovery), `types: [json]` (fires only on staged JSON files), `always_run: false`; default args run `scan --severity-threshold high`; see `docs/pre-commit.md`
+
 CI workflow and example workflows:
 - `.github/workflows/mcp-audit-example.yml` — runs mcp-audit on this repo on push/PR; also the reference workflow users copy
 - `examples/github-actions/basic.yml` — minimal setup (visibility only, never fails build)
 - `examples/github-actions/strict.yml` — fail on MEDIUM or higher
 - `examples/github-actions/with-baseline.yml` — drift detection against a committed baseline
+- `examples/pre-commit/basic.yaml` — minimal pre-commit config (blocks on HIGH+)
+- `examples/pre-commit/strict.yaml` — strict pre-commit config (blocks on MEDIUM+)
 
 Build and distribution scripts at project root:
 - `build.py` — PyInstaller build script; produces `dist/mcp-audit-{os}-{arch}` single-file binary
@@ -160,6 +165,7 @@ What's built:
 - **Scan Score** — every scan now produces a numeric score (0–100) and letter grade (A–F); see `scoring.py` and `docs/scoring.md`
 - **Known-Server Registry** — 57-entry curated dataset of legitimate MCP servers replaces the hardcoded YAML in the supply chain analyzer; see `registry/known-servers.json` and `docs/registry.md`
 - **Policy-as-code rule engine** (Chain Reaction Feature) — YAML-based custom detection rules; 12 community rules ship bundled and run for ALL users; `rule validate` / `rule test` / `rule list` subcommands; `scan --rules-dir PATH` and `~/.config/mcp-audit/rules/` for Pro user-local rules; rule findings flow through all output formats automatically; `custom_rules` feature key in `_FEATURE_TIERS`; see `docs/writing-rules.md` and `rules/README.md`
+- **Pre-commit hook** (Chain Reaction Feature) — `.pre-commit-hooks.yaml` at repo root; `language: python`, `entry: mcp-audit`, `pass_filenames: false`, `types: [json]`; default threshold is HIGH; `examples/pre-commit/` has basic and strict configs; see `docs/pre-commit.md`
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic

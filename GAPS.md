@@ -166,6 +166,12 @@ eval in args, etc.) but have not been validated against a broad sample of
 real-world MCP server configurations. COMM-004 (`stdio transport`) in particular
 is expected to fire on many legitimate configurations.
 
+## Pre-commit hook
+
+**Hook re-scans all configs on every triggered commit, not just staged ones.** `pass_filenames: false` is required because mcp-audit uses its own client-aware discovery rather than accepting individual filenames. As a side effect, on large multi-client machines (e.g., Claude Desktop + Cursor + VS Code + Windsurf all configured), the hook re-scans all discovered configs even if only one JSON file was staged. Scan time is proportional to total server count across all clients, not to the size of the diff. On typical developer machines this is well under 5 seconds, but may be surprising on machines with dozens of MCP servers.
+
+**Hook not tested with `--from-ref`/`--to-ref` diff modes.** The pre-commit framework supports running hooks in diff mode (e.g., `pre-commit run --from-ref HEAD~1 --to-ref HEAD`). Because `pass_filenames: false` bypasses the normal file-list mechanism, diff-mode invocations produce the same full-machine scan rather than a diff-scoped scan. This is consistent with the hook's design intent but has not been tested end-to-end with the pre-commit framework's diff infrastructure.
+
 ## Missing capabilities (not started)
 
 - **Multi-arch binary CI release matrix** — GitHub Actions matrix builds for `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` not yet set up

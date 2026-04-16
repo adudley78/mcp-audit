@@ -1,0 +1,12 @@
+# Strict mcp-audit pre-commit integration.
+# Fails the commit if any MEDIUM, HIGH, or CRITICAL findings are detected
+# in your MCP server configurations.
+#
+# Replace `rev` with the latest release tag from:
+# https://github.com/adudley78/mcp-audit/releases
+repos:
+  - repo: https://github.com/adudley78/mcp-audit
+    rev: v0.1.0  # Replace with the latest release tag
+    hooks:
+      - id: mcp-audit
+        args: [scan, --severity-threshold, medium]

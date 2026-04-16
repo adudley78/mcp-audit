@@ -1,0 +1,9 @@
+- id: mcp-audit
+  name: mcp-audit MCP Security Scanner
+  description: Scan MCP server configuration files for security vulnerabilities
+  language: python
+  entry: mcp-audit
+  args: [scan, --severity-threshold, high]
+  types: [json]
+  pass_filenames: false
+  always_run: false
