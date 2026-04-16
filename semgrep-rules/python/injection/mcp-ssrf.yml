@@ -1,0 +1,72 @@
+rules:
+  - id: mcp-requests-variable-url
+    message: >
+      HTTP request made with a variable URL inside an async function.
+      If the URL derives from MCP tool arguments without validation,
+      an attacker can cause the server to make requests to internal
+      services (SSRF — Server-Side Request Forgery).
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-918
+      owasp: A10:2021
+      owasp-mcp: MCP03
+      description: HTTP request with variable URL in async MCP handler — SSRF risk
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: requests.get($URL, ...)
+          - pattern: requests.post($URL, ...)
+          - pattern: requests.put($URL, ...)
+          - pattern: requests.delete($URL, ...)
+          - pattern: requests.request($METHOD, $URL, ...)
+          - pattern: httpx.get($URL, ...)
+          - pattern: httpx.post($URL, ...)
+          - pattern: httpx.put($URL, ...)
+          - pattern: httpx.delete($URL, ...)
+      - pattern-not:
+          pattern-either:
+            - pattern: requests.get("...", ...)
+            - pattern: requests.post("...", ...)
+            - pattern: requests.put("...", ...)
+            - pattern: requests.delete("...", ...)
+            - pattern: httpx.get("...", ...)
+            - pattern: httpx.post("...", ...)
+            - pattern: httpx.put("...", ...)
+            - pattern: httpx.delete("...", ...)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+
+  - id: mcp-aiohttp-variable-url
+    message: >
+      aiohttp session request made with a variable URL inside an async function.
+      If the URL derives from MCP tool arguments without validation, this
+      enables SSRF attacks against internal services.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-918
+      owasp: A10:2021
+      owasp-mcp: MCP03
+      description: aiohttp request with variable URL in async MCP handler — SSRF risk
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: $SESSION.get($URL, ...)
+          - pattern: $SESSION.post($URL, ...)
+      - pattern-not:
+          pattern-either:
+            - pattern: $SESSION.get("...", ...)
+            - pattern: $SESSION.post("...", ...)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+              async with aiohttp.ClientSession() as $SESSION:
+                  ...

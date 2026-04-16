@@ -1,0 +1,68 @@
+rules:
+  - id: mcp-subprocess-string-cmd
+    message: >
+      subprocess.run/Popen called with a string command inside an async function.
+      String commands are vulnerable to shell injection when they incorporate
+      user-supplied input from MCP tool arguments.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-78
+      owasp: A03:2021
+      owasp-mcp: MCP03
+      description: Subprocess called with string command in async MCP tool handler
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run($CMD, ...)
+          - pattern: subprocess.Popen($CMD, ...)
+      - pattern-not:
+          pattern-either:
+            - pattern: subprocess.run([...], ...)
+            - pattern: subprocess.Popen([...], ...)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+
+  - id: mcp-os-system-call
+    message: >
+      os.system() called inside an async function. os.system() passes commands
+      to the shell and is vulnerable to injection when any part of the command
+      derives from MCP tool arguments.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-78
+      owasp: A03:2021
+      owasp-mcp: MCP03
+      description: os.system() in async MCP tool handler — shell injection risk
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: CRITICAL
+    patterns:
+      - pattern: os.system($CMD)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+
+  - id: mcp-shell-true-injection
+    message: >
+      subprocess called with shell=True. This is dangerous regardless of whether
+      the command is a string or list — it enables shell metacharacter injection
+      when the command incorporates any user-supplied data from MCP tool arguments.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-78
+      owasp: A03:2021
+      owasp-mcp: MCP03
+      description: subprocess with shell=True — shell injection risk
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: HIGH
+    pattern: subprocess.$FUNC(..., shell=True, ...)

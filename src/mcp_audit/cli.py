@@ -211,6 +211,14 @@ def scan(
             "(requires network access; free for all tiers)"
         ),
     ),
+    sast: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--sast",
+        help=(
+            "Path to MCP server source code to scan with Semgrep SAST rules. "
+            "Requires semgrep (pip install semgrep) and a Pro license."
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     extra_paths = [path] if path else None
@@ -358,6 +366,31 @@ def scan(
             scan_result=result,
         )
         result.findings.extend(gov_findings)
+
+    # ── SAST scan (Pro-gated, requires semgrep) ────────────────────────────────
+    if sast is not None:
+        if not is_pro_feature_available("sast"):
+            console.print(
+                "[yellow]⚡ Pro feature:[/yellow] SAST scanning requires "
+                "a Pro or Enterprise license.\n"
+                "   Activate with: [bold]mcp-audit activate <key>[/bold]"
+            )
+        else:
+            from mcp_audit.sast.runner import run_semgrep  # noqa: PLC0415
+
+            console.print(f"[dim]SAST: scanning {sast} with Semgrep rules…[/dim]")
+            sast_result = run_semgrep(target_path=sast)
+            if sast_result.error:
+                console.print(
+                    f"[yellow]SAST warning:[/yellow] {sast_result.error}",
+                    err=True,
+                )
+            else:
+                result.findings.extend(sast_result.findings)
+                console.print(
+                    f"[dim]SAST: scanned {sast_result.files_scanned} file(s), "
+                    f"found {len(sast_result.findings)} issue(s)[/dim]"
+                )
 
     # Filter by severity threshold
     try:
@@ -2040,3 +2073,116 @@ def verify(
             "One or more packages may have been tampered with."
         )
         raise typer.Exit(1)  # noqa: B904
+
+
+# ── sast ──────────────────────────────────────────────────────────────────────
+
+
+@app.command()
+def sast(
+    target: Path = typer.Argument(  # noqa: B008
+        ..., help="Directory or file to scan with Semgrep SAST rules"
+    ),
+    rules_dir: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--rules-dir",
+        help="Override the default semgrep-rules/ directory",
+    ),
+    output_format: str = typer.Option(  # noqa: B008
+        "terminal",
+        "--format",
+        "-f",
+        help="Output format: terminal, json",
+    ),
+) -> None:
+    """Scan MCP server source code with Semgrep SAST rules (Pro feature).
+
+    Requires semgrep to be installed: pip install semgrep
+
+    Exit codes: 0 = no findings, 1 = findings found, 2 = error.
+    """
+    if not is_pro_feature_available("sast"):
+        console.print(
+            "[yellow]⚡ Pro feature:[/yellow] SAST scanning requires "
+            "a Pro or Enterprise license.\n"
+            "   Activate with: [bold]mcp-audit activate <key>[/bold]"
+        )
+        raise typer.Exit(2)  # noqa: B904
+
+    from mcp_audit.sast.runner import (  # noqa: PLC0415
+        SastResult,
+        find_semgrep,
+        run_semgrep,
+    )
+
+    if find_semgrep() is None:
+        console.print(
+            "[red]semgrep is not installed.[/red]\n"
+            "   Install it with: [bold]pip install semgrep[/bold]"
+        )
+        raise typer.Exit(2)  # noqa: B904
+
+    if not target.exists():
+        console.print(f"[red]Path does not exist:[/red] {target}")
+        raise typer.Exit(2)  # noqa: B904
+
+    console.print(f"[dim]Scanning {target} with Semgrep SAST rules…[/dim]")
+    sast_result: SastResult = run_semgrep(target_path=target, rules_dir=rules_dir)
+
+    if sast_result.error:
+        console.print(f"[red]SAST error:[/red] {sast_result.error}")
+        raise typer.Exit(2)  # noqa: B904
+
+    findings = sast_result.findings
+
+    if output_format == "json":
+        import json as _json  # noqa: PLC0415
+
+        typer.echo(_json.dumps([f.model_dump() for f in findings], indent=2))
+        if findings:
+            raise typer.Exit(1)  # noqa: B904
+        return
+
+    if not findings:
+        console.print("[green]✓ No SAST findings.[/green]")
+        return
+
+    table = Table(
+        "File",
+        "Line",
+        "Rule",
+        "Severity",
+        "Message",
+        show_header=True,
+        header_style="bold",
+    )
+    import contextlib  # noqa: PLC0415
+    import json as _json  # noqa: PLC0415
+
+    for f in findings:
+        evidence: dict = {}
+        with contextlib.suppress(Exception):
+            evidence = _json.loads(f.evidence)
+        file_short = Path(evidence.get("file", f.server)).name
+        line = str(evidence.get("line", ""))
+        sev_colour = {
+            "CRITICAL": "red",
+            "HIGH": "yellow",
+            "MEDIUM": "cyan",
+            "LOW": "blue",
+            "INFO": "dim",
+        }.get(f.severity.value, "white")
+        table.add_row(
+            file_short,
+            line,
+            f.title,
+            f"[{sev_colour}]{f.severity.value}[/{sev_colour}]",
+            f.description[:80],
+        )
+
+    console.print(table)
+    console.print(
+        f"\n[bold]{len(findings)} finding(s)[/bold] across "
+        f"{sast_result.files_scanned} file(s)"
+    )
+    raise typer.Exit(1)  # noqa: B904

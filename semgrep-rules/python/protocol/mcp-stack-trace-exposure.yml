@@ -1,0 +1,54 @@
+rules:
+  - id: mcp-traceback-in-return
+    message: >
+      Stack trace returned from an async function. Stack traces expose
+      internal file paths, module structure, and implementation details
+      to the AI model and potentially to end users. Handle errors gracefully
+      and return sanitised error messages instead.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: protocol
+      cwe: CWE-209
+      owasp: A05:2021
+      owasp-mcp: MCP05
+      description: Stack trace returned from async MCP handler — information disclosure
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: return [traceback.format_exc(), ...]
+          - pattern: return traceback.format_exc()
+          - pattern: return [..., traceback.format_exc(), ...]
+          - pattern: $X = traceback.format_exc()
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+
+  - id: mcp-bare-exception-return
+    message: >
+      Raw exception message returned from an async function. Returning
+      str(e) can expose sensitive information such as file paths, connection
+      strings embedded in exception messages, or internal state. Return a
+      generic error message and log the exception server-side instead.
+    severity: INFO
+    languages: [python]
+    metadata:
+      category: protocol
+      cwe: CWE-209
+      owasp: A05:2021
+      owasp-mcp: MCP05
+      description: Raw exception message returned — information disclosure risk
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: LOW
+    patterns:
+      - pattern: |
+          try:
+              ...
+          except $EXC as $ERR:
+              return str($ERR)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...

@@ -1,0 +1,41 @@
+rules:
+  - id: mcp-uvicorn-listen-all
+    message: >
+      uvicorn.run() binding to 0.0.0.0 (all interfaces). MCP servers should
+      bind to 127.0.0.1 (localhost) unless explicitly intended for network
+      access. Binding to all interfaces exposes the MCP server to the local
+      network and potentially the internet.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: transport
+      cwe: CWE-605
+      owasp: A05:2021
+      owasp-mcp: MCP02
+      description: uvicorn binding to all interfaces — MCP server unnecessarily exposed
+      confidence: HIGH
+      likelihood: HIGH
+      impact: MEDIUM
+    pattern-either:
+      - pattern: uvicorn.run(..., host="0.0.0.0", ...)
+      - pattern: uvicorn.run(..., host="", ...)
+
+  - id: mcp-fastapi-listen-all
+    message: >
+      app.run() binding to 0.0.0.0 (all interfaces). MCP servers should bind
+      to 127.0.0.1 (localhost) to limit network exposure. Binding to all
+      interfaces exposes the server to the local network.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: transport
+      cwe: CWE-605
+      owasp: A05:2021
+      owasp-mcp: MCP02
+      description: app.run() binding to all interfaces — MCP server unnecessarily exposed
+      confidence: HIGH
+      likelihood: HIGH
+      impact: MEDIUM
+    pattern-either:
+      - pattern: $APP.run(..., host="0.0.0.0", ...)
+      - pattern: $APP.run(..., host="", ...)

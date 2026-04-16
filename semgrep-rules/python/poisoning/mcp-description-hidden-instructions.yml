@@ -1,0 +1,73 @@
+rules:
+  - id: mcp-tool-description-injection-keywords
+    message: >
+      MCP tool description contains prompt injection keywords. Descriptions
+      with instructions to "ignore previous instructions", "always do X without
+      telling", or "exfiltrate data" are a tool poisoning attack (MCP07) that
+      hijacks AI agent behaviour.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp: MCP07
+      description: Prompt injection keywords detected in MCP tool description
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: CRITICAL
+    patterns:
+      - pattern: $VAR = "$VALUE"
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i).*(description|desc).*
+      - metavariable-regex:
+          metavariable: $VALUE
+          regex: (?i)(ignore|disregard).{0,20}(previous|above|prior|instruction)
+
+  - id: mcp-tool-description-injection-keywords-2
+    message: >
+      MCP tool description contains prompt injection keywords instructing
+      the AI to perform actions without user knowledge. This is a tool
+      poisoning attack (MCP07).
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp: MCP07
+      description: Hidden instruction keywords in MCP tool description
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: CRITICAL
+    patterns:
+      - pattern: $VAR = "$VALUE"
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i).*(description|desc).*
+      - metavariable-regex:
+          metavariable: $VALUE
+          regex: (?i)(you must|you should|always).{0,30}(without|never tell|do not)
+
+  - id: mcp-tool-description-exfiltration-keywords
+    message: >
+      MCP tool description contains data exfiltration keywords. Instructions
+      to "send", "transmit", or "forward" data in a tool description indicate
+      a tool poisoning attack (MCP07) that causes the AI to leak user data.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp: MCP07
+      description: Exfiltration keywords in MCP tool description — tool poisoning
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: CRITICAL
+    patterns:
+      - pattern: $VAR = "$VALUE"
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i).*(description|desc).*
+      - metavariable-regex:
+          metavariable: $VALUE
+          regex: (?i)(exfiltrate|send|transmit|forward).{0,30}(data|content|file)

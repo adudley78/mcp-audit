@@ -1,0 +1,34 @@
+rules:
+  - id: mcp-no-type-check-before-use
+    message: >
+      MCP tool argument retrieved with .get() and used directly without type
+      checking or validation. MCP tool arguments are user-supplied — validate
+      them with isinstance(), a Pydantic model, or an explicit type cast before
+      use to prevent type confusion errors and unexpected behaviour.
+    severity: INFO
+    languages: [python]
+    metadata:
+      category: protocol
+      cwe: CWE-20
+      owasp: A03:2021
+      owasp-mcp: MCP04
+      description: MCP tool argument used without input validation
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: MEDIUM
+      fp-guidance: >
+        High false positive rate — this is a heuristic. Suppress with
+        # nosemgrep: mcp-no-type-check-before-use when the argument is
+        validated upstream (e.g., through a Pydantic schema or the MCP
+        SDK's built-in type validation for typed tool definitions).
+    patterns:
+      - pattern: $FUNC($ARGS.get($KEY), ...)
+      - pattern-inside: |
+          async def $HANDLER($ARGS):
+              ...
+      - pattern-not-inside: |
+          if isinstance(...):
+              ...
+      - pattern-not-inside: |
+          if $ARGS.get($KEY) is not None:
+              ...

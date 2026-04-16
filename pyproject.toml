@@ -68,6 +68,8 @@ packages = ["src/mcp_audit"]
 # Bundle the community rules inside the installed package so that
 # importlib.resources can locate them at mcp_audit/rules/community/.
 "rules/community" = "mcp_audit/rules/community"
+# Bundle the Semgrep SAST rule pack inside the installed package.
+"semgrep-rules" = "mcp_audit/semgrep-rules"
 
 [tool.ruff]
 target-version = "py311"

@@ -1,0 +1,7 @@
+node_modules/
+__pycache__/
+*.min.js
+dist/
+build/
+venv/
+.venv/

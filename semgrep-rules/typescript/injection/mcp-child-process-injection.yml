@@ -1,0 +1,46 @@
+rules:
+  - id: mcp-ts-exec-injection
+    message: >
+      child_process.exec() or exec() called with a variable command. Variable
+      commands passed to exec() are interpreted by the shell and vulnerable to
+      injection when they incorporate MCP tool argument values.
+      Use execFile() with an argument array instead.
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-78
+      owasp: A03:2021
+      owasp-mcp: MCP03
+      description: exec() with variable command — shell injection risk in MCP handler
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: CRITICAL
+    patterns:
+      - pattern-either:
+          - pattern: child_process.exec($CMD, ...)
+          - pattern: exec($CMD, ...)
+      - pattern-not:
+          pattern-either:
+            - pattern: child_process.exec("...", ...)
+            - pattern: exec("...", ...)
+
+  - id: mcp-ts-execsync-injection
+    message: >
+      execSync() called with a variable command. execSync() passes commands
+      to the shell and is vulnerable to injection when the command incorporates
+      MCP tool argument values. Use execFileSync() with an argument array instead.
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-78
+      owasp: A03:2021
+      owasp-mcp: MCP03
+      description: execSync() with variable command — shell injection risk in MCP handler
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: CRITICAL
+    patterns:
+      - pattern: execSync($CMD, ...)
+      - pattern-not: execSync("...", ...)

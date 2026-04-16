@@ -1,0 +1,28 @@
+rules:
+  - id: mcp-eval-tool-arg
+    message: >
+      eval() or exec() called with a variable inside an async function.
+      If the variable originates from MCP tool arguments, this allows
+      arbitrary code execution on the MCP server host.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-95
+      owasp: A03:2021
+      owasp-mcp: MCP03
+      description: Dynamic code execution via eval/exec in async MCP tool handler
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: CRITICAL
+    patterns:
+      - pattern-either:
+          - pattern: eval($X)
+          - pattern: exec($X)
+      - pattern-not:
+          pattern-either:
+            - pattern: eval("...")
+            - pattern: exec("...")
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...

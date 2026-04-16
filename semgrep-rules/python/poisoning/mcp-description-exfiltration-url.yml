@@ -1,0 +1,25 @@
+rules:
+  - id: mcp-description-contains-url
+    message: >
+      MCP tool description contains a URL. Legitimate tool descriptions
+      should not contain HTTP/HTTPS URLs — this pattern is used in tool
+      poisoning attacks to embed exfiltration endpoints that the AI agent
+      will call with user data.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp: MCP07
+      description: URL found in MCP tool description — possible exfiltration endpoint
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+    patterns:
+      - pattern: $VAR = "$VALUE"
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i).*(description|desc).*
+      - metavariable-regex:
+          metavariable: $VALUE
+          regex: (?s).*https?://[^\s]{5,}.*

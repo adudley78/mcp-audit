@@ -1,0 +1,59 @@
+rules:
+  - id: mcp-ts-tool-description-injection
+    message: >
+      MCP tool description contains prompt injection keywords. Tool descriptions
+      with instructions to "ignore previous instructions", "always do X without
+      telling", or "exfiltrate data" are a tool poisoning attack (MCP07) that
+      hijacks AI agent behaviour.
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp: MCP07
+      description: Prompt injection keywords in TypeScript MCP tool description
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: CRITICAL
+    patterns:
+      - pattern: |
+          {description: "..."}
+      - pattern-regex: (?i)(ignore|disregard).{0,20}(previous|above|prior|instruction)
+
+  - id: mcp-ts-tool-description-injection-2
+    message: >
+      MCP tool description contains prompt injection keywords instructing
+      the AI to perform hidden actions. This is a tool poisoning attack (MCP07).
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp: MCP07
+      description: Hidden instruction keywords in TypeScript MCP tool description
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: CRITICAL
+    patterns:
+      - pattern: |
+          {description: "..."}
+      - pattern-regex: (?i)(you must|you should|always).{0,30}(without|never tell|do not)
+
+  - id: mcp-ts-tool-description-exfiltration
+    message: >
+      MCP tool description contains data exfiltration keywords. This is a
+      tool poisoning attack (MCP07) that causes the AI to leak user data.
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp: MCP07
+      description: Exfiltration keywords in TypeScript MCP tool description
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: CRITICAL
+    patterns:
+      - pattern: |
+          {description: "..."}
+      - pattern-regex: (?i)(exfiltrate|send|transmit|forward).{0,30}(data|content|file)

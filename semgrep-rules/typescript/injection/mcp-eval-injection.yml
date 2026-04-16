@@ -1,0 +1,20 @@
+rules:
+  - id: mcp-ts-eval-variable
+    message: >
+      eval() called with a variable. If the variable originates from MCP tool
+      arguments, this allows arbitrary code execution in the Node.js process.
+      Never pass user-supplied data to eval().
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-95
+      owasp: A03:2021
+      owasp-mcp: MCP03
+      description: eval() with variable argument — code injection risk in MCP handler
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: CRITICAL
+    patterns:
+      - pattern: eval($X)
+      - pattern-not: eval("...")

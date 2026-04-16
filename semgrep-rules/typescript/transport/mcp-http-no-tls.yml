@@ -1,0 +1,18 @@
+rules:
+  - id: mcp-ts-express-no-https
+    message: >
+      http.createServer() used instead of https.createServer(). Plain HTTP
+      MCP servers send tool call data unencrypted. Use https.createServer()
+      with a TLS certificate, or use a TLS-terminating reverse proxy.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: transport
+      cwe: CWE-319
+      owasp: A02:2021
+      owasp-mcp: MCP02
+      description: http.createServer() — plain HTTP MCP server, no TLS
+      confidence: HIGH
+      likelihood: HIGH
+      impact: MEDIUM
+    pattern: http.createServer(...)

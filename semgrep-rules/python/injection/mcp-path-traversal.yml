@@ -1,0 +1,63 @@
+rules:
+  - id: mcp-open-path-traversal
+    message: >
+      open() called with a variable path inside an async function.
+      If the path derives from MCP tool arguments and is not validated
+      against a known base directory, this allows path traversal attacks
+      that can read or write arbitrary files.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-22
+      owasp: A01:2021
+      owasp-mcp: MCP03
+      description: open() with variable path in async MCP tool handler — path traversal risk
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+      fp-guidance: >
+        High false positive rate. Suppress with # nosemgrep: mcp-open-path-traversal
+        when the path is validated against a known base directory (e.g., using
+        Path.is_relative_to() or os.path.commonpath()).
+    patterns:
+      - pattern: open($PATH, ...)
+      - pattern-not: open("...", ...)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+
+  - id: mcp-pathlib-open-traversal
+    message: >
+      Path() constructed from a variable then opened inside an async function.
+      If the path derives from MCP tool arguments and is not validated
+      against a known base directory, this allows path traversal attacks.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-22
+      owasp: A01:2021
+      owasp-mcp: MCP03
+      description: Path() with variable in async MCP tool handler — path traversal risk
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+      fp-guidance: >
+        High false positive rate. Suppress with # nosemgrep: mcp-pathlib-open-traversal
+        when the path is validated against a known base directory.
+    patterns:
+      - pattern-either:
+          - pattern: Path($X).open(...)
+          - pattern: Path($X).read_text(...)
+          - pattern: Path($X).write_text(...)
+          - pattern: Path($X).read_bytes(...)
+      - pattern-not:
+          pattern-either:
+            - pattern: Path("...").open(...)
+            - pattern: Path("...").read_text(...)
+            - pattern: Path("...").write_text(...)
+            - pattern: Path("...").read_bytes(...)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...

@@ -1,0 +1,47 @@
+rules:
+  - id: mcp-fastapi-no-ssl
+    message: >
+      uvicorn.run() called without ssl_certfile/ssl_keyfile arguments.
+      MCP HTTP servers should use TLS to protect tool call data in transit.
+      Add ssl_certfile and ssl_keyfile to enable HTTPS, or use a TLS-terminating
+      reverse proxy (nginx, Caddy) in front of the server.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: transport
+      cwe: CWE-319
+      owasp: A02:2021
+      owasp-mcp: MCP02
+      description: uvicorn.run() without TLS — MCP server traffic unencrypted
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: MEDIUM
+    patterns:
+      - pattern: uvicorn.run(...)
+      - pattern-not: uvicorn.run(..., ssl_certfile=..., ...)
+      - pattern-not: uvicorn.run(..., ssl_keyfile=..., ...)
+
+  - id: mcp-flask-no-ssl
+    message: >
+      Flask app.run() called without ssl_context argument. MCP HTTP servers
+      should use TLS — add ssl_context="adhoc" for development or provide
+      a proper certificate tuple for production.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: transport
+      cwe: CWE-319
+      owasp: A02:2021
+      owasp-mcp: MCP02
+      description: Flask app.run() without ssl_context — MCP server traffic unencrypted
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: MEDIUM
+    patterns:
+      - pattern: $APP.run(...)
+      - pattern-not: $APP.run(..., ssl_context=..., ...)
+      - pattern-not: subprocess.run(...)
+      - pattern-not: asyncio.run(...)
+      - pattern-not: loop.run_until_complete(...)
+      - pattern-not: app_runner.run(...)
+      - pattern-not: runner.run(...)

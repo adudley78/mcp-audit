@@ -1,0 +1,13 @@
+# Root .semgrepignore — overrides Semgrep's built-in defaults.
+# Intentionally does NOT exclude tests/ so that semgrep-rules/tests/
+# fixtures are scannable.
+
+node_modules/
+__pycache__/
+*.min.js
+dist/
+build/
+venv/
+.venv/
+.git/
+*.pyc

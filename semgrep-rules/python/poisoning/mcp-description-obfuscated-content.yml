@@ -1,0 +1,42 @@
+rules:
+  - id: mcp-description-base64-content
+    message: >
+      MCP tool description contains what appears to be base64-encoded content.
+      Legitimate tool descriptions do not require base64 encoding — this pattern
+      is used in tool poisoning attacks to hide malicious instructions from
+      human reviewers while remaining readable to AI models.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp: MCP07
+      description: Base64-encoded content in MCP tool description — obfuscated instructions
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: HIGH
+    patterns:
+      - pattern: $VAR = "$VALUE"
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i).*(description|desc).*
+      - metavariable-regex:
+          metavariable: $VALUE
+          regex: "[A-Za-z0-9+/]{20,}={0,2}"
+
+  - id: mcp-description-unicode-escape
+    message: >
+      MCP tool description contains unicode escape sequences. Unicode escapes
+      in tool descriptions can be used to hide malicious instructions that
+      bypass text-based review but are executed by the AI model.
+    severity: INFO
+    languages: [python]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp: MCP07
+      description: Unicode escape sequences in MCP tool description
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: MEDIUM
+    pattern-regex: (?i)(description|desc)\w*\s*=\s*r?"[^"]*\\u[0-9a-fA-F]{4}

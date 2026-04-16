@@ -243,6 +243,29 @@ drift findings (injected before governance evaluation) are counted, which may
 cause unexpected policy violations when combining `--baseline` with
 `finding_policy`.
 
+## SAST Rules
+
+The Semgrep SAST rule pack (`semgrep-rules/`) has the following known limitations:
+
+**Heuristic rules with high false positive risk:**
+- `mcp-open-path-traversal` and `mcp-pathlib-open-traversal` fire on any variable path in an async function, including validated paths. Suppress with `# nosemgrep` when path validation is present.
+- `mcp-no-type-check-before-use` fires when `arguments.get()` is used without an immediately adjacent `isinstance()` check, even when the MCP SDK provides type validation at the protocol level.
+- `mcp-flask-no-ssl` matches any `$APP.run(...)` call; explicitly excludes `subprocess.run` and `asyncio.run`, but may fire on other `.run()` patterns.
+
+**TypeScript rules are less comprehensive than Python rules:**
+- Python has 28 rules across 5 categories; TypeScript has 9 rules across 4 categories.
+- No TypeScript-specific path traversal, SQL injection, or protocol rules yet.
+- TypeScript SSRF detection not yet implemented.
+
+**Rules target server source code, not installed binaries:**
+- SAST rules require access to the server implementation source code. They cannot scan pre-built npm packages, PyPI wheels, or Docker images. Config scanning (`mcp-audit scan`) remains the primary defense for production deployments.
+
+**Semgrep is not bundled in the mcp-audit binary:**
+- `mcp-audit scan --sast` and `mcp-audit sast` require `pip install semgrep` separately. The rule files are bundled; the semgrep engine is not. This matches how other SAST tools (bandit, eslint, etc.) work in the ecosystem.
+
+**No taint analysis:**
+- Current rules are pattern-based, not dataflow-aware. A variable URL used for SSRF only fires if the HTTP call is in the same function, not if the URL is passed from an outer scope. Full taint tracking requires Semgrep Pro rules (dataflow mode).
+
 ## Missing capabilities (not started)
 
 - **Multi-arch binary CI release matrix** — GitHub Actions matrix builds for `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` not yet set up

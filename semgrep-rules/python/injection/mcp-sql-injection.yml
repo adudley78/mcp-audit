@@ -1,0 +1,45 @@
+rules:
+  - id: mcp-fstring-sql
+    message: >
+      f-string used to construct a SQL query passed to execute().
+      This is a SQL injection vulnerability — use parameterized queries
+      (e.g., cursor.execute("SELECT ... WHERE id = ?", (user_id,))) instead.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-89
+      owasp: A03:2021
+      owasp-mcp: MCP03
+      description: f-string SQL query construction — SQL injection risk
+      confidence: HIGH
+      likelihood: HIGH
+      impact: CRITICAL
+    patterns:
+      - pattern: $CONN.execute(f"...", ...)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+
+  - id: mcp-string-concat-sql
+    message: >
+      String concatenation used to construct a SQL query. This is a SQL
+      injection vulnerability — use parameterized queries instead.
+      Detected because the concatenated string contains a SQL keyword
+      (SELECT, INSERT, UPDATE, DELETE).
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-89
+      owasp: A03:2021
+      owasp-mcp: MCP03
+      description: String-concatenated SQL query — SQL injection risk
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: CRITICAL
+    patterns:
+      - pattern: $CONN.execute($QUERY + $VAR, ...)
+      - metavariable-regex:
+          metavariable: $QUERY
+          regex: (?i).*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE).*
