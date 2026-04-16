@@ -34,6 +34,9 @@ src/mcp_audit/
 ├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch)
 ├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect)
 ├── _paths.py          # data_dir() — resolves data/ in both source and PyInstaller frozen modes
+├── fleet/
+│ ├── __init__.py    # Package marker
+│ └── merger.py      # FleetMerger, MachineReport, DeduplicatedFinding, FleetStats, FleetReport; fleet HTML generation
 ├── analyzers/
 │   ├── base.py        # BaseAnalyzer abstract class — all analyzers inherit this
 │   ├── poisoning.py   # Tool description poisoning detection (regex-based)
@@ -143,7 +146,8 @@ What's built:
 - 662 tests passing, ruff clean
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
-- 10 CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry
+- 11 CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge
+- **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; Enterprise-gated via `fleet_merge` feature key; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action with `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif` inputs; uploads SARIF to GitHub Security tab; writes job summary; see `docs/github-action.md`
 - **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `~/.config/mcp-audit/baselines/` with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
 - **Scan Score** — every scan now produces a numeric score (0–100) and letter grade (A–F); see `scoring.py` and `docs/scoring.md`

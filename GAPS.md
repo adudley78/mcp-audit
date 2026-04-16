@@ -124,6 +124,18 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **config-paths input accepts only a single path.** The `config-paths` action input is documented as "single MCP config file path" and maps to `--path`. The underlying CLI `--path` accepts a single path. Supporting comma-separated multiple paths would require multiple `--path` invocations or a new `--paths` multi-value flag in `cli.py`. This is a known limitation.
 
+## Fleet merge
+
+**HTML fleet output is a simplified table, not a full D3 fleet dashboard.** `mcp-audit merge --format html` renders a Rich-exported HTML table. A full D3 force-directed fleet visualization (showing machine relationships, shared findings as edges, attack-path overlays) is a future enhancement. The current output is functional but not interactive.
+
+**`--dir` is non-recursive.** `mcp-audit merge --dir ./results/` only looks at `*.json` files at the top level of the directory. Nested subdirectories (e.g. `./results/team-a/machine-1.json`) are not scanned. Use shell globbing (`mcp-audit merge ./results/**/*.json`) for recursive collection.
+
+**Deduplication matches on exact `(analyzer, server_name, title)` triple.** Findings with subtly different titles — for example, two credential findings on the same server but matching different key names (`sk-abc123` vs `OPENAI_KEY=xyz`) — will produce two separate DeduplicatedFindings rather than being collapsed. This is intentional (exact-match deduplication avoids false-merges) but means the unique-findings count may be slightly inflated when the same issue class manifests with different evidence strings.
+
+**`asset_prefix` is not persisted in scan JSON output.** The `--asset-prefix` passed to `mcp-audit scan` is not stored in the resulting JSON file. When merging, `--asset-prefix PREFIX` filters by machine hostname prefix (machine_id), not by a stored asset_prefix field. Machines must be named with a meaningful prefix (e.g. `prod-laptop-adam`) for prefix filtering to be useful.
+
+**Version mismatch detection uses string equality, not semver ordering.** A machine running `0.1.0` and a machine running `0.1.1` are both reported as mismatches against the majority version. There is no "close enough" tolerance — any version string difference triggers a warning.
+
 ## Missing capabilities (not started)
 
 - **Multi-arch binary CI release matrix** — GitHub Actions matrix builds for `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` not yet set up
