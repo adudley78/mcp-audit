@@ -62,6 +62,15 @@ src/mcp_audit/
 Data files at project root:
 - `registry/known-servers.json` — curated dataset of 57 known-legitimate MCP servers; queried by the supply chain analyzer for typosquatting detection; ships in both the pip wheel and PyInstaller binary
 
+GitHub Action at project root:
+- `action.yml` — composite GitHub Action definition; allows any repo to wire mcp-audit into CI with a single workflow addition; inputs: `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif`; outputs: `finding-count`, `grade`, `sarif-path`
+
+CI workflow and example workflows:
+- `.github/workflows/mcp-audit-example.yml` — runs mcp-audit on this repo on push/PR; also the reference workflow users copy
+- `examples/github-actions/basic.yml` — minimal setup (visibility only, never fails build)
+- `examples/github-actions/strict.yml` — fail on MEDIUM or higher
+- `examples/github-actions/with-baseline.yml` — drift detection against a committed baseline
+
 Build and distribution scripts at project root:
 - `build.py` — PyInstaller build script; produces `dist/mcp-audit-{os}-{arch}` single-file binary
 - `scripts/install.sh` — curl-based end-user installer for GitHub Releases
@@ -94,6 +103,8 @@ Build and distribution scripts at project root:
 - `scan --no-score` suppresses the grade panel in terminal output only; score is still calculated and present in JSON/HTML
 - `scan --registry PATH` overrides the bundled and cached registry for that run
 - `scan --baseline NAME` (or `--baseline latest`) loads a saved baseline and appends `DriftFinding`s converted to `Finding` objects (`analyzer="baseline"`) into all output formats after the normal scan
+- `scan --output-file PATH` (alias for `--output` / `-o`) writes scan results to a file; parent directories are created automatically; required for the GitHub Action SARIF upload step
+- `scan --severity-threshold LEVEL` filters findings to only those at or above the given level and drives exit code; default is `INFO` (all findings); `--severity-threshold high` exits 1 only if HIGH or CRITICAL findings exist
 - `update-registry` fetches `registry/known-servers.json` from GitHub and saves it to the user-local cache; requires Pro tier (gated via `is_pro_feature_available("html_report")` as a proxy until a dedicated feature key is formalised)
 - **Baseline storage** uses 0o700 dir / 0o600 file permissions, same pattern as rug-pull state files; env values are never stored, only key names (security — prevents secrets being persisted to disk)
 
@@ -133,6 +144,7 @@ What's built:
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
 - 10 CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry
+- **GitHub Action** — `action.yml` at repo root; composite action with `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif` inputs; uploads SARIF to GitHub Security tab; writes job summary; see `docs/github-action.md`
 - **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `~/.config/mcp-audit/baselines/` with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
 - **Scan Score** — every scan now produces a numeric score (0–100) and letter grade (A–F); see `scoring.py` and `docs/scoring.md`
 - **Known-Server Registry** — 57-entry curated dataset of legitimate MCP servers replaces the hardcoded YAML in the supply chain analyzer; see `registry/known-servers.json` and `docs/registry.md`

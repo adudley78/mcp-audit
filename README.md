@@ -222,10 +222,10 @@ See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framew
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--format` | `terminal` | Output format: `terminal`, `json`, `sarif`, `nucleus` |
-| `--output / -o` | stdout | File path for `json`/`sarif`/`nucleus` output |
+| `--output / --output-file / -o` | stdout | File path for `json`/`sarif`/`nucleus` output; parent directories are created automatically |
 | `--connect` | off | Connect to running servers via MCP protocol |
 | `--ci` | off | Exit 1 on any finding at or above threshold |
-| `--severity-threshold` | `LOW` | Minimum severity to report in CI mode |
+| `--severity-threshold` | `INFO` | Filter findings and set exit code; exit 1 if any finding at or above this level |
 | `--path` | auto-detect | Directory to search for MCP configs |
 | `--asset-prefix` | hostname | Override machine identifier in Nucleus/SARIF output |
 
@@ -237,6 +237,71 @@ See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framew
 | `--port` | `8088` | HTTP port for the local dashboard server |
 | `--connect` | off | Include live-connection findings in the dashboard |
 | `--no-open` | off | Generate the report without opening a browser tab |
+
+## GitHub Action
+
+[![MCP Security Scan](https://github.com/adudley78/mcp-audit/actions/workflows/mcp-audit-example.yml/badge.svg)](https://github.com/adudley78/mcp-audit/actions/workflows/mcp-audit-example.yml)
+
+`mcp-audit` ships as a [composite GitHub Action](action.yml) that you can drop into any repository with a single workflow addition. It installs `mcp-audit`, runs a full scan against your MCP configs, uploads findings to the GitHub Security tab as SARIF, and writes a findings summary to the job summary page. The build fails only when findings at or above your chosen severity threshold exist — making it easy to adopt incrementally (start with `severity-threshold: high`, tighten to `medium` once you've cleared existing issues).
+
+### Minimal setup
+
+Add this workflow to `.github/workflows/mcp-audit.yml` in your repo:
+
+```yaml
+name: MCP Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  mcp-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run mcp-audit
+        uses: adudley78/mcp-audit@main
+        with:
+          severity-threshold: high
+          upload-sarif: 'true'
+```
+
+The `permissions: security-events: write` block is required for SARIF upload on public repositories. Without it the upload step will fail silently.
+
+### Action inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `severity-threshold` | `high` | Fail the build if findings at or above this level exist (`critical`, `high`, `medium`, `low`, `info`) |
+| `format` | `sarif` | Output format (`sarif`, `json`, `terminal`) |
+| `config-paths` | _(auto-discover)_ | Single MCP config file path to scan |
+| `baseline` | _(none)_ | Baseline name for drift detection |
+| `upload-sarif` | `true` | Upload SARIF results to the GitHub Security tab |
+
+### Action outputs
+
+| Output | Description |
+|--------|-------------|
+| `finding-count` | Total number of findings |
+| `grade` | Letter grade (A–F) |
+| `sarif-path` | Path to generated SARIF file |
+
+### More examples
+
+See [`examples/github-actions/`](examples/github-actions/) for:
+- [`basic.yml`](examples/github-actions/basic.yml) — visibility-only, never fails the build
+- [`strict.yml`](examples/github-actions/strict.yml) — fail on any MEDIUM or higher finding
+- [`with-baseline.yml`](examples/github-actions/with-baseline.yml) — drift detection against a committed baseline
+
+Full reference, troubleshooting, and baseline setup instructions: [`docs/github-action.md`](docs/github-action.md).
 
 ## Development
 

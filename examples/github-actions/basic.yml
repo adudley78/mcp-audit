@@ -1,0 +1,27 @@
+# Minimal mcp-audit setup — scan and upload SARIF, no threshold enforcement.
+# Findings appear in the GitHub Security tab but the build never fails.
+# Good for: initial adoption, visibility-only mode, repos with existing findings.
+
+name: MCP Security Scan (Basic)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  mcp-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run mcp-audit
+        uses: adudley78/mcp-audit@main
+        with:
+          severity-threshold: info   # report everything; never fails the build
+          upload-sarif: 'true'

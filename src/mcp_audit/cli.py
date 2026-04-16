@@ -93,13 +93,21 @@ def scan(
         help="Output format: terminal, json, nucleus, sarif",
     ),
     output: Path | None = typer.Option(  # noqa: B008
-        None, "--output", "-o", help="Write results to file"
+        None,
+        "--output",
+        "--output-file",
+        "-o",
+        help="Write results to file (--output-file is an alias)",
     ),
     severity_threshold: str = typer.Option(  # noqa: B008
         "INFO",
         "--severity-threshold",
         "-s",
-        help="Minimum severity to report",
+        help=(
+            "Minimum severity to report. "
+            "Exit code 1 if findings at or above this level exist. "
+            "Accepted: critical, high, medium, low, info"
+        ),
     ),
     offline: bool = typer.Option(  # noqa: B008
         False, "--offline", help="Skip all network calls"
@@ -230,7 +238,7 @@ def scan(
     if fmt == "json":
         out = result.model_dump_json(indent=2)
         if output:
-            output.write_text(out)
+            _write_output(output, out)
         else:
             typer.echo(out)
     elif fmt == "nucleus":
@@ -238,13 +246,13 @@ def scan(
         if out is None:
             raise typer.Exit(0)
         if output:
-            output.write_text(out)
+            _write_output(output, out)
         else:
             typer.echo(out)
     elif fmt == "sarif":
         out = format_sarif(result, asset_prefix=asset_prefix)
         if output:
-            output.write_text(out)
+            _write_output(output, out)
         else:
             typer.echo(out)
     elif fmt == "terminal":
@@ -780,6 +788,12 @@ if __name__ == "__main__":
 
 
 # ── Private helpers ────────────────────────────────────────────────────────────
+
+
+def _write_output(path: Path, content: str) -> None:
+    """Write *content* to *path*, creating parent directories as needed."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
 
 
 def _newest_last_seen(stored: dict) -> str:

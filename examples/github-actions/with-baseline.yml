@@ -1,0 +1,48 @@
+# Drift detection — compare the current scan against a saved baseline named
+# "ci-baseline". Any deviation (server added/removed, description changed)
+# appears as a DriftFinding alongside normal security findings.
+#
+# Setup:
+#   1. Run `mcp-audit baseline save ci-baseline` locally.
+#   2. Commit the exported baseline to the repo:
+#        mcp-audit baseline export ci-baseline > .mcp-audit-baseline.json
+#        git add .mcp-audit-baseline.json && git commit -m "chore: add mcp-audit baseline"
+#   3. On CI, import it before scanning:
+#        mcp-audit baseline import ci-baseline < .mcp-audit-baseline.json
+#      (add this as an extra step before the mcp-audit action step)
+#
+# Good for: tracking intentional config changes, detecting unauthorised server additions.
+
+name: MCP Security Scan (with baseline drift detection)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  mcp-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Restore the committed baseline so drift detection has a reference point.
+      - name: Import baseline
+        shell: bash
+        run: |
+          if [ -f .mcp-audit-baseline.json ]; then
+            pip install mcp-audit --quiet
+            mcp-audit baseline import ci-baseline < .mcp-audit-baseline.json || true
+          fi
+
+      - name: Run mcp-audit with drift detection
+        uses: adudley78/mcp-audit@main
+        with:
+          severity-threshold: high
+          baseline: ci-baseline
+          upload-sarif: 'true'

@@ -1,0 +1,177 @@
+name: mcp-audit
+description: Scan MCP server configurations for security vulnerabilities
+author: Adam Dudley
+
+inputs:
+  severity-threshold:
+    description: >
+      Fail the build if findings at or above this severity are found.
+      Accepted values: critical, high, medium, low, info
+    required: false
+    default: 'high'
+
+  format:
+    description: >
+      Output format for scan results.
+      Accepted values: sarif, json, terminal
+    required: false
+    default: 'sarif'
+
+  config-paths:
+    description: >
+      Single MCP config file path to scan.
+      Leave empty to auto-discover across all supported clients.
+    required: false
+    default: ''
+
+  baseline:
+    description: >
+      Baseline name to compare against for drift detection.
+      Leave empty to skip baseline comparison.
+    required: false
+    default: ''
+
+  upload-sarif:
+    description: Upload SARIF results to GitHub Security tab
+    required: false
+    default: 'true'
+
+outputs:
+  finding-count:
+    description: Total number of findings
+    value: ${{ steps.scan.outputs.finding-count }}
+
+  grade:
+    description: Letter grade for the scanned configuration (A–F)
+    value: ${{ steps.scan.outputs.grade }}
+
+  sarif-path:
+    description: Path to generated SARIF file
+    value: ${{ steps.scan.outputs.sarif-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install mcp-audit
+      shell: bash
+      run: pip install mcp-audit
+
+    - name: Run mcp-audit scan
+      shell: bash
+      id: scan
+      run: |
+        ARGS="--format ${{ inputs.format }} --output-file mcp-audit-results.sarif"
+        ARGS="$ARGS --severity-threshold ${{ inputs.severity-threshold }}"
+
+        if [ -n "${{ inputs.config-paths }}" ]; then
+          ARGS="$ARGS --path ${{ inputs.config-paths }}"
+        fi
+
+        if [ -n "${{ inputs.baseline }}" ]; then
+          ARGS="$ARGS --baseline ${{ inputs.baseline }}"
+        fi
+
+        # Run scan; capture exit code without failing the step so we can still
+        # upload SARIF and write the job summary even when findings exist.
+        set +e
+        mcp-audit scan $ARGS
+        SCAN_EXIT=$?
+        set -e
+
+        echo "sarif-path=mcp-audit-results.sarif" >> "$GITHUB_OUTPUT"
+
+        # Parse JSON summary for finding count and grade outputs.
+        mcp-audit scan --format json --output-file mcp-audit-summary.json \
+          ${ARGS#--format sarif} 2>/dev/null || \
+        mcp-audit scan --format json --output-file mcp-audit-summary.json 2>/dev/null || \
+        true
+
+        python3 - << 'PYEOF'
+        import json, os, sys
+        summary_path = "mcp-audit-summary.json"
+        try:
+            with open(summary_path) as f:
+                data = json.load(f)
+            findings = data.get("findings", [])
+            score = data.get("score") or {}
+            grade = score.get("grade", "N/A")
+            count = len(findings)
+            github_output = os.environ.get("GITHUB_OUTPUT", "")
+            if github_output:
+                with open(github_output, "a") as out:
+                    out.write(f"finding-count={count}\n")
+                    out.write(f"grade={grade}\n")
+        except Exception as e:
+            print(f"Warning: could not parse summary JSON: {e}", file=sys.stderr)
+        PYEOF
+
+        # Propagate the scan exit code so the workflow step fails correctly.
+        exit $SCAN_EXIT
+
+    - name: Upload SARIF to GitHub Security tab
+      if: ${{ inputs.upload-sarif == 'true' && always() }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: mcp-audit-results.sarif
+        category: mcp-audit
+
+    - name: Write job summary
+      shell: bash
+      if: always()
+      run: |
+        python3 - << 'PYEOF'
+        import json, os, sys
+
+        try:
+            with open("mcp-audit-summary.json") as f:
+                data = json.load(f)
+            findings = data.get("findings", [])
+            score = data.get("score") or {}
+            grade = score.get("grade", "N/A")
+            numeric = score.get("numeric_score", "N/A")
+            critical = sum(1 for f in findings if f.get("severity") == "CRITICAL")
+            high     = sum(1 for f in findings if f.get("severity") == "HIGH")
+            medium   = sum(1 for f in findings if f.get("severity") == "MEDIUM")
+            low      = sum(1 for f in findings if f.get("severity") == "LOW")
+            info     = sum(1 for f in findings if f.get("severity") == "INFO")
+            table_header = "| Grade | Score | Critical | High | Medium | Low | Info |"
+            table_sep    = "|-------|-------|----------|------|--------|-----|------|"
+            table_row    = f"| {grade} | {numeric}/100 | {critical} | {high} | {medium} | {low} | {info} |"
+            summary = (
+                "## mcp-audit Security Scan\n\n"
+                + table_header + "\n"
+                + table_sep + "\n"
+                + table_row + "\n\n"
+            )
+            if findings:
+                summary += "### Findings\n\n"
+                summary += "| Severity | Server | Title |\n"
+                summary += "|----------|--------|-------|\n"
+                for finding in findings[:20]:  # cap at 20 rows
+                    sev    = finding.get("severity", "")
+                    server = finding.get("server", "")
+                    title  = finding.get("title", "")
+                    summary += f"| {sev} | {server} | {title} |\n"
+                if len(findings) > 20:
+                    summary += f"\n_…and {len(findings) - 20} more findings._\n"
+            else:
+                summary += "_No findings — configuration looks clean._\n"
+
+            step_summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
+            if step_summary:
+                with open(step_summary, "a") as f:
+                    f.write(summary)
+            else:
+                print(summary)
+
+        except FileNotFoundError:
+            msg = "mcp-audit-summary.json not found — scan may have produced no output.\n"
+            step_summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
+            if step_summary:
+                with open(step_summary, "a") as f:
+                    f.write(f"## mcp-audit Security Scan\n\n{msg}")
+            else:
+                print(msg, file=sys.stderr)
+        except Exception as e:
+            print(f"Summary generation failed: {e}", file=sys.stderr)
+        PYEOF

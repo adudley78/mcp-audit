@@ -114,10 +114,20 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **Trend tracking (multi-baseline comparison) is not yet implemented.** The feature is documented as future work and will require Pro license gating via `is_pro_feature_available()`. The `BaselineManager` currently supports pairwise comparison (one baseline vs. current state) only. Historical trend views (e.g. "how has this server changed across 5 baselines") are not yet implemented.
 
+## GitHub Action
+
+**Action uses `pip install` rather than the PyInstaller binary.** The `action.yml` composite action installs mcp-audit via `pip install mcp-audit` on the CI runner. This requires a Python environment on the runner (satisfied by all GitHub-hosted `ubuntu-latest`, `macos-latest`, and `windows-latest` runners), adds approximately 20–30 seconds to each CI job, and pulls transitive dependencies. A future optimization would ship the binary via a separate `setup-mcp-audit` action that downloads the prebuilt binary from GitHub Releases (same pattern as `setup-go` or `setup-node`), reducing install time to under 5 seconds.
+
+**Action not tested on self-hosted runners or non-standard Python environments.** GitHub-hosted runners provide Python 3.x in the default PATH. Self-hosted runners with non-standard Python installations (e.g., Conda environments, pyenv without global Python, Alpine Linux with `python3` missing) may fail at the `pip install` step. The action does not attempt to set up Python explicitly; users on non-standard runners should add an `actions/setup-python@v5` step before the action.
+
+**Action not tested on Windows runners.** The action's shell scripts use bash syntax (`set +e`, `ARGS="..."`, heredocs). GitHub-hosted Windows runners default to PowerShell. The action sets `shell: bash` on all steps to use the Git Bash environment that Windows runners include, but this path has not been validated end-to-end. File paths with backslashes may cause issues in `--path` arguments.
+
+**config-paths input accepts only a single path.** The `config-paths` action input is documented as "single MCP config file path" and maps to `--path`. The underlying CLI `--path` accepts a single path. Supporting comma-separated multiple paths would require multiple `--path` invocations or a new `--paths` multi-value flag in `cli.py`. This is a known limitation.
+
 ## Missing capabilities (not started)
 
-- **GitHub Actions CI workflow** — no automated testing on push/PR; no multi-arch binary release matrix
-- **pip packaging and TestPyPI dry run** — installable from source only (PyInstaller binary available as alternative)
+- **Multi-arch binary CI release matrix** — GitHub Actions matrix builds for `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` not yet set up
+- **pip packaging and TestPyPI dry run** — installable from source only (PyInstaller binary available as alternative; `pip install mcp-audit` used in the action but not yet on PyPI)
 - **Documentation beyond README** — no usage guide, rule-writing guide, or Nucleus integration guide (scoring and registry docs now exist in `docs/`)
 - **Telemetry or usage analytics** — no way to measure adoption (intentional for privacy-first positioning, but limits success measurement)
 - **Registry auto-growth** — the known-server registry requires manual contributions as the MCP ecosystem grows; `update-registry` pulls the latest committed version but does not discover new servers automatically

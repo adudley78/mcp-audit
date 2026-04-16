@@ -1,0 +1,28 @@
+# Strict mode — fail the build on any medium or higher severity finding.
+# Good for: security-conscious teams, new projects, regulated environments.
+# Note: you must resolve existing MEDIUM+ findings before enabling this,
+# or PRs will be blocked immediately.
+
+name: MCP Security Scan (Strict)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  mcp-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run mcp-audit
+        uses: adudley78/mcp-audit@main
+        with:
+          severity-threshold: medium   # fail on MEDIUM, HIGH, or CRITICAL
+          upload-sarif: 'true'

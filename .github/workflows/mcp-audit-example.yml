@@ -1,0 +1,23 @@
+name: MCP Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  mcp-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run mcp-audit
+        uses: adudley78/mcp-audit@main
+        with:
+          severity-threshold: high
+          upload-sarif: 'true'
