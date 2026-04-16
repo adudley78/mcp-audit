@@ -178,6 +178,11 @@ def scan(
             "Requires a Pro or Enterprise license."
         ),
     ),
+    offline_registry: bool = typer.Option(  # noqa: B008
+        False,
+        "--offline-registry",
+        help="Use bundled registry only, skip user cache",
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     extra_paths = [path] if path else None
@@ -186,9 +191,10 @@ def scan(
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
-    # Build a custom analyzers list when a custom registry path is supplied.
+    # Build a custom analyzers list when a custom registry path or offline
+    # registry flag is supplied.
     analyzers = None
-    if registry is not None:
+    if registry is not None or offline_registry:
         from mcp_audit.analyzers.credentials import CredentialsAnalyzer  # noqa: PLC0415, I001
         from mcp_audit.analyzers.poisoning import PoisoningAnalyzer  # noqa: PLC0415, I001
         from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer  # noqa: PLC0415, I001
@@ -198,7 +204,10 @@ def scan(
             PoisoningAnalyzer(),
             CredentialsAnalyzer(),
             TransportAnalyzer(),
-            SupplyChainAnalyzer(registry_path=registry),
+            SupplyChainAnalyzer(
+                registry_path=registry,
+                offline_registry=offline_registry,
+            ),
         ]
 
     # ── Pro-gated custom rules ─────────────────────────────────────────────────

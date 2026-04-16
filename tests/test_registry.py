@@ -435,3 +435,72 @@ class TestLevenshteinInLoader:
 
     def test_symmetric(self) -> None:
         assert levenshtein("abc", "xyz") == levenshtein("xyz", "abc")
+
+
+# ── --offline-registry / offline parameter ────────────────────────────────────
+
+
+class TestOfflineRegistry:
+    """load_registry(offline=True) must skip the user cache."""
+
+    def test_offline_skips_user_cache(
+        self,
+        minimal_registry_json: Path,
+    ) -> None:
+        """With offline=True, the user-cache path is ignored even when it exists."""
+        import mcp_audit.registry.loader as loader_mod  # noqa: PLC0415
+
+        with patch.object(loader_mod, "_USER_CACHE_PATH", minimal_registry_json):
+            # minimal fixture has 3 entries; bundled registry has 57
+            reg = load_registry(offline=True)
+        assert len(reg.entries) != 3, "offline=True should bypass the user cache"
+
+    def test_offline_still_loads_bundled(self) -> None:
+        """offline=True must load the bundled registry, not raise FileNotFoundError."""
+        reg = load_registry(offline=True)
+        assert len(reg.entries) > 0
+
+    def test_offline_explicit_path_not_overridden(
+        self,
+        minimal_registry_json: Path,
+    ) -> None:
+        """An explicit path argument must win even when offline=True."""
+        reg = load_registry(path=minimal_registry_json, offline=True)
+        assert len(reg.entries) == 3
+
+    def test_known_server_registry_offline_kwarg(
+        self,
+        minimal_registry_json: Path,
+    ) -> None:
+        """KnownServerRegistry(offline=True) passes offline flag to _locate."""
+        import mcp_audit.registry.loader as loader_mod  # noqa: PLC0415
+
+        with patch.object(loader_mod, "_USER_CACHE_PATH", minimal_registry_json):
+            reg = KnownServerRegistry(offline=True)
+        assert len(reg.entries) != 3
+
+
+class TestOfflineRegistrySupplyChain:
+    """SupplyChainAnalyzer(offline_registry=True) must use bundled registry."""
+
+    def test_offline_registry_flag_propagates(
+        self,
+        minimal_registry_json: Path,
+    ) -> None:
+        import mcp_audit.registry.loader as loader_mod  # noqa: PLC0415
+        from mcp_audit.analyzers.supply_chain import (
+            SupplyChainAnalyzer,  # noqa: PLC0415
+        )
+
+        with patch.object(loader_mod, "_USER_CACHE_PATH", minimal_registry_json):
+            analyzer = SupplyChainAnalyzer(offline_registry=True)
+        # bundled registry has 57 entries; minimal fixture has 3
+        assert len(analyzer.registry.entries) != 3
+
+    def test_registry_property_returns_loaded_registry(self) -> None:
+        from mcp_audit.analyzers.supply_chain import (
+            SupplyChainAnalyzer,  # noqa: PLC0415
+        )
+
+        analyzer = SupplyChainAnalyzer()
+        assert isinstance(analyzer.registry, KnownServerRegistry)

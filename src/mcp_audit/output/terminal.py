@@ -7,7 +7,7 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.text import Text
 
-from mcp_audit.models import AttackPathSummary, ScanResult, Severity
+from mcp_audit.models import AttackPathSummary, RegistryStats, ScanResult, Severity
 from mcp_audit.scoring import format_grade_terminal
 
 SEVERITY_COLORS = {
@@ -87,6 +87,21 @@ def _print_attack_path_summary(summary: AttackPathSummary, console: Console) -> 
     console.print()
 
 
+def _format_registry_stats(stats: RegistryStats) -> str:
+    """Return a dim-styled Rich markup string for the registry stats line.
+
+    Args:
+        stats: Registry metadata from the scan result.
+
+    Returns:
+        Rich markup string ready for ``console.print``.
+    """
+    return (
+        f"[dim]Registry: {stats.entry_count} known servers "
+        f"(v{stats.schema_version}, updated {stats.last_updated})[/dim]"
+    )
+
+
 def print_results(
     result: ScanResult,
     console: Console | None = None,
@@ -117,6 +132,11 @@ def print_results(
         f"Scanned [bold]{result.clients_scanned}[/bold] client(s), "
         f"[bold]{result.servers_found}[/bold] server(s) found"
     )
+
+    # Registry stats — muted one-liner; always shown when available
+    if result.registry_stats is not None:
+        console.print(_format_registry_stats(result.registry_stats))
+
     console.print()
 
     if not result.findings:

@@ -66,19 +66,29 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         self,
         registry: KnownServerRegistry | None = None,
         registry_path: Path | None = None,
+        offline_registry: bool = False,
     ) -> None:
         """Initialise the analyzer with an optional pre-loaded registry.
 
         Args:
             registry: Pre-built :class:`~mcp_audit.registry.loader.KnownServerRegistry`
-                instance.  When supplied, *registry_path* is ignored.
+                instance.  When supplied, *registry_path* and *offline_registry*
+                are both ignored.
             registry_path: Path to a custom registry JSON file.  Falls back to
                 the user-cached or bundled registry when ``None``.
+            offline_registry: When ``True``, skip the user-local cache and load
+                from the bundled registry only.  Ignored when *registry* or
+                *registry_path* is supplied.
         """
         if registry is not None:
             self._registry = registry
         else:
-            self._registry = load_registry(registry_path)
+            self._registry = load_registry(registry_path, offline=offline_registry)
+
+    @property
+    def registry(self) -> KnownServerRegistry:
+        """The registry instance used by this analyzer."""
+        return self._registry
 
     @property
     def name(self) -> str:

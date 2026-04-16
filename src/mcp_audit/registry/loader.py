@@ -93,18 +93,23 @@ class KnownServerRegistry:
         last_updated: ISO date string of the last registry update.
     """
 
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(self, path: Path | None = None, offline: bool = False) -> None:
         """Load the registry from *path*, user cache, or bundled fallback.
 
         Args:
             path: Explicit path to a registry JSON file.  When ``None``, the
                 loader tries the user cache then the bundled registry.
+            offline: When ``True``, skip the user-local cache at
+                ``~/.config/mcp-audit/registry/known-servers.json`` and load
+                directly from the bundled registry.  Equivalent to passing
+                ``path=BUNDLED_REGISTRY_PATH`` but does not override an
+                explicit *path* argument.
 
         Raises:
             FileNotFoundError: If no registry file can be located.
             ValueError: If the registry JSON is malformed.
         """
-        resolved = self._locate(path)
+        resolved = self._locate(path, offline=offline)
         raw = resolved.read_text(encoding="utf-8")
         try:
             data = json.loads(raw)
@@ -184,14 +189,20 @@ class KnownServerRegistry:
     # ── Private helpers ────────────────────────────────────────────────────────
 
     @staticmethod
-    def _locate(path: Path | None) -> Path:
-        """Resolve the registry file path from explicit arg, cache, or bundle."""
+    def _locate(path: Path | None, offline: bool = False) -> Path:
+        """Resolve the registry file path from explicit arg, cache, or bundle.
+
+        Args:
+            path: Explicit path override.  When supplied, *offline* has no effect.
+            offline: When ``True``, skip the user-cache path and resolve directly
+                to the bundled registry.
+        """
         if path is not None:
             if not path.exists():
                 raise FileNotFoundError(f"Registry file not found: {path}")
             return path
 
-        if _USER_CACHE_PATH.exists():
+        if not offline and _USER_CACHE_PATH.exists():
             return _USER_CACHE_PATH
 
         if BUNDLED_REGISTRY_PATH.exists():
@@ -207,17 +218,27 @@ class KnownServerRegistry:
 # ── Module-level convenience ───────────────────────────────────────────────────
 
 
-def load_registry(path: Path | None = None) -> KnownServerRegistry:
+def load_registry(
+    path: Path | None = None, offline: bool = False
+) -> KnownServerRegistry:
     """Load and return a :class:`KnownServerRegistry`.
 
+    Resolution order (unless *path* is given):
+    1. User-local cache at ``~/.config/mcp-audit/registry/known-servers.json``
+       (skipped when *offline* is ``True``).
+    2. Bundled registry shipped with the package.
+
     Args:
-        path: Optional explicit registry file path.  Falls back to user cache
-            then bundled registry when ``None``.
+        path: Optional explicit registry file path.  Overrides the resolution
+            order entirely — *offline* has no effect when *path* is supplied.
+        offline: When ``True``, skip the user-local cache and use only the
+            bundled registry.  Useful for reproducible scans that must not
+            depend on externally-written cache files.
 
     Returns:
         Populated :class:`KnownServerRegistry` instance.
     """
-    return KnownServerRegistry(path=path)
+    return KnownServerRegistry(path=path, offline=offline)
 
 
 # ── Levenshtein implementation ─────────────────────────────────────────────────

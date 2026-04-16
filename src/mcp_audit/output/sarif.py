@@ -140,9 +140,7 @@ def _build_result(finding: Finding, rule_index: int) -> dict:
                 }
             }
         ],
-        "fixes": [
-            {"description": {"text": finding.remediation}}
-        ],
+        "fixes": [{"description": {"text": finding.remediation}}],
     }
 
     return result
@@ -181,9 +179,7 @@ def format_sarif(
             rules.append(_build_rule(finding))
 
     # ── Build results ─────────────────────────────────────────────────────────
-    sarif_results = [
-        _build_result(f, rule_index_map[f.id]) for f in result.findings
-    ]
+    sarif_results = [_build_result(f, rule_index_map[f.id]) for f in result.findings]
 
     effective_machine = (
         asset_prefix if asset_prefix is not None else result.machine.hostname
@@ -196,23 +192,31 @@ def format_sarif(
         "operatingSystem": f"{result.machine.os} {result.machine.os_version}".strip(),
     }
 
+    run: dict = {
+        "tool": {
+            "driver": {
+                "name": _TOOL_NAME,
+                "version": _TOOL_VERSION,
+                "informationUri": _TOOL_URI,
+                "rules": rules,
+            }
+        },
+        "invocations": [invocation],
+        "results": sarif_results,
+    }
+
+    if result.score is not None:
+        run["properties"] = {
+            "mcp-audit/grade": result.score.grade,
+            "mcp-audit/numericScore": result.score.numeric_score,
+            "mcp-audit/positiveSignals": result.score.positive_signals,
+            "mcp-audit/deductions": result.score.deductions,
+        }
+
     document = {
         "$schema": _SCHEMA,
         "version": _VERSION,
-        "runs": [
-            {
-                "tool": {
-                    "driver": {
-                        "name": _TOOL_NAME,
-                        "version": _TOOL_VERSION,
-                        "informationUri": _TOOL_URI,
-                        "rules": rules,
-                    }
-                },
-                "invocations": [invocation],
-                "results": sarif_results,
-            }
-        ],
+        "runs": [run],
     }
 
     return json.dumps(document, indent=2)

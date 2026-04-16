@@ -171,6 +171,14 @@ class ScanScore(BaseModel):
     deductions: list[str]
 
 
+class RegistryStats(BaseModel):
+    """Metadata about the known-server registry used during a scan."""
+
+    entry_count: int
+    schema_version: str
+    last_updated: str
+
+
 class ScanResult(BaseModel):
     """Complete results from a scan run."""
 
@@ -184,6 +192,7 @@ class ScanResult(BaseModel):
     errors: list[str] = Field(default_factory=list)
     attack_path_summary: AttackPathSummary | None = None
     score: ScanScore | None = None
+    registry_stats: RegistryStats | None = None
 
     @property
     def critical_count(self) -> int:

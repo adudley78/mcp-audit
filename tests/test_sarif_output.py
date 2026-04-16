@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from mcp_audit.models import Finding, ScanResult, Severity
+from mcp_audit.models import Finding, ScanResult, ScanScore, Severity
 from mcp_audit.output.sarif import (
     _build_rule,
     _finding_to_file_uri,
@@ -365,24 +365,17 @@ class TestResultFields:
         assert "SSH key files" in self.result["message"]["text"]
 
     def test_location_uri_is_file_uri(self) -> None:
-        uri = (
-            self.result["locations"][0]
-            ["physicalLocation"]["artifactLocation"]["uri"]
-        )
+        uri = self.result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
         assert uri.startswith("file://")
 
     def test_location_uri_base_id(self) -> None:
-        base = (
-            self.result["locations"][0]
-            ["physicalLocation"]["artifactLocation"]["uriBaseId"]
-        )
+        base = self.result["locations"][0]["physicalLocation"]["artifactLocation"][
+            "uriBaseId"
+        ]
         assert base == "%SRCROOT%"
 
     def test_location_path_in_uri(self) -> None:
-        uri = (
-            self.result["locations"][0]
-            ["physicalLocation"]["artifactLocation"]["uri"]
-        )
+        uri = self.result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
         assert "mcp.json" in uri
 
     def test_fix_description_matches_remediation(self) -> None:
@@ -392,10 +385,9 @@ class TestResultFields:
     def test_missing_finding_path_uses_unknown(self) -> None:
         finding = _make_finding(finding_path=None)
         doc = _parse(_make_result(findings=[finding]))
-        uri = (
-            _run(doc)["results"][0]["locations"][0]
-            ["physicalLocation"]["artifactLocation"]["uri"]
-        )
+        uri = _run(doc)["results"][0]["locations"][0]["physicalLocation"][
+            "artifactLocation"
+        ]["uri"]
         assert uri == "file:///unknown"
 
 
@@ -456,3 +448,78 @@ class TestMultipleFindings:
         doc = _parse(_make_result(findings=findings))
         result_ids = [r["ruleId"] for r in _run(doc)["results"]]
         assert result_ids == ids
+
+
+# ── Score properties on run object ───────────────────────────────────────────
+
+
+def _make_score(
+    numeric_score: int = 76,
+    grade: str = "B",
+    positive_signals: list[str] | None = None,
+    deductions: list[str] | None = None,
+) -> ScanScore:
+    return ScanScore(
+        numeric_score=numeric_score,
+        grade=grade,
+        positive_signals=positive_signals or ["No credential exposure detected"],
+        deductions=deductions or ["2 high findings (-30 pts)"],
+    )
+
+
+class TestSarifScoreProperties:
+    def test_properties_present_when_score_set(self) -> None:
+        result = _make_result()
+        result.score = _make_score()
+        doc = _parse(result)
+        assert "properties" in _run(doc)
+
+    def test_properties_absent_when_score_none(self) -> None:
+        result = _make_result()
+        result.score = None
+        doc = _parse(result)
+        assert "properties" not in _run(doc)
+
+    def test_grade_property(self) -> None:
+        result = _make_result()
+        result.score = _make_score(grade="B")
+        doc = _parse(result)
+        assert _run(doc)["properties"]["mcp-audit/grade"] == "B"
+
+    def test_numeric_score_property(self) -> None:
+        result = _make_result()
+        result.score = _make_score(numeric_score=76)
+        doc = _parse(result)
+        assert _run(doc)["properties"]["mcp-audit/numericScore"] == 76
+
+    def test_positive_signals_property(self) -> None:
+        signals = ["No credential exposure detected"]
+        result = _make_result()
+        result.score = _make_score(positive_signals=signals)
+        doc = _parse(result)
+        assert _run(doc)["properties"]["mcp-audit/positiveSignals"] == signals
+
+    def test_deductions_property(self) -> None:
+        deductions = ["2 high findings (-30 pts)"]
+        result = _make_result()
+        result.score = _make_score(deductions=deductions)
+        doc = _parse(result)
+        assert _run(doc)["properties"]["mcp-audit/deductions"] == deductions
+
+    def test_all_four_keys_present(self) -> None:
+        result = _make_result()
+        result.score = _make_score()
+        props = _run(_parse(result))["properties"]
+        assert set(props.keys()) == {
+            "mcp-audit/grade",
+            "mcp-audit/numericScore",
+            "mcp-audit/positiveSignals",
+            "mcp-audit/deductions",
+        }
+
+    def test_no_score_no_properties_block(self) -> None:
+        """Verifies the --no-score equivalent: score=None means no properties block."""
+        result = _make_result(findings=[_make_finding()])
+        result.score = None
+        doc = _parse(result)
+        assert "properties" not in _run(doc)

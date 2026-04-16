@@ -15,10 +15,38 @@ from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
-from mcp_audit.models import Finding, ScanResult, ServerConfig, Severity
+from mcp_audit.models import Finding, RegistryStats, ScanResult, ServerConfig, Severity
 from mcp_audit.scoring import calculate_score
 
 _USER_RULES_DIR = Path.home() / ".config" / "mcp-audit" / "rules"
+
+
+def _extract_registry_stats(
+    analyzers: list[BaseAnalyzer],
+) -> RegistryStats | None:
+    """Extract registry metadata from the SupplyChainAnalyzer in *analyzers*.
+
+    Uses the live ``len(registry.entries)`` count rather than the stored
+    ``entry_count`` field, so the value stays accurate even if an entry was
+    added without updating the field.
+
+    Args:
+        analyzers: The list of analyzers used during the scan.
+
+    Returns:
+        :class:`~mcp_audit.models.RegistryStats` if a
+        :class:`~mcp_audit.analyzers.supply_chain.SupplyChainAnalyzer` is
+        present, otherwise ``None``.
+    """
+    for analyzer in analyzers:
+        if isinstance(analyzer, SupplyChainAnalyzer):
+            reg = analyzer.registry
+            return RegistryStats(
+                entry_count=len(reg.entries),
+                schema_version=reg.schema_version,
+                last_updated=reg.last_updated,
+            )
+    return None
 
 
 def _analyzer_crash_finding(
@@ -246,6 +274,9 @@ async def run_scan_async(
     # ── Scoring ────────────────────────────────────────────────────────────────
     result.score = calculate_score(result.findings)
 
+    # ── Registry metadata ──────────────────────────────────────────────────────
+    result.registry_stats = _extract_registry_stats(analyzers)
+
     return result
 
 
@@ -362,5 +393,8 @@ def run_scan(
 
     # ── Scoring ────────────────────────────────────────────────────────────────
     result.score = calculate_score(result.findings)
+
+    # ── Registry metadata ──────────────────────────────────────────────────────
+    result.registry_stats = _extract_registry_stats(analyzers)
 
     return result
