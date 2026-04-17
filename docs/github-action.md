@@ -53,6 +53,8 @@ permissions:
 | `config-paths` | _(auto-discover)_ | No | Single MCP config file path to scan. Leave empty to auto-discover across all supported clients. |
 | `baseline` | _(none)_ | No | Baseline name to compare against for drift detection. See [Baseline drift detection in CI](#baseline-drift-detection-in-ci). |
 | `upload-sarif` | `true` | No | Set to `'false'` to skip the GitHub Security tab upload (e.g., if you don't have `security-events: write` permission). |
+| `sast` | `false` | No | Set to `'true'` to run the 37 MCP-aware Semgrep rules against server source code. Requires mcp-audit Pro and Semgrep pre-installed in the CI environment. See [SAST scanning](#sast-scanning). |
+| `sast-path` | `.` | No | Directory to scan with SAST rules. Defaults to the repository root. Narrow this to `src/` or a specific package directory to reduce scan time. |
 
 ### Severity threshold behaviour
 
@@ -117,6 +119,57 @@ Full file: [`examples/github-actions/strict.yml`](../examples/github-actions/str
 Compare the current scan against a committed baseline to detect unauthorised server additions, removals, and description changes.
 
 Full file: [`examples/github-actions/with-baseline.yml`](../examples/github-actions/with-baseline.yml)
+
+### SAST scanning
+
+> **Requires mcp-audit Pro.**
+
+The `sast: 'true'` input runs the 37 MCP-aware Semgrep rules bundled with mcp-audit against your server source code. Rules cover five vulnerability categories: injection, poisoning, credential exposure, protocol misuse, and insecure transport.
+
+**Semgrep is not bundled with mcp-audit** and must be installed separately in your CI job before the action runs. Add an install step immediately before the action:
+
+```yaml
+- name: Install Semgrep
+  run: pip install semgrep
+```
+
+#### Complete SAST workflow example
+
+```yaml
+name: MCP Security Scan with SAST
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  mcp-audit-sast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Run mcp-audit with SAST
+        uses: adudley78/mcp-audit@main
+        with:
+          sast: 'true'
+          sast-path: 'src/'
+          severity-threshold: medium
+          upload-sarif: 'true'
+```
+
+Set `sast-path` to the directory containing your MCP server source code rather than the repository root to reduce scan time and avoid false positives from unrelated code.
+
+SAST findings have `analyzer: sast` and flow through all output formats (SARIF, JSON, terminal, HTML dashboard). They appear alongside config-level findings in the job summary and the GitHub Security tab.
 
 ## How findings appear in the Security tab
 

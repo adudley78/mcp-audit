@@ -36,6 +36,18 @@ inputs:
     required: false
     default: 'true'
 
+  sast:
+    description: >
+      Run MCP-aware Semgrep SAST rules against server source code (requires mcp-audit Pro).
+      Semgrep must be installed in the CI environment before this step runs.
+    required: false
+    default: 'false'
+
+  sast-path:
+    description: 'Path to scan with SAST rules. Defaults to the repository root.'
+    required: false
+    default: '.'
+
 outputs:
   finding-count:
     description: Total number of findings
@@ -69,6 +81,10 @@ runs:
 
         if [ -n "${{ inputs.baseline }}" ]; then
           ARGS="$ARGS --baseline ${{ inputs.baseline }}"
+        fi
+
+        if [ "${{ inputs.sast }}" = "true" ]; then
+          ARGS="$ARGS --sast ${{ inputs.sast-path }}"
         fi
 
         # Capture exit code without failing the step immediately.

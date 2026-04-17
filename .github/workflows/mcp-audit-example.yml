@@ -25,3 +25,24 @@ jobs:
         with:
           severity-threshold: high
           upload-sarif: 'true'
+
+  # Pro feature — uncomment if you have an mcp-audit Pro license and Semgrep installed.
+  # mcp-audit-sast:
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     security-events: write
+  #     contents: read
+  #
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Install Semgrep
+  #       run: pip install semgrep
+  #
+  #     - name: Run mcp-audit with SAST
+  #       uses: adudley78/mcp-audit@main
+  #       with:
+  #         sast: 'true'
+  #         sast-path: 'src/'
+  #         severity-threshold: medium
+  #         upload-sarif: 'true'
