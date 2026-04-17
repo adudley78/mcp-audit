@@ -324,12 +324,14 @@ to a future `licensing.py` refactor (requires `platformdirs` dependency).
 
 ### CI workflow (`.github/workflows/ci.yml`)
 
-Triggers on every push and pull request to `main`. Runs a 3×3 matrix:
+Triggers on every push and pull request to **any branch**. Runs a 3×2 matrix (6 combinations):
 - **OS:** `ubuntu-latest`, `macos-latest`, `windows-latest`
-- **Python:** `3.11`, `3.12`, `3.13`
+- **Python:** `3.11`, `3.12`
 - `fail-fast: false` — a failure on one leg does not cancel the others.
 
-Each leg runs: `uv sync --all-extras --dev` → `pytest tests/ -x -q` → `ruff check src/ tests/` → `ruff format --check src/ tests/`.
+Each leg runs: `pip install uv` → `uv pip install -e ".[dev]" --system` → `pytest tests/ -x -q` → `ruff check src/ tests/` → `ruff format --check src/ tests/`.
+
+Uses `actions/setup-python@v5` (not the `astral-sh/setup-uv` action) so uv installs into the runner's system Python via `--system`, avoiding venv PATH issues. The workflow status badge is in `README.md`.
 
 ### Release workflow (`.github/workflows/release.yml`)
 

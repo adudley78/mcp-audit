@@ -1,5 +1,7 @@
 # GitHub Action reference
 
+> **Note for contributors:** `.github/workflows/ci.yml` is the project's own test matrix (pytest + ruff across 6 OS/Python combinations) and is not the same as this action. This document covers `action.yml`, the composite action that *users* drop into their own repositories to scan their MCP configs.
+
 `mcp-audit` ships a composite GitHub Action (`action.yml`) that lets any repository scan its MCP server configurations as part of CI. Findings appear in the GitHub Security tab, the build fails only at your chosen severity threshold, and a findings table is written to the job summary on every run.
 
 ## Quick start
