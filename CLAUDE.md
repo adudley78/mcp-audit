@@ -304,3 +304,38 @@ Audit steps run and verdict:
 5. **.gitignore coverage** — `.env`, `.env.*`, `*.key`, `*.pem` are all covered.
 
 Result: **CLEAN — safe to make public.**
+
+## Release engineering
+
+### CI workflow (`.github/workflows/ci.yml`)
+
+Triggers on every push and pull request to `main`. Runs a 3×3 matrix:
+- **OS:** `ubuntu-latest`, `macos-latest`, `windows-latest`
+- **Python:** `3.11`, `3.12`, `3.13`
+- `fail-fast: false` — a failure on one leg does not cancel the others.
+
+Each leg runs: `uv sync --all-extras --dev` → `pytest tests/ -x -q` → `ruff check src/ tests/` → `ruff format --check src/ tests/`.
+
+### Release workflow (`.github/workflows/release.yml`)
+
+Triggers on `v*.*.*` tags (e.g. `git tag v0.2.0 && git push --tags`). Builds four binaries in parallel, then creates a GitHub Release with all four attached and auto-generated release notes.
+
+| Runner | Spec file | Output binary |
+|---|---|---|
+| `macos-13` | `mcp-audit-darwin-x86_64.spec` | `mcp-audit-darwin-x86_64` |
+| `macos-latest` | `mcp-audit-darwin-arm64.spec` | `mcp-audit-darwin-arm64` |
+| `ubuntu-latest` | `mcp-audit-linux-x86_64.spec` | `mcp-audit-linux-x86_64` |
+| `windows-latest` | `mcp-audit-windows-x86_64.spec` | `mcp-audit-windows-x86_64.exe` |
+
+> `macos-13` is used for the x86_64 macOS build — `macos-latest` is now arm64 and would silently produce the wrong architecture.
+
+### PyInstaller spec files
+
+Four spec files live at the repo root: `mcp-audit-darwin-x86_64.spec`, `mcp-audit-darwin-arm64.spec`, `mcp-audit-linux-x86_64.spec`, `mcp-audit-windows-x86_64.spec`. All use a portable SPECPATH-relative root instead of hardcoded absolute paths:
+
+```python
+import os
+root = os.path.dirname(os.path.abspath(SPECPATH))
+```
+
+All four specs include identical `datas` (5 entries: `mcp_audit/data`, both registry JSONs, `rules/community/`, `semgrep-rules/`) and the same full `hiddenimports` list. The only difference between specs is the `name=` field in the `EXE` block. The Linux spec is also consumed by `scripts/build-linux.sh` (Docker-based build); it uses the same SPECPATH-relative paths, which resolve correctly inside the container when the repo is mounted at any path.
