@@ -911,7 +911,7 @@ def update_registry() -> None:
     console.print(f"[dim]Fetching registry from {_UPDATE_REGISTRY_URL}…[/dim]")
 
     try:
-        with urllib.request.urlopen(_UPDATE_REGISTRY_URL, timeout=30) as resp:  # noqa: S310
+        with urllib.request.urlopen(_UPDATE_REGISTRY_URL, timeout=30) as resp:  # noqa: S310  # nosec B310 -- _UPDATE_REGISTRY_URL is a hardcoded https://raw.githubusercontent.com/ constant
             raw = resp.read().decode("utf-8")
     except urllib.error.URLError as exc:
         console.print(f"[red]Network error fetching registry: {exc}[/red]")

@@ -195,9 +195,21 @@ do-not-modify). See GAPS.md → "Security limitations" for details.
 
 - Run `uv run pytest` after every change
 - Run `uv run ruff check src/ tests/` before committing
-- Run `uv run bandit -r src/` periodically (we're a security tool — act like it)
+- Run `uv run bandit -r src/ -ll -f txt` periodically (we're a security tool — act like it)
 - Type hints on ALL function signatures
 - Docstrings on all public functions and classes
+
+**Bandit status (2026-04-17):** `bandit -r src/ -ll` returns zero medium+ findings.
+Three B310 (`urllib.request` URL open) calls are intentionally suppressed via
+`# nosec B310` with inline justifications:
+- `attestation/hasher.py:67` — `urlretrieve` called only after an explicit
+  `https://` scheme guard; URL is always an npm registry HTTPS tarball URL.
+- `attestation/hasher.py:123` — `urlopen` target is always `https://pypi.org/…`
+  (produced by `resolve_pip_tarball_url`; scheme guard in caller validates it).
+- `cli.py:914` — `urlopen` target is `_UPDATE_REGISTRY_URL`, a hardcoded
+  `https://raw.githubusercontent.com/…` constant.
+All three suppressions carry the rule ID and a one-line reason. No blanket
+`# nosec` without a rule ID exists anywhere in the codebase.
 
 ### When to flag for Opus review
 

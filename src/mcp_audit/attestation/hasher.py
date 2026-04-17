@@ -63,8 +63,13 @@ def compute_hash_from_url(url: str) -> str:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as tmp:
         tmp_path = Path(tmp.name)
 
+    if not url.startswith("https://"):
+        raise ValueError(
+            f"Only HTTPS URLs are permitted for hash verification; got: {url!r}"
+        )
+
     try:
-        urllib.request.urlretrieve(url, tmp_path)  # noqa: S310
+        urllib.request.urlretrieve(url, tmp_path)  # noqa: S310  # nosec B310 -- HTTPS scheme validated above
         return compute_hash_from_file(tmp_path)
     finally:
         if tmp_path.exists():
@@ -120,7 +125,7 @@ def fetch_pip_tarball_url(package_name: str, version: str) -> str:
         urllib.error.URLError: On network failure.
     """
     api_url = resolve_pip_tarball_url(package_name, version)
-    with urllib.request.urlopen(api_url, timeout=30) as resp:  # noqa: S310
+    with urllib.request.urlopen(api_url, timeout=30) as resp:  # noqa: S310  # nosec B310 -- api_url is always https://pypi.org/ (see resolve_pip_tarball_url)
         data = json.loads(resp.read().decode())
 
     urls = data.get("urls", [])

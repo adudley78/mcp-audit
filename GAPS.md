@@ -315,6 +315,18 @@ across machines (Enterprise, post-launch roadmap).
 Identified during the pre-launch security hardening pass (2026-04-17). Unfixed
 limitations are documented here; fixed items are in "Recently resolved" above.
 
+**B310 (`urllib.request` URL open) — three intentional Bandit suppressions (2026-04-17).**
+Bandit flags all `urllib.request.urlretrieve` / `urlopen` calls with B310 because
+they could in theory allow `file://` or custom scheme URLs. All three call sites in
+this codebase are false positives: the URLs are either a hardcoded `https://` constant
+(`_UPDATE_REGISTRY_URL` in `cli.py`) or produced by internal resolver functions that
+always return `https://` scheme strings (`resolve_npm_tarball_url`,
+`resolve_pip_tarball_url`). The `compute_hash_from_url` function additionally enforces
+an explicit scheme guard (`if not url.startswith("https://"): raise ValueError(…)`)
+as defense-in-depth before calling `urlretrieve`. Each suppression uses
+`# nosec B310` with an inline one-line justification. No blanket `# nosec` without a
+rule ID exists anywhere in the codebase.
+
 **`save_license()` creates the config directory without explicit mode=0o700.**
 `licensing.py` calls `_LICENSE_FILE.parent.mkdir(parents=True, exist_ok=True)`
 without a `mode` argument. On most systems the effective permissions are
