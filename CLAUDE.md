@@ -271,3 +271,36 @@ documented in PROVENANCE.md — read it before adding new detection patterns.
 Every new pattern must cite its research source.
 The project now has 6 analyzers with patterns sourced from the research listed in PROVENANCE.md. Update PROVENANCE.md when adding new detection patterns or analyzers.
 See GAPS.md for known detection quality limitations, severity calibration issues, and untested areas. Consult before claiming detection completeness or accuracy.
+
+## Commit history audit (2026-04-17)
+
+A full git commit history audit was performed before public release. All five
+scan categories returned clean — no true positives found.
+
+Audit steps run and verdict:
+
+1. **Credential-like patterns** — All matches are false positives: regex constants
+   inside `credentials.py`, Semgrep rule fixtures in `semgrep-rules/tests/*/vulnerable/`,
+   test helper strings in `tests/test_analyzers.py` and `tests/fixtures/`, and demo
+   configs in `demo/configs/`. No real credentials.
+
+2. **Internal/non-public URLs** — `localhost` matches are in test fixtures and
+   transport-analyzer unit tests (expected). `nucleussec.com` appears once in
+   `output/nucleus.py` as a schema-reference comment (`# Schema reference: https://nucleussec.com/flexconnect`),
+   which is public documentation — not an internal URL. No corp/staging/internal
+   domain leakage.
+
+3. **Private key material** — No matches. No `-----BEGIN … KEY` blocks anywhere
+   in history.
+
+4. **Common secret formats (AWS/GitHub/OpenAI tokens)** — All matches are
+   intentional test fixtures:
+   - `sk-abcdefghijklmnopqrstuvwxyz…` in `semgrep-rules/tests/*/vulnerable/`
+     (Semgrep rule true-positive test cases — purely synthetic, not valid keys)
+   - `ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890` in `tests/test_analyzers.py`,
+     `tests/fixtures/clean_with_credential.json`, and `demo/configs/claude_desktop_config.json`
+     (credential-detector test fixtures — purely synthetic, not a valid GitHub token)
+
+5. **.gitignore coverage** — `.env`, `.env.*`, `*.key`, `*.pem` are all covered.
+
+Result: **CLEAN — safe to make public.**
