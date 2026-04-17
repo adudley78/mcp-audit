@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 from mcp_audit.cli import app
 from mcp_audit.models import Severity
 from mcp_audit.sast.runner import (
+    SEMGREP_TIMEOUT_SECONDS,
     SastResult,
     _finding_id,
     find_rules_dir,
@@ -435,3 +436,83 @@ class TestSastCLI:
             )
         assert result.exit_code == 0
         assert "No SAST findings" in result.output or "0" in result.output
+
+
+# ── Security hardening tests ──────────────────────────────────────────────────
+
+
+class TestSastSecurityHardening:
+    """Verify the subprocess security invariants in run_semgrep()."""
+
+    def test_sast_runner_timeout(self, tmp_path: Path) -> None:
+        """subprocess.run() must receive timeout=SEMGREP_TIMEOUT_SECONDS."""
+        fake_output = _make_semgrep_output()
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = json.dumps(fake_output)
+        mock_proc.stderr = ""
+
+        rules_dir = tmp_path / "semgrep-rules"
+        rules_dir.mkdir()
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/semgrep"),
+            patch("subprocess.run", return_value=mock_proc) as mock_run,
+        ):
+            run_semgrep(tmp_path, rules_dir=rules_dir)
+
+        assert mock_run.call_count == 1
+        _, kwargs = mock_run.call_args
+        assert kwargs.get("timeout") == SEMGREP_TIMEOUT_SECONDS, (
+            f"Expected timeout={SEMGREP_TIMEOUT_SECONDS}, got {kwargs.get('timeout')}"
+        )
+
+    def test_sast_runner_no_shell_true(self, tmp_path: Path) -> None:
+        """subprocess.run() must NOT be called with shell=True."""
+        fake_output = _make_semgrep_output()
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = json.dumps(fake_output)
+        mock_proc.stderr = ""
+
+        rules_dir = tmp_path / "semgrep-rules"
+        rules_dir.mkdir()
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/semgrep"),
+            patch("subprocess.run", return_value=mock_proc) as mock_run,
+        ):
+            run_semgrep(tmp_path, rules_dir=rules_dir)
+
+        assert mock_run.call_count == 1
+        _, kwargs = mock_run.call_args
+        # shell must be absent or explicitly False — never True.
+        assert kwargs.get("shell") is not True, (
+            "shell=True found in subprocess.run() call"
+        )
+        # The command must be a list, not a string.
+        cmd_arg = mock_run.call_args[0][0]
+        assert isinstance(cmd_arg, list), (
+            "subprocess.run() received a string command "
+            f"(shell injection risk): {cmd_arg!r}"
+        )
+
+    def test_sast_runner_nonexistent_path(self, tmp_path: Path) -> None:
+        """scan --sast <nonexistent> must produce exit code 2, not a traceback."""
+        config = tmp_path / "config.json"
+        config.write_text('{"mcpServers": {}}')
+        missing = tmp_path / "nonexistent_src"
+
+        with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+            result = runner.invoke(
+                app,
+                ["scan", "--path", str(config), "--sast", str(missing)],
+            )
+
+        assert result.exit_code == 2
+        # Must mention the bad path in a human-readable message.
+        assert (
+            "nonexistent_src" in result.output or "not exist" in result.output.lower()
+        )
+        # Must not be a raw Python traceback.
+        assert "Traceback" not in result.output

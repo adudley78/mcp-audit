@@ -9,8 +9,10 @@ from unittest.mock import patch
 
 import pytest
 
+from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import (
     ClientSpec,
+    DiscoveredConfig,
     _get_client_specs,
     discover_configs,
 )
@@ -196,3 +198,59 @@ class TestSymlinkProtection:
 
         assert len(results) == 1
         assert results[0].path == config_file
+
+
+# ── Malformed JSON resilience tests ──────────────────────────────────────────
+
+
+class TestMalformedJsonRobustness:
+    """parse_config() must raise ValueError (not crash) on bad input.
+
+    The scanner catches ValueError and logs a warning — callers must NOT crash.
+    Each test exercises a different client format to ensure the common parsing
+    path handles malformed input regardless of ``root_key`` or ``client_name``.
+    """
+
+    def _discovered(self, path: Path, client: str, root_key: str) -> DiscoveredConfig:
+        return DiscoveredConfig(path=path, client_name=client, root_key=root_key)
+
+    def test_discovery_malformed_json_claude(self, tmp_path: Path) -> None:
+        """Malformed JSON for a claude-desktop config raises ValueError, not a crash."""
+        bad = tmp_path / "claude_desktop_config.json"
+        bad.write_text("{not valid json", encoding="utf-8")
+        cfg = self._discovered(bad, "claude-desktop", "mcpServers")
+        with pytest.raises(ValueError, match="Invalid JSON"):
+            parse_config(cfg)
+
+    def test_discovery_malformed_json_cursor(self, tmp_path: Path) -> None:
+        """A JSON 'null' top-level value raises ValueError (not a crash)."""
+        bad = tmp_path / "mcp.json"
+        bad.write_text("null", encoding="utf-8")
+        cfg = self._discovered(bad, "cursor", "mcpServers")
+        # null parses to None which is not a dict — parse_config raises ValueError.
+        with pytest.raises(ValueError, match="Expected JSON object"):
+            parse_config(cfg)
+
+    def test_discovery_malformed_json_vscode(self, tmp_path: Path) -> None:
+        """Malformed JSON for VS Code config (uses 'servers' key) raises ValueError."""
+        bad = tmp_path / "settings.json"
+        bad.write_text("{{broken", encoding="utf-8")
+        cfg = self._discovered(bad, "vscode", "servers")
+        with pytest.raises(ValueError, match="Invalid JSON"):
+            parse_config(cfg)
+
+    def test_discovery_malformed_json_empty_file(self, tmp_path: Path) -> None:
+        """An empty config file raises ValueError and does not crash the scanner."""
+        bad = tmp_path / "empty.json"
+        bad.write_text("", encoding="utf-8")
+        cfg = self._discovered(bad, "windsurf", "mcpServers")
+        with pytest.raises(ValueError):
+            parse_config(cfg)
+
+    def test_discovery_malformed_json_wrong_type(self, tmp_path: Path) -> None:
+        """A JSON array at the top level raises ValueError — expected an object."""
+        bad = tmp_path / "array.json"
+        bad.write_text("[]", encoding="utf-8")
+        cfg = self._discovered(bad, "augment", "mcpServers")
+        with pytest.raises(ValueError, match="Expected JSON object"):
+            parse_config(cfg)

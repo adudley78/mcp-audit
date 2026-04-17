@@ -297,6 +297,7 @@ def tag_server(server: ServerConfig) -> frozenset[Capability]:
     caps: set[Capability] = set()
 
     # Layer 1 — known server registry (check all args for package names).
+    # Security reviewed: "token" here is a CLI command/arg string, not a secret.
     for token in [server.command or "", *server.args, server.name]:
         if token in KNOWN_SERVERS:
             caps.update(KNOWN_SERVERS[token])

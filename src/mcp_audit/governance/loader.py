@@ -117,6 +117,10 @@ def load_policy(path: Path | None = None) -> GovernancePolicy | None:
     """
     # 1. Explicit path — must succeed.
     if path is not None:
+        # Security: resolve() canonicalises the path (eliminates .., symlinks)
+        # before use.  No boundary check is needed here — the user may
+        # legitimately point to any location on the filesystem.
+        path = path.resolve()
         if not path.exists():
             raise ValueError(f"Policy file not found: {path}")
         return _load_from_path(path)

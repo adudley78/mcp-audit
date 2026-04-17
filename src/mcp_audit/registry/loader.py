@@ -53,6 +53,8 @@ def _resolve_bundled_path() -> Path:
         if candidate.exists():
             return candidate
     except Exception:  # noqa: BLE001, S110
+        # Security reviewed: importlib.resources lookup failure is a packaging
+        # edge case — safe to ignore; the dev-repo fallback below handles it.
         pass
 
     # Dev / editable install fallback: walk up to repo root.
@@ -216,6 +218,9 @@ class KnownServerRegistry:
                 to the bundled registry.
         """
         if path is not None:
+            # Security: resolve() canonicalises the path (eliminates .., symlinks).
+            # No boundary check needed — the user may legitimately point anywhere.
+            path = path.resolve()
             if not path.exists():
                 raise FileNotFoundError(f"Registry file not found: {path}")
             return path

@@ -309,3 +309,38 @@ across machines (Enterprise, post-launch roadmap).
 - **Documentation beyond README** — no usage guide, Nucleus integration guide (scoring, registry, and rule-writing docs now exist in `docs/`)
 - **Telemetry or usage analytics** — no way to measure adoption (intentional for privacy-first positioning, but limits success measurement)
 - **Registry auto-growth** — the known-server registry requires manual contributions as the MCP ecosystem grows; `update-registry` pulls the latest committed version but does not discover new servers automatically
+
+## Security limitations
+
+Identified during the pre-launch security hardening pass (2026-04-17). Unfixed
+limitations are documented here; fixed items are in "Recently resolved" above.
+
+**`save_license()` creates the config directory without explicit mode=0o700.**
+`licensing.py` calls `_LICENSE_FILE.parent.mkdir(parents=True, exist_ok=True)`
+without a `mode` argument. On most systems the effective permissions are
+`0o777 & ~umask` (commonly `0o755`), which allows other users to list the
+directory contents. The license file itself is correctly `chmod`'d to `0o600`
+immediately after writing. `licensing.py` is marked do-not-modify in the
+current codebase; the fix (adding `mode=0o700`) should be applied in the next
+module refactor.
+
+**`update-registry` directory `mkdir()` mode caveat.**
+Prior to 2026-04-17, `cli.py update_registry` created `~/.config/mcp-audit/registry/`
+without an explicit `mode=0o700`. This has been fixed: the directory is now
+created with `mode=0o700` and the file written via `os.open(..., 0o600)`.
+
+**TOCTOU in baseline `load()` and `export()`.**
+Both methods call `path.exists()` and then `path.read_text()` as separate
+operations. A race window exists between the check and the read. This is
+inherent to the check-then-act pattern; the practical risk is low because the
+storage directory is `0o700` (only the owning user can write to it). Using
+`try: open(path)` / `except FileNotFoundError` would eliminate the race but
+requires restructuring the error messages; deferred to a future refactor.
+
+**Regex backtracking on adversarial tool descriptions.**
+The poisoning analyzer applies up to 12 regex patterns to every string in a
+server's raw config. Patterns with unbounded alternation (e.g. POISON-021)
+could be slow on crafted inputs. Observed behaviour: Python's `re` module has
+no catastrophic-backtracking issue for the current patterns, but this has not
+been formally verified with a ReDoS analysis tool. Mitigated in practice by
+the 10-level depth limit in `_extract_text_fields()`.

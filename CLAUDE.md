@@ -165,6 +165,32 @@ Key differences:
 - Governance `--policy` flag is free; `policy init` / `policy check` authoring tools are Pro-gated
 - Governance findings appear in a distinct "Policy Violations" panel in terminal output (yellow border)
 
+## Security hardening invariants
+
+The following invariants were established during the pre-launch security hardening
+pass (2026-04-17) and **must be maintained** in all future changes:
+
+- **`subprocess.run()` always uses list form with `shell=False` (implicit default).**
+  Never construct a shell command as a string and pass it to `subprocess.run()`.
+  The `SEMGREP_TIMEOUT_SECONDS = 300` constant in `sast/runner.py` must be used
+  for any subprocess timeout; hardcoded timeout integers are forbidden.
+- **Baseline and registry cache files are always created at 0o700 dir / 0o600 file.**
+  Use `os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)` for sensitive
+  writes. Never use `Path.write_text()` for files in `~/.config/mcp-audit/` unless
+  a `chmod(0o600)` immediately follows.
+- **No bare `except:` clauses.** Use `except Exception:` at minimum, or a more
+  specific type. Verify with `grep -rn "except:" src/` — must return zero matches.
+- **All user-supplied paths resolved with `Path.resolve()` before use.**
+  For baseline paths, confirm the resolved path stays within the storage directory
+  via `candidate.relative_to(self._storage_dir)`. For `--registry` and `--policy`
+  paths, `resolve()` is sufficient (no boundary check needed).
+- **All `--path`, `--registry`, `--sast`, and `--policy` CLI arguments are validated
+  to exist before use**, producing a clean exit code 2 and human-readable message on
+  failure, never a Python traceback.
+
+Known exception: `licensing.py` directory creation does not set `mode=0o700` (marked
+do-not-modify). See GAPS.md → "Security limitations" for details.
+
 ## Quality gates
 
 - Run `uv run pytest` after every change

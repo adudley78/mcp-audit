@@ -142,8 +142,47 @@ class BaselineManager:
     """
 
     def __init__(self, storage_dir: Path | None = None) -> None:
-        self._storage_dir = storage_dir or _DEFAULT_STORAGE_DIR
+        self._storage_dir = (storage_dir or _DEFAULT_STORAGE_DIR).resolve()
+        # Security: 0o700 — only the owning user can list or enter this directory.
         self._storage_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+    # ── private helpers ────────────────────────────────────────────────────────
+
+    def _safe_baseline_path(self, name: str) -> Path:
+        """Resolve and validate that *name* stays within the storage directory.
+
+        Security: prevents path-traversal attacks where a caller passes a name
+        like ``../../etc/cron.d/evil``.  After stripping the ``.json`` suffix,
+        any remaining path separator (``/`` or ``..``) is rejected outright, and
+        the fully-resolved candidate path is confirmed to sit inside
+        ``self._storage_dir``.
+
+        Args:
+            name: Baseline label, with or without the ``.json`` extension.
+
+        Returns:
+            Validated absolute :class:`Path` for the baseline JSON file.
+
+        Raises:
+            ValueError: If *name* contains path-separator characters or would
+                resolve outside ``self._storage_dir``.
+        """
+        stem = name.removesuffix(".json")
+        # Reject names that contain explicit path components.
+        if "/" in stem or "\\" in stem or stem in (".", ".."):
+            raise ValueError(
+                f"Invalid baseline name {name!r}: must not contain path separators."
+            )
+        candidate = (self._storage_dir / f"{stem}.json").resolve()
+        # Confirm the resolved path is inside the storage directory.
+        try:
+            candidate.relative_to(self._storage_dir)
+        except ValueError:
+            raise ValueError(
+                f"Invalid baseline name {name!r}: resolves outside the "
+                "storage directory."
+            ) from None
+        return candidate
 
     # ── persistence ───────────────────────────────────────────────────────────
 
@@ -176,8 +215,9 @@ class BaselineManager:
             config_paths=config_paths,
         )
 
-        path = self._storage_dir / f"{name}.json"
+        path = self._safe_baseline_path(name)
         content = baseline.model_dump_json(indent=2).encode("utf-8")
+        # Security: O_CREAT with mode 0o600 — owner read/write only, no race window.
         fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "wb") as fh:
             fh.write(content)
@@ -216,9 +256,10 @@ class BaselineManager:
 
         Raises:
             FileNotFoundError: If no baseline with that name exists.
+            ValueError: If *name* contains path-traversal sequences.
         """
+        path = self._safe_baseline_path(name)
         stem = name.removesuffix(".json")
-        path = self._storage_dir / f"{stem}.json"
         if not path.exists():
             raise FileNotFoundError(
                 f"No baseline named {stem!r} found in {self._storage_dir}. "
@@ -246,10 +287,11 @@ class BaselineManager:
             name: Baseline label, with or without the ``.json`` extension.
 
         Raises:
-            ValueError: If no baseline with that name exists.
+            ValueError: If no baseline with that name exists or *name* contains
+                path-traversal sequences.
         """
+        path = self._safe_baseline_path(name)
         stem = name.removesuffix(".json")
-        path = self._storage_dir / f"{stem}.json"
         if not path.exists():
             raise ValueError(
                 f"No baseline named {stem!r} found in {self._storage_dir}."
@@ -267,9 +309,10 @@ class BaselineManager:
 
         Raises:
             FileNotFoundError: If the baseline does not exist.
+            ValueError: If *name* contains path-traversal sequences.
         """
+        path = self._safe_baseline_path(name)
         stem = name.removesuffix(".json")
-        path = self._storage_dir / f"{stem}.json"
         if not path.exists():
             raise FileNotFoundError(
                 f"No baseline named {stem!r} found in {self._storage_dir}."

@@ -621,3 +621,53 @@ def test_scan_baseline_drift_in_json_output(
         f["title"] for f in output_data["findings"] if f["analyzer"] == "baseline"
     ]
     assert any("command_changed" in t or "hash_changed" in t for t in titles)
+
+
+# ── Spec-named permission tests (required by security audit) ──────────────────
+
+
+def test_baseline_path_traversal_rejected(tmp_path: Path) -> None:
+    """Baseline names containing path separators must be rejected with ValueError."""
+    storage = tmp_path / "baselines"
+    mgr = BaselineManager(storage_dir=storage)
+    for bad_name in ["../../etc/passwd", "../evil", "/absolute/path"]:
+        with pytest.raises(ValueError, match="path separator"):
+            mgr._safe_baseline_path(bad_name)
+
+
+def test_baseline_dir_permissions(tmp_path: Path) -> None:
+    """Alias for test_storage_dir_created_with_0o700 — required by security audit spec.
+
+    After BaselineManager is initialised, the storage directory must have
+    0o700 permissions (owner read/write/execute only).
+    """
+    storage = tmp_path / "baselines"
+    BaselineManager(storage_dir=storage)
+    mode = stat.S_IMODE(storage.stat().st_mode)
+    assert mode == 0o700, f"Expected 0o700, got {oct(mode)}"
+
+
+def test_baseline_file_permissions(tmp_path: Path) -> None:
+    """Alias for test_save_file_permissions_are_0o600 — required by security audit spec.
+
+    After BaselineManager.save(), the written JSON file must have 0o600
+    permissions (owner read/write only).
+    """
+    storage = tmp_path / "baselines"
+    mgr = BaselineManager(storage_dir=storage)
+    server = ServerConfig(
+        name="fs",
+        client="claude-desktop",
+        config_path=tmp_path / "cfg.json",
+        transport=TransportType.STDIO,
+        command="npx",
+        args=["-y", "@modelcontextprotocol/server-filesystem"],
+        raw={
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+        },
+    )
+    mgr.save([server], config_paths=[], name="perm-test")
+    saved_file = storage / "perm-test.json"
+    mode = stat.S_IMODE(saved_file.stat().st_mode)
+    assert mode == 0o600, f"Expected 0o600, got {oct(mode)}"

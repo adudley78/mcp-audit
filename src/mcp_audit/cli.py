@@ -244,6 +244,16 @@ def scan(
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
+    # Validate user-supplied paths upfront — non-existent paths produce a clean
+    # exit-2 error rather than a Python traceback deep in a library call.
+    if registry is not None and not registry.resolve().exists():
+        console.print(f"[red]Registry file not found:[/red] {registry}")
+        raise typer.Exit(2)  # noqa: B904
+
+    if sast is not None and not sast.resolve().exists():
+        console.print(f"[red]SAST target path does not exist:[/red] {sast}")
+        raise typer.Exit(2)  # noqa: B904
+
     # Build a custom analyzers list when a custom registry path or offline
     # registry flag is supplied.
     analyzers = None
@@ -919,8 +929,18 @@ def update_registry() -> None:
         )
         raise typer.Exit(2)  # noqa: B904
 
-    _REGISTRY_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _REGISTRY_CACHE_PATH.write_text(raw, encoding="utf-8")
+    # Security: 0o700 directory, 0o600 file — registry cache may contain
+    # proprietary server metadata; restrict to the owning user only.
+    _REGISTRY_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    import os as _os  # noqa: PLC0415
+
+    _reg_fd = _os.open(
+        str(_REGISTRY_CACHE_PATH),
+        _os.O_WRONLY | _os.O_CREAT | _os.O_TRUNC,
+        0o600,
+    )
+    with _os.fdopen(_reg_fd, "w", encoding="utf-8") as _reg_fh:
+        _reg_fh.write(raw)
 
     count = data.get("entry_count", len(data["entries"]))
     version_str = data.get("schema_version", "unknown")

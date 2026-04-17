@@ -18,6 +18,10 @@ SEMGREP_SEVERITY_MAP: dict[str, Severity] = {
     "INFO": Severity.MEDIUM,
 }
 
+# Security: maximum wall-clock seconds allowed for a semgrep invocation.
+# A hung semgrep process must not hang the entire scanner indefinitely.
+SEMGREP_TIMEOUT_SECONDS: int = 300
+
 # Repo-root semgrep-rules/ directory (development mode).
 _REPO_RULES_DIR = Path(__file__).parent.parent.parent.parent / "semgrep-rules"
 
@@ -34,7 +38,11 @@ class SastResult:
 
 
 def find_semgrep() -> str | None:
-    """Return path to the semgrep binary, or None if not installed."""
+    """Return path to the semgrep binary, or None if not installed.
+
+    Security: resolved via shutil.which() (PATH lookup only) — not from a
+    user-controlled env var or CLI argument.
+    """
     return shutil.which("semgrep")
 
 
@@ -79,6 +87,10 @@ def run_semgrep(
     - If semgrep exits non-zero because findings were found: parses normally.
     - If semgrep has a real error: captures stderr and returns error.
     """
+    # Security: resolve to an absolute path so the subprocess receives a
+    # canonical path — prevents relative-path confusion attacks.
+    target_path = target_path.resolve()
+
     semgrep_bin = find_semgrep()
     if semgrep_bin is None:
         return SastResult(
@@ -94,6 +106,7 @@ def run_semgrep(
             )
         )
 
+    # Security: command is list form — shell=False (default), no injection possible.
     cmd = [
         semgrep_bin,
         "--config",
@@ -107,12 +120,14 @@ def run_semgrep(
     try:
         proc = subprocess.run(  # noqa: S603
             cmd,
-            capture_output=True,
+            capture_output=True,  # Security: stderr captured, not inherited by tty.
             text=True,
-            timeout=120,
+            timeout=SEMGREP_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired:
-        return SastResult(error="semgrep timed out after 120 seconds")
+        return SastResult(
+            error=f"semgrep timed out after {SEMGREP_TIMEOUT_SECONDS} seconds"
+        )
     except Exception as exc:  # noqa: BLE001
         return SastResult(error=f"Failed to run semgrep: {exc}")
 
