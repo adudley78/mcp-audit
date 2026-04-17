@@ -108,6 +108,7 @@ CI workflow and example workflows:
 
 Build and distribution scripts at project root:
 - `build.py` — PyInstaller build script; produces `dist/mcp-audit-{os}-{arch}` single-file binary
+- `scripts/build-linux.sh` — builds a standalone Linux x86_64 binary inside a `python:3.11-slim` Docker container; requires Docker Desktop running; outputs `dist/mcp-audit-linux-x86_64`; installs `binutils` (required by PyInstaller on Linux) via `apt-get` before building; prints file size and SHA-256 on success
 - `scripts/install.sh` — curl-based end-user installer for GitHub Releases
 - `scripts/generate_license.py` — **NOT shipped in the package** (excluded from wheel); offline tool for issuing Ed25519-signed Pro/Enterprise license keys to customers
 
