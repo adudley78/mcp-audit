@@ -199,6 +199,8 @@ do-not-modify). See GAPS.md → "Security limitations" for details.
 - Type hints on ALL function signatures
 - Docstrings on all public functions and classes
 
+**pip-audit status (2026-04-17):** `pip-audit` returns zero findings after bumping `cryptography` to `>=46.0.6,<47.0` to resolve CVE-2026-26007 (EC subgroup validation, fixed 46.0.5) and CVE-2026-34073 (DNS name constraint bypass, fixed 46.0.6). The lockfile resolves to `cryptography==46.0.7`.
+
 **Bandit status (2026-04-17):** `bandit -r src/ -ll` returns zero medium+ findings.
 Three B310 (`urllib.request` URL open) calls are intentionally suppressed via
 `# nosec B310` with inline justifications:

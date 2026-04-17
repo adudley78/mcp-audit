@@ -16,7 +16,7 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 - **Placeholder strings throughout codebase** (fixed 2026-04-16): `yourusername`, `Your Name`, `you@example.com` appeared in `pyproject.toml`, `sarif.py`, `README.md`, `scripts/install.sh`, and `docs/enterprise-deployment.md`. Fix: all replaced with real values (`adudley78`, `Adam Dudley`, `adam@mcp-audit.dev`).
 
-- **Cryptography dependency pin excluded security fix versions** (fixed 2026-04-16): `cryptography>=42.0,<45.0` excluded versions 46.0.5 and 46.0.6 containing fixes for CVE-2026-26007 and CVE-2026-34073. Fix: upper bound changed to `<47.0`.
+- **Cryptography dependency pin excluded security fix versions** (fixed 2026-04-17): `cryptography>=42.0,<47.0` resolved to 44.0.3 which is still vulnerable to CVE-2026-26007 (missing EC public key subgroup validation, fixed 46.0.5) and CVE-2026-34073 (DNS name constraint bypass for peer names, fixed 46.0.6). Fix: lower bound raised to `>=46.0.6,<47.0`; lockfile now resolves to `cryptography==46.0.7`. Confirmed clean with `pip-audit` — zero findings.
 
 - **`.gitignore` missing `.env` and `*.key` patterns** (fixed 2026-04-16): Contributors could accidentally commit secrets. Fix: `.env`, `.env.*`, `*.key`, `*.pem` added to `.gitignore`.
 
