@@ -53,6 +53,10 @@ jobs:
       - name: Build binary
         run: uv run pyinstaller ${{ matrix.spec }} --distpath dist/
 
+      - name: Smoke test binary
+        run: dist/${{ matrix.binary }} version
+        shell: bash
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

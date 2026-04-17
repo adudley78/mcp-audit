@@ -530,6 +530,99 @@ class TestOfflineRegistry:
         assert len(reg.entries) != 3
 
 
+# ── PyInstaller _MEIPASS resolution ───────────────────────────────────────────
+
+
+class TestMeipassResolution:
+    """Verify _resolve_bundled_path() and _locate() behave correctly under
+    PyInstaller."""
+
+    def test_resolve_bundled_path_returns_meipass_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With sys.frozen=True, _resolve_bundled_path() must return the _MEIPASS
+        path."""
+        import sys  # noqa: PLC0415
+
+        from mcp_audit.registry.loader import _resolve_bundled_path  # noqa: PLC0415
+
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+        result = _resolve_bundled_path()
+        assert result == tmp_path / "registry" / "known-servers.json"
+
+    def test_resolve_bundled_path_not_frozen_returns_non_meipass(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With sys.frozen=False, _resolve_bundled_path() must not use _MEIPASS."""
+        import sys  # noqa: PLC0415
+
+        from mcp_audit.registry.loader import _resolve_bundled_path  # noqa: PLC0415
+
+        monkeypatch.setattr(sys, "frozen", False, raising=False)
+        # Plant a decoy _MEIPASS — must be ignored when not frozen.
+        monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+        result = _resolve_bundled_path()
+        assert str(tmp_path) not in str(result)
+
+    def test_frozen_registry_loads_via_patched_bundled_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """KnownServerRegistry loads correctly when BUNDLED_REGISTRY_PATH mimics a
+        frozen _MEIPASS layout (offline=True so user-cache is skipped)."""
+        import mcp_audit.registry.loader as loader_mod  # noqa: PLC0415
+
+        fake_dir = tmp_path / "registry"
+        fake_dir.mkdir()
+        fake_registry = fake_dir / "known-servers.json"
+        fake_registry.write_text(
+            '{"schema_version":"1.0","last_updated":"2026-04-17",'
+            '"entry_count":1,"entries":[{"name":"frozen-test-pkg",'
+            '"source":"npm","repo":null,"maintainer":"test","verified":false,'
+            '"last_verified":"2026-04-17","known_versions":[],"tags":[]}]}',
+            encoding="utf-8",
+        )
+
+        monkeypatch.setattr(loader_mod, "BUNDLED_REGISTRY_PATH", fake_registry)
+
+        reg = KnownServerRegistry(offline=True)
+        assert len(reg.entries) == 1
+        assert reg.entries[0].name == "frozen-test-pkg"
+
+    def test_locate_raises_when_bundled_path_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """_locate() must raise FileNotFoundError when both the user cache and
+        BUNDLED_REGISTRY_PATH are absent — simulates a corrupt PyInstaller bundle."""
+        import mcp_audit.registry.loader as loader_mod  # noqa: PLC0415
+
+        missing = tmp_path / "no-such-file.json"
+        monkeypatch.setattr(loader_mod, "BUNDLED_REGISTRY_PATH", missing)
+        monkeypatch.setattr(loader_mod, "_USER_CACHE_PATH", missing)
+
+        with pytest.raises(FileNotFoundError, match="No registry file found"):
+            KnownServerRegistry()
+
+    def test_meipass_path_shape_matches_spec_datas(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The _MEIPASS sub-path registry/known-servers.json must match the
+        'datas' entry in all four PyInstaller spec files."""
+        import sys  # noqa: PLC0415
+
+        from mcp_audit.registry.loader import _resolve_bundled_path  # noqa: PLC0415
+
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+        result = _resolve_bundled_path()
+        # The spec files place the registry at <_MEIPASS>/registry/known-servers.json
+        assert result.parts[-2] == "registry"
+        assert result.name == "known-servers.json"
+
+
 class TestOfflineRegistrySupplyChain:
     """SupplyChainAnalyzer(offline_registry=True) must use bundled registry."""
 

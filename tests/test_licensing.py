@@ -512,6 +512,62 @@ class TestIsProFeatureAvailable:
         assert is_pro_feature_available("nonexistent_feature") is False
 
 
+# ── License key path resolution ───────────────────────────────────────────────
+
+
+class TestLicenseKeyPathResolution:
+    """Verify _LICENSE_FILE path shape and platform behaviour.
+
+    licensing.py is marked do-not-modify.  These tests assert current behaviour
+    without touching the module implementation; any deviation from the documented
+    path structure will cause a test failure, making regressions visible.
+
+    Windows limitation: _LICENSE_FILE uses Path.home() / ".config" / "mcp-audit",
+    which resolves to C:\\Users\\<user>\\.config\\mcp-audit\\ on Windows — a
+    POSIX-style path, NOT %APPDATA%.  This is unverified on Windows; see GAPS.md.
+    """
+
+    def test_license_file_is_under_home_dot_config(self) -> None:
+        """_LICENSE_FILE must be nested under ~/.config/mcp-audit/."""
+        parts = lic_mod._LICENSE_FILE.parts
+        # Locate '.config' in the path components.
+        assert ".config" in parts, (
+            "_LICENSE_FILE must contain '.config' in its path components; "
+            f"got {lic_mod._LICENSE_FILE}"
+        )
+        config_idx = parts.index(".config")
+        assert parts[config_idx + 1] == "mcp-audit"
+        assert parts[-1] == "license.key"
+
+    def test_license_file_parent_is_mcp_audit_config_dir(self) -> None:
+        """Parent directory of _LICENSE_FILE must be named 'mcp-audit'."""
+        assert lic_mod._LICENSE_FILE.parent.name == "mcp-audit"
+
+    def test_license_file_uses_path_home(self) -> None:
+        """_LICENSE_FILE must be rooted at Path.home(), not a hardcoded path."""
+        home = Path.home()
+        assert str(lic_mod._LICENSE_FILE).startswith(str(home)), (
+            f"_LICENSE_FILE ({lic_mod._LICENSE_FILE}) is not under"
+            f" Path.home() ({home}). "
+            "Path must be relative to the current user's home directory."
+        )
+
+    def test_license_file_path_survives_frozen_context(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Path.home() (used by _LICENSE_FILE) must still resolve to a valid path
+        when sys.frozen is True — confirms Path.home() is not broken by PyInstaller."""
+        import sys  # noqa: PLC0415
+
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+        # Path.home() must remain usable in a frozen context; evaluating it
+        # must not raise and must return an absolute path.
+        home = Path.home()
+        assert home.is_absolute()
+
+
 # ── LicenseInfo model ──────────────────────────────────────────────────────────
 
 

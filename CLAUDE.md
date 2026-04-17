@@ -307,6 +307,21 @@ Result: **CLEAN — safe to make public.**
 
 ## Release engineering
 
+### PyInstaller path resolution — test coverage (2026-04-17)
+
+| Behaviour | Test coverage | Notes |
+|---|---|---|
+| `_resolve_bundled_path()` returns `_MEIPASS/registry/known-servers.json` when `sys.frozen=True` | `tests/test_registry.py::TestMeipassResolution` | Patches `sys.frozen` + `sys._MEIPASS` via `monkeypatch` |
+| `KnownServerRegistry` loads from a simulated `_MEIPASS` layout | `tests/test_registry.py::TestMeipassResolution::test_frozen_registry_loads_via_patched_bundled_path` | Monkeypatches `BUNDLED_REGISTRY_PATH` |
+| Corrupt PyInstaller bundle (missing registry file) raises `FileNotFoundError` | `tests/test_registry.py::TestMeipassResolution::test_locate_raises_when_bundled_path_missing` | Both user-cache and bundled path missing |
+| `_LICENSE_FILE` is rooted at `Path.home() / ".config" / "mcp-audit"` | `tests/test_licensing.py::TestLicenseKeyPathResolution` | Asserts path shape without modifying `licensing.py` |
+| `Path.home()` remains usable when `sys.frozen=True` | `tests/test_licensing.py::TestLicenseKeyPathResolution::test_license_file_path_survives_frozen_context` | PyInstaller does not break `Path.home()` |
+| Binary entry point and bundled data intact after build | CI smoke test in `.github/workflows/release.yml` | `dist/<binary> version` runs before `upload-artifact` |
+
+**Windows license path limitation:** `_LICENSE_FILE` uses `Path.home() / ".config" / ...`
+(POSIX-style) on all platforms, not `%APPDATA%`.  Documented in GAPS.md; fix deferred
+to a future `licensing.py` refactor (requires `platformdirs` dependency).
+
 ### CI workflow (`.github/workflows/ci.yml`)
 
 Triggers on every push and pull request to `main`. Runs a 3×3 matrix:
