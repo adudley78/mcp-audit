@@ -140,9 +140,6 @@ def scan(
     offline: bool = typer.Option(  # noqa: B008
         False, "--offline", help="Skip all network calls"
     ),
-    ci: bool = typer.Option(  # noqa: B008
-        False, "--ci", help="CI mode: minimal output, exit code on findings"
-    ),
     json_flag: bool = typer.Option(  # noqa: B008
         False, "--json", help="Shortcut for --format json"
     ),

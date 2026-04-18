@@ -501,7 +501,6 @@ jobs:
       - name: Scan MCP configs
         run: |
           mcp-audit scan \
-            --ci \
             --severity-threshold HIGH \
             --offline \
             --format sarif \
