@@ -4,7 +4,7 @@ Resolution order (when no explicit path is given):
   1. Current working directory — checks all ``POLICY_FILENAMES``
   2. Git repo root — walks up from cwd looking for ``.git``, then checks all
      ``POLICY_FILENAMES`` in that directory
-  3. ``~/.config/mcp-audit/policy.yml``
+  3. ``<user-config-dir>/mcp-audit/policy.yml`` (resolved via ``platformdirs``)
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
+from platformdirs import user_config_dir
 from pydantic import ValidationError
 
 from mcp_audit.governance.models import GovernancePolicy
@@ -22,7 +23,7 @@ POLICY_FILENAMES = [
     "mcp-audit-policy.yml",
 ]
 
-_USER_POLICY_PATH = Path.home() / ".config" / "mcp-audit" / "policy.yml"
+_USER_POLICY_PATH = Path(user_config_dir("mcp-audit")) / "policy.yml"
 
 
 def _find_git_root(start: Path) -> Path | None:
@@ -99,7 +100,7 @@ def load_policy(path: Path | None = None) -> GovernancePolicy | None:
     1. Explicit *path* argument (from ``--policy`` flag).
     2. Current working directory — all ``POLICY_FILENAMES`` checked in order.
     3. Git repo root — walks up from cwd.
-    4. ``~/.config/mcp-audit/policy.yml``.
+    4. ``<user-config-dir>/mcp-audit/policy.yml`` (resolved via ``platformdirs``).
 
     Args:
         path: Explicit path override.  When provided, the file must exist;

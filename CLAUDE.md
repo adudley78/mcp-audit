@@ -121,11 +121,11 @@ Build and distribution scripts at project root:
 - Output formatters inherit from `BaseFormatter` and implement a `format()` method
 - The dashboard HTML template is a single large string (`_DASHBOARD_HTML`) embedded in `output/dashboard.py`. All scan data is injected via a `__SCAN_DATA_JSON__` placeholder at render time. D3 v7 is bundled from `data/d3.v7.min.js` and injected via `__D3_JS__`. Do not split the template into separate files.
 - **Scoring** runs after all analyzers complete inside `scanner.py` and attaches a `ScanScore` to `ScanResult`. Analyzers never call the scorer directly. See `scoring.py` and `docs/scoring.md`.
-- **Registry resolution order** for the supply chain analyzer: explicit `--registry PATH` CLI flag → user-local cache at `~/.config/mcp-audit/registry/known-servers.json` (written by `update-registry`) → PyInstaller `sys._MEIPASS/registry/` → `importlib.resources` (installed wheel) → dev repo-root fallback (`registry/known-servers.json`). Pass `--offline-registry` to skip the user-local cache step.
+- **Registry resolution order** for the supply chain analyzer: explicit `--registry PATH` CLI flag → user-local cache at `<user-config-dir>/mcp-audit/registry/known-servers.json` (written by `update-registry`; path resolved via `platformdirs`) → PyInstaller `sys._MEIPASS/registry/` → `importlib.resources` (installed wheel) → dev repo-root fallback (`registry/known-servers.json`). Pass `--offline-registry` to skip the user-local cache step.
 - **Terminal output** includes a dim one-liner registry stats line after the summary (e.g. "Registry: 57 known servers (v1.0, updated 2026-04-15)") pulled from `ScanResult.registry_stats`; omitted silently if `registry_stats` is `None`.
 - **SARIF output** adds a `run.properties` block with `mcp-audit/grade`, `mcp-audit/numericScore`, `mcp-audit/positiveSignals`, and `mcp-audit/deductions` when `ScanResult.score` is not `None`; the block is absent when `--no-score` suppresses scoring.
 - `SupplyChainAnalyzer` accepts `registry=KnownServerRegistry` or `registry_path=Path` in `__init__` to allow test injection without touching the filesystem.
-- **Community rules always run.** The policy-as-code rule engine loads `rules/community/` for every scan regardless of license tier. Pro gating applies only to authoring tools (`rule validate`, `rule test`) and custom rule directories (`--rules-dir`, `~/.config/mcp-audit/rules/`). The engine is invoked via `_run_rules_engine()` in `scanner.py` after all built-in analyzers complete. Rule findings use `analyzer="rules"` and `id=rule.id`.
+- **Community rules always run.** The policy-as-code rule engine loads `rules/community/` for every scan regardless of license tier. Pro gating applies only to authoring tools (`rule validate`, `rule test`) and custom rule directories (`--rules-dir`, `<user-config-dir>/mcp-audit/rules/`; path resolved via `platformdirs`). The engine is invoked via `_run_rules_engine()` in `scanner.py` after all built-in analyzers complete. Rule findings use `analyzer="rules"` and `id=rule.id`.
 - **Rule engine resolution order** for community rules: PyInstaller `sys._MEIPASS/rules/community/` → `importlib.resources` (installed wheel at `mcp_audit/rules/community/`) → dev repo-root fallback (`rules/community/`).
 - **Supply chain attestation** (`attestation/`) implements Layer 1 hash-based integrity verification. `scan --verify-hashes` downloads package tarballs, computes SHA-256, and compares against pins in `RegistryEntry.known_hashes`. `mcp-audit verify` is a standalone free-tier command for interactive package verification. Attestation findings use `analyzer="attestation"`; CRITICAL for mismatches, INFO for unverifiable cases. See `docs/supply-chain.md`.
 
@@ -143,7 +143,7 @@ Build and distribution scripts at project root:
 - JSON output includes top-level `score` and `grade` fields from `ScanScore`; HTML dashboard displays a colour-coded grade badge in the header
 - `scan --no-score` suppresses the grade panel in terminal output only; score is still calculated and present in JSON/HTML
 - `scan --registry PATH` overrides the bundled and cached registry for that run
-- `scan --offline-registry` uses the bundled registry only, skipping the user-local cache at `~/.config/mcp-audit/registry/known-servers.json`; typosquatting detection still runs using bundled data
+- `scan --offline-registry` uses the bundled registry only, skipping the user-local cache at `<user-config-dir>/mcp-audit/registry/known-servers.json`; typosquatting detection still runs using bundled data
 - `scan --baseline NAME` (or `--baseline latest`) loads a saved baseline and appends `DriftFinding`s converted to `Finding` objects (`analyzer="baseline"`) into all output formats after the normal scan
 - `scan --output-file PATH` (alias for `--output` / `-o`) writes scan results to a file; parent directories are created automatically; required for the GitHub Action SARIF upload step
 - `scan --severity-threshold LEVEL` filters findings to only those at or above the given level and drives exit code; default is `INFO` (all findings); `--severity-threshold high` exits 1 only if HIGH or CRITICAL findings exist
@@ -151,7 +151,7 @@ Build and distribution scripts at project root:
 - `update-registry` fetches `registry/known-servers.json` from GitHub and saves it to the user-local cache; requires Pro tier (gated via `is_pro_feature_available("update_registry")`; `update_registry` → pro, enterprise)
 - **Baseline storage** uses 0o700 dir / 0o600 file permissions, same pattern as rug-pull state files; env values are never stored, only key names (security — prevents secrets being persisted to disk)
 - `scan --policy PATH` loads a governance policy file; governance findings are appended to `result.findings` after the scan completes (and after baseline drift) so they flow through all output formatters automatically. `--policy` flag is free; `policy init` and `policy check` require Pro.
-- **Governance policy resolution order** when `--policy` is not given: explicit flag → cwd → git repo root → `~/.config/mcp-audit/policy.yml`. Returns `None` (no check) if no file found.
+- **Governance policy resolution order** when `--policy` is not given: explicit flag → cwd → git repo root → `<user-config-dir>/mcp-audit/policy.yml` (resolved via `platformdirs`). Returns `None` (no check) if no file found.
 - `scan --verify-hashes` downloads package tarballs and verifies SHA-256 against `known_hashes` pins in the registry; requires network; free for all tiers; findings appended to `result.findings` after the scan.
 
 ## Governance vs Rule Engine
@@ -175,9 +175,10 @@ pass (2026-04-17) and **must be maintained** in all future changes:
   The `SEMGREP_TIMEOUT_SECONDS = 300` constant in `sast/runner.py` must be used
   for any subprocess timeout; hardcoded timeout integers are forbidden.
 - **Baseline and registry cache files are always created at 0o700 dir / 0o600 file.**
-  Use `os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)` for sensitive
-  writes. Never use `Path.write_text()` for files in `~/.config/mcp-audit/` unless
-  a `chmod(0o600)` immediately follows.
+ Use `os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)` for sensitive
+ writes. Never use `Path.write_text()` for files under the user config directory
+ (resolved via `platformdirs.user_config_dir("mcp-audit")`) unless a
+ `chmod(0o600)` immediately follows.
 - **No bare `except:` clauses.** Use `except Exception:` at minimum, or a more
   specific type. Verify with `grep -rn "except:" src/` — must return zero matches.
 - **All user-supplied paths resolved with `Path.resolve()` before use.**
@@ -243,10 +244,10 @@ What's built:
 - 18 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, verify, sast, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan)
 - **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; Enterprise-gated via `fleet_merge` feature key; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action with `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif`, `sast`, `sast-path` inputs; uploads SARIF to GitHub Security tab; writes job summary; `sast: 'true'` requires mcp-audit Pro and Semgrep pre-installed in the CI job (`pip install semgrep`) — Semgrep is not bundled in the action; see `docs/github-action.md`
-- **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `~/.config/mcp-audit/baselines/` with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
+- **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `<user-config-dir>/mcp-audit/baselines/` (resolved via `platformdirs`) with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
 - **Scan Score** — every scan now produces a numeric score (0–100) and letter grade (A–F); see `scoring.py` and `docs/scoring.md`
 - **Known-Server Registry** — 57-entry curated dataset of legitimate MCP servers replaces the hardcoded YAML in the supply chain analyzer; see `registry/known-servers.json` and `docs/registry.md`
-- **Policy-as-code rule engine** (Chain Reaction Feature) — YAML-based custom detection rules; 12 community rules ship bundled and run for ALL users; `rule validate` / `rule test` / `rule list` subcommands; `scan --rules-dir PATH` and `~/.config/mcp-audit/rules/` for Pro user-local rules; rule findings flow through all output formats automatically; `custom_rules` feature key in `_FEATURE_TIERS`; see `docs/writing-rules.md` and `rules/README.md`
+- **Policy-as-code rule engine** (Chain Reaction Feature) — YAML-based custom detection rules; 12 community rules ship bundled and run for ALL users; `rule validate` / `rule test` / `rule list` subcommands; `scan --rules-dir PATH` and `<user-config-dir>/mcp-audit/rules/` for Pro user-local rules; rule findings flow through all output formats automatically; `custom_rules` feature key in `_FEATURE_TIERS`; see `docs/writing-rules.md` and `rules/README.md`
 - **Pre-commit hook** (Chain Reaction Feature) — `.pre-commit-hooks.yaml` at repo root; `language: python`, `entry: mcp-audit`, `pass_filenames: false`, `types: [json]`; default threshold is HIGH; `examples/pre-commit/` has basic and strict configs; see `docs/pre-commit.md`
 - **Governance policy engine** — YAML-based organisational requirements (approved server lists, score thresholds, transport constraints, registry membership, finding tolerances); `policy validate` / `policy init` / `policy check` subcommands; `scan --policy PATH` flag (free) auto-discovers `.mcp-audit-policy.yml` in cwd / repo root; governance findings flow through all output formats; terminal output shows a distinct yellow "Policy Violations" panel; SARIF governance findings tagged `governance-policy` with `GOV-` rule IDs; `governance` + `fleet_governance` feature keys in `_FEATURE_TIERS`; see `docs/governance.md` and `examples/policies/`
 - **SAST rule pack** — 37 Semgrep rules (28 Python, 9 TypeScript) detecting injection, poisoning, credential, protocol, and transport vulnerabilities in MCP server source code; standalone (`semgrep --config semgrep-rules/ <path>`) or integrated (`mcp-audit scan --sast <path>`); Pro-gated integration; `mcp-audit sast <path>` standalone command; SAST findings have `analyzer="sast"` and flow through all output formats; `sast` feature key in `_FEATURE_TIERS`; `semgrep-rules/` bundled in pip wheel and PyInstaller binary; see `docs/sast-rules.md`, `docs/contributing-rules.md`, and `semgrep-rules/README.md`
@@ -318,9 +319,11 @@ Result: **CLEAN — safe to make public.**
 | `Path.home()` remains usable when `sys.frozen=True` | `tests/test_licensing.py::TestLicenseKeyPathResolution::test_license_file_path_survives_frozen_context` | PyInstaller does not break `Path.home()` |
 | Binary entry point and bundled data intact after build | CI smoke test in `.github/workflows/release.yml` | `dist/<binary> version` runs before `upload-artifact` |
 
-**Windows license path limitation:** `_LICENSE_FILE` uses `Path.home() / ".config" / ...`
-(POSIX-style) on all platforms, not `%APPDATA%`.  Documented in GAPS.md; fix deferred
-to a future `licensing.py` refactor (requires `platformdirs` dependency).
+**Windows license path limitation:** `_LICENSE_FILE` in `licensing.py` still uses
+`Path.home() / ".config" / ...` (POSIX-style), not `%APPDATA%`, because `licensing.py`
+is marked do-not-modify.  All other config paths (`baselines/`, `registry/`, `policy.yml`,
+`rules/`) now use `platformdirs.user_config_dir("mcp-audit")` and resolve correctly on
+all platforms.  The `_LICENSE_FILE` fix is deferred to the next `licensing.py` refactor.
 
 ### CI workflow (`.github/workflows/ci.yml`)
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from platformdirs import user_config_dir
+
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
@@ -18,7 +20,7 @@ from mcp_audit.discovery import discover_configs
 from mcp_audit.models import Finding, RegistryStats, ScanResult, ServerConfig, Severity
 from mcp_audit.scoring import calculate_score
 
-_USER_RULES_DIR = Path.home() / ".config" / "mcp-audit" / "rules"
+_USER_RULES_DIR = Path(user_config_dir("mcp-audit")) / "rules"
 
 
 def _extract_registry_stats(

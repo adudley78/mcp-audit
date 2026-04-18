@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
+from platformdirs import user_config_dir
 from rich.console import Console
 from rich.table import Table
 
@@ -37,9 +38,8 @@ from mcp_audit.output.terminal import print_results
 from mcp_audit.scanner import run_scan
 
 _UPDATE_REGISTRY_URL = "https://raw.githubusercontent.com/adudley78/mcp-audit/main/registry/known-servers.json"
-_REGISTRY_CACHE_PATH = (
-    Path.home() / ".config" / "mcp-audit" / "registry" / "known-servers.json"
-)
+_USER_CONFIG_DIR = Path(user_config_dir("mcp-audit"))
+_REGISTRY_CACHE_PATH = _USER_CONFIG_DIR / "registry" / "known-servers.json"
 
 app = typer.Typer(
     name="mcp-audit",
@@ -209,7 +209,7 @@ def scan(
         help=(
             "Path to a governance policy file (.mcp-audit-policy.yml). "
             "When omitted, auto-discovery checks cwd → repo root → "
-            "~/.config/mcp-audit/policy.yml."
+            f"{_USER_CONFIG_DIR / 'policy.yml'}."
         ),
     ),
     verify_hashes: bool = typer.Option(  # noqa: B008
@@ -896,7 +896,8 @@ def watch(
 def update_registry() -> None:
     """Fetch the latest known-server registry from the upstream repository.
 
-    Saves the registry to ``~/.config/mcp-audit/registry/known-servers.json``.
+    Saves the registry to the platform user config directory under
+    ``mcp-audit/registry/known-servers.json`` (path resolved via ``platformdirs``).
     On the next scan the updated registry is used automatically.
 
     Requires a Pro or Enterprise license.
@@ -1448,7 +1449,8 @@ def rule_list(
     """List all currently loaded rules (bundled + user-local).
 
     Shows bundled community rules and, for Pro users, user-local rules from
-    ``~/.config/mcp-audit/rules/``.  Always free — transparency about what runs.
+    the platform user config directory under ``mcp-audit/rules/``
+    (path resolved via ``platformdirs``).  Always free — transparency about what runs.
     """
     from mcp_audit.rules.engine import (  # noqa: PLC0415
         load_bundled_community_rules,

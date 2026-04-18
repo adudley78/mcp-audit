@@ -5,8 +5,8 @@ supply chain analyzer queries instead of a hardcoded package list.
 
 Resolution order when locating the registry file:
   1. Caller-supplied ``path`` argument (explicit override).
-  2. User-cached registry: ``~/.config/mcp-audit/registry/known-servers.json``
-     (written by ``mcp-audit update-registry``).
+  2. User-cached registry: ``<user-config-dir>/mcp-audit/registry/known-servers.json``
+     (written by ``mcp-audit update-registry``; path resolved via ``platformdirs``).
   3. Package-bundled registry: discovered via ``importlib.resources`` for
      installed wheels, or via the repo-root fallback for editable/dev installs.
   4. PyInstaller frozen binary: resolved from ``sys._MEIPASS``.
@@ -23,12 +23,13 @@ import sys
 from pathlib import Path
 from typing import Literal
 
+from platformdirs import user_config_dir
 from pydantic import BaseModel
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
 _USER_CACHE_PATH = (
-    Path.home() / ".config" / "mcp-audit" / "registry" / "known-servers.json"
+    Path(user_config_dir("mcp-audit")) / "registry" / "known-servers.json"
 )
 
 
@@ -108,7 +109,7 @@ class KnownServerRegistry:
             path: Explicit path to a registry JSON file.  When ``None``, the
                 loader tries the user cache then the bundled registry.
             offline: When ``True``, skip the user-local cache at
-                ``~/.config/mcp-audit/registry/known-servers.json`` and load
+                ``<user-config-dir>/mcp-audit/registry/known-servers.json`` and load
                 directly from the bundled registry.  Equivalent to passing
                 ``path=BUNDLED_REGISTRY_PATH`` but does not override an
                 explicit *path* argument.
@@ -247,8 +248,8 @@ def load_registry(
     """Load and return a :class:`KnownServerRegistry`.
 
     Resolution order (unless *path* is given):
-    1. User-local cache at ``~/.config/mcp-audit/registry/known-servers.json``
-       (skipped when *offline* is ``True``).
+    1. User-local cache at ``<user-config-dir>/mcp-audit/registry/known-servers.json``
+       (resolved via ``platformdirs``; skipped when *offline* is ``True``).
     2. Bundled registry shipped with the package.
 
     Args:

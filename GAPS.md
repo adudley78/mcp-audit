@@ -132,17 +132,6 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **License verification key is a placeholder.** `_PUBLIC_KEY_BYTES` in `licensing.py` is currently an empty bytes literal. It must be replaced with the real 32-byte Ed25519 public key before the Pro gating is active. Run `python scripts/generate_license.py --generate-keypair` and paste the output into `licensing.py`.
 
-**License file path uses POSIX-style `~/.config/mcp-audit/` on all platforms.**
-`_LICENSE_FILE` in `licensing.py` is `Path.home() / ".config" / "mcp-audit" / "license.key"`.
-On Windows this resolves to `C:\Users\<user>\.config\mcp-audit\license.key` — a
-POSIX-style directory, **not** `%APPDATA%\mcp-audit\`.  This means activated license
-keys stored by the Windows binary are in an unexpected location and are invisible to
-tools that inspect `%APPDATA%`.  Fix: replace `Path.home() / ".config"` with
-`platformdirs.user_config_dir("mcp-audit", appauthor=False)` (requires adding
-`platformdirs` as a dependency) in a future refactor of `licensing.py`.  The current
-behaviour is tested and documented; no fix is applied yet because `licensing.py` is
-marked do-not-modify.
-
 **`Path.home()` in frozen PyInstaller context not verified end-to-end.**
 `Path.home()` resolves correctly when `sys.frozen=True` is patched in unit tests
 (`tests/test_licensing.py::TestLicenseKeyPathResolution::test_license_file_path_survives_frozen_context`),

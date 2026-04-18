@@ -6,7 +6,8 @@ servers, or configuration changes.
 
 Baselines are architecturally separate from the rug-pull analyzer.  The
 rug-pull analyzer tracks automatic per-scan hashes; baselines are explicit,
-user-named snapshots stored in ``~/.config/mcp-audit/baselines/``.
+user-named snapshots stored in the platform user config directory under
+``mcp-audit/baselines/`` (e.g. ``~/.config/mcp-audit/baselines/`` on Linux).
 """
 
 from __future__ import annotations
@@ -20,13 +21,14 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 
+from platformdirs import user_config_dir
 from pydantic import BaseModel, Field
 
 from mcp_audit import __version__
 from mcp_audit.models import ServerConfig, Severity
 
 _SCANNER_VERSION = __version__
-_DEFAULT_STORAGE_DIR = Path.home() / ".config" / "mcp-audit" / "baselines"
+_DEFAULT_STORAGE_DIR = Path(user_config_dir("mcp-audit")) / "baselines"
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +140,8 @@ class BaselineManager:
 
     Args:
         storage_dir: Directory in which baseline JSON files are stored.
-            Defaults to ``~/.config/mcp-audit/baselines/``.
+            Defaults to the platform user config directory under
+            ``mcp-audit/baselines/`` (resolved via ``platformdirs``).
     """
 
     def __init__(self, storage_dir: Path | None = None) -> None:
