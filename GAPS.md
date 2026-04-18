@@ -195,13 +195,6 @@ exercise the license file path end-to-end (no real license key is available in C
 
 ## Policy-as-code rule engine
 
-**`semver_range` match type falls back to exact match when `packaging` is unavailable.**
-The `semver_range` match type uses the `packaging` library for version comparisons.
-If `packaging` is not installed (it is a dependency of pip but not an explicit
-mcp-audit dependency), the engine falls back to exact string comparison and logs
-a warning. Rules using `semver_range` should be tested in environments where
-`packaging` is confirmed present.
-
 **Compound rule `matched_value` may be verbose for OR rules with many conditions.**
 For compound `OR` rules, `matched_value` is constructed by joining all matched
 condition values with `"; "`. If multiple conditions fire simultaneously, the

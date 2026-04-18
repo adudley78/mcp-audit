@@ -244,37 +244,22 @@ def _apply_match_type(
 
 
 def _match_semver_range(field_value: str, pattern: str) -> tuple[bool, str]:
-    """Match a field value against a semver range expression.
+    """Match a field value against a semver range expression."""
+    from packaging.specifiers import InvalidSpecifier, SpecifierSet  # noqa: PLC0415
+    from packaging.version import Version  # noqa: PLC0415
 
-    Falls back to exact-string comparison when the ``packaging`` library is
-    unavailable.  Logs a one-time warning in that case.
-    """
     try:
-        from packaging.specifiers import InvalidSpecifier, SpecifierSet  # noqa: PLC0415
-        from packaging.version import Version  # noqa: PLC0415
-
-        try:
-            spec = SpecifierSet(pattern)
-            version = Version(field_value)
-            if version in spec:
-                return True, field_value
-            return False, ""
-        except (InvalidSpecifier, ValueError):
-            logger.warning(
-                "semver_range: invalid version %r or specifier %r — skipping match",
-                field_value,
-                pattern,
-            )
-            return False, ""
-
-    except ImportError:
+        spec = SpecifierSet(pattern)
+        version = Version(field_value)
+        if version in spec:
+            return True, field_value
+        return False, ""
+    except (InvalidSpecifier, ValueError):
         logger.warning(
-            "semver_range match type requires the 'packaging' library; "
-            "falling back to exact match for pattern %r",
+            "semver_range: invalid version %r or specifier %r — skipping match",
+            field_value,
             pattern,
         )
-        if field_value == pattern:
-            return True, field_value
         return False, ""
 
 
