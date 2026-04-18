@@ -238,7 +238,8 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 27+ findings across all analyzer categories
-- 1010 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting)
+- 1077 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting)
+- scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
 - 18 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, verify, sast, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan)
