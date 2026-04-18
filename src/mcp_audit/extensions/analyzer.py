@@ -14,7 +14,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -25,29 +24,30 @@ from mcp_audit.models import Finding, Severity
 
 
 def _resolve_vuln_registry_path() -> Path:
-    """Locate ``known-extension-vulns.json`` regardless of execution context."""
-    if getattr(sys, "frozen", False):
-        return (
-            Path(sys._MEIPASS) / "registry" / "known-extension-vulns.json"  # type: ignore[attr-defined]
-        )
-    try:
-        import importlib.resources as pkg_resources  # noqa: PLC0415
+    """Locate ``known-extension-vulns.json`` regardless of execution context.
 
-        ref = pkg_resources.files("mcp_audit.registry").joinpath(
-            "known-extension-vulns.json"
-        )
-        candidate = Path(str(ref))
-        if candidate.exists():
-            return candidate
-    except Exception:  # noqa: BLE001, S110
-        pass
+    Resolution order (delegated to :func:`~mcp_audit._paths.resolve_bundled_resource`):
 
-    # Dev / editable install fallback: walk up to repo root.
-    return (
+    1. PyInstaller frozen binary (``sys._MEIPASS/registry/known-extension-vulns.json``).
+    2. importlib.resources (pip-installed wheel at
+       ``mcp_audit/registry/known-extension-vulns.json``).
+    3. Dev / editable install fallback (repo-root
+       ``registry/known-extension-vulns.json``).
+    """
+    from mcp_audit._paths import resolve_bundled_resource  # noqa: PLC0415
+
+    _dev_fallback = (
         Path(__file__).parent.parent.parent.parent
         / "registry"
         / "known-extension-vulns.json"
     )
+    result = resolve_bundled_resource(
+        package="mcp_audit.registry",
+        subdir="known-extension-vulns.json",
+        frozen_subpath="registry/known-extension-vulns.json",
+        dev_fallback=_dev_fallback,
+    )
+    return result if result is not None else _dev_fallback
 
 
 def load_vuln_registry(path: Path | None = None) -> list[ExtensionVulnEntry]:

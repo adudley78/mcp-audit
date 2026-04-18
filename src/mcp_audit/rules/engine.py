@@ -13,7 +13,6 @@ from __future__ import annotations
 import fnmatch
 import logging
 import re
-import sys
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -464,28 +463,23 @@ def merge_rules(
 def _resolve_bundled_community_dir() -> Path:
     """Locate the bundled ``rules/community/`` directory.
 
-    Resolution order:
+    Resolution order (delegated to :func:`~mcp_audit._paths.resolve_bundled_resource`):
+
     1. PyInstaller frozen binary (``sys._MEIPASS/rules/community/``).
-    2. importlib.resources (installed wheel at ``mcp_audit/rules/community/``).
+    2. importlib.resources (pip-installed wheel at ``mcp_audit/rules/community/``).
     3. Dev / editable install fallback (repo-root ``rules/community/``).
     """
-    if getattr(sys, "frozen", False):
-        return Path(sys._MEIPASS) / "rules" / "community"  # type: ignore[attr-defined]
+    from mcp_audit._paths import resolve_bundled_resource  # noqa: PLC0415
 
-    # Installed wheel: community dir ships inside the mcp_audit.rules package.
-    try:
-        import importlib.resources as pkg_resources  # noqa: PLC0415
-
-        ref = pkg_resources.files("mcp_audit.rules").joinpath("community")
-        candidate = Path(str(ref))
-        if candidate.is_dir():
-            return candidate
-    except Exception:  # noqa: BLE001, S110
-        pass
-
-    # Dev / editable install: __file__ is src/mcp_audit/rules/engine.py.
-    # Four .parent calls → repo root.
-    return Path(__file__).parent.parent.parent.parent / "rules" / "community"
+    _dev_fallback = Path(__file__).parent.parent.parent.parent / "rules" / "community"
+    result = resolve_bundled_resource(
+        package="mcp_audit.rules",
+        subdir="community",
+        frozen_subpath="rules/community",
+        dev_fallback=_dev_fallback,
+    )
+    # Always return a Path; if nothing was found, the dev fallback is the last resort.
+    return result if result is not None else _dev_fallback
 
 
 def load_bundled_community_rules() -> list[PolicyRule]:

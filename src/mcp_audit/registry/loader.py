@@ -7,9 +7,10 @@ Resolution order when locating the registry file:
   1. Caller-supplied ``path`` argument (explicit override).
   2. User-cached registry: ``<user-config-dir>/mcp-audit/registry/known-servers.json``
      (written by ``mcp-audit update-registry``; path resolved via ``platformdirs``).
-  3. Package-bundled registry: discovered via ``importlib.resources`` for
-     installed wheels, or via the repo-root fallback for editable/dev installs.
-  4. PyInstaller frozen binary: resolved from ``sys._MEIPASS``.
+  3. PyInstaller frozen binary: resolved from ``sys._MEIPASS/registry/``.
+  4. importlib.resources (pip-installed wheel at
+     ``mcp_audit/registry/known-servers.json``).
+  5. Dev / editable install fallback: repo-root ``registry/known-servers.json``.
 
 Research basis: Levenshtein edit distance for typosquatting detection.
 Ref: "Typosquatting in Package Managers" — Vu et al., NDSS 2021
@@ -19,7 +20,6 @@ Ref: "Typosquatting in Package Managers" — Vu et al., NDSS 2021
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Literal
 
@@ -36,33 +36,31 @@ _USER_CACHE_PATH = (
 def _resolve_bundled_path() -> Path:
     """Locate the bundled ``known-servers.json`` regardless of execution context.
 
+    Resolution order (delegated to :func:`~mcp_audit._paths.resolve_bundled_resource`):
+
+    1. PyInstaller frozen binary (``sys._MEIPASS/registry/known-servers.json``).
+    2. importlib.resources (pip-installed wheel at
+       ``mcp_audit/registry/known-servers.json``).
+    3. Dev / editable install fallback (repo-root
+       ``registry/known-servers.json``).
+
     Returns:
         Path to the bundled registry file.  The path may not exist if the
-        package was installed without the registry file (e.g. bare source
+        package was installed without the registry file (e.g. a bare source
         checkout without running the package install).
     """
-    if getattr(sys, "frozen", False):
-        # PyInstaller one-file binary: data lands in sys._MEIPASS/registry/
-        return Path(sys._MEIPASS) / "registry" / "known-servers.json"  # type: ignore[attr-defined]
+    from mcp_audit._paths import resolve_bundled_resource  # noqa: PLC0415
 
-    # Installed wheel: importlib.resources finds the file inside the package.
-    try:
-        import importlib.resources as pkg_resources  # noqa: PLC0415
-
-        ref = pkg_resources.files("mcp_audit.registry").joinpath("known-servers.json")
-        candidate = Path(str(ref))
-        if candidate.exists():
-            return candidate
-    except Exception:  # noqa: BLE001, S110
-        # Security reviewed: importlib.resources lookup failure is a packaging
-        # edge case — safe to ignore; the dev-repo fallback below handles it.
-        pass
-
-    # Dev / editable install fallback: walk up to repo root.
-    # __file__ == src/mcp_audit/registry/loader.py → four .parent calls → repo root
-    return (
+    _dev_fallback = (
         Path(__file__).parent.parent.parent.parent / "registry" / "known-servers.json"
     )
+    result = resolve_bundled_resource(
+        package="mcp_audit.registry",
+        subdir="known-servers.json",
+        frozen_subpath="registry/known-servers.json",
+        dev_fallback=_dev_fallback,
+    )
+    return result if result is not None else _dev_fallback
 
 
 BUNDLED_REGISTRY_PATH: Path = _resolve_bundled_path()

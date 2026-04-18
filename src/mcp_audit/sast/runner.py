@@ -50,20 +50,24 @@ def find_rules_dir() -> Path | None:
     """Resolve the semgrep-rules/ directory.
 
     Resolution order:
-    1. Repo root (development)
-    2. PyInstaller _MEIPASS (bundled binary)
-    3. Directory adjacent to the mcp-audit executable
+    1. Repo root — ``semgrep-rules/`` adjacent to ``src/`` (dev / editable install).
+    2. PyInstaller ``_MEIPASS`` — frozen one-file binary (via
+       :func:`~mcp_audit.sast.bundler.get_bundled_rules_path`).
+    3. importlib.resources — pip-installed wheel at ``mcp_audit/semgrep-rules``
+       (via :func:`~mcp_audit.sast.bundler.get_bundled_rules_path`).
+    4. Directory adjacent to the ``mcp-audit`` executable (standalone binary
+       installed alongside the rule pack).
     """
     # 1. Repo root (development / editable install)
     if _REPO_RULES_DIR.is_dir():
         return _REPO_RULES_DIR
 
-    # 2. PyInstaller bundle
+    # 2 & 3. PyInstaller _MEIPASS, then pip-installed wheel via importlib.resources
     bundled = get_bundled_rules_path()
     if bundled is not None:
         return bundled
 
-    # 3. Adjacent to the running executable (e.g., installed alongside binary)
+    # 4. Adjacent to the running executable (e.g., installed alongside binary)
     exe_path = Path(shutil.which("mcp-audit") or "")
     if exe_path.parent.is_dir():
         adjacent = exe_path.parent / "semgrep-rules"

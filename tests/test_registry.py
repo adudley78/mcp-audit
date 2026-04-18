@@ -546,6 +546,11 @@ class TestMeipassResolution:
 
         from mcp_audit.registry.loader import _resolve_bundled_path  # noqa: PLC0415
 
+        # Create a realistic _MEIPASS layout so the existence check passes.
+        registry_dir = tmp_path / "registry"
+        registry_dir.mkdir()
+        (registry_dir / "known-servers.json").write_text("{}")
+
         monkeypatch.setattr(sys, "frozen", True, raising=False)
         monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
 

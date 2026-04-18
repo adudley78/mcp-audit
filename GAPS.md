@@ -265,6 +265,7 @@ The Semgrep SAST rule pack (`semgrep-rules/`) has the following known limitation
 
 **Semgrep is not bundled in the mcp-audit binary:**
 - `mcp-audit scan --sast` and `mcp-audit sast` require `pip install semgrep` separately. The rule files are bundled; the semgrep engine is not. This matches how other SAST tools (bandit, eslint, etc.) work in the ecosystem.
+- Rule file discovery works correctly in all installation modes: PyInstaller binary, `pip install mcp-audit` wheel, and editable dev installs. The resolution uses `mcp_audit._paths.resolve_bundled_resource()` with an `importlib.resources` step so that pip-installed wheels find `mcp_audit/semgrep-rules/` without requiring a source checkout.
 
 **No taint analysis:**
 - Current rules are pattern-based, not dataflow-aware. A variable URL used for SSRF only fires if the HTTP call is in the same function, not if the URL is passed from an outer scope. Full taint tracking requires Semgrep Pro rules (dataflow mode).
