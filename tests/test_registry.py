@@ -658,3 +658,26 @@ class TestOfflineRegistrySupplyChain:
 
         analyzer = SupplyChainAnalyzer()
         assert isinstance(analyzer.registry, KnownServerRegistry)
+
+
+class TestUpdateRegistryURL:
+    """Verify _UPDATE_REGISTRY_URL uses a version tag, not /main/."""
+
+    def test_update_registry_url_uses_version_tag(self) -> None:
+        """_UPDATE_REGISTRY_URL must contain the current __version__ string."""
+        from mcp_audit import __version__  # noqa: PLC0415
+        from mcp_audit.cli import _UPDATE_REGISTRY_URL  # noqa: PLC0415
+
+        assert f"v{__version__}" in _UPDATE_REGISTRY_URL, (
+            f"_UPDATE_REGISTRY_URL should reference v{__version__}, "
+            f"got: {_UPDATE_REGISTRY_URL}"
+        )
+
+    def test_update_registry_url_does_not_use_main_branch(self) -> None:
+        """_UPDATE_REGISTRY_URL must not point at /main/ (breaks older binaries)."""
+        from mcp_audit.cli import _UPDATE_REGISTRY_URL  # noqa: PLC0415
+
+        assert "/main/" not in _UPDATE_REGISTRY_URL, (
+            "_UPDATE_REGISTRY_URL must not use /main/ — use a version tag instead. "
+            f"Current value: {_UPDATE_REGISTRY_URL}"
+        )

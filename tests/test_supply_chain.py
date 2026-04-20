@@ -6,12 +6,14 @@ from pathlib import Path
 
 import pytest
 
+import mcp_audit.analyzers.supply_chain as _sc_module
 from mcp_audit.analyzers.supply_chain import (  # noqa: I001
     SupplyChainAnalyzer,
     extract_npm_package,
     levenshtein,
 )
 from mcp_audit.models import ServerConfig, Severity, TransportType
+from mcp_audit.registry import loader as _loader_module
 
 # ── Levenshtein unit tests ─────────────────────────────────────────────────────
 
@@ -294,3 +296,34 @@ class TestSupplyChainAnalyzer:
         findings = self.analyzer.analyze(server)
         assert len(findings) == 1
         assert findings[0].severity == expected_severity
+
+
+# ── Deduplication guard ────────────────────────────────────────────────────────
+
+
+class TestLevenshteinDeduplication:
+    """Verify supply_chain re-uses the registry.loader implementation.
+
+    supply_chain.py must not define its own levenshtein function — it should
+    import and re-export the one from registry/loader.py.  This test locks
+    that contract so a future refactor cannot silently re-introduce a copy.
+    """
+
+    def test_supply_chain_uses_registry_levenshtein(self) -> None:
+        """supply_chain.levenshtein IS registry.loader.levenshtein (same object)."""
+        assert _sc_module.levenshtein is _loader_module.levenshtein, (
+            "supply_chain.levenshtein must be the registry.loader implementation, "
+            "not a locally defined copy"
+        )
+
+    def test_no_local_levenshtein_definition_in_supply_chain(self) -> None:
+        """No 'def levenshtein' exists in supply_chain module source."""
+        import inspect
+
+        source = inspect.getsource(_sc_module)
+        # The module may reference 'levenshtein' as an import or usage,
+        # but must NOT define a new function named 'levenshtein'.
+        assert "def levenshtein" not in source, (
+            "supply_chain.py must not define its own levenshtein — "
+            "import it from registry.loader instead"
+        )

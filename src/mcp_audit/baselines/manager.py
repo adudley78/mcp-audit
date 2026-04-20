@@ -16,7 +16,6 @@ import hashlib
 import json
 import logging
 import os
-import warnings
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -148,6 +147,9 @@ class BaselineManager:
         self._storage_dir = (storage_dir or _DEFAULT_STORAGE_DIR).resolve()
         # Security: 0o700 — only the owning user can list or enter this directory.
         self._storage_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Populated by list() with (filename, exception) pairs for callers that
+        # want to surface load errors to the user (e.g. the CLI's baseline list).
+        self.load_errors: list[tuple[str, Exception]] = []
 
     # ── private helpers ────────────────────────────────────────────────────────
 
@@ -235,16 +237,17 @@ class BaselineManager:
         Returns:
             Baselines sorted by :attr:`Baseline.created_at` descending.
         """
+        self.load_errors = []
         baselines: list[Baseline] = []
         for path in self._storage_dir.glob("*.json"):
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
                 baselines.append(Baseline.model_validate(data))
             except Exception as exc:  # noqa: BLE001
-                warnings.warn(
-                    f"Skipping malformed baseline file {path.name}: {exc}",
-                    stacklevel=2,
+                logger.warning(
+                    "Skipping malformed baseline file %s: %s", path.name, exc
                 )
+                self.load_errors.append((path.name, exc))
         baselines.sort(key=lambda b: b.created_at, reverse=True)
         return baselines
 

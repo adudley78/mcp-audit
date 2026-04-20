@@ -106,7 +106,10 @@ def scan(
         "terminal",
         "--format",
         "-f",
-        help="Output format: terminal, json, nucleus, sarif",
+        help=(
+            "Output format: terminal, json, sarif, nucleus. "
+            "HTML output is available via 'mcp-audit dashboard' (Pro)."
+        ),
     ),
     output: Path | None = typer.Option(  # noqa: B008
         None,
@@ -331,8 +334,10 @@ def scan(
     # Baseline drift detection (opt-in via --baseline)
     if baseline_name is not None:
         from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
+        from mcp_audit.models import Finding  # noqa: PLC0415
 
         mgr = BaselineManager()
+        _baseline_load_ok = True
         try:
             if baseline_name == "latest":
                 bl = mgr.load_latest()
@@ -347,10 +352,39 @@ def scan(
         except FileNotFoundError as exc:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(2)  # noqa: B904
+        except Exception as exc:  # noqa: BLE001
+            # Malformed baseline file — surface as an INFO finding rather than
+            # crashing so the rest of the scan output is still usable.
+            console.print(
+                f"[yellow]Warning:[/yellow] Could not parse baseline "
+                f"{baseline_name!r}: {exc}. Drift detection skipped."
+            )
+            result.findings.append(
+                Finding(
+                    id="BL-001",
+                    severity=Severity.INFO,
+                    analyzer="baselines",
+                    client="",
+                    server="",
+                    title=f"Baseline {baseline_name!r} could not be parsed",
+                    description=(
+                        f"The baseline file for {baseline_name!r} is malformed "
+                        f"and drift detection was skipped: {exc}"
+                    ),
+                    evidence=str(exc),
+                    remediation=(
+                        "Delete the corrupted baseline with "
+                        "'mcp-audit baseline delete' and re-save with "
+                        "'mcp-audit baseline save'."
+                    ),
+                )
+            )
+            _baseline_load_ok = False
 
-        drift = mgr.compare(bl, result.servers)
-        drift_findings = _drift_to_findings(drift)
-        result.findings.extend(drift_findings)
+        if _baseline_load_ok:
+            drift = mgr.compare(bl, result.servers)
+            drift_findings = _drift_to_findings(drift)
+            result.findings.extend(drift_findings)
 
     # Governance policy evaluation (auto-discovered or explicit --policy)
     _resolved_policy = None

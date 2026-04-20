@@ -24,7 +24,14 @@ from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
 from mcp_audit.scanner import run_scan
 
-_UPDATE_REGISTRY_URL = "https://raw.githubusercontent.com/adudley78/mcp-audit/main/registry/known-servers.json"
+# TODO(schema-version): after fetch, compare the downloaded JSON's
+# "schema_version" field against the binary's expected schema version.
+# If the fetched schema_version > expected, warn and skip the update to
+# avoid loading a schema with unknown fields into an older binary.
+_UPDATE_REGISTRY_URL = (
+    f"https://raw.githubusercontent.com/adudley78/mcp-audit/"
+    f"v{__version__}/registry/known-servers.json"
+)
 _USER_CONFIG_DIR = Path(user_config_dir("mcp-audit"))
 _REGISTRY_CACHE_PATH = _USER_CONFIG_DIR / "registry" / "known-servers.json"
 

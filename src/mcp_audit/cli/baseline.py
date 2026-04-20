@@ -55,6 +55,12 @@ def baseline_list() -> None:
     mgr = BaselineManager()
     baselines = mgr.list()
 
+    for filename, exc in mgr.load_errors:
+        console.print(
+            f"[yellow]Warning:[/yellow] Skipping malformed baseline file "
+            f"[bold]{filename}[/bold]: {exc}"
+        )
+
     if not baselines:
         console.print(
             "No baselines saved. "

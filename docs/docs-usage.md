@@ -441,9 +441,9 @@ Purchase a license at [mcp-audit.dev/pro](https://mcp-audit.dev/pro).
 
 | Flag | Description |
 |------|-------------|
-| `--format [terminal\|json\|sarif\|nucleus\|html]` | Output format (default: terminal) |
+| `--format [terminal\|json\|sarif\|nucleus]` | Output format (default: terminal). HTML output is available via `mcp-audit dashboard` (Pro), not via `--format html`. |
 | `--output-file PATH` | Write output to a file |
-| `--severity-threshold LEVEL` | Only report findings at or above this level |
+| `--severity-threshold LEVEL` | Only report findings at or above this level. **Note:** the scan score is always computed from the full finding set before this filter is applied — see [docs/scoring.md](scoring.md#scoring-and-severity-filtering) for details. |
 | `--no-score` | Suppress the scan score panel |
 | `--baseline NAME` | Compare scan to a saved baseline (use `latest` for the most recent) |
 | `--verify-hashes` | Verify server hashes against the registry |

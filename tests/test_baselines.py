@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
+import logging
 import stat
-import warnings
 from pathlib import Path
 
 import pytest
@@ -156,19 +156,21 @@ def test_list_returns_newest_first(
 
 
 def test_list_skips_malformed_files_without_crash(
-    mgr: BaselineManager, storage: Path, servers: list[ServerConfig]
+    mgr: BaselineManager,
+    storage: Path,
+    servers: list[ServerConfig],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     mgr.save(servers, config_paths=[], name="good-bl")
     bad = storage / "corrupt.json"
     bad.write_text("{ this is not json }", encoding="utf-8")
 
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    with caplog.at_level(logging.WARNING, logger="mcp_audit.baselines.manager"):
         results = mgr.list()
 
     assert len(results) == 1
     assert results[0].name == "good-bl"
-    assert any("corrupt.json" in str(warning.message) for warning in w)
+    assert any("corrupt.json" in msg for msg in caplog.messages)
 
 
 # ── load() ────────────────────────────────────────────────────────────────────
@@ -645,6 +647,54 @@ def test_baseline_dir_permissions(tmp_path: Path) -> None:
     BaselineManager(storage_dir=storage)
     mode = stat.S_IMODE(storage.stat().st_mode)
     assert mode == 0o700, f"Expected 0o700, got {oct(mode)}"
+
+
+def test_malformed_baseline_logs_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A malformed baseline file logs a warning and does not raise."""
+    storage = tmp_path / "baselines"
+    mgr = BaselineManager(storage_dir=storage)
+
+    # Write a deliberately invalid JSON file into the storage directory.
+    bad_file = storage / "corrupt.json"
+    bad_file.write_text("{not valid json!!!}", encoding="utf-8")
+    bad_file.chmod(0o600)
+
+    with caplog.at_level(logging.WARNING, logger="mcp_audit.baselines.manager"):
+        results = mgr.list()
+
+    # The corrupt file is skipped — no exception propagates.
+    assert results == []
+    # A logger.warning was emitted for the malformed file.
+    assert any("corrupt.json" in msg for msg in caplog.messages), (
+        "Expected a warning log mentioning the malformed file"
+    )
+    # The error is also recorded in load_errors.
+    assert len(mgr.load_errors) == 1
+    filename, exc = mgr.load_errors[0]
+    assert filename == "corrupt.json"
+    assert exc is not None
+
+
+def test_malformed_baseline_does_not_use_warnings_warn(tmp_path: Path) -> None:
+    """Malformed baseline uses logger, not warnings.warn (which can be silenced)."""
+    import warnings  # noqa: PLC0415
+
+    storage = tmp_path / "baselines"
+    mgr = BaselineManager(storage_dir=storage)
+    bad_file = storage / "bad.json"
+    bad_file.write_text("{}", encoding="utf-8")  # valid JSON but wrong schema
+    bad_file.chmod(0o600)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        mgr.list()
+
+    # No Python warnings should have been emitted.
+    assert len(caught) == 0, (
+        "manager.list() must not use warnings.warn(); use logger.warning() instead"
+    )
 
 
 def test_baseline_file_permissions(tmp_path: Path) -> None:

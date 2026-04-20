@@ -70,6 +70,27 @@ The scorer is called once, after all analyzers have completed, inside
 `scanner.py`. Analyzers never call the scorer directly. `ScanScore` is a
 Pydantic model defined in `models.py`.
 
+## Scoring and Severity Filtering
+
+The scan score is always computed from the **complete finding set** before
+`--severity-threshold` filtering is applied. This means the score and grade
+in JSON and SARIF output reflect all findings regardless of the threshold
+you set. Exit code and `has_findings` reflect only findings at or above the
+threshold.
+
+**Example:** a scan with two MEDIUM findings and `--severity-threshold HIGH`
+will produce exit code 0 and an empty terminal findings list, but the JSON
+output will still show a score of 98/100 (−2 for two MEDIUM findings). The
+grade badge in SARIF will still read `B`.
+
+This is intentional — the score is a property of the configuration, not of
+your alerting threshold. Suppressing findings for operational noise reduction
+should not mask the underlying security posture.
+
+If you want to exclude findings from the score entirely, use
+`--severity-threshold` in combination with reviewing only the relevant output
+format; the JSON `score` field always represents the full picture.
+
 ## Known Limitations
 
 - Scoring weights are hardcoded and not yet user-configurable. Custom weights

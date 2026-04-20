@@ -37,3 +37,25 @@ class BaseAnalyzer(ABC):
             List of security findings. Empty list means no issues found.
         """
         ...
+
+    def analyze_all(self, servers: list[ServerConfig]) -> list[Finding]:
+        """Run this analyzer across all servers.
+
+        Default implementation calls :meth:`analyze` for each server and
+        unions the results.  Cross-server analyzers (``rug_pull``,
+        ``toxic_flow``) override this method because they need the complete
+        server list to detect cross-server relationships.
+
+        A contributor adding a single-server analyzer gets ``analyze_all``
+        for free — no override needed.
+
+        Args:
+            servers: All server configurations in the current scan.
+
+        Returns:
+            Combined list of findings from all servers.
+        """
+        findings: list[Finding] = []
+        for server in servers:
+            findings.extend(self.analyze(server))
+        return findings

@@ -152,6 +152,17 @@ exercise the license file path end-to-end (no real license key is available in C
 
 ## Scoring
 
+**Score is computed before `--severity-threshold` filtering — intentional.**
+`calculate_score()` in `scanner.py` runs against the complete finding set before
+the CLI applies `--severity-threshold` filtering.  This means the score and grade
+in JSON and SARIF output always reflect all findings regardless of the threshold
+set by the operator.  Exit code and `has_findings` reflect only findings at or
+above the threshold.  This is a deliberate design choice: the score is a property
+of the configuration, not of the alerting threshold.  A practitioner who sets
+`--severity-threshold HIGH` to reduce operational noise should still see the true
+security posture in the JSON output.  See [docs/scoring.md](docs/scoring.md#scoring-and-severity-filtering)
+for a concrete example and further rationale.
+
 **INFO deductions are visible but cosmetically surprising.** INFO-severity findings produce a −1 deduction entry in the score breakdown. If positive signal bonuses (up to +10 total) exceed the total INFO deduction, the numeric score clamps to 100 even though deduction lines appear. The deduction entry is the intended signal to the practitioner. This is a known, accepted tradeoff — a clean scan with minor informational notes should still be achievable as a 100/A.
 
 **Scoring weights are not user-configurable.** The deduction table and bonus thresholds are hardcoded in `scoring.py`. Custom severity weights are a planned Pro feature (policy-as-code engine, Chain Reaction Feature 1) but are not yet implemented.
