@@ -116,7 +116,7 @@ mcp-audit license                                     # Show current license sta
 
 | Analyzer | Finding IDs | Examples |
 |----------|-------------|---------|
-| Tool poisoning | POISON-001…050 | SSH key exfiltration instructions, XML injection markers (`<IMPORTANT>`), behavioral overrides ("ignore previous instructions"), zero-width Unicode stealth characters |
+| Tool poisoning | 11 patterns (POISON-001 – POISON-050) | SSH key exfiltration instructions, XML injection markers (`<IMPORTANT>`), behavioral overrides ("ignore previous instructions"), zero-width Unicode stealth characters |
 | Credential exposure | CRED-001…009 | AWS access keys, GitHub tokens, OpenAI/Anthropic API keys, Stripe secrets, database connection strings with embedded passwords |
 | Transport security | TRANSPORT-001…003 | Unencrypted remote SSE connections, elevated privilege execution, runtime package fetching via `npx`/`uvx` without version pinning |
 | Supply chain | SC-001…003 | Typosquatted package names (`@modelcontextprotocol/server-filesytem` vs `server-filesystem`), distance-1 substitutions flagged CRITICAL |
@@ -161,7 +161,7 @@ Server A reads files. Server B makes HTTP requests. Neither is malicious alone �
 | TOXIC-006 | Shell execution + outbound network | CRITICAL |
 | TOXIC-007 | Git repository access + outbound network | MEDIUM |
 
-A single server that holds both capabilities (e.g., `@modelcontextprotocol/server-github` provides both `GIT` and `NETWORK_OUT`) is also flagged as a self-contained toxic flow.
+† A single server that provides both capabilities of a dangerous pair is also flagged — no second server required.
 
 ## Attack graph dashboard
 
