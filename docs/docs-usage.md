@@ -190,6 +190,8 @@ mcp-audit verify
 
 Verification is always free — it never requires a license. Network access is required to fetch npm tarballs and PyPI digests.
 
+> **Incompatibility:** `--verify-hashes` cannot be combined with `--offline`. Because hash verification must download package tarballs from npm and PyPI, using both flags together will produce an error (exit code 2) and the scan will not run. Use `--offline-registry` instead if you want to skip registry cache updates while still allowing hash verification network calls.
+
 ---
 
 ## SAST Analysis (Pro)

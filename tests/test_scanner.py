@@ -445,6 +445,17 @@ class TestVerifyHashesFlag:
             runner.invoke(app, ["scan", "--path", str(config)])
         mock_verify.assert_not_called()
 
+    def test_scan_offline_and_verify_hashes_exits_2(self, tmp_path: Path) -> None:
+        """--offline and --verify-hashes are mutually exclusive; must exit 2."""
+        config = self._config_with_server(tmp_path)
+        result = CliRunner().invoke(
+            app,
+            ["scan", "--path", str(config), "--offline", "--verify-hashes"],
+        )
+        assert result.exit_code == 2
+        out = result.output.lower()
+        assert "verify-hashes" in out or "offline" in out
+
 
 # ── --sast flag ──────────────────────────────────────────────────────────────────
 

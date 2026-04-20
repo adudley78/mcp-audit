@@ -90,7 +90,7 @@ _Accumulates entries for work done after the last milestone and before the first
   - `rug_pull.py` — description-change detection using stateful config hashing; state scoped per config-set at `~/.mcp-audit/state.json`.
   - `toxic_flow.py` — cross-server capability tagging and dangerous pair detection; live MCP server enumeration via `--connect`.
 - **Attack path engine** (`attack_paths.py`) — multi-hop detection (up to 4 servers), greedy hitting set algorithm, `summarize_attack_paths()`.
-- **Eight supported MCP clients** — Claude Desktop, Cursor, VS Code, Windsurf, Cline, Zed, GitHub Copilot CLI, Augment Code.
+- **Eight supported MCP clients** — Claude Desktop, Cursor, VS Code, Windsurf, Claude Code (user-scoped), Claude Code (project-scoped), GitHub Copilot CLI, Augment Code.
 - **Five output formats** — terminal (Rich), JSON, SARIF 2.1.0, Nucleus FlexConnect, self-contained HTML dashboard.
 - **Interactive HTML dashboard** — embedded D3 v7 attack graph, light/dark mode toggle, grade badge, empty-state handling. D3 bundled from `data/d3.v7.min.js`.
 - `mcp-audit watch` — filesystem watcher for continuous monitoring; re-scans on config change.

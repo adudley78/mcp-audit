@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -588,28 +587,14 @@ class TestDashboardCommand:
         result, _ = self._invoke_dashboard()
         assert "localhost:8088" in result.output  # type: ignore[union-attr]
 
-    def test_temp_html_file_created_and_cleaned_up(self) -> None:
-        """Verify the HTML is written to a temp file and cleaned up on exit.
-
-        We spy on ``tempfile.NamedTemporaryFile`` (the stdlib version that the
-        dashboard command uses via its local import) to capture the temp path.
-        """
-        captured_paths: list[Path] = []
-        original_ntf = tempfile.NamedTemporaryFile
-
-        def _spy_ntf(*args, **kwargs):  # type: ignore[no-untyped-def]
-            fh = original_ntf(*args, **kwargs)
-            captured_paths.append(Path(fh.name))
-            return fh
-
+    def test_dashboard_serves_from_memory_no_disk_write(self) -> None:
+        """Dashboard HTML is served from memory; no temp file is written to disk."""
         with (
             patch("mcp_audit.cli.run_scan", return_value=_rich_result()),
             patch("mcp_audit.output.dashboard._load_d3", return_value="/* d3 */"),
-            # The dashboard command does `import tempfile` locally; patch the
-            # stdlib module so the spy is active for any caller.
-            patch("tempfile.NamedTemporaryFile", side_effect=_spy_ntf),
             patch("http.server.HTTPServer") as mock_srv_cls,
             patch("threading.Timer"),
+            patch("tempfile.NamedTemporaryFile") as mock_ntf,
         ):
             srv = MagicMock()
             srv.serve_forever.side_effect = KeyboardInterrupt
@@ -617,9 +602,8 @@ class TestDashboardCommand:
             runner = CliRunner()
             runner.invoke(app, ["dashboard", "--no-open"])
 
-        # The HTML file should be deleted once the server stops.
-        if captured_paths:
-            assert not captured_paths[0].exists()
+        # No world-readable temp file should be written.
+        mock_ntf.assert_not_called()
 
     def test_port_flag_passed_to_server(self) -> None:
         with (
@@ -636,3 +620,15 @@ class TestDashboardCommand:
 
         call_args = mock_srv_cls.call_args
         assert call_args[0][0] == ("127.0.0.1", 9999)
+
+    def test_dashboard_exits_early_without_license(self) -> None:
+        """Dashboard must exit before run_scan when the Pro license is absent."""
+        with (
+            patch("mcp_audit.cli.is_pro_feature_available", return_value=False),
+            patch("mcp_audit.cli.run_scan") as mock_scan,
+        ):
+            r = CliRunner().invoke(app, ["dashboard", "--no-open"])
+
+        mock_scan.assert_not_called()
+        assert r.exit_code == 0
+        assert "Pro" in r.output or "pro" in r.output.lower()

@@ -90,7 +90,6 @@ def calculate_score(findings: list[Finding]) -> ScanScore:
     raw_score = max(0, raw_score)
 
     # ── Positive-signal bonuses ───────────────────────────────────────────────
-    analyzer_names = {f.analyzer for f in findings}
     positive_signals: list[str] = []
     bonus = 0
 
@@ -108,8 +107,6 @@ def calculate_score(findings: list[Finding]) -> ScanScore:
     if not has_poisoning_findings:
         bonus += 2
         positive_signals.append("No prompt injection risks detected")
-
-    _ = analyzer_names  # referenced only to avoid unused-import warnings
 
     bonus = min(bonus, 10)
     final_score = min(100, raw_score + bonus)

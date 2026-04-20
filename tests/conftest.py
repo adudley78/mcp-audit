@@ -58,5 +58,9 @@ def pro_enabled() -> None:  # type: ignore[return]
             "mcp_audit.output.nucleus.is_pro_feature_available",
             return_value=True,
         ),
+        patch(
+            "mcp_audit.cli.is_pro_feature_available",
+            return_value=True,
+        ),
     ):
         yield

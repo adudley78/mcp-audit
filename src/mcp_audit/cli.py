@@ -241,6 +241,13 @@ def scan(
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
+    if offline and verify_hashes:
+        console.print(
+            "[red]Error:[/red] --verify-hashes makes network requests "
+            "and cannot be used with --offline."
+        )
+        raise typer.Exit(code=2)  # noqa: B904
+
     # Validate user-supplied paths upfront — non-existent paths produce a clean
     # exit-2 error rather than a Python traceback deep in a library call.
     if registry is not None and not registry.resolve().exists():
@@ -699,9 +706,19 @@ def dashboard(
 ) -> None:
     """Run a full scan and open an interactive attack-graph dashboard."""
     import http.server  # noqa: PLC0415
-    import tempfile  # noqa: PLC0415
     import threading  # noqa: PLC0415
     import webbrowser  # noqa: PLC0415
+
+    from rich.panel import Panel  # noqa: PLC0415
+
+    if not is_pro_feature_available("dashboard"):
+        console.print(
+            Panel(
+                "mcp-audit dashboard requires a Pro license. Visit https://mcp-audit.dev/pro",
+                style="yellow",
+            )
+        )
+        raise typer.Exit(code=0)
 
     extra_paths = [path] if path else None
 
@@ -713,16 +730,6 @@ def dashboard(
     if html is None:
         raise typer.Exit(0)
     html_bytes = html.encode("utf-8")
-
-    # Write a copy the user can open directly later.
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix="-mcp-audit-dashboard.html",
-        delete=False,
-        encoding="utf-8",
-    ) as fh:
-        fh.write(html)
-        html_path = Path(fh.name)
 
     # In-memory HTTP handler — no I/O on every request.
     class _Handler(http.server.BaseHTTPRequestHandler):
@@ -749,7 +756,6 @@ def dashboard(
     console.print(
         f"\n[bold cyan]Dashboard running at {url}[/bold cyan] — press Ctrl+C to stop"
     )
-    console.print(f"[dim]HTML saved to: {html_path}[/dim]\n")
 
     if not no_open:
         threading.Timer(0.3, webbrowser.open, args=(url,)).start()
@@ -760,7 +766,6 @@ def dashboard(
         pass
     finally:
         srv.server_close()
-        html_path.unlink(missing_ok=True)
         console.print("\n[dim]Dashboard stopped.[/dim]")
 
 

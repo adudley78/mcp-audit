@@ -197,7 +197,7 @@ def parse_semgrep_output(semgrep_json: dict, target_path: Path) -> list[Finding]
         line: int = result.get("start", {}).get("line", 0)
         extra: dict = result.get("extra", {})
         message: str = extra.get("message", "No message")
-        raw_severity: str = extra.get("severity", "WARNING").upper()
+        raw_severity: str = (extra.get("severity") or "WARNING").upper()
         metadata: dict = extra.get("metadata", {})
 
         severity = SEMGREP_SEVERITY_MAP.get(raw_severity, Severity.HIGH)

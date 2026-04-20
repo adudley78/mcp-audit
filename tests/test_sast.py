@@ -169,6 +169,17 @@ class TestSemgrepOutput:
         findings = parse_semgrep_output(output, _FAKE_TARGET)
         assert findings[0].finding_path == "src/my_server.py"
 
+    def test_parse_semgrep_output_handles_null_severity(self) -> None:
+        """``"severity": null`` in Semgrep JSON must not raise AttributeError."""
+        result = _make_semgrep_result()
+        # Overwrite severity with JSON null (Python None) to mimic Semgrep output.
+        result["extra"]["severity"] = None
+        output = _make_semgrep_output(result)
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert len(findings) == 1
+        # None falls back to "WARNING" which maps to Severity.HIGH.
+        assert findings[0].severity == Severity.HIGH
+
 
 # ── TestRunSemgrep ────────────────────────────────────────────────────────────
 
