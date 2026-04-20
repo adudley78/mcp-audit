@@ -96,17 +96,17 @@ def calculate_score(findings: list[Finding]) -> ScanScore:
     has_credential_findings = any(f.analyzer == "credentials" for f in findings)
     if not has_credential_findings:
         bonus += 3
-        positive_signals.append("No credential exposure detected")
+        positive_signals.append("No credential exposure detected (+3 pts)")
 
     has_critical_or_high = counts[Severity.CRITICAL] > 0 or counts[Severity.HIGH] > 0
     if not has_critical_or_high:
         bonus += 5
-        positive_signals.append("No high-severity issues found")
+        positive_signals.append("No high-severity issues found (+5 pts)")
 
     has_poisoning_findings = any(f.analyzer == "poisoning" for f in findings)
     if not has_poisoning_findings:
         bonus += 2
-        positive_signals.append("No prompt injection risks detected")
+        positive_signals.append("No prompt injection risks detected (+2 pts)")
 
     bonus = min(bonus, 10)
     final_score = min(100, raw_score + bonus)
@@ -139,6 +139,7 @@ def format_grade_terminal(score: ScanScore) -> str:
         f"  MCP Config Grade:  [{style}]{score.grade}[/{style}]"
         f"  [bold]{score.numeric_score}[/bold] / 100"
     )
+    lines.append("  [dim]Base: 100[/dim]")
 
     for signal in score.positive_signals:
         lines.append(f"  [green]✓[/green] {signal}")

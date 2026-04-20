@@ -681,3 +681,107 @@ class TestUpdateRegistryURL:
             "_UPDATE_REGISTRY_URL must not use /main/ — use a version tag instead. "
             f"Current value: {_UPDATE_REGISTRY_URL}"
         )
+
+
+# ── verify — config file path support ─────────────────────────────────────────
+
+
+class TestVerifyConfigPath:
+    """verify SERVER_NAME accepts a config file path in addition to package names."""
+
+    def _minimal_registry_json(self, tmp_path: Path, name: str = "test-pkg") -> Path:
+        reg = {
+            "schema_version": "1.0",
+            "last_updated": "2026-04-20",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "name": name,
+                    "source": "npm",
+                    "repo": None,
+                    "maintainer": "community",
+                    "verified": False,
+                    "last_verified": "2026-04-20",
+                    "known_versions": [],
+                    "tags": [],
+                }
+            ],
+        }
+        p = tmp_path / "registry.json"
+        p.write_text(json.dumps(reg))
+        return p
+
+    def test_verify_accepts_config_path(self, tmp_path: Path) -> None:
+        """verify PATH produces a table output, not a 'not found' message (F12)."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            '{"mcpServers": {"my-server": {"command": "node", "args": []}}}'
+        )
+        reg_path = self._minimal_registry_json(tmp_path)
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["verify", str(config), "--registry", str(reg_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        # Must produce table output (not the package-name "not found" message)
+        assert "Verification" in result.output or "Server" in result.output
+
+    def test_verify_config_path_shows_all_servers(self, tmp_path: Path) -> None:
+        """All servers in the config appear in the verification table."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            '{"mcpServers": {"alpha": {"command": "npx", "args": []}, '
+            '"beta": {"command": "node", "args": []}}}'
+        )
+        reg_path = self._minimal_registry_json(tmp_path)
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["verify", str(config), "--registry", str(reg_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "alpha" in result.output
+        assert "beta" in result.output
+
+    def test_verify_nonexistent_config_exits_2(self, tmp_path: Path) -> None:
+        """verify /no/such/file.json must exit 2 with a clear error."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["verify", str(tmp_path / "no-such-file.json")])
+
+        assert result.exit_code == 2
+        assert "not found" in result.output.lower() or "Error" in result.output
+
+    def test_verify_package_name_still_works(self, tmp_path: Path) -> None:
+        """Package-name form (no path separator, no .json) still works."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        reg_path = self._minimal_registry_json(tmp_path, name="test-pkg")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["verify", "test-pkg", "--registry", str(reg_path)],
+        )
+
+        # test-pkg has no known_hashes → "No hashes pinned" message, exit 0
+        assert result.exit_code == 0
+        assert "test-pkg" in result.output

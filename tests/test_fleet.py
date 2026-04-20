@@ -715,3 +715,20 @@ def test_first_seen_is_earliest_timestamp(tmp_path: Path) -> None:
 
     df = report.deduplicated_findings[0]
     assert df.first_seen == datetime.fromisoformat(early)
+
+
+# ── merge gate label ───────────────────────────────────────────────────────────
+
+
+def test_merge_gate_shows_enterprise_label(tmp_path: Path) -> None:
+    """merge gate panel must show 'Enterprise' not just 'Pro' (F15)."""
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
+        result = CliRunner().invoke(app, ["merge", "--dir", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "Enterprise" in result.output, (
+        "merge gate must render Enterprise label, not Pro label"
+    )
+    assert "⚡ Pro feature required" not in result.output, (
+        "merge gate must not use the Pro-only upsell wording"
+    )

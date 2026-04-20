@@ -58,9 +58,9 @@ class TestPerfectScore:
 
     def test_all_positive_signals_present(self) -> None:
         score = calculate_score([])
-        assert "No credential exposure detected" in score.positive_signals
-        assert "No high-severity issues found" in score.positive_signals
-        assert "No prompt injection risks detected" in score.positive_signals
+        assert "No credential exposure detected (+3 pts)" in score.positive_signals
+        assert "No high-severity issues found (+5 pts)" in score.positive_signals
+        assert "No prompt injection risks detected (+2 pts)" in score.positive_signals
 
     def test_no_deductions(self) -> None:
         score = calculate_score([])
@@ -186,22 +186,24 @@ class TestPositiveSignals:
     def test_credential_findings_suppress_credential_signal(self) -> None:
         findings = _findings(Severity.LOW, 1, analyzer="credentials")
         score = calculate_score(findings)
-        assert "No credential exposure detected" not in score.positive_signals
+        assert "No credential exposure detected (+3 pts)" not in score.positive_signals
 
     def test_poisoning_findings_suppress_poisoning_signal(self) -> None:
         findings = _findings(Severity.LOW, 1, analyzer="poisoning")
         score = calculate_score(findings)
-        assert "No prompt injection risks detected" not in score.positive_signals
+        assert "No prompt injection risks detected (+2 pts)" not in (
+            score.positive_signals
+        )
 
     def test_high_finding_suppresses_no_high_severity_signal(self) -> None:
         findings = _findings(Severity.HIGH, 1)
         score = calculate_score(findings)
-        assert "No high-severity issues found" not in score.positive_signals
+        assert "No high-severity issues found (+5 pts)" not in score.positive_signals
 
     def test_critical_finding_suppresses_no_high_severity_signal(self) -> None:
         findings = _findings(Severity.CRITICAL, 1)
         score = calculate_score(findings)
-        assert "No high-severity issues found" not in score.positive_signals
+        assert "No high-severity issues found (+5 pts)" not in score.positive_signals
 
     def test_bonus_cap_limits_to_10(self) -> None:
         # All three bonuses apply: 3 + 5 + 2 = 10, which equals the cap.
@@ -247,7 +249,7 @@ class TestInfoFindings:
     def test_info_does_not_affect_no_high_severity_signal(self) -> None:
         findings = _findings(Severity.INFO, 1)
         score = calculate_score(findings)
-        assert "No high-severity issues found" in score.positive_signals
+        assert "No high-severity issues found (+5 pts)" in score.positive_signals
 
 
 class TestFormatGradeTerminal:

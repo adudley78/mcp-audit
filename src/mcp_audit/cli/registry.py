@@ -77,10 +77,38 @@ def update_registry() -> None:
 # ── verify ────────────────────────────────────────────────────────────────────
 
 
+def _arg_is_config_path(arg: str) -> bool:
+    """Return True when *arg* should be treated as a config file path.
+
+    Filesystem-path indicators (any of these → config path):
+    - The path already exists on disk.
+    - Starts with ``/`` or ``.`` (absolute or relative path prefix).
+    - Ends with ``.json``.
+    - Contains a ``\\`` (Windows path separator).
+
+    Exclusions — these are unambiguously package names, not paths:
+    - Starts with ``@`` (NPM scoped package, e.g. ``@scope/server-name``).
+    """
+    if arg.startswith("@"):
+        return False  # NPM scoped package name
+    if Path(arg).exists():
+        return True
+    return (
+        arg.startswith("/")
+        or arg.startswith(".")
+        or arg.endswith(".json")
+        or "\\" in arg
+    )
+
+
 @app.command()
 def verify(
     server_name: str | None = typer.Argument(  # noqa: B008
-        None, help="Registry package name to verify (e.g. @scope/server-name)"
+        None,
+        help=(
+            "Registry package name (e.g. @scope/server-name) "
+            "OR a config file path to verify all servers in that config."
+        ),
     ),
     all_servers: bool = typer.Option(  # noqa: B008
         False,
@@ -95,22 +123,30 @@ def verify(
 ) -> None:
     """Verify package integrity by comparing hashes against registry pins.
 
+    SERVER_NAME can be either a registry package name (e.g. ``@scope/pkg``)
+    or a path to an MCP config file.  When a config file is given every server
+    in that config is looked up against the registry; servers with pinned hashes
+    are downloaded and verified, others are shown as UNKNOWN or NOT IN REGISTRY.
+
     Downloads each package tarball, computes SHA-256, and compares against the
     pinned hash stored in the known-server registry.  Requires network access.
 
     Exit codes: 0 = all pass or unknown, 1 = hash mismatch detected, 2 = error.
     This command is free (Community tier) — verification is never paywalled.
     """
+    import contextlib  # noqa: PLC0415
+
     from mcp_audit.attestation.hasher import verify_package_hash  # noqa: PLC0415
     from mcp_audit.attestation.verifier import (
         extract_version_from_server,  # noqa: PLC0415
     )
+    from mcp_audit.discovery import DiscoveredConfig  # noqa: PLC0415
     from mcp_audit.registry.loader import KnownServerRegistry  # noqa: PLC0415
 
     if not server_name and not all_servers:
         console.print(
-            "[red]Provide a SERVER_NAME argument or use --all to verify all "
-            "configured servers.[/red]"
+            "[red]Provide a SERVER_NAME or config path, or use --all to verify "
+            "all configured servers.[/red]"
         )
         raise typer.Exit(2)  # noqa: B904
 
@@ -120,10 +156,55 @@ def verify(
         console.print(f"[red]Registry not found:[/red] {exc}")
         raise typer.Exit(2)  # noqa: B904
 
-    # ── Build the list of (package_name, version, source) to verify ───────────
-    targets: list[tuple[str, str | None]] = []  # (package_name, version_or_None)
+    # ── Determine mode ────────────────────────────────────────────────────────
+    config_mode = server_name is not None and _arg_is_config_path(server_name)
 
-    if server_name:
+    # ── Build the list of (package_name, version) to verify ───────────────────
+    targets: list[tuple[str, str | None]] = []
+
+    # Rows to show in the table for servers that don't need hash downloads.
+    # Each entry: (name, version_str, status_markup)
+    pre_rows: list[tuple[str, str, str]] = []
+
+    if config_mode:
+        # ── Config-file mode: verify every server in the specified config ──────
+        assert server_name is not None
+        config_p = Path(server_name).resolve()
+        if not config_p.exists():
+            console.print(f"[red]Error:[/red] Config file not found: {server_name}")
+            raise typer.Exit(2)  # noqa: B904
+
+        discovered = DiscoveredConfig(
+            client_name="cli-verify",
+            root_key="mcpServers",
+            path=config_p,
+        )
+        servers: list = []
+        with contextlib.suppress(ValueError):
+            servers = _cli.parse_config(discovered)
+
+        if not servers:
+            console.print(f"[yellow]No MCP servers found in {server_name}[/yellow]")
+            raise typer.Exit(0)  # noqa: B904
+
+        for srv in servers:
+            entry = reg.get(srv.name)
+            if entry is None:
+                pre_rows.append((srv.name, "—", "[yellow]~ NOT IN REGISTRY[/yellow]"))
+                continue
+            if not entry.known_hashes:
+                pre_rows.append((srv.name, "—", "[yellow]~ NO HASHES PINNED[/yellow]"))
+                continue
+            version = extract_version_from_server(srv)
+            if version and version in entry.known_hashes:
+                targets.append((entry.name, version))
+            else:
+                pre_rows.append(
+                    (srv.name, version or "?", "[yellow]~ UNKNOWN VERSION[/yellow]")
+                )
+
+    elif server_name:
+        # ── Package-name mode: verify a single named package ──────────────────
         entry = reg.get(server_name)
         if entry is None:
             console.print(
@@ -140,10 +221,9 @@ def verify(
         # Verify all pinned versions for the named package.
         for version in entry.known_hashes:
             targets.append((entry.name, version))
-    else:
-        # --all: discover configured servers, cross-reference with registry.
-        import contextlib  # noqa: PLC0415
 
+    else:
+        # ── --all mode: discover configured servers, cross-reference registry ──
         configs = _cli.discover_configs()
         all_srv: list = []
         for config in configs:
@@ -166,15 +246,24 @@ def verify(
             raise typer.Exit(0)  # noqa: B904
 
     # ── Run verifications ──────────────────────────────────────────────────────
+    title = (
+        "[bold]Config Verification[/bold]"
+        if config_mode
+        else "[bold]Package Hash Verification[/bold]"
+    )
     table = Table(
         "Server",
         "Version",
         "Expected Hash",
         "Computed Hash",
         "Status",
-        title="[bold]Package Hash Verification[/bold]",
+        title=title,
         show_lines=True,
     )
+
+    # Emit pre-built rows first (no-hash-download entries from config mode).
+    for name, ver, status in pre_rows:
+        table.add_row(name, ver, "—", "—", status)
 
     any_fail = False
 
