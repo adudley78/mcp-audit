@@ -16,7 +16,7 @@ from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
 from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.config_parser import parse_config
-from mcp_audit.discovery import discover_configs
+from mcp_audit.discovery import DiscoveredConfig, discover_configs
 from mcp_audit.models import Finding, RegistryStats, ScanResult, ServerConfig, Severity
 from mcp_audit.scoring import calculate_score
 
@@ -157,6 +157,144 @@ def get_default_analyzers() -> list[BaseAnalyzer]:
     ]
 
 
+def _run_static_pipeline(
+    result: ScanResult,
+    all_servers: list[ServerConfig],
+    configs: list[DiscoveredConfig],
+    analyzers: list[BaseAnalyzer],
+    skip_rug_pull: bool = False,
+    state_path: Path | None = None,
+    extra_rules_dirs: list[Path] | None = None,
+) -> ScanResult:
+    """Run the canonical static analysis pipeline against parsed servers.
+
+    Pipeline order (this is the single source of truth for the scanner flow —
+    both :func:`run_scan` and :func:`run_scan_async` delegate here):
+
+    1. Per-server analyzers (``analyzer.analyze(server)`` for each pair).
+    2. :meth:`~mcp_audit.analyzers.rug_pull.RugPullAnalyzer.analyze_all`
+       (skipped when ``skip_rug_pull`` is ``True``).
+    3. :meth:`~mcp_audit.analyzers.toxic_flow.ToxicFlowAnalyzer.analyze_all`,
+       with the registry extracted from the ``analyzers`` list so the
+       JSON registry is read from disk exactly once per scan.
+    4. :func:`~mcp_audit.analyzers.attack_paths.summarize_attack_paths`
+       over the toxic-flow findings produced above.
+    5. Policy-as-code rule engine (bundled community rules always;
+       ``extra_rules_dirs`` additionally when provided).
+    6. :func:`~mcp_audit.scoring.calculate_score` over the final finding list.
+    7. ``result.registry_stats`` attached from the SupplyChainAnalyzer.
+
+    The function is intentionally synchronous — ``run_scan_async`` completes
+    any live MCP server enumeration before invoking this helper, so all
+    operations here are pure, blocking computations.
+
+    Args:
+        result: Pre-populated :class:`~mcp_audit.models.ScanResult`.  May
+            already contain runtime findings added by the caller (e.g. the
+            ``--connect`` path) and/or parse errors.  Mutated in place.
+        all_servers: All static :class:`~mcp_audit.models.ServerConfig`
+            objects parsed from ``configs``.
+        configs: Discovered client configurations (used by ``derive_state_path``
+            to scope the rug-pull state file to this config set).
+        analyzers: Per-server analyzer list.  A
+            :class:`~mcp_audit.analyzers.supply_chain.SupplyChainAnalyzer` in
+            this list owns the registry that is reused by toxic-flow and
+            registry-stats extraction.
+        skip_rug_pull: Skip rug-pull analysis entirely (used by ``pin``/``diff``).
+        state_path: Override the rug-pull state file location.
+        extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+
+    Returns:
+        The same :class:`~mcp_audit.models.ScanResult` passed in, now
+        populated with findings, ``attack_path_summary``, ``score``, and
+        ``registry_stats``.
+    """
+    # ── 1. Per-server static analysis ─────────────────────────────────────────
+    for server in all_servers:
+        for analyzer in analyzers:
+            try:
+                findings = analyzer.analyze(server)
+                for finding in findings:
+                    finding.finding_path = str(server.config_path)
+                result.findings.extend(findings)
+            except Exception as e:  # noqa: BLE001
+                result.findings.append(
+                    _analyzer_crash_finding(analyzer.name, server, e)
+                )
+
+    # ── 2. Rug-pull analysis (cross-server, stateful) ─────────────────────────
+    if not skip_rug_pull:
+        # Scope the state file to the exact set of configs being scanned so
+        # that demo configs and real-machine configs never share a baseline.
+        effective_state = (
+            state_path if state_path is not None else derive_state_path(configs)
+        )
+        rug_pull = RugPullAnalyzer(state_path=effective_state)
+        try:
+            result.findings.extend(rug_pull.analyze_all(all_servers))
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"rug_pull error: {e}")
+
+    # ── 3. Toxic flow analysis (cross-server, stateless) ──────────────────────
+    # Share the SupplyChainAnalyzer's registry so capability data is read
+    # from disk exactly once per scan.
+    try:
+        result.findings.extend(
+            ToxicFlowAnalyzer(registry=_extract_registry(analyzers)).analyze_all(
+                all_servers
+            )
+        )
+    except Exception as e:  # noqa: BLE001
+        result.errors.append(f"toxic_flow error: {e}")
+
+    # ── 4. Attack path summarization ──────────────────────────────────────────
+    try:
+        toxic_findings = [f for f in result.findings if f.analyzer == "toxic_flow"]
+        result.attack_path_summary = summarize_attack_paths(all_servers, toxic_findings)
+    except Exception as e:  # noqa: BLE001
+        result.errors.append(f"attack_paths error: {e}")
+
+    # ── 5. Policy-as-code rule engine ─────────────────────────────────────────
+    try:
+        result.findings.extend(_run_rules_engine(all_servers, extra_rules_dirs))
+    except Exception as e:  # noqa: BLE001
+        result.errors.append(f"rules_engine error: {e}")
+
+    # ── 6. Scoring ────────────────────────────────────────────────────────────
+    result.score = calculate_score(result.findings)
+
+    # ── 7. Registry metadata ──────────────────────────────────────────────────
+    result.registry_stats = _extract_registry_stats(analyzers)
+
+    return result
+
+
+def _discover_and_parse(
+    extra_paths: list[Path] | None,
+    result: ScanResult,
+) -> tuple[list[DiscoveredConfig], list[ServerConfig]]:
+    """Discover client configs and parse them into static ServerConfigs.
+
+    Shared preamble for both :func:`run_scan` and :func:`run_scan_async`.
+    Populates ``result.clients_scanned``, ``result.servers_found``,
+    ``result.servers``, and appends parse errors to ``result.errors``.
+    """
+    configs = discover_configs(extra_paths=extra_paths)
+    result.clients_scanned = len({c.client_name for c in configs})
+
+    all_servers: list[ServerConfig] = []
+    for config in configs:
+        try:
+            servers = parse_config(config)
+            all_servers.extend(servers)
+        except ValueError as e:
+            result.errors.append(str(e))
+
+    result.servers_found = len(all_servers)
+    result.servers = all_servers
+    return configs, all_servers
+
+
 async def run_scan_async(
     extra_paths: list[Path] | None = None,
     analyzers: list[BaseAnalyzer] | None = None,
@@ -168,12 +306,13 @@ async def run_scan_async(
 ) -> ScanResult:
     """Async scan entrypoint with optional live server enumeration.
 
-    Performs the same static analysis as :func:`run_scan`.  When *connect* is
-    ``True``, additionally attempts to connect to each discovered server via the
-    MCP protocol, enumerate its live tool/resource/prompt definitions, and run
-    the :class:`~mcp_audit.analyzers.poisoning.PoisoningAnalyzer` against the
-    runtime data.  This surfaces poisoned tool descriptions that look clean in
-    static config files.
+    Performs the same static analysis as :func:`run_scan` by delegating to
+    :func:`_run_static_pipeline`.  When *connect* is ``True``, additionally
+    attempts to connect to each discovered server via the MCP protocol,
+    enumerate its live tool/resource/prompt definitions, and run the
+    :class:`~mcp_audit.analyzers.poisoning.PoisoningAnalyzer` against the
+    runtime data *before* the pipeline runs.  This surfaces poisoned tool
+    descriptions that look clean in static config files.
 
     Requires the ``mcp`` optional dependency when *connect* is ``True``::
 
@@ -201,37 +340,12 @@ async def run_scan_async(
         analyzers = get_default_analyzers()
 
     result = ScanResult()
+    configs, all_servers = _discover_and_parse(extra_paths, result)
 
-    # ── Discover configs ───────────────────────────────────────────────────────
-    configs = discover_configs(extra_paths=extra_paths)
-    result.clients_scanned = len({c.client_name for c in configs})
-
-    # ── Parse all configs up-front ─────────────────────────────────────────────
-    all_servers: list[ServerConfig] = []
-    for config in configs:
-        try:
-            servers = parse_config(config)
-            all_servers.extend(servers)
-        except ValueError as e:
-            result.errors.append(str(e))
-
-    result.servers_found = len(all_servers)
-    result.servers = all_servers
-
-    # ── Per-server static analysis ─────────────────────────────────────────────
-    for server in all_servers:
-        for analyzer in analyzers:
-            try:
-                findings = analyzer.analyze(server)
-                for finding in findings:
-                    finding.finding_path = str(server.config_path)
-                result.findings.extend(findings)
-            except Exception as e:  # noqa: BLE001
-                result.findings.append(
-                    _analyzer_crash_finding(analyzer.name, server, e)
-                )
-
-    # ── Live enumeration (opt-in) ──────────────────────────────────────────────
+    # ── Live enumeration (opt-in, --connect) ──────────────────────────────────
+    # Runs before the static pipeline so the returned ScanResult's findings,
+    # scoring, attack paths, and rule-engine input all include the runtime
+    # poisoning signal for connected servers.
     if connect:
         from mcp_audit.mcp_client import (  # noqa: PLC0415
             build_runtime_server_config,
@@ -262,51 +376,15 @@ async def run_scan_async(
                     _analyzer_crash_finding("poisoning (runtime)", server, e)
                 )
 
-    # ── Rug-pull analysis (cross-server, stateful) ─────────────────────────────
-    if not skip_rug_pull:
-        # Scope the state file to the exact set of configs being scanned so
-        # that demo configs and real-machine configs never share a baseline.
-        effective_state = (
-            state_path if state_path is not None else derive_state_path(configs)
-        )
-        rug_pull = RugPullAnalyzer(state_path=effective_state)
-        try:
-            result.findings.extend(rug_pull.analyze_all(all_servers))
-        except Exception as e:  # noqa: BLE001
-            result.errors.append(f"rug_pull error: {e}")
-
-    # ── Toxic flow analysis (cross-server, stateless) ──────────────────────────
-    # Share the SupplyChainAnalyzer's registry so capability data is read
-    # from disk exactly once per scan.
-    try:
-        result.findings.extend(
-            ToxicFlowAnalyzer(registry=_extract_registry(analyzers)).analyze_all(
-                all_servers
-            )
-        )
-    except Exception as e:  # noqa: BLE001
-        result.errors.append(f"toxic_flow error: {e}")
-
-    # ── Attack path summarization ──────────────────────────────────────────────
-    try:
-        toxic_findings = [f for f in result.findings if f.analyzer == "toxic_flow"]
-        result.attack_path_summary = summarize_attack_paths(all_servers, toxic_findings)
-    except Exception as e:  # noqa: BLE001
-        result.errors.append(f"attack_paths error: {e}")
-
-    # ── Policy-as-code rule engine ─────────────────────────────────────────────
-    try:
-        result.findings.extend(_run_rules_engine(all_servers, extra_rules_dirs))
-    except Exception as e:  # noqa: BLE001
-        result.errors.append(f"rules_engine error: {e}")
-
-    # ── Scoring ────────────────────────────────────────────────────────────────
-    result.score = calculate_score(result.findings)
-
-    # ── Registry metadata ──────────────────────────────────────────────────────
-    result.registry_stats = _extract_registry_stats(analyzers)
-
-    return result
+    return _run_static_pipeline(
+        result=result,
+        all_servers=all_servers,
+        configs=configs,
+        analyzers=analyzers,
+        skip_rug_pull=skip_rug_pull,
+        state_path=state_path,
+        extra_rules_dirs=extra_rules_dirs,
+    )
 
 
 def run_scan(
@@ -323,7 +401,9 @@ def run_scan(
     When *connect* is ``False`` (the default), this is a pure static analysis —
     no network calls, no subprocess spawning.  All configs are parsed first so
     that the rug-pull analyzer receives the full server list in a single
-    :meth:`analyze_all` call.
+    :meth:`analyze_all` call, then the scan delegates to
+    :func:`_run_static_pipeline` — the canonical pipeline shared with
+    :func:`run_scan_async`.
 
     When *connect* is ``True``, delegates to :func:`run_scan_async` via
     :func:`asyncio.run` to perform live MCP protocol connections.
@@ -360,76 +440,18 @@ def run_scan(
             )
         )
 
-    # ── Static-only sync path (unchanged from original) ───────────────────────
     if analyzers is None:
         analyzers = get_default_analyzers()
 
     result = ScanResult()
+    configs, all_servers = _discover_and_parse(extra_paths, result)
 
-    configs = discover_configs(extra_paths=extra_paths)
-    result.clients_scanned = len({c.client_name for c in configs})
-
-    all_servers: list[ServerConfig] = []
-    for config in configs:
-        try:
-            servers = parse_config(config)
-            all_servers.extend(servers)
-        except ValueError as e:
-            result.errors.append(str(e))
-
-    result.servers_found = len(all_servers)
-    result.servers = all_servers
-
-    for server in all_servers:
-        for analyzer in analyzers:
-            try:
-                findings = analyzer.analyze(server)
-                for finding in findings:
-                    finding.finding_path = str(server.config_path)
-                result.findings.extend(findings)
-            except Exception as e:  # noqa: BLE001
-                result.findings.append(
-                    _analyzer_crash_finding(analyzer.name, server, e)
-                )
-
-    if not skip_rug_pull:
-        effective_state = (
-            state_path if state_path is not None else derive_state_path(configs)
-        )
-        rug_pull = RugPullAnalyzer(state_path=effective_state)
-        try:
-            result.findings.extend(rug_pull.analyze_all(all_servers))
-        except Exception as e:  # noqa: BLE001
-            result.errors.append(f"rug_pull error: {e}")
-
-    # Share the SupplyChainAnalyzer's registry so capability data is read
-    # from disk exactly once per scan.
-    try:
-        result.findings.extend(
-            ToxicFlowAnalyzer(registry=_extract_registry(analyzers)).analyze_all(
-                all_servers
-            )
-        )
-    except Exception as e:  # noqa: BLE001
-        result.errors.append(f"toxic_flow error: {e}")
-
-    # ── Attack path summarization ──────────────────────────────────────────────
-    try:
-        toxic_findings = [f for f in result.findings if f.analyzer == "toxic_flow"]
-        result.attack_path_summary = summarize_attack_paths(all_servers, toxic_findings)
-    except Exception as e:  # noqa: BLE001
-        result.errors.append(f"attack_paths error: {e}")
-
-    # ── Policy-as-code rule engine ─────────────────────────────────────────────
-    try:
-        result.findings.extend(_run_rules_engine(all_servers, extra_rules_dirs))
-    except Exception as e:  # noqa: BLE001
-        result.errors.append(f"rules_engine error: {e}")
-
-    # ── Scoring ────────────────────────────────────────────────────────────────
-    result.score = calculate_score(result.findings)
-
-    # ── Registry metadata ──────────────────────────────────────────────────────
-    result.registry_stats = _extract_registry_stats(analyzers)
-
-    return result
+    return _run_static_pipeline(
+        result=result,
+        all_servers=all_servers,
+        configs=configs,
+        analyzers=analyzers,
+        skip_rug_pull=skip_rug_pull,
+        state_path=state_path,
+        extra_rules_dirs=extra_rules_dirs,
+    )

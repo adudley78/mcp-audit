@@ -24,7 +24,12 @@ from mcp_audit.models import (
     Severity,
     TransportType,
 )
-from mcp_audit.scanner import _run_rules_engine, run_scan, run_scan_async
+from mcp_audit.scanner import (
+    _run_rules_engine,
+    _run_static_pipeline,
+    run_scan,
+    run_scan_async,
+)
 
 
 def _make_server(name: str = "test-server") -> ServerConfig:
@@ -1326,3 +1331,151 @@ class TestRunRulesEngineWithExtraDir:
         # Community rules run — check no CUSTOM-EXTRA finding appears.
         custom = [f for f in findings if f.id.startswith("CUSTOM-EXTRA")]
         assert custom == []
+
+
+# ── _run_static_pipeline (canonical pipeline helper) ───────────────────────────
+
+
+class _CountingAnalyzer(BaseAnalyzer):
+    """Test analyzer that emits exactly one MEDIUM finding per server."""
+
+    @property
+    def name(self) -> str:
+        return "counting"
+
+    @property
+    def description(self) -> str:
+        return "emits one finding per server for pipeline tests"
+
+    def analyze(self, server: ServerConfig) -> list[Finding]:
+        return [
+            Finding(
+                id="COUNT-001",
+                severity=Severity.MEDIUM,
+                analyzer=self.name,
+                client=server.client,
+                server=server.name,
+                title=f"counted {server.name}",
+                description="pipeline ordering test finding",
+                evidence="n/a",
+                remediation="n/a",
+            )
+        ]
+
+
+class TestRunStaticPipeline:
+    """_run_static_pipeline is the canonical pipeline — both scan paths delegate."""
+
+    def test_static_pipeline_documents_order(self, tmp_path: Path) -> None:
+        """Pipeline runs analyzers, skips rug-pull, and populates score.
+
+        Confirms the documented pipeline order with a minimal fixture:
+        two servers × one analyzer = two COUNT-001 findings, plus a populated
+        ``score`` field proving ``calculate_score`` ran, plus an
+        ``attack_path_summary`` proving ``summarize_attack_paths`` ran.
+        Passing ``analyzers=[_CountingAnalyzer()]`` exercises the loop without
+        pulling in registry-backed analyzers.
+        """
+        server_a = _make_server("srv-a")
+        server_b = _make_server("srv-b")
+
+        result = ScanResult()
+        result.servers_found = 2
+        result.servers = [server_a, server_b]
+
+        returned = _run_static_pipeline(
+            result=result,
+            all_servers=[server_a, server_b],
+            configs=[],
+            analyzers=[_CountingAnalyzer()],
+            skip_rug_pull=True,
+            state_path=tmp_path / "state.json",
+            extra_rules_dirs=None,
+        )
+
+        assert returned is result
+        count_findings = [f for f in result.findings if f.id == "COUNT-001"]
+        assert len(count_findings) == 2
+        for f in count_findings:
+            assert f.finding_path == str(server_a.config_path)
+        assert result.score is not None
+        assert result.attack_path_summary is not None
+        # No SupplyChainAnalyzer in the list → no registry_stats to attach.
+        assert result.registry_stats is None
+
+    def test_run_scan_delegates_to_static_pipeline(self, tmp_path: Path) -> None:
+        """run_scan must pass its discovered servers/configs through the helper."""
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            '{"mcpServers": {"delegate-srv": {"command": "node", "args": ["s.js"]}}}'
+        )
+
+        sentinel = ScanResult()
+        sentinel.score = None
+
+        def _fake_pipeline(
+            *,
+            result: ScanResult,
+            all_servers: list[ServerConfig],
+            configs: list,  # noqa: ARG001
+            analyzers: list[BaseAnalyzer],
+            skip_rug_pull: bool,  # noqa: ARG001
+            state_path: Path | None,  # noqa: ARG001
+            extra_rules_dirs: list[Path] | None,  # noqa: ARG001
+        ) -> ScanResult:
+            sentinel.servers = all_servers
+            # Stash the analyzer list on the sentinel so the test can assert.
+            sentinel.errors.append(f"analyzers={len(analyzers)}")
+            sentinel.errors.append(f"servers={[s.name for s in all_servers]}")
+            return sentinel
+
+        with (
+            _patch_no_known_clients(),
+            patch("mcp_audit.scanner._run_static_pipeline", side_effect=_fake_pipeline),
+        ):
+            result = run_scan(extra_paths=[config], skip_rug_pull=True)
+
+        assert result is sentinel
+        assert any(e == "servers=['delegate-srv']" for e in sentinel.errors), (
+            f"run_scan did not delegate with parsed servers: {sentinel.errors}"
+        )
+        # Default analyzer list = 4 (poisoning, credentials, transport, supply).
+        assert any(e == "analyzers=4" for e in sentinel.errors)
+
+    async def test_run_scan_async_delegates_to_static_pipeline(
+        self, tmp_path: Path
+    ) -> None:
+        """run_scan_async must also funnel through _run_static_pipeline.
+
+        Additionally verifies that _run_static_pipeline runs *after* any live
+        enumeration (connect=False here, so the call is unconditional) and that
+        the result it returns is the same object returned by run_scan_async.
+        """
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            '{"mcpServers": {"async-srv": {"command": "node", "args": ["s.js"]}}}'
+        )
+
+        sentinel = ScanResult()
+
+        def _fake_pipeline(
+            *,
+            result: ScanResult,  # noqa: ARG001
+            all_servers: list[ServerConfig],
+            configs: list,  # noqa: ARG001
+            analyzers: list[BaseAnalyzer],  # noqa: ARG001
+            skip_rug_pull: bool,  # noqa: ARG001
+            state_path: Path | None,  # noqa: ARG001
+            extra_rules_dirs: list[Path] | None,  # noqa: ARG001
+        ) -> ScanResult:
+            sentinel.errors.append(f"servers={[s.name for s in all_servers]}")
+            return sentinel
+
+        with (
+            _patch_no_known_clients(),
+            patch("mcp_audit.scanner._run_static_pipeline", side_effect=_fake_pipeline),
+        ):
+            result = await run_scan_async(extra_paths=[config], skip_rug_pull=True)
+
+        assert result is sentinel
+        assert any(e == "servers=['async-srv']" for e in sentinel.errors)
