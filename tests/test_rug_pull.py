@@ -6,10 +6,12 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from mcp_audit.analyzers.rug_pull import (
+    _STATE_DIR,
     DEFAULT_STATE_PATH,
     RugPullAnalyzer,
     build_state_entry,
@@ -516,3 +518,35 @@ class TestDeriveStatePath:
         configs = [_discovered("/some/mcp.json")]
         result = derive_state_path(configs)
         assert result != DEFAULT_STATE_PATH
+
+
+# ── platformdirs integration ──────────────────────────────────────────────────
+
+
+class TestStateDirUsesPlatformdirs:
+    def test_state_dir_resolves_under_user_config_dir(self) -> None:
+        """_STATE_DIR must live under user_config_dir('mcp-audit'), not Path.home()."""
+        from platformdirs import user_config_dir
+
+        expected_parent = Path(user_config_dir("mcp-audit"))
+        assert expected_parent / "state" == _STATE_DIR
+        assert str(Path.home() / ".mcp-audit") not in str(_STATE_DIR)
+
+    def test_state_dir_is_child_of_user_config_dir(self) -> None:
+        """_STATE_DIR must be a child of user_config_dir('mcp-audit'), not a sibling."""
+        from platformdirs import user_config_dir
+
+        config_base = Path(user_config_dir("mcp-audit"))
+        # _STATE_DIR should be directly inside the config base, not elsewhere.
+        assert _STATE_DIR.parent == config_base
+
+    def test_migration_noop_when_legacy_dir_absent(self, tmp_path: Path) -> None:
+        """_migrate_legacy_state() must not crash when ~/.mcp-audit does not exist."""
+        import mcp_audit.analyzers.rug_pull as rp_module
+
+        absent = tmp_path / "nonexistent_legacy"
+        with (
+            patch.object(rp_module, "_LEGACY_STATE_DIR", absent),
+            patch.object(rp_module, "_migration_done", False),
+        ):
+            rp_module._migrate_legacy_state()  # must not raise

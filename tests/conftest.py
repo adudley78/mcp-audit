@@ -41,6 +41,20 @@ from unittest.mock import patch
 
 import pytest
 
+from mcp_audit._license_cache import get_cached_license
+
+
+@pytest.fixture(autouse=True)
+def _clear_license_cache() -> None:
+    """Clear the process-lifetime license cache before every test.
+
+    Prevents lru_cache state from leaking between tests when
+    ``mcp_audit.licensing.get_active_license`` is patched.
+    """
+    get_cached_license.cache_clear()
+    yield  # type: ignore[misc]
+    get_cached_license.cache_clear()
+
 
 @pytest.fixture()
 def pro_enabled() -> None:  # type: ignore[return]
@@ -59,7 +73,7 @@ def pro_enabled() -> None:  # type: ignore[return]
             return_value=True,
         ),
         patch(
-            "mcp_audit.cli.is_pro_feature_available",
+            "mcp_audit.cli.cached_is_pro_feature_available",
             return_value=True,
         ),
     ):

@@ -283,7 +283,7 @@ class TestRunSemgrep:
 
 class TestSastCLI:
     def test_sast_command_requires_pro(self, tmp_path: Path) -> None:
-        with patch("mcp_audit.cli.is_pro_feature_available", return_value=False):
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
             result = runner.invoke(app, ["sast", str(tmp_path)])
         assert result.exit_code == 2
         assert "Pro" in result.output or "pro" in result.output.lower()
@@ -292,7 +292,7 @@ class TestSastCLI:
         config = tmp_path / "config.json"
         config.write_text('{"mcpServers": {}}')
 
-        with patch("mcp_audit.cli.is_pro_feature_available", return_value=False):
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
             result = runner.invoke(
                 app,
                 ["scan", "--path", str(config), "--sast", str(tmp_path)],
@@ -301,7 +301,7 @@ class TestSastCLI:
 
     def test_sast_command_semgrep_not_installed(self, tmp_path: Path) -> None:
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch("mcp_audit.sast.runner.find_semgrep", return_value=None),
         ):
             result = runner.invoke(app, ["sast", str(tmp_path)])
@@ -327,7 +327,7 @@ class TestSastCLI:
         rules_dir.mkdir()
 
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.sast.runner.find_semgrep", return_value="/usr/bin/semgrep"
             ),
@@ -359,7 +359,7 @@ class TestSastCLI:
         mock_proc.stderr = ""
 
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.sast.runner.find_semgrep", return_value="/usr/bin/semgrep"
             ),
@@ -399,7 +399,7 @@ class TestSastCLI:
         rules_dir.mkdir()
 
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.sast.runner.find_semgrep", return_value="/usr/bin/semgrep"
             ),
@@ -435,7 +435,7 @@ class TestSastCLI:
         rules_dir.mkdir()
 
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.sast.runner.find_semgrep", return_value="/usr/bin/semgrep"
             ),
@@ -514,7 +514,7 @@ class TestSastSecurityHardening:
         config.write_text('{"mcpServers": {}}')
         missing = tmp_path / "nonexistent_src"
 
-        with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
             result = runner.invoke(
                 app,
                 ["scan", "--path", str(config), "--sast", str(missing)],

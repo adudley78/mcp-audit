@@ -195,7 +195,6 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>mcp-audit — Security Dashboard</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 [data-theme="dark"]{
   --bg-deep:#0c0c1a;--bg-panel:#13132a;--bg-card:#1a1a38;--bg-hover:#222250;
   --border:#2a2a55;--border-light:#3a3a6a;
@@ -218,7 +217,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 html,body{height:100%;overflow:hidden}
 body{
   background:var(--bg-deep);color:var(--text-primary);
-  font-family:'DM Sans',system-ui,sans-serif;font-size:13px;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;
 }
 .app{
   display:grid;
@@ -236,11 +235,11 @@ body{
 }
 .logo{display:flex;align-items:baseline;gap:6px}
 .logo-name{
-  font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;
+  font-family:"JetBrains Mono",ui-monospace,"Cascadia Code","Fira Code",monospace;font-size:15px;font-weight:600;
   color:var(--accent);letter-spacing:.3px;
 }
 .logo-ver{
-  font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:400;
+  font-family:"JetBrains Mono",ui-monospace,"Cascadia Code","Fira Code",monospace;font-size:13px;font-weight:400;
   color:var(--text-dim);
 }
 .top-right{display:flex;align-items:center;gap:14px}
@@ -248,7 +247,7 @@ body{
 .machine-bar{
   padding:3px 20px;background:var(--bg-deep);
   border-bottom:1px solid var(--border);
-  font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--text-dim);font-family:"JetBrains Mono",ui-monospace,"Cascadia Code","Fira Code",monospace;
   letter-spacing:.2px;
 }
 
@@ -318,7 +317,7 @@ body{
   line-height:1.55;box-shadow:var(--tt-shadow);
 }
 .tt-name{
-  font-family:'JetBrains Mono',monospace;font-weight:500;font-size:12px;
+  font-family:"JetBrains Mono",ui-monospace,"Cascadia Code","Fira Code",monospace;font-weight:500;font-size:12px;
   color:var(--text-primary);margin-bottom:5px;
 }
 .tt-row{color:var(--text-secondary);font-size:11px}
@@ -352,7 +351,7 @@ body{
 .sev-badge-INFO{background:rgba(107,114,128,.15);color:var(--info)}
 .pc-title{font-size:13px;font-weight:500;color:var(--text-primary);flex:1;line-height:1.35}
 .pc-chain{
-  font-family:'JetBrains Mono',monospace;font-size:11px;
+  font-family:"JetBrains Mono",ui-monospace,"Cascadia Code","Fira Code",monospace;font-size:11px;
   color:var(--text-secondary);margin-bottom:5px;
 }
 .pc-chain-arrow{color:var(--crit);margin:0 4px}
@@ -371,7 +370,7 @@ body{
 .hs-item:last-child{margin-bottom:0}
 .hs-x{color:var(--hit);font-size:13px;line-height:1.2;flex-shrink:0;margin-top:1px}
 .hs-name{
-  font-family:'JetBrains Mono',monospace;font-size:11px;
+  font-family:"JetBrains Mono",ui-monospace,"Cascadia Code","Fira Code",monospace;font-size:11px;
   color:var(--text-primary);font-weight:500;
 }
 .hs-sub{font-size:10px;color:var(--text-dim)}
@@ -390,7 +389,7 @@ body{
   font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
   padding:3px 10px;border-radius:20px;border:1px solid var(--border);
   background:transparent;color:var(--text-dim);cursor:pointer;
-  font-family:'DM Sans',system-ui,sans-serif;transition:all .12s;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;transition:all .12s;
 }
 .filter-btn:hover{border-color:var(--border-light);color:var(--text-secondary)}
 .filter-btn.active-all{background:rgba(232,232,240,.08);color:var(--text-primary);border-color:var(--border-light)}
@@ -414,7 +413,7 @@ body{
 .findings-table tr.row-hl td{background:var(--row-hl-bg)}
 .td-sev{display:flex;align-items:center;gap:6px;white-space:nowrap}
 .sev-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.td-mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary)}
+.td-mono{font-family:"JetBrains Mono",ui-monospace,"Cascadia Code","Fira Code",monospace;font-size:11px;color:var(--text-secondary)}
 
 /* ── Legend ── */
 .graph-legend{
@@ -717,7 +716,7 @@ function initGraph(){
     .attr('dy', d=>d.type==='agent'?'0.35em':(d.caps&&d.caps.length?'-0.35em':'0.35em'))
     .attr('font-size', d=>d.type==='agent'?'11px':'10px')
     .attr('font-weight', d=>d.type==='agent'?'600':'400')
-    .attr('font-family','JetBrains Mono, monospace')
+    .attr('font-family','JetBrains Mono, ui-monospace, Fira Code, monospace')
     .attr('fill', C.nodeText).attr('pointer-events','none')
     .text(d=>trunc(d.label,12));
 
@@ -754,14 +753,14 @@ function initGraph(){
       .attr('x', W/2).attr('y', H/2 + 52)
       .attr('text-anchor','middle').attr('font-size','13px')
       .attr('fill','var(--text-dim)')
-      .attr('font-family','DM Sans, system-ui, sans-serif')
+      .attr('font-family','system-ui, -apple-system, Segoe UI, sans-serif')
       .text('No MCP servers detected.');
     svgSel.append('text')
       .attr('class','graph-empty-text')
       .attr('x', W/2).attr('y', H/2 + 72)
       .attr('text-anchor','middle').attr('font-size','11px')
       .attr('fill','var(--text-dim)')
-      .attr('font-family','JetBrains Mono, monospace')
+      .attr('font-family','JetBrains Mono, ui-monospace, Fira Code, monospace')
       .text('Run mcp-audit discover to check supported clients.');
   }
 }

@@ -363,14 +363,12 @@ class TestGenerateHtml:
         assert "#ff8c2e" in html  # HIGH
         assert "#ffcc30" in html  # MEDIUM
 
-    def test_font_import_present(self, html: str) -> None:
-        # Google Fonts import should be embedded as @import inside <style>.
-        assert "DM Sans" in html
+    def test_font_stack_uses_system_fonts(self, html: str) -> None:
+        # Dashboard uses system-font stacks — no Google Fonts CDN dependency.
+        assert "system-ui" in html
         assert "JetBrains Mono" in html
-        assert "fonts.googleapis.com" in html
-        # Must NOT be a <link> tag
-        link_tags = re.findall(r"<link[^>]+fonts\.googleapis\.com", html, re.IGNORECASE)
-        assert link_tags == [], "Font should use @import, not <link>"
+        assert "ui-monospace" in html
+        assert "fonts.googleapis.com" not in html
 
     def test_new_css_classes_present(self, html: str) -> None:
         for cls in (
@@ -624,7 +622,7 @@ class TestDashboardCommand:
     def test_dashboard_exits_early_without_license(self) -> None:
         """Dashboard must exit before run_scan when the Pro license is absent."""
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=False),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False),
             patch("mcp_audit.cli.run_scan") as mock_scan,
         ):
             r = CliRunner().invoke(app, ["dashboard", "--no-open"])
@@ -632,3 +630,136 @@ class TestDashboardCommand:
         mock_scan.assert_not_called()
         assert r.exit_code == 0
         assert "Pro" in r.output or "pro" in r.output.lower()
+
+
+# ── CDN independence ──────────────────────────────────────────────────────────
+
+
+class TestDashboardNoCdnImports:
+    """The generated HTML must be fully self-contained — no CDN requests."""
+
+    CDN_DOMAINS = [
+        "fonts.googleapis.com",
+        "cdnjs.cloudflare.com",
+        "jsdelivr.net",
+        "unpkg.com",
+        "cdn.jsdelivr.net",
+    ]
+
+    def test_generated_html_has_no_cdn_imports(self, pro_enabled: None) -> None:
+        with patch("mcp_audit.output.dashboard._load_d3", return_value="/* d3 */"):
+            html = generate_html(_rich_result(), console=None)
+
+        assert html is not None
+        for domain in self.CDN_DOMAINS:
+            assert domain not in html, (
+                f"Dashboard HTML contains a CDN reference to {domain!r} — "
+                "remove it to keep the dashboard self-contained."
+            )
+
+
+# ── rules_dir forwarding ──────────────────────────────────────────────────────
+
+
+class TestDashboardPassesRulesDir:
+    """dashboard must forward --rules-dir to run_scan when Pro-licensed."""
+
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        pass
+
+    def test_dashboard_passes_rules_dir_to_run_scan(self, tmp_path: Path) -> None:
+        rules_dir = tmp_path / "rules"
+        rules_dir.mkdir()
+
+        with (
+            patch("mcp_audit.cli.run_scan", return_value=_rich_result()) as mock_scan,
+            patch("mcp_audit.output.dashboard._load_d3", return_value="/* d3 */"),
+            patch("http.server.HTTPServer") as mock_srv_cls,
+            patch("threading.Timer"),
+        ):
+            srv = MagicMock()
+            srv.serve_forever.side_effect = KeyboardInterrupt
+            mock_srv_cls.return_value = srv
+
+            runner = CliRunner()
+            runner.invoke(
+                app,
+                ["dashboard", "--no-open", "--rules-dir", str(rules_dir)],
+            )
+
+        mock_scan.assert_called_once()
+        call_kwargs = mock_scan.call_args[1]
+        extra = call_kwargs.get("extra_rules_dirs") or []
+        assert rules_dir in extra, (
+            f"Expected {rules_dir!r} in extra_rules_dirs, got {extra!r}"
+        )
+
+    def test_dashboard_ignores_rules_dir_without_pro_license(
+        self, tmp_path: Path
+    ) -> None:
+        rules_dir = tmp_path / "rules"
+        rules_dir.mkdir()
+
+        with (
+            patch(
+                "mcp_audit.cli.cached_is_pro_feature_available",
+                side_effect=lambda f: f == "dashboard",
+            ),
+            patch("mcp_audit.cli.run_scan", return_value=_rich_result()) as mock_scan,
+            patch("mcp_audit.output.dashboard._load_d3", return_value="/* d3 */"),
+            patch("http.server.HTTPServer") as mock_srv_cls,
+            patch("threading.Timer"),
+        ):
+            srv = MagicMock()
+            srv.serve_forever.side_effect = KeyboardInterrupt
+            mock_srv_cls.return_value = srv
+
+            runner = CliRunner()
+            runner.invoke(
+                app,
+                ["dashboard", "--no-open", "--rules-dir", str(rules_dir)],
+            )
+
+        mock_scan.assert_called_once()
+        call_kwargs = mock_scan.call_args[1]
+        extra = call_kwargs.get("extra_rules_dirs")
+        assert extra is None or rules_dir not in extra
+
+
+class TestWatchPassesRulesDir:
+    """watch must forward --rules-dir to run_scan when Pro-licensed."""
+
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        pass
+
+    def test_watch_passes_rules_dir_to_run_scan(self, tmp_path: Path) -> None:
+        rules_dir = tmp_path / "rules"
+        rules_dir.mkdir()
+
+        captured_kwargs: list[dict] = []
+
+        def _fake_scan(**kwargs: object) -> object:
+            captured_kwargs.append(dict(kwargs))
+            raise KeyboardInterrupt
+
+        mock_watcher = MagicMock()
+        mock_watcher.watchable_dirs = []
+        mock_watcher.skipped_dirs = []
+
+        with (
+            patch("mcp_audit.cli.run_scan", side_effect=_fake_scan),
+            patch("mcp_audit.watcher.ConfigWatcher", return_value=mock_watcher),
+        ):
+            runner = CliRunner()
+            runner.invoke(
+                app,
+                ["watch", "--rules-dir", str(rules_dir)],
+            )
+
+        assert captured_kwargs, "run_scan was never called by watch"
+        extra = captured_kwargs[0].get("extra_rules_dirs") or []
+        assert rules_dir in extra, (
+            f"Expected {rules_dir!r} in extra_rules_dirs, got {extra!r}"
+        )

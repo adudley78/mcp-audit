@@ -134,17 +134,23 @@ Detects rug-pull risk: servers that have changed since the last `pin`.
 
 ```bash
 mcp-audit dashboard
+# With custom rules (Pro/Enterprise):
+mcp-audit dashboard --rules-dir /path/to/rules
 ```
 
 Opens an interactive D3.js visualization of cross-server attack paths in your browser. **Pro feature.**
+Pass `--rules-dir` to apply additional YAML detection rules on the dashboard scan (Pro/Enterprise required; community rules always run).
 
 ### Watch for config changes in real time
 
 ```bash
 mcp-audit watch
+# With custom rules (Pro/Enterprise):
+mcp-audit watch --rules-dir /path/to/rules
 ```
 
 Monitors MCP config files for changes and re-runs the scan automatically when a config is modified.
+Pass `--rules-dir` to apply additional YAML detection rules on every re-scan (Pro/Enterprise required; community rules always run).
 
 ---
 

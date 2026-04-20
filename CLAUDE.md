@@ -137,7 +137,7 @@ Build and distribution scripts at project root:
 - MCP protocol communication is async — use asyncio and pytest-asyncio
 - Core scanning MUST work fully offline — no network calls by default
 - OSV.dev lookups are planned but **not yet implemented** — the `--offline` flag is accepted but currently has no network calls to suppress
-- Rug-pull state is stored in ~/.mcp-audit/state.json
+- Rug-pull state is stored in `<user-config-dir>/mcp-audit/state/state.json` (resolved via `platformdirs`; macOS: `~/Library/Application Support/mcp-audit/state/`); a one-time migration copies state files from the legacy `~/.mcp-audit/` location on first access
 - License key stored at `~/.config/mcp-audit/license.key` (permissions 0o600); activate with `mcp-audit activate <key>`
 - **Pro feature gating happens at the output/rendering layer only.** Analyzers and scan logic never check license state. Scans always run fully — gating only restricts which output formats are rendered.
 - License verification is fully offline (Ed25519 public key hardcoded in `licensing.py`); the private key never ships with the package

@@ -497,7 +497,7 @@ def test_terminal_output_renders_without_error(tmp_path: Path) -> None:
         _scan_json(hostname="m2", findings=[finding], score=_score_dict(60)),
     )
 
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
         result = runner.invoke(
             app,
             ["merge", str(f1), str(f2)],
@@ -516,7 +516,7 @@ def test_terminal_output_shows_version_mismatch_warning(tmp_path: Path) -> None:
     f2 = _write_json(tmp_path / "m2.json", data2)
 
     with (
-        patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+        patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
         warnings.catch_warnings(),
     ):
         warnings.simplefilter("ignore")
@@ -538,7 +538,7 @@ def test_json_output_valid_and_matches_schema(tmp_path: Path) -> None:
         tmp_path / "m2.json", _scan_json(hostname="m2", findings=[finding])
     )
 
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
         result = runner.invoke(app, ["merge", str(f1), str(f2), "--format", "json"])
 
     assert result.exit_code in (0, 1)
@@ -560,7 +560,7 @@ def test_html_output_contains_fleet_summary(tmp_path: Path) -> None:
         tmp_path / "m1.json", _scan_json(hostname="m1", score=_score_dict(85))
     )
 
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
         result = runner.invoke(app, ["merge", str(f1), "--format", "html"])
 
     assert result.exit_code in (0, 1)
@@ -593,7 +593,7 @@ def test_cli_merge_dir_loads_all_json_files(tmp_path: Path) -> None:
     _write_json(tmp_path / "m1.json", _scan_json(hostname="m1"))
     _write_json(tmp_path / "m2.json", _scan_json(hostname="m2"))
 
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
         result = runner.invoke(
             app, ["merge", "--dir", str(tmp_path), "--format", "json"]
         )
@@ -609,7 +609,7 @@ def test_cli_merge_dir_skips_non_json_files(tmp_path: Path) -> None:
     (tmp_path / "notes.txt").write_text("not a scan", encoding="utf-8")
     (tmp_path / "invalid.json").write_text('{"foo": "bar"}', encoding="utf-8")
 
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
         result = runner.invoke(
             app, ["merge", "--dir", str(tmp_path), "--format", "json"]
         )
@@ -630,7 +630,7 @@ def test_cli_merge_dir_warns_on_invalid_json_file(tmp_path: Path) -> None:
     _write_json(tmp_path / "valid.json", _scan_json(hostname="ok"))
     (tmp_path / "corrupt.json").write_text("{not valid json", encoding="utf-8")
 
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
         result = runner.invoke(app, ["merge", "--dir", str(tmp_path)])
 
     assert "Warning" in result.output or result.exit_code != 2
@@ -640,13 +640,13 @@ def test_cli_merge_dir_warns_on_invalid_json_file(tmp_path: Path) -> None:
 
 def test_cli_merge_files_and_dir_cannot_be_combined(tmp_path: Path) -> None:
     f = _write_json(tmp_path / "m1.json", _scan_json())
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
         result = runner.invoke(app, ["merge", str(f), "--dir", str(tmp_path)])
     assert result.exit_code == 2
 
 
 def test_cli_merge_no_args_shows_error(tmp_path: Path) -> None:
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
         result = runner.invoke(app, ["merge"])
     assert result.exit_code == 2
 
@@ -658,7 +658,7 @@ def test_cli_merge_output_file_writes_json(tmp_path: Path) -> None:
     f1 = _write_json(tmp_path / "m1.json", _scan_json(hostname="m1"))
     out = tmp_path / "fleet.json"
 
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
         result = runner.invoke(
             app, ["merge", str(f1), "--format", "json", "--output-file", str(out)]
         )
@@ -675,7 +675,7 @@ def test_cli_merge_output_file_writes_json(tmp_path: Path) -> None:
 def test_enterprise_gate_community_user_sees_upgrade_message(tmp_path: Path) -> None:
     f1 = _write_json(tmp_path / "m1.json", _scan_json())
 
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=False):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
         result = runner.invoke(app, ["merge", str(f1)])
 
     assert result.exit_code == 0  # graceful exit, not an error
@@ -686,7 +686,7 @@ def test_enterprise_gate_community_user_sees_upgrade_message(tmp_path: Path) -> 
 def test_enterprise_gate_does_not_produce_output_for_community(tmp_path: Path) -> None:
     f1 = _write_json(tmp_path / "m1.json", _scan_json(findings=[_finding()]))
 
-    with patch("mcp_audit.cli.is_pro_feature_available", return_value=False):
+    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
         result = runner.invoke(app, ["merge", str(f1), "--format", "json"])
 
     # Should NOT have emitted any scan JSON

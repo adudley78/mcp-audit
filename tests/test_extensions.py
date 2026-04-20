@@ -496,7 +496,7 @@ class TestExtensionsCLI:
         assert "0" in result.output
 
     def test_extensions_scan_requires_pro(self) -> None:
-        with patch("mcp_audit.cli.is_pro_feature_available", return_value=False):
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
             result = runner.invoke(app, ["extensions", "scan"])
         assert result.exit_code == 0
         assert "Pro feature" in result.output
@@ -513,7 +513,7 @@ class TestExtensionsCLI:
         )
 
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch.dict(
                 "mcp_audit.extensions.discovery.EXTENSION_PATHS",
                 {"vscode": [str(tmp_path / "extensions")]},
@@ -530,7 +530,7 @@ class TestExtensionsCLI:
 
     def test_extensions_scan_no_findings(self, tmp_path: Path) -> None:
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.extensions.discovery.discover_extensions",
                 return_value=[],
@@ -552,7 +552,7 @@ class TestExtensionsCLI:
         fake_finding = _make_manifest(keywords=["ai"], activation_events=["*"])
 
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.extensions.discovery.discover_extensions",
                 return_value=[fake_finding],
@@ -573,7 +573,7 @@ class TestExtensionsCLI:
         from mcp_audit.models import ScanResult  # noqa: PLC0415
 
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=False),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False),
             patch("mcp_audit.cli.run_scan", return_value=ScanResult()),
         ):
             result = runner.invoke(app, ["scan", "--include-extensions"])

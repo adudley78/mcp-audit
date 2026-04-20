@@ -21,16 +21,63 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
+
+from platformdirs import user_config_dir
+from rich.console import Console
 
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.discovery import DiscoveredConfig
 from mcp_audit.models import Finding, ServerConfig, Severity
 
-_STATE_DIR: Path = Path.home() / ".mcp-audit"
+_STATE_DIR: Path = Path(user_config_dir("mcp-audit")) / "state"
 DEFAULT_STATE_PATH: Path = _STATE_DIR / "state.json"
 _STATE_VERSION = 1
+_LEGACY_STATE_DIR: Path = Path.home() / ".mcp-audit"
+
+_console = Console()
+
+
+# ── One-time migration from legacy ~/.mcp-audit location ──────────────────────
+
+_migration_done: bool = False
+
+
+def _migrate_legacy_state() -> None:
+    """Copy state_*.json files from the old ~/.mcp-audit path to the new location.
+
+    Runs at most once per process.  Safe to call on fresh installs (no-op when
+    the legacy directory does not exist).
+    """
+    global _migration_done  # noqa: PLW0603
+    if _migration_done:
+        return
+    _migration_done = True
+
+    if not _LEGACY_STATE_DIR.exists():
+        return
+
+    legacy_files = list(_LEGACY_STATE_DIR.glob("state*.json"))
+    if not legacy_files:
+        return
+
+    _STATE_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+    migrated: list[str] = []
+    for src in legacy_files:
+        dst = _STATE_DIR / src.name
+        if not dst.exists():
+            shutil.copy2(src, dst)
+            os.chmod(dst, 0o600)
+            migrated.append(src.name)
+
+    if migrated:
+        _console.print(
+            f"[dim]mcp-audit: migrated {len(migrated)} state file(s) from "
+            f"{_LEGACY_STATE_DIR} → {_STATE_DIR}[/dim]"
+        )
 
 
 # ── Public helpers (used by cli.py pin/diff commands) ─────────────────────────
@@ -54,6 +101,7 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
         :data:`DEFAULT_STATE_PATH` when *configs* is empty so that there is
         always a valid path to write to.
     """
+    _migrate_legacy_state()
     if not configs:
         return DEFAULT_STATE_PATH
     paths_str = "\n".join(sorted(str(c.path) for c in configs))

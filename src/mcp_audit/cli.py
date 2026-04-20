@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.table import Table
 
 from mcp_audit import __version__
+from mcp_audit._license_cache import cached_is_pro_feature_available
 from mcp_audit.analyzers.rug_pull import (
     build_state_entry,
     compute_hashes,
@@ -27,7 +28,6 @@ from mcp_audit.discovery import discover_configs
 from mcp_audit.licensing import (
     LicenseInfo,
     get_active_license,
-    is_pro_feature_available,
     save_license,
 )
 from mcp_audit.models import Severity
@@ -284,7 +284,7 @@ def scan(
     from mcp_audit.scanner import _USER_RULES_DIR  # noqa: PLC0415
 
     if rules_dir is not None:
-        if not is_pro_feature_available("custom_rules"):
+        if not cached_is_pro_feature_available("custom_rules"):
             console.print(
                 "[yellow]--rules-dir requires a Pro or Enterprise license.[/yellow]\n"
                 "  Bundled community rules still apply.\n"
@@ -299,7 +299,7 @@ def scan(
                 raise typer.Exit(2)  # noqa: B904
             extra_rules_dirs.append(rules_dir)
 
-    if _USER_RULES_DIR.is_dir() and is_pro_feature_available("custom_rules"):
+    if _USER_RULES_DIR.is_dir() and cached_is_pro_feature_available("custom_rules"):
         extra_rules_dirs.append(_USER_RULES_DIR)
 
     result = run_scan(
@@ -400,7 +400,7 @@ def scan(
 
     # ── SAST scan (Pro-gated, requires semgrep) ────────────────────────────────
     if sast is not None:
-        if not is_pro_feature_available("sast"):
+        if not cached_is_pro_feature_available("sast"):
             console.print(
                 "[yellow]⚡ Pro feature:[/yellow] SAST scanning requires "
                 "a Pro or Enterprise license.\n"
@@ -425,7 +425,7 @@ def scan(
 
     # ── Extension scan (Pro-gated, --include-extensions) ─────────────────────
     if include_extensions:
-        if not is_pro_feature_available("extensions"):
+        if not cached_is_pro_feature_available("extensions"):
             console.print(
                 "[yellow]⚡ Pro feature:[/yellow] --include-extensions requires "
                 "a Pro or Enterprise license.\n"
@@ -703,6 +703,11 @@ def dashboard(
     no_open: bool = typer.Option(  # noqa: B008
         False, "--no-open", help="Don't auto-open browser"
     ),
+    rules_dir: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--rules-dir",
+        help="Additional directory of YAML rules to apply (Pro/Enterprise)",
+    ),
 ) -> None:
     """Run a full scan and open an interactive attack-graph dashboard."""
     import http.server  # noqa: PLC0415
@@ -711,7 +716,7 @@ def dashboard(
 
     from rich.panel import Panel  # noqa: PLC0415
 
-    if not is_pro_feature_available("dashboard"):
+    if not cached_is_pro_feature_available("dashboard"):
         console.print(
             Panel(
                 "mcp-audit dashboard requires a Pro license. Visit https://mcp-audit.dev/pro",
@@ -721,9 +726,36 @@ def dashboard(
         raise typer.Exit(code=0)
 
     extra_paths = [path] if path else None
+    from mcp_audit.scanner import (
+        _USER_RULES_DIR as _DASH_USER_RULES_DIR,  # noqa: PLC0415
+    )
+
+    extra_rules_dirs: list[Path] = []
+    if rules_dir is not None:
+        if not cached_is_pro_feature_available("custom_rules"):
+            console.print(
+                "[yellow]--rules-dir requires a Pro or Enterprise license.[/yellow]\n"
+                "  Bundled community rules still apply."
+            )
+        else:
+            if not rules_dir.is_dir():
+                console.print(
+                    f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
+                )
+                raise typer.Exit(2)  # noqa: B904
+            extra_rules_dirs.append(rules_dir)
+
+    if _DASH_USER_RULES_DIR.is_dir() and cached_is_pro_feature_available(
+        "custom_rules"
+    ):
+        extra_rules_dirs.append(_DASH_USER_RULES_DIR)
 
     console.print("\n[cyan]Running scan…[/cyan]")
-    result = run_scan(extra_paths=extra_paths, connect=connect)
+    result = run_scan(
+        extra_paths=extra_paths,
+        connect=connect,
+        extra_rules_dirs=extra_rules_dirs if extra_rules_dirs else None,
+    )
 
     console.print("[cyan]Generating dashboard…[/cyan]")
     html = generate_html(result, console=console)
@@ -794,6 +826,11 @@ def watch(
         "--connect",
         help="Connect to live MCP servers during each re-scan",
     ),
+    rules_dir: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--rules-dir",
+        help="Additional YAML rules directory per re-scan (Pro/Enterprise)",
+    ),
 ) -> None:
     """Continuously monitor MCP configs and scan on changes."""
     import threading  # noqa: PLC0415
@@ -803,9 +840,34 @@ def watch(
 
     from mcp_audit.output.nucleus import format_nucleus  # noqa: PLC0415
     from mcp_audit.output.sarif import format_sarif  # noqa: PLC0415
+    from mcp_audit.scanner import (
+        _USER_RULES_DIR as _WATCH_USER_RULES_DIR,  # noqa: PLC0415
+    )
     from mcp_audit.watcher import ConfigWatcher  # noqa: PLC0415
 
     extra_paths = [path] if path else None
+
+    extra_rules_dirs: list[Path] = []
+    if rules_dir is not None:
+        if not cached_is_pro_feature_available("custom_rules"):
+            console.print(
+                "[yellow]--rules-dir requires a Pro or Enterprise license.[/yellow]\n"
+                "  Bundled community rules still apply."
+            )
+        else:
+            if not rules_dir.is_dir():
+                console.print(
+                    f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
+                )
+                raise typer.Exit(2)  # noqa: B904
+            extra_rules_dirs.append(rules_dir)
+
+    if _WATCH_USER_RULES_DIR.is_dir() and cached_is_pro_feature_available(
+        "custom_rules"
+    ):
+        extra_rules_dirs.append(_WATCH_USER_RULES_DIR)
+
+    watch_extra_rules = extra_rules_dirs if extra_rules_dirs else None
 
     try:
         threshold = Severity(severity_threshold.upper())
@@ -824,7 +886,11 @@ def watch(
 
     def _run_and_print(label: str) -> None:
         """Execute a full scan and emit results with the configured formatter."""
-        result = run_scan(extra_paths=extra_paths, connect=connect)
+        result = run_scan(
+            extra_paths=extra_paths,
+            connect=connect,
+            extra_rules_dirs=watch_extra_rules,
+        )
         result.findings = [
             f
             for f in result.findings
@@ -904,7 +970,7 @@ def update_registry() -> None:
 
     Requires a Pro or Enterprise license.
     """
-    if not is_pro_feature_available("update_registry"):
+    if not cached_is_pro_feature_available("update_registry"):
         console.print(
             "[yellow]update-registry is a Pro feature.[/yellow]\n"
             "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"
@@ -1008,7 +1074,7 @@ def merge(
     """
     from mcp_audit.fleet.merger import FleetMerger, generate_fleet_html  # noqa: PLC0415
 
-    if not is_pro_feature_available("fleet_merge"):
+    if not cached_is_pro_feature_available("fleet_merge"):
         console.print(
             "[yellow]mcp-audit merge requires an Enterprise license.[/yellow]\n"
             "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"
@@ -1307,7 +1373,7 @@ def rule_validate(
 
     Requires a Pro or Enterprise license.
     """
-    if not is_pro_feature_available("custom_rules"):
+    if not cached_is_pro_feature_available("custom_rules"):
         console.print(
             "[yellow]rule validate is a Pro feature.[/yellow]\n"
             "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"
@@ -1367,7 +1433,7 @@ def rule_test(
 
     Requires a Pro or Enterprise license.
     """
-    if not is_pro_feature_available("custom_rules"):
+    if not cached_is_pro_feature_available("custom_rules"):
         console.print(
             "[yellow]rule test is a Pro feature.[/yellow]\n"
             "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"
@@ -1488,7 +1554,7 @@ def rule_list(
         )
 
     # User-local rules (shown for Pro users only)
-    if _USER_RULES_DIR.is_dir() and is_pro_feature_available("custom_rules"):
+    if _USER_RULES_DIR.is_dir() and cached_is_pro_feature_available("custom_rules"):
         user_rules = load_rules_from_dir(_USER_RULES_DIR)
         for rule in user_rules:
             sev_display = _SEV_STYLE.get(rule.severity.value, rule.severity.value)
@@ -1502,7 +1568,7 @@ def rule_list(
 
     # Extra --rules-dir (shown for Pro users only)
     if rules_dir is not None:
-        if not is_pro_feature_available("custom_rules"):
+        if not cached_is_pro_feature_available("custom_rules"):
             console.print(
                 "[yellow]--rules-dir listing requires a Pro or Enterprise "
                 "license.[/yellow]"
@@ -1867,7 +1933,7 @@ def policy_init(
     Aborts if the destination file already exists.
     Requires a Pro or Enterprise license.
     """
-    if not is_pro_feature_available("governance"):
+    if not cached_is_pro_feature_available("governance"):
         console.print(
             "[yellow]policy init requires a Pro or Enterprise license.[/yellow]\n"
             "  Upgrade at [link=https://mcp-audit.dev/pro]"
@@ -1912,7 +1978,7 @@ def policy_check(
     Fast: skips all security analyzers, hashing, and network calls.
     Requires a Pro or Enterprise license.
     """
-    if not is_pro_feature_available("governance"):
+    if not cached_is_pro_feature_available("governance"):
         console.print(
             "[yellow]policy check requires a Pro or Enterprise license.[/yellow]\n"
             "  Upgrade at [link=https://mcp-audit.dev/pro]"
@@ -2163,7 +2229,7 @@ def sast(
 
     Exit codes: 0 = no findings, 1 = findings found, 2 = error.
     """
-    if not is_pro_feature_available("sast"):
+    if not cached_is_pro_feature_available("sast"):
         console.print(
             "[yellow]⚡ Pro feature:[/yellow] SAST scanning requires "
             "a Pro or Enterprise license.\n"
@@ -2336,7 +2402,7 @@ def extensions_scan(
     """
     import json as _json  # noqa: PLC0415
 
-    if not is_pro_feature_available("extensions"):
+    if not cached_is_pro_feature_available("extensions"):
         console.print(
             "[yellow]⚡ Pro feature:[/yellow] [bold]extensions scan[/bold] requires "
             "a Pro or Enterprise license.\n"

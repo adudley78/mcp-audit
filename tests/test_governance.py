@@ -577,7 +577,7 @@ class TestGovernanceCLI:
 
     def test_policy_init_creates_file(self, tmp_path: Path) -> None:
         output_file = tmp_path / "new-policy.yml"
-        with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
             result = runner.invoke(
                 app, ["policy", "init", "--output", str(output_file)]
             )
@@ -588,14 +588,14 @@ class TestGovernanceCLI:
     def test_policy_init_refuses_to_overwrite(self, tmp_path: Path) -> None:
         existing = tmp_path / "existing.yml"
         existing.write_text("name: existing", encoding="utf-8")
-        with patch("mcp_audit.cli.is_pro_feature_available", return_value=True):
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
             result = runner.invoke(app, ["policy", "init", "--output", str(existing)])
         assert result.exit_code == 2
         assert "already exists" in result.output.lower()
 
     def test_policy_init_requires_pro(self, tmp_path: Path) -> None:
         output_file = tmp_path / "policy.yml"
-        with patch("mcp_audit.cli.is_pro_feature_available", return_value=False):
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
             result = runner.invoke(
                 app, ["policy", "init", "--output", str(output_file)]
             )
@@ -605,7 +605,7 @@ class TestGovernanceCLI:
     def test_policy_check_requires_pro(self, tmp_path: Path) -> None:
         policy_file = tmp_path / "policy.yml"
         _write_policy(policy_file, {"version": 1})
-        with patch("mcp_audit.cli.is_pro_feature_available", return_value=False):
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
             result = runner.invoke(
                 app, ["policy", "check", "--policy", str(policy_file)]
             )

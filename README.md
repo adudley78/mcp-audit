@@ -172,7 +172,7 @@ mcp-audit dashboard --port 9090          # Custom port
 mcp-audit dashboard --connect            # Include live-connection findings
 ```
 
-One command runs a full scan, generates a self-contained HTML report, and opens it in your browser. No external dependencies — D3 v7 and all scan data are embedded inline.
+One command runs a full scan, generates a self-contained HTML report, and opens it in your browser. No external dependencies — D3 v7, all scan data, and fonts are embedded inline. No CDN requests are made.
 
 The dashboard shows:
 

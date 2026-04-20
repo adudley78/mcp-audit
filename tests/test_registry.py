@@ -365,7 +365,7 @@ class TestUpdateRegistryProGate:
         from mcp_audit.cli import app  # noqa: PLC0415
 
         runner = CliRunner()
-        with patch("mcp_audit.cli.is_pro_feature_available", return_value=False):
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
             result = runner.invoke(app, ["update-registry"])
 
         assert result.exit_code == 0
@@ -401,7 +401,7 @@ class TestUpdateRegistryProGate:
 
         runner = CliRunner()
         with (
-            patch("mcp_audit.cli.is_pro_feature_available", return_value=True),
+            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch("mcp_audit.cli._REGISTRY_CACHE_PATH", cache_path),
             patch("urllib.request.urlopen") as mock_urlopen,
         ):
@@ -464,8 +464,8 @@ class TestUpdateRegistryProGate:
         func_start = source.find("def update_registry(")
         assert func_start != -1, "update_registry function not found in cli.py"
         func_source = source[func_start : func_start + 500]
-        assert 'is_pro_feature_available("update_registry")' in func_source
-        assert 'is_pro_feature_available("html_report")' not in func_source
+        assert 'cached_is_pro_feature_available("update_registry")' in func_source
+        assert 'cached_is_pro_feature_available("html_report")' not in func_source
 
 
 # ── levenshtein (registry module) ─────────────────────────────────────────────
