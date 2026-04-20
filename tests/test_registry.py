@@ -456,11 +456,13 @@ class TestUpdateRegistryProGate:
         feature key, not 'html_report'."""
         import inspect  # noqa: PLC0415
 
-        import mcp_audit.cli as cli_module  # noqa: PLC0415
+        from mcp_audit.cli import registry as cli_registry  # noqa: PLC0415
 
-        source = inspect.getsource(cli_module)
+        source = inspect.getsource(cli_registry)
         func_start = source.find("def update_registry(")
-        assert func_start != -1, "update_registry function not found in cli.py"
+        assert func_start != -1, (
+            "update_registry function not found in mcp_audit.cli.registry"
+        )
         func_source = source[func_start : func_start + 500]
         # Accept either the direct helper call or the new gate() indirection,
         # as long as the correct feature key is referenced.

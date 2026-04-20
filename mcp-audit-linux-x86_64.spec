@@ -5,7 +5,7 @@ import os
 root = os.path.dirname(os.path.abspath(SPECPATH))
 
 a = Analysis(
-    [os.path.join(root, 'src/mcp_audit/cli.py')],
+    [os.path.join(root, 'src/mcp_audit/cli/__main__.py')],
     pathex=[os.path.join(root, 'src')],
     binaries=[],
     datas=[
@@ -42,6 +42,16 @@ a = Analysis(
         'mcp_audit.extensions.discovery',
         'mcp_audit.sast.runner',
         'mcp_audit.sast.bundler',
+        'mcp_audit.cli.baseline',
+        'mcp_audit.cli.dashboard',
+        'mcp_audit.cli.extensions',
+        'mcp_audit.cli.fleet',
+        'mcp_audit.cli.license',
+        'mcp_audit.cli.policy',
+        'mcp_audit.cli.registry',
+        'mcp_audit.cli.rules',
+        'mcp_audit.cli.sast',
+        'mcp_audit.cli.scan',
         'cryptography.hazmat.primitives.asymmetric.ed25519',
         'cryptography.hazmat.primitives.serialization',
         'cryptography.exceptions',

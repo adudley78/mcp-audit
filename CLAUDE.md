@@ -24,7 +24,28 @@ and flags security issues.
 
 ```
 src/mcp_audit/
-├── cli.py             # Typer app — all CLI commands live here
+├── cli/               # Typer app package — one submodule per command group
+│ ├── __init__.py      # Defines `app` + sub-apps (baseline/rule/policy/extensions);
+│ │                    #   re-exports `run_scan`, `cached_is_pro_feature_available`,
+│ │                    #   `discover_configs`, `parse_config`, and
+│ │                    #   `_REGISTRY_CACHE_PATH` so existing test patches at
+│ │                    #   `mcp_audit.cli.*` continue to intercept.  Imports
+│ │                    #   the command submodules at the bottom so their
+│ │                    #   `@app.command()` decorators register.
+│ ├── __main__.py      # `python -m mcp_audit.cli` entry (plus PyInstaller target)
+│ ├── _helpers.py      # Cross-cutting helpers (`_write_output`)
+│ ├── scan.py          # scan, discover, pin, diff, watch (+ `_drift_to_findings`,
+│ │                    #   `_scoped_state_path`, `_newest_last_seen`)
+│ ├── baseline.py      # baseline sub-app: save / list / compare / delete / export
+│ ├── registry.py      # update-registry, verify
+│ ├── rules.py         # rule sub-app: validate / test / list
+│ ├── policy.py        # policy sub-app: validate / init / check (+ `_POLICY_TEMPLATE`)
+│ ├── extensions.py    # extensions sub-app: discover / scan
+│ ├── sast.py          # sast command
+│ ├── dashboard.py     # dashboard command
+│ ├── fleet.py         # merge command (+ `_collect_json_paths_from_dir`,
+│ │                    #   `_print_fleet_report`)
+│ └── license.py       # activate, license, version
 ├── scanner.py         # Orchestrator: discovery → parsing → analysis → output
 ├── scoring.py         # Scan score calculation (0–100) and letter grade (A–F) formatting
 ├── discovery.py       # Finds MCP config files across all supported clients
@@ -214,8 +235,9 @@ Three B310 (`urllib.request` URL open) calls are intentionally suppressed via
   `https://` scheme guard; URL is always an npm registry HTTPS tarball URL.
 - `attestation/hasher.py:123` — `urlopen` target is always `https://pypi.org/…`
   (produced by `resolve_pip_tarball_url`; scheme guard in caller validates it).
-- `cli.py:914` — `urlopen` target is `_UPDATE_REGISTRY_URL`, a hardcoded
-  `https://raw.githubusercontent.com/…` constant.
+- `cli/registry.py` (`update_registry`) — `urlopen` target is
+ `_UPDATE_REGISTRY_URL`, a hardcoded `https://raw.githubusercontent.com/…`
+ constant.
 All three suppressions carry the rule ID and a one-line reason. No blanket
 `# nosec` without a rule ID exists anywhere in the codebase.
 

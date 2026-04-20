@@ -64,13 +64,27 @@ def build() -> None:
         "--hidden-import", "mcp_audit.extensions.discovery",
         "--hidden-import", "mcp_audit.sast.runner",
         "--hidden-import", "mcp_audit.sast.bundler",
+        # CLI submodules — each registers its commands via @app.command decorators
+        # at import time.  Listed explicitly so PyInstaller's static analysis picks
+        # up every command group even if the late from-import in cli/__init__.py
+        # is collapsed.
+        "--hidden-import", "mcp_audit.cli.baseline",
+        "--hidden-import", "mcp_audit.cli.dashboard",
+        "--hidden-import", "mcp_audit.cli.extensions",
+        "--hidden-import", "mcp_audit.cli.fleet",
+        "--hidden-import", "mcp_audit.cli.license",
+        "--hidden-import", "mcp_audit.cli.policy",
+        "--hidden-import", "mcp_audit.cli.registry",
+        "--hidden-import", "mcp_audit.cli.rules",
+        "--hidden-import", "mcp_audit.cli.sast",
+        "--hidden-import", "mcp_audit.cli.scan",
         # cryptography imports are deferred inside licensing.py functions;
         # list them explicitly so PyInstaller bundles the right submodules.
         "--hidden-import", "cryptography.hazmat.primitives.asymmetric.ed25519",
         "--hidden-import", "cryptography.hazmat.primitives.serialization",
         "--hidden-import", "cryptography.exceptions",
         *datas_args,
-        str(root / "src" / "mcp_audit" / "cli.py"),
+        str(root / "src" / "mcp_audit" / "cli" / "__main__.py"),
     ]
 
     print(f"Building {name}...")
