@@ -56,7 +56,7 @@ Verify one or more packages interactively without running a full scan.
 ### Synopsis
 
 ```
-mcp-audit verify [SERVER_NAME] [--all] [--registry PATH]
+mcp-audit verify [SERVER_NAME|CONFIG_PATH] [--all] [--registry PATH]
 ```
 
 ### Arguments
@@ -64,6 +64,7 @@ mcp-audit verify [SERVER_NAME] [--all] [--registry PATH]
 | Argument / Option | Description |
 |---|---|
 | `SERVER_NAME` | Registry package name to verify, e.g. `@modelcontextprotocol/server-filesystem`. Verifies all pinned versions for that package. |
+| `CONFIG_PATH` | Path to an MCP config file (e.g. `~/.cursor/mcp.json`). All servers in that config are looked up against the registry; those with pinned hashes are downloaded and verified. Servers not in the registry appear as `NOT IN REGISTRY`. Detected automatically when the argument starts with `/`, `.`, ends in `.json`, or exists on disk. |
 | `--all` | Verify all servers currently configured on this machine that have pinned hashes. Automatically discovers configs and cross-references the registry. |
 | `--registry PATH` | Use a specific registry file instead of the user cache or bundled registry. |
 
@@ -73,7 +74,7 @@ mcp-audit verify [SERVER_NAME] [--all] [--registry PATH]
 |---|---|
 | 0 | All verifications passed, or no hashable packages found |
 | 1 | One or more hash mismatches detected (possible tampering) |
-| 2 | Error (registry not found, invalid arguments) |
+| 2 | Error (registry not found, config file not found, invalid arguments) |
 
 ### Output
 
@@ -88,16 +89,25 @@ Server | Version | Expected Hash | Computed Hash | Status
 - `✓ PASS` — hashes match
 - `✗ FAIL` — hashes differ; **stop using this package immediately**
 - `~ UNKNOWN` — version unknown or network error
+- `~ NOT IN REGISTRY` — server is not in the known-server registry (config-path mode)
+- `~ NO HASHES PINNED` — server is in the registry but has no pinned hashes yet
 
 ### Examples
 
-Verify the official filesystem server:
+Verify a specific package by name:
 
 ```bash
 mcp-audit verify @modelcontextprotocol/server-filesystem
 ```
 
-Verify all configured servers with pinned hashes:
+Verify all servers in a config file:
+
+```bash
+mcp-audit verify ~/.cursor/mcp.json
+mcp-audit verify demo/configs/claude_desktop_config.json
+```
+
+Verify all configured servers with pinned hashes (auto-discovers all configs):
 
 ```bash
 mcp-audit verify --all

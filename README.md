@@ -233,18 +233,18 @@ See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framew
 | `mcp-audit discover` | free | — | List all detected MCP clients and their configured servers |
 | `mcp-audit pin` | free | — | Record current server state as a trusted baseline |
 | `mcp-audit diff` | free | — | Show configuration changes since the last `pin` |
-| `mcp-audit verify` | free | `<package>` | Verify installed MCP server hashes against the known-server registry |
+| `mcp-audit verify` | free | `<package\|config-path>` | Verify server hashes: pass a package name (`@scope/pkg`), a config file path, or `--all` |
 | `mcp-audit activate` | free | `<key>` | Activate a Pro or Enterprise license key |
 | `mcp-audit license` | free | — | Show current license tier and expiry |
 | `mcp-audit version` | free | — | Print version string and active license tier |
 | `mcp-audit update-registry` | Pro | — | Fetch the latest known-server registry from upstream |
 | `mcp-audit sast` | Pro | `<path>` | Run MCP-aware Semgrep SAST rules on server source code |
 | `mcp-audit merge` | Enterprise | `--dir`, `--format`, `--asset-prefix` | Merge JSON scan outputs from multiple machines into a fleet report |
-| `mcp-audit baseline save` | free | `--name` | Capture a baseline snapshot of the current MCP configuration |
+| `mcp-audit baseline save [NAME]` | free | `--path` | Capture a baseline snapshot; NAME is optional (auto-generated if omitted) |
 | `mcp-audit baseline list` | free | — | List all saved baselines |
-| `mcp-audit baseline compare` | free | `--name` | Compare the current configuration against a saved baseline |
-| `mcp-audit baseline delete` | free | `--name` | Delete a saved baseline |
-| `mcp-audit baseline export` | free | `--name` | Write a baseline as raw JSON to stdout |
+| `mcp-audit baseline compare [NAME]` | free | `--path` | Compare current config against a saved baseline (defaults to latest) |
+| `mcp-audit baseline delete NAME` | free | `--yes` | Delete a saved baseline |
+| `mcp-audit baseline export NAME` | free | `--output-file` | Write a baseline as raw JSON to stdout or a file |
 | `mcp-audit rule validate` | Pro | `<file>` | Validate a rule file without running a scan |
 | `mcp-audit rule test` | Pro | `<rule> <config>` | Test a rule file against a specific MCP config file |
 | `mcp-audit rule list` | free | — | List all currently loaded rules (bundled + user-local) |
