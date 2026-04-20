@@ -47,6 +47,12 @@ pip install -e ".[dev]"
 pytest tests/ -x -q
 ```
 
+> **Note:** If you use `uv`, run `uv sync --extra dev` instead of a bare `uv sync`.
+> A plain `uv sync` omits the `dev` optional-dependency group, so `pytest-asyncio`
+> will not be installed and all async tests will fail with
+> `PytestUnknownMarkWarning: Unknown pytest.mark.asyncio` — even though
+> `asyncio_mode = "auto"` is correctly set in `pyproject.toml`.
+
 ## Code conventions
 
 - All source code in `src/mcp_audit/`

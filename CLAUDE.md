@@ -225,6 +225,11 @@ do-not-modify). See GAPS.md → "Security limitations" for details.
 
 ## Quality gates
 
+**Dev extras required:** Run `uv sync --extra dev` before running tests for the
+first time, or after a fresh clone. A plain `uv sync` omits `pytest-asyncio`
+and other dev tools — async tests will silently fail with unknown-mark warnings
+if this step is skipped.
+
 - Run `uv run pytest` after every change
 - Run `uv run ruff check src/ tests/` before committing
 - Run `uv run bandit -r src/ -ll -f txt` periodically (we're a security tool — act like it)
@@ -270,7 +275,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 27+ findings across all analyzer categories
-- 1133 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 1146 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
