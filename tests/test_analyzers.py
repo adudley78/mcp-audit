@@ -241,3 +241,78 @@ class TestPoisoningAnalyzerRobustness:
         # Must not raise.
         findings = analyzer.analyze(server)
         assert isinstance(findings, list)
+
+
+# ── POISON-050 precision tests ─────────────────────────────────────────────────
+
+
+class TestPoison050Scoping:
+    """POISON-050 must fire on description/name fields and not on command/args."""
+
+    def _make_server(
+        self,
+        tmp_path: Path,
+        *,
+        description: str = "short",
+        tool_name: str = "t",
+        command: str = "npx",
+        args: list[str] | None = None,
+    ) -> ServerConfig:
+        return ServerConfig(
+            name="test-server",
+            client="test",
+            config_path=tmp_path / "config.json",
+            command=command,
+            args=args or [],
+            raw={
+                "command": command,
+                "args": args or [],
+                "tools": [{"name": tool_name, "description": description}],
+            },
+        )
+
+    def test_poison_050_triggers_on_long_tool_description(self, tmp_path: Path) -> None:
+        """A tool description ≥2000 characters must produce a POISON-050 finding."""
+        server = self._make_server(tmp_path, description="A" * 2000)
+        findings = PoisoningAnalyzer().analyze(server)
+        ids = [f.id for f in findings]
+        assert "POISON-050" in ids
+
+    def test_poison_050_does_not_trigger_on_long_command_path(
+        self, tmp_path: Path
+    ) -> None:
+        """A 2500-char command path with a short description must NOT fire POISON-050.
+
+        Long binary paths are legitimate (e.g., virtualenv or nix store paths).
+        They are not model-visible and are excluded from the POISON-050 check.
+        """
+        long_command = "/usr/local/bin/" + "a" * 2485  # total length > 2000
+        server = self._make_server(tmp_path, command=long_command, description="short")
+        findings = PoisoningAnalyzer().analyze(server)
+        ids = [f.id for f in findings]
+        assert "POISON-050" not in ids
+
+    def test_poison_050_does_not_trigger_on_long_args(self, tmp_path: Path) -> None:
+        """A very long args value with a short description must NOT fire POISON-050.
+
+        CLI arguments are not model-visible and are excluded from this check.
+        """
+        long_arg = "--config=" + "x" * 2500
+        server = self._make_server(
+            tmp_path, args=[long_arg], description="A helpful tool"
+        )
+        findings = PoisoningAnalyzer().analyze(server)
+        ids = [f.id for f in findings]
+        assert "POISON-050" not in ids
+
+    def test_poison_050_threshold_boundary(self, tmp_path: Path) -> None:
+        """Boundary: 1999 chars → no finding; 2000 chars → POISON-050 fires."""
+        analyzer = PoisoningAnalyzer()
+
+        server_below = self._make_server(tmp_path, description="B" * 1999)
+        ids_below = [f.id for f in analyzer.analyze(server_below)]
+        assert "POISON-050" not in ids_below, "1999-char description should not trigger"
+
+        server_at = self._make_server(tmp_path, description="B" * 2000)
+        ids_at = [f.id for f in analyzer.analyze(server_at)]
+        assert "POISON-050" in ids_at, "2000-char description must trigger"

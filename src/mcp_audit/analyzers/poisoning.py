@@ -25,6 +25,7 @@ class DetectionPattern:
     description: str
     remediation: str
     cwe: str | None = None
+    description_only: bool = False
 
 
 # fmt: off
@@ -195,10 +196,14 @@ PATTERNS: list[DetectionPattern] = [
         pattern=re.compile(r".{2000,}", re.DOTALL),
         severity=Severity.LOW,
         description=(
-            "Tool description is unusually long (>2000 chars),"
-            " which may hide injected content"
+            "Tool description contains an unusually long string (≥2000 characters)."
+            " Oversized tool descriptions can be used to inject hidden instructions"
+            " into the AI model's context window."
+            " Note: only tool name and description fields are checked —"
+            " long command paths or arguments are not flagged by this rule."
         ),
         remediation="Review the full tool description for hidden instructions",
+        description_only=True,
     ),
 ]
 # fmt: on
@@ -221,14 +226,22 @@ class PoisoningAnalyzer(BaseAnalyzer):
         For static config analysis, this checks the raw config data for
         tool-like structures. Full tool enumeration via MCP protocol
         connection will be added in a future version.
+
+        Patterns marked ``description_only=True`` (currently POISON-050) are
+        applied only to ``name`` and ``description`` keys in the config — the
+        fields an AI model reads when deciding whether to invoke a tool.
+        Fields such as ``command``, ``args``, and env values are not
+        model-visible and are excluded from those checks.
         """
         findings: list[Finding] = []
 
-        # Check all string values in the raw config for poisoning patterns
-        texts_to_check = self._extract_text_fields(server.raw)
+        general_patterns = [p for p in PATTERNS if not p.description_only]
+        description_only_patterns = [p for p in PATTERNS if p.description_only]
 
-        for text in texts_to_check:
-            for pattern in PATTERNS:
+        # All string values — used for patterns that cover every field.
+        all_texts = self._extract_text_fields(server.raw)
+        for text in all_texts:
+            for pattern in general_patterns:
                 match = pattern.pattern.search(text)
                 if match:
                     findings.append(
@@ -245,6 +258,29 @@ class PoisoningAnalyzer(BaseAnalyzer):
                             cwe=pattern.cwe,
                         )
                     )
+
+        # Only description/name values — used for patterns whose threat model
+        # is specifically about oversized or manipulated tool descriptions.
+        if description_only_patterns:
+            description_texts = self._extract_description_fields(server.raw)
+            for text in description_texts:
+                for pattern in description_only_patterns:
+                    match = pattern.pattern.search(text)
+                    if match:
+                        findings.append(
+                            Finding(
+                                id=pattern.id,
+                                severity=pattern.severity,
+                                analyzer=self.name,
+                                client=server.client,
+                                server=server.name,
+                                title=pattern.name,
+                                description=pattern.description,
+                                evidence=f"Matched: {match.group()[:100]}",
+                                remediation=pattern.remediation,
+                                cwe=pattern.cwe,
+                            )
+                        )
 
         return findings
 
@@ -266,4 +302,33 @@ class PoisoningAnalyzer(BaseAnalyzer):
         elif isinstance(data, list):
             for item in data:
                 texts.extend(self._extract_text_fields(item, depth + 1))
+        return texts
+
+    def _extract_description_fields(
+        self,
+        data: dict | list | str,
+        depth: int = 0,
+    ) -> list[str]:
+        """Extract only ``name`` and ``description`` values from a nested structure.
+
+        These are the fields an AI model reads when deciding whether to call a
+        tool.  Command paths, argument lists, and environment variable values
+        are intentionally excluded because they are not model-visible and do
+        not constitute an attack surface for tool description padding.
+        """
+        if depth > 10:
+            return []
+
+        texts: list[str] = []
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if key in ("description", "name"):
+                    if isinstance(value, str):
+                        texts.append(value)
+                    # Non-string description/name values are not collected.
+                else:
+                    texts.extend(self._extract_description_fields(value, depth + 1))
+        elif isinstance(data, list):
+            for item in data:
+                texts.extend(self._extract_description_fields(item, depth + 1))
         return texts
