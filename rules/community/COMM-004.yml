@@ -1,16 +1,25 @@
 id: COMM-004
-name: stdio transport in use
+name: Unrecognized stdio server binary
 description: >
-  Server is configured with stdio transport. This is normal for local MCP
-  servers but means the binary is executed directly by the MCP client.
-  Verify the command path is trusted and has not been tampered with.
+  Server is configured with stdio transport and does not match any entry in
+  the known-server registry.  stdio is the default MCP transport, so this
+  rule only fires on servers whose command, arguments, or server name are
+  not recognised as a vetted package — a local script, arbitrary binary,
+  or unknown npm/PyPI package.  Verify the binary is trusted; stdio
+  servers are executed directly by the MCP client and inherit its full
+  environment.  Once SSE/HTTP transports become common this scope should
+  be revisited.
 severity: LOW
 category: transport
 match:
   field: transport
   pattern: "stdio"
   type: exact
-message: "Server '{server_name}' uses stdio transport — verify binary is trusted"
+message: >-
+  Server '{server_name}' uses stdio transport and is not in the known-server
+  registry — verify the binary is trusted
 tags:
   - transport
+  - unknown-server
 enabled: true
+exempt_known_servers: true

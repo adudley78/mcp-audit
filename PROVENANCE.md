@@ -40,6 +40,8 @@ The transport analyzer checks for insecure network configurations and elevated p
 - **WorkOS** — "Securing agentic apps: How to vet the tools your AI agents depend on." Analysis of MCP supply chain risks via runtime package fetching (npx/uvx). ([Blog post](https://workos.com/blog/mcp-supply-chain-security))
 - **Snyk** — "How Clinejection Turned an AI Bot into a Supply Chain Attack." Demonstrated that natural-language prompt injection in a GitHub issue could compromise Cline's GitHub Actions pipeline. ([Blog post](https://snyk.io/blog/cline-supply-chain-attack-prompt-injection-github-actions/))
 
+**Severity calibration:** `TRANSPORT-003` (runtime package fetching) tiers its severity by `KnownServerRegistry` membership (rescoped 2026-04-20, see GAPS.md). Verified registry entries suppress the finding entirely (COMM-010 retains the pinning reminder at LOW); known-but-unverified entries surface at LOW with a pointer to `--verify-hashes`; unknown packages continue to fire at MEDIUM. The tiering is implemented in `TransportAnalyzer._build_runtime_fetch_finding`.
+
 ## Config file locations
 
 Client configuration paths are sourced from each client's public documentation:
@@ -132,7 +134,7 @@ mcp-audit and run for all users regardless of license tier.
 | COMM-001 | Netcat binary in server command | Original — common security practice (netcat as a lateral movement / exfiltration tool) |
 | COMM-002 | Eval in command arguments | Original — CWE-95 (eval injection); standard static analysis pattern |
 | COMM-003 | Curl piped to shell | Original — common supply chain risk pattern (arbitrary code execution via pipe-to-shell) |
-| COMM-004 | Stdio transport advisory | Original — informational; stdio servers inherit the parent process's full environment |
+| COMM-004 | Unrecognized stdio server binary | Original — fires only for stdio servers whose command/args/name do not resolve to a known-server registry entry (rescoped 2026-04-20, see GAPS.md); stdio servers inherit the parent process's full environment |
 | COMM-005 | Wildcard environment variables | Original — excessive environment exposure reduces isolation |
 | COMM-006 | World-writable config path | Original — CWE-732 (incorrect permission assignment); standard filesystem security check |
 | COMM-007 | Known-malicious package name | Community-sourced — based on published MCP supply chain incident reports |

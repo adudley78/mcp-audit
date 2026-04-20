@@ -103,6 +103,7 @@ def _analyzer_crash_finding(
 def _run_rules_engine(
     servers: list[ServerConfig],
     extra_rules_dirs: list[Path] | None,
+    analyzers: list[BaseAnalyzer] | None = None,
 ) -> list[Finding]:
     """Load and run the policy-as-code rule engine against all servers.
 
@@ -110,9 +111,19 @@ def _run_rules_engine(
     provided (caller is responsible for Pro-gating), also loads rules from
     those directories (user rules take precedence on ID conflicts).
 
+    When *analyzers* is supplied and contains a
+    :class:`~mcp_audit.analyzers.supply_chain.SupplyChainAnalyzer`, its
+    already-loaded registry is threaded into the engine so rules declaring
+    ``exempt_known_servers: true`` (e.g. COMM-004) can skip servers whose
+    command, any arg, or server name matches a registry entry.  Omitting
+    *analyzers* disables the exemption path entirely — the engine falls
+    back to its historical "match everything" behaviour.
+
     Args:
         servers: All discovered server configurations.
         extra_rules_dirs: Additional directories to load rules from.
+        analyzers: The analyzer list used for this scan.  Used only to
+            extract the shared :class:`KnownServerRegistry` instance.
 
     Returns:
         List of Finding objects produced by matching rules.
@@ -130,12 +141,12 @@ def _run_rules_engine(
         user_rules: list = []
         for d in extra_rules_dirs:
             user_rules.extend(load_rules_from_dir(d))
-        # User rules take precedence on ID conflicts.
         all_rules = merge_rules(user_rules, community_rules)
     else:
         all_rules = community_rules
 
-    engine = RuleEngine(all_rules)
+    registry = _extract_registry(analyzers) if analyzers is not None else None
+    engine = RuleEngine(all_rules, registry=registry)
     findings: list[Finding] = []
     for server in servers:
         findings.extend(engine.match_server(server))
@@ -145,15 +156,21 @@ def _run_rules_engine(
 def get_default_analyzers() -> list[BaseAnalyzer]:
     """Return the default set of per-server analyzers.
 
+    The :class:`SupplyChainAnalyzer` is constructed first and its already-
+    loaded :class:`KnownServerRegistry` is threaded into the
+    :class:`TransportAnalyzer` so TRANSPORT-003 can tier its severity by
+    registry membership without reading the registry JSON a second time.
+
     Note: :class:`~mcp_audit.analyzers.rug_pull.RugPullAnalyzer` is intentionally
     excluded here — it operates across all servers collectively and is invoked
     separately via :func:`run_scan`.
     """
+    supply_chain = SupplyChainAnalyzer()
     return [
         PoisoningAnalyzer(),
         CredentialsAnalyzer(),
-        TransportAnalyzer(),
-        SupplyChainAnalyzer(),
+        TransportAnalyzer(registry=supply_chain.registry),
+        supply_chain,
     ]
 
 
@@ -256,7 +273,9 @@ def _run_static_pipeline(
 
     # ── 5. Policy-as-code rule engine ─────────────────────────────────────────
     try:
-        result.findings.extend(_run_rules_engine(all_servers, extra_rules_dirs))
+        result.findings.extend(
+            _run_rules_engine(all_servers, extra_rules_dirs, analyzers=analyzers)
+        )
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"rules_engine error: {e}")
 

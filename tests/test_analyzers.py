@@ -201,6 +201,80 @@ class TestTransportAnalyzer:
         assert len(unencrypted) == 0
 
 
+class TestTransportRuntimeFetchRegistryTiering:
+    """TRANSPORT-003 severity is tiered by known-server registry membership."""
+
+    def _server(self, tmp_path: Path, package: str, command: str = "npx"):
+        return ServerConfig(
+            name=package.split("/")[-1],
+            client="test",
+            config_path=tmp_path / "mcp.json",
+            transport=TransportType.STDIO,
+            command=command,
+            args=["-y", package],
+        )
+
+    def test_verified_registry_package_suppresses_finding(self, tmp_path: Path) -> None:
+        """Verified vetted packages (e.g. official Anthropic servers) must not
+        raise TRANSPORT-003 — COMM-010 already covers pinning at LOW.
+        """
+        from mcp_audit.registry.loader import load_registry
+
+        registry = load_registry()
+        analyzer = TransportAnalyzer(registry=registry)
+        server = self._server(tmp_path, "@modelcontextprotocol/server-filesystem")
+        findings = [f for f in analyzer.analyze(server) if f.id == "TRANSPORT-003"]
+        assert findings == [], (
+            "TRANSPORT-003 must not fire for verified registry packages"
+        )
+
+    def test_unknown_package_still_fires_at_medium(self, tmp_path: Path) -> None:
+        """Fully unknown runtime-fetched packages keep the historic MEDIUM alarm."""
+        from mcp_audit.registry.loader import load_registry
+
+        registry = load_registry()
+        analyzer = TransportAnalyzer(registry=registry)
+        server = self._server(tmp_path, "@random-user/unknown-mcp-server")
+        findings = [f for f in analyzer.analyze(server) if f.id == "TRANSPORT-003"]
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.MEDIUM
+
+    def test_known_unverified_package_fires_at_low(self, tmp_path: Path) -> None:
+        """Registry-known but unverified packages surface at LOW with tailored copy."""
+        from unittest.mock import MagicMock
+
+        registry = MagicMock()
+        entry = MagicMock()
+        entry.verified = False
+        registry.get.return_value = entry
+
+        analyzer = TransportAnalyzer(registry=registry)
+        server = self._server(tmp_path, "some-known-but-unverified-pkg")
+        findings = [f for f in analyzer.analyze(server) if f.id == "TRANSPORT-003"]
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.LOW
+        assert "unverified" in findings[0].description.lower()
+
+    def test_no_registry_preserves_historic_medium(self, tmp_path: Path) -> None:
+        """Analyzer constructed without a registry always fires at MEDIUM."""
+        analyzer = TransportAnalyzer()
+        server = self._server(tmp_path, "@modelcontextprotocol/server-filesystem")
+        findings = [f for f in analyzer.analyze(server) if f.id == "TRANSPORT-003"]
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.MEDIUM
+
+    def test_uvx_uses_same_tiering(self, tmp_path: Path) -> None:
+        """uvx (pip-ecosystem launcher) follows the same registry tiering as npx."""
+        from mcp_audit.registry.loader import load_registry
+
+        registry = load_registry()
+        analyzer = TransportAnalyzer(registry=registry)
+        server = self._server(tmp_path, "mcp-server-fetch", command="uvx")
+        findings = [f for f in analyzer.analyze(server) if f.id == "TRANSPORT-003"]
+        # mcp-server-fetch is a verified Anthropic pip package → suppressed.
+        assert findings == []
+
+
 # ── Poisoning analyzer robustness tests ───────────────────────────────────────
 
 

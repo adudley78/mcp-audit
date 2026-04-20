@@ -36,3 +36,9 @@ jobs:
 
       - name: Ruff format check
         run: ruff format --check src/ tests/
+
+      - name: Verify test-count docs in sync
+        # Runs on a single matrix leg — collected test count is identical
+        # across OS / Python versions, so repeating the check is redundant.
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: python scripts/update_test_count.py --check

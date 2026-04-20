@@ -49,6 +49,7 @@ enabled: true
 | `message` | ✓ | string | Finding description template — see [Interpolation](#interpolation) |
 | `tags` | | list[str] | Searchable tags (e.g. `[network, exfiltration]`) |
 | `enabled` | | bool | Set to `false` to disable without deleting. Default: `true` |
+| `exempt_known_servers` | | bool | Skip servers whose command, arg, or server_name matches a known-server registry entry. Default: `false`. See [Registry exemption](#registry-exemption) |
 
 ---
 
@@ -221,6 +222,53 @@ match:
 ```
 
 Fires when command starts with `python` AND `--safe-mode` is **not** in args.
+
+---
+
+## Registry exemption
+
+Set `exempt_known_servers: true` when a rule pattern is broad enough to fire
+on legitimate MCP servers and you want it suppressed for packages that are
+already vetted in the [known-server registry](../registry/known-servers.json).
+
+```yaml
+id: COMM-004
+name: Unrecognized stdio server binary
+severity: LOW
+category: transport
+match:
+  field: transport
+  pattern: "stdio"
+  type: exact
+message: "Server '{server_name}' uses stdio transport and is not in the registry"
+exempt_known_servers: true
+```
+
+When the rule engine is constructed with a registry (the default scan
+pipeline does this automatically), servers whose `command`, any `arg`, or
+`server_name` matches a registry entry are skipped **before** match
+evaluation. Servers that do not resolve to a registry entry still evaluate
+against the rule normally.
+
+Use this when:
+
+- The match pattern is genuinely universal in the MCP ecosystem (e.g.
+  `stdio` transport, `npx` command) and you only want to flag *unvetted*
+  instances.
+- You want a rule to surface "unknown-source" servers without duplicating
+  the supply-chain analyzer's typosquat logic.
+
+**Avoid** this flag when:
+
+- The rule patterns a specific security-relevant command (e.g. `nc`,
+  `socat`). Known registry servers don't use these binaries — registry
+  membership is not what makes them dangerous.
+- The rule is intentionally a "belt and braces" check that should fire
+  even on vetted servers.
+
+Without a registry (custom tooling instantiating `RuleEngine` directly and
+passing `registry=None`), the flag has no effect — the rule falls back to
+matching every server.
 
 ---
 

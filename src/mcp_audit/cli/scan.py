@@ -179,14 +179,15 @@ def _build_custom_analyzers(
     """
     if registry is None and not offline_registry:
         return None
+    supply_chain = SupplyChainAnalyzer(
+        registry_path=registry,
+        offline_registry=offline_registry,
+    )
     return [
         PoisoningAnalyzer(),
         CredentialsAnalyzer(),
-        TransportAnalyzer(),
-        SupplyChainAnalyzer(
-            registry_path=registry,
-            offline_registry=offline_registry,
-        ),
+        TransportAnalyzer(registry=supply_chain.registry),
+        supply_chain,
     ]
 
 

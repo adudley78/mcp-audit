@@ -1063,9 +1063,13 @@ class TestScanPipelineOrder:
 
         original_run_rules = _run_rules_engine
 
-        def _logging_rules(servers: list, extra: list | None) -> list[Finding]:
+        def _logging_rules(
+            servers: list,
+            extra: list | None,
+            analyzers: list | None = None,
+        ) -> list[Finding]:
             call_log.append("rules_engine")
-            return original_run_rules(servers, extra)
+            return original_run_rules(servers, extra, analyzers=analyzers)
 
         with (
             _patch_no_known_clients(),
@@ -1189,9 +1193,7 @@ class TestAssetPrefixFlag:
         assert result.exit_code in (0, 1), result.output
         data = _json.loads(result.output)
         assert "score" in data
-        assert "numeric" in data["score"], (
-            "score.numeric key missing from JSON output"
-        )
+        assert "numeric" in data["score"], "score.numeric key missing from JSON output"
         assert "numeric_score" not in data["score"], (
             "legacy score.numeric_score key must not appear in JSON output"
         )

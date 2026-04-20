@@ -217,8 +217,54 @@ community rules.
 **Community rule false-positive rate is unmeasured.**
 The 12 community rules were written to cover clear-cut cases (netcat as binary,
 eval in args, etc.) but have not been validated against a broad sample of
-real-world MCP server configurations. COMM-004 (`stdio transport`) in particular
-is expected to fire on many legitimate configurations.
+real-world MCP server configurations.
+
+**TRANSPORT-003 tiered by registry membership (2026-04-20).**
+The runtime-package-fetching finding (`TRANSPORT-003`) previously fired at
+MEDIUM for every server launched via `npx`, `uvx`, or `bunx`, including the
+official `@modelcontextprotocol/server-*` packages. Because MEDIUM findings
+trigger exit 1 at the `--severity-threshold medium` gate and contribute to
+score deductions, this was the same signal-to-noise trap as COMM-004 — the
+rule fired on 100% of registry-legitimate servers.
+
+`TransportAnalyzer` now accepts an optional `KnownServerRegistry` (shared
+with `SupplyChainAnalyzer` so the JSON is loaded exactly once per scan) and
+tiers TRANSPORT-003 severity by registry membership:
+
+- Verified registry entry → finding suppressed. COMM-010 (`npx used without
+  pinned version`, LOW) still raises the pinning reminder.
+- Known but unverified registry entry → LOW with tailored description
+  pointing to `--verify-hashes`.
+- Unknown package or no registry → MEDIUM (historic behaviour; strong alarm).
+
+See `src/mcp_audit/analyzers/transport.py::_build_runtime_fetch_finding`
+and `tests/test_analyzers.py::TestTransportRuntimeFetchRegistryTiering`.
+
+**COMM-004 rescoped to unrecognized stdio servers (2026-04-20).**
+The original COMM-004 (`stdio transport in use`) fired on every stdio MCP
+server. Because stdio is the universally-implemented MCP transport today —
+including every official `@modelcontextprotocol/server-*` package — the rule
+was noise on 100% of real configs and made exit 0 unreachable at the default
+`--severity-threshold INFO`. A finding that fires on every target is not a
+signal.
+
+Decision: **Option C — scope the rule to unrecognized servers.** Rather than
+removing the rule outright or reducing severity (which would not lower the
+false-positive rate), the rule engine now supports `exempt_known_servers:
+true` on any `PolicyRule`. When set, the engine skips servers whose command,
+any argument, or server name matches an entry in the known-server registry.
+COMM-004 declares `exempt_known_servers: true`, so it now fires only on
+stdio servers the registry cannot resolve (local scripts, unknown packages,
+arbitrary binaries). This preserves the rule's signal ("verify this binary
+is trusted") for the cases that actually need verification while removing
+the noise on vetted packages. Severity stays LOW.
+
+This is expected to be revisited when SSE/HTTP transports become common in
+the MCP ecosystem; a future scope might distinguish servers that *declare*
+stdio when a remote transport would be expected. See
+`rules/community/COMM-004.yml`, `src/mcp_audit/rules/engine.py`
+(`PolicyRule.exempt_known_servers`, `_server_in_registry`), and
+`docs/writing-rules.md` for details.
 
 ## Pre-commit hook
 

@@ -118,11 +118,12 @@ Add your class to `get_default_analyzers()` in
 from mcp_audit.analyzers.your_name import YourAnalyzer
 
 def get_default_analyzers() -> list[BaseAnalyzer]:
+    supply_chain = SupplyChainAnalyzer()
     return [
         PoisoningAnalyzer(),
         CredentialsAnalyzer(),
-        TransportAnalyzer(),
-        SupplyChainAnalyzer(),
+        TransportAnalyzer(registry=supply_chain.registry),
+        supply_chain,
         YourAnalyzer(),   # add here
     ]
 ```

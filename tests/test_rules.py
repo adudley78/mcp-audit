@@ -583,6 +583,134 @@ class TestCommunityRules:
         actual_ids = {r.id for r in rules}
         assert actual_ids == expected_ids
 
+    def test_comm_004_declares_registry_exemption(self) -> None:
+        """COMM-004 must opt into the registry exemption to avoid 100% FPR."""
+        rules = {r.id: r for r in load_bundled_community_rules()}
+        comm004 = rules["COMM-004"]
+        assert comm004.exempt_known_servers is True, (
+            "COMM-004 must set exempt_known_servers=True or it will fire on "
+            "every legitimate stdio MCP server (signal-to-noise regression)."
+        )
+
+    def test_comm_004_does_not_fire_on_known_registry_server(self) -> None:
+        """Registry-known stdio servers must not produce COMM-004 findings."""
+        from mcp_audit.registry.loader import load_registry  # noqa: PLC0415
+
+        registry = load_registry()
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules, registry=registry)
+
+        server = _make_server(
+            name="filesystem",
+            command="npx",
+            args=["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],  # noqa: S108
+            transport=TransportType.STDIO,
+        )
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-004"]
+        assert findings == [], (
+            "COMM-004 must not fire for the official "
+            "@modelcontextprotocol/server-filesystem package"
+        )
+
+    def test_comm_004_fires_on_unrecognized_stdio_server(self) -> None:
+        """COMM-004 must still fire for unknown stdio binaries — the signal case."""
+        from mcp_audit.registry.loader import load_registry  # noqa: PLC0415
+
+        registry = load_registry()
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules, registry=registry)
+
+        server = _make_server(
+            name="my-local-thing",
+            command="node",
+            args=["safe.js"],
+            transport=TransportType.STDIO,
+        )
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-004"]
+        assert len(findings) == 1, (
+            "COMM-004 must fire on unrecognized stdio servers — removing this "
+            "signal would leave the rule pointless."
+        )
+
+    def test_comm_004_without_registry_falls_back_to_matching(self) -> None:
+        """Without a registry the exemption short-circuits and every stdio hits."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules, registry=None)
+
+        server = _make_server(
+            name="filesystem",
+            command="npx",
+            args=["-y", "@modelcontextprotocol/server-filesystem"],
+            transport=TransportType.STDIO,
+        )
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-004"]
+        assert len(findings) == 1, (
+            "Without a registry COMM-004 must retain its historical "
+            "match-everything behaviour (no silent exemption)."
+        )
+
+
+class TestExemptKnownServersPrimitive:
+    """`exempt_known_servers: true` is a reusable rule-engine primitive."""
+
+    def test_custom_rule_respects_exemption(self) -> None:
+        from mcp_audit.registry.loader import load_registry  # noqa: PLC0415
+
+        rule = PolicyRule(
+            id="TEST-EXEMPT-001",
+            name="Exempt me",
+            description="Rule that should skip known servers",
+            severity=Severity.LOW,
+            category="test",
+            match=RuleMatch(
+                field=MatchField.COMMAND,
+                pattern="npx",
+                type=MatchType.EXACT,
+            ),
+            message="Matched {server_name}",
+            exempt_known_servers=True,
+        )
+        registry = load_registry()
+        engine = RuleEngine([rule], registry=registry)
+
+        # Known package → exempt.
+        known = _make_server(
+            name="filesystem",
+            command="npx",
+            args=["-y", "@modelcontextprotocol/server-filesystem"],
+        )
+        assert engine.match_server(known) == []
+
+        # Unknown package → fires.
+        unknown = _make_server(
+            name="mystery",
+            command="npx",
+            args=["-y", "@random-user/mystery-package"],
+        )
+        findings = engine.match_server(unknown)
+        assert len(findings) == 1
+        assert findings[0].id == "TEST-EXEMPT-001"
+
+    def test_exemption_off_by_default(self) -> None:
+        """Rules without exempt_known_servers must not silently skip anything."""
+        from mcp_audit.registry.loader import load_registry  # noqa: PLC0415
+
+        rule = _make_rule(
+            field=MatchField.COMMAND,
+            pattern="npx",
+            match_type=MatchType.EXACT,
+        )
+        assert rule.exempt_known_servers is False
+
+        registry = load_registry()
+        engine = RuleEngine([rule], registry=registry)
+        server = _make_server(
+            name="filesystem",
+            command="npx",
+            args=["-y", "@modelcontextprotocol/server-filesystem"],
+        )
+        assert len(engine.match_server(server)) == 1
+
 
 # ── Integration: community rules in scan pipeline ─────────────────────────────
 
@@ -618,6 +746,47 @@ class TestScanPipelineIntegration:
         rule_findings = [f for f in result.findings if f.analyzer == "rules"]
         comm001 = [f for f in rule_findings if f.id == "COMM-001"]
         assert comm001, "COMM-001 should fire for 'nc' command even without a license"
+
+    def test_scan_of_only_registry_servers_produces_no_comm_004(
+        self, tmp_path: Path
+    ) -> None:
+        """A config populated only with registry-known servers must not raise COMM-004.
+
+        The rule engine receives the scan's shared registry via scanner.py,
+        so this is the end-to-end proof that official MCP servers don't
+        trigger COMM-004 (the signal-to-noise regression that justified
+        the rescope).
+        """
+        import json  # noqa: PLC0415
+
+        from mcp_audit.scanner import run_scan  # noqa: PLC0415
+
+        config_file = tmp_path / "mcp.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "filesystem": {
+                            "command": "npx",
+                            "args": [
+                                "-y",
+                                "@modelcontextprotocol/server-filesystem",
+                                "/tmp",  # noqa: S108
+                            ],
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            result = run_scan(extra_paths=[config_file], skip_rug_pull=True)
+
+        comm004 = [f for f in result.findings if f.id == "COMM-004"]
+        assert comm004 == [], (
+            "COMM-004 must not fire for registry-known servers in a full scan"
+        )
 
     def test_rules_run_without_license(self, tmp_path: Path) -> None:
         """Community rules must run regardless of license tier."""

@@ -21,6 +21,7 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 from mcp_audit.models import Finding, ServerConfig, Severity
+from mcp_audit.registry.loader import KnownServerRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +121,12 @@ class PolicyRule(BaseModel):
     message: str
     tags: list[str] = Field(default_factory=list)
     enabled: bool = True
+    # When True, the rule engine skips servers whose command, any arg, or server
+    # name resolves to an entry in the known-server registry.  Used to suppress
+    # findings that would otherwise fire on every legitimate MCP server (e.g.
+    # COMM-004 `stdio transport`).  Requires the engine to have been constructed
+    # with a registry; has no effect otherwise.
+    exempt_known_servers: bool = False
 
 
 # ── Rule engine ────────────────────────────────────────────────────────────────
@@ -130,10 +137,19 @@ class RuleEngine:
 
     Args:
         rules: List of loaded and validated PolicyRule objects.
+        registry: Optional known-server registry.  When supplied, rules
+            with ``exempt_known_servers=True`` are suppressed for servers
+            whose command, any arg, or server name matches a registry
+            entry.  Pass ``None`` to disable the exemption entirely.
     """
 
-    def __init__(self, rules: list[PolicyRule]) -> None:
+    def __init__(
+        self,
+        rules: list[PolicyRule],
+        registry: KnownServerRegistry | None = None,
+    ) -> None:
         self._rules = rules
+        self._registry = registry
 
     def match_server(self, server: ServerConfig) -> list[Finding]:
         """Evaluate all enabled rules against a single server.
@@ -145,8 +161,11 @@ class RuleEngine:
             List of Finding objects for every rule that matched.
         """
         findings: list[Finding] = []
+        server_is_known = _server_in_registry(server, self._registry)
         for rule in self._rules:
             if not rule.enabled:
+                continue
+            if rule.exempt_known_servers and server_is_known:
                 continue
             matched, matched_value = _evaluate_rule_match(rule.match, server)
             if not matched:
@@ -174,6 +193,34 @@ class RuleEngine:
                 )
             )
         return findings
+
+
+# ── Registry exemption ─────────────────────────────────────────────────────────
+
+
+def _server_in_registry(
+    server: ServerConfig, registry: KnownServerRegistry | None
+) -> bool:
+    """Return ``True`` when *server* resolves to a known-server registry entry.
+
+    Consults the registry by checking the command, every argument, and the
+    server name against :meth:`KnownServerRegistry.get` (case-insensitive
+    exact match).  Mirrors the token-based lookup already used by
+    :func:`mcp_audit.analyzers.toxic_flow.tag_server` so that a server which
+    toxic-flow recognises as a registry entry is also exempt from
+    registry-exempt rules.
+
+    Returns ``False`` immediately when *registry* is ``None`` — callers that
+    did not wire a registry get the historical "no exemption" behaviour.
+    """
+    if registry is None:
+        return False
+    for token in (server.command, *server.args, server.name):
+        if not token:
+            continue
+        if registry.get(token) is not None:
+            return True
+    return False
 
 
 # ── Match evaluation ───────────────────────────────────────────────────────────
