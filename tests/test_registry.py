@@ -452,20 +452,24 @@ class TestUpdateRegistryProGate:
             assert is_pro_feature_available("update_registry") is True
 
     def test_update_registry_gate_no_longer_uses_html_report_key(self) -> None:
-        """The update-registry command must call is_pro_feature_available with
-        'update_registry', not 'html_report'."""
+        """The update-registry command must gate on the 'update_registry'
+        feature key, not 'html_report'."""
         import inspect  # noqa: PLC0415
 
         import mcp_audit.cli as cli_module  # noqa: PLC0415
 
         source = inspect.getsource(cli_module)
-        # Locate the update_registry function source to check its gate call.
-        # Verify the dedicated key is used and the proxy key is not.
         func_start = source.find("def update_registry(")
         assert func_start != -1, "update_registry function not found in cli.py"
         func_source = source[func_start : func_start + 500]
-        assert 'cached_is_pro_feature_available("update_registry")' in func_source
+        # Accept either the direct helper call or the new gate() indirection,
+        # as long as the correct feature key is referenced.
+        assert (
+            'cached_is_pro_feature_available("update_registry")' in func_source
+            or 'gate("update_registry"' in func_source
+        )
         assert 'cached_is_pro_feature_available("html_report")' not in func_source
+        assert 'gate("html_report"' not in func_source
 
 
 # ── levenshtein (registry module) ─────────────────────────────────────────────

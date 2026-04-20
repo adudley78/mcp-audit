@@ -31,7 +31,8 @@ src/mcp_audit/
 ├── config_parser.py   # Parses JSON configs, normalizes across client formats
 ├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, ScanScore, Severity, AttackPath, MachineInfo
 ├── licensing.py       # Ed25519 license key verification; LicenseInfo model; is_pro_feature_available()
-├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch)
+├── _gate.py           # gate(feature, console, message) — shared CLI helper for Pro/Enterprise feature gating; renders the standardised upsell panel
+├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch); _McpConfigEventHandler serialises callbacks via _scan_lock with single-event coalesced re-trigger
 ├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect)
 ├── _paths.py          # data_dir() and resolve_bundled_resource() — shared helpers for locating bundled data in source, wheel, and PyInstaller frozen contexts
 ├── fleet/
@@ -140,6 +141,8 @@ Build and distribution scripts at project root:
 - Rug-pull state is stored in `<user-config-dir>/mcp-audit/state/state.json` (resolved via `platformdirs`; macOS: `~/Library/Application Support/mcp-audit/state/`); a one-time migration copies state files from the legacy `~/.mcp-audit/` location on first access
 - License key stored at `~/.config/mcp-audit/license.key` (permissions 0o600); activate with `mcp-audit activate <key>`
 - **Pro feature gating happens at the output/rendering layer only.** Analyzers and scan logic never check license state. Scans always run fully — gating only restricts which output formats are rendered.
+- **`gate(feature, console, message=None)` in `_gate.py` is the shared helper for CLI-layer Pro feature gating.** All CLI soft- and hard-gate sites funnel through this helper so the upsell panel wording stays consistent. Never call `gate()` from analyzers or `scanner.py` — gating is a CLI/presentation concern. Hard-gated commands follow the pattern `if not gate("feature", console): raise typer.Exit(N)`. The helper resolves its license check via `mcp_audit.cli.cached_is_pro_feature_available` so existing test patches at that attribute continue to intercept.
+- **Watcher callback serialisation.** `_McpConfigEventHandler._fire()` holds `_scan_lock` for the entire duration of the user callback to prevent two `run_scan` calls from racing on `state_<hash>.json`. Events arriving while a scan is in flight are stored in `_pending_rescan` (tuple of latest `(path, event_type)`) and coalesced into a single re-trigger when the active callback returns. Never release the scan lock before the callback finishes.
 - License verification is fully offline (Ed25519 public key hardcoded in `licensing.py`); the private key never ships with the package
 - Exit codes: 0 = clean, 1 = findings found, 2 = error
 - JSON output includes top-level `score` and `grade` fields from `ScanScore`; HTML dashboard displays a colour-coded grade badge in the header

@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.table import Table
 
 from mcp_audit import __version__
+from mcp_audit._gate import gate
 from mcp_audit._license_cache import cached_is_pro_feature_available
 from mcp_audit.analyzers.rug_pull import (
     build_state_entry,
@@ -283,21 +284,17 @@ def scan(
     extra_rules_dirs: list[Path] = []
     from mcp_audit.scanner import _USER_RULES_DIR  # noqa: PLC0415
 
-    if rules_dir is not None:
-        if not cached_is_pro_feature_available("custom_rules"):
+    if rules_dir is not None and gate(
+        "custom_rules",
+        console,
+        message="--rules-dir skipped; bundled community rules still apply.",
+    ):
+        if not rules_dir.is_dir():
             console.print(
-                "[yellow]--rules-dir requires a Pro or Enterprise license.[/yellow]\n"
-                "  Bundled community rules still apply.\n"
-                "  Upgrade at [link=https://mcp-audit.dev/pro]"
-                "https://mcp-audit.dev/pro[/link]"
+                f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
             )
-        else:
-            if not rules_dir.is_dir():
-                console.print(
-                    f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
-                )
-                raise typer.Exit(2)  # noqa: B904
-            extra_rules_dirs.append(rules_dir)
+            raise typer.Exit(2)  # noqa: B904
+        extra_rules_dirs.append(rules_dir)
 
     if _USER_RULES_DIR.is_dir() and cached_is_pro_feature_available("custom_rules"):
         extra_rules_dirs.append(_USER_RULES_DIR)
@@ -399,50 +396,43 @@ def scan(
         result.findings.extend(gov_findings)
 
     # ── SAST scan (Pro-gated, requires semgrep) ────────────────────────────────
-    if sast is not None:
-        if not cached_is_pro_feature_available("sast"):
+    if sast is not None and gate(
+        "sast",
+        console,
+        message="--sast skipped; MCP config scan continues.",
+    ):
+        from mcp_audit.sast.runner import run_semgrep  # noqa: PLC0415
+
+        console.print(f"[dim]SAST: scanning {sast} with Semgrep rules…[/dim]")
+        sast_result = run_semgrep(target_path=sast)
+        if sast_result.error:
             console.print(
-                "[yellow]⚡ Pro feature:[/yellow] SAST scanning requires "
-                "a Pro or Enterprise license.\n"
-                "   Activate with: [bold]mcp-audit activate <key>[/bold]"
+                f"[yellow]SAST warning:[/yellow] {sast_result.error}",
+                err=True,
             )
         else:
-            from mcp_audit.sast.runner import run_semgrep  # noqa: PLC0415
-
-            console.print(f"[dim]SAST: scanning {sast} with Semgrep rules…[/dim]")
-            sast_result = run_semgrep(target_path=sast)
-            if sast_result.error:
-                console.print(
-                    f"[yellow]SAST warning:[/yellow] {sast_result.error}",
-                    err=True,
-                )
-            else:
-                result.findings.extend(sast_result.findings)
-                console.print(
-                    f"[dim]SAST: scanned {sast_result.files_scanned} file(s), "
-                    f"found {len(sast_result.findings)} issue(s)[/dim]"
-                )
+            result.findings.extend(sast_result.findings)
+            console.print(
+                f"[dim]SAST: scanned {sast_result.files_scanned} file(s), "
+                f"found {len(sast_result.findings)} issue(s)[/dim]"
+            )
 
     # ── Extension scan (Pro-gated, --include-extensions) ─────────────────────
-    if include_extensions:
-        if not cached_is_pro_feature_available("extensions"):
-            console.print(
-                "[yellow]⚡ Pro feature:[/yellow] --include-extensions requires "
-                "a Pro or Enterprise license.\n"
-                "   Activate with: [bold]mcp-audit activate <key>[/bold]\n"
-                "   MCP config scan continues without extension scanning."
-            )
-        else:
-            from mcp_audit.extensions.analyzer import analyze_extensions  # noqa: I001, PLC0415
-            from mcp_audit.extensions.discovery import discover_extensions  # noqa: PLC0415
+    if include_extensions and gate(
+        "extensions",
+        console,
+        message="--include-extensions skipped; MCP config scan continues.",
+    ):
+        from mcp_audit.extensions.analyzer import analyze_extensions  # noqa: I001, PLC0415
+        from mcp_audit.extensions.discovery import discover_extensions  # noqa: PLC0415
 
-            _ext_list = discover_extensions()
-            _ext_findings = analyze_extensions(_ext_list)
-            result.findings.extend(_ext_findings)
-            console.print(
-                f"[dim]Extensions: {len(_ext_list)} extension(s) scanned, "
-                f"{len(_ext_findings)} issue(s) found[/dim]"
-            )
+        _ext_list = discover_extensions()
+        _ext_findings = analyze_extensions(_ext_list)
+        result.findings.extend(_ext_findings)
+        console.print(
+            f"[dim]Extensions: {len(_ext_list)} extension(s) scanned, "
+            f"{len(_ext_findings)} issue(s) found[/dim]"
+        )
 
     # Filter by severity threshold
     try:
@@ -714,15 +704,7 @@ def dashboard(
     import threading  # noqa: PLC0415
     import webbrowser  # noqa: PLC0415
 
-    from rich.panel import Panel  # noqa: PLC0415
-
-    if not cached_is_pro_feature_available("dashboard"):
-        console.print(
-            Panel(
-                "mcp-audit dashboard requires a Pro license. Visit https://mcp-audit.dev/pro",
-                style="yellow",
-            )
-        )
+    if not gate("dashboard", console):
         raise typer.Exit(code=0)
 
     extra_paths = [path] if path else None
@@ -731,19 +713,17 @@ def dashboard(
     )
 
     extra_rules_dirs: list[Path] = []
-    if rules_dir is not None:
-        if not cached_is_pro_feature_available("custom_rules"):
+    if rules_dir is not None and gate(
+        "custom_rules",
+        console,
+        message="--rules-dir skipped; bundled community rules still apply.",
+    ):
+        if not rules_dir.is_dir():
             console.print(
-                "[yellow]--rules-dir requires a Pro or Enterprise license.[/yellow]\n"
-                "  Bundled community rules still apply."
+                f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
             )
-        else:
-            if not rules_dir.is_dir():
-                console.print(
-                    f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
-                )
-                raise typer.Exit(2)  # noqa: B904
-            extra_rules_dirs.append(rules_dir)
+            raise typer.Exit(2)  # noqa: B904
+        extra_rules_dirs.append(rules_dir)
 
     if _DASH_USER_RULES_DIR.is_dir() and cached_is_pro_feature_available(
         "custom_rules"
@@ -848,19 +828,17 @@ def watch(
     extra_paths = [path] if path else None
 
     extra_rules_dirs: list[Path] = []
-    if rules_dir is not None:
-        if not cached_is_pro_feature_available("custom_rules"):
+    if rules_dir is not None and gate(
+        "custom_rules",
+        console,
+        message="--rules-dir skipped; bundled community rules still apply.",
+    ):
+        if not rules_dir.is_dir():
             console.print(
-                "[yellow]--rules-dir requires a Pro or Enterprise license.[/yellow]\n"
-                "  Bundled community rules still apply."
+                f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
             )
-        else:
-            if not rules_dir.is_dir():
-                console.print(
-                    f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
-                )
-                raise typer.Exit(2)  # noqa: B904
-            extra_rules_dirs.append(rules_dir)
+            raise typer.Exit(2)  # noqa: B904
+        extra_rules_dirs.append(rules_dir)
 
     if _WATCH_USER_RULES_DIR.is_dir() and cached_is_pro_feature_available(
         "custom_rules"
@@ -970,11 +948,7 @@ def update_registry() -> None:
 
     Requires a Pro or Enterprise license.
     """
-    if not cached_is_pro_feature_available("update_registry"):
-        console.print(
-            "[yellow]update-registry is a Pro feature.[/yellow]\n"
-            "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"
-        )
+    if not gate("update_registry", console):
         raise typer.Exit(0)  # noqa: B904
 
     console.print(f"[dim]Fetching registry from {_UPDATE_REGISTRY_URL}…[/dim]")
@@ -1074,11 +1048,7 @@ def merge(
     """
     from mcp_audit.fleet.merger import FleetMerger, generate_fleet_html  # noqa: PLC0415
 
-    if not cached_is_pro_feature_available("fleet_merge"):
-        console.print(
-            "[yellow]mcp-audit merge requires an Enterprise license.[/yellow]\n"
-            "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"
-        )
+    if not gate("fleet_merge", console):
         raise typer.Exit(0)  # noqa: B904
 
     if dir_path is not None and files:
@@ -1373,11 +1343,7 @@ def rule_validate(
 
     Requires a Pro or Enterprise license.
     """
-    if not cached_is_pro_feature_available("custom_rules"):
-        console.print(
-            "[yellow]rule validate is a Pro feature.[/yellow]\n"
-            "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"
-        )
+    if not gate("custom_rules", console):
         raise typer.Exit(0)  # noqa: B904
 
     from mcp_audit.rules.engine import load_rules_from_file  # noqa: PLC0415
@@ -1433,11 +1399,7 @@ def rule_test(
 
     Requires a Pro or Enterprise license.
     """
-    if not cached_is_pro_feature_available("custom_rules"):
-        console.print(
-            "[yellow]rule test is a Pro feature.[/yellow]\n"
-            "  Upgrade at [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]"
-        )
+    if not gate("custom_rules", console):
         raise typer.Exit(0)  # noqa: B904
 
     from mcp_audit.config_parser import parse_config  # noqa: PLC0415
@@ -1568,11 +1530,12 @@ def rule_list(
 
     # Extra --rules-dir (shown for Pro users only)
     if rules_dir is not None:
-        if not cached_is_pro_feature_available("custom_rules"):
-            console.print(
-                "[yellow]--rules-dir listing requires a Pro or Enterprise "
-                "license.[/yellow]"
-            )
+        if not gate(
+            "custom_rules",
+            console,
+            message="--rules-dir listing skipped.",
+        ):
+            pass
         elif rules_dir.is_dir():
             extra_rules = load_rules_from_dir(rules_dir)
             for rule in extra_rules:
@@ -1933,12 +1896,7 @@ def policy_init(
     Aborts if the destination file already exists.
     Requires a Pro or Enterprise license.
     """
-    if not cached_is_pro_feature_available("governance"):
-        console.print(
-            "[yellow]policy init requires a Pro or Enterprise license.[/yellow]\n"
-            "  Upgrade at [link=https://mcp-audit.dev/pro]"
-            "https://mcp-audit.dev/pro[/link]"
-        )
+    if not gate("governance", console):
         raise typer.Exit(1)  # noqa: B904
 
     if output.exists():
@@ -1978,12 +1936,7 @@ def policy_check(
     Fast: skips all security analyzers, hashing, and network calls.
     Requires a Pro or Enterprise license.
     """
-    if not cached_is_pro_feature_available("governance"):
-        console.print(
-            "[yellow]policy check requires a Pro or Enterprise license.[/yellow]\n"
-            "  Upgrade at [link=https://mcp-audit.dev/pro]"
-            "https://mcp-audit.dev/pro[/link]"
-        )
+    if not gate("governance", console):
         raise typer.Exit(1)  # noqa: B904
 
     from mcp_audit.config_parser import parse_config  # noqa: PLC0415
@@ -2229,12 +2182,7 @@ def sast(
 
     Exit codes: 0 = no findings, 1 = findings found, 2 = error.
     """
-    if not cached_is_pro_feature_available("sast"):
-        console.print(
-            "[yellow]⚡ Pro feature:[/yellow] SAST scanning requires "
-            "a Pro or Enterprise license.\n"
-            "   Activate with: [bold]mcp-audit activate <key>[/bold]"
-        )
+    if not gate("sast", console):
         raise typer.Exit(2)  # noqa: B904
 
     from mcp_audit.sast.runner import (  # noqa: PLC0415
@@ -2402,13 +2350,11 @@ def extensions_scan(
     """
     import json as _json  # noqa: PLC0415
 
-    if not cached_is_pro_feature_available("extensions"):
-        console.print(
-            "[yellow]⚡ Pro feature:[/yellow] [bold]extensions scan[/bold] requires "
-            "a Pro or Enterprise license.\n"
-            "   [bold]extensions discover[/bold] is free — try that first.\n"
-            "   Activate with: [bold]mcp-audit activate <key>[/bold]"
-        )
+    if not gate(
+        "extensions",
+        console,
+        message="'extensions discover' is free — try that first.",
+    ):
         raise typer.Exit(0)  # noqa: B904
 
     from mcp_audit.extensions.analyzer import analyze_extensions  # noqa: PLC0415

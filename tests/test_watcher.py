@@ -175,6 +175,164 @@ class TestDebounce:
         assert fired == []
 
 
+# ── Concurrency — scan lock + pending rescan coalescing ───────────────────────
+
+
+class TestFireConcurrency:
+    """Verify that ``_fire`` serialises callback execution and that events
+    arriving while a scan is in flight coalesce into exactly one re-fire.
+
+    Rationale: two rapid config saves could otherwise spawn overlapping
+    ``run_scan`` calls that both read and overwrite ``state_<hash>.json``,
+    silently discarding the earlier rug-pull results.
+    """
+
+    def test_concurrent_fire_does_not_call_callback_twice_simultaneously(
+        self, tmp_path: Path
+    ) -> None:
+        """Two ``_fire`` invocations must never execute the callback
+        concurrently.  The second call must wait for (or defer) the first.
+        """
+        overlap_detected: list[bool] = []
+        in_flight_lock = threading.Lock()
+        first_started = threading.Event()
+        release_first = threading.Event()
+        call_count = [0]
+
+        def cb(p: Path, et: str) -> None:
+            if not in_flight_lock.acquire(blocking=False):
+                overlap_detected.append(True)
+                return
+            try:
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    first_started.set()
+                    # Block the first callback until the test releases it,
+                    # giving the second thread a real chance to overlap.
+                    release_first.wait(timeout=3.0)
+            finally:
+                in_flight_lock.release()
+
+        known = frozenset({"mcp.json"})
+        handler = _McpConfigEventHandler(cb, known)
+        target = tmp_path / "mcp.json"
+
+        t1 = threading.Thread(target=handler._fire, args=(target, "modified"))
+        t2 = threading.Thread(target=handler._fire, args=(target, "modified"))
+        t1.start()
+        # Wait until t1 is definitely inside the callback before starting t2.
+        assert first_started.wait(timeout=3.0), "first callback never started"
+
+        t2.start()
+        # Give t2 enough wall time to attempt acquiring the scan lock.
+        time.sleep(0.1)
+
+        release_first.set()
+        t1.join(timeout=3.0)
+        t2.join(timeout=3.0)
+
+        assert overlap_detected == [], (
+            "Callback was executed concurrently from two threads — "
+            "_scan_lock is not protecting the critical section."
+        )
+
+    def test_pending_rescan_retriggers_after_first_completes(
+        self, tmp_path: Path
+    ) -> None:
+        """A second _fire while the first is running must re-trigger the
+        callback exactly once when the first completes — not zero times
+        (lost event) and not two additional times (amplification).
+        """
+        first_started = threading.Event()
+        release_first = threading.Event()
+        call_args: list[tuple[Path, str]] = []
+        lock = threading.Lock()
+
+        def cb(p: Path, et: str) -> None:
+            with lock:
+                call_args.append((p, et))
+                idx = len(call_args)
+            if idx == 1:
+                first_started.set()
+                release_first.wait(timeout=3.0)
+
+        known = frozenset({"mcp.json"})
+        handler = _McpConfigEventHandler(cb, known)
+        target = tmp_path / "mcp.json"
+
+        t1 = threading.Thread(target=handler._fire, args=(target, "modified"))
+        t1.start()
+        assert first_started.wait(timeout=3.0)
+
+        # Fire a second event while the first callback is still blocked —
+        # this must land on the pending_rescan path, not execute immediately.
+        t2 = threading.Thread(target=handler._fire, args=(target, "created"))
+        t2.start()
+        time.sleep(0.1)  # let t2 reach the acquire() check
+
+        # Before the first callback finishes we must still have exactly
+        # one recorded call — the second has been deferred.
+        assert len(call_args) == 1
+
+        release_first.set()
+        t1.join(timeout=3.0)
+        t2.join(timeout=3.0)
+
+        # Exactly two calls: the original plus the single coalesced re-fire.
+        assert len(call_args) == 2, (
+            f"Expected exactly 2 callback invocations, got {len(call_args)}: "
+            f"{call_args}"
+        )
+        # The re-fire preserves the latest (path, event_type).
+        assert call_args[1] == (target, "created")
+
+    def test_multiple_pending_events_coalesce_into_single_retrigger(
+        self, tmp_path: Path
+    ) -> None:
+        """Several events arriving while a scan is in flight must collapse
+        to exactly one re-trigger — the most recent wins.
+        """
+        first_started = threading.Event()
+        release_first = threading.Event()
+        call_args: list[tuple[Path, str]] = []
+        lock = threading.Lock()
+
+        def cb(p: Path, et: str) -> None:
+            with lock:
+                call_args.append((p, et))
+                idx = len(call_args)
+            if idx == 1:
+                first_started.set()
+                release_first.wait(timeout=3.0)
+
+        known = frozenset({"mcp.json"})
+        handler = _McpConfigEventHandler(cb, known)
+        target = tmp_path / "mcp.json"
+
+        t1 = threading.Thread(target=handler._fire, args=(target, "modified"))
+        t1.start()
+        assert first_started.wait(timeout=3.0)
+
+        # Fire N events while the first is blocked.  All must coalesce.
+        deferred_threads = [
+            threading.Thread(target=handler._fire, args=(target, f"modified-{i}"))
+            for i in range(5)
+        ]
+        for t in deferred_threads:
+            t.start()
+        for t in deferred_threads:
+            t.join(timeout=1.0)
+
+        release_first.set()
+        t1.join(timeout=3.0)
+
+        # One initial + exactly one re-fire for the coalesced backlog.
+        assert len(call_args) == 2, (
+            f"Expected coalesced backlog to produce exactly 2 total "
+            f"callbacks, got {len(call_args)}: {call_args}"
+        )
+
+
 # ── ConfigWatcher start / stop lifecycle ──────────────────────────────────────
 
 

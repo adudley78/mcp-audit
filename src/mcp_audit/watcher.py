@@ -95,6 +95,13 @@ class _McpConfigEventHandler(FileSystemEventHandler):
         self._known_filenames = known_filenames
         self._lock = threading.Lock()
         self._pending: dict[Path, threading.Timer] = {}
+        # Serialises callback execution: only one scan runs at a time.  When
+        # a second debounced _fire() arrives while a scan is in flight we
+        # record the latest (path, event_type) in ``_pending_rescan`` and
+        # re-fire exactly once after the current callback returns.  Multiple
+        # arrivals during the same run coalesce into that single re-fire.
+        self._scan_lock = threading.Lock()
+        self._pending_rescan: tuple[Path, str] | None = None
 
     def _is_relevant(self, path_str: str) -> bool:
         p = Path(path_str)
@@ -117,7 +124,26 @@ class _McpConfigEventHandler(FileSystemEventHandler):
     def _fire(self, path: Path, event_type: str) -> None:
         with self._lock:
             self._pending.pop(path, None)
-        self._callback(path, event_type)
+
+        # Hold ``_scan_lock`` for the full duration of the callback so that
+        # two concurrent _fire() calls never execute the callback at the
+        # same time — earlier writers to ``state_<hash>.json`` would
+        # otherwise race with later ones.  If the lock is already held we
+        # mark a rescan and let the active runner re-trigger on drain.
+        if not self._scan_lock.acquire(blocking=False):
+            self._pending_rescan = (path, event_type)
+            return
+        try:
+            self._callback(path, event_type)
+            # Drain any rescans queued while we were running.  Multiple
+            # events during the run collapse into a single re-fire (we only
+            # retain the most recent (path, event_type)).
+            while self._pending_rescan is not None:
+                pending = self._pending_rescan
+                self._pending_rescan = None
+                self._callback(*pending)
+        finally:
+            self._scan_lock.release()
 
     def on_created(self, event: FileSystemEvent) -> None:
         if isinstance(event, FileCreatedEvent) and self._is_relevant(event.src_path):

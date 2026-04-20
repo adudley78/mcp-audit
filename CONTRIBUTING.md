@@ -167,6 +167,45 @@ Create `tests/test_your_analyzer.py`. Tests must cover:
   per-analyzer and wraps them in a `SCAN-ERR` finding — your tests should
   confirm that a malformed input does not propagate an unhandled exception.
 
+## Adding a new Pro feature
+
+Pro/Enterprise feature gating lives at the CLI layer only — analyzers and
+`scanner.py` never check license state.  When you wire a new Pro-gated flag
+or subcommand into `src/mcp_audit/cli.py`:
+
+1. **Add the feature key** to `_FEATURE_TIERS` in `src/mcp_audit/licensing.py`
+   mapping your key (e.g. `"my_feature"`) to the tiers that unlock it
+   (typically `("pro", "enterprise")`).
+
+2. **Gate the call site through `gate()`**, never inline:
+
+   ```python
+   from mcp_audit._gate import gate
+
+   # Soft gate — skip the feature and continue the scan:
+   if not gate("my_feature", console, message="--my-flag skipped."):
+       return  # or: fall through to skip the feature block
+
+   # Hard gate — exit the command:
+   if not gate("my_feature", console):
+       raise typer.Exit(2)  # pick the right exit code for your command
+   ```
+
+   The `gate()` helper prints a single standardised Pro upsell panel so the
+   wording stays consistent across the whole CLI.  Never print your own
+   upsell message — it will drift out of sync with the rest of the tool.
+
+3. **Add two gate tests** — one positive (`pro_enabled` fixture from
+   `tests/conftest.py`, expect the feature to run) and one negative (patch
+   `mcp_audit.cli.cached_is_pro_feature_available` to return `False`, expect
+   the upsell panel and the feature to be skipped).  The patch target is the
+   attribute on the `cli` module — `gate()` resolves its license check
+   through that attribute so a single patch intercepts every call site.
+
+4. **Never call `gate()` from analyzers, `scanner.py`, or any output
+   formatter helper other than the CLI layer.**  Scans always execute in
+   full regardless of licence tier; gating only restricts CLI surface area.
+
 ## Testing conventions
 
 ### Pro/Enterprise output formatter tests
