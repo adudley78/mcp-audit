@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import typer
@@ -71,7 +72,7 @@ def baseline_list() -> None:
     table = Table(show_header=True, header_style="bold")
     table.add_column("Name", style="cyan")
     table.add_column("Created")
-    table.add_column("Servers", justify="right")
+    table.add_column("Findings", justify="right")
     table.add_column("Scanner Version")
 
     for bl in baselines:
@@ -86,9 +87,8 @@ def baseline_list() -> None:
 
 @baseline_app.command(name="compare")
 def baseline_compare(
-    baseline_name: str | None = typer.Option(  # noqa: B008
+    baseline_name: str | None = typer.Argument(  # noqa: B008
         None,
-        "--baseline",
         help="Baseline name to compare against (defaults to latest)",
     ),
     path: Path | None = typer.Option(  # noqa: B008
@@ -181,14 +181,16 @@ def baseline_compare(
 @baseline_app.command(name="delete")
 def baseline_delete(
     name: str = typer.Argument(help="Name of the baseline to delete"),  # noqa: B008
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),  # noqa: B008
 ) -> None:
     """Delete a saved baseline."""
     from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
 
-    confirmed = typer.confirm(f"Delete baseline {name!r}?", default=False)
-    if not confirmed:
-        console.print("[dim]Cancelled.[/dim]")
-        raise typer.Exit(0)  # noqa: B904
+    if not yes:
+        confirmed = typer.confirm(f"Delete baseline {name!r}?", default=False)
+        if not confirmed:
+            console.print("[dim]Cancelled.[/dim]")
+            raise typer.Exit(0)  # noqa: B904
 
     mgr = BaselineManager()
     try:
@@ -205,14 +207,31 @@ def baseline_delete(
 @baseline_app.command(name="export")
 def baseline_export(
     name: str = typer.Argument(help="Name of the baseline to export"),  # noqa: B008
+    output_file: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--output-file",
+        "-o",
+        help="Write export to file instead of stdout",
+    ),
 ) -> None:
-    """Write a baseline as raw JSON to stdout (pipeable)."""
+    """Write a baseline as raw JSON to stdout (pipeable) or a file."""
     from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
 
     mgr = BaselineManager()
     try:
         raw = mgr.export(name)
-        typer.echo(raw)
     except FileNotFoundError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(2)  # noqa: B904
+
+    if output_file is not None:
+        dest = Path(output_file).resolve()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, raw.encode())
+        finally:
+            os.close(fd)
+        console.print(f"[green]Baseline exported to[/green] {dest}")
+    else:
+        typer.echo(raw)

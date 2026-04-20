@@ -547,6 +547,43 @@ def test_baseline_export_outputs_json(
         assert data["name"] == "export-bl"
 
 
+def test_baseline_export_to_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """baseline export NAME --output-file PATH writes 0o600 JSON to disk."""
+    import json as _json  # noqa: PLC0415
+    import stat
+    from unittest.mock import patch
+
+    import mcp_audit.baselines.manager as _bm_mod
+    from mcp_audit.discovery import DiscoveredConfig
+
+    monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", tmp_path / "baselines")
+    fake_config_path = tmp_path / "mcp.json"
+    fake_config_path.write_text(_json.dumps({"mcpServers": {}}), encoding="utf-8")
+    dest = tmp_path / "export.json"
+
+    with patch(
+        "mcp_audit.cli.discover_configs",
+        return_value=[
+            DiscoveredConfig(
+                client_name="cursor", root_key="mcpServers", path=fake_config_path
+            )
+        ],
+    ):
+        runner.invoke(app, ["baseline", "save", "export-file-bl"])
+
+    result = runner.invoke(
+        app, ["baseline", "export", "export-file-bl", "--output-file", str(dest)]
+    )
+    assert result.exit_code == 0, result.output
+    assert dest.exists(), "output file was not created"
+    data = _json.loads(dest.read_text(encoding="utf-8"))
+    assert data["name"] == "export-file-bl"
+    mode = stat.S_IMODE(dest.stat().st_mode)
+    assert mode == 0o600, f"expected 0o600, got {oct(mode)}"
+
+
 def test_scan_baseline_latest_flag(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

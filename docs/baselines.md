@@ -59,11 +59,11 @@ Displays all saved baselines, newest first.
 
 ---
 
-### `mcp-audit baseline compare [--baseline NAME]`
+### `mcp-audit baseline compare [NAME]`
 
 Compares the current live configuration against a saved baseline.
 
-- `--baseline NAME` selects a specific baseline by name.
+- `NAME` (positional) selects a specific baseline by name.
 - If omitted, the most recent baseline is used automatically.
 - Exit code 0 = no drift.  Exit code 1 = drift detected.
 
