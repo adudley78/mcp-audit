@@ -151,7 +151,7 @@ def policy_init(
     Requires a Pro or Enterprise license.
     """
     if not gate("governance", console):
-        raise typer.Exit(1)  # noqa: B904
+        raise typer.Exit(0)  # noqa: B904
 
     if output.exists():
         console.print(
@@ -191,7 +191,7 @@ def policy_check(
     Requires a Pro or Enterprise license.
     """
     if not gate("governance", console):
-        raise typer.Exit(1)  # noqa: B904
+        raise typer.Exit(0)  # noqa: B904
 
     from mcp_audit.governance.evaluator import evaluate_governance  # noqa: PLC0415
     from mcp_audit.governance.loader import load_policy  # noqa: PLC0415

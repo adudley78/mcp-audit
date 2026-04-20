@@ -37,7 +37,7 @@ def sast(
     Exit codes: 0 = no findings, 1 = findings found, 2 = error.
     """
     if not gate("sast", console):
-        raise typer.Exit(2)  # noqa: B904
+        raise typer.Exit(0)  # noqa: B904
 
     from mcp_audit.sast.runner import (  # noqa: PLC0415
         SastResult,

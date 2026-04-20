@@ -42,7 +42,7 @@ def activate(
             "  Purchase a license at [link=https://mcp-audit.dev/pro]"
             "https://mcp-audit.dev/pro[/link]"
         )
-        raise typer.Exit(1)  # noqa: B904
+        raise typer.Exit(2)  # noqa: B904
 
     tier_label = info.tier.capitalize()
     console.print(f"[green]✓ License activated: {tier_label} tier[/green]")

@@ -593,3 +593,36 @@ class TestLicenseInfoModel:
             is_valid=False,
         )
         assert info.is_valid is False
+
+
+# ── CLI: activate exit codes ───────────────────────────────────────────────────
+
+
+class TestActivateCLI:
+    """Exit-code contract for the `mcp-audit activate` command."""
+
+    def test_activate_invalid_key_exits_2(self, tmp_path: Path) -> None:
+        """An invalid key is a user error — must exit 2, not 1.
+
+        exit 1 is reserved for "findings found"; a bad key is an error (exit 2).
+        """
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["activate", "INVALID-KEY-12345"])
+        assert result.exit_code == 2, (
+            f"activate with invalid key must exit 2 (error), got {result.exit_code}"
+        )
+        assert "invalid" in result.output.lower()
+
+    def test_activate_random_garbage_exits_2(self, tmp_path: Path) -> None:
+        """Any syntactically invalid key string must exit 2."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["activate", "not-a-real-key-at-all-xyz"])
+        assert result.exit_code == 2

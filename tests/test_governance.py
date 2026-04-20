@@ -594,22 +594,49 @@ class TestGovernanceCLI:
         assert "already exists" in result.output.lower()
 
     def test_policy_init_requires_pro(self, tmp_path: Path) -> None:
+        """Gate is a soft stop — must exit 0, not 1."""
         output_file = tmp_path / "policy.yml"
         with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
             result = runner.invoke(
                 app, ["policy", "init", "--output", str(output_file)]
             )
-        assert result.exit_code == 1
+        assert result.exit_code == 0
         assert not output_file.exists()
 
+    def test_policy_init_exits_0_without_license(self, tmp_path: Path) -> None:
+        """policy init gate must be a soft stop (exit 0), not an error (exit 1/2)."""
+        output_file = tmp_path / "policy.yml"
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
+            result = runner.invoke(
+                app, ["policy", "init", "--output", str(output_file)]
+            )
+        assert result.exit_code == 0, (
+            f"policy init gate must exit 0 (soft stop), got {result.exit_code}"
+        )
+        assert "Pro" in result.output or "pro" in result.output.lower()
+
     def test_policy_check_requires_pro(self, tmp_path: Path) -> None:
+        """Gate is a soft stop — must exit 0, not 1."""
         policy_file = tmp_path / "policy.yml"
         _write_policy(policy_file, {"version": 1})
         with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
             result = runner.invoke(
                 app, ["policy", "check", "--policy", str(policy_file)]
             )
-        assert result.exit_code == 1
+        assert result.exit_code == 0
+
+    def test_policy_check_exits_0_without_license(self, tmp_path: Path) -> None:
+        """policy check gate must be a soft stop (exit 0), not an error (exit 1/2)."""
+        policy_file = tmp_path / "policy.yml"
+        _write_policy(policy_file, {"version": 1})
+        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
+            result = runner.invoke(
+                app, ["policy", "check", "--policy", str(policy_file)]
+            )
+        assert result.exit_code == 0, (
+            f"policy check gate must exit 0 (soft stop), got {result.exit_code}"
+        )
+        assert "Pro" in result.output or "pro" in result.output.lower()
 
     def test_scan_with_policy_flag(self, tmp_path: Path) -> None:
         policy_file = tmp_path / "policy.yml"
