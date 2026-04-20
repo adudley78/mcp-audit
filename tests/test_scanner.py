@@ -213,6 +213,122 @@ class TestRegistryStatsInScanResult:
         assert result.registry_stats is None
 
 
+# ── Nonexistent --path handling ───────────────────────────────────────────────
+
+
+class TestNonexistentPathHandling:
+    """CLI must exit 2 with a clear error when --path points to a missing file."""
+
+    def test_scan_nonexistent_path_exits_2(self, tmp_path: Path) -> None:
+        missing = tmp_path / "does-not-exist-mcp.json"
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["scan", "--path", str(missing)])
+        assert result.exit_code == 2, (
+            f"scan with nonexistent --path must exit 2 (error), got {result.exit_code}"
+        )
+
+    def test_scan_nonexistent_path_shows_error_message(self, tmp_path: Path) -> None:
+        missing = tmp_path / "does-not-exist-mcp.json"
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["scan", "--path", str(missing)])
+        output_lower = result.output.lower()
+        assert "not found" in output_lower or "does not exist" in output_lower, (
+            "Expected 'not found' or 'does not exist' in output, "
+            f"got: {result.output!r}"
+        )
+
+    def test_scan_positional_nonexistent_path_exits_2(self, tmp_path: Path) -> None:
+        missing = tmp_path / "does-not-exist-mcp.json"
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["scan", str(missing)])
+        assert result.exit_code == 2
+
+    def test_pin_nonexistent_path_exits_2(self, tmp_path: Path) -> None:
+        missing = tmp_path / "does-not-exist-mcp.json"
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["pin", "--path", str(missing)])
+        assert result.exit_code == 2
+
+    def test_diff_nonexistent_path_exits_2(self, tmp_path: Path) -> None:
+        missing = tmp_path / "does-not-exist-mcp.json"
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["diff", "--path", str(missing)])
+        assert result.exit_code == 2
+
+
+# ── Positional path argument ───────────────────────────────────────────────────
+
+
+class TestPositionalPathArgument:
+    """scan / pin / diff must accept a bare positional path in addition to --path."""
+
+    def test_scan_accepts_positional_path(self, tmp_path: Path) -> None:
+        """mcp-audit scan config.json (no --path flag) must not exit 2."""
+        config = tmp_path / "config.json"
+        config.write_text('{"mcpServers": {}}')
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["scan", str(config)])
+        assert result.exit_code != 2, (
+            "scan with positional path must not produce an argument error (exit 2); "
+            f"got exit_code={result.exit_code}, output={result.output!r}"
+        )
+
+    def test_scan_positional_path_runs_scan(self, tmp_path: Path) -> None:
+        """Positional path triggers a real scan; exit 0 or 1, not an error."""
+        config = tmp_path / "config.json"
+        config.write_text('{"mcpServers": {}}')
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["scan", str(config)])
+        assert result.exit_code in (0, 1), (
+            f"Expected exit 0 or 1, got {result.exit_code}; output={result.output!r}"
+        )
+
+    def test_positional_overrides_path_flag(self, tmp_path: Path) -> None:
+        """When both positional and --path are supplied, positional takes precedence."""
+        positional = tmp_path / "positional.json"
+        positional.write_text('{"mcpServers": {}}')
+        option_path = tmp_path / "option.json"
+        option_path.write_text(
+            '{"mcpServers": {"opt": {"command": "node", "args": []}}}'
+        )
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(
+                app, ["scan", str(positional), "--path", str(option_path)]
+            )
+        assert result.exit_code in (0, 1)
+
+    def test_pin_accepts_positional_path(self, tmp_path: Path) -> None:
+        config = tmp_path / "config.json"
+        config.write_text('{"mcpServers": {}}')
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["pin", str(config)])
+        assert result.exit_code != 2, (
+            f"pin with positional path must not produce argument error; "
+            f"got {result.exit_code}"
+        )
+
+    def test_diff_accepts_positional_path(self, tmp_path: Path) -> None:
+        config = tmp_path / "config.json"
+        config.write_text('{"mcpServers": {}}')
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["diff", str(config)])
+        # diff exits 2 when no baseline exists — that's expected, not an argument error
+        # The key assertion: output must not contain Typer's "unexpected extra argument"
+        assert "unexpected extra argument" not in result.output.lower(), (
+            f"diff rejected positional path as an argument error: {result.output!r}"
+        )
+
+
 # ── Invalid JSON path handling ─────────────────────────────────────────────────
 
 

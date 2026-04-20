@@ -141,12 +141,17 @@ def _preflight_checks(
     registry: Path | None,
     sast: Path | None,
     con: Console,
+    path: Path | None = None,
 ) -> None:
     """Validate incompatible flag combinations and user-supplied paths.
 
     Raises ``typer.Exit(2)`` with a human-readable message for any failure so
     callers never see a Python traceback for routine input mistakes.
     """
+    if path is not None and not path.resolve().exists():
+        con.print(f"[red]Error:[/red] Config path not found: {path}")
+        raise typer.Exit(2)
+
     if offline and verify_hashes:
         con.print(
             "[red]Error:[/red] --verify-hashes makes network requests "
@@ -483,6 +488,9 @@ def _write_formatted_output(
 
 @app.command()
 def scan(
+    config: Path | None = typer.Argument(  # noqa: B008
+        None, help="Config file to scan (positional shorthand for --path/-p)"
+    ),
     path: Path | None = typer.Option(  # noqa: B008
         None, "--path", "-p", help="Scan a specific config file or directory"
     ),
@@ -610,13 +618,14 @@ def scan(
     ),
 ) -> None:
     """Scan MCP configurations for security issues."""
+    path = config or path
     extra_paths = [path] if path else None
     fmt = "json" if json_flag else output_format
 
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
-    _preflight_checks(offline, verify_hashes, registry, sast, console)
+    _preflight_checks(offline, verify_hashes, registry, sast, console, path=path)
 
     analyzers = _build_custom_analyzers(registry, offline_registry)
     extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, console)
@@ -699,6 +708,9 @@ def discover(
 
 @app.command()
 def pin(
+    config: Path | None = typer.Argument(  # noqa: B008
+        None, help="Config file to pin (positional shorthand for --path/-p)"
+    ),
     path: Path | None = typer.Option(  # noqa: B008
         None, "--path", "-p", help="Additional path to check"
     ),
@@ -708,6 +720,10 @@ def pin(
     Overwrites any existing baseline.  Preserves the original ``first_seen``
     timestamp for servers already tracked.
     """
+    path = config or path
+    if path is not None and not path.resolve().exists():
+        console.print(f"[red]Error:[/red] Config path not found: {path}")
+        raise typer.Exit(2)
     extra_paths = [path] if path else None
     configs = _cli.discover_configs(extra_paths=extra_paths)
 
@@ -750,6 +766,9 @@ def pin(
 
 @app.command()
 def diff(
+    config: Path | None = typer.Argument(  # noqa: B008
+        None, help="Config file to diff (positional shorthand for --path/-p)"
+    ),
     path: Path | None = typer.Option(  # noqa: B008
         None, "--path", "-p", help="Additional path to check"
     ),
@@ -759,6 +778,10 @@ def diff(
     Does NOT run the full analyzer pipeline — only compares hashes.
     Exit code 1 if any changes detected, 0 if clean.
     """
+    path = config or path
+    if path is not None and not path.resolve().exists():
+        console.print(f"[red]Error:[/red] Config path not found: {path}")
+        raise typer.Exit(2)
     extra_paths = [path] if path else None
     configs = _cli.discover_configs(extra_paths=extra_paths)
     scoped_path = derive_state_path(configs)
