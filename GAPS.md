@@ -38,7 +38,7 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 **No validation against real exploits.** The detection patterns are based on published security research (see PROVENANCE.md) but are regex approximations of documented attacks, not exact replicas. Nobody has verified that the patterns correspond to prompts that actually cause LLMs to follow injected instructions. A validation suite should reconstruct known attack PoCs (Invariant Labs SSH exfiltration, CrowdStrike `add_numbers`, fake Postmark server) as test fixtures and confirm detection.
 
-**Pattern coverage is thin.** The poisoning analyzer has 14 patterns. The credential analyzer has 9. Production secret scanners like truffleHog and detect-secrets use 700+ credential patterns. The poisoning patterns cover the most-cited attack techniques but will miss novel or obfuscated injection methods. Pattern count should grow based on practitioner feedback and new published research.
+**Pattern coverage is thin.** The poisoning analyzer has 11 patterns (authoritative count: `len(PATTERNS)` in `analyzers/poisoning.py`, not the highest ID number). The credential analyzer has 9. Production secret scanners like truffleHog and detect-secrets use 700+ credential patterns. The poisoning patterns cover the most-cited attack techniques but will miss novel or obfuscated injection methods. Pattern count should grow based on practitioner feedback and new published research.
 
 ## Severity calibration
 

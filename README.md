@@ -19,7 +19,7 @@ Tenable WAS has added MCP server detection plugins that scan server-side code fo
 ## Features
 
 - **Auto-discovers** MCP configs across 8 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code user-level, Claude Code project-level, GitHub Copilot CLI, Augment Code)
-- **Tool poisoning detection** — 14 regex patterns across 5 severity tiers
+- **Tool poisoning detection** — 11 regex patterns across 5 severity tiers
 - **Credential exposure** — 9 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges, runtime package fetching
 - **Supply chain** — typosquatting detection via Levenshtein distance against 57 known-legitimate MCP servers
