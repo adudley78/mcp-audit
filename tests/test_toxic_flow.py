@@ -133,8 +133,12 @@ class TestTagServerKnownPackages:
         caps = tag_server(_memory())
         assert caps == frozenset()
 
-    def test_all_known_servers_are_in_registry(self) -> None:
-        # Verify the registry doesn't have typos by checking a few key entries.
+    def test_known_servers_fallback_dict_covers_expected_keys(self) -> None:
+        """Verify the in-module KNOWN_SERVERS fallback contains expected keys.
+
+        This fallback is only used when the JSON registry is unavailable.
+        For registry coverage, see test_tag_server_uses_registry_capabilities.
+        """
         assert "@modelcontextprotocol/server-filesystem" in KNOWN_SERVERS
         assert "@modelcontextprotocol/server-fetch" in KNOWN_SERVERS
         assert "@modelcontextprotocol/server-github" in KNOWN_SERVERS
@@ -578,7 +582,16 @@ class TestToxicPairsIntegrity:
         assert tp.description.strip()
 
     @pytest.mark.parametrize("tp", TOXIC_PAIRS, ids=lambda tp: tp.finding_id)
-    def test_critical_and_high_only_severities(self, tp: ToxicPair) -> None:
+    def test_toxic_pair_severities_are_critical_high_or_medium(
+        self, tp: ToxicPair
+    ) -> None:
+        """Each ToxicPair must carry CRITICAL, HIGH, or MEDIUM severity.
+
+        CRITICAL: highest-risk capability combinations (e.g. shell + network exfil).
+        HIGH:     serious but slightly lower-risk pairings.
+        MEDIUM:   lower-impact dangerous pairs (e.g. read-only data + exfil path).
+        INFO and LOW are not valid for toxic-flow findings.
+        """
         from mcp_audit.models import Severity
 
         assert tp.severity in {Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM}

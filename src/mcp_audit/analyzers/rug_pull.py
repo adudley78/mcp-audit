@@ -202,8 +202,15 @@ class RugPullAnalyzer(BaseAnalyzer):
     analysis loop.  The state file is updated on every :meth:`analyze_all` call.
 
     Args:
-        state_path: Override the state file location.  Defaults to
-            ``~/.mcp-audit/state.json``.  Pass a ``tmp_path`` in tests.
+        state_path: Override the state file location.  Defaults to the
+            platform-specific user config directory:
+
+            - macOS:   ``~/Library/Application Support/mcp-audit/state/``
+            - Linux:   ``~/.config/mcp-audit/state/`` (respects
+              ``$XDG_CONFIG_HOME``)
+            - Windows: ``%APPDATA%/mcp-audit/state/``
+
+            Pass a ``tmp_path`` in tests.
     """
 
     def __init__(self, state_path: Path | None = None) -> None:

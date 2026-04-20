@@ -275,9 +275,11 @@ def load_registry(
 def levenshtein(a: str, b: str) -> int:
     """Compute the Levenshtein edit distance between two strings.
 
-    Uses a space-optimised two-row DP approach: O(min(|a|,|b|)) space,
-    O(|a| * |b|) time.  Same algorithm as in
-    :mod:`mcp_audit.analyzers.supply_chain`.
+    Standard Wagner-Fischer edit distance. Uses a space-optimised two-row DP
+    approach: O(min(|a|,|b|)) space, O(|a| * |b|) time.
+
+    Canonical implementation — imported by
+    :mod:`mcp_audit.analyzers.supply_chain` for typosquatting detection.
 
     Args:
         a: First string.
