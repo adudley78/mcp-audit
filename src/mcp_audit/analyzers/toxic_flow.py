@@ -29,6 +29,7 @@ from enum import StrEnum
 
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.models import Finding, ServerConfig, Severity
+from mcp_audit.registry.loader import KnownServerRegistry
 
 
 class Capability(StrEnum):
@@ -275,13 +276,36 @@ TOXIC_PAIRS: list[ToxicPair] = [
 # ── Capability tagging ────────────────────────────────────────────────────────
 
 
-def tag_server(server: ServerConfig) -> frozenset[Capability]:
-    """Assign capability labels to a server using a three-layer approach.
+_CAPABILITY_VALUES: frozenset[str] = frozenset(c.value for c in Capability)
 
-    Layers applied in order (results are unioned — all matches contribute):
+
+def _is_known_cap(value: str) -> bool:
+    """Return True if *value* matches a defined :class:`Capability` member.
+
+    Unknown capability strings in registry data are dropped silently so a
+    future-schema capability name in an updated registry does not crash
+    older clients.
+    """
+    return value in _CAPABILITY_VALUES
+
+
+def tag_server(
+    server: ServerConfig,
+    registry: KnownServerRegistry | None = None,
+) -> frozenset[Capability]:
+    """Assign capability labels to a server.
+
+    When *registry* is supplied and contains a :class:`RegistryEntry` for
+    this server's package name with ``capabilities`` explicitly set, those
+    capability tags are returned verbatim — the registry is the single
+    source of truth and no keyword or tool-name matching is performed.
+
+    Otherwise falls back to a three-layer heuristic approach (used when
+    *registry* is ``None``, when the package is not in the registry, or when
+    the registry entry does not yet have capability data):
 
     1. **Known-package lookup** — exact match of any arg against
-       :data:`KNOWN_SERVERS`.
+       :data:`KNOWN_SERVERS` (an in-module fallback table).
     2. **Keyword matching** — scan command name, server name, and all args for
        keywords defined in :data:`KEYWORD_RULES`.
     3. **Tool-name matching** — if the server's ``raw`` dict contains a
@@ -290,14 +314,28 @@ def tag_server(server: ServerConfig) -> frozenset[Capability]:
 
     Args:
         server: The server configuration to tag.
+        registry: Optional pre-loaded :class:`KnownServerRegistry` to consult
+            for authoritative capability data.
 
     Returns:
         An immutable set of :class:`Capability` values.
     """
+    # Registry-first path: if the server resolves to a registry entry with
+    # capability data, return those capabilities directly without heuristics.
+    # Security reviewed: "token" here is a CLI command/arg string, not a secret.
+    if registry is not None:
+        for token in [server.command or "", *server.args, server.name]:
+            if not token:
+                continue
+            entry = registry.get(token)
+            if entry is not None and entry.capabilities is not None:
+                return frozenset(
+                    Capability(c) for c in entry.capabilities if _is_known_cap(c)
+                )
+
     caps: set[Capability] = set()
 
     # Layer 1 — known server registry (check all args for package names).
-    # Security reviewed: "token" here is a CLI command/arg string, not a secret.
     for token in [server.command or "", *server.args, server.name]:
         if token in KNOWN_SERVERS:
             caps.update(KNOWN_SERVERS[token])
@@ -348,7 +386,23 @@ class ToxicFlowAnalyzer(BaseAnalyzer):
     Operates across all servers collectively — the single-server
     :meth:`analyze` always returns an empty list.  The orchestrator
     must call :meth:`analyze_all` instead.
+
+    When a :class:`KnownServerRegistry` is passed to ``__init__``, its
+    per-entry ``capabilities`` lists take precedence over keyword-based
+    heuristics during server tagging.
     """
+
+    def __init__(self, registry: KnownServerRegistry | None = None) -> None:
+        """Initialise with an optional registry for capability lookups.
+
+        Args:
+            registry: Pre-loaded :class:`KnownServerRegistry` whose entries'
+                ``capabilities`` fields override the in-module
+                :data:`KNOWN_SERVERS` fallback.  When ``None`` the analyzer
+                runs in pure heuristic mode — matching the behaviour from
+                before the registry migration.
+        """
+        self._registry = registry
 
     @property
     def name(self) -> str:
@@ -389,7 +443,9 @@ class ToxicFlowAnalyzer(BaseAnalyzer):
         findings: list[Finding] = []
         n = len(servers)
         # Cache tags so each server is only tagged once.
-        caps: list[frozenset[Capability]] = [tag_server(s) for s in servers]
+        caps: list[frozenset[Capability]] = [
+            tag_server(s, registry=self._registry) for s in servers
+        ]
 
         for i in range(n):
             for j in range(i, n):

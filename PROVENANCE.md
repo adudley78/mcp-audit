@@ -86,7 +86,7 @@ The rug-pull analyzer detects changes to MCP server configurations between scans
 
 ### Toxic flow (analyzers/toxic_flow.py)
 
-The toxic flow analyzer tags each MCP server with capability labels derived from package name and command keyword matching, then checks every server pair (and single servers) for known-dangerous capability combinations that form multi-hop attack paths.
+The toxic flow analyzer tags each MCP server with capability labels sourced (in priority order) from the known-server registry (`RegistryEntry.capabilities` in `registry/known-servers.json`) and — as a fallback for servers not in the registry — from package-name and command keyword matching. It then checks every server pair (and single servers) for known-dangerous capability combinations that form multi-hop attack paths. Capability tag values for the 14 official `@modelcontextprotocol/*` servers were originally hand-curated in `KNOWN_SERVERS` and have since been migrated to the registry JSON; the in-module `KNOWN_SERVERS` table remains as a deterministic fallback when no registry is injected.
 
 **Research sources:**
 

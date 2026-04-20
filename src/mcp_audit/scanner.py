@@ -23,6 +23,27 @@ from mcp_audit.scoring import calculate_score
 _USER_RULES_DIR = Path(user_config_dir("mcp-audit")) / "rules"
 
 
+def _extract_registry(analyzers: list[BaseAnalyzer]):
+    """Return the :class:`KnownServerRegistry` owned by a SupplyChainAnalyzer.
+
+    The scanner uses this to avoid reloading the registry JSON a second
+    time when threading it into the toxic-flow analyzer.  Returns ``None``
+    when no :class:`SupplyChainAnalyzer` is present (e.g. a custom analyzer
+    list that excludes supply-chain checks).
+
+    Args:
+        analyzers: The list of analyzers used during the scan.
+
+    Returns:
+        The shared :class:`~mcp_audit.registry.loader.KnownServerRegistry`
+        instance, or ``None`` if unavailable.
+    """
+    for analyzer in analyzers:
+        if isinstance(analyzer, SupplyChainAnalyzer):
+            return analyzer.registry
+    return None
+
+
 def _extract_registry_stats(
     analyzers: list[BaseAnalyzer],
 ) -> RegistryStats | None:
@@ -255,8 +276,14 @@ async def run_scan_async(
             result.errors.append(f"rug_pull error: {e}")
 
     # ── Toxic flow analysis (cross-server, stateless) ──────────────────────────
+    # Share the SupplyChainAnalyzer's registry so capability data is read
+    # from disk exactly once per scan.
     try:
-        result.findings.extend(ToxicFlowAnalyzer().analyze_all(all_servers))
+        result.findings.extend(
+            ToxicFlowAnalyzer(registry=_extract_registry(analyzers)).analyze_all(
+                all_servers
+            )
+        )
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"toxic_flow error: {e}")
 
@@ -375,8 +402,14 @@ def run_scan(
         except Exception as e:  # noqa: BLE001
             result.errors.append(f"rug_pull error: {e}")
 
+    # Share the SupplyChainAnalyzer's registry so capability data is read
+    # from disk exactly once per scan.
     try:
-        result.findings.extend(ToxicFlowAnalyzer().analyze_all(all_servers))
+        result.findings.extend(
+            ToxicFlowAnalyzer(registry=_extract_registry(analyzers)).analyze_all(
+                all_servers
+            )
+        )
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"toxic_flow error: {e}")
 

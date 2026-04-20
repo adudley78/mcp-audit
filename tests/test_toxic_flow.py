@@ -23,6 +23,7 @@ from mcp_audit.analyzers.toxic_flow import (
     tag_server,
 )
 from mcp_audit.models import ServerConfig, Severity, TransportType
+from mcp_audit.registry.loader import KnownServerRegistry, RegistryEntry
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -581,3 +582,144 @@ class TestToxicPairsIntegrity:
         from mcp_audit.models import Severity
 
         assert tp.severity in {Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM}
+
+
+# ── Registry-driven capability tagging ────────────────────────────────────────
+
+
+def _stub_registry(entries: list[RegistryEntry]) -> KnownServerRegistry:
+    """Build an in-memory KnownServerRegistry from explicit entries.
+
+    Bypasses __init__ so the test doesn't touch the bundled JSON or the
+    user-local cache.
+    """
+    reg = KnownServerRegistry.__new__(KnownServerRegistry)
+    reg.schema_version = "test"
+    reg.last_updated = "test"
+    reg.entries = entries
+    reg._name_index = {e.name.lower(): e for e in entries}  # noqa: SLF001
+    return reg
+
+
+def _npm_entry(name: str, capabilities: list[str] | None) -> RegistryEntry:
+    """Construct a minimal RegistryEntry with the given capabilities."""
+    return RegistryEntry(
+        name=name,
+        source="npm",
+        repo=None,
+        maintainer="test",
+        verified=False,
+        last_verified="2026-04-20",
+        known_versions=[],
+        tags=[],
+        capabilities=capabilities,
+    )
+
+
+class TestTagServerWithRegistry:
+    """Registry-backed capability lookup must take precedence over keywords."""
+
+    def test_tag_server_uses_registry_capabilities(self) -> None:
+        """Registry capability list is returned verbatim, skipping heuristics."""
+        package = "@example/some-custom-server"
+        reg = _stub_registry([_npm_entry(package, ["file_read"])])
+
+        # "postgres" arg would normally trigger DATABASE via keyword matching.
+        # Because the registry is authoritative, only FILE_READ is returned.
+        server = _server(
+            "some-custom",
+            command="npx",
+            args=["-y", package, "--postgres-uri", "..."],
+        )
+
+        caps = tag_server(server, registry=reg)
+        assert caps == frozenset({Capability.FILE_READ})
+
+    def test_tag_server_falls_back_when_no_capabilities(self) -> None:
+        """Entry present but capabilities=None → keyword matching still runs."""
+        reg = _stub_registry([_npm_entry("@modelcontextprotocol/server-fetch", None)])
+        caps = tag_server(_fetch(), registry=reg)
+        # KNOWN_SERVERS fallback + keyword matching both tag NETWORK_OUT.
+        assert Capability.NETWORK_OUT in caps
+
+    def test_tag_server_falls_back_when_no_registry(self) -> None:
+        """No registry passed → behaviour matches the pre-migration code path."""
+        caps_no_reg = tag_server(_fs(), registry=None)
+        caps_default = tag_server(_fs())
+        assert caps_no_reg == caps_default
+        assert Capability.FILE_READ in caps_no_reg
+        assert Capability.FILE_WRITE in caps_no_reg
+
+    def test_tag_server_empty_registry_capabilities_suppresses_fallback(
+        self,
+    ) -> None:
+        """capabilities=[] means 'no dangerous capabilities' — not a trigger."""
+        package = "@example/inert-server"
+        reg = _stub_registry([_npm_entry(package, [])])
+        # Name contains 'fetch' which would keyword-match NETWORK_OUT — but
+        # the registry says the package has no capabilities.
+        server = _server("fetchy", command="npx", args=["-y", package])
+        caps = tag_server(server, registry=reg)
+        assert caps == frozenset()
+
+    def test_analyzer_uses_injected_registry(self) -> None:
+        """ToxicFlowAnalyzer threads the registry through to tag_server."""
+        # Override filesystem to declare only NETWORK_OUT via the registry —
+        # if the analyzer honours registry data, the normal filesystem+fetch
+        # TOXIC-001 finding should NOT fire (both servers only have NETWORK_OUT).
+        reg = _stub_registry(
+            [
+                _npm_entry("@modelcontextprotocol/server-filesystem", ["network_out"]),
+                _npm_entry("@modelcontextprotocol/server-fetch", ["network_out"]),
+            ]
+        )
+        analyzer = ToxicFlowAnalyzer(registry=reg)
+        findings = analyzer.analyze_all([_fs(), _fetch()])
+        assert not any(f.id == "TOXIC-001" for f in findings)
+
+
+class TestRegistryEntryCapabilitiesField:
+    """The new `capabilities` field must be backward-compatible."""
+
+    def test_registry_entry_capabilities_field_optional(self) -> None:
+        """Old JSON (pre-migration) without `capabilities` still deserialises."""
+        entry = RegistryEntry.model_validate(
+            {
+                "name": "x",
+                "source": "npm",
+                "repo": None,
+                "maintainer": "test",
+                "verified": False,
+                "last_verified": "2026-04-20",
+                "known_versions": [],
+                "tags": [],
+            }
+        )
+        assert entry.capabilities is None
+
+    def test_registry_entry_accepts_capabilities_list(self) -> None:
+        entry = RegistryEntry.model_validate(
+            {
+                "name": "y",
+                "source": "npm",
+                "repo": None,
+                "maintainer": "test",
+                "verified": False,
+                "last_verified": "2026-04-20",
+                "known_versions": [],
+                "tags": [],
+                "capabilities": ["file_read", "network_out"],
+            }
+        )
+        assert entry.capabilities == ["file_read", "network_out"]
+
+    def test_bundled_registry_tags_known_servers(self) -> None:
+        """The bundled registry must carry capability data for migrated entries."""
+        from mcp_audit.registry.loader import load_registry  # noqa: PLC0415
+
+        reg = load_registry()
+        fs_entry = reg.get("@modelcontextprotocol/server-filesystem")
+        assert fs_entry is not None
+        assert fs_entry.capabilities is not None
+        assert "file_read" in fs_entry.capabilities
+        assert "file_write" in fs_entry.capabilities

@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-04-15",
-  "entry_count": 57,
+  "last_updated": "2026-04-20",
+  "entry_count": 60,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -18,7 +18,11 @@
       ],
       "known_hashes": {
         "2026.1.14": "sha256:e5635c070c21c4f5017260d2fb74df423d3339c2fa2eede862e5731aebf69eac"
-      }
+      },
+      "capabilities": [
+        "file_read",
+        "file_write"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-github",
@@ -35,7 +39,11 @@
       ],
       "known_hashes": {
         "2025.4.8": "sha256:1d5b1bca9305adf0c8055131f2286514c9bea6eb31100460899a1ed9ffece5c1"
-      }
+      },
+      "capabilities": [
+        "git",
+        "network_out"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-gitlab",
@@ -91,6 +99,9 @@
         "official",
         "slack",
         "remote"
+      ],
+      "capabilities": [
+        "network_out"
       ]
     },
     {
@@ -108,7 +119,10 @@
       ],
       "known_hashes": {
         "0.6.2": "sha256:af55200a01b13ae31949fb4a8864ee6043b891d00ff83330d1779b18aa5ba26f"
-      }
+      },
+      "capabilities": [
+        "database"
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-sqlite",
@@ -122,6 +136,9 @@
         "official",
         "database",
         "local"
+      ],
+      "capabilities": [
+        "database"
       ]
     },
     {
@@ -136,6 +153,10 @@
         "official",
         "browser",
         "local"
+      ],
+      "capabilities": [
+        "browser",
+        "network_out"
       ]
     },
     {
@@ -150,6 +171,9 @@
         "official",
         "search",
         "remote"
+      ],
+      "capabilities": [
+        "network_out"
       ]
     },
     {
@@ -178,6 +202,9 @@
         "official",
         "http",
         "local"
+      ],
+      "capabilities": [
+        "network_out"
       ]
     },
     {
@@ -192,7 +219,8 @@
         "official",
         "memory",
         "local"
-      ]
+      ],
+      "capabilities": []
     },
     {
       "name": "@modelcontextprotocol/server-sequentialthinking",
@@ -206,7 +234,8 @@
         "official",
         "reasoning",
         "local"
-      ]
+      ],
+      "capabilities": []
     },
     {
       "name": "@modelcontextprotocol/server-aws-kb-retrieval",
@@ -233,6 +262,12 @@
       "tags": [
         "official",
         "demo"
+      ],
+      "capabilities": [
+        "file_read",
+        "file_write",
+        "network_out",
+        "shell_exec"
       ]
     },
     {
@@ -261,6 +296,61 @@
         "official",
         "reasoning",
         "local"
+      ],
+      "capabilities": []
+    },
+    {
+      "name": "@modelcontextprotocol/server-git",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-20",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "vcs",
+        "local"
+      ],
+      "capabilities": [
+        "git",
+        "file_read"
+      ]
+    },
+    {
+      "name": "@modelcontextprotocol/server-gdrive",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-20",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "google",
+        "remote"
+      ],
+      "capabilities": [
+        "file_read",
+        "network_out"
+      ]
+    },
+    {
+      "name": "@modelcontextprotocol/server-gmail",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-04-20",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "email",
+        "remote"
+      ],
+      "capabilities": [
+        "email",
+        "network_out"
       ]
     },
     {

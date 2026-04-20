@@ -87,6 +87,12 @@ class RegistryEntry(BaseModel):
     # None means no hashes have been pinned for this entry yet.
     known_hashes: dict[str, str] | None = None
 
+    # Coarse-grained capability labels consumed by the toxic-flow analyzer
+    # (e.g. ["file_read", "file_write", "network_out"]).  ``None`` means the
+    # registry has no capability data for this entry and the toxic-flow
+    # analyzer should fall back to its keyword-matching logic.
+    capabilities: list[str] | None = None
+
 
 # ── Registry class ─────────────────────────────────────────────────────────────
 
