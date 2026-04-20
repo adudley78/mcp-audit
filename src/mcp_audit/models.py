@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from mcp_audit import __version__
 
@@ -21,6 +21,7 @@ class MachineInfo(BaseModel):
     os: str  # e.g., "Darwin", "Linux", "Windows"
     os_version: str
     scan_id: str  # UUID generated per scan run
+    asset_id: str | None = None  # set by --asset-prefix in fleet deployments
 
 
 def _collect_machine_info() -> MachineInfo:
@@ -167,7 +168,13 @@ class AttackPathSummary(BaseModel):
 class ScanScore(BaseModel):
     """Score and letter grade for a completed scan."""
 
-    numeric_score: int
+    model_config = ConfigDict(populate_by_name=True)
+
+    # "numeric" is the JSON key; Python code uses .numeric_score throughout.
+    numeric_score: int = Field(
+        validation_alias="numeric",
+        serialization_alias="numeric",
+    )
     grade: str
     positive_signals: list[str]
     deductions: list[str]
@@ -184,9 +191,14 @@ class RegistryStats(BaseModel):
 class ScanResult(BaseModel):
     """Complete results from a scan run."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     version: str = __version__
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    machine: MachineInfo = Field(default_factory=_collect_machine_info)
+    machine: MachineInfo = Field(
+        default_factory=_collect_machine_info,
+        serialization_alias="machine_info",
+    )
     clients_scanned: int = 0
     servers_found: int = 0
     servers: list[ServerConfig] = Field(default_factory=list)

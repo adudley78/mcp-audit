@@ -152,7 +152,7 @@ def test_load_report_raises_on_non_object_json(tmp_path: Path) -> None:
 
 def test_load_report_raises_on_missing_hostname(tmp_path: Path) -> None:
     data = _scan_json()
-    data["machine"] = {"username": "alice"}  # no hostname
+    data["machine_info"] = {"username": "alice"}  # no hostname
     f = _write_json(tmp_path / "m.json", data)
     with pytest.raises(ValueError, match="hostname"):
         FleetMerger().load_report(f)

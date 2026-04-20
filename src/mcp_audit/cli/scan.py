@@ -328,6 +328,8 @@ def _apply_baseline_drift(
         return result
 
     drift = mgr.compare(bl, result.servers)
+    if not drift:
+        con.print("[green]✓[/green] Baseline comparison: no drift detected.")
     result.findings.extend(_drift_to_findings(drift))
     return result
 
@@ -454,7 +456,7 @@ def _write_formatted_output(
     ``nucleus`` formatter declines to produce output.
     """
     if fmt == "json":
-        out = result.model_dump_json(indent=2)
+        out = result.model_dump_json(indent=2, by_alias=True)
         if output:
             _write_output(output, out)
         else:
@@ -637,6 +639,9 @@ def scan(
         offline=offline,
         extra_rules_dirs=extra_rules_dirs if extra_rules_dirs else None,
     )
+
+    if asset_prefix:
+        result.machine.asset_id = asset_prefix
 
     if verify_hashes:
         result = _apply_hash_verification(result, registry, offline_registry, console)

@@ -1121,6 +1121,81 @@ class TestAssetPrefixFlag:
 
         assert "prod-001" in result.output
 
+    def test_asset_prefix_appears_in_json_machine_info(self, tmp_path: Path) -> None:
+        """--asset-prefix sets machine_info.asset_id in JSON output (F2)."""
+        import json as _json  # noqa: PLC0415
+
+        config = tmp_path / "mcp.json"
+        config.write_text('{"mcpServers": {}}')
+
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(
+                app,
+                [
+                    "scan",
+                    "--path",
+                    str(config),
+                    "--format",
+                    "json",
+                    "--asset-prefix",
+                    "fleet-01",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = _json.loads(result.output)
+        assert data["machine_info"]["asset_id"] == "fleet-01", (
+            "machine_info.asset_id must equal --asset-prefix value"
+        )
+
+    def test_json_output_uses_machine_info_key(self, tmp_path: Path) -> None:
+        """JSON output top-level key must be 'machine_info', not 'machine' (F7)."""
+        import json as _json  # noqa: PLC0415
+
+        config = tmp_path / "mcp.json"
+        config.write_text('{"mcpServers": {}}')
+
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(
+                app,
+                ["scan", "--path", str(config), "--format", "json"],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = _json.loads(result.output)
+        assert "machine_info" in data, (
+            "top-level 'machine_info' key missing from JSON output"
+        )
+        assert "machine" not in data, (
+            "legacy 'machine' key must not appear in JSON output"
+        )
+
+    def test_json_output_score_uses_numeric_key(self, tmp_path: Path) -> None:
+        """JSON output score key must be 'numeric', not 'numeric_score' (F7)."""
+        import json as _json  # noqa: PLC0415
+
+        config = tmp_path / "mcp.json"
+        config.write_text('{"mcpServers": {"srv": {"command": "node", "args": []}}}')
+
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(
+                app,
+                ["scan", "--path", str(config), "--format", "json"],
+            )
+
+        assert result.exit_code in (0, 1), result.output
+        data = _json.loads(result.output)
+        assert "score" in data
+        assert "numeric" in data["score"], (
+            "score.numeric key missing from JSON output"
+        )
+        assert "numeric_score" not in data["score"], (
+            "legacy score.numeric_score key must not appear in JSON output"
+        )
+
 
 # ── run_scan_async (async code path) ───────────────────────────────────────────
 

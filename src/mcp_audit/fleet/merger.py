@@ -36,9 +36,12 @@ _SEVERITY_ORDER: dict[Severity, int] = {
 }
 
 # Required top-level keys that identify a file as mcp-audit JSON output.
+# Accept both "machine_info" (current) and legacy "machine" for backward
+# compatibility with scan files produced before the key rename.
 _REQUIRED_KEYS: frozenset[str] = frozenset(
-    {"version", "timestamp", "machine", "findings"}
+    {"version", "timestamp", "findings"}
 )
+_MACHINE_KEYS: tuple[str, ...] = ("machine_info", "machine")
 
 
 # ── Data models ───────────────────────────────────────────────────────────────
@@ -48,10 +51,10 @@ class MachineReport(BaseModel):
     """A single machine's scan result as ingested by the fleet merger."""
 
     machine_id: str
-    """Derived from MachineInfo.hostname (asset_id is not persisted in scan JSON)."""
+    """Derived from MachineInfo.hostname or asset_id when --asset-prefix was set."""
 
     asset_prefix: str | None
-    """Always None when loaded from JSON — not persisted in scan output."""
+    """Always None when loaded from JSON — machine_info.asset_id carries the value."""
 
     scanner_version: str
     scan_timestamp: datetime
@@ -169,10 +172,14 @@ class FleetMerger:
                 f"{', '.join(sorted(missing))}"
             )
 
-        machine = data.get("machine", {})
-        if not isinstance(machine, dict) or "hostname" not in machine:
+        machine = next(
+            (data[k] for k in _MACHINE_KEYS if k in data and isinstance(data[k], dict)),
+            {},
+        )
+        if "hostname" not in machine:
             raise ValueError(
-                f"{path}: 'machine' must be an object containing 'hostname'"
+                f"{path}: scan file must contain a 'machine_info' object "
+                "with a 'hostname' field"
             )
 
         # Warn (don't crash) on version mismatch.

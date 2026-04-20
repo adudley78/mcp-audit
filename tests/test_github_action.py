@@ -145,7 +145,7 @@ class TestOutputFileJson:
         data = json.loads(out.read_text())
         assert data.get("score") is not None
         assert "grade" in data["score"]
-        assert "numeric_score" in data["score"]
+        assert "numeric" in data["score"]
 
     def test_json_finding_count_matches(self, tmp_path: Path) -> None:
         out = tmp_path / "results.json"
@@ -302,7 +302,7 @@ class TestStepSummaryJsonStructure:
         findings = data.get("findings", [])
         score = data.get("score") or {}
         grade = score.get("grade", "N/A")
-        numeric = score.get("numeric_score", "N/A")
+        numeric = score.get("numeric", "N/A")
         critical = sum(1 for f in findings if f.get("severity") == "CRITICAL")
         high = sum(1 for f in findings if f.get("severity") == "HIGH")
         # Must complete without raising; spot-check values.
