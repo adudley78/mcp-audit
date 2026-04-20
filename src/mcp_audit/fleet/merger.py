@@ -38,9 +38,7 @@ _SEVERITY_ORDER: dict[Severity, int] = {
 # Required top-level keys that identify a file as mcp-audit JSON output.
 # Accept both "machine_info" (current) and legacy "machine" for backward
 # compatibility with scan files produced before the key rename.
-_REQUIRED_KEYS: frozenset[str] = frozenset(
-    {"version", "timestamp", "findings"}
-)
+_REQUIRED_KEYS: frozenset[str] = frozenset({"version", "timestamp", "findings"})
 _MACHINE_KEYS: tuple[str, ...] = ("machine_info", "machine")
 
 
