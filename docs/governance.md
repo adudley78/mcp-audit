@@ -23,11 +23,14 @@ configuration must achieve, and how many findings are tolerable.
 When `--policy <path>` is not specified, mcp-audit searches for a policy
 automatically in this order:
 
-1. **Current working directory** — checks `.mcp-audit-policy.yml`,
-   `.mcp-audit-policy.yaml`, `mcp-audit-policy.yml`
+1. **Current working directory** — checks each of these filenames in order:
+   `.mcp-audit-policy.yml`, `.mcp-audit-policy.yaml`, `mcp-audit-policy.yml`
 2. **Git repository root** — walks up from cwd until a `.git` directory is
-   found, then checks the same filenames there
-3. **User config** — `~/.config/mcp-audit/policy.yml`
+   found; if the git root differs from cwd, checks the same three filenames
+   there
+3. **User config directory** — `<user-config-dir>/mcp-audit/policy.yml`
+   where `<user-config-dir>` is resolved by `platformdirs.user_config_dir("mcp-audit")`
+   (e.g. `~/.config/mcp-audit/` on Linux, `~/Library/Application Support/mcp-audit/` on macOS)
 
 Returns `None` (no governance check) if none of the above exist.
 

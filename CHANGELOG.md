@@ -3,7 +3,6 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Version numbers will be added once the first public release is tagged.
 
 ---
 
@@ -13,7 +12,7 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
-## Pre-release — Security Hardening & CI (April 2026)
+## [0.4.0] - 2026-04-17 — Security Hardening & CI
 
 ### Security
 - Resolved all Bandit medium+ findings; suppressed three `B310` (`urllib` URL-open) calls with inline `# nosec B310` comments and one-line justifications — no blanket suppressions.
@@ -42,7 +41,7 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
-## Pre-release — Moat Deepening (April 2026)
+## [0.3.0] - 2026-04-10 — Moat Deepening
 
 ### Added
 - **Governance policy engine** — YAML-based organisational requirements: approved server lists, minimum scan scores, transport constraints, registry membership, finding tolerances. New CLI commands: `policy validate`, `policy init` (Pro), `policy check` (Pro). `scan --policy PATH` flag (free) with auto-discovery (cwd → repo root → user config dir). Governance findings rendered in a distinct yellow "Policy Violations" panel in terminal output; SARIF findings tagged `governance-policy` with `GOV-` rule IDs. `governance` and `fleet_governance` feature keys.
@@ -52,7 +51,7 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
-## Pre-release — Chain Reaction (April 2026)
+## [0.2.0] - 2026-04-07 — Chain Reaction
 
 ### Added
 - **Scan score & grade** — every scan produces a numeric score (0–100) and letter grade (A–F) via `scoring.py`. Grade panel rendered in terminal output. `scan --no-score` suppresses the terminal panel only; score still present in JSON/HTML. JSON output includes top-level `score` and `grade` fields. SARIF `run.properties` block carries `mcp-audit/grade`, `mcp-audit/numericScore`, `mcp-audit/positiveSignals`, and `mcp-audit/deductions`.
@@ -78,7 +77,7 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
-## Pre-release — Prototype (April 2026)
+## [0.1.0] - 2026-04-01 — Prototype
 
 ### Added
 - Initial working CLI scaffold using Typer + Rich, Pydantic v2 data models, pytest suite.

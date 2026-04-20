@@ -56,6 +56,117 @@ pytest tests/ -x -q
 - No new dependencies without discussion in an issue first
 - Every new module needs a corresponding test file
 
+## Adding a new analyzer
+
+Use `src/mcp_audit/analyzers/transport.py` as the reference — it is the
+simplest single-server analyzer in the codebase.
+
+### 1. Create the file
+
+Create `src/mcp_audit/analyzers/your_name.py` with this import structure:
+
+```python
+from __future__ import annotations
+
+from mcp_audit.analyzers.base import BaseAnalyzer
+from mcp_audit.models import Finding, ServerConfig, Severity
+```
+
+### 2. Inherit from `BaseAnalyzer` and implement `analyze()`
+
+```python
+class YourAnalyzer(BaseAnalyzer):
+    @property
+    def name(self) -> str:
+        return "your_name"  # used as Finding.analyzer
+
+    @property
+    def description(self) -> str:
+        return "One-line description of what this analyzer checks"
+
+    def analyze(self, server: ServerConfig) -> list[Finding]:
+        findings: list[Finding] = []
+        # ... detection logic ...
+        return findings
+```
+
+`analyze()` is called once per server. Return an empty list when the server
+is clean.
+
+### 3. `analyze_all()` — when to use it instead
+
+Two analyzers override `analyze_all(servers)` instead: `rug_pull.py` and
+`toxic_flow.py`. They need the **full server list** to do their work (rug-pull
+compares state across runs; toxic-flow looks for dangerous cross-server
+capability pairs). Their `analyze()` is a no-op.
+
+Use `analyze_all()` only when your detection logic is inherently
+cross-server. Single-server checks always belong in `analyze()`.
+
+### 4. Register the analyzer in `scanner.py`
+
+Add your class to `get_default_analyzers()` in
+`src/mcp_audit/scanner.py`:
+
+```python
+from mcp_audit.analyzers.your_name import YourAnalyzer
+
+def get_default_analyzers() -> list[BaseAnalyzer]:
+    return [
+        PoisoningAnalyzer(),
+        CredentialsAnalyzer(),
+        TransportAnalyzer(),
+        SupplyChainAnalyzer(),
+        YourAnalyzer(),   # add here
+    ]
+```
+
+Cross-server analyzers (`analyze_all()` variants) are called separately
+inside `_run_static_pipeline()` — wire them there, not in
+`get_default_analyzers()`.
+
+### 5. Required `Finding` fields
+
+Every `Finding` must set these fields:
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `str` | Uppercase, e.g. `"YOURNAME-001"` |
+| `severity` | `Severity` | See severity conventions below |
+| `analyzer` | `str` | Must equal `self.name` |
+| `client` | `str` | Pass `server.client` |
+| `server` | `str` | Pass `server.name` |
+| `title` | `str` | Short one-line description |
+| `description` | `str` | Full explanation |
+| `evidence` | `str` | The specific config value that triggered this |
+| `remediation` | `str` | Actionable fix |
+| `cwe` | `str \| None` | CWE reference, e.g. `"CWE-319"` (see [mitre.org/cwe](https://cwe.mitre.org)) |
+| `finding_path` | `str \| None` | Pass `str(server.config_path)` when relevant |
+
+### 6. Severity assignment conventions
+
+Consult `GAPS.md` (the "Severity calibration" section) before assigning a
+severity level. The general heuristic: CRITICAL = confirmed exploitation
+path; HIGH = strong indicator of compromise or privilege escalation; MEDIUM
+= likely misconfiguration with clear attack surface; LOW / INFO = hygiene or
+informational. When in doubt, go one level lower — false positives erode trust.
+
+### 7. Document detection pattern provenance
+
+Every new detection pattern must cite its research source. Add an entry to
+`PROVENANCE.md` before opening a PR. Do not add patterns without attribution.
+
+### 8. Write the test file
+
+Create `tests/test_your_analyzer.py`. Tests must cover:
+
+- The **happy path** (clean server, empty findings list).
+- Each **detection pattern** (at least one positive case per finding ID).
+- The **crash path**: verify that `_analyzer_crash_finding` is emitted when
+  the analyzer raises an unexpected exception. The scanner catches exceptions
+  per-analyzer and wraps them in a `SCAN-ERR` finding — your tests should
+  confirm that a malformed input does not propagate an unhandled exception.
+
 ## Testing conventions
 
 ### Pro/Enterprise output formatter tests
