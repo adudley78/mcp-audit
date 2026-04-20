@@ -1,17 +1,28 @@
-"""scan / discover / pin / diff / watch commands."""
+"""scan / discover / pin / diff / watch commands.
+
+The ``scan`` command is composed from small ``_apply_*`` pipeline stages and
+``_write_*`` output helpers so that each optional phase (baseline drift,
+governance, SAST, extensions, severity filtering, formatting) can be read and
+reviewed in isolation.  New scan-pipeline stages should follow the same
+pattern.
+"""
 
 from __future__ import annotations
 
 import json
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.rule import Rule
 from rich.table import Table
 
 from mcp_audit import cli as _cli
 from mcp_audit._gate import gate
+from mcp_audit.analyzers.credentials import CredentialsAnalyzer
+from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import (
     build_state_entry,
     compute_hashes,
@@ -20,12 +31,41 @@ from mcp_audit.analyzers.rug_pull import (
     save_state,
     server_key,
 )
+from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
+from mcp_audit.analyzers.transport import TransportAnalyzer
+
+# Import modules (rather than the bound names) for symbols that tests patch at
+# their source location — e.g. ``patch("mcp_audit.sast.runner.run_semgrep")``.
+# Accessing these via the module attribute at call time preserves those patch
+# intercepts that would otherwise be bypassed by a ``from X import Y``.
+from mcp_audit.attestation import verifier as _attestation_verifier
+from mcp_audit.baselines.manager import BaselineManager
 from mcp_audit.cli import app, console
 from mcp_audit.cli._helpers import _write_output
-from mcp_audit.models import Severity
+from mcp_audit.extensions import analyzer as _extensions_analyzer
+from mcp_audit.extensions import discovery as _extensions_discovery
+from mcp_audit.governance.evaluator import evaluate_governance
+from mcp_audit.governance.loader import load_policy
+from mcp_audit.models import Finding, ScanResult, Severity
 from mcp_audit.output.nucleus import format_nucleus
 from mcp_audit.output.sarif import format_sarif
 from mcp_audit.output.terminal import print_results
+from mcp_audit.registry.loader import KnownServerRegistry
+from mcp_audit.sast import runner as _sast_runner
+from mcp_audit.scanner import _USER_RULES_DIR
+from mcp_audit.watcher import ConfigWatcher
+
+# Severity comparison uses a descending-critical list so ``index`` returns a
+# smaller value for higher severities — a finding is kept when its index is
+# ``<=`` the threshold index.
+_SEVERITY_ORDER: list[Severity] = [
+    Severity.CRITICAL,
+    Severity.HIGH,
+    Severity.MEDIUM,
+    Severity.LOW,
+    Severity.INFO,
+]
+
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
@@ -58,15 +98,13 @@ def _newest_last_seen(stored: dict) -> str:
 
 def _drift_to_findings(
     drift: list,  # list[DriftFinding]
-) -> list:
+) -> list[Finding]:
     """Convert DriftFinding objects to standard Finding objects.
 
     Uses ``analyzer="baseline"`` so drift findings appear in all output
     formats alongside analyzer findings.
     """
-    from mcp_audit.models import Finding  # noqa: PLC0415
-
-    findings = []
+    findings: list[Finding] = []
     for i, df in enumerate(drift):
         evidence_parts = []
         if df.baseline_value is not None:
@@ -92,6 +130,352 @@ def _drift_to_findings(
             )
         )
     return findings
+
+
+# ── scan() pipeline stages ────────────────────────────────────────────────────
+
+
+def _preflight_checks(
+    offline: bool,
+    verify_hashes: bool,
+    registry: Path | None,
+    sast: Path | None,
+    con: Console,
+) -> None:
+    """Validate incompatible flag combinations and user-supplied paths.
+
+    Raises ``typer.Exit(2)`` with a human-readable message for any failure so
+    callers never see a Python traceback for routine input mistakes.
+    """
+    if offline and verify_hashes:
+        con.print(
+            "[red]Error:[/red] --verify-hashes makes network requests "
+            "and cannot be used with --offline."
+        )
+        raise typer.Exit(2)
+
+    if registry is not None and not registry.resolve().exists():
+        con.print(f"[red]Registry file not found:[/red] {registry}")
+        raise typer.Exit(2)
+
+    if sast is not None and not sast.resolve().exists():
+        con.print(f"[red]SAST target path does not exist:[/red] {sast}")
+        raise typer.Exit(2)
+
+
+def _build_custom_analyzers(
+    registry: Path | None,
+    offline_registry: bool,
+) -> list | None:
+    """Build a custom analyzer list when a registry override is requested.
+
+    Returns ``None`` when the default scanner analyzers should be used (i.e.
+    neither ``--registry`` nor ``--offline-registry`` was supplied).
+    """
+    if registry is None and not offline_registry:
+        return None
+    return [
+        PoisoningAnalyzer(),
+        CredentialsAnalyzer(),
+        TransportAnalyzer(),
+        SupplyChainAnalyzer(
+            registry_path=registry,
+            offline_registry=offline_registry,
+        ),
+    ]
+
+
+def _collect_extra_rules_dirs(
+    rules_dir: Path | None,
+    con: Console,
+) -> list[Path]:
+    """Collect Pro-gated extra rule directories for the scanner.
+
+    Includes ``--rules-dir`` (when a Pro license is active) and the user-local
+    rules directory at ``<user-config-dir>/mcp-audit/rules/`` when it exists
+    and the license permits.  Community rules ship bundled and are loaded by
+    the scanner regardless of this list.
+    """
+    extra: list[Path] = []
+    if rules_dir is not None and gate(
+        "custom_rules",
+        con,
+        message="--rules-dir skipped; bundled community rules still apply.",
+    ):
+        if not rules_dir.is_dir():
+            con.print(f"[red]--rules-dir path is not a directory: {rules_dir}[/red]")
+            raise typer.Exit(2)
+        extra.append(rules_dir)
+
+    if _USER_RULES_DIR.is_dir() and _cli.cached_is_pro_feature_available(
+        "custom_rules"
+    ):
+        extra.append(_USER_RULES_DIR)
+    return extra
+
+
+def _apply_hash_verification(
+    result: ScanResult,
+    registry: Path | None,
+    offline_registry: bool,
+    con: Console,
+) -> ScanResult:
+    """Download package tarballs and verify SHA-256 against registry pins.
+
+    Only called when ``--verify-hashes`` is active.  Returns the result
+    unchanged when there are no servers to verify.
+    """
+    if not result.servers:
+        return result
+
+    vh_registry = KnownServerRegistry(path=registry, offline=offline_registry)
+    hashable = [
+        s
+        for s in result.servers
+        if vh_registry.get(s.name) is not None and vh_registry.get(s.name).known_hashes  # type: ignore[union-attr]
+    ]
+    con.print(f"[dim]Hash verification: checking {len(hashable)} package(s)…[/dim]")
+    hash_findings = _attestation_verifier.verify_server_hashes(
+        result.servers, vh_registry
+    )
+    result.findings.extend(hash_findings)
+    return result
+
+
+def _surface_user_path_errors(
+    result: ScanResult,
+    extra_paths: list[Path] | None,
+    con: Console,
+) -> None:
+    """Exit 2 when a user-specified ``--path`` failed to parse.
+
+    Auto-discovered configs that fail are recorded in ``result.errors`` and
+    surfaced through JSON output.  User-specified paths are stricter: the user
+    explicitly asked for that file and a clean exit would be misleading.
+    """
+    if not (extra_paths and result.errors):
+        return
+    resolved = {p.expanduser().resolve() for p in extra_paths}
+    user_errors = [e for e in result.errors if any(str(rp) in e for rp in resolved)]
+    if not user_errors:
+        return
+    for err in user_errors:
+        con.print(f"[red]Error:[/red] {err}")
+    raise typer.Exit(2)
+
+
+def _apply_baseline_drift(
+    result: ScanResult,
+    baseline_name: str | None,
+    con: Console,
+) -> ScanResult:
+    """Compute drift against the named baseline and inject drift findings.
+
+    Returns the result unchanged when ``baseline_name`` is ``None``.  A
+    malformed baseline is degraded to an INFO finding rather than crashing the
+    scan; a missing named baseline exits 2.
+    """
+    if baseline_name is None:
+        return result
+
+    mgr = BaselineManager()
+    try:
+        if baseline_name == "latest":
+            bl = mgr.load_latest()
+            if bl is None:
+                con.print(
+                    "[red]No baselines found.[/red]  "
+                    "Run [bold]mcp-audit baseline save[/bold] first."
+                )
+                raise typer.Exit(2)
+        else:
+            bl = mgr.load(baseline_name)
+    except FileNotFoundError as exc:
+        con.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2) from None
+    except Exception as exc:  # noqa: BLE001
+        # Malformed baseline file — surface as an INFO finding rather than
+        # crashing so the rest of the scan output is still usable.
+        con.print(
+            f"[yellow]Warning:[/yellow] Could not parse baseline "
+            f"{baseline_name!r}: {exc}. Drift detection skipped."
+        )
+        result.findings.append(
+            Finding(
+                id="BL-001",
+                severity=Severity.INFO,
+                analyzer="baselines",
+                client="",
+                server="",
+                title=f"Baseline {baseline_name!r} could not be parsed",
+                description=(
+                    f"The baseline file for {baseline_name!r} is malformed "
+                    f"and drift detection was skipped: {exc}"
+                ),
+                evidence=str(exc),
+                remediation=(
+                    "Delete the corrupted baseline with "
+                    "'mcp-audit baseline delete' and re-save with "
+                    "'mcp-audit baseline save'."
+                ),
+            )
+        )
+        return result
+
+    drift = mgr.compare(bl, result.servers)
+    result.findings.extend(_drift_to_findings(drift))
+    return result
+
+
+def _apply_governance(
+    result: ScanResult,
+    policy: Path | None,
+    analyzers: list | None,
+    con: Console,
+) -> ScanResult:
+    """Evaluate governance policy and inject ``GOV-`` findings.
+
+    Resolves the policy via explicit ``--policy`` → cwd → repo root → user
+    config.  Returns the result unchanged when no policy is resolved.  If a
+    custom analyzer list was built with a shared ``SupplyChainAnalyzer``, its
+    registry is reused to avoid re-reading the JSON file.
+    """
+    try:
+        resolved = load_policy(policy)
+    except ValueError as exc:
+        con.print(f"[red]Governance policy error:[/red] {exc}")
+        raise typer.Exit(2) from None
+
+    if resolved is None:
+        return result
+
+    gov_registry = None
+    if analyzers is not None:
+        for a in analyzers:
+            if isinstance(a, SupplyChainAnalyzer):
+                gov_registry = a.registry
+                break
+
+    gov_findings = evaluate_governance(
+        servers=result.servers,
+        policy=resolved,
+        registry=gov_registry,
+        scan_result=result,
+    )
+    result.findings.extend(gov_findings)
+    return result
+
+
+def _apply_sast(
+    result: ScanResult,
+    sast_path: Path,
+    con: Console,
+) -> ScanResult:
+    """Run Semgrep-based SAST analysis and inject findings.
+
+    Only called when ``--sast`` is active and Pro-gating passes.  A semgrep
+    launch failure is surfaced as a yellow warning and the scan continues.
+    """
+    con.print(f"[dim]SAST: scanning {sast_path} with Semgrep rules…[/dim]")
+    sast_result = _sast_runner.run_semgrep(target_path=sast_path)
+    if sast_result.error:
+        con.print(
+            f"[yellow]SAST warning:[/yellow] {sast_result.error}",
+            err=True,
+        )
+    else:
+        result.findings.extend(sast_result.findings)
+        con.print(
+            f"[dim]SAST: scanned {sast_result.files_scanned} file(s), "
+            f"found {len(sast_result.findings)} issue(s)[/dim]"
+        )
+    return result
+
+
+def _apply_extensions(
+    result: ScanResult,
+    con: Console,
+) -> ScanResult:
+    """Run extension security analysis and inject findings.
+
+    Only called when ``--include-extensions`` is active and Pro-gating passes.
+    """
+    ext_list = _extensions_discovery.discover_extensions()
+    ext_findings = _extensions_analyzer.analyze_extensions(ext_list)
+    result.findings.extend(ext_findings)
+    con.print(
+        f"[dim]Extensions: {len(ext_list)} extension(s) scanned, "
+        f"{len(ext_findings)} issue(s) found[/dim]"
+    )
+    return result
+
+
+def _apply_severity_threshold(
+    result: ScanResult,
+    severity_threshold: str,
+    con: Console,
+) -> ScanResult:
+    """Filter ``result.findings`` to those at or above the threshold.
+
+    ``severity_threshold`` is the raw string from the CLI; validation happens
+    here so invalid values produce a clean exit 2.  The score is NOT
+    recomputed — it reflects the pre-filter finding set.
+    """
+    try:
+        threshold = Severity(severity_threshold.upper())
+    except ValueError:
+        con.print(f"[red]Invalid severity: {severity_threshold}[/red]")
+        raise typer.Exit(2) from None
+
+    threshold_idx = _SEVERITY_ORDER.index(threshold)
+    result.findings = [
+        f for f in result.findings if _SEVERITY_ORDER.index(f.severity) <= threshold_idx
+    ]
+    return result
+
+
+def _write_formatted_output(
+    result: ScanResult,
+    fmt: str,
+    output: Path | None,
+    asset_prefix: str | None,
+    no_score: bool,
+    con: Console,
+) -> None:
+    """Dispatch to the appropriate formatter and emit output.
+
+    Handles both ``--output-file`` (writes to disk) and stdout cases.  Raises
+    ``typer.Exit(2)`` for unknown formats and ``typer.Exit(0)`` when the
+    ``nucleus`` formatter declines to produce output.
+    """
+    if fmt == "json":
+        out = result.model_dump_json(indent=2)
+        if output:
+            _write_output(output, out)
+        else:
+            typer.echo(out)
+    elif fmt == "nucleus":
+        nucleus_out = format_nucleus(result, asset_prefix=asset_prefix, console=con)
+        if nucleus_out is None:
+            raise typer.Exit(0)
+        if output:
+            _write_output(output, nucleus_out)
+        else:
+            typer.echo(nucleus_out)
+    elif fmt == "sarif":
+        sarif_out = format_sarif(result, asset_prefix=asset_prefix)
+        if output:
+            _write_output(output, sarif_out)
+        else:
+            typer.echo(sarif_out)
+    elif fmt == "terminal":
+        print_results(result, console=con, show_score=not no_score)
+    else:
+        con.print(
+            "[red]Unknown format: "
+            f"{fmt!r}. Choose terminal, json, nucleus, or sarif.[/red]"
+        )
+        raise typer.Exit(2)
 
 
 # ── scan ──────────────────────────────────────────────────────────────────────
@@ -232,64 +616,10 @@ def scan(
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
-    if offline and verify_hashes:
-        console.print(
-            "[red]Error:[/red] --verify-hashes makes network requests "
-            "and cannot be used with --offline."
-        )
-        raise typer.Exit(code=2)  # noqa: B904
+    _preflight_checks(offline, verify_hashes, registry, sast, console)
 
-    # Validate user-supplied paths upfront — non-existent paths produce a clean
-    # exit-2 error rather than a Python traceback deep in a library call.
-    if registry is not None and not registry.resolve().exists():
-        console.print(f"[red]Registry file not found:[/red] {registry}")
-        raise typer.Exit(2)  # noqa: B904
-
-    if sast is not None and not sast.resolve().exists():
-        console.print(f"[red]SAST target path does not exist:[/red] {sast}")
-        raise typer.Exit(2)  # noqa: B904
-
-    # Build a custom analyzers list when a custom registry path or offline
-    # registry flag is supplied.
-    analyzers = None
-    if registry is not None or offline_registry:
-        from mcp_audit.analyzers.credentials import CredentialsAnalyzer  # noqa: PLC0415, I001
-        from mcp_audit.analyzers.poisoning import PoisoningAnalyzer  # noqa: PLC0415, I001
-        from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer  # noqa: PLC0415, I001
-        from mcp_audit.analyzers.transport import TransportAnalyzer  # noqa: PLC0415, I001
-
-        analyzers = [
-            PoisoningAnalyzer(),
-            CredentialsAnalyzer(),
-            TransportAnalyzer(),
-            SupplyChainAnalyzer(
-                registry_path=registry,
-                offline_registry=offline_registry,
-            ),
-        ]
-
-    # ── Pro-gated custom rules ─────────────────────────────────────────────────
-    # Build the list of extra rules directories.  Community rules (bundled) are
-    # always loaded by the scanner regardless of license tier.
-    extra_rules_dirs: list[Path] = []
-    from mcp_audit.scanner import _USER_RULES_DIR  # noqa: PLC0415
-
-    if rules_dir is not None and gate(
-        "custom_rules",
-        console,
-        message="--rules-dir skipped; bundled community rules still apply.",
-    ):
-        if not rules_dir.is_dir():
-            console.print(
-                f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
-            )
-            raise typer.Exit(2)  # noqa: B904
-        extra_rules_dirs.append(rules_dir)
-
-    if _USER_RULES_DIR.is_dir() and _cli.cached_is_pro_feature_available(
-        "custom_rules"
-    ):
-        extra_rules_dirs.append(_USER_RULES_DIR)
+    analyzers = _build_custom_analyzers(registry, offline_registry)
+    extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, console)
 
     result = _cli.run_scan(
         extra_paths=extra_paths,
@@ -299,220 +629,38 @@ def scan(
         extra_rules_dirs=extra_rules_dirs if extra_rules_dirs else None,
     )
 
-    # ── Hash verification (opt-in via --verify-hashes) ────────────────────────
-    if verify_hashes and result.servers:
-        from mcp_audit.attestation.verifier import verify_server_hashes  # noqa: PLC0415
-        from mcp_audit.registry.loader import KnownServerRegistry  # noqa: PLC0415
+    if verify_hashes:
+        result = _apply_hash_verification(result, registry, offline_registry, console)
 
-        _vh_registry = KnownServerRegistry(path=registry, offline=offline_registry)
-        _hashable = [
-            s
-            for s in result.servers
-            if _vh_registry.get(s.name) is not None
-            and _vh_registry.get(s.name).known_hashes  # type: ignore[union-attr]
-        ]
-        console.print(
-            f"[dim]Hash verification: checking {len(_hashable)} package(s)…[/dim]"
-        )
-        hash_findings = verify_server_hashes(result.servers, _vh_registry)
-        result.findings.extend(hash_findings)
+    _surface_user_path_errors(result, extra_paths, console)
 
-    # Surface parse failures for user-specified paths.
-    # Auto-discovered configs that fail are silently recorded in result.errors
-    # and surfaced in JSON output. User-specified paths must exit 2 — the user
-    # explicitly asked for that file and a clean result would be misleading.
-    if extra_paths and result.errors:
-        resolved_extra = {p.expanduser().resolve() for p in extra_paths}
-        user_path_errors = [
-            e for e in result.errors if any(str(rp) in e for rp in resolved_extra)
-        ]
-        if user_path_errors:
-            for err in user_path_errors:
-                console.print(f"[red]Error:[/red] {err}")
-            raise typer.Exit(2)  # noqa: B904
+    result = _apply_baseline_drift(result, baseline_name, console)
+    result = _apply_governance(result, policy, analyzers, console)
 
-    # Baseline drift detection (opt-in via --baseline)
-    if baseline_name is not None:
-        from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
-        from mcp_audit.models import Finding  # noqa: PLC0415
-
-        mgr = BaselineManager()
-        _baseline_load_ok = True
-        try:
-            if baseline_name == "latest":
-                bl = mgr.load_latest()
-                if bl is None:
-                    console.print(
-                        "[red]No baselines found.[/red]  "
-                        "Run [bold]mcp-audit baseline save[/bold] first."
-                    )
-                    raise typer.Exit(2)  # noqa: B904
-            else:
-                bl = mgr.load(baseline_name)
-        except FileNotFoundError as exc:
-            console.print(f"[red]{exc}[/red]")
-            raise typer.Exit(2)  # noqa: B904
-        except Exception as exc:  # noqa: BLE001
-            # Malformed baseline file — surface as an INFO finding rather than
-            # crashing so the rest of the scan output is still usable.
-            console.print(
-                f"[yellow]Warning:[/yellow] Could not parse baseline "
-                f"{baseline_name!r}: {exc}. Drift detection skipped."
-            )
-            result.findings.append(
-                Finding(
-                    id="BL-001",
-                    severity=Severity.INFO,
-                    analyzer="baselines",
-                    client="",
-                    server="",
-                    title=f"Baseline {baseline_name!r} could not be parsed",
-                    description=(
-                        f"The baseline file for {baseline_name!r} is malformed "
-                        f"and drift detection was skipped: {exc}"
-                    ),
-                    evidence=str(exc),
-                    remediation=(
-                        "Delete the corrupted baseline with "
-                        "'mcp-audit baseline delete' and re-save with "
-                        "'mcp-audit baseline save'."
-                    ),
-                )
-            )
-            _baseline_load_ok = False
-
-        if _baseline_load_ok:
-            drift = mgr.compare(bl, result.servers)
-            drift_findings = _drift_to_findings(drift)
-            result.findings.extend(drift_findings)
-
-    # Governance policy evaluation (auto-discovered or explicit --policy)
-    _resolved_policy = None
-    try:
-        from mcp_audit.governance.loader import load_policy  # noqa: PLC0415
-
-        _resolved_policy = load_policy(policy)
-    except ValueError as _gov_load_err:
-        console.print(f"[red]Governance policy error:[/red] {_gov_load_err}")
-        raise typer.Exit(2)  # noqa: B904
-
-    if _resolved_policy is not None:
-        from mcp_audit.governance.evaluator import evaluate_governance  # noqa: PLC0415
-
-        _gov_registry = None
-        if analyzers is not None:
-            for _a in analyzers:
-                from mcp_audit.analyzers.supply_chain import (
-                    SupplyChainAnalyzer,  # noqa: PLC0415
-                )
-
-                if isinstance(_a, SupplyChainAnalyzer):
-                    _gov_registry = _a.registry
-                    break
-
-        gov_findings = evaluate_governance(
-            servers=result.servers,
-            policy=_resolved_policy,
-            registry=_gov_registry,
-            scan_result=result,
-        )
-        result.findings.extend(gov_findings)
-
-    # ── SAST scan (Pro-gated, requires semgrep) ────────────────────────────────
     if sast is not None and gate(
         "sast",
         console,
         message="--sast skipped; MCP config scan continues.",
     ):
-        from mcp_audit.sast.runner import run_semgrep  # noqa: PLC0415
+        result = _apply_sast(result, sast, console)
 
-        console.print(f"[dim]SAST: scanning {sast} with Semgrep rules…[/dim]")
-        sast_result = run_semgrep(target_path=sast)
-        if sast_result.error:
-            console.print(
-                f"[yellow]SAST warning:[/yellow] {sast_result.error}",
-                err=True,
-            )
-        else:
-            result.findings.extend(sast_result.findings)
-            console.print(
-                f"[dim]SAST: scanned {sast_result.files_scanned} file(s), "
-                f"found {len(sast_result.findings)} issue(s)[/dim]"
-            )
-
-    # ── Extension scan (Pro-gated, --include-extensions) ─────────────────────
     if include_extensions and gate(
         "extensions",
         console,
         message="--include-extensions skipped; MCP config scan continues.",
     ):
-        from mcp_audit.extensions.analyzer import analyze_extensions  # noqa: I001, PLC0415
-        from mcp_audit.extensions.discovery import discover_extensions  # noqa: PLC0415
+        result = _apply_extensions(result, console)
 
-        _ext_list = discover_extensions()
-        _ext_findings = analyze_extensions(_ext_list)
-        result.findings.extend(_ext_findings)
-        console.print(
-            f"[dim]Extensions: {len(_ext_list)} extension(s) scanned, "
-            f"{len(_ext_findings)} issue(s) found[/dim]"
-        )
+    result = _apply_severity_threshold(result, severity_threshold, console)
 
-    # Filter by severity threshold
-    try:
-        threshold = Severity(severity_threshold.upper())
-    except ValueError:
-        console.print(f"[red]Invalid severity: {severity_threshold}[/red]")
-        raise typer.Exit(2)  # noqa: B904
-
-    severity_order = [
-        Severity.CRITICAL,
-        Severity.HIGH,
-        Severity.MEDIUM,
-        Severity.LOW,
-        Severity.INFO,
-    ]
-    threshold_idx = severity_order.index(threshold)
-    result.findings = [
-        f for f in result.findings if severity_order.index(f.severity) <= threshold_idx
-    ]
-
-    # Suppress score for non-terminal formatters when --no-score is requested.
-    # The scanner always calculates the score; suppression is a presentation-layer
-    # decision applied here, after scanning, before any formatter is called.
+    # Suppress score for formatters when --no-score is requested.  The scanner
+    # always calculates the score; suppression is a presentation-layer decision
+    # applied here, after scanning, before any formatter is called.
     if no_score:
         result.score = None
 
-    # Output
-    if fmt == "json":
-        out = result.model_dump_json(indent=2)
-        if output:
-            _write_output(output, out)
-        else:
-            typer.echo(out)
-    elif fmt == "nucleus":
-        out = format_nucleus(result, asset_prefix=asset_prefix, console=console)
-        if out is None:
-            raise typer.Exit(0)
-        if output:
-            _write_output(output, out)
-        else:
-            typer.echo(out)
-    elif fmt == "sarif":
-        out = format_sarif(result, asset_prefix=asset_prefix)
-        if output:
-            _write_output(output, out)
-        else:
-            typer.echo(out)
-    elif fmt == "terminal":
-        print_results(result, console=console, show_score=not no_score)
-    else:
-        console.print(
-            "[red]Unknown format: "
-            f"{fmt!r}. Choose terminal, json, nucleus, or sarif.[/red]"
-        )
-        raise typer.Exit(2)  # noqa: B904
+    _write_formatted_output(result, fmt, output, asset_prefix, no_score, console)
 
-    # Exit code
     if result.has_findings:
         raise typer.Exit(1)
 
@@ -729,54 +877,18 @@ def watch(
     ),
 ) -> None:
     """Continuously monitor MCP configs and scan on changes."""
-    import threading  # noqa: PLC0415
-    from datetime import datetime  # noqa: PLC0415
-
-    from rich.rule import Rule  # noqa: PLC0415
-
-    from mcp_audit.output.nucleus import format_nucleus  # noqa: PLC0415
-    from mcp_audit.output.sarif import format_sarif  # noqa: PLC0415
-    from mcp_audit.scanner import (
-        _USER_RULES_DIR as _WATCH_USER_RULES_DIR,  # noqa: PLC0415
-    )
-    from mcp_audit.watcher import ConfigWatcher  # noqa: PLC0415
-
     extra_paths = [path] if path else None
 
-    extra_rules_dirs: list[Path] = []
-    if rules_dir is not None and gate(
-        "custom_rules",
-        console,
-        message="--rules-dir skipped; bundled community rules still apply.",
-    ):
-        if not rules_dir.is_dir():
-            console.print(
-                f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
-            )
-            raise typer.Exit(2)  # noqa: B904
-        extra_rules_dirs.append(rules_dir)
-
-    if _WATCH_USER_RULES_DIR.is_dir() and _cli.cached_is_pro_feature_available(
-        "custom_rules"
-    ):
-        extra_rules_dirs.append(_WATCH_USER_RULES_DIR)
-
+    extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, console)
     watch_extra_rules = extra_rules_dirs if extra_rules_dirs else None
 
     try:
         threshold = Severity(severity_threshold.upper())
     except ValueError:
         console.print(f"[red]Invalid severity: {severity_threshold}[/red]")
-        raise typer.Exit(2)  # noqa: B904
+        raise typer.Exit(2) from None
 
-    severity_order = [
-        Severity.CRITICAL,
-        Severity.HIGH,
-        Severity.MEDIUM,
-        Severity.LOW,
-        Severity.INFO,
-    ]
-    threshold_idx = severity_order.index(threshold)
+    threshold_idx = _SEVERITY_ORDER.index(threshold)
 
     def _run_and_print(label: str) -> None:
         """Execute a full scan and emit results with the configured formatter."""
@@ -788,7 +900,7 @@ def watch(
         result.findings = [
             f
             for f in result.findings
-            if severity_order.index(f.severity) <= threshold_idx
+            if _SEVERITY_ORDER.index(f.severity) <= threshold_idx
         ]
 
         console.print()
