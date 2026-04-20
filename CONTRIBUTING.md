@@ -56,6 +56,30 @@ pytest tests/ -x -q
 - No new dependencies without discussion in an issue first
 - Every new module needs a corresponding test file
 
+## Testing conventions
+
+### Pro/Enterprise output formatter tests
+
+The `pro_enabled` fixture in `tests/conftest.py` patches
+`is_pro_feature_available` to return `True`. It is **opt-in** — tests that
+do not request it run against the real (unlicensed) gating logic.
+
+When adding a new Pro or Enterprise output formatter:
+
+1. Add a **negative gate test** to `tests/test_pro_gating.py` that patches
+   `is_pro_feature_available` to return `False` per-test and asserts the
+   formatter returns `None` (or the expected upsell response).
+2. Add a **positive gate test** in the same file that requests `pro_enabled`
+   and asserts the formatter returns valid output.
+3. In the formatter's own test file, request `pro_enabled` on every test (or
+   fixture) that calls the formatter — either as a direct parameter or via a
+   class-level `@pytest.fixture(autouse=True)` method that accepts
+   `pro_enabled`.
+
+**Do not** make `pro_enabled` `autouse=True` or `scope="session"`. Doing so
+would silently disable the negative gate tests in `test_pro_gating.py` and
+defeat the purpose of the fixture.
+
 ## What we won't accept
 
 - PRs that remove or weaken existing detection patterns without strong justification

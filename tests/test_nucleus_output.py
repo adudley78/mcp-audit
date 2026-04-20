@@ -64,6 +64,10 @@ def _parse(result: ScanResult, asset_prefix: str = _TEST_PREFIX) -> dict:
 
 
 class TestDocumentStructure:
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        """Activate the Pro gate for all nucleus formatter tests in this class."""
+
     def test_returns_valid_json(self) -> None:
         out = format_nucleus(_make_result())
         parsed = json.loads(out)  # raises if invalid
@@ -111,7 +115,10 @@ class TestDocumentStructure:
 
 
 class TestFindingMapping:
-    def setup_method(self) -> None:
+    # setup_method cannot receive fixtures, so we use an autouse fixture instead.
+    # This guarantees pro_enabled (and its patches) are active before _parse runs.
+    @pytest.fixture(autouse=True)
+    def _setup(self, pro_enabled: None) -> None:
         self.finding = _make_finding()
         self.doc = _parse(_make_result(findings=[self.finding]))
         self.row = self.doc["findings"][0]
@@ -165,6 +172,10 @@ class TestFindingMapping:
 
 
 class TestSeverityMapping:
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        """Activate the Pro gate for severity-mapping tests."""
+
     @pytest.mark.parametrize(
         "severity,expected",
         [
@@ -185,6 +196,10 @@ class TestSeverityMapping:
 
 
 class TestMultipleFindings:
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        """Activate the Pro gate for multi-finding tests."""
+
     def test_finding_count_matches(self) -> None:
         findings = [
             _make_finding(finding_id="POISON-001", server="evil-calc"),
@@ -228,6 +243,10 @@ class TestMultipleFindings:
 
 
 class TestOutputFormat:
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        """Activate the Pro gate for output-format tests."""
+
     def test_output_is_indented(self) -> None:
         out = format_nucleus(_make_result(findings=[_make_finding()]))
         # Pretty-printed JSON has newlines and indentation

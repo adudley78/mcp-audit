@@ -6,6 +6,7 @@ import json
 import uuid
 from unittest.mock import patch
 
+import pytest
 from rich.console import Console
 
 from mcp_audit.models import (
@@ -188,6 +189,10 @@ class TestJsonOutput:
 
 
 class TestNucleusFormatter:
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        """Activate the Pro gate for all nucleus MachineInfo tests."""
+
     def test_host_name_in_envelope(self) -> None:
         result = _make_result(machine=_make_machine(hostname="nucleus-host"))
         doc = json.loads(format_nucleus(result))
@@ -325,6 +330,10 @@ class TestTerminalFormatter:
 
 
 class TestDashboardFormatter:
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        """Activate the Pro gate for dashboard MachineInfo tests."""
+
     def test_machine_present_in_scan_data(self) -> None:
         result = _make_result(machine=_make_machine(hostname="dash-host"))
         data = _build_scan_data(result)

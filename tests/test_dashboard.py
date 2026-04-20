@@ -283,9 +283,9 @@ class TestBuildScanData:
 
 
 class TestGenerateHtml:
-    @pytest.fixture(scope="class")
-    def html(self) -> str:
-        return generate_html(_rich_result())
+    @pytest.fixture()
+    def html(self, pro_enabled: None) -> str:
+        return generate_html(_rich_result())  # type: ignore[return-value]
 
     def test_returns_string(self, html: str) -> None:
         assert isinstance(html, str)
@@ -407,7 +407,7 @@ class TestGenerateHtml:
             assert "id" in s
             assert "in_hitting_set" in s
 
-    def test_minimal_result_generates_html(self) -> None:
+    def test_minimal_result_generates_html(self, pro_enabled: None) -> None:
         html = generate_html(_minimal_result())
         assert "const SCAN_DATA =" in html
         match = re.search(r"const SCAN_DATA = (.+?);</script>", html, re.DOTALL)
@@ -457,9 +457,9 @@ class TestEmptyStates:
     (zero servers, zero findings) and a no-paths variant.
     """
 
-    @pytest.fixture(scope="class")
-    def minimal_html(self) -> str:
-        return generate_html(_minimal_result())
+    @pytest.fixture()
+    def minimal_html(self, pro_enabled: None) -> str:
+        return generate_html(_minimal_result())  # type: ignore[return-value]
 
     def test_no_servers_message_present(self, minimal_html: str) -> None:
         assert "No MCP servers detected." in minimal_html
@@ -533,6 +533,10 @@ class TestDashboardCommand:
 
     The HTTP server and browser open are mocked so tests finish immediately.
     """
+
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        """Ensure the Pro gate is open for all dashboard CLI tests."""
 
     def _invoke_dashboard(
         self,
