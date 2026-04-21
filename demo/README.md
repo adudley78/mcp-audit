@@ -64,7 +64,7 @@ The script runs eight commands in sequence:
 | Step | Command | Expected result |
 |------|---------|-----------------|
 | 1 | `discover` | Lists 3 config files, 8 servers |
-| 2 | `scan` (terminal) | 35 findings across all 6 analyzers |
+| 2 | `scan` (terminal) | 32 findings across all 7 analyzers (first scan adds rug-pull INFO; subsequent scans drop to ~24 after baselines are set) |
 | 3 | `pin` | Records baseline hashes for all 8 servers |
 | 4 | `diff` | Reports no changes (nothing changed since pin) |
 | 5 | `scan --format json` | Writes `output/results.json` |
@@ -98,14 +98,20 @@ mcp-audit diff --path demo/configs
 
 ## Expected finding summary
 
-| Analyzer | Finding IDs | Count |
-|----------|-------------|-------|
+Counts are for `mcp-audit scan --path demo/configs` (all three configs together).
+First-scan numbers include rug-pull INFO findings; second and subsequent scans
+drop rug-pull to 0 once baselines are established.
+
+| Analyzer | Finding IDs | First-scan count |
+|----------|-------------|-----------------|
 | Poisoning | POISON-001, 010, 012, 030 | 4 |
 | Credentials | CRED-001 | 3 |
-| Transport | TRANSPORT-001, 003 | 7 |
+| Transport | TRANSPORT-001, 003 | 4 |
 | Supply chain | SC-001 | 1 |
-| Rug-pull | RUGPULL-002 (INFO, first scan) | 8 |
+| Rug-pull | RUGPULL-002 (INFO, first scan only) | 8 |
+| Community rules | COMM-004, COMM-010 | 10 |
 | Toxic flow | TOXIC-001, 004, 005, 006, 007 | 12 |
 
-On a second run (after `pin`), rug-pull findings drop from 8 INFO to 0 since
-the baseline is established and nothing has changed.
+**Total on first scan: ~32 findings across all demo configs** (drops to ~24 on
+subsequent runs once rug-pull baselines are established; cross-config toxic-flow
+pairs add extra findings when all configs are scanned together vs. individually).

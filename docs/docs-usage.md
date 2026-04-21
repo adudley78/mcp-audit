@@ -214,6 +214,31 @@ mcp-audit scan --sast ./my-mcp-server/
 
 SAST findings flow through all output formats (terminal, JSON, SARIF, HTML).
 
+### Pro-gated inline scan flags — soft-gate behaviour
+
+`--sast`, `--include-extensions`, and `--rules-dir` are **soft-gated**: if no Pro
+license is active when one of these flags is passed, mcp-audit prints an upsell panel
+and then **continues the scan without that feature**.  The scan runs in full; the exit
+code reflects findings present in the config (exit 1 if any) — it is **not** set by
+the missing Pro feature.
+
+What you will see:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  ⚡ Pro feature required                            │
+│  This requires a Pro or Enterprise license.         │
+│  Activate with: mcp-audit activate <key>            │
+│  https://mcp-audit.dev/pro                          │
+│  --sast requires Pro — SAST integration skipped;   │
+│  scan will continue without it.                     │
+└─────────────────────────────────────────────────────┘
+<... full scan output follows ...>
+```
+
+The scan output and exit code below the panel are from the MCP config scan, not from
+the gated feature.  This is intentional: scans always run fully.
+
 ---
 
 ## Governance Policies (Pro authoring, free execution)
@@ -447,11 +472,11 @@ Purchase a license at [mcp-audit.dev/pro](https://mcp-audit.dev/pro).
 | `--no-score` | Suppress the scan score panel |
 | `--baseline NAME` | Compare scan to a saved baseline (use `latest` for the most recent) |
 | `--verify-hashes` | Verify server hashes against the registry |
-| `--sast PATH` | Run MCP Semgrep rules against a source directory (Pro) |
-| `--include-extensions` | Include IDE extension analysis (Pro) |
+| `--sast PATH` | Run MCP Semgrep rules against a source directory (Pro — soft gate: scan continues without SAST if no license) |
+| `--include-extensions` | Include IDE extension analysis (Pro — soft gate: scan continues without extension scanning if no license) |
 | `--policy PATH` | Run a governance policy (free) |
 | `--registry PATH` | Use a custom registry file |
 | `--offline-registry` | Disable registry network updates |
-| `--rules-dir PATH` | Run additional custom rules from a directory (Pro) |
+| `--rules-dir PATH` | Run additional custom rules from a directory (Pro — soft gate: scan continues using only bundled community rules if no license) |
 | `--asset-prefix PREFIX` | Tag findings with a machine/fleet prefix |
 | `--connect` | Connect live to running MCP servers (requires MCP SDK) |

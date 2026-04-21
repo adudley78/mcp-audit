@@ -176,10 +176,17 @@ def policy_init(
 
 @policy_app.command(name="check")
 def policy_check(
+    policy_pos: Path | None = typer.Argument(  # noqa: B008
+        None,
+        help="Policy file to check (positional; alternative to --policy)",
+    ),
     policy: Path | None = typer.Option(  # noqa: B008
         None,
         "--policy",
-        help="Path to governance policy file (auto-discovered when omitted)",
+        help=(
+            "Path to governance policy file "
+            "(alternative to positional; auto-discovered when both omitted)"
+        ),
     ),
     path: Path | None = typer.Option(  # noqa: B008
         None, "--path", "-p", help="Additional config path to check"
@@ -196,9 +203,12 @@ def policy_check(
     from mcp_audit.governance.evaluator import evaluate_governance  # noqa: PLC0415
     from mcp_audit.governance.loader import load_policy  # noqa: PLC0415
 
+    # Merge positional and --policy flag; positional takes precedence.
+    resolved_policy = policy_pos or policy
+
     # Load policy.
     try:
-        loaded_policy = load_policy(policy)
+        loaded_policy = load_policy(resolved_policy)
     except ValueError as exc:
         console.print(f"[red]Governance policy error:[/red] {exc}")
         raise typer.Exit(2)  # noqa: B904

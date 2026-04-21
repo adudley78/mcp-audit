@@ -206,7 +206,10 @@ def _collect_extra_rules_dirs(
     if rules_dir is not None and gate(
         "custom_rules",
         con,
-        message="--rules-dir skipped; bundled community rules still apply.",
+        message=(
+            "--rules-dir requires Pro — custom rules directory skipped; "
+            "scan will continue without it (bundled community rules still apply)."
+        ),
     ):
         if not rules_dir.is_dir():
             con.print(f"[red]--rules-dir path is not a directory: {rules_dir}[/red]")
@@ -497,7 +500,11 @@ def _write_formatted_output(
 @app.command()
 def scan(
     config: Path | None = typer.Argument(  # noqa: B008
-        None, help="Config file to scan (positional shorthand for --path/-p)"
+        None,
+        help=(
+            "Config file to scan (single path only; "
+            "for multiple configs use --path or 'mcp-audit discover')"
+        ),
     ),
     path: Path | None = typer.Option(  # noqa: B008
         None, "--path", "-p", help="Scan a specific config file or directory"
@@ -660,14 +667,20 @@ def scan(
     if sast is not None and gate(
         "sast",
         console,
-        message="--sast skipped; MCP config scan continues.",
+        message=(
+            "--sast requires Pro — SAST integration skipped; "
+            "scan will continue without it."
+        ),
     ):
         result = _apply_sast(result, sast, console)
 
     if include_extensions and gate(
         "extensions",
         console,
-        message="--include-extensions skipped; MCP config scan continues.",
+        message=(
+            "--include-extensions requires Pro — extension scanning skipped; "
+            "scan will continue without it."
+        ),
     ):
         result = _apply_extensions(result, console)
 

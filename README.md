@@ -267,12 +267,12 @@ See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framew
 | `--no-score` | off | Suppress the score/grade panel in terminal output |
 | `--registry` | bundled | Custom registry file path (overrides user cache and bundled registry) |
 | `--baseline` | none | Compare scan results against a named baseline (`latest` selects most recent) |
-| `--rules-dir` | none | Load additional detection rules from this directory *(Pro)* |
+| `--rules-dir` | none | Load additional detection rules from this directory *(Pro — soft gate: scan continues with bundled community rules only if no license)* |
 | `--offline-registry` | off | Use bundled registry only, skip user cache |
 | `--policy` | auto-discover | Path to a governance policy file; auto-discovers `.mcp-audit-policy.yml` in cwd/repo root when omitted |
 | `--verify-hashes` | off | Download and verify package hashes against registry (free; requires network) |
-| `--sast` | none | Path to MCP server source code to scan with Semgrep SAST rules *(Pro)* |
-| `--include-extensions` | off | Also scan installed IDE extensions for security issues *(Pro)* |
+| `--sast` | none | Path to MCP server source code to scan with Semgrep SAST rules *(Pro — soft gate: scan continues without SAST if no license)* |
+| `--include-extensions` | off | Also scan installed IDE extensions for security issues *(Pro — soft gate: scan continues without extension scanning if no license)* |
 
 **`mcp-audit dashboard` flags**
 
