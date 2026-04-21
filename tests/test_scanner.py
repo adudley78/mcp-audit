@@ -328,6 +328,28 @@ class TestPositionalPathArgument:
             f"diff rejected positional path as an argument error: {result.output!r}"
         )
 
+    def test_scan_multiple_positional_paths_shows_friendly_error(
+        self, tmp_path: Path
+    ) -> None:
+        """mcp-audit scan FILE1 FILE2 must exit 2 with a user-friendly message."""
+        file1 = tmp_path / "config1.json"
+        file2 = tmp_path / "config2.json"
+        file1.write_text('{"mcpServers": {}}')
+        file2.write_text('{"mcpServers": {}}')
+        runner = CliRunner()
+        with _patch_no_known_clients():
+            result = runner.invoke(app, ["scan", str(file1), str(file2)])
+        assert result.exit_code == 2, (
+            f"Expected exit 2 for multiple positional paths, got {result.exit_code}; "
+            f"output={result.output!r}"
+        )
+        assert "single config path" in result.output, (
+            f"Expected friendly error message, got: {result.output!r}"
+        )
+        assert "unexpected extra argument" not in result.output.lower(), (
+            f"Must not surface raw Typer error; got: {result.output!r}"
+        )
+
 
 # ── Invalid JSON path handling ─────────────────────────────────────────────────
 

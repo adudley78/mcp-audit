@@ -499,8 +499,8 @@ def _write_formatted_output(
 
 @app.command()
 def scan(
-    config: Path | None = typer.Argument(  # noqa: B008
-        None,
+    configs: list[Path] | None = typer.Argument(  # noqa: B008
+        default=None,
         help=(
             "Config file to scan (single path only; "
             "for multiple configs use --path or 'mcp-audit discover')"
@@ -633,6 +633,13 @@ def scan(
     ),
 ) -> None:
     """Scan MCP configurations for security issues."""
+    if configs and len(configs) > 1:
+        console.print(
+            "[red]Error:[/red] scan accepts a single config path. "
+            "For multiple configs use 'mcp-audit discover' or run scan once per config."
+        )
+        raise typer.Exit(2)
+    config = configs[0] if configs else None
     path = config or path
     extra_paths = [path] if path else None
     fmt = "json" if json_flag else output_format
