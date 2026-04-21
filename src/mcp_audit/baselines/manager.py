@@ -67,6 +67,7 @@ class Baseline(BaseModel):
     scanner_version: str
     servers: list[BaselineServer] = Field(default_factory=list)
     server_count: int
+    finding_count: int | None = None
     config_paths: list[str] = Field(default_factory=list)
 
 
@@ -196,6 +197,7 @@ class BaselineManager:
         servers: list[ServerConfig],
         config_paths: list[str],
         name: str | None = None,
+        finding_count: int | None = None,
     ) -> Baseline:
         """Capture a baseline snapshot of the provided servers and persist it.
 
@@ -204,6 +206,8 @@ class BaselineManager:
             config_paths: Config file paths included in this snapshot.
             name: Human-readable label.  Auto-generated from timestamp if
                 ``None``.
+            finding_count: Number of findings produced by the scan at save
+                time.  ``None`` for baselines saved before this field existed.
 
         Returns:
             The saved :class:`Baseline`.
@@ -217,6 +221,7 @@ class BaselineManager:
             scanner_version=_SCANNER_VERSION,
             servers=[_server_to_baseline_server(s) for s in servers],
             server_count=len(servers),
+            finding_count=finding_count,
             config_paths=config_paths,
         )
 
@@ -282,6 +287,23 @@ class BaselineManager:
         """
         baselines = self.list()
         return baselines[0] if baselines else None
+
+    def exists(self, name: str) -> bool:
+        """Return whether a baseline with *name* exists.
+
+        Args:
+            name: Baseline label, with or without the ``.json`` extension.
+
+        Returns:
+            ``True`` if the baseline file is present; ``False`` otherwise.
+            Also returns ``False`` when *name* contains path-traversal
+            sequences (rather than raising).
+        """
+        try:
+            path = self._safe_baseline_path(name)
+        except ValueError:
+            return False
+        return path.exists()
 
     def delete(self, name: str) -> None:
         """Delete a baseline file.

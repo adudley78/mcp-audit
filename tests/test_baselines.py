@@ -485,32 +485,13 @@ def test_baseline_save_and_list(
     from unittest.mock import patch
 
     import mcp_audit.baselines.manager as _bm_mod
-    from mcp_audit.discovery import DiscoveredConfig
+    from mcp_audit.models import ScanResult
 
     monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", tmp_path / "baselines")
 
-    fake_config_path = tmp_path / "mcp.json"
-    fake_config_path.write_text(
-        json.dumps(
-            {
-                "mcpServers": {
-                    "test-srv": {"command": "npx", "args": ["-y", "test-server"]}
-                }
-            }
-        ),
-        encoding="utf-8",
-    )
+    fake_result = ScanResult(servers=[], findings=[])
 
-    with patch(
-        "mcp_audit.cli.discover_configs",
-        return_value=[
-            DiscoveredConfig(
-                client_name="claude-desktop",
-                root_key="mcpServers",
-                path=fake_config_path,
-            )
-        ],
-    ):
+    with patch("mcp_audit.cli.run_scan", return_value=fake_result):
         save_result = runner.invoke(app, ["baseline", "save", "ci-baseline"])
         assert save_result.exit_code == 0
         assert "ci-baseline" in save_result.output
@@ -526,25 +507,19 @@ def test_baseline_export_outputs_json(
     from unittest.mock import patch
 
     import mcp_audit.baselines.manager as _bm_mod
-    from mcp_audit.discovery import DiscoveredConfig
+    from mcp_audit.models import ScanResult
 
     monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", tmp_path / "baselines")
-    fake_config_path = tmp_path / "mcp.json"
-    fake_config_path.write_text(json.dumps({"mcpServers": {}}), encoding="utf-8")
 
-    with patch(
-        "mcp_audit.cli.discover_configs",
-        return_value=[
-            DiscoveredConfig(
-                client_name="cursor", root_key="mcpServers", path=fake_config_path
-            )
-        ],
-    ):
+    fake_result = ScanResult(servers=[], findings=[])
+
+    with patch("mcp_audit.cli.run_scan", return_value=fake_result):
         runner.invoke(app, ["baseline", "save", "export-bl"])
-        result = runner.invoke(app, ["baseline", "export", "export-bl"])
-        assert result.exit_code == 0
-        data = json.loads(result.output)
-        assert data["name"] == "export-bl"
+
+    result = runner.invoke(app, ["baseline", "export", "export-bl"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["name"] == "export-bl"
 
 
 def test_baseline_export_to_file(
@@ -556,21 +531,14 @@ def test_baseline_export_to_file(
     from unittest.mock import patch
 
     import mcp_audit.baselines.manager as _bm_mod
-    from mcp_audit.discovery import DiscoveredConfig
+    from mcp_audit.models import ScanResult
 
     monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", tmp_path / "baselines")
-    fake_config_path = tmp_path / "mcp.json"
-    fake_config_path.write_text(_json.dumps({"mcpServers": {}}), encoding="utf-8")
     dest = tmp_path / "export.json"
 
-    with patch(
-        "mcp_audit.cli.discover_configs",
-        return_value=[
-            DiscoveredConfig(
-                client_name="cursor", root_key="mcpServers", path=fake_config_path
-            )
-        ],
-    ):
+    fake_result = ScanResult(servers=[], findings=[])
+
+    with patch("mcp_audit.cli.run_scan", return_value=fake_result):
         runner.invoke(app, ["baseline", "save", "export-file-bl"])
 
     result = runner.invoke(
@@ -660,6 +628,138 @@ def test_scan_baseline_drift_in_json_output(
         f["title"] for f in output_data["findings"] if f["analyzer"] == "baseline"
     ]
     assert any("command_changed" in t or "hash_changed" in t for t in titles)
+
+
+# ── F4: Findings column accuracy ─────────────────────────────────────────────
+
+
+def test_baseline_list_findings_column_shows_finding_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Findings column must show finding_count from save time, not server count."""
+    from unittest.mock import MagicMock, patch
+
+    import mcp_audit.baselines.manager as _bm_mod
+    from mcp_audit.models import Finding, ScanResult, Severity
+
+    monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", tmp_path / "baselines")
+
+    fake_finding = MagicMock(spec=Finding)
+    fake_finding.severity = Severity.HIGH
+
+    # 1 server, 3 findings — the list must show "3", not "1"
+    srv = _make_server("alpha", "claude-desktop")
+    fake_result = ScanResult(servers=[srv], findings=[fake_finding] * 3)
+
+    with patch("mcp_audit.cli.run_scan", return_value=fake_result):
+        save_result = runner.invoke(app, ["baseline", "save", "fc-test"])
+    assert save_result.exit_code == 0
+
+    list_result = runner.invoke(app, ["baseline", "list"])
+    assert list_result.exit_code == 0
+    output = list_result.output
+    assert "fc-test" in output
+    # The cell in the Findings column must be "3", not "1" (server count)
+    assert "3" in output
+
+
+def test_baseline_list_legacy_baseline_shows_dash_for_finding_count(
+    tmp_path: Path,
+) -> None:
+    """Baselines saved without finding_count must display '-' in the Findings column."""
+    import mcp_audit.baselines.manager as _bm_mod
+
+    storage = tmp_path / "baselines"
+    storage.mkdir(parents=True)
+
+    # Manually write a legacy baseline JSON without the finding_count field
+    legacy = {
+        "name": "legacy-bl",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "scanner_version": "0.1.0",
+        "servers": [],
+        "server_count": 2,
+        "config_paths": [],
+    }
+    (storage / "legacy-bl.json").write_text(json.dumps(legacy), encoding="utf-8")
+    (storage / "legacy-bl.json").chmod(0o600)
+
+    # Temporarily override the default storage dir for the CLI invocation
+    original = _bm_mod._DEFAULT_STORAGE_DIR
+    _bm_mod._DEFAULT_STORAGE_DIR = storage
+    try:
+        result = runner.invoke(app, ["baseline", "list"])
+    finally:
+        _bm_mod._DEFAULT_STORAGE_DIR = original
+
+    assert result.exit_code == 0
+    assert "legacy-bl" in result.output
+    assert "-" in result.output
+
+
+# ── F9: baseline delete ordering and --yes flag ───────────────────────────────
+
+
+def test_baseline_delete_nonexistent_exits_2_before_prompt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Delete of a nonexistent baseline must exit 2 immediately — no prompt shown."""
+    from unittest.mock import patch
+
+    import mcp_audit.baselines.manager as _bm_mod
+
+    monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", tmp_path / "baselines")
+
+    with patch("typer.confirm") as mock_confirm:
+        result = runner.invoke(app, ["baseline", "delete", "does-not-exist"])
+
+    assert result.exit_code == 2
+    output_lower = result.output.lower()
+    assert "not found" in output_lower or "no baseline" in output_lower
+    mock_confirm.assert_not_called()
+
+
+def test_baseline_delete_with_yes_flag_skips_confirmation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """baseline delete NAME --yes must delete without prompting."""
+    from unittest.mock import patch
+
+    import mcp_audit.baselines.manager as _bm_mod
+
+    storage = tmp_path / "baselines"
+    monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", storage)
+
+    mgr = BaselineManager(storage_dir=storage)
+    mgr.save([], config_paths=[], name="to-nuke")
+
+    with patch("typer.confirm") as mock_confirm:
+        result = runner.invoke(app, ["baseline", "delete", "--yes", "to-nuke"])
+
+    assert result.exit_code == 0
+    assert "deleted" in result.output.lower()
+    mock_confirm.assert_not_called()
+    assert not (storage / "to-nuke.json").exists()
+
+
+def test_baseline_delete_interactive_still_prompts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without --yes, an existing baseline must still show the confirmation prompt."""
+    import mcp_audit.baselines.manager as _bm_mod
+
+    storage = tmp_path / "baselines"
+    monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", storage)
+
+    mgr = BaselineManager(storage_dir=storage)
+    mgr.save([], config_paths=[], name="interactive-bl")
+
+    # Answer "n" — should cancel without deleting
+    result = runner.invoke(app, ["baseline", "delete", "interactive-bl"], input="n\n")
+    assert result.exit_code == 0
+    assert (storage / "interactive-bl.json").exists(), (
+        "File must not be deleted on cancel"
+    )
 
 
 # ── Spec-named permission tests (required by security audit) ──────────────────

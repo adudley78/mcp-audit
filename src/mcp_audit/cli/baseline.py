@@ -27,21 +27,20 @@ def baseline_save(
     from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
 
     extra_paths = [path] if path else None
-    configs = _cli.discover_configs(extra_paths=extra_paths)
+    result = _cli.run_scan(extra_paths=extra_paths)
 
-    all_servers = []
-    for config in configs:
-        try:
-            all_servers.extend(_cli.parse_config(config))
-        except ValueError as exc:
-            console.print(f"[yellow]Warning: {exc}[/yellow]")
-
-    config_paths = [str(c.path) for c in configs]
+    config_paths = sorted({str(s.config_path) for s in result.servers})
     mgr = BaselineManager()
-    baseline = mgr.save(all_servers, config_paths, name=name)
+    baseline = mgr.save(
+        result.servers,
+        config_paths,
+        name=name,
+        finding_count=len(result.findings),
+    )
     console.print(
         f"[bold green]Baseline saved:[/bold green] {baseline.name} "
-        f"({baseline.server_count} server(s) captured)"
+        f"({baseline.server_count} server(s), "
+        f"{baseline.finding_count} finding(s) captured)"
     )
 
 
@@ -77,7 +76,8 @@ def baseline_list() -> None:
 
     for bl in baselines:
         created = bl.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
-        table.add_row(bl.name, created, str(bl.server_count), bl.scanner_version)
+        findings_cell = str(bl.finding_count) if bl.finding_count is not None else "-"
+        table.add_row(bl.name, created, findings_cell, bl.scanner_version)
 
     console.print(table)
 
@@ -186,19 +186,20 @@ def baseline_delete(
     """Delete a saved baseline."""
     from mcp_audit.baselines.manager import BaselineManager  # noqa: PLC0415
 
+    mgr = BaselineManager()
+
+    if not mgr.exists(name):
+        console.print(f"[red]Error:[/red] No baseline named {name!r} found.")
+        raise typer.Exit(2)  # noqa: B904
+
     if not yes:
         confirmed = typer.confirm(f"Delete baseline {name!r}?", default=False)
         if not confirmed:
             console.print("[dim]Cancelled.[/dim]")
             raise typer.Exit(0)  # noqa: B904
 
-    mgr = BaselineManager()
-    try:
-        mgr.delete(name)
-        console.print(f"[green]Baseline {name!r} deleted.[/green]")
-    except ValueError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(2)  # noqa: B904
+    mgr.delete(name)
+    console.print(f"[green]Baseline {name!r} deleted.[/green]")
 
 
 # ── baseline export ───────────────────────────────────────────────────────────
