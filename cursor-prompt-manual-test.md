@@ -86,14 +86,16 @@ mcp-audit scan --path demo/configs --format json --output "$SCRATCH/results.json
 python3 -c "
 import json
 d = json.load(open('$SCRATCH/results.json'))
-print('score:', d.get('score'))
-print('grade:', d.get('grade'))
+score = d.get('score') or {}
+print('score.numeric:', score.get('numeric'))
+print('score.grade:', score.get('grade'))
 print('finding_count:', len(d.get('findings', [])))
 "
 ```
 
-**Expected:** `score` (integer) and `grade` (letter) present at the top level of the
-JSON object; finding_count > 0.
+**Expected:** `score` is a nested object `{"numeric": <int 0–100>, "grade": "<A–F>",
+"positive_signals": [...], "deductions": [...]}` — accessed as `score.numeric` and
+`score.grade`, not as bare top-level keys. `finding_count` > 0.
 
 ---
 
