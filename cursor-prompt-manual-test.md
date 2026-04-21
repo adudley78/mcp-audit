@@ -15,12 +15,12 @@ echo "Scratch dir: $SCRATCH"
 ## Section 1 — version / help smoke test
 
 ```bash
-mcp-audit --version
+mcp-audit version
 mcp-audit --help
 mcp-audit scan --help
 ```
 
-**Expected:** version string prints, help text lists all commands, exit 0.
+**Expected:** `mcp-audit version` outputs version string, exits 0; help text lists all commands.
 
 ---
 
@@ -160,22 +160,28 @@ mcp-audit diff --path demo/configs
 echo "exit: $?"
 ```
 
-**Expected:** `pin` prints "Pinned N servers"; `diff` prints "No changes detected" and
-exits 0.
+> **Note:** diff results depend on existing rug-pull state on this machine. If prior
+> scans have been run, diff may show REMOVED entries for servers no longer present
+> in the config — this is expected behavior, not a bug. To get a clean baseline,
+> run `mcp-audit pin` first, then re-run diff.
+
+**Expected:** `pin` prints "Pinned N servers"; `diff` exits 0 (no prior state) OR exits 1
+with REMOVED entries (prior state present) — both are correct.
 
 ---
 
 ## Section 11 — baseline save / list / compare / delete
 
 ```bash
-mcp-audit baseline save --path demo/configs --name test-baseline
+mcp-audit baseline save --path demo/configs test-baseline
 mcp-audit baseline list
 mcp-audit scan --path demo/configs --baseline test-baseline
-mcp-audit baseline delete test-baseline
+mcp-audit baseline delete test-baseline --yes
 ```
 
 **Expected:** save prints confirmation; list shows `test-baseline`; scan with
-`--baseline` shows drift panel (empty if nothing changed since save); delete confirms.
+`--baseline` shows drift panel (empty if nothing changed since save); delete confirms
+non-interactively (no prompt).
 
 ---
 
@@ -183,16 +189,12 @@ mcp-audit baseline delete test-baseline
 
 ```bash
 mcp-audit scan --path demo/configs --format nucleus --output "$SCRATCH/results.nucleus.json"
-python3 -c "
-import json
-d = json.load(open('$SCRATCH/results.nucleus.json'))
-print('type:', type(d))
-print('keys (if dict):', list(d.keys())[:5] if isinstance(d, dict) else 'list of', len(d))
-"
+echo "exit: $?"
 ```
 
-**Expected:** valid JSON; list of asset objects or dict with `findings` key; exit 1
-from scan.
+**Expected:** Enterprise gate panel shown, exit 0 (no file written without Enterprise
+license).  Do not check for an output file — it will not be written without an Enterprise
+license.
 
 ---
 
@@ -214,8 +216,8 @@ mcp-audit policy check examples/policies/starter.yml
 echo "exit: $?"
 ```
 
-**Expected:** Pro upsell panel printed (not a raw Typer error); clean exit (2 for
-hard-gated commands, not an unhandled exception).  Must not show "Got unexpected
+**Expected:** Pro upsell panel printed (not a raw Typer error); exit 0 (Pro/Enterprise
+gates are soft stops — exit 2 is reserved for errors).  Must not show "Got unexpected
 extra argument".
 
 ---
@@ -290,7 +292,7 @@ mcp-audit scan --path demo/configs --format json --output "$SCRATCH/full.json"
 python3 -c "
 import json
 d = json.load(open('$SCRATCH/full.json'))
-print('servers scanned:', len(set(f.get('server_name','') for f in d.get('findings',[]))))
+print('servers scanned:', len(set(f.get('server','') for f in d.get('findings',[]))))
 print('total findings:', len(d.get('findings',[])))
 "
 ```
