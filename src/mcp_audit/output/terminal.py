@@ -144,7 +144,16 @@ def print_results(
     console.print()
 
     if not result.findings:
-        console.print(Panel("✅ No security issues found", style="green"))
+        if result.findings_below_threshold > 0 and result.active_severity_threshold:
+            threshold = result.active_severity_threshold
+            count = result.findings_below_threshold
+            msg = (
+                f"✅ No findings at or above {threshold} severity "
+                f"({count} finding(s) below threshold — see score panel)"
+            )
+            console.print(Panel(msg, style="green"))
+        else:
+            console.print(Panel("✅ No security issues found", style="green"))
         if show_score and result.score is not None:
             console.print()
             console.print(

@@ -25,14 +25,14 @@ def rule_validate(
 
     Requires a Pro or Enterprise license.
     """
+    if not file.exists():
+        console.print(f"[red]Error:[/red] Rule file not found: {file}")
+        raise typer.Exit(2)  # noqa: B904
+
     if not gate("custom_rules", console):
         raise typer.Exit(0)  # noqa: B904
 
     from mcp_audit.rules.engine import load_rules_from_file  # noqa: PLC0415
-
-    if not file.exists():
-        console.print(f"[red]File not found: {file}[/red]")
-        raise typer.Exit(1)  # noqa: B904
 
     rules = load_rules_from_file(file)
 
@@ -81,6 +81,14 @@ def rule_test(
 
     Requires a Pro or Enterprise license.
     """
+    if not file.exists():
+        console.print(f"[red]Error:[/red] Rule file not found: {file}")
+        raise typer.Exit(2)  # noqa: B904
+
+    if not against.exists():
+        console.print(f"[red]Error:[/red] Config file not found: {against}")
+        raise typer.Exit(2)  # noqa: B904
+
     if not gate("custom_rules", console):
         raise typer.Exit(0)  # noqa: B904
 
@@ -89,14 +97,6 @@ def rule_test(
         _evaluate_rule_match,
         load_rules_from_file,
     )
-
-    if not file.exists():
-        console.print(f"[red]Rule file not found: {file}[/red]")
-        raise typer.Exit(0)  # noqa: B904
-
-    if not against.exists():
-        console.print(f"[red]Config file not found: {against}[/red]")
-        raise typer.Exit(0)  # noqa: B904
 
     rules = load_rules_from_file(file)
     if not rules:

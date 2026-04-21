@@ -75,3 +75,55 @@ class TestRegistryStatsInTerminalOutput:
         )
         output = _capture(result, show_score=False)
         assert "57" in output
+
+
+# ── Severity-threshold "no findings" message ──────────────────────────────────
+
+
+class TestSeverityThresholdNoFindingsMessage:
+    """print_results must distinguish "truly clean" from "filtered by threshold"."""
+
+    def test_severity_threshold_message_when_findings_below_threshold(self) -> None:
+        """When findings exist but all fall below the threshold, the output must say
+        'below threshold', NOT 'No security issues found'.
+        """
+        result = _make_result(
+            findings=[],
+            findings_below_threshold=3,
+            active_severity_threshold="HIGH",
+        )
+        output = _capture(result)
+        assert "below threshold" in output
+        assert "No security issues found" not in output
+
+    def test_below_threshold_message_contains_threshold_name(self) -> None:
+        result = _make_result(
+            findings=[],
+            findings_below_threshold=8,
+            active_severity_threshold="CRITICAL",
+        )
+        output = _capture(result)
+        assert "CRITICAL" in output
+        assert "8" in output
+
+    def test_no_findings_message_when_truly_clean(self) -> None:
+        """Zero findings with no filtering must show the clean message."""
+        result = _make_result(
+            findings=[],
+            findings_below_threshold=0,
+            active_severity_threshold=None,
+        )
+        output = _capture(result)
+        assert "No security issues found" in output
+        assert "below threshold" not in output
+
+    def test_no_findings_message_when_threshold_info_and_no_findings(self) -> None:
+        """INFO threshold with zero findings is a truly-clean result."""
+        result = _make_result(
+            findings=[],
+            findings_below_threshold=0,
+            active_severity_threshold="INFO",
+        )
+        output = _capture(result)
+        assert "No security issues found" in output
+        assert "below threshold" not in output

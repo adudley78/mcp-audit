@@ -298,7 +298,10 @@ def _discover_and_parse(
     Populates ``result.clients_scanned``, ``result.servers_found``,
     ``result.servers``, and appends parse errors to ``result.errors``.
     """
-    configs = discover_configs(extra_paths=extra_paths)
+    configs = discover_configs(
+        extra_paths=extra_paths,
+        skip_auto_discovery=bool(extra_paths),
+    )
     result.clients_scanned = len({c.client_name for c in configs})
 
     all_servers: list[ServerConfig] = []

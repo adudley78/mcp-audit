@@ -117,54 +117,63 @@ class DiscoveredConfig:
     path: Path
 
 
-def discover_configs(extra_paths: list[Path] | None = None) -> list[DiscoveredConfig]:
+def discover_configs(
+    extra_paths: list[Path] | None = None,
+    skip_auto_discovery: bool = False,
+) -> list[DiscoveredConfig]:
     """Find all MCP configuration files on this machine.
 
     Args:
         extra_paths: Additional paths to check (e.g., from --path flag).
+        skip_auto_discovery: When ``True``, skip known-client and CWD discovery
+            and return only configs built from *extra_paths*.  Used when the
+            caller has already provided an explicit config path — combining
+            that with auto-discovery would inflate ``clients_scanned`` with
+            zero-server system configs.
 
     Returns:
         List of discovered configuration files.
     """
     discovered: list[DiscoveredConfig] = []
 
-    # Check known client locations
-    for spec in _get_client_specs():
-        for config_path in spec.config_paths:
-            if (
-                config_path.exists()
-                and config_path.is_file()
-                and not config_path.is_symlink()
-            ):
-                discovered.append(
-                    DiscoveredConfig(
-                        client_name=spec.name,
-                        root_key=spec.root_key,
-                        path=config_path,
+    if not skip_auto_discovery:
+        # Check known client locations
+        for spec in _get_client_specs():
+            for config_path in spec.config_paths:
+                if (
+                    config_path.exists()
+                    and config_path.is_file()
+                    and not config_path.is_symlink()
+                ):
+                    discovered.append(
+                        DiscoveredConfig(
+                            client_name=spec.name,
+                            root_key=spec.root_key,
+                            path=config_path,
+                        )
                     )
+
+        # Check for VS Code / Claude Code project-level configs in CWD
+        cwd = Path.cwd()
+        vscode_mcp = cwd / ".vscode" / "mcp.json"
+        if vscode_mcp.exists() and not vscode_mcp.is_symlink():
+            discovered.append(
+                DiscoveredConfig(
+                    client_name="vscode",
+                    root_key="servers",
+                    path=vscode_mcp,
                 )
-
-    # Check for VS Code / Claude Code project-level configs in CWD
-    cwd = Path.cwd()
-    vscode_mcp = cwd / ".vscode" / "mcp.json"
-    if vscode_mcp.exists() and not vscode_mcp.is_symlink():
-        discovered.append(
-            DiscoveredConfig(
-                client_name="vscode",
-                root_key="servers",
-                path=vscode_mcp,
             )
-        )
 
-    claude_code_project = cwd / ".mcp.json"
-    if claude_code_project.exists() and not claude_code_project.is_symlink():
-        discovered.append(
-            DiscoveredConfig(
-                client_name="claude-code-project",
-                root_key="mcpServers",
-                path=claude_code_project,
+        claude_code_project = cwd / ".mcp.json"
+        if claude_code_project.exists() and not claude_code_project.is_symlink():
+            discovered.append(
+                DiscoveredConfig(
+                    client_name="claude-code-project",
+                    root_key="mcpServers",
+                    path=claude_code_project,
+                )
             )
-        )
 
     # Check extra paths
     if extra_paths:

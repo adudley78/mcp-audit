@@ -876,6 +876,44 @@ class TestSeverityThresholdFlag:
         assert "LOW" not in returned_severities
 
 
+# ── --path skips auto-discovery ───────────────────────────────────────────────
+
+
+class TestExplicitPathSkipsAutoDiscovery:
+    """scan --path <file> must scan only that file (clients_scanned == 1)."""
+
+    def test_explicit_path_does_not_include_auto_discovery(
+        self, tmp_path: Path
+    ) -> None:
+        """JSON output must report clients_scanned == 1, not 2+."""
+        config = tmp_path / "mcp.json"
+        config.write_text('{"mcpServers": {}}')
+        runner = CliRunner()
+        # Do NOT patch _get_client_specs — auto-discovery must be skipped by
+        # the fix itself, not by removing system clients from the spec list.
+        result = runner.invoke(
+            app,
+            ["scan", "--path", str(config), "--format", "json"],
+        )
+        assert result.exit_code in (0, 1), (
+            f"unexpected exit code {result.exit_code}: {result.output!r}"
+        )
+        data = json.loads(result.output)
+        assert data["clients_scanned"] == 1, (
+            f"Expected clients_scanned=1, got {data['clients_scanned']}. "
+            "Auto-discovery should be skipped when --path is explicit."
+        )
+
+    def test_no_path_still_runs_auto_discovery(self, tmp_path: Path) -> None:
+        """Without --path, auto-discovery still runs (existing behaviour)."""
+        config = tmp_path / "mcp.json"
+        config.write_text('{"mcpServers": {}}')
+        with _patch_no_known_clients():
+            result = run_scan(skip_rug_pull=True)
+        # With no known clients patched out, result has 0 clients (no system configs).
+        assert result.clients_scanned == 0
+
+
 # ── --offline-registry flag ─────────────────────────────────────────────────────
 
 

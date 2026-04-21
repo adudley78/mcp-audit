@@ -436,6 +436,11 @@ def _apply_severity_threshold(
         raise typer.Exit(2) from None
 
     threshold_idx = _SEVERITY_ORDER.index(threshold)
+    below = [
+        f for f in result.findings if _SEVERITY_ORDER.index(f.severity) > threshold_idx
+    ]
+    result.findings_below_threshold = len(below)
+    result.active_severity_threshold = threshold.value
     result.findings = [
         f for f in result.findings if _SEVERITY_ORDER.index(f.severity) <= threshold_idx
     ]
@@ -692,7 +697,10 @@ def discover(
 ) -> None:
     """List all detected MCP clients and server configurations."""
     extra_paths = [path] if path else None
-    configs = _cli.discover_configs(extra_paths=extra_paths)
+    configs = _cli.discover_configs(
+        extra_paths=extra_paths,
+        skip_auto_discovery=bool(extra_paths),
+    )
 
     if json_flag:
         data = [{"client": c.client_name, "path": str(c.path)} for c in configs]

@@ -207,6 +207,8 @@ class ScanResult(BaseModel):
     attack_path_summary: AttackPathSummary | None = None
     score: ScanScore | None = None
     registry_stats: RegistryStats | None = None
+    findings_below_threshold: int = 0
+    active_severity_threshold: str | None = None
 
     @property
     def critical_count(self) -> int:

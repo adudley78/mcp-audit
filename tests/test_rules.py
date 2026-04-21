@@ -1030,3 +1030,81 @@ class TestRulesDirProGate:
         assert not custom_findings, (
             "Custom rules must not appear when extra_rules_dirs is None"
         )
+
+
+# ── Path-before-gate ordering ─────────────────────────────────────────────────
+
+
+class TestRuleValidatePathBeforeGate:
+    """rule validate must check file existence before the Pro gate.
+
+    Without the fix, a nonexistent path would show the upsell panel (exit 0)
+    instead of an error (exit 2).  These tests do NOT patch the gate so they
+    exercise the real (unlicensed) code path — the gate will return False, but
+    the file-existence check must fire *first*.
+    """
+
+    def test_rule_validate_nonexistent_path_exits_2_before_gate(
+        self, tmp_path: Path
+    ) -> None:
+        """rule validate /no/such/file.yml must exit 2 with 'not found'."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        missing = tmp_path / "does-not-exist-rule.yml"
+        runner = CliRunner()
+        # Deliberately do NOT patch the Pro gate — the path check must win.
+        with patch("mcp_audit.licensing.get_active_license", return_value=None):
+            result = runner.invoke(app, ["rule", "validate", str(missing)])
+
+        assert result.exit_code == 2, (
+            f"Expected exit 2 (file not found), got {result.exit_code}. "
+            f"Output: {result.output!r}"
+        )
+        assert "not found" in result.output.lower(), (
+            f"Expected 'not found' in output, got: {result.output!r}"
+        )
+
+    def test_rule_validate_nonexistent_path_no_upsell_text(
+        self, tmp_path: Path
+    ) -> None:
+        """Output for a missing path must not contain the Pro upsell panel."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        missing = tmp_path / "no-such-rule.yml"
+        runner = CliRunner()
+        with patch("mcp_audit.licensing.get_active_license", return_value=None):
+            result = runner.invoke(app, ["rule", "validate", str(missing)])
+
+        output_lower = result.output.lower()
+        assert "pro" not in output_lower or "not found" in output_lower, (
+            "Output must not show upsell panel when path doesn't exist. "
+            f"Got: {result.output!r}"
+        )
+
+    def test_rule_test_nonexistent_rule_file_exits_2_before_gate(
+        self, tmp_path: Path
+    ) -> None:
+        """rule test /no/rule.yml --against config.json must exit 2 for missing rule."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        config = tmp_path / "mcp.json"
+        config.write_text('{"mcpServers": {}}')
+        missing_rule = tmp_path / "no-such-rule.yml"
+
+        runner = CliRunner()
+        with patch("mcp_audit.licensing.get_active_license", return_value=None):
+            result = runner.invoke(
+                app,
+                ["rule", "test", str(missing_rule), "--against", str(config)],
+            )
+
+        assert result.exit_code == 2, (
+            f"Expected exit 2 (rule file not found), got {result.exit_code}. "
+            f"Output: {result.output!r}"
+        )
