@@ -12,6 +12,31 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.5.0] - 2026-04-23 — Detection Validity, Hardening & Supply Chain Depth
+
+### Security
+- **V-07 — Unicode homoglyph bypass closed** (`poisoning.py`): Added `POISON-060` pattern matching Cyrillic, Greek, general-punctuation lookalike, and fullwidth-ASCII Unicode blocks. All patterns now run against NFKD-normalised ASCII text; `POISON-060` runs against the original bytes. Deduplication on `(id, server, evidence)` prevents duplicate findings when both the raw and normalised text match.
+- **V-08 — Depth-11 nesting bypass closed** (`poisoning.py`): Recursion limit in `_extract_text_fields` and `_extract_description_fields` raised from `depth > 10` to `depth > 50`, making the depth-bypass impractical while still guarding against infinite recursion.
+- **V-09 — Wildcard interface binding** (`transport.py`): New `TRANSPORT-004` finding (HIGH, CWE-1327) fires when the server URL hostname is `0.0.0.0`, `::`, `[::]`, or their equivalents. `_WILDCARD_BINDINGS` frozenset added.
+- **V-10 — Privilege escalation coverage expanded** (`transport.py`): `TRANSPORT-002` now catches `pkexec`, `su`, and `run0` in addition to `sudo` and `doas`. Absolute-path forms (e.g. `/usr/bin/sudo`) detected via `_PRIV_ESC_SUFFIXES`. Privilege-escalation binary appearing as `args[0]` (e.g. `command=sh, args=["sudo", …]`) now also fires.
+- **V-11 — Supply chain coverage expanded** (`transport.py`, `supply_chain.py`): `pipx` added to `_RUNTIME_FETCH_COMMANDS`. `yarn dlx` detected in both `TransportAnalyzer` (TRANSPORT-003) and `SupplyChainAnalyzer` (typosquatting); `args[1:]` slicing used when extracting the package name to skip the `dlx` token.
+
+### Added
+- **Exploit validation test suite** (`tests/test_exploit_validation.py`): Six test classes reconstruct real published attack PoCs — Invariant Labs SSH exfiltration, CrowdStrike `add_numbers`, fake Postmark base64 exfiltration, CyberArk XML `<OVERRIDE>` injection, Palo Alto Unit 42 cloud credential targeting, and MINJA behavioral override. Each class asserts specific finding IDs and severities; `TestExploitCoverage` enforces all six fixture files are present and valid JSON.
+- **Exploit fixtures** (`tests/fixtures/exploits/`): Six JSON fixtures reconstructing the above PoCs from published research sources cited in `PROVENANCE.md`.
+- **False-positive benchmark** (`tests/test_false_positive_benchmark.py`): Runs poisoning and credentials analyzers against 22 real-world MCP server configs (12 official `@modelcontextprotocol/*`, 10 popular community servers). Asserts 0% poisoning false-positive rate across the full set. Parametrised per-server to pinpoint regressions immediately. Acts as a merge gate — any pattern change that fires on a legitimate server fails CI.
+- **Real-server fixtures** (`tests/fixtures/real_servers/`): `official_mcp_servers.json` (12 servers) and `community_mcp_servers.json` (10 servers) with realistic production configs and empty env-var values.
+- **Severity framework** (`docs/severity-framework.md`): CVSS base scores and OWASP Agentic Top 10 (ASI01–ASI10) mappings for every finding ID across all six analyzers (POISON-*, CRED-*, TRANSPORT-*, SC-*, RUG-*, TOXIC-*, ATTEST-*). Includes a decision tree for calibrating new findings.
+- `TRANSPORT-004` added to `docs/severity-framework.md` under the Transport analyzer table.
+
+### Added (continued)
+- **Registry metadata enrichment** (`registry/loader.py`, `registry/known-servers.json`): Three optional fields added to `RegistryEntry` — `first_published` (ISO date), `weekly_downloads` (integer), `publisher_history` (list of publisher account names, most-recent first). Populated for 10 entries; registry grew from 60 to 64 entries with four new community servers (`@linear/mcp-server`, `exa-mcp-server`, `@notion/mcp-server`, `mcp-perplexity`). SC-001/SC-002 finding descriptions now append publish date, download count, and known publishers when data is present, giving users signal about package legitimacy. `scripts/enrich_registry.py` maintainer tool added (not shipped in wheel) to refresh metadata from the npm registry API; supports `--dry-run`.
+
+### Fixed
+- `GAPS.md` — three Detection Validity gaps closed (exploit validation, false-positive rate, severity framework); V-07 through V-11 marked resolved; registry metadata enrichment marked resolved; `--offline --verify-hashes` conflict confirmed already blocked by `_preflight_checks`.
+
+---
+
 ## [0.4.0] - 2026-04-17 — Security Hardening & CI
 
 ### Security
