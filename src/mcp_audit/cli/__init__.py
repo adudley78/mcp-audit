@@ -98,6 +98,7 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     fleet,
     license,  # noqa: A004 — submodule name mirrors the ``license`` CLI command
     policy,
+    push_nucleus,
     registry,
     rules,
     sast,

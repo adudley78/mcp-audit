@@ -196,48 +196,52 @@ class TestNucleusFormatter:
     def test_host_name_in_envelope(self) -> None:
         result = _make_result(machine=_make_machine(hostname="nucleus-host"))
         doc = json.loads(format_nucleus(result))
-        assert doc["host_name"] == "nucleus-host"
+        assert doc["assets"][0]["host_name"] == "nucleus-host"
 
     def test_operating_system_name_in_envelope(self) -> None:
         result = _make_result(machine=_make_machine(os="Linux"))
         doc = json.loads(format_nucleus(result))
-        assert doc["operating_system_name"] == "Linux"
+        assert doc["assets"][0]["operating_system_name"] == "Linux"
 
-    def test_asset_name_prefixed_with_hostname(self) -> None:
+    def test_finding_host_name_matches_asset(self) -> None:
+        """Findings reference the asset via host_name (validated FlexConnect format)."""
         result = _make_result(
             machine=_make_machine(hostname="prod-host"),
             findings=[_make_finding(client="cursor", server="filesystem")],
         )
         doc = json.loads(format_nucleus(result))
-        assert doc["findings"][0]["asset_name"] == "prod-host/cursor/filesystem"
+        assert doc["findings"][0]["host_name"] == "prod-host"
 
-    def test_asset_prefix_overrides_hostname(self) -> None:
+    def test_asset_prefix_overrides_host_name_in_findings(self) -> None:
+        """--asset-prefix replaces hostname in both the assets entry and findings."""
         result = _make_result(
             machine=_make_machine(hostname="MacBookAir"),
             findings=[_make_finding(client="cursor", server="filesystem")],
         )
         doc = json.loads(format_nucleus(result, asset_prefix="ASSET-1042"))
-        assert doc["findings"][0]["asset_name"] == "ASSET-1042/cursor/filesystem"
+        assert doc["findings"][0]["host_name"] == "ASSET-1042"
+        assert doc["assets"][0]["host_name"] == "ASSET-1042"
 
-    def test_asset_prefix_does_not_change_host_name_field(self) -> None:
-        """host_name in envelope always reflects the real hostname."""
+    def test_asset_prefix_propagates_to_asset_entry(self) -> None:
+        """asset_prefix is used as host_name in the top-level assets array."""
         result = _make_result(machine=_make_machine(hostname="real-host"))
         doc = json.loads(format_nucleus(result, asset_prefix="override"))
-        assert doc["host_name"] == "real-host"
+        assert doc["assets"][0]["host_name"] == "override"
 
-    def test_no_prefix_arg_uses_hostname(self) -> None:
+    def test_no_prefix_arg_uses_hostname_in_findings(self) -> None:
         result = _make_result(
             machine=_make_machine(hostname="my-mac"),
             findings=[_make_finding()],
         )
         doc = json.loads(format_nucleus(result))
-        assert doc["findings"][0]["asset_name"].startswith("my-mac/")
+        assert doc["findings"][0]["host_name"] == "my-mac"
 
-    def test_empty_findings_still_has_envelope_fields(self) -> None:
+    def test_empty_findings_still_has_assets_array(self) -> None:
         result = _make_result(machine=_make_machine())
         doc = json.loads(format_nucleus(result))
-        assert "host_name" in doc
-        assert "operating_system_name" in doc
+        assert len(doc["assets"]) == 1
+        assert "host_name" in doc["assets"][0]
+        assert "operating_system_name" in doc["assets"][0]
 
 
 # ── SARIF formatter ───────────────────────────────────────────────────────────

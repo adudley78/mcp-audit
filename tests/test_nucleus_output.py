@@ -83,7 +83,7 @@ class TestDocumentStructure:
 
     def test_scan_type(self) -> None:
         doc = _parse(_make_result())
-        assert doc["scan_type"] == "Application"
+        assert doc["scan_type"] == "Host"
 
     def test_scan_date_format(self) -> None:
         doc = _parse(_make_result())
@@ -106,9 +106,24 @@ class TestDocumentStructure:
             "scan_tool",
             "scan_type",
             "scan_date",
+            "assets",
             "findings",
         }
         assert required.issubset(doc.keys())
+
+    def test_assets_array_has_one_entry(self) -> None:
+        doc = _parse(_make_result())
+        assert isinstance(doc["assets"], list)
+        assert len(doc["assets"]) == 1
+
+    def test_assets_entry_uses_asset_prefix(self) -> None:
+        doc = _parse(_make_result(), asset_prefix="my-laptop")
+        assert doc["assets"][0]["host_name"] == "my-laptop"
+
+    def test_assets_entry_includes_os(self) -> None:
+        doc = _parse(_make_result())
+        asset = doc["assets"][0]
+        assert "operating_system_name" in asset
 
 
 # ── Finding field mapping ──────────────────────────────────────────────────────
@@ -123,8 +138,10 @@ class TestFindingMapping:
         self.doc = _parse(_make_result(findings=[self.finding]))
         self.row = self.doc["findings"][0]
 
-    def test_asset_name_format(self) -> None:
-        assert self.row["asset_name"] == f"{_TEST_PREFIX}/cursor/filesystem-server"
+    def test_host_name_links_to_asset(self) -> None:
+        # Each finding must carry the same host_name as the assets[] entry
+        # so Nucleus can correlate finding → asset.
+        assert self.row["host_name"] == _TEST_PREFIX
 
     def test_finding_number_is_dedup_key(self) -> None:
         assert self.row["finding_number"] == "POISON-001"
@@ -228,15 +245,15 @@ class TestMultipleFindings:
         doc = _parse(_make_result(findings=findings))
         assert [f["finding_number"] for f in doc["findings"]] == ids
 
-    def test_asset_name_includes_client(self) -> None:
+    def test_all_findings_share_host_name(self) -> None:
+        # All findings from one scan point to the same host asset.
         findings = [
             _make_finding(client="claude", server="fs"),
             _make_finding(client="cursor", server="gh", finding_id="CRED-001"),
         ]
         doc = _parse(_make_result(findings=findings))
-        asset_names = {f["asset_name"] for f in doc["findings"]}
-        assert f"{_TEST_PREFIX}/claude/fs" in asset_names
-        assert f"{_TEST_PREFIX}/cursor/gh" in asset_names
+        host_names = {f["host_name"] for f in doc["findings"]}
+        assert host_names == {_TEST_PREFIX}
 
 
 # ── Output is pretty-printed JSON ─────────────────────────────────────────────

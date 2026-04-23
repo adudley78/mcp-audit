@@ -2,9 +2,16 @@
 
 Produces a JSON document that conforms to the Nucleus FlexConnect universal
 ingestion schema. Import this file into a Nucleus project via
-Settings → Integrations → FlexConnect → Upload File.
+Settings → Integrations → FlexConnect → Upload File, or push directly with
+``mcp-audit push-nucleus``.
 
-Schema reference: https://nucleussec.com/flexconnect
+Schema reference: https://help.nucleussec.com/docs/flexconnect-framework
+
+Validated format (2026-04-23):
+  - Top-level ``assets`` array defines the host asset.
+  - Top-level ``findings`` array references the asset via ``host_name``.
+  - ``scan_type`` must be ``"Host"`` for machine-level assets.
+  - ``host_name`` inside each finding links back to the asset entry.
 """
 
 from __future__ import annotations
@@ -29,20 +36,20 @@ _SEVERITY_MAP: dict[Severity, str] = {
 }
 
 
-def _finding_to_nucleus(finding: Finding, asset_prefix: str) -> dict[str, str]:
+def _finding_to_nucleus(finding: Finding, host_name: str) -> dict[str, str]:
     """Serialize a single Finding to a Nucleus FlexConnect finding object.
 
     Args:
         finding: The finding to serialize.
-        asset_prefix: Prefix prepended to the asset name (hostname or
-            user-supplied override) so that assets from different machines
-            remain distinct in Nucleus.
+        host_name: The host_name that links this finding back to an entry in
+            the top-level ``assets`` array.  Derived from the machine hostname
+            or the user-supplied ``--asset-prefix`` override.
 
     Returns:
         Dict with all required Nucleus finding fields.
     """
     row: dict[str, str] = {
-        "asset_name": f"{asset_prefix}/{finding.client}/{finding.server}",
+        "host_name": host_name,
         "finding_number": finding.id,
         "finding_name": finding.title,
         "finding_severity": _SEVERITY_MAP[finding.severity],
@@ -70,16 +77,16 @@ def format_nucleus(
     format expected by FlexConnect (``YYYY-MM-DD HH:MM:SS``), derived from the
     UTC timestamp stored on the ScanResult.
 
-    Each finding's ``asset_name`` is prefixed with *asset_prefix* (or the
-    machine hostname when not supplied) so that findings from multiple machines
-    are grouped under distinct assets in Nucleus.  Machine identity is also
-    surfaced in the envelope via ``host_name`` and ``operating_system_name``.
+    The document contains a top-level ``assets`` array (one entry for the
+    scanned machine) and a top-level ``findings`` array.  Each finding's
+    ``host_name`` field links it back to the asset entry.  The asset is
+    identified by *asset_prefix* (or the machine hostname when not supplied);
+    use ``--asset-prefix`` to override when the hostname is not meaningful
+    (e.g. ``"MacBookAir"``) and the team prefers an asset tag or employee ID.
 
     Args:
         result: The completed scan result to format.
-        asset_prefix: Override the hostname prefix in ``asset_name``.  Useful
-            when the hostname is not meaningful (e.g. "MacBookAir") and the
-            team prefers an asset tag or employee ID.
+        asset_prefix: Override the hostname used as the asset identifier.
 
     Returns:
         Pretty-printed JSON string conforming to the FlexConnect schema, or
@@ -100,18 +107,20 @@ def format_nucleus(
         return None
 
     scan_date = result.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-    effective_prefix = (
-        asset_prefix if asset_prefix is not None else result.machine.hostname
-    )
+    host_name = asset_prefix if asset_prefix is not None else result.machine.hostname
 
     document: dict = {
         "nucleus_import_version": "1",
         "scan_tool": "mcp-audit",
-        "scan_type": "Application",
+        "scan_type": "Host",
         "scan_date": scan_date,
-        "host_name": result.machine.hostname,
-        "operating_system_name": result.machine.os,
-        "findings": [_finding_to_nucleus(f, effective_prefix) for f in result.findings],
+        "assets": [
+            {
+                "host_name": host_name,
+                "operating_system_name": result.machine.os,
+            }
+        ],
+        "findings": [_finding_to_nucleus(f, host_name) for f in result.findings],
     }
 
     return json.dumps(document, indent=2)
