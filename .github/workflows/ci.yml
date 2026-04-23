@@ -28,6 +28,13 @@ jobs:
       - name: Install dependencies
         run: uv pip install -e ".[dev]" --system
 
+      - name: Install Playwright browsers
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: |
+          uv pip install playwright --system
+          python -m playwright install chromium firefox webkit
+          python -m playwright install-deps
+
       - name: Run tests
         run: pytest tests/ -x -q
 

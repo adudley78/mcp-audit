@@ -84,7 +84,7 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 **Nucleus FlexConnect not validated.** The FlexConnect output formatter was built from publicly available documentation snippets, not from the official Nucleus API specification (Swagger docs). The JSON structure has not been tested against a real Nucleus instance. Field mappings may be incorrect or incomplete. Validation against the actual ingestion API is required before claiming Nucleus integration.
 
-**SARIF not tested with GitHub.** The SARIF output follows the 2.1.0 specification but has not been uploaded to GitHub's code scanning API to verify it renders correctly in the Security tab and pull request annotations. Score properties (`mcp-audit/grade`, `mcp-audit/numericScore`, etc.) are included in `run.properties` when a score is present; the block is absent when `--no-score` is passed (fixed 2026-04-16).
+~~**SARIF not tested with GitHub.**~~ **Resolved 2026-04-23.** The SARIF formatter now conforms to the SARIF 2.1.0 schema as validated by `tests/test_sarif_schema.py` (uses the official OASIS JSON schema via `jsonschema`). Key hardening applied: `originalUriBaseIds` added so GitHub's uploader can resolve `%SRCROOT%` to the repo root; `automationDetails.id` added for run deduplication in the Security tab; `file:///unknown` fallback replaced with the relative sentinel `"unknown"` (the invalid absolute URI caused GitHub to silently discard results). Manual verification against a live repository with Code Scanning enabled is documented in `docs/github-action.md` § "Testing the SARIF upload".
 
 ## Platform coverage
 
@@ -130,7 +130,7 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **Linux binary not tested end-to-end on a real Linux host.** The ELF binary was built and verified via `file(1)` on macOS using the Docker build path. Its behavior on actual Linux distributions — config discovery paths, rug-pull state storage, watcher filesystem events — has not been validated. See the existing "Linux not tested" note under Platform coverage.
 
-**Dashboard browser compatibility untested.** The D3 v7 force-directed graph dashboard has been developed and tested in Chrome and Safari on macOS only. Behavior in Firefox, Edge, mobile browsers, and WebView-based environments (Electron, VS Code webview) is unknown. CSS custom properties and D3's SVG rendering should be broadly compatible, but this has not been verified.
+~~**Dashboard browser compatibility untested.**~~ **Resolved 2026-04-23.** `tests/test_dashboard_compat.py` covers Chromium, Firefox, and WebKit (Safari engine) headlessly via Playwright. Tests assert: no JS errors on load or dark-mode toggle, findings table present, SVG graph container present, self-contained HTML (no external CDN references), D3 v7 bundled inline, scan data JSON embedded. Browser tests are skipped gracefully when Playwright binaries are not installed; CI installs them on the `ubuntu-latest / 3.12` matrix leg. Mobile browsers and WebView-based environments (Electron, VS Code webview) are not covered.
 
 ## License system
 

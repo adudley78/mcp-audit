@@ -41,14 +41,21 @@ _LEVEL_MAP: dict[Severity, str] = {
 def _finding_to_file_uri(finding_path: str | None) -> str:
     """Convert a finding_path string to a SARIF-compliant file URI.
 
+    When ``uriBaseId`` is ``"%SRCROOT%"`` in the artifact location, GitHub's
+    uploader resolves the URI relative to the repository root.  A relative
+    sentinel ``"unknown"`` renders as a non-linkable result rather than
+    triggering a rejection — ``file:///unknown`` is not a valid artifact URI
+    when ``uriBaseId`` is set and causes GitHub to discard the result.
+
     Args:
         finding_path: Absolute path string, or ``None``.
 
     Returns:
-        A ``file://`` URI string.  Returns ``file:///unknown`` for missing paths.
+        A ``file://`` URI string, or the sentinel ``"unknown"`` for missing paths.
     """
     if not finding_path:
-        return "file:///unknown"
+        # Relative sentinel — GitHub accepts this and renders as "unknown location."
+        return "unknown"
     try:
         return Path(finding_path).as_uri()
     except ValueError:
@@ -209,6 +216,24 @@ def format_sarif(
                 "version": _TOOL_VERSION,
                 "informationUri": _TOOL_URI,
                 "rules": rules,
+            }
+        },
+        # GitHub uses automationDetails.id to deduplicate uploads from the same
+        # tool across multiple workflow runs; without it, re-uploading produces
+        # duplicate alerts in the Security tab.
+        "automationDetails": {
+            "id": f"mcp-audit/{result.machine.hostname or 'scan'}",
+        },
+        # Required by SARIF 2.1.0 §3.14.14: any uriBaseId token used in
+        # artifactLocation entries must be declared here so consumers can
+        # resolve relative paths.  GitHub's uploader uses this to anchor
+        # %SRCROOT% at the repository root.
+        "originalUriBaseIds": {
+            "%SRCROOT%": {
+                "uri": "file:///",
+                "description": {
+                    "text": "The root directory of the scanned repository."
+                },
             }
         },
         "invocations": [invocation],

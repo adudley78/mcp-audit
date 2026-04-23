@@ -45,6 +45,8 @@ dev = [
     "bandit>=1.7",
     "mypy>=1.10",
     "pyinstaller>=6.0",
+    "jsonschema>=4.0",
+    "playwright>=1.40",
 ]
 mcp = [
     "mcp>=1.0",

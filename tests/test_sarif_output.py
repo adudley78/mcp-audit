@@ -79,10 +79,11 @@ class TestFindingToFileUri:
         assert "mcp.json" in uri
 
     def test_none_returns_unknown(self) -> None:
-        assert _finding_to_file_uri(None) == "file:///unknown"
+        # Relative sentinel — GitHub accepts this; "file:///unknown" is rejected.
+        assert _finding_to_file_uri(None) == "unknown"
 
     def test_empty_string_returns_unknown(self) -> None:
-        assert _finding_to_file_uri("") == "file:///unknown"
+        assert _finding_to_file_uri("") == "unknown"
 
     def test_path_preserved_in_uri(self) -> None:
         uri = _finding_to_file_uri("/home/user/project/mcp.json")
@@ -385,12 +386,13 @@ class TestResultFields:
         assert fix_text == self.finding.remediation
 
     def test_missing_finding_path_uses_unknown(self) -> None:
+        # Relative sentinel "unknown" is used instead of the invalid "file:///unknown".
         finding = _make_finding(finding_path=None)
         doc = _parse(_make_result(findings=[finding]))
         uri = _run(doc)["results"][0]["locations"][0]["physicalLocation"][
             "artifactLocation"
         ]["uri"]
-        assert uri == "file:///unknown"
+        assert uri == "unknown"
 
 
 # ── CWE tag format ────────────────────────────────────────────────────────────

@@ -332,6 +332,25 @@ mkdir -p ~/.config/mcp-audit/baselines/
 cp .mcp-audit-baseline.json ~/.config/mcp-audit/baselines/ci-baseline.json
 ```
 
+## Testing the SARIF upload
+
+Automated schema validation runs in CI (`tests/test_sarif_schema.py`). To
+verify that findings appear in the GitHub Security tab:
+
+1. Fork or use a repository with GitHub Advanced Security enabled (required
+   for public repos; always available on public repos).
+2. Add the example workflow from `examples/github-actions/basic.yml` or
+   `.github/workflows/mcp-audit-example.yml`.
+3. Ensure the workflow has `permissions: security-events: write`.
+4. Push to trigger a scan. Check the **Security → Code scanning** tab.
+5. If findings do not appear within 2 minutes, check the Actions log for
+   the "Upload SARIF to GitHub Security tab" step output.
+
+Common failure causes:
+- Missing `security-events: write` permission on the job or workflow.
+- Repository does not have Code Scanning enabled (Settings → Code security).
+- SARIF file was empty (no MCP config files found during auto-discovery).
+
 ## Known limitations
 
 - The action installs mcp-audit via `pip install`, adding ~20–30 seconds per run. A binary-based action using prebuilt releases is a planned future optimization. See [GAPS.md](../GAPS.md).
