@@ -277,7 +277,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 32 findings across all demo configs (8 per-config for `claude_desktop_config.json`; community rules analyzer included)
-- 1351 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 1355 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
@@ -297,6 +297,10 @@ What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic
 - Validate FlexConnect output against real Nucleus instance (need Swagger docs)
 - Tune false positives (e.g., "base64 encode" in official filesystem server)
+- Binary end-to-end smoke test now runs on all four platforms in CI as part of
+  the release workflow; also runs on Ubuntu on every PR. See `scripts/smoke_test.py`.
+- Binary size gate: warns at 25 MB, fails at 35 MB (sigstore dependency tree
+  pushed the baseline from 16.6 MB to ~22–24 MB as of 0.6.0).
 
 What's next (code, after feedback):
 - Detection pattern tuning based on practitioner review

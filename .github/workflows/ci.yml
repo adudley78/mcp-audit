@@ -42,3 +42,37 @@ jobs:
         # across OS / Python versions, so repeating the check is redundant.
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: python scripts/update_test_count.py --check
+
+  binary-smoke:
+    name: Binary smoke test (ubuntu)
+    runs-on: ubuntu-latest
+    # Only run on PRs and pushes to main — skip for every branch push
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv pip install -e ".[dev]" --system
+
+      - name: Install PyInstaller
+        run: uv pip install pyinstaller --system
+
+      - name: Build Linux binary
+        run: uv run pyinstaller mcp-audit-linux-x86_64.spec --distpath dist/
+
+      - name: Run smoke test
+        run: python scripts/smoke_test.py dist/mcp-audit-linux-x86_64
+
+      - name: Check binary size
+        run: |
+          SIZE_BYTES=$(wc -c < dist/mcp-audit-linux-x86_64 | tr -d ' ')
+          SIZE_MB=$(echo "scale=1; $SIZE_BYTES / 1048576" | bc)
+          echo "Linux binary: ${SIZE_MB} MB"
+          if [ "$SIZE_BYTES" -gt 36700160 ]; then
+            echo "ERROR: binary exceeds 35 MB hard limit" >&2
+            exit 1
+          fi

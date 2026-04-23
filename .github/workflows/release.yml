@@ -53,9 +53,31 @@ jobs:
       - name: Build binary
         run: uv run pyinstaller ${{ matrix.spec }} --distpath dist/
 
-      - name: Smoke test binary
+      - name: Smoke test — version
         run: dist/${{ matrix.binary }} version
         shell: bash
+
+      - name: Smoke test — full end-to-end
+        run: python scripts/smoke_test.py dist/${{ matrix.binary }}
+        shell: bash
+
+      - name: Binary size check
+        shell: bash
+        run: |
+          BINARY="dist/${{ matrix.binary }}"
+          SIZE_BYTES=$(wc -c < "$BINARY" | tr -d ' ')
+          SIZE_MB=$(echo "scale=1; $SIZE_BYTES / 1048576" | bc)
+          echo "Binary size: ${SIZE_MB} MB (${SIZE_BYTES} bytes)"
+          # Warn at 25 MB, fail at 35 MB. Sigstore added ~3-4 MB from the 20 MB baseline.
+          # Adjust these thresholds after the first post-sigstore rebuild.
+          if [ "$SIZE_BYTES" -gt 36700160 ]; then   # 35 MB
+            echo "ERROR: binary exceeds 35 MB hard limit (${SIZE_MB} MB)" >&2
+            exit 1
+          elif [ "$SIZE_BYTES" -gt 26214400 ]; then  # 25 MB
+            echo "WARNING: binary exceeds 25 MB soft limit (${SIZE_MB} MB)"
+          else
+            echo "OK: binary is within size target"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -82,3 +104,30 @@ jobs:
         with:
           files: dist/**/*
           generate_release_notes: true
+
+  report:
+    name: Release Summary
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+
+      - name: Post binary size summary
+        run: |
+          echo "## Binary sizes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Binary | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|------|" >> $GITHUB_STEP_SUMMARY
+          for f in dist/**/*; do
+            if [ -f "$f" ]; then
+              SIZE=$(du -sh "$f" | cut -f1)
+              NAME=$(basename "$f")
+              echo "| $NAME | $SIZE |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+        shell: bash
