@@ -387,15 +387,42 @@ The merge report includes fleet-wide statistics: riskiest machine, most widespre
 
 ---
 
-## Nucleus FlexConnect Integration (Enterprise)
+## Nucleus Security Integration (Enterprise)
 
-Export scan findings in Nucleus FlexConnect format to ingest them into your Nucleus Security vulnerability management instance.
+Push scan findings directly to a Nucleus Security project via the FlexConnect API.
+
+```bash
+export NUCLEUS_API_KEY="your-api-key"
+
+mcp-audit push-nucleus \
+  --url https://your-nucleus-instance.nucleussec.com \
+  --project-id 42
+```
+
+`push-nucleus` runs a full scan, formats results as FlexConnect JSON, uploads via multipart/form-data, and polls the import job to completion — all in one command.
+
+**Options:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--url` | required | Nucleus instance base URL |
+| `--project-id` | required | Target Nucleus project ID |
+| `--api-key` | `NUCLEUS_API_KEY` env | API key |
+| `--asset-prefix` | hostname | Override the asset identifier in Nucleus |
+| `--config-paths` | auto-discover | Limit scan to specific config files (repeatable) |
+| `--severity-threshold` | `INFO` (all) | Filter findings before pushing |
+| `--timeout` | 120 s | Job poll timeout |
+| `--output-file` | — | Also write FlexConnect JSON to disk |
+
+**Exit codes:** 0 = job succeeded · 1 = job ERROR/DESCHEDULED · 2 = config or network error.
+
+To produce FlexConnect JSON without pushing (for manual upload or debugging):
 
 ```bash
 mcp-audit scan --format nucleus --output-file findings.json
 ```
 
-See `docs/nucleus-integration.md` for setup instructions.
+See [docs/nucleus-integration.md](nucleus-integration.md) for the full guide including fleet deployment examples.
 
 ---
 

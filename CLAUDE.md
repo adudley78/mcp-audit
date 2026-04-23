@@ -277,11 +277,12 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 32 findings across all demo configs (8 per-config for `claude_desktop_config.json`; community rules analyzer included)
-- 1384 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 1398 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - Pro/Enterprise license key system (Ed25519, fully offline); `licensing.py` + `scripts/generate_license.py`
-- 17 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, verify, sast, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
+- 18 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, verify, sast, push-nucleus, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
+- **push-nucleus** — `mcp-audit push-nucleus --url <url> --project-id <id>` runs a scan and pushes results directly to a Nucleus Security project via the FlexConnect API; Enterprise-gated via `nucleus` feature key; multipart/form-data upload using `urllib.request` only; polls import job to completion; Rich summary panel on success; `--output-file` for local copy; validated against nucleus-demo.nucleussec.com (2026-04-23); see `docs/nucleus-integration.md`
 - **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; Enterprise-gated via `fleet_merge` feature key; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action with `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif`, `sast`, `sast-path` inputs; uploads SARIF to GitHub Security tab; writes job summary; `sast: 'true'` requires mcp-audit Pro and Semgrep pre-installed in the CI job (`pip install semgrep`) — Semgrep is not bundled in the action; see `docs/github-action.md`
 - **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `<user-config-dir>/mcp-audit/baselines/` (resolved via `platformdirs`) with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
@@ -295,7 +296,7 @@ What's built:
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic
-- Validate FlexConnect output against real Nucleus instance (need Swagger docs)
+- ~~Validate FlexConnect output against real Nucleus instance~~ — completed 2026-04-23; `push-nucleus` command ships with validated schema
 - Tune false positives (e.g., "base64 encode" in official filesystem server)
 - Binary end-to-end smoke test now runs on all four platforms in CI as part of
   the release workflow; also runs on Ubuntu on every PR. See `scripts/smoke_test.py`.

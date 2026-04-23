@@ -1,8 +1,8 @@
 # Enterprise Deployment Guide
 
-> **Note:** This guide assumes mcp-audit FlexConnect output has been validated
-> against your Nucleus instance. See [GAPS.md](../GAPS.md) for current
-> validation status.
+> **Validated 2026-04-23** — FlexConnect output and the `push-nucleus` upload
+> path have been confirmed against `nucleus-demo.nucleussec.com`. The
+> multipart/form-data upload, job polling, and JSON schema are all verified.
 
 ## Overview
 
@@ -27,7 +27,7 @@ assigned, and tracked per-endpoint.
 
 ## License Activation
 
-mcp-audit requires a **Pro** or **Enterprise** license to use the interactive dashboard (`mcp-audit dashboard`) and Nucleus FlexConnect output (`--format nucleus`). The terminal, JSON, and SARIF output formats are available without a license.
+mcp-audit requires a **Pro** or **Enterprise** license to use the interactive dashboard (`mcp-audit dashboard`), Nucleus FlexConnect output (`--format nucleus`), and the `push-nucleus` direct-push command. The terminal, JSON, and SARIF output formats are available without a license.
 
 ### Activating a license on a machine
 
@@ -121,6 +121,7 @@ License verification is **fully offline** — no network connectivity is require
 | HTML report export | — | ✓ | ✓ |
 | Policy enforcement | — | ✓ | ✓ |
 | Nucleus FlexConnect output (`--format nucleus`) | — | — | ✓ |
+| `push-nucleus` direct API push | — | — | ✓ |
 | Fleet deployment support | — | — | ✓ |
 
 ---
@@ -235,19 +236,28 @@ mcp-audit scan \
 
 Choose a collection method that fits your infrastructure.
 
-### Option A — API push to Nucleus
+### Option A — Direct push with `push-nucleus`
 
-Upload the FlexConnect file directly after each scan:
+The simplest integration: `push-nucleus` runs the scan, uploads, and polls
+the import job in a single command — no manual curl required.
 
 ```bash
-curl -X POST \
-  -H "Authorization: Bearer $NUCLEUS_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d @/tmp/mcp-audit-results.json \
-  "https://your-nucleus-instance.com/api/v1/flexconnect/import"  # Verify this endpoint against your Nucleus instance API docs
+export NUCLEUS_API_KEY="$NUCLEUS_API_KEY"
+
+mcp-audit push-nucleus \
+  --url https://your-nucleus-instance.nucleussec.com \
+  --project-id 7 \
+  --asset-prefix "$(hostname)" \
+  --severity-threshold HIGH
 ```
 
-Wrap this in a shell script that runs immediately after `mcp-audit scan`.
+Replace `--url` and `--project-id` with your instance URL and project ID.
+Use `--severity-threshold HIGH` in the initial rollout to reduce noise; drop
+the flag once triage workflows are established.
+
+**Exit code behaviour:** exit 0 = job succeeded; exit 1 = import job ERROR;
+exit 2 = network / config error. Treat exit 1 as informational (findings exist),
+not as a tool failure.
 
 ### Option B — File drop to shared storage
 
@@ -325,7 +335,14 @@ sudo launchctl load /Library/LaunchDaemons/com.mcpaudit.scan.plist
 
 Add to root crontab (`sudo crontab -e`):
 
-```
+```bash
+# Option A — direct push (recommended; no file collection step needed)
+0 9 * * * NUCLEUS_API_KEY=your-key /usr/local/bin/mcp-audit push-nucleus \
+  --url https://nucleus.corp.example.com --project-id 7 \
+  --asset-prefix "$(hostname)" --severity-threshold HIGH \
+  >> /var/log/mcp-audit.log 2>&1
+
+# Option B — write to file for batch collection
 0 9 * * * /usr/local/bin/mcp-audit scan --format nucleus --asset-prefix "$(hostname)" --offline -o /tmp/mcp-audit-results.json >> /var/log/mcp-audit.log 2>&1
 ```
 

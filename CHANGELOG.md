@@ -12,6 +12,17 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.10.1] - 2026-04-23 — SARIF 2.1.0 Schema Fixes
+
+### Fixed
+- **`invocation` extra fields** (`src/mcp_audit/output/sarif.py`, commit `46d9a34`): `machine`, `account`, and `operatingSystem` were placed directly on the `invocation` object. The SARIF 2.1.0 schema declares `invocation` with `additionalProperties: false`, making these unrecognised keys a hard schema violation. Fixed by moving all three into `invocation.properties` — a `propertyBag` (free-form key→value map) that the spec explicitly permits on every SARIF object.
+- **`fixes` without `artifactChanges`** (`src/mcp_audit/output/sarif.py`, commit `46d9a34`): `result.fixes[*]` contained only `{"description": {"text": remediation}}`. The SARIF schema requires `artifactChanges` in every `fix` object, as `fixes` is designed for structured byte-level code patches, not free-text advice. Removed `fixes` entirely and moved the remediation string to `rule.help.text` (SARIF §3.49.11), the correct field for human-readable fix guidance.
+
+### Changed
+- **Playwright browser tests now pass** (previously skipped): `test_dashboard_compat.py` cross-browser tests (Chromium, Firefox, WebKit) run fully with browsers installed. Full suite: **1398 passed, 0 failed, 0 skipped**.
+
+---
+
 ## [0.10.0] - 2026-04-23 — Nucleus FlexConnect Integration
 
 ### Added

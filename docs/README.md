@@ -15,6 +15,7 @@
 | [severity-framework.md](severity-framework.md) | CVSS base scores and OWASP Agentic Top 10 mappings for every finding ID; decision tree for calibrating new findings |
 | [registry.md](registry.md) | Known-server registry reference, contributing entries |
 | [registry-contributions.md](registry-contributions.md) | How to submit new registry entries |
+| [nucleus-integration.md](nucleus-integration.md) | push-nucleus command, FlexConnect API, fleet push examples |
 | [fleet-scanning.md](fleet-scanning.md) | Fleet merge workflow, asset prefix, enterprise deployment |
 | [enterprise-deployment.md](enterprise-deployment.md) | Fleet deployment guide for IT/security teams |
 | [pre-commit.md](pre-commit.md) | Pre-commit hook setup and configuration |
