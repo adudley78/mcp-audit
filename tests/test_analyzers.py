@@ -592,3 +592,45 @@ class TestTransportYarnDlxAndPipx:
             "yarn dlx with a typosquatted package must be caught by supply chain"
             " analyzer"
         )
+
+    def test_sc001_finding_includes_metadata_blurb_when_present(
+        self, tmp_path: Path
+    ) -> None:
+        """SC-001 finding description includes registry metadata when available."""
+        from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
+        from mcp_audit.registry.loader import KnownServerRegistry, RegistryEntry
+
+        entry = RegistryEntry(
+            name="@modelcontextprotocol/server-filesystem",
+            source="npm",
+            repo=None,
+            maintainer="Anthropic",
+            verified=True,
+            last_verified="2026-04-23",
+            known_versions=[],
+            tags=[],
+            first_published="2024-11-14",
+            weekly_downloads=42800,
+            publisher_history=["anthropic-bot"],
+        )
+        registry = KnownServerRegistry.__new__(KnownServerRegistry)
+        registry.entries = [entry]
+        registry.schema_version = "test"
+        registry.last_updated = "2026-04-23"
+        registry._name_index = {entry.name.lower(): entry}
+
+        server = ServerConfig(
+            name="test",
+            client="test",
+            config_path=tmp_path / "t.json",
+            transport=TransportType.STDIO,
+            command="npx",
+            args=["-y", "@modelcontextprotocol/server-filesytem"],  # typo
+        )
+        analyzer = SupplyChainAnalyzer.__new__(SupplyChainAnalyzer)
+        analyzer._registry = registry
+
+        findings = analyzer.analyze(server)
+        sc = [f for f in findings if f.id in ("SC-001", "SC-002")]
+        assert sc, "Expected at least one SC finding on typosquatted package"
+        assert "2024-11-14" in sc[0].description or "42,800" in sc[0].description

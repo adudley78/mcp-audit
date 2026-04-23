@@ -660,6 +660,54 @@ class TestOfflineRegistrySupplyChain:
         assert isinstance(analyzer.registry, KnownServerRegistry)
 
 
+class TestRegistryEntryMetadataFields:
+    """RegistryEntry correctly deserialises and exposes optional metadata fields."""
+
+    def test_entry_with_all_metadata_fields(self) -> None:
+        """All three metadata fields deserialise correctly when present."""
+        entry = RegistryEntry(
+            name="some-package",
+            source="npm",
+            repo=None,
+            maintainer="test",
+            verified=True,
+            last_verified="2026-04-23",
+            known_versions=[],
+            tags=[],
+            first_published="2024-11-14",
+            weekly_downloads=42800,
+            publisher_history=["anthropic-bot", "modelcontextprotocol"],
+        )
+        assert entry.first_published == "2024-11-14"
+        assert entry.weekly_downloads == 42800
+        assert entry.publisher_history == ["anthropic-bot", "modelcontextprotocol"]
+
+    def test_entry_without_metadata_fields_defaults_to_none(self) -> None:
+        """All three metadata fields default to None when absent."""
+        entry = RegistryEntry(
+            name="some-package",
+            source="npm",
+            repo=None,
+            maintainer="test",
+            verified=True,
+            last_verified="2026-04-23",
+            known_versions=[],
+            tags=[],
+        )
+        assert entry.first_published is None
+        assert entry.weekly_downloads is None
+        assert entry.publisher_history is None
+
+    def test_bundled_registry_loads_without_error(self) -> None:
+        """Bundled registry loads cleanly with the new optional fields present."""
+        registry = KnownServerRegistry()
+        assert len(registry.entries) >= 60
+        # Entries with metadata should deserialise correctly.
+        enriched = [e for e in registry.entries if e.first_published is not None]
+        for e in enriched:
+            assert len(e.first_published) == 10  # YYYY-MM-DD
+
+
 class TestUpdateRegistryURL:
     """Verify _UPDATE_REGISTRY_URL uses a version tag, not /main/."""
 

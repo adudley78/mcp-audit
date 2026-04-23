@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "last_updated": "2026-04-20",
-  "entry_count": 60,
+  "entry_count": 64,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -22,7 +22,10 @@
       "capabilities": [
         "file_read",
         "file_write"
-      ]
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 42800,
+      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
     },
     {
       "name": "@modelcontextprotocol/server-github",
@@ -43,7 +46,10 @@
       "capabilities": [
         "git",
         "network_out"
-      ]
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 38100,
+      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
     },
     {
       "name": "@modelcontextprotocol/server-gitlab",
@@ -174,7 +180,10 @@
       ],
       "capabilities": [
         "network_out"
-      ]
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 11200,
+      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
     },
     {
       "name": "@modelcontextprotocol/server-everart",
@@ -205,7 +214,10 @@
       ],
       "capabilities": [
         "network_out"
-      ]
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 28600,
+      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
     },
     {
       "name": "@modelcontextprotocol/server-memory",
@@ -220,7 +232,10 @@
         "memory",
         "local"
       ],
-      "capabilities": []
+      "capabilities": [],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 19400,
+      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
     },
     {
       "name": "@modelcontextprotocol/server-sequentialthinking",
@@ -503,7 +518,10 @@
       "tags": [
         "payments",
         "remote"
-      ]
+      ],
+      "first_published": "2024-12-05",
+      "weekly_downloads": 8900,
+      "publisher_history": ["stripe-bot", "stripe"]
     },
     {
       "name": "mcp-server-playwright",
@@ -868,6 +886,70 @@
         "cloud",
         "local"
       ]
+    },
+    {
+      "name": "@linear/mcp-server",
+      "source": "npm",
+      "repo": "https://github.com/linear/linear",
+      "maintainer": "Linear",
+      "verified": false,
+      "last_verified": "2026-04-23",
+      "known_versions": [],
+      "tags": [
+        "project-management",
+        "remote"
+      ],
+      "first_published": "2025-03-12",
+      "weekly_downloads": 6300,
+      "publisher_history": ["linear-bot"]
+    },
+    {
+      "name": "exa-mcp-server",
+      "source": "npm",
+      "repo": "https://github.com/exa-labs/exa-mcp-server",
+      "maintainer": "Exa",
+      "verified": false,
+      "last_verified": "2026-04-23",
+      "known_versions": [],
+      "tags": [
+        "search",
+        "remote"
+      ],
+      "first_published": "2025-02-18",
+      "weekly_downloads": 3100,
+      "publisher_history": ["exa-ai"]
+    },
+    {
+      "name": "@notion/mcp-server",
+      "source": "npm",
+      "repo": "https://github.com/makenotion/notion-mcp-server",
+      "maintainer": "Notion",
+      "verified": false,
+      "last_verified": "2026-04-23",
+      "known_versions": [],
+      "tags": [
+        "productivity",
+        "remote"
+      ],
+      "first_published": "2025-03-28",
+      "weekly_downloads": 4700,
+      "publisher_history": ["notion-bot"]
+    },
+    {
+      "name": "mcp-perplexity",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-04-23",
+      "known_versions": [],
+      "tags": [
+        "search",
+        "remote"
+      ],
+      "first_published": "2025-01-09",
+      "weekly_downloads": 2200,
+      "publisher_history": ["perplexity-ai"]
     }
   ]
 }

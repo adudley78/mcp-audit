@@ -93,6 +93,22 @@ class RegistryEntry(BaseModel):
     # analyzer should fall back to its keyword-matching logic.
     capabilities: list[str] | None = None
 
+    # Supply chain risk metadata — populated manually or via scripts/enrich_registry.py.
+    # None means data has not been collected for this entry yet.
+
+    # ISO date string (YYYY-MM-DD) when the package was first published to npm/PyPI.
+    # A very recent first-publish date on an otherwise unknown package is a risk signal.
+    first_published: str | None = None
+
+    # Weekly download count sourced from npm or PyPI at last_verified time.
+    # Very low download counts on a package claiming to be widely-used is a risk signal.
+    weekly_downloads: int | None = None
+
+    # Ordered list of publisher account names that have released this package,
+    # most recent first. A new unknown publisher displacing the original is a
+    # risk signal for an account-takeover supply chain attack.
+    publisher_history: list[str] | None = None
+
 
 # ── Registry class ─────────────────────────────────────────────────────────────
 
