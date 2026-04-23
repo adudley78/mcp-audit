@@ -37,6 +37,7 @@ OWASP Agentic Top 10 risk categories:
 | POISON-030  | MEDIUM   | ASI03 (Excessive Agency), ASI07 (Tool Misuse) | Cross-tool manipulation ("before using this tool", "instead use"). Enables tool shadowing and confused deputy attacks; legitimate descriptions rarely include cross-tool instructions. CVSS: 5.3 |
 | POISON-040  | MEDIUM   | ASI08 | Zero-width Unicode characters. Stealth technique used to hide instructions from users while preserving LLM readability. Presence alone is suspicious but not always an active exploit. CVSS: 4.6 |
 | POISON-050  | LOW      | ASI08 | Excessive description length (≥2000 chars). Oversized descriptions can pad context windows and conceal instructions; legitimate tools rarely exceed this length. CVSS: 2.6 |
+| POISON-060  | MEDIUM   | ASI08 | Unicode homoglyph characters (Cyrillic, Greek, fullwidth ASCII). Visually identical to Latin characters; used to bypass ASCII-only regex detection while the LLM still interprets the instruction. CVSS: 4.6. CWE-116 |
 
 ### Credentials analyzer (`analyzers/credentials.py`)
 
@@ -50,8 +51,9 @@ OWASP Agentic Top 10 risk categories:
 | Finding ID    | Severity | OWASP Agentic Top 10 | Rationale |
 |---------------|----------|----------------------|-----------|
 | TRANSPORT-001 | HIGH     | ASI05 (Insecure Communication) | Unencrypted remote endpoint (HTTP, not HTTPS). MCP protocol data (tool descriptions, results) is transmitted in plaintext; susceptible to MITM interception and injection. CVSS: 7.4 |
-| TRANSPORT-002 | HIGH     | ASI09 (Privilege Escalation) | Elevated privilege execution (sudo, doas). MCP servers should not require root; privilege escalation dramatically increases blast radius of a compromised server. CVSS: 7.8 |
-| TRANSPORT-003 | MEDIUM / LOW / suppressed | ASI04 (Inadequate Sandboxing) | Runtime package fetching (npx, uvx, bunx). Tiered by registry membership: unknown packages = MEDIUM (unreviewed code fetched at runtime); known-but-unverified = LOW; verified registry entry = suppressed (COMM-010 retains a pinning reminder). |
+| TRANSPORT-002 | HIGH     | ASI09 (Privilege Escalation) | Elevated privilege execution (sudo, doas, pkexec, su, run0, absolute paths, or priv-esc binary as first arg). MCP servers should not require root; privilege escalation dramatically increases blast radius of a compromised server. CVSS: 7.8 |
+| TRANSPORT-003 | MEDIUM / LOW / suppressed | ASI04 (Inadequate Sandboxing) | Runtime package fetching (npx, uvx, bunx, pipx, yarn dlx). Tiered by registry membership: unknown packages = MEDIUM (unreviewed code fetched at runtime); known-but-unverified = LOW; verified registry entry = suppressed (COMM-010 retains a pinning reminder). |
+| TRANSPORT-004 | HIGH     | ASI05 | Wildcard interface binding (0.0.0.0 / [::]). Exposes the server on all interfaces including external ones. CVSS: 7.5. CWE-1327 |
 
 ### Supply chain analyzer (`analyzers/supply_chain.py`)
 

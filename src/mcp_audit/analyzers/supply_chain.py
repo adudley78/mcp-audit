@@ -107,10 +107,15 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         Returns:
             List of :class:`~mcp_audit.models.Finding` objects (empty if clean).
         """
-        if server.command not in _NPX_LIKE:
+        _is_yarn_dlx = (
+            server.command == "yarn" and bool(server.args) and server.args[0] == "dlx"
+        )
+        if server.command not in _NPX_LIKE and not _is_yarn_dlx:
             return []
 
-        package = extract_npm_package(server.args)
+        # For `yarn dlx <package>`, args[0] is "dlx" — skip it to get the package.
+        args_for_package = server.args[1:] if _is_yarn_dlx else server.args
+        package = extract_npm_package(args_for_package)
         if package is None:
             return []
 

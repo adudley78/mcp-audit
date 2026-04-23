@@ -98,15 +98,15 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 ### Medium
 
-**V-07: Poisoning detection bypassed by Unicode homoglyphs.** All poisoning regex patterns match ASCII only. An attacker can use visually identical Unicode characters (Cyrillic 'а' for Latin 'a', etc.) in tool descriptions to bypass detection while the LLM still interprets the instruction. Fix: normalize text to ASCII via `unicodedata.normalize('NFKD', ...)` before pattern matching. Add a dedicated homoglyph-presence pattern. CWE-116.
+**V-07: Resolved (2026-04-23).** Poisoning detection bypassed by Unicode homoglyphs. All regex patterns now run against NFKD-normalized ASCII text. A new `POISON-060` pattern detects Cyrillic, Greek, general-punctuation lookalikes, and fullwidth ASCII variants in the original (non-normalized) text. CWE-116.
 
-**V-08: Poisoning detection bypassed by nesting depth > 10.** `_extract_text_fields` in `poisoning.py` stops recursing at depth 10. A malicious config can nest poisoned text at depth 11+ to evade extraction entirely. Fix: raise the limit significantly or remove it with a stack-depth guard.
+**V-08: Resolved (2026-04-23).** Poisoning detection bypassed by nesting depth > 10. The recursion limit in `_extract_text_fields` and `_extract_description_fields` raised from 10 to 50. A depth of 50 guards against circular-reference DoS while making the bypass impractical.
 
-**V-09: Transport analyzer misses `0.0.0.0` as insecure binding.** `0.0.0.0` binds to all interfaces — worse than a remote endpoint — but is not flagged. IPv6 equivalents `[::]` and `[0:0:0:0:0:0:0:0]` are also unchecked. Fix: add these to the insecure-binding check, possibly as HIGH.
+**V-09: Resolved (2026-04-23).** `TRANSPORT-004` (HIGH, CWE-1327) added to `TransportAnalyzer`. Fires when the server URL hostname is `0.0.0.0`, `::`, `[::]`, `0:0:0:0:0:0:0:0`, or `[0:0:0:0:0:0:0:0]`. Wildcard bindings expose the server on all interfaces simultaneously — more dangerous than a specific remote host.
 
-**V-10: Privilege escalation check is trivially bypassable.** Only catches `sudo`, `doas`, and `/usr/sbin` prefix. Misses `pkexec`, `su`, `run0`, absolute paths to sudo (`/usr/bin/sudo`), and `sudo` appearing in args rather than command. Fix: expand the set and check `args[0]`.
+**V-10: Resolved (2026-04-23).** `TRANSPORT-002` privilege-escalation check expanded. Now catches `sudo`, `doas`, `pkexec`, `su`, `run0`, absolute paths to those binaries (e.g. `/usr/bin/sudo`, `/usr/local/bin/doas`), the `/usr/sbin/` prefix, and any of those names appearing as `args[0]` when the command is a shell (`sh`, `bash`, etc.).
 
-**V-11: Supply chain analyzer only covers npm; misses `yarn dlx`.** The `_NPX_LIKE` set is `{"npx", "bunx", "pnpx"}` — misses `yarn dlx`. No detection for Python-based MCP servers launched via `uvx` or `pipx`. Fix: add yarn support and consider a parallel PyPI known-packages list.
+**V-11: Resolved (2026-04-23).** `yarn dlx` detection added to both `TransportAnalyzer` and `SupplyChainAnalyzer`. `pipx` added to `_RUNTIME_FETCH_COMMANDS`. PyPI typosquatting for `uvx`/`pipx` packages requires a separate known-packages list for PyPI — tracked as a future supply-chain coverage gap.
 
 **V-12: Resolved.** `httpx` moved from `dependencies` to the `mcp` optional group (`pip install 'mcp-audit[mcp]'`). It is not installed in the default distribution and carries no transitive attack surface for users who don't need live server connections.
 
