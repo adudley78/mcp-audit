@@ -11,6 +11,7 @@
 | [sast-rules.md](sast-rules.md) | Semgrep rule catalog, severity rationale, false positive guidance |
 | [extensions.md](extensions.md) | IDE extension scanner overview, supported clients, analysis layers |
 | [supply-chain.md](supply-chain.md) | Supply chain attestation, hash verification, contribution guide |
+| [severity-framework.md](severity-framework.md) | CVSS base scores and OWASP Agentic Top 10 mappings for every finding ID; decision tree for calibrating new findings |
 | [registry.md](registry.md) | Known-server registry reference, contributing entries |
 | [registry-contributions.md](registry-contributions.md) | How to submit new registry entries |
 | [fleet-scanning.md](fleet-scanning.md) | Fleet merge workflow, asset prefix, enterprise deployment |
