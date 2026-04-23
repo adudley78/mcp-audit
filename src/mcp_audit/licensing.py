@@ -20,11 +20,14 @@ from __future__ import annotations
 import base64
 import json
 import stat
+import threading
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel
+
+from mcp_audit._paths import data_dir
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -68,6 +71,89 @@ class LicenseInfo(BaseModel):
     issued: date
     expires: date
     is_valid: bool  # True when today <= expires
+    kid: str | None = None
+    subscription_id: str | None = None
+
+
+# ── Failure discriminator (thread-local) ──────────────────────────────────────
+
+_verify_failure_local: threading.local = threading.local()
+
+
+def _set_last_verify_failure(reason: str) -> None:
+    """Store the reason the last verify_license() call returned None (or expired)."""
+    _verify_failure_local.reason = reason
+
+
+def get_last_verify_failure() -> str | None:
+    """Return the reason set by the most recent failed verify_license() call.
+
+    Returns ``None`` if no failure has been recorded in this thread.
+    Intended for CLI layers only — never call from analyzers or ``scanner.py``.
+
+    Possible values: ``"invalid"``, ``"revoked"``, ``"expired"``.
+    """
+    return getattr(_verify_failure_local, "reason", None)
+
+
+# ── Revocation list ───────────────────────────────────────────────────────────
+
+
+def _verify_revocation_signature(payload_bytes: bytes, signature_b64: str) -> bool:
+    """Return True iff ``signature_b64`` is a valid Ed25519 sig over ``payload_bytes``.
+
+    Uses the same ``_PUBLIC_KEY_BYTES`` as ``verify_license()``.  Returns False on
+    any error (placeholder key, invalid base64, wrong signature length, etc.) so
+    ``_load_revoked_kids()`` degrades gracefully during development.
+    """
+    try:
+        if len(_PUBLIC_KEY_BYTES) != 32:
+            return False
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (  # noqa: PLC0415
+            Ed25519PublicKey,
+        )
+
+        sig = base64.b64decode(signature_b64)
+        public_key = Ed25519PublicKey.from_public_bytes(_PUBLIC_KEY_BYTES)
+        public_key.verify(sig, payload_bytes)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _load_revoked_kids() -> frozenset[str]:
+    """Load and verify the bundled revoked.json; return the set of revoked kids.
+
+    Resolution: ``data_dir() / "revoked.json"`` which handles both the
+    PyInstaller ``_MEIPASS`` context and normal installs.
+
+    Returns an empty frozenset on any parse, missing-file, or signature failure.
+    Never raises — a scan must never hard-fail because the revocation list is
+    corrupt or unsigned (as it will be during development with the placeholder key).
+    """
+    try:
+        path = data_dir() / "revoked.json"
+        if not path.exists():
+            return frozenset()
+        raw = path.read_bytes()
+        data: dict = json.loads(raw)
+
+        # Canonical payload: every field except "signature", sorted keys, compact.
+        payload_dict = {k: v for k, v in data.items() if k != "signature"}
+        payload_bytes = json.dumps(
+            payload_dict, sort_keys=True, separators=(",", ":")
+        ).encode()
+
+        if not _verify_revocation_signature(payload_bytes, data.get("signature", "")):
+            return frozenset()
+
+        return frozenset(data.get("revoked", []))
+    except Exception:  # noqa: BLE001
+        return frozenset()
+
+
+# Module-level cache: evaluated once at import time.
+_REVOKED_KIDS: frozenset[str] = _load_revoked_kids()
 
 
 # ── Core functions ────────────────────────────────────────────────────────────
@@ -98,6 +184,7 @@ def verify_license(key_string: str) -> LicenseInfo | None:
 
     parts = key_string.strip().split(".")
     if len(parts) != 2:
+        _set_last_verify_failure("invalid")
         return None
 
     payload_b64, sig_b64 = parts
@@ -106,19 +193,23 @@ def verify_license(key_string: str) -> LicenseInfo | None:
         payload_bytes = base64.urlsafe_b64decode(payload_b64 + "==")
         sig_bytes = base64.urlsafe_b64decode(sig_b64 + "==")
     except ValueError:
+        _set_last_verify_failure("invalid")
         return None
 
     try:
         public_key = Ed25519PublicKey.from_public_bytes(_PUBLIC_KEY_BYTES)
         public_key.verify(sig_bytes, payload_bytes)
     except InvalidSignature:
+        _set_last_verify_failure("invalid")
         return None
     except (ValueError, TypeError):
+        _set_last_verify_failure("invalid")
         return None
 
     try:
         payload = json.loads(payload_bytes)
     except json.JSONDecodeError:
+        _set_last_verify_failure("invalid")
         return None
 
     try:
@@ -127,17 +218,36 @@ def verify_license(key_string: str) -> LicenseInfo | None:
         issued = date.fromisoformat(payload["issued"])
         expires = date.fromisoformat(payload["expires"])
     except (KeyError, ValueError, TypeError):
+        _set_last_verify_failure("invalid")
         return None
 
     if tier not in {"pro", "enterprise"}:
+        _set_last_verify_failure("invalid")
         return None
+
+    # Optional new fields; absent in legacy keys.
+    kid: str | None = payload.get("kid")
+    sub: str | None = payload.get("sub")
+
+    # Revocation check — O(1) frozenset lookup against the bundled list.
+    # Legacy keys without a kid field are treated as non-revocable; they expire
+    # naturally on their existing schedule.
+    if kid is not None and kid in _REVOKED_KIDS:
+        _set_last_verify_failure("revoked")
+        return None
+
+    is_valid = date.today() <= expires
+    if not is_valid:
+        _set_last_verify_failure("expired")
 
     return LicenseInfo(
         tier=tier,
         email=email,
         issued=issued,
         expires=expires,
-        is_valid=date.today() <= expires,
+        is_valid=is_valid,
+        kid=kid,
+        subscription_id=sub,
     )
 
 
@@ -214,6 +324,8 @@ def generate_license_key(
     email: str,
     duration_days: int,
     private_key_path: str | Path,
+    kid: str | None = None,
+    sub: str | None = None,
 ) -> str:
     """Generate a signed Ed25519 license key.
 
@@ -226,6 +338,9 @@ def generate_license_key(
         email: Purchaser's email address.
         duration_days: Validity period in days from today.
         private_key_path: Path to a PEM-encoded Ed25519 private key file.
+        kid: Optional 8-char hex key ID for revocation tracking.  Omitted from
+            the payload when ``None`` (produces a legacy-format key).
+        sub: Optional Lemon Squeezy order/subscription ID.  Omitted when ``None``.
 
     Returns:
         A license key string: ``<base64url-payload>.<base64url-signature>``.
@@ -244,12 +359,17 @@ def generate_license_key(
     today = date.today()
     expires = today + timedelta(days=duration_days)
 
-    payload_dict = {
+    payload_dict: dict[str, str] = {
         "tier": tier,
         "email": email,
         "issued": today.isoformat(),
         "expires": expires.isoformat(),
     }
+    if kid is not None:
+        payload_dict["kid"] = kid
+    if sub is not None:
+        payload_dict["sub"] = sub
+
     payload_bytes = json.dumps(payload_dict, separators=(",", ":")).encode("utf-8")
 
     pem_data = Path(private_key_path).read_bytes()

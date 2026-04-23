@@ -9,6 +9,7 @@ from mcp_audit.cli import app, console
 from mcp_audit.licensing import (
     LicenseInfo,
     get_active_license,
+    get_last_verify_failure,
     save_license,
 )
 
@@ -37,11 +38,24 @@ def activate(
     try:
         info: LicenseInfo = save_license(key)
     except ValueError:
-        console.print("[red]✗ Invalid license key. Check your key and try again.[/red]")
-        console.print(
-            "  Purchase a license at [link=https://mcp-audit.dev/pro]"
-            "https://mcp-audit.dev/pro[/link]"
-        )
+        reason = get_last_verify_failure()
+        if reason == "revoked":
+            console.print(
+                "[red]✗ License revoked.[/red] Contact support@mcp-audit.dev with "
+                "your order ID if this is in error. [MCPA-LIC-REVOKED]"
+            )
+        elif reason == "expired":
+            console.print(
+                "[yellow]✗ License expired.[/yellow] [MCPA-LIC-EXPIRED]"
+            )
+        else:
+            console.print(
+                "[red]✗ Invalid license key. Check your key and try again.[/red]"
+            )
+            console.print(
+                "  Purchase a license at [link=https://mcp-audit.dev/pro]"
+                "https://mcp-audit.dev/pro[/link]"
+            )
         raise typer.Exit(2)  # noqa: B904
 
     tier_label = info.tier.capitalize()
