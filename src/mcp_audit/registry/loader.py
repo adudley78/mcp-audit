@@ -109,6 +109,11 @@ class RegistryEntry(BaseModel):
     # risk signal for an account-takeover supply chain attack.
     publisher_history: list[str] | None = None
 
+    # True when this package has an established CI-based publish pipeline with
+    # Sigstore provenance enabled. A missing attestation on such a package is a
+    # MEDIUM signal, not a neutral absence.
+    attestation_expected: bool = False
+
 
 # ── Registry class ─────────────────────────────────────────────────────────────
 

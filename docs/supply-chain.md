@@ -184,10 +184,72 @@ Submit a pull request to the mcp-audit repository to contribute hashes for widel
 
 ---
 
+---
+
+## Layer 2: Sigstore Provenance Verification
+
+Layer 2 verifies cryptographic provenance attestations published alongside
+packages on npm and PyPI. Unlike hash verification (which answers *did this
+tarball change?*), Sigstore provenance answers *who signed this release and
+from which CI pipeline?*
+
+### Usage
+
+```bash
+mcp-audit scan --verify-signatures
+mcp-audit scan --verify-signatures --strict-signatures
+```
+
+`--verify-signatures` is **free for all tiers** and requires network access
+(HTTPS to `registry.npmjs.org` and `pypi.org`). It cannot be combined with
+`--offline`.
+
+`--strict-signatures` raises packages with no attestation from INFO to MEDIUM
+severity. Use this when you require provenance on all registry-known packages.
+
+### How it works
+
+1. For each server in the registry, the installed version is extracted from the
+   config (same as `--verify-hashes`).
+2. The npm or PyPI attestation API is queried for an SLSA provenance bundle.
+3. The bundle is cryptographically verified using the `sigstore` Python library,
+   which validates the Fulcio certificate chain, SCT, and Rekor transparency log
+   inclusion proof against TUF-managed trust roots.
+4. The OIDC subject from the signing certificate (typically a GitHub Actions
+   workflow URI) is extracted and compared against the `repo` field in
+   `registry/known-servers.json`.
+
+### Finding IDs
+
+| Finding ID   | Severity     | Meaning |
+|--------------|--------------|---------|
+| ATTEST-010   | INFO         | Valid attestation; signing repo matches expected |
+| ATTEST-011   | HIGH         | Valid attestation; signing repo does **not** match expected |
+| ATTEST-012   | CRITICAL     | Attestation present but cryptographically invalid |
+| ATTEST-013   | MEDIUM       | Attestation absent for a package known to publish provenance |
+| ATTEST-014   | INFO/MEDIUM  | Attestation absent (MEDIUM with `--strict-signatures`) |
+| ATTEST-015   | INFO         | Network/API error; could not determine status |
+
+### `attestation_expected` flag
+
+Registry entries for packages maintained by Anthropic at
+`github.com/modelcontextprotocol` have `attestation_expected: true` in
+`registry/known-servers.json`. When `--verify-signatures` detects a missing
+attestation for these entries, it produces **ATTEST-013** (MEDIUM) instead of
+the default **ATTEST-014** (INFO), because these packages are known to publish
+from a Sigstore-enabled CI pipeline.
+
+### Tier access
+
+Sigstore verification is **free for all tiers**. Attestation checks should
+never be paywalled.
+
+---
+
 ## Roadmap
 
 | Layer | Description | Status |
 |---|---|---|
 | Layer 1 | SHA-256 hash verification against registry pins | **Shipped** |
-| Layer 2 | Sigstore signature verification (cosign / sigstore-python) | Planned |
+| Layer 2 | Sigstore signature verification (cosign / sigstore-python) | **Shipped** |
 | Layer 3 | Dependency SBOM analysis (CycloneDX / SPDX) | Planned |

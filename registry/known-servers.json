@@ -25,7 +25,11 @@
       ],
       "first_published": "2024-11-14",
       "weekly_downloads": 42800,
-      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-github",
@@ -49,7 +53,11 @@
       ],
       "first_published": "2024-11-14",
       "weekly_downloads": 38100,
-      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-gitlab",
@@ -63,7 +71,8 @@
         "official",
         "gitlab",
         "remote"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-google-drive",
@@ -77,7 +86,8 @@
         "official",
         "google",
         "remote"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-google-maps",
@@ -91,7 +101,8 @@
         "official",
         "google",
         "remote"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-slack",
@@ -108,7 +119,8 @@
       ],
       "capabilities": [
         "network_out"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-postgres",
@@ -128,7 +140,8 @@
       },
       "capabilities": [
         "database"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-sqlite",
@@ -145,7 +158,8 @@
       ],
       "capabilities": [
         "database"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-puppeteer",
@@ -163,7 +177,8 @@
       "capabilities": [
         "browser",
         "network_out"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-brave-search",
@@ -183,7 +198,11 @@
       ],
       "first_published": "2024-11-14",
       "weekly_downloads": 11200,
-      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-everart",
@@ -197,7 +216,8 @@
         "official",
         "image",
         "remote"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-fetch",
@@ -217,7 +237,11 @@
       ],
       "first_published": "2024-11-14",
       "weekly_downloads": 28600,
-      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-memory",
@@ -235,7 +259,11 @@
       "capabilities": [],
       "first_published": "2024-11-14",
       "weekly_downloads": 19400,
-      "publisher_history": ["anthropic-bot", "modelcontextprotocol"]
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-sequentialthinking",
@@ -250,7 +278,8 @@
         "reasoning",
         "local"
       ],
-      "capabilities": []
+      "capabilities": [],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-aws-kb-retrieval",
@@ -264,7 +293,8 @@
         "official",
         "aws",
         "remote"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-everything",
@@ -283,7 +313,8 @@
         "file_write",
         "network_out",
         "shell_exec"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-sentry",
@@ -297,7 +328,8 @@
         "official",
         "monitoring",
         "remote"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-sequential-thinking",
@@ -312,7 +344,8 @@
         "reasoning",
         "local"
       ],
-      "capabilities": []
+      "capabilities": [],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-git",
@@ -330,7 +363,8 @@
       "capabilities": [
         "git",
         "file_read"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-gdrive",
@@ -348,7 +382,8 @@
       "capabilities": [
         "file_read",
         "network_out"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-gmail",
@@ -366,7 +401,8 @@
       "capabilities": [
         "email",
         "network_out"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/server-redis",
@@ -380,7 +416,8 @@
         "official",
         "database",
         "local"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/sdk",
@@ -393,7 +430,8 @@
       "tags": [
         "official",
         "sdk"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@modelcontextprotocol/inspector",
@@ -406,7 +444,8 @@
       "tags": [
         "official",
         "dev-tools"
-      ]
+      ],
+      "attestation_expected": true
     },
     {
       "name": "@anthropic-ai/mcp-server-puppeteer",
@@ -436,7 +475,8 @@
       ],
       "known_hashes": {
         "1.27.0": "sha256:d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83"
-      }
+      },
+      "attestation_expected": true
     },
     {
       "name": "mcp-server-fetch",
@@ -453,7 +493,8 @@
       ],
       "known_hashes": {
         "2025.4.7": "sha256:56279e3c55cb1e506b958ca9bb23ed4413944a6f230bca21e044aee51734fe47"
-      }
+      },
+      "attestation_expected": true
     },
     {
       "name": "@upstash/context7-mcp",
@@ -521,7 +562,10 @@
       ],
       "first_published": "2024-12-05",
       "weekly_downloads": 8900,
-      "publisher_history": ["stripe-bot", "stripe"]
+      "publisher_history": [
+        "stripe-bot",
+        "stripe"
+      ]
     },
     {
       "name": "mcp-server-playwright",
@@ -901,7 +945,9 @@
       ],
       "first_published": "2025-03-12",
       "weekly_downloads": 6300,
-      "publisher_history": ["linear-bot"]
+      "publisher_history": [
+        "linear-bot"
+      ]
     },
     {
       "name": "exa-mcp-server",
@@ -917,7 +963,9 @@
       ],
       "first_published": "2025-02-18",
       "weekly_downloads": 3100,
-      "publisher_history": ["exa-ai"]
+      "publisher_history": [
+        "exa-ai"
+      ]
     },
     {
       "name": "@notion/mcp-server",
@@ -933,7 +981,9 @@
       ],
       "first_published": "2025-03-28",
       "weekly_downloads": 4700,
-      "publisher_history": ["notion-bot"]
+      "publisher_history": [
+        "notion-bot"
+      ]
     },
     {
       "name": "mcp-perplexity",
@@ -949,7 +999,9 @@
       ],
       "first_published": "2025-01-09",
       "weekly_downloads": 2200,
-      "publisher_history": ["perplexity-ai"]
+      "publisher_history": [
+        "perplexity-ai"
+      ]
     }
   ]
 }

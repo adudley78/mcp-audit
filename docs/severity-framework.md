@@ -87,10 +87,23 @@ capability combination, not any individual server.
 
 ### Attestation (`attestation/`)
 
+**Layer 1 — hash verification (`--verify-hashes`)**
+
 | Finding ID  | Severity | Rationale |
 |-------------|----------|-----------|
 | ATTEST-001  | CRITICAL | Hash mismatch — downloaded tarball does not match pinned SHA-256. Strong indicator of supply chain tampering. |
 | ATTEST-002  | INFO     | Package could not be verified (version unextractable or no hash pin). Informational; surfaces candidates for manual pinning. |
+
+**Layer 2 — Sigstore provenance verification (`--verify-signatures`)**
+
+| Finding ID   | Severity | Rationale |
+|--------------|----------|-----------|
+| ATTEST-010   | INFO     | Valid Sigstore attestation; OIDC subject matches the expected repository. Positive signal — confirms provenance. |
+| ATTEST-011   | HIGH     | Valid signature but OIDC subject does not match expected repo. Could indicate a supply chain attack or an undisclosed repo migration. CWE-494. CVSS: 8.1 |
+| ATTEST-012   | CRITICAL | Sigstore signature cryptographically invalid (tampered or forged attestation). CWE-494. CVSS: 9.1 |
+| ATTEST-013   | MEDIUM   | Attestation absent for a package that is known to publish provenance (``attestation_expected: true``). May indicate a compromised publish pipeline. CWE-494. CVSS: 5.3 |
+| ATTEST-014   | INFO / MEDIUM | No attestation found. INFO by default; raised to MEDIUM with ``--strict-signatures``. Common for packages not yet using Trusted Publishing. |
+| ATTEST-015   | INFO     | Network or API error prevented verification. Retry when network is available. |
 
 ### Governance (`governance/`)
 

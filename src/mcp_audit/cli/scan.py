@@ -142,6 +142,7 @@ def _preflight_checks(
     sast: Path | None,
     con: Console,
     path: Path | None = None,
+    verify_signatures: bool = False,
 ) -> None:
     """Validate incompatible flag combinations and user-supplied paths.
 
@@ -155,6 +156,13 @@ def _preflight_checks(
     if offline and verify_hashes:
         con.print(
             "[red]Error:[/red] --verify-hashes makes network requests "
+            "and cannot be used with --offline."
+        )
+        raise typer.Exit(2)
+
+    if offline and verify_signatures:
+        con.print(
+            "[red]Error:[/red] --verify-signatures makes network requests "
             "and cannot be used with --offline."
         )
         raise typer.Exit(2)
@@ -248,6 +256,28 @@ def _apply_hash_verification(
         result.servers, vh_registry
     )
     result.findings.extend(hash_findings)
+    return result
+
+
+def _apply_signature_verification(
+    result: ScanResult,
+    registry: Path | None,
+    offline_registry: bool,
+    strict: bool,
+    console: Console,
+) -> ScanResult:
+    """Verify Sigstore provenance attestations for all registry-known servers.
+
+    Only called when ``--verify-signatures`` is active.  Appends findings to
+    ``result.findings`` before scoring so attestation outcomes affect the grade.
+    """
+    from mcp_audit.attestation.sigstore_findings import (  # noqa: PLC0415
+        verify_server_signatures,
+    )
+
+    sig_registry = KnownServerRegistry(path=registry, offline=offline_registry)
+    findings = verify_server_signatures(result.servers, sig_registry, strict=strict)
+    result.findings.extend(findings)
     return result
 
 
@@ -615,6 +645,22 @@ def scan(
             "(requires network access; free for all tiers)"
         ),
     ),
+    verify_signatures: bool = typer.Option(  # noqa: B008
+        False,
+        "--verify-signatures",
+        help=(
+            "Verify Sigstore provenance attestations for registry-known packages "
+            "(requires network access; free for all tiers)."
+        ),
+    ),
+    strict_signatures: bool = typer.Option(  # noqa: B008
+        False,
+        "--strict-signatures",
+        help=(
+            "Raise 'no attestation' findings to MEDIUM severity "
+            "(use with --verify-signatures)."
+        ),
+    ),
     sast: Path | None = typer.Option(  # noqa: B008
         None,
         "--sast",
@@ -647,7 +693,15 @@ def scan(
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
-    _preflight_checks(offline, verify_hashes, registry, sast, console, path=path)
+    _preflight_checks(
+        offline,
+        verify_hashes,
+        registry,
+        sast,
+        console,
+        path=path,
+        verify_signatures=verify_signatures,
+    )
 
     analyzers = _build_custom_analyzers(registry, offline_registry)
     extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, console)
@@ -665,6 +719,15 @@ def scan(
 
     if verify_hashes:
         result = _apply_hash_verification(result, registry, offline_registry, console)
+
+    if verify_signatures:
+        result = _apply_signature_verification(
+            result,
+            registry,
+            offline_registry,
+            strict=strict_signatures,
+            console=console,
+        )
 
     _surface_user_path_errors(result, extra_paths, console)
 

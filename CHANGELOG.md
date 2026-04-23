@@ -12,6 +12,19 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.6.0] - 2026-04-23 — Supply Chain Layers 2 & 3
+
+### Added
+- **Layer 2: Sigstore provenance verification** (`attestation/sigstore_client.py`, `attestation/sigstore_findings.py`): opt-in `--verify-signatures` flag (free, default OFF) verifies Sigstore provenance bundles for registry-known npm and PyPI packages. Fetches bundles from the npm attestations API and PyPI PEP 740 provenance API; verifies with the `sigstore` Python library (Fulcio cert chain, SCT, Rekor inclusion proof); extracts OIDC issuer (OID `1.3.6.1.4.1.57264.1.1`) and SAN URI from the signing certificate; compares signing repo against `RegistryEntry.repo`. `--strict-signatures` raises "absent" findings from INFO to MEDIUM. Six new finding IDs: `ATTEST-010` (valid match, INFO), `ATTEST-011` (valid but wrong repo, HIGH), `ATTEST-012` (invalid signature, CRITICAL), `ATTEST-013` (expected attestation absent, MEDIUM), `ATTEST-014` (absent, INFO/MEDIUM), `ATTEST-015` (network error, INFO). `attestation_expected: bool = False` field added to `RegistryEntry`; set to `true` for all 26 Anthropic-maintained entries in the registry.
+- `sigstore>=3.0,<4.0` added to package dependencies.
+- `docs/supply-chain.md` — Layer 2 section documenting all finding IDs, flag behaviour, and `--strict-signatures` usage.
+- `docs/severity-framework.md` — `ATTEST-010` through `ATTEST-015` severity table.
+
+### Notes
+- Binary size advisory: the `sigstore` dependency tree (`betterproto`, `tuf`, `rfc3161-client`, `securesystemslib`) is expected to push the PyInstaller binary above the 22 MB target. Three mitigation options documented in `attestation/sigstore_client.py`; a rebuild is required before the next release cut to measure actual impact.
+
+---
+
 ## [0.5.0] - 2026-04-23 — Detection Validity, Hardening & Supply Chain Depth
 
 ### Security
