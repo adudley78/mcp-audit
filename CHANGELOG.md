@@ -20,8 +20,13 @@ _Accumulates entries for work done after the last milestone and before the first
 - `docs/supply-chain.md` — Layer 2 section documenting all finding IDs, flag behaviour, and `--strict-signatures` usage.
 - `docs/severity-framework.md` — `ATTEST-010` through `ATTEST-015` severity table.
 
+- **Layer 3: Known-vulnerability scanning** (`vulnerability/` module): opt-in `--check-vulns` flag (free, default OFF) resolves transitive dependencies via the deps.dev API and checks them against OSV.dev in a single batched call. Full transitive graph coverage (not just direct deps). Graceful degradation on network failure per batch — scan never crashes. `VULN-<OSV-ID>` findings (severity from CVSS score), `VULN-UNPINNED` (LOW) for unversioned packages. Supports npx/bunx/pnpx/uvx/pipx/yarn-dlx ecosystems via the shared `vulnerability/resolver.py`. `--vuln-registry URL` (Pro soft-gate) for air-gapped OSV mirrors.
+- **`mcp-audit sbom` command** (`cli/sbom.py`): generates a CycloneDX 1.5 JSON SBOM for all configured MCP servers and their transitive dependencies. `cyclonedx-python-lib` is an optional `[sbom]` extra (not bundled in the PyInstaller binary); the command prints a clear install instruction if absent. Supports `--format cyclonedx` (default) and `--format terminal` (Rich dependency tree). `--output PATH` writes to file.
+- **`_network.py` — unified `--offline` contract**: `NetworkPolicy` dataclass + `require_offline_compatible()` replaces all scattered `if offline and <flag>` guards in `_preflight_checks`. Now covers `--verify-hashes`, `--verify-signatures`, `--check-vulns`, and `--connect` in one place.
+- `"vuln_mirror": frozenset({"pro", "enterprise"})` feature key added to `licensing.py`.
+
 ### Notes
-- Binary size advisory: the `sigstore` dependency tree (`betterproto`, `tuf`, `rfc3161-client`, `securesystemslib`) is expected to push the PyInstaller binary above the 22 MB target. Three mitigation options documented in `attestation/sigstore_client.py`; a rebuild is required before the next release cut to measure actual impact.
+- Binary size advisory: the `sigstore` dependency tree (`betterproto`, `tuf`, `rfc3161-client`, `securesystemslib`) is expected to push the PyInstaller binary above the 22 MB target. Three mitigation options documented in `attestation/sigstore_client.py`; a rebuild is required before the next release cut to measure actual impact. `cyclonedx-python-lib` excluded from PyInstaller specs to contain further growth.
 
 ---
 
