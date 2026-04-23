@@ -12,6 +12,63 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.9.0] - 2026-04-23 — License Revocation & Commercial Infrastructure
+
+### Added
+- **Bundled certificate revocation list** (`src/mcp_audit/data/revoked.json`): signed with the same Ed25519 keypair as license keys; `_load_revoked_kids()` reads and verifies the list once at module import and caches the result in `_REVOKED_KIDS: frozenset[str]`. Returns an empty frozenset on any parse, missing-file, or signature failure — scans never hard-fail because the CRL is unsigned or corrupt (graceful degradation during development with the placeholder key).
+- **`kid` and `sub` fields in license key payload**: `kid` (8-char lowercase hex, auto-generated via `secrets.token_hex(4)` if omitted) is the primary revocation handle, always included in new keys. `sub` (Lemon Squeezy order ID) is included when provided. Both fields are optional in `LicenseInfo` (`kid: str | None = None`, `subscription_id: str | None = None`) — existing keys without these fields are backward-compatible and treated as non-revocable (they expire naturally on their existing schedule).
+- **Revocation check in `verify_license()`**: if `kid` is present in `_REVOKED_KIDS`, the function returns `None` immediately. Legacy keys without a `kid` field bypass the revocation check.
+- **Thread-local failure discriminator** (`_set_last_verify_failure()` / `get_last_verify_failure()`): allows the CLI to surface `MCPA-LIC-REVOKED` vs `MCPA-LIC-EXPIRED` vs generic-invalid without leaking the reason into `LicenseInfo`. Error codes follow the `GOV-*` / `COMM-*` convention.
+- **Discriminated error messages in `cli/license.py`**: `activate` command checks `get_last_verify_failure()` after a failed key save and prints the appropriate message: "License revoked. Contact support@mcp-audit.dev with your order ID. [MCPA-LIC-REVOKED]", "License expired. [MCPA-LIC-EXPIRED]", or generic invalid.
+- **`sign-revocation-list` sub-command in `scripts/generate_license.py`**: emits a signed `revoked.json` ready to commit. Usage: `python scripts/generate_license.py sign-revocation-list --kids a1b2c3d4,deadbeef --key-file ~/.mcp-audit-signing-key.pem --out src/mcp_audit/data/revoked.json`.
+- **Operator audit log**: every key issuance appends a JSONL row to `~/.mcp-audit-issued-keys.jsonl` (permissions 0o600). Fields: `kid`, `email`, `sub`, `issued`, `expires`, `revoked`.
+- **`tests/test_licensing_revocation.py`**: 12 new tests covering backward compat, `_load_revoked_kids` (empty list, revoked kid, tampered signature, missing file, malformed JSON, placeholder empty signature), `verify_license` revocation paths (valid-unrevoked, revoked kid, legacy key without kid), and the 90-day default issuance window.
+- **No telemetry policy** (`docs/telemetry.md`): authoritative no-telemetry statement — what isn't collected, why, trade-offs accepted, and the bar any future opt-in change must clear. Linked from `docs/README.md` and `README.md`.
+
+### Changed
+- **Default key issuance window: 365 → 90 days** in `scripts/generate_license.py`. Natural expiry is the primary revocation mechanism; the bundled CRL is the break-glass for the 90-day window between a refund event and expiry.
+- `generate_license_key()` gains `kid` and `sub` optional kwargs; both conditionally included in the signed payload.
+- `GAPS.md` telemetry references consolidated to a single pointer to `docs/telemetry.md`.
+
+### Notes
+- The Cloudflare Worker webhook (Lemon Squeezy `order_created` → auto-issue, `order_refunded` → stop re-issuing) and the nightly GitHub Actions re-issue cron are a separate PR, pending domain and purchase URL going live.
+- `src/mcp_audit/data/revoked.json` ships with `"signature": ""` until the real Ed25519 private key is available; `_load_revoked_kids()` returns `frozenset()` for this case — no scan impact.
+
+---
+
+## [0.8.0] - 2026-04-23 — Integration Validation: SARIF Hardening & Browser Compatibility
+
+### Fixed
+- **SARIF `%SRCROOT%` resolution** (`output/sarif.py`): Added `originalUriBaseIds` to the SARIF run object, anchoring `%SRCROOT%` to `file:///` per SARIF 2.1.0 §3.14.14. GitHub's code scanning API requires this definition to resolve relative artifact paths to repo-root-relative links in the Security tab.
+- **SARIF `file:///unknown` fallback** (`output/sarif.py`): `_finding_to_file_uri` now returns the relative sentinel `"unknown"` instead of `"file:///unknown"` when `finding_path` is `None`. GitHub's SARIF uploader rejects the invalid absolute URI when `uriBaseId` is set; the relative form is accepted and gracefully omitted from source links.
+- Updated 3 assertions in `tests/test_sarif_output.py` to match the corrected `"unknown"` sentinel.
+
+### Added
+- **`automationDetails.id` in SARIF output** (`output/sarif.py`): Run ID derived from scan timestamp. Prevents GitHub from creating duplicate code scanning alerts on repeated uploads of the same findings.
+- **SARIF schema validation tests** (`tests/test_sarif_schema.py`): 10 tests validating mcp-audit SARIF output against the official OASIS SARIF 2.1.0 JSON schema (fetched once and cached at `tests/fixtures/sarif-schema-2.1.0.json`; tests skip gracefully if neither cache nor network is available). Covers run structure, `originalUriBaseIds` presence, `automationDetails`, finding shape, `uriBaseId` values, and version field.
+- **`jsonschema>=4.0` and `playwright>=1.40`** added to `[project.optional-dependencies] dev` in `pyproject.toml`.
+- **`docs/github-action.md` — SARIF upload verification guide**: 5-step manual checklist for confirming SARIF output reaches the GitHub Security tab, including common failure causes (`%SRCROOT%` unresolved, `file:///unknown` rejection, missing `write` permission on `security-events`).
+- **Dashboard browser compatibility tests** (`tests/test_dashboard_compat.py`): 7 tests total. Three parametrised Playwright tests (Chromium / Firefox / WebKit) verify no JS console errors, grade badge visible (`.grade-badge`), finding rows present (`.findings-table`), dark-mode toggle works (`.theme-toggle`), and SVG attack graph rendered (`#graph-svg`). Four structural tests run without a browser: no external CDN references in dashboard HTML, D3 bundled inline, scan data JSON embedded, grade letter present. Playwright tests skip gracefully when browser binaries are not installed.
+- **Playwright browser install step** in `.github/workflows/ci.yml`: runs `playwright install --with-deps chromium firefox webkit` on the `ubuntu-latest / 3.12` leg only, before the test step. Browser tests are skipped on all other matrix legs.
+- `GAPS.md` — "SARIF not tested with GitHub" and "Dashboard browser compatibility untested" items resolved (2026-04-23).
+
+---
+
+## [0.7.0] - 2026-04-23 — Platform Coverage & CI Hardening
+
+### Added
+- **End-to-end binary smoke test** (`scripts/smoke_test.py`): cross-platform Python script (stdlib only) that runs 8 checks against the built binary: `version`, `discover`, scan of a malicious fixture (asserts exit 1), JSON output validity (findings, score, per-finding keys), clean scan (asserts exit 0), `--severity-threshold critical` filtering, SARIF 2.1.0 structure, and baseline save/list/delete roundtrip.
+- **Smoke test fixture** (`tests/fixtures/smoke_test_config.json`): self-contained config with a poisoned server (triggers POISON-001) and a credential server (triggers credential finding via `sk-[A-Za-z0-9]{20,}` pattern). Used by both the binary smoke test and `tests/test_smoke_fixture.py`.
+- **`tests/test_smoke_fixture.py`**: 4 unit tests that keep the smoke fixture honest without requiring a binary build — verifies POISON-001, a credential finding, and at least one finding overall.
+- **Binary size gate** in `release.yml`: warns at 25 MB, fails at 35 MB. Actual size post-sigstore is ~22–24 MB; thresholds will be tightened after first rebuild measurement.
+- **Release job summary** (`report` job in `release.yml`): posts a binary-size table to the GitHub job summary after every release build.
+- **PR-level binary build** (`binary-smoke` job in `ci.yml`): builds the Linux x86_64 binary with PyInstaller and runs the full smoke test on every PR and push to `main`. Catches PyInstaller breakage before tagging.
+
+### Fixed
+- `release.yml` — replaced one-line `mcp-audit version` smoke test with the full 8-check `smoke_test.py` workflow on all four platforms.
+
+---
+
 ## [0.6.0] - 2026-04-23 — Supply Chain Layers 2 & 3
 
 ### Added
