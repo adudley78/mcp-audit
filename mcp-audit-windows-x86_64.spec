@@ -51,7 +51,7 @@ a = Analysis(
         'mcp_audit.cli.registry',
         'mcp_audit.cli.rules',
         'mcp_audit.cli.sast',
-        'mcp_audit.cli.scan',
+        'mcp_audit.cli.scan', 'mcp_audit.cli.sbom', 'mcp_audit._network', 'mcp_audit.output.base', 'mcp_audit.vulnerability.models', 'mcp_audit.vulnerability.resolver', 'mcp_audit.vulnerability.depsdev', 'mcp_audit.vulnerability.osv', 'mcp_audit.vulnerability.scanner',
         'cryptography.hazmat.primitives.asymmetric.ed25519',
         'cryptography.hazmat.primitives.serialization',
         'cryptography.exceptions',
@@ -59,7 +59,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['cyclonedx', 'packageurl', 'py_serializable', 'boolean', 'license_expression', 'defusedxml'],
     noarchive=False,
     optimize=0,
 )

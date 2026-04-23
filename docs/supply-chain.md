@@ -246,10 +246,82 @@ never be paywalled.
 
 ---
 
+## Layer 3: Known-Vulnerability Scanning
+
+Layer 3 extends supply chain security from *did this package change?* (Layer 1)
+and *was this build provenance-signed?* (Layer 2) to *does this package have
+known CVEs?* — including transitive dependencies.
+
+### `--check-vulns`
+
+```bash
+mcp-audit scan --check-vulns
+```
+
+When this flag is set, mcp-audit:
+
+1. Extracts the ecosystem (`npm` or `PyPI`), package name, and pinned version
+   from each server config (same extraction logic as `--verify-hashes`).
+2. Queries the [deps.dev](https://deps.dev) API for the full transitive
+   dependency graph of each resolved package.
+3. Submits all packages (top-level + transitive) to the
+   [OSV.dev](https://osv.dev) batch API, which returns advisories from
+   GitHub Advisory Database, NVD, PYSEC, and others.
+4. Emits a `VULN-<OSV-ID>` finding for each matched advisory.
+
+`--check-vulns` is **free for all tiers** and requires network access.
+It cannot be combined with `--offline`.
+
+### `--vuln-registry URL`
+
+```bash
+mcp-audit scan --check-vulns --vuln-registry https://your-osv-mirror.internal/v1/querybatch
+```
+
+Pro/Enterprise users can override the OSV API endpoint to point at an
+air-gapped or private mirror (for example, an OSV-compatible proxy behind a
+corporate firewall). The URL must implement the OSV `querybatch` POST contract.
+
+### `mcp-audit sbom`
+
+```bash
+mcp-audit sbom                          # write CycloneDX 1.5 JSON to stdout
+mcp-audit sbom --output sbom.json       # write to file
+mcp-audit sbom --format terminal        # pretty-print dependency tree
+mcp-audit sbom --offline                # top-level packages only (no deps.dev)
+mcp-audit sbom path/to/config.json      # scan a specific config
+```
+
+Generates a [CycloneDX 1.5](https://cyclonedx.org) SBOM document listing all
+MCP servers as components and any known VULN findings as CycloneDX
+`Vulnerability` objects. The output is valid JSON containing `bomFormat`,
+`specVersion`, `serialNumber`, `metadata`, `components`, and `vulnerabilities`
+fields. Compatible with SBOM tooling such as `grype`, `trivy`, and GitHub
+Dependency Review.
+
+`mcp-audit sbom` is **free for all tiers**.
+
+### Finding IDs
+
+| Finding ID     | Severity  | Meaning |
+|----------------|-----------|---------|
+| `VULN-<OSV-ID>` | CRITICAL / HIGH / MEDIUM / LOW | Known CVE in a direct or transitive dependency; severity derived from the advisory's qualitative rating |
+| `VULN-UNPINNED` | LOW | Server uses an unpinned (floating) version; vulnerability scan used the latest published version, which may differ from the actual runtime version |
+
+### The `--offline` contract
+
+`--check-vulns` and `mcp-audit sbom` (with transitive dep resolution) both
+require network access and exit with code 2 if `--offline` is also supplied.
+In offline mode, `mcp-audit sbom --offline` still produces a valid SBOM but
+lists only top-level packages (no transitive deps fetched from deps.dev) and
+includes no vulnerability entries.
+
+---
+
 ## Roadmap
 
 | Layer | Description | Status |
 |---|---|---|
 | Layer 1 | SHA-256 hash verification against registry pins | **Shipped** |
 | Layer 2 | Sigstore signature verification (cosign / sigstore-python) | **Shipped** |
-| Layer 3 | Dependency SBOM analysis (CycloneDX / SPDX) | Planned |
+| Layer 3 | Known-CVE scanning via deps.dev + OSV.dev; CycloneDX SBOM | **Shipped** |

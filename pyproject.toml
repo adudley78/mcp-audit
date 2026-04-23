@@ -50,6 +50,9 @@ mcp = [
     "mcp>=1.0",
     "httpx>=0.27,<1.0",  # SSE transport client (future use)
 ]
+sbom = [
+    "cyclonedx-python-lib>=7.0,<8.0",
+]
 
 [project.scripts]
 mcp-audit = "mcp_audit.cli:app"

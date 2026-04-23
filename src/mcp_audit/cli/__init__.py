@@ -101,6 +101,7 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     registry,
     rules,
     sast,
+    sbom,
     scan,
 )
 

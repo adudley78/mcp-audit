@@ -21,6 +21,7 @@ from rich.table import Table
 
 from mcp_audit import cli as _cli
 from mcp_audit._gate import gate
+from mcp_audit._network import NetworkPolicy, require_offline_compatible
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import (
@@ -143,6 +144,8 @@ def _preflight_checks(
     con: Console,
     path: Path | None = None,
     verify_signatures: bool = False,
+    check_vulns: bool = False,
+    connect: bool = False,
 ) -> None:
     """Validate incompatible flag combinations and user-supplied paths.
 
@@ -153,19 +156,13 @@ def _preflight_checks(
         con.print(f"[red]Error:[/red] Config path not found: {path}")
         raise typer.Exit(2)
 
-    if offline and verify_hashes:
-        con.print(
-            "[red]Error:[/red] --verify-hashes makes network requests "
-            "and cannot be used with --offline."
-        )
-        raise typer.Exit(2)
-
-    if offline and verify_signatures:
-        con.print(
-            "[red]Error:[/red] --verify-signatures makes network requests "
-            "and cannot be used with --offline."
-        )
-        raise typer.Exit(2)
+    policy = NetworkPolicy(
+        verify_hashes=verify_hashes,
+        verify_signatures=verify_signatures,
+        check_vulns=check_vulns,
+        connect=connect,
+    )
+    require_offline_compatible(policy, offline)
 
     if registry is not None and not registry.resolve().exists():
         con.print(f"[red]Registry file not found:[/red] {registry}")
@@ -433,6 +430,26 @@ def _apply_sast(
     return result
 
 
+def _apply_vuln_check(
+    result: ScanResult,
+    registry: Path | None,
+    offline_registry: bool,
+    vuln_registry_url: str | None,
+    console: Console,
+) -> ScanResult:
+    """Check for known CVEs in server dependencies via deps.dev + OSV.dev."""
+    from mcp_audit.vulnerability.scanner import check_vulnerabilities  # noqa: PLC0415
+
+    vuln_registry_obj = KnownServerRegistry(path=registry, offline=offline_registry)
+    findings = check_vulnerabilities(
+        result.servers,
+        vuln_registry_obj,
+        vuln_registry_url=vuln_registry_url,
+    )
+    result.findings.extend(findings)
+    return result
+
+
 def _apply_extensions(
     result: ScanResult,
     con: Console,
@@ -661,6 +678,19 @@ def scan(
             "(use with --verify-signatures)."
         ),
     ),
+    check_vulns: bool = typer.Option(  # noqa: B008
+        False,
+        "--check-vulns",
+        help=(
+            "Check server dependencies for known CVEs via deps.dev + OSV.dev "
+            "(requires network access; free for all tiers)."
+        ),
+    ),
+    vuln_registry: str | None = typer.Option(  # noqa: B008
+        None,
+        "--vuln-registry",
+        help="Custom OSV-compatible API endpoint (Pro: for air-gapped deployments).",
+    ),
     sast: Path | None = typer.Option(  # noqa: B008
         None,
         "--sast",
@@ -693,6 +723,9 @@ def scan(
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
+    if vuln_registry is not None and not gate("vuln_mirror", console):
+        vuln_registry = None  # soft-gate: proceed without the mirror
+
     _preflight_checks(
         offline,
         verify_hashes,
@@ -701,6 +734,8 @@ def scan(
         console,
         path=path,
         verify_signatures=verify_signatures,
+        check_vulns=check_vulns,
+        connect=connect,
     )
 
     analyzers = _build_custom_analyzers(registry, offline_registry)
@@ -727,6 +762,11 @@ def scan(
             offline_registry,
             strict=strict_signatures,
             console=console,
+        )
+
+    if check_vulns:
+        result = _apply_vuln_check(
+            result, registry, offline_registry, vuln_registry, console
         )
 
     _surface_user_path_errors(result, extra_paths, console)
