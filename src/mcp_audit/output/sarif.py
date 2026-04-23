@@ -112,6 +112,10 @@ def _build_rule(finding: Finding) -> dict:
         "name": _rule_name_from_title(finding.title),
         "shortDescription": {"text": finding.title},
         "fullDescription": {"text": finding.description},
+        # SARIF 2.1.0 §3.49.11: `help` carries free-text remediation advice.
+        # This is the correct home for actionable guidance; the `fixes` field
+        # (§3.55) is reserved for structured byte-level code patches only.
+        "help": {"text": finding.remediation},
         "helpUri": _HELP_URI,
         "defaultConfiguration": {"level": _LEVEL_MAP[finding.severity]},
         "properties": {"tags": tags},
@@ -157,7 +161,6 @@ def _build_result(finding: Finding, rule_index: int) -> dict:
                 }
             }
         ],
-        "fixes": [{"description": {"text": finding.remediation}}],
     }
 
     return result
@@ -202,11 +205,17 @@ def format_sarif(
         asset_prefix if asset_prefix is not None else result.machine.hostname
     )
 
+    # SARIF 2.1.0 §3.20 declares `invocation` with `additionalProperties: false`,
+    # so custom fields must go inside the `properties` (propertyBag) key.
     invocation = {
         "executionSuccessful": True,
-        "machine": effective_machine,
-        "account": result.machine.username,
-        "operatingSystem": f"{result.machine.os} {result.machine.os_version}".strip(),
+        "properties": {
+            "machine": effective_machine,
+            "account": result.machine.username,
+            "operatingSystem": (
+                f"{result.machine.os} {result.machine.os_version}".strip()
+            ),
+        },
     }
 
     run: dict = {

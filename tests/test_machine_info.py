@@ -260,27 +260,27 @@ class TestSarifFormatter:
     def test_machine_in_invocation(self) -> None:
         result = _make_result(machine=_make_machine(hostname="sarif-host"))
         doc = self._doc(result)
-        inv = doc["runs"][0]["invocations"][0]
-        assert inv["machine"] == "sarif-host"
+        props = doc["runs"][0]["invocations"][0]["properties"]
+        assert props["machine"] == "sarif-host"
 
     def test_account_in_invocation(self) -> None:
         result = _make_result(machine=_make_machine(username="dave"))
         doc = self._doc(result)
-        inv = doc["runs"][0]["invocations"][0]
-        assert inv["account"] == "dave"
+        props = doc["runs"][0]["invocations"][0]["properties"]
+        assert props["account"] == "dave"
 
     def test_operating_system_in_invocation(self) -> None:
         result = _make_result(machine=_make_machine(os="Darwin", os_version="24.0.0"))
         doc = self._doc(result)
-        inv = doc["runs"][0]["invocations"][0]
-        assert "Darwin" in inv["operatingSystem"]
-        assert "24.0.0" in inv["operatingSystem"]
+        props = doc["runs"][0]["invocations"][0]["properties"]
+        assert "Darwin" in props["operatingSystem"]
+        assert "24.0.0" in props["operatingSystem"]
 
     def test_asset_prefix_overrides_machine_in_invocation(self) -> None:
         result = _make_result(machine=_make_machine(hostname="MacBookAir"))
         doc = self._doc(result, asset_prefix="ASSET-9999")
-        inv = doc["runs"][0]["invocations"][0]
-        assert inv["machine"] == "ASSET-9999"
+        props = doc["runs"][0]["invocations"][0]["properties"]
+        assert props["machine"] == "ASSET-9999"
 
     def test_execution_successful_flag(self) -> None:
         result = _make_result(machine=_make_machine())
@@ -291,7 +291,8 @@ class TestSarifFormatter:
     def test_no_prefix_arg_uses_hostname(self) -> None:
         result = _make_result(machine=_make_machine(hostname="real-machine"))
         doc = self._doc(result)
-        assert doc["runs"][0]["invocations"][0]["machine"] == "real-machine"
+        props = doc["runs"][0]["invocations"][0]["properties"]
+        assert props["machine"] == "real-machine"
 
 
 # ── Terminal formatter ────────────────────────────────────────────────────────

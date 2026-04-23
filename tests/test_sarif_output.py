@@ -381,9 +381,11 @@ class TestResultFields:
         uri = self.result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
         assert "mcp.json" in uri
 
-    def test_fix_description_matches_remediation(self) -> None:
-        fix_text = self.result["fixes"][0]["description"]["text"]
-        assert fix_text == self.finding.remediation
+    def test_remediation_in_rule_help(self) -> None:
+        """Remediation text is in rule.help.text (SARIF §3.49.11), not fixes."""
+        doc = _parse(_make_result(findings=[self.finding]))
+        rule = _run(doc)["tool"]["driver"]["rules"][0]
+        assert rule["help"]["text"] == self.finding.remediation
 
     def test_missing_finding_path_uses_unknown(self) -> None:
         # Relative sentinel "unknown" is used instead of the invalid "file:///unknown".

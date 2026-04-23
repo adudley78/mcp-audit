@@ -861,6 +861,7 @@ sbom = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "playwright" },
     { name = "pytest-cov" },
 ]
 
@@ -890,7 +891,10 @@ requires-dist = [
 provides-extras = ["dev", "mcp", "sbom"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest-cov", specifier = ">=7.1.0" }]
+dev = [
+    { name = "playwright", specifier = ">=1.58.0" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+]
 
 [[package]]
 name = "mdurl"
