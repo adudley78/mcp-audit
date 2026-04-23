@@ -1,0 +1,69 @@
+{
+  "mcpServers": {
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "@linear/mcp-server"],
+      "env": {
+        "LINEAR_API_KEY": ""
+      }
+    },
+    "stripe": {
+      "command": "npx",
+      "args": ["-y", "@stripe/agent-toolkit"],
+      "env": {
+        "STRIPE_SECRET_KEY": ""
+      }
+    },
+    "mcp-server-sqlite": {
+      "command": "uvx",
+      "args": ["mcp-server-sqlite", "--db-path", "/Users/dev/mydb.sqlite"]
+    },
+    "aws-kb-retrieval": {
+      "command": "npx",
+      "args": ["-y", "aws-kb-retrieval-server"],
+      "env": {
+        "AWS_ACCESS_KEY_ID": "",
+        "AWS_SECRET_ACCESS_KEY": "",
+        "AWS_REGION": ""
+      }
+    },
+    "mcp-server-qdrant": {
+      "command": "uvx",
+      "args": ["mcp-server-qdrant"],
+      "env": {
+        "QDRANT_URL": "",
+        "QDRANT_API_KEY": "",
+        "COLLECTION_NAME": ""
+      }
+    },
+    "exa": {
+      "command": "npx",
+      "args": ["-y", "exa-mcp-server"],
+      "env": {
+        "EXA_API_KEY": ""
+      }
+    },
+    "mcp-server-kubernetes": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-kubernetes"]
+    },
+    "mcp-server-docker": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-docker"]
+    },
+    "notion": {
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": {
+        "OPENAPI_MCP_HEADERS": ""
+      }
+    },
+    "mcp-perplexity": {
+      "command": "npx",
+      "args": ["-y", "mcp-perplexity"],
+      "env": {
+        "PERPLEXITY_API_KEY": ""
+      }
+    }
+  }
+}

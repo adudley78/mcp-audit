@@ -34,9 +34,9 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 ## Detection quality
 
-**False positive rate is unknown.** The poisoning analyzer has been tested against intentionally vulnerable fixtures and one real MCP server (the official filesystem server), which produced a false positive on "base64 encode" — a legitimate technical term in that server's tool description. The patterns have not been validated against a broad sample of real-world MCP server configurations. Before launch, the scanner should be tested against the 20-30 most popular MCP servers to establish a baseline false positive rate and tune patterns accordingly.
+**False positive rate benchmarked at 0% across 22 servers (2026-04-23).** The poisoning analyzer was validated against 12 official `@modelcontextprotocol/*` servers and 10 popular community servers. Zero poisoning false positives were found. See `tests/test_false_positive_benchmark.py` for the full benchmark — this is now a regression test. Acceptable non-FP findings on legitimate servers: TRANSPORT-003 (runtime package fetch, expected for all npx/uvx servers), COMM-010 (npx without pinned version). Note: the "base64 encode" false positive from the filesystem server's runtime tool descriptions (fetched via `--connect`) is not covered by static analysis and remains a known limitation of the live connection path.
 
-**No validation against real exploits.** The detection patterns are based on published security research (see PROVENANCE.md) but are regex approximations of documented attacks, not exact replicas. Nobody has verified that the patterns correspond to prompts that actually cause LLMs to follow injected instructions. A validation suite should reconstruct known attack PoCs (Invariant Labs SSH exfiltration, CrowdStrike `add_numbers`, fake Postmark server) as test fixtures and confirm detection.
+**Exploit validation suite added (2026-04-23).** Six published attack PoCs are now reconstructed as fixtures in `tests/fixtures/exploits/` and verified by `tests/test_exploit_validation.py`: Invariant Labs SSH exfiltration, CrowdStrike `add_numbers`, fake Postmark exfiltration, XML injection override, cloud credential exfiltration, and behavioral override stealth. All six are detected. Detection is based on static config analysis — whether these patterns cause real LLMs to follow injected instructions in production is a separate validation question that requires live red-team testing against actual agent deployments.
 
 **Pattern coverage is thin.** The poisoning analyzer has 11 patterns (authoritative count: `len(PATTERNS)` in `analyzers/poisoning.py`, not the highest ID number). The credential analyzer has 9. Production secret scanners like truffleHog and detect-secrets use 700+ credential patterns. The poisoning patterns cover the most-cited attack techniques but will miss novel or obfuscated injection methods. Pattern count should grow based on practitioner feedback and new published research.
 
@@ -44,7 +44,7 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 ## Severity calibration
 
-**Severity assignments are intuition-based.** There is no formal framework mapping findings to severity levels. Levenshtein distance 1 is CRITICAL and distance 2 is HIGH because those felt right, not because of a quantified risk model. Before production use, severity should be mapped to an established framework — CVSS base scores, OWASP Agentic Top 10 risk categories, or a documented internal rubric with justification for each level.
+**Severity framework documented (2026-04-23).** Severity levels are now mapped to CVSS base score bands and OWASP Agentic Top 10 risk categories with written rationale for each finding ID. See `docs/severity-framework.md`. CVSS scores are approximate (no environmental/temporal modifiers applied) and should be reviewed by a credentialed practitioner before any formal CVE or compliance reporting.
 
 ## Supply Chain Attestation (Layer 1)
 

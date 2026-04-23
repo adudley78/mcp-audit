@@ -1,0 +1,69 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/dev/projects"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      }
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": ""
+      }
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
+    },
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "",
+        "SLACK_TEAM_ID": ""
+      }
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost:5432/mydb"]
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "/Users/dev/projects/myrepo"]
+    },
+    "gitlab": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-gitlab"],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "",
+        "GITLAB_API_URL": ""
+      }
+    },
+    "google-drive": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-google-drive"]
+    },
+    "google-maps": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-google-maps"],
+      "env": {
+        "GOOGLE_MAPS_API_KEY": ""
+      }
+    }
+  }
+}
