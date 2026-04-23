@@ -146,7 +146,8 @@ exercise the license file path end-to-end (no real license key is available in C
 
 **No license revocation mechanism.** Issued keys are valid until their expiry date. There is no way to invalidate a specific key before it expires — the only mitigation is to rotate the signing keypair (which also invalidates all outstanding keys).
 
-**No telemetry on Pro feature usage.** By design (privacy-first), there is no tracking of who uses Pro features or how often. This means no conversion data from the gating implementation.
+**No telemetry or usage analytics.** By design. See `docs/telemetry.md` for
+the full rationale and the bar any future opt-in change must clear.
 
 **Purchase URL is a placeholder.** `https://mcp-audit.dev/pro` appears throughout the codebase but the domain is not yet registered or configured. Replace before any public release.
 
@@ -368,7 +369,7 @@ across machines (Enterprise, post-launch roadmap).
 - **Multi-arch binary CI release matrix** — GitHub Actions matrix builds for `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` not yet set up
 - **pip packaging and TestPyPI dry run** — installable from source only (PyInstaller binary available as alternative; `pip install mcp-audit` used in the action but not yet on PyPI)
 - **Documentation beyond README** — no usage guide, Nucleus integration guide (scoring, registry, and rule-writing docs now exist in `docs/`)
-- **Telemetry or usage analytics** — no way to measure adoption (intentional for privacy-first positioning, but limits success measurement)
+- **Telemetry or usage analytics** — deliberately absent; see `docs/telemetry.md`.
 - **Registry auto-growth** — the known-server registry requires manual contributions as the MCP ecosystem grows; `update-registry` pulls the latest committed version but does not discover new servers automatically
 
 ## Security limitations

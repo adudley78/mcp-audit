@@ -5,6 +5,7 @@
 | [docs-usage.md](docs-usage.md) | Getting started, all CLI commands and flags, common workflows |
 | [github-action.md](github-action.md) | GitHub Action setup, example workflows, exit code behaviour |
 | [scoring.md](scoring.md) | Scan score methodology, grade thresholds, score/filter interaction |
+| [telemetry.md](telemetry.md) | Privacy policy: what mcp-audit does and does not collect |
 | [baselines.md](baselines.md) | Baseline snapshot workflow, drift detection, commands |
 | [governance.md](governance.md) | Governance policy schema, quickstart, worked examples |
 | [writing-rules.md](writing-rules.md) | Policy-as-code YAML rule format, match types, contributing |

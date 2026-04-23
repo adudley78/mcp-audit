@@ -4,6 +4,9 @@
 
 **Privacy-first security scanner for MCP server configurations.**
 
+**Privacy-first:** mcp-audit collects no telemetry. Every scan runs locally.
+See [docs/telemetry.md](docs/telemetry.md) for the full policy.
+
 MCP (Model Context Protocol) servers give AI agents access to your tools, files, APIs, and databases. Misconfigured or malicious servers can exfiltrate credentials, poison tool behavior, and compromise your development environment — without anything appearing in the UI.
 
 `mcp-audit` scans your local MCP configurations across all major AI coding clients, connects to running servers to inspect what agents actually see, and flags security issues across individual servers and dangerous cross-server combinations.
