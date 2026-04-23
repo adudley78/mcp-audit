@@ -12,6 +12,21 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.10.0] - 2026-04-23 — Nucleus FlexConnect Integration
+
+### Added
+- **`mcp-audit push-nucleus` command** (`src/mcp_audit/cli/push_nucleus.py`): Enterprise-gated command that runs a full scan and pushes results directly to a Nucleus Security project via the FlexConnect API. Multipart/form-data upload via `urllib.request` (no third-party HTTP lib). Polls job to completion with configurable timeout. Prints a Rich success panel with project ID, job ID, finding count, asset name, and a direct UI link. `--output-file` writes the FlexConnect JSON locally alongside the push. 11 tests in `tests/test_push_nucleus.py`.
+- **Validated FlexConnect schema** (`src/mcp_audit/output/nucleus.py`): corrected from placeholder format to the live-validated schema. Top-level `assets` array defines the host asset; top-level `findings` array references it via `host_name`; `scan_type` is `"Host"`. Previously the formatter used a flat `host_name`/`asset_name` structure that was rejected by Nucleus ingestion ("Scan did not have any assets defined"). Validated against nucleus-demo.nucleussec.com.
+- **`scripts/validate_nucleus.py`**: retained as a standalone regression/validation tool for testing the FlexConnect shape against a live instance without running a full scan.
+
+### Changed
+- `_finding_to_nucleus()` now sets `host_name` per finding (linking to the `assets` entry) instead of `asset_name` with `{prefix}/{client}/{server}` formatting.
+- `format_nucleus()`: `scan_type` changed from `"Application"` to `"Host"`; top-level `host_name`/`operating_system_name` envelope fields replaced by the `assets` array.
+- `tests/test_nucleus_output.py`: 3 tests updated, 4 new tests added for the `assets` array structure.
+- `tests/test_machine_info.py`: 7 stale `TestNucleusFormatter` tests updated to match the corrected format.
+
+---
+
 ## [0.9.0] - 2026-04-23 — License Revocation & Commercial Infrastructure
 
 ### Added
