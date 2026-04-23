@@ -15,7 +15,6 @@ Requires: playwright install (installs browser binaries, ~300 MB)
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -78,13 +77,11 @@ def _make_scan_result(tmp_path: Path) -> ScanResult:
 
 @pytest.fixture(scope="module")
 def dashboard_html(tmp_path_factory: pytest.TempPathFactory) -> str:
-    """Render the dashboard once (Pro gate open); reuse across all browser tests."""
+    """Render the dashboard once; reuse across all browser tests."""
     tmp = tmp_path_factory.mktemp("dashboard")
     result = _make_scan_result(tmp)
-    _target = "mcp_audit.output.dashboard.is_pro_feature_available"
-    with patch(_target, return_value=True):
-        html = generate_html(result)
-    assert html is not None, "generate_html returned None despite Pro gate being open"
+    html = generate_html(result)
+    assert html, "generate_html returned empty/None output"
     return html
 
 

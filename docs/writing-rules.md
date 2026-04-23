@@ -5,9 +5,10 @@ write custom detection rules in YAML without modifying Python code. Rules produc
 standard `Finding` objects that appear in all output formats (terminal, JSON,
 SARIF, HTML dashboard, Nucleus FlexConnect).
 
-**Running bundled community rules is free** for all users including Community tier.
-**Authoring tools** (`rule validate`, `rule test`) and **custom rule directories**
-(`--rules-dir`, `~/.config/mcp-audit/rules/`) require a Pro or Enterprise license.
+**Bundled community rules run on every scan** for every user. Authoring tools
+(`rule validate`, `rule test`) and custom rule directories (`--rules-dir`,
+`~/.config/mcp-audit/rules/`) are also available to every user — mcp-audit is
+fully open source (Apache 2.0).
 
 ---
 
@@ -318,7 +319,7 @@ mcp-audit rule validate rules/community/COMM-001.yml
 ```
 
 Parses the rule file and prints a table of loaded rules. Exits 0 if valid, 1 if
-any errors. Requires Pro license.
+any errors.
 
 ### Test against a config
 
@@ -337,7 +338,7 @@ Shows a table of all rules × all servers with match results:
 └──────────────────┴─────────┴─────────────────┴──────────┴───────────────┘
 ```
 
-Exit code is always 0 — this is a development tool, not a gate. Requires Pro.
+Exit code is always 0 — this is a development tool, not a gate.
 
 ### List all loaded rules
 
@@ -345,14 +346,13 @@ Exit code is always 0 — this is a development tool, not a gate. Requires Pro.
 mcp-audit rule list
 ```
 
-Shows all bundled community rules plus user-local rules (Pro users). Free for
-all tiers.
+Shows all bundled community rules plus user-local rules.
 
 ---
 
 ## Where to put rules
 
-### User-local rules (Pro)
+### User-local rules
 
 Place YAML files in `~/.config/mcp-audit/rules/`. They are loaded automatically
 on every scan. User rules take precedence over community rules on ID conflicts.
@@ -366,7 +366,7 @@ on every scan. User rules take precedence over community rules on ID conflicts.
 ### Temporary scan-time rules
 
 Pass `--rules-dir PATH` to `mcp-audit scan` to load rules for a single scan
-without installing them globally. Requires Pro.
+without installing them globally.
 
 ```bash
 mcp-audit scan --rules-dir ./my-org-rules/
@@ -377,8 +377,7 @@ mcp-audit scan --rules-dir ./my-org-rules/
 ## Contributing community rules
 
 Community rules in `rules/community/` ship with every mcp-audit installation and
-run for all users including the free Community tier. Every rule contributed makes
-the scanner better for everyone.
+run for every user. Every rule contributed makes the scanner better for everyone.
 
 ### Naming conventions
 
@@ -421,15 +420,12 @@ The maintainers review PRs for:
 
 ---
 
-## Pro license requirement
+## Availability
 
-| Feature | Community | Pro | Enterprise |
-|---------|-----------|-----|-----------|
-| Bundled community rules (run automatically) | ✓ | ✓ | ✓ |
-| `rule list` | ✓ | ✓ | ✓ |
-| `rule validate` | — | ✓ | ✓ |
-| `rule test` | — | ✓ | ✓ |
-| `--rules-dir` custom directories | — | ✓ | ✓ |
-| `~/.config/mcp-audit/rules/` user-local rules | — | ✓ | ✓ |
+Every rule-authoring command is available to every user — mcp-audit is
+fully open source (Apache 2.0):
 
-Upgrade: [https://mcp-audit.dev/pro](https://mcp-audit.dev/pro)
+- Bundled community rules run automatically on every scan.
+- `rule validate`, `rule test`, `rule list` all ship in the standard CLI.
+- `--rules-dir` custom directories and `~/.config/mcp-audit/rules/`
+  user-local rules are loaded by every install.

@@ -37,7 +37,7 @@ semgrep --config semgrep-rules/python/credentials/ path/to/server/
 semgrep --config semgrep-rules/typescript/ path/to/server/
 ```
 
-### Via mcp-audit (Pro feature)
+### Via mcp-audit
 
 Merge SAST findings into the unified scan output:
 

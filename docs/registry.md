@@ -28,7 +28,7 @@ When the supply chain analyzer loads the registry, it searches in this order:
 5. **Dev / editable install fallback** — `registry/known-servers.json`
    relative to the repo root
 
-## Updating the Registry (Pro)
+## Updating the Registry
 
 ```
 mcp-audit update-registry
@@ -36,7 +36,7 @@ mcp-audit update-registry
 
 Fetches the latest registry from the mcp-audit GitHub repository and saves it
 to the user-local cache. On the next scan, the updated registry is used
-automatically. Requires a Pro or Enterprise license.
+automatically.
 
 On failure (network error, malformed JSON), the command prints an error and
 exits with code 2. The existing cached registry is never overwritten on failure.

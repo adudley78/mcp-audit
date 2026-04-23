@@ -353,26 +353,14 @@ class TestSupplyChainAnalyzerUsesRegistry:
         assert analyzer.analyze(server) == []
 
 
-# ── update-registry Pro gate ───────────────────────────────────────────────────
+# ── update-registry command ───────────────────────────────────────────────────
 
 
-class TestUpdateRegistryProGate:
-    """update-registry must show an upgrade message for Community users."""
+class TestUpdateRegistry:
+    """update-registry fetches and writes the registry cache for all users."""
 
-    def test_community_user_sees_upgrade_message(self) -> None:
-        from typer.testing import CliRunner  # noqa: PLC0415
-
-        from mcp_audit.cli import app  # noqa: PLC0415
-
-        runner = CliRunner()
-        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
-            result = runner.invoke(app, ["update-registry"])
-
-        assert result.exit_code == 0
-        assert "Pro feature" in result.output or "Upgrade" in result.output
-
-    def test_pro_user_proceeds_to_fetch(self, tmp_path: Path) -> None:
-        """A Pro user with a reachable URL must write the cache file."""
+    def test_update_registry_writes_cache(self, tmp_path: Path) -> None:
+        """update-registry fetches the remote registry and writes the cache file."""
         from typer.testing import CliRunner  # noqa: PLC0415
 
         from mcp_audit.cli import app  # noqa: PLC0415
@@ -401,7 +389,6 @@ class TestUpdateRegistryProGate:
 
         runner = CliRunner()
         with (
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch("mcp_audit.cli._REGISTRY_CACHE_PATH", cache_path),
             patch("urllib.request.urlopen") as mock_urlopen,
         ):
@@ -416,62 +403,6 @@ class TestUpdateRegistryProGate:
         assert result.exit_code == 0
         assert "Registry updated" in result.output
         assert cache_path.exists()
-
-    def test_update_registry_uses_dedicated_feature_key(self) -> None:
-        """is_pro_feature_available("update_registry") must return False for
-        Community tier and True for Pro/Enterprise tier."""
-        from mcp_audit.licensing import is_pro_feature_available  # noqa: PLC0415
-
-        with patch("mcp_audit.licensing.get_active_license", return_value=None):
-            assert is_pro_feature_available("update_registry") is False
-
-        from datetime import date  # noqa: PLC0415
-
-        from mcp_audit.licensing import LicenseInfo  # noqa: PLC0415
-
-        pro_license = LicenseInfo(
-            tier="pro",
-            email="test@example.com",
-            issued=date(2026, 1, 1),
-            expires=date(2027, 1, 1),
-            is_valid=True,
-        )
-        with patch("mcp_audit.licensing.get_active_license", return_value=pro_license):
-            assert is_pro_feature_available("update_registry") is True
-
-        enterprise_license = LicenseInfo(
-            tier="enterprise",
-            email="test@example.com",
-            issued=date(2026, 1, 1),
-            expires=date(2027, 1, 1),
-            is_valid=True,
-        )
-        with patch(
-            "mcp_audit.licensing.get_active_license", return_value=enterprise_license
-        ):
-            assert is_pro_feature_available("update_registry") is True
-
-    def test_update_registry_gate_no_longer_uses_html_report_key(self) -> None:
-        """The update-registry command must gate on the 'update_registry'
-        feature key, not 'html_report'."""
-        import inspect  # noqa: PLC0415
-
-        from mcp_audit.cli import registry as cli_registry  # noqa: PLC0415
-
-        source = inspect.getsource(cli_registry)
-        func_start = source.find("def update_registry(")
-        assert func_start != -1, (
-            "update_registry function not found in mcp_audit.cli.registry"
-        )
-        func_source = source[func_start : func_start + 500]
-        # Accept either the direct helper call or the new gate() indirection,
-        # as long as the correct feature key is referenced.
-        assert (
-            'cached_is_pro_feature_available("update_registry")' in func_source
-            or 'gate("update_registry"' in func_source
-        )
-        assert 'cached_is_pro_feature_available("html_report")' not in func_source
-        assert 'gate("html_report"' not in func_source
 
 
 # ── levenshtein (registry module) ─────────────────────────────────────────────

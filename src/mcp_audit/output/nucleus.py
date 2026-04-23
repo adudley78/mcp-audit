@@ -19,12 +19,8 @@ from __future__ import annotations
 import json
 
 from rich.console import Console
-from rich.panel import Panel
 
-from mcp_audit.licensing import is_pro_feature_available
 from mcp_audit.models import Finding, ScanResult, Severity
-
-_console = Console()
 
 # Maps our internal severity enum to Nucleus-accepted string values.
 _SEVERITY_MAP: dict[Severity, str] = {
@@ -68,8 +64,8 @@ def _finding_to_nucleus(finding: Finding, host_name: str) -> dict[str, str]:
 def format_nucleus(
     result: ScanResult,
     asset_prefix: str | None = None,
-    console: Console | None = None,
-) -> str | None:
+    console: Console | None = None,  # noqa: ARG001
+) -> str:
     """Format a ScanResult as a Nucleus FlexConnect JSON string.
 
     The returned string is a complete, self-contained JSON document ready
@@ -87,25 +83,12 @@ def format_nucleus(
     Args:
         result: The completed scan result to format.
         asset_prefix: Override the hostname used as the asset identifier.
+        console: Unused; retained for backward compatibility with the legacy
+            gating signature.
 
     Returns:
-        Pretty-printed JSON string conforming to the FlexConnect schema, or
-        ``None`` if the feature is not available under the current license.
+        Pretty-printed JSON string conforming to the FlexConnect schema.
     """
-    _con = console or _console
-    if not is_pro_feature_available("nucleus"):
-        _con.print(
-            Panel(
-                "[bold]Nucleus FlexConnect output requires mcp-audit Enterprise.[/bold]\n\n"  # noqa: E501
-                "Your scan completed successfully. Results are available in terminal, JSON, and SARIF formats.\n\n"  # noqa: E501
-                "Upgrade to Enterprise: [link=https://mcp-audit.dev/pro]https://mcp-audit.dev/pro[/link]\n"
-                "Already have a key? Run: [bold]mcp-audit activate <your-key>[/bold]",
-                title="Enterprise Feature",
-                border_style="yellow",
-            )
-        )
-        return None
-
     scan_date = result.timestamp.strftime("%Y-%m-%d %H:%M:%S")
     host_name = asset_prefix if asset_prefix is not None else result.machine.hostname
 

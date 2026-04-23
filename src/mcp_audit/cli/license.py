@@ -19,12 +19,7 @@ from mcp_audit.licensing import (
 @app.command()
 def version() -> None:
     """Show version information."""
-    info = get_active_license()
-    if info is not None and info.is_valid:
-        tier_label = info.tier.capitalize()
-    else:
-        tier_label = "Community"
-    console.print(f"mcp-audit {__version__} ({tier_label})")
+    console.print(f"mcp-audit {__version__}")
 
 
 # ── activate ──────────────────────────────────────────────────────────────────
@@ -34,7 +29,13 @@ def version() -> None:
 def activate(
     key: str = typer.Argument(help="License key string to activate"),  # noqa: B008
 ) -> None:
-    """Activate a Pro or Enterprise license key."""
+    """Activate a previously issued license key.
+
+    mcp-audit is now fully open source (Apache 2.0) and every feature is
+    available to every user — activation is no longer required.  This command
+    is retained so users who were issued a key before the open-source pivot
+    can still verify and record it on their machine.
+    """
     try:
         info: LicenseInfo = save_license(key)
     except ValueError:
@@ -45,16 +46,14 @@ def activate(
                 "your order ID if this is in error. [MCPA-LIC-REVOKED]"
             )
         elif reason == "expired":
-            console.print(
-                "[yellow]✗ License expired.[/yellow] [MCPA-LIC-EXPIRED]"
-            )
+            console.print("[yellow]✗ License expired.[/yellow] [MCPA-LIC-EXPIRED]")
         else:
             console.print(
                 "[red]✗ Invalid license key. Check your key and try again.[/red]"
             )
             console.print(
-                "  Purchase a license at [link=https://mcp-audit.dev/pro]"
-                "https://mcp-audit.dev/pro[/link]"
+                "  mcp-audit is fully open source — a license key is not "
+                "required; every feature is available to every user."
             )
         raise typer.Exit(2)  # noqa: B904
 
@@ -72,16 +71,19 @@ def license() -> None:  # noqa: A001
     """Show current license status."""
     info = get_active_license()
     if info is None:
-        console.print("[bold]mcp-audit Community (free)[/bold]")
+        console.print("[bold]mcp-audit (Apache 2.0, fully open source)[/bold]")
         console.print(
-            "  Upgrade to Pro: [link=https://mcp-audit.dev/pro]"
-            "https://mcp-audit.dev/pro[/link]"
+            "  No license key activated — every feature is already available. "
+            "Support development via GitHub Sponsors."
         )
         return
 
     status = "[green]Active[/green]" if info.is_valid else "[red]Expired[/red]"
     tier_label = info.tier.capitalize()
-    console.print(f"[bold]mcp-audit {tier_label}[/bold]")
+    console.print(f"[bold]mcp-audit — legacy {tier_label} key[/bold]")
     console.print(f"  Email:   {info.email}")
     console.print(f"  Expires: {info.expires.isoformat()}")
     console.print(f"  Status:  {status}")
+    console.print(
+        "  Note: gating has been removed; all features are available to all users."
+    )

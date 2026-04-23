@@ -1040,27 +1040,6 @@ class TestRulesDirFlag:
         custom_findings = [f for f in result.findings if f.id == "CUSTOM-001"]
         assert len(custom_findings) >= 1
 
-    def test_rules_dir_cli_requires_pro(self, tmp_path: Path) -> None:
-        """--rules-dir prints a warning and skips custom rules when not Pro."""
-        config = tmp_path / "mcp.json"
-        config.write_text('{"mcpServers": {}}')
-        rules_dir = tmp_path / "rules"
-        rules_dir.mkdir()
-        self._write_custom_rule(rules_dir)
-
-        runner = CliRunner()
-        with (
-            _patch_no_known_clients(),
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False),
-        ):
-            result = runner.invoke(
-                app,
-                ["scan", "--path", str(config), "--rules-dir", str(rules_dir)],
-            )
-        assert "Pro" in result.output or "Enterprise" in result.output
-        # Scan still succeeds — community rules run, custom rules are skipped.
-        assert result.exit_code in (0, 1)
-
     def test_rules_dir_cli_loads_rules_when_pro(self, tmp_path: Path) -> None:
         """--rules-dir loads rules and their findings appear in JSON output."""
         config = tmp_path / "mcp.json"

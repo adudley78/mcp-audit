@@ -1,9 +1,9 @@
 """Thin process-lifetime cache for get_active_license().
 
-licensing.py is marked do-not-modify.  This shim wraps get_active_license()
-with functools.lru_cache so the license file is read and Ed25519-verified at
-most once per process, regardless of how many times is_pro_feature_available()
-is called.
+mcp-audit is now fully open source; all features are available to every user
+and :func:`cached_is_pro_feature_available` always returns ``True``.  The
+cached license lookup is retained so ``mcp-audit license`` / ``mcp-audit
+version`` can still display details for users who previously activated a key.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 import functools
 
 import mcp_audit.licensing as _licensing_mod
-from mcp_audit.licensing import _FEATURE_TIERS, LicenseInfo
+from mcp_audit.licensing import LicenseInfo, is_pro_feature_available
 
 
 @functools.lru_cache(maxsize=1)
@@ -25,24 +25,10 @@ def get_cached_license() -> LicenseInfo | None:
 
 
 def cached_is_pro_feature_available(feature_name: str) -> bool:
-    """Return True if the cached active license includes *feature_name*.
+    """Return ``True`` — all features are available.
 
-    Mirrors the logic of licensing.is_pro_feature_available() but uses the
-    cached result of get_active_license() instead of re-reading the file.
-
-    Args:
-        feature_name: A feature key from ``_FEATURE_TIERS``.
-
-    Returns:
-        ``True`` when the active, unexpired license tier includes the feature.
-        ``False`` for an unrecognised feature, no license, or expired license.
+    Thin delegator to :func:`mcp_audit.licensing.is_pro_feature_available`,
+    retained as the integration point for existing test patches at
+    ``mcp_audit.cli.cached_is_pro_feature_available``.
     """
-    required_tiers = _FEATURE_TIERS.get(feature_name)
-    if required_tiers is None:
-        return False
-
-    info = get_cached_license()
-    if info is None or not info.is_valid:
-        return False
-
-    return info.tier in required_tiers
+    return is_pro_feature_available(feature_name)

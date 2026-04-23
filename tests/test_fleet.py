@@ -669,31 +669,6 @@ def test_cli_merge_output_file_writes_json(tmp_path: Path) -> None:
     assert parsed["machine_count"] == 1
 
 
-# ── Enterprise gate ───────────────────────────────────────────────────────────
-
-
-def test_enterprise_gate_community_user_sees_upgrade_message(tmp_path: Path) -> None:
-    f1 = _write_json(tmp_path / "m1.json", _scan_json())
-
-    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
-        result = runner.invoke(app, ["merge", str(f1)])
-
-    assert result.exit_code == 0  # graceful exit, not an error
-    assert "Enterprise" in result.output or "enterprise" in result.output.lower()
-    assert "upgrade" in result.output.lower() or "mcp-audit.dev" in result.output
-
-
-def test_enterprise_gate_does_not_produce_output_for_community(tmp_path: Path) -> None:
-    f1 = _write_json(tmp_path / "m1.json", _scan_json(findings=[_finding()]))
-
-    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
-        result = runner.invoke(app, ["merge", str(f1), "--format", "json"])
-
-    # Should NOT have emitted any scan JSON
-    assert "machine_count" not in result.output
-    assert "deduplicated_findings" not in result.output
-
-
 # ── first_seen correctness ─────────────────────────────────────────────────────
 
 
@@ -715,20 +690,3 @@ def test_first_seen_is_earliest_timestamp(tmp_path: Path) -> None:
 
     df = report.deduplicated_findings[0]
     assert df.first_seen == datetime.fromisoformat(early)
-
-
-# ── merge gate label ───────────────────────────────────────────────────────────
-
-
-def test_merge_gate_shows_enterprise_label(tmp_path: Path) -> None:
-    """merge gate panel must show 'Enterprise' not just 'Pro' (F15)."""
-    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
-        result = CliRunner().invoke(app, ["merge", "--dir", str(tmp_path)])
-
-    assert result.exit_code == 0
-    assert "Enterprise" in result.output, (
-        "merge gate must render Enterprise label, not Pro label"
-    )
-    assert "⚡ Pro feature required" not in result.output, (
-        "merge gate must not use the Pro-only upsell wording"
-    )

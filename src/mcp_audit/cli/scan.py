@@ -20,7 +20,6 @@ from rich.rule import Rule
 from rich.table import Table
 
 from mcp_audit import cli as _cli
-from mcp_audit._gate import gate
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
@@ -202,28 +201,18 @@ def _collect_extra_rules_dirs(
 ) -> list[Path]:
     """Collect Pro-gated extra rule directories for the scanner.
 
-    Includes ``--rules-dir`` (when a Pro license is active) and the user-local
-    rules directory at ``<user-config-dir>/mcp-audit/rules/`` when it exists
-    and the license permits.  Community rules ship bundled and are loaded by
-    the scanner regardless of this list.
+    Includes ``--rules-dir`` and the user-local rules directory at
+    ``<user-config-dir>/mcp-audit/rules/`` when it exists.  Community rules ship
+    bundled and are loaded by the scanner regardless of this list.
     """
     extra: list[Path] = []
-    if rules_dir is not None and gate(
-        "custom_rules",
-        con,
-        message=(
-            "--rules-dir requires Pro — custom rules directory skipped; "
-            "scan will continue without it (bundled community rules still apply)."
-        ),
-    ):
+    if rules_dir is not None:
         if not rules_dir.is_dir():
             con.print(f"[red]--rules-dir path is not a directory: {rules_dir}[/red]")
             raise typer.Exit(2)
         extra.append(rules_dir)
 
-    if _USER_RULES_DIR.is_dir() and _cli.cached_is_pro_feature_available(
-        "custom_rules"
-    ):
+    if _USER_RULES_DIR.is_dir():
         extra.append(_USER_RULES_DIR)
     return extra
 
@@ -562,7 +551,7 @@ def scan(
         "-f",
         help=(
             "Output format: terminal, json, sarif, nucleus. "
-            "HTML output is available via 'mcp-audit dashboard' (Pro)."
+            "HTML output is available via 'mcp-audit dashboard'."
         ),
     ),
     output: Path | None = typer.Option(  # noqa: B008
@@ -723,9 +712,6 @@ def scan(
     if reset_state:
         _reset_scoped_state(extra_paths, console)
 
-    if vuln_registry is not None and not gate("vuln_mirror", console):
-        vuln_registry = None  # soft-gate: proceed without the mirror
-
     _preflight_checks(
         offline,
         verify_hashes,
@@ -774,24 +760,10 @@ def scan(
     result = _apply_baseline_drift(result, baseline_name, console)
     result = _apply_governance(result, policy, analyzers, console)
 
-    if sast is not None and gate(
-        "sast",
-        console,
-        message=(
-            "--sast requires Pro — SAST integration skipped; "
-            "scan will continue without it."
-        ),
-    ):
+    if sast is not None:
         result = _apply_sast(result, sast, console)
 
-    if include_extensions and gate(
-        "extensions",
-        console,
-        message=(
-            "--include-extensions requires Pro — extension scanning skipped; "
-            "scan will continue without it."
-        ),
-    ):
+    if include_extensions:
         result = _apply_extensions(result, console)
 
     result = _apply_severity_threshold(result, severity_threshold, console)

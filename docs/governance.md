@@ -12,7 +12,7 @@ Code, Copilot CLI, and Augment — from a single YAML file.
 | **Configured via** | YAML rule files (`rules/community/`) | `.mcp-audit-policy.yml` |
 | **Finding source** | `analyzer: "rules"` | `analyzer: "governance"` |
 | **Examples** | "This server name looks like a typosquat" | "This server is not on the approved list" |
-| **License** | Community rules: free. Custom rules: Pro | `--policy` flag: free. Authoring tools: Pro |
+| **License** | Fully open source (Apache 2.0) — all features available to every user | Fully open source (Apache 2.0) — all features available to every user |
 
 The rule engine detects security-relevant patterns in configs. Governance
 enforces organisational decisions: which servers are allowed, what score a
@@ -37,7 +37,7 @@ Returns `None` (no governance check) if none of the above exist.
 ## Quickstart
 
 ```bash
-# 1. Generate a commented template (Pro)
+# 1. Generate a commented template
 mcp-audit policy init
 
 # 2. Edit it to define your requirements
@@ -49,7 +49,7 @@ mcp-audit policy validate .mcp-audit-policy.yml
 # 4. Run a full scan — policy is auto-discovered
 mcp-audit scan
 
-# 5. Quick policy-only compliance check (Pro)
+# 5. Quick policy-only compliance check
 mcp-audit policy check
 ```
 

@@ -1,4 +1,10 @@
-"""Tests for the process-lifetime license cache shim."""
+"""Tests for the process-lifetime license cache shim.
+
+After the open-source conversion (Apache 2.0), ``cached_is_pro_feature_available``
+always returns ``True``.  The ``get_cached_license`` lru_cache is still live
+because ``mcp-audit license`` / ``mcp-audit version`` read it to display
+information about previously activated keys.
+"""
 
 from __future__ import annotations
 
@@ -48,44 +54,22 @@ class TestGetCachedLicense:
 
 
 class TestCachedIsProFeatureAvailable:
-    def test_returns_false_when_no_license(self) -> None:
-        """Returns False for any feature when get_active_license returns None."""
+    """After the open-source conversion the helper always returns ``True``."""
+
+    def test_returns_true_when_no_license(self) -> None:
         import mcp_audit._license_cache as cache_mod
 
         with patch("mcp_audit.licensing.get_active_license", return_value=None):
-            assert cache_mod.cached_is_pro_feature_available("dashboard") is False
-            assert cache_mod.cached_is_pro_feature_available("custom_rules") is False
-
-    def test_returns_true_for_valid_pro_feature(self) -> None:
-        import mcp_audit._license_cache as cache_mod
-
-        with patch(
-            "mcp_audit.licensing.get_active_license",
-            return_value=_make_license(tier="pro"),
-        ):
             assert cache_mod.cached_is_pro_feature_available("dashboard") is True
             assert cache_mod.cached_is_pro_feature_available("custom_rules") is True
 
-    def test_returns_false_for_enterprise_only_feature_on_pro_tier(self) -> None:
+    def test_returns_true_for_unknown_feature(self) -> None:
         import mcp_audit._license_cache as cache_mod
 
-        with patch(
-            "mcp_audit.licensing.get_active_license",
-            return_value=_make_license(tier="pro"),
-        ):
-            assert cache_mod.cached_is_pro_feature_available("fleet_merge") is False
+        assert cache_mod.cached_is_pro_feature_available("nonexistent_feature") is True
 
-    def test_returns_false_for_unknown_feature(self) -> None:
-        import mcp_audit._license_cache as cache_mod
-
-        with patch(
-            "mcp_audit.licensing.get_active_license",
-            return_value=_make_license(),
-        ):
-            result = cache_mod.cached_is_pro_feature_available("nonexistent_feature")
-            assert result is False
-
-    def test_returns_false_for_expired_license(self) -> None:
+    def test_returns_true_for_expired_license(self) -> None:
+        """Even expired keys no longer gate anything."""
         import mcp_audit._license_cache as cache_mod
 
         expired = LicenseInfo(
@@ -97,4 +81,4 @@ class TestCachedIsProFeatureAvailable:
         )
 
         with patch("mcp_audit.licensing.get_active_license", return_value=expired):
-            assert cache_mod.cached_is_pro_feature_available("dashboard") is False
+            assert cache_mod.cached_is_pro_feature_available("dashboard") is True

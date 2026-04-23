@@ -200,5 +200,4 @@ See [GAPS.md](../GAPS.md#baselines) for known limitations, including:
 
 - Server matching uses exact `(client, name)` pair — a renamed server appears as
   removed + added, not modified.
-- Trend tracking across multiple baselines is not yet implemented (planned Pro
-  feature).
+- Trend tracking across multiple baselines is not yet implemented (planned).

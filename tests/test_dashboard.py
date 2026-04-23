@@ -619,18 +619,6 @@ class TestDashboardCommand:
         call_args = mock_srv_cls.call_args
         assert call_args[0][0] == ("127.0.0.1", 9999)
 
-    def test_dashboard_exits_early_without_license(self) -> None:
-        """Dashboard must exit before run_scan when the Pro license is absent."""
-        with (
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False),
-            patch("mcp_audit.cli.run_scan") as mock_scan,
-        ):
-            r = CliRunner().invoke(app, ["dashboard", "--no-open"])
-
-        mock_scan.assert_not_called()
-        assert r.exit_code == 0
-        assert "Pro" in r.output or "pro" in r.output.lower()
-
 
 # ── CDN independence ──────────────────────────────────────────────────────────
 
@@ -694,37 +682,6 @@ class TestDashboardPassesRulesDir:
         assert rules_dir in extra, (
             f"Expected {rules_dir!r} in extra_rules_dirs, got {extra!r}"
         )
-
-    def test_dashboard_ignores_rules_dir_without_pro_license(
-        self, tmp_path: Path
-    ) -> None:
-        rules_dir = tmp_path / "rules"
-        rules_dir.mkdir()
-
-        with (
-            patch(
-                "mcp_audit.cli.cached_is_pro_feature_available",
-                side_effect=lambda f: f == "dashboard",
-            ),
-            patch("mcp_audit.cli.run_scan", return_value=_rich_result()) as mock_scan,
-            patch("mcp_audit.output.dashboard._load_d3", return_value="/* d3 */"),
-            patch("http.server.HTTPServer") as mock_srv_cls,
-            patch("threading.Timer"),
-        ):
-            srv = MagicMock()
-            srv.serve_forever.side_effect = KeyboardInterrupt
-            mock_srv_cls.return_value = srv
-
-            runner = CliRunner()
-            runner.invoke(
-                app,
-                ["dashboard", "--no-open", "--rules-dir", str(rules_dir)],
-            )
-
-        mock_scan.assert_called_once()
-        call_kwargs = mock_scan.call_args[1]
-        extra = call_kwargs.get("extra_rules_dirs")
-        assert extra is None or rules_dir not in extra
 
 
 class TestWatchPassesRulesDir:

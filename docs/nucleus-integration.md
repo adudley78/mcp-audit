@@ -8,7 +8,7 @@ mcp-audit has native integration with [Nucleus Security](https://nucleussec.com/
 
 ## Prerequisites
 
-- **Enterprise license** — `push-nucleus` is Enterprise-gated. Activate with `mcp-audit activate <key>`.
+- **mcp-audit** installed (see [README](../README.md) — no license required; `push-nucleus` is available to all users).
 - **Nucleus API key** — generate one in Nucleus under *Settings → API Keys*.
 - **Project ID** — visible in the Nucleus project URL: `…/nucleus/ui/projects/{project_id}/findings`.
 
@@ -192,5 +192,4 @@ See [enterprise-deployment.md](enterprise-deployment.md) for a complete fleet de
 | Produces FlexConnect JSON | ✓ | ✓ |
 | Uploads to Nucleus automatically | — | ✓ |
 | Polls import job to completion | — | ✓ |
-| Requires Enterprise license | ✓ | ✓ |
 | Suitable for CI / scheduled runs | Manual curl step needed | Single command |

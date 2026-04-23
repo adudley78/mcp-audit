@@ -899,21 +899,6 @@ class TestRuleValidateCLI:
 
         assert result.exit_code == 1
 
-    def test_community_user_blocked(self, tmp_path: Path) -> None:
-        from typer.testing import CliRunner  # noqa: PLC0415
-
-        from mcp_audit.cli import app  # noqa: PLC0415
-
-        rule_file = tmp_path / "rule.yml"
-        rule_file.write_text("id: TEST\n", encoding="utf-8")
-
-        runner = CliRunner()
-        with patch("mcp_audit.licensing.get_active_license", return_value=None):
-            result = runner.invoke(app, ["rule", "validate", str(rule_file)])
-
-        assert result.exit_code == 0
-        assert "Pro" in result.output or "pro" in result.output.lower()
-
 
 class TestRuleTestCLI:
     def test_shows_all_rules_x_servers_table(self, tmp_path: Path) -> None:

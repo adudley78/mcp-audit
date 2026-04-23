@@ -111,9 +111,7 @@ class TestLoadRevokedKids:
     dependency on data_dir) by overriding ``mcp_audit.licensing.data_dir``.
     """
 
-    def _patch_data_dir(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def _patch_data_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Make data_dir() return tmp_path so _load_revoked_kids reads from there."""
         monkeypatch.setattr(lic_mod, "data_dir", lambda: tmp_path)
 
@@ -222,9 +220,7 @@ class TestVerifyLicenseRevocation:
         assert info.kid == "a1b2c3d4"
         assert info.is_valid is True
 
-    def test_revoked_kid_returns_none(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_revoked_kid_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         private_key, pub_bytes = _make_keypair()
         monkeypatch.setattr(lic_mod, "_PUBLIC_KEY_BYTES", pub_bytes)
         monkeypatch.setattr(lic_mod, "_REVOKED_KIDS", frozenset({"a1b2c3d4"}))
@@ -285,9 +281,7 @@ class TestDefaultIssuanceDays:
         _sys.argv = ["generate_license.py"]
         try:
             # Import fresh so we can inspect the parser without running main().
-            _sys.path.insert(
-                0, str(Path(__file__).parent.parent / "scripts")
-            )
+            _sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
             import importlib
 
             gl = importlib.import_module("generate_license")

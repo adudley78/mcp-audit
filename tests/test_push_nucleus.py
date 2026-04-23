@@ -66,21 +66,26 @@ def _make_result(findings: list[Finding] | None = None) -> ScanResult:
 
 def _fake_nucleus_json(host: str = "test-host", findings: int = 0) -> str:
     """Build a minimal FlexConnect JSON string."""
-    return json.dumps({
-        "nucleus_import_version": "1",
-        "scan_tool": "mcp-audit",
-        "scan_type": "Host",
-        "scan_date": "2026-04-23 00:00:00",
-        "assets": [{"host_name": host}],
-        "findings": [{"id": f"F-{i}"} for i in range(findings)],
-    })
+    return json.dumps(
+        {
+            "nucleus_import_version": "1",
+            "scan_tool": "mcp-audit",
+            "scan_type": "Host",
+            "scan_date": "2026-04-23 00:00:00",
+            "assets": [{"host_name": host}],
+            "findings": [{"id": f"F-{i}"} for i in range(findings)],
+        }
+    )
 
 
 _BASE_ARGS = [
     "push-nucleus",
-    "--url", _NUCLEUS_URL,
-    "--project-id", _PROJECT_ID,
-    "--api-key", _API_KEY,
+    "--url",
+    _NUCLEUS_URL,
+    "--project-id",
+    _PROJECT_ID,
+    "--api-key",
+    _API_KEY,
 ]
 
 
@@ -94,16 +99,6 @@ def test_push_nucleus_command_registered() -> None:
     assert "push-nucleus" in result.output or "Nucleus" in result.output
 
 
-# ── Test 2: Enterprise gate ───────────────────────────────────────────────────
-
-
-def test_push_nucleus_enterprise_gate_blocks_without_license() -> None:
-    """Without Enterprise license gate() returns False → exit 1."""
-    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
-        result = runner.invoke(app, _BASE_ARGS)
-    assert result.exit_code == 1
-
-
 # ── Test 3: missing API key ───────────────────────────────────────────────────
 
 
@@ -111,8 +106,10 @@ def test_push_nucleus_missing_api_key_exits_2() -> None:
     """No --api-key and empty NUCLEUS_API_KEY env var → clean exit 2."""
     args = [
         "push-nucleus",
-        "--url", _NUCLEUS_URL,
-        "--project-id", _PROJECT_ID,
+        "--url",
+        _NUCLEUS_URL,
+        "--project-id",
+        _PROJECT_ID,
         # no --api-key
     ]
     with (
@@ -256,16 +253,20 @@ def test_push_nucleus_severity_threshold_filters_findings() -> None:
         console: object = None,
     ) -> str:
         captured.append(result)
-        return json.dumps({
-            "nucleus_import_version": "1",
-            "assets": [{"host_name": "test-host"}],
-            "findings": [{"id": f.id} for f in result.findings],
-        })
+        return json.dumps(
+            {
+                "nucleus_import_version": "1",
+                "assets": [{"host_name": "test-host"}],
+                "findings": [{"id": f.id} for f in result.findings],
+            }
+        )
 
-    scan_result = _make_result(findings=[
-        _make_finding(severity=Severity.CRITICAL, idx=1),
-        _make_finding(severity=Severity.LOW, idx=2),
-    ])
+    scan_result = _make_result(
+        findings=[
+            _make_finding(severity=Severity.CRITICAL, idx=1),
+            _make_finding(severity=Severity.LOW, idx=2),
+        ]
+    )
 
     with (
         patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
@@ -341,8 +342,10 @@ def test_push_nucleus_api_key_from_env_var() -> None:
     fake_json = _fake_nucleus_json()
     args_no_key = [
         "push-nucleus",
-        "--url", _NUCLEUS_URL,
-        "--project-id", _PROJECT_ID,
+        "--url",
+        _NUCLEUS_URL,
+        "--project-id",
+        _PROJECT_ID,
         # no --api-key
     ]
 

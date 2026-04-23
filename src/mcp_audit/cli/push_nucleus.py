@@ -89,11 +89,12 @@ def _upload_scan(
         'Content-Disposition: form-data; name="file"; filename="mcp-audit-scan.json"'
     )
     body = (
-        f"--{boundary}\r\n"
-        f"{content_disp}\r\n"
-        f"Content-Type: application/json\r\n"
-        f"\r\n"
-    ).encode() + json_bytes + f"\r\n--{boundary}--\r\n".encode()
+        (
+            f"--{boundary}\r\n{content_disp}\r\nContent-Type: application/json\r\n\r\n"
+        ).encode()
+        + json_bytes
+        + f"\r\n--{boundary}--\r\n".encode()
+    )
 
     url = f"{base_api_url}/projects/{project_id}/scans"
     req = urllib.request.Request(  # noqa: S310 — URL is user-supplied https:// Nucleus endpoint

@@ -134,23 +134,23 @@ Detects rug-pull risk: servers that have changed since the last `pin`.
 
 ```bash
 mcp-audit dashboard
-# With custom rules (Pro/Enterprise):
+# With custom rules:
 mcp-audit dashboard --rules-dir /path/to/rules
 ```
 
-Opens an interactive D3.js visualization of cross-server attack paths in your browser. **Pro feature.**
-Pass `--rules-dir` to apply additional YAML detection rules on the dashboard scan (Pro/Enterprise required; community rules always run).
+Opens an interactive D3.js visualization of cross-server attack paths in your browser.
+Pass `--rules-dir` to apply additional YAML detection rules on the dashboard scan (community rules always run in addition).
 
 ### Watch for config changes in real time
 
 ```bash
 mcp-audit watch
-# With custom rules (Pro/Enterprise):
+# With custom rules:
 mcp-audit watch --rules-dir /path/to/rules
 ```
 
 Monitors MCP config files for changes and re-runs the scan automatically when a config is modified.
-Pass `--rules-dir` to apply additional YAML detection rules on every re-scan (Pro/Enterprise required; community rules always run).
+Pass `--rules-dir` to apply additional YAML detection rules on every re-scan (community rules always run in addition).
 
 ---
 
@@ -194,13 +194,13 @@ mcp-audit scan --verify-hashes
 mcp-audit verify
 ```
 
-Verification is always free — it never requires a license. Network access is required to fetch npm tarballs and PyPI digests.
+Network access is required to fetch npm tarballs and PyPI digests.
 
 > **Incompatibility:** `--verify-hashes` cannot be combined with `--offline`. Because hash verification must download package tarballs from npm and PyPI, using both flags together will produce an error (exit code 2) and the scan will not run. Use `--offline-registry` instead if you want to skip registry cache updates while still allowing hash verification network calls.
 
 ---
 
-## SAST Analysis (Pro)
+## SAST Analysis
 
 Run mcp-audit's 37 MCP-specific Semgrep rules against server source code. Requires [Semgrep](https://semgrep.dev) to be installed separately (`pip install semgrep`).
 
@@ -214,44 +214,19 @@ mcp-audit scan --sast ./my-mcp-server/
 
 SAST findings flow through all output formats (terminal, JSON, SARIF, HTML).
 
-### Pro-gated inline scan flags — soft-gate behaviour
-
-`--sast`, `--include-extensions`, and `--rules-dir` are **soft-gated**: if no Pro
-license is active when one of these flags is passed, mcp-audit prints an upsell panel
-and then **continues the scan without that feature**.  The scan runs in full; the exit
-code reflects findings present in the config (exit 1 if any) — it is **not** set by
-the missing Pro feature.
-
-What you will see:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  ⚡ Pro feature required                            │
-│  This requires a Pro or Enterprise license.         │
-│  Activate with: mcp-audit activate <key>            │
-│  https://mcp-audit.dev/pro                          │
-│  --sast requires Pro — SAST integration skipped;   │
-│  scan will continue without it.                     │
-└─────────────────────────────────────────────────────┘
-<... full scan output follows ...>
-```
-
-The scan output and exit code below the panel are from the MCP config scan, not from
-the gated feature.  This is intentional: scans always run fully.
-
 ---
 
-## Governance Policies (Pro authoring, free execution)
+## Governance Policies
 
-Governance policies let you define organization-wide rules for MCP server configurations. Running a policy is always free — only authoring tools require a Pro license.
+Governance policies let you define organization-wide rules for MCP server configurations.
 
-**Running a policy (free):**
+**Running a policy:**
 
 ```bash
 mcp-audit scan --policy ./policies/strict.yml
 ```
 
-**Generating a starter policy (Pro):**
+**Generating a starter policy:**
 
 ```bash
 mcp-audit policy init --output starter.yml
@@ -277,18 +252,18 @@ See `docs/governance.md` for the full policy schema reference.
 
 ---
 
-## IDE Extension Scanning (Pro)
+## IDE Extension Scanning
 
 Scan VS Code and Cursor extensions for security risks — dangerous permission combinations, wildcard activation, unknown publishers, sideloaded extensions, and known vulnerabilities.
 
 ```bash
-# Inventory all installed extensions (free)
+# Inventory all installed extensions
 mcp-audit extensions discover
 
-# Full security analysis of installed extensions (Pro)
+# Full security analysis of installed extensions
 mcp-audit extensions scan
 
-# Include extension analysis in a full scan (Pro)
+# Include extension analysis in a full scan
 mcp-audit scan --include-extensions
 ```
 
@@ -299,7 +274,7 @@ mcp-audit scan --include-extensions
 mcp-audit ships with a curated registry of 57 known MCP servers. The registry is used for typosquatting detection and supply chain hash verification.
 
 ```bash
-# Update the registry to the latest version (Pro)
+# Update the registry to the latest version
 mcp-audit update-registry
 
 # Use a custom registry file
@@ -322,7 +297,7 @@ mcp-audit rule validate ./my-rule.yml
 # Test a rule against a fixture config
 mcp-audit rule test ./my-rule.yml --config ./test-config.json
 
-# Run a scan with a custom rules directory (Pro)
+# Run a scan with a custom rules directory
 mcp-audit scan --rules-dir ./custom-rules/
 ```
 
@@ -371,7 +346,7 @@ jobs:
 
 ---
 
-## Fleet Scanning (Enterprise)
+## Fleet Scanning
 
 Scan multiple machines and merge findings into a single report.
 
@@ -387,7 +362,7 @@ The merge report includes fleet-wide statistics: riskiest machine, most widespre
 
 ---
 
-## Nucleus Security Integration (Enterprise)
+## Nucleus Security Integration
 
 Push scan findings directly to a Nucleus Security project via the FlexConnect API.
 
@@ -443,49 +418,52 @@ The hook exits `0` cleanly when no MCP configs are present in the repo.
 
 ---
 
-## Pro License Activation
+## Legacy License Commands
+
+mcp-audit is now fully open source (Apache 2.0) and all features are
+available to every user. The `activate` and `license` commands are kept
+only so users with previously-issued keys continue to have a working flow —
+they no longer unlock anything.
 
 ```bash
-# Activate a Pro or Enterprise license
+# Kept for backward compatibility only
 mcp-audit activate YOUR-LICENSE-KEY
-
-# Check current license status
 mcp-audit license
 ```
-
-Purchase a license at [mcp-audit.dev/pro](https://mcp-audit.dev/pro).
 
 ---
 
 ## All Commands Reference
 
-| Command | Tier | Description |
-|---------|------|-------------|
-| `mcp-audit scan` | Free | Run a full security scan |
-| `mcp-audit discover` | Free | Discover MCP config files without scanning |
-| `mcp-audit pin` | Free | Pin current server hashes |
-| `mcp-audit diff` | Free | Compare to pinned hashes |
-| `mcp-audit verify` | Free | Verify server hashes against registry |
-| `mcp-audit watch` | Free | Watch configs for changes and re-scan |
-| `mcp-audit baseline save NAME` | Free | Save current scan as a named baseline |
-| `mcp-audit baseline list` | Free | List saved baselines |
-| `mcp-audit baseline compare NAME` | Free | Compare baselines |
-| `mcp-audit baseline delete NAME` | Free | Delete a baseline |
-| `mcp-audit baseline export NAME` | Free | Export a baseline to JSON |
-| `mcp-audit rule validate FILE` | Free | Validate a custom rule YAML |
-| `mcp-audit rule test FILE` | Free | Test a rule against a config |
-| `mcp-audit policy validate FILE` | Free | Validate a governance policy file |
-| `mcp-audit extensions discover` | Free | Inventory installed IDE extensions |
-| `mcp-audit activate KEY` | Free | Activate a Pro/Enterprise license |
-| `mcp-audit license` | Free | Show current license status |
-| `mcp-audit version` | Free | Show version information |
-| `mcp-audit dashboard` | Pro | Open D3 attack graph in browser |
-| `mcp-audit update-registry` | Pro | Update the known-server registry |
-| `mcp-audit sast PATH` | Pro | Run MCP-specific Semgrep rules |
-| `mcp-audit policy init` | Pro | Generate a starter governance policy |
-| `mcp-audit policy check` | Pro | Check configs against a policy |
-| `mcp-audit extensions scan` | Pro | Full security scan of IDE extensions |
-| `mcp-audit merge` | Enterprise | Merge fleet scan outputs |
+| Command | Description |
+|---------|-------------|
+| `mcp-audit scan` | Run a full security scan |
+| `mcp-audit discover` | Discover MCP config files without scanning |
+| `mcp-audit pin` | Pin current server hashes |
+| `mcp-audit diff` | Compare to pinned hashes |
+| `mcp-audit verify` | Verify server hashes against registry |
+| `mcp-audit watch` | Watch configs for changes and re-scan |
+| `mcp-audit baseline save NAME` | Save current scan as a named baseline |
+| `mcp-audit baseline list` | List saved baselines |
+| `mcp-audit baseline compare NAME` | Compare baselines |
+| `mcp-audit baseline delete NAME` | Delete a baseline |
+| `mcp-audit baseline export NAME` | Export a baseline to JSON |
+| `mcp-audit rule validate FILE` | Validate a custom rule YAML |
+| `mcp-audit rule test FILE` | Test a rule against a config |
+| `mcp-audit rule list` | List currently loaded rules |
+| `mcp-audit policy validate FILE` | Validate a governance policy file |
+| `mcp-audit policy init` | Generate a starter governance policy |
+| `mcp-audit policy check` | Check configs against a policy |
+| `mcp-audit extensions discover` | Inventory installed IDE extensions |
+| `mcp-audit extensions scan` | Full security scan of IDE extensions |
+| `mcp-audit dashboard` | Open D3 attack graph in browser |
+| `mcp-audit update-registry` | Update the known-server registry |
+| `mcp-audit sast PATH` | Run MCP-specific Semgrep rules |
+| `mcp-audit push-nucleus` | Scan and push results to a Nucleus project |
+| `mcp-audit merge` | Merge fleet scan outputs |
+| `mcp-audit activate KEY` | Legacy — validate a previously issued license key |
+| `mcp-audit license` | Legacy — show details of a previously activated key |
+| `mcp-audit version` | Show version information |
 
 ---
 
@@ -493,17 +471,17 @@ Purchase a license at [mcp-audit.dev/pro](https://mcp-audit.dev/pro).
 
 | Flag | Description |
 |------|-------------|
-| `--format [terminal\|json\|sarif\|nucleus]` | Output format (default: terminal). HTML output is available via `mcp-audit dashboard` (Pro), not via `--format html`. |
+| `--format [terminal\|json\|sarif\|nucleus]` | Output format (default: terminal). HTML output is available via `mcp-audit dashboard`, not via `--format html`. |
 | `--output-file PATH` | Write output to a file |
 | `--severity-threshold LEVEL` | Only report findings at or above this level. **Note:** the scan score is always computed from the full finding set before this filter is applied — see [docs/scoring.md](scoring.md#scoring-and-severity-filtering) for details. |
 | `--no-score` | Suppress the scan score panel |
 | `--baseline NAME` | Compare scan to a saved baseline (use `latest` for the most recent) |
 | `--verify-hashes` | Verify server hashes against the registry |
-| `--sast PATH` | Run MCP Semgrep rules against a source directory (Pro — soft gate: scan continues without SAST if no license) |
-| `--include-extensions` | Include IDE extension analysis (Pro — soft gate: scan continues without extension scanning if no license) |
-| `--policy PATH` | Run a governance policy (free) |
+| `--sast PATH` | Run MCP Semgrep rules against a source directory |
+| `--include-extensions` | Include IDE extension analysis |
+| `--policy PATH` | Run a governance policy |
 | `--registry PATH` | Use a custom registry file |
 | `--offline-registry` | Disable registry network updates |
-| `--rules-dir PATH` | Run additional custom rules from a directory (Pro — soft gate: scan continues using only bundled community rules if no license) |
+| `--rules-dir PATH` | Run additional custom rules from a directory (bundled community rules always apply) |
 | `--asset-prefix PREFIX` | Tag findings with a machine/fleet prefix |
 | `--connect` | Connect live to running MCP servers (requires MCP SDK) |

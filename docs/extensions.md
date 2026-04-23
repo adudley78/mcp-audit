@@ -80,7 +80,7 @@ Found 2 extension(s) across 2 client(s)
 
 ---
 
-### `mcp-audit extensions scan` (Pro / Enterprise)
+### `mcp-audit extensions scan`
 
 ```bash
 mcp-audit extensions scan [--client <name>] [--format terminal|json|sarif]
@@ -99,7 +99,7 @@ Discovers extensions and runs all analysis layers, producing security findings.
 
 ---
 
-### `mcp-audit scan --include-extensions` (Pro / Enterprise)
+### `mcp-audit scan --include-extensions`
 
 ```bash
 mcp-audit scan --include-extensions [all other scan flags]
@@ -114,8 +114,6 @@ A summary line is printed after the scan:
 ```
 Extensions: 34 extension(s) scanned, 2 issue(s) found
 ```
-
-If unlicensed, the flag is silently ignored and the MCP config scan completes normally.
 
 ---
 
@@ -202,7 +200,7 @@ Severity: **INFO**.
   only.  Extensions that conceal capabilities in their JS bundle are not detected.
 
 - **Fleet extension inventory** via `mcp-audit merge` is not yet implemented
-  (Enterprise, post-launch roadmap).
+  (post-launch roadmap).
 
 ---
 
@@ -236,7 +234,7 @@ To add a new entry:
 ## Roadmap
 
 - **Fleet extension inventory** — `mcp-audit merge` aggregating extension findings
-  across machines (Enterprise tier, post-launch).
+  across machines (post-launch).
 - **OpenVSX Registry cross-check** — validate publisher identity against the
   OpenVSX API.
 - **Full semver range matching** — replace the simplified `<X.Y.Z` comparison with

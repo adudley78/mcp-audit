@@ -7,7 +7,6 @@ from pathlib import Path
 import typer
 from rich.table import Table
 
-from mcp_audit._gate import gate
 from mcp_audit.cli import app, console
 
 # ── sast ──────────────────────────────────────────────────────────────────────
@@ -30,15 +29,12 @@ def sast(
         help="Output format: terminal, json",
     ),
 ) -> None:
-    """Scan MCP server source code with Semgrep SAST rules (Pro feature).
+    """Scan MCP server source code with Semgrep SAST rules.
 
     Requires semgrep to be installed: pip install semgrep
 
     Exit codes: 0 = no findings, 1 = findings found, 2 = error.
     """
-    if not gate("sast", console):
-        raise typer.Exit(0)  # noqa: B904
-
     from mcp_audit.sast.runner import (  # noqa: PLC0415
         SastResult,
         find_semgrep,

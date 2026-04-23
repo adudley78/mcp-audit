@@ -123,7 +123,7 @@ mcp-audit verify --all --registry /path/to/registry.json
 
 ## Tier Access
 
-Hash verification is **free for all users** (Community tier). Integrity checks should never be paywalled.
+Hash verification ships in every install. Integrity checks should never be paywalled.
 
 ---
 
@@ -269,8 +269,7 @@ When this flag is set, mcp-audit:
    GitHub Advisory Database, NVD, PYSEC, and others.
 4. Emits a `VULN-<OSV-ID>` finding for each matched advisory.
 
-`--check-vulns` is **free for all tiers** and requires network access.
-It cannot be combined with `--offline`.
+`--check-vulns` requires network access and cannot be combined with `--offline`.
 
 ### `--vuln-registry URL`
 
@@ -278,9 +277,9 @@ It cannot be combined with `--offline`.
 mcp-audit scan --check-vulns --vuln-registry https://your-osv-mirror.internal/v1/querybatch
 ```
 
-Pro/Enterprise users can override the OSV API endpoint to point at an
-air-gapped or private mirror (for example, an OSV-compatible proxy behind a
-corporate firewall). The URL must implement the OSV `querybatch` POST contract.
+Override the OSV API endpoint to point at an air-gapped or private mirror (for
+example, an OSV-compatible proxy behind a corporate firewall). The URL must
+implement the OSV `querybatch` POST contract.
 
 ### `mcp-audit sbom`
 

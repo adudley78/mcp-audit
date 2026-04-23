@@ -94,7 +94,7 @@ format; the JSON `score` field always represents the full picture.
 ## Known Limitations
 
 - Scoring weights are hardcoded and not yet user-configurable. Custom weights
-  are a planned Pro feature (policy-as-code engine).
+  are planned via the policy-as-code engine.
 - INFO findings produce a −1 deduction entry even when positive bonuses push the
   final score to 100. The deduction is a correct signal — a clean scan with
   informational notes is still achievable as 100/A. See GAPS.md for detail.

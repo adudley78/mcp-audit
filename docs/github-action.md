@@ -55,7 +55,7 @@ permissions:
 | `config-paths` | _(auto-discover)_ | No | Single MCP config file path to scan. Leave empty to auto-discover across all supported clients. |
 | `baseline` | _(none)_ | No | Baseline name to compare against for drift detection. See [Baseline drift detection in CI](#baseline-drift-detection-in-ci). |
 | `upload-sarif` | `true` | No | Set to `'false'` to skip the GitHub Security tab upload (e.g., if you don't have `security-events: write` permission). |
-| `sast` | `false` | No | Set to `'true'` to run the 37 MCP-aware Semgrep rules against server source code. Requires mcp-audit Pro and Semgrep pre-installed in the CI environment. See [SAST scanning](#sast-scanning). |
+| `sast` | `false` | No | Set to `'true'` to run the 37 MCP-aware Semgrep rules against server source code. Requires Semgrep pre-installed in the CI environment. See [SAST scanning](#sast-scanning). |
 | `sast-path` | `.` | No | Directory to scan with SAST rules. Defaults to the repository root. Narrow this to `src/` or a specific package directory to reduce scan time. |
 
 ### Severity threshold behaviour
@@ -123,8 +123,6 @@ Compare the current scan against a committed baseline to detect unauthorised ser
 Full file: [`examples/github-actions/with-baseline.yml`](../examples/github-actions/with-baseline.yml)
 
 ### SAST scanning
-
-> **Requires mcp-audit Pro.**
 
 The `sast: 'true'` input runs the 37 MCP-aware Semgrep rules bundled with mcp-audit against your server source code. Rules cover five vulnerability categories: injection, poisoning, credential exposure, protocol misuse, and insecure transport.
 

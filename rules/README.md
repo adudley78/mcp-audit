@@ -33,7 +33,7 @@ enabled: true
 1. Fork the repo and create a branch.
 2. Add your rule as `rules/community/COMM-NNN.yml` (use the next available number).
 3. Required fields: `id`, `name`, `description`, `severity`, `category`, `match`, `message`.
-4. Validate your rule: `mcp-audit rule validate rules/community/COMM-NNN.yml` (requires Pro).
+4. Validate your rule: `mcp-audit rule validate rules/community/COMM-NNN.yml`.
 5. Test against a real config: `mcp-audit rule test rules/community/COMM-NNN.yml --against path/to/config.json`.
 6. Open a PR. The maintainers review for false-positive rate, accuracy, and research basis.
 

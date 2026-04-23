@@ -174,71 +174,30 @@ Create `tests/test_your_analyzer.py`. Tests must cover:
   per-analyzer and wraps them in a `SCAN-ERR` finding — your tests should
   confirm that a malformed input does not propagate an unhandled exception.
 
-## Adding a new Pro feature
+## Adding a new feature
 
-Pro/Enterprise feature gating lives at the CLI layer only — analyzers and
-`scanner.py` never check license state.  When you wire a new Pro-gated flag
-or subcommand into `src/mcp_audit/cli.py`:
+mcp-audit is fully open source (Apache 2.0) and every feature is available
+to every user.  Feature gating has been removed — `is_pro_feature_available()`
+always returns `True` and `gate()` is a no-op shim retained only so existing
+call sites keep compiling.
 
-1. **Add the feature key** to `_FEATURE_TIERS` in `src/mcp_audit/licensing.py`
-   mapping your key (e.g. `"my_feature"`) to the tiers that unlock it
-   (typically `("pro", "enterprise")`).
+When wiring a new flag or subcommand into `src/mcp_audit/cli/`:
 
-2. **Gate the call site through `gate()`**, never inline:
+1. **Do not gate the feature.**  Do not add keys to `_FEATURE_TIERS`, and do
+   not introduce new `if not gate(...)` branches.  The helper exists purely
+   for backward compatibility; new call sites should simply proceed.
 
-   ```python
-   from mcp_audit._gate import gate
+2. **Keep scan logic in `scanner.py` and analyzers license-free.**  They
+   never check license state — that has always been the invariant, and it is
+   now also the case at the CLI layer.
 
-   # Soft gate — skip the feature and continue the scan:
-   if not gate("my_feature", console, message="--my-flag skipped."):
-       return  # or: fall through to skip the feature block
-
-   # Hard gate — exit the command:
-   if not gate("my_feature", console):
-       raise typer.Exit(2)  # pick the right exit code for your command
-   ```
-
-   The `gate()` helper prints a single standardised Pro upsell panel so the
-   wording stays consistent across the whole CLI.  Never print your own
-   upsell message — it will drift out of sync with the rest of the tool.
-
-3. **Add two gate tests** — one positive (`pro_enabled` fixture from
-   `tests/conftest.py`, expect the feature to run) and one negative (patch
-   `mcp_audit.cli.cached_is_pro_feature_available` to return `False`, expect
-   the upsell panel and the feature to be skipped).  The patch target is the
-   attribute on the `cli` module — `gate()` resolves its license check
-   through that attribute so a single patch intercepts every call site.
-
-4. **Never call `gate()` from analyzers, `scanner.py`, or any output
-   formatter helper other than the CLI layer.**  Scans always execute in
-   full regardless of licence tier; gating only restricts CLI surface area.
-
-## Testing conventions
-
-### Pro/Enterprise output formatter tests
-
-The `pro_enabled` fixture in `tests/conftest.py` patches
-`is_pro_feature_available` to return `True`. It is **opt-in** — tests that
-do not request it run against the real (unlicensed) gating logic.
-
-When adding a new Pro or Enterprise output formatter:
-
-1. Add a **negative gate test** to `tests/test_pro_gating.py` that patches
-   `is_pro_feature_available` to return `False` per-test and asserts the
-   formatter returns `None` (or the expected upsell response).
-2. Add a **positive gate test** in the same file that requests `pro_enabled`
-   and asserts the formatter returns valid output.
-3. In the formatter's own test file, request `pro_enabled` on every test (or
-   fixture) that calls the formatter — either as a direct parameter or via a
-   class-level `@pytest.fixture(autouse=True)` method that accepts
-   `pro_enabled`.
-
-**Do not** make `pro_enabled` `autouse=True` or `scope="session"`. Doing so
-would silently disable the negative gate tests in `test_pro_gating.py` and
-defeat the purpose of the fixture.
+3. **Tests should cover the feature working end-to-end**, without any license
+   patching.  Historical patches of `mcp_audit.cli.cached_is_pro_feature_available`
+   continue to resolve (the function exists and always returns `True`), but
+   new tests should not rely on them.
 
 ## What we won't accept
 
 - PRs that remove or weaken existing detection patterns without strong justification
 - New dependencies that require network access during scanning
-- Changes to the licensing or Pro/Enterprise gating logic
+- PRs that re-introduce paid tiers or conditional feature availability

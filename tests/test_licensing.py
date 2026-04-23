@@ -388,128 +388,49 @@ class TestSaveLicenseRoundTrip:
         assert retrieved.tier == "enterprise"
 
 
-# ── is_pro_feature_available ───────────────────────────────────────────────────
+# ── is_pro_feature_available (now always True) ────────────────────────────────
 
 
 class TestIsProFeatureAvailable:
-    """Test every feature × tier combination."""
+    """``is_pro_feature_available`` always returns True after the open-source pivot.
 
-    def _activate(
-        self,
-        tier: str,
-        private_key_pem_file: Path,
-        patched_license_file: Path,
-    ) -> None:
-        key = generate_license_key(tier, "user@example.com", 365, private_key_pem_file)
-        save_license(key)
+    Gating has been removed; the function is retained only so existing call
+    sites keep compiling.  These tests pin that contract independent of
+    license state.
+    """
 
-    # --- No license ---
-
-    def test_no_license_blocks_all_features(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        patched_license_file: Path,
-    ) -> None:
-        monkeypatch.setattr(lic_mod, "_PUBLIC_KEY_BYTES", b"")
-        for feature in ("dashboard", "nucleus", "html_report", "policy", "fleet"):
-            assert is_pro_feature_available(feature) is False
-
-    # --- Pro tier ---
-
-    def test_pro_dashboard_available(
-        self,
-        patched_pubkey: bytes,
-        private_key_pem_file: Path,
-        patched_license_file: Path,
-    ) -> None:
-        self._activate("pro", private_key_pem_file, patched_license_file)
-        assert is_pro_feature_available("dashboard") is True
-
-    def test_pro_html_report_available(
-        self,
-        patched_pubkey: bytes,
-        private_key_pem_file: Path,
-        patched_license_file: Path,
-    ) -> None:
-        self._activate("pro", private_key_pem_file, patched_license_file)
-        assert is_pro_feature_available("html_report") is True
-
-    def test_pro_policy_available(
-        self,
-        patched_pubkey: bytes,
-        private_key_pem_file: Path,
-        patched_license_file: Path,
-    ) -> None:
-        self._activate("pro", private_key_pem_file, patched_license_file)
-        assert is_pro_feature_available("policy") is True
-
-    def test_pro_nucleus_unavailable(
-        self,
-        patched_pubkey: bytes,
-        private_key_pem_file: Path,
-        patched_license_file: Path,
-    ) -> None:
-        self._activate("pro", private_key_pem_file, patched_license_file)
-        assert is_pro_feature_available("nucleus") is False
-
-    def test_pro_fleet_unavailable(
-        self,
-        patched_pubkey: bytes,
-        private_key_pem_file: Path,
-        patched_license_file: Path,
-    ) -> None:
-        self._activate("pro", private_key_pem_file, patched_license_file)
-        assert is_pro_feature_available("fleet") is False
-
-    # --- Enterprise tier ---
-
-    def test_enterprise_all_features_available(
-        self,
-        patched_pubkey: bytes,
-        private_key_pem_file: Path,
-        patched_license_file: Path,
-    ) -> None:
-        self._activate("enterprise", private_key_pem_file, patched_license_file)
-        for feature in ("dashboard", "nucleus", "html_report", "policy", "fleet"):
+    def test_returns_true_for_every_known_feature(self) -> None:
+        for feature in (
+            "dashboard",
+            "nucleus",
+            "html_report",
+            "policy",
+            "fleet",
+            "fleet_merge",
+            "custom_rules",
+            "update_registry",
+            "governance",
+            "fleet_governance",
+            "sast",
+            "extensions",
+            "fleet_extensions",
+            "vuln_mirror",
+        ):
             assert is_pro_feature_available(feature) is True, feature
 
-    # --- Expired license ---
+    def test_returns_true_for_unknown_feature(self) -> None:
+        """Unknown feature keys also return True — gating has been removed."""
+        assert is_pro_feature_available("nonexistent_feature") is True
 
-    def test_expired_license_blocks_all_features(
+    def test_returns_true_without_license_file(
         self,
-        ed25519_keypair: tuple[object, bytes],
         monkeypatch: pytest.MonkeyPatch,
         patched_license_file: Path,
     ) -> None:
-        private_key, pub_bytes = ed25519_keypair
-        monkeypatch.setattr(lic_mod, "_PUBLIC_KEY_BYTES", pub_bytes)
-
-        yesterday = date.today() - timedelta(days=1)
-        key = _sign_payload(
-            private_key,
-            {
-                "tier": "enterprise",
-                "email": "expired@example.com",
-                "issued": (yesterday - timedelta(days=365)).isoformat(),
-                "expires": yesterday.isoformat(),
-            },
-        )
-        patched_license_file.parent.mkdir(parents=True, exist_ok=True)
-        patched_license_file.write_text(key + "\n")
-
-        for feature in ("dashboard", "nucleus", "html_report", "policy", "fleet"):
-            assert is_pro_feature_available(feature) is False, feature
-
-    # --- Unknown feature ---
-
-    def test_unknown_feature_returns_false(
-        self,
-        patched_pubkey: bytes,
-        private_key_pem_file: Path,
-        patched_license_file: Path,
-    ) -> None:
-        self._activate("enterprise", private_key_pem_file, patched_license_file)
-        assert is_pro_feature_available("nonexistent_feature") is False
+        """No license present: still returns True."""
+        monkeypatch.setattr(lic_mod, "_PUBLIC_KEY_BYTES", b"")
+        assert is_pro_feature_available("dashboard") is True
+        assert is_pro_feature_available("nucleus") is True
 
 
 # ── License key path resolution ───────────────────────────────────────────────

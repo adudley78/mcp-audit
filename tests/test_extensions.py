@@ -495,12 +495,6 @@ class TestExtensionsCLI:
         assert result.exit_code == 0
         assert "0" in result.output
 
-    def test_extensions_scan_requires_pro(self) -> None:
-        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
-            result = runner.invoke(app, ["extensions", "scan"])
-        assert result.exit_code == 0
-        assert "Pro feature" in result.output
-
     def test_extensions_scan_with_findings(self, tmp_path: Path) -> None:
         ext_dir = tmp_path / "extensions" / "pub.vuln-1.0.0"
         ext_dir.mkdir(parents=True)
@@ -567,19 +561,6 @@ class TestExtensionsCLI:
 
         assert result.exit_code == 0
         assert "Extension" in result.output
-
-    def test_scan_include_extensions_requires_pro(self) -> None:
-        """scan --include-extensions with no license shows warning but completes."""
-        from mcp_audit.models import ScanResult  # noqa: PLC0415
-
-        with (
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False),
-            patch("mcp_audit.cli.run_scan", return_value=ScanResult()),
-        ):
-            result = runner.invoke(app, ["scan", "--include-extensions"])
-
-        assert result.exit_code == 0
-        assert "Pro feature" in result.output
 
 
 # ── TestExtensionFindingFormat ─────────────────────────────────────────────────

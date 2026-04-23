@@ -1,4 +1,9 @@
-"""License key management for mcp-audit Pro and Enterprise features.
+"""License key management for mcp-audit (legacy, retained for compatibility).
+
+mcp-audit is now fully open source (Apache 2.0) and all features are available
+to every user.  This module is retained so that users who previously activated
+a Pro/Enterprise key can still run ``mcp-audit activate`` and ``mcp-audit
+license`` without errors — it does no harm and honours prior commitments.
 
 License keys are Ed25519-signed tokens with the format:
 
@@ -13,6 +18,10 @@ key hardcoded in this module; the corresponding private key is kept offline and
 used only by ``scripts/generate_license.py``.
 
 No network calls are made at any point — verification is fully offline.
+
+As of the open-source conversion, :func:`is_pro_feature_available` always
+returns ``True``; the ``_FEATURE_TIERS`` mapping is retained only for
+historical reference.
 """
 
 from __future__ import annotations
@@ -41,7 +50,11 @@ _PUBLIC_KEY_BYTES: bytes = (
     b"\xc4g\x92\xea\x17 9\xff 5sy\xb7\x97\xcd("
 )
 
-# Maps each feature name to the set of tier names that include it.
+# Historical tier mapping — kept for reference only.  mcp-audit is now fully
+# open source (Apache 2.0) and every feature is available to every user.  No
+# code in the package reads this dict for gating decisions; it is retained so
+# that any external tooling or documentation that imported the constant does
+# not break.
 _FEATURE_TIERS: dict[str, frozenset[str]] = {
     "dashboard": frozenset({"pro", "enterprise"}),
     "nucleus": frozenset({"enterprise"}),
@@ -294,26 +307,14 @@ def save_license(key_string: str) -> LicenseInfo:
     return info
 
 
-def is_pro_feature_available(feature_name: str) -> bool:
-    """Return True if the active license tier includes the named feature.
+def is_pro_feature_available(feature_name: str) -> bool:  # noqa: ARG001
+    """Return True — all features are available.
 
-    Always returns False if no license is active, the license has expired,
-    or the feature name is unrecognised.
-
-    Args:
-        feature_name: One of ``"dashboard"``, ``"nucleus"``, ``"html_report"``,
-            ``"policy"``, ``"fleet"``, ``"fleet_merge"``, ``"custom_rules"``,
-            or ``"update_registry"``.
+    mcp-audit is fully open source (Apache 2.0); every feature is available
+    to every user.  This function is retained with its original signature so
+    existing call sites keep working; the *feature_name* argument is ignored.
     """
-    required_tiers = _FEATURE_TIERS.get(feature_name)
-    if required_tiers is None:
-        return False
-
-    info = get_active_license()
-    if info is None or not info.is_valid:
-        return False
-
-    return info.tier in required_tiers
+    return True
 
 
 # ── Key generation (offline dev utility only) ─────────────────────────────────

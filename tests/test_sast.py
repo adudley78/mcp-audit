@@ -282,31 +282,6 @@ class TestRunSemgrep:
 
 
 class TestSastCLI:
-    def test_sast_command_requires_pro(self, tmp_path: Path) -> None:
-        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
-            result = runner.invoke(app, ["sast", str(tmp_path)])
-        assert result.exit_code == 0
-        assert "Pro" in result.output or "pro" in result.output.lower()
-
-    def test_sast_command_exits_0_without_license(self, tmp_path: Path) -> None:
-        """Gate is a soft stop — standalone sast must exit 0, not 2."""
-        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
-            result = runner.invoke(app, ["sast", str(tmp_path)])
-        assert result.exit_code == 0, (
-            f"sast gate must exit 0 (soft stop), got {result.exit_code}"
-        )
-
-    def test_scan_sast_flag_requires_pro(self, tmp_path: Path) -> None:
-        config = tmp_path / "config.json"
-        config.write_text('{"mcpServers": {}}')
-
-        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=False):
-            result = runner.invoke(
-                app,
-                ["scan", "--path", str(config), "--sast", str(tmp_path)],
-            )
-        assert "Pro" in result.output or "pro" in result.output.lower()
-
     def test_sast_command_semgrep_not_installed(self, tmp_path: Path) -> None:
         with (
             patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),

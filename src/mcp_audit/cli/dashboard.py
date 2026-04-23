@@ -7,7 +7,6 @@ from pathlib import Path
 import typer
 
 from mcp_audit import cli as _cli
-from mcp_audit._gate import gate
 from mcp_audit.cli import app, console
 from mcp_audit.output.dashboard import generate_html
 
@@ -33,7 +32,7 @@ def dashboard(
     rules_dir: Path | None = typer.Option(  # noqa: B008
         None,
         "--rules-dir",
-        help="Additional directory of YAML rules to apply (Pro/Enterprise)",
+        help="Additional directory of YAML rules to apply",
     ),
 ) -> None:
     """Run a full scan and open an interactive attack-graph dashboard."""
@@ -41,20 +40,13 @@ def dashboard(
     import threading  # noqa: PLC0415
     import webbrowser  # noqa: PLC0415
 
-    if not gate("dashboard", console):
-        raise typer.Exit(code=0)
-
     extra_paths = [path] if path else None
     from mcp_audit.scanner import (
         _USER_RULES_DIR as _DASH_USER_RULES_DIR,  # noqa: PLC0415
     )
 
     extra_rules_dirs: list[Path] = []
-    if rules_dir is not None and gate(
-        "custom_rules",
-        console,
-        message="--rules-dir skipped; bundled community rules still apply.",
-    ):
+    if rules_dir is not None:
         if not rules_dir.is_dir():
             console.print(
                 f"[red]--rules-dir path is not a directory: {rules_dir}[/red]"
@@ -62,9 +54,7 @@ def dashboard(
             raise typer.Exit(2)  # noqa: B904
         extra_rules_dirs.append(rules_dir)
 
-    if _DASH_USER_RULES_DIR.is_dir() and _cli.cached_is_pro_feature_available(
-        "custom_rules"
-    ):
+    if _DASH_USER_RULES_DIR.is_dir():
         extra_rules_dirs.append(_DASH_USER_RULES_DIR)
 
     console.print("\n[cyan]Running scan…[/cyan]")
@@ -76,8 +66,6 @@ def dashboard(
 
     console.print("[cyan]Generating dashboard…[/cyan]")
     html = generate_html(result, console=console)
-    if html is None:
-        raise typer.Exit(0)
     html_bytes = html.encode("utf-8")
 
     # In-memory HTTP handler — no I/O on every request.

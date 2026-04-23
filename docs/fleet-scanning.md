@@ -1,10 +1,10 @@
 # Fleet Scanning
 
 `mcp-audit merge` consolidates JSON scan outputs from multiple machines into a
-single fleet-wide security report. This is the core Enterprise tier feature for
-security teams that manage many developer machines.
+single fleet-wide security report. It is the standard workflow for security
+teams that manage many developer machines.
 
-**Requires:** Enterprise license (`mcp-audit activate <key>`)
+Available to every user — mcp-audit is fully open source, no license required.
 
 ---
 
@@ -202,14 +202,6 @@ jobs:
           name: fleet-report
           path: fleet-report.json
 ```
-
-> **Note:** The `merge` command requires an Enterprise license. Set up the
-> license on the merge runner via `mcp-audit activate <key>` before running
-> the merge step, or store the key in a GitHub Actions secret and pipe it:
->
-> ```bash
-> echo "${{ secrets.MCP_AUDIT_LICENSE }}" | mcp-audit activate -
-> ```
 
 ---
 
