@@ -26,7 +26,7 @@ jobs:
       security-events: write   # required for SARIF upload
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/mcp-audit@v1
+      - uses: adudley78/mcp-audit@v0.3.0
 ```
 
 Findings appear in **Security → Code scanning alerts** within ~2 minutes.
@@ -35,10 +35,19 @@ The `permissions` block is **required** for the SARIF upload. Composite
 actions inherit workflow-token permissions; declare `security-events: write`
 at either the workflow or the job level (as shown above).
 
+### Version pinning
+
+Until `v1.0.0` ships, pin to a specific release tag (e.g. `@v0.3.0`).
+Once the first `v1.x` release is published, you will be able to pin to
+`@v1` and automatically track the latest `1.x` minor/patch release — the
+standard GitHub Marketplace major-version convention. The `latest`
+git tag is deliberately **not** published; pinning to it would silently
+break reproducibility on release day.
+
 ## Full example
 
 ```yaml
-- uses: adudley78/mcp-audit@v1
+- uses: adudley78/mcp-audit@v0.3.0
   with:
     config-paths: 'path/to/claude_desktop_config.json path/to/cursor_config.json'
     severity-threshold: high
@@ -95,7 +104,7 @@ Use outputs in downstream steps:
 ```yaml
 - name: Run mcp-audit
   id: mcp
-  uses: adudley78/mcp-audit@v1
+  uses: adudley78/mcp-audit@v0.3.0
 
 - name: Print results
   run: |
@@ -118,7 +127,7 @@ output files.
 ## Disabling SARIF upload
 
 ```yaml
-- uses: adudley78/mcp-audit@v1
+- uses: adudley78/mcp-audit@v0.3.0
   with:
     upload-sarif: 'false'
 ```
@@ -141,7 +150,7 @@ blocking any build. Tighten the threshold once you've worked through the
 existing findings.
 
 ```yaml
-- uses: adudley78/mcp-audit@v1
+- uses: adudley78/mcp-audit@v0.3.0
   with:
     severity-threshold: info
     fail-on-findings: 'false'
@@ -155,7 +164,7 @@ Suitable for security-conscious teams or new projects with no existing
 findings.
 
 ```yaml
-- uses: adudley78/mcp-audit@v1
+- uses: adudley78/mcp-audit@v0.3.0
   with:
     severity-threshold: medium
     fail-on-findings: 'true'
@@ -173,12 +182,15 @@ Full file: [`examples/github-actions/with-baseline.yml`](../examples/github-acti
 
 ### SAST scanning
 
-`run-sast: 'true'` runs `mcp-audit sast <sast-path>` after the config scan.
-This uses the 37 bundled MCP-aware Semgrep rules that ship with
-`mcp-audit-scanner`.
+`run-sast: 'true'` runs `mcp-audit sast <sast-path>` after the config scan
+using the 37 bundled MCP-aware Semgrep rules that ship with
+`mcp-audit-scanner`. The action installs the Semgrep CLI automatically
+inside the SAST step (`pip install semgrep --quiet`), so no separate
+install step is required — the dependency is only pulled in when you
+opt in.
 
 ```yaml
-- uses: adudley78/mcp-audit@v1
+- uses: adudley78/mcp-audit@v0.3.0
   with:
     run-sast: 'true'
     sast-path: src/

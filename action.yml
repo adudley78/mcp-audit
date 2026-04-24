@@ -205,7 +205,13 @@ runs:
     - name: Run mcp-audit SAST
       if: inputs.run-sast == 'true'
       shell: bash
+      # Semgrep is not bundled in `mcp-audit-scanner` — it is a ~15 MB
+      # dependency that would bloat the wheel and PyInstaller binary for
+      # every user, even the 95% that never run SAST.  We install it here,
+      # inside the optional `run-sast` step, so the cost only applies when
+      # the user opts in.
       run: |
+        pip install semgrep --quiet
         mcp-audit sast "${{ inputs.sast-path }}"
 
     - name: Compare baseline
