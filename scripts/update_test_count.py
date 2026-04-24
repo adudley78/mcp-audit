@@ -36,6 +36,15 @@ _SUBSTITUTIONS: list[tuple[str, str, str]] = [
     ("CLAUDE.md", r"\b\d{3,6} tests passing\b", "{count} tests passing"),
     ("README.md", r"\b[\d,]+ tests validate\b", "{formatted} tests validate"),
     ("README.md", r"\bRun all [\d,]+ tests\b", "Run all {formatted} tests"),
+    # The release-notes template is rendered into every GitHub Release body
+    # by `.github/workflows/release.yml` — match the test-count badge line
+    # ("**1,308 tests · Apache 2.0 · …**") via its Apache 2.0 suffix so the
+    # regex cannot accidentally strike any of the surrounding bullet points.
+    (
+        ".github/release-notes-template.md",
+        r"\b[\d,]+ tests · Apache 2\.0\b",
+        "{formatted} tests · Apache 2.0",
+    ),
 ]
 
 
