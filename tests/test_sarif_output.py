@@ -197,8 +197,10 @@ class TestDocumentStructure:
         assert _driver(doc)["name"] == "mcp-audit"
 
     def test_tool_driver_version(self) -> None:
+        from mcp_audit import __version__  # noqa: PLC0415
+
         doc = _parse(_make_result())
-        assert _driver(doc)["version"] == "0.1.0"
+        assert _driver(doc)["version"] == __version__
 
     def test_tool_driver_information_uri(self) -> None:
         doc = _parse(_make_result())

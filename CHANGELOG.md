@@ -12,6 +12,25 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.1.2] - 2026-04-24 — Release infrastructure fix, dependency widening
+
+The `v0.1.1` tag was cut on 2026-04-24 but never produced a GitHub release: the `Build darwin-x86_64` matrix leg targeted the `macos-13` runner image, which GitHub [retired on 2025-12-08](https://github.blog/changelog/2025-09-19-github-actions-macos-13-runner-image-is-closing-down/). Jobs requesting that label queue indefinitely instead of erroring, so every v0.1.1 release run hung. `0.1.2` is the first successful release under the new semver line; no user-facing code changed between 0.1.0 and 0.1.2.
+
+### Fixed
+- **`.github/workflows/release.yml`:** migrated the `darwin-x86_64` matrix leg from the retired `macos-13` runner to `macos-15-intel` (GitHub's replacement x86_64 label, supported through 2027-08). After that date, Actions drops x86_64 macOS entirely and this leg will need to be removed — Apple Silicon Macs run the x86_64 binary transparently via Rosetta in the meantime.
+- **`src/mcp_audit/__init__.py`:** `__version__` now looks up the correct PyPI distribution name (`mcp-audit-scanner`, not `mcp-audit`). Every prior release silently fell through to the hard-coded `"0.1.0"` fallback because the metadata lookup used the CLI command name instead of the wheel name, so the embedded version string on released binaries was always stale. Fallback bumped to `"0.1.2"` for source installs.
+
+### Changed
+- **`pyproject.toml`:** `cyclonedx-python-lib>=7.0,<12.0` (was `<8.0`) — the `[sbom]` extra now installs against v7 or v8–v11 transparently. `src/mcp_audit/output/cyclonedx.py` was ported to the v8+ `cyclonedx.model.tool.Tool` location and `ToolRepository` metadata API with a v7 fallback, and all cyclonedx imports are now deferred into `format()` so the module imports cleanly when the extra is absent (previously raised `NameError` on any import with the extra missing — the no-extra fallback path was silently broken). Added `tests/test_cyclonedx_output.py` (9 cases) covering both the extra-missing path and formatter output against v7–v11.
+- **`pyproject.toml`:** `sigstore>=3.0,<5.0` (was `<4.0`), `rich>=13.0,<16.0` (was `<14.0`), `watchdog>=4.0,<7.0` (was `<6.0`). Dependabot updates; no code changes required.
+
+### Tooling
+- **`actions/checkout@v6`** (was v5) across all four workflows.
+- **`github/codeql-action@v4`** (was v3).
+- **`softprops/action-gh-release@v3`** (was v2).
+
+---
+
 ## [0.1.0] - 2026-04-23 — First public PyPI release
 
 Version set to `0.1.0` (clean-slate public semver; internal development milestones tracked separately in `[0.11.x]` entries below).

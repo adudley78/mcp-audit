@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from mcp_audit import __version__
 from mcp_audit.baselines.manager import (
     BaselineManager,
     DriftType,
@@ -94,7 +95,7 @@ def test_save_returns_baseline_with_correct_fields(
     bl = mgr.save(servers, config_paths=["/tmp/mcp.json"], name="test-bl")  # noqa: S108
     assert bl.name == "test-bl"
     assert bl.server_count == 2
-    assert bl.scanner_version == "0.1.0"
+    assert bl.scanner_version == __version__
     assert len(bl.servers) == 2
     assert bl.config_paths == ["/tmp/mcp.json"]  # noqa: S108
 
