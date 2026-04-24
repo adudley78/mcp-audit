@@ -39,14 +39,18 @@ class TestClientSpecs:
     def test_copilot_cli_spec(self):
         spec = next(s for s in _get_client_specs() if s.name == "copilot-cli")
         assert spec.root_key == "mcpServers"
+        # Use POSIX path repr so the assertion is portable across OSes (Windows
+        # uses backslashes in str(Path), which breaks a naive endswith check).
         assert any(
-            str(p).endswith(".copilot/mcp-config.json") for p in spec.config_paths
+            p.as_posix().endswith(".copilot/mcp-config.json") for p in spec.config_paths
         )
 
     def test_augment_spec(self):
         spec = next(s for s in _get_client_specs() if s.name == "augment")
         assert spec.root_key == "mcpServers"
-        assert any(str(p).endswith(".augment/settings.json") for p in spec.config_paths)
+        assert any(
+            p.as_posix().endswith(".augment/settings.json") for p in spec.config_paths
+        )
 
 
 class TestDiscoverConfigs:

@@ -139,9 +139,7 @@ class TransportAnalyzer(BaseAnalyzer):
 
         # TRANSPORT-003: Runtime package fetching (supply chain risk)
         is_runtime_fetch = server.command in _RUNTIME_FETCH_COMMANDS or (
-            server.command == "yarn"
-            and bool(server.args)
-            and server.args[0] == "dlx"
+            server.command == "yarn" and bool(server.args) and server.args[0] == "dlx"
         )
         if is_runtime_fetch:
             finding = self._build_runtime_fetch_finding(server)

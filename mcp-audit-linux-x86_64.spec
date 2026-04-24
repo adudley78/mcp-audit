@@ -2,7 +2,11 @@
 
 import os
 
-root = os.path.dirname(os.path.abspath(SPECPATH))
+# SPECPATH is already the absolute directory containing this spec file (the
+# repo root for these portable specs).  Earlier revisions wrapped it in
+# os.path.dirname(...), which yielded the *parent* of the repo root and made
+# every bundled path point one level too high.  Keep the abspath for clarity.
+root = os.path.abspath(SPECPATH)
 
 a = Analysis(
     [os.path.join(root, 'src/mcp_audit/cli/__main__.py')],
