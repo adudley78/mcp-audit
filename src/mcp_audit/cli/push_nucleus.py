@@ -1,4 +1,4 @@
-"""push-nucleus command — Enterprise-gated Nucleus Security FlexConnect push.
+"""push-nucleus command — Nucleus Security FlexConnect push.
 
 Runs a full scan and uploads the FlexConnect JSON directly to a Nucleus
 project via the upload API, polls the resulting import job to completion,
@@ -23,7 +23,6 @@ from rich.console import Console
 from rich.panel import Panel
 
 from mcp_audit import cli as _cli
-from mcp_audit._gate import gate
 from mcp_audit.cli import app, console
 from mcp_audit.cli._helpers import _write_output
 from mcp_audit.cli.scan import _apply_severity_threshold
@@ -255,8 +254,8 @@ def push_nucleus(
 ) -> None:
     """Run a scan and push results to Nucleus Security via FlexConnect API.
 
-    Requires an Enterprise license.  Polls the import job to completion and
-    prints a Rich summary panel with the project ID, job ID, finding count,
+    Polls the import job to completion and prints a Rich summary panel with
+    the project ID, job ID, finding count,
     and a direct link to the Nucleus findings view.
 
     Examples::
@@ -268,9 +267,6 @@ def push_nucleus(
             --url https://nucleus.corp.example.com --project-id 7 \\
             --severity-threshold HIGH --output-file pushed-scan.json
     """
-    if not gate("nucleus", console):
-        raise typer.Exit(1)
-
     # Resolve API key: explicit flag → NUCLEUS_API_KEY env var.
     resolved_key = (api_key or os.environ.get("NUCLEUS_API_KEY", "")).strip()
     if not resolved_key:
@@ -280,6 +276,16 @@ def push_nucleus(
             "[bold]NUCLEUS_API_KEY[/bold] environment variable."
         )
         raise typer.Exit(2)
+
+    # SSRF guard: only HTTPS endpoints are permitted.
+    url = url.rstrip("/")
+    if not url.startswith("https://"):
+        console.print(
+            "[red]Error:[/red] --url must begin with [bold]https://[/bold]. "
+            "Plain HTTP and non-HTTP schemes are not permitted."
+        )
+        raise typer.Exit(2)
+    base_api_url = f"{url}/nucleus/api"
 
     # Validate all user-supplied config paths before running the scan.
     extra_paths: list[Path] | None = None
@@ -295,20 +301,13 @@ def push_nucleus(
 
     nucleus_json = format_nucleus(result, asset_prefix=asset_prefix, console=console)
     if nucleus_json is None:
-        # Defensive: gate() already confirmed enterprise tier, but format_nucleus
-        # performs its own license check — surface a clear error if both diverge.
-        console.print(
-            "[red]Error:[/red] Failed to produce FlexConnect JSON. "
-            "Verify your Enterprise license is active with "
-            "[bold]mcp-audit license[/bold]."
-        )
+        console.print("[red]Error:[/red] Failed to produce FlexConnect JSON.")
         raise typer.Exit(2)
 
     if output_file is not None:
         _write_output(output_file, nucleus_json)
         console.print(f"[dim]FlexConnect JSON written to {output_file}[/dim]")
 
-    base_api_url = url.rstrip("/") + "/nucleus/api"
     ssl_ctx = _build_ssl_ctx()
 
     console.print(

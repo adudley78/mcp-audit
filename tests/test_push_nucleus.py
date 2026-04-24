@@ -337,6 +337,56 @@ def test_push_nucleus_descheduled_job_treated_as_error() -> None:
     assert result.exit_code == 1
 
 
+# ── SSRF scheme guard tests ───────────────────────────────────────────────────
+
+
+def test_http_url_rejected() -> None:
+    """push-nucleus must reject plain http:// URLs with exit code 2."""
+    args = [
+        "push-nucleus",
+        "--url",
+        "http://internal.corp/",
+        "--project-id",
+        _PROJECT_ID,
+        "--api-key",
+        _API_KEY,
+    ]
+    result = runner.invoke(app, args)
+    assert result.exit_code == 2
+    assert "https://" in result.output
+
+
+def test_file_url_rejected() -> None:
+    """push-nucleus must reject file:// URLs with exit code 2."""
+    args = [
+        "push-nucleus",
+        "--url",
+        "file:///etc/passwd",
+        "--project-id",
+        _PROJECT_ID,
+        "--api-key",
+        _API_KEY,
+    ]
+    result = runner.invoke(app, args)
+    assert result.exit_code == 2
+    assert "https://" in result.output
+
+
+def test_ftp_url_rejected() -> None:
+    """push-nucleus must reject ftp:// URLs with exit code 2."""
+    args = [
+        "push-nucleus",
+        "--url",
+        "ftp://evil.example.com/",
+        "--project-id",
+        _PROJECT_ID,
+        "--api-key",
+        _API_KEY,
+    ]
+    result = runner.invoke(app, args)
+    assert result.exit_code == 2
+
+
 def test_push_nucleus_api_key_from_env_var() -> None:
     """NUCLEUS_API_KEY env var is used when --api-key is omitted."""
     fake_json = _fake_nucleus_json()

@@ -137,7 +137,7 @@ def fetch_npm_attestation_bundle(package_name: str, version: str) -> dict | None
     encoded = package_name.replace("/", "%2F")
     url = f"https://registry.npmjs.org/-/npm/v1/attestations/{encoded}@{version}"
     try:
-        with urllib.request.urlopen(url, timeout=15) as resp:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=15) as resp:  # noqa: S310  # nosec B310 — URL is always https://registry.npmjs.org/…
             data = json.loads(resp.read())
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
@@ -179,7 +179,7 @@ def fetch_pypi_attestation_bundle(
     """
     url = f"https://pypi.org/integrity/{package_name}/{version}/{filename}/provenance"
     try:
-        with urllib.request.urlopen(url, timeout=15) as resp:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=15) as resp:  # noqa: S310  # nosec B310 — URL is always https://pypi.org/…
             data = json.loads(resp.read())
     except urllib.error.HTTPError as exc:
         if exc.code == 404:

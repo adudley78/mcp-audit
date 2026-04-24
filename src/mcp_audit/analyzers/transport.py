@@ -17,7 +17,7 @@ _RUNTIME_FETCH_COMMANDS: frozenset[str] = frozenset({"npx", "uvx", "bunx", "pipx
 # remote host because they expose the server on every interface simultaneously.
 _WILDCARD_BINDINGS: frozenset[str] = frozenset(
     {
-        "0.0.0.0",  # noqa: S104
+        "0.0.0.0",  # noqa: S104  # nosec B104 — detection constant, not a real bind call
         "::",
         "[::]",
         "0:0:0:0:0:0:0:0",

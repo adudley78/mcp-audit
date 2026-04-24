@@ -1086,6 +1086,16 @@ def generate_html(result: ScanResult, console: Console | None = None) -> str:  #
     scan_data = _build_scan_data(result)
     d3_js = _load_d3()
     html = _DASHBOARD_HTML
-    html = html.replace("__SCAN_DATA_JSON__", json.dumps(scan_data, indent=2))
+    _json_blob = json.dumps(scan_data, indent=2)
+    # Escape < > & so that a malicious server description containing </script>
+    # cannot break out of the inline <script> block (json.dumps does not
+    # HTML-escape these characters by default).  \uXXXX escapes are valid JSON
+    # and are decoded transparently by JavaScript.
+    _json_blob = (
+        _json_blob.replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
+    html = html.replace("__SCAN_DATA_JSON__", _json_blob)
     html = html.replace("__D3_JS__", d3_js)
     return html
