@@ -117,6 +117,62 @@ jobs:
           files: dist/**/*
           generate_release_notes: true
 
+  publish-pypi:
+    name: Publish to PyPI
+    # Runs independently of the `release` job — a transient PyPI outage must
+    # not withhold the GitHub Release binaries, and vice versa.  Both still
+    # depend on `build` so a broken build never publishes anywhere.
+    needs: build
+    runs-on: ubuntu-latest
+
+    # Bound to the `pypi` Environment so PyPI's Trusted Publisher OIDC claim
+    # can scope the issued token to *this specific environment* (defence in
+    # depth against a forked workflow trying to impersonate the release
+    # pipeline).  Create the environment once via Settings → Environments.
+    environment:
+      name: pypi
+      url: https://pypi.org/p/mcp-audit-scanner
+
+    permissions:
+      # `id-token: write` is required for PyPI Trusted Publishing (OIDC).
+      # We deliberately do NOT grant `contents: write` here — this job has
+      # no reason to touch repository content.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Build sdist + wheel
+        # Pure-Python project (hatchling backend), so `uv build` produces a
+        # single platform-agnostic wheel plus an sdist.  No matrix needed.
+        run: |
+          rm -rf dist/
+          uv build
+
+      - name: Publish to PyPI
+        # Pinned to the v1.14.0 commit SHA (2026-04-07) for supply-chain
+        # hardening — `release/v1` is a floating branch that could be moved
+        # to a future malicious commit without our knowledge.  Bump the SHA
+        # deliberately when picking up a new upstream release and audit the
+        # diff at https://github.com/pypa/gh-action-pypi-publish/compare.
+        #
+        # `attestations: true` enables PEP 740 provenance attestations —
+        # sigstore-signed statements that bind *these specific artefacts*
+        # to *this specific workflow run*.  PyPI surfaces them on the
+        # project page.  For a security-scanner project this is a
+        # non-negotiable best practice.
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
+        with:
+          attestations: true
+
   report:
     name: Release Summary
     needs: [build, release]
