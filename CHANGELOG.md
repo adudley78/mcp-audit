@@ -12,6 +12,26 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.1.0] - 2026-04-23 — First public PyPI release
+
+Version set to `0.1.0` (clean-slate public semver; internal development milestones tracked separately in `[0.11.x]` entries below).
+
+**PyPI package name: `mcp-audit-scanner`** — the `mcp-audit` name was already
+claimed on PyPI. The CLI command remains `mcp-audit` in all cases.
+
+```bash
+pip install mcp-audit-scanner
+uv add mcp-audit-scanner
+```
+
+### Changed
+- `pyproject.toml`: Development Status bumped from Alpha → Beta.
+- `pyproject.toml`: Keywords expanded for PyPI search discoverability.
+- `pyproject.toml`: URLs block updated — Homepage points to `mcp-audit.dev`; Documentation and Changelog links added.
+- `README.md`: Install instructions updated to `pip install mcp-audit-scanner`; git+ source install removed.
+
+---
+
 ## [0.11.0] - 2026-04-23 — Open Source Conversion
 
 ### Changed

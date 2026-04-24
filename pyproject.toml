@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mcp-audit"
+name = "mcp-audit-scanner"
 version = "0.1.0"
 description = "Privacy-first security scanner for MCP server configurations"
 readme = "README.md"
@@ -12,9 +12,20 @@ requires-python = ">=3.11"
 authors = [
     { name = "Adam Dudley", email = "adam@mcp-audit.dev" },
 ]
-keywords = ["mcp", "security", "scanner", "ai-agents", "llm"]
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "security",
+    "scanner",
+    "vulnerability-scanner",
+    "ai-security",
+    "llm-security",
+    "prompt-injection",
+    "supply-chain-security",
+    "ai-agents",
+]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
@@ -60,9 +71,11 @@ sbom = [
 mcp-audit = "mcp_audit.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/adudley78/mcp-audit"
+Homepage = "https://mcp-audit.dev"
+Documentation = "https://mcp-audit.dev"
 Repository = "https://github.com/adudley78/mcp-audit"
 Issues = "https://github.com/adudley78/mcp-audit/issues"
+Changelog = "https://github.com/adudley78/mcp-audit/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mcp_audit"]

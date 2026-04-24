@@ -61,18 +61,25 @@ If `mcp-audit` is useful to you, consider sponsoring ongoing development:
 
 ## Install
 
-> **Note:** mcp-audit is not yet published to PyPI. Install from source or
-> download a standalone binary from
-> [GitHub Releases](https://github.com/adudley78/mcp-audit/releases).
+```bash
+pip install mcp-audit-scanner
+```
+
+or with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-pip install git+https://github.com/adudley78/mcp-audit.git
+uv add mcp-audit-scanner
 ```
+
+> **Note:** The PyPI package name is `mcp-audit-scanner` (the `mcp-audit` name
+> was already taken). The CLI command is still `mcp-audit`.
+> Standalone binaries are also available on
+> [GitHub Releases](https://github.com/adudley78/mcp-audit/releases).
 
 For live server connection support:
 
 ```bash
-pip install 'mcp-audit[mcp] @ git+https://github.com/adudley78/mcp-audit.git'
+pip install 'mcp-audit-scanner[mcp]'
 ```
 
 ## Quick start
@@ -131,7 +138,7 @@ mcp-audit scan --connect
 Requires the optional MCP SDK dependency:
 
 ```bash
-pip install 'mcp-audit[mcp]'
+pip install 'mcp-audit-scanner[mcp]'
 ```
 
 Connection is best-effort: servers that do not respond within 10 seconds produce an error finding rather than crashing the scan. All static analysis still runs regardless.
