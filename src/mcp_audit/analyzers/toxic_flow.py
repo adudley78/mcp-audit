@@ -107,6 +107,18 @@ KNOWN_SERVERS: dict[str, frozenset[Capability]] = {
 }
 
 # ── Keyword matching rules ────────────────────────────────────────────────────
+#
+# These rules fire for any server whose command, args, or name contain a
+# matching token — including third-party packages NOT in known-servers.json.
+# This is intentional: TOXIC-005 (database + network) must fire for e.g.
+# `mcp-server-postgres` (community package) just as it does for
+# `@modelcontextprotocol/server-postgres` (registry entry).  The registry
+# path returns capabilities verbatim for known entries; the keyword path
+# provides the same result for unknown-but-recognisable packages via token
+# scanning.  Both paths return identical DATABASE capability for any server
+# whose package name or server name contains "postgres".  Verified 2026-04-23:
+#   r.get("@modelcontextprotocol/server-postgres").capabilities == ["database"]
+#   r.get("mcp-server-postgres") is None  →  keyword "postgres" fires instead
 
 KEYWORD_RULES: list[KeywordRule] = [
     KeywordRule(
