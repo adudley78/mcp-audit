@@ -1,234 +1,208 @@
-# GitHub Action reference
+# Using mcp-audit as a GitHub Action
 
-> **Note for contributors:** `.github/workflows/ci.yml` is the project's own test matrix (pytest + ruff across 6 OS/Python combinations) and is not the same as this action. This document covers `action.yml`, the composite action that *users* drop into their own repositories to scan their MCP configs.
+Scan your MCP server configurations in CI and surface findings in GitHub Code
+Scanning — no Python install required.
 
-`mcp-audit` ships a composite GitHub Action (`action.yml`) that lets any repository scan its MCP server configurations as part of CI. Findings appear in the GitHub Security tab, the build fails only at your chosen severity threshold, and a findings table is written to the job summary on every run.
+> **Note for contributors:** `.github/workflows/ci.yml` is this project's own
+> test matrix (pytest + ruff across OS/Python combinations), and
+> `.github/workflows/action-ci.yml` is the action self-test. Neither file is
+> the composite action itself. This document covers `action.yml`, the
+> composite action that *users* drop into their own repositories.
 
 ## Quick start
 
-Add this file to `.github/workflows/mcp-audit.yml` in your repository:
+Add `.github/workflows/mcp-audit.yml` to your repository:
 
 ```yaml
 name: MCP Security Scan
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-# Required for SARIF upload to the GitHub Security tab.
-# Must be at the workflow level — job-level alone is not sufficient
-# for composite actions that call github/codeql-action/upload-sarif.
-permissions:
-  contents: read
-  security-events: write
+on: [push, pull_request]
 
 jobs:
   mcp-audit:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      security-events: write   # required for SARIF upload
     steps:
       - uses: actions/checkout@v4
-
-      - name: Run mcp-audit
-        uses: adudley78/mcp-audit@main
-        with:
-          severity-threshold: high
-          upload-sarif: 'true'
+      - uses: adudley78/mcp-audit@v1
 ```
 
-The `permissions` block is **required** for the SARIF upload. It must appear at the **workflow level** (before `jobs:`) — not only at the job level. Without it, the upload step fails with "Resource not accessible by integration" and no findings appear in the Security tab.
+Findings appear in **Security → Code scanning alerts** within ~2 minutes.
+
+The `permissions` block is **required** for the SARIF upload. Composite
+actions inherit workflow-token permissions; declare `security-events: write`
+at either the workflow or the job level (as shown above).
+
+## Full example
 
 ```yaml
-permissions:
-  contents: read
-  security-events: write   # required for SARIF upload to GitHub Security tab
+- uses: adudley78/mcp-audit@v1
+  with:
+    config-paths: 'path/to/claude_desktop_config.json path/to/cursor_config.json'
+    severity-threshold: high
+    sarif-output: mcp-audit.sarif
+    upload-sarif: 'true'
+    check-vulns: 'false'
+    verify-signatures: 'false'
+    run-sast: 'false'
+    sast-path: src/
+    baseline-name: ''
+    fail-on-findings: 'true'
+    version: latest
 ```
 
 ## Inputs
 
-| Input | Default | Required | Description |
-|-------|---------|----------|-------------|
-| `severity-threshold` | `high` | No | Fail the build if any finding at or above this level exists. Accepted: `critical`, `high`, `medium`, `low`, `info`. |
-| `format` | `sarif` | No | Output format written to disk: `sarif`, `json`, or `terminal`. The SARIF upload step always uses the SARIF file regardless of format. |
-| `config-paths` | _(auto-discover)_ | No | Single MCP config file path to scan. Leave empty to auto-discover across all supported clients. |
-| `baseline` | _(none)_ | No | Baseline name to compare against for drift detection. See [Baseline drift detection in CI](#baseline-drift-detection-in-ci). |
-| `upload-sarif` | `true` | No | Set to `'false'` to skip the GitHub Security tab upload (e.g., if you don't have `security-events: write` permission). |
-| `sast` | `false` | No | Set to `'true'` to run the 37 MCP-aware Semgrep rules against server source code. Requires Semgrep pre-installed in the CI environment. See [SAST scanning](#sast-scanning). |
-| `sast-path` | `.` | No | Directory to scan with SAST rules. Defaults to the repository root. Narrow this to `src/` or a specific package directory to reduce scan time. |
+| Input | Default | Description |
+|---|---|---|
+| `config-paths` | _(auto-discover)_ | Space-separated paths to MCP config files or directories. Leave empty to scan every known client-config location. |
+| `severity-threshold` | `high` | Minimum severity to fail the build. One of: `critical`, `high`, `medium`, `low`, `info`. |
+| `sarif-output` | `mcp-audit.sarif` | Path to write the SARIF file. Set to empty string to skip SARIF generation entirely. |
+| `upload-sarif` | `'true'` | Upload SARIF to GitHub Code Scanning. Requires `security-events: write`. |
+| `check-vulns` | `'false'` | Run the OSV.dev dependency CVE scan (Layer 3). Requires network access. |
+| `verify-signatures` | `'false'` | Run Sigstore signature verification (Layer 2). Requires network access. |
+| `run-sast` | `'false'` | Also run `mcp-audit sast <sast-path>` after the config scan. |
+| `sast-path` | `src/` | Path passed to `mcp-audit sast`. Only used when `run-sast: 'true'`. |
+| `baseline-name` | _(empty)_ | Saved baseline name. When non-empty, runs `mcp-audit baseline compare <name>` and writes the diff to the step summary. |
+| `fail-on-findings` | `'true'` | Fail the workflow step if the scan finds anything at or above `severity-threshold`. Set to `'false'` for visibility-only mode. |
+| `version` | `latest` | `mcp-audit-scanner` version to install from PyPI (e.g. `0.10.1`). |
 
 ### Severity threshold behaviour
 
-The threshold controls both what is **reported** and whether the **build fails**:
+The threshold controls both what is **reported** and whether the **build
+fails** when `fail-on-findings: 'true'`:
 
-- `--severity-threshold high` (action default): only HIGH and CRITICAL findings are reported; the build fails if any of those exist.
-- `--severity-threshold medium`: MEDIUM, HIGH, and CRITICAL findings are reported; the build fails if any of those exist.
-- `--severity-threshold info`: all findings are reported; the build fails if any finding exists at all.
-- `--severity-threshold critical`: only CRITICAL findings trigger a failure; HIGH and lower are reported but do not fail the build.
+- `severity-threshold: high` (default): only HIGH and CRITICAL findings cause
+  the build to fail; MEDIUM and lower are reported but do not fail.
+- `severity-threshold: medium`: MEDIUM, HIGH, and CRITICAL findings cause the
+  build to fail.
+- `severity-threshold: info`: any finding at all causes the build to fail.
+- `severity-threshold: critical`: only CRITICAL findings cause the build to
+  fail; everything else is reported but non-blocking.
 
 ## Outputs
 
 | Output | Description |
-|--------|-------------|
-| `finding-count` | Total number of findings at or above the threshold |
-| `grade` | Letter grade (A–F) for the scanned configuration |
-| `sarif-path` | Path to the generated SARIF file (`mcp-audit-results.sarif`) |
+|---|---|
+| `findings-count` | Total findings at or above `severity-threshold`. |
+| `grade` | Overall scan grade (A–F). |
+| `sarif-path` | Absolute path to the generated SARIF file (empty string if `sarif-output` was empty). |
 
 Use outputs in downstream steps:
 
 ```yaml
 - name: Run mcp-audit
   id: mcp
-  uses: adudley78/mcp-audit@main
+  uses: adudley78/mcp-audit@v1
 
-- name: Print grade
-  run: echo "MCP security grade: ${{ steps.mcp.outputs.grade }}"
+- name: Print results
+  run: |
+    echo "Grade: ${{ steps.mcp.outputs.grade }}"
+    echo "Findings: ${{ steps.mcp.outputs.findings-count }}"
 ```
+
+## Permissions
+
+```yaml
+permissions:
+  contents: read
+  security-events: write   # required for SARIF upload to Code Scanning
+```
+
+If Code Scanning isn't enabled on your repo, the upload step skips gracefully
+(`continue-on-error: true`) — the rest of the action still runs and writes
+output files.
+
+## Disabling SARIF upload
+
+```yaml
+- uses: adudley78/mcp-audit@v1
+  with:
+    upload-sarif: 'false'
+```
+
+## Pinning to a specific version
+
+```yaml
+- uses: adudley78/mcp-audit@v0.10.1
+```
+
+`@v1` tracks the latest `1.x` release. Pin to a full version tag for fully
+reproducible CI runs.
 
 ## Example scenarios
 
 ### Basic (visibility only, never fails)
 
-Use this when first adopting mcp-audit. Get visibility into findings without blocking any builds. Tighten the threshold once you've resolved existing issues.
+Good when first adopting mcp-audit. Get findings in the Security tab without
+blocking any build. Tighten the threshold once you've worked through the
+existing findings.
 
 ```yaml
-- name: Run mcp-audit
-  uses: adudley78/mcp-audit@main
+- uses: adudley78/mcp-audit@v1
   with:
-    severity-threshold: info   # report everything, exit 0 always
-    upload-sarif: 'true'
+    severity-threshold: info
+    fail-on-findings: 'false'
 ```
 
 Full file: [`examples/github-actions/basic.yml`](../examples/github-actions/basic.yml)
 
 ### Strict (fail on MEDIUM or higher)
 
-Suitable for security-conscious teams or new projects with no existing findings.
+Suitable for security-conscious teams or new projects with no existing
+findings.
 
 ```yaml
-- name: Run mcp-audit
-  uses: adudley78/mcp-audit@main
+- uses: adudley78/mcp-audit@v1
   with:
     severity-threshold: medium
-    upload-sarif: 'true'
+    fail-on-findings: 'true'
 ```
 
 Full file: [`examples/github-actions/strict.yml`](../examples/github-actions/strict.yml)
 
 ### With baseline drift detection
 
-Compare the current scan against a committed baseline to detect unauthorised server additions, removals, and description changes.
+`baseline-name` runs `mcp-audit baseline compare <name>` after the scan and
+writes the drift table to the step summary. Set up the baseline locally and
+commit the exported JSON before enabling this.
 
 Full file: [`examples/github-actions/with-baseline.yml`](../examples/github-actions/with-baseline.yml)
 
 ### SAST scanning
 
-The `sast: 'true'` input runs the 37 MCP-aware Semgrep rules bundled with mcp-audit against your server source code. Rules cover five vulnerability categories: injection, poisoning, credential exposure, protocol misuse, and insecure transport.
-
-**Semgrep is not bundled with mcp-audit** and must be installed separately in your CI job before the action runs. Add an install step immediately before the action:
-
-```yaml
-- name: Install Semgrep
-  run: pip install semgrep
-```
-
-#### Complete SAST workflow example
+`run-sast: 'true'` runs `mcp-audit sast <sast-path>` after the config scan.
+This uses the 37 bundled MCP-aware Semgrep rules that ship with
+`mcp-audit-scanner`.
 
 ```yaml
-name: MCP Security Scan with SAST
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-permissions:
-  contents: read
-  security-events: write
-
-jobs:
-  mcp-audit-sast:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Semgrep
-        run: pip install semgrep
-
-      - name: Run mcp-audit with SAST
-        uses: adudley78/mcp-audit@main
-        with:
-          sast: 'true'
-          sast-path: 'src/'
-          severity-threshold: medium
-          upload-sarif: 'true'
+- uses: adudley78/mcp-audit@v1
+  with:
+    run-sast: 'true'
+    sast-path: src/
+    severity-threshold: medium
 ```
 
-Set `sast-path` to the directory containing your MCP server source code rather than the repository root to reduce scan time and avoid false positives from unrelated code.
-
-SAST findings have `analyzer: sast` and flow through all output formats (SARIF, JSON, terminal, HTML dashboard). They appear alongside config-level findings in the job summary and the GitHub Security tab.
+Narrow `sast-path` to the directory containing your MCP server source code
+rather than the repository root to reduce scan time and avoid false positives.
 
 ## How findings appear in the Security tab
 
-When `upload-sarif: 'true'` and `permissions: security-events: write` are both set, findings are uploaded to GitHub's code scanning results using the [github/codeql-action/upload-sarif](https://github.com/github/codeql-action) action (v4, Node.js 24). Each finding becomes a code scanning alert with:
+When `upload-sarif: 'true'` and `security-events: write` are both set,
+findings are uploaded via
+[`github/codeql-action/upload-sarif@v4`](https://github.com/github/codeql-action).
+Each finding becomes a code-scanning alert with:
 
-- **Severity** mapped from CRITICAL/HIGH → error, MEDIUM → warning, LOW/INFO → note
-- **Location** pointing to the MCP config file where the server is defined
-- **Rule** linking to the mcp-audit documentation
-- **Fix description** from the finding's remediation field
+- **Severity** mapped from CRITICAL/HIGH → `error`, MEDIUM → `warning`,
+  LOW/INFO → `note`.
+- **Location** pointing to the MCP config file where the server is defined.
+- **Rule** linking to the mcp-audit documentation.
+- **Fix description** from the finding's remediation field.
 
-Alerts appear in the **Security → Code scanning** tab of your repository and as annotations on pull request diff views.
-
-## Baseline drift detection in CI
-
-Drift detection compares the current scan against a named baseline to surface servers that have been added, removed, or had their descriptions changed since the baseline was taken.
-
-### Setup
-
-1. **Create the baseline locally** after reviewing your current configs:
-   ```bash
-   mcp-audit baseline save ci-baseline
-   ```
-
-2. **Export it to a file** that can be committed:
-   ```bash
-   mcp-audit baseline export ci-baseline > .mcp-audit-baseline.json
-   git add .mcp-audit-baseline.json
-   git commit -m "chore: add mcp-audit ci baseline"
-   ```
-
-3. **Copy it into the baselines directory on CI** before the scan step (see [`examples/github-actions/with-baseline.yml`](../examples/github-actions/with-baseline.yml)):
-   ```yaml
-   - name: Load baseline
-     shell: bash
-     run: |
-       if [ -f .mcp-audit-baseline.json ]; then
-         mkdir -p ~/.config/mcp-audit/baselines/
-         cp .mcp-audit-baseline.json ~/.config/mcp-audit/baselines/ci-baseline.json
-       fi
-   ```
-
-4. **Pass `baseline: ci-baseline`** to the action input.
-
-### What drift findings look like
-
-Drift findings appear alongside normal security findings in SARIF output and the job summary. They have `analyzer: baseline` and IDs in the `DRIFT-NNN` range. Drift finding severity follows the baseline drift rules:
-- Server added: MEDIUM
-- Server removed: INFO
-- Hash changed (description/config content): HIGH
-- Command changed: HIGH
-- Args changed: MEDIUM
-- Env changed: MEDIUM
-
-Update the committed baseline whenever you make intentional config changes:
-```bash
-mcp-audit baseline save ci-baseline
-mcp-audit baseline export ci-baseline > .mcp-audit-baseline.json
-git add .mcp-audit-baseline.json && git commit -m "chore: update mcp-audit baseline"
-```
+Alerts appear in the **Security → Code scanning** tab and as annotations on
+pull-request diffs.
 
 ## Exit code behaviour
 
@@ -236,95 +210,83 @@ git add .mcp-audit-baseline.json && git commit -m "chore: update mcp-audit basel
 
 | Exit code | Meaning | Action effect |
 |-----------|---------|---------------|
-| `0` | Clean scan — no findings at or above the threshold | Job continues normally |
-| `1` | Findings found at or above the threshold | Job continues; SARIF is uploaded; step exits 0 |
-| `2` | Tool error (bad args, unreadable config, etc.) | Step fails immediately; job fails |
+| `0` | Clean scan — no findings at or above the threshold | Job continues |
+| `1` | Findings found at or above the threshold | `fail-on-findings: 'true'` → step fails; `'false'` → step succeeds |
+| `2` | Tool error (bad args, unreadable config, etc.) | Step always fails |
 
-Exit code `1` is **not an error** — it is the normal signal that findings exist. The action's scan step explicitly converts exit `1` into a step exit `0` so that SARIF upload and the job summary always run. Only exit code `2` propagates as a real failure.
+Exit code `2` always propagates as a real failure regardless of
+`fail-on-findings`.
 
 ## Action version requirements
 
-The action uses `github/codeql-action/upload-sarif@v4`, which runs on Node.js 24. GitHub is deprecating actions that run on Node.js 20 starting 2026-06-02. If you pin the composite action yourself, use `@v4` or later.
+The action uses `github/codeql-action/upload-sarif@v4`, which runs on
+Node.js 24. GitHub is deprecating actions that run on Node.js 20 starting
+**2026-06-02**. If you pin the composite action yourself, use `@v4` or later.
 
-`actions/checkout@v4` runs on Node.js 20 but is not affected by the 2026-06-02 deprecation (GitHub will update it transparently).
+`actions/checkout@v4` runs on Node.js 20 but is not affected by the
+2026-06-02 deprecation (GitHub will update it transparently).
 
 ## Troubleshooting
 
-### "Path does not exist: mcp-audit-results.sarif"
-
-**Cause**: the scan step exited with code `1` (findings found) or `2` (error) before writing the SARIF file, and the upload step ran without a file present.
-
-**Fix**: this is resolved in the current action version. The scan step now captures the exit code with `|| SCAN_EXIT=$?` instead of letting the shell abort on non-zero. A `Verify SARIF output` step (runs with `if: always()`) writes an empty valid SARIF file if the scan step produced none, so the upload never fails due to a missing file. Ensure you are using the latest `action.yml`.
-
 ### "Resource not accessible by integration" on the SARIF upload step
 
-**Cause**: the `security-events: write` permission is missing at the workflow level. GitHub Actions composite actions inherit the calling workflow's token permissions, but the permission must be declared at the **workflow level** (before `jobs:`) to propagate correctly.
+**Cause:** `security-events: write` permission missing.
 
-**Fix**: add a `permissions` block before `jobs:` in your workflow file:
+**Fix:** add a `permissions` block at the workflow or job level:
+
 ```yaml
 permissions:
   contents: read
   security-events: write
-
-jobs:
-  mcp-audit:
-    ...
 ```
 
-Job-level permissions alone are not sufficient for composite actions that perform SARIF uploads via `github/codeql-action`.
+### "No MCP configurations found"
 
-### SARIF upload silently fails with no Security tab results
+**Cause:** the runner has no MCP config files at the standard discovery
+paths (`.cursor/mcp.json`, `~/.claude.json`, etc.). Expected on CI runners
+that don't use MCP clients.
 
-**Cause**: missing `permissions: security-events: write` at the workflow level.
+**Fix:** point `config-paths` at your repo-committed configs or test
+fixtures:
 
-**Fix**: add the workflow-level permissions block as shown above.
-
-### "No MCP configurations found" in the job summary
-
-**Cause**: the runner has no MCP config files in the standard discovery paths (`.cursor/mcp.json`, `~/.claude.json`, etc.). This is expected on CI runners that don't use MCP clients locally.
-
-**Fix**: if you have MCP configs in your repository (e.g. `.mcp.json` project-level config or test fixtures), pass the path explicitly:
 ```yaml
 with:
   config-paths: '.mcp.json'
 ```
 
-If your project doesn't use MCP, the action exits cleanly with grade A and zero findings.
+### Build fails on existing HIGH findings
 
-### Build fails on HIGH findings I haven't fixed yet
+Temporarily lower the threshold or disable failure:
 
-**Fix**: lower the threshold to `critical` temporarily while you work through existing findings:
 ```yaml
 with:
-  severity-threshold: critical
+  severity-threshold: critical   # fail only on CRITICAL
+  # or
+  fail-on-findings: 'false'      # visibility only
 ```
 
-Or use `severity-threshold: info` to get visibility without build failures.
+### `pip install mcp-audit-scanner` fails on self-hosted runners
 
-### `pip install mcp-audit` fails on self-hosted runners
+**Cause:** the runner doesn't expose a Python 3.11+ interpreter or uses a
+restricted index.
 
-**Cause**: Python may not be in the PATH, or the runner uses a restricted package index.
+**Fix:** the action pins `actions/setup-python@v5` to Python 3.11 as the
+first step, which resolves most cases. For restricted indexes, configure
+`PIP_INDEX_URL` in the workflow environment.
 
-**Fix**: add `actions/setup-python@v5` before the mcp-audit step:
-```yaml
-- uses: actions/setup-python@v5
-  with:
-    python-version: '3.11'
+### Windows runners: bash-script errors
 
-- uses: adudley78/mcp-audit@main
-```
-
-### Windows runners: bash script errors
-
-The action uses `shell: bash` on all steps, which on Windows runners resolves to Git Bash. If Git Bash is not available (unlikely on GitHub-hosted runners but possible on self-hosted), the script steps will fail.
-
-**Fix**: ensure Git for Windows is installed on self-hosted Windows runners, or add a setup step to install it.
+The action uses `shell: bash` on all steps; on Windows runners this resolves
+to Git Bash. Ensure Git for Windows is installed on self-hosted Windows
+runners — the GitHub-hosted `windows-latest` image already has it.
 
 ### Baseline not detected on CI
 
-**Cause**: the baseline JSON file was not copied to the expected directory before the scan step.
+**Cause:** the baseline JSON file was not copied to the expected directory
+before the scan step.
 
-**Fix**: copy the exported baseline to the baselines directory:
+**Fix:** copy the exported baseline before the action runs:
+
 ```bash
 mkdir -p ~/.config/mcp-audit/baselines/
 cp .mcp-audit-baseline.json ~/.config/mcp-audit/baselines/ci-baseline.json
@@ -333,24 +295,27 @@ cp .mcp-audit-baseline.json ~/.config/mcp-audit/baselines/ci-baseline.json
 ## Testing the SARIF upload
 
 Automated schema validation runs in CI (`tests/test_sarif_schema.py`). To
-verify that findings appear in the GitHub Security tab:
+verify that findings appear in the GitHub Security tab end-to-end:
 
-1. Fork or use a repository with GitHub Advanced Security enabled (required
-   for public repos; always available on public repos).
-2. Add the example workflow from `examples/github-actions/basic.yml` or
-   `.github/workflows/mcp-audit-example.yml`.
-3. Ensure the workflow has `permissions: security-events: write`.
-4. Push to trigger a scan. Check the **Security → Code scanning** tab.
-5. If findings do not appear within 2 minutes, check the Actions log for
-   the "Upload SARIF to GitHub Security tab" step output.
+1. Use a repository with Code Scanning enabled (free for public repos;
+   available on private repos with GitHub Advanced Security).
+2. Add the quick-start workflow above.
+3. Ensure `permissions: security-events: write` is set at the workflow or
+   job level.
+4. Push and check **Security → Code scanning** alerts within ~2 minutes.
 
 Common failure causes:
-- Missing `security-events: write` permission on the job or workflow.
-- Repository does not have Code Scanning enabled (Settings → Code security).
-- SARIF file was empty (no MCP config files found during auto-discovery).
+
+- Missing `security-events: write` permission.
+- Code Scanning not enabled (**Settings → Code security → Code scanning**).
+- No MCP config files found — specify `config-paths` explicitly.
 
 ## Known limitations
 
-- The action installs mcp-audit via `pip install`, adding ~20–30 seconds per run. A binary-based action using prebuilt releases is a planned future optimization. See [GAPS.md](../GAPS.md).
-- `config-paths` accepts a single path only. Multiple paths are not currently supported via the action input.
-- The action has not been validated on Windows runners or self-hosted runners without standard Python environments.
+- The action installs `mcp-audit-scanner` via `pip install`, adding 20–30
+  seconds per run. A binary-based variant using prebuilt release assets is
+  a planned future optimisation — see [GAPS.md](../GAPS.md).
+- `config-paths` is passed verbatim to the CLI as positional arguments.
+  Each path is space-separated; paths containing spaces are not supported.
+- The action has not been validated on Windows runners or self-hosted
+  runners without a standard Python environment.

@@ -1,236 +1,227 @@
-name: mcp-audit
-description: Scan MCP server configurations for security vulnerabilities
-author: Adam Dudley
+name: 'mcp-audit'
+description: 'Security scanner for MCP server configurations — detects prompt injection, supply chain risks, credential exposure, and more.'
+author: 'Adam Dudley'
+
+branding:
+  icon: 'shield'
+  color: 'red'
 
 inputs:
-  severity-threshold:
+  config-paths:
     description: >
-      Fail the build if findings at or above this severity are found.
-      Accepted values: critical, high, medium, low, info
+      Space-separated list of paths to MCP config files or directories to scan.
+      Defaults to auto-discovery (scans all known client config locations).
+    required: false
+    default: ''
+
+  severity-threshold:
+    description: 'Minimum severity to fail the build. One of: critical, high, medium, low, info.'
     required: false
     default: 'high'
 
-  format:
-    description: >
-      Output format for scan results.
-      Accepted values: sarif, json, terminal
+  sarif-output:
+    description: 'Path to write SARIF output file. Set to empty string to skip SARIF generation.'
     required: false
-    default: 'sarif'
-
-  config-paths:
-    description: >
-      Single MCP config file path to scan.
-      Leave empty to auto-discover across all supported clients.
-    required: false
-    default: ''
-
-  baseline:
-    description: >
-      Baseline name to compare against for drift detection.
-      Leave empty to skip baseline comparison.
-    required: false
-    default: ''
+    default: 'mcp-audit.sarif'
 
   upload-sarif:
-    description: Upload SARIF results to GitHub Security tab
+    description: 'Upload SARIF to GitHub Code Scanning automatically. Requires security-events: write permission.'
     required: false
     default: 'true'
 
-  sast:
-    description: >
-      Run MCP-aware Semgrep SAST rules against server source code (requires mcp-audit Pro).
-      Semgrep must be installed in the CI environment before this step runs.
+  check-vulns:
+    description: 'Run OSV.dev dependency vulnerability scan (Layer 3). Requires network access.'
+    required: false
+    default: 'false'
+
+  verify-signatures:
+    description: 'Run Sigstore signature verification (Layer 2). Requires network access.'
+    required: false
+    default: 'false'
+
+  run-sast:
+    description: 'Also run mcp-audit SAST analysis against the path specified by sast-path.'
     required: false
     default: 'false'
 
   sast-path:
-    description: 'Path to scan with SAST rules. Defaults to the repository root.'
+    description: 'Path to run SAST analysis against. Only used when run-sast is true. Defaults to src/.'
     required: false
-    default: '.'
+    default: 'src/'
+
+  baseline-name:
+    description: >
+      Name of a saved baseline to compare against. When set, the action runs
+      `mcp-audit baseline compare <baseline-name>` after the scan and posts the
+      diff as a step summary. Leave empty to skip baseline comparison.
+    required: false
+    default: ''
+
+  fail-on-findings:
+    description: 'Fail the workflow step if findings meet or exceed severity-threshold. Set to false to report only.'
+    required: false
+    default: 'true'
+
+  version:
+    description: 'mcp-audit-scanner version to install. Defaults to latest.'
+    required: false
+    default: 'latest'
 
 outputs:
-  finding-count:
-    description: Total number of findings
-    value: ${{ steps.scan.outputs.finding-count }}
-
+  findings-count:
+    description: 'Total number of findings at or above the severity threshold.'
+    value: ${{ steps.scan.outputs.findings-count }}
   grade:
-    description: Letter grade for the scanned configuration (A–F)
+    description: 'Overall scan grade (A–F).'
     value: ${{ steps.scan.outputs.grade }}
-
   sarif-path:
-    description: Path to generated SARIF file
+    description: 'Absolute path to the generated SARIF file (empty if sarif-output was empty).'
     value: ${{ steps.scan.outputs.sarif-path }}
 
 runs:
-  using: composite
+  using: 'composite'
   steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
     - name: Install mcp-audit
       shell: bash
-      # The package is published on PyPI as `mcp-audit-scanner` (the `mcp-audit`
-      # name was already taken).  The console-script entry point is still
-      # `mcp-audit`, so calls below remain unchanged.
-      run: pip install mcp-audit-scanner
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          pip install mcp-audit-scanner --quiet
+        else
+          pip install "mcp-audit-scanner==${{ inputs.version }}" --quiet
+        fi
 
     - name: Run mcp-audit scan
-      shell: bash
       id: scan
+      shell: bash
+      env:
+        SARIF_OUTPUT: ${{ inputs.sarif-output }}
+        CONFIG_PATHS: ${{ inputs.config-paths }}
+        SEVERITY_THRESHOLD: ${{ inputs.severity-threshold }}
+        CHECK_VULNS: ${{ inputs.check-vulns }}
+        VERIFY_SIGNATURES: ${{ inputs.verify-signatures }}
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
       run: |
-        ARGS="--format sarif --output-file mcp-audit-results.sarif"
-        ARGS="$ARGS --severity-threshold ${{ inputs.severity-threshold }}"
+        set +e
 
-        if [ -n "${{ inputs.config-paths }}" ]; then
-          ARGS="$ARGS --path ${{ inputs.config-paths }}"
+        SCAN_EXIT=0
+
+        # ── SARIF pass ────────────────────────────────────────────────────────
+        if [ -n "$SARIF_OUTPUT" ]; then
+          SARIF_ARGS=(scan)
+          if [ -n "$CONFIG_PATHS" ]; then
+            # shellcheck disable=SC2086
+            SARIF_ARGS+=($CONFIG_PATHS)
+          fi
+          SARIF_ARGS+=(--format sarif --output "$SARIF_OUTPUT")
+          SARIF_ARGS+=(--severity-threshold "$SEVERITY_THRESHOLD")
+          [ "$CHECK_VULNS" = "true" ]       && SARIF_ARGS+=(--check-vulns)
+          [ "$VERIFY_SIGNATURES" = "true" ] && SARIF_ARGS+=(--verify-signatures)
+
+          mcp-audit "${SARIF_ARGS[@]}"
+          SCAN_EXIT=$?
+
+          if [ -f "$SARIF_OUTPUT" ]; then
+            {
+              echo "sarif-path=$(python3 -c 'import os,sys;print(os.path.abspath(sys.argv[1]))' "$SARIF_OUTPUT")"
+            } >> "$GITHUB_OUTPUT"
+
+            FINDINGS=$(python3 -c "
+        import json, os, sys
+        try:
+            sarif = json.load(open(os.environ['SARIF_OUTPUT']))
+            results = sarif.get('runs', [{}])[0].get('results', [])
+            print(len(results))
+        except Exception:
+            print(0)
+        ")
+            echo "findings-count=${FINDINGS:-0}" >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "sarif-path="
+              echo "findings-count=0"
+            } >> "$GITHUB_OUTPUT"
+          fi
+        else
+          {
+            echo "sarif-path="
+            echo "findings-count=0"
+          } >> "$GITHUB_OUTPUT"
         fi
 
-        if [ -n "${{ inputs.baseline }}" ]; then
-          ARGS="$ARGS --baseline ${{ inputs.baseline }}"
+        # ── JSON pass — capture grade only ───────────────────────────────────
+        JSON_TMP=$(mktemp /tmp/mcp-audit-XXXXXX.json)
+        JSON_ARGS=(scan)
+        if [ -n "$CONFIG_PATHS" ]; then
+          # shellcheck disable=SC2086
+          JSON_ARGS+=($CONFIG_PATHS)
+        fi
+        JSON_ARGS+=(--format json --output "$JSON_TMP")
+        JSON_ARGS+=(--severity-threshold "$SEVERITY_THRESHOLD")
+        [ "$CHECK_VULNS" = "true" ]       && JSON_ARGS+=(--check-vulns)
+        [ "$VERIFY_SIGNATURES" = "true" ] && JSON_ARGS+=(--verify-signatures)
+
+        mcp-audit "${JSON_ARGS[@]}" >/dev/null 2>&1
+        JSON_EXIT=$?
+
+        GRADE=$(JSON_TMP="$JSON_TMP" python3 -c "
+        import json, os
+        try:
+            data = json.load(open(os.environ['JSON_TMP']))
+            grade = (data.get('grade')
+                     or (data.get('score') or {}).get('grade')
+                     or (data.get('summary') or {}).get('grade')
+                     or 'unknown')
+            print(grade)
+        except Exception:
+            print('unknown')
+        ")
+        echo "grade=${GRADE:-unknown}" >> "$GITHUB_OUTPUT"
+        rm -f "$JSON_TMP"
+
+        # Fallback: if the SARIF pass was disabled (empty sarif-output) we still
+        # want the JSON pass exit code to drive fail-on-findings. When both run,
+        # the SARIF exit code wins because it is the primary source of truth.
+        if [ -z "$SARIF_OUTPUT" ]; then
+          SCAN_EXIT=$JSON_EXIT
         fi
 
-        if [ "${{ inputs.sast }}" = "true" ]; then
-          ARGS="$ARGS --sast ${{ inputs.sast-path }}"
-        fi
+        set -e
 
-        # Capture exit code without failing the step immediately.
-        # Exit 1 = findings found (expected; job continues).
-        # Exit 2 = tool error (propagated as a real failure).
-        mcp-audit scan $ARGS || SCAN_EXIT=$?
-
-        if [ "${SCAN_EXIT:-0}" -eq 2 ]; then
+        # Exit code 2 is always a tool error — propagate regardless of fail-on-findings.
+        if [ "$SCAN_EXIT" -eq 2 ]; then
           exit 2
         fi
 
-        echo "sarif-path=mcp-audit-results.sarif" >> "$GITHUB_OUTPUT"
-        echo "scan_exit=${SCAN_EXIT:-0}" >> "$GITHUB_OUTPUT"
-
-        # Parse finding count and grade directly from the SARIF output.
-        python3 - << 'PYEOF'
-        import json, os, sys
-        sarif_path = "mcp-audit-results.sarif"
-        try:
-            with open(sarif_path) as f:
-                data = json.load(f)
-            runs = data.get("runs", [{}])
-            results = runs[0].get("results", []) if runs else []
-            props = runs[0].get("properties", {}) if runs else {}
-            grade = props.get("mcp-audit/grade", "N/A")
-            count = len(results)
-            github_output = os.environ.get("GITHUB_OUTPUT", "")
-            if github_output:
-                with open(github_output, "a") as out:
-                    out.write(f"finding-count={count}\n")
-                    out.write(f"grade={grade}\n")
-        except Exception as e:
-            print(f"Warning: could not parse SARIF: {e}", file=sys.stderr)
-        PYEOF
-
-    - name: Verify SARIF output
-      shell: bash
-      if: always()
-      run: |
-        if [ ! -f "mcp-audit-results.sarif" ]; then
-          echo "SARIF file not found — writing empty SARIF so upload does not fail"
-          echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"mcp-audit","rules":[]}},"results":[]}]}' \
-            > mcp-audit-results.sarif
+        # Exit code 1 means findings at or above the threshold — honour fail-on-findings.
+        if [ "$FAIL_ON_FINDINGS" = "true" ] && [ "$SCAN_EXIT" -ne 0 ]; then
+          exit "$SCAN_EXIT"
         fi
 
-    # Requires security-events: write permission in the calling workflow.
-    - name: Upload SARIF to GitHub Security tab
-      if: always() && inputs.upload-sarif == 'true'
+    - name: Run mcp-audit SAST
+      if: inputs.run-sast == 'true'
+      shell: bash
+      run: |
+        mcp-audit sast "${{ inputs.sast-path }}"
+
+    - name: Compare baseline
+      if: inputs.baseline-name != ''
+      shell: bash
+      run: |
+        # `baseline compare` takes the baseline name as a positional argument.
+        mcp-audit baseline compare "${{ inputs.baseline-name }}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: inputs.upload-sarif == 'true' && inputs.sarif-output != ''
       uses: github/codeql-action/upload-sarif@v4
       with:
-        sarif_file: mcp-audit-results.sarif
+        sarif_file: ${{ inputs.sarif-output }}
         category: mcp-audit
-
-    - name: Write job summary
-      shell: bash
-      if: always()
-      run: |
-        python3 - << 'PYEOF'
-        import json, os, sys
-
-        sarif_path = "mcp-audit-results.sarif"
-        try:
-            with open(sarif_path) as f:
-                data = json.load(f)
-
-            runs = data.get("runs", [{}])
-            results = runs[0].get("results", []) if runs else []
-            props = runs[0].get("properties", {}) if runs else {}
-
-            grade = props.get("mcp-audit/grade", "N/A")
-            numeric = props.get("mcp-audit/numericScore", "N/A")
-
-            # SARIF levels: error → CRITICAL/HIGH, warning → MEDIUM, note → LOW/INFO
-            severity_counts = {"error": 0, "warning": 0, "note": 0, "none": 0}
-            for r in results:
-                level = r.get("level", "warning")
-                severity_counts[level] = severity_counts.get(level, 0) + 1
-
-            table_header = "| Grade | Score | Errors | Warnings | Notes |"
-            table_sep    = "|-------|-------|--------|----------|-------|"
-            table_row    = (
-                f"| {grade} | {numeric}/100 "
-                f"| {severity_counts['error']} "
-                f"| {severity_counts['warning']} "
-                f"| {severity_counts['note']} |"
-            )
-            summary = (
-                "## mcp-audit Security Scan\n\n"
-                + table_header + "\n"
-                + table_sep + "\n"
-                + table_row + "\n\n"
-            )
-
-            # Identify governance findings by ruleId prefix.
-            gov_results = [r for r in results if r.get("ruleId", "").startswith("GOV-")]
-            sec_results = [r for r in results if not r.get("ruleId", "").startswith("GOV-")]
-
-            if gov_results:
-                summary += "### Policy Violations\n\n"
-                summary += "| Status | Violations |\n"
-                summary += "|--------|------------|\n"
-                status = ":x: FAIL" if gov_results else ":white_check_mark: PASS"
-                summary += f"| {status} | {len(gov_results)} |\n\n"
-                summary += "| Level | Rule | Message |\n"
-                summary += "|-------|------|----------|\n"
-                for r in gov_results[:10]:
-                    level = r.get("level", "")
-                    rule_id = r.get("ruleId", "")
-                    message = r.get("message", {}).get("text", "")[:120]
-                    summary += f"| {level} | {rule_id} | {message} |\n"
-                if len(gov_results) > 10:
-                    summary += f"\n_…and {len(gov_results) - 10} more policy violations._\n"
-                summary += "\n"
-
-            if sec_results:
-                summary += "### Findings\n\n"
-                summary += "| Level | Rule | Message |\n"
-                summary += "|-------|------|----------|\n"
-                for r in sec_results[:20]:
-                    level = r.get("level", "")
-                    rule_id = r.get("ruleId", "")
-                    message = r.get("message", {}).get("text", "")[:120]
-                    summary += f"| {level} | {rule_id} | {message} |\n"
-                if len(sec_results) > 20:
-                    summary += f"\n_…and {len(sec_results) - 20} more findings._\n"
-            elif not gov_results:
-                summary += "_No findings — configuration looks clean._\n"
-
-            step_summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
-            if step_summary:
-                with open(step_summary, "a") as f:
-                    f.write(summary)
-            else:
-                print(summary)
-
-        except FileNotFoundError:
-            msg = "mcp-audit-results.sarif not found — scan may have produced no output.\n"
-            step_summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
-            if step_summary:
-                with open(step_summary, "a") as f:
-                    f.write(f"## mcp-audit Security Scan\n\n{msg}")
-            else:
-                print(msg, file=sys.stderr)
-        except Exception as e:
-            print(f"Summary generation failed: {e}", file=sys.stderr)
-        PYEOF
+      # continue-on-error is intentional: Code Scanning may not be enabled on
+      # every repo that uses this action (private repos without GHAS, etc.).
+      # A hard failure here would be confusing — the scan itself already ran.
+      continue-on-error: true

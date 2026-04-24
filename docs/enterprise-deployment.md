@@ -432,7 +432,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: mcp-audit.sarif
         if: always()

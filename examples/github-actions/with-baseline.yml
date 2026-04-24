@@ -7,9 +7,9 @@
 #   2. Commit the exported baseline to the repo:
 #        mcp-audit baseline export ci-baseline > .mcp-audit-baseline.json
 #        git add .mcp-audit-baseline.json && git commit -m "chore: add mcp-audit baseline"
-#   3. On CI, import it before scanning:
-#        mcp-audit baseline import ci-baseline < .mcp-audit-baseline.json
-#      (add this as an extra step before the mcp-audit action step)
+#   3. On CI, restore it into the baselines directory before the action runs
+#      (the action uses the user-config baseline store; it does not import
+#      a committed file automatically).
 #
 # Good for: tracking intentional config changes, detecting unauthorised server additions.
 
@@ -36,17 +36,19 @@ jobs:
       - uses: actions/checkout@v4
 
       # Restore the committed baseline so drift detection has a reference point.
-      - name: Import baseline
+      # The action looks up baselines from `~/.config/mcp-audit/baselines/<name>.json`
+      # on Linux runners; adjust the target path for other platforms.
+      - name: Load baseline
         shell: bash
         run: |
           if [ -f .mcp-audit-baseline.json ]; then
-            pip install mcp-audit --quiet
-            mcp-audit baseline import ci-baseline < .mcp-audit-baseline.json || true
+            mkdir -p "$HOME/.config/mcp-audit/baselines"
+            cp .mcp-audit-baseline.json "$HOME/.config/mcp-audit/baselines/ci-baseline.json"
           fi
 
       - name: Run mcp-audit with drift detection
-        uses: adudley78/mcp-audit@main
+        uses: adudley78/mcp-audit@v1
         with:
           severity-threshold: high
-          baseline: ci-baseline
+          baseline-name: ci-baseline
           upload-sarif: 'true'

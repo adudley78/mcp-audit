@@ -1,0 +1,31 @@
+name: Action CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run mcp-audit action against demo configs (self-test)
+        uses: ./
+        with:
+          config-paths: 'demo/configs/'
+          severity-threshold: 'critical'
+          fail-on-findings: 'false'
+          upload-sarif: 'false'
+
+      - name: Run mcp-audit action with SAST enabled (self-test)
+        uses: ./
+        with:
+          run-sast: 'true'
+          sast-path: 'src/'
+          fail-on-findings: 'false'
+          upload-sarif: 'false'

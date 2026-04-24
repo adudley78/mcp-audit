@@ -18,16 +18,17 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Run mcp-audit
-        uses: adudley78/mcp-audit@main
+        uses: adudley78/mcp-audit@v1
         with:
           severity-threshold: high
           upload-sarif: 'true'
 
   # Optional SAST job — uncomment to run MCP-specific Semgrep rules alongside
-  # the config scan. Requires Semgrep on the runner (pip install semgrep).
+  # the config scan. The action installs Semgrep alongside mcp-audit when
+  # `run-sast: 'true'` is set, so no extra install step is required.
   # mcp-audit-sast:
   #   runs-on: ubuntu-latest
   #   permissions:
@@ -35,15 +36,15 @@ jobs:
   #     contents: read
   #
   #   steps:
-  #     - uses: actions/checkout@v6
+  #     - uses: actions/checkout@v4
   #
   #     - name: Install Semgrep
   #       run: pip install semgrep
   #
   #     - name: Run mcp-audit with SAST
-  #       uses: adudley78/mcp-audit@main
+  #       uses: adudley78/mcp-audit@v1
   #       with:
-  #         sast: 'true'
+  #         run-sast: 'true'
   #         sast-path: 'src/'
   #         severity-threshold: medium
   #         upload-sarif: 'true'

@@ -336,15 +336,41 @@ class TestYamlValidity:
         doc = self._load_yaml("action.yml")
         inputs = doc.get("inputs", {})
         assert "severity-threshold" in inputs
-        assert "format" in inputs
         assert "upload-sarif" in inputs
+        assert "config-paths" in inputs
+        assert "sarif-output" in inputs
+        assert "run-sast" in inputs
+        assert "baseline-name" in inputs
+        assert "fail-on-findings" in inputs
 
     def test_action_yml_outputs_defined(self) -> None:
         doc = self._load_yaml("action.yml")
         outputs = doc.get("outputs", {})
-        assert "finding-count" in outputs
+        assert "findings-count" in outputs
         assert "grade" in outputs
         assert "sarif-path" in outputs
+
+    def test_action_yml_old_input_names_removed(self) -> None:
+        """Old schema: format, sast, baseline were renamed in v1 action.yml.
+
+        Silently ignored by GitHub Actions if left in user workflows, so we
+        pin the current names here to prevent accidental reintroduction.
+        """
+        doc = self._load_yaml("action.yml")
+        inputs = doc.get("inputs", {})
+        assert "format" not in inputs, (
+            "'format' input was removed; SARIF output is governed by sarif-output."
+        )
+        assert "sast" not in inputs, "'sast' was renamed to 'run-sast'."
+        assert "baseline" not in inputs, "'baseline' was renamed to 'baseline-name'."
+
+    def test_action_yml_old_output_name_removed(self) -> None:
+        """`finding-count` (no s) was renamed to `findings-count`."""
+        doc = self._load_yaml("action.yml")
+        outputs = doc.get("outputs", {})
+        assert "finding-count" not in outputs, (
+            "'finding-count' was renamed to 'findings-count'."
+        )
 
     def test_example_workflow_is_valid_yaml(self) -> None:
         doc = self._load_yaml(".github/workflows/mcp-audit-example.yml")
@@ -383,3 +409,19 @@ class TestYamlValidity:
         doc = self._load_yaml("examples/github-actions/with-baseline.yml")
         permissions = doc["jobs"]["mcp-audit"]["permissions"]
         assert permissions.get("security-events") == "write"
+
+    def test_with_baseline_example_uses_new_input_name(self) -> None:
+        """`baseline` was renamed to `baseline-name` in the v1 action schema."""
+        doc = self._load_yaml("examples/github-actions/with-baseline.yml")
+        step = next(
+            s
+            for s in doc["jobs"]["mcp-audit"]["steps"]
+            if isinstance(s.get("uses"), str) and "mcp-audit" in s["uses"]
+        )
+        inputs = step.get("with", {}) or {}
+        assert "baseline" not in inputs, (
+            "Old input name `baseline` is still present; rename to `baseline-name`."
+        )
+        assert "baseline-name" in inputs, (
+            "with-baseline example should pass `baseline-name` to the action."
+        )
