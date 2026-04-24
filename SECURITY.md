@@ -5,14 +5,14 @@
 If you discover a security vulnerability in mcp-audit, please report it
 responsibly. **Do not open a public GitHub issue for security vulnerabilities.**
 
-**Email:** security@mcp-audit.dev  
+**Preferred channel:** GitHub's private vulnerability reporting — use the
+"Report a vulnerability" button in the [Security tab](https://github.com/adudley78/mcp-audit/security)
+of the repository. This keeps disclosure private until a fix ships.
+
 **Response time:** We aim to acknowledge reports within 48 hours.  
 **Disclosure timeline:** We follow a 90-day coordinated disclosure policy.
 After 90 days (or earlier if a fix is available and deployed), the issue
 may be disclosed publicly.
-
-We also accept reports via GitHub's private vulnerability reporting feature —
-see the "Report a vulnerability" button in the Security tab.
 
 ## Scope
 

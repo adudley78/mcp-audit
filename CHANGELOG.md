@@ -30,7 +30,7 @@ This is a semver-major change because it deletes two CLI commands.
 - **`src/mcp_audit/data/revoked.json`** — bundled certificate revocation list (signed by the placeholder key, effectively inert).
 - **Test modules:** `tests/test_licensing.py`, `tests/test_licensing_revocation.py`, `tests/test_license_cache.py`, `tests/test_gate.py` (50 tests total). Every remaining test file that patched `mcp_audit.cli.cached_is_pro_feature_available` or `mcp_audit.licensing.get_active_license` now invokes the real (un-gated) code path.
 - **`tests/conftest.py::_clear_license_cache`** autouse fixture.
-- Documentation references to Pro / Enterprise tiers, `_FEATURE_TIERS`, `mcp-audit.dev/pro`, Lemon Squeezy / Gumroad issuance, and the "Legacy License Commands" section of `docs/docs-usage.md`.
+- Documentation references to Pro / Enterprise tiers, `_FEATURE_TIERS`, the paid-tier landing page, Lemon Squeezy / Gumroad issuance, and the "Legacy License Commands" section of `docs/docs-usage.md`.
 
 ### Changed
 - **`pyproject.toml`:** `cryptography>=46.0.6,<47.0` moved from core dependencies to the `[attestation]` optional extra. It is now only needed by `attestation/sigstore_client.py` for Fulcio-certificate X.509 parsing, and `sigstore` pulls it in transitively anyway — the explicit pin in `[attestation]` keeps the floor intact against future sigstore upgrades.
@@ -80,7 +80,7 @@ uv add mcp-audit-scanner
 ### Changed
 - `pyproject.toml`: Development Status bumped from Alpha → Beta.
 - `pyproject.toml`: Keywords expanded for PyPI search discoverability.
-- `pyproject.toml`: URLs block updated — Homepage points to `mcp-audit.dev`; Documentation and Changelog links added.
+- `pyproject.toml`: URLs block updated — Homepage, Documentation, and Changelog links added.
 - `README.md`: Install instructions updated to `pip install mcp-audit-scanner`; git+ source install removed.
 
 ---
@@ -92,7 +92,7 @@ uv add mcp-audit-scanner
 - **`sast.py`** — dropped `gate("sast", ...)` call and "(Pro feature)" wording from command docstring.
 - **`dashboard.py`** — dropped `gate(...)` calls, "(Pro/Enterprise)" help text on `--rules-dir`, and the `html is None` dead branch (unreachable since `generate_html()` always returns a string).
 - **`scan.py`** — removed `vuln_mirror`, `sast`, `extensions`, and `custom_rules` gates; dropped "(Pro)" from `--format` help text.
-- **`license.py`** — `version` no longer prints a tier; `activate` / `license` commands label themselves as legacy key handling on an open-source build and no longer reference `mcp-audit.dev/pro`.
+- **`license.py`** — `version` no longer prints a tier; `activate` / `license` commands label themselves as legacy key handling on an open-source build and no longer reference the paid-tier landing page.
 - **`CLAUDE.md`** — "Business model" section rewritten; all "Pro/Enterprise" / `_FEATURE_TIERS` references removed; `_gate.py` reframed as a permanent no-op shim.
 - **`CONTRIBUTING.md`** — "Adding a new Pro feature" section replaced with open-source workflow; "won't accept" list bars re-introducing paid tiers.
 - **`rules/README.md`** — dropped "(requires Pro)" from `rule validate` instruction.
@@ -140,7 +140,7 @@ uv add mcp-audit-scanner
 - **`kid` and `sub` fields in license key payload**: `kid` (8-char lowercase hex, auto-generated via `secrets.token_hex(4)` if omitted) is the primary revocation handle, always included in new keys. `sub` (Lemon Squeezy order ID) is included when provided. Both fields are optional in `LicenseInfo` (`kid: str | None = None`, `subscription_id: str | None = None`) — existing keys without these fields are backward-compatible and treated as non-revocable (they expire naturally on their existing schedule).
 - **Revocation check in `verify_license()`**: if `kid` is present in `_REVOKED_KIDS`, the function returns `None` immediately. Legacy keys without a `kid` field bypass the revocation check.
 - **Thread-local failure discriminator** (`_set_last_verify_failure()` / `get_last_verify_failure()`): allows the CLI to surface `MCPA-LIC-REVOKED` vs `MCPA-LIC-EXPIRED` vs generic-invalid without leaking the reason into `LicenseInfo`. Error codes follow the `GOV-*` / `COMM-*` convention.
-- **Discriminated error messages in `cli/license.py`**: `activate` command checks `get_last_verify_failure()` after a failed key save and prints the appropriate message: "License revoked. Contact support@mcp-audit.dev with your order ID. [MCPA-LIC-REVOKED]", "License expired. [MCPA-LIC-EXPIRED]", or generic invalid.
+- **Discriminated error messages in `cli/license.py`**: `activate` command checks `get_last_verify_failure()` after a failed key save and prints the appropriate message: "License revoked. Contact the project's support alias with your order ID. [MCPA-LIC-REVOKED]", "License expired. [MCPA-LIC-EXPIRED]", or generic invalid.
 - **`sign-revocation-list` sub-command in `scripts/generate_license.py`**: emits a signed `revoked.json` ready to commit. Usage: `python scripts/generate_license.py sign-revocation-list --kids a1b2c3d4,deadbeef --key-file ~/.mcp-audit-signing-key.pem --out src/mcp_audit/data/revoked.json`.
 - **Operator audit log**: every key issuance appends a JSONL row to `~/.mcp-audit-issued-keys.jsonl` (permissions 0o600). Fields: `kid`, `email`, `sub`, `issued`, `expires`, `revoked`.
 - **`tests/test_licensing_revocation.py`**: 12 new tests covering backward compat, `_load_revoked_kids` (empty list, revoked kid, tampered signature, missing file, malformed JSON, placeholder empty signature), `verify_license` revocation paths (valid-unrevoked, revoked kid, legacy key without kid), and the 90-day default issuance window.
