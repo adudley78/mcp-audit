@@ -26,7 +26,7 @@ jobs:
       security-events: write   # required for SARIF upload
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/mcp-audit@v0.3.0
+      - uses: adudley78/mcp-audit@v0.3.1
 ```
 
 Findings appear in **Security → Code scanning alerts** within ~2 minutes.
@@ -47,7 +47,7 @@ break reproducibility on release day.
 ## Full example
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.0
+- uses: adudley78/mcp-audit@v0.3.1
   with:
     config-paths: 'path/to/claude_desktop_config.json path/to/cursor_config.json'
     severity-threshold: high
@@ -104,7 +104,7 @@ Use outputs in downstream steps:
 ```yaml
 - name: Run mcp-audit
   id: mcp
-  uses: adudley78/mcp-audit@v0.3.0
+  uses: adudley78/mcp-audit@v0.3.1
 
 - name: Print results
   run: |
@@ -127,7 +127,7 @@ output files.
 ## Disabling SARIF upload
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.0
+- uses: adudley78/mcp-audit@v0.3.1
   with:
     upload-sarif: 'false'
 ```
@@ -135,11 +135,12 @@ output files.
 ## Pinning to a specific version
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.10.1
+- uses: adudley78/mcp-audit@v0.3.1
 ```
 
-`@v1` tracks the latest `1.x` release. Pin to a full version tag for fully
-reproducible CI runs.
+Pin to a full version tag for fully reproducible CI runs. See the
+[Version pinning](#version-pinning) section above for the `@v1`
+floating-tag convention that will become available once `v1.0.0` ships.
 
 ## Example scenarios
 
@@ -150,7 +151,7 @@ blocking any build. Tighten the threshold once you've worked through the
 existing findings.
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.0
+- uses: adudley78/mcp-audit@v0.3.1
   with:
     severity-threshold: info
     fail-on-findings: 'false'
@@ -164,7 +165,7 @@ Suitable for security-conscious teams or new projects with no existing
 findings.
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.0
+- uses: adudley78/mcp-audit@v0.3.1
   with:
     severity-threshold: medium
     fail-on-findings: 'true'
@@ -190,7 +191,7 @@ install step is required — the dependency is only pulled in when you
 opt in.
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.0
+- uses: adudley78/mcp-audit@v0.3.1
   with:
     run-sast: 'true'
     sast-path: src/

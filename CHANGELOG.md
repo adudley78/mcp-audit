@@ -12,6 +12,42 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.3.1] - 2026-04-24 — Patch: unbreak action self-tests and example pinning
+
+Fixes three independent regressions that shipped with `v0.3.0` and surfaced
+as CI failures on `main` minutes after the tag landed. `v0.3.1` is a
+drop-in replacement — users should bump `adudley78/mcp-audit@v0.3.0` →
+`@v0.3.1` in their workflows. No input / output schema changes.
+
+### Fixed
+- **`run-sast: 'true'` failed at runtime** with `semgrep is not installed`.
+  The Semgrep CLI is intentionally not bundled in `mcp-audit-scanner` (the
+  ~15 MB dependency would bloat the wheel and the PyInstaller binary for
+  the ~95% of users who never opt into SAST). The composite action now
+  installs Semgrep inside the `run-sast: 'true'` step
+  (`pip install semgrep --quiet`), so the cost is pay-for-what-you-use and
+  SAST is zero-config for opt-in users.
+- **`@v1` tag references everywhere** — `.github/workflows/mcp-audit-example.yml`,
+  `docs/github-action.md`, `docs/docs-usage.md`, `examples/github-actions/*.yml`
+  — pointed at a non-existent tag. Users copying our docs verbatim would
+  see `Unable to resolve action adudley78/mcp-audit@v1`. Pinned everything
+  to a real release tag (`@v0.3.1`) and added a **Version pinning** section
+  to `docs/github-action.md` documenting the convention: pin to a specific
+  release tag today; `@v1` will track the latest 1.x release once v1.0.0
+  ships (standard GitHub Marketplace floating-tag pattern).
+- **Test-count drift check** failed on `ubuntu-latest/3.12` — docs said
+  `1,342 tests` (macOS collection count) but the CI canonical is `1,308`.
+  Commit `12bcd3c` already established that the docs track the CI
+  canonical to avoid the long-standing macOS↔Linux skipif-import delta.
+  Realigned `CLAUDE.md` and `README.md`.
+
+### Docs
+- Corrected a stale CLAUDE.md / `docs/github-action.md` line that claimed
+  Semgrep ships bundled in `mcp-audit-scanner`. Only the Semgrep rule pack
+  (`semgrep-rules/`, 37 rules) is bundled; the CLI binary is not.
+
+---
+
 ## [0.3.0] - 2026-04-24 — GitHub Marketplace Action
 
 ### Added
