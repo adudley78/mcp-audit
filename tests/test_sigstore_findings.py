@@ -1,10 +1,17 @@
 """Tests for AttestationResult → Finding translation."""
 
-from pathlib import Path
+import pytest
 
-from mcp_audit.attestation.sigstore_client import AttestationResult
-from mcp_audit.attestation.sigstore_findings import _attestation_result_to_finding
-from mcp_audit.models import ServerConfig, Severity, TransportType
+pytest.importorskip(
+    "sigstore",
+    reason="sigstore not installed; install mcp-audit-scanner[attestation]",
+)
+
+from pathlib import Path  # noqa: E402
+
+from mcp_audit.attestation.sigstore_client import AttestationResult  # noqa: E402
+from mcp_audit.attestation.sigstore_findings import _attestation_result_to_finding  # noqa: E402
+from mcp_audit.models import ServerConfig, Severity, TransportType  # noqa: E402
 
 
 def _server(tmp_path: Path) -> ServerConfig:
