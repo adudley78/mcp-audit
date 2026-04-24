@@ -14,6 +14,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 import sys
@@ -24,13 +25,11 @@ from pathlib import Path
 # drawing / arrow characters used in this script's status lines (e.g. "→").
 # Reconfigure stdout/stderr to UTF-8 so the release smoke test doesn't crash
 # with UnicodeEncodeError before the first scan even runs.  Guarded with
-# try/except because non-default streams (captured pipes, etc.) may not
-# expose .reconfigure().
+# contextlib.suppress because non-default streams (captured pipes, etc.) may
+# not expose .reconfigure().
 for _stream in (sys.stdout, sys.stderr):
-    try:
+    with contextlib.suppress(AttributeError, OSError):
         _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-    except (AttributeError, OSError):
-        pass
 
 FIXTURES = Path(__file__).parent.parent / "tests" / "fixtures"
 MALICIOUS = FIXTURES / "smoke_test_config.json"
@@ -43,10 +42,16 @@ def run(
     expect_exit: int | None = None,
 ) -> subprocess.CompletedProcess:
     """Run the binary with args, optionally asserting the exit code."""
+    # The binary emits UTF-8 (emoji, box-drawing) from Rich's Console.  Python's
+    # default subprocess decode uses locale.getpreferredencoding(), which is
+    # cp1252 on Windows and raises UnicodeDecodeError on non-ASCII bytes.
+    # Pin UTF-8 + errors="replace" so the script stays readable across OSes.
     result = subprocess.run(  # noqa: S603
         [binary, *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if expect_exit is not None and result.returncode != expect_exit:
         print(

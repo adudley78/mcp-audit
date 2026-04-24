@@ -71,7 +71,9 @@ jobs:
         run: |
           BINARY="dist/${{ matrix.binary }}"
           SIZE_BYTES=$(wc -c < "$BINARY" | tr -d ' ')
-          SIZE_MB=$(echo "scale=1; $SIZE_BYTES / 1048576" | bc)
+          # `bc` is not installed in Windows' Git Bash; awk is universally
+          # available on every runner, so use it for the MB float format.
+          SIZE_MB=$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.1f", b/1048576 }')
           echo "Binary size: ${SIZE_MB} MB (${SIZE_BYTES} bytes)"
           # Warn at 25 MB, fail at 35 MB.  The binary ships *without* sigstore
           # (excluded in the .spec files); local linux build is ~21 MB.
