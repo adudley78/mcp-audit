@@ -12,6 +12,48 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.3.3] - 2026-04-24 — Patch: close the PyPI publish gap
+
+The release pipeline has been tagging versions and attaching
+PyInstaller binaries to GitHub Releases since `v0.1.1` — but it never
+published to PyPI. `pip install mcp-audit-scanner` still resolved to
+`0.1.0` (the last manual upload), and the composite `action.yml`
+silently installed `0.1.0` at runtime on every `@v0.3.x` invocation
+because its `pip install mcp-audit-scanner` step had no newer version
+to find.
+
+No schema / API changes — drop-in patch. Bump
+`adudley78/mcp-audit@v0.3.2` → `@v0.3.3`. From this release forward,
+every `v*.*.*` tag push automatically publishes to PyPI; users can
+`pip install --upgrade mcp-audit-scanner` normally.
+
+### Added
+- **PyPI Trusted Publishing (OIDC) pipeline** in `.github/workflows/release.yml`.
+  Runs in parallel with the GitHub Release job so a transient PyPI
+  outage never withholds the binary release (and vice versa). No
+  `PYPI_API_TOKEN` secret to manage or rotate; PyPI mints a
+  short-lived credential for each workflow run via GitHub's OIDC
+  issuer, scoped to the `pypi` GitHub Environment.
+- **PEP 740 sigstore attestations** (`attestations: true`) —
+  published alongside the wheel and sdist, binding each artefact to
+  the workflow run that produced it. Surfaced on the PyPI project
+  page so downstream consumers can verify provenance.
+- **Supply-chain-hardened action pinning** — `pypa/gh-action-pypi-publish`
+  pinned to the v1.14.0 commit SHA (`cef221092ed1bacb1cc03d23a2d87d1d172e277b`,
+  signed tag, PGP-verified by @webknjaz) rather than the floating
+  `release/v1` branch. A floating ref could be silently moved to a
+  malicious commit; a SHA cannot.
+
+### Skipped
+- **Backfilling `0.1.1`–`0.3.2` to PyPI.** PyPI versions are
+  effectively immutable (you can yank, not delete), so publishing
+  `0.3.0` and `0.3.1` now would permanently put two known-broken
+  releases in the registry — the opposite of what the "superseded"
+  banners on their GitHub Releases are trying to prevent. Users go
+  directly from `0.1.0` → `0.3.3` via `pip install --upgrade`.
+
+---
+
 ## [0.3.2] - 2026-04-24 — Patch: isolate Semgrep install from mcp-audit deps
 
 Supersedes `v0.3.1`, which fixed the `v0.3.0` "Semgrep not installed"

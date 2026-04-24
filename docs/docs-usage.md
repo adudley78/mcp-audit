@@ -322,7 +322,7 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/mcp-audit@v0.3.2
+      - uses: adudley78/mcp-audit@v0.3.3
         with:
           severity-threshold: HIGH
           output-file: mcp-audit.sarif
@@ -335,7 +335,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install semgrep
-      - uses: adudley78/mcp-audit@v0.3.2
+      - uses: adudley78/mcp-audit@v0.3.3
         with:
           sast: 'true'
           sast-path: './src'
