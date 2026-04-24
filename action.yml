@@ -66,7 +66,10 @@ runs:
   steps:
     - name: Install mcp-audit
       shell: bash
-      run: pip install mcp-audit
+      # The package is published on PyPI as `mcp-audit-scanner` (the `mcp-audit`
+      # name was already taken).  The console-script entry point is still
+      # `mcp-audit`, so calls below remain unchanged.
+      run: pip install mcp-audit-scanner
 
     - name: Run mcp-audit scan
       shell: bash

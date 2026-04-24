@@ -37,14 +37,17 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install 3.12
 
       - name: Install dependencies
+        # sigstore is installed into .venv so `uv sync --all-extras` resolves,
+        # but the four PyInstaller specs explicitly `excludes=[...]` sigstore
+        # and its transitive modules, so it is never bundled into the binary.
         run: uv sync --all-extras
 
       - name: Install PyInstaller
@@ -58,7 +61,9 @@ jobs:
         shell: bash
 
       - name: Smoke test — full end-to-end
-        run: python scripts/smoke_test.py dist/${{ matrix.binary }}
+        # `uv run python` pins the interpreter to the uv-managed .venv so the
+        # step does not depend on whatever `python` happens to be on PATH.
+        run: uv run python scripts/smoke_test.py dist/${{ matrix.binary }}
         shell: bash
 
       - name: Binary size check
@@ -68,8 +73,8 @@ jobs:
           SIZE_BYTES=$(wc -c < "$BINARY" | tr -d ' ')
           SIZE_MB=$(echo "scale=1; $SIZE_BYTES / 1048576" | bc)
           echo "Binary size: ${SIZE_MB} MB (${SIZE_BYTES} bytes)"
-          # Warn at 25 MB, fail at 35 MB. Sigstore added ~3-4 MB from the 20 MB baseline.
-          # Adjust these thresholds after the first post-sigstore rebuild.
+          # Warn at 25 MB, fail at 35 MB.  The binary ships *without* sigstore
+          # (excluded in the .spec files); local linux build is ~21 MB.
           if [ "$SIZE_BYTES" -gt 36700160 ]; then   # 35 MB
             echo "ERROR: binary exceeds 35 MB hard limit (${SIZE_MB} MB)" >&2
             exit 1
