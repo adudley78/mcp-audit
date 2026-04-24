@@ -507,7 +507,6 @@ class TestExtensionsCLI:
         )
 
         with (
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch.dict(
                 "mcp_audit.extensions.discovery.EXTENSION_PATHS",
                 {"vscode": [str(tmp_path / "extensions")]},
@@ -524,7 +523,6 @@ class TestExtensionsCLI:
 
     def test_extensions_scan_no_findings(self, tmp_path: Path) -> None:
         with (
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.extensions.discovery.discover_extensions",
                 return_value=[],
@@ -546,7 +544,6 @@ class TestExtensionsCLI:
         fake_finding = _make_manifest(keywords=["ai"], activation_events=["*"])
 
         with (
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.extensions.discovery.discover_extensions",
                 return_value=[fake_finding],

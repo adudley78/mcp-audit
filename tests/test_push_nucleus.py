@@ -113,7 +113,6 @@ def test_push_nucleus_missing_api_key_exits_2() -> None:
         # no --api-key
     ]
     with (
-        patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
         patch.dict(os.environ, {"NUCLEUS_API_KEY": ""}, clear=False),
     ):
         # Remove the key entirely if it happens to be set in CI.
@@ -136,7 +135,6 @@ def test_push_nucleus_successful_push_exits_0() -> None:
     fake_json = _fake_nucleus_json(findings=2)
 
     with (
-        patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
         patch("mcp_audit.cli.run_scan", return_value=_make_result()),
         patch("mcp_audit.cli.push_nucleus.format_nucleus", return_value=fake_json),
         patch(
@@ -161,7 +159,6 @@ def test_push_nucleus_job_error_exits_1() -> None:
     fake_json = _fake_nucleus_json()
 
     with (
-        patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
         patch("mcp_audit.cli.run_scan", return_value=_make_result()),
         patch("mcp_audit.cli.push_nucleus.format_nucleus", return_value=fake_json),
         patch(
@@ -192,7 +189,6 @@ def test_push_nucleus_poll_timeout_exits_2() -> None:
         raise typer.Exit(2)
 
     with (
-        patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
         patch("mcp_audit.cli.run_scan", return_value=_make_result()),
         patch("mcp_audit.cli.push_nucleus.format_nucleus", return_value=fake_json),
         patch(
@@ -215,7 +211,6 @@ def test_push_nucleus_output_file_writes_flexconnect_json(tmp_path: Path) -> Non
     out_path = tmp_path / "pushed-scan.json"
 
     with (
-        patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
         patch("mcp_audit.cli.run_scan", return_value=_make_result()),
         patch("mcp_audit.cli.push_nucleus.format_nucleus", return_value=fake_json),
         patch(
@@ -269,7 +264,6 @@ def test_push_nucleus_severity_threshold_filters_findings() -> None:
     )
 
     with (
-        patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
         patch("mcp_audit.cli.run_scan", return_value=scan_result),
         patch(
             "mcp_audit.cli.push_nucleus.format_nucleus",
@@ -303,11 +297,10 @@ def test_push_nucleus_severity_threshold_filters_findings() -> None:
 def test_push_nucleus_invalid_config_path_exits_2(tmp_path: Path) -> None:
     """A --config-paths value that does not exist → clean exit 2."""
     missing = tmp_path / "does-not-exist.json"
-    with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
-        result = runner.invoke(
-            app,
-            [*_BASE_ARGS, "--config-paths", str(missing)],
-        )
+    result = runner.invoke(
+        app,
+        [*_BASE_ARGS, "--config-paths", str(missing)],
+    )
     assert result.exit_code == 2
     assert "not found" in result.output.lower() or "error" in result.output.lower()
 
@@ -317,7 +310,6 @@ def test_push_nucleus_descheduled_job_treated_as_error() -> None:
     fake_json = _fake_nucleus_json()
 
     with (
-        patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
         patch("mcp_audit.cli.run_scan", return_value=_make_result()),
         patch("mcp_audit.cli.push_nucleus.format_nucleus", return_value=fake_json),
         patch(
@@ -400,7 +392,6 @@ def test_push_nucleus_api_key_from_env_var() -> None:
     ]
 
     with (
-        patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
         patch.dict(os.environ, {"NUCLEUS_API_KEY": "env-key-value"}),
         patch("mcp_audit.cli.run_scan", return_value=_make_result()),
         patch("mcp_audit.cli.push_nucleus.format_nucleus", return_value=fake_json),

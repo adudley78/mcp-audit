@@ -48,10 +48,6 @@ or gated commands — the full scanner, rule authoring, governance, SAST
 integration, extension scanning, dashboard, fleet merge, and Nucleus
 FlexConnect output all ship in the same binary.
 
-> **Previously activated a Pro/Enterprise key?** `mcp-audit activate` and
-> `mcp-audit license` still work and honour your existing key — they just
-> no longer gate anything. You can stop using them any time.
-
 ---
 
 ## Install
@@ -240,7 +236,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-1,342 tests validate detection accuracy and guard against regressions.
+1,292 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -257,8 +253,6 @@ Every command is available to every user — no tier, no license required.
 | `mcp-audit pin` | — | Record current server state as a trusted baseline |
 | `mcp-audit diff` | — | Show configuration changes since the last `pin` |
 | `mcp-audit verify` | `<package\|config-path>` | Verify server hashes: pass a package name (`@scope/pkg`), a config file path, or `--all` |
-| `mcp-audit activate` | `<key>` | Legacy — validate a previously issued license key (kept for compatibility) |
-| `mcp-audit license` | — | Legacy — show details of a previously activated key |
 | `mcp-audit version` | — | Print version string |
 | `mcp-audit update-registry` | — | Fetch the latest known-server registry from upstream |
 | `mcp-audit sast` | `<path>` | Run MCP-aware Semgrep SAST rules on server source code |
@@ -414,7 +408,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 1,342 tests
+uv run pytest                        # Run all 1,292 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

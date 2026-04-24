@@ -7,7 +7,6 @@ from pathlib import Path
 import typer
 
 from mcp_audit import cli as _cli
-from mcp_audit._gate import gate
 from mcp_audit.cli import console, policy_app
 
 _POLICY_TEMPLATE = """\
@@ -92,7 +91,6 @@ def policy_validate(
     """Validate a governance policy file (schema check only).
 
     Exits 0 on success, 2 on any validation error.
-    This command is free — no license required.
     """
     from mcp_audit.governance.loader import load_policy  # noqa: PLC0415
 
@@ -148,11 +146,7 @@ def policy_init(
     """Write a commented governance policy template to disk.
 
     Aborts if the destination file already exists.
-    Requires a Pro or Enterprise license.
     """
-    if not gate("governance", console):
-        raise typer.Exit(0)  # noqa: B904
-
     if output.exists():
         console.print(
             f"[red]File already exists:[/red] {output}\n"
@@ -195,11 +189,7 @@ def policy_check(
     """Evaluate governance policy violations only (no full security scan).
 
     Fast: skips all security analyzers, hashing, and network calls.
-    Requires a Pro or Enterprise license.
     """
-    if not gate("governance", console):
-        raise typer.Exit(0)  # noqa: B904
-
     from mcp_audit.governance.evaluator import evaluate_governance  # noqa: PLC0415
     from mcp_audit.governance.loader import load_policy  # noqa: PLC0415
 

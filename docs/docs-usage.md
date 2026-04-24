@@ -418,21 +418,6 @@ The hook exits `0` cleanly when no MCP configs are present in the repo.
 
 ---
 
-## Legacy License Commands
-
-mcp-audit is now fully open source (Apache 2.0) and all features are
-available to every user. The `activate` and `license` commands are kept
-only so users with previously-issued keys continue to have a working flow —
-they no longer unlock anything.
-
-```bash
-# Kept for backward compatibility only
-mcp-audit activate YOUR-LICENSE-KEY
-mcp-audit license
-```
-
----
-
 ## All Commands Reference
 
 | Command | Description |
@@ -461,8 +446,6 @@ mcp-audit license
 | `mcp-audit sast PATH` | Run MCP-specific Semgrep rules |
 | `mcp-audit push-nucleus` | Scan and push results to a Nucleus project |
 | `mcp-audit merge` | Merge fleet scan outputs |
-| `mcp-audit activate KEY` | Legacy — validate a previously issued license key |
-| `mcp-audit license` | Legacy — show details of a previously activated key |
 | `mcp-audit version` | Show version information |
 
 ---

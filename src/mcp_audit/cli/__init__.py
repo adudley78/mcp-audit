@@ -1,9 +1,8 @@
 """mcp-audit CLI — MCP Security Scanner.
 
 Package root.  Defines the top-level ``app`` (plus per-feature sub-apps) and
-re-exports module-level attributes that the test suite and ``_gate.gate``
-helper reach for through the ``mcp_audit.cli`` namespace (e.g.
-``mcp_audit.cli.run_scan``, ``mcp_audit.cli.cached_is_pro_feature_available``).
+re-exports module-level attributes that the test suite reaches for through the
+``mcp_audit.cli`` namespace (e.g. ``mcp_audit.cli.run_scan``).
 
 Command implementations live in the adjacent submodules (``scan.py``,
 ``baseline.py``, etc.); importing them at the end of this file triggers the
@@ -21,7 +20,6 @@ from platformdirs import user_config_dir
 from rich.console import Console
 
 from mcp_audit import __version__
-from mcp_audit._license_cache import cached_is_pro_feature_available
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
 from mcp_audit.scanner import run_scan
@@ -122,7 +120,6 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     dashboard,
     extensions,
     fleet,
-    license,  # noqa: A004 — submodule name mirrors the ``license`` CLI command
     policy,
     push_nucleus,
     registry,
@@ -130,6 +127,7 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     sast,
     sbom,
     scan,
+    version,
 )
 
 if __name__ == "__main__":
@@ -143,7 +141,6 @@ __all__ = [
     "_USER_CONFIG_DIR",
     "app",
     "baseline_app",
-    "cached_is_pro_feature_available",
     "console",
     "discover_configs",
     "extensions_app",

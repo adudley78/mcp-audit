@@ -50,10 +50,11 @@ enabled: true
 - Severity must match the actual risk (refer to existing rules for calibration).
 - Each new pattern should cite a research source in PROVENANCE.md.
 
-## User-local rules (Pro)
+## User-local rules
 
 Place custom rules in `~/.config/mcp-audit/rules/` to have them loaded
-automatically on every scan. Custom rule directories require a Pro license.
+automatically on every scan. No license or flag required — custom rules ship
+in every build.
 
 ## Running rules
 

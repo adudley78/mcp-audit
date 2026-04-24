@@ -8,7 +8,6 @@ import typer
 from rich.table import Table
 
 from mcp_audit import cli as _cli
-from mcp_audit._gate import gate
 from mcp_audit.cli import console, rule_app
 
 # ── rule validate ─────────────────────────────────────────────────────────────
@@ -22,15 +21,10 @@ def rule_validate(
 
     Checks that all rules in the file conform to the PolicyRule schema.
     Exits 0 if all rules are valid, 1 if any errors are found.
-
-    Requires a Pro or Enterprise license.
     """
     if not file.exists():
         console.print(f"[red]Error:[/red] Rule file not found: {file}")
         raise typer.Exit(2)  # noqa: B904
-
-    if not gate("custom_rules", console):
-        raise typer.Exit(0)  # noqa: B904
 
     from mcp_audit.rules.engine import load_rules_from_file  # noqa: PLC0415
 
@@ -78,8 +72,6 @@ def rule_test(
 
     Shows all rules × all servers so you can see what fired and what didn't.
     Exit code is always 0 (this is a testing tool, not a pass/fail gate).
-
-    Requires a Pro or Enterprise license.
     """
     if not file.exists():
         console.print(f"[red]Error:[/red] Rule file not found: {file}")
@@ -88,9 +80,6 @@ def rule_test(
     if not against.exists():
         console.print(f"[red]Error:[/red] Config file not found: {against}")
         raise typer.Exit(2)  # noqa: B904
-
-    if not gate("custom_rules", console):
-        raise typer.Exit(0)  # noqa: B904
 
     from mcp_audit.discovery import DiscoveredConfig  # noqa: PLC0415
     from mcp_audit.rules.engine import (  # noqa: PLC0415
@@ -159,9 +148,9 @@ def rule_list(
 ) -> None:
     """List all currently loaded rules (bundled + user-local).
 
-    Shows bundled community rules and, for Pro users, user-local rules from
-    the platform user config directory under ``mcp-audit/rules/``
-    (path resolved via ``platformdirs``).  Always free — transparency about what runs.
+    Shows bundled community rules plus user-local rules from the platform
+    user config directory under ``mcp-audit/rules/`` (path resolved via
+    ``platformdirs``).
     """
     from mcp_audit.rules.engine import (  # noqa: PLC0415
         load_bundled_community_rules,
@@ -196,10 +185,7 @@ def rule_list(
             ", ".join(rule.tags),
         )
 
-    # User-local rules (shown for Pro users only)
-    if _USER_RULES_DIR.is_dir() and _cli.cached_is_pro_feature_available(
-        "custom_rules"
-    ):
+    if _USER_RULES_DIR.is_dir():
         user_rules = load_rules_from_dir(_USER_RULES_DIR)
         for rule in user_rules:
             sev_display = _SEV_STYLE.get(rule.severity.value, rule.severity.value)
@@ -211,25 +197,17 @@ def rule_list(
                 ", ".join(rule.tags),
             )
 
-    # Extra --rules-dir (shown for Pro users only)
-    if rules_dir is not None:
-        if not gate(
-            "custom_rules",
-            console,
-            message="--rules-dir listing skipped.",
-        ):
-            pass
-        elif rules_dir.is_dir():
-            extra_rules = load_rules_from_dir(rules_dir)
-            for rule in extra_rules:
-                sev_display = _SEV_STYLE.get(rule.severity.value, rule.severity.value)
-                table.add_row(
-                    str(rules_dir),
-                    rule.id,
-                    rule.name,
-                    sev_display,
-                    ", ".join(rule.tags),
-                )
+    if rules_dir is not None and rules_dir.is_dir():
+        extra_rules = load_rules_from_dir(rules_dir)
+        for rule in extra_rules:
+            sev_display = _SEV_STYLE.get(rule.severity.value, rule.severity.value)
+            table.add_row(
+                str(rules_dir),
+                rule.id,
+                rule.name,
+                sev_display,
+                ", ".join(rule.tags),
+            )
 
     console.print()
     console.print(table)

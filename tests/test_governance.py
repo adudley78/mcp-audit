@@ -577,10 +577,7 @@ class TestGovernanceCLI:
 
     def test_policy_init_creates_file(self, tmp_path: Path) -> None:
         output_file = tmp_path / "new-policy.yml"
-        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
-            result = runner.invoke(
-                app, ["policy", "init", "--output", str(output_file)]
-            )
+        result = runner.invoke(app, ["policy", "init", "--output", str(output_file)])
         assert result.exit_code == 0
         assert output_file.exists()
         assert output_file.stat().st_size > 0
@@ -588,8 +585,7 @@ class TestGovernanceCLI:
     def test_policy_init_refuses_to_overwrite(self, tmp_path: Path) -> None:
         existing = tmp_path / "existing.yml"
         existing.write_text("name: existing", encoding="utf-8")
-        with patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True):
-            result = runner.invoke(app, ["policy", "init", "--output", str(existing)])
+        result = runner.invoke(app, ["policy", "init", "--output", str(existing)])
         assert result.exit_code == 2
         assert "already exists" in result.output.lower()
 

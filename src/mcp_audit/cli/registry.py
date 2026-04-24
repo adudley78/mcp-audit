@@ -11,7 +11,6 @@ import typer
 from rich.table import Table
 
 from mcp_audit import cli as _cli
-from mcp_audit._gate import gate
 from mcp_audit.cli import app, console
 
 # ── update-registry ───────────────────────────────────────────────────────────
@@ -24,12 +23,7 @@ def update_registry() -> None:
     Saves the registry to the platform user config directory under
     ``mcp-audit/registry/known-servers.json`` (path resolved via ``platformdirs``).
     On the next scan the updated registry is used automatically.
-
-    Requires a Pro or Enterprise license.
     """
-    if not gate("update_registry", console):
-        raise typer.Exit(0)  # noqa: B904
-
     console.print(f"[dim]Fetching registry from {_cli._UPDATE_REGISTRY_URL}…[/dim]")
 
     try:

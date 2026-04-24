@@ -7,7 +7,6 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from mcp_audit._gate import gate
 from mcp_audit.cli import app, console
 from mcp_audit.cli._helpers import _write_output
 
@@ -146,8 +145,6 @@ def merge(
 ) -> None:
     """Merge JSON scan outputs from multiple machines into a fleet report.
 
-    Requires an Enterprise license.
-
     Examples:
 
         mcp-audit merge results/*.json
@@ -157,9 +154,6 @@ def merge(
         mcp-audit merge --dir ./results/ --asset-prefix prod-
     """
     from mcp_audit.fleet.merger import FleetMerger, generate_fleet_html  # noqa: PLC0415
-
-    if not gate("fleet_merge", console):
-        raise typer.Exit(0)  # noqa: B904
 
     if dir_path is not None and files:
         console.print("[red]Cannot combine FILES arguments with --dir.[/red]")

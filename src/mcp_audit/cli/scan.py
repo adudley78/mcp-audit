@@ -635,10 +635,7 @@ def scan(
     rules_dir: Path | None = typer.Option(  # noqa: B008
         None,
         "--rules-dir",
-        help=(
-            "Load additional detection rules from this directory. "
-            "Requires a Pro or Enterprise license."
-        ),
+        help="Load additional detection rules from this directory.",
     ),
     offline_registry: bool = typer.Option(  # noqa: B008
         False,
@@ -659,7 +656,7 @@ def scan(
         "--verify-hashes",
         help=(
             "Download and verify package hashes against registry "
-            "(requires network access; free for all tiers)"
+            "(requires network access)."
         ),
     ),
     verify_signatures: bool = typer.Option(  # noqa: B008
@@ -667,7 +664,7 @@ def scan(
         "--verify-signatures",
         help=(
             "Verify Sigstore provenance attestations for registry-known packages "
-            "(requires network access; free for all tiers)."
+            "(requires network access)."
         ),
     ),
     strict_signatures: bool = typer.Option(  # noqa: B008
@@ -683,29 +680,26 @@ def scan(
         "--check-vulns",
         help=(
             "Check server dependencies for known CVEs via deps.dev + OSV.dev "
-            "(requires network access; free for all tiers)."
+            "(requires network access)."
         ),
     ),
     vuln_registry: str | None = typer.Option(  # noqa: B008
         None,
         "--vuln-registry",
-        help="Custom OSV-compatible API endpoint (Pro: for air-gapped deployments).",
+        help="Custom OSV-compatible API endpoint (for air-gapped deployments).",
     ),
     sast: Path | None = typer.Option(  # noqa: B008
         None,
         "--sast",
         help=(
             "Path to MCP server source code to scan with Semgrep SAST rules. "
-            "Requires semgrep (pip install semgrep) and a Pro license."
+            "Requires semgrep (pip install semgrep)."
         ),
     ),
     include_extensions: bool = typer.Option(  # noqa: B008
         False,
         "--include-extensions",
-        help=(
-            "Also scan installed IDE extensions for security issues. "
-            "Requires a Pro or Enterprise license."
-        ),
+        help="Also scan installed IDE extensions for security issues.",
     ),
 ) -> None:
     """Scan MCP configurations for security issues."""

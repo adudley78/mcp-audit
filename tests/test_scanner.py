@@ -619,7 +619,6 @@ class TestSastFlag:
         runner = CliRunner()
         with (
             _patch_no_known_clients(),
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.sast.runner.run_semgrep",
                 return_value=_FakeSastResult(),
@@ -665,7 +664,6 @@ class TestSastFlag:
         runner = CliRunner()
         with (
             _patch_no_known_clients(),
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.sast.runner.run_semgrep",
                 return_value=_FakeSastResult(findings=[sast_finding]),
@@ -706,7 +704,6 @@ class TestIncludeExtensionsFlag:
         runner = CliRunner()
         with (
             _patch_no_known_clients(),
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch(
                 "mcp_audit.extensions.discovery.discover_extensions",
                 return_value=[],
@@ -1053,7 +1050,6 @@ class TestRulesDirFlag:
         runner = CliRunner()
         with (
             _patch_no_known_clients(),
-            patch("mcp_audit.cli.cached_is_pro_feature_available", return_value=True),
             patch("mcp_audit.scanner._USER_RULES_DIR", tmp_path / "no-rules"),
         ):
             result = runner.invoke(

@@ -26,7 +26,8 @@ jobs:
           severity-threshold: high
           upload-sarif: 'true'
 
-  # Pro feature — uncomment if you have an mcp-audit Pro license and Semgrep installed.
+  # Optional SAST job — uncomment to run MCP-specific Semgrep rules alongside
+  # the config scan. Requires Semgrep on the runner (pip install semgrep).
   # mcp-audit-sast:
   #   runs-on: ubuntu-latest
   #   permissions:

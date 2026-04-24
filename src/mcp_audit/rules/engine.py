@@ -3,9 +3,9 @@
 Loads YAML rule files and evaluates them against MCP server configurations,
 producing standard Finding objects that flow through all output formatters.
 
-Community rules (bundled in ``rules/community/``) run for all users.
-Custom rule directories and authoring tools require a Pro license (gated
-in ``cli.py``; the engine itself never checks license state).
+Bundled rules live under ``rules/community/``; additional rule directories
+can be supplied via ``--rules-dir`` or dropped into
+``<user-config-dir>/mcp-audit/rules/``. No license or flag gating.
 """
 
 from __future__ import annotations

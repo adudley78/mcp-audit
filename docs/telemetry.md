@@ -7,7 +7,7 @@ crash reports.
 
 - Every scan runs entirely on your machine.
 - No data is sent to mcp-audit servers, Anthropic, or any third party.
-- No identifiers (machine ID, email, license key hash) are transmitted.
+- No identifiers (machine ID, email) are transmitted.
 - `mcp-audit watch` continuous monitoring also runs fully locally.
 - The HTML dashboard is a self-contained file — no beacons, no fonts loaded
   from external CDNs, no JavaScript that phones home.

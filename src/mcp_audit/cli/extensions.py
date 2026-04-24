@@ -5,7 +5,6 @@ from __future__ import annotations
 import typer
 from rich.table import Table
 
-from mcp_audit._gate import gate
 from mcp_audit.cli import console, extensions_app
 
 # ── extensions discover ───────────────────────────────────────────────────────
@@ -25,10 +24,7 @@ def extensions_discover(
         help="Output format: terminal, json",
     ),
 ) -> None:
-    """Discover installed IDE extensions across supported AI coding clients.
-
-    Free for all tiers.
-    """
+    """Discover installed IDE extensions across supported AI coding clients."""
     import json as _json  # noqa: PLC0415
 
     from mcp_audit.extensions.discovery import discover_extensions  # noqa: PLC0415
@@ -88,18 +84,8 @@ def extensions_scan(
         help="Output format: terminal, json, sarif",
     ),
 ) -> None:
-    """Scan installed IDE extensions for security issues.
-
-    Requires a Pro or Enterprise license.
-    """
+    """Scan installed IDE extensions for security issues."""
     import json as _json  # noqa: PLC0415
-
-    if not gate(
-        "extensions",
-        console,
-        message="'extensions discover' is free — try that first.",
-    ):
-        raise typer.Exit(0)  # noqa: B904
 
     from mcp_audit.extensions.analyzer import analyze_extensions  # noqa: PLC0415
     from mcp_audit.extensions.discovery import discover_extensions  # noqa: PLC0415

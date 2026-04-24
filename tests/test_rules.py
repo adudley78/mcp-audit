@@ -788,8 +788,8 @@ class TestScanPipelineIntegration:
             "COMM-004 must not fire for registry-known servers in a full scan"
         )
 
-    def test_rules_run_without_license(self, tmp_path: Path) -> None:
-        """Community rules must run regardless of license tier."""
+    def test_rules_run_unconditionally(self, tmp_path: Path) -> None:
+        """Community rules must run for every scan (no gating)."""
         import json  # noqa: PLC0415
 
         from mcp_audit.scanner import run_scan  # noqa: PLC0415
@@ -802,17 +802,14 @@ class TestScanPipelineIntegration:
             encoding="utf-8",
         )
 
-        with (
-            patch("mcp_audit.discovery._get_client_specs", return_value=[]),
-            patch("mcp_audit.licensing.get_active_license", return_value=None),
-        ):
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
             result = run_scan(
                 extra_paths=[config_file],
                 skip_rug_pull=True,
             )
 
         rule_findings = [f for f in result.findings if f.analyzer == "rules"]
-        assert rule_findings, "Rule findings should appear even for unlicensed users"
+        assert rule_findings, "Rule findings should always appear on matching configs"
 
 
 # ── merge_rules ────────────────────────────────────────────────────────────────
@@ -857,19 +854,7 @@ class TestRuleValidateCLI:
         )
 
         runner = CliRunner()
-        with patch("mcp_audit.licensing.get_active_license") as mock_lic:
-            from datetime import date  # noqa: PLC0415
-
-            from mcp_audit.licensing import LicenseInfo  # noqa: PLC0415
-
-            mock_lic.return_value = LicenseInfo(
-                tier="pro",
-                email="test@example.com",
-                issued=date(2026, 1, 1),
-                expires=date(2027, 1, 1),
-                is_valid=True,
-            )
-            result = runner.invoke(app, ["rule", "validate", str(rule_file)])
+        result = runner.invoke(app, ["rule", "validate", str(rule_file)])
 
         assert result.exit_code == 0
         assert "Valid" in result.output
@@ -883,19 +868,7 @@ class TestRuleValidateCLI:
         rule_file.write_text("id: BAD\nname: broken\n", encoding="utf-8")
 
         runner = CliRunner()
-        with patch("mcp_audit.licensing.get_active_license") as mock_lic:
-            from datetime import date  # noqa: PLC0415
-
-            from mcp_audit.licensing import LicenseInfo  # noqa: PLC0415
-
-            mock_lic.return_value = LicenseInfo(
-                tier="pro",
-                email="test@example.com",
-                issued=date(2026, 1, 1),
-                expires=date(2027, 1, 1),
-                is_valid=True,
-            )
-            result = runner.invoke(app, ["rule", "validate", str(rule_file)])
+        result = runner.invoke(app, ["rule", "validate", str(rule_file)])
 
         assert result.exit_code == 1
 
@@ -936,22 +909,10 @@ class TestRuleTestCLI:
         )
 
         runner = CliRunner()
-        with patch("mcp_audit.licensing.get_active_license") as mock_lic:
-            from datetime import date  # noqa: PLC0415
-
-            from mcp_audit.licensing import LicenseInfo  # noqa: PLC0415
-
-            mock_lic.return_value = LicenseInfo(
-                tier="pro",
-                email="test@example.com",
-                issued=date(2026, 1, 1),
-                expires=date(2027, 1, 1),
-                is_valid=True,
-            )
-            result = runner.invoke(
-                app,
-                ["rule", "test", str(rule_file), "--against", str(config_file)],
-            )
+        result = runner.invoke(
+            app,
+            ["rule", "test", str(rule_file), "--against", str(config_file)],
+        )
 
         assert result.exit_code == 0
         assert "server-a" in result.output
@@ -966,16 +927,22 @@ class TestRuleListCLI:
         from mcp_audit.cli import app  # noqa: PLC0415
 
         runner = CliRunner()
-        with patch("mcp_audit.licensing.get_active_license", return_value=None):
-            result = runner.invoke(app, ["rule", "list"])
+        result = runner.invoke(app, ["rule", "list"])
 
         assert result.exit_code == 0
         assert "COMM-001" in result.output
         assert "12" in result.output or "bundled" in result.output
 
 
-class TestRulesDirProGate:
-    def test_rules_dir_findings_absent_for_community_user(self, tmp_path: Path) -> None:
+class TestRulesDirOptIn:
+    """``extra_rules_dirs`` must be explicitly supplied for custom rules to load.
+
+    Historically this was enforced by a Pro gate in the CLI.  Gating is gone,
+    but the scanner API contract is unchanged: passing ``extra_rules_dirs=None``
+    yields community rules only.
+    """
+
+    def test_rules_dir_findings_absent_when_not_passed(self, tmp_path: Path) -> None:
         import json  # noqa: PLC0415
 
         from mcp_audit.scanner import run_scan  # noqa: PLC0415
@@ -987,7 +954,7 @@ class TestRulesDirProGate:
                 {
                     "id": "CUSTOM-001",
                     "name": "Custom rule",
-                    "description": "Should not appear for community",
+                    "description": "Should not appear when not explicitly loaded",
                     "severity": "HIGH",
                     "category": "test",
                     "match": {"field": "command", "pattern": "node", "type": "exact"},
@@ -1003,12 +970,11 @@ class TestRulesDirProGate:
             encoding="utf-8",
         )
 
-        # Community user: extra_rules_dirs is NOT passed (CLI handles gating)
         with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
             result = run_scan(
                 extra_paths=[config_file],
                 skip_rug_pull=True,
-                extra_rules_dirs=None,  # not passed → community rules only
+                extra_rules_dirs=None,
             )
 
         custom_findings = [f for f in result.findings if f.id == "CUSTOM-001"]
@@ -1017,21 +983,15 @@ class TestRulesDirProGate:
         )
 
 
-# ── Path-before-gate ordering ─────────────────────────────────────────────────
+# ── Missing-file error handling ───────────────────────────────────────────────
 
 
-class TestRuleValidatePathBeforeGate:
-    """rule validate must check file existence before the Pro gate.
+class TestRuleValidateMissingFile:
+    """``rule validate`` / ``rule test`` must exit 2 with a clear message when
+    the supplied file does not exist (regression from an earlier revision where
+    a gate ran before the existence check and masked the real error)."""
 
-    Without the fix, a nonexistent path would show the upsell panel (exit 0)
-    instead of an error (exit 2).  These tests do NOT patch the gate so they
-    exercise the real (unlicensed) code path — the gate will return False, but
-    the file-existence check must fire *first*.
-    """
-
-    def test_rule_validate_nonexistent_path_exits_2_before_gate(
-        self, tmp_path: Path
-    ) -> None:
+    def test_rule_validate_nonexistent_path_exits_2(self, tmp_path: Path) -> None:
         """rule validate /no/such/file.yml must exit 2 with 'not found'."""
         from typer.testing import CliRunner  # noqa: PLC0415
 
@@ -1039,9 +999,7 @@ class TestRuleValidatePathBeforeGate:
 
         missing = tmp_path / "does-not-exist-rule.yml"
         runner = CliRunner()
-        # Deliberately do NOT patch the Pro gate — the path check must win.
-        with patch("mcp_audit.licensing.get_active_license", return_value=None):
-            result = runner.invoke(app, ["rule", "validate", str(missing)])
+        result = runner.invoke(app, ["rule", "validate", str(missing)])
 
         assert result.exit_code == 2, (
             f"Expected exit 2 (file not found), got {result.exit_code}. "
@@ -1051,28 +1009,7 @@ class TestRuleValidatePathBeforeGate:
             f"Expected 'not found' in output, got: {result.output!r}"
         )
 
-    def test_rule_validate_nonexistent_path_no_upsell_text(
-        self, tmp_path: Path
-    ) -> None:
-        """Output for a missing path must not contain the Pro upsell panel."""
-        from typer.testing import CliRunner  # noqa: PLC0415
-
-        from mcp_audit.cli import app  # noqa: PLC0415
-
-        missing = tmp_path / "no-such-rule.yml"
-        runner = CliRunner()
-        with patch("mcp_audit.licensing.get_active_license", return_value=None):
-            result = runner.invoke(app, ["rule", "validate", str(missing)])
-
-        output_lower = result.output.lower()
-        assert "pro" not in output_lower or "not found" in output_lower, (
-            "Output must not show upsell panel when path doesn't exist. "
-            f"Got: {result.output!r}"
-        )
-
-    def test_rule_test_nonexistent_rule_file_exits_2_before_gate(
-        self, tmp_path: Path
-    ) -> None:
+    def test_rule_test_nonexistent_rule_file_exits_2(self, tmp_path: Path) -> None:
         """rule test /no/rule.yml --against config.json must exit 2 for missing rule."""
         from typer.testing import CliRunner  # noqa: PLC0415
 
@@ -1083,11 +1020,10 @@ class TestRuleValidatePathBeforeGate:
         missing_rule = tmp_path / "no-such-rule.yml"
 
         runner = CliRunner()
-        with patch("mcp_audit.licensing.get_active_license", return_value=None):
-            result = runner.invoke(
-                app,
-                ["rule", "test", str(missing_rule), "--against", str(config)],
-            )
+        result = runner.invoke(
+            app,
+            ["rule", "test", str(missing_rule), "--against", str(config)],
+        )
 
         assert result.exit_code == 2, (
             f"Expected exit 2 (rule file not found), got {result.exit_code}. "

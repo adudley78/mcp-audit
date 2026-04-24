@@ -177,24 +177,16 @@ Create `tests/test_your_analyzer.py`. Tests must cover:
 ## Adding a new feature
 
 mcp-audit is fully open source (Apache 2.0) and every feature is available
-to every user.  Feature gating has been removed — `is_pro_feature_available()`
-always returns `True` and `gate()` is a no-op shim retained only so existing
-call sites keep compiling.
+to every user.  All paid-license plumbing (Ed25519 key verification,
+`activate` / `license` commands, `_FEATURE_TIERS`, the `gate()` shim,
+`cached_is_pro_feature_available`) was removed in v0.2.0.
 
 When wiring a new flag or subcommand into `src/mcp_audit/cli/`:
 
-1. **Do not gate the feature.**  Do not add keys to `_FEATURE_TIERS`, and do
-   not introduce new `if not gate(...)` branches.  The helper exists purely
-   for backward compatibility; new call sites should simply proceed.
+1. **Do not re-introduce gating.**  No license checks, no tier-based
+   branching, no "Pro" / "Enterprise" docstrings.
 
-2. **Keep scan logic in `scanner.py` and analyzers license-free.**  They
-   never check license state — that has always been the invariant, and it is
-   now also the case at the CLI layer.
-
-3. **Tests should cover the feature working end-to-end**, without any license
-   patching.  Historical patches of `mcp_audit.cli.cached_is_pro_feature_available`
-   continue to resolve (the function exists and always returns `True`), but
-   new tests should not rely on them.
+2. **Tests cover the feature working end-to-end**, never via license patches.
 
 ## What we won't accept
 

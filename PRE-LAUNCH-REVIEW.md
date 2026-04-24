@@ -1,5 +1,13 @@
 # mcp-audit — Pre-Launch Architecture, Code-Quality, and Documentation Review
 
+> **Historical note (v0.2.0):** this review was written against the pre-open-source
+> build that shipped Community / Pro / Enterprise tiers, a `_FEATURE_TIERS` map,
+> the `gate()` helper, and the `activate` / `license` CLI commands. All of that
+> code was deleted in v0.2.0 when mcp-audit became fully open source. Findings
+> below that reference Pro gating, `_FEATURE_TIERS`, `is_pro_feature_available`,
+> `cached_is_pro_feature_available`, `licensing.py`, or `_gate.py` no longer
+> apply to the current codebase. They are retained for historical context only.
+
 **Review date:** 2026-04-17
 **Target release:** public launch, August 2026 (DEF CON / BSides Las Vegas)
 **Scope:** scanner orchestration, analyzer abstraction, Pro gating, registry
@@ -8,8 +16,8 @@ fixtures, `README.md`, `CHANGELOG.md`, `GAPS.md`, `CONTRIBUTING.md`, and
 selected files under `docs/`.
 
 Findings already acknowledged in `GAPS.md` (V-07 … V-17, TOCTOU on baseline,
-Unicode homoglyphs, `_PUBLIC_KEY_BYTES` placeholder, `licensing.py` directory
-mode, Levenshtein short-name false positives, etc.) are **not repeated** here.
+Unicode homoglyphs, Levenshtein short-name false positives, etc.) are
+**not repeated** here.
 
 Bar applied: "would a security engineer trust this code." Findings are not
 softened.

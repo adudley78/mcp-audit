@@ -4,9 +4,9 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 ## Recently resolved
 
-- **`run_scan` and `run_scan_async` duplicated the full analysis pipeline** (fixed 2026-04-20): Both entry points re-implemented the same seven-step pipeline (per-server analyzers → rug-pull → toxic-flow → attack paths → rule engine → scoring → registry stats), which meant any new analyzer or pipeline bug fix had to be applied twice or one path would silently lag. Fix: extracted `_run_static_pipeline()` in `scanner.py` as the canonical pipeline implementation; both `run_scan` (sync) and `run_scan_async` (async, after live enumeration completes) delegate to it. The helper is synchronous — `run_scan_async` now completes any `--connect` live MCP enumeration *before* calling the pipeline, which produces the same set of findings as before (only the insertion order of runtime poisoning findings changed; no test asserts on that order). New tests `test_static_pipeline_documents_order`, `test_run_scan_delegates_to_static_pipeline`, and `test_run_scan_async_delegates_to_static_pipeline` in `tests/test_scanner.py` lock the delegation contract. Test count: 1105 → 1108.
+- **Paid-license infrastructure removed** (v0.2.0): Ed25519 key verification (`licensing.py`), license cache (`_license_cache.py`), feature-gate shim (`_gate.py`), key-issuance script (`scripts/generate_license.py`), bundled revocation list (`data/revoked.json`), and the `activate` / `license` CLI commands are all gone. mcp-audit is fully open source (Apache 2.0); every feature ships in every build. `cryptography` moved to the `[attestation]` optional extra because attestation's X.509 parser is its only remaining consumer.
 
-- **`update-registry` Pro gate used a proxy feature key** (fixed 2026-04-16): The command was gated via `is_pro_feature_available("html_report")` as a temporary measure. Fix: `_FEATURE_TIERS` in `licensing.py` now contains a dedicated `"update_registry"` entry (`pro`, `enterprise`), and `cli.py` calls `is_pro_feature_available("update_registry")` directly.
+- **`run_scan` and `run_scan_async` duplicated the full analysis pipeline** (fixed 2026-04-20): Both entry points re-implemented the same seven-step pipeline (per-server analyzers → rug-pull → toxic-flow → attack paths → rule engine → scoring → registry stats), which meant any new analyzer or pipeline bug fix had to be applied twice or one path would silently lag. Fix: extracted `_run_static_pipeline()` in `scanner.py` as the canonical pipeline implementation; both `run_scan` (sync) and `run_scan_async` (async, after live enumeration completes) delegate to it. The helper is synchronous — `run_scan_async` now completes any `--connect` live MCP enumeration *before* calling the pipeline, which produces the same set of findings as before (only the insertion order of runtime poisoning findings changed; no test asserts on that order). New tests `test_static_pipeline_documents_order`, `test_run_scan_delegates_to_static_pipeline`, and `test_run_scan_async_delegates_to_static_pipeline` in `tests/test_scanner.py` lock the delegation contract. Test count: 1105 → 1108.
 
 - **`--no-score` leaked score into SARIF `run.properties`** (fixed 2026-04-16): When `--no-score` was passed, the SARIF formatter still included the grade/score properties block because score suppression only reached the terminal renderer. Fix: `cli.py` now nulls `result.score` after scanning and before any formatter is called.
 
@@ -132,26 +132,12 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 ~~**Dashboard browser compatibility untested.**~~ **Resolved 2026-04-23.** `tests/test_dashboard_compat.py` covers Chromium, Firefox, and WebKit (Safari engine) headlessly via Playwright. Tests assert: no JS errors on load or dark-mode toggle, findings table present, SVG graph container present, self-contained HTML (no external CDN references), D3 v7 bundled inline, scan data JSON embedded. Browser tests are skipped gracefully when Playwright binaries are not installed; CI installs them on the `ubuntu-latest / 3.12` matrix leg. Mobile browsers and WebView-based environments (Electron, VS Code webview) are not covered.
 
-## License system
+## Licensing & distribution
 
-**License verification key is a placeholder.** `_PUBLIC_KEY_BYTES` in `licensing.py` is currently an empty bytes literal. It must be replaced with the real 32-byte Ed25519 public key before the Pro gating is active. Run `python scripts/generate_license.py --generate-keypair` and paste the output into `licensing.py`.
-
-**`Path.home()` in frozen PyInstaller context not verified end-to-end.**
-`Path.home()` resolves correctly when `sys.frozen=True` is patched in unit tests
-(`tests/test_licensing.py::TestLicenseKeyPathResolution::test_license_file_path_survives_frozen_context`),
-confirming it is not disrupted by PyInstaller's `sys._MEIPASS` injection.
-A CI smoke test (`dist/<binary> version`) was added to `release.yml` to catch import
-errors and missing bundled data before any binary is published, but it does not
-exercise the license file path end-to-end (no real license key is available in CI).
-
-**No license revocation mechanism.** Issued keys are valid until their expiry date. There is no way to invalidate a specific key before it expires — the only mitigation is to rotate the signing keypair (which also invalidates all outstanding keys).
+**Fully open source — no paid tiers.** Apache 2.0; every feature ships in every build. All license-verification code, revocation lists, and the `activate` / `license` CLI commands were removed in v0.2.0.
 
 **No telemetry or usage analytics.** By design. See `docs/telemetry.md` for
 the full rationale and the bar any future opt-in change must clear.
-
-**Purchase URL is a placeholder.** `https://mcp-audit.dev/pro` appears throughout the codebase but the domain is not yet registered or configured. Replace before any public release.
-
-**Lemon Squeezy / Gumroad integration not set up.** There is no automated key issuance pipeline. Keys are generated manually via `scripts/generate_license.py` and sent to customers out-of-band.
 
 ## Scoring
 
@@ -168,13 +154,13 @@ for a concrete example and further rationale.
 
 **INFO deductions are visible but cosmetically surprising.** INFO-severity findings produce a −1 deduction entry in the score breakdown. If positive signal bonuses (up to +10 total) exceed the total INFO deduction, the numeric score clamps to 100 even though deduction lines appear. The deduction entry is the intended signal to the practitioner. This is a known, accepted tradeoff — a clean scan with minor informational notes should still be achievable as a 100/A.
 
-**Scoring weights are not user-configurable.** The deduction table and bonus thresholds are hardcoded in `scoring.py`. Custom severity weights are a planned Pro feature (policy-as-code engine, Chain Reaction Feature 1) but are not yet implemented.
+**Scoring weights are not user-configurable.** The deduction table and bonus thresholds are hardcoded in `scoring.py`. Custom severity weights are planned work but are not yet implemented.
 
 ## Baselines
 
 **Server matching uses exact (client, name) pair — renames appear as remove+add.** `BaselineManager.compare()` identifies servers by the `(client, name)` tuple. If a server is renamed in the config file it will show as `server_removed` (old name) and `server_added` (new name) rather than as a single `hash_changed` finding. There is no fuzzy matching on server identity. This is intentional — fuzzy matching would increase false-negative rates — but users should be aware that renaming a server resets its history.
 
-**Trend tracking (multi-baseline comparison) is not yet implemented.** The feature is documented as future work and will require Pro license gating via `is_pro_feature_available()`. The `BaselineManager` currently supports pairwise comparison (one baseline vs. current state) only. Historical trend views (e.g. "how has this server changed across 5 baselines") are not yet implemented.
+**Trend tracking (multi-baseline comparison) is not yet implemented.** The `BaselineManager` currently supports pairwise comparison (one baseline vs. current state) only. Historical trend views (e.g. "how has this server changed across 5 baselines") are not yet implemented.
 
 ## GitHub Action
 
@@ -389,13 +375,8 @@ as defense-in-depth before calling `urlretrieve`. Each suppression uses
 `# nosec B310` with an inline one-line justification. No blanket `# nosec` without a
 rule ID exists anywhere in the codebase.
 
-**`save_license()` creates the config directory without explicit mode=0o700.**
-`licensing.py` calls `_LICENSE_FILE.parent.mkdir(parents=True, exist_ok=True)`
-without a `mode` argument. On most systems the effective permissions are
-`0o777 & ~umask` (commonly `0o755`), which allows other users to list the
-directory contents. The license file itself is correctly `chmod`'d to `0o600`
-immediately after writing. `licensing.py` is marked do-not-modify in the
-current codebase; the fix (adding `mode=0o700`) should be applied in the next
+~~**`save_license()` creates the config directory without explicit mode=0o700.**~~
+Resolved in v0.2.0 by removing `licensing.py` entirely along with the
 module refactor.
 
 **`update-registry` directory `mkdir()` mode caveat.**

@@ -12,13 +12,13 @@ and flags security issues.
 
 ## Business model
 
-Fully open source under Apache 2.0 — every feature is free for every user. There is
-no Community / Pro / Enterprise split, no license-key gate, and no paid tier. The
-Ed25519 license-key plumbing in `licensing.py` and `scripts/generate_license.py`
-is retained solely so previously issued keys still verify cleanly through
-`mcp-audit activate` / `mcp-audit license` and do no harm. `is_pro_feature_available()`
-always returns `True`; `gate()` is a no-op shim. Funding is requested via GitHub
-Sponsors (handle placeholder in `README.md`), not through feature gating.
+Fully open source under Apache 2.0 — every feature is free for every user. There
+is no Community / Pro / Enterprise split, no license-key gate, and no paid tier.
+All paid-license plumbing (Ed25519 signing, revocation lists, `activate` /
+`license` commands, the `gate()` shim) was removed in v0.2.0; anything that
+still references `licensing.py` or `_gate.py` is stale. Funding is requested
+via GitHub Sponsors (handle placeholder in `README.md`), not through feature
+gating.
 
 ## Tech stack
 
@@ -28,7 +28,6 @@ Sponsors (handle placeholder in `README.md`), not through feature gating.
 - Testing: pytest + pytest-asyncio
 - Linting: Ruff + Bandit
 - Packaging: hatchling via pyproject.toml
-- License key crypto: `cryptography` (Ed25519)
 
 ## Project layout
 
@@ -36,11 +35,10 @@ Sponsors (handle placeholder in `README.md`), not through feature gating.
 src/mcp_audit/
 ├── cli/               # Typer app package — one submodule per command group
 │ ├── __init__.py      # Defines `app` + sub-apps (baseline/rule/policy/extensions);
-│ │                    #   re-exports `run_scan`, `cached_is_pro_feature_available`,
-│ │                    #   `discover_configs`, `parse_config`, and
-│ │                    #   `_REGISTRY_CACHE_PATH` so existing test patches at
-│ │                    #   `mcp_audit.cli.*` continue to intercept.  Imports
-│ │                    #   the command submodules at the bottom so their
+│ │                    #   re-exports `run_scan`, `discover_configs`,
+│ │                    #   `parse_config`, and `_REGISTRY_CACHE_PATH` so test
+│ │                    #   patches at `mcp_audit.cli.*` continue to intercept.
+│ │                    #   Imports the command submodules at the bottom so their
 │ │                    #   `@app.command()` decorators register.
 │ ├── __main__.py      # `python -m mcp_audit.cli` entry (plus PyInstaller target)
 │ ├── _helpers.py      # Cross-cutting helpers (`_write_output`)
@@ -59,14 +57,12 @@ src/mcp_audit/
 │ ├── dashboard.py     # dashboard command
 │ ├── fleet.py         # merge command (+ `_collect_json_paths_from_dir`,
 │ │                    #   `_print_fleet_report`)
-│ └── license.py       # activate, license, version
+│ └── version.py       # version command
 ├── scanner.py         # Orchestrator: discovery → parsing → analysis → output
 ├── scoring.py         # Scan score calculation (0–100) and letter grade (A–F) formatting
 ├── discovery.py       # Finds MCP config files across all supported clients
 ├── config_parser.py   # Parses JSON configs, normalizes across client formats
 ├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, ScanScore, Severity, AttackPath, MachineInfo
-├── licensing.py       # Ed25519 license key verification; LicenseInfo model; is_pro_feature_available()
-├── _gate.py           # gate(feature, console, message) — historical no-op shim (gating was removed when the project went fully open source); always returns True
 ├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch); _McpConfigEventHandler serialises callbacks via _scan_lock with single-event coalesced re-trigger
 ├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect)
 ├── _paths.py          # data_dir() and resolve_bundled_resource() — shared helpers for locating bundled data in source, wheel, and PyInstaller frozen contexts
@@ -146,7 +142,6 @@ Build and distribution scripts at project root:
 - `build.py` — PyInstaller build script; produces `dist/mcp-audit-{os}-{arch}` single-file binary
 - `scripts/build-linux.sh` — builds a standalone Linux x86_64 binary inside a `python:3.11-slim` Docker container; requires Docker Desktop running; outputs `dist/mcp-audit-linux-x86_64`; installs `binutils` (required by PyInstaller on Linux) via `apt-get` before building; prints file size and SHA-256 on success
 - `scripts/install.sh` — curl-based end-user installer for GitHub Releases
-- `scripts/generate_license.py` — **NOT shipped in the package** (excluded from wheel); legacy offline tool for issuing Ed25519-signed license keys; retained so previously issued keys still verify cleanly (mcp-audit is now fully open source and gating has been removed, but `mcp-audit activate` / `mcp-audit license` still honour existing keys)
 
 ## Key conventions
 
@@ -176,10 +171,8 @@ Build and distribution scripts at project root:
 - Core scanning MUST work fully offline — no network calls by default
 - OSV.dev lookups are planned but **not yet implemented** — the `--offline` flag is accepted but currently has no network calls to suppress
 - Rug-pull state is stored in `<user-config-dir>/mcp-audit/state/state.json` (resolved via `platformdirs`; macOS: `~/Library/Application Support/mcp-audit/state/`); a one-time migration copies state files from the legacy `~/.mcp-audit/` location on first access
-- License key stored at `~/.config/mcp-audit/license.key` (permissions 0o600); activate with `mcp-audit activate <key>`
-- **Feature gating has been removed — mcp-audit is fully open source (Apache 2.0).** `is_pro_feature_available()` always returns `True`; `gate()` is a no-op shim that also returns `True`. The functions, their signatures, and the `mcp_audit.cli.cached_is_pro_feature_available` patch target are retained only so existing call sites and test patches keep working. Do not re-introduce conditional feature availability at any layer.
+- **No feature gating.** mcp-audit is fully open source (Apache 2.0); every feature ships in every binary. Do not re-introduce conditional feature availability at any layer.
 - **Watcher callback serialisation.** `_McpConfigEventHandler._fire()` holds `_scan_lock` for the entire duration of the user callback to prevent two `run_scan` calls from racing on `state_<hash>.json`. Events arriving while a scan is in flight are stored in `_pending_rescan` (tuple of latest `(path, event_type)`) and coalesced into a single re-trigger when the active callback returns. Never release the scan lock before the callback finishes.
-- License verification is fully offline (Ed25519 public key hardcoded in `licensing.py`); the private key never ships with the package
 - Exit codes: 0 = clean, 1 = findings found, 2 = error
 - JSON output includes a nested `score` object from `ScanScore`: `{"numeric": int, "grade": str, "positive_signals": [], "deductions": []}` — `numeric` is 0–100, `grade` is "A"–"F", `positive_signals` and `deductions` carry the per-signal strings displayed in the terminal score panel; HTML dashboard displays a colour-coded grade badge in the header
 - `scan --no-score` suppresses the grade panel in terminal output only; score is still calculated and present in JSON/HTML
@@ -229,9 +222,6 @@ pass (2026-04-17) and **must be maintained** in all future changes:
 - **All `--path`, `--registry`, `--sast`, and `--policy` CLI arguments are validated
   to exist before use**, producing a clean exit code 2 and human-readable message on
   failure, never a Python traceback.
-
-Known exception: `licensing.py` directory creation does not set `mode=0o700` (marked
-do-not-modify). See GAPS.md → "Security limitations" for details.
 
 ## Quality gates
 
@@ -286,11 +276,10 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 34 findings across all demo configs (8 per-config for `claude_desktop_config.json`; community rules analyzer included). Note: the full 3-config scan produces 2 more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone.
-- 1342 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 1292 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
-- Ed25519-signed license-key plumbing retained for historical compatibility (`licensing.py` + `scripts/generate_license.py`); the key-generation script is excluded from the wheel, and `mcp-audit activate` / `mcp-audit license` still accept previously issued keys even though gating has been removed
-- 18 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, activate, license, update-registry, merge, verify, sast, push-nucleus, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
+- 16 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, push-nucleus, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
 - **push-nucleus** — `mcp-audit push-nucleus --url <url> --project-id <id>` runs a scan and pushes results directly to a Nucleus Security project via the FlexConnect API; available to all users; multipart/form-data upload using `urllib.request` only; polls import job to completion; Rich summary panel on success; `--output-file` for local copy; validated against nucleus-demo.nucleussec.com (2026-04-23); see `docs/nucleus-integration.md`
 - **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; available to all users; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action with `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif`, `sast`, `sast-path` inputs; uploads SARIF to GitHub Security tab; writes job summary; `sast: 'true'` requires Semgrep pre-installed in the CI job (`pip install semgrep`) — Semgrep is not bundled in the action; see `docs/github-action.md`
@@ -369,15 +358,7 @@ Result: **CLEAN — safe to make public.**
 | `_resolve_bundled_path()` returns `_MEIPASS/registry/known-servers.json` when `sys.frozen=True` | `tests/test_registry.py::TestMeipassResolution` | Patches `sys.frozen` + `sys._MEIPASS` via `monkeypatch` |
 | `KnownServerRegistry` loads from a simulated `_MEIPASS` layout | `tests/test_registry.py::TestMeipassResolution::test_frozen_registry_loads_via_patched_bundled_path` | Monkeypatches `BUNDLED_REGISTRY_PATH` |
 | Corrupt PyInstaller bundle (missing registry file) raises `FileNotFoundError` | `tests/test_registry.py::TestMeipassResolution::test_locate_raises_when_bundled_path_missing` | Both user-cache and bundled path missing |
-| `_LICENSE_FILE` is rooted at `Path.home() / ".config" / "mcp-audit"` | `tests/test_licensing.py::TestLicenseKeyPathResolution` | Asserts path shape without modifying `licensing.py` |
-| `Path.home()` remains usable when `sys.frozen=True` | `tests/test_licensing.py::TestLicenseKeyPathResolution::test_license_file_path_survives_frozen_context` | PyInstaller does not break `Path.home()` |
 | Binary entry point and bundled data intact after build | CI smoke test in `.github/workflows/release.yml` | `dist/<binary> version` runs before `upload-artifact` |
-
-**Windows license path limitation:** `_LICENSE_FILE` in `licensing.py` still uses
-`Path.home() / ".config" / ...` (POSIX-style), not `%APPDATA%`, because `licensing.py`
-is marked do-not-modify.  All other config paths (`baselines/`, `registry/`, `policy.yml`,
-`rules/`) now use `platformdirs.user_config_dir("mcp-audit")` and resolve correctly on
-all platforms.  The `_LICENSE_FILE` fix is deferred to the next `licensing.py` refactor.
 
 ### CI workflow (`.github/workflows/ci.yml`)
 

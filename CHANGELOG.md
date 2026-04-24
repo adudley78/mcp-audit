@@ -12,6 +12,40 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.2.0] - 2026-04-24 — Remove paid-license infrastructure
+
+mcp-audit has been Apache-2.0-licensed since the first public release, but
+the codebase kept the full paid-license machinery around "just in case" —
+Ed25519 key verification, a bundled certificate revocation list, a feature
+gate helper, and the `activate` / `license` CLI commands. There are no
+paying users and no plan to add any, so that entire layer is now gone.
+This is a semver-major change because it deletes two CLI commands.
+
+### Removed
+- **`src/mcp_audit/licensing.py`** — Ed25519 license-key verification, `LicenseInfo` model, `is_pro_feature_available()`, `generate_license_key()`, bundled revocation list loading. Gone in one shot.
+- **`src/mcp_audit/_license_cache.py`** — `lru_cache`'d wrapper around `get_active_license` / `is_pro_feature_available` that shaved repeated disk reads per scan. No longer needed.
+- **`src/mcp_audit/_gate.py`** — the `gate(feature, console)` shim that used to print upsell panels. Every call site is deleted (five CLI modules: `extensions`, `fleet`, `policy`, `registry`, `rules`).
+- **`src/mcp_audit/cli/license.py`** — `activate` / `license` Typer commands. The `version` command lived here too and was moved to `src/mcp_audit/cli/version.py`.
+- **`scripts/generate_license.py`** — dev-only Ed25519 key issuance and revocation-list signer.
+- **`src/mcp_audit/data/revoked.json`** — bundled certificate revocation list (signed by the placeholder key, effectively inert).
+- **Test modules:** `tests/test_licensing.py`, `tests/test_licensing_revocation.py`, `tests/test_license_cache.py`, `tests/test_gate.py` (50 tests total). Every remaining test file that patched `mcp_audit.cli.cached_is_pro_feature_available` or `mcp_audit.licensing.get_active_license` now invokes the real (un-gated) code path.
+- **`tests/conftest.py::_clear_license_cache`** autouse fixture.
+- Documentation references to Pro / Enterprise tiers, `_FEATURE_TIERS`, `mcp-audit.dev/pro`, Lemon Squeezy / Gumroad issuance, and the "Legacy License Commands" section of `docs/docs-usage.md`.
+
+### Changed
+- **`pyproject.toml`:** `cryptography>=46.0.6,<47.0` moved from core dependencies to the `[attestation]` optional extra. It is now only needed by `attestation/sigstore_client.py` for Fulcio-certificate X.509 parsing, and `sigstore` pulls it in transitively anyway — the explicit pin in `[attestation]` keeps the floor intact against future sigstore upgrades.
+- **`build.py` and all four `.spec` files:** dropped the `mcp_audit.licensing` hidden import and the three `cryptography.hazmat.*` / `cryptography.exceptions` hidden imports that only existed for the licensing module. Added `mcp_audit.cli.version` as a replacement for the retired `mcp_audit.cli.license`.
+- **`src/mcp_audit/cli/__init__.py`:** no longer re-exports `cached_is_pro_feature_available`; submodule import list now pulls `version` instead of `license`.
+- **CLI docstrings:** stripped every "Requires a Pro or Enterprise license" line from `cli/extensions.py`, `cli/fleet.py`, `cli/policy.py`, `cli/registry.py`, `cli/rules.py`. The `rule list` command now shows user-local rules whenever `<user-config-dir>/mcp-audit/rules/` exists — the `cached_is_pro_feature_available("custom_rules")` guard that used to wrap it is gone.
+
+### Added
+- **`.github/workflows/ci.yml` — `test-all-extras` job.** Installs the project with `.[dev,sbom,attestation,mcp]` on `ubuntu-latest` / Python 3.12 and runs the full test suite, so the nine SBOM tests and the attestation / live-MCP paths that the default `[dev]`-only matrix silently skipped are now actually exercised on every PR.
+
+### Version
+- `pyproject.toml` and the `__version__` fallback bumped to `0.2.0`. The previous `0.1.2` binary remains the last gated-code-complete build; anyone who needs the `activate` / `license` commands for reasons unknown can still run v0.1.2 — it does nothing useful, but it works.
+
+---
+
 ## [0.1.2] - 2026-04-24 — Release infrastructure fix, dependency widening
 
 The `v0.1.1` tag was cut on 2026-04-24 but never produced a GitHub release: the `Build darwin-x86_64` matrix leg targeted the `macos-13` runner image, which GitHub [retired on 2025-12-08](https://github.blog/changelog/2025-09-19-github-actions-macos-13-runner-image-is-closing-down/). Jobs requesting that label queue indefinitely instead of erroring, so every v0.1.1 release run hung. `0.1.2` is the first successful release under the new semver line; no user-facing code changed between 0.1.0 and 0.1.2.

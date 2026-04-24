@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-audit-scanner"
-version = "0.1.2"
+version = "0.2.0"
 description = "Privacy-first security scanner for MCP server configurations"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -42,13 +42,17 @@ dependencies = [
     "pydantic>=2.0,<3.0",
     "pyyaml>=6.0,<7.0",
     "watchdog>=4.0,<7.0",
-    "cryptography>=46.0.6,<47.0",
     "packaging>=21.0",
     "platformdirs>=3.0",
 ]
 
 [project.optional-dependencies]
 attestation = [
+    # cryptography is only used by attestation/sigstore_client.py for X.509
+    # parsing of Fulcio signing certificates; sigstore pulls it in transitively,
+    # but we pin an explicit range here so future sigstore upgrades cannot
+    # silently widen it.
+    "cryptography>=46.0.6,<47.0",
     "sigstore>=3.0,<5.0",
 ]
 dev = [
@@ -81,8 +85,6 @@ Changelog = "https://github.com/adudley78/mcp-audit/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mcp_audit"]
-# scripts/generate_license.py is intentionally excluded — it is a dev-only
-# key-issuance utility that must not ship in the published package.
 
 [tool.hatch.build.targets.wheel.force-include]
 # Bundle the known-server registry inside the installed package so that

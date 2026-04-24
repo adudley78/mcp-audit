@@ -52,7 +52,6 @@ def build() -> None:
         "--hidden-import", "mcp_audit.watcher",
         "--hidden-import", "mcp_audit.registry.loader",
         "--hidden-import", "mcp_audit.rules.engine",
-        "--hidden-import", "mcp_audit.licensing",
         "--hidden-import", "mcp_audit.fleet.merger",
         "--hidden-import", "mcp_audit.governance.evaluator",
         "--hidden-import", "mcp_audit.governance.loader",
@@ -72,17 +71,12 @@ def build() -> None:
         "--hidden-import", "mcp_audit.cli.dashboard",
         "--hidden-import", "mcp_audit.cli.extensions",
         "--hidden-import", "mcp_audit.cli.fleet",
-        "--hidden-import", "mcp_audit.cli.license",
         "--hidden-import", "mcp_audit.cli.policy",
         "--hidden-import", "mcp_audit.cli.registry",
         "--hidden-import", "mcp_audit.cli.rules",
         "--hidden-import", "mcp_audit.cli.sast",
         "--hidden-import", "mcp_audit.cli.scan",
-        # cryptography imports are deferred inside licensing.py functions;
-        # list them explicitly so PyInstaller bundles the right submodules.
-        "--hidden-import", "cryptography.hazmat.primitives.asymmetric.ed25519",
-        "--hidden-import", "cryptography.hazmat.primitives.serialization",
-        "--hidden-import", "cryptography.exceptions",
+        "--hidden-import", "mcp_audit.cli.version",
         *datas_args,
         str(root / "src" / "mcp_audit" / "cli" / "__main__.py"),
     ]
