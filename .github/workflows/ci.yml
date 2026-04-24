@@ -68,11 +68,13 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies
-        # `--prerelease=allow` is required because sigstore's transitive dep
-        # `sigstore-protobuf-specs` pulls in `betterproto==2.0.0b6` (a beta).
-        # `uv sync` would tolerate this via the lockfile, but `uv pip install`
-        # defaults to rejecting pre-releases.
-        run: uv pip install -e ".[dev,attestation]" --system --prerelease=allow
+        # The binary ships *without* the optional [attestation] extra: the
+        # sigstore stack adds ~15 MB and would push the binary over the 35 MB
+        # budget enforced below.  `--verify-signatures` gracefully degrades
+        # to a friendly error when sigstore isn't importable (see
+        # src/mcp_audit/cli/scan.py).  Users who want attestation verification
+        # should `pip install 'mcp-audit-scanner[attestation]'` instead.
+        run: uv pip install -e ".[dev]" --system
 
       - name: Install PyInstaller
         run: uv pip install pyinstaller --system

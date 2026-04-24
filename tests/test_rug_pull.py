@@ -406,10 +406,14 @@ class TestCombinationScenarios:
         assert findings == []
 
     def test_finding_path_populated(self, analyzer: RugPullAnalyzer) -> None:
-        srv = _make_server(config_path=Path("/home/user/.cursor/mcp.json"))
+        # Use str(path) to match the OS-native separator the analyzer emits
+        # (rug_pull.py stores str(config_path), which is backslash-based on
+        # Windows).  Comparing against a hardcoded POSIX string fails on win32.
+        config_path = Path("/home/user/.cursor/mcp.json")
+        srv = _make_server(config_path=config_path)
         findings = analyzer.analyze_all([srv])
         for f in findings:
-            assert f.finding_path == "/home/user/.cursor/mcp.json"
+            assert f.finding_path == str(config_path)
 
 
 # ── State persistence across analyzer instances ───────────────────────────────

@@ -63,7 +63,17 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['cyclonedx', 'packageurl', 'py_serializable', 'boolean', 'license_expression', 'defusedxml'],
+    excludes=[
+        'cyclonedx', 'packageurl', 'py_serializable', 'boolean',
+        'license_expression', 'defusedxml',
+        # Optional [attestation] stack is intentionally not shipped in the
+        # binary (keeps size under budget, avoids the sigstore-protobuf-specs
+        # pre-release dependency chain).  The `--verify-signatures` code path
+        # guards for ImportError and prints an install hint.
+        'sigstore', 'sigstore_protobuf_specs', 'betterproto',
+        'mcp_audit.attestation.sigstore_client',
+        'mcp_audit.attestation.sigstore_findings',
+    ],
     noarchive=False,
     optimize=0,
 )
