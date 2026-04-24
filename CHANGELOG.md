@@ -12,6 +12,51 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.3.0] - 2026-04-24 — GitHub Marketplace Action
+
+### Added
+- **GitHub Action wrapper** (`action.yml`) — composite action ready for
+  Marketplace listing. No Docker; installs `mcp-audit-scanner` from PyPI and
+  invokes the CLI via `shell: bash`. Uploads SARIF to GitHub Code Scanning
+  via `github/codeql-action/upload-sarif@v4` (continue-on-error so repos
+  without Code Scanning still run cleanly).
+- **New input schema** — `config-paths`, `severity-threshold`, `sarif-output`,
+  `upload-sarif`, `check-vulns`, `verify-signatures`, `run-sast`, `sast-path`,
+  `baseline-name`, `fail-on-findings`, `version`. The composite action writes
+  SARIF via `--format sarif --output` (never the non-existent `--sarif` flag)
+  and invokes `mcp-audit baseline compare <name>` positionally.
+- **New outputs** — `findings-count`, `grade`, `sarif-path`. Consumable by
+  downstream steps via `steps.<id>.outputs.<name>`.
+- **`.github/workflows/action-ci.yml`** — self-tests the composite on every
+  push / PR: one run against `demo/configs/` and one with `run-sast: true`
+  against `src/`.
+- **`docs/github-action.md`** — rewritten against the new schema. Quick-start,
+  full example, inputs / outputs tables, permissions, scenarios, exit-code
+  behaviour, troubleshooting, and SARIF-upload verification checklist.
+- **`tests/test_action_yaml.py`** — 13 structure + security guardrails
+  covering branding, required top-level keys, input/output schema stability,
+  old-name removal, hardcoded-secret patterns, `--sarif` flag typo, and the
+  `upload-sarif@v4` pin.
+
+### Changed
+- **`tests/test_github_action.py`** — migrated to the v1 input schema;
+  two new guardrails assert old names (`format`, `sast`, `baseline`,
+  `finding-count`) remain absent.
+- **Example workflows** — `examples/github-actions/with-baseline.yml` now
+  uses `baseline-name:`; the commented-out SAST block in
+  `.github/workflows/mcp-audit-example.yml` uses `run-sast:`.
+- **`README.md` / `docs/enterprise-deployment.md`** — stray
+  `github/codeql-action/upload-sarif@v3` references bumped to `@v4` (v3
+  runs on Node 20, deprecated 2026-06-02).
+- **`pyproject.toml`** — author email switched to a GitHub noreply address;
+  Homepage / Documentation URLs now point at the GitHub repository.
+- **`SECURITY.md`** — security disclosure channel switched to GitHub's
+  private vulnerability reporting.
+- **`CLAUDE.md`** — repo-map and feature blurb synced to the v1 action
+  schema; test count bumped to 1,342.
+
+---
+
 ## [0.2.0] - 2026-04-24 — Remove paid-license infrastructure
 
 mcp-audit has been Apache-2.0-licensed since the first public release, but
