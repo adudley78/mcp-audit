@@ -64,7 +64,7 @@ The script runs eight commands in sequence:
 | Step | Command | Expected result |
 |------|---------|-----------------|
 | 1 | `discover` | Lists 3 config files, 8 servers |
-| 2 | `scan` (terminal) | 32 findings across all 7 analyzers (first scan adds rug-pull INFO; subsequent scans drop to ~24 after baselines are set) |
+| 2 | `scan` (terminal) | 34 findings across all 7 analyzers (first scan adds rug-pull INFO; subsequent scans drop to ~26 after baselines are set) |
 | 3 | `pin` | Records baseline hashes for all 8 servers |
 | 4 | `diff` | Reports no changes (nothing changed since pin) |
 | 5 | `scan --format json` | Writes `output/results.json` |
@@ -112,6 +112,6 @@ drop rug-pull to 0 once baselines are established.
 | Community rules | COMM-004, COMM-010 | 10 |
 | Toxic flow | TOXIC-001, 004, 005, 006, 007 | 12 |
 
-**Total on first scan: ~32 findings across all demo configs** (drops to ~24 on
+**Total on first scan: 34 findings across all demo configs** (drops to ~26 on
 subsequent runs once rug-pull baselines are established; cross-config toxic-flow
-pairs add extra findings when all configs are scanned together vs. individually).
+pairs add extra findings when all configs are scanned together vs. individually — notably the two TOXIC-005 database+network pairs that only appear in a full 3-config scan).

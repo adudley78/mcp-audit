@@ -3,16 +3,11 @@
 Tool poisoning embeds malicious instructions in MCP tool descriptions that
 are visible to the LLM but hidden from users in client UIs. This analyzer
 uses regex pattern matching to detect common poisoning patterns.
-
-ReDoS audit (2026-04-23): all 12 compiled patterns were benchmarked against a
-50 000-character adversarial string ("a" * 50_000 + "!").  Max observed match
-time was 2.5 ms (pattern 1).  No pattern exceeded 3 ms — no ReDoS risk.
 """
 
 from __future__ import annotations
 
 import re
-import unicodedata
 from dataclasses import dataclass
 
 from mcp_audit.analyzers.base import BaseAnalyzer
@@ -210,29 +205,6 @@ PATTERNS: list[DetectionPattern] = [
         remediation="Review the full tool description for hidden instructions",
         description_only=True,
     ),
-
-    # MEDIUM: Unicode stealth
-    DetectionPattern(
-        id="POISON-060",
-        name="Unicode homoglyph characters",
-        pattern=re.compile(
-            r"[\u0400-\u04FF"   # Cyrillic block
-            r"\u0370-\u03FF"   # Greek block
-            r"\u2000-\u206F"   # General punctuation lookalikes
-            r"\uFF01-\uFF60]"  # Fullwidth ASCII variants
-        ),
-        severity=Severity.MEDIUM,
-        description=(
-            "Tool description contains Unicode characters from non-Latin scripts "
-            "that are visually identical to ASCII characters. This is a stealth "
-            "technique used to bypass regex-based detection."
-        ),
-        remediation=(
-            "Inspect the raw bytes of this tool description. Remove any server "
-            "whose description uses homoglyphs to obscure instructions."
-        ),
-        cwe="CWE-116",
-    ),
 ]
 # fmt: on
 
@@ -267,21 +239,11 @@ class PoisoningAnalyzer(BaseAnalyzer):
         description_only_patterns = [p for p in PATTERNS if p.description_only]
 
         # All string values — used for patterns that cover every field.
-        # POISON-060 runs against the original text (to catch homoglyphs as-is);
-        # all other patterns run against the ASCII-normalised text to defeat
-        # homoglyph substitution attacks that would otherwise bypass them.
         all_texts = self._extract_text_fields(server.raw)
-        seen: set[tuple[str, str, str]] = set()
         for text in all_texts:
-            normalized = self._normalize(text)
             for pattern in general_patterns:
-                target = text if pattern.id == "POISON-060" else normalized
-                match = pattern.pattern.search(target)
+                match = pattern.pattern.search(text)
                 if match:
-                    dedup_key = (pattern.id, server.name, match.group()[:100])
-                    if dedup_key in seen:
-                        continue
-                    seen.add(dedup_key)
                     findings.append(
                         Finding(
                             id=pattern.id,
@@ -302,15 +264,9 @@ class PoisoningAnalyzer(BaseAnalyzer):
         if description_only_patterns:
             description_texts = self._extract_description_fields(server.raw)
             for text in description_texts:
-                normalized = self._normalize(text)
                 for pattern in description_only_patterns:
-                    target = text if pattern.id == "POISON-060" else normalized
-                    match = pattern.pattern.search(target)
+                    match = pattern.pattern.search(text)
                     if match:
-                        dedup_key = (pattern.id, server.name, match.group()[:100])
-                        if dedup_key in seen:
-                            continue
-                        seen.add(dedup_key)
                         findings.append(
                             Finding(
                                 id=pattern.id,
@@ -328,22 +284,13 @@ class PoisoningAnalyzer(BaseAnalyzer):
 
         return findings
 
-    @staticmethod
-    def _normalize(text: str) -> str:
-        """Normalize Unicode to ASCII to defeat homoglyph substitution attacks."""
-        return (
-            unicodedata.normalize("NFKD", text)
-            .encode("ascii", "ignore")
-            .decode("ascii")
-        )
-
     def _extract_text_fields(
         self,
         data: dict | list | str,
         depth: int = 0,
     ) -> list[str]:
         """Recursively extract all string values from a nested structure."""
-        if depth > 50:
+        if depth > 10:
             return []
 
         texts: list[str] = []
@@ -369,7 +316,7 @@ class PoisoningAnalyzer(BaseAnalyzer):
         are intentionally excluded because they are not model-visible and do
         not constitute an attack surface for tool description padding.
         """
-        if depth > 50:
+        if depth > 10:
             return []
 
         texts: list[str] = []

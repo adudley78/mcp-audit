@@ -12,12 +12,7 @@ from pathlib import Path
 
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.models import Finding, ServerConfig, Severity
-from mcp_audit.registry.loader import (
-    KnownServerRegistry,
-    RegistryEntry,
-    levenshtein,
-    load_registry,
-)
+from mcp_audit.registry.loader import KnownServerRegistry, levenshtein, load_registry
 
 # Commands that download and execute npm packages at runtime.
 _NPX_LIKE: frozenset[str] = frozenset({"npx", "bunx", "pnpx"})
@@ -112,15 +107,10 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         Returns:
             List of :class:`~mcp_audit.models.Finding` objects (empty if clean).
         """
-        _is_yarn_dlx = (
-            server.command == "yarn" and bool(server.args) and server.args[0] == "dlx"
-        )
-        if server.command not in _NPX_LIKE and not _is_yarn_dlx:
+        if server.command not in _NPX_LIKE:
             return []
 
-        # For `yarn dlx <package>`, args[0] is "dlx" — skip it to get the package.
-        args_for_package = server.args[1:] if _is_yarn_dlx else server.args
-        package = extract_npm_package(args_for_package)
+        package = extract_npm_package(server.args)
         if package is None:
             return []
 
@@ -138,17 +128,6 @@ class SupplyChainAnalyzer(BaseAnalyzer):
 
         verified_label = "verified" if closest_entry.verified else "unverified"
 
-        blurb = _metadata_blurb(closest_entry)
-        description = (
-            f"Package {package!r} is {min_dist} edit(s) away from the "
-            f"known-legitimate package {closest_entry.name!r} "
-            f"(maintainer: {closest_entry.maintainer}, {verified_label})."
-            " This pattern is consistent with a typosquatting"
-            " supply-chain attack."
-        )
-        if blurb:
-            description += f" Legitimate package metadata — {blurb}."
-
         return [
             Finding(
                 id=finding_id,
@@ -157,7 +136,13 @@ class SupplyChainAnalyzer(BaseAnalyzer):
                 client=server.client,
                 server=server.name,
                 title=f"Possible typosquatting: {package!r}",
-                description=description,
+                description=(
+                    f"Package {package!r} is {min_dist} edit(s) away from the "
+                    f"known-legitimate package {closest_entry.name!r} "
+                    f"(maintainer: {closest_entry.maintainer}, {verified_label})."
+                    " This pattern is consistent with a typosquatting"
+                    " supply-chain attack."
+                ),
                 evidence=(
                     f"command: {server.command} {' '.join(server.args[:4])} | "
                     f"closest: {closest_entry.name!r} (maintainer="
@@ -176,28 +161,6 @@ class SupplyChainAnalyzer(BaseAnalyzer):
 
 
 # ── Private helpers ────────────────────────────────────────────────────────────
-
-
-def _metadata_blurb(entry: RegistryEntry) -> str:
-    """Return a human-readable metadata line for use in finding descriptions.
-
-    Only includes fields that are present in the registry entry.
-    Returns an empty string when no metadata is available.
-
-    Args:
-        entry: The registry entry to extract metadata from.
-
-    Returns:
-        Pipe-delimited metadata string, or ``""`` when no metadata is present.
-    """
-    parts: list[str] = []
-    if entry.first_published:
-        parts.append(f"first published: {entry.first_published}")
-    if entry.weekly_downloads is not None:
-        parts.append(f"weekly downloads: {entry.weekly_downloads:,}")
-    if entry.publisher_history:
-        parts.append(f"known publishers: {', '.join(entry.publisher_history)}")
-    return " | ".join(parts)
 
 
 def _severity_for_distance(distance: int) -> tuple[Severity, str]:
