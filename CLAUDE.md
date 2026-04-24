@@ -17,8 +17,8 @@ is no Community / Pro / Enterprise split, no license-key gate, and no paid tier.
 All paid-license plumbing (Ed25519 signing, revocation lists, `activate` /
 `license` commands, the `gate()` shim) was removed in v0.2.0; anything that
 still references `licensing.py` or `_gate.py` is stale. Funding is requested
-via GitHub Sponsors (handle placeholder in `README.md`), not through feature
-gating.
+via GitHub Sponsors (handle configured in `.github/FUNDING.yml`, with a
+"Support" section in `README.md`), not through feature gating.
 
 ## Tech stack
 

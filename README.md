@@ -420,6 +420,22 @@ uv run bandit -r src/                # Security audit of the scanner itself
 
 This tool is in early development. See [GAPS.md](GAPS.md) for known detection gaps, untested areas, and planned improvements.
 
+## Support
+
+If `mcp-audit` saves your team time or prevents a security incident, consider
+[sponsoring the project on GitHub](https://github.com/sponsors/adudley78).
+
+Sponsorship funds ongoing MCP attack-pattern research, false-positive tuning,
+new detection rules, and timely releases. Every dollar goes to development
+time — there is no legal entity, no paid tier, and no gated features.
+All work remains Apache 2.0 and available to every user.
+
+Not in a position to sponsor? You can help just as much by:
+
+- **Opening issues** with real-world MCP configs that produce false positives or misses
+- **Contributing rules** — the [policy-as-code engine](docs/writing-rules.md) accepts community YAML rules
+- **Starring the repo** so other teams can find it
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE).
