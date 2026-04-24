@@ -2,13 +2,11 @@
 
 [![CI](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![GitHub Sponsors](https://img.shields.io/github/sponsors/YOUR_HANDLE)](https://github.com/sponsors/YOUR_HANDLE)
 
 **Privacy-first security scanner for MCP server configurations.**
 
 **Free & open source.** Apache 2.0, all features included — no paid tier, no
-license keys required. If the project is useful to you or your team, consider
-[sponsoring development on GitHub](https://github.com/sponsors/YOUR_HANDLE).
+license keys required.
 
 **Privacy-first:** mcp-audit collects no telemetry. Every scan runs locally.
 See [docs/telemetry.md](docs/telemetry.md) for the full policy.
@@ -49,9 +47,6 @@ feature is available to every user. There are no paid tiers, license keys,
 or gated commands — the full scanner, rule authoring, governance, SAST
 integration, extension scanning, dashboard, fleet merge, and Nucleus
 FlexConnect output all ship in the same binary.
-
-If `mcp-audit` is useful to you, consider sponsoring ongoing development:
-[github.com/sponsors/YOUR_HANDLE](https://github.com/sponsors/YOUR_HANDLE).
 
 > **Previously activated a Pro/Enterprise key?** `mcp-audit activate` and
 > `mcp-audit license` still work and honour your existing key — they just
