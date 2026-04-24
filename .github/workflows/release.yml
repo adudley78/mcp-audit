@@ -189,6 +189,63 @@ jobs:
         with:
           attestations: true
 
+  tag-major:
+    name: Update floating major-version tag
+    # All three of build / release / publish-pypi must succeed before we move
+    # the floating `@vN` tag.  A broken PyPI publish must NOT silently upgrade
+    # every `@v1` consumer to a release where `pip install mcp-audit-scanner`
+    # 404s, and a broken GitHub Release must not advertise missing binaries.
+    needs: [build, release, publish-pypi]
+    runs-on: ubuntu-latest
+
+    permissions:
+      # Required to push the re-pointed tag back to origin.  Deliberately no
+      # other write scopes — this job touches nothing except refs/tags/vN.
+      contents: write
+
+    steps:
+      - name: Decide whether to move the floating major-version tag
+        id: decide
+        # SemVer §4: "0.y.z is for initial development. Anything MAY change at
+        # any time."  A floating `@v0` tag therefore has no stability guarantee
+        # and would silently cross breaking changes between 0.y and 0.(y+1).
+        # Skip it entirely; users on 0.x pin to specific `@v0.x.y` tags.
+        run: |
+          TAG="${GITHUB_REF_NAME}"   # e.g. v1.2.3
+          MAJOR="${TAG%%.*}"          # → v1
+          MAJOR_NUM="${MAJOR#v}"      # → 1
+          if [ "$MAJOR_NUM" -eq 0 ]; then
+            echo "Pre-1.0 release (${TAG}) — skipping @${MAJOR} move per SemVer 0.y.z semantics."
+            echo "move=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Moving @${MAJOR} → ${TAG}"
+            echo "move=true" >> "$GITHUB_OUTPUT"
+            echo "major=${MAJOR}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v6
+        if: steps.decide.outputs.move == 'true'
+
+      - name: Force-move @${{ steps.decide.outputs.major }} to ${{ github.ref_name }}
+        if: steps.decide.outputs.move == 'true'
+        env:
+          MAJOR: ${{ steps.decide.outputs.major }}
+          TAG: ${{ github.ref_name }}
+        # Known race: if two releases within the same major are tagged near-
+        # simultaneously, whichever workflow *finishes last* wins @${MAJOR},
+        # even if it carries the older version.  Accepted risk — mitigated by
+        # never overlapping release workflows in practice.  A future hardening
+        # step is to `git ls-remote` the current @${MAJOR} target, resolve its
+        # version via `git describe --tags`, and bail if we would regress.
+        #
+        # The force-push does NOT re-trigger this workflow: the `on.push.tags`
+        # filter is `v*.*.*` (three dot-segments) and @${MAJOR} is just `vN`.
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "$MAJOR" HEAD
+          git push origin "$MAJOR" --force
+
   report:
     name: Release Summary
     needs: [build, release]
