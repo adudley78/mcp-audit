@@ -1,8 +1,15 @@
 """Tests for sigstore_client — all network calls mocked."""
 
-from unittest.mock import patch
+import pytest
 
-from mcp_audit.attestation.sigstore_client import (
+pytest.importorskip(
+    "sigstore",
+    reason="sigstore not installed; install mcp-audit-scanner[attestation]",
+)
+
+from unittest.mock import patch  # noqa: E402
+
+from mcp_audit.attestation.sigstore_client import (  # noqa: E402
     AttestationResult,
     NetworkError,
     _extract_signing_repo_from_subject,

@@ -43,12 +43,14 @@ dependencies = [
     "pyyaml>=6.0,<7.0",
     "watchdog>=4.0,<6.0",
     "cryptography>=46.0.6,<47.0",
-    "sigstore>=3.0,<4.0",
     "packaging>=21.0",
     "platformdirs>=3.0",
 ]
 
 [project.optional-dependencies]
+attestation = [
+    "sigstore>=3.0,<4.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",

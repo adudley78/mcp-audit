@@ -306,9 +306,16 @@ def verify_attestation(
             )
 
         # ── 2. Parse and verify the bundle ────────────────────────────────────
-        from sigstore.models import Bundle  # noqa: PLC0415
-        from sigstore.verify import Verifier  # noqa: PLC0415
-        from sigstore.verify.policy import UnsafeNoOp  # noqa: PLC0415
+        try:
+            from sigstore.models import Bundle  # noqa: PLC0415
+            from sigstore.verify import Verifier  # noqa: PLC0415
+            from sigstore.verify.policy import UnsafeNoOp  # noqa: PLC0415
+        except ImportError as _import_err:
+            raise ImportError(
+                "sigstore is not installed. "
+                "Enable Sigstore signature verification with: "
+                "pip install 'mcp-audit-scanner[attestation]'"
+            ) from _import_err
 
         try:
             bundle = Bundle.from_json(json.dumps(bundle_dict))

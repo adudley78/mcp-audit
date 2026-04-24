@@ -825,7 +825,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mcp-audit"
+name = "mcp-audit-scanner"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
@@ -835,12 +835,14 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "rich" },
-    { name = "sigstore" },
     { name = "typer" },
     { name = "watchdog" },
 ]
 
 [package.optional-dependencies]
+attestation = [
+    { name = "sigstore" },
+]
 dev = [
     { name = "bandit" },
     { name = "jsonschema" },
@@ -884,11 +886,11 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
     { name = "rich", specifier = ">=13.0,<14.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
-    { name = "sigstore", specifier = ">=3.0,<4.0" },
+    { name = "sigstore", marker = "extra == 'attestation'", specifier = ">=3.0,<4.0" },
     { name = "typer", specifier = ">=0.12,<1.0" },
     { name = "watchdog", specifier = ">=4.0,<6.0" },
 ]
-provides-extras = ["dev", "mcp", "sbom"]
+provides-extras = ["attestation", "dev", "mcp", "sbom"]
 
 [package.metadata.requires-dev]
 dev = [

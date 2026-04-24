@@ -256,7 +256,18 @@ def _apply_signature_verification(
 
     Only called when ``--verify-signatures`` is active.  Appends findings to
     ``result.findings`` before scoring so attestation outcomes affect the grade.
+    Exits early with a user-friendly message when the ``[attestation]`` extra is
+    not installed.
     """
+    try:
+        import sigstore  # noqa: F401
+    except ImportError:
+        console.print(
+            "[yellow]⚠  --verify-signatures requires the attestation extra.[/yellow]\n"
+            "   Install: [bold]pip install 'mcp-audit-scanner\\[attestation]'[/bold]"
+        )
+        return result
+
     from mcp_audit.attestation.sigstore_findings import (  # noqa: PLC0415
         verify_server_signatures,
     )

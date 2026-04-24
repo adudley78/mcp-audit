@@ -77,6 +77,32 @@ For live server connection support:
 pip install 'mcp-audit-scanner[mcp]'
 ```
 
+For Sigstore-based signature verification (`scan --verify-signatures`):
+
+```bash
+pip install 'mcp-audit-scanner[attestation]'
+```
+
+> **Note:** `scan --verify-hashes` uses stdlib SHA-256 and works without any extra.
+> The `[attestation]` extra is only needed for Sigstore/Rekor signature verification.
+
+### macOS notes
+
+If `pip install` fails with `bad interpreter: /usr/bin/python: no such file or directory`, invoke pip through Python directly:
+
+```bash
+python3 -m pip install mcp-audit-scanner
+```
+
+After installing, if `mcp-audit` is not found in your shell, add Python's bin directory to your PATH:
+
+```bash
+echo 'export PATH="/Library/Frameworks/Python.framework/Versions/3.12/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+If you installed via Homebrew Python, the path will be different — use `python3 -c "import sys; print(sys.prefix)"` to find it and append `/bin`.
+
 ## Quick start
 
 ```bash
