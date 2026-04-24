@@ -121,21 +121,21 @@ class TransportAnalyzer(BaseAnalyzer):
             and self._is_privilege_escalation(server)
         ):
             findings.append(
-                    Finding(
-                        id="TRANSPORT-002",
-                        severity=Severity.HIGH,
-                        analyzer=self.name,
-                        client=server.client,
-                        server=server.name,
-                        title="Elevated privilege execution",
-                        description="MCP server runs with elevated privileges",
-                        evidence=f"Command: {server.command}",
-                        remediation=(
-                            "Run MCP servers with least-privilege user permissions"
-                        ),
-                        cwe="CWE-250",
-                    )
+                Finding(
+                    id="TRANSPORT-002",
+                    severity=Severity.HIGH,
+                    analyzer=self.name,
+                    client=server.client,
+                    server=server.name,
+                    title="Elevated privilege execution",
+                    description="MCP server runs with elevated privileges",
+                    evidence=f"Command: {server.command}",
+                    remediation=(
+                        "Run MCP servers with least-privilege user permissions"
+                    ),
+                    cwe="CWE-250",
                 )
+            )
 
         # TRANSPORT-003: Runtime package fetching (supply chain risk)
         is_runtime_fetch = server.command in _RUNTIME_FETCH_COMMANDS or (

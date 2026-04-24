@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import stat
+import sys
 from pathlib import Path
 
 import pytest
@@ -65,6 +66,7 @@ def servers() -> list[ServerConfig]:
 # ── Storage directory ─────────────────────────────────────────────────────────
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows does not support POSIX file permissions")
 def test_storage_dir_created_with_0o700(tmp_path: Path) -> None:
     """Storage directory must be created with 0o700 permissions."""
     storage = tmp_path / "baselines"
@@ -774,6 +776,7 @@ def test_baseline_path_traversal_rejected(tmp_path: Path) -> None:
             mgr._safe_baseline_path(bad_name)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows does not support POSIX file permissions")
 def test_baseline_dir_permissions(tmp_path: Path) -> None:
     """Alias for test_storage_dir_created_with_0o700 — required by security audit spec.
 
