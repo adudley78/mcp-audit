@@ -18,6 +18,14 @@ from mcp_audit.baselines.manager import (
 from mcp_audit.cli import app
 from mcp_audit.models import ServerConfig, Severity, TransportType
 
+# Windows does not support POSIX file permissions; stat() reports 0o666 / 0o777
+# for everything regardless of what we chmod.  Tests that equality-check modes
+# must skip on win32.
+_windows_skip = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows does not support POSIX file permissions",
+)
+
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
 
@@ -66,7 +74,7 @@ def servers() -> list[ServerConfig]:
 # ── Storage directory ─────────────────────────────────────────────────────────
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Windows does not support POSIX file permissions")
+@_windows_skip
 def test_storage_dir_created_with_0o700(tmp_path: Path) -> None:
     """Storage directory must be created with 0o700 permissions."""
     storage = tmp_path / "baselines"
@@ -98,6 +106,7 @@ def test_save_creates_json_file(
     assert (storage / "mybl.json").exists()
 
 
+@_windows_skip
 def test_save_file_permissions_are_0o600(
     mgr: BaselineManager, storage: Path, servers: list[ServerConfig]
 ) -> None:
@@ -524,6 +533,7 @@ def test_baseline_export_outputs_json(
     assert data["name"] == "export-bl"
 
 
+@_windows_skip
 def test_baseline_export_to_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -776,7 +786,7 @@ def test_baseline_path_traversal_rejected(tmp_path: Path) -> None:
             mgr._safe_baseline_path(bad_name)
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Windows does not support POSIX file permissions")
+@_windows_skip
 def test_baseline_dir_permissions(tmp_path: Path) -> None:
     """Alias for test_storage_dir_created_with_0o700 — required by security audit spec.
 
@@ -837,6 +847,7 @@ def test_malformed_baseline_does_not_use_warnings_warn(tmp_path: Path) -> None:
     )
 
 
+@_windows_skip
 def test_baseline_file_permissions(tmp_path: Path) -> None:
     """Alias for test_save_file_permissions_are_0o600 — required by security audit spec.
 

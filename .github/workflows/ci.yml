@@ -68,7 +68,11 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies
-        run: uv pip install -e ".[dev,attestation]" --system
+        # `--prerelease=allow` is required because sigstore's transitive dep
+        # `sigstore-protobuf-specs` pulls in `betterproto==2.0.0b6` (a beta).
+        # `uv sync` would tolerate this via the lockfile, but `uv pip install`
+        # defaults to rejecting pre-releases.
+        run: uv pip install -e ".[dev,attestation]" --system --prerelease=allow
 
       - name: Install PyInstaller
         run: uv pip install pyinstaller --system
