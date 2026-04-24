@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Python dependencies (pip/uv)
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    ignore:
+      # sigstore has breaking changes between minors — pin manually
+      - dependency-name: sigstore
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
