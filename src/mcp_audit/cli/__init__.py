@@ -12,6 +12,8 @@ Typer ``@app.command(...)`` decorators that register each command with ``app``.
 
 from __future__ import annotations
 
+import contextlib
+import sys
 from pathlib import Path
 
 import typer
@@ -23,6 +25,30 @@ from mcp_audit._license_cache import cached_is_pro_feature_available
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
 from mcp_audit.scanner import run_scan
+
+
+def _force_utf8_std_streams() -> None:
+    """Reconfigure stdout/stderr to UTF-8.
+
+    Windows' default console codepage is cp1252, which cannot encode the emoji
+    (✅ 🔴 🟠 …) and box-drawing characters baked into
+    ``mcp_audit.output.terminal``.  Rich's Console inherits its output
+    encoding from ``sys.stdout.encoding`` (queried lazily), so promoting the
+    streams to UTF-8 before the first ``console.print`` is enough to prevent
+    UnicodeEncodeError inside ``print_results()`` on Windows (cmd.exe,
+    PowerShell, and the bash.exe shell GitHub Actions uses for the release
+    smoke test).
+
+    Guarded with ``contextlib.suppress`` because non-default streams
+    (captured pipes, embedded interpreters, etc.) may not expose
+    ``.reconfigure()``.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        with contextlib.suppress(AttributeError, OSError):
+            stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+
+
+_force_utf8_std_streams()
 
 # TODO(schema-version): after fetch, compare the downloaded JSON's
 # "schema_version" field against the binary's expected schema version.
