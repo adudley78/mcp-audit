@@ -12,6 +12,32 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.3.2] - 2026-04-24 — Patch: isolate Semgrep install from mcp-audit deps
+
+Supersedes `v0.3.1`, which fixed the `v0.3.0` "Semgrep not installed"
+error by invoking `pip install semgrep` inside the composite action's
+`run-sast` step — but that plain-pip install downgrades `click` from
+`8.2.x` to `8.1.8` (Semgrep pins `click<8.2`), which then breaks
+`typer>=0.24` at import with:
+
+```
+TypeError: type 'Choice' is not subscriptable
+  at typer/_types.py:9 → class TyperChoice(click.Choice[...])
+```
+
+Drop-in patch — no schema / API changes. Bump
+`adudley78/mcp-audit@v0.3.1` → `@v0.3.2`.
+
+### Fixed
+- **`run-sast: 'true'` broke mcp-audit itself** via dep conflict.
+  Switched the composite action from `pip install semgrep` to
+  `pipx install semgrep`.  `pipx` ships pre-installed on every
+  GitHub-hosted Ubuntu runner, installs Semgrep into its own isolated
+  venv, and places the `semgrep` binary on PATH without touching the
+  `mcp-audit-scanner` environment — zero dep pollution.
+
+---
+
 ## [0.3.1] - 2026-04-24 — Patch: unbreak action self-tests and example pinning
 
 Fixes three independent regressions that shipped with `v0.3.0` and surfaced
