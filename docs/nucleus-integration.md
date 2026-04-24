@@ -2,7 +2,7 @@
 
 mcp-audit has native integration with [Nucleus Security](https://nucleussec.com/) via the FlexConnect universal ingestion API. After a scan, findings are pushed directly into a Nucleus project where they appear as assets and vulnerabilities — no manual file uploads required.
 
-> **Validated 2026-04-23** against `nucleus-demo.nucleussec.com`. The FlexConnect shape, multipart/form-data upload, and job polling have all been confirmed against the live API.
+> **Validated 2026-04-23** against a live Nucleus instance. The FlexConnect shape, multipart/form-data upload, and job polling have all been confirmed against the live API.
 
 ---
 
@@ -20,7 +20,7 @@ mcp-audit has native integration with [Nucleus Security](https://nucleussec.com/
 export NUCLEUS_API_KEY="your-api-key-here"
 
 mcp-audit push-nucleus \
-  --url https://your-nucleus-instance.nucleussec.com \
+  --url https://<your-nucleus-url> \
   --project-id 42
 ```
 
@@ -41,7 +41,7 @@ mcp-audit push-nucleus [OPTIONS]
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--url` | str | **required** | Nucleus instance base URL, e.g. `https://nucleus-demo.nucleussec.com` |
+| `--url` | str | **required** | Nucleus instance base URL (your organisation's Nucleus FlexConnect endpoint) |
 | `--project-id` | int | **required** | Target Nucleus project ID |
 | `--api-key` | str | `NUCLEUS_API_KEY` env | API key (flag takes precedence over env var) |
 | `--asset-prefix` | str | machine hostname | Override the asset identifier in Nucleus. Use an asset tag or employee ID when hostnames are not meaningful (e.g. `"MacBookAir"`). |
@@ -58,7 +58,7 @@ mcp-audit push-nucleus [OPTIONS]
 
 ```bash
 mcp-audit push-nucleus \
-  --url https://nucleus.corp.example.com \
+  --url https://<your-nucleus-url> \
   --project-id 7 \
   --asset-prefix "LAPTOP-$(id -un)" \
   --api-key "$NUCLEUS_API_KEY"
@@ -68,7 +68,7 @@ mcp-audit push-nucleus \
 
 ```bash
 mcp-audit push-nucleus \
-  --url https://nucleus.corp.example.com \
+  --url https://<your-nucleus-url> \
   --project-id 7 \
   --severity-threshold HIGH \
   --output-file /tmp/mcp-audit-pushed.json
@@ -78,7 +78,7 @@ mcp-audit push-nucleus \
 
 ```bash
 mcp-audit push-nucleus \
-  --url https://nucleus.corp.example.com \
+  --url https://<your-nucleus-url> \
   --project-id 7 \
   --config-paths ~/.cursor/mcp.json
 ```
@@ -172,7 +172,7 @@ Exit code 1 means findings exist (not a tool failure) — adjust `failed_when` t
 ```bash
 # /etc/cron.d/mcp-audit or launchd plist
 0 9 * * * /usr/local/bin/mcp-audit push-nucleus \
-  --url https://nucleus.corp.example.com \
+  --url https://<your-nucleus-url> \
   --project-id 7 \
   --asset-prefix "$(hostname)" \
   --severity-threshold HIGH \

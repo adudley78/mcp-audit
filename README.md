@@ -39,7 +39,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 
 MCP security findings typically exist in isolation: a developer runs a scanner, sees terminal output, maybe fixes something. Enterprises deploying AI agents across hundreds of developers need the same workflow they use for every other vulnerability class — centralized ingestion, asset correlation, deduplication, ownership, remediation tracking, and SLA reporting.
 
-`mcp-audit`'s `--format nucleus` output and `mcp-audit push-nucleus` command align with the [Nucleus Security](https://nucleussec.com) FlexConnect schema — the same ingestion pipeline that normalizes data from Qualys, Tenable, CrowdStrike, and 200+ other security tools. Validated against `nucleus-demo.nucleussec.com` on 2026-04-23; see [`docs/nucleus-integration.md`](docs/nucleus-integration.md).
+`mcp-audit`'s `--format nucleus` output and `mcp-audit push-nucleus` command align with the [Nucleus Security](https://nucleussec.com) FlexConnect schema — the same ingestion pipeline that normalizes data from Qualys, Tenable, CrowdStrike, and 200+ other security tools. Validated end-to-end against a live Nucleus instance on 2026-04-23; see [`docs/nucleus-integration.md`](docs/nucleus-integration.md).
 
 Tenable WAS has added MCP server detection plugins that scan server-side code for web vulnerabilities, but no other standalone MCP configuration scanner bridges developer-side config analysis (tool poisoning, credential exposure, toxic flows, supply chain risks) with enterprise vulnerability management. Most output to terminal or JSON and stop there.
 
@@ -239,7 +239,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-1,326 tests validate detection accuracy and guard against regressions.
+1,292 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -411,7 +411,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 1,326 tests
+uv run pytest                        # Run all 1,292 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

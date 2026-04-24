@@ -122,7 +122,7 @@ uv add mcp-audit-scanner
 
 ### Added
 - **`mcp-audit push-nucleus` command** (`src/mcp_audit/cli/push_nucleus.py`): Enterprise-gated command that runs a full scan and pushes results directly to a Nucleus Security project via the FlexConnect API. Multipart/form-data upload via `urllib.request` (no third-party HTTP lib). Polls job to completion with configurable timeout. Prints a Rich success panel with project ID, job ID, finding count, asset name, and a direct UI link. `--output-file` writes the FlexConnect JSON locally alongside the push. 11 tests in `tests/test_push_nucleus.py`.
-- **Validated FlexConnect schema** (`src/mcp_audit/output/nucleus.py`): corrected from placeholder format to the live-validated schema. Top-level `assets` array defines the host asset; top-level `findings` array references it via `host_name`; `scan_type` is `"Host"`. Previously the formatter used a flat `host_name`/`asset_name` structure that was rejected by Nucleus ingestion ("Scan did not have any assets defined"). Validated against nucleus-demo.nucleussec.com.
+- **Validated FlexConnect schema** (`src/mcp_audit/output/nucleus.py`): corrected from placeholder format to the live-validated schema. Top-level `assets` array defines the host asset; top-level `findings` array references it via `host_name`; `scan_type` is `"Host"`. Previously the formatter used a flat `host_name`/`asset_name` structure that was rejected by Nucleus ingestion ("Scan did not have any assets defined"). Validated end-to-end against a live Nucleus instance.
 - **`scripts/validate_nucleus.py`**: retained as a standalone regression/validation tool for testing the FlexConnect shape against a live instance without running a full scan.
 
 ### Changed

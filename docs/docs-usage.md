@@ -370,7 +370,7 @@ Push scan findings directly to a Nucleus Security project via the FlexConnect AP
 export NUCLEUS_API_KEY="your-api-key"
 
 mcp-audit push-nucleus \
-  --url https://your-nucleus-instance.nucleussec.com \
+  --url https://<your-nucleus-url> \
   --project-id 42
 ```
 

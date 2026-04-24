@@ -1,7 +1,7 @@
 # Team / Fleet Deployment Guide
 
 > **Validated 2026-04-23** — FlexConnect output and the `push-nucleus` upload
-> path have been confirmed against `nucleus-demo.nucleussec.com`. The
+> path have been confirmed against a live Nucleus instance. The
 > multipart/form-data upload, job polling, and JSON schema are all verified.
 >
 > **Note:** mcp-audit is fully open source (Apache 2.0). Every feature
@@ -151,7 +151,7 @@ the import job in a single command — no manual curl required.
 export NUCLEUS_API_KEY="$NUCLEUS_API_KEY"
 
 mcp-audit push-nucleus \
-  --url https://your-nucleus-instance.nucleussec.com \
+  --url https://<your-nucleus-url> \
   --project-id 7 \
   --asset-prefix "$(hostname)" \
   --severity-threshold HIGH
@@ -244,7 +244,7 @@ Add to root crontab (`sudo crontab -e`):
 ```bash
 # Option A — direct push (recommended; no file collection step needed)
 0 9 * * * NUCLEUS_API_KEY=your-key /usr/local/bin/mcp-audit push-nucleus \
-  --url https://nucleus.corp.example.com --project-id 7 \
+  --url https://<your-nucleus-url> --project-id 7 \
   --asset-prefix "$(hostname)" --severity-threshold HIGH \
   >> /var/log/mcp-audit.log 2>&1
 

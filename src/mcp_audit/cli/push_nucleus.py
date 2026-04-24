@@ -203,7 +203,10 @@ def push_nucleus(
     url: str = typer.Option(  # noqa: B008
         ...,
         "--url",
-        help="Nucleus instance base URL, e.g. https://nucleus-demo.nucleussec.com",
+        help=(
+            "Nucleus instance base URL "
+            "(your organisation's Nucleus FlexConnect endpoint)"
+        ),
     ),
     project_id: int = typer.Option(  # noqa: B008
         ...,
@@ -261,10 +264,10 @@ def push_nucleus(
     Examples::
 
         mcp-audit push-nucleus \\
-            --url https://nucleus-demo.nucleussec.com --project-id 42
+            --url https://<your-nucleus-url> --project-id 42
 
         mcp-audit push-nucleus \\
-            --url https://nucleus.corp.example.com --project-id 7 \\
+            --url https://<your-nucleus-url> --project-id 7 \\
             --severity-threshold HIGH --output-file pushed-scan.json
     """
     # Resolve API key: explicit flag → NUCLEUS_API_KEY env var.

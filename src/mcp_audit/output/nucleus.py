@@ -5,7 +5,7 @@ ingestion schema. Import this file into a Nucleus project via
 Settings → Integrations → FlexConnect → Upload File, or push directly with
 ``mcp-audit push-nucleus``.
 
-Schema reference: https://help.nucleussec.com/docs/flexconnect-framework
+Schema reference: Nucleus Security FlexConnect framework documentation.
 
 Validated format (2026-04-23):
   - Top-level ``assets`` array defines the host asset.

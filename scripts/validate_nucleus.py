@@ -7,6 +7,8 @@ FlexConnect JSON shape is accepted before wiring it into the CLI.
 
 Usage
 -----
+    export NUCLEUS_URL="https://<your-nucleus-url>"
+    export NUCLEUS_PROJECT_ID="<your-project-id>"
     export NUCLEUS_API_KEY="your-key-here"
     python scripts/validate_nucleus.py
 
@@ -31,11 +33,36 @@ _SSL_CTX.check_hostname = False
 _SSL_CTX.verify_mode = ssl.CERT_NONE
 
 # ── Configuration ────────────────────────────────────────────────────────────
-BASE_URL = "https://nucleus-demo.nucleussec.com/nucleus/api"
-PROJECT_ID = 17000007
+# All connection details come from environment variables so no specific
+# Nucleus hostname, project ID, or credentials are ever committed to the repo.
+_NUCLEUS_URL_ENV = "NUCLEUS_URL"
+_NUCLEUS_PROJECT_ID_ENV = "NUCLEUS_PROJECT_ID"
 API_KEY_ENV = "NUCLEUS_API_KEY"
 POLL_INTERVAL_SECONDS = 3
 POLL_TIMEOUT_SECONDS = 120
+
+
+def _require_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(
+            f"Error: {name} is not set. Export it before running this script.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    return value
+
+
+_nucleus_url = _require_env(_NUCLEUS_URL_ENV).rstrip("/")
+BASE_URL = f"{_nucleus_url}/nucleus/api"
+try:
+    PROJECT_ID = int(_require_env(_NUCLEUS_PROJECT_ID_ENV))
+except ValueError:
+    print(
+        f"Error: {_NUCLEUS_PROJECT_ID_ENV} must be an integer project ID.",
+        file=sys.stderr,
+    )
+    raise SystemExit(2) from None
 
 # ── Synthetic test payload ────────────────────────────────────────────────────
 # Mirrors exactly what format_nucleus() produces so we validate the real shape.

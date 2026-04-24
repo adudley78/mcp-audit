@@ -276,11 +276,11 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 34 findings across all demo configs (8 per-config for `claude_desktop_config.json`; community rules analyzer included). Note: the full 3-config scan produces 2 more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone.
-- 1326 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 1292 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 16 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, push-nucleus, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
-- **push-nucleus** — `mcp-audit push-nucleus --url <url> --project-id <id>` runs a scan and pushes results directly to a Nucleus Security project via the FlexConnect API; available to all users; multipart/form-data upload using `urllib.request` only; polls import job to completion; Rich summary panel on success; `--output-file` for local copy; validated against nucleus-demo.nucleussec.com (2026-04-23); see `docs/nucleus-integration.md`
+- **push-nucleus** — `mcp-audit push-nucleus --url <url> --project-id <id>` runs a scan and pushes results directly to a Nucleus Security project via the FlexConnect API; available to all users; multipart/form-data upload using `urllib.request` only; polls import job to completion; Rich summary panel on success; `--output-file` for local copy; validated against a live Nucleus instance (2026-04-23); see `docs/nucleus-integration.md`
 - **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; available to all users; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action with `severity-threshold`, `format`, `config-paths`, `baseline`, `upload-sarif`, `sast`, `sast-path` inputs; uploads SARIF to GitHub Security tab; writes job summary; `sast: 'true'` requires Semgrep pre-installed in the CI job (`pip install semgrep`) — Semgrep is not bundled in the action; see `docs/github-action.md`
 - **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `<user-config-dir>/mcp-audit/baselines/` (resolved via `platformdirs`) with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
@@ -329,9 +329,8 @@ Audit steps run and verdict:
    configs in `demo/configs/`. No real credentials.
 
 2. **Internal/non-public URLs** — `localhost` matches are in test fixtures and
-   transport-analyzer unit tests (expected). `nucleussec.com` appears once in
-   `output/nucleus.py` as a schema-reference comment (`# Schema reference: https://nucleussec.com/flexconnect`),
-   which is public documentation — not an internal URL. No corp/staging/internal
+   transport-analyzer unit tests (expected). The prior `nucleussec.com` schema-reference
+   comment in `output/nucleus.py` has been generalised. No corp/staging/internal
    domain leakage.
 
 3. **Private key material** — No matches. No `-----BEGIN … KEY` blocks anywhere
