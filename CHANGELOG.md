@@ -12,6 +12,28 @@ _Accumulates entries for work done after the last milestone and before the first
 
 ---
 
+## [0.11.0] - 2026-04-23 — Open Source Conversion
+
+### Changed
+- **All features are now free.** mcp-audit is fully open source under Apache 2.0. There are no paid tiers. `is_pro_feature_available()` always returns `True`; `gate()` is a permanent no-op. This removes the Community / Pro / Enterprise split entirely.
+- **`sast.py`** — dropped `gate("sast", ...)` call and "(Pro feature)" wording from command docstring.
+- **`dashboard.py`** — dropped `gate(...)` calls, "(Pro/Enterprise)" help text on `--rules-dir`, and the `html is None` dead branch (unreachable since `generate_html()` always returns a string).
+- **`scan.py`** — removed `vuln_mirror`, `sast`, `extensions`, and `custom_rules` gates; dropped "(Pro)" from `--format` help text.
+- **`license.py`** — `version` no longer prints a tier; `activate` / `license` commands label themselves as legacy key handling on an open-source build and no longer reference `mcp-audit.dev/pro`.
+- **`CLAUDE.md`** — "Business model" section rewritten; all "Pro/Enterprise" / `_FEATURE_TIERS` references removed; `_gate.py` reframed as a permanent no-op shim.
+- **`CONTRIBUTING.md`** — "Adding a new Pro feature" section replaced with open-source workflow; "won't accept" list bars re-introducing paid tiers.
+- **`rules/README.md`** — dropped "(requires Pro)" from `rule validate` instruction.
+
+### Removed
+- 43 gate-specific tests deleted across `test_license_cache.py`, `test_dashboard.py`, `test_push_nucleus.py`, `test_fleet.py`, `test_governance.py`, `test_sast.py`, `test_extensions.py`, `test_registry.py`, `test_scanner.py`, `test_rules.py`. These tested behaviour that no longer exists. **1355 tests passing** (down from 1398; all removals are intentional).
+
+### Notes
+- `activate` and `license` commands are retained to honour any previously issued keys — they do nothing harmful on an open-source build.
+- `scripts/generate_license.py` is retained (not shipped in the wheel) for the same reason.
+- `push-nucleus` is ungated — it is the natural workflow for teams with a Nucleus instance, not a paywall.
+
+---
+
 ## [0.10.1] - 2026-04-23 — SARIF 2.1.0 Schema Fixes
 
 ### Fixed
