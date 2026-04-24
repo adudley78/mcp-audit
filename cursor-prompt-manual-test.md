@@ -192,11 +192,25 @@ non-interactively (no prompt).
 ```bash
 mcp-audit scan --path demo/configs --format nucleus --output "$SCRATCH/results.nucleus.json"
 echo "exit: $?"
+
+# Verify the output file was written and has the correct schema shape
+python3 - "$SCRATCH/results.nucleus.json" <<'PYEOF'
+import json, sys
+with open(sys.argv[1]) as f:
+    doc = json.load(f)
+assert "assets" in doc, "FAIL — missing top-level 'assets' array"
+assert "findings" in doc, "FAIL — missing top-level 'findings' array"
+assert doc.get("scan_type") == "Host", f"FAIL — scan_type should be 'Host', got {doc.get('scan_type')}"
+assert len(doc["assets"]) == 1, f"FAIL — expected 1 asset entry, got {len(doc['assets'])}"
+host = doc["assets"][0]["host_name"]
+assert all(f["host_name"] == host for f in doc["findings"]), "FAIL — finding host_name mismatch"
+print(f"PASS — {len(doc['findings'])} findings, asset: {host}, scan_type: {doc['scan_type']}")
+PYEOF
 ```
 
-**Expected:** Enterprise gate panel shown, exit 0 (no file written without Enterprise
-license).  Do not check for an output file — it will not be written without an Enterprise
-license.
+**Expected:** FlexConnect JSON written to output file; exit 1 from scan (findings
+present).  Schema must have top-level `assets` array and `findings` array with
+`scan_type: "Host"`.  No gate — available to all users.
 
 ---
 
@@ -211,16 +225,16 @@ echo "exit: $?"
 
 ---
 
-## Section 14 — policy check positional path (Pro gate, cosmetic)
+## Section 14 — policy check positional path
 
 ```bash
 mcp-audit policy check examples/policies/starter.yml
 echo "exit: $?"
 ```
 
-**Expected:** Pro upsell panel printed (not a raw Typer error); exit 0 (Pro/Enterprise
-gates are soft stops — exit 2 is reserved for errors).  Must not show "Got unexpected
-extra argument".
+**Expected:** policy check runs (no gate — available to all users); prints a
+compliance summary or "Policy is valid"; exit 0.  Must not show "Got unexpected
+extra argument" and must not show any Pro/Enterprise upsell panel.
 
 ---
 
