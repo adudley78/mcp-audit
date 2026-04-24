@@ -210,8 +210,16 @@ runs:
       # every user, even the 95% that never run SAST.  We install it here,
       # inside the optional `run-sast` step, so the cost only applies when
       # the user opts in.
+      #
+      # IMPORTANT: Install into an isolated environment via `pipx`, not the
+      # same environment as `mcp-audit-scanner`.  Semgrep pins `click<8.2`,
+      # while `typer>=0.24` (a direct mcp-audit dep) requires `click>=8.2.1`.
+      # A plain `pip install semgrep` downgrades click and breaks `mcp-audit`
+      # at import time with `TypeError: type 'Choice' is not subscriptable`.
+      # `pipx` ships pre-installed on every GitHub-hosted Ubuntu runner and
+      # puts the `semgrep` binary on PATH without touching our deps.
       run: |
-        pip install semgrep --quiet
+        pipx install semgrep
         mcp-audit sast "${{ inputs.sast-path }}"
 
     - name: Compare baseline
