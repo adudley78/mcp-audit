@@ -111,11 +111,27 @@ jobs:
         with:
           path: dist/
 
+      - name: Compose release notes from template
+        # Substitutes {{VERSION}} with the pushed git tag (e.g. v0.3.4) so
+        # the body Quick-start example and the "What's new in" header both
+        # point at a real, resolvable ref — not a floating `@v0` / `@v1`
+        # that doesn't exist yet.  Output is a plain markdown file that
+        # softprops passes through verbatim via `body_path:`.
+        run: |
+          sed "s|{{VERSION}}|${GITHUB_REF_NAME}|g" \
+            .github/release-notes-template.md \
+            > "${RUNNER_TEMP}/release-notes.md"
+
       - name: Create release and upload binaries
         uses: softprops/action-gh-release@v3
         with:
           files: dist/**/*
-          generate_release_notes: true
+          # Prefer the hand-curated template in .github/ over GitHub's
+          # auto-generated PR list — Marketplace visitors landing on the
+          # release page deserve install/usage instructions, not a diff of
+          # dependabot bumps.  The PR list is still accessible via the
+          # "Full Changelog" link appended by GitHub's comparison view.
+          body_path: ${{ runner.temp }}/release-notes.md
 
   publish-pypi:
     name: Publish to PyPI
