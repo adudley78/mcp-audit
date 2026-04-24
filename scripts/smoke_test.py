@@ -20,6 +20,18 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Windows' default console codepage is cp1252, which cannot encode the box-
+# drawing / arrow characters used in this script's status lines (e.g. "→").
+# Reconfigure stdout/stderr to UTF-8 so the release smoke test doesn't crash
+# with UnicodeEncodeError before the first scan even runs.  Guarded with
+# try/except because non-default streams (captured pipes, etc.) may not
+# expose .reconfigure().
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        pass
+
 FIXTURES = Path(__file__).parent.parent / "tests" / "fixtures"
 MALICIOUS = FIXTURES / "smoke_test_config.json"
 CLEAN = FIXTURES / "real_servers" / "official_mcp_servers.json"
