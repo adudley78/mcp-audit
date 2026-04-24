@@ -189,6 +189,30 @@ PATTERNS: list[DetectionPattern] = [
         cwe="CWE-116",
     ),
 
+    # HIGH: Unicode homoglyph substitution
+    DetectionPattern(
+        id="POISON-060",
+        name="Unicode homoglyph substitution",
+        pattern=re.compile(
+            # Cyrillic (U+0400–U+04FF) and Greek (U+0370–U+03FF) code-points
+            # are visually identical to many ASCII letters and are the dominant
+            # script families used in homoglyph attacks against Latin text.
+            r"[\u0370-\u03FF\u0400-\u04FF]"
+        ),
+        severity=Severity.HIGH,
+        description=(
+            "Tool description contains Unicode characters from Cyrillic or Greek"
+            " blocks that are visually identical to ASCII letters (homoglyphs)."
+            " Attackers use this technique to hide malicious instructions from"
+            " human reviewers while keeping them readable to language models."
+        ),
+        remediation=(
+            "Review the full tool description for hidden instructions."
+            " Remove any non-ASCII characters that are not legitimately required."
+        ),
+        cwe="CWE-116",
+    ),
+
     # LOW: Suspicious signals
     DetectionPattern(
         id="POISON-050",
@@ -290,7 +314,7 @@ class PoisoningAnalyzer(BaseAnalyzer):
         depth: int = 0,
     ) -> list[str]:
         """Recursively extract all string values from a nested structure."""
-        if depth > 10:
+        if depth > 50:
             return []
 
         texts: list[str] = []
@@ -316,7 +340,7 @@ class PoisoningAnalyzer(BaseAnalyzer):
         are intentionally excluded because they are not model-visible and do
         not constitute an attack surface for tool description padding.
         """
-        if depth > 10:
+        if depth > 50:
             return []
 
         texts: list[str] = []

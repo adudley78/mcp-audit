@@ -107,10 +107,18 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         Returns:
             List of :class:`~mcp_audit.models.Finding` objects (empty if clean).
         """
-        if server.command not in _NPX_LIKE:
+        # ``yarn dlx <pkg>`` is semantically identical to ``npx <pkg>`` for
+        # typosquatting purposes; normalise it before the command gate.
+        if server.command == "yarn":
+            if not server.args or server.args[0] != "dlx":
+                return []
+            effective_args = server.args[1:]
+        elif server.command in _NPX_LIKE:
+            effective_args = server.args
+        else:
             return []
 
-        package = extract_npm_package(server.args)
+        package = extract_npm_package(effective_args)
         if package is None:
             return []
 
@@ -128,6 +136,16 @@ class SupplyChainAnalyzer(BaseAnalyzer):
 
         verified_label = "verified" if closest_entry.verified else "unverified"
 
+        # Optional provenance metadata surfaced in the description to help
+        # analysts quickly distinguish suspicious newcomers from established
+        # packages with a long publish history.
+        meta_parts: list[str] = []
+        if closest_entry.first_published:
+            meta_parts.append(f"first published {closest_entry.first_published}")
+        if closest_entry.weekly_downloads is not None:
+            meta_parts.append(f"~{closest_entry.weekly_downloads:,} weekly downloads")
+        meta_blurb = f"; {'; '.join(meta_parts)}" if meta_parts else ""
+
         return [
             Finding(
                 id=finding_id,
@@ -139,7 +157,8 @@ class SupplyChainAnalyzer(BaseAnalyzer):
                 description=(
                     f"Package {package!r} is {min_dist} edit(s) away from the "
                     f"known-legitimate package {closest_entry.name!r} "
-                    f"(maintainer: {closest_entry.maintainer}, {verified_label})."
+                    f"(maintainer: {closest_entry.maintainer}, {verified_label}"
+                    f"{meta_blurb})."
                     " This pattern is consistent with a typosquatting"
                     " supply-chain attack."
                 ),

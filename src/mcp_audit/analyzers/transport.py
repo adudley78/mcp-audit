@@ -9,9 +9,17 @@ from mcp_audit.models import Finding, ServerConfig, Severity, TransportType
 from mcp_audit.registry.loader import KnownServerRegistry
 
 # Commands that fetch and execute a package at runtime.  Kept distinct from
-# ``supply_chain._NPX_LIKE`` because ``uvx`` is a pip-ecosystem launcher and
-# is not relevant to npm typosquatting detection.
-_RUNTIME_FETCH_COMMANDS: frozenset[str] = frozenset({"npx", "uvx", "bunx"})
+# ``supply_chain._NPX_LIKE`` because ``uvx``/``pipx`` are pip-ecosystem
+# launchers and are not relevant to npm typosquatting detection.
+_RUNTIME_FETCH_COMMANDS: frozenset[str] = frozenset({"npx", "uvx", "bunx", "pipx"})
+
+# Commands (and path-suffixes) that execute with elevated privileges.
+_PRIV_ESC_NAMES: frozenset[str] = frozenset({"sudo", "doas", "pkexec", "su", "run0"})
+
+# Wildcard bind addresses that expose a server on all network interfaces.
+_WILDCARD_HOSTS: frozenset[str] = frozenset(
+    {"0.0.0.0", "::"}  # noqa: S104
+)
 
 
 class TransportAnalyzer(BaseAnalyzer):
@@ -53,10 +61,11 @@ class TransportAnalyzer(BaseAnalyzer):
     def analyze(self, server: ServerConfig) -> list[Finding]:
         findings: list[Finding] = []
 
-        # Check HTTP/SSE without TLS
+        # TRANSPORT-001: HTTP/SSE without TLS
         if server.url:
             parsed = urlparse(server.url)
-            is_remote_http = parsed.scheme == "http" and parsed.hostname not in (
+            hostname = parsed.hostname or ""
+            is_remote_http = parsed.scheme == "http" and hostname not in (
                 "localhost",
                 "127.0.0.1",
                 "::1",
@@ -79,37 +88,85 @@ class TransportAnalyzer(BaseAnalyzer):
                     )
                 )
 
-        # Check stdio commands run with elevated privileges
+            # TRANSPORT-004: Wildcard interface binding (0.0.0.0 / [::])
+            # Strip brackets from IPv6 addresses as urlparse returns them bare.
+            bare_host = hostname.strip("[]")
+            if bare_host in _WILDCARD_HOSTS:
+                findings.append(
+                    Finding(
+                        id="TRANSPORT-004",
+                        severity=Severity.HIGH,
+                        analyzer=self.name,
+                        client=server.client,
+                        server=server.name,
+                        title="Wildcard interface binding",
+                        description=(
+                            "MCP server binds to all network interfaces"
+                            f" ({bare_host}), exposing it to the local network"
+                            " and potentially the internet."
+                        ),
+                        evidence=f"URL: {server.url}",
+                        remediation=(
+                            "Bind to 127.0.0.1 (or ::1) to restrict access"
+                            " to the local machine only."
+                        ),
+                        cwe="CWE-284",
+                    )
+                )
+
+        # TRANSPORT-002: Elevated privilege execution
         if (
             server.transport == TransportType.STDIO
             and server.command
-            and (
-                server.command in ("sudo", "doas")
-                or server.command.startswith("/usr/sbin")
-            )
+            and self._is_privilege_escalation(server)
         ):
             findings.append(
-                Finding(
-                    id="TRANSPORT-002",
-                    severity=Severity.HIGH,
-                    analyzer=self.name,
-                    client=server.client,
-                    server=server.name,
-                    title="Elevated privilege execution",
-                    description="MCP server runs with elevated privileges",
-                    evidence=f"Command: {server.command}",
-                    remediation="Run MCP servers with least-privilege user permissions",
-                    cwe="CWE-250",
+                    Finding(
+                        id="TRANSPORT-002",
+                        severity=Severity.HIGH,
+                        analyzer=self.name,
+                        client=server.client,
+                        server=server.name,
+                        title="Elevated privilege execution",
+                        description="MCP server runs with elevated privileges",
+                        evidence=f"Command: {server.command}",
+                        remediation=(
+                            "Run MCP servers with least-privilege user permissions"
+                        ),
+                        cwe="CWE-250",
+                    )
                 )
-            )
 
-        # Check runtime package fetching (supply chain risk via transport)
-        if server.command in _RUNTIME_FETCH_COMMANDS:
+        # TRANSPORT-003: Runtime package fetching (supply chain risk)
+        is_runtime_fetch = server.command in _RUNTIME_FETCH_COMMANDS or (
+            server.command == "yarn"
+            and bool(server.args)
+            and server.args[0] == "dlx"
+        )
+        if is_runtime_fetch:
             finding = self._build_runtime_fetch_finding(server)
             if finding is not None:
                 findings.append(finding)
 
         return findings
+
+    def _is_privilege_escalation(self, server: ServerConfig) -> bool:
+        """Return True if the server command or its first argument escalates privileges.
+
+        Matches bare names (``sudo``, ``pkexec`` …), any full path whose
+        basename is a known escalation command (``/usr/bin/sudo``), the legacy
+        ``/usr/sbin/*`` prefix, and the pattern of wrapping a command via
+        ``sh``/``bash`` with ``sudo`` as the first argument.
+        """
+        cmd = server.command
+        cmd_basename = cmd.rsplit("/", 1)[-1]
+
+        if cmd_basename in _PRIV_ESC_NAMES:
+            return True
+        if cmd.startswith("/usr/sbin"):
+            return True
+        # sudo/doas passed as first arg to a shell wrapper (e.g. command="sh")
+        return bool(server.args and server.args[0] in _PRIV_ESC_NAMES)
 
     def _build_runtime_fetch_finding(self, server: ServerConfig) -> Finding | None:
         """Construct a TRANSPORT-003 finding with registry-tiered severity.
@@ -125,7 +182,13 @@ class TransportAnalyzer(BaseAnalyzer):
             extract_npm_package,
         )
 
-        package = extract_npm_package(server.args)
+        # For `yarn dlx <pkg>`, skip the 'dlx' subcommand token.
+        effective_args = (
+            server.args[1:]
+            if server.command == "yarn" and server.args and server.args[0] == "dlx"
+            else server.args
+        )
+        package = extract_npm_package(effective_args)
         entry = (
             self._registry.get(package)
             if (self._registry is not None and package is not None)
