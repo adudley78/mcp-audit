@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import sys
 from collections.abc import Generator
 from datetime import date, timedelta
 from pathlib import Path
@@ -18,6 +19,11 @@ from mcp_audit.licensing import (
     is_pro_feature_available,
     save_license,
     verify_license,
+)
+
+_windows_skip = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows does not support POSIX file permissions",
 )
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
@@ -342,6 +348,7 @@ class TestSaveLicenseRoundTrip:
         assert info_loaded.email == "user@example.com"
         assert info_loaded.is_valid is True
 
+    @_windows_skip
     def test_file_permissions_are_600(
         self,
         patched_pubkey: bytes,

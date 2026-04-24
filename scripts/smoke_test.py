@@ -81,7 +81,7 @@ def main() -> None:
     # ── 3. scan malicious config → exit 1 with findings ──────────
     print("Check 3: scan malicious fixture → exit 1")
     check(MALICIOUS.exists(), f"Fixture not found: {MALICIOUS}")
-    run(binary, "scan", "--config", str(MALICIOUS), expect_exit=1)
+    run(binary, "scan", "--path", str(MALICIOUS), expect_exit=1)
     print("  OK: scan exited 1 (findings found)")
 
     # ── 4. scan malicious config → JSON output is valid ──────────
@@ -92,7 +92,7 @@ def main() -> None:
     run(
         binary,
         "scan",
-        "--config",
+        "--path",
         str(MALICIOUS),
         "--format",
         "json",
@@ -117,17 +117,29 @@ def main() -> None:
     print(f"  OK: {len(data['findings'])} findings in valid JSON")
 
     # ── 5. scan clean config → exit 0 ────────────────────────────
-    print("Check 5: scan official servers fixture → exit 0")
+    # The "clean" real-world fixture is expected to be free of CRITICAL
+    # findings; lower-severity informational/rules findings (e.g.
+    # "npx used without pinned version") still trigger exit 1 on the
+    # default threshold, so we scope this to --severity-threshold critical.
+    print("Check 5: scan official servers fixture → exit 0 at critical threshold")
     check(CLEAN.exists(), f"Fixture not found: {CLEAN}")
-    run(binary, "scan", "--config", str(CLEAN), expect_exit=0)
-    print("  OK: scan exited 0 (no findings)")
+    run(
+        binary,
+        "scan",
+        "--path",
+        str(CLEAN),
+        "--severity-threshold",
+        "critical",
+        expect_exit=0,
+    )
+    print("  OK: scan exited 0 (no critical findings)")
 
     # ── 6. severity threshold filter ─────────────────────────────
     print("Check 6: --severity-threshold critical filters to only CRITICAL")
     result = run(
         binary,
         "scan",
-        "--config",
+        "--path",
         str(MALICIOUS),
         "--format",
         "json",
@@ -155,7 +167,7 @@ def main() -> None:
     run(
         binary,
         "scan",
-        "--config",
+        "--path",
         str(MALICIOUS),
         "--format",
         "sarif",
@@ -177,14 +189,20 @@ def main() -> None:
         binary,
         "baseline",
         "save",
-        "--config",
-        str(MALICIOUS),
-        "--name",
         "smoke-test-baseline",
+        "--path",
+        str(MALICIOUS),
         expect_exit=0,
     )
     run(binary, "baseline", "list", expect_exit=0)
-    run(binary, "baseline", "delete", "--name", "smoke-test-baseline", expect_exit=0)
+    run(
+        binary,
+        "baseline",
+        "delete",
+        "smoke-test-baseline",
+        "--yes",
+        expect_exit=0,
+    )
     print("  OK: baseline save/list/delete roundtrip")
 
     print("-" * 60)
