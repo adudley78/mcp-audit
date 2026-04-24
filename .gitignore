@@ -14,6 +14,13 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Coverage artifacts
+.coverage
+.coverage.*
+coverage.json
+coverage.xml
+htmlcov/
+
 # Secrets and credentials
 .env
 .env.*

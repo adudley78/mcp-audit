@@ -20,3 +20,4 @@
 | [enterprise-deployment.md](enterprise-deployment.md) | Fleet deployment guide for IT/security teams |
 | [pre-commit.md](pre-commit.md) | Pre-commit hook setup and configuration |
 | [contributing-rules.md](contributing-rules.md) | Semgrep rule authoring guide |
+| [manual-test-matrix.md](manual-test-matrix.md) | Release-candidate manual validation checklist |

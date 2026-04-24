@@ -271,7 +271,7 @@ mcp-audit scan --include-extensions
 
 ## Known-Server Registry
 
-mcp-audit ships with a curated registry of 57 known MCP servers. The registry is used for typosquatting detection and supply chain hash verification.
+mcp-audit ships with a curated registry of 64 known MCP servers. The registry is used for typosquatting detection and supply chain hash verification.
 
 ```bash
 # Update the registry to the latest version

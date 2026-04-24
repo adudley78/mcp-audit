@@ -579,7 +579,7 @@ class TestOfflineRegistrySupplyChain:
 
         with patch.object(loader_mod, "_USER_CACHE_PATH", minimal_registry_json):
             analyzer = SupplyChainAnalyzer(offline_registry=True)
-        # bundled registry has 57 entries; minimal fixture has 3
+        # bundled registry has 64 entries; minimal fixture has 3
         assert len(analyzer.registry.entries) != 3
 
     def test_registry_property_returns_loaded_registry(self) -> None:

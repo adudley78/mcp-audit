@@ -68,7 +68,7 @@ For reference, the existing MCP security tools we studied during design (but did
 
 ### Supply chain (analyzers/supply_chain.py)
 
-The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 57 known-legitimate MCP servers.
+The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 64 known-legitimate MCP servers.
 
 **Research sources:**
 

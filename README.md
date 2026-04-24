@@ -15,30 +15,33 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 
 `mcp-audit` scans your local MCP configurations across all major AI coding clients, connects to running servers to inspect what agents actually see, and flags security issues across individual servers and dangerous cross-server combinations.
 
-## Why vulnerability management matters for MCP security
-
-MCP security findings today exist in isolation. A developer runs a scanner, sees terminal output, and maybe fixes something. But enterprises deploying AI agents across hundreds of developers need the same workflow they use for every other vulnerability class: ingest findings into a centralized platform, correlate with asset context, deduplicate across scans, assign ownership, track remediation, and report progress.
-
-mcp-audit's --format nucleus output is designed to align with the Nucleus Security FlexConnect schema, mapping findings to the standard ingestion fields (asset_name, finding_number, finding_severity, etc.) — the same ingestion pipeline that normalizes data from Qualys, Tenable, CrowdStrike, and 200+ other security tools. (This integration has not yet been validated against a live Nucleus instance — see GAPS.md for details. Once validated, this means MCP server vulnerabilities appear alongside infrastructure, cloud, and application vulnerabilities in a single prioritized view, with the same automation, SLA tracking, and reporting that security teams already use.)
-
-Tenable WAS has added MCP server detection plugins that scan server-side code for web vulnerabilities — but no standalone MCP configuration scanner bridges the gap between developer-side config analysis (tool poisoning, credential exposure, toxic flows, supply chain risks) and enterprise vulnerability management. Most output to terminal or JSON and stop there.
-
 ## Features
 
 - **Auto-discovers** MCP configs across 8 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code user-level, Claude Code project-level, GitHub Copilot CLI, Augment Code)
-- **Tool poisoning detection** — 11 regex patterns across 5 severity tiers
+- **Tool poisoning detection** — 11 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with 0% false-positive rate across 22 real servers
 - **Credential exposure** — 9 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
-- **Transport security** — unencrypted connections, elevated privileges, runtime package fetching
-- **Supply chain** — typosquatting detection via Levenshtein distance against 57 known-legitimate MCP servers
+- **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
+- **Supply chain** — typosquatting detection via Levenshtein distance against 64 known-legitimate MCP servers; SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
 - **Rug-pull detection** — stateful SHA-256 hash comparison of tool descriptions across scans
-- **Cross-server toxic flows** — capability tagging and 7 dangerous pair patterns detecting multi-server attack paths
+- **Cross-server toxic flows** — capability tagging and 7 dangerous pair patterns detecting multi-server attack paths (file-read + network, secrets + network, shell-exec + network, etc.)
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
 - **Interactive attack graph dashboard** — `mcp-audit dashboard` opens a D3 force-directed graph in your browser with light/dark mode, click-to-highlight attack paths, and hitting set recommendations
 - **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions
-- **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus FlexConnect, self-contained HTML dashboard
+- **SAST rule pack** — 37 Semgrep rules (28 Python, 9 TypeScript) for MCP server source code
+- **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
+- **Governance + policy-as-code** — YAML governance policies (approved server lists, score thresholds, transport constraints) and custom detection rules; 12 community rules ship bundled and run for every user
+- **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus Security FlexConnect, self-contained HTML dashboard
 - **Continuous monitoring** — `mcp-audit watch` monitors config files in real-time and re-scans on any change
 - **Fleet deployment** — machine-tagged output with `--asset-prefix` for enterprise-wide aggregation
 - **Fully offline by default** — no data leaves your machine
+
+## Enterprise vulnerability management
+
+MCP security findings typically exist in isolation: a developer runs a scanner, sees terminal output, maybe fixes something. Enterprises deploying AI agents across hundreds of developers need the same workflow they use for every other vulnerability class — centralized ingestion, asset correlation, deduplication, ownership, remediation tracking, and SLA reporting.
+
+`mcp-audit`'s `--format nucleus` output and `mcp-audit push-nucleus` command align with the [Nucleus Security](https://nucleussec.com) FlexConnect schema — the same ingestion pipeline that normalizes data from Qualys, Tenable, CrowdStrike, and 200+ other security tools. Validated against `nucleus-demo.nucleussec.com` on 2026-04-23; see [`docs/nucleus-integration.md`](docs/nucleus-integration.md).
+
+Tenable WAS has added MCP server detection plugins that scan server-side code for web vulnerabilities, but no other standalone MCP configuration scanner bridges developer-side config analysis (tool poisoning, credential exposure, toxic flows, supply chain risks) with enterprise vulnerability management. Most output to terminal or JSON and stop there.
 
 ## Free & open source
 
@@ -236,7 +239,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-1,292 tests validate detection accuracy and guard against regressions.
+1,326 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -408,7 +411,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 1,292 tests
+uv run pytest                        # Run all 1,326 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

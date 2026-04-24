@@ -91,7 +91,7 @@ Each entry follows this schema:
 
 ## Current Coverage
 
-57 entries as of April 2026, covering:
+64 entries as of April 2026, covering:
 
 - **22 official Anthropic/MCP packages** — all `@modelcontextprotocol/server-*`
   npm packages, the Python SDK (`mcp`), and related tooling
