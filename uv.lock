@@ -814,7 +814,7 @@ dev = [
 requires-dist = [
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7" },
     { name = "cryptography", specifier = ">=46.0.6,<47.0" },
-    { name = "cyclonedx-python-lib", marker = "extra == 'sbom'", specifier = ">=7.0,<8.0" },
+    { name = "cyclonedx-python-lib", marker = "extra == 'sbom'", specifier = ">=7.0,<12.0" },
     { name = "httpx", marker = "extra == 'mcp'", specifier = ">=0.27,<1.0" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
@@ -827,11 +827,11 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
-    { name = "rich", specifier = ">=13.0,<14.0" },
+    { name = "rich", specifier = ">=13.0,<16.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "sigstore", marker = "extra == 'attestation'", specifier = ">=3.0,<5.0" },
     { name = "typer", specifier = ">=0.12,<1.0" },
-    { name = "watchdog", specifier = ">=4.0,<6.0" },
+    { name = "watchdog", specifier = ">=4.0,<7.0" },
 ]
 provides-extras = ["attestation", "dev", "mcp", "sbom"]
 
