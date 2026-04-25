@@ -127,6 +127,9 @@ class PolicyRule(BaseModel):
     # COMM-004 `stdio transport`).  Requires the engine to have been constructed
     # with a registry; has no effect otherwise.
     exempt_known_servers: bool = False
+    # OWASP MCP Top 10 category codes for this rule (e.g., ["MCP05"]).
+    # Set in rule YAML; propagated to emitted Finding objects.
+    owasp_mcp_top_10: list[str] = Field(default_factory=list)
 
 
 # ── Rule engine ────────────────────────────────────────────────────────────────
@@ -190,6 +193,7 @@ class RuleEngine:
                         f"server configuration for '{server.name}'."
                     ),
                     finding_path=str(server.config_path),
+                    owasp_mcp_top_10=rule.owasp_mcp_top_10,
                 )
             )
         return findings

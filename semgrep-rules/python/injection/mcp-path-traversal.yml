@@ -11,7 +11,8 @@ rules:
       category: injection
       cwe: CWE-22
       owasp: A01:2021
-      owasp-mcp: MCP03
+      owasp-mcp-top-10:
+        - MCP05
       description: open() with variable path in async MCP tool handler — path traversal risk
       confidence: LOW
       likelihood: MEDIUM
@@ -38,7 +39,8 @@ rules:
       category: injection
       cwe: CWE-22
       owasp: A01:2021
-      owasp-mcp: MCP03
+      owasp-mcp-top-10:
+        - MCP05
       description: Path() with variable in async MCP tool handler — path traversal risk
       confidence: LOW
       likelihood: MEDIUM

@@ -8,7 +8,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-_Accumulates entries for work done after the last milestone and before the first public release tag._
+---
+
+## [0.4.0] - 2026-04-25 — OWASP MCP Top 10 field alignment
+
+> **Lead:** OWASP MCP Top 10 mapping on every finding — `owasp_mcp_top_10` field
+> in JSON, SARIF taxonomy block + per-rule relationships for Code Scanning, and
+> `mcp-audit scan --owasp-report` for a category-level aggregated view.
+
+### Added
+- **OWASP MCP Top 10 mapping on every finding.** `Finding.owasp_mcp_top_10`
+  carries a list of `MCP01`–`MCP10` category codes. Every shipped finding ID
+  is pre-populated; empty list = unmapped. Single source of truth lives in
+  `src/mcp_audit/owasp_mcp.py`.
+- **SARIF taxonomy block.** SARIF output now includes a `runs[0].taxonomies`
+  `toolComponent` for the OWASP MCP Top 10 (stable GUID
+  `f1a3c4d5-9e6b-4a7d-8b2c-1f9e0a3d5c7e`). Each rule gains a `relationships`
+  array referencing applicable taxa, plus a `properties["owasp-mcp-top-10"]`
+  mirror for consumers that don't honour the taxonomy mechanism.
+- **Terminal inline codes.** The per-finding terminal renderer now shows
+  `[MCP03, MCP06]` in dim cyan next to the title when codes are present.
+  Unmapped findings (positive signals, etc.) are unaffected.
+- **`mcp-audit scan --owasp-report`.** After the normal scan output, prints
+  a category-level summary table — how many findings triggered each MCP Top
+  10 category and their severity breakdown. Suppressed when no findings carry
+  codes. Does not affect exit codes, severity threshold, or score.
+- **Community rule and governance YAML** both accept `owasp_mcp_top_10:` and
+  propagate it through to emitted `Finding` objects.
+- **Semgrep SAST rules** carry `metadata.owasp-mcp-top-10`; `sast/runner.py`
+  copies the field onto the resulting `Finding`.
+- **`docs/owasp-mcp-top-10.md`** — new reference page covering terminal, JSON,
+  SARIF output, the `--owasp-report` flag, and implementation notes.
+- **`docs/severity-framework.md`** updated with an OWASP MCP Top 10 column in
+  every per-analyzer mapping table and a new reference section at the bottom.
+
+### Fixed
+- Added `# nosec B104` suppression to the `_WILDCARD_HOSTS` detection-pattern
+  string in `analyzers/transport.py`, eliminating a bandit false positive that
+  had been silently leaking into scans.
 
 ---
 

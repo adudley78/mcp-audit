@@ -123,6 +123,7 @@ def _hash_result_to_finding(
             ),
             cwe="CWE-494",
             finding_path=str(server.config_path),
+            owasp_mcp_top_10=["MCP04"],
         )
 
     # match is None — could not verify

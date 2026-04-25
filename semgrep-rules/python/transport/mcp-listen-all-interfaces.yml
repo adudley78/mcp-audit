@@ -11,7 +11,8 @@ rules:
       category: transport
       cwe: CWE-605
       owasp: A05:2021
-      owasp-mcp: MCP02
+      owasp-mcp-top-10:
+        - MCP07
       description: uvicorn binding to all interfaces — MCP server unnecessarily exposed
       confidence: HIGH
       likelihood: HIGH
@@ -31,7 +32,8 @@ rules:
       category: transport
       cwe: CWE-605
       owasp: A05:2021
-      owasp-mcp: MCP02
+      owasp-mcp-top-10:
+        - MCP07
       description: app.run() binding to all interfaces — MCP server unnecessarily exposed
       confidence: HIGH
       likelihood: HIGH

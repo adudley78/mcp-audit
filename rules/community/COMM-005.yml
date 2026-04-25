@@ -14,3 +14,5 @@ message: "Server '{server_name}' references /tmp in args — potential temp file
 tags:
   - filesystem
 enabled: true
+owasp_mcp_top_10:
+  - MCP05

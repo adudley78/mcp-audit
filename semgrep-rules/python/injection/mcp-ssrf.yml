@@ -11,7 +11,8 @@ rules:
       category: injection
       cwe: CWE-918
       owasp: A10:2021
-      owasp-mcp: MCP03
+      owasp-mcp-top-10:
+        - MCP05
       description: HTTP request with variable URL in async MCP handler — SSRF risk
       confidence: LOW
       likelihood: MEDIUM
@@ -52,7 +53,8 @@ rules:
       category: injection
       cwe: CWE-918
       owasp: A10:2021
-      owasp-mcp: MCP03
+      owasp-mcp-top-10:
+        - MCP05
       description: aiohttp request with variable URL in async MCP handler — SSRF risk
       confidence: LOW
       likelihood: MEDIUM

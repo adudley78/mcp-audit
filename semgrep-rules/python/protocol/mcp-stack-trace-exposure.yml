@@ -11,7 +11,8 @@ rules:
       category: protocol
       cwe: CWE-209
       owasp: A05:2021
-      owasp-mcp: MCP05
+      owasp-mcp-top-10:
+        - MCP07
       description: Stack trace returned from async MCP handler — information disclosure
       confidence: HIGH
       likelihood: MEDIUM
@@ -38,7 +39,8 @@ rules:
       category: protocol
       cwe: CWE-209
       owasp: A05:2021
-      owasp-mcp: MCP05
+      owasp-mcp-top-10:
+        - MCP07
       description: Raw exception message returned — information disclosure risk
       confidence: MEDIUM
       likelihood: HIGH

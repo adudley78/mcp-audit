@@ -8,7 +8,7 @@ uses regex pattern matching to detect common poisoning patterns.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.models import Finding, ServerConfig, Severity
@@ -26,6 +26,7 @@ class DetectionPattern:
     remediation: str
     cwe: str | None = None
     description_only: bool = False
+    owasp_mcp_top_10: list[str] = field(default_factory=list)
 
 
 # fmt: off
@@ -45,6 +46,7 @@ PATTERNS: list[DetectionPattern] = [
         ),
         remediation="Remove this MCP server immediately and rotate SSH keys",
         cwe="CWE-200",
+        owasp_mcp_top_10=["MCP03", "MCP01"],
     ),
     DetectionPattern(
         id="POISON-002",
@@ -57,6 +59,7 @@ PATTERNS: list[DetectionPattern] = [
         description="Tool description references cloud credential files",
         remediation="Remove this MCP server and rotate cloud credentials",
         cwe="CWE-200",
+        owasp_mcp_top_10=["MCP03", "MCP01"],
     ),
     DetectionPattern(
         id="POISON-003",
@@ -69,6 +72,7 @@ PATTERNS: list[DetectionPattern] = [
         description="Tool description instructs reading .env files containing secrets",
         remediation="Remove this MCP server and rotate any exposed secrets",
         cwe="CWE-200",
+        owasp_mcp_top_10=["MCP03", "MCP01"],
     ),
 
     # HIGH: Instruction injection markers
@@ -89,6 +93,7 @@ PATTERNS: list[DetectionPattern] = [
             " are used to hijack agent behavior"
         ),
         cwe="CWE-74",
+        owasp_mcp_top_10=["MCP03", "MCP06"],
     ),
     DetectionPattern(
         id="POISON-011",
@@ -101,6 +106,7 @@ PATTERNS: list[DetectionPattern] = [
         description="Tool description contains LLM prompt format injection markers",
         remediation="Remove this MCP server; these exploit LLM instruction parsing",
         cwe="CWE-74",
+        owasp_mcp_top_10=["MCP03", "MCP06"],
     ),
     DetectionPattern(
         id="POISON-012",
@@ -116,6 +122,7 @@ PATTERNS: list[DetectionPattern] = [
         description="Tool description attempts to override agent behavior",
         remediation="Remove this MCP server; it contains behavioral manipulation",
         cwe="CWE-74",
+        owasp_mcp_top_10=["MCP03", "MCP06"],
     ),
 
     # HIGH: Data exfiltration language
@@ -137,6 +144,7 @@ PATTERNS: list[DetectionPattern] = [
             " it may exfiltrate data via encoded channels"
         ),
         cwe="CWE-200",
+        owasp_mcp_top_10=["MCP03", "MCP10"],
     ),
     DetectionPattern(
         id="POISON-021",
@@ -150,6 +158,7 @@ PATTERNS: list[DetectionPattern] = [
         description="Tool description instructs passing data through hidden parameters",
         remediation="Remove this MCP server; it channels data through side channels",
         cwe="CWE-200",
+        owasp_mcp_top_10=["MCP03", "MCP10"],
     ),
 
     # MEDIUM: Cross-tool manipulation
@@ -170,6 +179,7 @@ PATTERNS: list[DetectionPattern] = [
             " may indicate tool shadowing"
         ),
         cwe="CWE-441",
+        owasp_mcp_top_10=["MCP03", "MCP06"],
     ),
 
     # MEDIUM: Stealth techniques
@@ -187,6 +197,7 @@ PATTERNS: list[DetectionPattern] = [
             " zero-width chars hide malicious instructions"
         ),
         cwe="CWE-116",
+        owasp_mcp_top_10=["MCP03"],
     ),
 
     # HIGH: Unicode homoglyph substitution
@@ -211,6 +222,7 @@ PATTERNS: list[DetectionPattern] = [
             " Remove any non-ASCII characters that are not legitimately required."
         ),
         cwe="CWE-116",
+        owasp_mcp_top_10=["MCP03"],
     ),
 
     # LOW: Suspicious signals
@@ -228,6 +240,7 @@ PATTERNS: list[DetectionPattern] = [
         ),
         remediation="Review the full tool description for hidden instructions",
         description_only=True,
+        owasp_mcp_top_10=["MCP03"],
     ),
 ]
 # fmt: on
@@ -280,6 +293,7 @@ class PoisoningAnalyzer(BaseAnalyzer):
                             evidence=f"Matched: {match.group()[:100]}",
                             remediation=pattern.remediation,
                             cwe=pattern.cwe,
+                            owasp_mcp_top_10=pattern.owasp_mcp_top_10,
                         )
                     )
 
@@ -303,6 +317,7 @@ class PoisoningAnalyzer(BaseAnalyzer):
                                 evidence=f"Matched: {match.group()[:100]}",
                                 remediation=pattern.remediation,
                                 cwe=pattern.cwe,
+                                owasp_mcp_top_10=pattern.owasp_mcp_top_10,
                             )
                         )
 

@@ -10,7 +10,8 @@ rules:
       category: injection
       cwe: CWE-78
       owasp: A03:2021
-      owasp-mcp: MCP03
+      owasp-mcp-top-10:
+        - MCP05
       description: Subprocess called with string command in async MCP tool handler
       confidence: MEDIUM
       likelihood: MEDIUM
@@ -38,7 +39,8 @@ rules:
       category: injection
       cwe: CWE-78
       owasp: A03:2021
-      owasp-mcp: MCP03
+      owasp-mcp-top-10:
+        - MCP05
       description: os.system() in async MCP tool handler — shell injection risk
       confidence: MEDIUM
       likelihood: MEDIUM
@@ -60,7 +62,8 @@ rules:
       category: injection
       cwe: CWE-78
       owasp: A03:2021
-      owasp-mcp: MCP03
+      owasp-mcp-top-10:
+        - MCP05
       description: subprocess with shell=True — shell injection risk
       confidence: HIGH
       likelihood: MEDIUM

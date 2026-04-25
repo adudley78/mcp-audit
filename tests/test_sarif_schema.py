@@ -226,3 +226,82 @@ class TestSarifSchemaCompliance:
         automation_id = sarif["runs"][0]["automationDetails"]["id"]
         assert automation_id  # non-empty string
         assert "scan" in automation_id  # fallback token
+
+
+class TestSarifOwaspMcpTaxonomy:
+    """SARIF output must include the OWASP MCP Top 10 taxonomy block."""
+
+    def _finding_with_owasp(self, codes: list[str]) -> Finding:
+        return Finding(
+            id="POISON-010",
+            severity=Severity.HIGH,
+            analyzer="poisoning",
+            client="claude_desktop",
+            server="test-srv",
+            title="XML instruction injection",
+            description="desc",
+            evidence="ev",
+            remediation="fix",
+            owasp_mcp_top_10=codes,
+        )
+
+    def test_taxonomy_block_always_present(self) -> None:
+        """runs[0].taxonomies must always contain the OWASP-MCP-Top-10 entry."""
+        result = _make_result()
+        sarif = json.loads(format_sarif(result))
+        taxonomies = sarif["runs"][0].get("taxonomies", [])
+        assert len(taxonomies) == 1
+        assert taxonomies[0]["name"] == "OWASP-MCP-Top-10"
+
+    def test_taxonomy_has_ten_taxa(self) -> None:
+        """The taxonomy must declare all 10 OWASP MCP categories."""
+        result = _make_result()
+        sarif = json.loads(format_sarif(result))
+        taxa = sarif["runs"][0]["taxonomies"][0]["taxa"]
+        assert len(taxa) == 10
+        ids = {t["id"] for t in taxa}
+        assert ids == {f"MCP{i:02d}" for i in range(1, 11)}
+
+    def test_rule_has_relationships_when_owasp_codes_set(self) -> None:
+        """Rule must have relationships[] for findings with owasp_mcp_top_10."""
+        finding = self._finding_with_owasp(["MCP03"])
+        result = _make_result(findings=[finding])
+        sarif = json.loads(format_sarif(result))
+        rule = sarif["runs"][0]["tool"]["driver"]["rules"][0]
+        assert "relationships" in rule
+        assert rule["relationships"][0]["target"]["id"] == "MCP03"
+        assert rule["relationships"][0]["target"]["toolComponent"]["name"] == (
+            "OWASP-MCP-Top-10"
+        )
+
+    def test_rule_properties_owasp_codes(self) -> None:
+        """Rule properties must include owasp-mcp-top-10 codes."""
+        finding = self._finding_with_owasp(["MCP03"])
+        result = _make_result(findings=[finding])
+        sarif = json.loads(format_sarif(result))
+        rule = sarif["runs"][0]["tool"]["driver"]["rules"][0]
+        assert rule["properties"]["owasp-mcp-top-10"] == ["MCP03"]
+
+    def test_rule_no_relationships_when_owasp_empty(self) -> None:
+        """Rules for unmapped findings must not have relationships[]."""
+        finding = self._finding_with_owasp([])
+        result = _make_result(findings=[finding])
+        sarif = json.loads(format_sarif(result))
+        rule = sarif["runs"][0]["tool"]["driver"]["rules"][0]
+        assert "relationships" not in rule
+        assert "owasp-mcp-top-10" not in rule.get("properties", {})
+
+    def test_taxonomy_block_is_schema_valid(self, tmp_path: Path) -> None:
+        """A scan result with OWASP-coded findings must still be schema-valid SARIF."""
+        finding = self._finding_with_owasp(["MCP03", "MCP06"])
+        finding = finding.model_copy(
+            update={"finding_path": str(tmp_path / "cfg.json")}
+        )
+        result = _make_result(findings=[finding])
+        sarif_str = format_sarif(result)
+        _validate(sarif_str)
+        sarif = json.loads(sarif_str)
+        assert sarif["runs"][0]["taxonomies"][0]["name"] == "OWASP-MCP-Top-10"
+        rule = sarif["runs"][0]["tool"]["driver"]["rules"][0]
+        assert rule["relationships"][0]["target"]["id"] == "MCP03"
+        assert rule["properties"]["owasp-mcp-top-10"] == ["MCP03", "MCP06"]

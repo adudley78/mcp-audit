@@ -15,3 +15,5 @@ tags:
   - credentials
   - ssh
 enabled: true
+owasp_mcp_top_10:
+  - MCP01

@@ -175,6 +175,7 @@ class SupplyChainAnalyzer(BaseAnalyzer):
                     " and source repository before trusting it."
                 ),
                 cwe="CWE-829",
+                owasp_mcp_top_10=["MCP04"],
             )
         ]
 

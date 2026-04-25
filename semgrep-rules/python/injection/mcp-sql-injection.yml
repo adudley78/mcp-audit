@@ -10,7 +10,8 @@ rules:
       category: injection
       cwe: CWE-89
       owasp: A03:2021
-      owasp-mcp: MCP03
+      owasp-mcp-top-10:
+        - MCP05
       description: f-string SQL query construction — SQL injection risk
       confidence: HIGH
       likelihood: HIGH
@@ -33,7 +34,8 @@ rules:
       category: injection
       cwe: CWE-89
       owasp: A03:2021
-      owasp-mcp: MCP03
+      owasp-mcp-top-10:
+        - MCP05
       description: String-concatenated SQL query — SQL injection risk
       confidence: MEDIUM
       likelihood: HIGH

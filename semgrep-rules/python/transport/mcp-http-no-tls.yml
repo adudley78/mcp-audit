@@ -11,7 +11,8 @@ rules:
       category: transport
       cwe: CWE-319
       owasp: A02:2021
-      owasp-mcp: MCP02
+      owasp-mcp-top-10:
+        - MCP07
       description: uvicorn.run() without TLS — MCP server traffic unencrypted
       confidence: MEDIUM
       likelihood: HIGH
@@ -32,7 +33,8 @@ rules:
       category: transport
       cwe: CWE-319
       owasp: A02:2021
-      owasp-mcp: MCP02
+      owasp-mcp-top-10:
+        - MCP07
       description: Flask app.run() without ssl_context — MCP server traffic unencrypted
       confidence: MEDIUM
       likelihood: HIGH

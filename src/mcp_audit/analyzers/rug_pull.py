@@ -319,6 +319,7 @@ class RugPullAnalyzer(BaseAnalyzer):
             ),
             finding_path=str(srv.config_path),
         )
+        # owasp_mcp_top_10 intentionally empty: baseline INFO, not a security violation
 
     def _new_server_finding(self, srv: ServerConfig, key: str) -> Finding:
         return Finding(
@@ -337,6 +338,7 @@ class RugPullAnalyzer(BaseAnalyzer):
                 "Verify this server was intentionally added to your configuration."
             ),
             finding_path=str(srv.config_path),
+            owasp_mcp_top_10=["MCP09"],
         )
 
     def _changed_finding(
@@ -363,6 +365,7 @@ class RugPullAnalyzer(BaseAnalyzer):
             ),
             cwe="CWE-494",
             finding_path=str(srv.config_path),
+            owasp_mcp_top_10=["MCP03", "MCP04"],
         )
 
     def _removed_finding(

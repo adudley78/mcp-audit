@@ -15,3 +15,5 @@ tags:
   - permissions
   - deno
 enabled: true
+owasp_mcp_top_10:
+  - MCP02

@@ -6,7 +6,7 @@ from io import StringIO
 
 from rich.console import Console
 
-from mcp_audit.models import RegistryStats, ScanResult
+from mcp_audit.models import Finding, RegistryStats, ScanResult, Severity
 from mcp_audit.output.terminal import _format_registry_stats, print_results
 
 
@@ -127,3 +127,38 @@ class TestSeverityThresholdNoFindingsMessage:
         output = _capture(result)
         assert "No security issues found" in output
         assert "below threshold" not in output
+
+
+# ── OWASP MCP Top 10 inline codes in terminal output ─────────────────────────
+
+
+def _make_finding(owasp_mcp_top_10: list[str] | None = None) -> Finding:
+    return Finding(
+        id="POISON-010",
+        severity=Severity.HIGH,
+        analyzer="poisoning",
+        client="claude_desktop",
+        server="test-srv",
+        title="XML instruction injection",
+        description="desc",
+        evidence="ev",
+        remediation="fix",
+        owasp_mcp_top_10=owasp_mcp_top_10 or [],
+    )
+
+
+class TestOwaspMcpCodesInTerminalOutput:
+    """Terminal output must show OWASP MCP codes for mapped findings."""
+
+    def test_owasp_codes_shown_when_mapped(self) -> None:
+        """Findings with owasp_mcp_top_10 must show the codes inline."""
+        result = _make_result(findings=[_make_finding(["MCP03", "MCP06"])])
+        output = _capture(result)
+        assert "MCP03" in output
+        assert "MCP06" in output
+
+    def test_owasp_codes_absent_when_empty(self) -> None:
+        """Findings with no owasp_mcp_top_10 must not show any code badge."""
+        result = _make_result(findings=[_make_finding([])])
+        output = _capture(result)
+        assert "[MCP" not in output

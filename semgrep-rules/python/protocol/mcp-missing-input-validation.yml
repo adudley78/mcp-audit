@@ -11,7 +11,8 @@ rules:
       category: protocol
       cwe: CWE-20
       owasp: A03:2021
-      owasp-mcp: MCP04
+      owasp-mcp-top-10:
+        - MCP07
       description: MCP tool argument used without input validation
       confidence: LOW
       likelihood: MEDIUM

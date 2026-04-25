@@ -713,4 +713,13 @@ def evaluate_governance(
     if scan_result is not None and policy.finding_policy is not None:
         findings.extend(_check_finding_policy(scan_result, policy))
 
+    # ── Propagate OWASP MCP Top 10 codes from the policy ──────────────────
+    # When the policy declares owasp_mcp_top_10, attach those codes to every
+    # governance finding so they flow through SARIF / JSON / terminal output.
+    if policy.owasp_mcp_top_10:
+        findings = [
+            f.model_copy(update={"owasp_mcp_top_10": policy.owasp_mcp_top_10})
+            for f in findings
+        ]
+
     return findings

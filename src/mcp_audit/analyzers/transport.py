@@ -18,7 +18,7 @@ _PRIV_ESC_NAMES: frozenset[str] = frozenset({"sudo", "doas", "pkexec", "su", "ru
 
 # Wildcard bind addresses that expose a server on all network interfaces.
 _WILDCARD_HOSTS: frozenset[str] = frozenset(
-    {"0.0.0.0", "::"}  # noqa: S104
+    {"0.0.0.0", "::"}  # noqa: S104  # nosec B104 — detection pattern string, not a bind address
 )
 
 
@@ -85,6 +85,7 @@ class TransportAnalyzer(BaseAnalyzer):
                         evidence=f"URL: {server.url}",
                         remediation="Use https:// or restrict to localhost",
                         cwe="CWE-319",
+                        owasp_mcp_top_10=["MCP07"],
                     )
                 )
 
@@ -111,6 +112,7 @@ class TransportAnalyzer(BaseAnalyzer):
                             " to the local machine only."
                         ),
                         cwe="CWE-284",
+                        owasp_mcp_top_10=["MCP07"],
                     )
                 )
 
@@ -134,6 +136,7 @@ class TransportAnalyzer(BaseAnalyzer):
                         "Run MCP servers with least-privilege user permissions"
                     ),
                     cwe="CWE-250",
+                    owasp_mcp_top_10=["MCP02", "MCP05"],
                 )
             )
 
@@ -229,4 +232,5 @@ class TransportAnalyzer(BaseAnalyzer):
                 "Install packages locally and reference the installed binary instead"
             ),
             cwe="CWE-829",
+            owasp_mcp_top_10=["MCP04"],
         )

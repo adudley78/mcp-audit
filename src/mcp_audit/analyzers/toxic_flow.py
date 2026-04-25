@@ -58,6 +58,7 @@ class ToxicPair:
     description: str
     remediation: str
     cwe: str | None = None
+    owasp_mcp_top_10: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -185,6 +186,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "file access paths or network destinations."
         ),
         cwe="CWE-200",
+        owasp_mcp_top_10=("MCP05", "MCP10"),
     ),
     ToxicPair(
         source=Capability.FILE_READ,
@@ -201,6 +203,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "Restrict file access or email recipients."
         ),
         cwe="CWE-200",
+        owasp_mcp_top_10=("MCP05", "MCP10"),
     ),
     ToxicPair(
         source=Capability.SECRETS,
@@ -217,6 +220,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "capabilities."
         ),
         cwe="CWE-522",
+        owasp_mcp_top_10=("MCP01", "MCP10"),
     ),
     ToxicPair(
         source=Capability.FILE_READ,
@@ -232,6 +236,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "Review whether both servers are necessary. Restrict shell execution scope."
         ),
         cwe="CWE-78",
+        owasp_mcp_top_10=("MCP10",),
     ),
     ToxicPair(
         source=Capability.DATABASE,
@@ -248,6 +253,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "Restrict database queries or network destinations."
         ),
         cwe="CWE-200",
+        owasp_mcp_top_10=("MCP05", "MCP10"),
     ),
     ToxicPair(
         source=Capability.SHELL_EXEC,
@@ -265,6 +271,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "strict sandboxing."
         ),
         cwe="CWE-78",
+        owasp_mcp_top_10=("MCP05", "MCP10"),
     ),
     ToxicPair(
         source=Capability.GIT,
@@ -281,6 +288,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "Review whether both servers are necessary. Consider read-only git access."
         ),
         cwe="CWE-200",
+        # TODO: TOXIC-007 not in the Part B mapping table; owasp_mcp_top_10 left empty
     ),
 ]
 
@@ -536,4 +544,5 @@ class ToxicFlowAnalyzer(BaseAnalyzer):
             remediation=tp.remediation,
             cwe=tp.cwe,
             finding_path=config_path,
+            owasp_mcp_top_10=list(tp.owasp_mcp_top_10),
         )

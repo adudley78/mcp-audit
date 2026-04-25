@@ -142,6 +142,9 @@ class Finding(BaseModel):
     remediation: str
     cwe: str | None = None
     finding_path: str | None = None
+    # OWASP MCP Top 10 category codes (e.g., ["MCP03", "MCP10"]).
+    # A finding may map to multiple categories. Empty list = unmapped.
+    owasp_mcp_top_10: list[str] = Field(default_factory=list)
 
 
 class AttackPath(BaseModel):

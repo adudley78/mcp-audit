@@ -205,6 +205,16 @@ def parse_semgrep_output(semgrep_json: dict, target_path: Path) -> list[Finding]
         cwe: str | None = metadata.get("cwe")
         category: str = metadata.get("category", "sast")
 
+        # Read the OWASP MCP Top 10 codes from rule metadata.
+        # The field may be a list (canonical YAML form) or a bare string.
+        owasp_raw = metadata.get("owasp-mcp-top-10", [])
+        if isinstance(owasp_raw, list):
+            owasp_mcp_top_10: list[str] = [str(c) for c in owasp_raw]
+        elif isinstance(owasp_raw, str) and owasp_raw:
+            owasp_mcp_top_10 = [owasp_raw]
+        else:
+            owasp_mcp_top_10 = []
+
         finding_id = _finding_id(check_id, file_path, line)
         server_name = Path(file_path).name
 
@@ -229,6 +239,7 @@ def parse_semgrep_output(semgrep_json: dict, target_path: Path) -> list[Finding]
                 remediation=_remediation_for_category(category),
                 cwe=cwe,
                 finding_path=file_path,
+                owasp_mcp_top_10=owasp_mcp_top_10,
             )
         )
 

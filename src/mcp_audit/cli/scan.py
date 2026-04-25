@@ -50,6 +50,7 @@ from mcp_audit.models import Finding, ScanResult, Severity
 from mcp_audit.output.nucleus import format_nucleus
 from mcp_audit.output.sarif import format_sarif
 from mcp_audit.output.terminal import print_results
+from mcp_audit.owasp_mcp import OWASP_MCP_TOP_10
 from mcp_audit.registry.loader import KnownServerRegistry
 from mcp_audit.sast import runner as _sast_runner
 from mcp_audit.scanner import _USER_RULES_DIR
@@ -170,6 +171,63 @@ def _preflight_checks(
     if sast is not None and not sast.resolve().exists():
         con.print(f"[red]SAST target path does not exist:[/red] {sast}")
         raise typer.Exit(2)
+
+
+def _print_owasp_report(result: ScanResult, con: Console) -> None:
+    """Print an OWASP MCP Top 10 category-level summary to the terminal.
+
+    Only called when ``--owasp-report`` is set.  Suppressed silently when no
+    findings carry any ``owasp_mcp_top_10`` codes (e.g. a clean scan).
+
+    Args:
+        result: Completed scan result.
+        con: Rich console to write to.
+    """
+    # Aggregate findings per category code.
+    category_findings: dict[str, list[Finding]] = {}
+    for f in result.findings:
+        for code in f.owasp_mcp_top_10:
+            category_findings.setdefault(code, []).append(f)
+
+    if not category_findings:
+        return
+
+    con.print()
+    con.print("[bold]OWASP MCP Top 10[/bold] — coverage in this scan")
+    con.print("─" * 50)
+
+    # Iterate in canonical MCP01–MCP10 order.
+    triggered = 0
+    for code, name in OWASP_MCP_TOP_10.items():
+        findings = category_findings.get(code, [])
+        if not findings:
+            continue
+        triggered += 1
+
+        # Build severity breakdown string.
+        sev_counts: dict[str, int] = {}
+        for f in findings:
+            sev_counts[f.severity.value] = sev_counts.get(f.severity.value, 0) + 1
+
+        sev_parts = []
+        for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"):
+            n = sev_counts.get(sev, 0)
+            if n > 0:
+                sev_parts.append(f"{n} {sev.lower()}")
+        sev_str = ", ".join(sev_parts)
+
+        n_total = len(findings)
+        finding_word = "finding" if n_total == 1 else "findings"
+
+        con.print(
+            f"[bold]{code}[/bold] {name:<48} "
+            f"[bold]{n_total}[/bold] {finding_word} ({sev_str})"
+        )
+
+    con.print("─" * 50)
+    con.print(
+        f"[bold]{triggered} of {len(OWASP_MCP_TOP_10)}[/bold] categories triggered."
+    )
 
 
 def _build_custom_analyzers(
@@ -701,6 +759,14 @@ def scan(
         "--include-extensions",
         help="Also scan installed IDE extensions for security issues.",
     ),
+    owasp_report: bool = typer.Option(  # noqa: B008
+        False,
+        "--owasp-report",
+        help=(
+            "Print an OWASP MCP Top 10 category summary after the normal scan output. "
+            "Shows how many findings map to each MCP01–MCP10 category."
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     if configs and len(configs) > 1:
@@ -780,6 +846,9 @@ def scan(
         result.score = None
 
     _write_formatted_output(result, fmt, output, asset_prefix, no_score, console)
+
+    if owasp_report:
+        _print_owasp_report(result, console)
 
     if result.has_findings:
         raise typer.Exit(1)

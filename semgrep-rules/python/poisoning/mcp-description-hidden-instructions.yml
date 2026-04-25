@@ -10,7 +10,8 @@ rules:
     metadata:
       category: poisoning
       cwe: CWE-1336
-      owasp-mcp: MCP07
+      owasp-mcp-top-10:
+        - MCP03
       description: Prompt injection keywords detected in MCP tool description
       confidence: HIGH
       likelihood: MEDIUM
@@ -34,7 +35,8 @@ rules:
     metadata:
       category: poisoning
       cwe: CWE-1336
-      owasp-mcp: MCP07
+      owasp-mcp-top-10:
+        - MCP03
       description: Hidden instruction keywords in MCP tool description
       confidence: HIGH
       likelihood: MEDIUM
@@ -58,7 +60,8 @@ rules:
     metadata:
       category: poisoning
       cwe: CWE-1336
-      owasp-mcp: MCP07
+      owasp-mcp-top-10:
+        - MCP03
       description: Exfiltration keywords in MCP tool description — tool poisoning
       confidence: HIGH
       likelihood: MEDIUM

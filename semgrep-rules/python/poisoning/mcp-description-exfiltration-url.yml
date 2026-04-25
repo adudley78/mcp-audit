@@ -10,7 +10,8 @@ rules:
     metadata:
       category: poisoning
       cwe: CWE-1336
-      owasp-mcp: MCP07
+      owasp-mcp-top-10:
+        - MCP03
       description: URL found in MCP tool description — possible exfiltration endpoint
       confidence: MEDIUM
       likelihood: MEDIUM

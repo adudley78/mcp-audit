@@ -103,3 +103,7 @@ class GovernancePolicy(BaseModel):
     registry_policy: RegistryPolicy | None = None
     finding_policy: FindingPolicy | None = None
     client_overrides: dict[str, ClientOverride] = Field(default_factory=dict)
+    # OWASP MCP Top 10 category codes to attach to all findings emitted by this
+    # policy. Policy authors can set this in their YAML to annotate governance
+    # violations with the relevant MCP Top 10 categories.
+    owasp_mcp_top_10: list[str] = Field(default_factory=list)

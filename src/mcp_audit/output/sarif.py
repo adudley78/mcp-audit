@@ -16,6 +16,11 @@ from pathlib import Path
 
 from mcp_audit import __version__
 from mcp_audit.models import Finding, ScanResult, Severity
+from mcp_audit.owasp_mcp import (
+    OWASP_MCP_TOP_10,
+    OWASP_MCP_TOP_10_URI,
+    OWASP_MCP_TOP_10_VERSION,
+)
 
 _SCHEMA = (
     "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main"
@@ -36,6 +41,28 @@ _LEVEL_MAP: dict[Severity, str] = {
     Severity.LOW: "note",
     Severity.INFO: "note",
 }
+
+
+def _build_owasp_mcp_taxonomy() -> dict:
+    """Build the SARIF toolComponent that defines the OWASP MCP Top 10."""
+    return {
+        "name": "OWASP-MCP-Top-10",
+        "version": OWASP_MCP_TOP_10_VERSION,
+        "informationUri": OWASP_MCP_TOP_10_URI,
+        "guid": "f1a3c4d5-9e6b-4a7d-8b2c-1f9e0a3d5c7e",  # stable, mcp-audit-issued
+        "isComprehensive": True,
+        "shortDescription": {
+            "text": "OWASP MCP Top 10 risk categories (2025 beta).",
+        },
+        "taxa": [
+            {
+                "id": code,
+                "name": name,
+                "shortDescription": {"text": name},
+            }
+            for code, name in OWASP_MCP_TOP_10.items()
+        ],
+    }
 
 
 def _finding_to_file_uri(finding_path: str | None) -> str:
@@ -107,7 +134,7 @@ def _build_rule(finding: Finding) -> dict:
         cwe_num = finding.cwe.upper().replace("CWE-", "")
         tags.append(f"external/cwe/cwe-{cwe_num.lower()}")
 
-    return {
+    rule: dict = {
         "id": finding.id,
         "name": _rule_name_from_title(finding.title),
         "shortDescription": {"text": finding.title},
@@ -120,6 +147,25 @@ def _build_rule(finding: Finding) -> dict:
         "defaultConfiguration": {"level": _LEVEL_MAP[finding.severity]},
         "properties": {"tags": tags},
     }
+
+    if finding.owasp_mcp_top_10:
+        # Belt-and-braces: embed codes in the properties bag for consumers
+        # that don't process the taxonomies/relationships machinery.
+        rule["properties"]["owasp-mcp-top-10"] = finding.owasp_mcp_top_10
+
+        # SARIF 2.1.0 §3.52: relationships link this rule to taxonomy taxa.
+        rule["relationships"] = [
+            {
+                "target": {
+                    "id": code,
+                    "toolComponent": {"name": "OWASP-MCP-Top-10"},
+                },
+                "kinds": ["relevant"],
+            }
+            for code in finding.owasp_mcp_top_10
+        ]
+
+    return rule
 
 
 def _build_result(finding: Finding, rule_index: int) -> dict:
@@ -247,6 +293,7 @@ def format_sarif(
         },
         "invocations": [invocation],
         "results": sarif_results,
+        "taxonomies": [_build_owasp_mcp_taxonomy()],
     }
 
     if result.score is not None:

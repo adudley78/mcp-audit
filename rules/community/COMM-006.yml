@@ -14,3 +14,5 @@ message: "Server '{server_name}' executes inline code via -c flag: {matched_valu
 tags:
   - code-execution
 enabled: true
+owasp_mcp_top_10:
+  - MCP05

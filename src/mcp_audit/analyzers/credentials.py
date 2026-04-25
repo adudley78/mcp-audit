@@ -68,6 +68,7 @@ class CredentialsAnalyzer(BaseAnalyzer):
                                 " reference instead of inline secrets"
                             ),
                             cwe="CWE-798",
+                            owasp_mcp_top_10=["MCP01"],
                         )
                     )
                     break  # One finding per env var
@@ -92,6 +93,7 @@ class CredentialsAnalyzer(BaseAnalyzer):
                             " or credential manager, not command args"
                         ),
                         cwe="CWE-798",
+                        owasp_mcp_top_10=["MCP01"],
                     )
                 )
 

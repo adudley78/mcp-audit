@@ -14,3 +14,5 @@ message: "Server '{server_name}' passes eval/exec in args: {matched_value}"
 tags:
   - code-execution
 enabled: true
+owasp_mcp_top_10:
+  - MCP05

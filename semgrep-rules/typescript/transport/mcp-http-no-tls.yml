@@ -10,7 +10,8 @@ rules:
       category: transport
       cwe: CWE-319
       owasp: A02:2021
-      owasp-mcp: MCP02
+      owasp-mcp-top-10:
+        - MCP07
       description: http.createServer() — plain HTTP MCP server, no TLS
       confidence: HIGH
       likelihood: HIGH

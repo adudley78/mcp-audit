@@ -15,3 +15,5 @@ message: "Server '{server_name}' uses npx without a pinned version — supply ch
 tags:
   - supply-chain
 enabled: true
+owasp_mcp_top_10:
+  - MCP04

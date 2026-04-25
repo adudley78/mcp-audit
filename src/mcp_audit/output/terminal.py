@@ -198,10 +198,17 @@ def print_results(
         color = SEVERITY_COLORS[finding.severity]
         icon = SEVERITY_ICONS[finding.severity]
 
+        # Show OWASP MCP codes inline when mapped (e.g. "[MCP03, MCP06]")
+        owasp_badge = ""
+        if finding.owasp_mcp_top_10:
+            codes = ", ".join(finding.owasp_mcp_top_10)
+            owasp_badge = f"  [dim cyan]\\[{codes}][/dim cyan]"
+
         console.print(
             f"{icon} [{color} bold]{finding.severity.value}[/{color} bold]  "
             f"[dim]{finding.analyzer}[/dim]  "
             f"{finding.client}/{finding.server}"
+            f"{owasp_badge}"
         )
         console.print(f"   {finding.title}")
         console.print(f"   [dim]→ {finding.evidence}[/dim]")
