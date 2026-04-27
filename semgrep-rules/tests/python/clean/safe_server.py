@@ -87,3 +87,56 @@ import uvicorn  # type: ignore[import]  # noqa: E402
 
 # Safe: uvicorn bound to localhost
 # uvicorn.run(app, host="127.0.0.1", port=8080)
+
+
+# ---------------------------------------------------------------------------
+# Safe auth patterns (should produce zero findings from auth rules)
+# ---------------------------------------------------------------------------
+
+from fastapi import Depends, Request  # noqa: E402
+
+
+async def get_current_user(request: Request) -> dict:
+    token = request.headers.get("Authorization", "")
+    if not token:
+        raise ValueError("Unauthorized")
+    return {"user": "authenticated"}
+
+
+# Safe: route with explicit auth dependency — not flagged by mcp-route-missing-auth-middleware
+@app.get("/mcp_endpoint", dependencies=[Depends(get_current_user)])
+async def safe_mcp_route(request: Request) -> dict:
+    return {"ok": True}
+
+
+# Safe: empty allowlist → deny all — not flagged by mcp-empty-allowlist-allow-all
+def check_allowlist_safe(ip_allowlist: list[str], client_ip: str) -> bool:
+    if not ip_allowlist:
+        return False  # deny all when allowlist is unconfigured
+    return client_ip in ip_allowlist
+
+
+# Safe: allowlist raises on empty — not flagged by mcp-empty-allowlist-allow-all
+def check_allowlist_strict(trusted_callers: list[str], caller_id: str) -> bool:
+    if not trusted_callers:
+        raise ValueError("Allowlist must not be empty; deny-by-default requires at least one entry")
+    return caller_id in trusted_callers
+
+
+# Safe: logs only request ID, not headers — not flagged by mcp-authorization-header-logged
+async def log_request_id(request: Request) -> dict:
+    request_id = request.headers.get("X-Request-ID", "unknown")
+    logger.info("Processing request %s", request_id)
+    return {"ok": True}
+
+
+# Safe: logs a fixed error message in except, not the request body
+async def process_safe_request(request: Request) -> dict:
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            raise ValueError("Missing Authorization header")
+        return {"ok": True}
+    except Exception:
+        logger.error("Auth check failed — see request ID for correlation")
+        return {"error": "auth failed"}

@@ -116,9 +116,9 @@ src/mcp_audit/
 ```
 
 Standalone rule pack at repo root:
-- `semgrep-rules/` — 37 Semgrep rules (28 Python, 9 TypeScript) across 5 categories;
-  runnable with `semgrep --config semgrep-rules/ <path>` without mcp-audit installed;
-  bundled in the pip wheel and PyInstaller binary; see `docs/sast-rules.md`
+- `semgrep-rules/` — 45 Semgrep rules (34 Python, 11 TypeScript) across 6 categories;
+ runnable with `semgrep --config semgrep-rules/ <path>` without mcp-audit installed;
+ bundled in the pip wheel and PyInstaller binary; see `docs/sast-rules.md`
 
 Data files at project root:
 - `registry/known-servers.json` — curated dataset of 64 known-legitimate MCP servers; queried by the supply chain analyzer for typosquatting detection and by the toxic flow analyzer for authoritative capability tags (`RegistryEntry.capabilities`); ships in both the pip wheel and PyInstaller binary
@@ -290,7 +290,7 @@ What's built:
 - **Policy-as-code rule engine** (Chain Reaction Feature) — YAML-based custom detection rules; 12 community rules ship bundled and run for ALL users; `rule validate` / `rule test` / `rule list` subcommands; `scan --rules-dir PATH` and `<user-config-dir>/mcp-audit/rules/` for user-local rules; all rule commands are available to every user; rule findings flow through all output formats automatically; see `docs/writing-rules.md` and `rules/README.md`
 - **Pre-commit hook** (Chain Reaction Feature) — `.pre-commit-hooks.yaml` at repo root; `language: python`, `entry: mcp-audit`, `pass_filenames: false`, `types: [json]`; default threshold is HIGH; `examples/pre-commit/` has basic and strict configs; see `docs/pre-commit.md`
 - **Governance policy engine** — YAML-based organisational requirements (approved server lists, score thresholds, transport constraints, registry membership, finding tolerances); `policy validate` / `policy init` / `policy check` subcommands; `scan --policy PATH` flag auto-discovers `.mcp-audit-policy.yml` in cwd / repo root; all governance commands are available to every user; governance findings flow through all output formats; terminal output shows a distinct yellow "Policy Violations" panel; SARIF governance findings tagged `governance-policy` with `GOV-` rule IDs; see `docs/governance.md` and `examples/policies/`
-- **SAST rule pack** — 37 Semgrep rules (28 Python, 9 TypeScript) detecting injection, poisoning, credential, protocol, and transport vulnerabilities in MCP server source code; standalone (`semgrep --config semgrep-rules/ <path>`) or integrated (`mcp-audit scan --sast <path>`); available to all users; `mcp-audit sast <path>` standalone command; SAST findings have `analyzer="sast"` and flow through all output formats; `semgrep-rules/` bundled in pip wheel and PyInstaller binary; see `docs/sast-rules.md`, `docs/contributing-rules.md`, and `semgrep-rules/README.md`
+- **SAST rule pack** — 45 Semgrep rules (34 Python, 11 TypeScript) detecting injection, poisoning, credential, protocol, transport, and auth vulnerabilities in MCP server source code; standalone (`semgrep --config semgrep-rules/ <path>`) or integrated (`mcp-audit scan --sast <path>`); available to all users; `mcp-audit sast <path>` standalone command; SAST findings have `analyzer="sast"` and flow through all output formats; `semgrep-rules/` bundled in pip wheel and PyInstaller binary; see `docs/sast-rules.md`, `docs/contributing-rules.md`, and `semgrep-rules/README.md`
 - **IDE extension scanner** — discovers installed extensions across VS Code and Cursor (+ Windsurf/Augment paths for portability); 6 analysis layers: known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions; `mcp-audit extensions discover` and `mcp-audit extensions scan` plus `scan --include-extensions` are all available to every user; `registry/known-extension-vulns.json` seed dataset (5 entries); findings use `analyzer="extensions"` and flow through all output formats; see `docs/extensions.md`
 
 What's next (non-code):

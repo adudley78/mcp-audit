@@ -1,0 +1,46 @@
+rules:
+  - id: mcp-ts-auth-header-logged
+    message: >
+      HTTP request headers (which carry Authorization / Bearer tokens) are
+      passed to console.log, JSON.stringify(req.headers), or a logger call
+      (n8n-MCP class, CVE-2026-41495). Any bearer token or API key present
+      in the Authorization or x-api-key header is written to stdout/logs and
+      may be captured by log aggregators, crash reporters, or SIEM pipelines.
+      Log only a request ID or a safe subset of headers — never log the full
+      headers object. CWE-532: Insertion of Sensitive Information into Log File.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: auth
+      cwe: CWE-532
+      owasp: A09:2021
+      owasp-mcp-top-10:
+        - MCP01
+      cve: CVE-2026-41495
+      references:
+        - https://github.com/n8n-io/n8n/security/advisories
+      description: Request headers logged — bearer token / API key exposure in TypeScript logs
+      confidence: HIGH
+      likelihood: HIGH
+      impact: MEDIUM
+    patterns:
+      - pattern-either:
+          # console.log variants
+          - pattern: console.log(req.headers)
+          - pattern: console.log(request.headers)
+          - pattern: console.log(JSON.stringify(req.headers))
+          - pattern: console.log(JSON.stringify(request.headers))
+          # Template literal interpolation of req.headers
+          - pattern: console.log(`...${req.headers}...`)
+          - pattern: console.log(`...${request.headers}...`)
+          # Logger instance variants (winston, pino, bunyan naming conventions)
+          - pattern: $LOGGER.info(req.headers)
+          - pattern: $LOGGER.debug(req.headers)
+          - pattern: $LOGGER.warn(req.headers)
+          - pattern: $LOGGER.error(req.headers)
+          - pattern: $LOGGER.info(request.headers)
+          - pattern: $LOGGER.debug(request.headers)
+          - pattern: $LOGGER.warn(request.headers)
+          - pattern: $LOGGER.error(request.headers)
+          - pattern: $LOGGER.info(JSON.stringify(req.headers))
+          - pattern: $LOGGER.debug(JSON.stringify(req.headers))

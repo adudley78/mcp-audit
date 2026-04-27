@@ -1,0 +1,111 @@
+rules:
+  - id: mcp-authorization-header-logged
+    message: >
+      HTTP request headers (which carry Authorization / Bearer tokens) are
+      passed directly to a logging or print call (n8n-MCP class, CVE-2026-41495).
+      Any bearer token or API key in the request is written to log files and
+      may be captured by log aggregators, crash reporters, or SIEM systems.
+      Log only a request ID or a safe subset of headers instead of the full
+      headers dict. CWE-532: Insertion of Sensitive Information into Log File.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: auth
+      cwe: CWE-532
+      owasp: A09:2021
+      owasp-mcp-top-10:
+        - MCP01
+      cve: CVE-2026-41495
+      references:
+        - https://github.com/n8n-io/n8n/security/advisories
+      description: Request headers logged — bearer token / API key exposure in logs
+      confidence: HIGH
+      likelihood: HIGH
+      impact: MEDIUM
+    patterns:
+      - pattern-either:
+          # Standard library logging with request.headers as direct arg
+          - pattern: logging.$LEVEL(request.headers, ...)
+          - pattern: logging.$LEVEL(str(request.headers), ...)
+          # Logger instance variants
+          - pattern: $LOGGER.info(request.headers, ...)
+          - pattern: $LOGGER.debug(request.headers, ...)
+          - pattern: $LOGGER.warning(request.headers, ...)
+          - pattern: $LOGGER.error(request.headers, ...)
+          - pattern: $LOGGER.info(str(request.headers), ...)
+          - pattern: $LOGGER.debug(str(request.headers), ...)
+          - pattern: $LOGGER.warning(str(request.headers), ...)
+          - pattern: $LOGGER.error(str(request.headers), ...)
+          # print() variants
+          - pattern: print(request.headers, ...)
+          - pattern: print(str(request.headers), ...)
+          - pattern: print(str(request), ...)
+
+  - id: mcp-api-key-header-logged
+    message: >
+      A variable whose name suggests it holds an API key, token, bearer, or
+      secret is passed to a logging call. This pattern appears in the n8n-MCP
+      bug class (CVE-2026-41495, CWE-532) where credential variables extracted
+      from request headers are forwarded to the log before the auth check
+      completes. Log only whether the credential was present, not its value.
+      CWE-532: Insertion of Sensitive Information into Log File.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: auth
+      cwe: CWE-532
+      owasp: A09:2021
+      owasp-mcp-top-10:
+        - MCP01
+      cve: CVE-2026-41495
+      description: API key / token variable passed to log call — credential leaks into logs
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: logging.$LEVEL($VAR, ...)
+          - pattern: $LOGGER.info($VAR, ...)
+          - pattern: $LOGGER.debug($VAR, ...)
+          - pattern: $LOGGER.warning($VAR, ...)
+          - pattern: $LOGGER.error($VAR, ...)
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i).*(api.?key|bearer|x.api.key|x.n8n|x.*key|auth.?token|access.?token|secret.?token).*
+
+  - id: mcp-full-request-body-logged-on-fail
+    message: >
+      The full HTTP request body (request.body or request.json()) is logged
+      inside an exception handler. On auth-failure retry paths, the client may
+      re-send the request with its bearer token in the body; logging the full
+      body at that point captures the credential in the log file.
+      Log only a safe summary (e.g., content-length or a fixed error message)
+      in exception handlers. CWE-532: Insertion of Sensitive Information into
+      Log File.
+    severity: INFO
+    languages: [python]
+    metadata:
+      category: auth
+      cwe: CWE-532
+      owasp: A09:2021
+      owasp-mcp-top-10:
+        - MCP01
+      description: Full request body logged in except block — token-carrying payloads exposed
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: LOW
+    patterns:
+      - pattern-either:
+          - pattern: $LOG.$LEVEL(request.body)
+          - pattern: $LOG.$LEVEL(await request.body())
+          - pattern: $LOG.$LEVEL(request.json())
+          - pattern: $LOG.$LEVEL(await request.json())
+          - pattern: logging.$LEVEL(request.body)
+          - pattern: logging.$LEVEL(await request.body())
+          - pattern: logging.$LEVEL(request.json())
+          - pattern: logging.$LEVEL(await request.json())
+      - pattern-inside: |
+          try:
+              ...
+          except ...:
+              ...

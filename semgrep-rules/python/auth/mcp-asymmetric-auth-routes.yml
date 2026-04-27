@@ -1,0 +1,140 @@
+rules:
+  # NOTE: Full cross-route comparison (detecting that two routes share the same
+  # handler but only one has auth) is not expressible in a single Semgrep rule
+  # without high false-positive rates. The rules below use the pragmatic
+  # simplification documented in mcp-audit CLAUDE.md: flag any route registration
+  # for a path containing "mcp" or "well-known" that does NOT include an auth
+  # dependency/middleware in the same decorator or add_route call. This catches
+  # the MCPwn (CVE-2026-33032) endpoint-parity pattern by flagging the
+  # unprotected leg of the parallel-route pair.
+
+  - id: mcp-route-missing-auth-middleware
+    message: >
+      MCP route registered without an authentication dependency or middleware
+      (CVE-2026-33032 / MCPwn class). An endpoint matching the "mcp" path
+      pattern has no auth guard in its decorator call. In the MCPwn bug class
+      a second route points at the same handler as an authenticated route —
+      the unguarded copy bypasses auth entirely. Add `dependencies=[Depends(verify_token)]`
+      (FastAPI) or an auth middleware argument (Starlette/Litestar) to this
+      route registration. CWE-306: Missing Authentication for Critical Function.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: auth
+      cwe: CWE-306
+      owasp: A07:2021
+      owasp-mcp-top-10:
+        - MCP07
+      cve: CVE-2026-33032
+      references:
+        - https://www.mcpwn.io/
+      description: MCP route missing auth middleware — unauthenticated access path
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH
+    patterns:
+      - pattern-either:
+          # Decorator form with ONLY the path arg (no dependencies= kwarg present)
+          - pattern: |
+              @$APP.$METHOD($PATH)
+              async def $FUNC(...):
+                  ...
+          - pattern: |
+              @$APP.$METHOD($PATH)
+              def $FUNC(...):
+                  ...
+          # Explicit add_route / add_api_route with exactly path + handler (no middleware arg)
+          - pattern: $APP.add_route($PATH, $HANDLER)
+          - pattern: $APP.add_api_route($PATH, $HANDLER)
+          - pattern: $ROUTER.add_route($PATH, $HANDLER)
+          - pattern: $ROUTER.add_api_route($PATH, $HANDLER)
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: (?i).*(mcp|well.known).*
+
+  - id: mcp-empty-allowlist-allow-all
+    message: >
+      Empty allowlist treated as "allow everything" instead of "deny all"
+      (CVE-2026-33032 / MCPwn class). When the allowlist/whitelist variable
+      is empty, execution falls through or returns a permissive value, granting
+      access to all callers. Correct behaviour: an empty allowlist must deny
+      all access. Return False, raise an HTTP 403, or explicitly document why
+      empty means open. CWE-183: Permissive List of Allowed Inputs.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: auth
+      cwe: CWE-183
+      owasp: A07:2021
+      owasp-mcp-top-10:
+        - MCP07
+      cve: CVE-2026-33032
+      references:
+        - https://www.mcpwn.io/
+      description: Empty allowlist bypasses IP/caller restriction — permissive default
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              if not $ALLOWLIST:
+                  return True
+          - pattern: |
+              if not $ALLOWLIST:
+                  pass
+          - pattern: |
+              if not $ALLOWLIST:
+                  continue
+          - pattern: |
+              if len($ALLOWLIST) == 0:
+                  return True
+          - pattern: |
+              if len($ALLOWLIST) == 0:
+                  pass
+      - metavariable-regex:
+          metavariable: $ALLOWLIST
+          regex: (?i).*(allow|whitelist|trusted|permit).*
+      # Exclude safe patterns: deny-all semantics or raise on empty
+      - pattern-not: |
+          if not $ALLOWLIST:
+              return False
+      - pattern-not: |
+          if not $ALLOWLIST:
+              raise $EXC
+
+  - id: mcp-wellknown-route-no-auth
+    message: >
+      Route registered for a /.well-known/ discovery endpoint without an
+      authentication dependency. Well-known MCP endpoints advertise server
+      capabilities and can leak configuration details to unauthenticated callers.
+      Add `dependencies=[Depends(verify_token)]` or an equivalent auth guard
+      unless the endpoint is intentionally public. CWE-306: Missing Authentication
+      for Critical Function.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: auth
+      cwe: CWE-306
+      owasp: A07:2021
+      owasp-mcp-top-10:
+        - MCP07
+      description: Well-known MCP discovery route missing auth dependency
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @$APP.$METHOD($PATH)
+              async def $FUNC(...):
+                  ...
+          - pattern: |
+              @$APP.$METHOD($PATH)
+              def $FUNC(...):
+                  ...
+          - pattern: $APP.add_route($PATH, $HANDLER)
+          - pattern: $APP.add_api_route($PATH, $HANDLER)
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: .*well.known.*

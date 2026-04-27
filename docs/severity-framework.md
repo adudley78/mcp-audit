@@ -120,6 +120,34 @@ escalated to HIGH by the policy author. OWASP MCP Top 10 codes can be set
 in the policy YAML via the `owasp_mcp_top_10` field and are propagated to
 all findings emitted by that policy.
 
+### SAST auth analyzer (`semgrep-rules/*/auth/`)
+
+These rules detect authentication bypass and credential-logging patterns in MCP
+server source code. They target two CVE-anchored bug classes:
+- **CVE-2026-33032 (MCPwn)**: endpoint-parity / asymmetric-auth — a second route
+  bypasses auth by pointing at the same handler without a middleware guard; empty
+  allowlist treated as "allow all".
+- **CVE-2026-41495 (n8n-MCP)**: auth-header / token-in-logs — bearer tokens and
+  API keys written to log files or stdout before or without the auth check running.
+
+| Rule ID                              | Severity | CWE      | OWASP MCP Top 10 | Rationale |
+|--------------------------------------|----------|----------|------------------|-----------|
+| mcp-route-missing-auth-middleware    | HIGH     | CWE-306  | MCP07            | MCPwn (CVE-2026-33032) pattern: parallel route bypasses auth middleware entirely. CVSS: 8.6 |
+| mcp-empty-allowlist-allow-all        | MEDIUM   | CWE-183  | MCP07            | Empty-allowlist bug: treat missing config as "allow everything." Half of CVE-2026-33032. CVSS: 7.5 |
+| mcp-wellknown-route-no-auth          | MEDIUM   | CWE-306  | MCP07            | Discovery endpoint without auth — capability information leakage risk. CVSS: 5.3 |
+| mcp-authorization-header-logged      | MEDIUM   | CWE-532  | MCP01            | Bearer token logged before auth check (n8n-MCP class, CVE-2026-41495). CVSS: 6.5 |
+| mcp-api-key-header-logged            | MEDIUM   | CWE-532  | MCP01            | API key variable passed to log call. CVSS: 6.5 |
+| mcp-full-request-body-logged-on-fail | LOW      | CWE-532  | MCP01            | Request body logged on auth failure — tokens in error logs. CVSS: 3.1 |
+| mcp-ts-route-missing-auth-middleware | HIGH     | CWE-306  | MCP07            | TypeScript equivalent of MCPwn route pattern (Express/Fastify/Hono). CVSS: 8.6 |
+| mcp-ts-auth-header-logged            | MEDIUM   | CWE-532  | MCP01            | TypeScript equivalent of n8n-MCP logging pattern (console.log/winston/pino). CVSS: 6.5 |
+
+Severity mapping to the mcp-audit framework:
+- SAST `ERROR` → mcp-audit **HIGH** (confirmed auth-bypass pattern; direct exploit path)
+- SAST `WARNING` → mcp-audit **MEDIUM** (strong indicator; context-dependent risk)
+- SAST `INFO` → mcp-audit **LOW** (hygiene; requires specific auth-failure retry path to exploit)
+
+---
+
 ### Rule engine (`rules/`)
 
 Community rule severities (COMM-001 through COMM-013) are defined in their

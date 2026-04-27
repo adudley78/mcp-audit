@@ -1,0 +1,54 @@
+rules:
+  # NOTE: Full cross-route comparison is not expressible in a single Semgrep rule.
+  # This rule uses the pragmatic simplification: flag any route registration for
+  # a path matching "mcp" or "well-known" where the handler is the ONLY non-path
+  # argument (no auth middleware present in the same call). Two-argument route
+  # registrations (path + handler only) are flagged; three-argument forms
+  # (path + middleware + handler) and array-middleware forms are excluded.
+  # This catches the MCPwn (CVE-2026-33032) unprotected-leg pattern.
+
+  - id: mcp-ts-route-missing-auth-middleware
+    message: >
+      MCP route registered without an authentication middleware
+      (CVE-2026-33032 / MCPwn class). The route handler is registered with
+      only a path and handler argument — no auth middleware appears in the
+      same call. In Express/Fastify/Hono, pass an auth middleware before the
+      handler: `app.get('/mcp_message', verifyToken, handler)` or use a
+      middleware array `[verifyToken, handler]`. In the MCPwn bug class the
+      unguarded route exposes the same handler as an authenticated sibling,
+      bypassing auth entirely. CWE-306: Missing Authentication for Critical Function.
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: auth
+      cwe: CWE-306
+      owasp: A07:2021
+      owasp-mcp-top-10:
+        - MCP07
+      cve: CVE-2026-33032
+      references:
+        - https://www.mcpwn.io/
+      description: TypeScript/JS MCP route missing auth middleware — unauthenticated access path
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH
+    patterns:
+      - pattern-either:
+          # Two-arg forms: path + handler only (no middleware in between)
+          - pattern: $APP.get($PATH, $HANDLER)
+          - pattern: $APP.post($PATH, $HANDLER)
+          - pattern: $APP.put($PATH, $HANDLER)
+          - pattern: $APP.patch($PATH, $HANDLER)
+          - pattern: $APP.delete($PATH, $HANDLER)
+          - pattern: $APP.all($PATH, $HANDLER)
+          - pattern: $ROUTER.get($PATH, $HANDLER)
+          - pattern: $ROUTER.post($PATH, $HANDLER)
+          - pattern: $ROUTER.put($PATH, $HANDLER)
+          - pattern: $ROUTER.add($PATH, $HANDLER)
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: (?i).*(mcp|well.known).*
+      # Exclude array-middleware forms: app.get('/mcp', [authMw, handler])
+      - pattern-not: $APP.get($PATH, [...])
+      - pattern-not: $APP.post($PATH, [...])
+      - pattern-not: $ROUTER.get($PATH, [...])
