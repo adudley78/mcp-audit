@@ -10,6 +10,63 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.0] - 2026-04-27 — April 2026 Security Sweep
+
+> **Lead:** CVE-tagged findings, a new auth SAST category catching MCPwn and the
+> n8n-MCP token-logging class, and a config-file hygiene analyzer anchored to
+> the Bitwarden supply-chain incident.
+
+### Added
+- **`Finding.cve` field.** Every finding can now carry a list of CVE identifiers.
+  Populated on TRANSPORT-004, COMM-002, COMM-006, COMM-010, COMM-012, COMM-013,
+  and all new auth SAST rules. Surfaces in terminal output (dim red badge), JSON,
+  and SARIF `result.properties["cve"]`.
+- **COMM-013: npx auto-confirm flag.** New community rule — HIGH / MCP04+MCP05 —
+  fires when `npx`/`bunx`/`pnpx` is invoked with `--yes` or `-y`, bypassing the
+  user-confirmation prompt. This is the silent-execution pattern from the OX
+  Security STDIO disclosure. Tagged with all six OX CVEs (CVE-2025-49596,
+  CVE-2026-22252, CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615).
+- **CVE cross-references on existing findings.** TRANSPORT-004 and COMM-012 now
+  carry `CVE-2026-33032` (MCPwn, CVSS 9.8); COMM-002 carries `CVE-2026-22252`;
+  COMM-006 carries `CVE-2026-22688`; COMM-010 carries `CVE-2025-49596`.
+- **Auth SAST category (`semgrep-rules/*/auth/`).** New 6th category, 8 rules
+  across Python and TypeScript:
+  - `mcp-route-missing-auth-middleware` — parallel `/mcp*` route with no auth
+    dependency (MCPwn pattern, CVE-2026-33032). ERROR.
+  - `mcp-empty-allowlist-allow-all` — `if not allowlist: return True/pass`
+    (empty-allowlist-means-allow-all, CVE-2026-33032). WARNING.
+  - `mcp-wellknown-route-no-auth` — `/.well-known/` route with no auth. WARNING.
+  - `mcp-authorization-header-logged` — `logging.*(request.headers)` before auth
+    check (n8n-MCP class, CVE-2026-41495, CWE-532). WARNING.
+  - `mcp-api-key-header-logged` — logger call where variable name matches
+    API key / bearer token patterns (CWE-532). WARNING.
+  - `mcp-full-request-body-logged-on-fail` — request body logged inside an except
+    block (CWE-532). INFO.
+  - TypeScript equivalents for route-missing-auth and auth-header-logged.
+- **`ConfigHygieneAnalyzer` (`analyzers/config_hygiene.py`).** New default-pipeline
+  analyzer grading MCP config file posture. Anchored to the Bitwarden supply-chain
+  incident (2026-04-22) — malware explicitly targeted `~/.claude.json`,
+  `~/.claude/mcp.json`, and `~/.kiro/settings/mcp.json`. Four new finding IDs:
+  - `CFHYG-001` HIGH — config file is world-readable (POSIX `o+r`). CWE-732.
+  - `CFHYG-002` HIGH — config file in a world-writable ancestor directory. CWE-732.
+  - `CFHYG-003` HIGH — plaintext secret inline (Bitwarden malware target profile). CWE-312.
+  - `CFHYG-004` INFO — all env values use env-var references (positive signal).
+  - Runs in the default pipeline with no flag required. Windows ACL checking deferred.
+
+### Changed
+- `PolicyRule` now accepts a `cve:` list; the rule engine threads it through to
+  emitted `Finding` objects.
+- TRANSPORT-004 description names CVE-2026-33032 (MCPwn) explicitly.
+- COMM-012 description and message updated to reference MCPwn.
+- `mcp-listen-all-interfaces.yml` metadata includes `cve: CVE-2026-33032` and
+  a references URL.
+- `docs/severity-framework.md` updated with COMM-013 row, CVE annotations, and
+  new config hygiene and auth SAST tables.
+- SAST rule count: 37 → 45 (28 → 34 Python, 9 → 11 TypeScript), 5 → 6 categories.
+- Test count: 1,361 → 1,391.
+
+---
+
 ## [0.4.0] - 2026-04-25 — OWASP MCP Top 10 field alignment
 
 > **Lead:** OWASP MCP Top 10 mapping on every finding — `owasp_mcp_top_10` field

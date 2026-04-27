@@ -11,4 +11,4 @@ try:
     # with a stale version string embedded in the binary.
     __version__ = version("mcp-audit-scanner")
 except PackageNotFoundError:
-    __version__ = "0.2.0"
+    __version__ = "0.5.0"

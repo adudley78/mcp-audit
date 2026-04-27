@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-audit-scanner"
-version = "0.4.0"
+version = "0.5.0"
 description = "Privacy-first security scanner for MCP server configurations"
 readme = "README.md"
 license = {text = "Apache-2.0"}
