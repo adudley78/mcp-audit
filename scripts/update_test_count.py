@@ -50,12 +50,13 @@ _SUBSTITUTIONS: list[tuple[str, str, str]] = [
 
 def _collect_test_count() -> int:
     """Return the integer count reported by ``pytest --collect-only -q``."""
-    # ``uv`` is resolved via PATH — this is a developer/CI helper script, not
-    # production code, and every user that runs it has ``uv`` on PATH already
-    # (it is the project's canonical task runner).  Hard-coded argv with no
-    # shell expansion.
+    # Use the same Python interpreter that is running this script so the count
+    # reflects whichever environment the caller activated (uv venv, system pip
+    # install, etc.).  Calling ``uv run pytest`` here would spin up a fresh uv
+    # venv that omits optional extras, producing a lower count than the
+    # environment the tests actually ran in.
     proc = subprocess.run(
-        ["uv", "run", "pytest", "--collect-only", "-q"],  # noqa: S607
+        [sys.executable, "-m", "pytest", "--collect-only", "-q"],  # noqa: S603
         cwd=ROOT,
         check=True,
         capture_output=True,
