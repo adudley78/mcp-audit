@@ -1678,8 +1678,8 @@ class TestRunStaticPipeline:
         assert any(e == "servers=['delegate-srv']" for e in sentinel.errors), (
             f"run_scan did not delegate with parsed servers: {sentinel.errors}"
         )
-        # Default analyzer list = 4 (poisoning, credentials, transport, supply).
-        assert any(e == "analyzers=4" for e in sentinel.errors)
+        # Default analyzer list = 5 (poisoning, credentials, transport, supply, config_hygiene).
+        assert any(e == "analyzers=5" for e in sentinel.errors)
 
     async def test_run_scan_async_delegates_to_static_pipeline(
         self, tmp_path: Path

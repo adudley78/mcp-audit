@@ -146,6 +146,28 @@ Severity mapping to the mcp-audit framework:
 - SAST `WARNING` → mcp-audit **MEDIUM** (strong indicator; context-dependent risk)
 - SAST `INFO` → mcp-audit **LOW** (hygiene; requires specific auth-failure retry path to exploit)
 
+### Config hygiene analyzer (`analyzers/config_hygiene.py`)
+
+This analyzer grades each discovered MCP config **file** for filesystem security
+posture — not its parsed contents (credentials.py handles that layer).
+
+**Anchor incident:** On 2026-04-22, supply-chain malware embedded in the Bitwarden
+npm package explicitly enumerated `~/.claude.json`, `~/.claude/mcp.json`, and
+`~/.kiro/settings/mcp.json` as its primary credential-cache targets. These files
+are now confirmed targets in the wild. CFHYG-001 and CFHYG-002 directly address
+the two exploitation pre-conditions that malware relied on.
+
+| Finding ID  | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|-------------|----------|----------------------|------------------|-----------|
+| CFHYG-001   | HIGH     | ASI06 | MCP01 | Config file is world-readable (POSIX `o+r`). Any process on the machine — including supply-chain malware — can harvest credentials embedded in the file. Bitwarden incident (2026-04-22) confirmed this attack path. CWE-732. CVSS: 7.5 |
+| CFHYG-002   | HIGH     | ASI06, ASI10 | MCP01, MCP09 | Config file resides in a world-writable ancestor directory. Any process can atomically replace the file — a filesystem-level rug-pull. `/tmp` is the canonical case. Bitwarden incident (2026-04-22) exploited this pre-condition to inject malicious server definitions. CWE-732. CVSS: 7.5 |
+| CFHYG-003   | HIGH     | ASI06 | MCP01 | Config file stores a plaintext secret inline. The file itself becomes a high-value harvesting target. Complements CRED-001/002 with a file-level signal and explicit malware-targeting context. CWE-312. CVSS: 7.5 |
+| CFHYG-004   | INFO     | — | MCP01 | Config uses env-var references for all credentials (e.g., `${VAR}`, `$VAR`, `%(VAR)s`). Positive signal — reinforces correct practice. No security impact. |
+
+**Windows note:** CFHYG-001 and CFHYG-002 are skipped on Windows because POSIX
+`st_mode` bits do not map to Windows ACL semantics. Windows ACL checking
+(`pywin32` / `icacls`) is planned but not yet implemented.
+
 ---
 
 ### Rule engine (`rules/`)

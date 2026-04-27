@@ -9,6 +9,7 @@ from platformdirs import user_config_dir
 
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.base import BaseAnalyzer
+from mcp_audit.analyzers.config_hygiene import ConfigHygieneAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import RugPullAnalyzer, derive_state_path
@@ -171,6 +172,7 @@ def get_default_analyzers() -> list[BaseAnalyzer]:
         CredentialsAnalyzer(),
         TransportAnalyzer(registry=supply_chain.registry),
         supply_chain,
+        ConfigHygieneAnalyzer(),
     ]
 
 
