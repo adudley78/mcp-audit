@@ -58,7 +58,7 @@ MCP-specific). See the reference tables at the bottom of this document.
 | TRANSPORT-001 | MEDIUM   | ASI05 | MCP07 | Unencrypted remote endpoint (HTTP, not HTTPS). MCP protocol data is transmitted in plaintext; susceptible to MITM. CVSS: 7.4 |
 | TRANSPORT-002 | HIGH     | ASI09 | MCP02, MCP05 | Elevated privilege execution (sudo, doas, pkexec, etc.). MCP servers should not require root. CVSS: 7.8 |
 | TRANSPORT-003 | MEDIUM / LOW / suppressed | ASI04 | MCP04 | Runtime package fetching (npx, uvx, bunx, pipx, yarn dlx). Tiered by registry membership. |
-| TRANSPORT-004 | HIGH     | ASI05 | MCP07 | Wildcard interface binding (0.0.0.0 / [::]). Exposes server on all interfaces. CVSS: 7.5. CWE-1327 |
+| TRANSPORT-004 | HIGH     | ASI05 | MCP07 | Wildcard interface binding (0.0.0.0 / [::]). Exposes server on all interfaces. CVSS: 7.5. CWE-1327. **CVE-2026-33032** (MCPwn) — network-exposure precondition. |
 
 ### Supply chain analyzer (`analyzers/supply_chain.py`)
 
@@ -122,10 +122,17 @@ all findings emitted by that policy.
 
 ### Rule engine (`rules/`)
 
-Community rule severities (COMM-001 through COMM-012) are defined in their
+Community rule severities (COMM-001 through COMM-013) are defined in their
 respective YAML files and documented in `docs/writing-rules.md`. Each rule
 declares `owasp_mcp_top_10:` in its YAML; see the community rules directory
 for per-rule mappings.
+
+Notable CVE-tagged community rules:
+
+| Finding ID | Severity | OWASP MCP Top 10 | CVE | Rationale |
+|------------|----------|------------------|-----|-----------|
+| COMM-012   | HIGH     | MCP07 | **CVE-2026-33032** (MCPwn) | Server args contain `0.0.0.0` — binds to all interfaces. Same network-exposure precondition as TRANSPORT-004. |
+| COMM-013   | HIGH     | MCP04, MCP05 | CVE-2025-49596, CVE-2026-22252, CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615 | OX Security STDIO disclosure fingerprint: npx/bunx with `--yes`/`-y` bypasses interactive prompt, enabling silent RCE when the attacker controls the package name. COMM-010 flags the missing version pin; COMM-013 flags the auto-confirm flag that removes the last safety check. |
 
 ---
 

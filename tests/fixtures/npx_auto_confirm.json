@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "silent-server": {
+      "command": "npx",
+      "args": ["--yes", "@some/package"]
+    }
+  }
+}

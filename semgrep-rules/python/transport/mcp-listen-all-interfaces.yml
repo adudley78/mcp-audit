@@ -13,6 +13,9 @@ rules:
       owasp: A05:2021
       owasp-mcp-top-10:
         - MCP07
+      cve: CVE-2026-33032
+      references:
+        - https://thehackernews.com/2026/04/critical-nginx-ui-vulnerability-cve.html
       description: uvicorn binding to all interfaces — MCP server unnecessarily exposed
       confidence: HIGH
       likelihood: HIGH
@@ -34,6 +37,9 @@ rules:
       owasp: A05:2021
       owasp-mcp-top-10:
         - MCP07
+      cve: CVE-2026-33032
+      references:
+        - https://thehackernews.com/2026/04/critical-nginx-ui-vulnerability-cve.html
       description: app.run() binding to all interfaces — MCP server unnecessarily exposed
       confidence: HIGH
       likelihood: HIGH

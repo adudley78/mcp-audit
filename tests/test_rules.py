@@ -524,9 +524,9 @@ class TestRuleEngineMatchServer:
 
 
 class TestCommunityRules:
-    def test_all_12_community_rules_load(self) -> None:
+    def test_all_13_community_rules_load(self) -> None:
         rules = load_bundled_community_rules()
-        assert len(rules) == 12, f"Expected 12 community rules, got {len(rules)}"
+        assert len(rules) == 13, f"Expected 13 community rules, got {len(rules)}"
 
     def test_community_rule_ids_are_unique(self) -> None:
         rules = load_bundled_community_rules()
@@ -579,7 +579,7 @@ class TestCommunityRules:
 
     def test_all_community_rule_ids_present(self) -> None:
         rules = load_bundled_community_rules()
-        expected_ids = {f"COMM-{i:03d}" for i in range(1, 13)}
+        expected_ids = {f"COMM-{i:03d}" for i in range(1, 14)}
         actual_ids = {r.id for r in rules}
         assert actual_ids == expected_ids
 
@@ -648,6 +648,169 @@ class TestCommunityRules:
             "Without a registry COMM-004 must retain its historical "
             "match-everything behaviour (no silent exemption)."
         )
+
+    def test_comm_013_fires_on_npx_with_yes_flag(self) -> None:
+        """COMM-013 must fire when npx/bunx is called with --yes."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(command="npx", args=["--yes", "@some/package"])
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-013"]
+        assert findings, "COMM-013 should fire for npx --yes"
+        assert findings[0].severity == Severity.HIGH
+
+    def test_comm_013_fires_on_bunx_with_short_flag(self) -> None:
+        """COMM-013 must fire for bunx with -y."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(command="bunx", args=["-y", "@some/pkg"])
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-013"]
+        assert findings, "COMM-013 should fire for bunx -y"
+
+    def test_comm_013_does_not_fire_without_auto_confirm(self) -> None:
+        """COMM-013 must not fire when --yes/-y is absent."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(command="npx", args=["@some/package"])
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-013"]
+        assert not findings
+
+    def test_comm_013_carries_ox_cve_list(self) -> None:
+        """COMM-013 finding must include all six OX CVE identifiers."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(command="npx", args=["--yes", "@some/package"])
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-013"]
+        assert findings
+        expected_cves = {
+            "CVE-2025-49596",
+            "CVE-2026-22252",
+            "CVE-2026-22688",
+            "CVE-2025-54994",
+            "CVE-2025-54136",
+            "CVE-2026-30615",
+        }
+        assert set(findings[0].cve) == expected_cves
+
+    def test_comm_012_carries_mcpwn_cve(self) -> None:
+        """COMM-012 finding must reference CVE-2026-33032 (MCPwn)."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(
+            command="python",
+            args=["server.py", "--host", "0.0.0.0"],  # noqa: S104
+        )
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-012"]
+        assert findings
+        assert "CVE-2026-33032" in findings[0].cve
+
+    def test_comm_010_carries_ox_cve(self) -> None:
+        """COMM-010 finding must reference CVE-2025-49596."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(command="npx", args=["@some/package"])
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-010"]
+        assert findings
+        assert "CVE-2025-49596" in findings[0].cve
+
+
+class TestCveField:
+    """Tests for the `cve` field on Finding and PolicyRule models."""
+
+    def test_finding_default_cve_is_empty_list(self) -> None:
+        """Finding.cve defaults to an empty list when not supplied."""
+        from mcp_audit.models import Finding, Severity  # noqa: PLC0415
+
+        f = Finding(
+            id="X-001",
+            severity=Severity.LOW,
+            analyzer="test",
+            client="c",
+            server="s",
+            title="t",
+            description="d",
+            evidence="e",
+            remediation="r",
+        )
+        assert f.cve == []
+
+    def test_finding_cve_roundtrips_through_json(self) -> None:
+        """Finding with cve list serialises and deserialises correctly."""
+        from mcp_audit.models import Finding, Severity  # noqa: PLC0415
+
+        cves = ["CVE-2026-33032", "CVE-2025-49596"]
+        f = Finding(
+            id="X-001",
+            severity=Severity.HIGH,
+            analyzer="test",
+            client="c",
+            server="s",
+            title="t",
+            description="d",
+            evidence="e",
+            remediation="r",
+            cve=cves,
+        )
+        serialised = f.model_dump()
+        assert serialised["cve"] == cves
+        restored = Finding.model_validate(serialised)
+        assert restored.cve == cves
+
+    def test_policy_rule_cve_propagated_to_finding(self, tmp_path: Path) -> None:
+        """A rule YAML with cve: list must produce a Finding with that CVE list."""
+        rule_yaml = tmp_path / "cve_rule.yml"
+        rule_yaml.write_text(
+            (
+                "id: CVE-TEST-001\n"
+                "name: CVE test rule\n"
+                "description: Test CVE propagation\n"
+                "severity: HIGH\n"
+                "category: test\n"
+                "match:\n"
+                "  field: command\n"
+                "  pattern: badcmd\n"
+                "  type: exact\n"
+                "message: '{server_name}'\n"
+                "cve:\n"
+                "  - CVE-2026-33032\n"
+                "  - CVE-2025-49596\n"
+            ),
+            encoding="utf-8",
+        )
+        rules = load_rules_from_file(rule_yaml)
+        assert len(rules) == 1
+        assert rules[0].cve == ["CVE-2026-33032", "CVE-2025-49596"]
+
+        engine = RuleEngine(rules)
+        server = _make_server(command="badcmd")
+        findings = engine.match_server(server)
+        assert len(findings) == 1
+        assert findings[0].cve == ["CVE-2026-33032", "CVE-2025-49596"]
+
+    def test_policy_rule_without_cve_field_defaults_to_empty(
+        self, tmp_path: Path
+    ) -> None:
+        """A rule YAML without a cve: field must produce a Finding with cve=[]."""
+        rule_yaml = tmp_path / "no_cve_rule.yml"
+        rule_yaml.write_text(
+            (
+                "id: NO-CVE-001\n"
+                "name: No CVE rule\n"
+                "description: No CVE\n"
+                "severity: LOW\n"
+                "category: test\n"
+                "match:\n"
+                "  field: command\n"
+                "  pattern: node\n"
+                "  type: exact\n"
+                "message: '{server_name}'\n"
+            ),
+            encoding="utf-8",
+        )
+        rules = load_rules_from_file(rule_yaml)
+        assert rules[0].cve == []
+        engine = RuleEngine(rules)
+        findings = engine.match_server(_make_server(command="node"))
+        assert findings[0].cve == []
 
 
 class TestExemptKnownServersPrimitive:

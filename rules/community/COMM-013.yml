@@ -1,0 +1,38 @@
+id: COMM-013
+name: npx auto-confirm flag (silent execution)
+description: >
+  The server uses npx with --yes or -y, which bypasses the interactive
+  confirmation prompt and silently executes the package without user
+  awareness. This is the specific invocation pattern exploited in the OX
+  Security STDIO disclosure (CVE-2025-49596 and related CVEs): an attacker
+  who controls the package name can achieve silent RCE with no user
+  interaction. COMM-010 flags the missing version pin; this rule flags the
+  auto-confirm flag that removes the last safety check.
+severity: HIGH
+category: code-execution
+match:
+  operator: and
+  conditions:
+    - field: command
+      pattern: "^(npx|bunx|pnpx)$"
+      type: regex
+    - field: args
+      pattern: "(--yes|-y)(\\s|$)"
+      type: regex
+message: "Server '{server_name}' uses npx/bunx with auto-confirm flag — silent
+  execution risk (OX STDIO disclosure: CVE-2025-49596, CVE-2026-22252,
+  CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615)"
+tags:
+  - code-execution
+  - supply-chain
+enabled: true
+owasp_mcp_top_10:
+  - MCP04
+  - MCP05
+cve:
+  - CVE-2025-49596
+  - CVE-2026-22252
+  - CVE-2026-22688
+  - CVE-2025-54994
+  - CVE-2025-54136
+  - CVE-2026-30615

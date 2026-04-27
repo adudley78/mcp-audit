@@ -491,6 +491,36 @@ class TestTransportWildcardBinding:
         findings = TransportAnalyzer().analyze(server)
         assert any(f.id == "TRANSPORT-004" for f in findings)
 
+    def test_transport_004_carries_mcpwn_cve(self, tmp_path: Path) -> None:
+        """TRANSPORT-004 finding must include CVE-2026-33032 (MCPwn)."""
+        server = ServerConfig(
+            name="test",
+            client="test",
+            config_path=tmp_path / "t.json",
+            transport=TransportType.SSE,
+            url="http://0.0.0.0:3000/sse",
+        )
+        findings = TransportAnalyzer().analyze(server)
+        t004 = [f for f in findings if f.id == "TRANSPORT-004"]
+        assert t004, "TRANSPORT-004 must be present"
+        assert t004[0].cve == ["CVE-2026-33032"], (
+            "TRANSPORT-004 must carry CVE-2026-33032 (MCPwn precondition)"
+        )
+
+    def test_transport_004_description_mentions_cve(self, tmp_path: Path) -> None:
+        """TRANSPORT-004 description must name CVE-2026-33032 and MCPwn."""
+        server = ServerConfig(
+            name="test",
+            client="test",
+            config_path=tmp_path / "t.json",
+            transport=TransportType.SSE,
+            url="http://0.0.0.0:8080/sse",
+        )
+        findings = TransportAnalyzer().analyze(server)
+        t004 = next(f for f in findings if f.id == "TRANSPORT-004")
+        assert "CVE-2026-33032" in t004.description
+        assert "MCPwn" in t004.description
+
 
 # ── V-10: Privilege escalation expansion tests ────────────────────────────────
 

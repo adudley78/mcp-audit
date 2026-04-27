@@ -102,9 +102,10 @@ class TransportAnalyzer(BaseAnalyzer):
                         server=server.name,
                         title="Wildcard interface binding",
                         description=(
-                            "MCP server binds to all network interfaces"
-                            f" ({bare_host}), exposing it to the local network"
-                            " and potentially the internet."
+                            f"MCP server binds to all network interfaces ({bare_host}),"
+                            " exposing it to the local network and potentially the"
+                            " internet. This is the network-exposure precondition for"
+                            " CVE-2026-33032 (MCPwn, CVSS 9.8)."
                         ),
                         evidence=f"URL: {server.url}",
                         remediation=(
@@ -113,6 +114,7 @@ class TransportAnalyzer(BaseAnalyzer):
                         ),
                         cwe="CWE-284",
                         owasp_mcp_top_10=["MCP07"],
+                        cve=["CVE-2026-33032"],
                     )
                 )
 

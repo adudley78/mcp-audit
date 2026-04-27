@@ -204,11 +204,17 @@ def print_results(
             codes = ", ".join(finding.owasp_mcp_top_10)
             owasp_badge = f"  [dim cyan]\\[{codes}][/dim cyan]"
 
+        cve_badge = ""
+        if finding.cve:
+            cve_ids = ", ".join(finding.cve)
+            cve_badge = f"  [dim red]\\[{cve_ids}][/dim red]"
+
         console.print(
             f"{icon} [{color} bold]{finding.severity.value}[/{color} bold]  "
             f"[dim]{finding.analyzer}[/dim]  "
             f"{finding.client}/{finding.server}"
             f"{owasp_badge}"
+            f"{cve_badge}"
         )
         console.print(f"   {finding.title}")
         console.print(f"   [dim]→ {finding.evidence}[/dim]")

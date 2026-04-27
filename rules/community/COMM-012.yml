@@ -4,16 +4,19 @@ description: >
   The server args include 0.0.0.0, which binds the server to all network
   interfaces. An MCP server exposed on all interfaces is reachable from any
   device on the local network, expanding its attack surface significantly.
+  This is the network-exposure precondition for CVE-2026-33032 (MCPwn, CVSS 9.8).
 severity: HIGH
 category: network
 match:
   field: args
   pattern: "0.0.0.0"
   type: contains
-message: "Server '{server_name}' binds to all interfaces (0.0.0.0): potential exposure"
+message: "Server '{server_name}' binds to all interfaces (0.0.0.0): potential exposure (CVE-2026-33032 MCPwn precondition)"
 tags:
   - network
   - exposure
 enabled: true
 owasp_mcp_top_10:
   - MCP07
+cve:
+  - CVE-2026-33032

@@ -145,6 +145,10 @@ class Finding(BaseModel):
     # OWASP MCP Top 10 category codes (e.g., ["MCP03", "MCP10"]).
     # A finding may map to multiple categories. Empty list = unmapped.
     owasp_mcp_top_10: list[str] = Field(default_factory=list)
+    # CVE identifiers associated with this finding (e.g. ["CVE-2026-33032"]).
+    # Empty list = no CVE cross-reference. Populated by analyzers and the rule
+    # engine for findings that map to a named, public vulnerability.
+    cve: list[str] = Field(default_factory=list)
 
 
 class AttackPath(BaseModel):

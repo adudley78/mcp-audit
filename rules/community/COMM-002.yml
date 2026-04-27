@@ -17,3 +17,5 @@ tags:
 enabled: true
 owasp_mcp_top_10:
   - MCP05
+cve:
+  - CVE-2026-22252

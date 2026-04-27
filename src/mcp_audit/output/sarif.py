@@ -165,6 +165,9 @@ def _build_rule(finding: Finding) -> dict:
             for code in finding.owasp_mcp_top_10
         ]
 
+    if finding.cve:
+        rule["properties"]["cve"] = finding.cve
+
     return rule
 
 
