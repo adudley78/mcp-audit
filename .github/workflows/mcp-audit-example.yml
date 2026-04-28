@@ -18,7 +18,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run mcp-audit
         # Pin to a published release tag.  Switch to `@v1` once a major v1.x
@@ -39,7 +39,7 @@ jobs:
   #     contents: read
   #
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v6
   #
   #     - name: Run mcp-audit with SAST
   #       uses: adudley78/mcp-audit@v0.3.3
