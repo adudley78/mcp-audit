@@ -52,7 +52,7 @@ attestation = [
     # parsing of Fulcio signing certificates; sigstore pulls it in transitively,
     # but we pin an explicit range here so future sigstore upgrades cannot
     # silently widen it.
-    "cryptography>=46.0.6,<47.0",
+    "cryptography>=46.0.6,<48.0",
     "sigstore>=3.0,<5.0",
 ]
 dev = [
