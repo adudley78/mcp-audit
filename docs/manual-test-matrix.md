@@ -139,7 +139,7 @@ mcp-audit scan demo/configs/claude_desktop_config.json
 echo "exit: $?"
 ```
 
-**Expected:** scans only `claude_desktop_config.json`; prints ~8 findings; exit 1.
+**Expected:** scans only `claude_desktop_config.json`; prints findings (count varies with active rules); exit 1.
 
 ---
 
@@ -245,7 +245,7 @@ mcp-audit rule list
 echo "exit: $?"
 ```
 
-**Expected:** lists 12 bundled community rules (COMM-001 through COMM-012); exit 0.
+**Expected:** lists 13 bundled community rules (COMM-001 through COMM-013); exit 0.
 
 ---
 

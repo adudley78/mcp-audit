@@ -288,7 +288,7 @@ mcp-audit scan --offline-registry
 
 ## Custom Detection Rules
 
-Community detection rules (COMM-001 through COMM-012) run automatically for all users. You can also write your own rules in YAML.
+Community detection rules (COMM-001 through COMM-013) run automatically for all users. You can also write your own rules in YAML.
 
 ```bash
 # Validate a custom rule file

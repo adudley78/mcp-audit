@@ -126,7 +126,7 @@ We don't accept detection patterns based on undisclosed or private research.
 
 ## Community rules (rules/community/)
 
-12 bundled community detection rules (COMM-001 through COMM-012) ship with
+13 bundled community detection rules (COMM-001 through COMM-013) ship with
 mcp-audit and run for all users regardless of license tier.
 
 | Rule | Description | Basis |
@@ -143,6 +143,7 @@ mcp-audit and run for all users regardless of license tier.
 | COMM-010 | Excessive argument count | Original — heuristic for overly complex server invocations |
 | COMM-011 | Temporary directory as working directory | Original — CWE-377 (insecure temporary file); /tmp is world-writable |
 | COMM-012 | Non-HTTPS remote URL | Original — transport security; mirrors TRANSPORT-001 for rule-engine coverage |
+| COMM-013 | npx auto-confirm flag (silent execution) | Original — OX Security STDIO disclosure (CVE-2025-49596 and related CVEs); npx `-y`/`--yes` bypasses interactive confirmation, enabling silent RCE when an attacker controls the package name |
 
 All community rules are original implementations based on common security
 practice and published CWE categories. None are derived from proprietary
