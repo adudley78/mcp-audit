@@ -170,7 +170,7 @@ Build and distribution scripts at project root:
 - **VS Code uses `"servers"` as its MCP config root key; all other clients use `"mcpServers"`**
 - MCP protocol communication is async — use asyncio and pytest-asyncio
 - Core scanning MUST work fully offline — no network calls by default
-- OSV.dev lookups are planned but **not yet implemented** — the `--offline` flag is accepted but currently has no network calls to suppress
+- OSV.dev lookups are planned but **not yet implemented** — the `--offline` flag is accepted and enforces mutual exclusion with network-touching opt-in flags (`--verify-hashes`, `--verify-signatures`, `--check-vulns`, `--connect`); a plain scan already makes no network calls, so `--offline` is a no-op for the default configuration
 - Rug-pull state is stored in `<user-config-dir>/mcp-audit/state/state.json` (resolved via `platformdirs`; macOS: `~/Library/Application Support/mcp-audit/state/`); a one-time migration copies state files from the legacy `~/.mcp-audit/` location on first access
 - **No feature gating.** mcp-audit is fully open source (Apache 2.0); every feature ships in every binary. Do not re-introduce conditional feature availability at any layer.
 - **Watcher callback serialisation.** `_McpConfigEventHandler._fire()` holds `_scan_lock` for the entire duration of the user callback to prevent two `run_scan` calls from racing on `state_<hash>.json`. Events arriving while a scan is in flight are stored in `_pending_rescan` (tuple of latest `(path, event_type)`) and coalesced into a single re-trigger when the active callback returns. Never release the scan lock before the callback finishes.

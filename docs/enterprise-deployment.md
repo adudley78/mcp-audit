@@ -123,7 +123,7 @@ mcp-audit scan \
 | `-o /path/to/file.json` | Write results to a file instead of stdout. Required for automated collection. |
 | `--severity-threshold HIGH` | Optional. Only report HIGH and CRITICAL findings. Reduces noise in initial rollouts. |
 | `--connect` | Optional. Attempt live MCP protocol connections to enumerate server tools at runtime. Adds latency (5–30 s per server). Not recommended for scheduled scans unless you need runtime poisoning detection. |
-| `--offline` | Ensure zero network calls. Use this if your endpoints have no internet access or if you want fully deterministic output. |
+| `--offline` | Accepted for future compatibility. Prevents combining with `--verify-hashes`, `--verify-signatures`, `--check-vulns`, and `--connect` (exit code 2 if combined). A plain scan already makes no network calls, so this flag is currently a no-op for the default configuration. |
 
 **Example with asset tag and severity filter:**
 

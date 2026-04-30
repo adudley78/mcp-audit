@@ -309,11 +309,14 @@ Dependency Review.
 
 ### The `--offline` contract
 
-`--check-vulns` and `mcp-audit sbom` (with transitive dep resolution) both
-require network access and exit with code 2 if `--offline` is also supplied.
-In offline mode, `mcp-audit sbom --offline` still produces a valid SBOM but
-lists only top-level packages (no transitive deps fetched from deps.dev) and
-includes no vulnerability entries.
+`--offline` is accepted for future compatibility. It enforces mutual exclusion
+with network-touching opt-in flags: `--verify-hashes`, `--verify-signatures`,
+`--check-vulns`, and `--connect` will all produce an error (exit code 2) if
+combined with `--offline`. A plain scan makes no network calls regardless of
+this flag, so `--offline` is currently a no-op for the default configuration.
+
+> **Note:** `mcp-audit sbom` is not yet implemented. When it ships, it will
+> respect the `--offline` flag.
 
 ---
 

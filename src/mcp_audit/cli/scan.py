@@ -641,7 +641,15 @@ def scan(
         ),
     ),
     offline: bool = typer.Option(  # noqa: B008
-        False, "--offline", help="Skip all network calls"
+        False,
+        "--offline",
+        help=(
+            "Accepted for future compatibility. "
+            "Prevents combining with --verify-hashes, --verify-signatures, "
+            "--check-vulns, and --connect (exit code 2 if combined). "
+            "A plain scan already makes no network calls, so this flag is "
+            "currently a no-op for default usage."
+        ),
     ),
     json_flag: bool = typer.Option(  # noqa: B008
         False, "--json", help="Shortcut for --format json"

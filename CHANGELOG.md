@@ -27,6 +27,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   doc drift in CI.
 
 ### Fixed
+- `--offline` flag help text now accurately describes current behaviour: the
+  flag prevents combining with `--verify-hashes`, `--verify-signatures`,
+  `--check-vulns`, and `--connect` (exit code 2 if combined), but a plain scan
+  already makes no network calls so the flag is a no-op for the default
+  configuration. Updated `docs/enterprise-deployment.md`,
+  `docs/supply-chain.md`, and `CLAUDE.md` to match.
 - Stale feature counts in `README.md` and `CLAUDE.md` after v0.5.0: SAST rules
   37→45 (28→34 Python, 9→11 TypeScript), community rules 12→13, analyzer count
   6→7; added `ConfigHygieneAnalyzer` and `Finding.cve` / CVE tagging mentions to
