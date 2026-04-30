@@ -637,6 +637,66 @@ def test_cli_merge_no_args_shows_error(tmp_path: Path) -> None:
     assert result.exit_code == 2
 
 
+# ── --dir recursive traversal ──────────────────────────────────────────────────
+
+
+def test_recursive_dir_collection(tmp_path: Path) -> None:
+    """Files nested in subdirectories are collected."""
+    from mcp_audit.cli.fleet import _collect_json_paths_from_dir
+
+    (tmp_path / "team-a").mkdir()
+    (tmp_path / "team-b").mkdir()
+    f1 = _write_json(tmp_path / "team-a" / "machine1.json", _scan_json(hostname="m1"))
+    f2 = _write_json(tmp_path / "team-b" / "machine2.json", _scan_json(hostname="m2"))
+
+    paths = _collect_json_paths_from_dir(tmp_path)
+
+    assert set(paths) == {f1, f2}
+
+
+def test_flat_dir_still_works(tmp_path: Path) -> None:
+    """Flat directories (existing usage) work as a degenerate case of recursive."""
+    from mcp_audit.cli.fleet import _collect_json_paths_from_dir
+
+    f1 = _write_json(tmp_path / "m1.json", _scan_json(hostname="m1"))
+    f2 = _write_json(tmp_path / "m2.json", _scan_json(hostname="m2"))
+
+    paths = _collect_json_paths_from_dir(tmp_path)
+
+    assert set(paths) == {f1, f2}
+
+
+def test_non_json_files_ignored_in_nested_dirs(tmp_path: Path) -> None:
+    """Non-JSON files at any depth are silently excluded."""
+    from mcp_audit.cli.fleet import _collect_json_paths_from_dir
+
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "notes.txt").write_text("not a scan", encoding="utf-8")
+    (sub / "data.log").write_text("also not a scan", encoding="utf-8")
+    f = _write_json(sub / "machine.json", _scan_json(hostname="m1"))
+
+    paths = _collect_json_paths_from_dir(tmp_path)
+
+    assert paths == [f]
+
+
+def test_cli_merge_dir_recursive(tmp_path: Path) -> None:
+    """End-to-end: --dir recurses into subdirectories for the merge command."""
+    (tmp_path / "team-a").mkdir()
+    (tmp_path / "team-b").mkdir()
+    _write_json(tmp_path / "team-a" / "machine1.json", _scan_json(hostname="m1"))
+    _write_json(tmp_path / "team-b" / "machine2.json", _scan_json(hostname="m2"))
+
+    result = runner.invoke(app, ["merge", "--dir", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code in (0, 1)
+    parsed = json.loads(result.output)
+    assert parsed["machine_count"] == 2
+    machine_ids = {m["machine_id"] for m in parsed["machines"]}
+    assert machine_ids == {"m1", "m2"}
+
+
 # ── --output-file ──────────────────────────────────────────────────────────────
 
 

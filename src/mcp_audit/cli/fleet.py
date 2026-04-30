@@ -14,7 +14,7 @@ from mcp_audit.cli._helpers import _write_output
 
 
 def _collect_json_paths_from_dir(directory: Path) -> list[Path]:
-    """Return all ``*.json`` files in *directory* (non-recursive).
+    """Return all ``*.json`` files under *directory*, recursively.
 
     Silently skips non-JSON files.  Logs a warning and skips files that fail
     mcp-audit JSON validation so that a single corrupt file does not abort the
@@ -22,7 +22,7 @@ def _collect_json_paths_from_dir(directory: Path) -> list[Path]:
     """
     from mcp_audit.fleet.merger import FleetMerger  # noqa: PLC0415
 
-    json_files = sorted(directory.glob("*.json"))
+    json_files = sorted(directory.rglob("*.json"))
     valid: list[Path] = []
     _tmp_merger = FleetMerger()
     for path in json_files:
@@ -117,7 +117,7 @@ def merge(
         None,
         "--dir",
         help=(
-            "Merge all .json files found in DIRECTORY (non-recursive). "
+            "Merge all .json files found in DIRECTORY (recursive). "
             "Cannot combine with FILES."
         ),
     ),

@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Fleet merge: `--dir` now recurses into subdirectories to collect JSON scan
+  outputs from nested CI artifact layouts (e.g. `dir/team-a/machine1.json`,
+  `dir/team-b/machine2.json`). Existing flat-directory usage is unchanged.
+  `_collect_json_paths_from_dir()` changed from `glob("*.json")` to
+  `rglob("*.json")`; four new unit/integration tests added in `test_fleet.py`.
 - Extension scanner: add Windows paths for VS Code (`%APPDATA%\Code\extensions`),
   VS Code Insiders (`%APPDATA%\Code - Insiders\extensions`), Cursor
   (`%USERPROFILE%\.cursor\extensions`), and Windsurf

@@ -52,7 +52,7 @@ mechanism that lands all the JSON files in one directory.
 ### 4. Merge into a fleet report
 
 ```bash
-# Merge everything in a directory
+# Merge everything in a directory (recurses into subdirectories automatically)
 mcp-audit merge --dir ./fleet-results/
 
 # Or pass files explicitly (supports shell glob expansion)
@@ -269,7 +269,7 @@ planned future enhancement — see GAPS.md.
 
 See [GAPS.md](../GAPS.md#fleet-merge) for a full list. Key points:
 
-- `--dir` is non-recursive; use shell globbing for nested directories.
+- `--dir` recurses into all subdirectories automatically; no depth limit.
 - HTML output is a table, not an interactive D3 dashboard.
 - Deduplication requires an exact `(analyzer, server_name, title)` match;
   findings with different evidence strings are not collapsed.
