@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Sync (or verify) the test-count references in README.md and CLAUDE.md.
+"""Sync (or verify) count references in README.md and CLAUDE.md.
 
-The canonical source of truth is ``uv run pytest --collect-only -q``; this
-script parses its trailing "NNNN tests collected in X.YYs" line and rewrites
-every hand-maintained count reference in the docs to match.
+Canonical sources of truth:
+- Test count:       ``uv run pytest --collect-only -q``
+- SAST rule count:  individual ``id:`` entries inside ``semgrep-rules/**/*.yml``
+- Community rules:  ``*.yml`` files under ``rules/community/``
+- Analyzer count:   concrete ``BaseAnalyzer`` subclasses in ``src/mcp_audit/analyzers/``
+  (i.e. ``class XxxAnalyzer(BaseAnalyzer)`` in any file except ``base.py``)
 
 Usage
 -----
@@ -27,25 +30,75 @@ import subprocess
 import sys
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parent.parent
 
-# (path, regex, replacement-template) — templates may use ``{count}`` (raw int)
-# or ``{formatted}`` (comma-separated).  Regexes are crafted to match both the
-# current value and any future drift without catching unrelated numbers.
+# ---------------------------------------------------------------------------
+# Substitution table
+# ---------------------------------------------------------------------------
+# Each entry: (relative_path, search_regex, replacement_template)
+# Templates use named placeholders from the kwargs passed to str.format():
+#   test-count:    {count}  {formatted}
+#   SAST:          {sast_total}  {sast_py}  {sast_ts}
+#   community:     {community_count}
+#   analyzers:     {analyzer_count}
+#
+# str.format() silently ignores unused keys, so every entry receives the full
+# set of kwargs — only the relevant ones are substituted.
+# ---------------------------------------------------------------------------
 _SUBSTITUTIONS: list[tuple[str, str, str]] = [
+    # --- test count ---
     ("CLAUDE.md", r"\b\d{3,6} tests passing\b", "{count} tests passing"),
     ("README.md", r"\b[\d,]+ tests validate\b", "{formatted} tests validate"),
     ("README.md", r"\bRun all [\d,]+ tests\b", "Run all {formatted} tests"),
-    # The release-notes template is rendered into every GitHub Release body
-    # by `.github/workflows/release.yml` — match the test-count badge line
-    # ("**1,308 tests · Apache 2.0 · …**") via its Apache 2.0 suffix so the
-    # regex cannot accidentally strike any of the surrounding bullet points.
     (
         ".github/release-notes-template.md",
         r"\b[\d,]+ tests · Apache 2\.0\b",
         "{formatted} tests · Apache 2.0",
     ),
+    # --- SAST rule counts (README.md) ---
+    (
+        "README.md",
+        r"\d+ Semgrep rules \(\d+ Python, \d+ TypeScript\)",
+        "{sast_total} Semgrep rules ({sast_py} Python, {sast_ts} TypeScript)",
+    ),
+    # --- SAST rule counts (CLAUDE.md — two occurrences, same pattern) ---
+    (
+        "CLAUDE.md",
+        r"\d+ Semgrep rules \(\d+ Python, \d+ TypeScript\)",
+        "{sast_total} Semgrep rules ({sast_py} Python, {sast_ts} TypeScript)",
+    ),
+    # --- community rule count (README.md) ---
+    (
+        "README.md",
+        r"\d+ community rules ship bundled",
+        "{community_count} community rules ship bundled",
+    ),
+    # --- community rule count (CLAUDE.md) ---
+    (
+        "CLAUDE.md",
+        r"\d+ community rules ship bundled",
+        "{community_count} community rules ship bundled",
+    ),
+    # --- analyzer count — "N analyzers:" list item (CLAUDE.md) ---
+    (
+        "CLAUDE.md",
+        r"\b\d+ analyzers:",
+        "{analyzer_count} analyzers:",
+    ),
+    # --- analyzer count — "has N analyzers" prose (CLAUDE.md) ---
+    (
+        "CLAUDE.md",
+        r"has \d+ analyzers\b",
+        "has {analyzer_count} analyzers",
+    ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# Count collectors
+# ---------------------------------------------------------------------------
 
 
 def _collect_test_count() -> int:
@@ -73,10 +126,94 @@ def _collect_test_count() -> int:
     )
 
 
+def _collect_sast_counts(rules_dir: Path | None = None) -> tuple[int, int, int]:
+    """Return ``(total, python_count, typescript_count)`` for SAST rules.
+
+    Counts individual rule *definitions* (entries in the ``rules:`` list of
+    each ``.yml`` file) rather than file count, because a single file may
+    contain several rules.  Only files that parse as a valid Semgrep rule file
+    (top-level ``rules`` key) are counted; test fixtures that lack this key
+    are excluded.
+    """
+    if rules_dir is None:
+        rules_dir = ROOT / "semgrep-rules"
+    total = py_count = ts_count = 0
+    for yml_file in sorted(rules_dir.rglob("*.yml")):
+        try:
+            data = yaml.safe_load(yml_file.read_text(encoding="utf-8"))
+        except yaml.YAMLError:
+            continue
+        if not isinstance(data, dict) or "rules" not in data:
+            continue
+        for rule in data["rules"]:
+            langs = rule.get("languages", [])
+            total += 1
+            if "python" in langs:
+                py_count += 1
+            if "typescript" in langs:
+                ts_count += 1
+    return total, py_count, ts_count
+
+
+def _collect_community_rule_count(community_dir: Path | None = None) -> int:
+    """Return the number of ``.yml`` files in ``rules/community/``."""
+    if community_dir is None:
+        community_dir = ROOT / "rules" / "community"
+    return sum(1 for _ in community_dir.glob("*.yml"))
+
+
+def _collect_analyzer_count(analyzers_dir: Path | None = None) -> int:
+    """Return the number of concrete ``BaseAnalyzer`` subclasses.
+
+    Scans every ``.py`` file under ``src/mcp_audit/analyzers/`` except
+    ``base.py`` for the pattern ``class XxxAnalyzer(BaseAnalyzer``.
+    ``attack_paths.py`` does not subclass ``BaseAnalyzer`` so it is naturally
+    excluded.  ``rug_pull.py`` and ``toxic_flow.py`` do subclass it and are
+    counted even though their primary interface is ``analyze_all()``.
+    """
+    if analyzers_dir is None:
+        analyzers_dir = ROOT / "src" / "mcp_audit" / "analyzers"
+    count = 0
+    for py_file in sorted(analyzers_dir.glob("*.py")):
+        if py_file.name == "base.py":
+            continue
+        text = py_file.read_text(encoding="utf-8")
+        count += len(
+            re.findall(r"^class \w+Analyzer\(BaseAnalyzer", text, re.MULTILINE)
+        )
+    return count
+
+
+# ---------------------------------------------------------------------------
+# Core apply loop
+# ---------------------------------------------------------------------------
+
+
 def _apply(*, check_only: bool) -> int:
-    count = _collect_test_count()
-    formatted = f"{count:,}"
-    print(f"Detected {count} tests ({formatted} formatted).")
+    """Apply (or check) all substitutions.  Returns exit code (0 or 1)."""
+    test_count = _collect_test_count()
+    test_formatted = f"{test_count:,}"
+    sast_total, sast_py, sast_ts = _collect_sast_counts()
+    community_count = _collect_community_rule_count()
+    analyzer_count = _collect_analyzer_count()
+
+    print(f"Detected {test_count} tests ({test_formatted} formatted).")
+    print(
+        f"Detected {sast_total} SAST rules "
+        f"({sast_py} Python, {sast_ts} TypeScript)."
+    )
+    print(f"Detected {community_count} community rules.")
+    print(f"Detected {analyzer_count} concrete analyzers.")
+
+    fmt_kwargs = {
+        "count": test_count,
+        "formatted": test_formatted,
+        "sast_total": sast_total,
+        "sast_py": sast_py,
+        "sast_ts": sast_ts,
+        "community_count": community_count,
+        "analyzer_count": analyzer_count,
+    }
 
     drift_found = False
     for rel, pattern, template in _SUBSTITUTIONS:
@@ -86,7 +223,7 @@ def _apply(*, check_only: bool) -> int:
             continue
 
         text = path.read_text(encoding="utf-8")
-        replacement = template.format(count=count, formatted=formatted)
+        replacement = template.format(**fmt_kwargs)
         new_text, n = re.subn(pattern, replacement, text)
 
         if n == 0:
@@ -104,10 +241,13 @@ def _apply(*, check_only: bool) -> int:
 
         drift_found = True
         if check_only:
-            print(f"  DRIFT: {rel} is stale", file=sys.stderr)
+            print(
+                f"  DRIFT: {rel} is stale for pattern /{pattern}/",
+                file=sys.stderr,
+            )
         else:
             path.write_text(new_text, encoding="utf-8")
-            print(f"  updated: {rel}")
+            print(f"  updated: {rel} ({n} replacement{'s' if n > 1 else ''})")
 
     if check_only and drift_found:
         print(

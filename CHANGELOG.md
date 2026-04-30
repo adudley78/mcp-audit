@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `scripts/update_test_count.py` now also validates SAST rule count (total,
+  Python, TypeScript breakdown), community rule count, and concrete analyzer
+  count in addition to the existing test-count check — prevents v0.5.0-style
+  doc drift in CI.
+
 ### Fixed
 - Stale feature counts in `README.md` and `CLAUDE.md` after v0.5.0: SAST rules
   37→45 (28→34 Python, 9→11 TypeScript), community rules 12→13, analyzer count
