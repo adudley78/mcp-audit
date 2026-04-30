@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Stale feature counts in `README.md` and `CLAUDE.md` after v0.5.0: SAST rules
+  37→45 (28→34 Python, 9→11 TypeScript), community rules 12→13, analyzer count
+  6→7; added `ConfigHygieneAnalyzer` and `Finding.cve` / CVE tagging mentions to
+  the README Features section.
+
 ---
 
 ## [0.5.0] - 2026-04-27 — April 2026 Security Sweep

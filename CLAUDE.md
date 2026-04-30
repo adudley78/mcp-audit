@@ -266,7 +266,7 @@ Do not attempt to resolve architectural ambiguity by guessing. Flag it.
 Prototype complete (April 11, 2026). Built in a single day; extended April 12–13.
 
 What's built:
-- 6 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow
+- 7 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow, config hygiene
 - Attack path engine with multi-hop detection and greedy hitting set algorithm
 - 5 output formats: terminal, JSON, SARIF, Nucleus FlexConnect, HTML dashboard
 - Interactive D3 attack graph dashboard with light/dark mode (`mcp-audit dashboard`)
@@ -314,7 +314,7 @@ All detection patterns are original implementations based on published security
 research. No code was copied from existing scanners. Full source attribution is
 documented in PROVENANCE.md — read it before adding new detection patterns.
 Every new pattern must cite its research source.
-The project now has 6 analyzers with patterns sourced from the research listed in PROVENANCE.md. Update PROVENANCE.md when adding new detection patterns or analyzers.
+The project now has 7 analyzers with patterns sourced from the research listed in PROVENANCE.md. Update PROVENANCE.md when adding new detection patterns or analyzers.
 See GAPS.md for known detection quality limitations, severity calibration issues, and untested areas. Consult before claiming detection completeness or accuracy.
 
 ## Commit history audit (2026-04-17)
