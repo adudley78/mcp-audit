@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Extension scanner: add Windows paths for VS Code (`%APPDATA%\Code\extensions`),
+  VS Code Insiders (`%APPDATA%\Code - Insiders\extensions`), Cursor
+  (`%USERPROFILE%\.cursor\extensions`), and Windsurf
+  (`%USERPROFILE%\.windsurf\extensions`).  Paths are resolved at call time from
+  environment variables and silently skipped when the variable is absent.
+  Covered by five new unit tests in `tests/test_extensions.py`
+  (`TestWindowsExtensionPaths`) that run on all CI platforms via monkeypatching.
 - `scripts/update_test_count.py` now also validates SAST rule count (total,
   Python, TypeScript breakdown), community rule count, and concrete analyzer
   count in addition to the existing test-count check — prevents v0.5.0-style

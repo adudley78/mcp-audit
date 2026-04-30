@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from mcp_audit.cli import app
@@ -23,6 +25,7 @@ from mcp_audit.extensions.analyzer import (
     load_vuln_registry,
 )
 from mcp_audit.extensions.discovery import (
+    _get_windows_paths,
     discover_extensions,
     parse_manifest,
 )
@@ -233,6 +236,99 @@ class TestExtensionDiscovery:
         pkg.write_text(json.dumps({"name": "x", "publisher": "y"}))
         result = parse_manifest(pkg, "vscode")
         assert result is None
+
+
+# ── TestWindowsExtensionPaths ──────────────────────────────────────────────────
+
+
+class TestWindowsExtensionPaths:
+    """Windows-specific extension path discovery, exercised via monkeypatching."""
+
+    def test_windows_vscode_path_discovered(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """VS Code extensions under %APPDATA%\\Code\\extensions found on win32."""
+        ext_dir = tmp_path / "Code" / "extensions" / "pub.winext-1.0.0"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "package.json").write_text(
+            _pkg_json(name="winext", publisher="pub")
+        )
+
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setenv("APPDATA", str(tmp_path))
+        monkeypatch.delenv("USERPROFILE", raising=False)
+
+        _win32_paths = "mcp_audit.extensions.discovery.EXTENSION_PATHS"
+        with patch.dict(_win32_paths, {}, clear=True):
+            results = discover_extensions(clients=["vscode"])
+
+        assert len(results) == 1
+        assert results[0].extension_id == "pub.winext"
+        assert results[0].client_name == "vscode"
+
+    def test_windows_cursor_path_discovered(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Cursor extensions under %USERPROFILE%\\.cursor\\extensions found on win32."""
+        ext_dir = tmp_path / ".cursor" / "extensions" / "pub.cursorext-1.0.0"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "package.json").write_text(
+            _pkg_json(name="cursorext", publisher="pub")
+        )
+
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        monkeypatch.delenv("APPDATA", raising=False)
+
+        _win32_paths = "mcp_audit.extensions.discovery.EXTENSION_PATHS"
+        with patch.dict(_win32_paths, {}, clear=True):
+            results = discover_extensions(clients=["cursor"])
+
+        assert len(results) == 1
+        assert results[0].extension_id == "pub.cursorext"
+        assert results[0].client_name == "cursor"
+
+    def test_windows_missing_appdata_skipped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No exception is raised on win32 when APPDATA and USERPROFILE are absent."""
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.delenv("APPDATA", raising=False)
+        monkeypatch.delenv("USERPROFILE", raising=False)
+
+        _win32_paths = "mcp_audit.extensions.discovery.EXTENSION_PATHS"
+        with patch.dict(_win32_paths, {}, clear=True):
+            results = discover_extensions()
+
+        assert results == []
+
+    def test_windows_paths_absent_on_non_windows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """_get_windows_paths() returns {} when platform is not win32 (regression)."""
+        monkeypatch.setattr(sys, "platform", "darwin")
+        assert _get_windows_paths() == {}
+
+    def test_macos_paths_unchanged(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """macOS tilde-based paths still resolve correctly when platform is darwin."""
+        ext_dir = tmp_path / "publisher.macext-1.0.0"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "package.json").write_text(
+            _pkg_json(name="macext", publisher="publisher")
+        )
+
+        monkeypatch.setattr(sys, "platform", "darwin")
+
+        with patch.dict(
+            "mcp_audit.extensions.discovery.EXTENSION_PATHS",
+            {"vscode": [str(tmp_path)]},
+        ):
+            results = discover_extensions(clients=["vscode"])
+
+        assert len(results) == 1
+        assert results[0].extension_id == "publisher.macext"
 
 
 # ── TestKnownVulnCheck ─────────────────────────────────────────────────────────

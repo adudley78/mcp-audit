@@ -29,12 +29,27 @@ issues before they are exploited.
 
 ## Supported clients and discovery paths
 
-| Client    | Discovery paths (macOS)                                          |
-|-----------|------------------------------------------------------------------|
-| VS Code   | `~/.vscode/extensions/`, `~/.vscode-server/extensions/`         |
-| Cursor    | `~/.cursor/extensions/`, `~/.cursor-server/extensions/`         |
-| Windsurf  | `~/.windsurf/extensions/`, `~/Library/Application Support/Windsurf/extensions/` |
-| Augment   | `~/.augment/extensions/`, `~/Library/Application Support/Augment/extensions/`   |
+### macOS / Linux
+
+| Client   | Discovery paths                                                                    |
+|----------|------------------------------------------------------------------------------------|
+| VS Code  | `~/.vscode/extensions/`, `~/.vscode-server/extensions/`                           |
+| Cursor   | `~/.cursor/extensions/`, `~/.cursor-server/extensions/`                           |
+| Windsurf | `~/.windsurf/extensions/`, `~/Library/Application Support/Windsurf/extensions/`, `~/.config/windsurf/extensions/` |
+| Augment  | `~/.augment/extensions/`, `~/Library/Application Support/Augment/extensions/`     |
+
+### Windows
+
+Windows paths are resolved from environment variables at runtime and silently
+skipped when the variable is absent (same behaviour as a non-existent macOS
+path).
+
+| Client          | Discovery paths                                       |
+|-----------------|-------------------------------------------------------|
+| VS Code         | `%APPDATA%\Code\extensions`                           |
+| VS Code Insiders| `%APPDATA%\Code - Insiders\extensions`                |
+| Cursor          | `%USERPROFILE%\.cursor\extensions`                    |
+| Windsurf        | `%USERPROFILE%\.windsurf\extensions`                  |
 
 Discovery probes all candidate paths and silently skips those that don't exist.
 The same extension installed in multiple clients is reported once per client instance
@@ -193,8 +208,12 @@ Severity: **INFO**.
 - **Discovery paths are hardcoded per-client.**  Paths that differ by OS version,
   client version, or custom install location may not be found.
 
-- **Windows extension paths are not validated.**  The paths listed in
-  `EXTENSION_PATHS` for Windows clients are untested.
+- **Windows extension paths are defined but not end-to-end validated.**
+  `%APPDATA%\Code\extensions` (VS Code), `%APPDATA%\Code - Insiders\extensions`,
+  `%USERPROFILE%\.cursor\extensions` (Cursor), and
+  `%USERPROFILE%\.windsurf\extensions` (Windsurf) are now included and covered
+  by monkeypatched unit tests.  End-to-end validation on a real Windows host
+  is a separate manual step noted in `GAPS.md`.
 
 - **No runtime behavior monitoring.**  The scanner analyzes static manifest data
   only.  Extensions that conceal capabilities in their JS bundle are not detected.
@@ -239,4 +258,6 @@ To add a new entry:
   OpenVSX API.
 - **Full semver range matching** — replace the simplified `<X.Y.Z` comparison with
   a proper semver range parser.
-- **Windows path validation** — confirm and test extension discovery on Windows.
+- **Windows path validation** — confirm and test extension discovery on Windows
+  with a real machine (unit tests with monkeypatching already pass on all CI
+  platforms; manual end-to-end validation pending).

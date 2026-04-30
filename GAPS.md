@@ -88,7 +88,7 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 ## Platform coverage
 
-**Windows not tested.** Config discovery includes Windows paths but the tool has only been tested on macOS. Path handling, file encoding, and process spawning may behave differently on Windows.
+**Windows not tested.** Config discovery includes Windows paths but the tool has only been tested on macOS. Path handling, file encoding, and process spawning may behave differently on Windows. Extension discovery paths for VS Code, VS Code Insiders, Cursor, and Windsurf are now defined (STORY-0004, 2026-04-30) and unit-tested via monkeypatching; end-to-end validation on a real Windows host is a manual step.
 
 **Linux not tested.** Same as Windows — paths are defined but not validated on actual Linux systems.
 
@@ -339,8 +339,14 @@ and Augment paths were not found on the build machine.  Paths may differ by:
 - Client version (path changes between major versions)
 - Custom install location (non-default `--extensions-dir`)
 
-**Windows extension paths are not validated.**  The standard Windows path
-(`%USERPROFILE%\.vscode\extensions`) is not yet included in `EXTENSION_PATHS`.
+**~~Windows extension paths are not validated.~~  Resolved 2026-04-30 (STORY-0004).**
+Standard Windows paths are now defined in `_get_windows_paths()` in
+`extensions/discovery.py` and merged into `discover_extensions()` at call time:
+`%APPDATA%\Code\extensions` and `%APPDATA%\Code - Insiders\extensions` (VS Code),
+`%USERPROFILE%\.cursor\extensions` (Cursor), and
+`%USERPROFILE%\.windsurf\extensions` (Windsurf).  All four paths are covered by
+monkeypatched unit tests that run on every CI platform.  End-to-end validation on a
+real Windows host is a manual step deferred to pre-launch.
 
 **No runtime behaviour monitoring.**  The scanner analyses static manifest data only.
 Malicious extensions that hide capabilities inside their JS bundle (e.g. deferred
