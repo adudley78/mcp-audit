@@ -125,7 +125,11 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         if self._registry.is_known(package):
             return []
 
-        closest_entry = self._registry.find_closest(package, threshold=3)
+        # Short names (≤5 chars) are too close to almost any other short name
+        # at distance 3, producing high FP rates. Use a tighter threshold of 1
+        # for those; long names keep the standard threshold of 3.
+        typo_threshold = 1 if len(package) <= 5 else 3
+        closest_entry = self._registry.find_closest(package, threshold=typo_threshold)
 
         if closest_entry is None:
             return []

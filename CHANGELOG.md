@@ -19,6 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   37→45 (28→34 Python, 9→11 TypeScript), community rules 12→13, analyzer count
   6→7; added `ConfigHygieneAnalyzer` and `Finding.cve` / CVE tagging mentions to
   the README Features section.
+- Supply chain: tighten Levenshtein typosquatting threshold for short package
+  names (≤5 chars) from 3→1 to reduce false positives. Names of 6+ characters
+  keep the existing threshold of 3. Legitimate typosquats differing by exactly 1
+  character (e.g., `mcq` vs `mcp`) still fire SC-001 at CRITICAL severity.
 
 ---
 
