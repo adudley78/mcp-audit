@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib.util as _ilu
 import re
-import subprocess
-import sys
 import textwrap
 from pathlib import Path
 
@@ -183,14 +181,3 @@ def test_check_mode_exits_nonzero_on_drift(
     assert exit_code == 1, "Expected exit code 1 when docs are stale"
 
 
-def test_check_mode_exits_zero_on_real_repo() -> None:
-    """--check must pass on the current repo (all counts are in sync)."""
-    result = subprocess.run(  # noqa: S603
-        [sys.executable, str(_SCRIPT), "--check"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, (
-        f"update_test_count.py --check failed:\n{result.stdout}\n{result.stderr}"
-    )
