@@ -179,5 +179,3 @@ def test_check_mode_exits_nonzero_on_drift(
     exit_code = m._apply(check_only=True)
 
     assert exit_code == 1, "Expected exit code 1 when docs are stale"
-
-
