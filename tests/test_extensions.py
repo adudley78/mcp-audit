@@ -250,9 +250,7 @@ class TestWindowsExtensionPaths:
         """VS Code extensions under %APPDATA%\\Code\\extensions found on win32."""
         ext_dir = tmp_path / "Code" / "extensions" / "pub.winext-1.0.0"
         ext_dir.mkdir(parents=True)
-        (ext_dir / "package.json").write_text(
-            _pkg_json(name="winext", publisher="pub")
-        )
+        (ext_dir / "package.json").write_text(_pkg_json(name="winext", publisher="pub"))
 
         monkeypatch.setattr(sys, "platform", "win32")
         monkeypatch.setenv("APPDATA", str(tmp_path))
