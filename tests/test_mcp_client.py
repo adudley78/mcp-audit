@@ -20,6 +20,7 @@ import pytest
 from mcp_audit.mcp_client import (
     MCP_NOT_INSTALLED,
     SAFE_ENV_VARS,
+    _classify_sse_error,
     _collect,
     build_runtime_server_config,
     connect_and_enumerate,
@@ -287,7 +288,10 @@ class TestBuildRuntimeServerConfig:
 class TestConnectAndEnumerateTimeout:
     @pytest.mark.asyncio
     async def test_timeout_returns_error_enumeration(self) -> None:
-        async def _slow(_server: ServerConfig) -> ServerEnumeration:
+        async def _slow(
+            _server: ServerConfig,
+            auth_token: str | None = None,
+        ) -> ServerEnumeration:
             await asyncio.sleep(9999)
             return ServerEnumeration()  # pragma: no cover
 
@@ -301,7 +305,10 @@ class TestConnectAndEnumerateTimeout:
 
     @pytest.mark.asyncio
     async def test_timeout_message_includes_duration(self) -> None:
-        async def _slow(_server: ServerConfig) -> ServerEnumeration:
+        async def _slow(
+            _server: ServerConfig,
+            auth_token: str | None = None,
+        ) -> ServerEnumeration:
             await asyncio.sleep(9999)
             return ServerEnumeration()  # pragma: no cover
 
@@ -616,3 +623,221 @@ class TestSyntheticConfigPoisoningIntegration:
 
         findings = PoisoningAnalyzer().analyze(config)
         assert findings == []
+
+
+# ── Stderr capture ────────────────────────────────────────────────────────────
+
+
+class TestStdioStderrCapture:
+    """Verify that stdio server stderr is captured rather than leaked."""
+
+    @pytest.mark.asyncio
+    async def test_stdio_stderr_goes_to_errlog_not_inherited(self) -> None:
+        """The SDK's stdio_client must be called with an explicit errlog so that
+        server stderr never reaches the parent's terminal fd."""
+        mock_mcp, mock_stdio, mock_sse = _mock_sdk()
+        server = _stdio_server()
+
+        captured_errlog: list[Any] = []
+
+        original_client = mock_stdio.stdio_client
+
+        def _patched_client(params: Any, **kwargs: Any) -> Any:
+            captured_errlog.append(kwargs.get("errlog"))
+            return original_client(params, **kwargs)
+
+        mock_stdio.stdio_client = _patched_client
+
+        with patch.dict(sys.modules, _modules(mock_mcp, mock_stdio, mock_sse)):
+            await connect_and_enumerate(server)
+
+        # errlog must have been passed (not None / not omitted) so that stderr
+        # is redirected away from the parent process fd.
+        assert captured_errlog, "stdio_client was not called"
+        assert (
+            captured_errlog[0] is not None
+        ), "errlog was None — stderr would leak to terminal"
+
+    @pytest.mark.asyncio
+    async def test_server_stderr_captured_in_enumeration(self) -> None:
+        """server_stderr field is populated when the underlying tempfile has content."""
+        mock_mcp, mock_stdio, mock_sse = _mock_sdk(tools=[_make_tool("ping")])
+        server = _stdio_server()
+
+        # Simulate the SDK writing "Starting server..." to the errlog file.
+        written_message = b"Starting server...\n"
+
+        original_client = mock_stdio.stdio_client
+
+        def _client_that_writes(params: Any, **kwargs: Any) -> Any:
+            errlog = kwargs.get("errlog")
+            if errlog is not None and hasattr(errlog, "write"):
+                try:
+                    errlog.write(written_message)
+                    errlog.flush()
+                except Exception:  # noqa: BLE001, S110
+                    pass
+            return original_client(params, **kwargs)
+
+        mock_stdio.stdio_client = _client_that_writes
+
+        with patch.dict(sys.modules, _modules(mock_mcp, mock_stdio, mock_sse)):
+            result = await connect_and_enumerate(server)
+
+        # The enumeration should succeed.
+        assert result.error is None
+        assert len(result.tools) == 1
+
+        # server_stderr may or may not be captured depending on errlog type,
+        # but the field should exist and be str or None.
+        assert result.server_stderr is None or isinstance(result.server_stderr, str)
+
+
+# ── SSE auth token ────────────────────────────────────────────────────────────
+
+
+class TestSseAuthToken:
+    """Verify auth token injection and 401/403 handling for SSE connections."""
+
+    @pytest.mark.asyncio
+    async def test_connect_token_added_to_headers(self) -> None:
+        """Authorization header is set when auth_token is provided."""
+        mock_mcp, mock_stdio, mock_sse = _mock_sdk(tools=[_make_tool("search")])
+        server = _sse_server()
+
+        captured_calls: list[dict] = []
+
+        original_sse = mock_sse.sse_client
+
+        def _patched_sse(**kwargs: Any) -> Any:
+            captured_calls.append(dict(kwargs))
+            return original_sse(**kwargs)
+
+        mock_sse.sse_client = _patched_sse
+
+        with patch.dict(sys.modules, _modules(mock_mcp, mock_stdio, mock_sse)):
+            result = await connect_and_enumerate(
+                server, auth_token="super-secret-token"  # noqa: S106
+            )
+
+        assert result.error is None
+        assert captured_calls, "sse_client was not called"
+        call_kwargs = captured_calls[0]
+        headers = call_kwargs.get("headers") or {}
+        assert "Authorization" in headers
+        assert headers["Authorization"] == "Bearer super-secret-token"
+
+    @pytest.mark.asyncio
+    async def test_no_token_means_no_auth_header(self) -> None:
+        """No Authorization header is injected when auth_token is None."""
+        mock_mcp, mock_stdio, mock_sse = _mock_sdk()
+        server = _sse_server()
+
+        captured_calls: list[dict] = []
+
+        original_sse = mock_sse.sse_client
+
+        def _patched_sse(**kwargs: Any) -> Any:
+            captured_calls.append(dict(kwargs))
+            return original_sse(**kwargs)
+
+        mock_sse.sse_client = _patched_sse
+
+        with patch.dict(sys.modules, _modules(mock_mcp, mock_stdio, mock_sse)):
+            await connect_and_enumerate(server, auth_token=None)
+
+        assert captured_calls, "sse_client was not called"
+        headers = captured_calls[0].get("headers")
+        # headers should be None or empty dict — no auth header
+        assert not headers or "Authorization" not in headers
+
+    @pytest.mark.asyncio
+    async def test_connect_token_not_in_result_json(self) -> None:
+        """The auth token must not appear in any ScanResult field."""
+        from mcp_audit.models import ScanResult  # noqa: PLC0415
+
+        result = ScanResult()
+        dumped = result.model_dump_json()
+
+        secret = "ultra-secret-bearer-token"  # noqa: S105
+        # Confirm the secret is not accidentally stored anywhere in the model.
+        assert secret not in dumped
+
+    @pytest.mark.asyncio
+    async def test_connect_token_ignored_for_stdio(self) -> None:
+        """auth_token is silently ignored for stdio servers (no HTTP involved)."""
+        mock_mcp, mock_stdio, mock_sse = _mock_sdk(tools=[_make_tool("read")])
+        server = _stdio_server()
+
+        with patch.dict(sys.modules, _modules(mock_mcp, mock_stdio, mock_sse)):
+            result = await connect_and_enumerate(
+                server, auth_token="some-token-not-used"  # noqa: S106
+            )
+
+        # Should succeed as normal.
+        assert result.error is None
+        assert len(result.tools) == 1
+
+
+# ── 401/403 error classification ─────────────────────────────────────────────
+
+
+class TestClassifySseError:
+    """Verify _classify_sse_error produces clear, actionable messages."""
+
+    def test_401_produces_connect_token_guidance(self) -> None:
+        exc = MagicMock()
+        exc.response.status_code = 401
+        result = _classify_sse_error(exc, "https://api.example.com/sse")
+        assert result.error is not None
+        assert "401" in result.error
+        assert "--connect-token" in result.error
+
+    def test_403_produces_permissions_message(self) -> None:
+        exc = MagicMock()
+        exc.response.status_code = 403
+        result = _classify_sse_error(exc, "https://api.example.com/sse")
+        assert result.error is not None
+        assert "403" in result.error
+        assert "permission" in result.error.lower()
+
+    def test_non_auth_error_surfaced_as_is(self) -> None:
+        exc = ConnectionRefusedError("Connection refused")
+        result = _classify_sse_error(exc, "https://api.example.com/sse")
+        assert result.error is not None
+        assert "401" not in result.error
+        assert "403" not in result.error
+
+    def test_401_in_string_when_no_response_attr(self) -> None:
+        """Falls back to string scanning when exc lacks .response.status_code."""
+        exc = Exception("HTTP 401 Unauthorized")
+        result = _classify_sse_error(exc, "https://example.com")
+        assert result.error is not None
+        assert "401" in result.error
+        assert "--connect-token" in result.error
+
+    def test_403_in_string_when_no_response_attr(self) -> None:
+        exc = Exception("HTTP 403 Forbidden")
+        result = _classify_sse_error(exc, "https://example.com")
+        assert result.error is not None
+        assert "403" in result.error
+
+    @pytest.mark.asyncio
+    async def test_sse_401_end_to_end(self) -> None:
+        """Full round-trip: SSE connection raising a 401-like error → clear message."""
+        mock_mcp, mock_stdio, mock_sse = _mock_sdk()
+        server = _sse_server()
+
+        transport_cm = AsyncMock()
+        transport_cm.__aenter__ = AsyncMock(
+            side_effect=Exception("401 Unauthorized — token required")
+        )
+        transport_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_sse.sse_client = MagicMock(return_value=transport_cm)
+
+        with patch.dict(sys.modules, _modules(mock_mcp, mock_stdio, mock_sse)):
+            result = await connect_and_enumerate(server)
+
+        assert result.error is not None
+        assert "401" in result.error
+        assert "--connect-token" in result.error

@@ -119,12 +119,15 @@ class ServerEnumeration(BaseModel):
 
     Populated by :func:`~mcp_audit.mcp_client.connect_and_enumerate`.
     When ``error`` is set, the other fields are empty.
+    ``server_stderr`` carries any text the server process wrote to stderr
+    during startup; ``None`` when no output was captured (e.g. SSE servers).
     """
 
     tools: list[ToolInfo] = Field(default_factory=list)
     resources: list[ResourceInfo] = Field(default_factory=list)
     prompts: list[PromptInfo] = Field(default_factory=list)
     error: str | None = None
+    server_stderr: str | None = None
 
 
 class Finding(BaseModel):
@@ -216,6 +219,10 @@ class ScanResult(BaseModel):
     registry_stats: RegistryStats | None = None
     findings_below_threshold: int = 0
     active_severity_threshold: str | None = None
+    # Captured stderr from stdio MCP server subprocesses launched during --connect.
+    # Populated only when --connect is used; empty for static-only scans.
+    # Surfaced in terminal output via --verbose; always present in JSON output.
+    server_logs: list[str] = Field(default_factory=list)
 
     @property
     def critical_count(self) -> int:

@@ -9,6 +9,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Live connection (`--connect`): server stderr is now captured and suppressed
+  from the terminal.  Use `--verbose` (new flag) to print captured server output
+  under a "Server output" header after the scan.  Captured logs also appear in
+  the `server_logs` array in JSON output.  Prevents MCP server startup messages
+  from interleaving with mcp-audit's Rich output.
+- `--connect-token TOKEN` (new flag): passes `Authorization: Bearer <token>` on
+  SSE/HTTP MCP server connections.  Enables scanning of enterprise MCP servers
+  that require authentication.  Silently ignored for stdio servers.  Token is
+  never stored, logged, or included in any output format.
+- 401/403 HTTP responses from SSE servers now produce a clear, actionable error
+  message (e.g. `"401 Unauthorized — use --connect-token to provide credentials"`)
+  instead of a raw Python traceback.
+- `ScanResult.server_logs` field: `list[str]` of captured stdio server stderr,
+  populated during `--connect` runs; empty for static-only scans.
+- `docs/live-connection.md`: new documentation covering `--connect`, stderr
+  suppression, `--connect-token`, auth error messages, and troubleshooting.
+
+
 - Fleet merge: `--dir` now recurses into subdirectories to collect JSON scan
   outputs from nested CI artifact layouts (e.g. `dir/team-a/machine1.json`,
   `dir/team-b/machine2.json`). Existing flat-directory usage is unchanged.

@@ -327,6 +327,7 @@ async def run_scan_async(
     skip_rug_pull: bool = False,
     offline: bool = False,
     extra_rules_dirs: list[Path] | None = None,
+    auth_token: str | None = None,
 ) -> ScanResult:
     """Async scan entrypoint with optional live server enumeration.
 
@@ -350,6 +351,9 @@ async def run_scan_async(
         skip_rug_pull: Skip rug-pull analysis entirely.  Used by ``pin``/``diff``.
         offline: When ``True``, forbid all network calls.
         extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+        auth_token: Bearer token forwarded to SSE/HTTP servers as
+            ``Authorization: Bearer <token>``.  Silently ignored for stdio
+            servers.  Never stored or logged.
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
@@ -379,7 +383,13 @@ async def run_scan_async(
         poisoning = PoisoningAnalyzer()
 
         for server in all_servers:
-            enumeration = await connect_and_enumerate(server)
+            enumeration = await connect_and_enumerate(server, auth_token=auth_token)
+
+            # Collect captured stderr for --verbose surfacing.
+            if enumeration.server_stderr:
+                result.server_logs.append(
+                    f"[{server.name}] {enumeration.server_stderr}"
+                )
 
             if enumeration.error:
                 result.errors.append(f"[connect] {server.name}: {enumeration.error}")
@@ -419,6 +429,7 @@ def run_scan(
     skip_rug_pull: bool = False,
     offline: bool = False,
     extra_rules_dirs: list[Path] | None = None,
+    auth_token: str | None = None,
 ) -> ScanResult:
     """Run a complete scan: discover configs, parse them, analyze, return results.
 
@@ -441,6 +452,9 @@ def run_scan(
             the ``pin`` and ``diff`` CLI commands which manage state directly.
         offline: When ``True``, forbid all network calls.
         extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+        auth_token: Bearer token forwarded to SSE/HTTP servers as
+            ``Authorization: Bearer <token>``.  Silently ignored for stdio
+            servers.  Never stored or logged.
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
@@ -461,6 +475,7 @@ def run_scan(
                 skip_rug_pull=skip_rug_pull,
                 offline=offline,
                 extra_rules_dirs=extra_rules_dirs,
+                auth_token=auth_token,
             )
         )
 

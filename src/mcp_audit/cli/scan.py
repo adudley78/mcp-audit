@@ -663,6 +663,24 @@ def scan(
             "(requires: pip install 'mcp-audit\\[mcp]')"
         ),
     ),
+    connect_token: str | None = typer.Option(  # noqa: B008
+        None,
+        "--connect-token",
+        help=(
+            "Bearer token for SSE/HTTP MCP servers that require authentication. "
+            "Passed as 'Authorization: Bearer <token>'. "
+            "Silently ignored for stdio servers. Never stored or logged."
+        ),
+    ),
+    verbose: bool = typer.Option(  # noqa: B008
+        False,
+        "--verbose",
+        "-v",
+        help=(
+            "Print captured server stderr output after the scan. "
+            "Only applies when --connect is used."
+        ),
+    ),
     reset_state: bool = typer.Option(  # noqa: B008
         False,
         "--reset-state",
@@ -812,6 +830,7 @@ def scan(
         connect=connect,
         offline=offline,
         extra_rules_dirs=extra_rules_dirs if extra_rules_dirs else None,
+        auth_token=connect_token,
     )
 
     if asset_prefix:
@@ -854,6 +873,12 @@ def scan(
         result.score = None
 
     _write_formatted_output(result, fmt, output, asset_prefix, no_score, console)
+
+    if verbose and result.server_logs:
+        console.print()
+        console.print("[bold dim]Server output (captured stderr):[/bold dim]")
+        for entry in result.server_logs:
+            console.print(f"[dim]{entry}[/dim]")
 
     if owasp_report:
         _print_owasp_report(result, console)

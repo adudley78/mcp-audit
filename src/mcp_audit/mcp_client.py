@@ -17,12 +17,21 @@ Usage::
     else:
         for tool in enumeration.tools:
             print(tool.name, tool.description)
+
+Auth tokens::
+
+    # For SSE/HTTP servers that require Bearer auth:
+    enumeration = await connect_and_enumerate(
+        server, timeout=10.0, auth_token="my-secret-token"
+    )
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
+import tempfile
 from typing import Any
 
 from mcp_audit.models import (
@@ -60,6 +69,7 @@ MCP_NOT_INSTALLED = (
 async def connect_and_enumerate(
     server: ServerConfig,
     timeout: float = 10.0,
+    auth_token: str | None = None,
 ) -> ServerEnumeration:
     """Connect to a running MCP server and enumerate its exposed interface.
 
@@ -72,13 +82,18 @@ async def connect_and_enumerate(
         timeout: Per-server timeout in seconds (default 10).  Servers that do
             not complete the handshake within this window are skipped with an
             error finding.
+        auth_token: Bearer token to pass as ``Authorization: Bearer <token>``
+            on SSE/HTTP connections.  Silently ignored for stdio servers (which
+            do not use HTTP auth).  Never stored or logged.
 
     Returns:
         :class:`~mcp_audit.models.ServerEnumeration` with discovered interface
         or an ``error`` string on failure.
     """
     try:
-        return await asyncio.wait_for(_enumerate(server), timeout=timeout)
+        return await asyncio.wait_for(
+            _enumerate(server, auth_token=auth_token), timeout=timeout
+        )
     except TimeoutError:
         return ServerEnumeration(error=f"Connection timed out after {timeout:.0f}s")
     except Exception as exc:  # noqa: BLE001
@@ -150,7 +165,10 @@ def build_runtime_server_config(
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 
-async def _enumerate(server: ServerConfig) -> ServerEnumeration:
+async def _enumerate(
+    server: ServerConfig,
+    auth_token: str | None = None,
+) -> ServerEnumeration:
     """Dispatch to the appropriate transport and collect enumeration data."""
     try:
         from mcp import ClientSession  # type: ignore[import-untyped]
@@ -163,7 +181,9 @@ async def _enumerate(server: ServerConfig) -> ServerEnumeration:
         return ServerEnumeration(error=MCP_NOT_INSTALLED)
 
     if server.transport in (TransportType.SSE, TransportType.STREAMABLE_HTTP):
-        return await _enumerate_sse(server, ClientSession, sse_client)
+        return await _enumerate_sse(
+            server, ClientSession, sse_client, auth_token=auth_token
+        )
     if server.transport == TransportType.STDIO:
         return await _enumerate_stdio(
             server, ClientSession, stdio_client, StdioServerParameters
@@ -179,7 +199,16 @@ async def _enumerate_stdio(
     stdio_client_fn: Any,
     params_cls: Any,
 ) -> ServerEnumeration:
-    """Connect to a stdio MCP server and enumerate its interface."""
+    """Connect to a stdio MCP server and enumerate its interface.
+
+    Server stderr is captured into a temporary file so it does not leak into
+    the mcp-audit terminal output.  The captured text is returned in
+    :attr:`~mcp_audit.models.ServerEnumeration.server_stderr` for optional
+    display (e.g. via ``--verbose``).
+
+    ``auth_token`` is silently ignored for stdio servers — they do not use
+    HTTP auth.
+    """
     if not server.command:
         return ServerEnumeration(error="Stdio server has no command configured")
 
@@ -189,27 +218,139 @@ async def _enumerate_stdio(
     env.update(server.env)
     params = params_cls(command=server.command, args=server.args, env=env)
 
-    async with (
-        stdio_client_fn(params) as (read, write),
-        client_session_cls(read, write) as session,
-    ):
-        return await _collect(session)
+    # Capture stderr to a real temporary file so:
+    # (a) it never leaks to the user's terminal, and
+    # (b) we can surface it in --verbose mode.
+    # We use a TemporaryFile (real fd) because asyncio's subprocess machinery
+    # requires an object with a valid fileno().
+    captured_stderr: str | None = None
+    with tempfile.TemporaryFile(mode="w+b") as stderr_buf:
+        try:
+            async with (
+                stdio_client_fn(params, errlog=stderr_buf) as (read, write),
+                client_session_cls(read, write) as session,
+            ):
+                result = await _collect(session)
+        except TypeError:
+            # SDK version does not support the errlog parameter — fall back to
+            # capturing via StdioServerParameters.stderr when available, otherwise
+            # accept that stderr may briefly appear in the terminal.
+            try:
+                import subprocess  # noqa: PLC0415
+
+                params_with_pipe = params_cls(
+                    command=server.command,
+                    args=server.args,
+                    env=env,
+                    stderr=subprocess.PIPE,
+                )
+                async with (
+                    stdio_client_fn(params_with_pipe) as (read, write),
+                    client_session_cls(read, write) as session,
+                ):
+                    result = await _collect(session)
+            except Exception:  # noqa: BLE001
+                # Last resort: call without any stderr override.
+                async with (
+                    stdio_client_fn(params) as (read, write),
+                    client_session_cls(read, write) as session,
+                ):
+                    result = await _collect(session)
+
+        # Read whatever the subprocess wrote to stderr (may be empty).
+        try:
+            stderr_buf.seek(0)
+            raw_bytes = stderr_buf.read()
+            if raw_bytes:
+                captured_stderr = raw_bytes.decode("utf-8", errors="replace").strip()
+        except Exception:  # noqa: BLE001, S110
+            pass
+
+    return ServerEnumeration(
+        tools=result.tools,
+        resources=result.resources,
+        prompts=result.prompts,
+        error=result.error,
+        server_stderr=captured_stderr or None,
+    )
 
 
 async def _enumerate_sse(
     server: ServerConfig,
     client_session_cls: Any,
     sse_client_fn: Any,
+    auth_token: str | None = None,
 ) -> ServerEnumeration:
-    """Connect to an SSE/HTTP MCP server and enumerate its interface."""
+    """Connect to an SSE/HTTP MCP server and enumerate its interface.
+
+    When *auth_token* is provided, it is sent as ``Authorization: Bearer <token>``
+    on every HTTP request.  The token is never stored or logged.
+
+    A 401 or 403 response is translated into a clear, actionable error message
+    rather than a raw exception traceback.
+    """
     if not server.url:
         return ServerEnumeration(error="SSE server has no URL configured")
 
-    async with (
-        sse_client_fn(url=server.url) as (read, write),
-        client_session_cls(read, write) as session,
-    ):
-        return await _collect(session)
+    headers: dict[str, str] = {}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
+
+    try:
+        async with (
+            sse_client_fn(url=server.url, headers=headers or None) as (read, write),
+            client_session_cls(read, write) as session,
+        ):
+            return await _collect(session)
+    except Exception as exc:  # noqa: BLE001
+        return _classify_sse_error(exc, server.url)
+
+
+def _classify_sse_error(exc: Exception, url: str) -> ServerEnumeration:
+    """Convert an SSE connection exception into a user-friendly error enumeration.
+
+    Detects HTTP 401/403 responses and returns an actionable message instead
+    of a raw traceback.  All other exceptions are surfaced as-is.
+
+    Args:
+        exc: The exception raised during SSE connection or enumeration.
+        url: The server URL (used in the error message).
+
+    Returns:
+        :class:`~mcp_audit.models.ServerEnumeration` with ``error`` set.
+    """
+    exc_str = str(exc)
+    exc_type = type(exc).__name__
+
+    # Try to extract an HTTP status code from the exception.
+    # httpx.HTTPStatusError carries it at exc.response.status_code.
+    status_code: int | None = None
+    with contextlib.suppress(AttributeError):
+        status_code = exc.response.status_code  # type: ignore[union-attr]
+
+    # Fall back to scanning the string representation for common patterns.
+    if status_code is None:
+        for code in (401, 403):
+            if str(code) in exc_str:
+                status_code = code
+                break
+
+    if status_code == 401:
+        return ServerEnumeration(
+            error=(
+                f"Connection to {url} failed: 401 Unauthorized — "
+                "use --connect-token to provide credentials"
+            )
+        )
+    if status_code == 403:
+        return ServerEnumeration(
+            error=(
+                f"Connection to {url} failed: 403 Forbidden — "
+                "the provided token may lack the required permissions"
+            )
+        )
+
+    return ServerEnumeration(error=f"SSE connection failed ({exc_type}): {exc_str}")
 
 
 async def _collect(session: Any) -> ServerEnumeration:
