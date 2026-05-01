@@ -1,0 +1,30 @@
+# Pre-commit hooks for mcp-audit contributors.
+#
+# Install once after cloning:
+#   pip install pre-commit
+#   pre-commit install
+#
+# The hooks below run automatically on `git commit` and fix issues in-place
+# so that the CI checks never see stale docs or unformatted code.
+
+repos:
+  # ── Ruff: lint + format ───────────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # ── Test-count / doc-count sync ───────────────────────────────────────────
+  # Keeps the hand-maintained counts in README.md, CLAUDE.md, and
+  # .github/release-notes-template.md in sync with the actual numbers.
+  # Runs on every commit so CI never fails on count drift.
+  - repo: local
+    hooks:
+      - id: update-test-count
+        name: Sync test/rule/analyzer counts in docs
+        language: script
+        entry: scripts/sync_counts.sh
+        pass_filenames: false
+        always_run: true
