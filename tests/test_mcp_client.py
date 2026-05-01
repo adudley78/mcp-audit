@@ -654,9 +654,9 @@ class TestStdioStderrCapture:
         # errlog must have been passed (not None / not omitted) so that stderr
         # is redirected away from the parent process fd.
         assert captured_errlog, "stdio_client was not called"
-        assert (
-            captured_errlog[0] is not None
-        ), "errlog was None — stderr would leak to terminal"
+        assert captured_errlog[0] is not None, (
+            "errlog was None — stderr would leak to terminal"
+        )
 
     @pytest.mark.asyncio
     async def test_server_stderr_captured_in_enumeration(self) -> None:
@@ -717,7 +717,8 @@ class TestSseAuthToken:
 
         with patch.dict(sys.modules, _modules(mock_mcp, mock_stdio, mock_sse)):
             result = await connect_and_enumerate(
-                server, auth_token="super-secret-token"  # noqa: S106
+                server,
+                auth_token="super-secret-token",  # noqa: S106
             )
 
         assert result.error is None
@@ -771,7 +772,8 @@ class TestSseAuthToken:
 
         with patch.dict(sys.modules, _modules(mock_mcp, mock_stdio, mock_sse)):
             result = await connect_and_enumerate(
-                server, auth_token="some-token-not-used"  # noqa: S106
+                server,
+                auth_token="some-token-not-used",  # noqa: S106
             )
 
         # Should succeed as normal.
