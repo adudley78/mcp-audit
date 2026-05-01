@@ -43,15 +43,37 @@ a corresponding test file in `tests/`. All PRs must:
 ```bash
 git clone https://github.com/adudley78/mcp-audit
 cd mcp-audit
-pip install -e ".[dev]"
+uv sync --extra dev   # installs all dev dependencies including pytest-asyncio
+pre-commit install    # registers the git pre-commit hooks (see below)
 pytest tests/ -x -q
 ```
 
-> **Note:** If you use `uv`, run `uv sync --extra dev` instead of a bare `uv sync`.
-> A plain `uv sync` omits the `dev` optional-dependency group, so `pytest-asyncio`
-> will not be installed and all async tests will fail with
-> `PytestUnknownMarkWarning: Unknown pytest.mark.asyncio` — even though
-> `asyncio_mode = "auto"` is correctly set in `pyproject.toml`.
+> **Note:** Use `uv sync --extra dev`, not a bare `uv sync`. A plain `uv sync`
+> omits the `dev` optional-dependency group, so `pytest-asyncio` will not be
+> installed and all async tests will fail with
+> `PytestUnknownMarkWarning: Unknown pytest.mark.asyncio`.
+
+### Pre-commit hooks
+
+The repo ships a `.pre-commit-config.yaml` that enforces three gates locally
+before a commit is created:
+
+| Hook | What it does |
+|---|---|
+| `ruff` | Lint with auto-fix |
+| `ruff-format` | Auto-format source and tests |
+| `update-test-count` | Patches test/rule/analyzer counts in `README.md`, `CLAUDE.md`, and `.github/release-notes-template.md` |
+
+Run `pre-commit install` once after cloning. After that, every `git commit`
+runs all three hooks automatically — the same checks CI enforces, so you never
+push a commit that fails the format or count-drift gate.
+
+If `pre-commit` is not yet installed on your machine:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
 
 ## Code conventions
 
