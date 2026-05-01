@@ -595,9 +595,9 @@ class TestSastSecurityHardening:
 
         assert mock_run.call_count == 1
         _, kwargs = mock_run.call_args
-        assert (
-            kwargs.get("timeout") == SEMGREP_TIMEOUT_SECONDS
-        ), f"Expected timeout={SEMGREP_TIMEOUT_SECONDS}, got {kwargs.get('timeout')}"
+        assert kwargs.get("timeout") == SEMGREP_TIMEOUT_SECONDS, (
+            f"Expected timeout={SEMGREP_TIMEOUT_SECONDS}, got {kwargs.get('timeout')}"
+        )
 
     def test_sast_runner_no_shell_true(self, tmp_path: Path) -> None:
         """subprocess.run() must NOT be called with shell=True."""
@@ -619,9 +619,9 @@ class TestSastSecurityHardening:
         assert mock_run.call_count == 1
         _, kwargs = mock_run.call_args
         # shell must be absent or explicitly False — never True.
-        assert (
-            kwargs.get("shell") is not True
-        ), "shell=True found in subprocess.run() call"
+        assert kwargs.get("shell") is not True, (
+            "shell=True found in subprocess.run() call"
+        )
         # The command must be a list, not a string.
         cmd_arg = mock_run.call_args[0][0]
         assert isinstance(cmd_arg, list), (
