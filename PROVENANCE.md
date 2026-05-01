@@ -105,7 +105,28 @@ The attack path engine performs multi-hop reachability analysis across server ca
 - **Greedy set cover / hitting set approximation** — This is a well-known polynomial-time approximation for a classic NP-hard combinatorial optimization problem. The greedy algorithm achieves a ln(n) approximation bound (where n is the number of attack paths), which is optimal assuming P ≠ NP. No specific security research paper is cited here; this is standard computer science applied to a novel domain. The algorithm is described in any algorithms textbook (e.g., Cormen et al., *Introduction to Algorithms*, §35.3 — Set Cover).
 - The framing of "minimum set of assets to remove to break all attack paths" is analogous to network interdiction problems in operations research, applied here to MCP server dependency graphs.
 
-## Frameworks and standards
+### SAST rules — TypeScript path traversal, SQL injection, SSRF (semgrep-rules/typescript/injection/)
+
+New TypeScript detection rules added in v0.6.0: `mcp-ts-fs-readfile-traversal`,
+`mcp-ts-fs-writefile-traversal`, `mcp-ts-path-join-traversal`,
+`mcp-ts-string-concat-sql`, `mcp-ts-template-literal-sql`,
+`mcp-ts-fetch-ssrf`, `mcp-ts-http-request-ssrf`.
+
+**Research sources:**
+
+- **OWASP Path Traversal** ([OWASP](https://owasp.org/www-community/attacks/Path_Traversal)) — Documents the CWE-22 (Improper Limitation of a Pathname to a Restricted Directory) attack class; motivates checking `fs.readFile()`/`fs.writeFile()` and `path.join()` sinks for unvalidated path inputs.
+- **CWE-22 — Improper Limitation of a Pathname to a Restricted Directory** ([MITRE CWE](https://cwe.mitre.org/data/definitions/22.html)) — Canonical weakness definition; remediation guidance (resolve + boundary check) mirrors the CWE mitigation section.
+- **OWASP SQL Injection Prevention Cheat Sheet** ([OWASP](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html)) — Documents string concatenation and template literal interpolation as primary SQLi vectors; parameterized query syntax used in rule messages is taken directly from this cheat sheet.
+- **CWE-89 — Improper Neutralization of Special Elements used in an SQL Command** ([MITRE CWE](https://cwe.mitre.org/data/definitions/89.html)) — Canonical weakness definition for SQL injection.
+- **OWASP Server-Side Request Forgery Prevention Cheat Sheet** ([OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)) — Documents SSRF via unvalidated URLs in HTTP client calls (fetch, axios, http.request); allowlist-based remediation is taken from this cheat sheet.
+- **CWE-918 — Server-Side Request Forgery** ([MITRE CWE](https://cwe.mitre.org/data/definitions/918.html)) — Canonical weakness definition for SSRF.
+- **MCP Specification — Tool Input Handling** ([modelcontextprotocol.io](https://modelcontextprotocol.io)) — Tool argument values are the primary source of untrusted data in MCP server handlers; these rules target the most common high-impact sinks that receive tool arguments without validation.
+
+All seven rules are original pattern-only implementations (no taint analysis).
+They follow the same sink-matching approach as the existing Python SAST rules.
+Taint/dataflow analysis to reduce false positives is a documented future gap.
+
+
 
 Detection rules are mapped to these public standards where applicable:
 

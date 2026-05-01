@@ -1,0 +1,110 @@
+rules:
+  - id: mcp-ts-fs-readfile-traversal
+    message: >
+      fs.readFile() or fs.readFileSync() called with a variable path.
+      If the path originates from MCP tool arguments without validation, an
+      attacker can supply "../../../etc/passwd" or similar sequences to read
+      arbitrary files outside the intended directory (path traversal, CWE-22).
+      Validate the resolved path stays within the allowed base directory:
+      const resolved = path.resolve(BASE_DIR, userPath);
+      if (!resolved.startsWith(BASE_DIR + path.sep)) throw new Error("Path traversal blocked");
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-22
+      owasp: A01:2021
+      owasp-mcp-top-10:
+        - MCP05
+      description: fs.readFile/readFileSync with variable path — path traversal read risk in MCP handler
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+      fp-guidance: >
+        High false positive rate. Fires on any fs.readFile()/readFileSync() call
+        where the path argument is a variable. Suppress with
+        // nosemgrep: mcp-ts-fs-readfile-traversal when the path is validated
+        with path.resolve() and a startsWith() boundary check.
+    patterns:
+      - pattern-either:
+          - pattern: fs.readFile($PATH, ...)
+          - pattern: fs.readFileSync($PATH, ...)
+      - pattern-not:
+          pattern-either:
+            - pattern: fs.readFile("...", ...)
+            - pattern: fs.readFileSync("...", ...)
+            - pattern: fs.readFile(path.resolve(...), ...)
+            - pattern: fs.readFileSync(path.resolve(...), ...)
+            - pattern: fs.readFile(path.normalize(...), ...)
+            - pattern: fs.readFileSync(path.normalize(...), ...)
+
+  - id: mcp-ts-fs-writefile-traversal
+    message: >
+      fs.writeFile(), fs.writeFileSync(), fs.appendFile(), or
+      fs.appendFileSync() called with a variable path.
+      If the path originates from MCP tool arguments without validation, an
+      attacker can write or append to arbitrary files on the system (CWE-22).
+      Validate the resolved path stays within the allowed base directory before
+      performing any write operation.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-22
+      owasp: A01:2021
+      owasp-mcp-top-10:
+        - MCP05
+      description: fs.writeFile/appendFile with variable path — path traversal write risk in MCP handler
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+      fp-guidance: >
+        Same elevated FP rate as mcp-ts-fs-readfile-traversal. Suppress with
+        // nosemgrep: mcp-ts-fs-writefile-traversal when the path is validated
+        before the write operation.
+    patterns:
+      - pattern-either:
+          - pattern: fs.writeFile($PATH, ...)
+          - pattern: fs.writeFileSync($PATH, ...)
+          - pattern: fs.appendFile($PATH, ...)
+          - pattern: fs.appendFileSync($PATH, ...)
+      - pattern-not:
+          pattern-either:
+            - pattern: fs.writeFile("...", ...)
+            - pattern: fs.writeFileSync("...", ...)
+            - pattern: fs.appendFile("...", ...)
+            - pattern: fs.appendFileSync("...", ...)
+            - pattern: fs.writeFile(path.resolve(...), ...)
+            - pattern: fs.writeFileSync(path.resolve(...), ...)
+            - pattern: fs.appendFile(path.resolve(...), ...)
+            - pattern: fs.appendFileSync(path.resolve(...), ...)
+
+  - id: mcp-ts-path-join-traversal
+    message: >
+      path.join() called with a variable component. path.join() normalises
+      path separators but does NOT prevent directory traversal — a "../.."
+      sequence in a variable argument escapes the intended base directory.
+      Use path.resolve(BASE_DIR, userInput) followed by a
+      resolved.startsWith(BASE_DIR + path.sep) boundary check to safely
+      compose paths from user-supplied values.
+    severity: INFO
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-22
+      owasp: A01:2021
+      owasp-mcp-top-10:
+        - MCP05
+      description: path.join() with variable component — boundary check required to prevent traversal
+      confidence: LOW
+      likelihood: LOW
+      impact: MEDIUM
+      fp-guidance: >
+        High false positive rate — path.join() with a variable second argument is
+        very common and is safe when the result is subsequently validated with
+        path.resolve() and a startsWith() boundary check. Suppress with
+        // nosemgrep: mcp-ts-path-join-traversal when a boundary check follows.
+    patterns:
+      - pattern: path.join($BASE, $VAR, ...)
+      - pattern-not: path.join("...", "...", ...)
+      - pattern-not: path.join($BASE, "...", ...)

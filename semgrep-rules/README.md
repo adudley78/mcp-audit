@@ -32,7 +32,7 @@ semgrep --config semgrep-rules/python/poisoning/ path/to/server/
 semgrep --config semgrep-rules/typescript/ path/to/server/
 ```
 
-### Via mcp-audit (Pro feature)
+### Via mcp-audit
 
 ```bash
 mcp-audit scan --sast path/to/mcp-server/
@@ -68,10 +68,11 @@ For full reference, see [docs/sast-rules.md](../docs/sast-rules.md).
 
 | Category | Rules | What it detects |
 |---|---|---|
-| `typescript/injection` | 3 | child_process.exec injection, eval() |
+| `typescript/injection` | 10 | child_process.exec injection, eval(), path traversal (read/write/join), SQL injection (concat/template), SSRF (fetch/axios/http) |
 | `typescript/poisoning` | 3 | Hidden instructions, exfiltration keywords in descriptions |
 | `typescript/credentials` | 2 | Hardcoded API keys and tokens |
 | `typescript/transport` | 1 | http.createServer() without TLS |
+| `typescript/auth` | 2 | Missing auth middleware on MCP routes (MCPwn/CVE-2026-33032), auth headers logged (n8n-MCP/CVE-2026-41495) |
 
 ---
 

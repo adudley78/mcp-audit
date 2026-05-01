@@ -430,6 +430,149 @@ class TestSastCLI:
 # ── Security hardening tests ──────────────────────────────────────────────────
 
 
+# ── TestTsNewRules ────────────────────────────────────────────────────────────
+
+
+class TestTsNewRules:
+    """Verify parse_semgrep_output handles the 7 new TypeScript rule findings."""
+
+    def _make_ts_result(
+        self,
+        rule_id: str,
+        cwe: str,
+        severity: str = "WARNING",
+        path: str = "src/server.ts",
+        line: int = 10,
+    ) -> dict:
+        return _make_semgrep_result(
+            check_id=f"typescript.injection.{rule_id}",
+            path=path,
+            line=line,
+            severity=severity,
+            cwe=cwe,
+            category="injection",
+        )
+
+    def test_ts_path_traversal_read_detected(self) -> None:
+        """fs.readFile with variable path → HIGH finding (WARNING → HIGH mapping)."""
+        output = _make_semgrep_output(
+            self._make_ts_result("mcp-ts-fs-readfile-traversal", "CWE-22")
+        )
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+        assert findings[0].analyzer == "sast"
+        assert findings[0].cwe == "CWE-22"
+
+    def test_ts_path_traversal_write_detected(self) -> None:
+        """fs.writeFile with variable path → HIGH finding."""
+        output = _make_semgrep_output(
+            self._make_ts_result("mcp-ts-fs-writefile-traversal", "CWE-22")
+        )
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+        assert findings[0].cwe == "CWE-22"
+
+    def test_ts_path_join_traversal_detected(self) -> None:
+        """path.join with variable component → MEDIUM finding (INFO → MEDIUM)."""
+        output = _make_semgrep_output(
+            self._make_ts_result(
+                "mcp-ts-path-join-traversal", "CWE-22", severity="INFO"
+            )
+        )
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.MEDIUM
+        assert findings[0].cwe == "CWE-22"
+
+    def test_ts_sqli_string_concat_detected(self) -> None:
+        """String-concatenated SQL query → CRITICAL finding (ERROR → CRITICAL)."""
+        output = _make_semgrep_output(
+            self._make_ts_result("mcp-ts-string-concat-sql", "CWE-89", severity="ERROR")
+        )
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.CRITICAL
+        assert findings[0].cwe == "CWE-89"
+
+    def test_ts_sqli_template_literal_detected(self) -> None:
+        """Template literal / non-literal SQL query arg → HIGH finding."""
+        output = _make_semgrep_output(
+            self._make_ts_result(
+                "mcp-ts-unsafe-query-variable", "CWE-89", severity="WARNING"
+            )
+        )
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+        assert findings[0].cwe == "CWE-89"
+
+    def test_ts_ssrf_fetch_detected(self) -> None:
+        """fetch() with variable URL → HIGH finding."""
+        output = _make_semgrep_output(
+            self._make_ts_result("mcp-ts-fetch-ssrf", "CWE-918")
+        )
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+        assert findings[0].cwe == "CWE-918"
+
+    def test_ts_ssrf_http_request_detected(self) -> None:
+        """https.request() with variable URL → HIGH finding."""
+        output = _make_semgrep_output(
+            self._make_ts_result("mcp-ts-http-request-ssrf", "CWE-918")
+        )
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+        assert findings[0].cwe == "CWE-918"
+
+    def test_ts_safe_patterns_produce_no_findings(self) -> None:
+        """Semgrep returning zero results (safe code) produces empty findings list."""
+        empty_output = _make_semgrep_output()
+        findings = parse_semgrep_output(empty_output, _FAKE_TARGET)
+        assert findings == []
+
+    def test_ts_new_rules_all_tagged_sast(self) -> None:
+        """All new TS rule findings carry analyzer='sast'."""
+        new_rule_ids = [
+            "mcp-ts-fs-readfile-traversal",
+            "mcp-ts-fs-writefile-traversal",
+            "mcp-ts-path-join-traversal",
+            "mcp-ts-string-concat-sql",
+            "mcp-ts-unsafe-query-variable",
+            "mcp-ts-fetch-ssrf",
+            "mcp-ts-http-request-ssrf",
+        ]
+        results = [self._make_ts_result(rule_id, "CWE-22") for rule_id in new_rule_ids]
+        output = _make_semgrep_output(*results)
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert len(findings) == 7
+        assert all(f.analyzer == "sast" for f in findings)
+
+    def test_ts_path_traversal_finding_id_starts_with_sast(self) -> None:
+        """Finding ID for new TS rules starts with 'SAST-'."""
+        output = _make_semgrep_output(
+            self._make_ts_result("mcp-ts-fs-readfile-traversal", "CWE-22")
+        )
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert findings[0].id.startswith("SAST-")
+
+    def test_ts_sqli_finding_path_propagated(self) -> None:
+        """file path from Semgrep result propagates to finding_path."""
+        output = _make_semgrep_output(
+            self._make_ts_result(
+                "mcp-ts-string-concat-sql", "CWE-89", path="src/db_handler.ts"
+            )
+        )
+        findings = parse_semgrep_output(output, _FAKE_TARGET)
+        assert findings[0].finding_path == "src/db_handler.ts"
+
+
+# ── TestSastSecurityHardening ──────────────────────────────────────────────────
+
+
 class TestSastSecurityHardening:
     """Verify the subprocess security invariants in run_semgrep()."""
 
@@ -452,9 +595,9 @@ class TestSastSecurityHardening:
 
         assert mock_run.call_count == 1
         _, kwargs = mock_run.call_args
-        assert kwargs.get("timeout") == SEMGREP_TIMEOUT_SECONDS, (
-            f"Expected timeout={SEMGREP_TIMEOUT_SECONDS}, got {kwargs.get('timeout')}"
-        )
+        assert (
+            kwargs.get("timeout") == SEMGREP_TIMEOUT_SECONDS
+        ), f"Expected timeout={SEMGREP_TIMEOUT_SECONDS}, got {kwargs.get('timeout')}"
 
     def test_sast_runner_no_shell_true(self, tmp_path: Path) -> None:
         """subprocess.run() must NOT be called with shell=True."""
@@ -476,9 +619,9 @@ class TestSastSecurityHardening:
         assert mock_run.call_count == 1
         _, kwargs = mock_run.call_args
         # shell must be absent or explicitly False — never True.
-        assert kwargs.get("shell") is not True, (
-            "shell=True found in subprocess.run() call"
-        )
+        assert (
+            kwargs.get("shell") is not True
+        ), "shell=True found in subprocess.run() call"
         # The command must be a list, not a string.
         cmd_arg = mock_run.call_args[0][0]
         assert isinstance(cmd_arg, list), (

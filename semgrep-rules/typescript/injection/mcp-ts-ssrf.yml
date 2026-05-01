@@ -1,0 +1,80 @@
+rules:
+  - id: mcp-ts-fetch-ssrf
+    message: >
+      fetch() or axios called with a variable URL. If the URL originates from
+      MCP tool arguments without validation, an attacker can cause the server
+      to make requests to internal services (SSRF — Server-Side Request
+      Forgery): cloud metadata endpoints (169.254.169.254/latest/meta-data/),
+      internal APIs, or other services unreachable from the public internet.
+      Validate the URL against an allowlist of trusted schemes and hostnames
+      before making the request.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-918
+      owasp: A10:2021
+      owasp-mcp-top-10:
+        - MCP05
+      description: fetch()/axios with variable URL — SSRF risk in MCP handler
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+      fp-guidance: >
+        Fires on any fetch() or axios call where the URL argument is not a string
+        literal. Suppress with // nosemgrep: mcp-ts-fetch-ssrf when the URL is
+        validated against an allowlist of trusted domains before use.
+    patterns:
+      - pattern-either:
+          - pattern: fetch($URL, ...)
+          - pattern: axios($URL, ...)
+          - pattern: axios.get($URL, ...)
+          - pattern: axios.post($URL, ...)
+          - pattern: axios.put($URL, ...)
+          - pattern: axios.delete($URL, ...)
+          - pattern: axios.patch($URL, ...)
+      - pattern-not:
+          pattern-either:
+            - pattern: fetch("...", ...)
+            - pattern: axios("...", ...)
+            - pattern: axios.get("...", ...)
+            - pattern: axios.post("...", ...)
+            - pattern: axios.put("...", ...)
+            - pattern: axios.delete("...", ...)
+            - pattern: axios.patch("...", ...)
+
+  - id: mcp-ts-http-request-ssrf
+    message: >
+      Node.js https.request(), https.get(), http.request(), or http.get()
+      called with a variable URL or hostname. If the target originates from
+      MCP tool arguments without validation, an attacker can redirect requests
+      to internal services (SSRF). Always use https (not http) and validate
+      the target hostname against an allowlist before making the request.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-918
+      owasp: A10:2021
+      owasp-mcp-top-10:
+        - MCP05
+      description: https/http.request() with variable URL — SSRF risk in MCP handler
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+      fp-guidance: >
+        Fires on any https/http.request() or .get() call where the URL is not a
+        string literal. Suppress with // nosemgrep: mcp-ts-http-request-ssrf
+        when the target URL is validated against a trusted-domain allowlist.
+    patterns:
+      - pattern-either:
+          - pattern: https.request($URL, ...)
+          - pattern: http.request($URL, ...)
+          - pattern: https.get($URL, ...)
+          - pattern: http.get($URL, ...)
+      - pattern-not:
+          pattern-either:
+            - pattern: https.request("...", ...)
+            - pattern: http.request("...", ...)
+            - pattern: https.get("...", ...)
+            - pattern: http.get("...", ...)

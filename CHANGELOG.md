@@ -9,6 +9,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **SAST: 7 new TypeScript rules** — path traversal (3), SQL injection (2), SSRF (2) —
+  bringing the TypeScript rule count from 11 to 18 (total SAST pack: 52 rules).
+  - `mcp-ts-fs-readfile-traversal` (HIGH/CWE-22): `fs.readFile`/`readFileSync` with
+    unvalidated variable path.
+  - `mcp-ts-fs-writefile-traversal` (HIGH/CWE-22): `fs.writeFile`/`appendFile` with
+    unvalidated variable path.
+  - `mcp-ts-path-join-traversal` (MEDIUM/CWE-22): `path.join()` with variable
+    component and no inline `path.resolve()`.
+  - `mcp-ts-string-concat-sql` (CRITICAL/CWE-89): string concatenation of a SQL
+    keyword string into `db.query()`/`pool.query()`.
+  - `mcp-ts-unsafe-query-variable` (HIGH/CWE-89): non-literal (template literal or
+    variable) first argument to SQL query functions — catches template literal
+    interpolation (`\`SELECT ... ${userId}\``) that the concat rule cannot detect.
+  - `mcp-ts-fetch-ssrf` (HIGH/CWE-918): `fetch()`/`axios` called with a non-literal
+    URL — SSRF risk.
+  - `mcp-ts-http-request-ssrf` (HIGH/CWE-918): `https.request()`/`http.request()`
+    called with a non-literal URL — SSRF risk.
+  New Semgrep test fixtures in `semgrep-rules/tests/typescript/vulnerable/`
+  (`path_traversal_examples.ts`, `sqli_examples.ts`, `ssrf_examples.ts`).
+  Safe patterns for all new rules added to
+  `semgrep-rules/tests/typescript/clean/safe_server.ts`.
+  11 new unit tests in `tests/test_sast.py` covering severity mapping, analyzer tag,
+  CWE propagation, and finding ID format for each new rule.
+  Sources: OWASP Path Traversal, OWASP SQLi Prevention, OWASP SSRF Prevention,
+  CWE-22, CWE-89, CWE-918. See `PROVENANCE.md`.
+
+
 - Live connection (`--connect`): server stderr is now captured and suppressed
   from the terminal.  Use `--verbose` (new flag) to print captured server output
   under a "Server output" header after the scan.  Captured logs also appear in

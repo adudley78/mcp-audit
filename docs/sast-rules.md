@@ -69,7 +69,7 @@ mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
 
 ## Rule Catalog
 
-### Python Rules (28 rules)
+### Python Rules (34 rules)
 
 #### `python/injection/` — 9 rules
 
@@ -124,15 +124,22 @@ mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
 | `mcp-uvicorn-listen-all` | HIGH | CWE-605 | uvicorn.run() binding to 0.0.0.0 |
 | `mcp-fastapi-listen-all` | HIGH | CWE-605 | app.run(host="0.0.0.0") |
 
-### TypeScript Rules (9 rules)
+### TypeScript Rules (18 rules)
 
-#### `typescript/injection/` — 3 rules
+#### `typescript/injection/` — 10 rules
 
 | Rule ID | Severity | CWE | Description |
 |---|---|---|---|
 | `mcp-ts-exec-injection` | CRITICAL | CWE-78 | child_process.exec() with variable command |
 | `mcp-ts-execsync-injection` | CRITICAL | CWE-78 | execSync() with variable command |
 | `mcp-ts-eval-variable` | CRITICAL | CWE-95 | eval() with variable argument |
+| `mcp-ts-fs-readfile-traversal` | HIGH | CWE-22 | fs.readFile/readFileSync with variable path — path traversal read risk |
+| `mcp-ts-fs-writefile-traversal` | HIGH | CWE-22 | fs.writeFile/appendFile with variable path — path traversal write risk |
+| `mcp-ts-path-join-traversal` | MEDIUM | CWE-22 | path.join() with variable component — boundary check required |
+| `mcp-ts-string-concat-sql` | CRITICAL | CWE-89 | String-concatenated SQL query in db.query/pool.query |
+| `mcp-ts-unsafe-query-variable` | HIGH | CWE-89 | Non-literal (template literal or variable) argument in SQL query function |
+| `mcp-ts-fetch-ssrf` | HIGH | CWE-918 | fetch()/axios with variable URL — SSRF risk |
+| `mcp-ts-http-request-ssrf` | HIGH | CWE-918 | https/http.request() with variable URL — SSRF risk |
 
 #### `typescript/poisoning/` — 3 rules
 
@@ -154,6 +161,13 @@ mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
 | Rule ID | Severity | CWE | Description |
 |---|---|---|---|
 | `mcp-ts-express-no-https` | HIGH | CWE-319 | http.createServer() — plain HTTP, no TLS |
+
+#### `typescript/auth/` — 2 rules
+
+| Rule ID | Severity | CWE | Description |
+|---|---|---|---|
+| `mcp-ts-route-missing-auth-middleware` | CRITICAL | CWE-306 | MCP route registered without auth middleware (MCPwn/CVE-2026-33032) |
+| `mcp-ts-auth-header-logged` | HIGH | CWE-532 | Request headers logged — bearer token exposure (n8n-MCP/CVE-2026-41495) |
 
 ---
 
@@ -215,6 +229,44 @@ resp = requests.get(url, ...)  # nosemgrep: mcp-requests-variable-url
 Fires when a variable named `api_key`, `token`, `secret` etc. is assigned
 a string of 20+ characters. May fire on test fixtures or placeholder values.
 Review each finding manually.
+
+### TypeScript FP Risk
+
+**`mcp-ts-fs-readfile-traversal`** and **`mcp-ts-fs-writefile-traversal`**
+
+Fire on any `fs.readFile()` / `fs.writeFile()` call where the path argument
+is a variable. Inline `path.resolve()` is excluded. Suppress when the path
+is validated with a boundary check:
+
+```typescript
+const resolved = path.resolve(BASE_DIR, userInput);
+if (!resolved.startsWith(BASE_DIR + path.sep)) throw new Error("blocked");
+fs.readFile(resolved, "utf8", callback); // nosemgrep: mcp-ts-fs-readfile-traversal
+```
+
+**`mcp-ts-path-join-traversal`** (INFO / MEDIUM)
+
+Fires when `path.join()` is called with any variable argument. This is a
+broad heuristic — many `path.join()` usages are safe when the result is
+subsequently validated. Suppress when a `startsWith(BASE_DIR)` guard follows:
+
+```typescript
+const p = path.join(base, userInput); // nosemgrep: mcp-ts-path-join-traversal
+```
+
+**`mcp-ts-fetch-ssrf`** and **`mcp-ts-http-request-ssrf`**
+
+Fire on any fetch/axios/https.request call where the URL is not a string
+literal. Suppress when the URL is validated against an allowlist:
+
+```typescript
+const response = await fetch(url); // nosemgrep: mcp-ts-fetch-ssrf
+```
+
+> **Note:** Taint/dataflow analysis would eliminate most SSRF and path
+> traversal false positives by tracking data from MCP `arguments.get()` to
+> each sink. Pattern-only analysis is the current approach; taint analysis
+> is a planned future enhancement.
 
 ---
 

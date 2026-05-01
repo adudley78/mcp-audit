@@ -1,0 +1,78 @@
+rules:
+  - id: mcp-ts-string-concat-sql
+    message: >
+      String concatenation used to build a SQL query argument passed to a
+      query function. This is a SQL injection vulnerability — an attacker
+      who controls any concatenated variable can break out of the query and
+      execute arbitrary SQL. Use parameterized queries instead:
+        db.query("SELECT * FROM users WHERE id = $1", [userId])
+      or an ORM with placeholder syntax (knex.where("id", userId)).
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-89
+      owasp: A03:2021
+      owasp-mcp-top-10:
+        - MCP05
+      description: String-concatenated SQL query — SQL injection risk in MCP handler
+      confidence: HIGH
+      likelihood: HIGH
+      impact: CRITICAL
+    patterns:
+      - pattern-either:
+          - pattern: $CONN.query($QUERY + $VAR, ...)
+          - pattern: $POOL.query($QUERY + $VAR, ...)
+          - pattern: $CLIENT.query($QUERY + $VAR, ...)
+          - pattern: $DB.query($QUERY + $VAR, ...)
+          - pattern: $DB.execute($QUERY + $VAR, ...)
+          - pattern: $KNEX.raw($QUERY + $VAR, ...)
+      - metavariable-regex:
+          metavariable: $QUERY
+          regex: (?i).*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER).*
+
+  - id: mcp-ts-unsafe-query-variable
+    message: >
+      Non-literal first argument passed to a SQL query function. If the
+      argument is a template literal (e.g. `SELECT ... ${userId}`) or a
+      variable built with string operations, this is a SQL injection risk.
+      Use parameterized queries with a string literal and a separate
+      bindings array:
+        db.query("SELECT * FROM users WHERE id = $1", [userId])
+      String literal query strings are excluded from this rule.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-89
+      owasp: A03:2021
+      owasp-mcp-top-10:
+        - MCP05
+      description: Non-literal argument to SQL query function — possible template literal SQLi
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: CRITICAL
+      fp-guidance: >
+        Fires when the first argument to a query function is not a string literal.
+        This catches template literal interpolation that the concat rule cannot.
+        Suppress with // nosemgrep: mcp-ts-unsafe-query-variable when the query
+        variable is a safe parameterized statement built without user data.
+    patterns:
+      - pattern-either:
+          - pattern: $CONN.query($QUERY, ...)
+          - pattern: $POOL.query($QUERY, ...)
+          - pattern: $CLIENT.query($QUERY, ...)
+          - pattern: $DB.query($QUERY, ...)
+          - pattern: $DB.execute($QUERY, ...)
+          - pattern: $KNEX.raw($QUERY, ...)
+      - pattern-not:
+          pattern-either:
+            - pattern: $CONN.query("...", ...)
+            - pattern: $POOL.query("...", ...)
+            - pattern: $CLIENT.query("...", ...)
+            - pattern: $DB.query("...", ...)
+            - pattern: $DB.execute("...", ...)
+            - pattern: $KNEX.raw("...", ...)
+      - metavariable-regex:
+          metavariable: $QUERY
+          regex: (?i).*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER).*
