@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -130,6 +131,11 @@ def step_watcher_round_trip(binary_cmd: list[str]) -> bool:
         rescan_done = threading.Event()
         reader_exc: list[Exception] = []
 
+        # Force line-buffered output so the reader thread sees "Watching for
+        # changes…" promptly rather than after a block-buffer flush.  Rich
+        # Console also needs to know it is NOT a terminal so it skips ANSI
+        # codes; that is handled automatically when stdout is a pipe.
+        watch_env = {**os.environ, "PYTHONUNBUFFERED": "1"}
         proc = subprocess.Popen(  # noqa: S603
             [*binary_cmd, "watch", "--path", str(fixture)],
             stdout=subprocess.PIPE,
@@ -137,6 +143,7 @@ def step_watcher_round_trip(binary_cmd: list[str]) -> bool:
             text=True,
             encoding="utf-8",
             errors="replace",
+            env=watch_env,
         )
 
         # "Watching for changes" is printed by _run_and_print() after every
@@ -162,10 +169,11 @@ def step_watcher_round_trip(binary_cmd: list[str]) -> bool:
         t.start()
 
         try:
-            # Wait up to 8 s for the initial scan to complete.
-            if not initial_done.wait(timeout=8):
+            # Wait up to 20 s for the initial scan to complete (CI runners can
+            # be slow, and uv may need to resolve deps on first run).
+            if not initial_done.wait(timeout=20):
                 print(
-                    "FAIL: watcher initial scan did not complete within 8 s",
+                    "FAIL: watcher initial scan did not complete within 20 s",
                     file=sys.stderr,
                 )
                 return False
@@ -183,10 +191,11 @@ def step_watcher_round_trip(binary_cmd: list[str]) -> bool:
             )
             fixture.write_text(modified_config, encoding="utf-8")
 
-            # Wait up to 10 s for the watcher to detect the change and re-scan.
-            if not rescan_done.wait(timeout=10):
+            # Wait up to 30 s for the watcher to detect the change and re-scan.
+            # The debounce adds 0.5 s; the scan itself can take 5–10 s on CI.
+            if not rescan_done.wait(timeout=30):
                 print(
-                    "FAIL: watcher did not re-scan within 10 s after file modification",
+                    "FAIL: watcher did not re-scan within 30 s after file modification",
                     file=sys.stderr,
                 )
                 return False
