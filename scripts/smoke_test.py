@@ -124,7 +124,9 @@ def step_watcher_round_trip(binary_cmd: list[str]) -> bool:
     Returns True on success, False on timeout or error.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        fixture = Path(tmpdir) / "watcher_test.json"
+        # Must be a filename that _McpConfigEventHandler._is_relevant() accepts;
+        # "mcp.json" is hard-coded in _known_config_filenames() in watcher.py.
+        fixture = Path(tmpdir) / "mcp.json"
         fixture.write_text(_MINIMAL_CONFIG, encoding="utf-8")
 
         initial_done = threading.Event()
