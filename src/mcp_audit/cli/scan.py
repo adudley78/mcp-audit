@@ -1219,9 +1219,12 @@ def watch(
         console.print(f"  [dim]✗ {d}  (not found — will watch if created)[/dim]")
     console.print()
 
-    _run_and_print("initial scan")
-
+    # Start the observer before the initial scan so that any file changes made
+    # immediately after the scan completes are not missed due to a race between
+    # the "Watching for changes…" banner and the observer registration.
     watcher.start()
+
+    _run_and_print("initial scan")
     stop_event = threading.Event()
     try:
         while not stop_event.wait(timeout=1.0):
