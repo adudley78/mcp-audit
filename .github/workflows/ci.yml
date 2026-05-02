@@ -121,3 +121,37 @@ jobs:
             echo "ERROR: binary exceeds 35 MB hard limit" >&2
             exit 1
           fi
+
+  source-smoke:
+    name: Source smoke test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Only run on PRs and pushes to main — skip for every branch push.
+    # Ubuntu is covered by binary-smoke above; this job adds watcher/rug-pull/
+    # canonical-path coverage on both Ubuntu and Windows without the cost of a
+    # PyInstaller build.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv pip install -e ".[dev]" --system
+
+      - name: Run source smoke test
+        # Pass "uv run mcp-audit" as the multi-word binary invocation so the
+        # smoke test uses the installed source package rather than a built binary.
+        # On Windows the entry-point script may not be on PATH after --system
+        # install; "uv run" resolves the entry point reliably on all platforms.
+        run: python scripts/smoke_test.py uv run mcp-audit

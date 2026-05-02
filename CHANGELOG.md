@@ -10,6 +10,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **CI: smoke test extended with three new steps** (`scripts/smoke_test.py`):
+  - **Watcher round-trip** (Check 9): launches `mcp-audit watch` as a subprocess,
+    modifies a temp fixture, and asserts the watcher detects the change and re-scans
+    within 10 s — exercises inotify (Linux), ReadDirectoryChangesW (Windows), and
+    FSEvents (macOS).
+  - **Rug-pull two-scan** (Check 10): runs two consecutive scans on a fixture whose
+    `command`/`args` change between scans, then asserts a `RUGPULL-*` finding appears
+    in scan 2 — confirms rug-pull state is written to and read from
+    `platformdirs.user_config_dir("mcp-audit")/state/` on all platforms.
+  - **Canonical-path discovery** (Check 11): writes a minimal MCP config to the
+    OS-canonical Claude Desktop config path (`~/Library/Application Support/Claude/…`
+    on macOS, `~/.config/Claude/…` on Linux, `%APPDATA%\Claude\…` on Windows), runs
+    `mcp-audit discover --json`, and asserts the path appears in output; fixture is
+    always removed in a `finally` block.
+- **CI: `windows-latest` added to PR smoke matrix** — new `source-smoke` job in
+  `.github/workflows/ci.yml` runs `python scripts/smoke_test.py uv run mcp-audit` on
+  both `ubuntu-latest` and `windows-latest` on every PR and push to `main`, without
+  the cost of a PyInstaller build (uses the source install via `uv run`).
+- **Smoke test accepts multi-word binary invocations** — `smoke_test.py` now collects
+  all `sys.argv[1:]` as the binary command list, so `python scripts/smoke_test.py uv run
+  mcp-audit` and `python scripts/smoke_test.py dist/mcp-audit-linux-x86_64` are both
+  valid; existing release workflow invocations are unchanged.
+
 - **Registry grown to 75 known legitimate servers** — reduces false-positive SC-002
   (unknown server) and TRANSPORT-003 (unverified package) findings for common
   community packages. Eleven new entries added covering major ecosystem integrations:

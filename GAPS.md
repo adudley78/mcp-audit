@@ -88,9 +88,21 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 ## Platform coverage
 
-**Windows not tested.** Config discovery includes Windows paths but the tool has only been tested on macOS. Path handling, file encoding, and process spawning may behave differently on Windows. Extension discovery paths for VS Code, VS Code Insiders, Cursor, and Windsurf are now defined (STORY-0004, 2026-04-30) and unit-tested via monkeypatching; end-to-end validation on a real Windows host is a manual step.
+**~~Windows not tested (critical paths).~~  Partially resolved 2026-05-02 (STORY-0017).**
+The `source-smoke` CI job now runs `scripts/smoke_test.py` on `windows-latest` on every
+PR, covering: binary launch, discover, scan output, severity filter, SARIF, baseline
+round-trip, watcher re-scan (ReadDirectoryChangesW), rug-pull two-scan (state written to
+`%APPDATA%\mcp-audit\state\`), and canonical-path discovery (`%APPDATA%\Claude\…`).
+Config discovery includes Windows paths. Extension discovery paths for VS Code, VS Code
+Insiders, Cursor, and Windsurf are defined (STORY-0004, 2026-04-30) and unit-tested via
+monkeypatching. Full end-to-end validation on a physical Windows host is still a manual step.
 
-**Linux not tested.** Same as Windows — paths are defined but not validated on actual Linux systems.
+**~~Linux not tested (critical paths).~~  Partially resolved 2026-05-02 (STORY-0017).**
+The `source-smoke` CI job also runs on `ubuntu-latest`, covering the same 11 smoke-test
+steps with inotify-backed filesystem events and `~/.config/mcp-audit/state/` rug-pull
+state. The existing `binary-smoke` job additionally validates the PyInstaller Linux binary.
+Config discovery and extension paths are defined but end-to-end validation on non-Ubuntu
+Linux distributions is a manual step.
 
 ## Internal security findings
 
