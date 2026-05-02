@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-04-20",
-  "entry_count": 64,
+  "last_updated": "2026-05-02",
+  "entry_count": 75,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -1001,6 +1001,253 @@
       "weekly_downloads": 2200,
       "publisher_history": [
         "perplexity-ai"
+      ]
+    },
+    {
+      "name": "@github/github-mcp-server",
+      "source": "npm",
+      "repo": "https://github.com/github/github-mcp-server",
+      "maintainer": "GitHub",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "github",
+        "vcs",
+        "remote"
+      ],
+      "capabilities": [
+        "git",
+        "network_out"
+      ],
+      "first_published": "2025-03-20",
+      "weekly_downloads": 15800,
+      "publisher_history": [
+        "github-actions"
+      ]
+    },
+    {
+      "name": "@playwright/mcp",
+      "source": "npm",
+      "repo": "https://github.com/microsoft/playwright-mcp",
+      "maintainer": "Microsoft",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "browser",
+        "automation",
+        "local"
+      ],
+      "capabilities": [
+        "browser",
+        "network_out"
+      ],
+      "first_published": "2025-04-01",
+      "weekly_downloads": 22400,
+      "publisher_history": [
+        "playwright-bot",
+        "microsoft"
+      ]
+    },
+    {
+      "name": "tavily-mcp",
+      "source": "npm",
+      "repo": "https://github.com/tavily-ai/tavily-mcp",
+      "maintainer": "Tavily",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "search",
+        "remote"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2025-02-10",
+      "weekly_downloads": 9700,
+      "publisher_history": [
+        "tavily-ai"
+      ]
+    },
+    {
+      "name": "firecrawl-mcp",
+      "source": "npm",
+      "repo": "https://github.com/mendableai/firecrawl-mcp-server",
+      "maintainer": "Firecrawl",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "scraping",
+        "browser",
+        "remote"
+      ],
+      "capabilities": [
+        "browser",
+        "network_out"
+      ],
+      "first_published": "2025-02-28",
+      "weekly_downloads": 7300,
+      "publisher_history": [
+        "mendableai"
+      ]
+    },
+    {
+      "name": "mcp-server-qdrant",
+      "source": "pip",
+      "repo": "https://github.com/qdrant/mcp-server-qdrant",
+      "maintainer": "Qdrant",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "database",
+        "vector-search",
+        "local"
+      ],
+      "capabilities": [
+        "database",
+        "network_out"
+      ],
+      "first_published": "2025-03-05",
+      "weekly_downloads": 3800,
+      "publisher_history": [
+        "qdrant"
+      ]
+    },
+    {
+      "name": "@neondatabase/mcp-server-neon",
+      "source": "npm",
+      "repo": "https://github.com/neondatabase/mcp-server-neon",
+      "maintainer": "Neon",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "database",
+        "postgres",
+        "remote"
+      ],
+      "capabilities": [
+        "database",
+        "network_out"
+      ],
+      "first_published": "2025-03-12",
+      "weekly_downloads": 5100,
+      "publisher_history": [
+        "neondatabase"
+      ]
+    },
+    {
+      "name": "@shopify/dev-mcp",
+      "source": "npm",
+      "repo": "https://github.com/Shopify/dev-mcp",
+      "maintainer": "Shopify",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "ecommerce",
+        "dev-tools",
+        "remote"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2025-04-10",
+      "weekly_downloads": 4200,
+      "publisher_history": [
+        "shopify-bot"
+      ]
+    },
+    {
+      "name": "mcp-atlassian",
+      "source": "pip",
+      "repo": "https://github.com/sooperset/mcp-atlassian",
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "project-management",
+        "docs",
+        "remote"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2025-02-15",
+      "weekly_downloads": 2900,
+      "publisher_history": [
+        "sooperset"
+      ]
+    },
+    {
+      "name": "@agentdeskai/browser-tools-mcp",
+      "source": "npm",
+      "repo": "https://github.com/AgentDeskAI/browser-tools-mcp",
+      "maintainer": "AgentDesk",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "browser",
+        "dev-tools",
+        "local"
+      ],
+      "capabilities": [
+        "browser",
+        "network_out"
+      ],
+      "first_published": "2025-01-20",
+      "weekly_downloads": 18600,
+      "publisher_history": [
+        "agentdeskai"
+      ]
+    },
+    {
+      "name": "@azure/mcp",
+      "source": "npm",
+      "repo": "https://github.com/Azure/azure-mcp",
+      "maintainer": "Microsoft",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "cloud",
+        "azure",
+        "remote"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2025-04-15",
+      "weekly_downloads": 6800,
+      "publisher_history": [
+        "azure-sdk"
+      ]
+    },
+    {
+      "name": "langchain-mcp-adapters",
+      "source": "pip",
+      "repo": "https://github.com/langchain-ai/langchain-mcp-adapters",
+      "maintainer": "LangChain",
+      "verified": false,
+      "last_verified": "2026-05-02",
+      "known_versions": [],
+      "tags": [
+        "sdk",
+        "adapter",
+        "local"
+      ],
+      "capabilities": null,
+      "first_published": "2025-03-25",
+      "weekly_downloads": 11400,
+      "publisher_history": [
+        "langchain-bot",
+        "langchain"
       ]
     }
   ]

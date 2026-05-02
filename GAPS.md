@@ -60,7 +60,7 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 **Only npm packages are checked for typosquatting.** The MCP ecosystem includes Python servers (installed via uvx/pip), Docker containers, Go binaries, and other package managers. The supply chain analyzer only checks npm package names (npx/bunx/pnpx commands) against the known-server registry. PyPI typosquatting, Docker image verification, and other ecosystems are not covered.
 
-**Registry size is below launch target.** The known-server registry ships with 64 entries as of April 2026. The launch target is 75+ entries to cover the most-installed community servers. Community contributions are needed before the August launch — open a PR against `registry/known-servers.json`. See `docs/registry-contributions.md` for the contribution guide.
+~~**Registry size is below launch target.**~~ **Resolved 2026-05-02.** The known-server registry now ships with 75 entries, meeting the launch target. Eleven new entries were added covering major ecosystem integrations: `@github/github-mcp-server`, `@playwright/mcp`, `tavily-mcp`, `firecrawl-mcp`, `mcp-server-qdrant`, `@neondatabase/mcp-server-neon`, `@shopify/dev-mcp`, `mcp-atlassian`, `@agentdeskai/browser-tools-mcp`, `@azure/mcp`, and `langchain-mcp-adapters`. Community contributions are still welcome — open a PR against `registry/known-servers.json`. See `docs/registry-contributions.md` for the contribution guide.
 
 ~~**Levenshtein threshold may produce false positives for short package names.**~~ **Resolved 2026-04-30.** Package names of 5 characters or fewer now use a tighter threshold of 1 edit instead of 3. Names of 6+ characters keep the existing threshold of 3. The fix is in `analyzers/supply_chain.py` (`typo_threshold = 1 if len(package) <= 5 else 3`). Covered by `tests/test_supply_chain.py::TestShortNameThreshold`.
 
@@ -413,11 +413,30 @@ Result documented in the module-level docstring of `poisoning.py`.
 Results of running mcp-audit's own analysis pipeline against its own source,
 as required before PyPI publication.
 
-### `mcp-audit sast src/`
-Semgrep is not installed in the local dev environment; SAST self-scan could
-not be run.  The 37 bundled rules ship in the wheel and are exercised by CI
-on every PR via the GitHub Actions workflow.  Manual SAST self-scan deferred
-until Semgrep is available in the environment (`pip install semgrep`).
+### `mcp-audit sast src/` (updated 2026-05-02)
+
+Semgrep is now a dev extra (`uv sync --extra dev`). Self-scan run against
+`src/mcp_audit/` using the bundled rule pack (`semgrep-rules/`):
+
+```
+semgrep --config semgrep-rules/ src/mcp_audit/
+Rules run: 34 (Python rules only — TypeScript rules do not apply to .py files)
+Targets scanned: 73 files
+Findings: 0
+```
+
+**Result: zero findings.** No `# nosemgrep` suppressions needed.
+
+Caveat: the venv-installed `semgrep` (via `uv run semgrep`) fails to start on
+Python 3.12 due to an `opentelemetry-instrumentation` transitive dependency
+bug (`ModuleNotFoundError: No module named 'pkg_resources'`). The scan above
+used the system `semgrep` binary
+(`/Library/Frameworks/Python.framework/Versions/3.12/bin/semgrep`).
+`semgrep` is retained in the dev extras because the CI environment (Ubuntu,
+Python 3.11) does not exhibit this issue and the `semgrep --test semgrep-rules/`
+rule-fixture tests run cleanly there. The `pkg_resources` absence is a known
+Python 3.12 + older `setuptools` interaction in specific venv configurations;
+tracking as a future dependency hygiene item.
 
 ### `mcp-audit scan --check-vulns`
 One finding: `rug_pull / claude-desktop/filesystem` (INFO severity).

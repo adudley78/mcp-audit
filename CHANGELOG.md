@@ -10,6 +10,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Registry grown to 75 known legitimate servers** — reduces false-positive SC-002
+  (unknown server) and TRANSPORT-003 (unverified package) findings for common
+  community packages. Eleven new entries added covering major ecosystem integrations:
+  `@github/github-mcp-server` (GitHub), `@playwright/mcp` (Microsoft), `tavily-mcp`
+  (Tavily AI), `firecrawl-mcp` (Firecrawl), `mcp-server-qdrant` (Qdrant),
+  `@neondatabase/mcp-server-neon` (Neon), `@shopify/dev-mcp` (Shopify),
+  `mcp-atlassian` (community Atlassian connector), `@agentdeskai/browser-tools-mcp`
+  (AgentDesk), `@azure/mcp` (Microsoft Azure), and `langchain-mcp-adapters`
+  (LangChain). Registry size: 64 → 75.
+
+- **`semgrep` added to dev extras** — contributors can now run
+  `uv sync --extra dev && semgrep --config semgrep-rules/ src/mcp_audit/` without
+  a separate Semgrep install. Semgrep self-scan result: 34 Python rules, 73 files,
+  0 findings. See `GAPS.md` § "Self-scan results" for full details.
+
 - **TypeScript SAST: 7 new rule categories (11 rules) close the gap with Python** —
   TS rule count: 18 → 29 (total SAST pack: 52 → 63 rules).
   - `mcp-ts-credential-default-param` (CWE-798/HIGH): hardcoded string used as
