@@ -1661,6 +1661,8 @@ class TestRunStaticPipeline:
             skip_rug_pull: bool,  # noqa: ARG001
             state_path: Path | None,  # noqa: ARG001
             extra_rules_dirs: list[Path] | None,  # noqa: ARG001
+            scoring_weights=None,  # noqa: ARG001
+            scoring_weights_source: str = "default",  # noqa: ARG001
         ) -> ScanResult:
             sentinel.servers = all_servers
             # Stash the analyzer list on the sentinel so the test can assert.
@@ -1707,6 +1709,8 @@ class TestRunStaticPipeline:
             skip_rug_pull: bool,  # noqa: ARG001
             state_path: Path | None,  # noqa: ARG001
             extra_rules_dirs: list[Path] | None,  # noqa: ARG001
+            scoring_weights=None,  # noqa: ARG001
+            scoring_weights_source: str = "default",  # noqa: ARG001
         ) -> ScanResult:
             sentinel.errors.append(f"servers={[s.name for s in all_servers]}")
             return sentinel
@@ -1719,3 +1723,112 @@ class TestRunStaticPipeline:
 
         assert result is sentinel
         assert any(e == "servers=['async-srv']" for e in sentinel.errors)
+
+
+# ── TestCustomScoringWeightsPipeline ──────────────────────────────────────────
+
+
+class TestCustomScoringWeightsPipeline:
+    """Scoring weights are threaded from run_scan into _run_static_pipeline."""
+
+    def test_custom_weights_wired_through_pipeline(self, tmp_path: Path) -> None:
+        """Pipeline with custom weights produces the correct weights_source."""
+        from mcp_audit.governance.models import ScoringDeductions, ScoringWeights
+        from mcp_audit.scanner import _run_static_pipeline
+
+        server = _make_server("weights-test")
+        result = ScanResult()
+        result.servers = [server]
+        result.servers_found = 1
+
+        weights = ScoringWeights(deductions=ScoringDeductions(CRITICAL=-40))
+
+        returned = _run_static_pipeline(
+            result=result,
+            all_servers=[server],
+            configs=[],
+            analyzers=[],
+            skip_rug_pull=True,
+            state_path=tmp_path / "state.json",
+            extra_rules_dirs=None,
+            scoring_weights=weights,
+            scoring_weights_source="policy:/tmp/test-policy.yml",
+        )
+
+        assert returned.score is not None
+        assert returned.score.weights_source == "policy:/tmp/test-policy.yml"
+
+    def test_custom_critical_weight_lowers_score(self, tmp_path: Path) -> None:
+        """A heavier CRITICAL deduction must produce a strictly lower numeric score."""
+        from mcp_audit.analyzers.base import BaseAnalyzer
+        from mcp_audit.governance.models import ScoringDeductions, ScoringWeights
+        from mcp_audit.scanner import _run_static_pipeline
+
+        class _CriticalFindingAnalyzer(BaseAnalyzer):
+            name = "test-crit"
+            description = "Injects one CRITICAL finding for testing."
+
+            def analyze(self, server: ServerConfig) -> list[Finding]:
+                return [
+                    Finding(
+                        id="CRIT-TEST",
+                        severity=Severity.CRITICAL,
+                        analyzer=self.name,
+                        client=server.client,
+                        server=server.name,
+                        title="Critical test",
+                        description="desc",
+                        evidence="ev",
+                        remediation="fix",
+                    )
+                ]
+
+        server = _make_server("crit-server")
+
+        def _run(weights=None, source="default") -> ScanResult:
+            r = ScanResult()
+            r.servers = [server]
+            r.servers_found = 1
+            return _run_static_pipeline(
+                result=r,
+                all_servers=[server],
+                configs=[],
+                analyzers=[_CriticalFindingAnalyzer()],
+                skip_rug_pull=True,
+                state_path=tmp_path / "state.json",
+                extra_rules_dirs=None,
+                scoring_weights=weights,
+                scoring_weights_source=source,
+            )
+
+        default_result = _run()
+        custom_result = _run(
+            weights=ScoringWeights(deductions=ScoringDeductions(CRITICAL=-40)),
+            source="policy:/tmp/p.yml",
+        )
+
+        assert default_result.score is not None
+        assert custom_result.score is not None
+        assert custom_result.score.numeric_score < default_result.score.numeric_score
+        assert custom_result.score.weights_source == "policy:/tmp/p.yml"
+
+    def test_default_weights_source_is_default(self, tmp_path: Path) -> None:
+        """Without custom weights, weights_source must be 'default'."""
+        from mcp_audit.scanner import _run_static_pipeline
+
+        server = _make_server("default-weights")
+        result = ScanResult()
+        result.servers = [server]
+
+        returned = _run_static_pipeline(
+            result=result,
+            all_servers=[server],
+            configs=[],
+            analyzers=[],
+            skip_rug_pull=True,
+            state_path=tmp_path / "state.json",
+            extra_rules_dirs=None,
+        )
+
+        assert returned.score is not None
+        assert returned.score.weights_source == "default"

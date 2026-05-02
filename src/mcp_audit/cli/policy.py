@@ -78,6 +78,23 @@ name: "My organisation governance policy"
 #       allow_stdio: true
 #       allow_http: false
 #       block_http: true
+
+# ── Custom scoring weights ─────────────────────────────────────────────────────
+# Override the default severity deductions and positive-signal bonuses.
+# All deduction values must be <= 0; all positive-signal values must be >= 0.
+# Absent keys fall back to their defaults (partial overrides are valid).
+# scoring:
+#   deductions:
+#     CRITICAL: -25   # default
+#     HIGH: -10
+#     MEDIUM: -5
+#     LOW: -2
+#     INFO: -1
+#   positive_signals:
+#     max_total_bonus: 10   # cap on total bonus points
+#     no_credentials: 3     # bonus when no credential findings
+#     all_pinned: 3         # bonus when no CRITICAL/HIGH findings
+#     registry_only: 4      # bonus when no prompt-injection findings
 """
 
 
@@ -128,6 +145,13 @@ def policy_validate(
     if loaded.client_overrides:
         console.print(
             f"  client_overrides: {', '.join(loaded.client_overrides.keys())}"
+        )
+    if loaded.scoring is not None:
+        d = loaded.scoring.deductions
+        ps = loaded.scoring.positive_signals
+        console.print(
+            f"  scoring: deductions=({d.CRITICAL}/{d.HIGH}/{d.MEDIUM}/{d.LOW}/{d.INFO})"
+            f" max_bonus={ps.max_total_bonus}"
         )
 
 

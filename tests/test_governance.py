@@ -21,6 +21,9 @@ from mcp_audit.governance.models import (
     PolicyMode,
     RegistryPolicy,
     ScoreThreshold,
+    ScoringDeductions,
+    ScoringPositiveSignals,
+    ScoringWeights,
     TransportPolicy,
 )
 from mcp_audit.models import (
@@ -670,3 +673,132 @@ class TestGovernanceFindingFormat:
         assert "50" in desc
         assert "F" in desc
         assert "90" in desc
+
+
+# ── TestScoringWeightsModels ──────────────────────────────────────────────────
+
+
+class TestScoringWeightsModels:
+    """Unit tests for ScoringDeductions, ScoringPositiveSignals, ScoringWeights."""
+
+    def test_deductions_defaults(self) -> None:
+        d = ScoringDeductions()
+        assert d.CRITICAL == -25
+        assert d.HIGH == -10
+        assert d.MEDIUM == -5
+        assert d.LOW == -2
+        assert d.INFO == -1
+
+    def test_positive_signals_defaults(self) -> None:
+        ps = ScoringPositiveSignals()
+        assert ps.max_total_bonus == 10
+        assert ps.no_credentials == 3
+        assert ps.all_pinned == 3
+        assert ps.registry_only == 4
+
+    def test_scoring_weights_defaults(self) -> None:
+        sw = ScoringWeights()
+        assert isinstance(sw.deductions, ScoringDeductions)
+        assert isinstance(sw.positive_signals, ScoringPositiveSignals)
+
+    def test_positive_deduction_rejected(self) -> None:
+        import pytest
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            ScoringDeductions(CRITICAL=5)
+
+    def test_zero_deduction_is_valid(self) -> None:
+        d = ScoringDeductions(CRITICAL=0)
+        assert d.CRITICAL == 0
+
+    def test_negative_bonus_rejected(self) -> None:
+        import pytest
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            ScoringPositiveSignals(no_credentials=-1)
+
+    def test_zero_bonus_is_valid(self) -> None:
+        ps = ScoringPositiveSignals(max_total_bonus=0)
+        assert ps.max_total_bonus == 0
+
+    def test_unknown_keys_ignored(self) -> None:
+        """ScoringWeights must silently ignore unknown keys (forward-compat)."""
+        sw = ScoringWeights.model_validate(
+            {"deductions": {"CRITICAL": -30, "future_key": "ignored"}}
+        )
+        assert sw.deductions.CRITICAL == -30
+
+    def test_scoring_field_on_governance_policy(self) -> None:
+        policy = GovernancePolicy(
+            scoring=ScoringWeights(deductions=ScoringDeductions(CRITICAL=-40))
+        )
+        assert policy.scoring is not None
+        assert policy.scoring.deductions.CRITICAL == -40
+
+    def test_governance_policy_scoring_none_by_default(self) -> None:
+        policy = GovernancePolicy()
+        assert policy.scoring is None
+
+
+# ── TestPolicyValidateScoringBlock ────────────────────────────────────────────
+
+
+class TestPolicyValidateScoringBlock:
+    """policy validate accepts valid scoring blocks and rejects invalid ones."""
+
+    def test_policy_validate_accepts_scoring_block(self, tmp_path: Path) -> None:
+        policy_file = tmp_path / "policy.yml"
+        _write_policy(
+            policy_file,
+            {
+                "version": 1,
+                "scoring": {
+                    "deductions": {"CRITICAL": -40, "HIGH": -15},
+                    "positive_signals": {"max_total_bonus": 8},
+                },
+            },
+        )
+        result = runner.invoke(app, ["policy", "validate", str(policy_file)])
+        assert result.exit_code == 0
+        assert "scoring" in result.output.lower()
+
+    def test_policy_validate_rejects_positive_deduction(self, tmp_path: Path) -> None:
+        policy_file = tmp_path / "policy.yml"
+        _write_policy(
+            policy_file,
+            {
+                "version": 1,
+                "scoring": {
+                    "deductions": {"CRITICAL": 5},  # invalid: positive
+                },
+            },
+        )
+        result = runner.invoke(app, ["policy", "validate", str(policy_file)])
+        assert result.exit_code == 2
+
+    def test_policy_validate_accepts_zero_deduction(self, tmp_path: Path) -> None:
+        policy_file = tmp_path / "policy.yml"
+        _write_policy(
+            policy_file,
+            {
+                "version": 1,
+                "scoring": {"deductions": {"CRITICAL": 0}},
+            },
+        )
+        result = runner.invoke(app, ["policy", "validate", str(policy_file)])
+        assert result.exit_code == 0
+
+    def test_policy_validate_accepts_unknown_scoring_key(self, tmp_path: Path) -> None:
+        """Unknown keys inside scoring block are silently ignored (forward-compat)."""
+        policy_file = tmp_path / "policy.yml"
+        _write_policy(
+            policy_file,
+            {
+                "version": 1,
+                "scoring": {"future_feature": "ignored"},
+            },
+        )
+        result = runner.invoke(app, ["policy", "validate", str(policy_file)])
+        assert result.exit_code == 0

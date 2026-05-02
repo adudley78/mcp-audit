@@ -238,6 +238,69 @@ approved_servers:
 
 ---
 
+## Scoring weights
+
+By default the scan score uses fixed deductions (CRITICAL −25, HIGH −15,
+MEDIUM −8, LOW −3, INFO −1) and fixed positive-signal bonuses (capped at +10).
+When your organisation has different risk priorities, add a `scoring:` block to
+the policy YAML to override any or all of these values.
+
+### Configuration
+
+```yaml
+scoring:
+  deductions:
+    CRITICAL: -40   # heavier penalty — suits injection-sensitive deployments
+    HIGH: -10       # default
+    MEDIUM: -5      # default
+    LOW: -2         # default
+    INFO: -1        # default
+  positive_signals:
+    max_total_bonus: 10   # default cap on total bonus points
+    no_credentials: 3     # bonus when no credential findings
+    all_pinned: 3         # bonus when no CRITICAL/HIGH findings
+    registry_only: 4      # bonus when no prompt-injection findings
+```
+
+**Validation rules:**
+
+- All `deductions` values must be `<= 0`. A value of `0` means that severity
+  does not reduce the score (e.g. `INFO: 0` to ignore informational findings in
+  scoring without suppressing them from output).
+- All `positive_signals` values must be `>= 0`.
+- Unknown keys inside the `scoring:` block are silently ignored
+  (forward-compatible — policy files remain valid as new fields are added).
+- Partial overrides are valid — omit any key to keep its default.
+
+### Audit transparency: `weights_source`
+
+Every `ScanScore` object carries a `weights_source` field:
+
+| Scenario | `weights_source` value |
+|---|---|
+| No `scoring:` block in policy | `"default"` |
+| Custom weights loaded from policy | `"policy:/absolute/path/to/policy.yml"` |
+
+The terminal score panel shows a dim `Weights: policy:<path>` line below the
+grade when custom weights are active, making the weight table traceable in
+screenshots and CI logs.
+
+The JSON output `score.weights_source` field is always present — consumers who
+don't care about it can ignore it without schema changes.
+
+```bash
+# Verify the weights_source in JSON output
+mcp-audit scan --policy .mcp-audit-policy.yml --format json | jq .score.weights_source
+```
+
+### `policy validate` support
+
+`mcp-audit policy validate <file>` validates the `scoring:` block alongside all
+other policy sections. A positive deduction value (e.g. `CRITICAL: 5`) exits 2
+with a human-readable error message.
+
+---
+
 ## Example: CI/CD governance gate
 
 Combine with the [GitHub Action](github-action.md):

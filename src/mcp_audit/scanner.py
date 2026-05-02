@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from platformdirs import user_config_dir
 
@@ -20,6 +21,9 @@ from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import DiscoveredConfig, discover_configs
 from mcp_audit.models import Finding, RegistryStats, ScanResult, ServerConfig, Severity
 from mcp_audit.scoring import calculate_score
+
+if TYPE_CHECKING:
+    from mcp_audit.governance.models import ScoringWeights
 
 _USER_RULES_DIR = Path(user_config_dir("mcp-audit")) / "rules"
 
@@ -184,6 +188,8 @@ def _run_static_pipeline(
     skip_rug_pull: bool = False,
     state_path: Path | None = None,
     extra_rules_dirs: list[Path] | None = None,
+    scoring_weights: ScoringWeights | None = None,
+    scoring_weights_source: str = "default",
 ) -> ScanResult:
     """Run the canonical static analysis pipeline against parsed servers.
 
@@ -222,6 +228,10 @@ def _run_static_pipeline(
         skip_rug_pull: Skip rug-pull analysis entirely (used by ``pin``/``diff``).
         state_path: Override the rug-pull state file location.
         extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+        scoring_weights: Optional custom scoring weights from a governance policy.
+            When ``None``, the hardcoded defaults in :mod:`mcp_audit.scoring` are used.
+        scoring_weights_source: Audit label written to ``ScanScore.weights_source``.
+            Callers should pass ``"policy:<abs-path>"`` when custom weights are active.
 
     Returns:
         The same :class:`~mcp_audit.models.ScanResult` passed in, now
@@ -282,7 +292,11 @@ def _run_static_pipeline(
         result.errors.append(f"rules_engine error: {e}")
 
     # ── 6. Scoring ────────────────────────────────────────────────────────────
-    result.score = calculate_score(result.findings)
+    result.score = calculate_score(
+        result.findings,
+        weights=scoring_weights,
+        weights_source=scoring_weights_source,
+    )
 
     # ── 7. Registry metadata ──────────────────────────────────────────────────
     result.registry_stats = _extract_registry_stats(analyzers)
@@ -328,6 +342,8 @@ async def run_scan_async(
     offline: bool = False,
     extra_rules_dirs: list[Path] | None = None,
     auth_token: str | None = None,
+    scoring_weights: ScoringWeights | None = None,
+    scoring_weights_source: str = "default",
 ) -> ScanResult:
     """Async scan entrypoint with optional live server enumeration.
 
@@ -354,6 +370,8 @@ async def run_scan_async(
         auth_token: Bearer token forwarded to SSE/HTTP servers as
             ``Authorization: Bearer <token>``.  Silently ignored for stdio
             servers.  Never stored or logged.
+        scoring_weights: Optional custom scoring weights from a governance policy.
+        scoring_weights_source: Audit label for ``ScanScore.weights_source``.
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
@@ -418,6 +436,8 @@ async def run_scan_async(
         skip_rug_pull=skip_rug_pull,
         state_path=state_path,
         extra_rules_dirs=extra_rules_dirs,
+        scoring_weights=scoring_weights,
+        scoring_weights_source=scoring_weights_source,
     )
 
 
@@ -430,6 +450,8 @@ def run_scan(
     offline: bool = False,
     extra_rules_dirs: list[Path] | None = None,
     auth_token: str | None = None,
+    scoring_weights: ScoringWeights | None = None,
+    scoring_weights_source: str = "default",
 ) -> ScanResult:
     """Run a complete scan: discover configs, parse them, analyze, return results.
 
@@ -455,6 +477,8 @@ def run_scan(
         auth_token: Bearer token forwarded to SSE/HTTP servers as
             ``Authorization: Bearer <token>``.  Silently ignored for stdio
             servers.  Never stored or logged.
+        scoring_weights: Optional custom scoring weights from a governance policy.
+        scoring_weights_source: Audit label for ``ScanScore.weights_source``.
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
@@ -476,6 +500,8 @@ def run_scan(
                 offline=offline,
                 extra_rules_dirs=extra_rules_dirs,
                 auth_token=auth_token,
+                scoring_weights=scoring_weights,
+                scoring_weights_source=scoring_weights_source,
             )
         )
 
@@ -493,4 +519,6 @@ def run_scan(
         skip_rug_pull=skip_rug_pull,
         state_path=state_path,
         extra_rules_dirs=extra_rules_dirs,
+        scoring_weights=scoring_weights,
+        scoring_weights_source=scoring_weights_source,
     )

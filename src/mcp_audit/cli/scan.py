@@ -46,6 +46,7 @@ from mcp_audit.extensions import analyzer as _extensions_analyzer
 from mcp_audit.extensions import discovery as _extensions_discovery
 from mcp_audit.governance.evaluator import evaluate_governance
 from mcp_audit.governance.loader import load_policy
+from mcp_audit.governance.models import GovernancePolicy
 from mcp_audit.models import Finding, ScanResult, Severity
 from mcp_audit.output.nucleus import format_nucleus
 from mcp_audit.output.sarif import format_sarif
@@ -428,6 +429,7 @@ def _apply_governance(
     policy: Path | None,
     analyzers: list | None,
     con: Console,
+    preloaded_policy: GovernancePolicy | None = None,
 ) -> ScanResult:
     """Evaluate governance policy and inject ``GOV-`` findings.
 
@@ -435,15 +437,22 @@ def _apply_governance(
     config.  Returns the result unchanged when no policy is resolved.  If a
     custom analyzer list was built with a shared ``SupplyChainAnalyzer``, its
     registry is reused to avoid re-reading the JSON file.
-    """
-    try:
-        resolved = load_policy(policy)
-    except ValueError as exc:
-        con.print(f"[red]Governance policy error:[/red] {exc}")
-        raise typer.Exit(2) from None
 
-    if resolved is None:
-        return result
+    When *preloaded_policy* is supplied (e.g. it was already loaded earlier in
+    the same scan to extract scoring weights), it is used directly and the disk
+    resolution step is skipped.
+    """
+    if preloaded_policy is not None:
+        resolved = preloaded_policy
+    else:
+        try:
+            resolved = load_policy(policy)
+        except ValueError as exc:
+            con.print(f"[red]Governance policy error:[/red] {exc}")
+            raise typer.Exit(2) from None
+
+        if resolved is None:
+            return result
 
     gov_registry = None
     if analyzers is not None:
@@ -824,6 +833,24 @@ def scan(
     analyzers = _build_custom_analyzers(registry, offline_registry)
     extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, console)
 
+    # Load the governance policy early so we can extract custom scoring weights
+    # before run_scan calls calculate_score inside _run_static_pipeline.
+    preloaded_policy: GovernancePolicy | None = None
+    scoring_weights = None
+    scoring_weights_source = "default"
+    try:
+        preloaded_policy = load_policy(policy)
+    except ValueError as exc:
+        console.print(f"[red]Governance policy error:[/red] {exc}")
+        raise typer.Exit(2) from None
+    if preloaded_policy is not None and preloaded_policy.scoring is not None:
+        scoring_weights = preloaded_policy.scoring
+        if policy is not None:
+            resolved_policy_path = policy.resolve()
+        else:
+            resolved_policy_path = Path(".mcp-audit-policy.yml").resolve()
+        scoring_weights_source = f"policy:{resolved_policy_path}"
+
     result = _cli.run_scan(
         extra_paths=extra_paths,
         analyzers=analyzers,
@@ -831,6 +858,8 @@ def scan(
         offline=offline,
         extra_rules_dirs=extra_rules_dirs if extra_rules_dirs else None,
         auth_token=connect_token,
+        scoring_weights=scoring_weights,
+        scoring_weights_source=scoring_weights_source,
     )
 
     if asset_prefix:
@@ -856,7 +885,9 @@ def scan(
     _surface_user_path_errors(result, extra_paths, console)
 
     result = _apply_baseline_drift(result, baseline_name, console)
-    result = _apply_governance(result, policy, analyzers, console)
+    result = _apply_governance(
+        result, policy, analyzers, console, preloaded_policy=preloaded_policy
+    )
 
     if sast is not None:
         result = _apply_sast(result, sast, console)

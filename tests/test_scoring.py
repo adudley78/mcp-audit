@@ -6,10 +6,16 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 from rich.console import Console
 from typer.testing import CliRunner
 
 from mcp_audit.cli import app
+from mcp_audit.governance.models import (
+    ScoringDeductions,
+    ScoringPositiveSignals,
+    ScoringWeights,
+)
 from mcp_audit.models import Finding, ScanResult, ScanScore, Severity
 from mcp_audit.scoring import calculate_score, format_grade_terminal
 
@@ -59,8 +65,8 @@ class TestPerfectScore:
     def test_all_positive_signals_present(self) -> None:
         score = calculate_score([])
         assert "No credential exposure detected (+3 pts)" in score.positive_signals
-        assert "No high-severity issues found (+5 pts)" in score.positive_signals
-        assert "No prompt injection risks detected (+2 pts)" in score.positive_signals
+        assert "No high-severity issues found (+3 pts)" in score.positive_signals
+        assert "No prompt injection risks detected (+4 pts)" in score.positive_signals
 
     def test_no_deductions(self) -> None:
         score = calculate_score([])
@@ -111,18 +117,18 @@ class TestMixedSeverities:
     def test_mixed_math(self) -> None:
         findings = (
             _findings(Severity.CRITICAL, 1)  # −25
-            + _findings(Severity.HIGH, 2)  # −30
-            + _findings(Severity.MEDIUM, 1)  # −8
-            + _findings(Severity.LOW, 2)  # −6
+            + _findings(Severity.HIGH, 2)  # −20
+            + _findings(Severity.MEDIUM, 1)  # −5
+            + _findings(Severity.LOW, 2)  # −4
         )
-        # Base: 100 − 25 − 30 − 8 − 6 = 31
+        # Base: 100 − 25 − 20 − 5 − 4 = 46
         # Bonuses: has critical+high → no "no high-severity" bonus
-        #          no credentials (+3) + no poisoning (+2) = +5
-        # Final: 31 + 5 = 36
+        #          no credentials (+3) + no poisoning (+4) = +7
+        # Final: 46 + 7 = 53
         score = calculate_score(findings)
-        assert score.numeric_score == 36
+        assert score.numeric_score == 53
 
-    def test_mixed_grade_f(self) -> None:
+    def test_mixed_grade_d(self) -> None:
         findings = (
             _findings(Severity.CRITICAL, 1)
             + _findings(Severity.HIGH, 2)
@@ -130,7 +136,8 @@ class TestMixedSeverities:
             + _findings(Severity.LOW, 2)
         )
         score = calculate_score(findings)
-        assert score.grade == "F"
+        # 53 falls in D range (40–59)
+        assert score.grade == "D"
 
     def test_deductions_only_for_non_zero_groups(self) -> None:
         findings = _findings(Severity.HIGH, 1)  # only HIGH
@@ -191,19 +198,19 @@ class TestPositiveSignals:
     def test_poisoning_findings_suppress_poisoning_signal(self) -> None:
         findings = _findings(Severity.LOW, 1, analyzer="poisoning")
         score = calculate_score(findings)
-        assert "No prompt injection risks detected (+2 pts)" not in (
+        assert "No prompt injection risks detected (+4 pts)" not in (
             score.positive_signals
         )
 
     def test_high_finding_suppresses_no_high_severity_signal(self) -> None:
         findings = _findings(Severity.HIGH, 1)
         score = calculate_score(findings)
-        assert "No high-severity issues found (+5 pts)" not in score.positive_signals
+        assert "No high-severity issues found (+3 pts)" not in score.positive_signals
 
     def test_critical_finding_suppresses_no_high_severity_signal(self) -> None:
         findings = _findings(Severity.CRITICAL, 1)
         score = calculate_score(findings)
-        assert "No high-severity issues found (+5 pts)" not in score.positive_signals
+        assert "No high-severity issues found (+3 pts)" not in score.positive_signals
 
     def test_bonus_cap_limits_to_10(self) -> None:
         # All three bonuses apply: 3 + 5 + 2 = 10, which equals the cap.
@@ -249,7 +256,7 @@ class TestInfoFindings:
     def test_info_does_not_affect_no_high_severity_signal(self) -> None:
         findings = _findings(Severity.INFO, 1)
         score = calculate_score(findings)
-        assert "No high-severity issues found (+5 pts)" in score.positive_signals
+        assert "No high-severity issues found (+3 pts)" in score.positive_signals
 
 
 class TestFormatGradeTerminal:
@@ -346,3 +353,121 @@ class TestNoScoreFlag:
             result_default = runner.invoke(app, ["scan"])
 
         assert "Scan Score" in result_default.output
+
+
+# ── Custom scoring weights ─────────────────────────────────────────────────────
+
+
+class TestCustomWeights:
+    """calculate_score respects caller-supplied ScoringWeights."""
+
+    def test_custom_critical_deduction(self) -> None:
+        """CRITICAL: -40 produces a lower score than the default -25."""
+        findings = [_finding(Severity.CRITICAL)]
+        default_score = calculate_score(findings)
+
+        weights = ScoringWeights(deductions=ScoringDeductions(CRITICAL=-40))
+        custom_score = calculate_score(findings, weights=weights)
+
+        assert custom_score.numeric_score < default_score.numeric_score
+
+    def test_partial_override_falls_back(self) -> None:
+        """Only CRITICAL overridden; HIGH uses the hardcoded default (10 pts)."""
+        findings = [_finding(Severity.HIGH)]
+        default_score = calculate_score(findings)
+
+        # Override only CRITICAL — HIGH should fall back to default
+        weights = ScoringWeights(deductions=ScoringDeductions(CRITICAL=-40))
+        custom_score = calculate_score(findings, weights=weights)
+
+        # No CRITICAL findings, so override has no effect — scores must match
+        assert custom_score.numeric_score == default_score.numeric_score
+
+    def test_no_scoring_block_unchanged(self) -> None:
+        """Passing weights=None produces the same score as no custom weights."""
+        findings = [_finding(Severity.HIGH), _finding(Severity.MEDIUM)]
+        default_score = calculate_score(findings)
+        none_score = calculate_score(findings, weights=None)
+        assert none_score.numeric_score == default_score.numeric_score
+
+    def test_weights_source_default(self) -> None:
+        """weights_source is 'default' when no custom weights are used."""
+        score = calculate_score([])
+        assert score.weights_source == "default"
+
+    def test_weights_source_policy(self) -> None:
+        """weights_source reflects the caller-supplied label."""
+        weights = ScoringWeights()
+        score = calculate_score(
+            [], weights=weights, weights_source="policy:/abs/policy.yml"
+        )
+        assert score.weights_source == "policy:/abs/policy.yml"
+
+    def test_zero_deduction_valid(self) -> None:
+        """CRITICAL: 0 is accepted; CRITICAL findings produce no score deduction."""
+        findings = [_finding(Severity.CRITICAL)]
+        weights = ScoringWeights(deductions=ScoringDeductions(CRITICAL=0))
+        score = calculate_score(findings, weights=weights)
+        # With CRITICAL deducting 0 pts no deduction entry is emitted
+        assert not any("critical" in d.lower() for d in score.deductions)
+
+    def test_positive_deduction_rejected(self) -> None:
+        """CRITICAL: 5 (positive) must raise a Pydantic ValidationError."""
+        with pytest.raises(ValidationError):
+            ScoringDeductions(CRITICAL=5)
+
+    def test_custom_max_bonus(self) -> None:
+        """max_total_bonus=0 means no bonus points are awarded."""
+        weights = ScoringWeights(
+            positive_signals=ScoringPositiveSignals(max_total_bonus=0)
+        )
+        score = calculate_score([], weights=weights)
+        # No findings → 100 base, bonus capped at 0 → should still be 100
+        assert score.numeric_score == 100
+
+    def test_custom_positive_signal_values_used(self) -> None:
+        """Custom no_credentials value shows in the positive_signals label."""
+        weights = ScoringWeights(
+            positive_signals=ScoringPositiveSignals(no_credentials=7)
+        )
+        score = calculate_score([], weights=weights)
+        assert any("+7 pts" in s for s in score.positive_signals)
+
+    def test_negative_positive_signal_rejected(self) -> None:
+        """Negative bonus values must raise a ValidationError."""
+        with pytest.raises(ValidationError):
+            ScoringPositiveSignals(no_credentials=-1)
+
+    def test_deduction_string_reflects_custom_pts(self) -> None:
+        """Deduction label shows the actual points deducted (custom weight)."""
+        findings = [_finding(Severity.CRITICAL)]
+        weights = ScoringWeights(deductions=ScoringDeductions(CRITICAL=-40))
+        score = calculate_score(findings, weights=weights)
+        deduction_str = next(d for d in score.deductions if "critical" in d.lower())
+        assert "40" in deduction_str
+
+
+class TestWeightsSourceTerminalOutput:
+    """format_grade_terminal shows 'Weights:' line only when source != 'default'."""
+
+    def test_no_weights_line_for_default(self) -> None:
+        score = ScanScore(
+            numeric_score=80,
+            grade="B",
+            positive_signals=[],
+            deductions=[],
+            weights_source="default",
+        )
+        output = format_grade_terminal(score)
+        assert "Weights:" not in output
+
+    def test_weights_line_shown_for_custom(self) -> None:
+        score = ScanScore(
+            numeric_score=80,
+            grade="B",
+            positive_signals=[],
+            deductions=[],
+            weights_source="policy:/etc/policy.yml",
+        )
+        output = format_grade_terminal(score)
+        assert "Weights: policy:/etc/policy.yml" in output

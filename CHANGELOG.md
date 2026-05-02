@@ -10,6 +10,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **User-configurable scoring weights via governance policy YAML** — add a
+  `scoring:` block to `.mcp-audit-policy.yml` to override per-severity
+  deductions and positive-signal bonuses. Absent keys fall back to their
+  hardcoded defaults, so existing scans are unaffected. Deduction values
+  must be `<= 0`; bonus values must be `>= 0`; `policy validate` enforces
+  both constraints. See `docs/governance.md#scoring-weights` and the new
+  example policy at `examples/policies/custom-scoring-weights.yml`.
+- **`ScanScore.weights_source` audit field** — set to `"default"` when
+  hardcoded weights are used, `"policy:<absolute-path>"` when a governance
+  policy supplies custom weights. Present in JSON and SARIF output; the
+  terminal score panel shows a dim `Weights: policy:<path>` line when custom
+  weights are active. Existing JSON consumers that do not read this field
+  are unaffected (additive, non-breaking).
+
+### Changed
+
+- **Scoring defaults recalibrated**: HIGH −10 (was −15), MEDIUM −5 (was −8),
+  LOW −2 (was −3), poisoning-free bonus +4 (was +2). Users upgrading from
+  v0.6.x may see numeric grades shift upward on identical configurations.
+  The CRITICAL deduction (−25), INFO deduction (−1), credential-free bonus
+  (+3), and max-bonus cap (+10) are unchanged.
+
 - **CI: smoke test extended with three new steps** (`scripts/smoke_test.py`):
   - **Watcher round-trip** (Check 9): launches `mcp-audit watch` as a subprocess,
     modifies a temp fixture, and asserts the watcher detects the change and re-scans

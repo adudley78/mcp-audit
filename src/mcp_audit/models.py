@@ -188,6 +188,9 @@ class ScanScore(BaseModel):
     grade: str
     positive_signals: list[str]
     deductions: list[str]
+    # Audit field: "default" when hardcoded weights are used; "policy:<path>"
+    # when a governance policy supplied custom weights for this scan.
+    weights_source: str = "default"
 
 
 class RegistryStats(BaseModel):

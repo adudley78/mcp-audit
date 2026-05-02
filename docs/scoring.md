@@ -10,9 +10,9 @@ Start at 100 points. Deduct points per finding by severity:
 | Severity | Deduction per finding |
 |----------|-----------------------|
 | CRITICAL | −25 |
-| HIGH     | −15 |
-| MEDIUM   | −8  |
-| LOW      | −3  |
+| HIGH     | −10 |
+| MEDIUM   | −5  |
+| LOW      | −2  |
 | INFO     | −1  |
 
 Score is floored at 0 before bonuses are applied.
@@ -22,8 +22,8 @@ Score is floored at 0 before bonuses are applied.
 | Signal | Bonus | Condition |
 |--------|-------|-----------|
 | No credential exposure | +3 | No findings from the `credentials` analyzer |
-| No high-severity issues | +5 | No CRITICAL or HIGH findings |
-| No prompt injection risks | +2 | No findings from the `poisoning` analyzer |
+| No high-severity issues | +3 | No CRITICAL or HIGH findings |
+| No prompt injection risks | +4 | No findings from the `poisoning` analyzer |
 
 Final score is capped at 100.
 
@@ -62,9 +62,20 @@ output regardless.
 mcp-audit scan --no-score
 ```
 
+## Custom Scoring Weights
+
+Scoring weights are overridable via the [governance policy YAML](governance.md#scoring-weights).
+Add a `scoring:` block to your `.mcp-audit-policy.yml` to change how many
+points are deducted per severity and how much each positive signal is worth.
+
+When custom weights are active, the terminal score panel shows a dim
+`Weights: policy:<path>` line below the grade. The JSON output field
+`ScanScore.weights_source` is set to `"policy:<abs-path>"` for audit
+transparency. Without a `scoring:` block the field is `"default"`.
+
 ## Implementation
 
-`scoring.py` — `calculate_score(findings) -> ScanScore`
+`scoring.py` — `calculate_score(findings, weights=None, weights_source="default") -> ScanScore`
 
 The scorer is called once, after all analyzers have completed, inside
 `scanner.py`. Analyzers never call the scorer directly. `ScanScore` is a
@@ -93,8 +104,6 @@ format; the JSON `score` field always represents the full picture.
 
 ## Known Limitations
 
-- Scoring weights are hardcoded and not yet user-configurable. Custom weights
-  are planned via the policy-as-code engine.
 - INFO findings produce a −1 deduction entry even when positive bonuses push the
   final score to 100. The deduction is a correct signal — a clean scan with
   informational notes is still achievable as 100/A. See GAPS.md for detail.

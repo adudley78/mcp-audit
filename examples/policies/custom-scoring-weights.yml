@@ -1,0 +1,42 @@
+# mcp-audit governance policy — Custom Scoring Weights
+#
+# Demonstrates how to override the default scoring deductions and positive-signal
+# bonuses via the `scoring:` block. This is useful when your team has different
+# risk priorities than the mcp-audit defaults.
+#
+# Usage:
+#   mcp-audit scan --policy examples/policies/custom-scoring-weights.yml
+#   mcp-audit policy validate examples/policies/custom-scoring-weights.yml
+#
+# See docs/governance.md#scoring-weights for full documentation.
+#
+version: 1
+name: "Custom scoring weights — injection-sensitive deployment"
+
+# ── Custom scoring weights ─────────────────────────────────────────────────────
+# Rules:
+#   - All deduction values must be <= 0 (negative or zero).
+#   - Zero means that severity does not reduce the score.
+#   - All positive_signals values must be >= 0.
+#   - Omit any key to use its default value (partial overrides are valid).
+#   - Unknown keys are silently ignored (forward-compatible).
+scoring:
+  deductions:
+    CRITICAL: -40   # heavier penalty for injection-risk-sensitive deployments
+    HIGH: -10       # default
+    MEDIUM: -5      # default
+    LOW: -2         # default
+    INFO: 0         # ignore informational findings in scoring (still shown in output)
+  positive_signals:
+    max_total_bonus: 10   # default cap on total bonus points
+    no_credentials: 3     # bonus when no credential findings
+    all_pinned: 3         # bonus when no CRITICAL/HIGH findings
+    registry_only: 4      # bonus when no prompt-injection findings
+
+# ── Minimum scan score ────────────────────────────────────────────────────────
+# The score_threshold check runs after the weighted scoring above, so the
+# minimum here reflects your custom weight table.
+score_threshold:
+  minimum: 70
+  violation_severity: medium
+  message: "Configuration scored {score} ({grade}), below required minimum of {minimum}"
