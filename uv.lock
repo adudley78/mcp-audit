@@ -870,7 +870,7 @@ wheels = [
 
 [[package]]
 name = "mcp-audit-scanner"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "packaging" },
