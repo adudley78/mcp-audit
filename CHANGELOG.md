@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [0.6.0] - 2026-04-30
 
 ### Added
 - **Fleet merge: D3-powered HTML dashboard** — `mcp-audit merge --format html`
@@ -52,7 +52,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Sources: OWASP Path Traversal, OWASP SQLi Prevention, OWASP SSRF Prevention,
   CWE-22, CWE-89, CWE-918. See `PROVENANCE.md`.
 
-
 - Live connection (`--connect`): server stderr is now captured and suppressed
   from the terminal.  Use `--verbose` (new flag) to print captured server output
   under a "Server output" header after the scan.  Captured logs also appear in
@@ -70,7 +69,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `docs/live-connection.md`: new documentation covering `--connect`, stderr
   suppression, `--connect-token`, auth error messages, and troubleshooting.
 
+---
 
+## [0.5.1] - 2026-04-30
+
+### Added
 - Fleet merge: `--dir` now recurses into subdirectories to collect JSON scan
   outputs from nested CI artifact layouts (e.g. `dir/team-a/machine1.json`,
   `dir/team-b/machine2.json`). Existing flat-directory usage is unchanged.
