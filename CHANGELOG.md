@@ -9,6 +9,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Fleet merge: D3-powered HTML dashboard** — `mcp-audit merge --format html`
+  now produces a polished, self-contained fleet dashboard (replacing the previous
+  Rich-table HTML export).  The new dashboard includes:
+  - Header with fleet-level grade badge (worst-case machine grade A–F),
+    total machines, total findings, Crit+High count, average score, and
+    generation timestamp.
+  - Machine grid — one card per machine with hostname, colour-coded grade badge,
+    per-severity finding counts, and a mini severity-distribution bar chart.
+    Click a card to filter the findings table to that machine.
+  - Filterable, sortable findings table — filter by severity (pill buttons),
+    machine (dropdown), or analyzer (dropdown); sort by any column.
+  - Light/dark mode toggle (matching the per-scan dashboard).
+  - Fully self-contained — D3 v7 bundled inline, zero CDN references, renders
+    offline.
+  Files changed: `src/mcp_audit/fleet/merger.py` (replaced `_FLEET_HTML`
+  template and `generate_fleet_html()`), `docs/fleet-scanning.md`.
+
 - **SAST: 7 new TypeScript rules** — path traversal (3), SQL injection (2), SSRF (2) —
   bringing the TypeScript rule count from 11 to 18 (total SAST pack: 52 rules).
   - `mcp-ts-fs-readfile-traversal` (HIGH/CWE-22): `fs.readFile`/`readFileSync` with

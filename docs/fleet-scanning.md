@@ -207,15 +207,53 @@ jobs:
 
 ## Output formats
 
-| Format     | Command flag         | Description                                      |
-|------------|----------------------|--------------------------------------------------|
-| `terminal` | (default)            | Rich tables: Fleet Summary panel + finding table |
-| `json`     | `--format json`      | Full `FleetReport` as JSON; pipeable             |
-| `html`     | `--format html`      | Self-contained HTML table; open in any browser   |
+| Format     | Command flag         | Description                                                         |
+|------------|----------------------|---------------------------------------------------------------------|
+| `terminal` | (default)            | Rich tables: Fleet Summary panel + finding table                    |
+| `json`     | `--format json`      | Full `FleetReport` as JSON; pipeable                                |
+| `html`     | `--format html`      | Self-contained D3 fleet dashboard; open in any browser with no CDN  |
 
-The HTML output is a Rich-exported styled table. A full interactive D3 fleet
-dashboard (with machine relationship graphs and attack-path overlays) is a
-planned future enhancement — see GAPS.md.
+### HTML fleet dashboard
+
+`--format html` produces a fully self-contained, offline-capable HTML file
+with no CDN dependencies (D3 v7 is bundled inline). Open it in any browser:
+
+```bash
+mcp-audit merge --dir ./fleet-results/ --format html -o fleet-report.html
+open fleet-report.html   # macOS
+```
+
+The dashboard includes:
+
+- **Header** — fleet-level grade badge (worst-case machine grade), total
+  machines, total findings, Crit+High count, average score, and generation
+  timestamp.
+- **Fleet Summary grid** — one card per machine showing hostname, grade badge
+  (A–F colour-coded), finding count by severity, and a mini severity
+  distribution bar.  Click a card to filter the findings table to that machine.
+- **Filterable findings table** — deduplicated findings sorted by severity
+  (most critical first).  Filter by severity (pill buttons), machine (dropdown),
+  or analyzer (dropdown).  Click column headers to sort ascending/descending.
+- **Light/dark mode toggle** — matches the per-scan dashboard aesthetic.
+
+#### Grade colour coding
+
+| Grade | Colour  | Meaning                    |
+|-------|---------|----------------------------|
+| A     | Green   | 90–100 / minimal risk      |
+| B     | Blue    | 80–89 / low risk           |
+| C     | Yellow  | 70–79 / moderate risk      |
+| D     | Orange  | 50–69 / elevated risk      |
+| F     | Red     | < 50 / critical risk       |
+
+The **fleet grade** shown in the header is the worst grade across all machines
+in the fleet (e.g., if one machine scores F, the fleet grade is F).
+
+#### Offline use
+
+The HTML file is entirely self-contained: all JavaScript (D3 v7), CSS, and scan
+data are embedded inline.  It renders correctly with no network access and can
+be emailed, archived, or attached to a ticket.
 
 ---
 
@@ -270,7 +308,10 @@ planned future enhancement — see GAPS.md.
 See [GAPS.md](../GAPS.md#fleet-merge) for a full list. Key points:
 
 - `--dir` recurses into all subdirectories automatically; no depth limit.
-- HTML output is a table, not an interactive D3 dashboard.
+- The fleet HTML dashboard shows deduplicated findings; per-machine raw finding
+  lists are available in the JSON output only.
+- No cross-machine attack path graph — fleet-level attack path analysis is not
+  yet implemented (requires a fleet-wide attack path engine).
 - Deduplication requires an exact `(analyzer, server_name, title)` match;
   findings with different evidence strings are not collapsed.
 - `asset_prefix` is not stored in scan JSON; prefix filtering applies to

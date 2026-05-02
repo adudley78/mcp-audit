@@ -581,6 +581,73 @@ def test_generate_fleet_html_returns_html_string(tmp_path: Path) -> None:
     assert "Fleet Summary" in html
 
 
+def test_fleet_html_contains_all_machines(tmp_path: Path) -> None:
+    """All three machine hostnames must appear in the rendered HTML."""
+    f1 = _write_json(tmp_path / "m1.json", _scan_json(hostname="alpha-host"))
+    f2 = _write_json(tmp_path / "m2.json", _scan_json(hostname="beta-host"))
+    f3 = _write_json(tmp_path / "m3.json", _scan_json(hostname="gamma-host"))
+
+    report = FleetMerger().merge([f1, f2, f3])
+    html = generate_fleet_html(report)
+
+    assert "alpha-host" in html, "alpha-host must appear in fleet HTML"
+    assert "beta-host" in html, "beta-host must appear in fleet HTML"
+    assert "gamma-host" in html, "gamma-host must appear in fleet HTML"
+    assert "<!DOCTYPE html>" in html
+
+
+def test_fleet_html_is_self_contained(tmp_path: Path) -> None:
+    """Fleet HTML must not reference external CDN resources."""
+    f1 = _write_json(tmp_path / "m1.json", _scan_json(hostname="m1"))
+    report = FleetMerger().merge([f1])
+    html = generate_fleet_html(report)
+
+    cdn_refs = [
+        "https://fonts.googleapis.com",
+        "https://fonts.gstatic.com",
+        "https://cdn.",
+        "https://unpkg.com",
+        "https://cdnjs.cloudflare.com",
+    ]
+    for ref in cdn_refs:
+        assert ref not in html, (
+            f"Fleet HTML must not load external resources — found: {ref!r}. "
+            "Self-host or inline any fonts/scripts."
+        )
+
+
+def test_fleet_html_zero_findings(tmp_path: Path) -> None:
+    """A fleet with no findings renders valid HTML with a zero-findings message."""
+    f1 = _write_json(tmp_path / "m1.json", _scan_json(hostname="clean-a", findings=[]))
+    f2 = _write_json(tmp_path / "m2.json", _scan_json(hostname="clean-b", findings=[]))
+
+    report = FleetMerger().merge([f1, f2])
+    html = generate_fleet_html(report)
+
+    assert "<!DOCTYPE html>" in html
+    # The embedded JSON must reflect zero findings
+    assert '"total_findings": 0' in html
+    # Machine names still present
+    assert "clean-a" in html
+    assert "clean-b" in html
+
+
+def test_fleet_html_grade_badge_present(tmp_path: Path) -> None:
+    """The fleet grade badge element and grade letter must appear in the HTML."""
+    f1 = _write_json(
+        tmp_path / "m1.json",
+        _scan_json(hostname="graded-machine", score=_score_dict(55)),
+    )
+    report = FleetMerger().merge([f1])
+    html = generate_fleet_html(report)
+
+    # The badge container element must be present
+    assert "fleet-grade-badge" in html
+    # The grade letter from the score_dict default ("B") must be in the JSON data
+    assert '"fleet_grade"' in html
+    assert '"B"' in html
+
+
 # ── --dir flag ────────────────────────────────────────────────────────────────
 
 
