@@ -303,10 +303,14 @@ The Semgrep SAST rule pack (`semgrep-rules/`) has the following known limitation
 - `mcp-no-type-check-before-use` fires when `arguments.get()` is used without an immediately adjacent `isinstance()` check, even when the MCP SDK provides type validation at the protocol level.
 - `mcp-flask-no-ssl` matches any `$APP.run(...)` call; explicitly excludes `subprocess.run` and `asyncio.run`, but may fire on other `.run()` patterns.
 
-**TypeScript rules are less comprehensive than Python rules:**
-- Python has 28 rules across 5 categories; TypeScript has 9 rules across 4 categories.
-- No TypeScript-specific path traversal, SQL injection, or protocol rules yet.
-- TypeScript SSRF detection not yet implemented.
+**TypeScript SAST parity substantially improved (v0.7.0):**
+- Python has 34 rules across 6 categories; TypeScript has 29 rules across 6 categories.
+- v0.7.0 added 11 new TypeScript rules across 5 categories: credential default params,
+  secrets in console output, URL/base64/unicode in tool descriptions, missing input
+  validation, stack trace exposure, and listen-all-interfaces.
+- Remaining parity gaps (Python-only, no TS equivalent): hardcoded connection strings,
+  `app.run()` without SSL, and f-string SQL injection. These Python-specific patterns
+  have no idiomatic TypeScript equivalent in Semgrep OSS without taint analysis.
 
 **Rules target server source code, not installed binaries:**
 - SAST rules require access to the server implementation source code. They cannot scan pre-built npm packages, PyPI wheels, or Docker images. Config scanning (`mcp-audit scan`) remains the primary defense for production deployments.

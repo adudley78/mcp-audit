@@ -1,0 +1,40 @@
+rules:
+  - id: mcp-ts-description-contains-url
+    message: >
+      MCP tool description contains a URL. Legitimate tool descriptions should
+      not contain HTTP/HTTPS URLs — this pattern is used in tool poisoning attacks
+      to embed exfiltration endpoints that the AI agent will call with user data.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp-top-10:
+        - MCP03
+      description: URL found in TypeScript MCP tool description — possible exfiltration endpoint
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+    pattern-either:
+      - patterns:
+          - pattern: const $VAR = "$VALUE"
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: (?i).*(description|desc).*
+          - metavariable-regex:
+              metavariable: $VALUE
+              regex: (?s).*https?://[^\s]{5,}.*
+      - patterns:
+          - pattern: let $VAR = "$VALUE"
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: (?i).*(description|desc).*
+          - metavariable-regex:
+              metavariable: $VALUE
+              regex: (?s).*https?://[^\s]{5,}.*
+      - patterns:
+          - pattern: |
+              {description: "$VALUE", ...}
+          - metavariable-regex:
+              metavariable: $VALUE
+              regex: (?s).*https?://[^\s]{5,}.*

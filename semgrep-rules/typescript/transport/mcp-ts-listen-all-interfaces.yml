@@ -1,0 +1,51 @@
+rules:
+  - id: mcp-ts-express-listen-all
+    message: >
+      Express/HTTP server listen() binding to "0.0.0.0" (all interfaces). MCP
+      servers should bind to "127.0.0.1" (localhost) unless explicitly intended
+      for network access. Binding to all interfaces exposes the MCP server to
+      the local network and potentially the internet.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: transport
+      cwe: CWE-605
+      owasp: A05:2021
+      owasp-mcp-top-10:
+        - MCP07
+      cve: CVE-2026-33032
+      references:
+        - https://thehackernews.com/2026/04/critical-nginx-ui-vulnerability-cve.html
+      description: server.listen() binding to all interfaces — TypeScript MCP server unnecessarily exposed
+      confidence: HIGH
+      likelihood: HIGH
+      impact: MEDIUM
+    pattern-either:
+      - pattern: $APP.listen($PORT, "0.0.0.0", ...)
+      - pattern: $APP.listen($PORT, "", ...)
+
+  - id: mcp-ts-http-listen-all
+    message: >
+      HTTP/HTTPS server or Fastify listen() configured with host "0.0.0.0".
+      MCP servers should bind to "127.0.0.1" to limit network exposure.
+      Binding to all interfaces exposes the server to the local network.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: transport
+      cwe: CWE-605
+      owasp: A05:2021
+      owasp-mcp-top-10:
+        - MCP07
+      cve: CVE-2026-33032
+      references:
+        - https://thehackernews.com/2026/04/critical-nginx-ui-vulnerability-cve.html
+      description: listen() with host 0.0.0.0 in TypeScript MCP server — all interfaces exposed
+      confidence: HIGH
+      likelihood: HIGH
+      impact: MEDIUM
+    pattern-either:
+      - pattern: '$SERVER.listen({host: "0.0.0.0", ...})'
+      - pattern: '$SERVER.listen({host: "", ...})'
+      - pattern: '$APP.listen({host: "0.0.0.0", ...})'
+      - pattern: '$APP.listen({host: "", ...})'

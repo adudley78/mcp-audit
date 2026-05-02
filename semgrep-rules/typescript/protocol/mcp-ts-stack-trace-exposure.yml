@@ -1,0 +1,52 @@
+rules:
+  - id: mcp-ts-error-stack-in-return
+    message: >
+      err.stack returned from an async function. Stack traces expose internal
+      file paths, module structure, line numbers, and implementation details
+      to the AI model and potentially to end users. Handle errors gracefully
+      and return a sanitised error message instead of the raw stack trace.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: protocol
+      cwe: CWE-209
+      owasp: A05:2021
+      owasp-mcp-top-10:
+        - MCP07
+      description: Stack trace returned from async TypeScript MCP handler — information disclosure
+      confidence: HIGH
+      likelihood: MEDIUM
+      impact: MEDIUM
+    patterns:
+      - pattern: return $ERR.stack
+      - pattern-inside: |
+          async function $FUNC(...) {
+            ...
+          }
+
+  - id: mcp-ts-error-tostring-in-return
+    message: >
+      Raw exception message returned via String(err) or err.toString() from an
+      async function. Exception messages can expose sensitive information such
+      as file paths, connection strings, or internal state. Return a generic
+      error message and log the exception server-side instead.
+    severity: INFO
+    languages: [typescript, javascript]
+    metadata:
+      category: protocol
+      cwe: CWE-209
+      owasp: A05:2021
+      owasp-mcp-top-10:
+        - MCP07
+      description: Raw exception string returned from TypeScript MCP handler — information disclosure
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: LOW
+    patterns:
+      - pattern-either:
+          - pattern: return String($ERR)
+          - pattern: return $ERR.toString()
+      - pattern-inside: |
+          async function $FUNC(...) {
+            ...
+          }

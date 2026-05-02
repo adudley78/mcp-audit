@@ -124,7 +124,7 @@ mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
 | `mcp-uvicorn-listen-all` | HIGH | CWE-605 | uvicorn.run() binding to 0.0.0.0 |
 | `mcp-fastapi-listen-all` | HIGH | CWE-605 | app.run(host="0.0.0.0") |
 
-### TypeScript Rules (18 rules)
+### TypeScript Rules (29 rules)
 
 #### `typescript/injection/` — 10 rules
 
@@ -141,26 +141,42 @@ mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
 | `mcp-ts-fetch-ssrf` | HIGH | CWE-918 | fetch()/axios with variable URL — SSRF risk |
 | `mcp-ts-http-request-ssrf` | HIGH | CWE-918 | https/http.request() with variable URL — SSRF risk |
 
-#### `typescript/poisoning/` — 3 rules
+#### `typescript/poisoning/` — 5 rules
 
 | Rule ID | Severity | CWE | Description |
 |---|---|---|---|
 | `mcp-ts-tool-description-injection` | CRITICAL | CWE-1336 | Injection keywords in TS tool description |
 | `mcp-ts-tool-description-injection-2` | CRITICAL | CWE-1336 | Hidden action keywords in TS tool description |
 | `mcp-ts-tool-description-exfiltration` | CRITICAL | CWE-1336 | Exfiltration keywords in TS tool description |
+| `mcp-ts-description-contains-url` | HIGH | CWE-1336 | HTTP/HTTPS URL embedded in tool description — exfiltration endpoint |
+| `mcp-ts-description-base64-content` | HIGH | CWE-1336 | Base64-encoded content in tool description — obfuscated instructions |
+| `mcp-ts-description-unicode-escape` | MEDIUM | CWE-1336 | Unicode escape sequences in tool description |
 
-#### `typescript/credentials/` — 2 rules
+#### `typescript/credentials/` — 5 rules
 
 | Rule ID | Severity | CWE | Description |
 |---|---|---|---|
 | `mcp-ts-hardcoded-api-key` | CRITICAL | CWE-798 | Hardcoded credential in const declaration |
 | `mcp-ts-hardcoded-api-key-let` | CRITICAL | CWE-798 | Hardcoded credential in let declaration |
+| `mcp-ts-credential-default-param` | HIGH | CWE-798 | Hardcoded credential as default function parameter value |
+| `mcp-ts-console-log-sensitive` | HIGH | CWE-532 | Sensitive identifier passed to console.log/debug/warn |
+| `mcp-ts-console-error-sensitive` | HIGH | CWE-532 | Sensitive identifier passed to console.error |
 
-#### `typescript/transport/` — 1 rule
+#### `typescript/protocol/` — 3 rules
+
+| Rule ID | Severity | CWE | Description |
+|---|---|---|---|
+| `mcp-ts-no-type-check-before-use` | MEDIUM | CWE-20 | MCP tool argument used without typeof guard or schema validation |
+| `mcp-ts-error-stack-in-return` | HIGH | CWE-209 | err.stack returned from async handler — stack trace disclosure |
+| `mcp-ts-error-tostring-in-return` | MEDIUM | CWE-209 | String(err)/err.toString() returned — raw exception disclosure |
+
+#### `typescript/transport/` — 3 rules
 
 | Rule ID | Severity | CWE | Description |
 |---|---|---|---|
 | `mcp-ts-express-no-https` | HIGH | CWE-319 | http.createServer() — plain HTTP, no TLS |
+| `mcp-ts-express-listen-all` | HIGH | CWE-605 | server.listen(port, "0.0.0.0") — binds to all interfaces |
+| `mcp-ts-http-listen-all` | HIGH | CWE-605 | listen({host: "0.0.0.0"}) — Fastify/HTTP binds to all interfaces |
 
 #### `typescript/auth/` — 2 rules
 
@@ -261,6 +277,35 @@ literal. Suppress when the URL is validated against an allowlist:
 
 ```typescript
 const response = await fetch(url); // nosemgrep: mcp-ts-fetch-ssrf
+```
+
+**`mcp-ts-no-type-check-before-use`**
+
+Fires when `args[key]` is passed directly to a function without a `typeof` guard.
+Suppress when a Zod schema, Joi validator, or explicit `typeof` check has already
+validated the argument upstream:
+
+```typescript
+const val = args["query"]; // nosemgrep: mcp-ts-no-type-check-before-use
+```
+
+**`mcp-ts-console-log-sensitive`** and **`mcp-ts-console-error-sensitive`**
+
+Fire when a variable whose *name* matches a credential pattern is passed to a
+console method. Suppress when the variable name is credential-like but the value
+is not sensitive (e.g., a boolean `isTokenValid`, a count `authAttempts`):
+
+```typescript
+console.log(authAttempts); // nosemgrep: mcp-ts-console-log-sensitive
+```
+
+**`mcp-ts-error-tostring-in-return`**
+
+Fires on `return String(err)` or `return err.toString()` inside async functions.
+Suppress when the exception type is known not to contain sensitive data:
+
+```typescript
+return (err as TypeError).toString(); // nosemgrep: mcp-ts-error-tostring-in-return
 ```
 
 > **Note:** Taint/dataflow analysis would eliminate most SSRF and path

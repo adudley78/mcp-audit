@@ -1,0 +1,59 @@
+rules:
+  - id: mcp-ts-description-base64-content
+    message: >
+      MCP tool description contains what appears to be base64-encoded content.
+      Legitimate tool descriptions do not require base64 encoding — this pattern
+      is used in tool poisoning attacks to hide malicious instructions from human
+      reviewers while remaining readable to AI models.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp-top-10:
+        - MCP03
+      description: Base64-encoded content in TypeScript MCP tool description — obfuscated instructions
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: HIGH
+    pattern-either:
+      - patterns:
+          - pattern: const $VAR = "$VALUE"
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: (?i).*(description|desc).*
+          - metavariable-regex:
+              metavariable: $VALUE
+              regex: "[A-Za-z0-9+/]{20,}={0,2}"
+      - patterns:
+          - pattern: let $VAR = "$VALUE"
+          - metavariable-regex:
+              metavariable: $VAR
+              regex: (?i).*(description|desc).*
+          - metavariable-regex:
+              metavariable: $VALUE
+              regex: "[A-Za-z0-9+/]{20,}={0,2}"
+      - patterns:
+          - pattern: |
+              {description: "$VALUE", ...}
+          - metavariable-regex:
+              metavariable: $VALUE
+              regex: "[A-Za-z0-9+/]{20,}={0,2}"
+
+  - id: mcp-ts-description-unicode-escape
+    message: >
+      MCP tool description contains unicode escape sequences. Unicode escapes in
+      tool descriptions can be used to hide malicious instructions that bypass
+      text-based review but are executed by the AI model.
+    severity: INFO
+    languages: [typescript, javascript]
+    metadata:
+      category: poisoning
+      cwe: CWE-1336
+      owasp-mcp-top-10:
+        - MCP03
+      description: Unicode escape sequences in TypeScript MCP tool description
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: MEDIUM
+    pattern-regex: (?i)(description|desc)\w*\s*[:=]\s*["'][^"']*\\u[0-9a-fA-F]{4}

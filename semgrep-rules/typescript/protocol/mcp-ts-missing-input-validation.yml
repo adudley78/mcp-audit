@@ -1,0 +1,35 @@
+rules:
+  - id: mcp-ts-no-type-check-before-use
+    message: >
+      MCP tool argument retrieved via bracket access and passed directly to a
+      function without type checking or validation. MCP tool arguments arrive
+      as Record<string, unknown> — validate them with a typeof guard, Zod
+      schema parse, or an explicit cast before use to prevent type confusion
+      errors and unexpected behaviour.
+    severity: INFO
+    languages: [typescript, javascript]
+    metadata:
+      category: protocol
+      cwe: CWE-20
+      owasp: A03:2021
+      owasp-mcp-top-10:
+        - MCP07
+      description: MCP tool argument used without input validation in TypeScript handler
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: MEDIUM
+      fp-guidance: >
+        High false positive rate — Semgrep cannot track whether a prior Zod
+        schema.parse() or explicit typeof guard has already validated the
+        object. Suppress with // nosemgrep: mcp-ts-no-type-check-before-use
+        when a validator (Zod, Joi, manual typeof) is applied before this point.
+    patterns:
+      - pattern: $FUNC($ARGS[$KEY], ...)
+      - pattern-inside: |
+          async function $HANDLER(...) {
+            ...
+          }
+      - pattern-not-inside: |
+          if (typeof $ARGS[$KEY] === "...") {
+            ...
+          }

@@ -126,7 +126,44 @@ All seven rules are original pattern-only implementations (no taint analysis).
 They follow the same sink-matching approach as the existing Python SAST rules.
 Taint/dataflow analysis to reduce false positives is a documented future gap.
 
+### SAST rules — TypeScript credential default params, secrets logged, description obfuscation, input validation, stack trace exposure, listen-all-interfaces (semgrep-rules/typescript/)
 
+Seven new TypeScript rule files added in v0.7.0 (11 rules total), porting categories
+that existed in Python to TypeScript.
+
+**`mcp-ts-credential-default-param` (CWE-798):**
+
+- **OWASP A07:2021 — Identification and Authentication Failures** ([OWASP](https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/)) — Hardcoded credentials in default parameter values are equivalent to hardcoded credentials in environment configuration; both are in-band secrets visible in source code and stack traces.
+- **CWE-798 — Use of Hard-coded Credentials** ([MITRE CWE](https://cwe.mitre.org/data/definitions/798.html)) — Canonical weakness definition; the remediation guidance (use environment variables or a secrets manager) mirrors the CWE-798 mitigation section.
+
+**`mcp-ts-console-log-sensitive` / `mcp-ts-console-error-sensitive` (CWE-532):**
+
+- **CWE-532 — Insertion of Sensitive Information into Log File** ([MITRE CWE](https://cwe.mitre.org/data/definitions/532.html)) — Canonical weakness definition for logging credentials. The same source motivates the Python `mcp-print-sensitive-var` and `mcp-logging-sensitive-var` rules.
+- **OWASP A09:2021 — Security Logging and Monitoring Failures** ([OWASP](https://owasp.org/Top10/A09_2021-Security_Logging_and_Monitoring_Failures/)) — Logging sensitive data is a direct instance of this category; MCP server logs forwarded to cloud aggregators (Datadog, Splunk, CloudWatch) amplify the exposure.
+- **CVE-2026-41495 (n8n-MCP)** — Real-world disclosure where request headers (including Bearer tokens) were logged via `console.log(req.headers)`. This CVE motivates the identifier-name-based heuristic used in the TypeScript rule; the same approach catches the pattern class even when the vulnerable expression is a different variable name.
+
+**`mcp-ts-description-contains-url`, `mcp-ts-description-base64-content`, `mcp-ts-description-unicode-escape` (CWE-1336):**
+
+- Same research sources as the Python poisoning rules and the existing TypeScript hidden-instructions rules (Invariant Labs, CrowdStrike, arXiv 2601.17549, OWASP Agentic Top 10 MCP03). TypeScript implementations of MCP servers are subject to identical description-based attack vectors.
+- **CWE-1336 — Improper Neutralization of Special Elements Used in a Template Engine** ([MITRE CWE](https://cwe.mitre.org/data/definitions/1336.html)) — Applied here to tool description content that is consumed by AI models rather than by a traditional template engine; the injection surface (model-readable text that bypasses human review) is analogous.
+
+**`mcp-ts-no-type-check-before-use` (CWE-20):**
+
+- **CWE-20 — Improper Input Validation** ([MITRE CWE](https://cwe.mitre.org/data/definitions/20.html)) — Canonical weakness definition. In TypeScript MCP servers, tool arguments arrive as `Record<string, unknown>`; accessing a property without a `typeof` guard or schema parse is CWE-20 instantiated at the MCP argument boundary.
+- **MCP TypeScript SDK documentation** ([github.com/modelcontextprotocol/typescript-sdk](https://github.com/modelcontextprotocol/typescript-sdk)) — Documents that tool arguments are untyped at the protocol level and must be validated by the server implementation before use.
+
+**`mcp-ts-error-stack-in-return`, `mcp-ts-error-tostring-in-return` (CWE-209):**
+
+- **CWE-209 — Generation of Error Message Containing Sensitive Information** ([MITRE CWE](https://cwe.mitre.org/data/definitions/209.html)) — Canonical weakness definition. Stack traces expose file paths, module structure, and line numbers; `String(err)` exposes the raw exception message which may contain connection strings or internal state.
+- **OWASP A05:2021 — Security Misconfiguration** ([OWASP](https://owasp.org/Top10/A05_2021-Security_Misconfiguration/)) — Returning raw exception detail to clients is a misconfiguration finding in the OWASP framework; the MCP model context is the effective "client" in an AI tool call.
+
+**`mcp-ts-express-listen-all`, `mcp-ts-http-listen-all` (CWE-605):**
+
+- Same research source as the Python `mcp-uvicorn-listen-all` and `mcp-fastapi-listen-all` rules: **CVE-2026-33032** (nginx UI wildcard bind), **CWE-605** ([MITRE CWE](https://cwe.mitre.org/data/definitions/605.html)), and the **OWASP A05:2021 Security Misconfiguration** category. The TS rules cover the Express/Node HTTP/Fastify equivalent of the Python uvicorn/Flask pattern.
+
+All eleven rules are original pattern-only implementations. They follow the same
+metavariable-regex and `patterns:` AND-logic approach as the existing TypeScript
+and Python SAST rules. No taint analysis.
 
 Detection rules are mapped to these public standards where applicable:
 

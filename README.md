@@ -27,7 +27,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
 - **Interactive attack graph dashboard** — `mcp-audit dashboard` opens a D3 force-directed graph in your browser with light/dark mode, click-to-highlight attack paths, and hitting set recommendations
 - **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions
-- **SAST rule pack** — 52 Semgrep rules (34 Python, 18 TypeScript) across 6 categories for MCP server source code
+- **SAST rule pack** — 63 Semgrep rules (34 Python, 29 TypeScript) across 6 categories for MCP server source code
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
 - **Config hygiene** — `ConfigHygieneAnalyzer` detects missing descriptions, duplicate tool names, and other structural config issues
 - **CVE tagging** — findings carry a `Finding.cve` field so matched CVEs surface in JSON, SARIF, and terminal output

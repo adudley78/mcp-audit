@@ -6,6 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **TypeScript SAST: 7 new rule categories (11 rules) close the gap with Python** —
+  TS rule count: 18 → 29 (total SAST pack: 52 → 63 rules).
+  - `mcp-ts-credential-default-param` (CWE-798/HIGH): hardcoded string used as
+    default value for a credential-named function parameter; covers `function`,
+    `async function`, and arrow function forms.
+  - `mcp-ts-console-log-sensitive` (CWE-532/HIGH): sensitive identifier (name
+    matching `key|token|secret|password|auth|credential`) passed to
+    `console.log`, `console.debug`, or `console.warn`; string literals excluded.
+  - `mcp-ts-console-error-sensitive` (CWE-532/HIGH): same as above for
+    `console.error`.
+  - `mcp-ts-description-contains-url` (CWE-1336/HIGH): HTTP/HTTPS URL embedded
+    in a variable or object property named `description` or `desc`.
+  - `mcp-ts-description-base64-content` (CWE-1336/HIGH): 20+ consecutive base64
+    characters in a description variable or object property.
+  - `mcp-ts-description-unicode-escape` (CWE-1336/MEDIUM): `\uXXXX` escape
+    sequence in a description string assignment or object literal.
+  - `mcp-ts-no-type-check-before-use` (CWE-20/MEDIUM): MCP tool argument accessed
+    via `args[key]` and passed directly to a function inside an async handler
+    without a `typeof` guard; high FP rate — suppress with `// nosemgrep` when
+    Zod/Joi validation is present.
+  - `mcp-ts-error-stack-in-return` (CWE-209/HIGH): `err.stack` returned from an
+    async function — stack trace disclosure.
+  - `mcp-ts-error-tostring-in-return` (CWE-209/MEDIUM): `String(err)` or
+    `err.toString()` returned from an async function — raw exception disclosure.
+  - `mcp-ts-express-listen-all` (CWE-605/HIGH): `$APP.listen(port, "0.0.0.0")`
+    or `$APP.listen(port, "")` — server binds to all interfaces.
+  - `mcp-ts-http-listen-all` (CWE-605/HIGH): `listen({host: "0.0.0.0"})` — Fastify
+    or Node HTTP/HTTPS server binds to all interfaces.
+  New test fixtures in `semgrep-rules/tests/typescript/<category>/<rule>/` (14
+  files: one `vulnerable/test.ts` and one `safe/test.ts` per rule file). All 7
+  rule files pass `semgrep --validate`; each vulnerable fixture triggers the rule
+  and each safe fixture produces zero findings.
+  Sources: CWE-798, CWE-532, CWE-1336, CWE-20, CWE-209, CWE-605, OWASP A07/A09/
+  A05:2021, CVE-2026-41495 (n8n-MCP), CVE-2026-33032. See `PROVENANCE.md`.
+
+---
+
 ## [0.6.0] - 2026-04-30
 
 ### Added
