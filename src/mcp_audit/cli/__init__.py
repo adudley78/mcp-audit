@@ -130,6 +130,7 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     sbom,
     scan,
     shadow,
+    snapshot,
     version,
 )
 
@@ -155,4 +156,5 @@ __all__ = [
     "rule_app",
     "run_scan",
     "shadow",
+    "snapshot",
 ]

@@ -10,6 +10,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`mcp-audit snapshot`** — time-stamped, sigstore-signed forensic exports of
+  every MCP server on a host.  CycloneDX 1.5 AI/ML-BOM by default; native JSON
+  optional (`--format native`).  Every server becomes a CycloneDX `component` of
+  `type: application`; every finding becomes a `vulnerability` entry with ratings,
+  CWEs, OWASP MCP Top 10 mappings, and a custom `properties` block.  `--sign`
+  produces a `.snapshot.json.sig` sigstore bundle alongside the snapshot (requires
+  ambient OIDC identity and `pip install 'mcp-audit-scanner[attestation]'`).
+  `--rehydrate <old-snapshot.json>` reconstructs the historical attack-path graph
+  as it was at snapshot time — forensic re-analysis even after the config is gone.
+  `--stream` emits one JSON object per finding on stdout (NDJSON), suitable for
+  piping into `vector`, a Splunk HEC forwarder, or a Sentinel DCR ingestor.
+  `--input <scan.json>` accepts a previous scan result and skips live discovery.
+  New modules: `src/mcp_audit/snapshot/` (`rehydrate.py`, `diff.py`),
+  `src/mcp_audit/output/snapshot.py`, `src/mcp_audit/cli/snapshot.py`.
+  56 tests in `tests/test_snapshot.py` (CycloneDX schema validation, rehydrate,
+  diff, stream, sign error paths, CLI integration).  SIEM ingestion recipes in
+  `docs/integrations/splunk.md` and `docs/integrations/sentinel.md`.
+  See `docs/snapshot.md`.
+
 - **`mcp-audit diff <base> <head>`** — MCP-aware diff for PR review and CI gates.
   Compares two MCP configuration states (directories, JSON scan files, or git refs)
   and surfaces added, removed, and changed servers, tools, capabilities, env-var
