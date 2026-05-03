@@ -10,6 +10,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`mcp-audit killchain`** — opinionated remediation view of the attack-path graph.
+  Decision engine that identifies the top N configuration changes (default 3) that cut
+  the largest blast radius, ranked by incremental attack-path reduction.  Uses the
+  existing greedy hitting-set algorithm in `analyzers/attack_paths.py` and wraps each
+  step with human-readable target, rationale, and severity-reduction metadata.
+  Outputs a prescriptive Markdown report (copy-paste into Slack/email) or JSON
+  (`--format json`).  `--patch yaml` emits a YAML governance-policy denylist patch
+  (with schema-gap note); `--patch pr` emits a PR-comment stub.  `--input <scan.json>`
+  accepts an existing scan result; default behaviour re-runs the full pipeline.
+  What-if simulation re-runs `summarize_attack_paths` against the modified server list
+  — the math is identical to a real re-scan, not an approximation.  New modules:
+  `src/mcp_audit/killchain/` (`recommender.py`, `simulator.py`, `patches.py`,
+  `render.py`), `src/mcp_audit/cli/killchain.py`.  46 new tests in
+  `tests/test_killchain.py`.  See `docs/killchain.md`.
+
 - **`mcp-audit shadow`** — new top-level command for continuous detection of shadow MCP servers
   (OWASP MCP09). Sweeps every known MCP config location on the host; classifies each server as
   `sanctioned` (matches an optional operator allowlist) or `shadow` (does not); attaches a

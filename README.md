@@ -124,6 +124,9 @@ mcp-audit diff                                        # Show changes since last 
 mcp-audit watch                                       # Monitor configs and re-scan on changes
 mcp-audit push-nucleus --url ... --project-id ...     # Scan and push to a Nucleus project
 mcp-audit merge --dir ./scans                         # Merge multi-machine JSON outputs
+mcp-audit killchain                                   # Top 3 changes to cut blast radius
+mcp-audit killchain --input scan.json --top 5         # From saved scan, show top 5
+mcp-audit killchain --patch yaml -o report.md         # With governance policy patch
 ```
 
 ## Find your shadow MCP servers (OWASP MCP09)
@@ -153,7 +156,24 @@ JSON output is pipeline-ready: pipe to `jq`, syslog, or your SIEM directly.
 See [`docs/shadow-mcp.md`](docs/shadow-mcp.md) for the full reference including allowlist
 format, launchd/systemd wiring, and the JSON output schema.
 
+## Kill-chain remediation engine
 
+`mcp-audit killchain` is the decision engine on top of the attack-path graph.
+Instead of listing findings, it answers: **"Here are the 3 changes that fix everything."**
+
+```bash
+mcp-audit killchain                          # Fresh scan → top 3 recommendations
+mcp-audit killchain --input scan.json        # From a saved scan result
+mcp-audit killchain --top 5                  # Top 5 recommendations
+mcp-audit killchain --patch yaml             # Include governance policy patch
+mcp-audit killchain --format json            # Machine-ingestible JSON
+```
+
+Each recommendation includes the specific server and capability to restrict, the
+number of attack paths it eliminates, and a one-line rationale. A what-if
+simulation shows the resulting blast radius if all recommendations are applied.
+
+See [`docs/killchain.md`](docs/killchain.md) for the full reference.
 
 ## Supported clients
 
@@ -275,7 +295,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-1,545 tests validate detection accuracy and guard against regressions.
+1,591 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -447,7 +467,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 1,545 tests
+uv run pytest                        # Run all 1,591 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
