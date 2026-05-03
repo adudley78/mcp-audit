@@ -10,6 +10,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`mcp-audit diff <base> <head>`** — MCP-aware diff for PR review and CI gates.
+  Compares two MCP configuration states (directories, JSON scan files, or git refs)
+  and surfaces added, removed, and changed servers, tools, capabilities, env-var
+  references, external endpoints, and credentials with risk classification (CRITICAL /
+  HIGH / MEDIUM / LOW / INFO).  PR-comment-grade Markdown output (`--format pr-comment`)
+  is ready to pipe into `gh pr comment` or a GitHub Actions step.  JSON output
+  (`--format json`) provides a flat list of change records with `change_type`,
+  `entity_type`, `entity_name`, `before`, `after`, `severity`, and `owasp_mcp_top_10`
+  fields.  Exit codes mirror `mcp-audit scan` (0 = no findings at threshold, 1 =
+  findings, 2 = error).  `action.yml` extended with a `mode: diff` input that runs
+  diff mode and posts the result as a PR comment when running in a `pull_request` event.
+  New modules: `src/mcp_audit/diff/` (`loader.py`, `comparator.py`, `risk.py`,
+  `render.py`), `src/mcp_audit/cli/diff.py`.  `examples/github-actions/diff-mode.yml`
+  reference workflow added.  See `docs/diff.md`.
+
 - **`mcp-audit killchain`** — opinionated remediation view of the attack-path graph.
   Decision engine that identifies the top N configuration changes (default 3) that cut
   the largest blast radius, ranked by incremental attack-path reduction.  Uses the

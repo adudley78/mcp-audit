@@ -120,7 +120,9 @@ mcp-audit dashboard                                   # Open interactive attack 
 mcp-audit dashboard --path demo/configs               # Dashboard against demo data
 mcp-audit discover                                    # List detected clients and servers
 mcp-audit pin                                         # Lock current state as trusted baseline
-mcp-audit diff                                        # Show changes since last pin
+mcp-audit diff HEAD~1 HEAD                            # MCP-aware diff between two git commits
+mcp-audit diff HEAD~1 HEAD --format pr-comment        # Markdown output for PR comments
+mcp-audit diff configs/before/ configs/after/         # Compare two config directories
 mcp-audit watch                                       # Monitor configs and re-scan on changes
 mcp-audit push-nucleus --url ... --project-id ...     # Scan and push to a Nucleus project
 mcp-audit merge --dir ./scans                         # Merge multi-machine JSON outputs
@@ -295,7 +297,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-1,591 tests validate detection accuracy and guard against regressions.
+1,660 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -467,7 +469,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 1,591 tests
+uv run pytest                        # Run all 1,660 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

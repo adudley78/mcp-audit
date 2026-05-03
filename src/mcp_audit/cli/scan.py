@@ -17,7 +17,6 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.rule import Rule
-from rich.table import Table
 
 from mcp_audit import cli as _cli
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
@@ -25,7 +24,6 @@ from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import (
     build_state_entry,
-    compute_hashes,
     derive_state_path,
     load_state,
     save_state,
@@ -1006,113 +1004,6 @@ def pin(
     for srv in all_servers:
         console.print(f"  [cyan]{server_key(srv)}[/cyan]  {srv.config_path}")
     console.print()
-
-
-# ── diff ──────────────────────────────────────────────────────────────────────
-
-
-@app.command()
-def diff(
-    config: Path | None = typer.Argument(  # noqa: B008
-        None, help="Config file to diff (positional shorthand for --path/-p)"
-    ),
-    path: Path | None = typer.Option(  # noqa: B008
-        None, "--path", "-p", help="Additional path to check"
-    ),
-) -> None:
-    """Show configuration changes since the last baseline.
-
-    Does NOT run the full analyzer pipeline — only compares hashes.
-    Exit code 1 if any changes detected, 0 if clean.
-    """
-    path = config or path
-    if path is not None and not path.resolve().exists():
-        console.print(f"[red]Error:[/red] Config path not found: {path}")
-        raise typer.Exit(2)
-    extra_paths = [path] if path else None
-    configs = _cli.discover_configs(extra_paths=extra_paths)
-    scoped_path = derive_state_path(configs)
-
-    if not scoped_path.exists():
-        console.print(
-            "[red]No baseline found.[/red]  "
-            "Run [bold]mcp-audit pin[/bold] or [bold]mcp-audit scan[/bold] first.\n"
-            f"[dim](expected state file: {scoped_path.name})[/dim]"
-        )
-        raise typer.Exit(2)  # noqa: B904
-
-    state = load_state(scoped_path)
-    stored: dict = state.get("servers", {})
-    baseline_ts = _newest_last_seen(stored)
-
-    all_servers = []
-    for config in configs:
-        try:
-            all_servers.extend(_cli.parse_config(config))
-        except ValueError as e:
-            console.print(f"[yellow]Warning: {e}[/yellow]")
-
-    current: dict[str, object] = {server_key(s): s for s in all_servers}
-
-    changed_rows: list[tuple[str, str, str]] = []
-    new_rows: list[str] = []
-    removed_rows: list[tuple[str, str]] = []
-
-    for key, srv in current.items():  # type: ignore[assignment]
-        if key not in stored:
-            new_rows.append(key)
-        else:
-            curr_hashes = compute_hashes(srv)  # type: ignore[arg-type]
-            stored_hashes = stored[key].get("hashes", {})
-            if curr_hashes["raw"] != stored_hashes.get("raw"):
-                diff_fields = ", ".join(
-                    f
-                    for f in ("command", "args", "env_keys", "raw")
-                    if curr_hashes.get(f) != stored_hashes.get(f)
-                )
-                changed_rows.append(
-                    (key, diff_fields, stored[key].get("last_seen", ""))
-                )
-
-    for key, entry in stored.items():
-        if key not in current:
-            removed_rows.append((key, entry.get("last_seen", "unknown")))
-
-    has_changes = bool(changed_rows or new_rows or removed_rows)
-
-    if not has_changes:
-        ts = f", baseline: {baseline_ts}" if baseline_ts else ""
-        console.print(
-            f"[green]No changes detected since last baseline.[/green]"
-            f" [dim](state: {scoped_path.name}{ts})[/dim]"
-        )
-        return
-
-    ts_label = f"baseline: {baseline_ts}" if baseline_ts else ""
-    console.print(
-        f"\n[bold]MCP configuration diff[/bold]  "
-        f"[dim]{scoped_path.name}  {ts_label}[/dim]\n"
-    )
-
-    table = Table(show_header=True, header_style="bold")
-    table.add_column("Server", style="cyan")
-    table.add_column("Status")
-    table.add_column("Detail")
-
-    for key, fields, _last_seen in changed_rows:
-        table.add_row(key, "[red]CHANGED[/red]", fields)
-    for key in new_rows:
-        table.add_row(key, "[yellow]NEW[/yellow]", "")
-    for key, last_seen in removed_rows:
-        table.add_row(key, "[dim]REMOVED[/dim]", f"last seen {last_seen}")
-
-    console.print(table)
-    console.print(
-        f"\n{len(changed_rows)} changed, "
-        f"{len(new_rows)} new, "
-        f"{len(removed_rows)} removed\n"
-    )
-    raise typer.Exit(1)
 
 
 # ── watch ─────────────────────────────────────────────────────────────────────

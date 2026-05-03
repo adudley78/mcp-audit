@@ -118,6 +118,7 @@ def main() -> None:
 from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports register commands
     baseline,
     dashboard,
+    diff,
     extensions,
     fleet,
     killchain,
@@ -144,6 +145,7 @@ __all__ = [
     "app",
     "baseline_app",
     "console",
+    "diff",
     "discover_configs",
     "extensions_app",
     "killchain",

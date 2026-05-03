@@ -62,11 +62,46 @@ break reproducibility on release day.
     version: latest
 ```
 
+## Diff mode
+
+The action supports a `mode: diff` input that runs `mcp-audit diff` instead of
+`scan`. Diff mode is designed for pull request workflows: it compares
+`$GITHUB_BASE_REF` against `$GITHUB_HEAD_REF`, produces MCP-aware risk
+classification of what changed, and posts the result as a PR comment.
+
+```yaml
+name: MCP Diff
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write   # required to post the PR comment
+
+jobs:
+  mcp-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so git refs resolve
+      - uses: adudley78/mcp-audit@v0.8.0
+        with:
+          mode: diff
+          severity-threshold: medium
+```
+
+See `examples/github-actions/diff-mode.yml` for the full reference workflow and
+`docs/diff.md` for the complete diff command documentation.
+
 ## Inputs
 
 | Input | Default | Description |
 |---|---|---|
-| `config-paths` | _(auto-discover)_ | Space-separated paths to MCP config files or directories. Leave empty to scan every known client-config location. |
+| `mode` | `scan` | Action mode: `scan` (full analysis) or `diff` (MCP-aware diff for PR comments). |
+| `config-paths` | _(auto-discover)_ | Space-separated paths to MCP config files or directories. Leave empty to scan every known client-config location. Used only in `scan` mode. |
 | `severity-threshold` | `high` | Minimum severity to fail the build. One of: `critical`, `high`, `medium`, `low`, `info`. |
 | `sarif-output` | `mcp-audit.sarif` | Path to write the SARIF file. Set to empty string to skip SARIF generation entirely. |
 | `upload-sarif` | `'true'` | Upload SARIF to GitHub Code Scanning. Requires `security-events: write`. |

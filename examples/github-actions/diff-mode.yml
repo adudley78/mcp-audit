@@ -1,0 +1,40 @@
+# mcp-audit diff mode — MCP-aware diff posted as a PR comment.
+#
+# On every pull request, this workflow:
+#   1. Runs `mcp-audit diff $GITHUB_BASE_REF $GITHUB_HEAD_REF --format pr-comment`
+#      to detect added/removed/changed MCP servers, tools, capabilities,
+#      env-var references, endpoints, and credentials.
+#   2. Posts the Markdown output as a comment on the PR conversation tab.
+#   3. Exits 1 (fails the check) if any changes at or above severity-threshold
+#      are present.
+#
+# Requires:
+#   - `pull-requests: write` to post the PR comment.
+#   - `contents: read` to check out the repo and resolve git refs.
+
+name: MCP Diff (PR Comment)
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  mcp-diff:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch full history so git refs resolve correctly.
+          fetch-depth: 0
+
+      - name: MCP-aware diff
+        uses: adudley78/mcp-audit@v0.8.0
+        with:
+          mode: diff
+          severity-threshold: medium   # fail on MEDIUM+; use 'high' for lighter gate
+          fail-on-findings: 'true'

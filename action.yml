@@ -7,10 +7,20 @@ branding:
   color: 'red'
 
 inputs:
+  mode:
+    description: >
+      Action mode: ``scan`` (default — full static analysis) or ``diff``
+      (MCP-aware diff between two git refs, suitable for PR comments).
+      When ``diff``, the action runs ``mcp-audit diff $GITHUB_BASE_REF $GITHUB_HEAD_REF``
+      and posts the result as a PR comment (requires ``pull-requests: write`` permission).
+    required: false
+    default: 'scan'
+
   config-paths:
     description: >
       Space-separated list of paths to MCP config files or directories to scan.
       Defaults to auto-discovery (scans all known client config locations).
+      Used only when mode is ``scan``.
     required: false
     default: ''
 
@@ -95,8 +105,54 @@ runs:
           pip install "mcp-audit-scanner==${{ inputs.version }}" --quiet
         fi
 
+    - name: Run mcp-audit diff
+      id: diff
+      if: inputs.mode == 'diff'
+      shell: bash
+      env:
+        SEVERITY_THRESHOLD: ${{ inputs.severity-threshold }}
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set +e
+
+        DIFF_OUTPUT=$(mcp-audit diff "$GITHUB_BASE_REF" "$GITHUB_HEAD_REF" \
+          --format pr-comment \
+          --severity-threshold "$SEVERITY_THRESHOLD")
+        DIFF_EXIT=$?
+
+        # Post as a PR comment when running in a pull_request context.
+        if [ -n "$GITHUB_EVENT_NAME" ] && [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH" 2>/dev/null || echo "")
+          if [ -n "$PR_NUMBER" ] && [ -n "$GITHUB_TOKEN" ]; then
+            COMMENT_BODY=$(printf '%s' "$DIFF_OUTPUT" | python3 -c "
+        import sys, json
+        print(json.dumps(sys.stdin.read()))
+        " | tr -d '"')
+            curl -s -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/${PR_NUMBER}/comments" \
+              -d "{\"body\": $(printf '%s' "$DIFF_OUTPUT" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')}" \
+              > /dev/null
+          fi
+        fi
+
+        echo "$DIFF_OUTPUT"
+
+        set -e
+
+        if [ "$DIFF_EXIT" -eq 2 ]; then
+          exit 2
+        fi
+
+        if [ "$FAIL_ON_FINDINGS" = "true" ] && [ "$DIFF_EXIT" -ne 0 ]; then
+          exit "$DIFF_EXIT"
+        fi
+
     - name: Run mcp-audit scan
       id: scan
+      if: inputs.mode != 'diff'
       shell: bash
       env:
         SARIF_OUTPUT: ${{ inputs.sarif-output }}
@@ -203,7 +259,7 @@ runs:
         fi
 
     - name: Run mcp-audit SAST
-      if: inputs.run-sast == 'true'
+      if: inputs.run-sast == 'true' && inputs.mode != 'diff'
       shell: bash
       # Semgrep is not bundled in `mcp-audit-scanner` — it is a ~15 MB
       # dependency that would bloat the wheel and PyInstaller binary for
@@ -223,14 +279,14 @@ runs:
         mcp-audit sast "${{ inputs.sast-path }}"
 
     - name: Compare baseline
-      if: inputs.baseline-name != ''
+      if: inputs.baseline-name != '' && inputs.mode != 'diff'
       shell: bash
       run: |
         # `baseline compare` takes the baseline name as a positional argument.
         mcp-audit baseline compare "${{ inputs.baseline-name }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
     - name: Upload SARIF to GitHub Code Scanning
-      if: inputs.upload-sarif == 'true' && inputs.sarif-output != ''
+      if: inputs.upload-sarif == 'true' && inputs.sarif-output != '' && inputs.mode != 'diff'
       uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: ${{ inputs.sarif-output }}
