@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.1] - 2026-05-03
+
+### Fixed
+
+- **Empty-state messages now distinguish "no config files found" from "config file exists
+  but no servers defined"** in `mcp-audit shadow`, `mcp-audit pin`, and `mcp-audit sbom`.
+  Previously all three printed a generic "No MCP servers found" message regardless of
+  whether the config file was absent or simply empty. Commands now report:
+  - `configs_found == 0` → "No MCP config files found on this host."
+  - `configs_found > 0, servers == 0` → "Found N MCP config file(s) but no servers are
+    configured in them."
+  Full audit confirmed all other commands already handle this correctly or are not
+  applicable (scan, discover, baseline, snapshot, killchain, diff, registry, rules).
+
+- **`mcp-audit snapshot --path` no longer crashes** with `TypeError: run_scan() got an
+  unexpected keyword argument 'skip_auto_discovery'`. Stale keyword argument removed —
+  the scanner handles discovery internally.
+
+- **`mcp-audit diff --path` stale invocation removed from manual test matrix.**
+  The `--path` flag on the rug-pull `diff` command was removed in v0.8.0. The manual
+  test matrix (`docs/manual-test-matrix.md`) has been updated to reflect the current
+  interface. Manual test matrix also expanded from 20 to 27 sections, adding coverage
+  for `shadow`, `killchain`, the MCP-aware `diff <base> <head>`, `snapshot`, `sast`,
+  and `extensions` — all passing.
+
+---
+
 ## [0.8.0] - 2026-05-03
 
 ### Added
