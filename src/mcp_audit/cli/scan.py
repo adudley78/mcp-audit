@@ -980,7 +980,15 @@ def pin(
             console.print(f"[yellow]Warning: {e}[/yellow]")
 
     if not all_servers:
-        console.print("[yellow]No MCP servers found — nothing to pin.[/yellow]")
+        if not configs:
+            console.print(
+                "[yellow]No MCP config files found — nothing to pin.[/yellow]"
+            )
+        else:
+            console.print(
+                f"[yellow]Found {len(configs)} MCP config file(s) but no servers "
+                "are configured in them — nothing to pin.[/yellow]"
+            )
         return
 
     scoped_path = derive_state_path(configs)

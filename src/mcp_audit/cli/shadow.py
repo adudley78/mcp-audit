@@ -74,14 +74,14 @@ logger = logging.getLogger(__name__)
 
 def _discover_all_servers(
     extra_paths: list[Path] | None = None,
-) -> list[ServerConfig]:
+) -> tuple[list[ServerConfig], int]:
     """Discover and parse every MCP server reachable on this host.
 
     Args:
         extra_paths: Additional config file / directory paths to include.
 
     Returns:
-        De-duplicated list of :class:`~mcp_audit.models.ServerConfig` objects.
+        Tuple of (de-duplicated ServerConfig list, number of config files found).
     """
     discovered: list[DiscoveredConfig] = discover_configs(extra_paths=extra_paths)
     servers: list[ServerConfig] = []
@@ -99,7 +99,7 @@ def _discover_all_servers(
                 seen.add(key)
                 servers.append(server)
 
-    return servers
+    return servers, len(discovered)
 
 
 def _extract_package_name(server: ServerConfig) -> str | None:
@@ -142,13 +142,13 @@ def _run_sweep(
     allowlist: ShadowAllowlist | None,
     registry: KnownServerRegistry,
     state: ShadowState,
-) -> tuple[list[ShadowServerRecord], list[ServerConfig]]:
-    """Run a full sweep and return (records, raw_servers)."""
+) -> tuple[list[ShadowServerRecord], list[ServerConfig], int]:
+    """Run a full sweep and return (records, raw_servers, configs_found)."""
     now = datetime.now(UTC)
-    servers = _discover_all_servers(extra_paths=extra_paths)
+    servers, configs_found = _discover_all_servers(extra_paths=extra_paths)
     records = [_build_record(s, allowlist, registry, state, now) for s in servers]
     state.save()
-    return records, servers
+    return records, servers, configs_found
 
 
 # ── Continuous-mode event emission ────────────────────────────────────────────
@@ -277,7 +277,7 @@ def _print_terminal_results(
     )
 
     if not records:
-        console.print("[green]No MCP configs found on this host.[/green]")
+        console.print("[green]No MCP servers are configured on this host.[/green]")
         return
 
     # Results table
@@ -436,7 +436,7 @@ def shadow(
 
     # ── Initial sweep ─────────────────────────────────────────────────────────
 
-    records, current_servers = _run_sweep(
+    records, current_servers, configs_found = _run_sweep(
         extra_paths=extra_paths,
         allowlist=loaded_allowlist,
         registry=registry,
@@ -447,7 +447,13 @@ def shadow(
         if use_json:
             sys.stdout.write("[]\n")
         else:
-            console.print("[green]No MCP configs found on this host.[/green]")
+            if configs_found == 0:
+                console.print("[green]No MCP config files found on this host.[/green]")
+            else:
+                console.print(
+                    f"[green]Found {configs_found} MCP config file(s) but no servers "
+                    "are configured in them.[/green]"
+                )
         if not continuous:
             raise typer.Exit(code=0)
 
@@ -494,7 +500,7 @@ def shadow(
     def _on_change(changed_path: Path, event_type: str) -> None:  # noqa: ARG001
         nonlocal prev_servers
         now = datetime.now(UTC)
-        new_servers = _discover_all_servers(extra_paths=extra_paths)
+        new_servers, _ = _discover_all_servers(extra_paths=extra_paths)
 
         with prev_lock:
             _emit_change_events(

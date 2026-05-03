@@ -73,7 +73,13 @@ def sbom(
             console.print(f"[yellow]Warning:[/yellow] {exc}")
 
     if not servers:
-        console.print("[yellow]No MCP servers found.[/yellow]")
+        if not discovered:
+            console.print("[yellow]No MCP config files found.[/yellow]")
+        else:
+            console.print(
+                f"[yellow]Found {len(discovered)} MCP config file(s) but no servers "
+                "are configured in them.[/yellow]"
+            )
         raise typer.Exit(0)
 
     # Resolve packages and (optionally) transitive dependencies
