@@ -386,6 +386,10 @@ class TestShadowState:
 
     def test_state_file_has_secure_permissions(self, tmp_path: Path) -> None:
         import stat
+        import sys
+
+        if sys.platform == "win32":
+            pytest.skip("POSIX file permissions not enforced on Windows")
 
         state = ShadowState(state_dir=tmp_path)
         state.touch(_server(), datetime.now(UTC))
