@@ -77,6 +77,10 @@ an integer 0–100.  Both keys use the `mcp-audit/` namespace prefix.  **Do not 
 `score` or `grade` as bare keys — those are the stale names from before 2026-04-16.
 Exit 1 from the scan (findings); exit 0 from the python verification block.
 
+> **Note:** `mcp-audit/numericScore` is `0` (integer) for an F-grade scan against
+> demo/configs. The Python check uses `is None` — a score of `0` is valid and must
+> not be treated as absent.
+
 ---
 
 ## Section 5 — JSON output and score fields
@@ -118,7 +122,7 @@ print('score in JSON:', d.get('score'))  # should be absent / null
 ## Section 7 — severity threshold filtering
 
 ```bash
-# Should exit 0: no CRITICAL findings in demo configs beyond what exists
+# Should exit 1: CRITICAL findings exist in demo configs
 mcp-audit scan --path demo/configs --severity-threshold critical
 echo "exit: $?"
 
@@ -127,8 +131,8 @@ mcp-audit scan --path demo/configs --severity-threshold high
 echo "exit: $?"
 ```
 
-**Expected:** first command exits 1 (there are CRITICAL findings in demo configs);
-second exits 1 (HIGH+ findings present).  Adjust expectation if demo configs change.
+**Expected:** both commands exit 1.  demo/configs currently contains 4 CRITICAL and
+30 HIGH findings.  Adjust expectation only if demo configs change.
 
 ---
 
@@ -154,21 +158,32 @@ echo "exit: $?"
 
 ---
 
-## Section 10 — pin and diff (no drift)
+## Section 10 — pin (rug-pull baseline) and empty-state message
 
 ```bash
 mcp-audit pin --path demo/configs
-mcp-audit diff --path demo/configs
 echo "exit: $?"
 ```
 
-> **Note:** diff results depend on existing rug-pull state on this machine. If prior
-> scans have been run, diff may show REMOVED entries for servers no longer present
-> in the config — this is expected behavior, not a bug. To get a clean baseline,
-> run `mcp-audit pin` first, then re-run diff.
+**Expected:** prints "Pinned baseline for N server(s)" with a state-file reference;
+exit 0.
 
-**Expected:** `pin` prints "Pinned N servers"; `diff` exits 0 (no prior state) OR exits 1
-with REMOVED entries (prior state present) — both are correct.
+> **Note — rug-pull detection:** `pin` records a SHA-256 hash of each server's
+> description. On the next `mcp-audit scan`, the rug-pull analyzer compares live
+> descriptions against these hashes and emits a finding if any description changed.
+> The old `mcp-audit diff --path` command (rug-pull diff) was **removed** in v0.8.0
+> when the `diff` command was repurposed for MCP-aware base/head comparison
+> (Section 23).  Rug-pull changes are now surfaced inline in `scan` output.
+
+```bash
+# Empty-state: config file exists but has no servers
+echo '{"mcpServers": {}}' > "$SCRATCH/empty.json"
+mcp-audit pin --path "$SCRATCH/empty.json"
+echo "exit: $?"
+```
+
+**Expected:** message reads "Found N MCP config file(s) but no servers are configured
+in them — nothing to pin." (not the old bare "No MCP servers found" message); exit 0.
 
 ---
 
@@ -308,13 +323,234 @@ mcp-audit scan --path demo/configs --format json --output "$SCRATCH/full.json"
 python3 -c "
 import json
 d = json.load(open('$SCRATCH/full.json'))
-print('servers scanned:', len(set(f.get('server','') for f in d.get('findings',[]))))
-print('total findings:', len(d.get('findings',[])))
+print('servers scanned:', len(d.get('servers', [])))
+print('total findings:', len(d.get('findings', [])))
 "
 ```
 
-**Expected:** discover lists 3 config files and 8 servers; scan produces JSON with
-findings from all three configs; total findings ≥ 24.
+**Expected:** discover lists 3 config files; scan produces JSON with 8 servers and
+≥ 50 total findings from all three configs.
+
+> **Note:** finding count grows over time as new community rules are added. The
+> bound `≥ 50` reflects the count as of v0.8.0 (currently 51). Update this bound
+> after any release that intentionally changes the demo-config finding count.
+
+---
+
+## Section 21 — shadow (OWASP MCP09 — shadow server detection)
+
+```bash
+# Default text output: all servers are shadow (no allowlist configured)
+mcp-audit shadow --path demo/configs/claude_desktop_config.json
+echo "exit: $?"
+```
+
+**Expected:** Rich table showing servers found; header reads "Servers found: N  Shadow:
+N  Sanctioned: 0"; each server has a `risk_level` and `capability_tags`; note
+"No allowlist configured — all servers are shadow by default."; exit 1 (shadow
+servers present).
+
+```bash
+# JSON format
+mcp-audit shadow --path demo/configs/claude_desktop_config.json --format json
+echo "exit: $?"
+```
+
+**Expected:** JSON array; each record has `classification`, `risk_level`,
+`capability_tags`, `first_seen`, `last_seen`; exit 1.
+
+```bash
+# Empty-state: config file exists but has no servers
+echo '{"mcpServers": {}}' > "$SCRATCH/empty.json"
+mcp-audit shadow --path "$SCRATCH/empty.json"
+echo "exit: $?"
+```
+
+**Expected:** message reads "Found N MCP config file(s) but no servers are configured
+in them." (not "No MCP configs found on this host."); exit 0.
+
+---
+
+## Section 22 — killchain (blast-radius remediation engine)
+
+```bash
+# Live scan + ranked recommendations
+mcp-audit killchain --path demo/configs
+echo "exit: $?"
+```
+
+**Expected:** Markdown report with "Current blast radius" heading and "Top 3
+recommended changes"; each recommendation labelled `KS-001`, `KS-002`, `KS-003`
+with path-reduction counts; exit 0.
+
+```bash
+# From existing scan JSON (no re-scan)
+mcp-audit killchain --input "$SCRATCH/results.json"
+echo "exit: $?"
+```
+
+**Expected:** same ranked output loaded from the saved JSON; no re-scan performed
+(no "running scan…" line on stderr); exit 0.
+
+```bash
+# JSON format
+mcp-audit killchain --input "$SCRATCH/results.json" --format json
+echo "exit: $?"
+```
+
+**Expected:** JSON object with top-level `kill_switches` array, `original_blast_radius`,
+and `simulated_blast_radius` keys; exit 0.
+
+```bash
+# YAML governance patch
+mcp-audit killchain --input "$SCRATCH/results.json" --patch yaml
+echo "exit: $?"
+```
+
+**Expected:** Markdown report followed by a YAML governance-policy denylist patch
+that lists the flagged servers; exit 0.
+
+---
+
+## Section 23 — diff (MCP-aware base/head comparison)
+
+> **Note:** this is the `mcp-audit diff <base> <head>` command introduced in
+> v0.8.0 (STORY-0014). It compares two MCP config states (directories, JSON scan
+> files, or git refs) and surfaces structural changes. It is **not** the rug-pull
+> description-change detector — see Section 10 for rug-pull coverage.
+
+```bash
+mcp-audit diff demo/configs/claude_desktop_config.json demo/configs/cursor_mcp.json
+echo "exit: $?"
+```
+
+**Expected:** terminal output listing added and removed servers between the two
+configs; severity classification per change (HIGH for `shell-exec` added); exit 1
+(changes at INFO threshold present).
+
+```bash
+mcp-audit diff demo/configs/claude_desktop_config.json demo/configs/cursor_mcp.json \
+  --format pr-comment
+echo "exit: $?"
+```
+
+**Expected:** GitHub-flavored Markdown output starting with `## MCP Security Diff:`
+heading; `<details>` collapsibles per changed server; total ≤ 100 lines; exit 1.
+
+```bash
+mcp-audit diff demo/configs/claude_desktop_config.json demo/configs/cursor_mcp.json \
+  --format json
+echo "exit: $?"
+```
+
+**Expected:** JSON array; each record has `change_type`, `entity_type`,
+`entity_name`, `severity` keys; exit 1.
+
+---
+
+## Section 24 — snapshot (CycloneDX AI/ML-BOM)
+
+```bash
+mcp-audit snapshot --path demo/configs --output "$SCRATCH/snapshot.json"
+echo "exit: $?"
+
+# Verify CycloneDX structure
+python3 - "$SCRATCH/snapshot.json" <<'PYEOF'
+import json, sys
+with open(sys.argv[1]) as f:
+    doc = json.load(f)
+assert doc.get("bomFormat") == "CycloneDX", f"FAIL — bomFormat={doc.get('bomFormat')}"
+comps = doc.get("components", [])
+vulns = doc.get("vulnerabilities", [])
+assert len(comps) > 0, "FAIL — no components"
+assert all(c.get("type") == "application" for c in comps if c.get("type")), \
+    "FAIL — component type not 'application'"
+assert len(vulns) > 0, "FAIL — no vulnerabilities"
+print(f"PASS — {len(comps)} component(s), {len(vulns)} vulnerability/vulnerabilities")
+PYEOF
+```
+
+**Expected:** CycloneDX 1.5 JSON written; `bomFormat` == `"CycloneDX"`; each server
+is a `component` of `type: application`; each finding is a `vulnerability` entry;
+exit 0.
+
+```bash
+# NDJSON stream mode
+mcp-audit snapshot --path demo/configs --stream | head -3
+echo "exit: $?"
+```
+
+**Expected:** one JSON object per line on stdout (NDJSON); each line is valid JSON;
+exit 0.
+
+```bash
+# Empty-state: produces valid empty BOM (not an error)
+echo '{"mcpServers": {}}' > "$SCRATCH/empty.json"
+mcp-audit snapshot --path "$SCRATCH/empty.json" --output "$SCRATCH/empty-snap.json"
+echo "exit: $?"
+python3 -c "
+import json
+d = json.load(open('$SCRATCH/empty-snap.json'))
+print('components:', len(d.get('components', [])))
+print('vulnerabilities:', len(d.get('vulnerabilities', [])))
+print('PASS' if d.get('bomFormat') == 'CycloneDX' else 'FAIL')
+"
+```
+
+**Expected:** exit 0; valid CycloneDX document with `components: []` and
+`vulnerabilities: []`; summary line on stderr reads `servers=0 findings=0`.
+
+---
+
+## Section 25 — sast (Semgrep SAST rule pack)
+
+```bash
+# Scan own source tree — should be clean
+mcp-audit sast src/
+echo "exit: $?"
+```
+
+**Expected:** "✓ No SAST findings." printed; exit 0.  If Semgrep is not installed,
+a clean "semgrep is not installed" message is printed and exit 2 — no Python
+traceback.
+
+> **Note:** `mcp-audit sast` requires Semgrep to be installed (`pip install semgrep`
+> or `brew install semgrep`). The bundled `semgrep-rules/` directory is resolved
+> automatically; no `--rules-dir` flag is needed.
+
+```bash
+# Scan demo configs directory — no Python/TypeScript source, expect no findings
+mcp-audit sast demo/
+echo "exit: $?"
+```
+
+**Expected:** exit 0 (JSON configs are not Semgrep targets); no crash.
+
+---
+
+## Section 26 — extensions discover
+
+```bash
+mcp-audit extensions discover
+echo "exit: $?"
+```
+
+**Expected:** table of installed IDE extensions from VS Code / Cursor paths, or a
+"No extensions found" message if none are installed; exit 0 (discover never exits
+non-zero for an empty result).
+
+---
+
+## Section 27 — extensions scan
+
+```bash
+mcp-audit extensions scan
+echo "exit: $?"
+```
+
+**Expected:** security analysis of discovered extensions; each finding shows the
+extension ID, client, severity, and description; exit 1 if any findings exist,
+exit 0 if none.  Must not crash even if no IDE is installed.
 
 ---
 
