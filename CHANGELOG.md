@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **CI: synthetic install-tree integration tests** (`tests/integration/test_synthetic_install.py`,
+  `.github/workflows/synthetic-install.yml`) — new `synthetic-install` CI workflow runs on
+  `ubuntu-latest` and `windows-latest` on every PR and push; validates the full
+  `discover` → `scan` → `baseline` pipeline against realistic per-OS fixture trees.
+  Covers: canonical-path discovery for all six auto-discovered clients (Claude Desktop,
+  Cursor, Windsurf, Claude Code, Copilot CLI, Augment) via `HOME`/`USERPROFILE` env-var
+  injection; credential-finding detection to prove scanning ran; paths with spaces; non-ASCII
+  filenames (`配置/мcp.json`); `baseline save`/`compare` round-trip on non-ASCII paths; and
+  Windows >260-char path graceful handling (`xfail` when OS rejects the path, never a
+  Python traceback). No changes to `discovery.py` required — `Path.home()` already reads
+  `HOME`/`USERPROFILE` from the subprocess environment.
+
+---
+
 ## [0.7.0] - 2026-05-02
 
 ### Added

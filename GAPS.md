@@ -88,21 +88,37 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 ## Platform coverage
 
-**~~Windows not tested (critical paths).~~  Partially resolved 2026-05-02 (STORY-0017).**
+**~~Windows not tested (critical paths).~~  Partially resolved 2026-05-02 (STORY-0017).
+Further resolved 2026-05-03 (STORY-0019).**
 The `source-smoke` CI job now runs `scripts/smoke_test.py` on `windows-latest` on every
 PR, covering: binary launch, discover, scan output, severity filter, SARIF, baseline
 round-trip, watcher re-scan (ReadDirectoryChangesW), rug-pull two-scan (state written to
 `%APPDATA%\mcp-audit\state\`), and canonical-path discovery (`%APPDATA%\Claude\…`).
 Config discovery includes Windows paths. Extension discovery paths for VS Code, VS Code
 Insiders, Cursor, and Windsurf are defined (STORY-0004, 2026-04-30) and unit-tested via
-monkeypatching. Full end-to-end validation on a physical Windows host is still a manual step.
+monkeypatching.
 
-**~~Linux not tested (critical paths).~~  Partially resolved 2026-05-02 (STORY-0017).**
+The new `synthetic-install.yml` CI workflow (STORY-0019) additionally runs
+`tests/integration/test_synthetic_install.py` on `windows-latest` on every PR, validating:
+all six supported clients' canonical config paths are discovered when `USERPROFILE` is
+redirected to a temp tree; `scan` produces findings against a config with a known-bad
+credential; paths with spaces and non-ASCII filenames are handled without crashes; the
+Windows >260-char path edge case is handled gracefully (exit ≤ 2, no traceback); and the
+`baseline save`/`compare` round-trip completes on non-ASCII paths.
+
+Full end-to-end validation on a physical Windows host is still a manual step.
+
+**~~Linux not tested (critical paths).~~  Partially resolved 2026-05-02 (STORY-0017).
+Further resolved 2026-05-03 (STORY-0019).**
 The `source-smoke` CI job also runs on `ubuntu-latest`, covering the same 11 smoke-test
 steps with inotify-backed filesystem events and `~/.config/mcp-audit/state/` rug-pull
 state. The existing `binary-smoke` job additionally validates the PyInstaller Linux binary.
-Config discovery and extension paths are defined but end-to-end validation on non-Ubuntu
-Linux distributions is a manual step.
+
+The new `synthetic-install.yml` CI workflow (STORY-0019) additionally runs
+`tests/integration/test_synthetic_install.py` on `ubuntu-latest`, validating the same
+canonical-discovery, credential-finding, paths-with-spaces, non-ASCII, and baseline
+round-trip scenarios on Linux. Config discovery and extension paths are defined but
+end-to-end validation on non-Ubuntu Linux distributions is a manual step.
 
 ## Internal security findings
 

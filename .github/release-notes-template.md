@@ -74,7 +74,7 @@ after v1, `@v1` will track the latest 1.x release automatically.
 - 22-server false-positive benchmark — 0% poisoning FP rate on legitimate servers
 - CVSS + OWASP Agentic Top 10 severity mappings on every finding ID
 
-**1,486 tests · Apache 2.0 · macOS · Linux · Windows**
+**1,499 tests · Apache 2.0 · macOS · Linux · Windows**
 
 ---
 
