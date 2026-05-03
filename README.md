@@ -108,6 +108,10 @@ If you installed via Homebrew Python, the path will be different — use `python
 ## Quick start
 
 ```bash
+mcp-audit shadow                                      # Find shadow MCP servers on this machine
+mcp-audit shadow --format json | jq .                 # JSON output for syslog / SIEM
+mcp-audit shadow --allowlist .mcp-audit-allowlist.yml # Classify against an allowlist
+mcp-audit shadow --continuous                         # Daemon: emit events on config change
 mcp-audit scan                                        # Scan all detected MCP configs
 mcp-audit scan --connect                              # Also connect to running servers
 mcp-audit scan --format sarif -o results.sarif        # SARIF for GitHub Security
@@ -121,6 +125,35 @@ mcp-audit watch                                       # Monitor configs and re-s
 mcp-audit push-nucleus --url ... --project-id ...     # Scan and push to a Nucleus project
 mcp-audit merge --dir ./scans                         # Merge multi-machine JSON outputs
 ```
+
+## Find your shadow MCP servers (OWASP MCP09)
+
+**[OWASP MCP09: Shadow MCP Servers](https://owasp.org/www-project-mcp-top-10/)** — MCP servers
+running on a developer's machine without the security team's knowledge or approval are one of
+the top risks in the OWASP MCP Top 10. The `mcp-audit shadow` command gives you a single
+command to surface every one:
+
+```bash
+# Sweep all known MCP config locations on this machine
+mcp-audit shadow
+
+# Classify against your org's approved server list
+echo "sanctioned_servers:" > .mcp-audit-allowlist.yml
+echo "  - '@modelcontextprotocol/server-filesystem'" >> .mcp-audit-allowlist.yml
+mcp-audit shadow --allowlist .mcp-audit-allowlist.yml
+
+# Continuous daemon — emits events when configs change
+mcp-audit shadow --continuous --format json | logger -t mcp-audit-shadow
+```
+
+Each server is classified as `sanctioned` (in your allowlist) or `shadow` (not), with a
+risk score (`INFO` → `UNKNOWN`) derived from capability tags and toxic-flow analysis.
+JSON output is pipeline-ready: pipe to `jq`, syslog, or your SIEM directly.
+
+See [`docs/shadow-mcp.md`](docs/shadow-mcp.md) for the full reference including allowlist
+format, launchd/systemd wiring, and the JSON output schema.
+
+
 
 ## Supported clients
 
@@ -242,7 +275,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-1,499 tests validate detection accuracy and guard against regressions.
+1,545 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -414,7 +447,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 1,499 tests
+uv run pytest                        # Run all 1,545 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

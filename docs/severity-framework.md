@@ -252,3 +252,21 @@ Note: this framework is in beta as of April 2026; category rankings and
 descriptions may shift. mcp-audit follows the project page as authoritative.
 See `docs/owasp-mcp-top-10.md` for how mcp-audit exposes this mapping in
 terminal output, JSON, and SARIF.
+
+## Shadow MCP Risk Levels (`mcp-audit shadow`)
+
+The `mcp-audit shadow` command uses the same severity rubric as the scan
+pipeline but expresses it through a `RiskLevel` enum that adds an `UNKNOWN`
+state for servers whose capability data is unavailable.
+
+| RiskLevel | Maps to | When assigned |
+|-----------|---------|---------------|
+| CRITICAL  | Severity.CRITICAL | Single server holds both SHELL_EXEC + NETWORK_OUT, or SECRETS + NETWORK_OUT |
+| HIGH      | Severity.HIGH | Single server holds DATABASE + NETWORK_OUT, FILE_READ + NETWORK_OUT, FILE_READ + EMAIL, or FILE_READ + SHELL_EXEC |
+| MEDIUM    | Severity.MEDIUM | Single server holds GIT + NETWORK_OUT |
+| LOW       | Severity.LOW | Capabilities detected but no toxic pair fires |
+| INFO      | Severity.INFO | Registry-verified server with an explicitly empty capability set |
+| UNKNOWN   | (no Severity analogue) | Registry entry exists with `capabilities: null`, or no capability data at all |
+
+All shadow server records carry `owasp_mcp_top_10: ["MCP09"]`.
+See `docs/shadow-mcp.md` for the full `shadow` command documentation.

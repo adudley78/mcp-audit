@@ -10,6 +10,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`mcp-audit shadow`** — new top-level command for continuous detection of shadow MCP servers
+  (OWASP MCP09). Sweeps every known MCP config location on the host; classifies each server as
+  `sanctioned` (matches an optional operator allowlist) or `shadow` (does not); attaches a
+  structured risk summary (capability tags, toxic-flow signals, OWASP MCP09 mapping); emits
+  structured events in `--continuous` daemon mode (`new_shadow_server`, `server_drift`,
+  `server_removed`); supports `--format json` for syslog/SIEM piping; persists `first_seen` /
+  `last_seen` state with `0o600` file permissions. New modules:
+  `src/mcp_audit/shadow/` (`allowlist.py`, `classifier.py`, `risk.py`, `events.py`, `state.py`),
+  `src/mcp_audit/cli/shadow.py`. Introduces new `RiskLevel` enum (mirrors Severity + `UNKNOWN`).
+  See `docs/shadow-mcp.md`.
+
 - **CI: synthetic install-tree integration tests** (`tests/integration/test_synthetic_install.py`,
   `.github/workflows/synthetic-install.yml`) — new `synthetic-install` CI workflow runs on
   `ubuntu-latest` and `windows-latest` on every PR and push; validates the full
