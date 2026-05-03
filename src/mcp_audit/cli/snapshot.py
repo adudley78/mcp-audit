@@ -100,10 +100,7 @@ def _build_result(
             raise typer.Exit(2)
         extra_paths = [resolved_path]
 
-    return run_scan(
-        extra_paths=extra_paths,
-        skip_auto_discovery=bool(extra_paths),
-    )
+    return run_scan(extra_paths=extra_paths)
 
 
 def _write_snapshot(content: str, output: Path | None) -> Path | None:
