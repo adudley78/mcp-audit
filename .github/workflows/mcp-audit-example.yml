@@ -24,7 +24,7 @@ jobs:
         # Pin to a published release tag.  Switch to `@v1` once a major v1.x
         # release exists on GitHub Marketplace (the `v1` ref will then track
         # the latest 1.x release automatically).
-        uses: adudley78/mcp-audit@v0.5.0
+        uses: adudley78/mcp-audit@v0.8.1
         with:
           severity-threshold: high
           upload-sarif: 'true'
@@ -42,7 +42,7 @@ jobs:
   #     - uses: actions/checkout@v6
   #
   #     - name: Run mcp-audit with SAST
-  #       uses: adudley78/mcp-audit@v0.5.0
+  #       uses: adudley78/mcp-audit@v0.8.1
   #       with:
   #         run-sast: 'true'
   #         sast-path: 'src/'
