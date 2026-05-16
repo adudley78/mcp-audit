@@ -1,0 +1,82 @@
+rules:
+  - id: mcp-ts-sampling-createMessage-variable
+    message: >
+      MCP Sampling request (sampling/createMessage) passes a variable as the
+      message text content. If this variable derives from tool arguments or
+      external user input an attacker can control the prompt sent to the
+      client's LLM — enabling prompt injection, jailbreaks, data exfiltration,
+      or covert tool invocation (Unit42 MCP Sampling research, May 2026).
+      Use fixed, trusted strings in sampling message content. If external
+      content must be included, explicitly delimit it:
+      e.g., `<external-content>${sanitized}</external-content>`.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: protocol
+      cwe: CWE-77
+      owasp: A03:2021
+      owasp-mcp-top-10:
+        - MCP04
+        - MCP06
+      description: Variable text in MCP sampling/createMessage — prompt injection risk
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+      fp-guidance: >
+        Fires when sampling/createMessage is called with a non-literal string
+        as the text content. The variable may be a validated constant. Suppress
+        with // nosemgrep: mcp-ts-sampling-createMessage-variable when the text
+        is constructed exclusively from trusted, validated values. For the
+        deterministic template-literal case,
+        mcp-ts-sampling-template-literal-injection fires at ERROR instead.
+    patterns:
+      - pattern: |
+          $SERVER.request(
+              { method: "sampling/createMessage", params: { messages: [..., { content: { type: "text", text: $VAR }, ... }, ...], ... } },
+              ...
+          )
+      - pattern-not: |
+          $SERVER.request(
+              { method: "sampling/createMessage", params: { messages: [..., { content: { type: "text", text: "..." }, ... }, ...], ... } },
+              ...
+          )
+      - pattern-not: |
+          $SERVER.request(
+              { method: "sampling/createMessage", params: { messages: [..., { content: { type: "text", text: `...` }, ... }, ...], ... } },
+              ...
+          )
+
+  - id: mcp-ts-sampling-template-literal-injection
+    message: >
+      MCP Sampling message uses a template literal to construct the text
+      content. Template literals with variable interpolation create prompt
+      injection risk when the interpolated values derive from tool arguments
+      or external input. An attacker who controls the interpolated value
+      controls the prompt the client's LLM receives (Unit42 MCP Sampling
+      research, May 2026). Use a fixed string or explicitly delimit untrusted
+      content before passing it to sampling.
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: protocol
+      cwe: CWE-77
+      owasp: A03:2021
+      owasp-mcp-top-10:
+        - MCP04
+        - MCP06
+      description: Template literal in MCP sampling message — prompt injection via sampling
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH
+      fp-guidance: >
+        Fires when sampling/createMessage is called with a template literal
+        (backtick string) as the text content. Static template literals with
+        no interpolation are excluded. Suppress with
+        // nosemgrep: mcp-ts-sampling-template-literal-injection when the
+        template literal interpolates only trusted, validated values.
+    patterns:
+      - pattern: |
+          $SERVER.request(
+              { method: "sampling/createMessage", params: { messages: [..., { content: { type: "text", text: `...` }, ... }, ...], ... } },
+              ...
+          )

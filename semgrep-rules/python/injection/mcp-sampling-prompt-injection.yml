@@ -1,0 +1,96 @@
+rules:
+  - id: mcp-sampling-fstring-prompt-injection
+    message: >
+      MCP Sampling call (context.sample or create_message) uses an f-string or
+      string concatenation to build the prompt / message content. If the
+      interpolated value derives from tool arguments or external input an
+      attacker can inject arbitrary text into the LLM prompt via this server —
+      enabling jailbreaks, data exfiltration requests, and covert tool
+      invocation (Unit42 MCP Sampling attack research, May 2026).
+      Use a fixed system prompt. If user content must be included, sanitize it
+      and wrap it in explicit delimiters before passing to sampling.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-77
+      owasp: A03:2021
+      owasp-mcp-top-10:
+        - MCP04
+        - MCP06
+      description: f-string in MCP sampling prompt — prompt injection via sampling
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH
+      fp-guidance: >
+        Fires when context.sample() or create_message() is called with an
+        f-string or string concatenation as the prompt/text argument. False
+        positives occur when the interpolated values are trusted constants
+        defined in the same module. Suppress with
+        # nosemgrep: mcp-sampling-fstring-prompt-injection when the prompt is
+        constructed exclusively from trusted, non-user-controlled values.
+    patterns:
+      - pattern-either:
+          - pattern: await $CTX.sample(prompt=f"...", ...)
+          - pattern: await $CTX.sample(f"...", ...)
+          - pattern: |
+              $PROMPT = "..." + $VAR
+              ...
+              await $CTX.sample($PROMPT, ...)
+          - pattern: |
+              $PROMPT = "..." + $VAR
+              ...
+              await $CTX.sample(prompt=$PROMPT, ...)
+          - pattern: |
+              $PROMPT = $VAR + "..."
+              ...
+              await $CTX.sample($PROMPT, ...)
+          - pattern: |
+              $PROMPT = $VAR + "..."
+              ...
+              await $CTX.sample(prompt=$PROMPT, ...)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+
+  - id: mcp-sampling-variable-text-injection
+    message: >
+      MCP Sampling call passes a variable (not a literal) as the prompt or
+      text content. If this variable derives from tool arguments or external
+      input it becomes a prompt injection vector: an attacker controls what
+      the client's LLM receives and processes (Unit42 MCP Sampling research,
+      May 2026). Ensure the variable is either a trusted constant or sanitized
+      and explicitly delimited before passing to sampling.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-77
+      owasp: A03:2021
+      owasp-mcp-top-10:
+        - MCP04
+        - MCP06
+      description: Variable text in MCP sampling call — potential prompt injection
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+      fp-guidance: >
+        High false positive rate. Fires whenever context.sample() or
+        create_message() receives a non-literal prompt/text argument — the
+        variable may be a trusted constant defined elsewhere in the module.
+        Suppress with # nosemgrep: mcp-sampling-variable-text-injection when
+        the value is validated or trusted. For the deterministic f-string case,
+        mcp-sampling-fstring-prompt-injection fires at ERROR severity instead.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: await $CTX.sample($PROMPT, ...)
+              - pattern-not: await $CTX.sample("...", ...)
+              - pattern-not: await $CTX.sample(f"...", ...)
+          - patterns:
+              - pattern: await $CTX.sample(prompt=$PROMPT, ...)
+              - pattern-not: await $CTX.sample(prompt="...", ...)
+              - pattern-not: await $CTX.sample(prompt=f"...", ...)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
