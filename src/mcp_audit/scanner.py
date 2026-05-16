@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -197,9 +196,10 @@ def _run_static_pipeline(
     Pipeline order (this is the single source of truth for the scanner flow —
     both :func:`run_scan` and :func:`run_scan_async` delegate here):
 
-    0. Config-level hygiene checks via
-       :meth:`~mcp_audit.analyzers.config_hygiene.ConfigHygieneAnalyzer.analyze_config`
-       — runs once per config file, independent of server count.
+    0. Config-level checks via
+       :meth:`~mcp_audit.analyzers.base.BaseAnalyzer.analyze_config` —
+       calls every analyzer once per config file, independent of server count.
+       Analyzers that have nothing to check return ``[]`` (the default).
     1. Per-server analyzers (``analyzer.analyze(server)`` for each pair).
     2. :meth:`~mcp_audit.analyzers.rug_pull.RugPullAnalyzer.analyze_all`
        (skipped when ``skip_rug_pull`` is ``True``).
@@ -242,16 +242,12 @@ def _run_static_pipeline(
         populated with findings, ``attack_path_summary``, ``score``, and
         ``registry_stats``.
     """
-    # ── 0. Config-level hygiene checks (run once per file, before per-server) ──
-    hygiene_analyzer = next(
-        (a for a in analyzers if isinstance(a, ConfigHygieneAnalyzer)), None
-    )
-    if hygiene_analyzer is not None:
-        for config in configs:
+    # ── 0. Config-level checks (run once per file for all analyzers) ──────────
+    for config in configs:
+        for analyzer in analyzers:
             try:
-                raw = json.loads(config.path.read_text(encoding="utf-8"))
-                config_findings = hygiene_analyzer.analyze_config(
-                    raw=raw,
+                config_findings = analyzer.analyze_config(
+                    raw=config.raw,
                     config_path=config.path,
                     client=config.client_name,
                 )

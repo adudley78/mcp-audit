@@ -687,3 +687,22 @@ class TestTransportYarnDlxAndPipx:
         sc = [f for f in findings if f.id in ("SC-001", "SC-002")]
         assert sc, "Expected at least one SC finding on typosquatted package"
         assert "2024-11-14" in sc[0].description or "42,800" in sc[0].description
+
+
+# ── STORY-0030: BaseAnalyzer.analyze_config default + DiscoveredConfig.raw ──
+
+
+def test_base_analyzer_analyze_config_default_returns_empty() -> None:
+    """Every analyzer that doesn't override analyze_config should return []."""
+    analyzer = CredentialsAnalyzer()
+    result = analyzer.analyze_config(raw={}, config_path=Path("x.json"), client="test")
+    assert result == []
+
+
+def test_discovered_config_raw_populated(tmp_path: Path) -> None:
+    """parse_config populates config.raw from the parsed file (single disk read)."""
+    cfg = tmp_path / "claude_desktop_config.json"
+    cfg.write_text('{"mcpServers": {}}')
+    dc = DiscoveredConfig(client_name="claude-desktop", root_key="mcpServers", path=cfg)
+    parse_config(dc)
+    assert dc.raw == {"mcpServers": {}}

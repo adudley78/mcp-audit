@@ -25,6 +25,11 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
 
     Handles the VS Code 'servers' vs 'mcpServers' key difference.
 
+    As a side effect, stores the top-level parsed JSON dict in
+    ``config.raw`` so downstream pipeline steps (e.g. config-level
+    analyzer checks) can access the raw file contents without a second
+    disk read.
+
     Args:
         config: A discovered configuration file.
 
@@ -48,6 +53,9 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
         raise ValueError(
             f"Expected JSON object in {config.path}, got {type(data).__name__}"
         )
+
+    # Persist the raw dict so callers can access it without a second disk read.
+    config.raw = data
 
     # Try the expected root key first, then the alternative
     servers_dict = data.get(config.root_key)

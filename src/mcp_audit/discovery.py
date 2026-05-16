@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import platform
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -115,6 +115,7 @@ class DiscoveredConfig:
     client_name: str
     root_key: str
     path: Path
+    raw: dict = field(default_factory=dict)
 
 
 def discover_configs(

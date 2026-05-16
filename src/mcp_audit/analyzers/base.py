@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from mcp_audit.models import Finding, ServerConfig
 
@@ -37,6 +38,31 @@ class BaseAnalyzer(ABC):
             List of security findings. Empty list means no issues found.
         """
         ...
+
+    def analyze_config(
+        self,
+        raw: dict,
+        config_path: Path,
+        client: str,
+    ) -> list[Finding]:
+        """Config-file-level checks, run once per file independent of server count.
+
+        Default implementation returns an empty list.  Override in analyzers
+        that need to inspect the raw config file rather than individual
+        :class:`~mcp_audit.models.ServerConfig` objects.
+
+        Currently overridden by: :class:`ConfigHygieneAnalyzer` (CFHYG-005).
+
+        Args:
+            raw: The parsed top-level JSON dict for the config file.
+            config_path: Filesystem path to the config file.
+            client: Client name from the discovered config
+                (e.g. ``"claude-code"``).
+
+        Returns:
+            List of config-level findings.  Empty list when no issues detected.
+        """
+        return []
 
     def analyze_all(self, servers: list[ServerConfig]) -> list[Finding]:
         """Run this analyzer across all servers.
