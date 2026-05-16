@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.0] - 2026-05-16 — MCP Attack Surface 2026
+
+### Added
+
+- **COMM-014 — MCP Sampling capability detection** (config layer): flags servers that
+  declare the `sampling` capability, which allows server-initiated LLM calls —
+  the attack surface Unit42 documented in May 2026.
+- **Sampling SAST rules** (code layer, hero): 4 new Semgrep rules detecting prompt
+  injection via MCP Sampling in Python and TypeScript — f-string/template-literal
+  patterns fire at ERROR; variable-text patterns fire at WARNING. First scanner to
+  detect MCP Sampling attacks at the code layer. (Unit42 MCP Sampling research anchor)
+- **SSRF validation-path SAST**: 4 new Semgrep rules for CVE-2026-44284,
+  CVE-2026-39974, and CVE-2026-27826 — detects unvalidated URL construction before
+  HTTP requests in Python and TypeScript MCP servers.
+- **SDK singleton transport SAST** (TypeScript): detects the CVE-2026-25536 pattern
+  where a shared `StdioServerTransport` instance is reused across multiple clients,
+  enabling cross-client data leakage.
+- **Claude Code hooks RCE + ANTHROPIC_BASE_URL exfil** (CFHYG-005/006): detects
+  CVE-2025-59536 (arbitrary command in `.claude/hooks`) and CVE-2026-21852
+  (ANTHROPIC_BASE_URL env var pointing to attacker-controlled host) in Claude Code
+  config files.
+- **COMM-015 — Args-array shell metacharacter injection**: detects CVE-2026-30623
+  pattern where MCP server `args` arrays contain shell metacharacters (`$`, `` ` ``,
+  `|`, `;`, `&&`) that expand dangerously in shell-wrapped process execution.
+- **Registry CVE anchoring**: `RegistryEntry` now carries a `known_vulnerabilities`
+  field; mcp-atlassian CVE-2026-27826 anchored in the registry; COMM-005 and COMM-007
+  cross-reference registry CVE data for richer finding context.
+
+---
+
 ## [0.8.1] - 2026-05-03
 
 ### Fixed
