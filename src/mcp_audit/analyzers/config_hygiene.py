@@ -107,7 +107,6 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             findings.extend(self._check_world_writable_parent(server, config_path))
 
         findings.extend(self._check_inline_secrets(server, config_path))
-        findings.extend(self._check_claude_code_hooks(server, config_path))
         findings.extend(self._check_anthropic_base_url(server))
 
         return findings
@@ -295,58 +294,66 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             logger.debug("config_hygiene: failed to parse JSON from %s", config_path)
             return None
 
-    def _check_claude_code_hooks(
+    def analyze_config(
         self,
-        server: ServerConfig,
+        raw: dict,
         config_path: Path,
+        client: str,
     ) -> list[Finding]:
-        """CFHYG-005 — non-empty ``hooks`` section in ``.claude.json``.
+        """Config-level hygiene checks that run even when no servers are configured.
 
-        CVE-2025-59536 (Check Point Research): a threat actor who can write to
-        ``.claude.json`` can inject arbitrary shell commands that Claude Code
-        executes during its lifecycle (pre-tool, post-tool, etc.).
+        Called once per config file by the scanner pipeline, independent of how
+        many (if any) MCP servers the file defines.
+
+        Currently covers:
+
+        - **CFHYG-005**: non-empty ``hooks`` section in ``.claude.json``
+          (CVE-2025-59536 — shell-command injection via config file write).
+
+        Args:
+            raw: The parsed JSON dict for the config file.
+            config_path: Filesystem path to the config file.
+            client: Client name from the discovered config (e.g. ``"claude-code"``).
+
+        Returns:
+            List of config-level findings.  Empty when no issues are detected.
         """
-        if config_path.name != ".claude.json":
-            return []
-
-        raw = self._load_raw_config(config_path)
-        if raw is None:
-            return []
-
-        hooks = raw.get("hooks")
-        if not hooks:
-            return []
-
-        return [
-            Finding(
-                id="CFHYG-005",
-                severity=Severity.MEDIUM,
-                analyzer=self.name,
-                client=server.client,
-                server=server.name,
-                title="Claude Code hooks section detected in config",
-                description=(
-                    "The .claude.json config file contains a non-empty"
-                    " 'hooks' section. Claude Code executes hooks as shell"
-                    " commands during its lifecycle (pre-tool, post-tool,"
-                    " etc.). A threat actor with write access to this file"
-                    " can inject arbitrary commands that run with your user"
-                    " privileges during normal Claude Code operation."
-                    " (CVE-2025-59536, Check Point Research)"
-                ),
-                evidence=(
-                    f"Config file {config_path} contains a non-empty 'hooks' section"
-                ),
-                remediation=(
-                    "Review the 'hooks' section in .claude.json. Remove any"
-                    " hooks you did not intentionally add. Restrict write"
-                    " access to the file: chmod 600 ~/.claude.json"
-                ),
-                cwe="CWE-78",
-                cve=["CVE-2025-59536"],
-                owasp_mcp_top_10=["MCP01", "MCP07"],
-            )
-        ]
+        findings: list[Finding] = []
+        if config_path.name == ".claude.json":
+            hooks = raw.get("hooks")
+            if hooks:
+                findings.append(
+                    Finding(
+                        id="CFHYG-005",
+                        severity=Severity.MEDIUM,
+                        analyzer=self.name,
+                        client=client,
+                        server="(config-level)",
+                        title="Claude Code hooks section detected in config",
+                        description=(
+                            "The .claude.json config file contains a non-empty"
+                            " 'hooks' section. Claude Code executes hooks as shell"
+                            " commands during its lifecycle (pre-tool, post-tool,"
+                            " etc.). A threat actor with write access to this file"
+                            " can inject arbitrary commands that run with your user"
+                            " privileges during normal Claude Code operation."
+                            " (CVE-2025-59536, Check Point Research)"
+                        ),
+                        evidence=(
+                            f"Config file {config_path} contains a non-empty"
+                            " 'hooks' section"
+                        ),
+                        remediation=(
+                            "Review the 'hooks' section in .claude.json. Remove any"
+                            " hooks you did not intentionally add. Restrict write"
+                            " access to the file: chmod 600 ~/.claude.json"
+                        ),
+                        cwe="CWE-78",
+                        cve=["CVE-2025-59536"],
+                        owasp_mcp_top_10=["MCP01", "MCP07"],
+                    )
+                )
+        return findings
 
     def _check_anthropic_base_url(
         self,

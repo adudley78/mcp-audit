@@ -333,17 +333,21 @@ def test_analyze_returns_list_type(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# CFHYG-005 — Claude Code hooks section
+# CFHYG-005 — Claude Code hooks section (analyze_config, config-level)
 # ---------------------------------------------------------------------------
 
 
 def test_hooks_nonempty_fires_cfhyg005(tmp_path: Path) -> None:
-    """Non-empty hooks dict in .claude.json → CFHYG-005 fires."""
-    cfg = tmp_path / ".claude.json"
-    cfg.write_text('{"hooks": {"preToolUse": "echo hi"}, "mcpServers": {}}')
+    """Non-empty hooks dict in .claude.json → CFHYG-005 fires via analyze_config."""
+    import json
 
-    server = _make_server(cfg, client="claude-code")
-    findings = ConfigHygieneAnalyzer().analyze(server)
+    cfg = tmp_path / ".claude.json"
+    raw = {"hooks": {"preToolUse": "echo hi"}, "mcpServers": {}}
+    cfg.write_text(json.dumps(raw))
+
+    findings = ConfigHygieneAnalyzer().analyze_config(
+        raw=raw, config_path=cfg, client="claude-code"
+    )
     ids = _finding_ids(findings)
 
     assert "CFHYG-005" in ids
@@ -354,39 +358,111 @@ def test_hooks_nonempty_fires_cfhyg005(tmp_path: Path) -> None:
     assert "MCP07" in finding.owasp_mcp_top_10
     assert finding.cve == ["CVE-2025-59536"]
     assert "hooks" in finding.evidence.lower()
+    assert finding.server == "(config-level)"
 
 
-def test_hooks_empty_no_finding(tmp_path: Path) -> None:
-    """Empty hooks dict in .claude.json → no CFHYG-005."""
+def test_hooks_nonempty_not_fired_by_analyze(tmp_path: Path) -> None:
+    """Per-server analyze() no longer emits CFHYG-005 (moved to analyze_config)."""
+    import json
+
     cfg = tmp_path / ".claude.json"
-    cfg.write_text('{"hooks": {}, "mcpServers": {}}')
+    raw = {"hooks": {"preToolUse": "echo hi"}, "mcpServers": {}}
+    cfg.write_text(json.dumps(raw))
 
     server = _make_server(cfg, client="claude-code")
     findings = ConfigHygieneAnalyzer().analyze(server)
 
+    assert "CFHYG-005" not in _finding_ids(findings)
+
+
+def test_hooks_empty_no_finding(tmp_path: Path) -> None:
+    """Empty hooks dict in .claude.json → no CFHYG-005 from analyze_config."""
+    import json
+
+    cfg = tmp_path / ".claude.json"
+    raw = {"hooks": {}, "mcpServers": {}}
+    cfg.write_text(json.dumps(raw))
+
+    findings = ConfigHygieneAnalyzer().analyze_config(
+        raw=raw, config_path=cfg, client="claude-code"
+    )
     assert "CFHYG-005" not in _finding_ids(findings)
 
 
 def test_no_hooks_key_no_finding(tmp_path: Path) -> None:
-    """No hooks key in .claude.json → no CFHYG-005."""
+    """No hooks key in .claude.json → no CFHYG-005 from analyze_config."""
+    import json
+
     cfg = tmp_path / ".claude.json"
-    cfg.write_text('{"mcpServers": {}}')
+    raw = {"mcpServers": {}}
+    cfg.write_text(json.dumps(raw))
 
-    server = _make_server(cfg, client="claude-code")
-    findings = ConfigHygieneAnalyzer().analyze(server)
-
+    findings = ConfigHygieneAnalyzer().analyze_config(
+        raw=raw, config_path=cfg, client="claude-code"
+    )
     assert "CFHYG-005" not in _finding_ids(findings)
 
 
-def test_hooks_non_claude_code_client_no_finding(tmp_path: Path) -> None:
+def test_hooks_non_claude_json_filename_no_finding(tmp_path: Path) -> None:
     """hooks key in claude_desktop_config.json (not .claude.json) → no CFHYG-005."""
+    import json
+
     cfg = tmp_path / "claude_desktop_config.json"
-    cfg.write_text('{"hooks": {"preToolUse": "echo hi"}, "mcpServers": {}}')
+    raw = {"hooks": {"preToolUse": "echo hi"}, "mcpServers": {}}
+    cfg.write_text(json.dumps(raw))
 
-    server = _make_server(cfg, client="claude_desktop")
-    findings = ConfigHygieneAnalyzer().analyze(server)
-
+    findings = ConfigHygieneAnalyzer().analyze_config(
+        raw=raw, config_path=cfg, client="claude-desktop"
+    )
     assert "CFHYG-005" not in _finding_ids(findings)
+
+
+# --- Three new tests: hooks-only config (no mcpServers key) ------------------
+
+
+def test_cfhyg005_fires_on_hooks_only_config(tmp_path: Path) -> None:
+    """CFHYG-005 fires even when no mcpServers are configured."""
+    import json
+
+    cfg = tmp_path / ".claude.json"
+    raw = {"hooks": {"PreToolUse": [{"matcher": "*", "command": "/tmp/evil.sh"}]}}  # noqa: S108
+    cfg.write_text(json.dumps(raw))
+
+    findings = ConfigHygieneAnalyzer().analyze_config(
+        raw=raw, config_path=cfg, client="claude-code"
+    )
+    assert len(findings) == 1
+    assert findings[0].id == "CFHYG-005"
+    assert findings[0].severity == Severity.MEDIUM
+    assert "CVE-2025-59536" in (findings[0].cve or [])
+
+
+def test_cfhyg005_silent_on_empty_hooks(tmp_path: Path) -> None:
+    """CFHYG-005 does not fire when the hooks key is absent."""
+    import json
+
+    cfg = tmp_path / ".claude.json"
+    raw = {"mcpServers": {}}
+    cfg.write_text(json.dumps(raw))
+
+    findings = ConfigHygieneAnalyzer().analyze_config(
+        raw=raw, config_path=cfg, client="claude-code"
+    )
+    assert not any(f.id == "CFHYG-005" for f in findings)
+
+
+def test_cfhyg005_silent_on_non_claude_json(tmp_path: Path) -> None:
+    """CFHYG-005 does not fire for non-.claude.json files with a hooks key."""
+    import json
+
+    cfg = tmp_path / "claude_desktop_config.json"
+    raw = {"hooks": {"PreToolUse": []}}
+    cfg.write_text(json.dumps(raw))
+
+    findings = ConfigHygieneAnalyzer().analyze_config(
+        raw=raw, config_path=cfg, client="claude-desktop"
+    )
+    assert not any(f.id == "CFHYG-005" for f in findings)
 
 
 # ---------------------------------------------------------------------------

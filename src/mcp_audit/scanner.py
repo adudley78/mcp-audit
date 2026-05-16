@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -196,6 +197,9 @@ def _run_static_pipeline(
     Pipeline order (this is the single source of truth for the scanner flow —
     both :func:`run_scan` and :func:`run_scan_async` delegate here):
 
+    0. Config-level hygiene checks via
+       :meth:`~mcp_audit.analyzers.config_hygiene.ConfigHygieneAnalyzer.analyze_config`
+       — runs once per config file, independent of server count.
     1. Per-server analyzers (``analyzer.analyze(server)`` for each pair).
     2. :meth:`~mcp_audit.analyzers.rug_pull.RugPullAnalyzer.analyze_all`
        (skipped when ``skip_rug_pull`` is ``True``).
@@ -238,6 +242,25 @@ def _run_static_pipeline(
         populated with findings, ``attack_path_summary``, ``score``, and
         ``registry_stats``.
     """
+    # ── 0. Config-level hygiene checks (run once per file, before per-server) ──
+    hygiene_analyzer = next(
+        (a for a in analyzers if isinstance(a, ConfigHygieneAnalyzer)), None
+    )
+    if hygiene_analyzer is not None:
+        for config in configs:
+            try:
+                raw = json.loads(config.path.read_text(encoding="utf-8"))
+                config_findings = hygiene_analyzer.analyze_config(
+                    raw=raw,
+                    config_path=config.path,
+                    client=config.client_name,
+                )
+                for finding in config_findings:
+                    finding.finding_path = str(config.path)
+                result.findings.extend(config_findings)
+            except Exception:  # noqa: BLE001, S110
+                pass  # parse errors already captured by _discover_and_parse
+
     # ── 1. Per-server static analysis ─────────────────────────────────────────
     for server in all_servers:
         for analyzer in analyzers:
