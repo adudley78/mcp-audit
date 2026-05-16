@@ -1,0 +1,96 @@
+rules:
+  - id: mcp-sdk-singleton-transport
+    message: >
+      McpServer or StreamableHTTPServerTransport is instantiated at module
+      scope (outside any function). This is the vulnerability pattern behind
+      CVE-2026-25536 (MCP TypeScript SDK, CVSS 7.1): when multiple clients
+      connect to the same server process, they share the singleton instance,
+      causing session state and conversation data from one client to leak to
+      another.
+      Fix: create a new McpServer and StreamableHTTPServerTransport instance
+      inside each request handler so each client connection gets its own
+      isolated state.
+    severity: ERROR
+    languages: [typescript, javascript]
+    metadata:
+      category: protocol
+      cwe: CWE-362
+      owasp: A04:2021
+      owasp-mcp-top-10:
+        - MCP06
+      cve:
+        - CVE-2026-25536
+      description: McpServer/StreamableHTTPServerTransport at module scope — cross-client data leak
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      fp-guidance: >
+        Fires when McpServer or StreamableHTTPServerTransport is instantiated
+        at module scope. This is almost always a bug — singleton transport
+        instances are not safe for multi-client HTTP servers. The only valid
+        exception is stdio-transport servers that serve exactly one client
+        (the stdio transport is inherently single-client). Suppress with
+        // nosemgrep: mcp-sdk-singleton-transport for stdio-only servers.
+        Affected SDK versions: v1.10.0–v1.25.3. Fixed in v1.26.0.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              const $VAR = new McpServer(...);
+          - pattern: |
+              const $VAR = new StreamableHTTPServerTransport(...);
+          - pattern: |
+              let $VAR = new McpServer(...);
+          - pattern: |
+              let $VAR = new StreamableHTTPServerTransport(...);
+          - pattern: |
+              var $VAR = new McpServer(...);
+          - pattern: |
+              var $VAR = new StreamableHTTPServerTransport(...);
+      - pattern-not-inside: |
+          function $FUNC(...) { ... }
+      - pattern-not-inside: |
+          async function $FUNC(...) { ... }
+      - pattern-not-inside: |
+          (...) => { ... }
+      - pattern-not-inside: |
+          async (...) => { ... }
+
+  - id: mcp-sdk-singleton-server-reuse
+    message: >
+      A McpServer instance created outside a request handler is reused across
+      multiple connect() calls. This is the exact usage pattern behind
+      CVE-2026-25536: a single McpServer shared across clients leaks session
+      data between connections.
+      Create a new McpServer instance inside each request handler function.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: protocol
+      cwe: CWE-362
+      owasp: A04:2021
+      owasp-mcp-top-10:
+        - MCP06
+      cve:
+        - CVE-2026-25536
+      description: Singleton McpServer reused across connect() calls — CVE-2026-25536
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: |
+              const $SERVER = new McpServer(...);
+              ...
+              async function $HANDLER(...) {
+                  ...
+                  $SERVER.connect(...);
+                  ...
+              }
+          - pattern: |
+              const $SERVER = new McpServer(...);
+              ...
+              function $HANDLER(...) {
+                  ...
+                  $SERVER.connect(...);
+                  ...
+              }
