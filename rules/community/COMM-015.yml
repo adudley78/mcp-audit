@@ -1,0 +1,25 @@
+id: COMM-015
+name: Shell metacharacters in server args
+description: >
+  One or more server args contain shell metacharacters (;, &&, ||, |, $(...),
+  backtick, >, <). These characters have no legitimate use in MCP server args
+  and strongly indicate command injection or config tampering. A threat actor
+  who can modify an MCP config file can inject shell commands that execute
+  when the server process is spawned. Associated with the OX Security advisory
+  (CVE-2026-30623, CVSS 9.8).
+severity: CRITICAL
+category: injection
+match:
+  field: args
+  pattern: "[;|&`$><]|\\$\\(|&&|\\|\\|"
+  type: regex
+message: "Server '{server_name}' has shell metacharacters in args: {matched_value}"
+tags:
+  - injection
+  - shell
+  - command-injection
+enabled: true
+owasp_mcp_top_10:
+  - MCP05
+cve:
+  - CVE-2026-30623

