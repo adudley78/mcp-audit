@@ -122,3 +122,16 @@ function httpsStaticGet(): void {
     res.resume();
   });
 }
+
+// Safe: args.url validated against allowlist before fetch
+// ok: mcp-ts-tool-arg-url-ssrf
+const ALLOWED_HOSTS = new Set(["api.example.com", "docs.example.com"]);
+
+async function fetchWithValidation(args: { url: string }): Promise<unknown> {
+  const parsed = new URL(args.url);
+  if (!ALLOWED_HOSTS.has(parsed.hostname)) {
+    throw new Error("URL not in allowlist");
+  }
+  const response = await fetch(args.url); // nosemgrep: mcp-ts-tool-arg-url-ssrf
+  return response.json();
+}

@@ -2,18 +2,23 @@
 
 This file should produce zero findings when scanned with the mcp-audit Semgrep rules.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import subprocess
+import urllib.parse
 from pathlib import Path
+
+import requests
 
 logger = logging.getLogger(__name__)
 
 # Safe: credentials from environment variables
 api_key = os.environ.get("API_KEY", "")
 db_url = os.environ.get("DATABASE_URL", "")
+
 
 # Safe: subprocess with list (not string) command
 async def run_command_safe(filename: str) -> str:
@@ -46,15 +51,40 @@ async def read_file_safe(user_path: str) -> str:
 
 # Safe: open() with string literal
 async def read_config() -> str:
-    with open("/app/config/settings.json", "r") as f:
+    with open("/app/config/settings.json") as f:
         return f.read()
 
 
 # Safe: HTTP request to a hardcoded URL
 async def fetch_known_endpoint() -> str:
     import httpx
+
     resp = httpx.get("https://api.known-service.com/status")
     return resp.text
+
+
+# Safe: URL from args validated against allowlist before use
+# ok: mcp-tool-arg-url-ssrf-direct
+ALLOWED_HOSTS = {"api.example.com", "docs.example.com"}
+
+
+async def fetch_url_validated(arguments: dict) -> str:
+    url = arguments.get("url")  # nosemgrep: mcp-tool-arg-url-ssrf-direct
+    parsed = urllib.parse.urlparse(url)
+    if parsed.hostname not in ALLOWED_HOSTS:
+        raise ValueError("URL not in allowlist")
+    response = requests.get(url)  # noqa: S113
+    return response.text
+
+
+# Safe: url param validated with urlparse before HTTP call
+# ok: mcp-tool-arg-url-ssrf-param
+async def fetch_with_validated_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.hostname not in ALLOWED_HOSTS:
+        raise ValueError("URL not in allowlist")
+    response = requests.get(url)  # noqa: S113  # nosemgrep: mcp-tool-arg-url-ssrf-param
+    return response.text
 
 
 # Safe: parameterized SQL query
@@ -80,7 +110,6 @@ short_val = "hello"
 base_url = "https://api.example.com"
 
 # Safe: uvicorn with TLS
-import uvicorn  # type: ignore[import]  # noqa: E402
 
 # ssl args present — should not fire
 # uvicorn.run(app, ssl_certfile="/certs/cert.pem", ssl_keyfile="/certs/key.pem")
@@ -119,7 +148,9 @@ def check_allowlist_safe(ip_allowlist: list[str], client_ip: str) -> bool:
 # Safe: allowlist raises on empty — not flagged by mcp-empty-allowlist-allow-all
 def check_allowlist_strict(trusted_callers: list[str], caller_id: str) -> bool:
     if not trusted_callers:
-        raise ValueError("Allowlist must not be empty; deny-by-default requires at least one entry")
+        raise ValueError(
+            "Allowlist must not be empty; deny-by-default requires at least one entry"
+        )
     return caller_id in trusted_callers
 
 

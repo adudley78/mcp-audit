@@ -2,6 +2,7 @@
 
 DO NOT deploy or run this code. It intentionally contains security vulnerabilities.
 """
+
 from __future__ import annotations
 
 import os
@@ -12,8 +13,8 @@ import aiohttp
 import httpx
 import requests
 
-
 # --- subprocess injection ---
+
 
 async def run_command(user_cmd: str) -> str:
     # ruleid: mcp-subprocess-string-cmd
@@ -39,6 +40,7 @@ def shell_true_example(args: list[str]) -> None:
 
 # --- eval injection ---
 
+
 async def execute_code(code: str) -> None:
     # ruleid: mcp-eval-tool-arg
     eval(code)
@@ -51,9 +53,10 @@ async def exec_dynamic(script: str) -> None:
 
 # --- path traversal ---
 
+
 async def read_file(path: str) -> str:
     # ruleid: mcp-open-path-traversal
-    with open(path, "r") as f:
+    with open(path) as f:
         return f.read()
 
 
@@ -68,6 +71,7 @@ async def write_pathlib(user_path: str, content: str) -> None:
 
 
 # --- SSRF ---
+
 
 async def fetch_url(url: str) -> str:
     # ruleid: mcp-requests-variable-url
@@ -88,7 +92,49 @@ async def aiohttp_fetch(url: str) -> str:
         return await resp.text()
 
 
+# --- SSRF: tool argument URL (CVE-2026-44284, CVE-2026-39974, CVE-2026-27826) ---
+
+
+async def tool_fetch_from_args(arguments: dict) -> str:
+    # ruleid: mcp-tool-arg-url-ssrf-direct
+    target = arguments.get("url")
+    response = requests.get(target)  # noqa: S113
+    return response.text
+
+
+async def tool_post_from_args(arguments: dict) -> str:
+    # ruleid: mcp-tool-arg-url-ssrf-direct
+    endpoint = arguments.get("endpoint")
+    response = requests.post(endpoint, json={})  # noqa: S113
+    return response.text
+
+
+async def tool_httpx_from_args(arguments: dict) -> str:
+    # ruleid: mcp-tool-arg-url-ssrf-direct
+    url = arguments.get("target")
+    return httpx.get(url).text
+
+
+async def tool_with_url_param(url: str) -> str:
+    # ruleid: mcp-tool-arg-url-ssrf-param
+    response = requests.get(url)  # noqa: S113
+    return response.text
+
+
+async def tool_with_endpoint_param(endpoint: str) -> str:
+    # ruleid: mcp-tool-arg-url-ssrf-param
+    response = requests.get(endpoint)  # noqa: S113
+    return response.text
+
+
+async def tool_with_base_url_param(base_url: str) -> str:
+    # ruleid: mcp-tool-arg-url-ssrf-param
+    response = requests.get(base_url)  # noqa: S113
+    return response.text
+
+
 # --- SQL injection ---
+
 
 async def query_db(conn, user_id: str) -> list:
     # ruleid: mcp-fstring-sql

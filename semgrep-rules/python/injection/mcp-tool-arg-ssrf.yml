@@ -1,0 +1,162 @@
+rules:
+  - id: mcp-tool-arg-url-ssrf-direct
+    message: >
+      A URL derived from MCP tool arguments is passed directly to an HTTP
+      request function without URL validation. This is the exact pattern
+      behind CVE-2026-44284 (FastGPT SSRF), CVE-2026-39974 (n8n-MCP SSRF),
+      and CVE-2026-27826 (mcp-atlassian SSRF). An AI agent can instruct this
+      tool to make requests to internal services (AWS IMDS at
+      169.254.169.254/latest/meta-data/, internal APIs, localhost services)
+      that are not reachable from the public internet.
+      Validate the URL against an allowlist of trusted schemes and hostnames
+      before making the request. Never allow 169.254.x.x, 10.x.x.x, or
+      172.16-31.x.x ranges.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-918
+      owasp: A10:2021
+      owasp-mcp-top-10:
+        - MCP05
+      cve:
+        - CVE-2026-44284
+        - CVE-2026-39974
+        - CVE-2026-27826
+      description: Tool argument URL used in HTTP call without validation — SSRF
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH
+      fp-guidance: >
+        Fires when arguments.get() result flows into an HTTP call in the same
+        function. Suppress with # nosemgrep: mcp-tool-arg-url-ssrf-direct when
+        the URL is validated against an explicit allowlist before use.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $URL = $ARGS.get(...)
+              ...
+              requests.get($URL, ...)
+          - pattern: |
+              $URL = $ARGS.get(...)
+              ...
+              requests.post($URL, ...)
+          - pattern: |
+              $URL = $ARGS.get(...)
+              ...
+              requests.put($URL, ...)
+          - pattern: |
+              $URL = $ARGS.get(...)
+              ...
+              httpx.get($URL, ...)
+          - pattern: |
+              $URL = $ARGS.get(...)
+              ...
+              httpx.post($URL, ...)
+          - pattern: |
+              $URL = $ARGS.get(...)
+              ...
+              await $SESSION.get($URL, ...)
+          - pattern: |
+              $URL = $ARGS.get(...)
+              ...
+              await $SESSION.post($URL, ...)
+      - pattern-inside: |
+          async def $FUNC(...):
+              ...
+
+  - id: mcp-tool-arg-url-ssrf-param
+    message: >
+      An async function receives a parameter named 'url', 'endpoint', or
+      'base_url' and passes it directly to an HTTP request without validation.
+      In MCP servers decorated with @mcp.tool() or similar, function parameters
+      ARE tool arguments controlled by the AI agent. This is the pattern behind
+      CVE-2026-44284, CVE-2026-39974, and CVE-2026-27826.
+      Validate the URL against an allowlist of trusted schemes and hostnames.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: injection
+      cwe: CWE-918
+      owasp: A10:2021
+      owasp-mcp-top-10:
+        - MCP05
+      cve:
+        - CVE-2026-44284
+        - CVE-2026-39974
+        - CVE-2026-27826
+      description: URL-typed tool parameter used in HTTP call without validation — SSRF
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH
+      fp-guidance: >
+        Fires on async functions with a url/endpoint/base_url parameter that
+        flows into an HTTP call. Suppress with
+        # nosemgrep: mcp-tool-arg-url-ssrf-param when the URL is validated
+        against a trusted-hostname allowlist before use.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: |
+                  async def $FUNC(..., url: str, ...):
+                      ...
+                      requests.get(url, ...)
+              - pattern-not: |
+                  async def $FUNC(..., url: str, ...):
+                      ...
+                      urllib.parse.urlparse(url)
+                      ...
+                      requests.get(url, ...)
+          - patterns:
+              - pattern: |
+                  async def $FUNC(..., url: str, ...):
+                      ...
+                      requests.post(url, ...)
+              - pattern-not: |
+                  async def $FUNC(..., url: str, ...):
+                      ...
+                      urllib.parse.urlparse(url)
+                      ...
+                      requests.post(url, ...)
+          - patterns:
+              - pattern: |
+                  async def $FUNC(..., url: str, ...):
+                      ...
+                      httpx.get(url, ...)
+              - pattern-not: |
+                  async def $FUNC(..., url: str, ...):
+                      ...
+                      urllib.parse.urlparse(url)
+                      ...
+                      httpx.get(url, ...)
+          - patterns:
+              - pattern: |
+                  async def $FUNC(..., url: str, ...):
+                      ...
+                      httpx.post(url, ...)
+              - pattern-not: |
+                  async def $FUNC(..., url: str, ...):
+                      ...
+                      urllib.parse.urlparse(url)
+                      ...
+                      httpx.post(url, ...)
+          - pattern: |
+              async def $FUNC(..., endpoint: str, ...):
+                  ...
+                  requests.get(endpoint, ...)
+          - pattern: |
+              async def $FUNC(..., endpoint: str, ...):
+                  ...
+                  requests.post(endpoint, ...)
+          - pattern: |
+              async def $FUNC(..., endpoint: str, ...):
+                  ...
+                  httpx.get(endpoint, ...)
+          - pattern: |
+              async def $FUNC(..., base_url: str, ...):
+                  ...
+                  requests.get(base_url, ...)
+          - pattern: |
+              async def $FUNC(..., base_url: str, ...):
+                  ...
+                  httpx.get(base_url, ...)

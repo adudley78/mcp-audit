@@ -1,0 +1,109 @@
+rules:
+  - id: mcp-ts-tool-arg-url-ssrf
+    message: >
+      A URL or endpoint from MCP tool arguments is passed to fetch() or axios
+      without URL validation. This is the pattern behind CVE-2026-44284,
+      CVE-2026-39974, and CVE-2026-27826. An AI agent can instruct this tool
+      to request internal services (AWS IMDS, private APIs, localhost) not
+      reachable from the internet.
+      Validate the URL against an allowlist before making the request.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-918
+      owasp: A10:2021
+      owasp-mcp-top-10:
+        - MCP05
+      cve:
+        - CVE-2026-44284
+        - CVE-2026-39974
+        - CVE-2026-27826
+      description: Tool arg URL → fetch()/axios without validation — SSRF risk
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH
+      fp-guidance: >
+        Fires when args.url, args.endpoint, or args.baseUrl flows into fetch()
+        or axios. Suppress with // nosemgrep: mcp-ts-tool-arg-url-ssrf when
+        the URL is validated against a trusted-domain allowlist before use.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              const $URL = $ARGS.url;
+              ...
+              fetch($URL, ...)
+          - pattern: |
+              const $URL = $ARGS.endpoint;
+              ...
+              fetch($URL, ...)
+          - pattern: |
+              const $URL = $ARGS.baseUrl;
+              ...
+              fetch($URL, ...)
+          - pattern: |
+              const $URL = $ARGS.url;
+              ...
+              axios.get($URL, ...)
+          - pattern: |
+              const $URL = $ARGS.url;
+              ...
+              axios.post($URL, ...)
+          - pattern: fetch($ARGS.url, ...)
+          - pattern: fetch($ARGS.endpoint, ...)
+          - pattern: fetch($ARGS.baseUrl, ...)
+          - pattern: axios.get($ARGS.url, ...)
+          - pattern: axios.post($ARGS.url, ...)
+          - pattern: axios($ARGS.url, ...)
+
+  - id: mcp-ts-request-header-ssrf
+    message: >
+      An HTTP request uses a URL or hostname sourced from a request header
+      (req.headers, request.header, context.header) without validation.
+      This is the exact pattern behind CVE-2026-39974 (n8n-MCP) and
+      CVE-2026-27826 (mcp-atlassian): custom HTTP headers carrying URLs
+      are used as outgoing request targets, enabling SSRF via multi-tenant
+      header injection.
+      Validate the header value against an allowlist of trusted hostnames
+      before making the request.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-918
+      owasp: A10:2021
+      owasp-mcp-top-10:
+        - MCP05
+      cve:
+        - CVE-2026-39974
+        - CVE-2026-27826
+      description: Request header used as HTTP call target without validation — SSRF
+      confidence: MEDIUM
+      likelihood: HIGH
+      impact: HIGH
+      fp-guidance: >
+        Fires when req.headers[key] or req.headers.prop flows into fetch() or
+        axios. Suppress with // nosemgrep: mcp-ts-request-header-ssrf when the
+        header value is validated against a trusted-hostname allowlist.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              const $URL = $REQ.headers[$KEY];
+              ...
+              fetch($URL, ...)
+          - pattern: |
+              const $URL = $REQ.headers.$PROP;
+              ...
+              fetch($URL, ...)
+          - pattern: fetch($REQ.headers[$KEY], ...)
+          - pattern: fetch($REQ.headers.$PROP, ...)
+          - pattern: axios.get($REQ.headers.$PROP, ...)
+          - pattern: axios.post($REQ.headers.$PROP, ...)
+          - pattern: |
+              const $URL = $REQ.headers[$KEY];
+              ...
+              axios.get($URL, ...)
+          - pattern: |
+              const $URL = $REQ.headers.$PROP;
+              ...
+              axios.get($URL, ...)
