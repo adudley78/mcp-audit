@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.1] - 2026-05-16 — Patch
+
+### Fixed
+
+- **CFHYG-005** now fires on `.claude.json` files that contain only a `hooks`
+  section with no `mcpServers` key. The check was silently skipped when no MCP
+  servers were configured because it ran per `ServerConfig`; it has been
+  promoted to a config-level check (`analyze_config`) that runs once per file
+  regardless of server count.
+- Section 24 manual-test-matrix assertion updated to account for the synthetic
+  `mcp-attack-surface` aggregate component (`type=data`) in CycloneDX output.
+- Manual test matrix updated for v0.9.0 new detection surfaces (Sections 28–30,
+  Section 15 rule count, Section 25 sampling SAST fixture).
+
+---
+
 ## [0.9.0] - 2026-05-16 — MCP Attack Surface 2026
 
 ### Added
