@@ -3,14 +3,15 @@ name: /tmp referenced in server args
 description: >
   Server args reference the /tmp directory. Temp directories are world-writable
   on most systems, making them a common target for race conditions and symlink
-  attacks. Prefer application-specific directories with restricted permissions.
+  attacks. This pattern is associated with CVE-2026-30623 (CVSS 9.8, OX Security
+  advisory). Prefer application-specific directories with restricted permissions.
 severity: MEDIUM
 category: filesystem
 match:
   field: args
   pattern: "/tmp"
   type: contains
-message: "Server '{server_name}' references /tmp in args — potential temp file abuse"
+message: "Server '{server_name}' references /tmp in args (CVE-2026-30623) — potential temp file abuse"
 tags:
   - filesystem
 enabled: true

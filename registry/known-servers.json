@@ -1168,7 +1168,7 @@
       "repo": "https://github.com/sooperset/mcp-atlassian",
       "maintainer": "community",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-05-09",
       "known_versions": [],
       "tags": [
         "project-management",
@@ -1178,6 +1178,7 @@
       "capabilities": [
         "network_out"
       ],
+      "known_vulnerabilities": ["CVE-2026-27826"],
       "first_published": "2025-02-15",
       "weekly_downloads": 2900,
       "publisher_history": [

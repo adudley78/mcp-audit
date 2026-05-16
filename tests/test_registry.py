@@ -638,6 +638,62 @@ class TestRegistryEntryMetadataFields:
         for e in enriched:
             assert len(e.first_published) == 10  # YYYY-MM-DD
 
+    def test_known_vulnerabilities_field_populated_when_present(
+        self, tmp_path: Path
+    ) -> None:
+        """known_vulnerabilities deserialises correctly when present in JSON."""
+        registry_json = {
+            "schema_version": "1.0",
+            "last_updated": "2026-05-16",
+            "entries": [
+                {
+                    "name": "vuln-package",
+                    "source": "pip",
+                    "repo": None,
+                    "maintainer": "community",
+                    "verified": False,
+                    "last_verified": "2026-05-16",
+                    "known_versions": [],
+                    "tags": [],
+                    "known_vulnerabilities": ["CVE-2026-27826", "GHSA-xxxx-yyyy-zzzz"],
+                }
+            ],
+        }
+        reg_path = tmp_path / "registry.json"
+        reg_path.write_text(__import__("json").dumps(registry_json))
+        registry = KnownServerRegistry(path=reg_path)
+
+        assert len(registry.entries) == 1
+        entry = registry.entries[0]
+        assert entry.known_vulnerabilities == ["CVE-2026-27826", "GHSA-xxxx-yyyy-zzzz"]
+
+    def test_known_vulnerabilities_defaults_to_none_when_absent(
+        self, tmp_path: Path
+    ) -> None:
+        """known_vulnerabilities is None (not an error) when the field is absent."""
+        registry_json = {
+            "schema_version": "1.0",
+            "last_updated": "2026-05-16",
+            "entries": [
+                {
+                    "name": "legacy-package",
+                    "source": "npm",
+                    "repo": None,
+                    "maintainer": "community",
+                    "verified": True,
+                    "last_verified": "2026-05-16",
+                    "known_versions": [],
+                    "tags": [],
+                }
+            ],
+        }
+        reg_path = tmp_path / "registry.json"
+        reg_path.write_text(__import__("json").dumps(registry_json))
+        registry = KnownServerRegistry(path=reg_path)
+
+        assert len(registry.entries) == 1
+        assert registry.entries[0].known_vulnerabilities is None
+
 
 class TestUpdateRegistryURL:
     """Verify _UPDATE_REGISTRY_URL uses a version tag, not /main/."""

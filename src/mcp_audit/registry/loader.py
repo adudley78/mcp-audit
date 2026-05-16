@@ -114,6 +114,11 @@ class RegistryEntry(BaseModel):
     # MEDIUM signal, not a neutral absence.
     attestation_expected: bool = False
 
+    # CVE IDs (or other advisory IDs) known to affect this package.
+    # Populated from public disclosures. Used by --check-vulns to surface
+    # findings without requiring a live OSV.dev query.
+    known_vulnerabilities: list[str] | None = None
+
 
 # ── Registry class ─────────────────────────────────────────────────────────────
 

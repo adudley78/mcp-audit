@@ -4,13 +4,14 @@ description: >
   The words eval or exec appear as whole words in the server args. These are
   dynamic code execution primitives in Python, JavaScript, and most shell
   environments. Their presence in args is a strong indicator of code injection.
+  This pattern is associated with CVE-2026-30615 (OX Security advisory).
 severity: HIGH
 category: code-execution
 match:
   field: args
   pattern: "\\b(eval|exec)\\b"
   type: regex
-message: "Server '{server_name}' passes eval/exec in args: {matched_value}"
+message: "Server '{server_name}' passes eval/exec in args (CVE-2026-30615): {matched_value}"
 tags:
   - code-execution
 enabled: true
