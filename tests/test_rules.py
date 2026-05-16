@@ -18,6 +18,7 @@ from mcp_audit.rules.engine import (
     PolicyRule,
     RuleEngine,
     RuleMatch,
+    _extract_field,
     load_bundled_community_rules,
     load_rules_from_dir,
     load_rules_from_file,
@@ -34,6 +35,7 @@ def _make_server(
     env: dict[str, str] | None = None,
     url: str | None = None,
     transport: TransportType = TransportType.STDIO,
+    capabilities: dict | None = None,
 ) -> ServerConfig:
     return ServerConfig(
         name=name,
@@ -44,6 +46,7 @@ def _make_server(
         env=env or {},
         url=url,
         transport=transport,
+        capabilities=capabilities,
     )
 
 
@@ -520,13 +523,42 @@ class TestRuleEngineMatchServer:
         assert len(engine.match_server(server)) == 1
 
 
+# ── MatchField.CAPABILITIES extraction ────────────────────────────────────────
+
+
+class TestExtractFieldCapabilities:
+    """Unit tests for the CAPABILITIES match field in _extract_field()."""
+
+    def test_returns_space_joined_keys(self) -> None:
+        server = _make_server(capabilities={"sampling": {}, "resources": {}})
+        result = _extract_field(MatchField.CAPABILITIES, server)
+        assert result is not None
+        assert "sampling" in result
+        assert "resources" in result
+
+    def test_returns_none_when_capabilities_is_none(self) -> None:
+        server = _make_server(capabilities=None)
+        result = _extract_field(MatchField.CAPABILITIES, server)
+        assert result is None
+
+    def test_returns_empty_string_for_empty_dict(self) -> None:
+        server = _make_server(capabilities={})
+        result = _extract_field(MatchField.CAPABILITIES, server)
+        assert result == ""
+
+    def test_single_capability_key(self) -> None:
+        server = _make_server(capabilities={"sampling": {}})
+        result = _extract_field(MatchField.CAPABILITIES, server)
+        assert result == "sampling"
+
+
 # ── Community rules ────────────────────────────────────────────────────────────
 
 
 class TestCommunityRules:
-    def test_all_14_community_rules_load(self) -> None:
+    def test_all_15_community_rules_load(self) -> None:
         rules = load_bundled_community_rules()
-        assert len(rules) == 14, f"Expected 14 community rules, got {len(rules)}"
+        assert len(rules) == 15, f"Expected 15 community rules, got {len(rules)}"
 
     def test_community_rule_ids_are_unique(self) -> None:
         rules = load_bundled_community_rules()
@@ -579,8 +611,7 @@ class TestCommunityRules:
 
     def test_all_community_rule_ids_present(self) -> None:
         rules = load_bundled_community_rules()
-        # COMM-014 is intentionally unassigned; COMM-015 follows COMM-013.
-        expected_ids = {f"COMM-{i:03d}" for i in range(1, 14)} | {"COMM-015"}
+        expected_ids = {f"COMM-{i:03d}" for i in range(1, 16)}
         actual_ids = {r.id for r in rules}
         assert actual_ids == expected_ids
 
@@ -712,6 +743,39 @@ class TestCommunityRules:
         findings = [f for f in engine.match_server(server) if f.id == "COMM-010"]
         assert findings
         assert "CVE-2025-49596" in findings[0].cve
+
+    def test_comm_014_fires_for_sampling_capability(self) -> None:
+        """COMM-014 must fire when capabilities.sampling is declared."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(capabilities={"sampling": {}})
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-014"]
+        assert findings, "COMM-014 should fire when capabilities.sampling is declared"
+        assert findings[0].severity == Severity.LOW
+
+    def test_comm_014_silent_for_empty_capabilities(self) -> None:
+        """COMM-014 must not fire when capabilities dict is present but empty."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(capabilities={})
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-014"]
+        assert not findings
+
+    def test_comm_014_silent_when_no_capabilities_key(self) -> None:
+        """COMM-014 must not fire when capabilities is absent from config."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(capabilities=None)
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-014"]
+        assert not findings
+
+    def test_comm_014_silent_for_non_sampling_capability(self) -> None:
+        """COMM-014 must not fire when only non-sampling capabilities are declared."""
+        rules = load_bundled_community_rules()
+        engine = RuleEngine(rules)
+        server = _make_server(capabilities={"resources": {}})
+        findings = [f for f in engine.match_server(server) if f.id == "COMM-014"]
+        assert not findings
 
     def test_comm_015_fires_on_semicolon_injection(self) -> None:
         """COMM-015 must fire when a semicolon is present in args (shell injection)."""

@@ -72,6 +72,29 @@ class TestConfigParser:
         assert len(servers) == 1
         assert servers[0].name == "test-server"
 
+    def test_parse_capabilities_sampling(self, tmp_path):
+        import json  # noqa: PLC0415
+
+        config_file = tmp_path / "mcp.json"
+        data = {
+            "mcpServers": {"s1": {"command": "node", "capabilities": {"sampling": {}}}}
+        }
+        config_file.write_text(json.dumps(data))
+        config = DiscoveredConfig(
+            client_name="test", root_key="mcpServers", path=config_file
+        )
+        servers = parse_config(config)
+        assert servers[0].capabilities == {"sampling": {}}
+
+    def test_parse_capabilities_absent_is_none(self, tmp_path):
+        config_file = tmp_path / "mcp.json"
+        config_file.write_text('{"mcpServers": {"s1": {"command": "node"}}}')
+        config = DiscoveredConfig(
+            client_name="test", root_key="mcpServers", path=config_file
+        )
+        servers = parse_config(config)
+        assert servers[0].capabilities is None
+
 
 class TestPoisoningAnalyzer:
     def setup_method(self):

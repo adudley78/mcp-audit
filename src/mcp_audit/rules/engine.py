@@ -47,6 +47,7 @@ class MatchField(StrEnum):
     SERVER_NAME = "server_name"
     URL = "url"
     TRANSPORT = "transport"
+    CAPABILITIES = "capabilities"
 
 
 class CompoundOperator(StrEnum):
@@ -254,6 +255,10 @@ def _extract_field(field: MatchField, server: ServerConfig) -> str | None:
         return server.url
     if field == MatchField.TRANSPORT:
         return str(server.transport) if server.transport else None
+    if field == MatchField.CAPABILITIES:
+        if server.capabilities is None:
+            return None
+        return " ".join(server.capabilities.keys())
     return None  # pragma: no cover
 
 

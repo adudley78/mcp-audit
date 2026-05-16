@@ -77,6 +77,7 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
                 env=server_data.get("env", {}),
                 url=server_data.get("url"),
                 raw=server_data,
+                capabilities=server_data.get("capabilities"),
             )
         )
 

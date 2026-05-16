@@ -1,0 +1,29 @@
+id: COMM-014
+name: MCP Sampling capability declared
+description: >
+  This server declares the MCP Sampling capability (capabilities.sampling).
+  Sampling allows an MCP server to request LLM completions from the client's
+  model — a legitimate but powerful feature. Unit42 (Palo Alto Networks)
+  research (May 2026) documents how malicious or compromised servers can
+  abuse this capability for resource theft (accessing conversation history),
+  conversation hijacking, and covert tool invocation.
+  Most legitimate MCP servers do not need Sampling. Verify this server is
+  trusted before allowing it to connect to an agent session.
+severity: LOW
+category: protocol
+match:
+  field: capabilities
+  pattern: "sampling"
+  type: contains
+message: >
+  Server '{server_name}' declares MCP Sampling capability. Sampling allows
+  this server to request LLM completions from your agent — verify this server
+  is trusted. See Unit42 research (May 2026) for Sampling-based attack vectors.
+tags:
+  - sampling
+  - protocol
+  - mcp-sampling
+enabled: true
+owasp_mcp_top_10:
+  - MCP04
+  - MCP06

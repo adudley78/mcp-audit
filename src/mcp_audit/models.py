@@ -89,6 +89,10 @@ class ServerConfig(BaseModel):
     env: dict[str, str] = Field(default_factory=dict)
     url: str | None = None
     raw: dict = Field(default_factory=dict)
+    # MCP capability declarations from the server config entry.
+    # e.g. {"sampling": {}, "resources": {"subscribe": True}}
+    # None means the config entry has no 'capabilities' key.
+    capabilities: dict | None = None
 
 
 class ToolInfo(BaseModel):
