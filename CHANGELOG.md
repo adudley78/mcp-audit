@@ -10,6 +10,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`mcp-audit check --report pdf` — PDF compliance report (STORY-0047).**
+  One command produces a Letter-size PDF that a CISO can hand directly to an
+  auditor — letter grade, numeric score, OWASP-mapped findings table, and a
+  SHA-256 content hash for chain-of-custody.  No other MCP security tool
+  produces a signed, timestamped, auditable compliance artifact today.
+  - `mcp-audit check --report pdf` writes `mcp-audit-report-<date>.pdf` to
+    the current working directory.
+  - `--output-file PATH` overrides the output location; parent directories are
+    created automatically.  File is written at 0o644 permissions.
+  - `--org "Name"` sets the organisation name in the PDF header.  Falls back
+    to the registered org (from `registration.json`) then `"Not specified"`.
+  - `mcp-audit scan --report pdf` is also supported for full-pipeline scans.
+  - PDF contains: header (org, ISO 8601 timestamp, version), executive summary
+    (colour-coded grade: A/B green, C amber, D/F red; score; verdict; per-severity
+    counts), findings table (severity, ID, title, server, OWASP MCP Top 10
+    category, remediation hint — paginated), and footer (mcp-audit credit,
+    page numbers, SHA-256 content hash on the last page).
+  - SHA-256 is computed over `ScanResult.model_dump_json()` (the scan data,
+    not the PDF binary), so the hash is reproducible from a JSON export alone.
+  - New module: `src/mcp_audit/output/pdf.py` (`PdfReportFormatter`).
+  - `reportlab>=4.0` added as a required runtime dependency (BSD licence,
+    pure Python, no system dependencies); bundled in all four PyInstaller
+    binaries via `hiddenimports`.
+  - New docs: `docs/compliance-report.md` — usage guide and auditor
+    interpretation instructions.
+  - 18 new tests in `tests/test_pdf_report.py` covering: PDF creation, valid
+    magic bytes, org-name precedence (flag > registration > default), finding
+    ID in table, grade A empty-findings body text, SHA-256 footer correctness,
+    multi-finding table, `--output-file` parent-directory creation, 0o644
+    permissions, and unknown report format exit code 2.
+
 - **`mcp-audit register` — opt-in registration flow (STORY-0046, v0.11.0).**
   Developers and security engineers can choose to identify their org in exchange
   for weekly new-rule notifications and an optional follow-up when their scan grade

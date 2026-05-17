@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -62,6 +63,33 @@ def check(
         "--json",
         help="Output full scan JSON (no summary text).",
     ),
+    report: str | None = typer.Option(  # noqa: B008
+        None,
+        "--report",
+        help=(
+            "Generate a compliance report in the given format. "
+            "Currently supported: pdf. "
+            "Output path is controlled by --output-file."
+        ),
+    ),
+    output_file: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--output-file",
+        "-o",
+        help=(
+            "Path for the compliance report file. "
+            "Defaults to mcp-audit-report-<date>.pdf in the current directory. "
+            "Parent directories are created automatically."
+        ),
+    ),
+    org: str | None = typer.Option(  # noqa: B008
+        None,
+        "--org",
+        help=(
+            "Organisation name printed in the PDF report header. "
+            "Falls back to the registered org name, then 'Not specified'."
+        ),
+    ),
     register_flag: bool = typer.Option(  # noqa: B008
         False,
         "--register",
@@ -112,6 +140,19 @@ def check(
 
     grade = result.score.grade if result.score else "?"
 
+    # ── PDF compliance report ─────────────────────────────────────────────────
+    if report is not None:
+        report_lower = report.strip().lower()
+        if report_lower != "pdf":
+            console.print(
+                f"[red]Unknown report format:[/red] {report!r}. "
+                "Currently supported: pdf"
+            )
+            raise typer.Exit(2)
+        _write_pdf_report(result, output_file, org, console)
+        _maybe_ping(grade, console)
+        raise typer.Exit(_exit_code(result))
+
     # ── JSON output ───────────────────────────────────────────────────────────
     if json_flag:
         sys.stdout.write(
@@ -150,3 +191,70 @@ def _maybe_ping(grade: str, console: Console) -> None:
     ok = _reg_client.post_ping(grade)
     if not ok:
         console.print("[dim]Registration ping failed (offline?)[/dim]")
+
+
+def _resolve_org_name(org_flag: str | None) -> str:
+    """Resolve the organisation name for the compliance report.
+
+    Precedence: ``--org`` flag → registered org → ``"Not specified"``.
+
+    Args:
+        org_flag: Value of the ``--org`` CLI flag, or ``None`` if omitted.
+
+    Returns:
+        A non-empty organisation name string.
+    """
+    if org_flag and org_flag.strip():
+        return org_flag.strip()
+    reg = _reg_manager.load_registration()
+    if reg is not None and reg.org and reg.org.strip():
+        return reg.org.strip()
+    return "Not specified"
+
+
+def _write_pdf_report(
+    result,  # type: ignore[no-untyped-def]
+    output_file: Path | None,
+    org_flag: str | None,
+    console: Console,
+) -> None:
+    """Generate a PDF compliance report and write it to disk.
+
+    Resolves the output path (defaulting to ``mcp-audit-report-<date>.pdf``
+    in the current working directory), creates parent directories, and writes
+    the PDF with 0o644 permissions.
+
+    Args:
+        result: Completed scan result.
+        output_file: Explicit output path from ``--output-file``, or ``None``.
+        org_flag: Value of the ``--org`` flag, or ``None`` if omitted.
+        console: Rich console for status/error messages.
+    """
+    from datetime import date  # noqa: PLC0415
+
+    from mcp_audit.output.pdf import PdfReportFormatter  # noqa: PLC0415
+
+    org_name = _resolve_org_name(org_flag)
+
+    if output_file is None:
+        today = date.today().isoformat()
+        output_file = Path(f"mcp-audit-report-{today}.pdf")
+
+    output_file = output_file.resolve()
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        formatter = PdfReportFormatter(result, org_name=org_name)
+        pdf_bytes = formatter.generate()
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"[red]PDF generation error:[/red] {exc}")
+        raise typer.Exit(2) from None
+
+    fd = os.open(str(output_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+    try:
+        os.write(fd, pdf_bytes)
+    finally:
+        os.close(fd)
+
+    console.print(f"[green]PDF report written:[/green] {output_file}")
+    console.print(f"[dim]Organisation: {org_name}[/dim]")

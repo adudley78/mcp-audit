@@ -834,6 +834,23 @@ def scan(
             "Shows how many findings map to each MCP01–MCP10 category."
         ),
     ),
+    report: str | None = typer.Option(  # noqa: B008
+        None,
+        "--report",
+        help=(
+            "Generate a compliance report in the given format. "
+            "Currently supported: pdf. "
+            "Output path is controlled by --output-file."
+        ),
+    ),
+    org: str | None = typer.Option(  # noqa: B008
+        None,
+        "--org",
+        help=(
+            "Organisation name printed in the PDF report header. "
+            "Falls back to the registered org name, then 'Not specified'."
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     if configs and len(configs) > 1:
@@ -936,6 +953,18 @@ def scan(
         result.score = None
 
     _write_formatted_output(result, fmt, output, asset_prefix, no_score, console)
+
+    if report is not None:
+        from mcp_audit.cli.check import _write_pdf_report  # noqa: PLC0415
+
+        report_lower = report.strip().lower()
+        if report_lower != "pdf":
+            console.print(
+                f"[red]Unknown report format:[/red] {report!r}. "
+                "Currently supported: pdf"
+            )
+            raise typer.Exit(2)
+        _write_pdf_report(result, output, org, console)
 
     if verbose and result.server_logs:
         console.print()
