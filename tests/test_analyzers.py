@@ -151,6 +151,170 @@ class TestCredentialsAnalyzer:
         assert len(findings) == 0
 
 
+class TestCredentialsAnalyzerExpandedPatterns:
+    """STORY-0035 / V-17: expanded credential pattern coverage."""
+
+    def setup_method(self) -> None:
+        self.analyzer = CredentialsAnalyzer()
+
+    def _server_with_env(self, key: str, value: str) -> ServerConfig:
+        return ServerConfig(
+            name="test",
+            client="test",
+            config_path=Path("/tmp/test.json"),  # noqa: S108
+            transport=TransportType.STDIO,
+            command="node",
+            env={key: value},
+        )
+
+    def _has_cred_finding(self, findings: list) -> bool:
+        return any(f.id == "CRED-001" for f in findings)
+
+    def test_gcp_service_account_private_key_detected(self) -> None:
+        # Simulates GCP service-account JSON embedded as an env var value
+        value = (  # noqa: S105
+            '{"type":"service_account",'
+            '"private_key":"-----BEGIN RSA PRIVATE KEY-----\\nMIIE"}'
+        )
+        server = self._server_with_env("GOOGLE_APPLICATION_CREDENTIALS_JSON", value)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "GCP service account key not detected"
+        assert any("GCP" in f.title for f in findings)
+
+    def test_azure_sas_sig_detected(self) -> None:
+        value = (
+            "https://myaccount.blob.core.windows.net/container"
+            "?sv=2021-12-02&ss=b&srt=sco&sp=rwdlacupitfx"
+            "&se=2026-12-31T23:59:59Z&sig=ABC123abc456DEF789def012GHI345ghi678=="
+        )
+        server = self._server_with_env("AZURE_STORAGE_URL", value)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "Azure SAS token not detected"
+        assert any("Azure" in f.title for f in findings)
+
+    def test_azure_sas_no_sig_no_finding(self) -> None:
+        # Has sv= date but no &sig= — must not fire
+        value = "https://example.com?sv=2021-12-02&ss=b&srt=sco"
+        server = self._server_with_env("AZURE_URL", value)
+        findings = self.analyzer.analyze(server)
+        azure_findings = [f for f in findings if "Azure" in f.title]
+        assert len(azure_findings) == 0
+
+    def test_digitalocean_token_detected(self) -> None:
+        token = "dop_v1_" + "a" * 64  # noqa: S105
+        server = self._server_with_env("DO_TOKEN", token)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "DigitalOcean token not detected"
+        assert any("DigitalOcean" in f.title for f in findings)
+
+    def test_vercel_token_detected(self) -> None:
+        token = "vercel_abcdefghijklmnopqrstuvwx"  # noqa: S105
+        server = self._server_with_env("VERCEL_TOKEN", token)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "Vercel token not detected"
+        assert any("Vercel" in f.title for f in findings)
+
+    def test_pem_rsa_private_key_detected(self) -> None:
+        value = (  # noqa: S105
+            "-----BEGIN RSA PRIVATE KEY-----"
+            "\nMIIEpAIBAAKCAQEA\n-----END RSA PRIVATE KEY-----"
+        )
+        server = self._server_with_env("PRIVATE_KEY", value)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "RSA PEM private key not detected"
+        assert any("PEM" in f.title for f in findings)
+
+    def test_pem_ec_private_key_detected(self) -> None:
+        value = (  # noqa: S105
+            "-----BEGIN EC PRIVATE KEY-----\nMHQCAQEEIBkg\n-----END EC PRIVATE KEY-----"
+        )
+        server = self._server_with_env("EC_KEY", value)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "EC PEM private key not detected"
+        assert any("PEM" in f.title for f in findings)
+
+    def test_pem_openssh_private_key_detected(self) -> None:
+        value = (  # noqa: S105
+            "-----BEGIN OPENSSH PRIVATE KEY-----"
+            "\nb3BlbnNzaC1rZXk\n-----END OPENSSH PRIVATE KEY-----"
+        )
+        server = self._server_with_env("SSH_KEY", value)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "OpenSSH PEM private key not detected"
+        assert any("PEM" in f.title for f in findings)
+
+    def test_vault_service_token_detected(self) -> None:
+        # hvs. prefix + 90 base64url chars
+        token = "hvs." + "A" * 90  # noqa: S105
+        server = self._server_with_env("VAULT_TOKEN", token)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "Vault service token not detected"
+        assert any("Vault" in f.title for f in findings)
+
+    def test_vault_batch_token_detected(self) -> None:
+        # hvb. prefix + 90 base64url chars
+        token = "hvb." + "B" * 90  # noqa: S105
+        server = self._server_with_env("VAULT_TOKEN", token)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "Vault batch token not detected"
+        assert any("Vault" in f.title for f in findings)
+
+    def test_anthropic_api_key_detected(self) -> None:
+        # sk-ant- prefix per existing pattern
+        token = "sk-ant-api03-" + "x" * 80  # noqa: S105
+        server = self._server_with_env("ANTHROPIC_API_KEY", token)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "Anthropic API key not detected"
+        assert any("Anthropic" in f.title for f in findings)
+
+    def test_github_fine_grained_pat_detected(self) -> None:
+        # github_pat_ prefix + exactly 82 alphanumeric/underscore chars
+        token = "github_pat_" + "A" * 82  # noqa: S105
+        server = self._server_with_env("GH_TOKEN", token)
+        findings = self.analyzer.analyze(server)
+        assert self._has_cred_finding(findings), "GitHub fine-grained PAT not detected"
+        assert any("GitHub" in f.title for f in findings)
+
+    def test_placeholder_value_no_finding(self) -> None:
+        """Placeholder values must not trigger credential findings."""
+        placeholders = [
+            "${ENV_VAR}",
+            "<your-token-here>",
+            "your-token-here",
+            "${VAULT_TOKEN}",
+        ]
+        cred_keys = [
+            "DO_TOKEN",
+            "VERCEL_TOKEN",
+            "VAULT_TOKEN",
+            "AZURE_STORAGE_URL",
+        ]
+        for key in cred_keys:
+            for placeholder in placeholders:
+                server = self._server_with_env(key, placeholder)
+                findings = self.analyzer.analyze(server)
+                new_type_findings = [
+                    f
+                    for f in findings
+                    if any(
+                        t in f.title
+                        for t in (
+                            "GCP",
+                            "Azure",
+                            "DigitalOcean",
+                            "Vercel",
+                            "PEM",
+                            "Vault",
+                            "Fine-Grained",
+                        )
+                    )
+                ]
+                assert len(new_type_findings) == 0, (
+                    f"Placeholder '{placeholder}' for key '{key}' triggered: "
+                    f"{[f.title for f in new_type_findings]}"
+                )
+
+
 class TestCredentialEvidenceNoSecretLeakage:
     """V-02: evidence strings must never contain any portion of the actual secret."""
 

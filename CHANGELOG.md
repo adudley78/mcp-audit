@@ -10,6 +10,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Credential pattern expansion — GCP, Azure, DO, Vercel, PEM, Vault (STORY-0035, v0.10.0).**
+  Closes V-17. `credentials.py` `SECRET_PATTERNS` extended with 8 new credential types:
+
+  - **GCP service-account JSON key** — detects `"private_key":"-----BEGIN` embedded in env var values (e.g. `GOOGLE_APPLICATION_CREDENTIALS_JSON`).
+  - **Azure SAS token** — requires both `sv=YYYY-MM-DD` and `&sig=<base64>` to be present in the same value; reduces false positives on unrelated URLs.
+  - **DigitalOcean personal access token** — `dop_v1_` prefix + 64 hex chars.
+  - **Vercel access token** — `vercel_` prefix + 20+ alphanumeric chars.
+  - **PEM private key blocks** — RSA, EC, DSA, and OpenSSH variants (`-----BEGIN … PRIVATE KEY-----`).
+  - **HashiCorp Vault service token** — `hvs.` prefix + 90+ base64url chars.
+  - **HashiCorp Vault batch token** — `hvb.` prefix + 90+ base64url chars.
+  - **GitHub fine-grained PAT** — `github_pat_` prefix + 82 alphanumeric/underscore chars (extends existing GitHub classic PAT patterns).
+
+  Equivalent `pattern-regex` rules added to both
+  `semgrep-rules/python/credentials/mcp-hardcoded-secrets.yml` and
+  `semgrep-rules/typescript/credentials/mcp-hardcoded-secrets.yml`
+  so SAST coverage matches analyzer coverage.
+  13 new unit tests added to `tests/test_analyzers.py::TestCredentialsAnalyzerExpandedPatterns`.
+  Zero false positives confirmed against all demo config fixtures.
+
 - **Complete OWASP MCP Top 10 mapping (STORY-0038, v0.10.0).**
   Every mcp-audit finding ID now maps to at least one OWASP MCP Top 10 category.
 

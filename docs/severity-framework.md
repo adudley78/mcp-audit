@@ -48,8 +48,8 @@ MCP-specific). See the reference tables at the bottom of this document.
 
 | Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
 |------------|----------|----------------------|------------------|-----------|
-| CRED-001   | HIGH     | ASI06 | MCP01 | API key or secret in environment variable. Key is stored in plaintext and accessible to any process reading the config file. CWE-798. CVSS: 7.5 |
-| CRED-002   | HIGH     | ASI06 | MCP01 | API key or secret in command arguments. Command lines are visible in process listings (`ps aux`) — wider exposure than env vars. CWE-798. CVSS: 7.5 |
+| CRED-001   | HIGH     | ASI06 | MCP01 | API key or secret in environment variable. Key is stored in plaintext and accessible to any process reading the config file. Credential types detected: AWS access/secret keys, GitHub tokens (classic `ghp_/gho_/ghu_/ghs_/ghr_` and fine-grained `github_pat_`), OpenAI keys (`sk-`), Anthropic keys (`sk-ant-`), Stripe keys, Slack tokens, GCP service-account JSON keys (`"private_key":"-----BEGIN`), Azure SAS tokens (`sv=…&sig=`), DigitalOcean tokens (`dop_v1_`), Vercel tokens (`vercel_`), PEM private key blocks (RSA/EC/DSA/OpenSSH), HashiCorp Vault service tokens (`hvs.`) and batch tokens (`hvb.`), generic secrets, and database URLs with inline credentials. CWE-798. CVSS: 7.5 |
+| CRED-002   | HIGH     | ASI06 | MCP01 | API key or secret in command arguments. Command lines are visible in process listings (`ps aux`) — wider exposure than env vars. Same credential patterns as CRED-001. CWE-798. CVSS: 7.5 |
 
 ### Transport analyzer (`analyzers/transport.py`)
 

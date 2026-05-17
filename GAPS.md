@@ -148,7 +148,7 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 ~~**V-16: `_home()` inconsistency in discovery.py.**~~ **Resolved v0.9.2.** `_get_client_specs()` called `Path.home()` directly on the Windows branch (line 40), bypassing the `_home()` indirection used everywhere else. Fixed by replacing `Path.home()` with `_home()`. Regression test `TestHomeHelperConsistency::test_discovery_uses_home_helper` in `tests/test_discovery.py` patches `mcp_audit.discovery._home` and asserts all returned paths are under the patched root.
 
-**V-17: Credential regex overlap and gaps.** The OpenAI pattern `sk-[A-Za-z0-9]{20,}` also matches Anthropic keys (`sk-ant-*`), causing double detection. No coverage for Google service account JSON, Azure SAS tokens, DigitalOcean tokens, Vercel tokens, or PEM-encoded keys. Generic secret pattern requires quotes around values, missing unquoted secrets. Fix: refine patterns and expand coverage incrementally.
+~~**V-17: Credential regex overlap and gaps.**~~ **Resolved v0.10.0 (STORY-0035).** Expanded `SECRET_PATTERNS` in `credentials.py` to cover GCP service-account JSON keys, Azure SAS tokens, DigitalOcean personal access tokens, Vercel access tokens, PEM private key blocks (RSA, EC, DSA, OpenSSH), HashiCorp Vault service and batch tokens, Anthropic API keys, and GitHub fine-grained PATs (`github_pat_`). Matching Semgrep rules added to both Python and TypeScript rule packs. 13 new unit tests added. Zero false positives confirmed against all demo config fixtures.
 
 ## Binary distribution
 
@@ -528,3 +528,4 @@ Items below were confirmed open at some point and have since been resolved. Each
 | Server stderr leaked to terminal during `--connect` | stderr captured; `--verbose` to surface it | v0.6.0 |
 | No authentication support for SSE/HTTP servers | `--connect-token TOKEN` flag added | v0.6.0 |
 | V-16: `_home()` inconsistency — Windows branch of `_get_client_specs()` called `Path.home()` directly | Replaced with `_home()`; regression test added | v0.9.2 |
+| V-17: Credential regex gaps — no GCP, Azure SAS, DigitalOcean, Vercel, PEM, Vault, or GitHub fine-grained PAT coverage | 8 new patterns added to `credentials.py`; matching Semgrep rules added; 13 new tests | v0.10.0 |
