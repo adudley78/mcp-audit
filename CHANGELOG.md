@@ -10,6 +10,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`setup-mcp-audit` GitHub Action — binary download, no pip (STORY-0033, v0.10.0).**
+  New `setup-action/action.yml` composite action downloads the pre-built mcp-audit
+  binary from GitHub Releases and adds it to `PATH` in under 5 seconds. The binary
+  is cached by `version + OS + arch` using `actions/cache@v4` — repeat runs with
+  the same version tag restore from cache in under 1 second, down from the previous
+  20–30 second `pip install` path.
+
+  Key details:
+  - Supports `ubuntu-latest` (x86_64), `macos-latest` (ARM64), `macos-13` (x86_64),
+    and `windows-latest` (x86_64); Windows uses PowerShell for the download step and
+    a `.exe`-suffixed binary.
+  - `version: 'latest'` resolves the current release tag via `gh release view` (uses
+    `GITHUB_TOKEN` automatically); pinned tags (e.g. `version: 'v0.10.0'`) skip the
+    API call entirely.
+  - Outputs `mcp-audit-version` with the version string reported by `mcp-audit version`.
+  - Error messages are actionable: rate-limit failure points to `GITHUB_TOKEN`;
+    download failure includes the URL and instructs users to verify the tag.
+  - Scanner `action.yml` updated to use `./setup-action` internally — users who
+    use the scanner action get the speed improvement automatically with no workflow
+    changes required.
+  - New integration test workflow `.github/workflows/test-setup-action.yml` runs
+    `latest` and a pinned version on all three OS targets on every push/PR.
+  - 13 new tests added to `tests/test_action_yaml.py::TestSetupActionYaml`.
+
 - **PyPI / uvx typosquat detection — extend supply chain to Python ecosystem (STORY-0034, v0.10.0).**
   Typosquatting detection now covers Python MCP packages installed via `uvx`, `pipx`, and
   `python -m` — not just npm.  The supply chain analyzer extracts the package name from

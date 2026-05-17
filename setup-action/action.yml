@@ -1,0 +1,161 @@
+name: 'Setup mcp-audit'
+description: 'Download the mcp-audit pre-built binary from GitHub Releases and add it to PATH. Caches the binary by version + OS + arch for sub-1-second restores.'
+author: 'Adam Dudley'
+
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  version:
+    description: >
+      mcp-audit release tag to install (e.g. "v0.10.0") or "latest" to
+      resolve the current latest release automatically via the GitHub API.
+    required: false
+    default: 'latest'
+
+  github-token:
+    description: >
+      GitHub token used to call the Releases API when resolving "latest".
+      Defaults to the workflow GITHUB_TOKEN. Provide a PAT on heavily-used
+      runners to avoid anonymous rate-limiting (60 req/hr per IP).
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  mcp-audit-version:
+    description: 'Resolved version string reported by the installed binary (e.g. "mcp-audit v0.10.0").'
+    value: ${{ steps.verify.outputs.mcp-audit-version }}
+
+runs:
+  using: 'composite'
+  steps:
+    # ── Step 1: resolve "latest" tag via gh CLI ───────────────────────────
+    - name: Resolve release version
+      id: resolve
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        if [ "$INPUT_VERSION" = "latest" ]; then
+          RESOLVED=$(gh release view \
+            --repo adudley78/mcp-audit \
+            --json tagName \
+            --jq '.tagName' 2>/dev/null || true)
+          if [ -z "$RESOLVED" ]; then
+            echo "::error::Could not resolve the latest mcp-audit release tag." \
+              "Check that GITHUB_TOKEN is set and has 'contents: read' permission," \
+              "or pin an explicit version (e.g. version: 'v0.10.0')."
+            exit 1
+          fi
+          echo "Resolved latest → $RESOLVED"
+        else
+          RESOLVED="$INPUT_VERSION"
+          echo "Using pinned version: $RESOLVED"
+        fi
+        echo "version=$RESOLVED" >> "$GITHUB_OUTPUT"
+
+    # ── Step 2: map runner OS/arch to the binary filename ─────────────────
+    - name: Map OS and architecture to binary name
+      id: binary
+      shell: bash
+      env:
+        RUNNER_OS: ${{ runner.os }}
+        RUNNER_ARCH: ${{ runner.arch }}
+        VERSION: ${{ steps.resolve.outputs.version }}
+      run: |
+        case "$RUNNER_OS/$RUNNER_ARCH" in
+          Linux/X64)   BINARY="mcp-audit-linux-x86_64"   ; EXT=""     ;;
+          macOS/X64)   BINARY="mcp-audit-darwin-x86_64"  ; EXT=""     ;;
+          macOS/ARM64) BINARY="mcp-audit-darwin-arm64"   ; EXT=""     ;;
+          Windows/X64) BINARY="mcp-audit-windows-x86_64" ; EXT=".exe" ;;
+          *)
+            echo "::error::Unsupported runner: $RUNNER_OS/$RUNNER_ARCH." \
+              "Supported combinations: Linux/X64, macOS/X64, macOS/ARM64, Windows/X64."
+            exit 1
+            ;;
+        esac
+
+        FILENAME="${BINARY}${EXT}"
+        DOWNLOAD_URL="https://github.com/adudley78/mcp-audit/releases/download/${VERSION}/${FILENAME}"
+        CACHE_KEY="mcp-audit-${VERSION}-${RUNNER_OS}-${RUNNER_ARCH}"
+
+        echo "filename=$FILENAME"       >> "$GITHUB_OUTPUT"
+        echo "download-url=$DOWNLOAD_URL" >> "$GITHUB_OUTPUT"
+        echo "cache-key=$CACHE_KEY"     >> "$GITHUB_OUTPUT"
+
+    # ── Step 3: restore from cache ────────────────────────────────────────
+    - name: Restore binary from cache
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/mcp-audit-bin
+        key: ${{ steps.binary.outputs.cache-key }}
+
+    # ── Step 4a: download on Linux / macOS ────────────────────────────────
+    - name: Download binary (Linux / macOS)
+      if: steps.cache.outputs.cache-hit != 'true' && runner.os != 'Windows'
+      shell: bash
+      env:
+        DOWNLOAD_URL: ${{ steps.binary.outputs.download-url }}
+        RUNNER_TEMP: ${{ runner.temp }}
+      run: |
+        mkdir -p "$RUNNER_TEMP/mcp-audit-bin"
+        TARGET="$RUNNER_TEMP/mcp-audit-bin/mcp-audit"
+        echo "Downloading $DOWNLOAD_URL"
+        if ! curl -fsSL -o "$TARGET" "$DOWNLOAD_URL"; then
+          echo "::error::Binary download failed." \
+            "URL: $DOWNLOAD_URL" \
+            "Verify the version tag exists at https://github.com/adudley78/mcp-audit/releases"
+          exit 1
+        fi
+        chmod +x "$TARGET"
+
+    # ── Step 4b: download on Windows ──────────────────────────────────────
+    - name: Download binary (Windows)
+      if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Windows'
+      shell: pwsh
+      env:
+        DOWNLOAD_URL: ${{ steps.binary.outputs.download-url }}
+        RUNNER_TEMP: ${{ runner.temp }}
+      run: |
+        $targetDir = "$env:RUNNER_TEMP\mcp-audit-bin"
+        New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+        $target = "$targetDir\mcp-audit.exe"
+        Write-Host "Downloading $env:DOWNLOAD_URL"
+        try {
+          Invoke-WebRequest -Uri $env:DOWNLOAD_URL -OutFile $target -UseBasicParsing -ErrorAction Stop
+        } catch {
+          Write-Error ("Binary download failed. URL: " + $env:DOWNLOAD_URL + ". Error: " + $_)
+          exit 1
+        }
+
+    # ── Step 5: add bin directory to PATH ─────────────────────────────────
+    - name: Add mcp-audit to PATH (Linux / macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      env:
+        RUNNER_TEMP: ${{ runner.temp }}
+      run: echo "$RUNNER_TEMP/mcp-audit-bin" >> "$GITHUB_PATH"
+
+    - name: Add mcp-audit to PATH (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        RUNNER_TEMP: ${{ runner.temp }}
+      run: |
+        "$env:RUNNER_TEMP\mcp-audit-bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    # ── Step 6: verify and capture version string ─────────────────────────
+    - name: Verify installation
+      id: verify
+      shell: bash
+      run: |
+        VERSION_OUTPUT=$(mcp-audit version 2>&1)
+        if [ $? -ne 0 ]; then
+          echo "::error::mcp-audit binary failed to run. Output: $VERSION_OUTPUT"
+          exit 1
+        fi
+        echo "mcp-audit-version=$VERSION_OUTPUT" >> "$GITHUB_OUTPUT"
+        echo "Installed: $VERSION_OUTPUT"

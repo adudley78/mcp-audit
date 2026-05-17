@@ -4,12 +4,66 @@ Scan your MCP server configurations in CI and surface findings in GitHub Code
 Scanning — no Python install required.
 
 > **Note for contributors:** `.github/workflows/ci.yml` is this project's own
-> test matrix (pytest + ruff across OS/Python combinations), and
-> `.github/workflows/action-ci.yml` is the action self-test. Neither file is
-> the composite action itself. This document covers `action.yml`, the
-> composite action that *users* drop into their own repositories.
+> test matrix (pytest + ruff across OS/Python combinations),
+> `.github/workflows/action-ci.yml` is the scanner-action self-test, and
+> `.github/workflows/test-setup-action.yml` is the setup-action integration
+> test. This document covers both `action.yml` (scanner) and
+> `setup-action/action.yml` (binary installer).
 
-## Quick start
+## `setup-mcp-audit` — standalone binary installer
+
+Use `setup-mcp-audit` when you want to install the binary once and call it
+yourself in subsequent steps, or when you want to decouple installation from
+scanning (e.g. install once in a shared job and run in multiple matrix legs).
+
+```yaml
+- uses: actions/checkout@v4
+- uses: adudley78/mcp-audit/setup-action@v0.10.0
+  with:
+    version: 'latest'   # or a specific tag: 'v0.10.0'
+```
+
+After this step `mcp-audit` is on `PATH` for every subsequent step in the job.
+
+### Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `version` | `latest` | Release tag to install (`latest` resolves the current release via the GitHub API). |
+| `github-token` | `${{ github.token }}` | Token for the Releases API call. Defaults to the workflow token; supply a PAT on rate-limited runners. |
+
+### Outputs
+
+| Output | Description |
+|---|---|
+| `mcp-audit-version` | Version string emitted by `mcp-audit version` after install. |
+
+### Caching
+
+The binary is cached by `version + runner.os + runner.arch` using
+`actions/cache@v4`. A warm cache hit skips the download entirely and completes
+in under 1 second. The cache key format is:
+
+```
+mcp-audit-{version}-{Linux|macOS|Windows}-{X64|ARM64}
+```
+
+### Supported platforms
+
+| Runner | Binary |
+|---|---|
+| `ubuntu-latest` | `mcp-audit-linux-x86_64` |
+| `macos-latest` (ARM64) | `mcp-audit-darwin-arm64` |
+| `macos-13` (X64) | `mcp-audit-darwin-x86_64` |
+| `windows-latest` | `mcp-audit-windows-x86_64.exe` |
+
+> **Self-hosted runners:** only the four combinations above are tested.
+> ARM Linux (e.g. Graviton, Raspberry Pi) is not currently supported because
+> no ARM Linux binary is built in the release workflow.
+
+---
+
+## Quick start (scanner action)
 
 Add `.github/workflows/mcp-audit.yml` to your repository:
 
@@ -111,7 +165,7 @@ See `examples/github-actions/diff-mode.yml` for the full reference workflow and
 | `sast-path` | `src/` | Path passed to `mcp-audit sast`. Only used when `run-sast: 'true'`. |
 | `baseline-name` | _(empty)_ | Saved baseline name. When non-empty, runs `mcp-audit baseline compare <name>` and writes the diff to the step summary. |
 | `fail-on-findings` | `'true'` | Fail the workflow step if the scan finds anything at or above `severity-threshold`. Set to `'false'` for visibility-only mode. |
-| `version` | `latest` | `mcp-audit-scanner` version to install from PyPI (e.g. `0.10.1`). |
+| `version` | `latest` | Release tag to install (e.g. `v0.10.1`). The binary is downloaded from GitHub Releases, not PyPI. |
 
 ### Severity threshold behaviour
 
@@ -313,14 +367,14 @@ with:
   fail-on-findings: 'false'      # visibility only
 ```
 
-### `pip install mcp-audit-scanner` fails on self-hosted runners
+### Binary download fails on self-hosted runners
 
-**Cause:** the runner doesn't expose a Python 3.11+ interpreter or uses a
-restricted index.
+**Cause:** the runner cannot reach `github.com` (air-gapped environment or
+proxy configuration).
 
-**Fix:** the action pins `actions/setup-python@v5` to Python 3.11 as the
-first step, which resolves most cases. For restricted indexes, configure
-`PIP_INDEX_URL` in the workflow environment.
+**Fix:** ensure outbound HTTPS to `github.com` and `objects.githubusercontent.com`
+is allowed. For fully air-gapped runners, pre-cache the binary manually and
+place it on `PATH` before the action runs.
 
 ### Windows runners: bash-script errors
 
@@ -360,10 +414,9 @@ Common failure causes:
 
 ## Known limitations
 
-- The action installs `mcp-audit-scanner` via `pip install`, adding 20–30
-  seconds per run. A binary-based variant using prebuilt release assets is
-  a planned future optimisation — see [GAPS.md](../GAPS.md).
 - `config-paths` is passed verbatim to the CLI as positional arguments.
   Each path is space-separated; paths containing spaces are not supported.
-- The action has not been validated on Windows runners or self-hosted
-  runners without a standard Python environment.
+- ARM Linux runners (e.g. Graviton, Raspberry Pi) are not supported — no
+  ARM Linux binary is built in the release workflow.
+- Self-hosted runners must have outbound HTTPS to `github.com` for the
+  binary download; the cache step mitigates this for repeat runs.

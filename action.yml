@@ -73,7 +73,10 @@ inputs:
     default: 'true'
 
   version:
-    description: 'mcp-audit-scanner version to install. Defaults to latest.'
+    description: >
+      mcp-audit release tag to install (e.g. "v0.10.0") or "latest" to
+      resolve the current latest release automatically. The binary is
+      downloaded from GitHub Releases and cached by version + OS + arch.
     required: false
     default: 'latest'
 
@@ -91,19 +94,11 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
     - name: Install mcp-audit
-      shell: bash
-      run: |
-        if [ "${{ inputs.version }}" = "latest" ]; then
-          pip install mcp-audit-scanner --quiet
-        else
-          pip install "mcp-audit-scanner==${{ inputs.version }}" --quiet
-        fi
+      uses: ./setup-action
+      with:
+        version: ${{ inputs.version }}
+        github-token: ${{ github.token }}
 
     - name: Run mcp-audit diff
       id: diff
