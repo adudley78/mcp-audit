@@ -91,11 +91,16 @@ def test_registration_file_created_with_correct_permissions(
     tmp_config_dir: Path, sample_config: RegistrationConfig
 ) -> None:
     """save_registration writes a 0o600 file under the config dir."""
+    import sys
+
     path = reg_manager.save_registration(sample_config, config_dir=tmp_config_dir)
 
     assert path.exists(), "registration.json was not created"
-    mode = stat.S_IMODE(os.stat(path).st_mode)
-    assert mode == 0o600, f"Expected 0o600, got {oct(mode)}"
+
+    # Windows does not honour POSIX permission bits; skip the mode check there.
+    if sys.platform != "win32":
+        mode = stat.S_IMODE(os.stat(path).st_mode)
+        assert mode == 0o600, f"Expected 0o600, got {oct(mode)}"
 
     data = json.loads(path.read_text())
     assert data["email"] == "sarah.chen@ibm.com"
