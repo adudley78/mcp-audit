@@ -57,6 +57,7 @@ src/mcp_audit/
 │ ├── dashboard.py     # dashboard command
 │ ├── fleet.py         # merge command (+ `_collect_json_paths_from_dir`,
 │ │                    #   `_print_fleet_report`)
+│ ├── register.py      # register command: interactive opt-in flow, --clear, --status
 │ └── version.py       # version command
 ├── scanner.py         # Orchestrator: discovery → parsing → analysis → output
 ├── scoring.py         # Scan score calculation (0–100) and letter grade (A–F) formatting
@@ -106,6 +107,11 @@ src/mcp_audit/
 │   ├── models.py      # ExtensionManifest, ExtensionVulnEntry Pydantic models
 │   ├── discovery.py   # discover_extensions(), parse_manifest(); EXTENSION_PATHS per-client config
 │   └── analyzer.py    # analyze_extensions(); check_known_vulns, check_permissions, check_wildcard_activation, check_provenance, check_sideloaded, check_stale; load_vuln_registry()
+├── registration/
+│   ├── __init__.py    # Package marker; privacy-invariant docs
+│   ├── models.py      # RegistrationConfig, RegistrationPostPayload, RegistrationPingPayload Pydantic models
+│   ├── manager.py     # load/save/clear_registration(); build_registration(); 0o600 file write; platformdirs storage
+│   └── client.py      # post_registration() (PII POST, once); post_ping() (no-PII, per scan); _REGISTER_ENDPOINT constant; urllib.request only
 ├── sast/
 │   ├── __init__.py    # Package marker
 │   ├── runner.py      # SastResult; find_semgrep(); find_rules_dir(); run_semgrep(); parse_semgrep_output(); severity mapping
@@ -278,7 +284,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 34 findings across all demo configs (8 per-config for `claude_desktop_config.json`; community rules analyzer included). Note: the full 3-config scan produces 2 more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone.
-- 1975 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 1991 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 21 top-level CLI commands: check, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, push-nucleus, shadow, killchain, snapshot, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release

@@ -357,7 +357,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-1,975 tests validate detection accuracy and guard against regressions.
+1,991 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -542,7 +542,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 1,975 tests
+uv run pytest                        # Run all 1,991 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
@@ -550,6 +550,30 @@ uv run bandit -r src/                # Security audit of the scanner itself
 ## Known limitations
 
 This tool is in early development. See [GAPS.md](GAPS.md) for known detection gaps, untested areas, and planned improvements.
+
+## Registration (optional)
+
+mcp-audit **does not collect telemetry**.  Every scan runs entirely on your machine.
+
+If you'd like to receive new community detection rule notifications and optionally allow a follow-up when your grade is below C, you can opt in:
+
+```bash
+mcp-audit register
+```
+
+What registration does **not** collect: config data, server names, tool descriptions, credentials, file paths, or any scan output.
+
+What registration sends (one time only): your name, org, email, mcp-audit version, and grade.
+Subsequent scan pings send only version and grade — no PII.
+
+```bash
+mcp-audit register --status   # check current registration
+mcp-audit register --clear    # remove registration and stop pings
+```
+
+See [docs/privacy.md](docs/privacy.md) for the complete plain-English privacy policy.
+
+---
 
 ## Support
 
