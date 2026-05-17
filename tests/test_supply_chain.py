@@ -10,10 +10,12 @@ import mcp_audit.analyzers.supply_chain as _sc_module
 from mcp_audit.analyzers.supply_chain import (  # noqa: I001
     SupplyChainAnalyzer,
     extract_npm_package,
+    extract_pypi_package,
     levenshtein,
 )
 from mcp_audit.models import ServerConfig, Severity, TransportType
 from mcp_audit.registry import loader as _loader_module
+from mcp_audit.registry.loader import normalize_pypi_name
 
 # ── Levenshtein unit tests ─────────────────────────────────────────────────────
 
@@ -213,12 +215,15 @@ class TestSupplyChainAnalyzer:
         server = _make_server(command="node", args=["server.js"])
         assert self.analyzer.analyze(server) == []
 
-    def test_python_command_skipped(self) -> None:
+    def test_python_m_unknown_module_no_finding(self) -> None:
+        # "my_mcp_server" normalises to "my-mcp-server", which is not close to
+        # any entry in the PyPI registry sub-index — no finding expected.
         server = _make_server(command="python", args=["-m", "my_mcp_server"])
         assert self.analyzer.analyze(server) == []
 
-    def test_uvx_command_checked(self) -> None:
-        """uvx is not in _NPX_LIKE so it should be ignored (stdio Python runtime)."""
+    def test_uvx_known_good_no_finding(self) -> None:
+        # uvx is now checked via the Python path; mcp-server-git is an exact
+        # match in the PyPI registry sub-index so no typosquat finding fires.
         server = _make_server(command="uvx", args=["mcp-server-git"])
         assert self.analyzer.analyze(server) == []
 
@@ -398,3 +403,439 @@ class TestLevenshteinDeduplication:
             "supply_chain.py must not define its own levenshtein — "
             "import it from registry.loader instead"
         )
+
+
+# ── normalize_pypi_name unit tests ────────────────────────────────────────────
+
+
+class TestNormalizePypiName:
+    def test_underscores_to_hyphens(self) -> None:
+        assert normalize_pypi_name("mcp_server_filesystem") == "mcp-server-filesystem"
+
+    def test_dots_to_hyphens(self) -> None:
+        assert normalize_pypi_name("mcp.server.fetch") == "mcp-server-fetch"
+
+    def test_mixed_separators(self) -> None:
+        assert normalize_pypi_name("mcp_server-fetch.v2") == "mcp-server-fetch-v2"
+
+    def test_consecutive_separators_collapsed(self) -> None:
+        assert normalize_pypi_name("mcp--server") == "mcp-server"
+
+    def test_lowercase(self) -> None:
+        assert normalize_pypi_name("MCP-Server-Fetch") == "mcp-server-fetch"
+
+    def test_already_normalised(self) -> None:
+        assert normalize_pypi_name("mcp-server-fetch") == "mcp-server-fetch"
+
+    def test_pep503_equivalence(self) -> None:
+        """mcp_server_filesystem and mcp-server-filesystem normalise identically."""
+        assert normalize_pypi_name("mcp_server_filesystem") == normalize_pypi_name(
+            "mcp-server-filesystem"
+        )
+
+
+# ── extract_pypi_package unit tests ───────────────────────────────────────────
+
+
+class TestExtractPypiPackage:
+    # ── uvx ────────────────────────────────────────────────────────────────────
+
+    def test_uvx_simple(self) -> None:
+        assert extract_pypi_package("uvx", ["mcp-server-filesystem"]) == (
+            "mcp-server-filesystem"
+        )
+
+    def test_uvx_version_suffix_stripped(self) -> None:
+        assert extract_pypi_package("uvx", ["mcp-server-filesystem@1.0.0"]) == (
+            "mcp-server-filesystem"
+        )
+
+    def test_uvx_from_flag_extraction(self) -> None:
+        # --from <pkg> <executable> — package is the token after --from
+        assert (
+            extract_pypi_package("uvx", ["--from", "mcp-server-foo", "mcp-foo"])
+            == "mcp-server-foo"
+        )
+
+    def test_uvx_from_short_flag(self) -> None:
+        assert extract_pypi_package("uvx", ["-f", "mcp-server-foo", "mcp-foo"]) == (
+            "mcp-server-foo"
+        )
+
+    def test_uvx_from_flag_version_suffix(self) -> None:
+        assert (
+            extract_pypi_package("uvx", ["--from", "mcp-server-foo@2.0", "mcp-foo"])
+            == "mcp-server-foo"
+        )
+
+    def test_uvx_python_flag_skipped(self) -> None:
+        assert (
+            extract_pypi_package("uvx", ["--python", "3.11", "mcp-server-filesystem"])
+            == "mcp-server-filesystem"
+        )
+
+    def test_uvx_python_flag_equals_style(self) -> None:
+        assert (
+            extract_pypi_package("uvx", ["--python=3.11", "mcp-server-filesystem"])
+            == "mcp-server-filesystem"
+        )
+
+    def test_uvx_underscore_normalised(self) -> None:
+        assert extract_pypi_package("uvx", ["mcp_server_filesystem"]) == (
+            "mcp-server-filesystem"
+        )
+
+    def test_uvx_no_args_returns_none(self) -> None:
+        assert extract_pypi_package("uvx", []) is None
+
+    def test_uvx_only_flags_returns_none(self) -> None:
+        assert extract_pypi_package("uvx", ["--python", "3.11"]) is None
+
+    # ── pipx ───────────────────────────────────────────────────────────────────
+
+    def test_pipx_run_extraction(self) -> None:
+        assert extract_pypi_package("pipx", ["run", "mcp-server-git"]) == (
+            "mcp-server-git"
+        )
+
+    def test_pipx_install_extraction(self) -> None:
+        assert extract_pypi_package("pipx", ["install", "mcp-server-git"]) == (
+            "mcp-server-git"
+        )
+
+    def test_pipx_no_subcommand(self) -> None:
+        # If no sub-command is present the first positional is the package.
+        assert extract_pypi_package("pipx", ["mcp-server-git"]) == "mcp-server-git"
+
+    def test_pipx_version_suffix_stripped(self) -> None:
+        assert extract_pypi_package("pipx", ["run", "mcp-server-git@1.2.3"]) == (
+            "mcp-server-git"
+        )
+
+    # ── python -m ──────────────────────────────────────────────────────────────
+
+    def test_python_m_extraction(self) -> None:
+        assert extract_pypi_package("python", ["-m", "mcp_server_filesystem"]) == (
+            "mcp-server-filesystem"
+        )
+
+    def test_python_m_hyphen_name(self) -> None:
+        assert extract_pypi_package("python", ["-m", "mcp-server-git"]) == (
+            "mcp-server-git"
+        )
+
+    def test_python_no_m_flag_returns_none(self) -> None:
+        assert extract_pypi_package("python", ["server.py"]) is None
+
+    def test_python_m_flag_at_end_returns_none(self) -> None:
+        assert extract_pypi_package("python", ["-m"]) is None
+
+    # ── non-pypi command ───────────────────────────────────────────────────────
+
+    def test_non_pypi_command_returns_none(self) -> None:
+        assert extract_pypi_package("node", ["server.js"]) is None
+
+    def test_npx_returns_none(self) -> None:
+        assert extract_pypi_package("npx", ["-y", "some-pkg"]) is None
+
+
+# ── KnownServerRegistry PyPI helpers ─────────────────────────────────────────
+
+
+class TestRegistryPypiHelpers:
+    def setup_method(self) -> None:
+        self.registry = _loader_module.KnownServerRegistry()
+
+    def test_get_pypi_names_returns_set(self) -> None:
+        names = self.registry.get_pypi_names()
+        assert isinstance(names, set)
+        assert len(names) > 0
+
+    def test_get_pypi_names_contains_known_entries(self) -> None:
+        names = self.registry.get_pypi_names()
+        assert "mcp-server-filesystem" in names
+        assert "mcp-server-git" in names
+        assert "mcp-server-fetch" in names
+
+    def test_get_pypi_names_excludes_npm_entries(self) -> None:
+        names = self.registry.get_pypi_names()
+        # npm-only scoped packages must not appear in the PyPI pool
+        assert "@modelcontextprotocol/server-filesystem" not in names
+
+    def test_is_known_pypi_exact_match(self) -> None:
+        assert self.registry.is_known_pypi("mcp-server-filesystem") is True
+
+    def test_is_known_pypi_normalised_match(self) -> None:
+        # Underscore variant normalises to the same name
+        assert self.registry.is_known_pypi("mcp_server_filesystem") is True
+
+    def test_is_known_pypi_unknown_returns_false(self) -> None:
+        assert self.registry.is_known_pypi("totally-unknown-xyz-package") is False
+
+    def test_is_known_pypi_npm_entry_returns_false(self) -> None:
+        # npm-only entries must not be found by the pypi lookup
+        assert (
+            self.registry.is_known_pypi("@modelcontextprotocol/server-filesystem")
+            is False
+        )
+
+    def test_find_closest_pypi_exact_returns_none(self) -> None:
+        # Exact match should return None (caller uses is_known_pypi for that case)
+        result = self.registry.find_closest_pypi("mcp-server-filesystem", threshold=3)
+        assert result is None
+
+    def test_find_closest_pypi_typo_found(self) -> None:
+        # "mcp-server-fliesystem" is 2 edits from "mcp-server-filesystem"
+        result = self.registry.find_closest_pypi("mcp-server-fliesystem", threshold=3)
+        assert result is not None
+        assert result.name == "mcp-server-filesystem"
+
+    def test_find_closest_pypi_no_match_returns_none(self) -> None:
+        result = self.registry.find_closest_pypi(
+            "completely-unrelated-zzz", threshold=3
+        )
+        assert result is None
+
+    def test_registry_entry_has_package_ecosystem_field(self) -> None:
+        entry = self.registry.get("mcp-server-filesystem")
+        assert entry is not None
+        assert entry.package_ecosystem == "pypi"
+
+    def test_npm_entry_has_default_ecosystem(self) -> None:
+        entry = self.registry.get("@modelcontextprotocol/server-filesystem")
+        assert entry is not None
+        assert entry.package_ecosystem == "npm"
+
+
+# ── SupplyChainAnalyzer Python-ecosystem tests ────────────────────────────────
+
+
+def _make_pypi_server(
+    name: str = "test-server",
+    command: str = "uvx",
+    args: list[str] | None = None,
+) -> ServerConfig:
+    return ServerConfig(
+        name=name,
+        client="claude",
+        config_path=Path("/tmp/mcp.json"),  # noqa: S108
+        transport=TransportType.STDIO,
+        command=command,
+        args=args or [],
+    )
+
+
+class TestPypiTyposquatting:
+    def setup_method(self) -> None:
+        self.analyzer = SupplyChainAnalyzer()
+
+    # ── Typosquat detection ────────────────────────────────────────────────────
+
+    def test_uvx_typosquat_detected(self) -> None:
+        # "mcp-server-fliesystem" transposes 'il' → distance 2 → SC-002 HIGH
+        server = _make_pypi_server(args=["mcp-server-fliesystem"])
+        findings = self.analyzer.analyze(server)
+        assert len(findings) == 1
+        assert findings[0].id == "SC-002"
+        assert findings[0].severity == Severity.HIGH
+        assert findings[0].analyzer == "supply_chain"
+        assert findings[0].cwe == "CWE-829"
+
+    def test_uvx_typosquat_title_contains_package(self) -> None:
+        server = _make_pypi_server(args=["mcp-server-fliesystem"])
+        finding = self.analyzer.analyze(server)[0]
+        assert "mcp-server-fliesystem" in finding.title
+        assert "Python package typosquat" in finding.title
+
+    def test_uvx_typosquat_remediation_mentions_correct_name(self) -> None:
+        server = _make_pypi_server(args=["mcp-server-fliesystem"])
+        finding = self.analyzer.analyze(server)[0]
+        assert "mcp-server-filesystem" in finding.remediation
+
+    def test_uvx_typosquat_evidence_contains_command(self) -> None:
+        server = _make_pypi_server(args=["mcp-server-fliesystem"])
+        finding = self.analyzer.analyze(server)[0]
+        assert "uvx" in finding.evidence
+
+    def test_uvx_distance_1_critical(self) -> None:
+        # Drop one char from end: "mcp-server-filesyste" → distance 1 → CRITICAL SC-001
+        server = _make_pypi_server(args=["mcp-server-filesyste"])
+        findings = self.analyzer.analyze(server)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.CRITICAL
+        assert findings[0].id == "SC-001"
+
+    def test_uvx_distance_3_medium(self) -> None:
+        # Three extra chars: "mcp-server-gityyy" → distance 3 → MEDIUM SC-003
+        server = _make_pypi_server(args=["mcp-server-gityyy"])
+        findings = self.analyzer.analyze(server)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.MEDIUM
+        assert findings[0].id == "SC-003"
+
+    # ── Known-good packages → no findings ─────────────────────────────────────
+
+    def test_uvx_known_good_filesystem_no_finding(self) -> None:
+        server = _make_pypi_server(args=["mcp-server-filesystem"])
+        assert self.analyzer.analyze(server) == []
+
+    def test_uvx_known_good_normalised_no_finding(self) -> None:
+        # Underscore variant is PEP 503 equivalent — no finding
+        server = _make_pypi_server(args=["mcp_server_filesystem"])
+        assert self.analyzer.analyze(server) == []
+
+    def test_uvx_known_good_postgres_no_finding(self) -> None:
+        server = _make_pypi_server(args=["mcp-server-postgres"])
+        assert self.analyzer.analyze(server) == []
+
+    def test_pipx_run_known_good_no_finding(self) -> None:
+        server = _make_pypi_server(command="pipx", args=["run", "mcp-server-git"])
+        assert self.analyzer.analyze(server) == []
+
+    # ── Argument parsing ───────────────────────────────────────────────────────
+
+    def test_pipx_run_typosquat_detected(self) -> None:
+        # "mcp-server-fliesystem" via pipx run
+        server = _make_pypi_server(
+            command="pipx", args=["run", "mcp-server-fliesystem"]
+        )
+        findings = self.analyzer.analyze(server)
+        assert len(findings) == 1
+        assert findings[0].id == "SC-002"
+
+    def test_python_m_normalisation_and_check(self) -> None:
+        # python -m mcp_server_filesystem → normalises to mcp-server-filesystem (exact)
+        server = _make_pypi_server(
+            command="python", args=["-m", "mcp_server_filesystem"]
+        )
+        assert self.analyzer.analyze(server) == []
+
+    def test_python_m_typosquat_detected(self) -> None:
+        # python -m mcp_server_fliesystem → typosquat
+        server = _make_pypi_server(
+            command="python", args=["-m", "mcp_server_fliesystem"]
+        )
+        findings = self.analyzer.analyze(server)
+        assert len(findings) == 1
+        assert findings[0].id == "SC-002"
+
+    def test_uvx_from_flag_package_extracted(self) -> None:
+        # "--from mcp-server-filesystem mcp-fs" → package is mcp-server-filesystem
+        server = _make_pypi_server(args=["--from", "mcp-server-filesystem", "mcp-fs"])
+        assert self.analyzer.analyze(server) == []
+
+    def test_uvx_from_flag_typo_detected(self) -> None:
+        server = _make_pypi_server(args=["--from", "mcp-server-fliesystem", "mcp-fs"])
+        findings = self.analyzer.analyze(server)
+        assert len(findings) == 1
+        assert findings[0].id == "SC-002"
+
+    def test_uvx_version_suffix_stripped_known_good(self) -> None:
+        server = _make_pypi_server(args=["mcp-server-filesystem@1.0.0"])
+        assert self.analyzer.analyze(server) == []
+
+    # ── Short-name guard ───────────────────────────────────────────────────────
+
+    def test_short_name_guard_no_false_positive(self) -> None:
+        # "mcp" is 3 chars — threshold drops to 1; nothing within 1 edit should fire
+        # unless it is an exact typo of "mcp" itself.  "mcq" is 1 edit from "mcp"
+        # (which is in the registry), so it SHOULD fire.
+        server = _make_pypi_server(args=["mcq"])
+        findings = self.analyzer.analyze(server)
+        # "mcq" is 1 edit from "mcp" → CRITICAL SC-001 fires (within threshold=1)
+        assert len(findings) == 1
+        assert findings[0].id == "SC-001"
+
+    def test_5_char_pypi_name_threshold_1(self) -> None:
+        # 5-char name uses threshold 1; package 2 edits from all entries → no finding
+        server = _make_pypi_server(args=["zxqvw"])
+        assert self.analyzer.analyze(server) == []
+
+    # ── No cross-ecosystem false positives ────────────────────────────────────
+
+    def test_npm_check_not_called_for_uvx(self) -> None:
+        # An npm scoped-package name passed to uvx must not produce a finding
+        # via the npm comparison pool (cross-ecosystem FP).
+        server = _make_pypi_server(args=["@modelcontextprotocol/server-filesyste"])
+        # The npm-scoped name is not in the PyPI index and won't match anything
+        # in the PyPI pool within threshold, so no finding expected.
+        findings = self.analyzer.analyze(server)
+        assert findings == []
+
+    # ── Server / client metadata on finding ───────────────────────────────────
+
+    def test_finding_references_server_and_client(self) -> None:
+        server = _make_pypi_server(
+            name="evil-pypi",
+            command="uvx",
+            args=["mcp-server-fliesystem"],
+        )
+        finding = self.analyzer.analyze(server)[0]
+        assert finding.server == "evil-pypi"
+        assert finding.client == "claude"
+        assert finding.owasp_mcp_top_10 == ["MCP04"]
+
+    # ── npm path unaffected ────────────────────────────────────────────────────
+
+    def test_npm_typosquat_still_works_after_python_addition(self) -> None:
+        """Regression: npm typosquat path must not be broken by Python changes."""
+        server = _make_server(args=["-y", "@modelcontextprotocol/server-filesyste"])
+        findings = self.analyzer.analyze(server)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.CRITICAL
+        assert findings[0].id == "SC-001"
+
+
+# ── Integration test: uvx_config.json fixture ────────────────────────────────
+
+
+class TestUvxConfigFixtureIntegration:
+    """End-to-end: parse uvx_config.json and run the supply chain analyzer."""
+
+    def setup_method(self) -> None:
+        self.analyzer = SupplyChainAnalyzer()
+        self._fixture = Path(__file__).parent / "fixtures" / "uvx_config.json"
+
+    def test_fixture_exists(self) -> None:
+        assert self._fixture.exists(), f"Fixture not found: {self._fixture}"
+
+    def test_typosquat_servers_produce_sc002(self) -> None:
+        from mcp_audit.config_parser import parse_config
+        from mcp_audit.discovery import DiscoveredConfig
+
+        discovered = DiscoveredConfig(
+            client_name="claude",
+            root_key="mcpServers",
+            path=self._fixture,
+        )
+        servers = parse_config(discovered)
+
+        all_findings: list = []
+        for server in servers:
+            all_findings.extend(self.analyzer.analyze(server))
+
+        sc002_findings = [f for f in all_findings if f.id == "SC-002"]
+        # Three typosquat servers in the fixture: typosquat-uvx, pipx-typosquat,
+        # python-m-typosquat — each should produce SC-002 HIGH.
+        assert len(sc002_findings) == 3, (
+            f"Expected 3 SC-002 findings, got {len(sc002_findings)}: "
+            f"{[(f.server, f.id) for f in all_findings]}"
+        )
+
+    def test_known_good_server_produces_no_finding(self) -> None:
+        from mcp_audit.config_parser import parse_config
+        from mcp_audit.discovery import DiscoveredConfig
+
+        discovered = DiscoveredConfig(
+            client_name="claude",
+            root_key="mcpServers",
+            path=self._fixture,
+        )
+        servers = parse_config(discovered)
+
+        for server in servers:
+            if server.name == "known-good-uvx":
+                findings = self.analyzer.analyze(server)
+                assert findings == [], (
+                    f"Expected no findings for known-good-uvx, got {findings}"
+                )

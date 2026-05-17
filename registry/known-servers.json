@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "last_updated": "2026-05-02",
-  "entry_count": 75,
+  "entry_count": 78,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -464,6 +464,7 @@
     {
       "name": "mcp",
       "source": "pip",
+      "package_ecosystem": "pypi",
       "repo": "https://github.com/modelcontextprotocol/python-sdk",
       "maintainer": "Anthropic",
       "verified": true,
@@ -481,6 +482,7 @@
     {
       "name": "mcp-server-fetch",
       "source": "pip",
+      "package_ecosystem": "pypi",
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
@@ -491,9 +493,18 @@
         "http",
         "local"
       ],
+      "capabilities": [
+        "network_out"
+      ],
       "known_hashes": {
         "2025.4.7": "sha256:56279e3c55cb1e506b958ca9bb23ed4413944a6f230bca21e044aee51734fe47"
       },
+      "first_published": "2024-11-14",
+      "weekly_downloads": 21300,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
       "attestation_expected": true
     },
     {
@@ -1097,6 +1108,7 @@
     {
       "name": "mcp-server-qdrant",
       "source": "pip",
+      "package_ecosystem": "pypi",
       "repo": "https://github.com/qdrant/mcp-server-qdrant",
       "maintainer": "Qdrant",
       "verified": false,
@@ -1165,6 +1177,7 @@
     {
       "name": "mcp-atlassian",
       "source": "pip",
+      "package_ecosystem": "pypi",
       "repo": "https://github.com/sooperset/mcp-atlassian",
       "maintainer": "community",
       "verified": false,
@@ -1233,6 +1246,7 @@
     {
       "name": "langchain-mcp-adapters",
       "source": "pip",
+      "package_ecosystem": "pypi",
       "repo": "https://github.com/langchain-ai/langchain-mcp-adapters",
       "maintainer": "LangChain",
       "verified": false,
@@ -1250,6 +1264,82 @@
         "langchain-bot",
         "langchain"
       ]
+    },
+    {
+      "name": "mcp-server-filesystem",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-05-17",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "filesystem",
+        "local"
+      ],
+      "capabilities": [
+        "file_read",
+        "file_write"
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 18900,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
+    },
+    {
+      "name": "mcp-server-git",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-05-17",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "git",
+        "local"
+      ],
+      "capabilities": [
+        "git"
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 14200,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
+    },
+    {
+      "name": "mcp-server-postgres",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-05-17",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "database",
+        "local"
+      ],
+      "capabilities": [
+        "database"
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 9800,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
     }
   ]
 }

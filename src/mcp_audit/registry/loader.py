@@ -20,11 +20,33 @@ Ref: "Typosquatting in Package Managers" — Vu et al., NDSS 2021
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Literal
 
 from platformdirs import user_config_dir
 from pydantic import BaseModel
+
+# ── PEP 503 normalisation ──────────────────────────────────────────────────────
+
+_PEP503_RE: re.Pattern[str] = re.compile(r"[-_.]+")
+
+
+def normalize_pypi_name(name: str) -> str:
+    """Normalise a Python package name per PEP 503.
+
+    Collapses runs of ``-``, ``_``, and ``.`` into a single ``-`` and
+    lowercases the result, making ``mcp_server_filesystem``,
+    ``MCP-Server-Filesystem``, and ``mcp-server-filesystem`` identical.
+
+    Args:
+        name: Raw package or module name.
+
+    Returns:
+        Normalised lowercase name.
+    """
+    return _PEP503_RE.sub("-", name).lower()
+
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -80,6 +102,12 @@ class RegistryEntry(BaseModel):
     last_verified: str
     known_versions: list[str]
     tags: list[str]
+
+    # Which package-manager ecosystem this entry belongs to.
+    # "npm"  — installed via npx/bunx/pnpx/yarn dlx (default for backward compat)
+    # "pypi" — installed via uvx/pipx/pip/python -m
+    # "any"  — ecosystem-agnostic (included in both npm and pypi comparison pools)
+    package_ecosystem: Literal["npm", "pypi", "any"] = "npm"
 
     # Hash-based integrity pinning (Layer 1 supply chain attestation).
     # key = version string (e.g. "0.6.2")
@@ -163,9 +191,17 @@ class KnownServerRegistry:
             RegistryEntry.model_validate(e) for e in raw_entries
         ]
 
-        # Build a lowercase name → entry index for O(1) exact lookups.
+        # Build a lowercase name → entry index for O(1) exact lookups (all entries).
         self._name_index: dict[str, RegistryEntry] = {
             e.name.lower(): e for e in self.entries
+        }
+
+        # PyPI-ecosystem sub-index (PEP 503 normalised name → entry).
+        self._pypi_entries: list[RegistryEntry] = [
+            e for e in self.entries if e.package_ecosystem in ("pypi", "any")
+        ]
+        self._pypi_norm_index: dict[str, RegistryEntry] = {
+            normalize_pypi_name(e.name): e for e in self._pypi_entries
         }
 
     # ── Query methods ──────────────────────────────────────────────────────────
@@ -236,6 +272,66 @@ class KnownServerRegistry:
             List of package name strings from every registry entry.
         """
         return [e.name for e in self.entries]
+
+    def is_known_pypi(self, name: str) -> bool:
+        """Return ``True`` if *name* exactly matches a PyPI registry entry.
+
+        Comparison uses PEP 503 normalisation so ``mcp_server_filesystem`` and
+        ``mcp-server-filesystem`` are treated as the same name.
+
+        Args:
+            name: Package or module name to look up.
+
+        Returns:
+            ``True`` when the normalised name is a known-good PyPI entry.
+        """
+        return normalize_pypi_name(name) in self._pypi_norm_index
+
+    def find_closest_pypi(self, name: str, threshold: int = 2) -> RegistryEntry | None:
+        """Return the closest PyPI registry entry within *threshold* edit distance.
+
+        Compares *name* (PEP 503 normalised) against all entries whose
+        ``package_ecosystem`` is ``"pypi"`` or ``"any"``.  Returns ``None``
+        for exact matches (use :meth:`is_known_pypi` to filter those first) and
+        for names farther than *threshold* edits from every entry.
+
+        Args:
+            name: Package name to check (normalisation applied internally).
+            threshold: Maximum Levenshtein distance to consider (inclusive).
+
+        Returns:
+            Closest :class:`RegistryEntry`, or ``None``.
+        """
+        norm = normalize_pypi_name(name)
+
+        if norm in self._pypi_norm_index:
+            return None  # exact match — not a typosquat
+
+        closest_entry: RegistryEntry | None = None
+        min_dist = threshold + 1  # sentinel
+
+        for entry in self._pypi_entries:
+            d = levenshtein(norm, normalize_pypi_name(entry.name))
+            if d == 0:
+                return None  # shouldn't happen given the index check above
+            if d < min_dist:
+                min_dist = d
+                closest_entry = entry
+                if d == 1:
+                    break  # can't improve without an exact match
+
+        return closest_entry if min_dist <= threshold else None
+
+    def get_pypi_names(self) -> set[str]:
+        """Return PEP 503-normalised names for all PyPI ecosystem entries.
+
+        Useful for testing and external tooling that needs the full PyPI
+        comparison pool.
+
+        Returns:
+            Set of normalised package name strings.
+        """
+        return {normalize_pypi_name(e.name) for e in self._pypi_entries}
 
     # ── Private helpers ────────────────────────────────────────────────────────
 

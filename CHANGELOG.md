@@ -10,6 +10,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **PyPI / uvx typosquat detection — extend supply chain to Python ecosystem (STORY-0034, v0.10.0).**
+  Typosquatting detection now covers Python MCP packages installed via `uvx`, `pipx`, and
+  `python -m` — not just npm.  The supply chain analyzer extracts the package name from
+  these invocations, normalises it per PEP 503 (so `mcp_server_filesystem` and
+  `mcp-server-filesystem` are treated identically), and runs the same Levenshtein-based
+  registry comparison used for npm.  Findings use the existing SC-001 / SC-002 / SC-003 IDs
+  and severity scale.
+
+  Key implementation details:
+  - `extract_pypi_package(command, args)` — public helper that parses `uvx --from <pkg>
+    <exe>`, `uvx --python 3.x <pkg>`, `uvx <pkg>@<ver>`, `pipx run <pkg>`, and
+    `python -m <module>` invocations.
+  - `SupplyChainAnalyzer._check_pypi_typosquatting()` — internal method that queries
+    the new PyPI sub-index of the registry and emits findings.
+  - `RegistryEntry.package_ecosystem` — new field (`"npm"` default / `"pypi"` / `"any"`);
+    all five existing `"source": "pip"` entries updated to `"package_ecosystem": "pypi"`.
+  - `KnownServerRegistry.is_known_pypi()`, `find_closest_pypi()`, `get_pypi_names()` — new
+    query methods that operate only on the PyPI sub-index using PEP 503-normalised names.
+  - `normalize_pypi_name()` — new public helper in `registry/loader.py`.
+  - Three new PyPI registry entries: `mcp-server-filesystem`, `mcp-server-git`,
+    `mcp-server-postgres`.
+
 - **Credential pattern expansion — GCP, Azure, DO, Vercel, PEM, Vault (STORY-0035, v0.10.0).**
   Closes V-17. `credentials.py` `SECRET_PATTERNS` extended with 8 new credential types:
 
