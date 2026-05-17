@@ -31,6 +31,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   copy-paste parallel CI workflow. README gains a "Works well with" table
   linking all integrations (Snyk, Nucleus, GitHub Code Scanning).
 
+### Security
+
+- Bumped transitive dependency `python-multipart` to `0.0.28` (≥ 0.0.27) to
+  resolve CVE-2026-42561 (DoS via unbounded multipart part headers; fixed in
+  0.0.27). Exposure is limited to the optional `--connect` path; mcp-audit
+  does not use `python-multipart` directly. `pip-audit --path .` returns zero
+  findings after this bump.
+
 - **`setup-mcp-audit` GitHub Action — binary download, no pip (STORY-0033, v0.10.0).**
   New `setup-action/action.yml` composite action downloads the pre-built mcp-audit
   binary from GitHub Releases and adds it to `PATH` in under 5 seconds. The binary
