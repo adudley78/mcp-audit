@@ -117,6 +117,7 @@ def main() -> None:
 # defined.  Ordering among submodules does not matter.
 from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports register commands
     baseline,
+    check,
     dashboard,
     diff,
     extensions,
@@ -145,6 +146,7 @@ __all__ = [
     "_USER_CONFIG_DIR",
     "app",
     "baseline_app",
+    "check",
     "console",
     "diff",
     "discover_configs",

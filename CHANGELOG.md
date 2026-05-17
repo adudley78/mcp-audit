@@ -8,6 +8,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`mcp-audit check` — one-command practitioner verdict (STORY-0037, v0.10.0).**
+  New entry-point command for developers who want a quick answer to "is my
+  setup safe?" without learning `scan` flags or SARIF.
+
+  - Runs the **full scan pipeline** internally — same detection as `mcp-audit scan`,
+    no shortcuts.
+  - Presents a concise one-page verdict: letter grade, numeric score, top 5
+    findings sorted by severity (CRITICAL first), and a one-line remediation
+    hint per finding.
+  - **Remediation hints** are plain English, no OWASP codes or analyzer names.
+    Auto-fixable IDs (CRED-001, CRED-002, TRANSPORT-001, SC-001, SC-002)
+    print "Run `mcp-audit fix --apply` to fix automatically." All other IDs
+    map to specific manual instructions via `output/check.py::_HINTS`.
+  - Grade F + active attack path → "⛔ Active attack path detected" line appended.
+  - `--verbose`: full `mcp-audit scan` terminal output.
+  - `--json`: full `ScanResult` JSON to stdout, no summary text.
+  - `--path FILE`: scan a specific config file.
+  - **Exit codes:** 0 = grade A/B (score ≥ 70, no CRIT/HIGH); 1 = grade C/D/F
+    or any CRIT/HIGH finding; 2 = error. This is intentionally different from
+    `scan` (which exits 1 on any finding) — `check` is designed for use as a
+    developer-facing health check, not a strict CI gate.
+  - Edge cases: no configs found → friendly message, exit 0; invalid `--path` →
+    "File not found", exit 2; scan exception → "Scan error", exit 2.
+  - 38 unit and integration tests in `tests/test_check.py`.
+  - New modules: `src/mcp_audit/cli/check.py`, `src/mcp_audit/output/check.py`.
+  - `README.md` Quick Start updated to feature `mcp-audit check` first.
+  - `docs/check.md` written.
+
 ### Fixed
 
 - **V-16: `discovery.py` Windows branch now uses `_home()` consistently.**
