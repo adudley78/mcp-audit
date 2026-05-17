@@ -10,6 +10,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`mcp-audit diff --format pr-comment` promoted as the standard CI PR artifact
+  (STORY-0040, v0.10.0).** The PR comment output is now the headline use case
+  for `mcp-audit diff`. `docs/diff.md` restructured so "PR Comment Output" is
+  the first full section (was buried after Input Formats and Output Formats).
+  New copy-paste workflow at `examples/github-actions/diff-pr-comment.yml`
+  demonstrates the recommended pattern: scan base commit → scan head commit →
+  diff to Markdown → post via `actions/github-script`. README "Quick Start"
+  gains a dedicated "PR-comment diff for team adoption" section. `action.yml`
+  `mode` input description updated to reference the new explicit workflow.
+
+- **Snyk Code integration guide — mcp-audit + Snyk SARIF in CI (STORY-0041,
+  v0.10.0).** New `docs/snyk-integration.md` explains how mcp-audit (config
+  layer) and Snyk Code (source layer) complement each other, how to run both
+  in CI and surface findings in GitHub Code Scanning, and how Snyk Enterprise
+  users see unified alerts without extra steps. All five sections: why they're
+  complementary, generating mcp-audit SARIF, uploading both SARIF files to
+  GitHub Code Scanning, interpreting findings side-by-side, and a complete
+  example workflow. New `examples/github-actions/with-snyk.yml` is a
+  copy-paste parallel CI workflow. README gains a "Works well with" table
+  linking all integrations (Snyk, Nucleus, GitHub Code Scanning).
+
 - **`setup-mcp-audit` GitHub Action — binary download, no pip (STORY-0033, v0.10.0).**
   New `setup-action/action.yml` composite action downloads the pre-built mcp-audit
   binary from GitHub Releases and adds it to `PATH` in under 5 seconds. The binary

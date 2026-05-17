@@ -1,0 +1,83 @@
+# mcp-audit + Snyk Code — parallel CI security scan
+#
+# Runs both Snyk Code (source-layer SAST) and mcp-audit (config-layer scan)
+# on every push and pull request.  Each tool writes a SARIF file; both are
+# uploaded to GitHub Code Scanning under separate category labels so findings
+# are cleanly partitioned in the Security tab.
+#
+# What each tool finds:
+#   Snyk Code  — vulnerabilities in MCP server source code (injection, secrets,
+#                insecure APIs, unsafe deserialization)
+#   mcp-audit  — misconfigurations in MCP client config files (tool poisoning,
+#                credential exposure, typosquatted packages, toxic flows)
+#
+# Required permissions:
+#   contents: read         — checkout
+#   security-events: write — SARIF upload to GitHub Code Scanning
+#
+# Required secrets:
+#   SNYK_TOKEN — Snyk API token (Settings → Secrets → Actions)
+#                Free-tier tokens work; --report flag requires Snyk Enterprise.
+#
+# See docs/snyk-integration.md for the full integration guide.
+
+name: MCP Security Scan (mcp-audit + Snyk)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ── Snyk Code: source-code SAST ──────────────────────────────────────────
+  snyk-code:
+    name: Snyk Code (source SAST)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Snyk Code
+        uses: snyk/actions/node@master
+        continue-on-error: true          # upload SARIF even when findings exist
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --sarif-file-output=snyk.sarif --severity-threshold=high
+
+      - name: Upload Snyk SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: snyk.sarif
+          category: snyk-code            # distinct label in the Security tab
+
+  # ── mcp-audit: MCP config scan ───────────────────────────────────────────
+  mcp-audit:
+    name: mcp-audit (config scan)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run mcp-audit
+        uses: adudley78/mcp-audit@v0.10.0
+        with:
+          severity-threshold: high       # fail on HIGH+; use 'medium' to tighten
+          sarif-output: mcp-audit.sarif
+          upload-sarif: 'true'           # action uploads via upload-sarif@v4
+          fail-on-findings: 'true'
+
+  # ── Summary ──────────────────────────────────────────────────────────────
+  # Both jobs run in parallel.  The Security tab will show findings from both
+  # tools under their respective category labels:
+  #   "snyk-code"  — Snyk Code findings
+  #   "mcp-audit"  — mcp-audit findings (uploaded by the action internally)
+  #
+  # To add PR comment diffing (shows what MCP config changed in this PR),
+  # add a third job using examples/github-actions/diff-pr-comment.yml as
+  # a reference.

@@ -185,6 +185,58 @@ simulation shows the resulting blast radius if all recommendations are applied.
 
 See [`docs/killchain.md`](docs/killchain.md) for the full reference.
 
+## PR-comment diff for team adoption
+
+The fastest way to spread MCP security awareness across an engineering team is
+`mcp-audit diff --format pr-comment`. Every pull request that touches an MCP
+config gets an automatic summary posted to the PR conversation tab — reviewers
+see what changed (added servers, new tools, credential refs, external endpoints)
+and the risk classification, without leaving GitHub.
+
+```bash
+# Preview locally
+mcp-audit diff HEAD~1 HEAD --format pr-comment
+
+# Block a PR on MEDIUM+ MCP changes and post a comment
+mcp-audit diff base.json head.json \
+  --format pr-comment \
+  --severity-threshold medium \
+  > diff-output.md
+```
+
+**Copy-paste GitHub Actions workflow** — scan base and head commits separately,
+then post the diff as a PR comment via `github-script`:
+
+```yaml
+- uses: actions/checkout@v4
+  with: { fetch-depth: 0 }
+
+- uses: adudley78/setup-mcp-audit@v1
+
+- run: git checkout ${{ github.event.pull_request.base.sha }}
+        && mcp-audit scan --format json -o base.json || true
+
+- run: git checkout ${{ github.event.pull_request.head.sha }}
+        && mcp-audit scan --format json -o head.json || true
+
+- run: mcp-audit diff base.json head.json --format pr-comment
+        --severity-threshold medium > diff-output.md
+  continue-on-error: true
+
+- uses: actions/github-script@v7
+  with:
+    script: |
+      const body = require('fs').readFileSync('diff-output.md', 'utf8');
+      await github.rest.issues.createComment({
+        ...context.repo, issue_number: context.issue.number, body });
+```
+
+Full workflow at [`examples/github-actions/diff-pr-comment.yml`](examples/github-actions/diff-pr-comment.yml).
+For a one-step setup using the composite action, see
+[`examples/github-actions/diff-mode.yml`](examples/github-actions/diff-mode.yml).
+
+See [`docs/diff.md`](docs/diff.md) for input formats, severity table, and edge cases.
+
 ## Supported clients
 
 | Client | Config location |
@@ -436,6 +488,17 @@ See [`examples/github-actions/`](examples/github-actions/) for:
 - [`with-baseline.yml`](examples/github-actions/with-baseline.yml) — drift detection against a committed baseline
 
 Full reference, troubleshooting, and baseline setup instructions: [`docs/github-action.md`](docs/github-action.md).
+
+## Works well with
+
+mcp-audit is designed to complement, not replace, the security tools you
+already run. Each integration has a dedicated guide:
+
+| Tool | What it adds alongside mcp-audit | Guide |
+|------|----------------------------------|-------|
+| **Snyk Code** | Source-code SAST (injection, secrets in code, insecure APIs). mcp-audit covers the config layer; Snyk covers the source layer. Both output SARIF to the same GitHub Security tab. | [`docs/snyk-integration.md`](docs/snyk-integration.md) |
+| **Nucleus Security** | Enterprise vulnerability management — deduplication, ownership, SLA tracking across all your security tools. mcp-audit findings push via the FlexConnect schema. | [`docs/nucleus-integration.md`](docs/nucleus-integration.md) |
+| **GitHub Code Scanning** | mcp-audit SARIF uploads via `github/codeql-action/upload-sarif@v4`. Findings appear as PR annotations and Security tab alerts out of the box. | [`docs/github-action.md`](docs/github-action.md) |
 
 ## Pre-Commit Hook
 

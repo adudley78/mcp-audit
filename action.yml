@@ -13,6 +13,9 @@ inputs:
       (MCP-aware diff between two git refs, suitable for PR comments).
       When ``diff``, the action runs ``mcp-audit diff $GITHUB_BASE_REF $GITHUB_HEAD_REF``
       and posts the result as a PR comment (requires ``pull-requests: write`` permission).
+      For an explicit step-by-step workflow with separate base/head scans and
+      full control over scan flags, use
+      ``examples/github-actions/diff-pr-comment.yml`` instead.
     required: false
     default: 'scan'
 
