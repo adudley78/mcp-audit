@@ -135,11 +135,24 @@ def run_semgrep(
     except Exception as exc:  # noqa: BLE001
         return SastResult(error=f"Failed to run semgrep: {exc}")
 
-    # semgrep exits 1 when findings are present — that's expected, not an error.
-    # Exit code 2 indicates a real error.
-    if proc.returncode == 2:
+    # semgrep exit codes:
+    #   0  — scan complete, no findings
+    #   1  — scan complete, findings found (expected, not an error)
+    #   2  — scan failed with a fatal error
+    #   120 — scan complete but some rule sets had no matching file types
+    #          (e.g. TypeScript rules run against a Python-only codebase); stdout
+    #          still contains valid JSON with the results from matching rules.
+    #
+    # Strategy: attempt JSON parse whenever stdout is non-empty, regardless of
+    # exit code.  Only bail early when stdout is empty (nothing to parse).
+    if not proc.stdout.strip():
         stderr = proc.stderr.strip()
-        return SastResult(error=f"semgrep error: {stderr or 'unknown error'}")
+        return SastResult(
+            error=(
+                f"semgrep exited with code {proc.returncode} and produced no output."
+                f" {stderr}".rstrip()
+            )
+        )
 
     try:
         output = json.loads(proc.stdout)

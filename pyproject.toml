@@ -64,7 +64,17 @@ dev = [
     "pyinstaller>=6.0",
     "jsonschema>=4.0",
     "playwright>=1.40",
-    "semgrep",
+    # semgrep is intentionally NOT listed here. It is an external binary used
+    # by 'mcp-audit sast'; installing it into the uv venv causes its Python
+    # wrapper (pysemgrep) to fail with a pkg_resources import error when
+    # capture_output=True is used. Install semgrep separately on the system
+    # (e.g. 'pip install semgrep' or Homebrew). The runner handles the
+    # "not installed" case gracefully. CI installs semgrep via the action's
+    # own step, not from this extras list.
+    # Floor-pin urllib3 to close CVE-2026-44431 and CVE-2026-44432 (fixed 2.7.0).
+    # urllib3 is a transitive dep of the sigstore toolchain (dev only);
+    # it is not required by the core runtime.
+    "urllib3>=2.7.0",
 ]
 mcp = [
     "mcp>=1.0",
@@ -121,4 +131,5 @@ exclude_dirs = ["tests"]
 dev = [
     "playwright>=1.58.0",
     "pytest-cov>=7.1.0",
+    "setuptools>=82.0.1",
 ]

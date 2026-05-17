@@ -105,8 +105,12 @@ def _extract_external_urls(server: ServerConfig) -> list[str]:
         for match in _URL_RE.findall(candidate):
             parsed = urlparse(match)
             host = (parsed.hostname or "").strip("[]")
-            # nosec S104 — detection pattern, not a bind address
-            if host and host not in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):  # noqa: S104
+            if host and host not in (  # nosec B104 — detection pattern, not a bind address
+                "localhost",
+                "127.0.0.1",
+                "::1",
+                "0.0.0.0",  # noqa: S104
+            ):
                 urls.append(match)
     return urls
 
