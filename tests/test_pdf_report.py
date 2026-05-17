@@ -220,7 +220,13 @@ class TestCheckReportPdfCli:
         assert out_file.exists()
 
     def test_pdf_file_permissions(self, tmp_path: Path) -> None:
-        """Generated PDF is written with 0o644 permissions."""
+        """Generated PDF is written with 0o644 permissions (POSIX only).
+
+        Windows NTFS does not honour Unix permission bits — the assertion is
+        skipped there to keep the test matrix green.
+        """
+        import sys  # noqa: PLC0415
+
         out_file = tmp_path / "report.pdf"
         with patch("mcp_audit.cli.check.run_scan", return_value=self._mock_run_scan()):
             result = runner.invoke(
@@ -228,8 +234,9 @@ class TestCheckReportPdfCli:
                 ["check", "--report", "pdf", "--output-file", str(out_file)],
             )
         assert result.exit_code in (0, 1), result.output
-        mode = stat.S_IMODE(out_file.stat().st_mode)
-        assert mode == 0o644
+        if sys.platform != "win32":
+            mode = stat.S_IMODE(out_file.stat().st_mode)
+            assert mode == 0o644
 
     def test_org_name_from_flag(self, tmp_path: Path) -> None:
         """``--org`` flag sets the org name; it appears in the PDF bytes."""

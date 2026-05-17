@@ -122,8 +122,8 @@ jobs:
           SIZE_BYTES=$(wc -c < dist/mcp-audit-linux-x86_64 | tr -d ' ')
           SIZE_MB=$(echo "scale=1; $SIZE_BYTES / 1048576" | bc)
           echo "Linux binary: ${SIZE_MB} MB"
-          if [ "$SIZE_BYTES" -gt 36700160 ]; then
-            echo "ERROR: binary exceeds 35 MB hard limit" >&2
+          if [ "$SIZE_BYTES" -gt 52428800 ]; then
+            echo "ERROR: binary exceeds 50 MB hard limit (${SIZE_MB} MB)" >&2
             exit 1
           fi
 

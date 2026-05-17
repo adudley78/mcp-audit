@@ -80,13 +80,14 @@ jobs:
           # available on every runner, so use it for the MB float format.
           SIZE_MB=$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.1f", b/1048576 }')
           echo "Binary size: ${SIZE_MB} MB (${SIZE_BYTES} bytes)"
-          # Warn at 25 MB, fail at 35 MB.  The binary ships *without* sigstore
-          # (excluded in the .spec files); local linux build is ~21 MB.
-          if [ "$SIZE_BYTES" -gt 36700160 ]; then   # 35 MB
-            echo "ERROR: binary exceeds 35 MB hard limit (${SIZE_MB} MB)" >&2
+          # Warn at 40 MB, fail at 50 MB.  The binary ships *without* sigstore
+          # (excluded in the .spec files); reportlab (PDF compliance report)
+          # added ~5 MB in v0.11.0, bringing the Linux binary to ~41 MB.
+          if [ "$SIZE_BYTES" -gt 52428800 ]; then   # 50 MB
+            echo "ERROR: binary exceeds 50 MB hard limit (${SIZE_MB} MB)" >&2
             exit 1
-          elif [ "$SIZE_BYTES" -gt 26214400 ]; then  # 25 MB
-            echo "WARNING: binary exceeds 25 MB soft limit (${SIZE_MB} MB)"
+          elif [ "$SIZE_BYTES" -gt 41943040 ]; then  # 40 MB
+            echo "WARNING: binary exceeds 40 MB soft limit (${SIZE_MB} MB)"
           else
             echo "OK: binary is within size target"
           fi
