@@ -2,7 +2,7 @@
 
 This directory contains YAML-based detection rules for the mcp-audit policy
 engine. Rules in `community/` ship with every mcp-audit installation and run
-for all users, including the free Community tier.
+for all users automatically — no configuration required.
 
 ## Rule format
 
@@ -30,12 +30,21 @@ enabled: true
 
 ## Contributing
 
-1. Fork the repo and create a branch.
-2. Add your rule as `rules/community/COMM-NNN.yml` (use the next available number).
-3. Required fields: `id`, `name`, `description`, `severity`, `category`, `match`, `message`.
-4. Validate your rule: `mcp-audit rule validate rules/community/COMM-NNN.yml`.
-5. Test against a real config: `mcp-audit rule test rules/community/COMM-NNN.yml --against path/to/config.json`.
-6. Open a PR. The maintainers review for false-positive rate, accuracy, and research basis.
+See [docs/contributing-rules.md](../docs/contributing-rules.md) for the complete
+contribution guide, including the step-by-step process, format spec, and bounty
+program details.
+
+Quick start:
+
+1. Copy `TEMPLATE.yml` to `COMM-NNN.yml` (use the next available number).
+2. Fill in all fields — every field has an inline comment explaining what to write.
+3. Validate: `mcp-audit rule validate rules/community/COMM-NNN.yml`
+4. Test: `mcp-audit rule test rules/community/COMM-NNN.yml --against path/to/config.json`
+5. Open a PR. The maintainers review for false-positive rate, accuracy, and research basis.
+
+The first 50 accepted contributors are listed in
+[docs/contributors.md](../docs/contributors.md) — see
+[BOUNTY.md](community/BOUNTY.md) for the full commitment.
 
 ### Naming conventions
 

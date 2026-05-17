@@ -1,0 +1,22 @@
+id: COMM-023
+name: Env key name suggests password
+description: >
+  An environment variable key ends with _PASSWORD, _PASSWD, or _PWD, indicating
+  a password may be passed directly into the MCP server process environment.
+  Passwords in process environments are accessible to any process running as
+  the same user and may appear in process listings on shared systems. This rule
+  flags the structural signal regardless of whether the value is a reference or
+  a literal. Documented in the OWASP MCP Top 10 under MCP02 (Sensitive Data Exposure).
+severity: HIGH
+category: credentials
+match:
+  field: env
+  pattern: "_(PASSWORD|PASSWD|PWD)(\\s|$)"
+  type: regex
+message: "Server '{server_name}' exposes an env key suggesting a password: {matched_value}"
+tags:
+  - credentials
+  - passwords
+enabled: true
+owasp_mcp_top_10:
+  - MCP02

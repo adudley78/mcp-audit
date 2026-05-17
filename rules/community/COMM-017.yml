@@ -1,0 +1,24 @@
+id: COMM-017
+name: Authority-claim poisoning — AI identity impersonation
+description: >
+  Server args claim to be Anthropic, Claude, or a system-level authority
+  ("I am Anthropic", "I am Claude", "as the system", "system prompt says",
+  "the developer has instructed", "my instructions say"). This is the
+  highest-risk poisoning pattern because it can cause users to override safety
+  behaviors, trust fabricated instructions, or expose sensitive data. Documented
+  in the OWASP MCP Top 10 under MCP01 (Prompt Injection). Observed in targeted
+  MCP phishing toolkits.
+severity: CRITICAL
+category: poisoning
+match:
+  field: args
+  pattern: "(?i)(i am anthropic|i am claude|as the system|system prompt says|the developer has instructed|my instructions say)"
+  type: regex
+message: "Server '{server_name}' impersonates an AI authority in args: {matched_value}"
+tags:
+  - poisoning
+  - prompt-injection
+  - impersonation
+enabled: true
+owasp_mcp_top_10:
+  - MCP01

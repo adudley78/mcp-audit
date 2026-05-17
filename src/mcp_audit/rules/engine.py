@@ -134,6 +134,12 @@ class PolicyRule(BaseModel):
     # CVE identifiers for this rule (e.g., ["CVE-2026-33032"]).
     # Set in rule YAML; propagated to emitted Finding objects.
     cve: list[str] = Field(default_factory=list)
+    # Attribution metadata — purely informational, not used in matching.
+    # ``author`` identifies the contributor (GitHub handle or full name).
+    # ``bounty_accepted`` is an ISO-8601 date string (e.g. "2026-05-17")
+    # indicating when the rule was accepted into the bounty program.
+    author: str | None = None
+    bounty_accepted: str | None = None
 
 
 # ── Rule engine ────────────────────────────────────────────────────────────────

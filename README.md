@@ -31,7 +31,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
 - **Config hygiene** — `ConfigHygieneAnalyzer` detects missing descriptions, duplicate tool names, and other structural config issues
 - **CVE tagging** — findings carry a `Finding.cve` field so matched CVEs surface in JSON, SARIF, and terminal output
-- **Governance + policy-as-code** — YAML governance policies (approved server lists, score thresholds, transport constraints) and custom detection rules; 15 community rules ship bundled and run for every user
+- **Governance + policy-as-code** — YAML governance policies (approved server lists, score thresholds, transport constraints) and custom detection rules; 31 community rules ship bundled and run for every user
 - **OWASP MCP Top 10 mapping** — every finding carries `MCP01`–`MCP10` codes in terminal, JSON, and SARIF (taxonomy block + per-rule relationships); `--owasp-report` prints a polished 10-category table with worst-finding summaries and "Coverage: 10/10" line; machine-readable mapping at [`docs/owasp-mapping.json`](docs/owasp-mapping.json); see [`docs/owasp-mcp-top-10.md`](docs/owasp-mcp-top-10.md)
 - **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus Security FlexConnect, self-contained HTML dashboard
 - **Continuous monitoring** — `mcp-audit watch` monitors config files in real-time and re-scans on any change
@@ -305,7 +305,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-1,895 tests validate detection accuracy and guard against regressions.
+1,975 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -479,7 +479,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 1,895 tests
+uv run pytest                        # Run all 1,975 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
@@ -503,6 +503,25 @@ Not in a position to sponsor? You can help just as much by:
 - **Opening issues** with real-world MCP configs that produce false positives or misses
 - **Contributing rules** — the [policy-as-code engine](docs/writing-rules.md) accepts community YAML rules
 - **Starring the repo** so other teams can find it
+
+## Contributing Detection Rules
+
+If you have encountered an MCP attack pattern in the wild — a tool description
+that hijacks model behavior, a credential key name in a suspicious config, a
+binary installed in `/tmp/` — turn it into a community rule that protects everyone.
+
+Contributing a rule takes about 30 minutes:
+
+1. Copy `rules/community/TEMPLATE.yml` to `rules/community/COMM-NNN.yml`
+2. Fill in the detection pattern and cite your research source
+3. Validate: `mcp-audit rule validate rules/community/COMM-NNN.yml`
+4. Test: `mcp-audit rule test rules/community/COMM-NNN.yml --against <config>`
+5. Open a PR
+
+See **[docs/contributing-rules.md](docs/contributing-rules.md)** for the full
+guide. The **[bounty program](rules/community/BOUNTY.md)** recognises the first
+50 accepted contributors in the changelog and in
+[docs/contributors.md](docs/contributors.md).
 
 ## License
 

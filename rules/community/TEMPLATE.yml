@@ -1,0 +1,104 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# mcp-audit community rule template
+#
+# Copy this file to rules/community/COMM-NNN.yml (use the next available
+# three-digit number) and fill in every field marked with REPLACE.
+#
+# Validate before submitting:
+#   mcp-audit rule validate rules/community/COMM-NNN.yml
+#
+# Test against a real config:
+#   mcp-audit rule test rules/community/COMM-NNN.yml --against path/to/config.json
+#
+# See docs/contributing-rules.md for the full contribution guide.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# REQUIRED — unique rule identifier.
+# Format: COMM-NNN where NNN is the next available number (zero-padded).
+# Check existing files in rules/community/ to find the next number.
+id: COMM-000
+
+# REQUIRED — short human-readable name shown in findings and rule list.
+# Keep under 60 characters. Use title case.
+name: Template rule — replace before submitting
+
+# REQUIRED — one or two sentence description of what this rule detects
+# and why it is a security concern. Cited research is strongly encouraged.
+description: >
+  This is a placeholder rule that never matches real MCP configurations.
+  Replace this description with a clear explanation of the attack pattern
+  you are detecting and a reference to the research or incident that inspired it.
+
+# REQUIRED — severity of the finding when this rule fires.
+# Choose one: CRITICAL | HIGH | MEDIUM | LOW | INFO
+# Guidelines:
+#   CRITICAL — definite compromise if present (e.g. hardcoded root credential)
+#   HIGH     — strong indicator of attack or serious misconfiguration
+#   MEDIUM   — suspicious pattern that warrants investigation
+#   LOW      — hygiene issue or informational signal
+#   INFO     — purely informational, never blocks CI
+severity: MEDIUM
+
+# REQUIRED — logical grouping for this rule.
+# Use one of the established categories where possible:
+#   poisoning | credentials | transport | supply-chain | network |
+#   injection | filesystem | governance | hygiene
+category: hygiene
+
+# REQUIRED — the match condition(s) for this rule.
+#
+# Simple match (one field):
+#   match:
+#     field: <FIELD>       # command | args | env | server_name | url | transport | capabilities
+#     pattern: <PATTERN>   # the string or regex to look for
+#     type: <TYPE>         # exact | contains | regex | glob
+#     negate: false        # set true to fire when the pattern does NOT match
+#
+# Compound match (AND / OR across multiple fields):
+#   match:
+#     operator: and   # or: or
+#     conditions:
+#       - field: command
+#         pattern: "node"
+#         type: exact
+#       - field: args
+#         pattern: "--dangerous-flag"
+#         type: contains
+#
+# TEMPLATE NOTE: The pattern below uses a placeholder that will never match
+# any real server name, so this template produces zero findings on any config.
+match:
+  field: server_name
+  # This placeholder never matches a real server name — intentional.
+  # Replace with your actual detection pattern.
+  pattern: "__REPLACE_WITH_SERVER_NAME__"
+  type: exact
+
+# REQUIRED — the message shown in scan output when this rule fires.
+# Use {server_name} and {matched_value} as placeholders.
+# Example: "Server '{server_name}' contains suspicious pattern: {matched_value}"
+message: "Server '{server_name}' matched template rule placeholder: {matched_value}"
+
+# OPTIONAL — extra labels used for filtering and grouping.
+# Use lowercase, hyphen-separated tokens.
+tags:
+  - template
+
+# OPTIONAL — set false to disable this rule without deleting the file.
+enabled: true
+
+# OPTIONAL — list of OWASP MCP Top 10 codes this rule maps to.
+# Valid codes: MCP01 through MCP10
+# Leave empty if uncertain — the maintainer will assign during review.
+owasp_mcp_top_10: []
+
+# OPTIONAL — CVE identifiers this rule relates to (e.g. ["CVE-2026-30623"]).
+cve: []
+
+# OPTIONAL — your GitHub handle or name. Shown in mcp-audit rule list.
+# Contributors whose rules are accepted get named in docs/contributors.md.
+# author: your-github-handle
+
+# OPTIONAL — date this rule was accepted into the bounty program (ISO-8601).
+# Set by maintainers on merge, not by contributors.
+# bounty_accepted: "2026-01-01"

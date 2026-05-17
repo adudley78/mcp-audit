@@ -40,6 +40,18 @@ This document catalogs the known limitations of mcp-audit in its current prototy
 
 **Pattern coverage is thin.** The poisoning analyzer has 11 patterns (authoritative count: `len(PATTERNS)` in `analyzers/poisoning.py`, not the highest ID number). The credential analyzer has 9. Production secret scanners like truffleHog and detect-secrets use 700+ credential patterns. The poisoning patterns cover the most-cited attack techniques but will miss novel or obfuscated injection methods. Pattern count should grow based on practitioner feedback and new published research.
 
+Partially confirmed closed (2026-05-17) via community rules seed pack (STORY-0044):
+- Role-claim poisoning in server args → confirmed closed — see COMM-016
+- Authority-claim / AI identity impersonation → confirmed closed — see COMM-017
+- Output-format hijack instruction → confirmed closed — see COMM-018
+- Side-channel data exfiltration instruction → confirmed closed — see COMM-019
+- Confabulation / hallucination trigger → confirmed closed — see COMM-020
+- Credential env key-name patterns (private key, token, password) → confirmed closed — see COMM-021, COMM-022, COMM-023
+- Unencrypted WebSocket in server args → confirmed closed — see COMM-026
+- Temp/volatile directory in command or args → confirmed closed — see COMM-029 (HIGH)
+- Absolute-path command (sideloading signal) → confirmed closed — see COMM-028
+- Generic/unnamed server governance gap → confirmed closed — see COMM-027, COMM-030
+
 **POISON-050 checks statically available description fields only.** The oversized-payload rule (POISON-050) is scoped to `name` and `description` keys in the raw server config — the fields an AI model reads when deciding whether to invoke a tool. Fields such as `command`, `args`, and environment variable values are intentionally excluded because they are not model-visible and do not constitute an attack surface for tool description padding. Additionally, tool manifests fetched at runtime via the MCP protocol (i.e., `ToolInfo.description` returned by a live `tools/list` call) are not checked by the static analyzer; connecting with `--connect` enumerates live tools and runs the poisoning patterns against their descriptions, but this requires a running server and an optional SDK dependency. As a result, POISON-050 will not fire for servers whose tool descriptions are only visible after protocol negotiation.
 
 ## Severity calibration

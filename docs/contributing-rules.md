@@ -1,196 +1,223 @@
-# Contributing SAST Rules
+# Contributing Detection Rules to mcp-audit
 
-This guide covers how to write, test, and submit new Semgrep rules for the
-mcp-audit rule pack (`semgrep-rules/`).
+You found an attack pattern in the wild. Maybe a tool description that quietly
+instructs the model to exfiltrate tokens. Maybe a server command pointing at
+`/tmp`. Maybe a credential key name that no legitimate config would use.
 
----
-
-## Rule Structure
-
-Every rule file is a YAML file in one of the category directories
-under `semgrep-rules/python/` or `semgrep-rules/typescript/`.
-
-### Required Fields
-
-```yaml
-rules:
-  - id: mcp-your-rule-name         # kebab-case, start with "mcp-" or "mcp-ts-"
-    message: >
-      One-sentence description of the vulnerability.
-      Include what the attacker can do if this is exploited.
-    severity: ERROR                 # ERROR | WARNING | INFO
-    languages: [python]             # or [typescript, javascript]
-    metadata:
-      category: injection           # injection | poisoning | credentials | protocol | transport
-      cwe: CWE-78                   # Primary CWE
-      owasp: A03:2021               # OWASP Top 10 mapping (optional)
-      owasp-mcp: MCP03              # OWASP MCP mapping (optional)
-      description: Short one-liner  # Used in tooling
-      confidence: HIGH              # HIGH | MEDIUM | LOW
-      likelihood: MEDIUM
-      impact: HIGH
-      fp-guidance: >                # Optional — add when FP risk is non-trivial
-        Explain when this rule fires on correct code and how to suppress.
-    pattern: ...                    # or patterns:, pattern-regex:, pattern-either:
-```
-
-### Severity Guidelines
-
-| Semgrep Severity | mcp-audit Severity | When to use |
-|---|---|---|
-| ERROR | CRITICAL | Definite vulnerability if exploited: RCE, SQL injection, hardcoded creds |
-| WARNING | HIGH | Likely vulnerability, may need user-controlled input to exploit |
-| INFO | MEDIUM | Heuristic or defensive coding practice |
+This guide shows you how to turn that observation into a community rule that
+protects everyone — in about 30 minutes.
 
 ---
 
-## Pattern Writing Tips
+## What are community rules?
 
-### Match async tool handlers specifically
+Community rules are YAML files in `rules/community/`. They ship with every
+mcp-audit installation and run automatically on every `mcp-audit scan` — no
+flags required. Each rule describes a single attack pattern and produces a
+`Finding` when that pattern is present in an MCP server configuration.
 
-Use `pattern-inside` to scope findings to async functions:
-
-```yaml
-patterns:
-  - pattern: eval($X)
-  - pattern-not: eval("...")
-  - pattern-inside: |
-      async def $FUNC(...):
-          ...
-```
-
-**Important:** Use `...` (not `$ARGS`) for function parameter lists.
-`$ARGS` matches a single parameter, `...` matches any number.
-
-### Match string content with metavariable-regex
-
-`metavariable-regex` uses **anchored** matching (like `re.match` in Python).
-Prefix with `(?s).*` when the pattern does not appear at the start of the string:
-
-```yaml
-# WRONG — only matches if URL is at position 0
-- metavariable-regex:
-    metavariable: $VALUE
-    regex: https?://\S+
-
-# CORRECT — matches URL anywhere in the string
-- metavariable-regex:
-    metavariable: $VALUE
-    regex: (?s).*https?://\S+.*
-```
-
-### Avoid overly broad attribute patterns
-
-`$OBJ.run(...)` matches `subprocess.run(...)`, `asyncio.run(...)`, and
-any other `.run()` call. Add `pattern-not` exclusions for known false positives:
-
-```yaml
-patterns:
-  - pattern: $APP.run(...)
-  - pattern-not: $APP.run(..., ssl_context=..., ...)
-  - pattern-not: subprocess.run(...)
-  - pattern-not: asyncio.run(...)
-```
+There are currently 30 bundled community rules (COMM-001 through COMM-030).
+Every accepted contributor is named in [docs/contributors.md](contributors.md).
+The first 50 contributors whose rules are accepted get additional recognition —
+see [rules/community/BOUNTY.md](../rules/community/BOUNTY.md).
 
 ---
 
-## Test Fixture Requirement
+## What makes a good rule?
 
-Every rule **must** have a test fixture demonstrating it fires. Add a
-vulnerable example to the appropriate test file in
-`semgrep-rules/tests/<lang>/vulnerable/`.
+A good community rule is based on a **real attack pattern** you have observed or
+that appears in published security research. The Unit42 Sampling MCP security
+analysis (2025) is a strong example of the kind of source that inspires a good
+rule: it documented specific strings found in malicious tool descriptions that
+instruct the AI to perform privileged actions. Any pattern from that class of
+research is welcome.
 
-### Vulnerable fixture format
+Good patterns to look for:
 
-```python
-# ruleid: mcp-your-rule-name
-the_vulnerable_code()
-```
+- Strings in server args or configurations that re-direct model behavior
+- Environment variable key names that suggest hardcoded secrets
+- Command paths that indicate sideloaded or staged binaries
+- Transport configurations that bypass TLS unexpectedly
 
-The `# ruleid:` comment documents which rule is expected to fire.
-
-### Clean fixture
-
-Verify that `semgrep-rules/tests/<lang>/clean/safe_server.*` produces **zero
-findings** after your change. If your rule fires on the clean fixture, either
-fix the rule or add a `# nosemgrep: mcp-your-rule-name` comment with explanation.
+**Not useful:** rules that fire on every MCP config, rules that duplicate an
+existing COMM-NNN rule, or rules without a clear security justification.
 
 ---
 
-## Validation
+## Step 1 — Validate and test the tooling
+
+Make sure `mcp-audit` is installed:
 
 ```bash
-# Validate all rules parse correctly
-semgrep --config semgrep-rules/ --validate
+mcp-audit --version
+```
 
-# Run against vulnerable fixtures (expect findings)
-semgrep --config semgrep-rules/python/ semgrep-rules/tests/python/vulnerable/ \
-  --no-git-ignore --json | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-print(f'{len(d[\"results\"])} findings')
-"
+Check the existing rules so you don't duplicate one:
 
-# Run against clean fixtures (expect zero findings)
-semgrep --config semgrep-rules/python/ semgrep-rules/tests/python/clean/ \
-  --no-git-ignore --json | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-assert len(d['results']) == 0, f'Clean fixture has {len(d[\"results\"])} findings!'
-print('Clean: 0 findings')
-"
+```bash
+mcp-audit rule list
 ```
 
 ---
 
-## PR Checklist
+## Step 2 — Copy the template
 
-Before opening a pull request, verify:
-
-- [ ] Rule file is in the correct category directory
-- [ ] `id` starts with `mcp-` (Python) or `mcp-ts-` (TypeScript)
-- [ ] All required metadata fields are present: `category`, `cwe`, `description`
-- [ ] `semgrep --config semgrep-rules/ --validate` passes with 0 errors
-- [ ] Vulnerable test fixture demonstrates the rule fires
-- [ ] Clean fixture (`safe_server.*`) still produces zero findings
-- [ ] Rule has a `fp-guidance` note if false positive rate is non-trivial
-- [ ] PROVENANCE.md updated with research source for new detection patterns
-- [ ] `message` clearly explains the vulnerability and its impact
-- [ ] `severity` follows the guidelines table above
-
-### Research source requirement
-
-mcp-audit's PROVENANCE.md requires that every detection pattern cite its
-research source. When adding a new rule, add a line to PROVENANCE.md:
-
+```bash
+cp rules/community/TEMPLATE.yml rules/community/COMM-NNN.yml
 ```
-## mcp-your-rule-name
-Source: <link to CVE, research paper, blog post, or MCP security advisory>
-Pattern: <brief description of what the rule detects>
-```
+
+Replace `NNN` with the next available three-digit number (check the existing
+files to find it — the template itself is not numbered).
+
+Open the file. Every field has an inline comment explaining what to write.
 
 ---
 
-## Rule Metadata Schema
+## Step 3 — Write your rule
 
-Full metadata reference:
+The key fields:
+
+| Field | What to write |
+|---|---|
+| `id` | `COMM-NNN` — the number you chose above |
+| `name` | Short title (≤ 60 chars, title case) |
+| `description` | What the rule detects and why it matters. **Include a citation.** |
+| `severity` | `CRITICAL` / `HIGH` / `MEDIUM` / `LOW` / `INFO` |
+| `category` | `poisoning` / `credentials` / `transport` / `supply-chain` / `injection` / `filesystem` / `governance` / `hygiene` |
+| `match` | The detection condition — see below |
+| `message` | Text shown in findings. Use `{server_name}` and `{matched_value}`. |
+| `owasp_mcp_top_10` | One or more codes: `MCP01`–`MCP10`. See the table below. |
+| `author` | Your GitHub handle or name. Shown in `mcp-audit rule list`. |
+
+### Choosing the right match field
+
+The `field` in your match condition maps to a part of the server configuration:
+
+| `field` value | What it contains |
+|---|---|
+| `command` | The server binary (e.g. `node`, `npx`, `/usr/local/bin/server`) |
+| `args` | All argument strings joined by a space |
+| `env` | All environment variable key names joined by a space |
+| `server_name` | The server's key in the config (e.g. `filesystem`, `github`) |
+| `url` | The server's URL (SSE/HTTP transport only; absent for stdio servers) |
+| `transport` | Transport type string (e.g. `stdio`, `sse`, `http`) |
+| `capabilities` | Capability key names joined by a space |
+
+### Match types
+
+| `type` value | Behaviour |
+|---|---|
+| `exact` | Full-string equality |
+| `contains` | Substring match |
+| `regex` | Python `re.search` — partial match, case-sensitive by default; use `(?i)` for case-insensitive |
+| `glob` | Shell-style wildcard (`*`, `?`) |
+
+### Compound rules (AND / OR)
+
+When your detection requires matching two conditions at once:
 
 ```yaml
-metadata:
-  # Required
-  category: injection           # injection | poisoning | credentials | protocol | transport
-  cwe: CWE-78                   # Primary CWE ID
-  description: string           # Short one-liner for tooling display
-
-  # Recommended
-  owasp: A03:2021               # OWASP Top 10 2021 mapping
-  owasp-mcp: MCP03              # OWASP MCP Top 10 mapping (MCP01–MCP10)
-  confidence: HIGH              # HIGH | MEDIUM | LOW — how often this indicates a real bug
-  likelihood: MEDIUM            # HIGH | MEDIUM | LOW — how often it's exploited
-  impact: HIGH                  # HIGH | MEDIUM | LOW — severity if exploited
-
-  # Optional
-  fp-guidance: string           # When/how to suppress false positives
-  references:                   # List of external references
-    - https://example.com/cve
+match:
+  operator: and   # or: or
+  conditions:
+    - field: command
+      pattern: "^http://"
+      type: regex
+    - field: url
+      pattern: ":443"
+      type: contains
 ```
+
+### OWASP MCP Top 10 quick reference
+
+| Pattern type | Suggested code |
+|---|---|
+| Prompt injection / poisoning | `MCP01` |
+| Credential / secret exposure | `MCP02` |
+| Supply chain / package integrity | `MCP04` |
+| Server misconfiguration | `MCP05` |
+| Transport security | `MCP06` |
+| Shadow / unauthorised server | `MCP09` |
+
+---
+
+## Step 4 — Validate the rule
+
+```bash
+mcp-audit rule validate rules/community/COMM-NNN.yml
+```
+
+This must exit 0. It checks that all required fields are present and correctly
+typed. Fix any errors it reports before continuing.
+
+---
+
+## Step 5 — Test against a real config
+
+Use `mcp-audit rule test` to see exactly which servers your rule matches:
+
+```bash
+mcp-audit rule test rules/community/COMM-NNN.yml --against path/to/your-config.json
+```
+
+The output shows every server × rule combination and whether it matched. You
+want:
+
+- **At least one "YES"** on a config that contains the pattern (true positive)
+- **Zero "YES"** on a clean config (no false positives)
+
+The demo configs in `demo/configs/` are a useful clean-ish baseline:
+
+```bash
+# Should produce zero findings from your new rule on clean servers
+mcp-audit scan demo/configs/ --rules-dir rules/community/
+```
+
+If your rule fires on a clean server, revise the pattern to be more specific.
+
+---
+
+## Step 6 — Update PROVENANCE.md
+
+Add a brief entry to `PROVENANCE.md` citing the research that justifies your
+pattern:
+
+```
+## COMM-NNN
+Source: <URL — CVE page, research paper, blog post, OWASP MCP entry>
+Pattern: <one sentence describing what the rule detects>
+```
+
+This is a hard requirement. Rules without a citation are not accepted.
+
+---
+
+## Step 7 — Open a pull request
+
+Title format: `feat(rules): add COMM-NNN — <short description>`
+
+In the PR description, include:
+
+- What attack pattern this rule detects
+- The research source (same as your PROVENANCE.md entry)
+- The config you tested against (you can paste the relevant snippet)
+- Output of `mcp-audit rule validate` (should be "✓ Valid")
+
+---
+
+## Attribution
+
+Every contributor whose rule is accepted gets a line in
+[docs/contributors.md](contributors.md). If you add your GitHub handle to
+the `author:` field in the rule YAML, it will also appear in
+`mcp-audit rule list` output for every user.
+
+For the first 50 accepted contributors, see the full commitment in
+[rules/community/BOUNTY.md](../rules/community/BOUNTY.md).
+
+---
+
+## Questions?
+
+Open a GitHub issue with the label `community-rules`, or start a thread in
+GitHub Discussions. The maintainer (Adam) reviews rule PRs within 7 days.

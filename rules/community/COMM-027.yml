@@ -1,0 +1,23 @@
+id: COMM-027
+name: Generic or unnamed server key
+description: >
+  The server's key in the MCP config matches a generic placeholder pattern
+  ("server", "server-1", "server1", "untitled", "test", "temp", "tmp",
+  "my-server", "mcp-server", "default"). Generic server names are a governance
+  signal: they suggest the configuration was not carefully reviewed before
+  deployment, and they make it harder to audit or trace a server's purpose in
+  fleet-level reports. Documented in the OWASP MCP Top 10 under MCP07
+  (Weak Authentication / Governance).
+severity: LOW
+category: hygiene
+match:
+  field: server_name
+  pattern: "^(server|server[-_]?[0-9]+|untitled|test|temp|tmp|my[-_]?server|mcp[-_]?server|default)$"
+  type: regex
+message: "Server '{server_name}' uses a generic placeholder name — review and rename"
+tags:
+  - hygiene
+  - governance
+enabled: true
+owasp_mcp_top_10:
+  - MCP07

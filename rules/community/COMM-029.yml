@@ -1,0 +1,32 @@
+id: COMM-029
+name: Command references a temp or volatile directory
+description: >
+  The server command or args contain a path under a temporary or volatile
+  directory (/tmp/, %TEMP%, $TMPDIR, /var/folders/). Temp directories are
+  world-writable on most Unix systems and cleaned on reboot, making them a
+  strong indicator of a staged or sideloaded MCP server binary. Malware that
+  installs a rogue MCP server often writes to /tmp/ because it does not require
+  elevated privileges. This pattern is related to CVE-2026-30623 (OX Security,
+  CVSS 9.8) and is a high-confidence indicator of server compromise or malicious
+  installation. Documented in the OWASP MCP Top 10 under MCP04 (Supply Chain Risk).
+severity: HIGH
+category: supply-chain
+match:
+  operator: or
+  conditions:
+    - field: command
+      pattern: "(/tmp/|%TEMP%|\\$TMPDIR|/var/folders/)"
+      type: regex
+    - field: args
+      pattern: "(/tmp/|%TEMP%|\\$TMPDIR|/var/folders/)"
+      type: regex
+message: "Server '{server_name}' references a temp/volatile directory in command or args: {matched_value}"
+tags:
+  - supply-chain
+  - filesystem
+  - sideloading
+enabled: true
+owasp_mcp_top_10:
+  - MCP04
+cve:
+  - CVE-2026-30623

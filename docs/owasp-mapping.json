@@ -383,6 +383,103 @@
       "finding_title": "Shell metacharacters in server args",
       "owasp_codes": ["MCP05"],
       "owasp_names": ["Command Injection and Execution"]
+    },
+    {
+      "finding_id": "COMM-000",
+      "finding_title": "Template rule — replace before submitting",
+      "owasp_codes": [],
+      "owasp_names": [],
+      "notes": "Template stub rule — never matches real configs. OWASP codes should be set by contributor when creating a real rule from this template."
+    },
+    {
+      "finding_id": "COMM-016",
+      "finding_title": "Role-claim poisoning in server args",
+      "owasp_codes": ["MCP01"],
+      "owasp_names": ["Prompt Injection and Jailbreaks"]
+    },
+    {
+      "finding_id": "COMM-017",
+      "finding_title": "Authority-claim poisoning — AI identity impersonation",
+      "owasp_codes": ["MCP01"],
+      "owasp_names": ["Prompt Injection and Jailbreaks"]
+    },
+    {
+      "finding_id": "COMM-018",
+      "finding_title": "Output-format hijack in server args",
+      "owasp_codes": ["MCP01"],
+      "owasp_names": ["Prompt Injection and Jailbreaks"]
+    },
+    {
+      "finding_id": "COMM-019",
+      "finding_title": "Side-channel data exfiltration instruction in server args",
+      "owasp_codes": ["MCP01", "MCP02"],
+      "owasp_names": ["Prompt Injection and Jailbreaks", "Sensitive Data Exposure"]
+    },
+    {
+      "finding_id": "COMM-020",
+      "finding_title": "Confabulation trigger in server args",
+      "owasp_codes": ["MCP01"],
+      "owasp_names": ["Prompt Injection and Jailbreaks"]
+    },
+    {
+      "finding_id": "COMM-021",
+      "finding_title": "Env key name suggests private or secret key",
+      "owasp_codes": ["MCP02"],
+      "owasp_names": ["Sensitive Data Exposure"]
+    },
+    {
+      "finding_id": "COMM-022",
+      "finding_title": "Env key name suggests access token",
+      "owasp_codes": ["MCP02"],
+      "owasp_names": ["Sensitive Data Exposure"]
+    },
+    {
+      "finding_id": "COMM-023",
+      "finding_title": "Env key name suggests password",
+      "owasp_codes": ["MCP02"],
+      "owasp_names": ["Sensitive Data Exposure"]
+    },
+    {
+      "finding_id": "COMM-024",
+      "finding_title": "HTTP endpoint on sensitive or production port",
+      "owasp_codes": ["MCP06"],
+      "owasp_names": ["Intent Flow Subversion"]
+    },
+    {
+      "finding_id": "COMM-025",
+      "finding_title": "Localhost endpoint with explicit SSE/HTTP transport URL",
+      "owasp_codes": ["MCP06", "MCP05"],
+      "owasp_names": ["Intent Flow Subversion", "Command Injection and Execution"]
+    },
+    {
+      "finding_id": "COMM-026",
+      "finding_title": "Unencrypted WebSocket URL in server args",
+      "owasp_codes": ["MCP06"],
+      "owasp_names": ["Intent Flow Subversion"]
+    },
+    {
+      "finding_id": "COMM-027",
+      "finding_title": "Generic or unnamed server key",
+      "owasp_codes": ["MCP07"],
+      "owasp_names": ["Excessive MCP Agent Permissions"]
+    },
+    {
+      "finding_id": "COMM-028",
+      "finding_title": "Command is an absolute path",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"]
+    },
+    {
+      "finding_id": "COMM-029",
+      "finding_title": "Command references a temp or volatile directory",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"]
+    },
+    {
+      "finding_id": "COMM-030",
+      "finding_title": "Generic-named server with network transport URL",
+      "owasp_codes": ["MCP09", "MCP07"],
+      "owasp_names": ["Shadow MCP Servers", "Excessive MCP Agent Permissions"]
     }
   ],
   "dynamic_patterns": [
@@ -435,5 +532,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 60 static finding IDs are mapped. 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 76 static finding IDs are mapped (60 original + 16 new: COMM-000 template + COMM-016 through COMM-030). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
 }

@@ -1,0 +1,31 @@
+id: COMM-030
+name: Generic server name with network transport URL
+description: >
+  The server has a generic placeholder name (see COMM-027) AND an explicitly
+  configured network transport URL. A network-accessible MCP server with no
+  meaningful name is a governance red flag: it provides no audit trail, cannot
+  be easily traced in fleet reports, and suggests the configuration was not
+  reviewed before deployment. Network servers should always have descriptive
+  names that identify their purpose and data sensitivity. Documented in the
+  OWASP MCP Top 10 under MCP09 (Shadow Servers / Insufficient Inventory) and
+  MCP07 (Weak Governance).
+severity: LOW
+category: governance
+match:
+  operator: and
+  conditions:
+    - field: server_name
+      pattern: "^(server|server[-_]?[0-9]+|untitled|test|temp|tmp|my[-_]?server|mcp[-_]?server|default)$"
+      type: regex
+    - field: url
+      pattern: "https?://"
+      type: regex
+message: "Server '{server_name}' is a generic-named server with a network URL: {matched_value}"
+tags:
+  - governance
+  - hygiene
+  - network
+enabled: true
+owasp_mcp_top_10:
+  - MCP09
+  - MCP07

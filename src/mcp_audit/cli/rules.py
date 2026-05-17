@@ -171,43 +171,37 @@ def rule_list(
     table.add_column("Rule ID", style="cyan")
     table.add_column("Name")
     table.add_column("Severity")
+    table.add_column("Author", style="dim")
     table.add_column("Tags")
+
+    def _add_rule_row(source: str, rule: object) -> None:  # type: ignore[type-arg]
+        sev_display = _SEV_STYLE.get(rule.severity.value, rule.severity.value)  # type: ignore[attr-defined]
+        author_display = rule.author or ""  # type: ignore[attr-defined]
+        if rule.bounty_accepted:  # type: ignore[attr-defined]
+            author_display = f"{author_display} ✓" if author_display else "✓"
+        table.add_row(
+            source,
+            rule.id,  # type: ignore[attr-defined]
+            rule.name,  # type: ignore[attr-defined]
+            sev_display,
+            author_display,
+            ", ".join(rule.tags),  # type: ignore[attr-defined]
+        )
 
     # Bundled community rules (always shown)
     bundled = load_bundled_community_rules()
     for rule in bundled:
-        sev_display = _SEV_STYLE.get(rule.severity.value, rule.severity.value)
-        table.add_row(
-            "bundled",
-            rule.id,
-            rule.name,
-            sev_display,
-            ", ".join(rule.tags),
-        )
+        _add_rule_row("bundled", rule)
 
     if _USER_RULES_DIR.is_dir():
         user_rules = load_rules_from_dir(_USER_RULES_DIR)
         for rule in user_rules:
-            sev_display = _SEV_STYLE.get(rule.severity.value, rule.severity.value)
-            table.add_row(
-                "user",
-                rule.id,
-                rule.name,
-                sev_display,
-                ", ".join(rule.tags),
-            )
+            _add_rule_row("user", rule)
 
     if rules_dir is not None and rules_dir.is_dir():
         extra_rules = load_rules_from_dir(rules_dir)
         for rule in extra_rules:
-            sev_display = _SEV_STYLE.get(rule.severity.value, rule.severity.value)
-            table.add_row(
-                str(rules_dir),
-                rule.id,
-                rule.name,
-                sev_display,
-                ", ".join(rule.tags),
-            )
+            _add_rule_row(str(rules_dir), rule)
 
     console.print()
     console.print(table)

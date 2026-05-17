@@ -1,0 +1,24 @@
+id: COMM-019
+name: Side-channel data exfiltration instruction in server args
+description: >
+  Server args instruct the model to send data to an external endpoint, include
+  specific data in its next message, or echo input to a named URL. These patterns
+  are the primary mechanism for MCP-based data exfiltration attacks where a
+  compromised tool description covertly redirects the model to leak conversation
+  history, credentials, or user data. Documented in the OWASP MCP Top 10 under
+  MCP01 (Prompt Injection) and MCP02 (Sensitive Data Exposure).
+severity: HIGH
+category: poisoning
+match:
+  field: args
+  pattern: "(?i)(send.{0,30}to.{0,30}http|include.{0,30}in.{0,30}(your )?response|echo.{0,30}back.{0,30}to|post.{0,30}to.{0,30}(endpoint|url|server))"
+  type: regex
+message: "Server '{server_name}' contains data-exfiltration instruction in args: {matched_value}"
+tags:
+  - poisoning
+  - prompt-injection
+  - exfiltration
+enabled: true
+owasp_mcp_top_10:
+  - MCP01
+  - MCP02

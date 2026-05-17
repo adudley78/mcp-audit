@@ -1,0 +1,23 @@
+id: COMM-026
+name: Unencrypted WebSocket URL in server args
+description: >
+  A server argument contains a string starting with ws:// (unencrypted
+  WebSocket). Unencrypted WebSocket connections transmit MCP messages in
+  plaintext, exposing tool calls, results, and any data processed by the server
+  to network interception. This pattern commonly appears as a hardcoded URL in
+  MCP server startup scripts. Use wss:// (WebSocket over TLS) instead.
+  Documented in the OWASP MCP Top 10 under MCP06 (Transport Security).
+severity: MEDIUM
+category: transport
+match:
+  field: args
+  pattern: "ws://"
+  type: contains
+message: "Server '{server_name}' uses an unencrypted WebSocket URL in args: {matched_value}"
+tags:
+  - transport
+  - websocket
+  - tls
+enabled: true
+owasp_mcp_top_10:
+  - MCP06

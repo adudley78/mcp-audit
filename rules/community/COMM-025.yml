@@ -1,0 +1,24 @@
+id: COMM-025
+name: Localhost endpoint with explicit SSE/HTTP transport URL
+description: >
+  The server has an explicitly configured URL pointing to localhost (127.0.0.1
+  or localhost) over SSE or HTTP transport. While localhost binding is normal for
+  stdio servers, an explicitly configured URL to localhost is unusual and may
+  indicate a proxy, a SSRF gadget, or a misconfigured production deployment.
+  Server configs deployed to shared or cloud environments should bind to specific
+  interfaces, not loopback. Documented in the OWASP MCP Top 10 under MCP06
+  (Transport Security) and MCP05 (Server Misconfiguration).
+severity: LOW
+category: transport
+match:
+  field: url
+  pattern: "https?://(localhost|127\\.0\\.0\\.1)(:[0-9]+)?(/|$)"
+  type: regex
+message: "Server '{server_name}' has an explicit localhost transport URL: {matched_value}"
+tags:
+  - transport
+  - localhost
+enabled: true
+owasp_mcp_top_10:
+  - MCP06
+  - MCP05

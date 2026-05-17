@@ -19,5 +19,8 @@
 | [fleet-scanning.md](fleet-scanning.md) | Fleet merge workflow, asset prefix, enterprise deployment |
 | [enterprise-deployment.md](enterprise-deployment.md) | Fleet deployment guide for IT/security teams |
 | [pre-commit.md](pre-commit.md) | Pre-commit hook setup and configuration |
-| [contributing-rules.md](contributing-rules.md) | Semgrep rule authoring guide |
+| [contributing-rules.md](contributing-rules.md) | Community detection rule contribution guide (template, bounty, attribution) |
+| [contributing-sast-rules.md](contributing-sast-rules.md) | Semgrep SAST rule authoring guide |
+| [community-rule-spec.md](community-rule-spec.md) | Community rule YAML format specification (Apache 2.0; ecosystem-adoptable) |
+| [contributors.md](contributors.md) | Attribution list for accepted community contributors |
 | [manual-test-matrix.md](manual-test-matrix.md) | Release-candidate manual validation checklist |

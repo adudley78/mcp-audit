@@ -1,0 +1,25 @@
+id: COMM-028
+name: Command is an absolute path
+description: >
+  The server command field is an absolute filesystem path (starts with / on
+  Unix or a drive letter on Windows, e.g. C:\). Absolute paths bypass
+  PATH-based binary discovery and may indicate a sideloaded binary that was
+  placed outside the normal package manager installation directories. Legitimate
+  MCP servers are typically invoked by name (node, python, uvx, npx) rather
+  than absolute path. An absolute path is not always malicious but warrants
+  verification that the binary at that path is known and trusted.
+  Documented in the OWASP MCP Top 10 under MCP04 (Supply Chain Risk).
+severity: MEDIUM
+category: supply-chain
+match:
+  field: command
+  pattern: "^(/|[A-Za-z]:[/\\\\])"
+  type: regex
+message: "Server '{server_name}' invokes command via absolute path: {matched_value}"
+tags:
+  - supply-chain
+  - filesystem
+exempt_known_servers: false
+enabled: true
+owasp_mcp_top_10:
+  - MCP04

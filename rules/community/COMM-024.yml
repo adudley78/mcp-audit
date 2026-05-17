@@ -1,0 +1,27 @@
+id: COMM-024
+name: HTTP endpoint on sensitive or production port
+description: >
+  The server URL uses http:// (not https://) on a port commonly associated with
+  production APIs or authentication services (443, 8443, 9090, 3000, 8080, 4443).
+  Plain HTTP on these ports strongly suggests a misconfiguration or an attacker
+  who has downgraded a TLS endpoint to intercept traffic. Port 443 over plain
+  HTTP is a particularly strong indicator of traffic interception. Documented in
+  the OWASP MCP Top 10 under MCP06 (Transport Security).
+severity: MEDIUM
+category: transport
+match:
+  operator: and
+  conditions:
+    - field: url
+      pattern: "^http://"
+      type: regex
+    - field: url
+      pattern: ":(443|8443|9090|3000|8080|4443)(/|$)"
+      type: regex
+message: "Server '{server_name}' uses plain HTTP on a sensitive port: {matched_value}"
+tags:
+  - transport
+  - tls
+enabled: true
+owasp_mcp_top_10:
+  - MCP06

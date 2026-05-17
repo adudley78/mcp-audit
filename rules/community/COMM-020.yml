@@ -1,0 +1,21 @@
+id: COMM-020
+name: Confabulation trigger in server args
+description: >
+  Server args instruct the model to "always say", "never admit", "pretend that",
+  or "act as if" — directives that induce the model to produce false or misleading
+  output systematically. This technique is used by adversarial MCP servers to
+  suppress security warnings, produce deceptive tool outputs, or maintain a false
+  operational state. Documented in the OWASP MCP Top 10 under MCP01 (Prompt Injection).
+severity: HIGH
+category: poisoning
+match:
+  field: args
+  pattern: "(?i)(always say|never admit|pretend that|act as if)"
+  type: regex
+message: "Server '{server_name}' contains confabulation directive in args: {matched_value}"
+tags:
+  - poisoning
+  - prompt-injection
+enabled: true
+owasp_mcp_top_10:
+  - MCP01

@@ -184,8 +184,8 @@ We don't accept detection patterns based on undisclosed or private research.
 
 ## Community rules (rules/community/)
 
-13 bundled community detection rules (COMM-001 through COMM-013) ship with
-mcp-audit and run for all users regardless of license tier.
+30 bundled community detection rules (COMM-001 through COMM-030) ship with
+mcp-audit and run for all users automatically.
 
 | Rule | Description | Basis |
 |------|-------------|-------|
@@ -202,6 +202,23 @@ mcp-audit and run for all users regardless of license tier.
 | COMM-011 | Temporary directory as working directory | Original — CWE-377 (insecure temporary file); /tmp is world-writable |
 | COMM-012 | Non-HTTPS remote URL | Original — transport security; mirrors TRANSPORT-001 for rule-engine coverage |
 | COMM-013 | npx auto-confirm flag (silent execution) | Original — OX Security STDIO disclosure (CVE-2025-49596 and related CVEs); npx `-y`/`--yes` bypasses interactive confirmation, enabling silent RCE when an attacker controls the package name |
+| COMM-014 | MCP Sampling capability declared | Palo Alto Unit42 MCP Security Analysis, May 2026 — documents Sampling-based resource theft, conversation hijacking, and covert invocation attack vectors |
+| COMM-015 | Shell metacharacters in server args | OX Security advisory / CVE-2026-30623 (CVSS 9.8) — config tampering enables shell command injection at server spawn time |
+| COMM-016 | Role-claim poisoning in server args | OWASP MCP Top 10 MCP01 (Prompt Injection); adversarial MCP PoC research 2025-2026; role-directive strings in args are a canonical injection delivery mechanism |
+| COMM-017 | Authority-claim / AI identity impersonation | OWASP MCP Top 10 MCP01; targeted MCP phishing toolkit research 2025-2026; highest-risk impersonation pattern — "I am Anthropic / I am Claude" overrides user trust calibration |
+| COMM-018 | Output-format hijack instruction | OWASP MCP Top 10 MCP01; format-override directives in tool descriptions are a standard persistent injection technique across multiple published PoCs |
+| COMM-019 | Side-channel data exfiltration instruction | OWASP MCP Top 10 MCP01 and MCP02; Invariant Labs MCP Security Analysis (2026-04-01) documents exfiltration via covert tool description instructions |
+| COMM-020 | Confabulation trigger in server args | OWASP MCP Top 10 MCP01; "always say / never admit / pretend that" directives are documented in adversarial AI suppression research and MCP red-team reports |
+| COMM-021 | Env key name suggests private/secret key | OWASP MCP Top 10 MCP02 (Sensitive Data Exposure); CWE-312 (cleartext storage of sensitive information in process environment); complements CRED-001/CRED-002 value-pattern detection |
+| COMM-022 | Env key name suggests access token | OWASP MCP Top 10 MCP02; CWE-312; captures non-standard token formats that evade CRED-001 value-pattern matching |
+| COMM-023 | Env key name suggests password | OWASP MCP Top 10 MCP02; CWE-256 (plaintext password storage); passwords in process environments are accessible to co-running processes and appear in `/proc/<pid>/environ` |
+| COMM-024 | HTTP on sensitive/production port | OWASP MCP Top 10 MCP06 (Transport Security); CWE-319 (cleartext transmission); HTTP on port 443 is a canonical TLS downgrade / interception indicator |
+| COMM-025 | Localhost endpoint with explicit URL | OWASP MCP Top 10 MCP06 and MCP05; explicit localhost URLs in SSE/HTTP server configs are unusual and may indicate SSRF gadgets or misconfigured cloud deployments |
+| COMM-026 | Unencrypted WebSocket in server args | OWASP MCP Top 10 MCP06; CWE-319; ws:// in hardcoded startup args transmits MCP protocol messages in plaintext |
+| COMM-027 | Generic or unnamed server key | OWASP MCP Top 10 MCP07 (Weak Governance); unnamed servers produce no audit trail and cannot be traced in fleet reports |
+| COMM-028 | Command is an absolute path | OWASP MCP Top 10 MCP04 (Supply Chain Risk); absolute paths bypass PATH-based discovery and may indicate sideloaded binaries; CWE-114 (process control) |
+| COMM-029 | Command references temp/volatile directory | OX Security / CVE-2026-30623 (CVSS 9.8); OWASP MCP Top 10 MCP04; malware writing rogue MCP servers to /tmp is a documented installation vector; CWE-377 |
+| COMM-030 | Generic-named server with network URL | OWASP MCP Top 10 MCP09 (Shadow Servers) and MCP07; unnamed network servers resist discovery, fleet auditing, and access-review workflows |
 
 All community rules are original implementations based on common security
 practice and published CWE categories. None are derived from proprietary

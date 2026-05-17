@@ -1,0 +1,22 @@
+id: COMM-018
+name: Output-format hijack in server args
+description: >
+  Server args contain instructions that direct the model to produce output in
+  a specific format ("always respond with", "prepend your response", "respond in",
+  "format your response with"). These directives override the user's expectations
+  about response format and are a common technique for embedding hidden instructions
+  that persist across tool invocations. Documented in the OWASP MCP Top 10 under
+  MCP01 (Prompt Injection).
+severity: MEDIUM
+category: poisoning
+match:
+  field: args
+  pattern: "(?i)(always respond with|prepend your response|\\brespond in\\b|format your response)"
+  type: regex
+message: "Server '{server_name}' contains output-format directive in args: {matched_value}"
+tags:
+  - poisoning
+  - prompt-injection
+enabled: true
+owasp_mcp_top_10:
+  - MCP01

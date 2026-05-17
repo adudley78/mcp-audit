@@ -1,0 +1,23 @@
+id: COMM-021
+name: Env key name suggests private or secret key
+description: >
+  An environment variable key ends with _PRIVATE_KEY, _SECRET_KEY, or _SECRET,
+  indicating that a cryptographic private key or application secret may be
+  injected directly into the MCP server process environment. Even when the value
+  is a reference (e.g. ${MY_SECRET}), the key name signals a high-value target
+  that warrants review. Actual secret values in MCP configs are detected by
+  CRED-001/CRED-002; this rule complements them by flagging the key-name pattern.
+  Documented in the OWASP MCP Top 10 under MCP02 (Sensitive Data Exposure).
+severity: HIGH
+category: credentials
+match:
+  field: env
+  pattern: "_(PRIVATE_KEY|SECRET_KEY|SECRET)(\\s|$)"
+  type: regex
+message: "Server '{server_name}' exposes an env key suggesting a private/secret key: {matched_value}"
+tags:
+  - credentials
+  - secrets
+enabled: true
+owasp_mcp_top_10:
+  - MCP02

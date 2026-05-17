@@ -350,7 +350,7 @@ path/to/file/with/false/positives.py
 
 ## Contributing New Rules
 
-See [contributing-rules.md](contributing-rules.md) for the full guide including
+See [contributing-sast-rules.md](contributing-sast-rules.md) for the full guide including
 rule structure reference, test fixture requirements, and PR checklist.
 
 ---

@@ -1,0 +1,22 @@
+id: COMM-016
+name: Role-claim poisoning in server args
+description: >
+  Server args contain role-directive language ("you are", "you must", "as an AI",
+  "as an assistant") that attempts to override the model's established persona or
+  constrain its behaviour. This is a classic prompt-injection vector in MCP
+  tool descriptions and server startup arguments. Documented in the OWASP MCP
+  Top 10 under MCP01 (Prompt Injection) and observed in multiple adversarial
+  MCP PoCs published in 2025-2026.
+severity: HIGH
+category: poisoning
+match:
+  field: args
+  pattern: "(?i)(\\byou are\\b|\\byou must\\b|\\bas an ai\\b|\\bas an assistant\\b)"
+  type: regex
+message: "Server '{server_name}' contains role-directive language in args: {matched_value}"
+tags:
+  - poisoning
+  - prompt-injection
+enabled: true
+owasp_mcp_top_10:
+  - MCP01

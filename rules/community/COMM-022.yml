@@ -1,0 +1,23 @@
+id: COMM-022
+name: Env key name suggests access token
+description: >
+  An environment variable key ends with _TOKEN or _ACCESS_TOKEN. Token-named
+  keys in MCP server configurations are high-value targets: they commonly hold
+  API tokens, OAuth bearer tokens, or service account credentials. This rule
+  complements value-pattern detection in CRED-001 by flagging the structural
+  signal of the key name itself, catching cases where obfuscated or
+  non-standard token formats evade value-pattern matching. Documented in the
+  OWASP MCP Top 10 under MCP02 (Sensitive Data Exposure).
+severity: MEDIUM
+category: credentials
+match:
+  field: env
+  pattern: "_(TOKEN|ACCESS_TOKEN)(\\s|$)"
+  type: regex
+message: "Server '{server_name}' exposes an env key suggesting an access token: {matched_value}"
+tags:
+  - credentials
+  - tokens
+enabled: true
+owasp_mcp_top_10:
+  - MCP02
