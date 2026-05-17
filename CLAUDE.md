@@ -121,8 +121,8 @@ Standalone rule pack at repo root:
  bundled in the pip wheel and PyInstaller binary; see `docs/sast-rules.md`
 
 Data files at project root:
-- `registry/known-servers.json` — curated dataset of 64 known-legitimate MCP servers; queried by the supply chain analyzer for typosquatting detection and by the toxic flow analyzer for authoritative capability tags (`RegistryEntry.capabilities`); ships in both the pip wheel and PyInstaller binary
-- `rules/community/` — 13 bundled community detection rules (COMM-001 through COMM-013); ship in both pip wheel and PyInstaller binary; run for ALL users; see `docs/writing-rules.md`
+- `registry/known-servers.json` — curated dataset of 75 known-legitimate MCP servers; queried by the supply chain analyzer for typosquatting detection and by the toxic flow analyzer for authoritative capability tags (`RegistryEntry.capabilities`); ships in both the pip wheel and PyInstaller binary
+- `rules/community/` — 15 bundled community detection rules (COMM-001 through COMM-015); ship in both pip wheel and PyInstaller binary; run for ALL users; see `docs/writing-rules.md`
 
 GitHub Action at project root:
 - `action.yml` — composite GitHub Action definition; allows any repo to wire mcp-audit into CI with a single workflow addition; inputs: `config-paths`, `severity-threshold`, `sarif-output`, `upload-sarif`, `check-vulns`, `verify-signatures`, `run-sast`, `sast-path`, `baseline-name`, `fail-on-findings`, `version`; outputs: `findings-count`, `grade`, `sarif-path`. Uses `github/codeql-action/upload-sarif@v4` with `continue-on-error: true` so repos without Code Scanning enabled still run cleanly. Marketplace-ready — passes `tests/test_action_yaml.py` structural and safety checks.
@@ -277,7 +277,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 34 findings across all demo configs (8 per-config for `claude_desktop_config.json`; community rules analyzer included). Note: the full 3-config scan produces 2 more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone.
-- 1747 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 1748 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 20 top-level CLI commands: scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, push-nucleus, shadow, killchain, snapshot, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
@@ -286,7 +286,7 @@ What's built:
 - **GitHub Action** — `action.yml` at repo root; composite action Marketplace-ready with `branding`, `config-paths`, `severity-threshold`, `sarif-output`, `upload-sarif`, `check-vulns`, `verify-signatures`, `run-sast`, `sast-path`, `baseline-name`, `fail-on-findings`, `version` inputs and `findings-count`, `grade`, `sarif-path` outputs; uploads SARIF to GitHub Code Scanning via `upload-sarif@v4` (continue-on-error so repos without Code Scanning still run cleanly); `.github/workflows/action-ci.yml` runs the composite against `demo/configs/` as a self-test on every PR; the Semgrep **rule pack** (`semgrep-rules/`) ships bundled in `mcp-audit-scanner`, but the Semgrep CLI binary itself is not — when `run-sast: 'true'` is set, the action installs Semgrep automatically (`pip install semgrep --quiet`) inside the SAST step, so users do not need a separate install step; see `docs/github-action.md`
 - **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `<user-config-dir>/mcp-audit/baselines/` (resolved via `platformdirs`) with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
 - **Scan Score** — every scan now produces a numeric score (0–100) and letter grade (A–F); see `scoring.py` and `docs/scoring.md`
-- **Known-Server Registry** — 64-entry curated dataset of legitimate MCP servers replaces the hardcoded YAML in the supply chain analyzer and now also owns toxic-flow capability tags via the optional `RegistryEntry.capabilities` field; see `registry/known-servers.json` and `docs/registry.md`
+- **Known-Server Registry** — 75-entry curated dataset of legitimate MCP servers replaces the hardcoded YAML in the supply chain analyzer and now also owns toxic-flow capability tags via the optional `RegistryEntry.capabilities` field; see `registry/known-servers.json` and `docs/registry.md`
 - **Policy-as-code rule engine** (Chain Reaction Feature) — YAML-based custom detection rules; 15 community rules ship bundled and run for ALL users; `rule validate` / `rule test` / `rule list` subcommands; `scan --rules-dir PATH` and `<user-config-dir>/mcp-audit/rules/` for user-local rules; all rule commands are available to every user; rule findings flow through all output formats automatically; see `docs/writing-rules.md` and `rules/README.md`
 - **Pre-commit hook** (Chain Reaction Feature) — `.pre-commit-hooks.yaml` at repo root; `language: python`, `entry: mcp-audit`, `pass_filenames: false`, `types: [json]`; default threshold is HIGH; `examples/pre-commit/` has basic and strict configs; see `docs/pre-commit.md`
 - **Governance policy engine** — YAML-based organisational requirements (approved server lists, score thresholds, transport constraints, registry membership, finding tolerances); `policy validate` / `policy init` / `policy check` subcommands; `scan --policy PATH` flag auto-discovers `.mcp-audit-policy.yml` in cwd / repo root; all governance commands are available to every user; governance findings flow through all output formats; terminal output shows a distinct yellow "Policy Violations" panel; SARIF governance findings tagged `governance-policy` with `GOV-` rule IDs; see `docs/governance.md` and `examples/policies/`
@@ -301,18 +301,11 @@ What's built:
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic
-- ~~Validate FlexConnect output against real Nucleus instance~~ — completed 2026-04-23; `push-nucleus` command ships with validated schema
 - Tune false positives (e.g., "base64 encode" in official filesystem server)
-- Binary end-to-end smoke test now runs on all four platforms in CI as part of
-  the release workflow; also runs on Ubuntu on every PR. See `scripts/smoke_test.py`.
-- Binary size gate: warns at 25 MB, fails at 35 MB (sigstore dependency tree
-  pushed the baseline from 16.6 MB to ~22–24 MB as of 0.6.0).
 
 What's next (code, after feedback):
 - Detection pattern tuning based on practitioner review
 - Community rule contributions — grow COMM-NNN library based on practitioner input
-- GitHub Actions CI (test on macOS, Linux, Windows; multi-arch binary matrix)
-- Documentation (usage guide, Nucleus integration guide)
 
 ## Provenance
 

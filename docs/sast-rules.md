@@ -69,9 +69,16 @@ mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
 
 ## Rule Catalog
 
-### Python Rules (34 rules)
+> **Note:** This catalog covers rules through v0.7.0. The v0.5.0 auth category
+> (6 Python + 2 TypeScript rules) and v0.9.0 additions (MCP Sampling injection,
+> SSRF validation-path, and SDK singleton transport rules) are not yet reflected
+> in the tables below. For the complete, authoritative rule list, run
+> `semgrep --config semgrep-rules/ --validate semgrep-rules/` or browse the
+> `semgrep-rules/` directory directly.
 
-#### `python/injection/` — 9 rules
+### Python Rules (38 rules)
+
+#### `python/injection/` — 10 rules
 
 | Rule ID | Severity | CWE | Description |
 |---|---|---|---|
@@ -86,7 +93,7 @@ mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
 | `mcp-fstring-sql` | CRITICAL | CWE-89 | f-string SQL query in async function |
 | `mcp-string-concat-sql` | CRITICAL | CWE-89 | String-concatenated SQL query |
 
-#### `python/poisoning/` — 5 rules
+#### `python/poisoning/` — 6 rules
 
 | Rule ID | Severity | CWE | Description |
 |---|---|---|---|
@@ -124,7 +131,7 @@ mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
 | `mcp-uvicorn-listen-all` | HIGH | CWE-605 | uvicorn.run() binding to 0.0.0.0 |
 | `mcp-fastapi-listen-all` | HIGH | CWE-605 | app.run(host="0.0.0.0") |
 
-### TypeScript Rules (29 rules)
+### TypeScript Rules (35 rules)
 
 #### `typescript/injection/` — 10 rules
 
@@ -141,7 +148,7 @@ mcp-audit sast path/to/mcp-server/ --rules-dir /custom/rules/
 | `mcp-ts-fetch-ssrf` | HIGH | CWE-918 | fetch()/axios with variable URL — SSRF risk |
 | `mcp-ts-http-request-ssrf` | HIGH | CWE-918 | https/http.request() with variable URL — SSRF risk |
 
-#### `typescript/poisoning/` — 5 rules
+#### `typescript/poisoning/` — 6 rules
 
 | Rule ID | Severity | CWE | Description |
 |---|---|---|---|
@@ -311,7 +318,7 @@ return (err as TypeError).toString(); // nosemgrep: mcp-ts-error-tostring-in-ret
 > **Note:** Taint/dataflow analysis would eliminate most SSRF and path
 > traversal false positives by tracking data from MCP `arguments.get()` to
 > each sink. Pattern-only analysis is the current approach; taint analysis
-> is a planned future enhancement.
+> is a future roadmap item (see Roadmap section).
 
 ---
 
@@ -350,8 +357,6 @@ rule structure reference, test fixture requirements, and PR checklist.
 
 ## Roadmap
 
-- GitHub Action `sast: true` input — run SAST alongside config scanning in CI
 - Go language rules for MCP servers written in Go
 - Rust language rules
 - Taint analysis rules (track data flow from `arguments.get()` to sinks)
-- OSV.dev integration for dependency vulnerability scanning

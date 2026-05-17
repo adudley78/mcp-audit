@@ -298,7 +298,9 @@ MCP servers as components and any known VULN findings as CycloneDX
 fields. Compatible with SBOM tooling such as `grype`, `trivy`, and GitHub
 Dependency Review.
 
-`mcp-audit sbom` is **free for all tiers**.
+`mcp-audit sbom` is **free for all tiers**. Requires `pip install 'mcp-audit-scanner[sbom]'`
+(the `cyclonedx-python-lib` dependency is optional and not included in the default install
+or the PyInstaller binary).
 
 ### Finding IDs
 
@@ -314,9 +316,6 @@ with network-touching opt-in flags: `--verify-hashes`, `--verify-signatures`,
 `--check-vulns`, and `--connect` will all produce an error (exit code 2) if
 combined with `--offline`. A plain scan makes no network calls regardless of
 this flag, so `--offline` is currently a no-op for the default configuration.
-
-> **Note:** `mcp-audit sbom` is not yet implemented. When it ships, it will
-> respect the `--offline` flag.
 
 ---
 

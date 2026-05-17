@@ -37,7 +37,7 @@ def _get_client_specs() -> list[ClientSpec]:
             / "claude_desktop_config.json"
         )
     elif system == "Windows":
-        appdata = Path.home() / "AppData" / "Roaming"
+        appdata = _home() / "AppData" / "Roaming"
         claude_desktop_path = appdata / "Claude" / "claude_desktop_config.json"
     else:  # Linux
         claude_desktop_path = home / ".config" / "Claude" / "claude_desktop_config.json"

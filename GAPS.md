@@ -146,7 +146,7 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **V-15: Resolved.** All `yourusername` placeholder URLs replaced with `adudley78` across `sarif.py`, `pyproject.toml`, `README.md`, `scripts/install.sh`, and `docs/enterprise-deployment.md`.
 
-**V-16: `_home()` inconsistency in discovery.py.** `_home()` wraps `Path.home()` for test mocking, but `_get_client_specs()` calls `Path.home()` directly on one line, defeating the indirection. Fix: use `_home()` consistently.
+~~**V-16: `_home()` inconsistency in discovery.py.**~~ **Resolved v0.9.2.** `_get_client_specs()` called `Path.home()` directly on the Windows branch (line 40), bypassing the `_home()` indirection used everywhere else. Fixed by replacing `Path.home()` with `_home()`. Regression test `TestHomeHelperConsistency::test_discovery_uses_home_helper` in `tests/test_discovery.py` patches `mcp_audit.discovery._home` and asserts all returned paths are under the patched root.
 
 **V-17: Credential regex overlap and gaps.** The OpenAI pattern `sk-[A-Za-z0-9]{20,}` also matches Anthropic keys (`sk-ant-*`), causing double detection. No coverage for Google service account JSON, Azure SAS tokens, DigitalOcean tokens, Vercel tokens, or PEM-encoded keys. Generic secret pattern requires quotes around values, missing unquoted secrets. Fix: refine patterns and expand coverage incrementally.
 
@@ -202,9 +202,9 @@ for a concrete example and further rationale.
 
 ## Fleet merge
 
-**HTML fleet output is a simplified table, not a full D3 fleet dashboard.** `mcp-audit merge --format html` renders a Rich-exported HTML table. A full D3 force-directed fleet visualization (showing machine relationships, shared findings as edges, attack-path overlays) is a future enhancement. The current output is functional but not interactive.
+~~**HTML fleet output is a simplified table, not a full D3 fleet dashboard.**~~ **Resolved v0.6.0.** `mcp-audit merge --format html` now produces a fully self-contained D3-powered fleet dashboard with a machine-card grid, filterable/sortable findings table, light/dark mode toggle, and severity breakdown bars — replacing the previous Rich-table HTML export. A full D3 force-directed fleet visualization (showing machine relationships, shared findings as edges, attack-path overlays) is still a future enhancement; the current dashboard shows per-machine cards but not cross-machine graph edges.
 
-**`--dir` is non-recursive.** `mcp-audit merge --dir ./results/` only looks at `*.json` files at the top level of the directory. Nested subdirectories (e.g. `./results/team-a/machine-1.json`) are not scanned. Use shell globbing (`mcp-audit merge ./results/**/*.json`) for recursive collection.
+~~**`--dir` is non-recursive.**~~ **Resolved v0.5.1.** `_collect_json_paths_from_dir()` now uses `rglob("*.json")` instead of `glob("*.json")`, so nested subdirectory layouts (e.g. `./results/team-a/machine-1.json`) are collected automatically.
 
 **Deduplication matches on exact `(analyzer, server_name, title)` triple.** Findings with subtly different titles — for example, two credential findings on the same server but matching different key names (`sk-abc123` vs `OPENAI_KEY=xyz`) — will produce two separate DeduplicatedFindings rather than being collapsed. This is intentional (exact-match deduplication avoids false-merges) but means the unique-findings count may be slightly inflated when the same issue class manifests with different evidence strings.
 
@@ -230,7 +230,7 @@ overrides — user-supplied directories are always treated as primary over bundl
 community rules.
 
 **Community rule false-positive rate is unmeasured.**
-The 12 community rules were written to cover clear-cut cases (netcat as binary,
+The 15 community rules were written to cover clear-cut cases (netcat as binary,
 eval in args, etc.) but have not been validated against a broad sample of
 real-world MCP server configurations.
 
@@ -331,11 +331,14 @@ The Semgrep SAST rule pack (`semgrep-rules/`) has the following known limitation
 - `mcp-no-type-check-before-use` fires when `arguments.get()` is used without an immediately adjacent `isinstance()` check, even when the MCP SDK provides type validation at the protocol level.
 - `mcp-flask-no-ssl` matches any `$APP.run(...)` call; explicitly excludes `subprocess.run` and `asyncio.run`, but may fire on other `.run()` patterns.
 
-**TypeScript SAST parity substantially improved (v0.7.0):**
-- Python has 34 rules across 6 categories; TypeScript has 29 rules across 6 categories.
+**TypeScript SAST parity substantially improved (v0.7.0 and v0.9.0):**
+- Python has 38 rules across 6 categories; TypeScript has 35 rules across 6 categories.
 - v0.7.0 added 11 new TypeScript rules across 5 categories: credential default params,
   secrets in console output, URL/base64/unicode in tool descriptions, missing input
   validation, stack trace exposure, and listen-all-interfaces.
+- v0.9.0 added MCP Sampling injection rules (Python + TypeScript), SSRF validation-path
+  rules (Python + TypeScript anchored to CVE-2026-44284, CVE-2026-39974, CVE-2026-27826),
+  and a TypeScript SDK singleton transport rule (CVE-2026-25536).
 - Remaining parity gaps (Python-only, no TS equivalent): hardcoded connection strings,
   `app.run()` without SSL, and f-string SQL injection. These Python-specific patterns
   have no idiomatic TypeScript equivalent in Semgrep OSS without taint analysis.
@@ -386,13 +389,16 @@ imports, obfuscated network calls) will not be detected by this approach.
 
 **Fleet extension inventory via `merge` not yet implemented.**  The `fleet_extensions`
 feature key is reserved but `mcp-audit merge` does not yet aggregate extension findings
-across machines (Enterprise, post-launch roadmap).
+across machines (post-launch roadmap).
 
-## Missing capabilities (not started)
+## Missing capabilities
 
-- **Multi-arch binary CI release matrix** — GitHub Actions matrix builds for `[macos-13 (x86_64), macos-14 (arm64), ubuntu-latest, windows-latest]` not yet set up
-- **pip packaging and TestPyPI dry run** — installable from source only (PyInstaller binary available as alternative; `pip install mcp-audit` used in the action but not yet on PyPI)
-- **Documentation beyond README** — no usage guide, Nucleus integration guide (scoring, registry, and rule-writing docs now exist in `docs/`)
+~~**Multi-arch binary CI release matrix**~~ **Resolved v0.4.0.** `release.yml` builds four PyInstaller executables in parallel on `v*.*.*` tag push: `macos-15-intel` (x86_64), `macos-latest` (arm64), `ubuntu-latest`, and `windows-latest`.
+
+~~**pip packaging and TestPyPI dry run**~~ **Resolved v0.3.3.** PyPI Trusted Publishing (OIDC) pipeline in `release.yml` publishes to PyPI on every tag push. `pip install mcp-audit-scanner` resolves the current release. PEP 740 sigstore attestations are published alongside each wheel and sdist.
+
+~~**Documentation beyond README**~~ **Resolved (incrementally through v0.9.0).** Comprehensive docs now exist in `docs/`: scoring, registry, writing-rules, governance, SAST rules, extensions, fleet scanning, baselines, snapshot, diff, killchain, shadow, live-connection, enterprise-deployment, and more.
+
 - **Telemetry or usage analytics** — deliberately absent; see `docs/telemetry.md`.
 - **Registry auto-growth** — the known-server registry requires manual contributions as the MCP ecosystem grows; `update-registry` pulls the latest committed version but does not discover new servers automatically
 
@@ -483,3 +489,42 @@ sites in `attestation/sigstore_client.py`, `vulnerability/depsdev.py`,
 `vulnerability/osv.py`, and `vulnerability/resolver.py` (all call HTTPS-only
 hardcoded URLs), and `# nosec B104` to the wildcard-bind detection constant
 in `analyzers/transport.py`.
+
+---
+
+## Closed gaps
+
+Items below were confirmed open at some point and have since been resolved. Each entry records the gap ID or description, what fixed it, and in which version.
+
+| Gap | Resolution | Version |
+|-----|-----------|---------|
+| Paid-license infrastructure (`licensing.py`, `_gate.py`, `activate`/`license` commands, `data/revoked.json`) | Removed entirely; mcp-audit is fully Apache 2.0 | v0.2.0 |
+| `run_scan` and `run_scan_async` duplicated the analysis pipeline | Extracted `_run_static_pipeline()` as canonical implementation | v0.4.0 |
+| `--no-score` leaked score into SARIF `run.properties` | `cli.py` nulls `result.score` before any formatter | v0.4.0 |
+| Malformed JSON config silently swallowed | `result.errors` checked; exit 2 with human-readable message | v0.4.0 |
+| Multi-arch binary CI release matrix not set up | `release.yml` matrix across 4 platforms | v0.4.0 |
+| V-07: Unicode homoglyph bypass in poisoning detection | NFKD normalisation + `POISON-060` pattern | v0.5.0 (pre-release) |
+| V-08: Nesting depth > 10 bypass in poisoning detection | Recursion limit raised to 50 | v0.5.0 (pre-release) |
+| V-09: Wildcard interface binding not detected | `TRANSPORT-004` added | v0.5.0 (pre-release) |
+| V-10: Privilege escalation coverage incomplete | `TRANSPORT-002` expanded with `pkexec`, `su`, `run0`, absolute paths | v0.5.0 (pre-release) |
+| V-11: `yarn dlx` and `pipx` not detected | Added to `TransportAnalyzer` and `SupplyChainAnalyzer` | v0.5.0 (pre-release) |
+| V-12: `httpx` in core dependencies | Moved to `[mcp]` optional extra | v0.4.0 |
+| V-13: Version string hardcoded in 6 locations | Centralised via `importlib.metadata` in `__init__.py` | v0.4.0 (pre-release) |
+| V-14: Missing LICENSE file / `pyproject.toml` alignment | Apache 2.0 `LICENSE` created; classifiers aligned | v0.4.0 (pre-release) |
+| V-15: Placeholder URLs throughout codebase | All `yourusername` replaced with `adudley78` | v0.4.0 (pre-release) |
+| pip packaging and TestPyPI dry run | PyPI Trusted Publishing (OIDC) in `release.yml` | v0.3.3 |
+| SARIF not tested with GitHub | Schema validation tests + manual verification checklist | v0.8.0 (pre-release) |
+| Nucleus FlexConnect not validated | Validated end-to-end against live Nucleus instance | v0.10.0 (pre-release) |
+| Dashboard browser compatibility untested | Playwright cross-browser test suite added | v0.10.1 (pre-release) |
+| Layer 2 (Sigstore provenance verification) not implemented | `--verify-signatures` shipped | v0.6.0 (pre-release) |
+| Layer 3 (dependency CVE scanning) not implemented | `--check-vulns` shipped via deps.dev + OSV.dev | v0.6.0 (pre-release) |
+| Registry size below launch target | 75 entries, exceeding launch target | v0.7.0 |
+| Levenshtein threshold false positives for short names | Short-name threshold tightened to 1 edit for ≤ 5 chars | v0.5.1 |
+| No registry metadata enrichment | `RegistryEntry` carries `first_published`, `weekly_downloads`, `publisher_history` | v0.5.0 (pre-release) |
+| `--dir` non-recursive in fleet merge | `rglob("*.json")` replaces `glob("*.json")` | v0.5.1 |
+| Fleet HTML output was a simplified Rich table | D3-powered fleet dashboard with machine cards and filterable table | v0.6.0 |
+| Windows extension paths not validated | `_get_windows_paths()` added; covered by monkeypatched unit tests | v0.5.1 |
+| Documentation beyond README not written | Comprehensive `docs/` directory covers all features | incremental through v0.9.0 |
+| Server stderr leaked to terminal during `--connect` | stderr captured; `--verbose` to surface it | v0.6.0 |
+| No authentication support for SSE/HTTP servers | `--connect-token TOKEN` flag added | v0.6.0 |
+| V-16: `_home()` inconsistency — Windows branch of `_get_client_specs()` called `Path.home()` directly | Replaced with `_home()`; regression test added | v0.9.2 |

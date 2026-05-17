@@ -6,6 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **V-16: `discovery.py` Windows branch now uses `_home()` consistently.**
+  `_get_client_specs()` called `Path.home()` directly on the Windows `AppData`
+  path (line 40), bypassing the `_home()` indirection that every other branch
+  uses. This meant tests that patch `mcp_audit.discovery._home` to redirect home
+  to a temp directory did not intercept the Windows Claude Desktop path, risking
+  path leakage on CI. Fixed by replacing the one direct call with `_home()`.
+  Regression test `TestHomeHelperConsistency::test_discovery_uses_home_helper`
+  added to `tests/test_discovery.py`.
+
+### Docs
+
+- **Docs cleanup pass (STORY-0036):** resolved stale "planned" / "not implemented"
+  claims across `GAPS.md`, `CLAUDE.md`, and `docs/`. All numeric counts verified
+  against `scripts/update_test_count.py --check` (exits 0). Key changes:
+  - `GAPS.md`: fleet HTML simplified-table and `--dir` non-recursive items marked
+    resolved; community rule count corrected (12 → 15); SAST TypeScript parity
+    counts updated (34 Python / 29 TypeScript → 38 / 35) to reflect v0.9.0
+    additions; "Missing capabilities" items for multi-arch binary and PyPI publish
+    marked resolved; "Enterprise" tier reference removed from extension inventory
+    item; **Closed gaps** reference table added at the bottom.
+  - `CLAUDE.md`: project-layout community rule count corrected (13 → 15, COMM-015);
+    registry entry count updated (64 → 75); "What's next (non-code)" trimmed to
+    remove completed smoke-test and binary-size-gate items; "What's next (code)"
+    trimmed to remove shipped GitHub Actions CI and docs items.
+  - `docs/supply-chain.md`: removed stale "> **Note:** `mcp-audit sbom` is not yet
+    implemented" annotation (shipped v0.6.0).
+  - `docs/sast-rules.md`: rule count headers updated (Python 34 → 38,
+    TypeScript 29 → 35; sub-section counts 9 → 10 injection, 5 → 6 poisoning);
+    partial-catalog note added; Roadmap trimmed of two shipped items (GitHub Action
+    `sast` input, OSV.dev integration).
+  - V-16 (`_home()` inconsistency in `discovery.py`, line 40) confirmed still open.
+
+---
+
 ## [0.9.1] - 2026-05-16 — Patch
 
 ### Fixed

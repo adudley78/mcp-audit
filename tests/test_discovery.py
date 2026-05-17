@@ -258,3 +258,25 @@ class TestMalformedJsonRobustness:
         cfg = self._discovered(bad, "augment", "mcpServers")
         with pytest.raises(ValueError, match="Expected JSON object"):
             parse_config(cfg)
+
+
+class TestHomeHelperConsistency:
+    """V-16 regression: _get_client_specs() must use _home() consistently.
+
+    Previously the Windows branch called Path.home() directly, bypassing
+    the _home() indirection used everywhere else in the module. This class
+    verifies that patching mcp_audit.discovery._home is sufficient to
+    redirect ALL home-relative paths produced by _get_client_specs().
+    """
+
+    def test_discovery_uses_home_helper(self, tmp_path: Path, monkeypatch) -> None:
+        """All paths from _get_client_specs() must be rooted under _home()."""
+        monkeypatch.setattr("mcp_audit.discovery._home", lambda: tmp_path)
+        specs = _get_client_specs()
+        for spec in specs:
+            for path in spec.config_paths:
+                # Every config path must be under tmp_path, not the real home.
+                assert str(path).startswith(str(tmp_path)), (
+                    f"{spec.name}: {path} is not under the patched _home() "
+                    f"({tmp_path}). This indicates a direct Path.home() call."
+                )
