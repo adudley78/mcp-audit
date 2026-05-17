@@ -77,6 +77,11 @@ jobs:
         # that just ran the tests, not a fresh uv venv.
         run: python scripts/update_test_count.py --check
 
+      - name: Verify OWASP mapping completeness
+        # Ensures every finding ID in src/ has an entry in docs/owasp-mapping.json.
+        # A PR that adds a new finding ID without updating the mapping will fail here.
+        run: python scripts/validate_owasp_mapping.py
+
   binary-smoke:
     name: Binary smoke test (ubuntu)
     runs-on: ubuntu-latest

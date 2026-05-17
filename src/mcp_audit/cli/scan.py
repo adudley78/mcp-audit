@@ -173,59 +173,93 @@ def _preflight_checks(
 
 
 def _print_owasp_report(result: ScanResult, con: Console) -> None:
-    """Print an OWASP MCP Top 10 category-level summary to the terminal.
+    """Print a polished OWASP MCP Top 10 category-level summary to the terminal.
 
-    Only called when ``--owasp-report`` is set.  Suppressed silently when no
-    findings carry any ``owasp_mcp_top_10`` codes (e.g. a clean scan).
+    Shows all 10 categories regardless of whether findings are present.
+    Zero-finding categories display a green check.  Always shows the coverage
+    line "Coverage: 10/10 OWASP MCP Top 10 categories checked."
 
     Args:
         result: Completed scan result.
         con: Rich console to write to.
     """
+    from rich.table import Table  # noqa: PLC0415
+
     # Aggregate findings per category code.
     category_findings: dict[str, list[Finding]] = {}
     for f in result.findings:
         for code in f.owasp_mcp_top_10:
             category_findings.setdefault(code, []).append(f)
 
-    if not category_findings:
-        return
+    # Severity ordering for "worst finding" summary.
+    sev_order = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
+
+    def _worst_finding_summary(findings: list[Finding]) -> str:
+        """Return a one-line summary of the most severe finding in the list."""
+        if not findings:
+            return ""
+        worst = min(
+            findings,
+            key=lambda f: (
+                sev_order.index(f.severity.value)
+                if f.severity.value in sev_order
+                else len(sev_order)
+            ),
+        )
+        sev = worst.severity.value
+        title = worst.title
+        # Truncate long titles so the table stays readable.
+        if len(title) > 60:
+            title = title[:57] + "…"
+        return f"[{sev}] {title}"
 
     con.print()
-    con.print("[bold]OWASP MCP Top 10[/bold] — coverage in this scan")
-    con.print("─" * 50)
+    con.print(
+        Rule(
+            "[bold]OWASP MCP Top 10[/bold]  —  coverage in this scan",
+            style="cyan",
+        )
+    )
+    con.print()
 
-    # Iterate in canonical MCP01–MCP10 order.
-    triggered = 0
+    table = Table(
+        show_header=True,
+        header_style="bold",
+        box=None,
+        padding=(0, 1),
+        expand=False,
+    )
+    table.add_column("Category", style="bold", width=7, no_wrap=True)
+    table.add_column("Name", min_width=38, max_width=44)
+    table.add_column("Findings", justify="right", width=9, no_wrap=True)
+    table.add_column("Worst finding", min_width=30)
+
     for code, name in OWASP_MCP_TOP_10.items():
         findings = category_findings.get(code, [])
-        if not findings:
-            continue
-        triggered += 1
+        n = len(findings)
 
-        # Build severity breakdown string.
-        sev_counts: dict[str, int] = {}
-        for f in findings:
-            sev_counts[f.severity.value] = sev_counts.get(f.severity.value, 0) + 1
+        if n == 0:
+            count_cell = "[green]✓ 0[/green]"
+            worst_cell = "[dim green]No findings[/dim green]"
+            row_style = "dim"
+        elif n <= 2:
+            count_cell = f"[yellow]{n}[/yellow]"
+            worst_cell = _worst_finding_summary(findings)
+            row_style = ""
+        else:
+            count_cell = f"[red bold]{n}[/red bold]"
+            worst_cell = _worst_finding_summary(findings)
+            row_style = ""
 
-        sev_parts = []
-        for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"):
-            n = sev_counts.get(sev, 0)
-            if n > 0:
-                sev_parts.append(f"{n} {sev.lower()}")
-        sev_str = ", ".join(sev_parts)
+        table.add_row(code, name, count_cell, worst_cell, style=row_style)
 
-        n_total = len(findings)
-        finding_word = "finding" if n_total == 1 else "findings"
+    con.print(table)
+    con.print()
 
-        con.print(
-            f"[bold]{code}[/bold] {name:<48} "
-            f"[bold]{n_total}[/bold] {finding_word} ({sev_str})"
-        )
-
-    con.print("─" * 50)
+    total_cats = len(OWASP_MCP_TOP_10)
     con.print(
-        f"[bold]{triggered} of {len(OWASP_MCP_TOP_10)}[/bold] categories triggered."
+        f"[bold]Coverage: {total_cats}/{total_cats}"
+        " OWASP MCP Top 10 categories checked[/bold]"
     )
 
 

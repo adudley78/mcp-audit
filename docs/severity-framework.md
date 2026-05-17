@@ -90,7 +90,7 @@ capability combination, not any individual server.
 | TOXIC-004  | HIGH     | ASI04 | MCP10 | File read + shell execution. Malicious content read from a file could be executed. |
 | TOXIC-005  | HIGH     | ASI03 | MCP05, MCP10 | Database + network. Database contents could be exfiltrated. |
 | TOXIC-006  | CRITICAL | ASI04 | MCP05, MCP10 | Shell execution + network. Arbitrary command execution with exfiltration capability. |
-| TOXIC-007  | MEDIUM   | — | — | Git access + network. Source code or commit history could be exfiltrated. |
+| TOXIC-007  | MEDIUM   | — | MCP10 | Git access + network. Source code or commit history could be exfiltrated via outbound requests. |
 
 ### Attestation (`attestation/`)
 
@@ -98,8 +98,8 @@ capability combination, not any individual server.
 
 | Finding ID  | Severity | OWASP MCP Top 10 | Rationale |
 |-------------|----------|------------------|-----------|
-| ATTEST-001  | CRITICAL | MCP04 | Hash mismatch — downloaded tarball does not match pinned SHA-256. Strong indicator of supply chain tampering. |
-| ATTEST-002  | INFO     | — | Package could not be verified (version unextractable or no hash pin). Informational; surfaces candidates for manual pinning. |
+| ATT-{hash}  | CRITICAL | MCP04 | Hash mismatch — downloaded tarball does not match pinned SHA-256. Strong indicator of supply chain tampering. Dynamic ID: `ATT-{8-char hex}` derived from package:version:kind. |
+| ATT-{hash}  | INFO     | — | Package could not be verified (version unextractable or no hash pin). Informational; surfaces candidates for manual pinning. |
 
 **Layer 2 — Sigstore provenance verification (`--verify-signatures`)**
 
@@ -163,6 +163,8 @@ the two exploitation pre-conditions that malware relied on.
 | CFHYG-002   | HIGH     | ASI06, ASI10 | MCP01, MCP09 | Config file resides in a world-writable ancestor directory. Any process can atomically replace the file — a filesystem-level rug-pull. `/tmp` is the canonical case. Bitwarden incident (2026-04-22) exploited this pre-condition to inject malicious server definitions. CWE-732. CVSS: 7.5 |
 | CFHYG-003   | HIGH     | ASI06 | MCP01 | Config file stores a plaintext secret inline. The file itself becomes a high-value harvesting target. Complements CRED-001/002 with a file-level signal and explicit malware-targeting context. CWE-312. CVSS: 7.5 |
 | CFHYG-004   | INFO     | — | MCP01 | Config uses env-var references for all credentials (e.g., `${VAR}`, `$VAR`, `%(VAR)s`). Positive signal — reinforces correct practice. No security impact. |
+| CFHYG-005   | MEDIUM   | ASI06 | MCP01, MCP07 | Claude Code hooks section detected in `.claude.json`. Hooks execute as shell commands — a write-access threat actor can inject arbitrary commands. CVE-2025-59536. CWE-78. CVSS: 6.5 |
+| CFHYG-006   | MEDIUM   | ASI06 | MCP01, MCP08 | `ANTHROPIC_BASE_URL` overrides the Anthropic API endpoint. All API traffic (including the API key) is routed to the configured domain. CVE-2026-21852. CWE-441. CVSS: 7.5 |
 
 **Windows note:** CFHYG-001 and CFHYG-002 are skipped on Windows because POSIX
 `st_mode` bits do not map to Windows ACL semantics. Windows ACL checking
@@ -252,6 +254,12 @@ Note: this framework is in beta as of April 2026; category rankings and
 descriptions may shift. mcp-audit follows the project page as authoritative.
 See `docs/owasp-mcp-top-10.md` for how mcp-audit exposes this mapping in
 terminal output, JSON, and SARIF.
+
+A machine-readable version of the complete finding-ID → OWASP MCP Top 10 mapping
+is published at [`docs/owasp-mapping.json`](owasp-mapping.json). Every finding ID
+(static and dynamic-pattern) is documented there. Use
+`python scripts/validate_owasp_mapping.py` to verify completeness; CI runs this
+check automatically on the ubuntu/py3.12 leg.
 
 ## Shadow MCP Risk Levels (`mcp-audit shadow`)
 

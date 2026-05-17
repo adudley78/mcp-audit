@@ -10,6 +10,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Complete OWASP MCP Top 10 mapping (STORY-0038, v0.10.0).**
+  Every mcp-audit finding ID now maps to at least one OWASP MCP Top 10 category.
+
+  - `docs/owasp-mapping.json` — machine-readable JSON mapping all 60 static
+    finding IDs and 5 dynamic ID patterns to MCP01–MCP10 categories. Citable
+    and auditable; structure: `schema_version`, `mappings`, `dynamic_patterns`,
+    `unmapped` (always empty).
+  - `scripts/validate_owasp_mapping.py` — CI enforcement script. Exits 0 when
+    all source finding IDs are mapped, 1 with the missing IDs listed otherwise.
+    CI runs this on every PR (ubuntu/py3.12 leg).
+  - `mcp-audit scan --owasp-report` polished: now shows **all 10 OWASP categories**
+    in a Rich table with finding count and worst-finding summary per category.
+    Zero-finding categories show a green ✓ check (clean signal). Ends with
+    "Coverage: 10/10 OWASP MCP Top 10 categories checked."
+  - TOXIC-007 (git + network) now correctly mapped to MCP10
+    (Context Injection and Over-sharing) in both source and the mapping file.
+  - `docs/severity-framework.md` updated: CFHYG-005/006 rows added, TOXIC-007
+    row corrected, stale ATTEST-001/002 IDs replaced with accurate `ATT-{hash}`
+    documentation, link to `owasp-mapping.json` added.
+
 - **`mcp-audit check` — one-command practitioner verdict (STORY-0037, v0.10.0).**
   New entry-point command for developers who want a quick answer to "is my
   setup safe?" without learning `scan` flags or SARIF.

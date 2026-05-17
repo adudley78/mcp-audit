@@ -137,16 +137,18 @@ def test_owasp_report_shows_category_count() -> None:
     assert "finding" in output
 
 
-def test_owasp_report_shows_categories_triggered() -> None:
+def test_owasp_report_shows_coverage_line() -> None:
     result = _make_scan_result_with_findings()
     output = _capture_owasp_report(result)
-    # 3 codes across 2 findings: MCP01, MCP03, MCP06 — 3 of 10 triggered
-    assert "3 of 10" in output
+    # New format: "Coverage: 10/10 OWASP MCP Top 10 categories checked"
+    assert "Coverage: 10/10 OWASP MCP Top 10 categories checked" in output
 
 
-def test_owasp_report_suppressed_when_no_codes() -> None:
+def test_owasp_report_zero_finding_category_shown() -> None:
+    """Categories with zero findings must still appear in the output."""
     from mcp_audit.models import Finding, ScanResult, Severity  # noqa: PLC0415
 
+    # Scan with only MCP01 findings — all other categories should still appear
     result = ScanResult(
         clients_scanned=1,
         servers_found=1,
@@ -161,12 +163,14 @@ def test_owasp_report_suppressed_when_no_codes() -> None:
                 description="d",
                 evidence="e",
                 remediation="r",
-                owasp_mcp_top_10=[],
+                owasp_mcp_top_10=["MCP01"],
             )
         ],
     )
     output = _capture_owasp_report(result)
-    assert output.strip() == ""
+    # All 10 categories must appear, even those with zero findings
+    for i in range(1, 11):
+        assert f"MCP{i:02d}" in output, f"MCP{i:02d} missing from owasp report"
 
 
 # ── Integration scan sanity check ─────────────────────────────────────────────

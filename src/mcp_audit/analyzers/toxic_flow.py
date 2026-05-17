@@ -288,7 +288,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "Review whether both servers are necessary. Consider read-only git access."
         ),
         cwe="CWE-200",
-        # TODO: TOXIC-007 not in the Part B mapping table; owasp_mcp_top_10 left empty
+        owasp_mcp_top_10=("MCP10",),
     ),
 ]
 
