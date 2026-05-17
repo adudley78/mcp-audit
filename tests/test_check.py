@@ -19,7 +19,7 @@ from mcp_audit.models import (
 )
 from mcp_audit.output.check import _remediation_hint, print_check_results
 
-runner = CliRunner(mix_stderr=False)
+runner = CliRunner()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
