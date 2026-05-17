@@ -6,6 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.11.0] — 2026-05-17
+
+### Added
+
+- **`mcp-audit register` — opt-in registration flow (STORY-0046, v0.11.0).**
+  Developers and security engineers can choose to identify their org in exchange
+  for weekly new-rule notifications and an optional follow-up when their scan grade
+  is C or below.  Registration is entirely voluntary; an unregistered user
+  experiences zero behaviour change and zero network traffic.
+  - Interactive `mcp-audit register` flow collects name, org, email, and a
+    follow-up preference; all fields optional except email (validated for `@`).
+  - `registration.json` stored at `<user-config-dir>/mcp-audit/registration.json`
+    with 0o600 permissions (consistent with baseline and rug-pull state storage).
+  - Initial registration POST sends: name, org, email, version, grade,
+    follow_up_requested — **nothing else**.  No config data, server names,
+    credentials, or file paths are ever transmitted.
+  - Subsequent `mcp-audit check` pings send only: version, grade,
+    `registered=true` — **no PII**.
+  - `mcp-audit register --status` shows current registration (name, org,
+    truncated email) or "Not registered".
+  - `mcp-audit register --clear` removes `registration.json` and stops pings.
+  - `mcp-audit check --register` runs the scan then prompts registration if not
+    already registered.
+  - `Registered as: <org>` one-liner appears beneath the grade panel in
+    `mcp-audit check` output when registered.
+  - Endpoint unreachable → scan completes normally; dim "Registration ping
+    failed (offline?)" line at the bottom, not an error.
+  - New modules: `src/mcp_audit/registration/` (models.py, manager.py, client.py),
+    `src/mcp_audit/cli/register.py`.
+  - 16 new tests in `tests/test_registration.py` covering file creation,
+    permissions, round-trip schema, email validation, --clear, --status,
+    endpoint-unreachable, PII-in-ping guard, HTTP URL rejection, and docs smoke test.
+  - New `docs/privacy.md` — plain-English registration privacy policy.
+  - New `docs/adr/ADR-0002-registration-privacy-model.md` — architecture decision
+    record for the opt-in + PII-in-initial-POST-only model.
+
+---
+
 ## [0.10.0] — 2026-05-17
 
 ### Added

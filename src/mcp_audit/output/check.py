@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.rule import Rule
 
 from mcp_audit.models import Finding, ScanResult, Severity
+from mcp_audit.registration.models import RegistrationConfig
 
 # ── Severity colour map (Rich markup) ─────────────────────────────────────────
 
@@ -190,11 +191,13 @@ _SEVERITY_ORDER: list[Severity] = [
 def print_check_results(
     result: ScanResult,
     console: Console | None = None,
+    registration: RegistrationConfig | None = None,
 ) -> None:
     """Print the one-page security verdict to the terminal.
 
     Renders a clean, 80-column-max summary with:
     - Letter grade and numeric score
+    - Optional registration line (when *registration* is provided)
     - Up to :data:`MAX_FINDINGS_SHOWN` findings (highest severity first)
     - Per-finding remediation hints
     - Footer with ``mcp-audit fix`` and ``mcp-audit scan`` guidance
@@ -202,6 +205,9 @@ def print_check_results(
     Args:
         result: Completed scan result from :func:`~mcp_audit.scanner.run_scan`.
         console: Rich console to write to.  A new one is created if omitted.
+        registration: Current registration config, if the user is registered.
+            When provided, a ``Registered as: <org>`` line appears beneath the
+            grade panel.
     """
     if console is None:
         console = Console(width=80)
@@ -218,6 +224,8 @@ def print_check_results(
         console.print(
             f"  Grade: [{grade_style}]{grade}[/{grade_style}]  ✓ No issues found"
         )
+        if registration:
+            _print_registered_as(console, registration)
         console.print()
         console.print("  Your MCP configuration looks clean.")
         console.print()
@@ -230,6 +238,8 @@ def print_check_results(
         f"  Grade: [{grade_style}]{grade}[/{grade_style}]  "
         f"(Score: [bold]{score_num}[/bold]/100)"
     )
+    if registration:
+        _print_registered_as(console, registration)
     console.print()
 
     # ── Attack path warning ───────────────────────────────────────────────────
@@ -291,3 +301,18 @@ def print_check_results(
     console.print("[dim]To see all findings:  mcp-audit scan[/dim]")
     if fixable_shown > 0:
         console.print("[dim]To apply auto-fixes:  mcp-audit fix --apply[/dim]")
+
+
+def _print_registered_as(console: Console, registration: RegistrationConfig) -> None:
+    """Print a single dim registration line beneath the grade.
+
+    Prefers org name, falls back to display name, then truncated email.
+    """
+    label = registration.org or registration.name
+    if not label:
+        at = registration.email.find("@")
+        if at > 2:
+            label = registration.email[:2] + "***" + registration.email[at:]
+        else:
+            label = registration.email
+    console.print(f"  [dim]Registered as: {label}[/dim]")

@@ -12,6 +12,8 @@ from mcp_audit.cli import app, run_scan
 from mcp_audit.models import Severity
 from mcp_audit.output.check import print_check_results
 from mcp_audit.output.terminal import print_results
+from mcp_audit.registration import client as _reg_client
+from mcp_audit.registration import manager as _reg_manager
 
 # Severity order for exit-code threshold check (descending priority).
 _SEVERITY_ORDER: list[Severity] = [
@@ -60,6 +62,13 @@ def check(
         "--json",
         help="Output full scan JSON (no summary text).",
     ),
+    register_flag: bool = typer.Option(  # noqa: B008
+        False,
+        "--register",
+        help=(
+            "After the scan, prompt for opt-in registration if not already registered."
+        ),
+    ),
 ) -> None:
     """One-command security verdict: grade, top findings, and fix hints.
 
@@ -101,19 +110,43 @@ def check(
         )
         raise typer.Exit(0)
 
+    grade = result.score.grade if result.score else "?"
+
     # ── JSON output ───────────────────────────────────────────────────────────
     if json_flag:
         sys.stdout.write(
             result.model_dump_json(by_alias=True, indent=2, exclude_none=False)
         )
         sys.stdout.write("\n")
+        _maybe_ping(grade, console)
         raise typer.Exit(_exit_code(result))
 
     # ── Verbose output ────────────────────────────────────────────────────────
     if verbose:
         print_results(result, console=console)
+        _maybe_ping(grade, console)
         raise typer.Exit(_exit_code(result))
 
     # ── One-page verdict ──────────────────────────────────────────────────────
-    print_check_results(result, console=console)
+    reg_config = _reg_manager.load_registration()
+    print_check_results(result, console=console, registration=reg_config)
+    _maybe_ping(grade, console)
+
+    # ── Optional post-scan registration prompt ────────────────────────────────
+    if register_flag and reg_config is None:
+        # Deferred import avoids a circular import at module level.
+        from mcp_audit.cli.register import _handle_register  # noqa: PLC0415
+
+        _handle_register(console)
+
     raise typer.Exit(_exit_code(result))
+
+
+def _maybe_ping(grade: str, console: Console) -> None:
+    """Fire an anonymous ping if the user is registered; log dim warning on failure."""
+    config = _reg_manager.load_registration()
+    if config is None:
+        return
+    ok = _reg_client.post_ping(grade)
+    if not ok:
+        console.print("[dim]Registration ping failed (offline?)[/dim]")
