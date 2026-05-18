@@ -425,6 +425,22 @@ Every command is available to every user — no tier, no license required.
 | `--connect` | off | Include live-connection findings in the dashboard |
 | `--no-open` | off | Generate the report without opening a browser tab |
 
+## IDE Integration
+
+Install the [mcp-audit VS Code extension](https://github.com/mcp-audit/mcp-audit-vscode) to get inline diagnostics directly in your editor — the same findings `mcp-audit scan` reports, shown as red/yellow squiggles the moment you open or save an MCP config file.
+
+```
+ext install mcp-audit.mcp-audit-vscode
+```
+
+- Red/yellow squiggles on offending server keys in `claude_desktop_config.json`, `mcp.json`, and all other supported MCP config files
+- Hover cards with finding title, description, evidence, and remediation
+- Status bar grade badge (`mcp-audit: B (3 findings)`)
+- Command palette: `mcp-audit: Scan current file`, `mcp-audit: Scan workspace`, `mcp-audit: Fix current file`
+- Works in both VS Code and Cursor (Cursor is a VS Code fork — no changes needed)
+
+The extension requires the `mcp-audit` binary to be installed (`pip install mcp-audit`). It shells out to the binary — no detection logic is reimplemented in TypeScript. See [`docs/ide-extension.md`](docs/ide-extension.md) for full setup and configuration details.
+
 ## GitHub Action
 
 [![MCP Security Scan](https://github.com/adudley78/mcp-audit/actions/workflows/mcp-audit-example.yml/badge.svg)](https://github.com/adudley78/mcp-audit/actions/workflows/mcp-audit-example.yml)

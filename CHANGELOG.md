@@ -10,6 +10,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **VS Code / Cursor extension — inline MCP config diagnostics (STORY-0032).**
+  Install [`mcp-audit.mcp-audit-vscode`](https://github.com/mcp-audit/mcp-audit-vscode)
+  from the VS Code Marketplace to get red/yellow squiggles directly in your editor,
+  with hover cards showing finding title, description, evidence, and remediation.
+  The extension shells out to the `mcp-audit` binary — no detection logic is
+  reimplemented in TypeScript. Includes a status bar grade badge, command palette
+  integration (`Scan current file`, `Scan workspace`, `Fix current file`), and
+  `jsonc-parser`-based server-key line resolution. Works in both VS Code and Cursor.
+  See [`docs/ide-extension.md`](docs/ide-extension.md) for setup and configuration.
+  ADR: [`docs/decisions/ADR-0002`](docs/decisions/ADR-0002-extension-separate-repo.md).
+
 - **`mcp-audit fix` — apply safe remediations directly to MCP config files (STORY-0031).**
   Every scanner tells you what's wrong; `fix` tells you what to do *and does it*.
   Dry-run by default (unified diff to stdout, no files touched). Pass `--apply` to
