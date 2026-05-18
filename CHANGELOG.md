@@ -10,6 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **VS Code Marketplace listing — `mcp-audit-vscode` published (STORY-0042).**
+  Extension available at `ext install mcp-audit.mcp-audit-vscode`. Marketplace
+  listing includes 128×128 icon, screenshot, keyword tags (`mcp`, `security`,
+  `mcp-audit`, `cursor`, `claude`, `linter`, `diagnostics`, `vulnerability`),
+  `Linters` + `Security` categories, and a marketplace-formatted README with
+  hover card screenshot. `README.md` gains a VS Code Marketplace badge.
+  ADR-0002 recorded in `mcp-audit-vscode/docs/ADR-0002-repo-structure.md`.
+
 - **VS Code / Cursor extension — inline MCP config diagnostics (STORY-0032).**
   Install [`mcp-audit.mcp-audit-vscode`](https://github.com/mcp-audit/mcp-audit-vscode)
   from the VS Code Marketplace to get red/yellow squiggles directly in your editor,

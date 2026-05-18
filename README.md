@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/mcp-audit.mcp-audit-vscode?label=VS%20Code%20Extension&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=mcp-audit.mcp-audit-vscode)
 
 **Privacy-first security scanner for MCP server configurations.**
 
