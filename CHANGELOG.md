@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased] — v0.11.0
+
+### Added
+
+- **`mcp-audit fix` — apply safe remediations directly to MCP config files (STORY-0031).**
+  Every scanner tells you what's wrong; `fix` tells you what to do *and does it*.
+  Dry-run by default (unified diff to stdout, no files touched). Pass `--apply` to
+  write changes atomically with a `.bak` backup of the original.
+  - **Credential redaction** (`CRED-001`, `CRED-002`): replaces plaintext secret
+    values with `${ENV_KEY_NAME}` placeholders. The env key is preserved so the
+    config stays structurally valid. Idempotent — skips values that already use
+    `${…}` syntax.
+  - **Transport upgrade** (`TRANSPORT-001`): rewrites `http://` server URLs to
+    `https://`. Idempotent — skips URLs already using HTTPS.
+  - **Package pinning** (`SC-001`, `SC-002`): replaces a typosquatted package name
+    with the verified closest-match from the known-server registry and appends
+    `@latest-version`. Checks the mcp-audit registry before pinning — emits a
+    warning (non-blocking) when the replacement package is not a known-legitimate
+    entry. Falls back gracefully when npm/PyPI is unreachable.
+  - `--fix-type` flag restricts which strategies run (`credentials`, `transport`,
+    `pinning`); repeatable for multiple types.
+  - `--input <scan.json>` reads findings from an existing scan JSON file instead
+    of re-running a fresh scan.
+  - `--offline` suppresses all version-resolution network calls; pinning is skipped
+    with a warning while credential and transport fixes still apply.
+  - Atomic write: original backed up to `<file>.bak`; new content written to
+    `<file>.tmp` then renamed atomically to `<file>`.
+  - Exit codes: `0` = success or no fixable findings; `2` = error.
+  - See `docs/fix.md` for full documentation.
+
+---
+
 ## [0.11.0] — 2026-05-17
 
 ### Added
