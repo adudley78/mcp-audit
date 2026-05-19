@@ -27,13 +27,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # Fetch full history so git refs resolve correctly.
           fetch-depth: 0
 
       - name: MCP-aware diff
-        uses: adudley78/mcp-audit@v0.8.0
+        uses: adudley78/mcp-audit@32b648a33a7549e459c1a8bc42ba121079b11eca # v0.10.0
         with:
           mode: diff
           severity-threshold: medium   # fail on MEDIUM+; use 'high' for lighter gate
