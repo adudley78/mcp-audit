@@ -33,7 +33,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       # Restore the committed baseline so drift detection has a reference point.
       # The action looks up baselines from `~/.config/mcp-audit/baselines/<name>.json`
@@ -47,7 +47,7 @@ jobs:
           fi
 
       - name: Run mcp-audit with drift detection
-        uses: adudley78/mcp-audit@v0.10.0
+        uses: adudley78/mcp-audit@32b648a33a7549e459c1a8bc42ba121079b11eca # v0.10.0
         with:
           severity-threshold: high
           baseline-name: ci-baseline
