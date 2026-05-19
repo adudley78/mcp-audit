@@ -39,7 +39,7 @@ jobs:
             binary: mcp-audit-windows-x86_64.exe
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Download all artifacts
         uses: actions/download-artifact@v8
@@ -157,7 +157,7 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -224,7 +224,7 @@ jobs:
             echo "major=${MAJOR}" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: steps.decide.outputs.move == 'true'
 
       - name: Force-move @${{ steps.decide.outputs.major }} to ${{ github.ref_name }}
