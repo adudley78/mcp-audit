@@ -59,6 +59,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - SHA-pin all third-party GitHub Actions to full 40-char commit SHAs across 14 workflow files, preventing supply-chain substitution attacks ([CVE-advisory: tj-actions/changed-files compromise](https://www.stepsecurity.io/blog/tj-actions-changed-files-action-compromised)). Thanks [@jsandov](https://github.com/jsandov) for the contribution — our first external PR.
 
+- Bumped `idna` to `>=3.15` to resolve CVE-2026-45409 (quadratic DoS bypass in `idna.encode()`). Surfaced as a direct dependency so Dependabot tracks future upgrades explicitly. Transitive path: `[mcp]` extra → `httpx` → `anyio` → `idna`.
+
 ---
 
 ## [0.11.0] — 2026-05-17

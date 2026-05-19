@@ -45,6 +45,10 @@ dependencies = [
     "packaging>=21.0",
     "platformdirs>=3.0",
     "reportlab>=4.5.1",
+    # Surface idna as a direct dep so Dependabot tracks it explicitly.
+    # Floor at 3.15 resolves CVE-2026-45409 (quadratic DoS bypass in idna.encode()).
+    # Transitive path: mcp[optional] → httpx → anyio → idna.
+    "idna>=3.15",
 ]
 
 [project.optional-dependencies]

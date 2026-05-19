@@ -2,7 +2,18 @@
 
 This document catalogs the known limitations of mcp-audit in its current prototype state. These are areas that need work before the tool is ready for production use by security practitioners. Contributions and feedback welcome.
 
+## Known-acceptable security advisories
+
+Tracked here when: (a) the vulnerability is transitive-only, (b) no patched version is available upstream, or (c) attack surface is narrow enough to accept pending a fix. Promoted to CHANGELOG Security section when a patch lands.
+
+| Advisory | Package | Severity | Via | Exposure | Status |
+|---|---|---|---|---|---|
+
+---
+
 ## Recently resolved
+
+- **CVE-2026-45409 — `idna` quadratic DoS bypass resolved** (2026-05-19): Surfaced `idna` as a direct dependency with `>=3.15` floor. `idna 3.15` was available on PyPI; lockfile now resolves to 3.15. Transitive path: `mcp` extra → `httpx` → `anyio` → `idna`. Dependabot alert #7 closed.
 
 - **Paid-license infrastructure removed** (v0.2.0): Ed25519 key verification (`licensing.py`), license cache (`_license_cache.py`), feature-gate shim (`_gate.py`), key-issuance script (`scripts/generate_license.py`), bundled revocation list (`data/revoked.json`), and the `activate` / `license` CLI commands are all gone. mcp-audit is fully open source (Apache 2.0); every feature ships in every build. `cryptography` moved to the `[attestation]` optional extra because attestation's X.509 parser is its only remaining consumer.
 
