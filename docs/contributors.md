@@ -17,6 +17,16 @@ full bounty program terms.
 
 ---
 
+## Founding Contributors
+
+Contributors who improved the project through code, infrastructure, or security hardening.
+
+| Contributor | Contribution | Accepted |
+|---|---|---|
+| [@jsandov](https://github.com/jsandov) | SHA-pinned all third-party GitHub Actions across 14 workflow files (supply-chain hardening) | 2026-05-22 |
+
+---
+
 ## How to get listed here
 
 Contribute a detection rule that is accepted into the community pack.
