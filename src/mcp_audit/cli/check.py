@@ -46,11 +46,21 @@ def _exit_code(result) -> int:  # type: ignore[no-untyped-def]
 
 @app.command("check")
 def check(
+    configs: list[Path] | None = typer.Argument(  # noqa: B008
+        default=None,
+        help=(
+            "Config file to scan (positional). "
+            "Equivalent to --path; cannot be combined with --path."
+        ),
+    ),
     path: Path | None = typer.Option(  # noqa: B008
         None,
         "--path",
         "-p",
-        help="Scan a specific config file instead of auto-discovering all configs.",
+        help=(
+            "Scan a specific config file instead of auto-discovering all configs. "
+            "Cannot be combined with a positional path argument."
+        ),
     ),
     verbose: bool = typer.Option(  # noqa: B008
         False,
@@ -105,19 +115,38 @@ def check(
     Use ``mcp-audit scan`` when you need full finding details, OWASP codes,
     attack paths, or SARIF output.
 
+    A config file can be supplied either as a positional argument or via
+    ``--path``/``-p``; providing both at once is an error (exit code 2).
+
     Exit codes:
     - 0: grade A or B (score >= 70, no CRITICAL/HIGH findings)
     - 1: grade C, D, or F, or any CRITICAL/HIGH finding
-    - 2: error (invalid path, scan failure)
+    - 2: error (invalid path, ambiguous input, scan failure)
     """
     console = Console(width=80)
 
+    # ── Resolve positional vs --path ──────────────────────────────────────────
+    if configs and len(configs) > 1:
+        console.print(
+            "[red]Error:[/red] check accepts a single config path. "
+            "Pass one path positionally or use --path."
+        )
+        raise typer.Exit(2)
+    config = configs[0] if configs else None
+    if config is not None and path is not None:
+        console.print(
+            "[red]Error:[/red] Provide a config path either as a positional argument "
+            "or via --path, not both."
+        )
+        raise typer.Exit(2)
+    resolved_path = config if config is not None else path
+
     # ── Path validation ───────────────────────────────────────────────────────
-    if path is not None and not path.resolve().exists():
-        console.print(f"[red]File not found:[/red] {path}")
+    if resolved_path is not None and not resolved_path.resolve().exists():
+        console.print(f"[red]File not found:[/red] {resolved_path}")
         raise typer.Exit(2)
 
-    extra_paths = [path] if path else None
+    extra_paths = [resolved_path] if resolved_path else None
 
     # ── Run scan ──────────────────────────────────────────────────────────────
     try:

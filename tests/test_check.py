@@ -464,6 +464,35 @@ class TestCheckCommand:
         assert extra is not None
         assert config in extra or str(config) in [str(p) for p in extra]
 
+    def test_positional_path_passed_to_run_scan(self, tmp_path: Path) -> None:
+        """Positional config arg is forwarded to run_scan as extra_paths."""
+        config = tmp_path / "custom.json"
+        config.write_text('{"mcpServers": {}}')
+        with self._patch_run_scan(_clean_result()) as mock_scan:
+            runner.invoke(app, ["check", str(config)])
+        mock_scan.assert_called_once()
+        extra = mock_scan.call_args.kwargs.get("extra_paths")
+        assert extra is not None
+        assert config in extra or str(config) in [str(p) for p in extra]
+
+    def test_positional_and_path_flag_both_given_exit_2(self, tmp_path: Path) -> None:
+        """Supplying both a positional path and --path is an error."""
+        config = tmp_path / "custom.json"
+        config.write_text('{"mcpServers": {}}')
+        r = runner.invoke(app, ["check", str(config), "--path", str(config)])
+        assert r.exit_code == 2
+        assert (
+            "not both" in r.output
+            or "positional" in r.output.lower()
+            or "both" in r.output.lower()
+        )
+
+    def test_positional_invalid_path_exit_2(self) -> None:
+        """A nonexistent positional path produces exit code 2."""
+        r = runner.invoke(app, ["check", "/nonexistent/path/config.json"])
+        assert r.exit_code == 2
+        assert "not found" in r.output.lower()
+
     def test_invalid_path_exit_2(self) -> None:
         r = runner.invoke(app, ["check", "--path", "/nonexistent/path/config.json"])
         assert r.exit_code == 2
