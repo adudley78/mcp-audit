@@ -186,6 +186,44 @@ class TestPdfReportFormatter:
         header_text = _story_text(formatter._header_section())
         assert __version__ in header_text
 
+    def test_findings_column_widths_fill_usable_width(self) -> None:
+        """Column widths sum to usable_width — regression for the unit-mismatch bug.
+
+        Previously the remainder column subtracted bare floats (inches) instead
+        of points, making the table ~1.7× the page width.
+        """
+        from reportlab.lib.pagesizes import LETTER  # noqa: PLC0415
+        from reportlab.lib.units import inch  # noqa: PLC0415
+        from reportlab.platypus import Table  # noqa: PLC0415
+
+        finding = _make_finding()
+        result = _findings_result(findings=[finding])
+        formatter = PdfReportFormatter(result)
+        flowables = formatter._findings_section()
+        # The findings Table is always the last Table in the section flowables;
+        # earlier Tables belong to the section-heading widget.
+        tables = [f for f in flowables if isinstance(f, Table)]
+        assert len(tables) >= 2, "Expected heading table + findings table"
+        findings_table = tables[-1]
+        actual_total = sum(findings_table._colWidths)
+        width, _ = LETTER
+        usable = width - 1.5 * inch
+        assert abs(actual_total - usable) < 0.1, (
+            f"Column total {actual_total:.2f} pt != usable width {usable:.2f} pt"
+        )
+
+    def test_findings_table_has_five_columns(self) -> None:
+        """Findings table uses 5 columns (Severity/ID merged) — not 6."""
+        from reportlab.platypus import Table  # noqa: PLC0415
+
+        finding = _make_finding()
+        result = _findings_result(findings=[finding])
+        formatter = PdfReportFormatter(result)
+        flowables = formatter._findings_section()
+        tables = [f for f in flowables if isinstance(f, Table)]
+        assert len(tables) >= 2, "Expected heading table + findings table"
+        assert len(tables[-1]._colWidths) == 5
+
 
 # ── Integration tests: CLI check --report pdf ─────────────────────────────────
 

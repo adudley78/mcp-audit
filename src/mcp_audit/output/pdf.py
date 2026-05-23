@@ -150,15 +150,29 @@ def _make_page_callback(
 
         canvas.saveState()
 
-        # Brand header image — drawn flush to the top edge on every page.
+        # Brand header band — dark background fills the full page width; the
+        # logo is drawn on top at the correct aspect ratio for _HEADER_HEIGHT_PT,
+        # centred horizontally so it doesn't appear squashed.
         if _img is not None:
+            canvas.setFillColor(colors.HexColor("#0d1117"))
+            canvas.rect(
+                0,
+                height - _HEADER_HEIGHT_PT,
+                width,
+                _HEADER_HEIGHT_PT,
+                fill=1,
+                stroke=0,
+            )
+            img_px_w, img_px_h = _img.getSize()
+            natural_w = _HEADER_HEIGHT_PT * (img_px_w / img_px_h)
+            x_offset = (width - natural_w) / 2
             canvas.drawImage(
                 _img,
-                x=0,
+                x=x_offset,
                 y=height - _HEADER_HEIGHT_PT,
-                width=width,
+                width=natural_w,
                 height=_HEADER_HEIGHT_PT,
-                preserveAspectRatio=False,
+                preserveAspectRatio=True,
                 mask="auto",
             )
 
@@ -542,29 +556,22 @@ class PdfReportFormatter:
             textColor=colors.HexColor("#374151"),
             leading=10,
         )
-        sev_style = ParagraphStyle(
-            "sev",
-            fontSize=7.5,
-            fontName="Helvetica-Bold",
-            leading=10,
-            alignment=TA_CENTER,
-        )
-
         width, _ = LETTER
         usable = width - 1.5 * inch
-        # Column widths: Severity, ID, Title, Server, OWASP, Remediation
+        # Five columns: Severity/ID (merged two-line), Title, Server, OWASP,
+        # Remediation.  All fixed widths are in points (n * inch); the remainder
+        # for Remediation subtracts the fixed total in points — not bare floats.
+        _fixed_cols = (1.1 + 1.75 + 1.0 + 1.35) * inch
         col_widths = [
-            0.75 * inch,  # Severity
-            0.65 * inch,  # ID
-            1.45 * inch,  # Title
+            1.1 * inch,  # Severity / ID (two-line merged cell)
+            1.75 * inch,  # Title
             1.0 * inch,  # Server
             1.35 * inch,  # OWASP
-            usable - 0.75 - 0.65 - 1.45 - 1.0 - 1.35,  # Remediation (remainder)
+            usable - _fixed_cols,  # Remediation (remainder)
         ]
 
         header_row = [
-            Paragraph("Severity", header_style),
-            Paragraph("ID", header_style),
+            Paragraph("Severity / ID", header_style),
             Paragraph("Title", header_style),
             Paragraph("Server", header_style),
             Paragraph("OWASP Category", header_style),
@@ -583,31 +590,39 @@ class PdfReportFormatter:
             ("FONTSIZE", (0, 0), (-1, 0), 8),
         ]
 
+        # Inline hex colours for severity badges — must use # + 6-digit hex.
+        _sev_hex: dict[Severity, str] = {
+            Severity.CRITICAL: "#b91c1c",
+            Severity.HIGH: "#c2410c",
+            Severity.MEDIUM: "#a16207",
+            Severity.LOW: "#1d4ed8",
+            Severity.INFO: "#374151",
+        }
+
+        sev_id_style = ParagraphStyle(
+            "sev_id",
+            fontSize=7.5,
+            leading=10,
+            alignment=TA_CENTER,
+        )
+
         for row_idx, finding in enumerate(findings, start=1):
             sev = finding.severity
             sev_bg = _SEV_BG[sev]
-
-            # Inline hex colours for the severity badge — must use # + 6-digit hex.
-            _sev_hex: dict[Severity, str] = {
-                Severity.CRITICAL: "#b91c1c",
-                Severity.HIGH: "#c2410c",
-                Severity.MEDIUM: "#a16207",
-                Severity.LOW: "#1d4ed8",
-                Severity.INFO: "#374151",
-            }
             sev_color_hex = _sev_hex[sev]
 
-            sev_para = Paragraph(
+            # Two-line merged cell: severity badge on top, ID in smaller grey text.
+            sev_id_para = Paragraph(
                 f"<font color='{sev_color_hex}' fontName='Helvetica-Bold'>"
-                f"{sev.value}</font>",
-                sev_style,
+                f"{sev.value}</font><br/>"
+                f"<font color='#6b7280' fontSize='6.5'>{finding.id}</font>",
+                sev_id_style,
             )
             owasp_text = _owasp_label(finding)
             hint = _get_remediation_hint(finding)
 
             row = [
-                sev_para,
-                Paragraph(finding.id, cell_style),
+                sev_id_para,
                 Paragraph(finding.title, cell_style),
                 Paragraph(finding.server or "—", cell_style),
                 Paragraph(owasp_text, cell_style),
@@ -615,9 +630,9 @@ class PdfReportFormatter:
             ]
             table_data.append(row)
 
-            # Severity background in the first cell only
+            # Severity background in the first (Severity/ID) column only.
             ts_commands.append(("BACKGROUND", (0, row_idx), (0, row_idx), sev_bg))
-            # Alternate row shading for readability
+            # Alternate row shading for readability.
             if row_idx % 2 == 0:
                 ts_commands.append(
                     (
