@@ -16,13 +16,74 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **VS Code Marketplace listing — `mcp-audit-vscode` published (STORY-0042).**
-  Extension available at `ext install mcp-audit.mcp-audit-vscode`. Marketplace
-  listing includes 128×128 icon, screenshot, keyword tags (`mcp`, `security`,
-  `mcp-audit`, `cursor`, `claude`, `linter`, `diagnostics`, `vulnerability`),
-  `Linters` + `Security` categories, and a marketplace-formatted README with
-  hover card screenshot. `README.md` gains a VS Code Marketplace badge.
-  ADR-0002 recorded in `mcp-audit-vscode/docs/ADR-0002-repo-structure.md`.
+- **`mcp-audit check --report pdf` — PDF compliance report (STORY-0047).**
+  One command produces a Letter-size PDF that a CISO can hand directly to an
+  auditor — letter grade, numeric score, OWASP-mapped findings table, and a
+  SHA-256 content hash for chain-of-custody.  No other MCP security tool
+  produces a signed, timestamped, auditable compliance artifact today.
+  - `mcp-audit check --report pdf --output-file PATH` writes the report to PATH.
+  - `--org "Name"` sets the organisation name in the PDF header.  Falls back
+    to the registered org (from `registration.json`) then `"Not specified"`.
+  - `mcp-audit scan --report pdf` is also supported for full-pipeline scans.
+  - PDF contains: header (org, ISO 8601 timestamp, version), executive summary
+    (colour-coded grade: A/B green, C amber, D/F red; score; verdict; per-severity
+    counts), findings table (severity, ID, title, server, OWASP MCP Top 10
+    category, remediation hint — paginated), and footer (mcp-audit credit + GitHub
+    URL on every page, SHA-256 content hash on the last page).
+  - SHA-256 is computed over `ScanResult.model_dump_json()` (the scan data,
+    not the PDF binary), so the hash is reproducible from a JSON export alone.
+  - New module: `src/mcp_audit/output/pdf.py` (`PdfReportFormatter`).
+  - `reportlab>=4.0` added as a required runtime dependency (BSD licence,
+    pure Python, no system dependencies); bundled in all four PyInstaller
+    binaries via `hiddenimports`.
+  - New docs: `docs/compliance-report.md` — usage guide and auditor
+    interpretation instructions.
+  - 18 new tests in `tests/test_pdf_report.py`.
+
+- **`mcp-audit register` — opt-in registration flow (STORY-0046).**
+  Developers and security engineers can choose to identify their org in exchange
+  for weekly new-rule notifications and an optional follow-up when their scan grade
+  is C or below.  Registration is entirely voluntary; an unregistered user
+  experiences zero behaviour change and zero network traffic.
+  - Interactive `mcp-audit register` flow collects name, org, email, and a
+    follow-up preference; all fields optional except email (validated for `@`).
+  - `registration.json` stored at `<user-config-dir>/mcp-audit/registration.json`
+    with 0o600 permissions (consistent with baseline and rug-pull state storage).
+  - Initial registration POST sends: name, org, email, version, grade,
+    follow_up_requested — **nothing else**.  No config data, server names,
+    credentials, or file paths are ever transmitted.
+  - Subsequent `mcp-audit check` pings send only: version, grade,
+    `registered=true` — **no PII**.
+  - `mcp-audit register --status` shows current registration or "Not registered".
+  - `mcp-audit register --clear` removes `registration.json` and stops pings.
+  - `mcp-audit check --register` runs the scan then prompts registration if not
+    already registered.
+  - `Registered as: <org>` one-liner appears beneath the grade panel in
+    `mcp-audit check` output when registered.
+  - New modules: `src/mcp_audit/registration/` (models.py, manager.py, client.py),
+    `src/mcp_audit/cli/register.py`.
+  - New `docs/privacy.md` — plain-English registration privacy policy.
+
+- **`mcp-audit fix` — apply safe remediations directly to MCP config files (STORY-0031).**
+  Every scanner tells you what's wrong; `fix` tells you what to do *and does it*.
+  Dry-run by default (unified diff to stdout, no files touched). Pass `--apply` to
+  write changes atomically with a `.bak` backup of the original.
+  Takes a **single config file** via `--path`; omit to auto-discover all configs.
+  - **Credential redaction** (`CRED-001`, `CRED-002`): replaces plaintext secret
+    values with `${ENV_KEY_NAME}` placeholders. Idempotent — skips values that
+    already use `${…}` syntax.
+  - **Transport upgrade** (`TRANSPORT-001`): rewrites `http://` server URLs to
+    `https://`. Idempotent — skips URLs already using HTTPS.
+  - **Package pinning** (`SC-001`, `SC-002`): replaces a typosquatted package name
+    with the verified closest-match from the known-server registry and appends
+    `@latest-version`. Falls back gracefully when npm/PyPI is unreachable.
+  - `--fix-type` flag restricts which strategies run (`credentials`, `transport`,
+    `pinning`); repeatable for multiple types.
+  - `--input <scan.json>` reads findings from an existing scan JSON file instead
+    of re-running a fresh scan.
+  - `--offline` suppresses all version-resolution network calls.
+  - Exit codes: `0` = success or no fixable findings; `2` = error.
+  - See `docs/fix.md` for full documentation.
 
 - **VS Code / Cursor extension — security findings appear as squiggles as you type (STORY-0032).**
   Open your Claude or Cursor config file in VS Code or Cursor — red/yellow underlines
@@ -37,106 +98,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `jsonc-parser`-based server-key line resolution. Works in both VS Code and Cursor.
   ADR: [`docs/decisions/ADR-0002`](docs/decisions/ADR-0002-extension-separate-repo.md).
 
-- **`mcp-audit fix` — apply safe remediations directly to MCP config files (STORY-0031).**
-  Every scanner tells you what's wrong; `fix` tells you what to do *and does it*.
-  Dry-run by default (unified diff to stdout, no files touched). Pass `--apply` to
-  write changes atomically with a `.bak` backup of the original.
-  - **Credential redaction** (`CRED-001`, `CRED-002`): replaces plaintext secret
-    values with `${ENV_KEY_NAME}` placeholders. The env key is preserved so the
-    config stays structurally valid. Idempotent — skips values that already use
-    `${…}` syntax.
-  - **Transport upgrade** (`TRANSPORT-001`): rewrites `http://` server URLs to
-    `https://`. Idempotent — skips URLs already using HTTPS.
-  - **Package pinning** (`SC-001`, `SC-002`): replaces a typosquatted package name
-    with the verified closest-match from the known-server registry and appends
-    `@latest-version`. Checks the mcp-audit registry before pinning — emits a
-    warning (non-blocking) when the replacement package is not a known-legitimate
-    entry. Falls back gracefully when npm/PyPI is unreachable.
-  - `--fix-type` flag restricts which strategies run (`credentials`, `transport`,
-    `pinning`); repeatable for multiple types.
-  - `--input <scan.json>` reads findings from an existing scan JSON file instead
-    of re-running a fresh scan.
-  - `--offline` suppresses all version-resolution network calls; pinning is skipped
-    with a warning while credential and transport fixes still apply.
-  - Atomic write: original backed up to `<file>.bak`; new content written to
-    `<file>.tmp` then renamed atomically to `<file>`.
-  - Exit codes: `0` = success or no fixable findings; `2` = error.
-  - See `docs/fix.md` for full documentation.
-
 ### Security
 
 - SHA-pin all third-party GitHub Actions to full 40-char commit SHAs across 14 workflow files, preventing supply-chain substitution attacks ([CVE-advisory: tj-actions/changed-files compromise](https://www.stepsecurity.io/blog/tj-actions-changed-files-action-compromised)). Thanks [@jsandov](https://github.com/jsandov) for the contribution — our first external PR.
 
 - Bumped `idna` to `>=3.15` to resolve CVE-2026-45409 (quadratic DoS bypass in `idna.encode()`). Surfaced as a direct dependency so Dependabot tracks future upgrades explicitly. Transitive path: `[mcp]` extra → `httpx` → `anyio` → `idna`.
 
----
-
-## [0.11.0] — 2026-05-17
-
-### Added
-
-- **`mcp-audit check --report pdf` — PDF compliance report (STORY-0047).**
-  One command produces a Letter-size PDF that a CISO can hand directly to an
-  auditor — letter grade, numeric score, OWASP-mapped findings table, and a
-  SHA-256 content hash for chain-of-custody.  No other MCP security tool
-  produces a signed, timestamped, auditable compliance artifact today.
-  - `mcp-audit check --report pdf` writes `mcp-audit-report-<date>.pdf` to
-    the current working directory.
-  - `--output-file PATH` overrides the output location; parent directories are
-    created automatically.  File is written at 0o644 permissions.
-  - `--org "Name"` sets the organisation name in the PDF header.  Falls back
-    to the registered org (from `registration.json`) then `"Not specified"`.
-  - `mcp-audit scan --report pdf` is also supported for full-pipeline scans.
-  - PDF contains: header (org, ISO 8601 timestamp, version), executive summary
-    (colour-coded grade: A/B green, C amber, D/F red; score; verdict; per-severity
-    counts), findings table (severity, ID, title, server, OWASP MCP Top 10
-    category, remediation hint — paginated), and footer (mcp-audit credit,
-    page numbers, SHA-256 content hash on the last page).
-  - SHA-256 is computed over `ScanResult.model_dump_json()` (the scan data,
-    not the PDF binary), so the hash is reproducible from a JSON export alone.
-  - New module: `src/mcp_audit/output/pdf.py` (`PdfReportFormatter`).
-  - `reportlab>=4.0` added as a required runtime dependency (BSD licence,
-    pure Python, no system dependencies); bundled in all four PyInstaller
-    binaries via `hiddenimports`.
-  - New docs: `docs/compliance-report.md` — usage guide and auditor
-    interpretation instructions.
-  - 18 new tests in `tests/test_pdf_report.py` covering: PDF creation, valid
-    magic bytes, org-name precedence (flag > registration > default), finding
-    ID in table, grade A empty-findings body text, SHA-256 footer correctness,
-    multi-finding table, `--output-file` parent-directory creation, 0o644
-    permissions, and unknown report format exit code 2.
-
-- **`mcp-audit register` — opt-in registration flow (STORY-0046, v0.11.0).**
-  Developers and security engineers can choose to identify their org in exchange
-  for weekly new-rule notifications and an optional follow-up when their scan grade
-  is C or below.  Registration is entirely voluntary; an unregistered user
-  experiences zero behaviour change and zero network traffic.
-  - Interactive `mcp-audit register` flow collects name, org, email, and a
-    follow-up preference; all fields optional except email (validated for `@`).
-  - `registration.json` stored at `<user-config-dir>/mcp-audit/registration.json`
-    with 0o600 permissions (consistent with baseline and rug-pull state storage).
-  - Initial registration POST sends: name, org, email, version, grade,
-    follow_up_requested — **nothing else**.  No config data, server names,
-    credentials, or file paths are ever transmitted.
-  - Subsequent `mcp-audit check` pings send only: version, grade,
-    `registered=true` — **no PII**.
-  - `mcp-audit register --status` shows current registration (name, org,
-    truncated email) or "Not registered".
-  - `mcp-audit register --clear` removes `registration.json` and stops pings.
-  - `mcp-audit check --register` runs the scan then prompts registration if not
-    already registered.
-  - `Registered as: <org>` one-liner appears beneath the grade panel in
-    `mcp-audit check` output when registered.
-  - Endpoint unreachable → scan completes normally; dim "Registration ping
-    failed (offline?)" line at the bottom, not an error.
-  - New modules: `src/mcp_audit/registration/` (models.py, manager.py, client.py),
-    `src/mcp_audit/cli/register.py`.
-  - 16 new tests in `tests/test_registration.py` covering file creation,
-    permissions, round-trip schema, email validation, --clear, --status,
-    endpoint-unreachable, PII-in-ping guard, HTTP URL rejection, and docs smoke test.
-  - New `docs/privacy.md` — plain-English registration privacy policy.
-  - New `docs/adr/ADR-0002-registration-privacy-model.md` — architecture decision
-    record for the opt-in + PII-in-initial-POST-only model.
+- Bumped `sigstore` floor to `>=4.2.0` in `[attestation]` extra to resolve CVE-2026-24408. Only affects users who opt into `pip install mcp-audit-scanner[attestation]`; core runtime unaffected.
 
 ---
 
