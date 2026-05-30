@@ -738,7 +738,7 @@ echo "exit: $?"
 ## Section 32 — check --report pdf (compliance report)
 
 ```bash
-mcp-audit check --path demo/configs --report pdf "$SCRATCH/report.pdf"
+mcp-audit check --path demo/configs --report pdf --output-file "$SCRATCH/report.pdf"
 echo "exit: $?"
 ```
 
@@ -764,9 +764,12 @@ SHA-256 content hash, and a GitHub footer referencing mcp-audit.
 
 ## Section 33 — fix (automated remediation)
 
+> **Note:** `mcp-audit fix --path` accepts a **single config file**, not a
+> directory. Pass a specific `.json` file path, not `demo/configs/`.
+
 ```bash
 # Dry-run (default) — unified diff to stdout, no file changes
-mcp-audit fix --path demo/configs
+mcp-audit fix --path demo/configs/claude_desktop_config.json
 echo "exit: $?"
 ```
 
@@ -804,7 +807,7 @@ diff "$SCRATCH/fix-apply.json.bak" "$SCRATCH/fix-apply.json" > /dev/null 2>&1 \
 
 ```bash
 # --input skips re-scan — reads existing scan JSON
-mcp-audit fix --input "$SCRATCH/results.json" --path demo/configs
+mcp-audit fix --input "$SCRATCH/results.json" --path demo/configs/claude_desktop_config.json
 echo "exit: $?"
 ```
 

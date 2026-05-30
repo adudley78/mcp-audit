@@ -52,7 +52,7 @@ produces no further diff.
 
 | Flag | Description |
 |------|-------------|
-| `--path PATH` | Scan a specific config file instead of auto-discovering all configs |
+| `--path PATH` | Scan a **single config file** (not a directory — pass the `.json` path directly, e.g. `~/.config/claude/claude_desktop_config.json`). Omit to auto-discover all configs. |
 | `--input FILE` | Read findings from an existing scan JSON file (skips fresh scan) |
 | `--apply` | Write changes to disk (atomic rename + `.bak` backup) |
 | `--fix-type TYPE` | Restrict to one fix type: `credentials`, `transport`, or `pinning`. Repeatable |

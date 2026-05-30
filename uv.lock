@@ -835,7 +835,7 @@ requires-dist = [
     { name = "reportlab", specifier = ">=4.5.1" },
     { name = "rich", specifier = ">=13.0,<16.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
-    { name = "sigstore", marker = "extra == 'attestation'", specifier = ">=3.0,<5.0" },
+    { name = "sigstore", marker = "extra == 'attestation'", specifier = ">=4.2.0,<5.0" },
     { name = "typer", specifier = ">=0.12,<1.0" },
     { name = "urllib3", marker = "extra == 'dev'", specifier = ">=2.7.0" },
     { name = "watchdog", specifier = ">=4.0,<7.0" },
