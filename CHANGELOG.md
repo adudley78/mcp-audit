@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — v0.11.0
+## [Unreleased]
+
+(nothing yet)
+
+---
+
+## [0.11.0] - 2026-05-30
 
 ### Added
 
@@ -18,15 +24,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   hover card screenshot. `README.md` gains a VS Code Marketplace badge.
   ADR-0002 recorded in `mcp-audit-vscode/docs/ADR-0002-repo-structure.md`.
 
-- **VS Code / Cursor extension — inline MCP config diagnostics (STORY-0032).**
-  Install [`mcp-audit.mcp-audit-vscode`](https://github.com/mcp-audit/mcp-audit-vscode)
-  from the VS Code Marketplace to get red/yellow squiggles directly in your editor,
-  with hover cards showing finding title, description, evidence, and remediation.
+- **VS Code / Cursor extension — security findings appear as squiggles as you type (STORY-0032).**
+  Open your Claude or Cursor config file in VS Code or Cursor — red/yellow underlines
+  appear inline before you run a single command. Install
+  [`mcp-audit.mcp-audit-vscode`](https://github.com/mcp-audit/mcp-audit-vscode)
+  via the Open VSX Registry (Cursor) or manually from a `.vsix` file (VS Code —
+  Marketplace listing pending); see [`docs/ide-extension.md`](docs/ide-extension.md).
+  Includes hover cards showing finding title, description, evidence, and remediation.
   The extension shells out to the `mcp-audit` binary — no detection logic is
   reimplemented in TypeScript. Includes a status bar grade badge, command palette
   integration (`Scan current file`, `Scan workspace`, `Fix current file`), and
   `jsonc-parser`-based server-key line resolution. Works in both VS Code and Cursor.
-  See [`docs/ide-extension.md`](docs/ide-extension.md) for setup and configuration.
   ADR: [`docs/decisions/ADR-0002`](docs/decisions/ADR-0002-extension-separate-repo.md).
 
 - **`mcp-audit fix` — apply safe remediations directly to MCP config files (STORY-0031).**

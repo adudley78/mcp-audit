@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-05-02",
-  "entry_count": 78,
+  "last_updated": "2026-05-30",
+  "entry_count": 80,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -1191,7 +1191,9 @@
       "capabilities": [
         "network_out"
       ],
-      "known_vulnerabilities": ["CVE-2026-27826"],
+      "known_vulnerabilities": [
+        "CVE-2026-27826"
+      ],
       "first_published": "2025-02-15",
       "weekly_downloads": 2900,
       "publisher_history": [
@@ -1340,6 +1342,66 @@
         "modelcontextprotocol"
       ],
       "attestation_expected": true
+    },
+    {
+      "name": "nginx-ui-mcp",
+      "source": "npm",
+      "package_ecosystem": "npm",
+      "repo": "https://github.com/0xJacky/nginx-ui",
+      "maintainer": "0xJacky",
+      "verified": false,
+      "last_verified": "2026-05-30",
+      "known_versions": [],
+      "tags": [
+        "third-party",
+        "infrastructure",
+        "network"
+      ],
+      "capabilities": [
+        "network",
+        "filesystem"
+      ],
+      "first_published": null,
+      "weekly_downloads": null,
+      "publisher_history": [],
+      "attestation_expected": false,
+      "known_vulns": [
+        {
+          "cve": "CVE-2026-33032",
+          "cvss": 9.8,
+          "description": "Unauthenticated RCE via nginx-ui admin API \u2014 do not expose this MCP server publicly",
+          "fixed_in": null
+        }
+      ]
+    },
+    {
+      "name": "@microsoft/mcp-server",
+      "source": "npm",
+      "package_ecosystem": "npm",
+      "repo": "https://github.com/microsoft/mcp-server",
+      "maintainer": "Microsoft",
+      "verified": false,
+      "last_verified": "2026-05-30",
+      "known_versions": [],
+      "tags": [
+        "third-party",
+        "enterprise"
+      ],
+      "capabilities": [],
+      "first_published": null,
+      "weekly_downloads": null,
+      "publisher_history": [
+        "microsoft"
+      ],
+      "attestation_expected": false,
+      "known_vulns": [
+        {
+          "cve": "CVE-2026-26118",
+          "cvss": 8.1,
+          "description": "Tool hijacking via crafted tool description \u2014 update to patched version when available",
+          "fixed_in": null
+        }
+      ]
     }
   ]
 }

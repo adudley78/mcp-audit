@@ -147,6 +147,11 @@ class RegistryEntry(BaseModel):
     # findings without requiring a live OSV.dev query.
     known_vulnerabilities: list[str] | None = None
 
+    # Structured vulnerability records for this package.
+    # Each entry is a dict with keys: cve, cvss, description, fixed_in.
+    # Default empty list — entries without vuln data omit this field.
+    known_vulns: list[dict] = []
+
 
 # ── Registry class ─────────────────────────────────────────────────────────────
 

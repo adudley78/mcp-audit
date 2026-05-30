@@ -263,9 +263,8 @@ def print_check_results(
     shown = sorted_findings[:MAX_FINDINGS_SHOWN]
     remainder = total - len(shown)
 
-    fixable_shown = sum(
-        1 for f in shown if f.id in _AUTO_FIXABLE or f.id.split("-")[0] in _AUTO_FIXABLE
-    )
+    fixable_ids = sorted({f.id for f in shown if f.id in _AUTO_FIXABLE})
+    fixable_shown = len(fixable_ids)
 
     issue_word = "issue" if total == 1 else "issues"
     need_word = "needs" if total == 1 else "need"
@@ -289,10 +288,11 @@ def print_check_results(
 
     # ── Fix summary line ──────────────────────────────────────────────────────
     if fixable_shown > 0:
+        ids_str = ", ".join(fixable_ids)
+        n_word = "finding" if fixable_shown == 1 else "findings"
         console.print(
-            f"  [dim]{fixable_shown} of {len(shown)} issue"
-            f"{'s' if len(shown) != 1 else ''} can be fixed with "
-            "[bold]mcp-audit fix --apply[/bold][/dim]"
+            f"  → Run [bold]mcp-audit fix --apply[/bold] to auto-remediate "
+            f"[{ids_str}] ({fixable_shown} {n_word})"
         )
         console.print()
 

@@ -258,7 +258,12 @@ class TestPrintCheckResults:
         buf = StringIO()
         con = Console(file=buf, width=80)
         print_check_results(result, console=con)
-        assert "mcp-audit fix --apply" in buf.getvalue()
+        output = buf.getvalue()
+        assert "mcp-audit fix --apply" in output
+        # Both auto-fixable IDs must appear in the nudge line
+        assert "CRED-001" in output
+        assert "TRANSPORT-001" in output
+        assert "auto-remediate" in output
 
     def test_no_autofix_summary_when_none_fixable(self) -> None:
         from io import StringIO
@@ -270,7 +275,7 @@ class TestPrintCheckResults:
         buf = StringIO()
         con = Console(file=buf, width=80)
         print_check_results(result, console=con)
-        assert "can be fixed with" not in buf.getvalue()
+        assert "auto-remediate" not in buf.getvalue()
 
     def test_footer_shown(self) -> None:
         from io import StringIO

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from click.exceptions import Exit as ClickExit
+import typer
 
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
 
@@ -33,22 +33,22 @@ class TestRequireOfflineCompatible:
 
     def test_check_vulns_with_offline_raises(self) -> None:
         policy = NetworkPolicy(check_vulns=True)
-        with pytest.raises(ClickExit):
+        with pytest.raises(typer.Exit):
             require_offline_compatible(policy, offline=True)
 
     def test_verify_hashes_with_offline_raises(self) -> None:
         policy = NetworkPolicy(verify_hashes=True)
-        with pytest.raises(ClickExit):
+        with pytest.raises(typer.Exit):
             require_offline_compatible(policy, offline=True)
 
     def test_verify_signatures_with_offline_raises(self) -> None:
         policy = NetworkPolicy(verify_signatures=True)
-        with pytest.raises(ClickExit):
+        with pytest.raises(typer.Exit):
             require_offline_compatible(policy, offline=True)
 
     def test_connect_with_offline_raises(self) -> None:
         policy = NetworkPolicy(connect=True)
-        with pytest.raises(ClickExit):
+        with pytest.raises(typer.Exit):
             require_offline_compatible(policy, offline=True)
 
     def test_offline_false_never_raises(self) -> None:
@@ -62,6 +62,6 @@ class TestRequireOfflineCompatible:
 
     def test_multiple_conflicts_listed_in_message(self) -> None:
         policy = NetworkPolicy(verify_hashes=True, check_vulns=True)
-        with pytest.raises(ClickExit) as exc_info:
+        with pytest.raises(typer.Exit) as exc_info:
             require_offline_compatible(policy, offline=True)
         assert exc_info.value.exit_code == 2

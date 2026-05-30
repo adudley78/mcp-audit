@@ -109,14 +109,14 @@ def _post_json(data: dict, url: str, *, label: str) -> bool:
 
     body = json.dumps(data).encode("utf-8")
     user_agent = f"mcp-audit/{__version__}"
-    req = urllib.request.Request(  # noqa: S310 — HTTPS-only guard enforced above
+    req = urllib.request.Request(  # noqa: S310  # nosec B310 — HTTPS-only guard enforced above; scheme validated in caller
         url,
         data=body,
         headers={"Content-Type": "application/json", "User-Agent": user_agent},
         method="POST",
     )
     try:
-        with urllib.request.urlopen(  # noqa: S310 — HTTPS-only guard enforced above
+        with urllib.request.urlopen(  # noqa: S310  # nosec B310 — HTTPS-only guard enforced above; scheme validated in caller
             req, timeout=_TIMEOUT_SECONDS
         ) as resp:
             return 200 <= resp.status < 300
