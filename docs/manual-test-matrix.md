@@ -260,7 +260,7 @@ mcp-audit rule list
 echo "exit: $?"
 ```
 
-**Expected:** lists 15 bundled community rules (COMM-001 through COMM-015); exit 0.
+**Expected:** lists 30 bundled community rules (COMM-001 through COMM-030); exit 0.
 
 ---
 
@@ -684,6 +684,166 @@ echo "exit: $?"
 
 **Expected:** COMM-015 finding at CRITICAL severity; evidence line reads
 `rule:COMM-015; matched: ;` (the matched metacharacter); exit 1.
+
+---
+
+## Section 31 — check (one-page verdict)
+
+```bash
+mcp-audit check --path demo/configs
+echo "exit: $?"
+```
+
+**Expected:** single-screen summary showing: letter grade (A–F), numeric score
+(0–100), top 5 findings by severity with plain-English remediation hints, and
+a pointer to `mcp-audit fix --apply` if any auto-fixable findings are present
+(CRED-001, CRED-002, TRANSPORT-001, SC-001, SC-002). Exit 1 (demo configs have
+HIGH/CRITICAL findings — grade C/D/F or CRIT/HIGH present). Must not show a
+Python traceback.
+
+```bash
+# --verbose shows full scan output
+mcp-audit check --path demo/configs --verbose
+echo "exit: $?"
+```
+
+**Expected:** full `scan` terminal output followed by check summary; exit 1.
+
+```bash
+# --json outputs raw ScanResult JSON
+mcp-audit check --path demo/configs --json --output "$SCRATCH/check.json"
+python3 -c "
+import json
+d = json.load(open('$SCRATCH/check.json'))
+print('grade:', d['score']['grade'])
+print('findings:', len(d['findings']))
+"
+echo "exit: $?"
+```
+
+**Expected:** valid `ScanResult` JSON with `score.grade` and `score.numeric`
+populated; same exit-code semantics as above.
+
+```bash
+# Exit 0 on a clean config (score >= 70, no CRIT/HIGH)
+echo '{"mcpServers": {}}' > "$SCRATCH/clean.json"
+mcp-audit check "$SCRATCH/clean.json"
+echo "exit: $?"
+```
+
+**Expected:** grade A or B printed; exit 0.
+
+---
+
+## Section 32 — check --report pdf (compliance report)
+
+```bash
+mcp-audit check --path demo/configs --report pdf "$SCRATCH/report.pdf"
+echo "exit: $?"
+```
+
+**Expected:** PDF written to `$SCRATCH/report.pdf`; terminal still shows the
+one-page check summary; exit 1 (findings present). Verify the file exists and
+is non-empty:
+
+```bash
+test -f "$SCRATCH/report.pdf" && \
+  python3 -c "
+data = open('$SCRATCH/report.pdf', 'rb').read()
+assert data[:4] == b'%PDF', 'FAIL — not a valid PDF (missing %PDF magic)'
+assert len(data) > 1000, f'FAIL — PDF suspiciously small: {len(data)} bytes'
+print(f'PASS — valid PDF, {len(data):,} bytes')
+"
+```
+
+**Expected:** PASS — valid PDF; file size ≥ 1000 bytes (a real report is typically
+30–80 KB). Must contain: letter grade, findings table, OWASP MCP Top 10 codes,
+SHA-256 content hash, and a GitHub footer referencing mcp-audit.
+
+---
+
+## Section 33 — fix (automated remediation)
+
+```bash
+# Dry-run (default) — unified diff to stdout, no file changes
+mcp-audit fix --path demo/configs
+echo "exit: $?"
+```
+
+**Expected:** unified diff printed to stdout showing proposed changes (credential
+redaction, transport upgrades); no files modified; exit 0.
+
+```bash
+# Verify the config file is NOT modified by dry-run
+cp demo/configs/claude_desktop_config.json "$SCRATCH/fix-test.json"
+BEFORE=$(sha256sum "$SCRATCH/fix-test.json")
+mcp-audit fix "$SCRATCH/fix-test.json"
+AFTER=$(sha256sum "$SCRATCH/fix-test.json")
+[ "$BEFORE" = "$AFTER" ] && echo "PASS — dry-run left file unchanged" || echo "FAIL — file was modified"
+echo "exit: $?"
+```
+
+**Expected:** PASS — dry-run left file unchanged; exit 0.
+
+```bash
+# --apply writes changes with .bak backup
+cp demo/configs/claude_desktop_config.json "$SCRATCH/fix-apply.json"
+mcp-audit fix "$SCRATCH/fix-apply.json" --apply
+echo "exit: $?"
+
+# Backup must exist
+test -f "$SCRATCH/fix-apply.json.bak" && echo "PASS — .bak created" || echo "FAIL — no .bak"
+
+# Applied file must differ from original
+diff "$SCRATCH/fix-apply.json.bak" "$SCRATCH/fix-apply.json" > /dev/null 2>&1 \
+  && echo "FAIL — apply made no changes" \
+  || echo "PASS — changes applied"
+```
+
+**Expected:** exit 0; `.bak` backup created; applied file differs from original.
+
+```bash
+# --input skips re-scan — reads existing scan JSON
+mcp-audit fix --input "$SCRATCH/results.json" --path demo/configs
+echo "exit: $?"
+```
+
+**Expected:** fix runs using findings from `results.json` without re-scanning;
+diff output matches the re-scan path; exit 0.
+
+```bash
+# Clean config produces no diff (nothing to fix)
+echo '{"mcpServers": {}}' > "$SCRATCH/clean-fix.json"
+mcp-audit fix "$SCRATCH/clean-fix.json"
+echo "exit: $?"
+```
+
+**Expected:** "No fixable findings" (or similar); exit 0; no diff output.
+
+---
+
+## Section 34 — register (opt-in telemetry)
+
+```bash
+# --status before any registration
+mcp-audit register --status
+echo "exit: $?"
+```
+
+**Expected:** shows current registration status ("not registered" or "registered
+as <uuid>"); exit 0. Must not crash.
+
+```bash
+# --clear on unregistered machine is a no-op
+mcp-audit register --clear
+echo "exit: $?"
+```
+
+**Expected:** "No registration to clear" or similar; exit 0.
+
+> **Note:** Do NOT run `mcp-audit register` (interactive flow) in a headless
+> CI environment — it prompts for input. Test the --status and --clear flags
+> only in automated contexts. The interactive flow is for Adam's manual smoke test.
 
 ---
 
