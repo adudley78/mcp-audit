@@ -515,6 +515,13 @@
       "owasp_codes": ["MCP09"],
       "owasp_names": ["Shadow MCP Servers"],
       "notes": "Community rule companion to TRUST-001. LOW severity — refer users to 'mcp-audit scan --project' for full TRUST-001 analysis. CWE-829."
+    },
+    {
+      "finding_id": "COLLIDE-001",
+      "finding_title": "Tool name collision: tool claimed by multiple servers",
+      "owasp_codes": ["MCP01", "MCP09"],
+      "owasp_names": ["Token Mismanagement and Secret Exposure", "Shadow MCP Servers"],
+      "notes": "Requires --connect (live enumeration). Fires when >=2 distinct servers advertise the same tool name (case-sensitive). MEDIUM by default; HIGH when one claimant is registry-verified and another is not (unknown server shadowing a trusted tool). NSA CSI item 5. CWE-694."
     }
   ],
   "dynamic_patterns": [
@@ -567,5 +574,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 81 static finding IDs are mapped (60 original + 21 new: COMM-000 template + COMM-016 through COMM-033 + AUTH-001 + AUTH-002 + TRUST-001). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 82 static finding IDs are mapped (60 original + 22 new: COMM-000 template + COMM-016 through COMM-033 + AUTH-001 + AUTH-002 + TRUST-001 + COLLIDE-001). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
 }

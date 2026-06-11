@@ -20,7 +20,14 @@ from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import DiscoveredConfig, discover_configs
-from mcp_audit.models import Finding, RegistryStats, ScanResult, ServerConfig, Severity
+from mcp_audit.models import (
+    Finding,
+    RegistryStats,
+    ScanResult,
+    ServerConfig,
+    ServerEnumeration,
+    Severity,
+)
 from mcp_audit.scoring import calculate_score
 
 if TYPE_CHECKING:
@@ -420,6 +427,9 @@ async def run_scan_async(
         )
 
         poisoning = PoisoningAnalyzer()
+        # Accumulate successful (server, enumeration) pairs for cross-server
+        # tool-name collision detection (COLLIDE-001) after the per-server loop.
+        connect_pairs: list[tuple[ServerConfig, ServerEnumeration]] = []
 
         for server in all_servers:
             enumeration = await connect_and_enumerate(server, auth_token=auth_token)
@@ -433,6 +443,9 @@ async def run_scan_async(
             if enumeration.error:
                 result.errors.append(f"[connect] {server.name}: {enumeration.error}")
                 continue
+
+            # Record successful enumeration for collision detection.
+            connect_pairs.append((server, enumeration))
 
             runtime_config = build_runtime_server_config(server, enumeration)
             if runtime_config is None:
@@ -448,6 +461,22 @@ async def run_scan_async(
                 result.findings.append(
                     _analyzer_crash_finding("poisoning (runtime)", server, e)
                 )
+
+        # ── Cross-server tool-name collision detection (COLLIDE-001) ──────────
+        # Requires at least two successfully connected servers to compare.
+        if len(connect_pairs) >= 2:
+            from mcp_audit.analyzers.collision import (  # noqa: PLC0415
+                detect_tool_collisions,
+            )
+
+            try:
+                result.findings.extend(
+                    detect_tool_collisions(
+                        connect_pairs, registry=_extract_registry(analyzers)
+                    )
+                )
+            except Exception as e:  # noqa: BLE001
+                result.errors.append(f"collision error: {e}")
 
     return _run_static_pipeline(
         result=result,

@@ -220,6 +220,8 @@ We don't accept detection patterns based on undisclosed or private research.
 
 33 bundled community detection rules (COMM-001 through COMM-033, with gaps for
 retired IDs) ship with mcp-audit and run for all users automatically.
+(COMM-032 is intentionally reserved and unissued; the next new rule will be COMM-034.
+See the COLLIDE-001 section below for why COMM-032 was skipped.)
 
 | Rule | Description | Basis |
 |------|-------------|-------|
@@ -292,3 +294,41 @@ The discovery logic (`discover_project_configs()`) and the confirmed per-client
 project-file paths were verified against official 2026 documentation from
 Anthropic (Claude Code), Cursor, and Microsoft (VS Code / GitHub Copilot).
 See `src/mcp_audit/discovery.py` for inline references and coverage notes.
+
+## Tool-name collision detection (analyzers/collision.py — COLLIDE-001)
+
+The `COLLIDE-001` finding and its detection logic in
+`src/mcp_audit/analyzers/collision.py` are based on:
+
+- **NSA Cybersecurity Information Sheet "Generative AI and LLM Cybersecurity
+  Risks"** (April 2025), item 5 — *Namespace Shadowing / Tool Collision*.
+  The NSA CSI explicitly names namespace shadowing as a control that
+  organisations deploying MCP servers should mitigate: when multiple servers
+  expose a tool with the same name, the AI agent's tie-breaking behaviour is
+  undocumented, creating a pathway for a malicious server to intercept calls
+  intended for a trusted one.
+  ([NSA CSI PDF](https://media.defense.gov/2025/Apr/14/2003500458/-1/-1/0/CSI-CYBERSECURITY-FOR-AI.PDF))
+
+- **OWASP MCP Top 10 MCP01 — Token Mismanagement and Secret Exposure** —
+  When a rogue tool intercepts an agent call, it receives the tool arguments
+  (which may include tokens, credentials, or sensitive data) instead of the
+  legitimate server.
+
+- **OWASP MCP Top 10 MCP09 — Shadow MCP Servers** — A server that shadows a
+  trusted tool name is, by definition, a shadow server: it is present in the
+  agent's namespace without the user's knowledge or consent.
+
+- **CWE-694 — Target of Evaluation Not Clearly Defined**
+  ([MITRE CWE](https://cwe.mitre.org/data/definitions/694.html)) — When
+  multiple targets (tools) share the same identifier (name), the evaluation
+  target is ambiguous; the agent cannot reliably determine which implementation
+  it is invoking.
+
+**Why COMM-032 was not issued:** A companion community rule for COLLIDE-001 was
+evaluated and rejected.  Static MCP config files do not contain tool lists —
+tool names are returned dynamically by running servers via the MCP `tools/list`
+RPC.  A rule that fires on static config content cannot detect tool-name
+collisions; any static heuristic (e.g. flagging two servers with the same server
+*name*) would produce misleading findings.  Shipping a dead or misleading rule
+inflates the corpus count and weakens trust in the rule pack.  COMM-032 is
+therefore reserved as an unissued ID; the next new community rule will be COMM-034.

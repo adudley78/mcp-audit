@@ -241,6 +241,38 @@ schema (`context_servers`). See GAPS.md — *Project scan coverage limits*.
 
 ---
 
+### Collision analyzer (`analyzers/collision.py`, finding ID `COLLIDE-001`)
+
+`COLLIDE-001` fires when live `tools/list` enumeration (via `--connect`)
+reveals that two or more **distinct** MCP servers advertise the same tool name.
+The finding does not fire in static-only scans — MCP config files do not
+declare tool names.
+
+| Finding ID   | Severity | OWASP MCP Top 10 | Rationale |
+|--------------|----------|------------------|-----------|
+| COLLIDE-001  | MEDIUM   | MCP01 + MCP09 | Two or more distinct servers expose the same tool name. Agent tie-break is undocumented/order-dependent; attacker can register a colliding name to intercept calls. NSA CSI item 5. CWE-694. |
+| COLLIDE-001  | HIGH     | MCP01 + MCP09 | Same collision, AND one claimant is registry-verified while at least one is not. Unknown server shadowing a trusted tool name is the strongest indicator of a namespace-shadowing attack. |
+
+**Severity escalation logic:**
+
+1. Look up every colliding server against `known-servers.json` via
+   `_is_registry_known()` (checks command, args, and server name).
+2. If at least one claimant is registry-known **and** at least one is not →
+   HIGH.  The disparity suggests an attacker registered a look-alike or
+   injected an extra server to shadow the trusted one.
+3. If all claimants are registry-known, or all are unknown → MEDIUM.
+   Two known-legitimate servers sharing a tool name is unusual but may be
+   intentional (e.g. two versions of the same server configured in parallel).
+
+**Scope and limitations:**
+
+- Requires `--connect` (live enumeration). No static signal exists.
+- Comparison is case-sensitive: `read_file` and `Read_File` are distinct names.
+- No Levenshtein / near-miss detection in v1.
+- Servers that fail to connect are excluded from comparison.
+
+---
+
 ### Rule engine (`rules/`)
 
 Community rule severities (COMM-001 through COMM-013) are defined in their

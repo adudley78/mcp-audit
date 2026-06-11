@@ -74,6 +74,34 @@ runs on those servers too.
 
 ---
 
+## Tool-name collision detection (COLLIDE-001)
+
+**Static collision detection is not possible.**  MCP config files (`mcp.json`,
+`claude_desktop_config.json`, etc.) record how to *launch* or *connect to* a
+server (command, args, URL) but do not declare the tool names the server
+exposes.  Tool names are returned dynamically by the server at runtime via the
+MCP `tools/list` response.  Without running the servers, there is no data to
+compare.
+
+As a result, `COLLIDE-001` requires `--connect`.  When `mcp-audit scan
+--connect` successfully enumerates at least two servers, their live tool lists
+are compared and any shared tool name is flagged.  A plain static scan produces
+no COLLIDE-001 findings — this is correct behaviour, not a gap in the
+detection logic.
+
+**Known coverage limits:**
+
+- **Only successfully connected servers are compared.**  If a server times out
+  or returns an enumeration error, it is excluded from the collision index.
+  A malicious server could refuse connections to avoid detection.
+- **No Levenshtein / near-miss detection.**  Tool-name comparison is exact and
+  case-sensitive.  `read_file` and `Read_File` are treated as distinct names.
+  Near-miss shadowing (e.g. `readFile` vs `read_file`) is out of scope for v1.
+- **No runtime enforcement or pinning.**  COLLIDE-001 is a detection-only
+  finding; it does not prevent the agent from calling the wrong tool.
+
+---
+
 ## Authentication checks (AUTH-001 / AUTH-002)
 
 ~~**No check for unauthenticated remote MCP servers.**~~ **Resolved v0.12.0.**
