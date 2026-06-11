@@ -43,6 +43,31 @@ Tracked here when: (a) the vulnerability is transitive-only, (b) no patched vers
 
 - **Stale doc counts and claims** (fixed 2026-04-16): README test counts (546/517 → 845), registry count (43 → 57), CLAUDE.md test/command counts, and multiple docs inaccuracies corrected. SARIF score documentation in `docs/scoring.md` updated. Stale proxy-gate note in `docs/registry.md` removed. `docs/github-action.md` drift severity table and nonexistent `baseline import` command corrected. OSV.dev references in `docs/enterprise-deployment.md` removed (feature not implemented).
 
+## Authentication checks (AUTH-001 / AUTH-002)
+
+~~**No check for unauthenticated remote MCP servers.**~~ **Resolved v0.12.0.**
+`AUTH-001` in `analyzers/auth.py` flags remote (HTTP/SSE/Streamable-HTTP)
+servers with no authentication material in their config. Severity is HIGH for
+public hosts and MEDIUM for private (RFC 1918 / `*.local`) hosts. Localhost is
+exempt. Fires for all supported clients: suppressed by any Authorization /
+x-api-key / api-key header, token/apiKey/auth/bearer raw field, OAuth settings,
+or URL userinfo. Research basis: arXiv 2605.22333 (40.55% of 7,973 live remote
+MCP servers unauthenticated); Censys (12,520 internet-exposed MCP services).
+
+**AUTH-002 coverage limits (v0.12.0).**
+`AUTH-002` checks OAuth-configured servers for RFC 8707 audience/resource
+binding, but OAuth config shapes vary significantly across MCP clients. The
+check covers: `oauth`/`oauth2` dict blocks, `auth.type: oauth2` nested blocks,
+and flat top-level `client_id` + `authorization_endpoint` co-occurrence. Formats
+not matching these three patterns produce no finding (false negative tolerance is
+intentional — prefer silence over noise for auth checks). Clients that store
+OAuth config under non-standard root keys (e.g. `authorization` or a
+vendor-specific key) will not be covered. Expand `_OAUTH_FIELD_NAMES` in
+`analyzers/auth.py` as new patterns are confirmed by practitioner review.
+Dynamic-client-registration flaws found in 96.6% of OAuth-enabled MCP servers
+by arXiv 2605.22333 are out of scope for static analysis (require live
+`/.well-known/oauth-authorization-server` fetch).
+
 ## Detection quality
 
 **False positive rate benchmarked at 0% across 22 servers (2026-04-23).** The poisoning analyzer was validated against 12 official `@modelcontextprotocol/*` servers and 10 popular community servers. Zero poisoning false positives were found. See `tests/test_false_positive_benchmark.py` for the full benchmark — this is now a regression test. Acceptable non-FP findings on legitimate servers: TRANSPORT-003 (runtime package fetch, expected for all npx/uvx servers), COMM-010 (npx without pinned version). Note: the "base64 encode" false positive from the filesystem server's runtime tool descriptions (fetched via `--connect`) is not covered by static analysis and remains a known limitation of the live connection path.

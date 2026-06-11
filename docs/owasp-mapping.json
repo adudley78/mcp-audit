@@ -480,6 +480,20 @@
       "finding_title": "Generic-named server with network transport URL",
       "owasp_codes": ["MCP09", "MCP07"],
       "owasp_names": ["Shadow MCP Servers", "Excessive MCP Agent Permissions"]
+    },
+    {
+      "finding_id": "COMM-031",
+      "finding_title": "Remote MCP server configured without authentication",
+      "owasp_codes": ["MCP06"],
+      "owasp_names": ["Intent Flow Subversion"],
+      "notes": "Lightweight URL-pattern signal. For full severity tiering and auth-signal suppression, see AUTH-001 from the auth analyzer."
+    },
+    {
+      "finding_id": "AUTH-001",
+      "finding_title": "Remote MCP server configured without authentication",
+      "owasp_codes": ["MCP06"],
+      "owasp_names": ["Intent Flow Subversion"],
+      "notes": "Severity HIGH for public hosts, MEDIUM for private/RFC-1918 hosts. arXiv 2605.22333: 40.55% of 7,973 live remote MCP servers unauthenticated. CWE-306."
     }
   ],
   "dynamic_patterns": [
@@ -532,5 +546,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 76 static finding IDs are mapped (60 original + 16 new: COMM-000 template + COMM-016 through COMM-030). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 78 static finding IDs are mapped (60 original + 18 new: COMM-000 template + COMM-016 through COMM-031 + AUTH-001). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
 }

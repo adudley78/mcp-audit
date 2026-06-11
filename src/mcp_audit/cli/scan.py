@@ -20,6 +20,7 @@ from rich.rule import Rule
 
 from mcp_audit import cli as _cli
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
+from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import (
@@ -283,6 +284,7 @@ def _build_custom_analyzers(
         CredentialsAnalyzer(),
         TransportAnalyzer(registry=supply_chain.registry),
         supply_chain,
+        AuthAnalyzer(),
     ]
 
 

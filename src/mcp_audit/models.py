@@ -88,6 +88,11 @@ class ServerConfig(BaseModel):
     args: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     url: str | None = None
+    # HTTP headers explicitly configured for this server (e.g. Authorization,
+    # x-api-key).  Populated by the parser from the "headers" key in the raw
+    # server entry.  Present across all supported clients — the MCP config
+    # format is identical for Claude Desktop, Cursor, VS Code, and others.
+    headers: dict[str, str] = Field(default_factory=dict)
     raw: dict = Field(default_factory=dict)
     # MCP capability declarations from the server config entry.
     # e.g. {"sampling": {}, "resources": {"subscribe": True}}

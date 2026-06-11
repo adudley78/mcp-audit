@@ -105,6 +105,40 @@ The attack path engine performs multi-hop reachability analysis across server ca
 - **Greedy set cover / hitting set approximation** — This is a well-known polynomial-time approximation for a classic NP-hard combinatorial optimization problem. The greedy algorithm achieves a ln(n) approximation bound (where n is the number of attack paths), which is optimal assuming P ≠ NP. No specific security research paper is cited here; this is standard computer science applied to a novel domain. The algorithm is described in any algorithms textbook (e.g., Cormen et al., *Introduction to Algorithms*, §35.3 — Set Cover).
 - The framing of "minimum set of assets to remove to break all attack paths" is analogous to network interdiction problems in operations research, applied here to MCP server dependency graphs.
 
+### Authentication checks (analyzers/auth.py)
+
+AUTH-001 (remote server without authentication) and AUTH-002 (OAuth audience
+binding) were added in v0.12.0 based on the following published research.
+
+**Research sources:**
+
+- **arXiv 2605.22333** — "Security Analysis of Remote MCP Server Deployments"
+  (2026). Largest published measurement study of live remote MCP servers:
+  scanned 7,973 servers and found 40.55% require no authentication. Also
+  evaluated 119 OAuth-enabled MCP servers and found every one had at least one
+  flaw (325 total); dynamic-client-registration (DCR) vulnerabilities affected
+  96.6% of the OAuth-enabled sample. Both AUTH-001 and AUTH-002 cite this study
+  directly in their finding descriptions.
+- **Censys** — Internet-scanning report (June 2026) counting 12,520
+  internet-exposed MCP services, the majority unauthenticated. Cited in the
+  AUTH-001 description to quantify internet exposure.
+- **RFC 8707** — "Resource Indicators for OAuth 2.0" (IETF, 2020). Defines the
+  `resource` parameter and audience binding requirements that AUTH-002 checks
+  for. The missing-audience attack (token cross-resource replay) is documented
+  in Section 2.2 of the RFC.
+- **CWE-306** — "Missing Authentication for Critical Function" (MITRE). AUTH-001
+  is a direct instance: every MCP tool call is a critical function invocable
+  by anyone who can reach the URL without authentication.
+- **CWE-346** — "Origin Validation Error" (MITRE). AUTH-002 maps here: a missing
+  audience binding allows tokens from any origin that shares the issuer to be
+  accepted.
+- **OWASP MCP Top 10 MCP06** — "Intent Flow Subversion" (insufficient
+  authentication/authorization). Both AUTH-001 and AUTH-002 are MCP06 findings.
+
+No code was copied from any existing authentication scanner. The host-visibility
+classification (public / private-RFC-1918 / localhost), auth-signal detection,
+and OAuth-block extraction logic are original implementations.
+
 ### SAST rules — TypeScript path traversal, SQL injection, SSRF (semgrep-rules/typescript/injection/)
 
 New TypeScript detection rules added in v0.6.0: `mcp-ts-fs-readfile-traversal`,
@@ -184,7 +218,7 @@ We don't accept detection patterns based on undisclosed or private research.
 
 ## Community rules (rules/community/)
 
-30 bundled community detection rules (COMM-001 through COMM-030) ship with
+31 bundled community detection rules (COMM-001 through COMM-031) ship with
 mcp-audit and run for all users automatically.
 
 | Rule | Description | Basis |
@@ -219,6 +253,7 @@ mcp-audit and run for all users automatically.
 | COMM-028 | Command is an absolute path | OWASP MCP Top 10 MCP04 (Supply Chain Risk); absolute paths bypass PATH-based discovery and may indicate sideloaded binaries; CWE-114 (process control) |
 | COMM-029 | Command references temp/volatile directory | OX Security / CVE-2026-30623 (CVSS 9.8); OWASP MCP Top 10 MCP04; malware writing rogue MCP servers to /tmp is a documented installation vector; CWE-377 |
 | COMM-030 | Generic-named server with network URL | OWASP MCP Top 10 MCP09 (Shadow Servers) and MCP07; unnamed network servers resist discovery, fleet auditing, and access-review workflows |
+| COMM-031 | Remote MCP server configured without authentication | arXiv 2605.22333 (40.55% of live remote MCP servers unauthenticated); Censys (12,520 internet-exposed MCP services); CWE-306; OWASP MCP Top 10 MCP06. Lightweight URL-pattern companion to AUTH-001 in auth.py. |
 
 All community rules are original implementations based on common security
 practice and published CWE categories. None are derived from proprietary

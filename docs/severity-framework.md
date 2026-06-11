@@ -172,6 +172,37 @@ the two exploitation pre-conditions that malware relied on.
 
 ---
 
+### Auth analyzer (`analyzers/auth.py`)
+
+The auth analyzer checks remote MCP server configurations for the presence of
+authentication material (AUTH-001) and checks OAuth-configured servers for
+audience/resource binding per RFC 8707 (AUTH-002).
+
+**Research basis:**
+- **arXiv 2605.22333** — Measurement study that scanned 7,973 live remote MCP
+  servers and found 40.55% require no authentication. Also tested 119
+  OAuth-enabled servers and found every one had at least one flaw (325 total;
+  dynamic-client-registration flaws in 96.6%).
+- **Censys** — Internet-scanning report counting 12,520 internet-exposed MCP
+  services, the majority unauthenticated.
+- **RFC 8707** — Resource Indicators for OAuth 2.0. Absence of a concrete
+  audience/resource binding creates token cross-resource replay risk.
+
+| Finding ID | Severity              | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------------------|----------------------|------------------|-----------|
+| AUTH-001   | HIGH (public host)   | ASI05 | MCP06 | Remote server with no auth material. Public-routable host: anyone on the internet can call every tool. 40.55% of measured live remote MCP servers unauthenticated (arXiv 2605.22333). CWE-306. CVSS: 8.2 |
+| AUTH-001   | MEDIUM (private host) | ASI05 | MCP06 | Same check for RFC 1918 / `*.local` hosts — reachable within the network segment. CWE-306. CVSS: 5.3 |
+
+**Suppression rules for AUTH-001** (any one suppresses):
+- `Authorization`, `x-api-key`, `api-key`, `x-auth-token`, `x-access-token`,
+  `api_key`, or `token` header in `server.headers` (case-insensitive).
+- `token`, `apiKey`, `api_key`, `auth`, `bearer`, `authorization`,
+  `access_token`, or `secret` field at the top level of the raw server entry.
+- Any OAuth-related field (`oauth`, `oauth2`, `authorization_endpoint`,
+  `client_id`, `token_endpoint`).
+- URL userinfo component (`https://user:pass@host` or `https://token@host`).
+- `stdio` transport — local trust boundary, never fires.
+
 ### Rule engine (`rules/`)
 
 Community rule severities (COMM-001 through COMM-013) are defined in their

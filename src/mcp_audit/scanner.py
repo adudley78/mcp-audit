@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from platformdirs import user_config_dir
 
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
+from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.config_hygiene import ConfigHygieneAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
@@ -177,6 +178,7 @@ def get_default_analyzers() -> list[BaseAnalyzer]:
         TransportAnalyzer(registry=supply_chain.registry),
         supply_chain,
         ConfigHygieneAnalyzer(),
+        AuthAnalyzer(),
     ]
 
 

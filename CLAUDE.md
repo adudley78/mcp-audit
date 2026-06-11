@@ -78,6 +78,7 @@ src/mcp_audit/
 │   ├── supply_chain.py# Package provenance and typosquatting detection (registry-backed)
 │   ├── rug_pull.py    # Description change detection via hashing
 │   ├── toxic_flow.py  # Cross-server capability tagging and dangerous pair detection
+│   ├── auth.py        # Remote server authentication checks (AUTH-001, AUTH-002)
 │   └── attack_paths.py# Multi-hop attack path detection and greedy hitting set algorithm
 ├── attestation/
 │   ├── __init__.py    # Package marker
@@ -273,7 +274,7 @@ Do not attempt to resolve architectural ambiguity by guessing. Flag it.
 Prototype complete (April 11, 2026). Built in a single day; extended April 12–13.
 
 What's built:
-- 7 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow, config hygiene
+- 8 analyzers: poisoning, credentials, transport, supply chain, rug-pull, toxic flow, config hygiene, auth
 - Attack path engine with multi-hop detection and greedy hitting set algorithm
 - 5 output formats: terminal, JSON, SARIF, Nucleus FlexConnect, HTML dashboard
 - Interactive D3 attack graph dashboard with light/dark mode (`mcp-audit dashboard`)
@@ -284,7 +285,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 34 findings across all demo configs (8 per-config for `claude_desktop_config.json`; community rules analyzer included). Note: the full 3-config scan produces 2 more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone.
-- 2069 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 2112 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 22 top-level CLI commands: check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, push-nucleus, shadow, killchain, snapshot, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
@@ -294,7 +295,7 @@ What's built:
 - **Baseline snapshot & drift detection** — 5 new `baseline` sub-commands (save, list, compare, delete, export); `scan --baseline NAME/latest` injects drift findings into all output formats; storage in `<user-config-dir>/mcp-audit/baselines/` (resolved via `platformdirs`) with 0o700 dir / 0o600 file permissions; env values never stored, only key names; see `docs/baselines.md`
 - **Scan Score** — every scan now produces a numeric score (0–100) and letter grade (A–F); see `scoring.py` and `docs/scoring.md`
 - **Known-Server Registry** — 75-entry curated dataset of legitimate MCP servers replaces the hardcoded YAML in the supply chain analyzer and now also owns toxic-flow capability tags via the optional `RegistryEntry.capabilities` field; see `registry/known-servers.json` and `docs/registry.md`
-- **Policy-as-code rule engine** (Chain Reaction Feature) — YAML-based custom detection rules; 31 community rules ship bundled and run for ALL users; `rule validate` / `rule test` / `rule list` subcommands; `scan --rules-dir PATH` and `<user-config-dir>/mcp-audit/rules/` for user-local rules; all rule commands are available to every user; rule findings flow through all output formats automatically; see `docs/writing-rules.md` and `rules/README.md`
+- **Policy-as-code rule engine** (Chain Reaction Feature) — YAML-based custom detection rules; 32 community rules ship bundled and run for ALL users; `rule validate` / `rule test` / `rule list` subcommands; `scan --rules-dir PATH` and `<user-config-dir>/mcp-audit/rules/` for user-local rules; all rule commands are available to every user; rule findings flow through all output formats automatically; see `docs/writing-rules.md` and `rules/README.md`
 - **Community rule contribution program** — `TEMPLATE.yml`, `BOUNTY.md`, and `docs/contributing-rules.md` provide a 30-minute on-ramp for security practitioners to contribute detection rules; first 50 accepted contributors named in changelog and `docs/contributors.md`; see `docs/community-rule-spec.md` for the published YAML spec (Apache 2.0, ecosystem-adoptable)
 - **Pre-commit hook** (Chain Reaction Feature) — `.pre-commit-hooks.yaml` at repo root; `language: python`, `entry: mcp-audit`, `pass_filenames: false`, `types: [json]`; default threshold is HIGH; `examples/pre-commit/` has basic and strict configs; see `docs/pre-commit.md`
 - **Governance policy engine** — YAML-based organisational requirements (approved server lists, score thresholds, transport constraints, registry membership, finding tolerances); `policy validate` / `policy init` / `policy check` subcommands; `scan --policy PATH` flag auto-discovers `.mcp-audit-policy.yml` in cwd / repo root; all governance commands are available to every user; governance findings flow through all output formats; terminal output shows a distinct yellow "Policy Violations" panel; SARIF governance findings tagged `governance-policy` with `GOV-` rule IDs; see `docs/governance.md` and `examples/policies/`
@@ -327,7 +328,7 @@ All detection patterns are original implementations based on published security
 research. No code was copied from existing scanners. Full source attribution is
 documented in PROVENANCE.md — read it before adding new detection patterns.
 Every new pattern must cite its research source.
-The project now has 7 analyzers with patterns sourced from the research listed in PROVENANCE.md. Update PROVENANCE.md when adding new detection patterns or analyzers.
+The project now has 8 analyzers with patterns sourced from the research listed in PROVENANCE.md. Update PROVENANCE.md when adding new detection patterns or analyzers.
 See GAPS.md for known detection quality limitations, severity calibration issues, and untested areas. Consult before claiming detection completeness or accuracy.
 
 ## Commit history audit (2026-04-17)
