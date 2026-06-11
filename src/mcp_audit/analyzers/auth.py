@@ -14,6 +14,16 @@ AUTH-001 — Remote server without authentication
     servers as requiring no authentication; Censys counted 12,520 internet-exposed
     MCP services, the majority unauthenticated.  CWE-306 / OWASP MCP06.
 
+AUTH-002 — OAuth-configured server without audience binding
+    Fires when a server config carries OAuth-related settings but lacks an
+    explicit audience or resource indicator.  Per RFC 8707, a missing or
+    wildcard audience allows tokens issued for one resource server to be
+    replayed against another.  The study that measured AUTH-001 found that
+    every one of 119 OAuth-enabled remote servers it examined had at least one
+    flaw (325 total; dynamic-client-registration flaws in 96.6%).  This check
+    covers only the static slice: is an audience/resource indicator declared?
+    CWE-346 (origin validation) / OWASP MCP06.
+
 No network calls are made.  DNS is never resolved.  Classification is
 performed purely by string/IP analysis of the configured URL.
 """
@@ -66,6 +76,25 @@ _OAUTH_FIELD_NAMES: frozenset[str] = frozenset(
         "client_id",
     }
 )
+
+# ── AUTH-002: OAuth audience constants ────────────────────────────────────────
+
+# Keys inside an OAuth config block that carry audience/resource indicator.
+_AUDIENCE_KEYS: frozenset[str] = frozenset(
+    {
+        "audience",
+        "resource",
+        "resource_indicator",
+        "aud",
+    }
+)
+
+# Wildcard audience values that are functionally equivalent to "no binding".
+_WILDCARD_AUDIENCE_VALUES: frozenset[str] = frozenset({"*", "any", ""})
+
+# Env key name fragments that indicate an audience is supplied via env var
+# (treated as "bound" per the security invariant: never read env values).
+_AUDIENCE_ENV_KEY_FRAGMENTS: frozenset[str] = frozenset({"audience", "resource", "aud"})
 
 # ── Localhost / private-range helpers ─────────────────────────────────────────
 
@@ -198,6 +227,66 @@ def _is_remote_transport(server: ServerConfig) -> bool:
     )
 
 
+# ── OAuth audience helpers ────────────────────────────────────────────────────
+
+
+def _extract_oauth_block(raw: dict) -> dict | None:
+    """Return the OAuth configuration block from *raw*, or None.
+
+    Supported layouts (in priority order):
+    1. ``{"oauth": {...}}`` or ``{"oauth2": {...}}``
+    2. ``{"auth": {"type": "oauth*", ...}}``
+    3. Flat keys: ``authorization_endpoint``, ``client_id``, ``token_endpoint``
+       are surfaced as a synthetic block.
+    """
+    for key in ("oauth", "oauth2"):
+        val = raw.get(key)
+        if isinstance(val, dict):
+            return val
+
+    auth_block = raw.get("auth")
+    if isinstance(auth_block, dict):
+        auth_type = str(auth_block.get("type", "")).lower()
+        if "oauth" in auth_type or "o2" in auth_type:
+            return auth_block
+
+    # Flat layout: treat top-level oauth fields as the block itself.
+    flat = {k: v for k, v in raw.items() if k.lower() in _OAUTH_FIELD_NAMES}
+    return flat if flat else None
+
+
+def _oauth_audience_state(oauth_block: dict, env: dict[str, str]) -> tuple[bool, str]:
+    """Determine whether an OAuth block contains a valid audience/resource binding.
+
+    Returns:
+        ``(bound, evidence)`` where *bound* is ``True`` when the audience is
+        present and non-wildcard.  *evidence* is a human-readable explanation
+        for use in finding descriptions.
+
+    Env key names are checked (not values) per the security invariant: if a
+    key matching an audience fragment is present, the audience is considered
+    bound via environment variable.
+    """
+    # 1. Explicit audience/resource key in the OAuth block.
+    for key in oauth_block:
+        norm = key.lower()
+        if norm in _AUDIENCE_KEYS:
+            val = str(oauth_block[key]).strip()
+            if val in _WILDCARD_AUDIENCE_VALUES:
+                return False, f"wildcard audience ({key!r}: {val!r})"
+            # Non-empty, non-wildcard concrete value → bound.
+            return True, f"audience bound via {key!r}"
+
+    # 2. Env key names that suggest audience is supplied at runtime.
+    for env_key in env:
+        lower_key = env_key.lower()
+        if any(frag in lower_key for frag in _AUDIENCE_ENV_KEY_FRAGMENTS):
+            return True, f"audience bound via env key {env_key!r}"
+
+    # 3. No audience found.
+    return False, "no audience/resource binding"
+
+
 # ── Analyzer ──────────────────────────────────────────────────────────────────
 
 
@@ -210,6 +299,12 @@ class AuthAnalyzer(BaseAnalyzer):
         Severity tiered by host visibility (HIGH for public, MEDIUM for
         private).  Localhost servers are exempt (local trust boundary).
         stdio servers never fire.
+
+    AUTH-002 — OAuth-configured server without audience/resource binding.
+        Conservative: only fires when an explicit OAuth block is detected AND
+        neither a concrete audience value nor a recognisable env key name is
+        present.  Prefers false negatives over noisy false positives because
+        OAuth config shapes vary widely across MCP clients.
     """
 
     @property
@@ -227,6 +322,10 @@ class AuthAnalyzer(BaseAnalyzer):
             finding = self._check_auth001(server)
             if finding is not None:
                 findings.append(finding)
+
+        finding_002 = self._check_auth002(server)
+        if finding_002 is not None:
+            findings.append(finding_002)
 
         return findings
 
@@ -294,5 +393,48 @@ class AuthAnalyzer(BaseAnalyzer):
                 " Consider IP-allowlisting or VPN for additional defence."
             ),
             cwe="CWE-306",
+            owasp_mcp_top_10=["MCP06"],
+        )
+
+    # ── AUTH-002 ───────────────────────────────────────────────────────────────
+
+    def _check_auth002(self, server: ServerConfig) -> Finding | None:
+        """Emit AUTH-002 when OAuth is configured but audience binding is absent."""
+        oauth_block = _extract_oauth_block(server.raw)
+        if oauth_block is None:
+            return None
+
+        bound, evidence = _oauth_audience_state(oauth_block, server.env)
+        if bound:
+            return None
+
+        return Finding(
+            id="AUTH-002",
+            severity=Severity.MEDIUM,
+            analyzer=self.name,
+            client=server.client,
+            server=server.name,
+            title="OAuth-configured server missing audience/resource binding",
+            description=(
+                f"Server '{server.name}' declares OAuth settings but does not"
+                " bind a specific audience or resource indicator. Per RFC 8707"
+                " (Resource Indicators for OAuth 2.0), a missing or wildcard"
+                " audience allows tokens issued for one resource server to be"
+                " replayed against any other server that accepts the same"
+                " issuer. A measurement study (arXiv 2605.22333) found every"
+                " one of 119 OAuth-enabled remote MCP servers had at least one"
+                " flaw (325 total); dynamic-client-registration"
+                " vulnerabilities affected 96.6%."
+            ),
+            evidence=f"Server: {server.name} | OAuth evidence: {evidence}",
+            remediation=(
+                "Add an 'audience' (or 'resource') field to the OAuth block"
+                " specifying the exact URL of this resource server"
+                " (e.g. 'audience: https://api.example.com/mcp')."
+                " Alternatively, reference the value via an env key"
+                " (e.g. OAUTH_AUDIENCE=${OAUTH_AUDIENCE}) to allow"
+                " per-environment configuration without hardcoding."
+            ),
+            cwe="CWE-346",
             owasp_mcp_top_10=["MCP06"],
         )

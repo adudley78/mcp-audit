@@ -192,6 +192,14 @@ audience/resource binding per RFC 8707 (AUTH-002).
 |------------|----------------------|----------------------|------------------|-----------|
 | AUTH-001   | HIGH (public host)   | ASI05 | MCP06 | Remote server with no auth material. Public-routable host: anyone on the internet can call every tool. 40.55% of measured live remote MCP servers unauthenticated (arXiv 2605.22333). CWE-306. CVSS: 8.2 |
 | AUTH-001   | MEDIUM (private host) | ASI05 | MCP06 | Same check for RFC 1918 / `*.local` hosts — reachable within the network segment. CWE-306. CVSS: 5.3 |
+| AUTH-002   | MEDIUM               | ASI05 | MCP06 | OAuth configured but audience/resource binding absent or wildcard. RFC 8707 violation; token cross-resource replay risk. CWE-346. CVSS: 5.3 |
+
+**Coverage limits (AUTH-002):**
+OAuth config shapes vary widely across MCP clients. The analyzer covers:
+`oauth`/`oauth2` dict blocks, `auth.type: oauth2` nested blocks, and
+flat top-level `client_id` + `authorization_endpoint` co-occurrence. Formats
+not matching these patterns will not fire (prefer false negatives over noise).
+See GAPS.md — *AUTH-002 coverage limits*.
 
 **Suppression rules for AUTH-001** (any one suppresses):
 - `Authorization`, `x-api-key`, `api-key`, `x-auth-token`, `x-access-token`,

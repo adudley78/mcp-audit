@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **AUTH-001 — Remote MCP server configured without authentication.** New `AuthAnalyzer` (8th analyzer) flags remote HTTP/SSE/Streamable-HTTP servers that carry no authentication material in their configuration. A measurement study (arXiv 2605.22333) found 40.55% of 7,973 live remote MCP servers require no authentication; Censys counted 12,520 internet-exposed MCP services, the majority unauthenticated. Severity is HIGH for internet-routable hosts and MEDIUM for RFC 1918 / `*.local` private hosts. Localhost servers are exempt. Suppressed by any of: `Authorization`/`x-api-key`/`api-key` header (including `${ENV_VAR}` placeholder values), `token`/`apiKey`/`auth`/`bearer` raw fields, OAuth settings, or URL userinfo. `ServerConfig` gains a new `headers` field parsed from the `"headers"` key in MCP config entries (all supported clients). CWE-306 / OWASP MCP06. Community rule COMM-031 ships as a lighter-weight URL-pattern companion.
 
+- **AUTH-002 — OAuth-configured server missing audience/resource binding.** Same `AuthAnalyzer` checks OAuth-enabled servers for RFC 8707 Resource Indicator compliance. A missing or wildcard `audience`/`resource` field allows tokens issued for one resource server to be replayed against any other server accepting the same issuer. Emits MEDIUM when an OAuth block is detected (flat `oauth`/`oauth2` key, `auth.type: oauth2` block, or flat `client_id`+`authorization_endpoint` fields) and neither a concrete audience value nor an audience-referencing env key name is present. CWE-346 / OWASP MCP06.
+
 ---
 
 ## [0.11.0] - 2026-05-30

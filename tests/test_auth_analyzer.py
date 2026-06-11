@@ -1,4 +1,4 @@
-"""Tests for mcp_audit.analyzers.auth — AUTH-001."""
+"""Tests for mcp_audit.analyzers.auth — AUTH-001 and AUTH-002."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ from unittest.mock import patch
 from mcp_audit.analyzers.auth import (
     AuthAnalyzer,
     _classify_host,
+    _extract_oauth_block,
+    _oauth_audience_state,
 )
 from mcp_audit.models import Finding, ServerConfig, Severity, TransportType
 
@@ -54,6 +56,10 @@ def _stdio_server(name: str = "local") -> ServerConfig:
 
 def _find_auth001(findings: list[Finding]) -> list[Finding]:
     return [f for f in findings if f.id == "AUTH-001"]
+
+
+def _find_auth002(findings: list[Finding]) -> list[Finding]:
+    return [f for f in findings if f.id == "AUTH-002"]
 
 
 # ── _classify_host ─────────────────────────────────────────────────────────────
@@ -295,6 +301,240 @@ class TestAuth001MalformedURL:
         assert _find_auth001(AuthAnalyzer().analyze(server)) == []
 
 
+# ── AUTH-002: acceptance criteria ─────────────────────────────────────────────
+
+
+class TestAuth002OAuthBlock:
+    """OAuth block present → check audience binding."""
+
+    def test_oauth_block_no_audience_emits_medium(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "oauth": {
+                    "client_id": "my-client",
+                    "authorization_endpoint": "https://auth.example.com/auth",
+                },
+            },
+        )
+        findings = _find_auth002(AuthAnalyzer().analyze(server))
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.MEDIUM
+
+    def test_oauth_block_with_concrete_audience_no_finding(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "oauth": {
+                    "client_id": "my-client",
+                    "audience": "https://api.example.com/mcp",
+                },
+            },
+        )
+        assert _find_auth002(AuthAnalyzer().analyze(server)) == []
+
+    def test_oauth_block_with_resource_field_no_finding(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "oauth": {
+                    "client_id": "my-client",
+                    "resource": "https://api.example.com",
+                },
+            },
+        )
+        assert _find_auth002(AuthAnalyzer().analyze(server)) == []
+
+    def test_wildcard_audience_emits_finding(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "oauth": {"client_id": "cli", "audience": "*"},
+            },
+        )
+        findings = _find_auth002(AuthAnalyzer().analyze(server))
+        assert len(findings) == 1
+        assert "wildcard" in findings[0].evidence.lower()
+
+    def test_oauth2_key_detected(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "oauth2": {"client_id": "cli"},
+            },
+        )
+        assert len(_find_auth002(AuthAnalyzer().analyze(server))) == 1
+
+    def test_auth_block_with_oauth_type(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "auth": {
+                    "type": "oauth2",
+                    "client_id": "cli",
+                    "authorization_endpoint": "https://auth.example.com/auth",
+                },
+            },
+        )
+        findings = _find_auth002(AuthAnalyzer().analyze(server))
+        assert len(findings) == 1
+
+    def test_auth_block_with_audience_no_finding(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "auth": {
+                    "type": "oauth2",
+                    "client_id": "cli",
+                    "audience": "https://api.example.com",
+                },
+            },
+        )
+        assert _find_auth002(AuthAnalyzer().analyze(server)) == []
+
+    def test_no_oauth_no_finding(self) -> None:
+        server = _server(url="https://api.example.com/mcp")
+        assert _find_auth002(AuthAnalyzer().analyze(server)) == []
+
+    def test_flat_layout_client_id_plus_auth_endpoint(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "client_id": "my-client",
+                "authorization_endpoint": "https://auth.example.com/authorize",
+            },
+        )
+        findings = _find_auth002(AuthAnalyzer().analyze(server))
+        assert len(findings) == 1
+
+    def test_env_key_audience_suppresses(self) -> None:
+        """Env KEY NAME matching 'audience' fragment treats binding as present."""
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "oauth": {"client_id": "cli"},
+            },
+            env={"OAUTH_AUDIENCE": "${OAUTH_AUDIENCE}"},
+        )
+        assert _find_auth002(AuthAnalyzer().analyze(server)) == []
+
+    def test_stdio_server_with_oauth_still_fires(self) -> None:
+        """AUTH-002 is not gated on transport type."""
+        server = ServerConfig(
+            name="stdio-oauth",
+            client="test",
+            config_path=Path("/tmp/t.json"),  # noqa: S108
+            transport=TransportType.STDIO,
+            command="node",
+            args=["srv.js"],
+            raw={
+                "command": "node",
+                "oauth": {"client_id": "cli", "authorization_endpoint": "https://x"},
+            },
+        )
+        assert len(_find_auth002(AuthAnalyzer().analyze(server))) == 1
+
+    def test_owasp_code_is_mcp06(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "oauth": {"client_id": "cli"},
+            },
+        )
+        findings = _find_auth002(AuthAnalyzer().analyze(server))
+        assert "MCP06" in findings[0].owasp_mcp_top_10
+
+    def test_cwe_is_346(self) -> None:
+        server = _server(
+            url="https://api.example.com/mcp",
+            raw={
+                "url": "https://api.example.com/mcp",
+                "oauth": {"client_id": "cli"},
+            },
+        )
+        findings = _find_auth002(AuthAnalyzer().analyze(server))
+        assert findings[0].cwe == "CWE-346"
+
+
+# ── _extract_oauth_block unit tests ───────────────────────────────────────────
+
+
+class TestExtractOauthBlock:
+    def test_oauth_key(self) -> None:
+        raw = {"oauth": {"client_id": "c"}}
+        block = _extract_oauth_block(raw)
+        assert block is not None
+        assert "client_id" in block
+
+    def test_oauth2_key(self) -> None:
+        raw = {"oauth2": {"client_id": "c"}}
+        block = _extract_oauth_block(raw)
+        assert block is not None
+
+    def test_auth_type_oauth2(self) -> None:
+        raw = {"auth": {"type": "oauth2", "client_id": "c"}}
+        block = _extract_oauth_block(raw)
+        assert block is not None
+
+    def test_auth_type_non_oauth_returns_none(self) -> None:
+        raw = {"auth": {"type": "basic"}}
+        block = _extract_oauth_block(raw)
+        assert block is None
+
+    def test_flat_layout(self) -> None:
+        raw = {"client_id": "c", "authorization_endpoint": "https://x"}
+        block = _extract_oauth_block(raw)
+        assert block is not None
+
+    def test_no_oauth_returns_none(self) -> None:
+        raw = {"command": "node", "token": "abc"}
+        block = _extract_oauth_block(raw)
+        assert block is None
+
+
+# ── _oauth_audience_state unit tests ─────────────────────────────────────────
+
+
+class TestOauthAudienceState:
+    def test_no_audience_not_bound(self) -> None:
+        bound, evidence = _oauth_audience_state({"client_id": "c"}, {})
+        assert not bound
+        assert "no audience" in evidence
+
+    def test_concrete_audience_bound(self) -> None:
+        bound, _ = _oauth_audience_state(
+            {"client_id": "c", "audience": "https://api.example.com"}, {}
+        )
+        assert bound
+
+    def test_wildcard_audience_not_bound(self) -> None:
+        bound, evidence = _oauth_audience_state({"client_id": "c", "audience": "*"}, {})
+        assert not bound
+        assert "wildcard" in evidence
+
+    def test_env_key_audience_bound(self) -> None:
+        bound, _ = _oauth_audience_state(
+            {"client_id": "c"}, {"OAUTH_AUDIENCE": "${OAUTH_AUDIENCE}"}
+        )
+        assert bound
+
+    def test_env_key_resource_bound(self) -> None:
+        bound, _ = _oauth_audience_state(
+            {"client_id": "c"}, {"MY_RESOURCE_URL": "something"}
+        )
+        assert bound
+
+
 # ── Scanner pipeline integration ──────────────────────────────────────────────
 
 
@@ -303,7 +543,7 @@ def _patch_no_known_clients():
 
 
 class TestScannerPipelineIntegration:
-    """AUTH-001 surfaces through the full scan pipeline."""
+    """AUTH-001 and AUTH-002 surface through the full scan pipeline."""
 
     def test_unauthenticated_remote_server_in_full_scan(self, tmp_path: Path) -> None:
         config = tmp_path / "mcp.json"
@@ -383,3 +623,32 @@ class TestScannerPipelineIntegration:
         servers = parse_config(dc)
         assert len(servers) == 1
         assert servers[0].headers.get("x-api-key") == "mykey"
+
+    def test_oauth_server_in_full_scan(self, tmp_path: Path) -> None:
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "oauth-no-aud": {
+                            "url": "https://api.example.com/mcp",
+                            "oauth": {
+                                "client_id": "cli",
+                                "authorization_endpoint": "https://auth.example.com/auth",
+                            },
+                        }
+                    }
+                }
+            )
+        )
+        from mcp_audit.scanner import run_scan
+
+        with _patch_no_known_clients():
+            result = run_scan(
+                extra_paths=[config],
+                skip_rug_pull=True,
+            )
+
+        auth002 = [f for f in result.findings if f.id == "AUTH-002"]
+        assert len(auth002) >= 1
+        assert auth002[0].severity == Severity.MEDIUM
