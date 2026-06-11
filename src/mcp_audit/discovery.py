@@ -116,6 +116,9 @@ class DiscoveredConfig:
     root_key: str
     path: Path
     raw: dict = field(default_factory=dict)
+    # True when found via discover_project_configs() (--project flag).
+    # Never set by the normal user-level discovery path.
+    is_project_scoped: bool = False
 
 
 def discover_configs(
@@ -205,4 +208,118 @@ def discover_configs(
                             )
                         )
 
+    return discovered
+
+
+# ── Project-level config discovery (for --project flag) ───────────────────────
+
+# Project-scoped config files, each as (relative-path, client-name, root-key).
+# These are files that live *inside* a repository and are typically committed to
+# version control, causing the named MCP server to auto-spawn for every developer
+# who trusts the folder in a supporting AI editor.
+#
+# Research basis: Adversa TrustFall (May 2026), corroborated by CVE-2026-30615.
+# OWASP MCP09: Shadow MCP Servers.
+#
+# Confirmed-active clients and paths (verified against official docs, 2026-06-11):
+#   Claude Code  — .mcp.json                   (Anthropic official docs)
+#   Claude Code  — .claude/settings.json        (project settings, mcpServers key)
+#   Claude Code  — .claude/settings.local.json  (local override, same schema)
+#   Cursor       — .cursor/mcp.json             (Cursor official docs)
+#   Cursor       — .cursor/settings.json        (workspace settings; inclusion
+#                                                tentative — see GAPS.md)
+#   VS Code      — .vscode/mcp.json             (VS Code official docs; "servers" key)
+#
+# Windsurf: global-only config (~/.codeium/windsurf/mcp_config.json); no
+#   project-level MCP file — omitted intentionally.
+# Zed: uses "context_servers" key in settings.json; different schema — omitted.
+# Continue.dev: YAML-based (.continue/config.yaml) — out of scope for JSON parser.
+_PROJECT_CONFIG_SPECS: list[tuple[str, str, str]] = [
+    (".mcp.json", "claude-code", "mcpServers"),
+    (".claude/settings.json", "claude-code", "mcpServers"),
+    (".claude/settings.local.json", "claude-code", "mcpServers"),
+    (".cursor/mcp.json", "cursor", "mcpServers"),
+    (".cursor/settings.json", "cursor", "mcpServers"),
+    (".vscode/mcp.json", "vscode", "servers"),
+]
+
+# Directory names to skip while walking the project tree.
+_WALK_SKIP_DIRS: frozenset[str] = frozenset(
+    {
+        "node_modules",
+        ".git",
+        "__pycache__",
+        ".tox",
+        "venv",
+        ".venv",
+        "dist",
+        "build",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+    }
+)
+
+# Maximum directory depth to descend from the project root (inclusive).
+# Depth 0 = root itself, depth 8 = 8 levels below root.
+_WALK_MAX_DEPTH: int = 8
+
+
+def discover_project_configs(root: Path) -> list[DiscoveredConfig]:
+    """Walk a repository tree and find all project-level MCP config files.
+
+    This function is the discovery back-end for ``mcp-audit scan --project``.
+    It is entirely separate from :func:`discover_configs` and does **not**
+    alter the default scan behaviour.
+
+    Walk rules:
+    - Skips directories named in :data:`_WALK_SKIP_DIRS`.
+    - Caps recursion at depth :data:`_WALK_MAX_DEPTH` below *root*.
+    - Does **not** follow symlinked directories or files.
+
+    Args:
+        root: Resolved absolute path of the repository root to walk.
+
+    Returns:
+        List of :class:`DiscoveredConfig` objects with
+        ``is_project_scoped=True``.  The list is empty when no project-level
+        MCP config files are found under *root*.
+    """
+    discovered: list[DiscoveredConfig] = []
+
+    def _walk(dirpath: Path, depth: int) -> None:
+        if depth > _WALK_MAX_DEPTH:
+            return
+
+        # Check each known project-config pattern relative to this directory.
+        for rel_path, client_name, root_key in _PROJECT_CONFIG_SPECS:
+            candidate = dirpath / rel_path
+            if candidate.is_symlink():
+                continue
+            if candidate.is_file():
+                discovered.append(
+                    DiscoveredConfig(
+                        client_name=client_name,
+                        root_key=root_key,
+                        path=candidate,
+                        is_project_scoped=True,
+                    )
+                )
+
+        # Recurse into non-symlink subdirectories not in the skip list.
+        try:
+            children = sorted(dirpath.iterdir())
+        except PermissionError:
+            return
+
+        for child in children:
+            if child.is_symlink():
+                continue
+            if not child.is_dir():
+                continue
+            if child.name in _WALK_SKIP_DIRS:
+                continue
+            _walk(child, depth + 1)
+
+    _walk(root, 0)
     return discovered

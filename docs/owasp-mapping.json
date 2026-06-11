@@ -501,6 +501,20 @@
       "owasp_codes": ["MCP06"],
       "owasp_names": ["Intent Flow Subversion"],
       "notes": "RFC 8707 Resource Indicators. arXiv 2605.22333: every one of 119 OAuth-enabled MCP servers had at least one flaw. CWE-346."
+    },
+    {
+      "finding_id": "TRUST-001",
+      "finding_title": "MCP server defined in project-level config (TrustFall risk)",
+      "owasp_codes": ["MCP09"],
+      "owasp_names": ["Shadow MCP Servers"],
+      "notes": "Fires for every MCP server found in a project-level config file (.mcp.json, .cursor/mcp.json, .claude/settings.json, .vscode/mcp.json). Origin-based — fires on file location, not content. Adversa TrustFall May 2026; CVE-2026-30615. CWE-829."
+    },
+    {
+      "finding_id": "COMM-033",
+      "finding_title": "Project-level MCP config file present in repository",
+      "owasp_codes": ["MCP09"],
+      "owasp_names": ["Shadow MCP Servers"],
+      "notes": "Community rule companion to TRUST-001. LOW severity — refer users to 'mcp-audit scan --project' for full TRUST-001 analysis. CWE-829."
     }
   ],
   "dynamic_patterns": [
@@ -553,5 +567,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 79 static finding IDs are mapped (60 original + 19 new: COMM-000 template + COMM-016 through COMM-031 + AUTH-001 + AUTH-002). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 81 static finding IDs are mapped (60 original + 21 new: COMM-000 template + COMM-016 through COMM-033 + AUTH-001 + AUTH-002 + TRUST-001). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
 }

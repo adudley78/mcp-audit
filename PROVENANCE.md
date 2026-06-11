@@ -218,8 +218,8 @@ We don't accept detection patterns based on undisclosed or private research.
 
 ## Community rules (rules/community/)
 
-31 bundled community detection rules (COMM-001 through COMM-031) ship with
-mcp-audit and run for all users automatically.
+33 bundled community detection rules (COMM-001 through COMM-033, with gaps for
+retired IDs) ship with mcp-audit and run for all users automatically.
 
 | Rule | Description | Basis |
 |------|-------------|-------|
@@ -254,7 +254,41 @@ mcp-audit and run for all users automatically.
 | COMM-029 | Command references temp/volatile directory | OX Security / CVE-2026-30623 (CVSS 9.8); OWASP MCP Top 10 MCP04; malware writing rogue MCP servers to /tmp is a documented installation vector; CWE-377 |
 | COMM-030 | Generic-named server with network URL | OWASP MCP Top 10 MCP09 (Shadow Servers) and MCP07; unnamed network servers resist discovery, fleet auditing, and access-review workflows |
 | COMM-031 | Remote MCP server configured without authentication | arXiv 2605.22333 (40.55% of live remote MCP servers unauthenticated); Censys (12,520 internet-exposed MCP services); CWE-306; OWASP MCP Top 10 MCP06. Lightweight URL-pattern companion to AUTH-001 in auth.py. |
+| COMM-033 | Project-level MCP config file present in repository | Adversa TrustFall (May 2026) — first published demonstration that committing project-level MCP config causes AI editors to auto-spawn MCP servers with developer OS privileges on "trust folder". CVE-2026-30615 config-tamper channel. CWE-829; OWASP MCP Top 10 MCP09. Lightweight config_path-pattern companion to TRUST-001 in cli/scan.py. |
 
 All community rules are original implementations based on common security
 practice and published CWE categories. None are derived from proprietary
 research or other scanner rulesets.
+
+## Project-level config scan (cli/scan.py, discovery.py)
+
+The `mcp-audit scan --project` feature and its `TRUST-001` finding are based on:
+
+- **Adversa "TrustFall" (May 2026)** — Adversa AI's published research demonstrating
+  that committing a project-level MCP config file (`.mcp.json`, `.cursor/mcp.json`,
+  `.vscode/mcp.json`) causes AI editors (Claude Code, Cursor, VS Code/Copilot) to
+  auto-spawn the named MCP servers with the trusting developer's full OS privileges
+  the moment they click "Trust this folder".  The attack requires no code execution
+  prior to trust and bypasses OS permission dialogs.
+  ([Adversa AI TrustFall blog post](https://adversa.ai/blog/trustfall/))
+
+- **CVE-2026-30615** — Published CVE in the Claude Code CLI demonstrating a
+  config-tamper channel.  The config-tamper vector (attacker modifies `.mcp.json`
+  before the developer opens the repo) is the second exploitation path corroborating
+  the TrustFall mechanism.
+
+- **OWASP MCP Top 10 MCP09 — Shadow MCP Servers** — TRUST-001 maps to MCP09
+  because the attacker introduces a *hidden* server (the developer does not know
+  the server is present in the repo they are trusting) with elevated capability
+  access (full OS privileges).
+
+- **CWE-829 — Inclusion of Functionality from Untrusted Control Sphere**
+  ([MITRE CWE](https://cwe.mitre.org/data/definitions/829.html)) — The
+  project-level config is the "untrusted control sphere"; the AI editor includes
+  the MCP server it defines in its execution environment without requiring the
+  developer to inspect or approve the config file's contents.
+
+The discovery logic (`discover_project_configs()`) and the confirmed per-client
+project-file paths were verified against official 2026 documentation from
+Anthropic (Claude Code), Cursor, and Microsoft (VS Code / GitHub Copilot).
+See `src/mcp_audit/discovery.py` for inline references and coverage notes.

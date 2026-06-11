@@ -92,6 +92,8 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
                 else {},
                 raw=server_data,
                 capabilities=server_data.get("capabilities"),
+                # Thread origin from discovery — True only for --project scans.
+                is_project_scoped=config.is_project_scoped,
             )
         )
 

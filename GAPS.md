@@ -43,6 +43,37 @@ Tracked here when: (a) the vulnerability is transitive-only, (b) no patched vers
 
 - **Stale doc counts and claims** (fixed 2026-04-16): README test counts (546/517 → 845), registry count (43 → 57), CLAUDE.md test/command counts, and multiple docs inaccuracies corrected. SARIF score documentation in `docs/scoring.md` updated. Stale proxy-gate note in `docs/registry.md` removed. `docs/github-action.md` drift severity table and nonexistent `baseline import` command corrected. OSV.dev references in `docs/enterprise-deployment.md` removed (feature not implemented).
 
+## Project-level config scan (TRUST-001)
+
+~~**No check for MCP servers hidden in repository-level config files (TrustFall risk).**~~ **Resolved v0.12.0.**
+`mcp-audit scan --project <dir>` walks the repository tree for project-level
+MCP config files and emits `TRUST-001` (HIGH) for every server found.  The
+full analyzer pipeline (credentials, poisoning, transport, supply-chain, auth)
+runs on those servers too.
+
+**Project scan coverage limits (v0.12.0).**
+
+- **Confirmed project-level config paths** (6 patterns shipped; see `discovery.py`):
+  `.mcp.json`, `.claude/settings.json`, `.claude/settings.local.json`,
+  `.cursor/mcp.json`, `.cursor/settings.json`, `.vscode/mcp.json`.
+- **Windsurf:** no project-level MCP config support (global-only
+  `~/.codeium/windsurf/mcp_config.json`). Omitted intentionally.
+- **Zed:** uses `"context_servers"` root key in `settings.json`. Different
+  schema; omitted pending dedicated parser.
+- **Continue.dev:** YAML-based `.continue/config.yaml`; JSON parser does not
+  apply. Omitted.
+- **`.cursor/settings.json` coverage uncertain:** Cursor's official docs
+  confirm `.cursor/mcp.json` as the canonical project-level MCP file.
+  `.cursor/settings.json` is included conservatively because some third-party
+  documentation shows `mcpServers` under cursor settings. If confirmed
+  false-positive-prone, the spec can be removed from `_PROJECT_CONFIG_SPECS`.
+- **No pre-clone (remote URL) mode:** `--project` requires a local path. To
+  scan a repo before cloning, checkout the relevant config paths manually.
+- **Watcher integration out of scope:** `mcp-audit watch` does not watch
+  project-level configs automatically; use `--project` in a manual step.
+
+---
+
 ## Authentication checks (AUTH-001 / AUTH-002)
 
 ~~**No check for unauthenticated remote MCP servers.**~~ **Resolved v0.12.0.**

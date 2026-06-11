@@ -211,6 +211,36 @@ See GAPS.md — *AUTH-002 coverage limits*.
 - URL userinfo component (`https://user:pass@host` or `https://token@host`).
 - `stdio` transport — local trust boundary, never fires.
 
+### Trust analyzer (`cli/scan.py::_apply_project_scan`, finding ID `TRUST-001`)
+
+TRUST-001 fires once per MCP server found in a **project-level** config file
+(`.mcp.json`, `.cursor/mcp.json`, `.claude/settings.json`,
+`.claude/settings.local.json`, `.cursor/settings.json`, `.vscode/mcp.json`)
+discovered by `mcp-audit scan --project <dir>`.  The finding fires on
+**origin** (the file's location in the repo), not on the server's content.
+Content-based analysis (credentials, poisoning, transport, auth) runs
+separately via the full analyzer pipeline.
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| TRUST-001  | HIGH     | ASI07 | MCP09 | MCP server defined in project-level config. Auto-spawns with developer's full OS privileges on "Trust this folder". Supply-chain attacker or malicious contributor can silently backdoor all developers who trust the repo. Adversa TrustFall (May 2026); CVE-2026-30615 config-tamper channel. CWE-829. CVSS: 7.8 |
+
+**Supported project-level config paths** (discovered by `discover_project_configs()`):
+
+| Path | Client | Root key |
+|------|--------|----------|
+| `.mcp.json` | Claude Code | `mcpServers` |
+| `.claude/settings.json` | Claude Code | `mcpServers` |
+| `.claude/settings.local.json` | Claude Code | `mcpServers` |
+| `.cursor/mcp.json` | Cursor | `mcpServers` |
+| `.cursor/settings.json` | Cursor | `mcpServers` |
+| `.vscode/mcp.json` | VS Code / GitHub Copilot | `servers` |
+
+Windsurf has no project-level MCP config (global only). Zed uses a different
+schema (`context_servers`). See GAPS.md — *Project scan coverage limits*.
+
+---
+
 ### Rule engine (`rules/`)
 
 Community rule severities (COMM-001 through COMM-013) are defined in their

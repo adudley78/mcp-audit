@@ -98,6 +98,10 @@ class ServerConfig(BaseModel):
     # e.g. {"sampling": {}, "resources": {"subscribe": True}}
     # None means the config entry has no 'capabilities' key.
     capabilities: dict | None = None
+    # True when this server was discovered via --project (repo-level config file).
+    # Used by _apply_project_scan() to emit TRUST-001.  Never set by the normal
+    # user-level discovery path so default-scan behaviour is unchanged.
+    is_project_scoped: bool = False
 
 
 class ToolInfo(BaseModel):
