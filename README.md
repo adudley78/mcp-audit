@@ -19,20 +19,22 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 ## Features
 
 - **Auto-discovers** MCP configs across 8 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code user-level, Claude Code project-level, GitHub Copilot CLI, Augment Code)
-- **Tool poisoning detection** — 11 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with 0% false-positive rate across 22 real servers
+- **Tool poisoning detection** — 11 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with zero false positives on our published 22-server benchmark (a regression test)
 - **Credential exposure** — 9 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
-- **Supply chain** — typosquatting detection via Levenshtein distance against 64 known-legitimate MCP servers; SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
+- **Supply chain** — typosquatting detection via Levenshtein distance against 83 known-legitimate MCP servers; offline CVE advisory check (`SC-004`) against the bundled registry (`known_vulnerabilities`); SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
 - **Rug-pull detection** — stateful SHA-256 hash comparison of tool descriptions across scans
 - **Cross-server toxic flows** — capability tagging and 7 dangerous pair patterns detecting multi-server attack paths (file-read + network, secrets + network, shell-exec + network, etc.)
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
 - **Interactive attack graph dashboard** — `mcp-audit dashboard` opens a D3 force-directed graph in your browser with light/dark mode, click-to-highlight attack paths, and hitting set recommendations
-- **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions
+- **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions; `--connect` mode also detects tool-name collisions across servers (`COLLIDE-001`) — the namespace-shadowing attack named in NSA's MCP security guidance
+- **Project-level config scan** — `scan --project <dir>` walks a cloned repo for project-level MCP config files and emits `TRUST-001` (HIGH) before you click "Trust this folder" in your AI editor (Adversa TrustFall / CVE-2026-30615)
 - **SAST rule pack** — 89 Semgrep rules (46 Python, 43 TypeScript) across 6 categories for MCP server source code
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
 - **Config hygiene** — `ConfigHygieneAnalyzer` detects missing descriptions, duplicate tool names, and other structural config issues
 - **CVE tagging** — findings carry a `Finding.cve` field so matched CVEs surface in JSON, SARIF, and terminal output
-- **Governance + policy-as-code** — YAML governance policies (approved server lists, score thresholds, transport constraints) and custom detection rules; 31 community rules ship bundled and run for every user
+- **Authentication checks** — `AUTH-001` flags remote HTTP/SSE servers with no auth material (HIGH for public hosts, MEDIUM for private/RFC 1918); `AUTH-002` flags OAuth-configured servers missing RFC 8707 audience binding; backed by arXiv 2605.22333 (40.55% of 7,973 live remote MCP servers unauthenticated)
+- **Governance + policy-as-code** — YAML governance policies (approved server lists, score thresholds, transport constraints) and custom detection rules; 33 community rules ship bundled and run for every user
 - **OWASP MCP Top 10 mapping** — every finding carries `MCP01`–`MCP10` codes in terminal, JSON, and SARIF (taxonomy block + per-rule relationships); `--owasp-report` prints a polished 10-category table with worst-finding summaries and "Coverage: 10/10" line; machine-readable mapping at [`docs/owasp-mapping.json`](docs/owasp-mapping.json); see [`docs/owasp-mcp-top-10.md`](docs/owasp-mcp-top-10.md)
 - **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus Security FlexConnect, self-contained HTML dashboard
 - **Continuous monitoring** — `mcp-audit watch` monitors config files in real-time and re-scans on any change
@@ -112,6 +114,7 @@ If you installed via Homebrew Python, the path will be different — use `python
 mcp-audit check                                       # One-command security verdict (start here)
 mcp-audit check --verbose                             # Full scan output (equivalent to scan)
 mcp-audit check --json | jq '.score.grade'            # Machine-readable grade
+mcp-audit scan --project ./cloned-repo                # Before you trust a freshly cloned repo
 mcp-audit shadow                                      # Find shadow MCP servers on this machine
 mcp-audit shadow --format json | jq .                 # JSON output for syslog / SIEM
 mcp-audit shadow --allowlist .mcp-audit-allowlist.yml # Classify against an allowlist
@@ -358,7 +361,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-2,069 tests validate detection accuracy and guard against regressions.
+2,222 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -560,7 +563,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 2,069 tests
+uv run pytest                        # Run all 2,222 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

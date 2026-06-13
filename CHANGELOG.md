@@ -8,7 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-(nothing yet)
+---
+
+## [0.12.0] - 2026-06-13
+
+### Added
+
+- **Registry: 4 new CVE advisories for known MCP packages (CVE-2026-23744, CVE-2026-0755, CVE-2025-59528, CVE-2026-26118).** Added `known_vulnerabilities` entries to `registry/known-servers.json` for confirmed public CVEs: `@mcpjam/inspector` (CVE-2026-23744, RCE via unauthenticated `/api/mcp/connect`, fixed in 1.4.3), `gemini-mcp-tool` (CVE-2026-0755, command injection via `execAsync`, no fix available as of disclosure), `flowise` (CVE-2025-59528, RCE via `Function()` constructor in CustomMCP node, fixed in 3.0.6), and `@azure/mcp` (CVE-2026-26118, SSRF privilege escalation, fixed in 1.0.2 / 2.0.0-beta.17). Also corrected CVE attribution: `CVE-2026-26118` moved to `@azure/mcp` (the affected package per OSV/NVD) from `@microsoft/mcp-server`.
+
+- **SC-004 — Offline CVE advisory check for known-vulnerable packages.** The supply chain analyzer now checks `known_vulnerabilities` on exact registry matches and emits `SC-004` (HIGH) when the configured package has one or more CVE advisories recorded in the bundled registry. No network required — purely offline. This activates the previously-dormant `known_vulnerabilities` field in `RegistryEntry` and closes the gap between "registry has CVE data" and "scan surfaces it as a finding". CWE-1104 / OWASP MCP04. CVE-2026-32211 (`@azure-devops/mcp`) was **skipped** — NVD CPE is `azure_web_apps` (a hosted service); no npm package version to pin, fix was applied server-side with no client update available.
+
+- **COLLIDE-001 — Tool-name collision detection across connected MCP servers.** New `detect_tool_collisions()` function (`analyzers/collision.py`) compares live `tools/list` results across all servers connected during `mcp-audit scan --connect`. When two or more distinct servers advertise the same tool name, the agent's tie-breaking behaviour is undocumented and order-dependent — an attacker registers a colliding name to shadow a trusted tool (the agentic analogue of PATH poisoning). Emits MEDIUM when names collide; HIGH when one claimant is verified in the known-server registry and another is not (unknown server shadowing a trusted name). Tool-name comparison is case-sensitive. Deduplication prevents the same logical server configured in multiple MCP client config files from self-colliding. Requires `--connect` — static configs don't carry tool lists. NSA CSI item 5; CWE-694; OWASP MCP01 + MCP09. No companion community rule (COMM-032 reserved/unissued): a static rule for collision detection cannot fire without tool-name data.
+
+- **`scan --project <dir>` — Catch the TrustFall attack before you click "Trust this folder" (TRUST-001).** New `--project <dir>` flag on `mcp-audit scan` walks a repository directory tree looking for project-level MCP config files (`.mcp.json`, `.cursor/mcp.json`, `.claude/settings.json`, `.claude/settings.local.json`, `.cursor/settings.json`, `.vscode/mcp.json`) and emits `TRUST-001` (HIGH) for every server defined inside them. When a developer opens a repository in an AI editor (Claude Code, Cursor, VS Code/Copilot) and clicks "Trust this folder", any MCP server in a project-level config auto-spawns with the developer's full OS privileges before any project code runs — a supply-chain attacker, malicious contributor, or typosquatted package can backdoor every developer who trusts the repo (Adversa TrustFall, May 2026; corroborated by CVE-2026-30615). The full analyzer pipeline (credentials, poisoning, transport, supply-chain, auth) runs on project-scoped servers too. `ServerConfig` gains `is_project_scoped: bool` to track origin. `discover_project_configs()` in `discovery.py` drives discovery (separate from user-level `discover_configs()`). Tree walk caps at depth 8, skips `node_modules`/`.git`. Community rule COMM-033 fires as a lightweight config-path-pattern companion. CWE-829 / OWASP MCP09.
+
+- **AUTH-001 — Remote MCP server configured without authentication.** New `AuthAnalyzer` (8th analyzer) flags remote HTTP/SSE/Streamable-HTTP servers that carry no authentication material in their configuration. A measurement study (arXiv 2605.22333) found 40.55% of 7,973 live remote MCP servers require no authentication; Censys counted 12,520 internet-exposed MCP services, the majority unauthenticated. Severity is HIGH for internet-routable hosts and MEDIUM for RFC 1918 / `*.local` private hosts. Localhost servers are exempt. Suppressed by any of: `Authorization`/`x-api-key`/`api-key` header (including `${ENV_VAR}` placeholder values), `token`/`apiKey`/`auth`/`bearer` raw fields, OAuth settings, or URL userinfo. `ServerConfig` gains a new `headers` field parsed from the `"headers"` key in MCP config entries (all supported clients). CWE-306 / OWASP MCP06. Community rule COMM-031 ships as a lighter-weight URL-pattern companion.
+
+- **AUTH-002 — OAuth-configured server missing audience/resource binding.** Same `AuthAnalyzer` checks OAuth-enabled servers for RFC 8707 Resource Indicator compliance. A missing or wildcard `audience`/`resource` field allows tokens issued for one resource server to be replayed against any other server accepting the same issuer. Emits MEDIUM when an OAuth block is detected (flat `oauth`/`oauth2` key, `auth.type: oauth2` block, or flat `client_id`+`authorization_endpoint` fields) and neither a concrete audience value nor an audience-referencing env key name is present. CWE-346 / OWASP MCP06.
 
 ---
 
@@ -963,7 +979,7 @@ uv add mcp-audit-scanner
 
 ---
 
-## [0.11.0] - 2026-04-23 — Open Source Conversion
+## [0.11.0-internal] - 2026-04-23 — Open Source Conversion (internal dev milestone)
 
 ### Changed
 - **All features are now free.** mcp-audit is fully open source under Apache 2.0. There are no paid tiers. `is_pro_feature_available()` always returns `True`; `gate()` is a permanent no-op. This removes the Community / Pro / Enterprise split entirely.

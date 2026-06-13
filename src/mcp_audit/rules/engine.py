@@ -48,6 +48,10 @@ class MatchField(StrEnum):
     URL = "url"
     TRANSPORT = "transport"
     CAPABILITIES = "capabilities"
+    # Path of the config file that defines this server (e.g. .mcp.json).
+    # Allows rules to match on the location of the server definition, which
+    # is used by COMM-033 to detect project-level MCP config files.
+    CONFIG_PATH = "config_path"
 
 
 class CompoundOperator(StrEnum):
@@ -265,6 +269,8 @@ def _extract_field(field: MatchField, server: ServerConfig) -> str | None:
         if server.capabilities is None:
             return None
         return " ".join(server.capabilities.keys())
+    if field == MatchField.CONFIG_PATH:
+        return str(server.config_path)
     return None  # pragma: no cover
 
 

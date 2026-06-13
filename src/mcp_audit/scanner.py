@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from platformdirs import user_config_dir
 
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
+from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.config_hygiene import ConfigHygieneAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
@@ -19,7 +20,14 @@ from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import DiscoveredConfig, discover_configs
-from mcp_audit.models import Finding, RegistryStats, ScanResult, ServerConfig, Severity
+from mcp_audit.models import (
+    Finding,
+    RegistryStats,
+    ScanResult,
+    ServerConfig,
+    ServerEnumeration,
+    Severity,
+)
 from mcp_audit.scoring import calculate_score
 
 if TYPE_CHECKING:
@@ -113,7 +121,7 @@ def _run_rules_engine(
     """Load and run the policy-as-code rule engine against all servers.
 
     Always loads bundled community rules.  When *extra_rules_dirs* is
-    provided (caller is responsible for Pro-gating), also loads rules from
+    provided (caller-supplied;) also loads rules from
     those directories (user rules take precedence on ID conflicts).
 
     When *analyzers* is supplied and contains a
@@ -177,6 +185,7 @@ def get_default_analyzers() -> list[BaseAnalyzer]:
         TransportAnalyzer(registry=supply_chain.registry),
         supply_chain,
         ConfigHygieneAnalyzer(),
+        AuthAnalyzer(),
     ]
 
 
@@ -231,7 +240,8 @@ def _run_static_pipeline(
             registry-stats extraction.
         skip_rug_pull: Skip rug-pull analysis entirely (used by ``pin``/``diff``).
         state_path: Override the rug-pull state file location.
-        extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+        extra_rules_dirs: Additional rule directories to load
+            (optional; caller-supplied).
         scoring_weights: Optional custom scoring weights from a governance policy.
             When ``None``, the hardcoded defaults in :mod:`mcp_audit.scoring` are used.
         scoring_weights_source: Audit label written to ``ScanScore.weights_source``.
@@ -385,7 +395,8 @@ async def run_scan_async(
         state_path: Override the rug-pull state file location (useful in tests).
         skip_rug_pull: Skip rug-pull analysis entirely.  Used by ``pin``/``diff``.
         offline: When ``True``, forbid all network calls.
-        extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+        extra_rules_dirs: Additional rule directories to load
+            (optional; caller-supplied).
         auth_token: Bearer token forwarded to SSE/HTTP servers as
             ``Authorization: Bearer <token>``.  Silently ignored for stdio
             servers.  Never stored or logged.
@@ -418,6 +429,9 @@ async def run_scan_async(
         )
 
         poisoning = PoisoningAnalyzer()
+        # Accumulate successful (server, enumeration) pairs for cross-server
+        # tool-name collision detection (COLLIDE-001) after the per-server loop.
+        connect_pairs: list[tuple[ServerConfig, ServerEnumeration]] = []
 
         for server in all_servers:
             enumeration = await connect_and_enumerate(server, auth_token=auth_token)
@@ -431,6 +445,9 @@ async def run_scan_async(
             if enumeration.error:
                 result.errors.append(f"[connect] {server.name}: {enumeration.error}")
                 continue
+
+            # Record successful enumeration for collision detection.
+            connect_pairs.append((server, enumeration))
 
             runtime_config = build_runtime_server_config(server, enumeration)
             if runtime_config is None:
@@ -446,6 +463,22 @@ async def run_scan_async(
                 result.findings.append(
                     _analyzer_crash_finding("poisoning (runtime)", server, e)
                 )
+
+        # ── Cross-server tool-name collision detection (COLLIDE-001) ──────────
+        # Requires at least two successfully connected servers to compare.
+        if len(connect_pairs) >= 2:
+            from mcp_audit.analyzers.collision import (  # noqa: PLC0415
+                detect_tool_collisions,
+            )
+
+            try:
+                result.findings.extend(
+                    detect_tool_collisions(
+                        connect_pairs, registry=_extract_registry(analyzers)
+                    )
+                )
+            except Exception as e:  # noqa: BLE001
+                result.errors.append(f"collision error: {e}")
 
     return _run_static_pipeline(
         result=result,
@@ -492,7 +525,8 @@ def run_scan(
         skip_rug_pull: When ``True``, skip rug-pull analysis entirely.  Used by
             the ``pin`` and ``diff`` CLI commands which manage state directly.
         offline: When ``True``, forbid all network calls.
-        extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+        extra_rules_dirs: Additional rule directories to load
+            (optional; caller-supplied).
         auth_token: Bearer token forwarded to SSE/HTTP servers as
             ``Authorization: Bearer <token>``.  Silently ignored for stdio
             servers.  Never stored or logged.

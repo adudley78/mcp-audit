@@ -1,0 +1,48 @@
+id: COMM-033
+name: Project-level MCP config file present in repository
+description: >
+  An MCP server configuration file was found inside the repository at a
+  path that is loaded automatically by a supported AI editor (Claude Code,
+  Cursor, VS Code / Copilot) when a developer trusts the folder.  Because
+  these files are typically committed to version control, any contributor
+  or supply-chain attacker who can modify the file can silently add or alter
+  MCP server definitions that will spawn with the developer's full OS
+  privileges on the next "trust this folder" click.
+
+  This rule is a lightweight file-name signal.  For full severity analysis
+  — including TrustFall risk assessment and the complete analyzer pipeline
+  run over the discovered servers — use ``mcp-audit scan --project <dir>``,
+  which emits TRUST-001 (HIGH) per server found together with all standard
+  analyzer findings.
+
+  Research basis: Adversa TrustFall (May 2026); corroborated by the
+  config-tamper channel in CVE-2026-30615.  OWASP MCP09.
+severity: LOW
+category: supply-chain
+match:
+  operator: or
+  conditions:
+    - field: config_path
+      pattern: "(^|[\\\\/])\\.mcp\\.json$"
+      type: regex
+    - field: config_path
+      pattern: "(^|[\\\\/])\\.claude[\\\\/]settings(\\.local)?\\.json$"
+      type: regex
+    - field: config_path
+      pattern: "(^|[\\\\/])\\.cursor[\\\\/](mcp|settings)\\.json$"
+      type: regex
+    - field: config_path
+      pattern: "(^|[\\\\/])\\.vscode[\\\\/]mcp\\.json$"
+      type: regex
+message: >
+  Server '{server_name}' is defined in a project-level config file
+  ({matched_value}) — use 'mcp-audit scan --project <dir>' for full
+  TRUST-001 analysis before trusting this repository in an AI editor
+tags:
+  - supply-chain
+  - trustfall
+  - project-config
+  - cwe-829
+enabled: true
+owasp_mcp_top_10:
+  - MCP09

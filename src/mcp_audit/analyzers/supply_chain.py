@@ -15,6 +15,7 @@ from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.models import Finding, ServerConfig, Severity
 from mcp_audit.registry.loader import (
     KnownServerRegistry,
+    RegistryEntry,
     levenshtein,
     load_registry,
     normalize_pypi_name,
@@ -153,6 +154,59 @@ def extract_pypi_package(command: str, args: list[str]) -> str | None:
     return None
 
 
+def _emit_known_cve_findings(
+    server: ServerConfig,
+    entry: RegistryEntry,
+) -> list[Finding]:
+    """Emit SC-004 findings for each CVE in *entry.known_vulnerabilities*.
+
+    Called when an exact-match package has public CVE advisories recorded in
+    the bundled registry.  Severity is HIGH — the package is confirmed
+    vulnerable; the operator should check whether the installed version is
+    affected and upgrade if so.
+
+    Args:
+        server: The MCP server configuration that references this package.
+        entry: Registry entry for the matched package.
+
+    Returns:
+        One SC-004 :class:`~mcp_audit.models.Finding` per CVE ID.
+    """
+    findings: list[Finding] = []
+    for cve_id in entry.known_vulnerabilities or []:
+        findings.append(
+            Finding(
+                id="SC-004",
+                severity=Severity.HIGH,
+                analyzer="supply_chain",
+                client=server.client,
+                server=server.name,
+                title=f"Known CVE advisory: {entry.name} ({cve_id})",
+                description=(
+                    f"Package {entry.name!r} has a public CVE advisory "
+                    f"({cve_id}) recorded in the mcp-audit known-server registry. "
+                    "Verify whether the version pinned in your config falls within "
+                    "the affected range and upgrade to the patched version if so. "
+                    "Check NVD (https://nvd.nist.gov/vuln/detail/"
+                    f"{cve_id}) for the full advisory."
+                ),
+                evidence=(
+                    f"package: {entry.name} | "
+                    f"cve: {cve_id} | "
+                    f"maintainer: {entry.maintainer}"
+                ),
+                remediation=(
+                    f"Review {cve_id} at https://nvd.nist.gov/vuln/detail/{cve_id} "
+                    f"and upgrade {entry.name!r} to the patched version."
+                ),
+                cwe="CWE-1104",
+                owasp_mcp_top_10=["MCP04"],
+                finding_path=str(server.config_path),
+            )
+        )
+    return findings
+
+
 class SupplyChainAnalyzer(BaseAnalyzer):
     """Detect typosquatting of known-legitimate MCP npm and PyPI packages.
 
@@ -206,11 +260,12 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         return "Detect typosquatting of known-legitimate MCP npm and PyPI packages"
 
     def analyze(self, server: ServerConfig) -> list[Finding]:
-        """Analyze a server config for supply-chain typosquatting.
+        """Analyze a server config for supply-chain typosquatting and known CVEs.
 
         Dispatches to the npm or Python detection path based on the command
         field.  Both paths apply the same Levenshtein threshold logic and
-        produce findings with the same SC-00x IDs.
+        produce findings with the same SC-00x IDs.  Exact registry matches are
+        further checked for ``known_vulnerabilities`` entries (SC-004).
 
         Args:
             server: The MCP server configuration to analyze.
@@ -239,6 +294,9 @@ class SupplyChainAnalyzer(BaseAnalyzer):
             return []
 
         if self._registry.is_known(package):
+            entry = self._registry.get(package)
+            if entry and entry.known_vulnerabilities:
+                return _emit_known_cve_findings(server, entry)
             return []
 
         # Short names (≤5 chars) are too close to almost any other short name
@@ -317,6 +375,9 @@ class SupplyChainAnalyzer(BaseAnalyzer):
             return []
 
         if self._registry.is_known_pypi(package):
+            entry = self._registry.get_pypi(package)
+            if entry and entry.known_vulnerabilities:
+                return _emit_known_cve_findings(server, entry)
             return []
 
         typo_threshold = 1 if len(package) <= 5 else 3

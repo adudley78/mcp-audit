@@ -88,11 +88,20 @@ class ServerConfig(BaseModel):
     args: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
     url: str | None = None
+    # HTTP headers explicitly configured for this server (e.g. Authorization,
+    # x-api-key).  Populated by the parser from the "headers" key in the raw
+    # server entry.  Present across all supported clients — the MCP config
+    # format is identical for Claude Desktop, Cursor, VS Code, and others.
+    headers: dict[str, str] = Field(default_factory=dict)
     raw: dict = Field(default_factory=dict)
     # MCP capability declarations from the server config entry.
     # e.g. {"sampling": {}, "resources": {"subscribe": True}}
     # None means the config entry has no 'capabilities' key.
     capabilities: dict | None = None
+    # True when this server was discovered via --project (repo-level config file).
+    # Used by _apply_project_scan() to emit TRUST-001.  Never set by the normal
+    # user-level discovery path so default-scan behaviour is unchanged.
+    is_project_scoped: bool = False
 
 
 class ToolInfo(BaseModel):

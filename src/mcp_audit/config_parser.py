@@ -74,6 +74,7 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
 
         transport = _detect_transport(server_data)
 
+        raw_headers = server_data.get("headers", {})
         servers.append(
             ServerConfig(
                 name=name,
@@ -84,8 +85,15 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
                 args=server_data.get("args", []),
                 env=server_data.get("env", {}),
                 url=server_data.get("url"),
+                # Normalise headers to dict[str, str]; skip non-dict values
+                # (malformed config entries) without crashing.
+                headers={k: str(v) for k, v in raw_headers.items()}
+                if isinstance(raw_headers, dict)
+                else {},
                 raw=server_data,
                 capabilities=server_data.get("capabilities"),
+                # Thread origin from discovery — True only for --project scans.
+                is_project_scoped=config.is_project_scoped,
             )
         )
 

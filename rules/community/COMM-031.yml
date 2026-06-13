@@ -1,0 +1,35 @@
+id: COMM-031
+name: Remote MCP server configured without authentication
+description: >
+  The server uses an HTTP or SSE remote transport URL that is not bound to
+  localhost (127.0.0.1 or ::1). Remote MCP servers expose every registered
+  tool to any client that can reach the URL. A measurement study
+  (arXiv 2605.22333) found 40.55% of 7,973 live remote MCP servers require
+  no authentication; Censys counted 12,520 internet-exposed MCP services,
+  the majority unauthenticated (CWE-306, OWASP MCP06).
+
+  This rule is a lightweight URL-pattern signal. For full severity tiering
+  (HIGH for public hosts, MEDIUM for private/RFC-1918 hosts) and comprehensive
+  auth-signal suppression (Authorization/x-api-key headers, token/apiKey
+  fields, OAuth settings), rely on the dedicated AUTH-001 finding produced
+  by the auth analyzer.
+severity: LOW
+category: authentication
+match:
+  operator: and
+  conditions:
+    - field: url
+      pattern: "https?://"
+      type: regex
+    - field: url
+      pattern: "(localhost|127\\.0\\.0\\.1|\\[?::1\\]?)"
+      type: regex
+      negate: true
+message: "Server '{server_name}' uses a remote URL ({matched_value}) with no obvious authentication — review AUTH-001 findings for full analysis"
+tags:
+  - authentication
+  - remote
+  - cwe-306
+enabled: true
+owasp_mcp_top_10:
+  - MCP06

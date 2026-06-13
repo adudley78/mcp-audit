@@ -43,6 +43,90 @@ Tracked here when: (a) the vulnerability is transitive-only, (b) no patched vers
 
 - **Stale doc counts and claims** (fixed 2026-04-16): README test counts (546/517 → 845), registry count (43 → 57), CLAUDE.md test/command counts, and multiple docs inaccuracies corrected. SARIF score documentation in `docs/scoring.md` updated. Stale proxy-gate note in `docs/registry.md` removed. `docs/github-action.md` drift severity table and nonexistent `baseline import` command corrected. OSV.dev references in `docs/enterprise-deployment.md` removed (feature not implemented).
 
+## Project-level config scan (TRUST-001)
+
+~~**No check for MCP servers hidden in repository-level config files (TrustFall risk).**~~ **Resolved v0.12.0.**
+`mcp-audit scan --project <dir>` walks the repository tree for project-level
+MCP config files and emits `TRUST-001` (HIGH) for every server found.  The
+full analyzer pipeline (credentials, poisoning, transport, supply-chain, auth)
+runs on those servers too.
+
+**Project scan coverage limits (v0.12.0).**
+
+- **Confirmed project-level config paths** (6 patterns shipped; see `discovery.py`):
+  `.mcp.json`, `.claude/settings.json`, `.claude/settings.local.json`,
+  `.cursor/mcp.json`, `.cursor/settings.json`, `.vscode/mcp.json`.
+- **Windsurf:** no project-level MCP config support (global-only
+  `~/.codeium/windsurf/mcp_config.json`). Omitted intentionally.
+- **Zed:** uses `"context_servers"` root key in `settings.json`. Different
+  schema; omitted pending dedicated parser.
+- **Continue.dev:** YAML-based `.continue/config.yaml`; JSON parser does not
+  apply. Omitted.
+- **`.cursor/settings.json` coverage uncertain:** Cursor's official docs
+  confirm `.cursor/mcp.json` as the canonical project-level MCP file.
+  `.cursor/settings.json` is included conservatively because some third-party
+  documentation shows `mcpServers` under cursor settings. If confirmed
+  false-positive-prone, the spec can be removed from `_PROJECT_CONFIG_SPECS`.
+- **No pre-clone (remote URL) mode:** `--project` requires a local path. To
+  scan a repo before cloning, checkout the relevant config paths manually.
+- **Watcher integration out of scope:** `mcp-audit watch` does not watch
+  project-level configs automatically; use `--project` in a manual step.
+
+---
+
+## Tool-name collision detection (COLLIDE-001)
+
+**Static collision detection is not possible.**  MCP config files (`mcp.json`,
+`claude_desktop_config.json`, etc.) record how to *launch* or *connect to* a
+server (command, args, URL) but do not declare the tool names the server
+exposes.  Tool names are returned dynamically by the server at runtime via the
+MCP `tools/list` response.  Without running the servers, there is no data to
+compare.
+
+As a result, `COLLIDE-001` requires `--connect`.  When `mcp-audit scan
+--connect` successfully enumerates at least two servers, their live tool lists
+are compared and any shared tool name is flagged.  A plain static scan produces
+no COLLIDE-001 findings — this is correct behaviour, not a gap in the
+detection logic.
+
+**Known coverage limits:**
+
+- **Only successfully connected servers are compared.**  If a server times out
+  or returns an enumeration error, it is excluded from the collision index.
+  A malicious server could refuse connections to avoid detection.
+- **No Levenshtein / near-miss detection.**  Tool-name comparison is exact and
+  case-sensitive.  `read_file` and `Read_File` are treated as distinct names.
+  Near-miss shadowing (e.g. `readFile` vs `read_file`) is out of scope for v1.
+- **No runtime enforcement or pinning.**  COLLIDE-001 is a detection-only
+  finding; it does not prevent the agent from calling the wrong tool.
+
+---
+
+## Authentication checks (AUTH-001 / AUTH-002)
+
+~~**No check for unauthenticated remote MCP servers.**~~ **Resolved v0.12.0.**
+`AUTH-001` in `analyzers/auth.py` flags remote (HTTP/SSE/Streamable-HTTP)
+servers with no authentication material in their config. Severity is HIGH for
+public hosts and MEDIUM for private (RFC 1918 / `*.local`) hosts. Localhost is
+exempt. Fires for all supported clients: suppressed by any Authorization /
+x-api-key / api-key header, token/apiKey/auth/bearer raw field, OAuth settings,
+or URL userinfo. Research basis: arXiv 2605.22333 (40.55% of 7,973 live remote
+MCP servers unauthenticated); Censys (12,520 internet-exposed MCP services).
+
+**AUTH-002 coverage limits (v0.12.0).**
+`AUTH-002` checks OAuth-configured servers for RFC 8707 audience/resource
+binding, but OAuth config shapes vary significantly across MCP clients. The
+check covers: `oauth`/`oauth2` dict blocks, `auth.type: oauth2` nested blocks,
+and flat top-level `client_id` + `authorization_endpoint` co-occurrence. Formats
+not matching these three patterns produce no finding (false negative tolerance is
+intentional — prefer silence over noise for auth checks). Clients that store
+OAuth config under non-standard root keys (e.g. `authorization` or a
+vendor-specific key) will not be covered. Expand `_OAUTH_FIELD_NAMES` in
+`analyzers/auth.py` as new patterns are confirmed by practitioner review.
+Dynamic-client-registration flaws found in 96.6% of OAuth-enabled MCP servers
+by arXiv 2605.22333 are out of scope for static analysis (require live
+`/.well-known/oauth-authorization-server` fetch).
+
 ## Detection quality
 
 **False positive rate benchmarked at 0% across 22 servers (2026-04-23).** The poisoning analyzer was validated against 12 official `@modelcontextprotocol/*` servers and 10 popular community servers. Zero poisoning false positives were found. See `tests/test_false_positive_benchmark.py` for the full benchmark — this is now a regression test. Acceptable non-FP findings on legitimate servers: TRANSPORT-003 (runtime package fetch, expected for all npx/uvx servers), COMM-010 (npx without pinned version). Note: the "base64 encode" false positive from the filesystem server's runtime tool descriptions (fetched via `--connect`) is not covered by static analysis and remains a known limitation of the live connection path.
@@ -77,7 +161,7 @@ Partially confirmed closed (2026-05-17) via community rules seed pack (STORY-004
 
 **`--verify-hashes` requires outbound network access.** Scans run fully offline by default. When `--verify-hashes` is passed, mcp-audit makes HTTPS requests to registry.npmjs.org and pypi.org. If the network is unavailable, INFO findings are produced for packages that could not be verified — the scan does not fail.
 
-~~**Layer 2 (Sigstore signature verification) and Layer 3 (dependency SBOM) are not yet implemented.**~~ **Layer 2 resolved 2026-04-23.** **Layer 3 resolved 2026-04-23.** `scan --verify-signatures` fetches SLSA provenance bundles from the npm and PyPI attestation APIs and verifies them with the `sigstore` Python library (Fulcio cert chain, SCT, Rekor inclusion proof). `scan --check-vulns` resolves transitive dependency graphs via [deps.dev](https://deps.dev) and queries [OSV.dev](https://osv.dev) for known CVEs; emits `VULN-<OSV-ID>` findings. `mcp-audit sbom` generates a CycloneDX 1.5 JSON SBOM. Both features are free for all tiers. `--vuln-registry URL` (Pro/Enterprise) allows a custom OSV-compatible endpoint. See `docs/supply-chain.md` for full documentation.
+~~**Layer 2 (Sigstore signature verification) and Layer 3 (dependency SBOM) are not yet implemented.**~~ **Layer 2 resolved 2026-04-23.** **Layer 3 resolved 2026-04-23.** `scan --verify-signatures` fetches SLSA provenance bundles from the npm and PyPI attestation APIs and verifies them with the `sigstore` Python library (Fulcio cert chain, SCT, Rekor inclusion proof). `scan --check-vulns` resolves transitive dependency graphs via [deps.dev](https://deps.dev) and queries [OSV.dev](https://osv.dev) for known CVEs; emits `VULN-<OSV-ID>` findings. `mcp-audit sbom` generates a CycloneDX 1.5 JSON SBOM. `--vuln-registry URL` allows a custom OSV-compatible endpoint. All features are free for all users (Apache 2.0; no paid tiers). See `docs/supply-chain.md` for full documentation.
 
 ## Supply chain coverage
 
@@ -87,6 +171,10 @@ Partially confirmed closed (2026-05-17) via community rules seed pack (STORY-004
 
 ~~**Levenshtein threshold may produce false positives for short package names.**~~ **Resolved 2026-04-30.** Package names of 5 characters or fewer now use a tighter threshold of 1 edit instead of 3. Names of 6+ characters keep the existing threshold of 3. The fix is in `analyzers/supply_chain.py` (`typo_threshold = 1 if len(package) <= 5 else 3`). Covered by `tests/test_supply_chain.py::TestShortNameThreshold`.
 
+**SC-004 does not validate version ranges.** The offline CVE check (`SC-004`) fires whenever an exact-match package has `known_vulnerabilities` entries in the registry — it does not compare the installed/pinned version against the CVE's affected range. Operators must manually verify whether the version they are running is within the advisory's affected range. Version-range matching (semver `< X.Y.Z` or `>= A.B.C`) is deferred to a future iteration; see also `--check-vulns` (requires network, queries OSV.dev) for version-aware scanning.
+
+**CVE-2026-32211 (`@azure-devops/mcp`) not in registry.** NVD records the affected product as `azure_web_apps` (CPE `cpe:2.3:a:microsoft:azure_web_apps`), a fully-hosted service. Microsoft applied the fix server-side; there is no npm package version to pin or compare against. A registry entry with a pinnable `known_vulnerabilities` CVE would be misleading. Operators using the Azure DevOps MCP Server integration should check the MSRC advisory (CVE-2026-32211) directly.
+
 ~~**No registry metadata enrichment.**~~ **Resolved 2026-04-23.** `RegistryEntry` now carries three optional metadata fields — `first_published` (ISO date), `weekly_downloads` (int), and `publisher_history` (ordered list of publisher accounts). Ten entries in `registry/known-servers.json` have been pre-populated with npm data. When a typosquatted or unknown package is flagged (SC-001/SC-002), the finding description now includes a pipe-delimited metadata blurb for the legitimate package (e.g. "first published: 2024-11-14 | weekly downloads: 42,800 | known publishers: anthropic-bot, modelcontextprotocol"). The `scripts/enrich_registry.py` maintainer script fetches live data from the npm registry API to keep metadata fresh without any network calls during scanning.
 
 ## Live connection (`--connect`)
@@ -95,7 +183,7 @@ Partially confirmed closed (2026-05-17) via community rules seed pack (STORY-004
 
 **Server stderr output leaks to terminal.** When `--connect` launches a stdio server, the server's stderr output (warnings, logs, startup messages) appears in the user's terminal interleaved with mcp-audit output. This should be captured and suppressed or redirected.
 
-**No authentication support.** Some MCP servers (particularly SSE/HTTP servers) require authentication tokens or headers. The current `--connect` implementation doesn't support passing authentication credentials to remote servers.
+~~**No authentication support.**~~ **Resolved v0.6.0.** `scan --connect-token TOKEN` passes a Bearer token to SSE/HTTP servers. STDIO servers that require authentication via environment variables can be configured with `--env KEY=VALUE`. The gap tracker at line 640 of this file was already marked resolved; this prose entry was stale.
 
 ## Toxic flow analysis
 

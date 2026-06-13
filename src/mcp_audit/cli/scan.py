@@ -20,6 +20,7 @@ from rich.rule import Rule
 
 from mcp_audit import cli as _cli
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
+from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import (
@@ -40,6 +41,7 @@ from mcp_audit.attestation import verifier as _attestation_verifier
 from mcp_audit.baselines.manager import BaselineManager
 from mcp_audit.cli import app, console
 from mcp_audit.cli._helpers import _write_output
+from mcp_audit.discovery import discover_project_configs
 from mcp_audit.extensions import analyzer as _extensions_analyzer
 from mcp_audit.extensions import discovery as _extensions_discovery
 from mcp_audit.governance.evaluator import evaluate_governance
@@ -283,6 +285,7 @@ def _build_custom_analyzers(
         CredentialsAnalyzer(),
         TransportAnalyzer(registry=supply_chain.registry),
         supply_chain,
+        AuthAnalyzer(),
     ]
 
 
@@ -290,7 +293,7 @@ def _collect_extra_rules_dirs(
     rules_dir: Path | None,
     con: Console,
 ) -> list[Path]:
-    """Collect Pro-gated extra rule directories for the scanner.
+    """Collect extra rule directories for the scanner.
 
     Includes ``--rules-dir`` and the user-local rules directory at
     ``<user-config-dir>/mcp-audit/rules/`` when it exists.  Community rules ship
@@ -510,7 +513,7 @@ def _apply_sast(
 ) -> ScanResult:
     """Run Semgrep-based SAST analysis and inject findings.
 
-    Only called when ``--sast`` is active and Pro-gating passes.  A semgrep
+    Only called when ``--sast`` is active active.  A semgrep
     launch failure is surfaced as a yellow warning and the scan continues.
     """
     con.print(f"[dim]SAST: scanning {sast_path} with Semgrep rules…[/dim]")
@@ -555,7 +558,7 @@ def _apply_extensions(
 ) -> ScanResult:
     """Run extension security analysis and inject findings.
 
-    Only called when ``--include-extensions`` is active and Pro-gating passes.
+    Only called when ``--include-extensions`` is active active.
     """
     ext_list = _extensions_discovery.discover_extensions()
     ext_findings = _extensions_analyzer.analyze_extensions(ext_list)
@@ -593,6 +596,125 @@ def _apply_severity_threshold(
     result.findings = [
         f for f in result.findings if _SEVERITY_ORDER.index(f.severity) <= threshold_idx
     ]
+    return result
+
+
+def _apply_project_scan(
+    result: ScanResult,
+    project_dir: Path,
+    analyzers: list | None,
+    extra_rules_dirs: list[Path] | None,
+    con: Console,
+) -> ScanResult:
+    """Discover project-level MCP configs, emit TRUST-001, and run full pipeline.
+
+    Called when ``--project`` is supplied.  *project_dir* must already be
+    resolved.  Does not touch or modify the default scan behaviour.
+
+    Pipeline:
+    1. Walk *project_dir* for known project-level config file patterns.
+    2. Emit TRUST-001 (HIGH) for every MCP server found — fires on *origin*
+       (project-scoped), not content.
+    3. Run the full static analysis pipeline over those servers so that
+       credentials, poisoning, transport, supply-chain, and auth findings
+       are also surfaced.
+
+    Findings from steps 2–3 are appended to *result.findings* so they flow
+    through all output formatters (terminal, JSON, SARIF, HTML dashboard).
+    The main scan score is *not* recomputed — project findings are appended
+    post-score, consistent with ``_apply_governance``, ``_apply_baseline_drift``,
+    and ``_apply_sast``.
+    """
+    from mcp_audit.config_parser import parse_config  # noqa: PLC0415
+    from mcp_audit.models import ScanResult as _ProjectScanResult  # noqa: PLC0415
+    from mcp_audit.scanner import (  # noqa: PLC0415
+        _run_static_pipeline,
+        get_default_analyzers,
+    )
+
+    project_configs = discover_project_configs(project_dir)
+
+    if not project_configs:
+        con.print(f"[dim]No project MCP configs found under {project_dir}[/dim]")
+        return result
+
+    # Parse all servers from the discovered project configs.
+    project_servers: list = []
+    for config in project_configs:
+        try:
+            project_servers.extend(parse_config(config))
+        except ValueError as e:
+            result.errors.append(str(e))
+
+    con.print(
+        f"[dim]Project scan: {len(project_configs)} config file(s),"
+        f" {len(project_servers)} server(s) found[/dim]"
+    )
+
+    # ── TRUST-001: fires for every project-scoped server ───────────────────────
+    # Logic is deliberately dumb — origin (is_project_scoped) is the only
+    # criterion.  Content-based analysis runs separately below.
+    for server in project_servers:
+        result.findings.append(
+            Finding(
+                id="TRUST-001",
+                severity=Severity.HIGH,
+                analyzer="trust",
+                client=server.client,
+                server=server.name,
+                title="MCP server defined in project-level config (TrustFall risk)",
+                description=(
+                    f"Server '{server.name}' is defined in"
+                    f" '{server.config_path.name}', a project-level config file"
+                    " that is likely committed to version control."
+                    " When a developer opens this repository in an AI editor"
+                    " and clicks 'Trust this folder', this MCP server spawns"
+                    " automatically with their full OS privileges before any"
+                    " project code runs."
+                    " A supply-chain attacker, malicious contributor, or"
+                    " typosquatted package can backdoor every developer who"
+                    " trusts the repo (Adversa TrustFall, May 2026;"
+                    " corroborated by CVE-2026-30615)."
+                    " OWASP MCP09."
+                ),
+                evidence=(
+                    f"File: {server.config_path}"
+                    f" | Server: {server.name}"
+                    " | Origin: project-level config"
+                ),
+                remediation=(
+                    "Review this server definition before trusting the project."
+                    " Verify the command/URL matches what the project"
+                    " documentation describes. Check the file's commit history"
+                    " for unexpected modifications."
+                    " Never trust a project that adds unexpected MCP servers."
+                ),
+                cwe="CWE-829",
+                owasp_mcp_top_10=["MCP09"],
+                finding_path=str(server.config_path),
+            )
+        )
+
+    if project_servers:
+        # Run the full static pipeline on project servers so credentials,
+        # poisoning, transport, supply-chain, and auth findings are surfaced.
+        # skip_rug_pull=True: project-level servers have no persistent user
+        # baseline; rug-pull state would always show "first seen".
+        effective_analyzers = (
+            analyzers if analyzers is not None else get_default_analyzers()
+        )
+        pipeline_result = _run_static_pipeline(
+            result=_ProjectScanResult(),
+            all_servers=project_servers,
+            configs=project_configs,
+            analyzers=effective_analyzers,
+            skip_rug_pull=True,
+            extra_rules_dirs=extra_rules_dirs,
+        )
+        # Merge pipeline findings only — score and registry_stats stay with
+        # the main result.
+        result.findings.extend(pipeline_result.findings)
+
     return result
 
 
@@ -851,6 +973,17 @@ def scan(
             "Falls back to the registered org name, then 'Not specified'."
         ),
     ),
+    project: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--project",
+        help=(
+            "Walk this directory for project-level MCP config files"
+            " (.mcp.json, .cursor/mcp.json, .vscode/mcp.json, etc.) and"
+            " emit TRUST-001 (HIGH) for every server found."
+            " Use after cloning a repo, before opening it in an AI editor."
+            " Runs the full analyzer pipeline over project-scoped servers too."
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     if configs and len(configs) > 1:
@@ -863,6 +996,17 @@ def scan(
     path = config or path
     extra_paths = [path] if path else None
     fmt = "json" if json_flag else output_format
+
+    # Validate --project early so the user gets a clean error before any scan work.
+    resolved_project: Path | None = None
+    if project is not None:
+        resolved_project = project.resolve()
+        if not resolved_project.exists():
+            console.print(f"[red]Error:[/red] --project path not found: {project}")
+            raise typer.Exit(2)
+        if not resolved_project.is_dir():
+            console.print(f"[red]Error:[/red] --project must be a directory: {project}")
+            raise typer.Exit(2)
 
     if reset_state:
         _reset_scoped_state(extra_paths, console)
@@ -943,6 +1087,11 @@ def scan(
 
     if include_extensions:
         result = _apply_extensions(result, console)
+
+    if resolved_project is not None:
+        result = _apply_project_scan(
+            result, resolved_project, analyzers, extra_rules_dirs or None, console
+        )
 
     result = _apply_severity_threshold(result, severity_threshold, console)
 
@@ -1105,7 +1254,7 @@ def watch(
     rules_dir: Path | None = typer.Option(  # noqa: B008
         None,
         "--rules-dir",
-        help="Additional YAML rules directory per re-scan (Pro/Enterprise)",
+        help="Additional YAML rules directory per re-scan",
     ),
 ) -> None:
     """Continuously monitor MCP configs and scan on changes."""

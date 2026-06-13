@@ -144,6 +144,13 @@
       "owasp_names": ["Software Supply Chain Attacks"]
     },
     {
+      "finding_id": "SC-004",
+      "finding_title": "Known CVE advisory recorded for this package",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"],
+      "notes": "Fires when an exact-match registry entry has known_vulnerabilities. Offline check using bundled registry data; no network required. Severity HIGH. Operator should verify installed version is in affected range."
+    },
+    {
       "finding_id": "RUGPULL-000",
       "finding_title": "First scan — baseline recorded for server",
       "owasp_codes": [],
@@ -480,6 +487,48 @@
       "finding_title": "Generic-named server with network transport URL",
       "owasp_codes": ["MCP09", "MCP07"],
       "owasp_names": ["Shadow MCP Servers", "Excessive MCP Agent Permissions"]
+    },
+    {
+      "finding_id": "COMM-031",
+      "finding_title": "Remote MCP server configured without authentication",
+      "owasp_codes": ["MCP06"],
+      "owasp_names": ["Intent Flow Subversion"],
+      "notes": "Lightweight URL-pattern signal. For full severity tiering and auth-signal suppression, see AUTH-001 from the auth analyzer."
+    },
+    {
+      "finding_id": "AUTH-001",
+      "finding_title": "Remote MCP server configured without authentication",
+      "owasp_codes": ["MCP06"],
+      "owasp_names": ["Intent Flow Subversion"],
+      "notes": "Severity HIGH for public hosts, MEDIUM for private/RFC-1918 hosts. arXiv 2605.22333: 40.55% of 7,973 live remote MCP servers unauthenticated. CWE-306."
+    },
+    {
+      "finding_id": "AUTH-002",
+      "finding_title": "OAuth-configured server missing audience/resource binding",
+      "owasp_codes": ["MCP06"],
+      "owasp_names": ["Intent Flow Subversion"],
+      "notes": "RFC 8707 Resource Indicators. arXiv 2605.22333: every one of 119 OAuth-enabled MCP servers had at least one flaw. CWE-346."
+    },
+    {
+      "finding_id": "TRUST-001",
+      "finding_title": "MCP server defined in project-level config (TrustFall risk)",
+      "owasp_codes": ["MCP09"],
+      "owasp_names": ["Shadow MCP Servers"],
+      "notes": "Fires for every MCP server found in a project-level config file (.mcp.json, .cursor/mcp.json, .claude/settings.json, .vscode/mcp.json). Origin-based — fires on file location, not content. Adversa TrustFall May 2026; CVE-2026-30615. CWE-829."
+    },
+    {
+      "finding_id": "COMM-033",
+      "finding_title": "Project-level MCP config file present in repository",
+      "owasp_codes": ["MCP09"],
+      "owasp_names": ["Shadow MCP Servers"],
+      "notes": "Community rule companion to TRUST-001. LOW severity — refer users to 'mcp-audit scan --project' for full TRUST-001 analysis. CWE-829."
+    },
+    {
+      "finding_id": "COLLIDE-001",
+      "finding_title": "Tool name collision: tool claimed by multiple servers",
+      "owasp_codes": ["MCP01", "MCP09"],
+      "owasp_names": ["Token Mismanagement and Secret Exposure", "Shadow MCP Servers"],
+      "notes": "Requires --connect (live enumeration). Fires when >=2 distinct servers advertise the same tool name (case-sensitive). MEDIUM by default; HIGH when one claimant is registry-verified and another is not (unknown server shadowing a trusted tool). NSA CSI item 5. CWE-694."
     }
   ],
   "dynamic_patterns": [
@@ -532,5 +581,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 76 static finding IDs are mapped (60 original + 16 new: COMM-000 template + COMM-016 through COMM-030). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 83 static finding IDs are mapped (60 original + 23 new: COMM-000 template + COMM-016 through COMM-033 + AUTH-001 + AUTH-002 + TRUST-001 + COLLIDE-001 + SC-004). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
 }

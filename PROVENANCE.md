@@ -68,13 +68,14 @@ For reference, the existing MCP security tools we studied during design (but did
 
 ### Supply chain (analyzers/supply_chain.py)
 
-The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 64 known-legitimate MCP servers.
+The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 83 known-legitimate MCP servers.  It also emits `SC-004` (HIGH) when an exact-match registry entry carries `known_vulnerabilities` CVE IDs — an offline advisory check requiring no network access.
 
 **Research sources:**
 
 - **Vu et al., "Typosquatting in the npm Ecosystem," NDSS 2021** ([Paper](https://www.ndss-symposium.org/ndss-paper/detecting-node-js-package-name-squatting/)) — Academic basis for Levenshtein distance-based typosquatting detection. Demonstrates that single-edit-distance substitutions, additions, and deletions are the dominant technique in real npm package name squatting attacks. Distance-1 is flagged CRITICAL and distance-2 HIGH in our analyzer, reflecting their finding that single-character changes are almost always malicious.
 - **WorkOS** — Analysis of MCP supply chain risks via runtime package fetching (npx/uvx). ([Blog post](https://workos.com/blog/mcp-supply-chain-security))
 - **OWASP Agentic Skills Top 10** — Documents real-world supply chain attacks on agent tool registries, including the ClawHub registry poisoning incident.
+- **NVD / GitHub Security Advisories** — Source for all `known_vulnerabilities` CVE entries in `registry/known-servers.json`. Each entry was confirmed against the official NVD record or GitHub GHSA before seeding. CVEs confirmed and seeded for v0.12.0: CVE-2026-23744 (`@mcpjam/inspector`), CVE-2026-0755 (`gemini-mcp-tool`), CVE-2025-59528 (`flowise`), CVE-2026-26118 (`@azure/mcp`), CVE-2026-33032 (`nginx-ui`). CVE-2026-32211 was not seeded — NVD CPE is `azure_web_apps` (hosted service; no pinnable package version).
 
 ### Rug-pull detection (analyzers/rug_pull.py)
 
@@ -104,6 +105,40 @@ The attack path engine performs multi-hop reachability analysis across server ca
 
 - **Greedy set cover / hitting set approximation** — This is a well-known polynomial-time approximation for a classic NP-hard combinatorial optimization problem. The greedy algorithm achieves a ln(n) approximation bound (where n is the number of attack paths), which is optimal assuming P ≠ NP. No specific security research paper is cited here; this is standard computer science applied to a novel domain. The algorithm is described in any algorithms textbook (e.g., Cormen et al., *Introduction to Algorithms*, §35.3 — Set Cover).
 - The framing of "minimum set of assets to remove to break all attack paths" is analogous to network interdiction problems in operations research, applied here to MCP server dependency graphs.
+
+### Authentication checks (analyzers/auth.py)
+
+AUTH-001 (remote server without authentication) and AUTH-002 (OAuth audience
+binding) were added in v0.12.0 based on the following published research.
+
+**Research sources:**
+
+- **arXiv 2605.22333** — "Security Analysis of Remote MCP Server Deployments"
+  (2026). Largest published measurement study of live remote MCP servers:
+  scanned 7,973 servers and found 40.55% require no authentication. Also
+  evaluated 119 OAuth-enabled MCP servers and found every one had at least one
+  flaw (325 total); dynamic-client-registration (DCR) vulnerabilities affected
+  96.6% of the OAuth-enabled sample. Both AUTH-001 and AUTH-002 cite this study
+  directly in their finding descriptions.
+- **Censys** — Internet-scanning report (June 2026) counting 12,520
+  internet-exposed MCP services, the majority unauthenticated. Cited in the
+  AUTH-001 description to quantify internet exposure.
+- **RFC 8707** — "Resource Indicators for OAuth 2.0" (IETF, 2020). Defines the
+  `resource` parameter and audience binding requirements that AUTH-002 checks
+  for. The missing-audience attack (token cross-resource replay) is documented
+  in Section 2.2 of the RFC.
+- **CWE-306** — "Missing Authentication for Critical Function" (MITRE). AUTH-001
+  is a direct instance: every MCP tool call is a critical function invocable
+  by anyone who can reach the URL without authentication.
+- **CWE-346** — "Origin Validation Error" (MITRE). AUTH-002 maps here: a missing
+  audience binding allows tokens from any origin that shares the issuer to be
+  accepted.
+- **OWASP MCP Top 10 MCP06** — "Intent Flow Subversion" (insufficient
+  authentication/authorization). Both AUTH-001 and AUTH-002 are MCP06 findings.
+
+No code was copied from any existing authentication scanner. The host-visibility
+classification (public / private-RFC-1918 / localhost), auth-signal detection,
+and OAuth-block extraction logic are original implementations.
 
 ### SAST rules — TypeScript path traversal, SQL injection, SSRF (semgrep-rules/typescript/injection/)
 
@@ -184,8 +219,10 @@ We don't accept detection patterns based on undisclosed or private research.
 
 ## Community rules (rules/community/)
 
-30 bundled community detection rules (COMM-001 through COMM-030) ship with
-mcp-audit and run for all users automatically.
+33 bundled community detection rules (COMM-001 through COMM-033, with gaps for
+retired IDs) ship with mcp-audit and run for all users automatically.
+(COMM-032 is intentionally reserved and unissued; the next new rule will be COMM-034.
+See the COLLIDE-001 section below for why COMM-032 was skipped.)
 
 | Rule | Description | Basis |
 |------|-------------|-------|
@@ -219,7 +256,80 @@ mcp-audit and run for all users automatically.
 | COMM-028 | Command is an absolute path | OWASP MCP Top 10 MCP04 (Supply Chain Risk); absolute paths bypass PATH-based discovery and may indicate sideloaded binaries; CWE-114 (process control) |
 | COMM-029 | Command references temp/volatile directory | OX Security / CVE-2026-30623 (CVSS 9.8); OWASP MCP Top 10 MCP04; malware writing rogue MCP servers to /tmp is a documented installation vector; CWE-377 |
 | COMM-030 | Generic-named server with network URL | OWASP MCP Top 10 MCP09 (Shadow Servers) and MCP07; unnamed network servers resist discovery, fleet auditing, and access-review workflows |
+| COMM-031 | Remote MCP server configured without authentication | arXiv 2605.22333 (40.55% of live remote MCP servers unauthenticated); Censys (12,520 internet-exposed MCP services); CWE-306; OWASP MCP Top 10 MCP06. Lightweight URL-pattern companion to AUTH-001 in auth.py. |
+| COMM-033 | Project-level MCP config file present in repository | Adversa TrustFall (May 2026) — first published demonstration that committing project-level MCP config causes AI editors to auto-spawn MCP servers with developer OS privileges on "trust folder". CVE-2026-30615 config-tamper channel. CWE-829; OWASP MCP Top 10 MCP09. Lightweight config_path-pattern companion to TRUST-001 in cli/scan.py. |
 
 All community rules are original implementations based on common security
 practice and published CWE categories. None are derived from proprietary
 research or other scanner rulesets.
+
+## Project-level config scan (cli/scan.py, discovery.py)
+
+The `mcp-audit scan --project` feature and its `TRUST-001` finding are based on:
+
+- **Adversa "TrustFall" (May 2026)** — Adversa AI's published research demonstrating
+  that committing a project-level MCP config file (`.mcp.json`, `.cursor/mcp.json`,
+  `.vscode/mcp.json`) causes AI editors (Claude Code, Cursor, VS Code/Copilot) to
+  auto-spawn the named MCP servers with the trusting developer's full OS privileges
+  the moment they click "Trust this folder".  The attack requires no code execution
+  prior to trust and bypasses OS permission dialogs.
+  ([Adversa AI TrustFall blog post](https://adversa.ai/blog/trustfall/))
+
+- **CVE-2026-30615** — Published CVE in the Claude Code CLI demonstrating a
+  config-tamper channel.  The config-tamper vector (attacker modifies `.mcp.json`
+  before the developer opens the repo) is the second exploitation path corroborating
+  the TrustFall mechanism.
+
+- **OWASP MCP Top 10 MCP09 — Shadow MCP Servers** — TRUST-001 maps to MCP09
+  because the attacker introduces a *hidden* server (the developer does not know
+  the server is present in the repo they are trusting) with elevated capability
+  access (full OS privileges).
+
+- **CWE-829 — Inclusion of Functionality from Untrusted Control Sphere**
+  ([MITRE CWE](https://cwe.mitre.org/data/definitions/829.html)) — The
+  project-level config is the "untrusted control sphere"; the AI editor includes
+  the MCP server it defines in its execution environment without requiring the
+  developer to inspect or approve the config file's contents.
+
+The discovery logic (`discover_project_configs()`) and the confirmed per-client
+project-file paths were verified against official 2026 documentation from
+Anthropic (Claude Code), Cursor, and Microsoft (VS Code / GitHub Copilot).
+See `src/mcp_audit/discovery.py` for inline references and coverage notes.
+
+## Tool-name collision detection (analyzers/collision.py — COLLIDE-001)
+
+The `COLLIDE-001` finding and its detection logic in
+`src/mcp_audit/analyzers/collision.py` are based on:
+
+- **NSA Cybersecurity Information Sheet "Generative AI and LLM Cybersecurity
+  Risks"** (April 2025), item 5 — *Namespace Shadowing / Tool Collision*.
+  The NSA CSI explicitly names namespace shadowing as a control that
+  organisations deploying MCP servers should mitigate: when multiple servers
+  expose a tool with the same name, the AI agent's tie-breaking behaviour is
+  undocumented, creating a pathway for a malicious server to intercept calls
+  intended for a trusted one.
+  ([NSA CSI PDF](https://media.defense.gov/2025/Apr/14/2003500458/-1/-1/0/CSI-CYBERSECURITY-FOR-AI.PDF))
+
+- **OWASP MCP Top 10 MCP01 — Token Mismanagement and Secret Exposure** —
+  When a rogue tool intercepts an agent call, it receives the tool arguments
+  (which may include tokens, credentials, or sensitive data) instead of the
+  legitimate server.
+
+- **OWASP MCP Top 10 MCP09 — Shadow MCP Servers** — A server that shadows a
+  trusted tool name is, by definition, a shadow server: it is present in the
+  agent's namespace without the user's knowledge or consent.
+
+- **CWE-694 — Target of Evaluation Not Clearly Defined**
+  ([MITRE CWE](https://cwe.mitre.org/data/definitions/694.html)) — When
+  multiple targets (tools) share the same identifier (name), the evaluation
+  target is ambiguous; the agent cannot reliably determine which implementation
+  it is invoking.
+
+**Why COMM-032 was not issued:** A companion community rule for COLLIDE-001 was
+evaluated and rejected.  Static MCP config files do not contain tool lists —
+tool names are returned dynamically by running servers via the MCP `tools/list`
+RPC.  A rule that fires on static config content cannot detect tool-name
+collisions; any static heuristic (e.g. flagging two servers with the same server
+*name*) would produce misleading findings.  Shipping a dead or misleading rule
+inflates the corpus count and weakens trust in the rule pack.  COMM-032 is
+therefore reserved as an unissued ID; the next new community rule will be COMM-034.

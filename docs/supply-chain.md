@@ -382,11 +382,38 @@ date, download count, publisher history).
 
 ---
 
+## SC-004: Offline CVE advisory check
+
+`SC-004` (HIGH, `CWE-1104`, OWASP MCP04) fires when an exact-match registry entry
+carries one or more CVE IDs in `RegistryEntry.known_vulnerabilities`.  No network
+access is required — the check runs purely against the bundled registry.
+
+```
+FINDING SC-004: Known CVE advisory: @mcpjam/inspector (CVE-2026-23744)
+  Severity: HIGH  Analyzer: supply_chain
+  Package '@mcpjam/inspector' has a public CVE advisory (CVE-2026-23744) recorded
+  in the mcp-audit known-server registry.  Verify whether the version pinned in
+  your config falls within the affected range and upgrade to the patched version.
+  Check NVD: https://nvd.nist.gov/vuln/detail/CVE-2026-23744
+```
+
+**Important limitation:** `SC-004` does not compare the installed version against
+the CVE's affected version range — it fires whenever the package name matches
+regardless of version.  Use `scan --check-vulns` for version-aware scanning via
+OSV.dev.  See `GAPS.md` for details.
+
+CVE IDs seeded at v0.12.0: CVE-2026-23744 (`@mcpjam/inspector`),
+CVE-2026-0755 (`gemini-mcp-tool`), CVE-2025-59528 (`flowise`),
+CVE-2026-26118 (`@azure/mcp`), CVE-2026-33032 (`nginx-ui`).
+
+---
+
 ## Roadmap
 
 | Layer | Description | Status |
 |---|---|---|
 | Layer 0 | Typosquatting detection via Levenshtein distance (npm + PyPI) | **Shipped** |
+| Layer 0b | Offline CVE advisory (`SC-004`) against bundled registry | **Shipped v0.12.0** |
 | Layer 1 | SHA-256 hash verification against registry pins | **Shipped** |
 | Layer 2 | Sigstore signature verification (cosign / sigstore-python) | **Shipped** |
 | Layer 3 | Known-CVE scanning via deps.dev + OSV.dev; CycloneDX SBOM | **Shipped** |

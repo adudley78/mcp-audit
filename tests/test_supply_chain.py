@@ -839,3 +839,170 @@ class TestUvxConfigFixtureIntegration:
                 assert findings == [], (
                     f"Expected no findings for known-good-uvx, got {findings}"
                 )
+
+
+# ── SC-004: offline known-CVE advisory check ──────────────────────────────────
+
+
+class TestKnownCveAdvisory:
+    """SC-004 fires when an exact-match registry entry has known_vulnerabilities."""
+
+    def _make_registry(self, entries: list) -> _loader_module.KnownServerRegistry:
+        """Build a KnownServerRegistry backed by an in-memory JSON payload."""
+        import json
+        import tempfile
+
+        from mcp_audit.registry.loader import KnownServerRegistry
+
+        payload = {
+            "schema_version": "1.0",
+            "last_updated": "2026-06-13",
+            "entries": entries,
+        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as fh:
+            json.dump(payload, fh)
+            tmp = fh.name
+        return KnownServerRegistry(path=Path(tmp))
+
+    def _make_server(
+        self,
+        name: str,
+        command: str,
+        args: list,
+        config_path: str = "/fake/mcp.json",
+    ) -> ServerConfig:
+        return ServerConfig(
+            name=name,
+            command=command,
+            args=args,
+            client="claude",
+            config_path=config_path,
+        )
+
+    def test_sc004_fires_for_npm_package_with_cve(self) -> None:
+        """SC-004 is emitted when npx package has known_vulnerabilities."""
+        registry = self._make_registry(
+            [
+                {
+                    "name": "@mcpjam/inspector",
+                    "source": "npm",
+                    "repo": "https://github.com/MCPJam/inspector",
+                    "maintainer": "MCPJam",
+                    "verified": False,
+                    "last_verified": "2026-06-13",
+                    "known_versions": [],
+                    "tags": [],
+                    "known_vulnerabilities": ["CVE-2026-23744"],
+                }
+            ]
+        )
+        server = self._make_server("mcpjam", "npx", ["-y", "@mcpjam/inspector"])
+        analyzer = SupplyChainAnalyzer(registry=registry)
+        findings = analyzer.analyze(server)
+
+        assert len(findings) == 1
+        f = findings[0]
+        assert f.id == "SC-004"
+        assert f.severity == Severity.HIGH
+        assert "CVE-2026-23744" in f.title
+        assert "CVE-2026-23744" in f.description
+        assert f.analyzer == "supply_chain"
+        assert f.owasp_mcp_top_10 == ["MCP04"]
+
+    def test_sc004_one_finding_per_cve(self) -> None:
+        """Multiple CVEs on one entry produce one SC-004 finding each."""
+        registry = self._make_registry(
+            [
+                {
+                    "name": "flowise",
+                    "source": "npm",
+                    "repo": "https://github.com/FlowiseAI/Flowise",
+                    "maintainer": "FlowiseAI",
+                    "verified": False,
+                    "last_verified": "2026-06-13",
+                    "known_versions": [],
+                    "tags": [],
+                    "known_vulnerabilities": ["CVE-2025-59528", "CVE-2026-99999"],
+                }
+            ]
+        )
+        server = self._make_server("flowise", "npx", ["flowise"])
+        analyzer = SupplyChainAnalyzer(registry=registry)
+        findings = analyzer.analyze(server)
+
+        assert len(findings) == 2
+        cve_ids = {f.title.split("(")[1].rstrip(")") for f in findings}
+        assert cve_ids == {"CVE-2025-59528", "CVE-2026-99999"}
+
+    def test_sc004_no_finding_when_no_known_vulnerabilities(self) -> None:
+        """Known package without CVEs does not produce SC-004."""
+        registry = self._make_registry(
+            [
+                {
+                    "name": "@modelcontextprotocol/server-filesystem",
+                    "source": "npm",
+                    "repo": "https://github.com/modelcontextprotocol/servers",
+                    "maintainer": "Anthropic",
+                    "verified": True,
+                    "last_verified": "2026-06-13",
+                    "known_versions": [],
+                    "tags": [],
+                }
+            ]
+        )
+        server = self._make_server(
+            "filesystem",
+            "npx",
+            ["-y", "@modelcontextprotocol/server-filesystem"],
+        )
+        analyzer = SupplyChainAnalyzer(registry=registry)
+        findings = analyzer.analyze(server)
+
+        assert findings == []
+
+    def test_sc004_evidence_contains_package_and_cve(self) -> None:
+        """SC-004 evidence field references package name and CVE ID."""
+        registry = self._make_registry(
+            [
+                {
+                    "name": "gemini-mcp-tool",
+                    "source": "npm",
+                    "repo": "https://github.com/google-gemini/gemini-mcp-tool",
+                    "maintainer": "community",
+                    "verified": False,
+                    "last_verified": "2026-06-13",
+                    "known_versions": [],
+                    "tags": [],
+                    "known_vulnerabilities": ["CVE-2026-0755"],
+                }
+            ]
+        )
+        server = self._make_server("gemini", "npx", ["gemini-mcp-tool"])
+        analyzer = SupplyChainAnalyzer(registry=registry)
+        findings = analyzer.analyze(server)
+
+        assert len(findings) == 1
+        assert "gemini-mcp-tool" in findings[0].evidence
+        assert "CVE-2026-0755" in findings[0].evidence
+
+    def test_sc004_seeded_cve_surfaces_via_bundled_registry(self) -> None:
+        """CVE-2026-23744 in bundled registry surfaces as SC-004 for @mcpjam/inspector.
+
+        This test validates the full data→code pipeline: the seeded CVE in
+        registry/known-servers.json must produce an SC-004 finding when a
+        config contains '@mcpjam/inspector'.
+        """
+        analyzer = SupplyChainAnalyzer()
+        server = self._make_server(
+            "mcpjam-inspector",
+            "npx",
+            ["-y", "@mcpjam/inspector"],
+        )
+        findings = analyzer.analyze(server)
+
+        sc004 = [f for f in findings if f.id == "SC-004"]
+        assert len(sc004) >= 1, (
+            "Expected SC-004 for @mcpjam/inspector (CVE-2026-23744 is in registry); "
+            f"got {findings}"
+        )
+        assert any("CVE-2026-23744" in f.title for f in sc004)

@@ -1680,9 +1680,9 @@ class TestRunStaticPipeline:
         assert any(e == "servers=['delegate-srv']" for e in sentinel.errors), (
             f"run_scan did not delegate with parsed servers: {sentinel.errors}"
         )
-        # Default analyzer list = 5 (poisoning, credentials, transport, supply,
-        # config_hygiene).
-        assert any(e == "analyzers=5" for e in sentinel.errors)
+        # Default analyzer list = 6 (poisoning, credentials, transport, supply,
+        # config_hygiene, auth).
+        assert any(e == "analyzers=6" for e in sentinel.errors)
 
     async def test_run_scan_async_delegates_to_static_pipeline(
         self, tmp_path: Path
@@ -1832,3 +1832,78 @@ class TestCustomScoringWeightsPipeline:
 
         assert returned.score is not None
         assert returned.score.weights_source == "default"
+
+
+# ── COLLIDE-001 wiring in run_scan_async connect block ────────────────────────
+
+
+class TestCollisionWiringInConnectBlock:
+    """Verify detect_tool_collisions() is called during --connect runs."""
+
+    async def test_collision_findings_injected_before_pipeline(
+        self, tmp_path: Path
+    ) -> None:
+        """When --connect enumerates servers with colliding tools, COLLIDE-001
+        findings are present in the final ScanResult."""
+        from mcp_audit.models import ServerEnumeration, ToolInfo
+
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            '{"mcpServers":'
+            ' {"srv-a": {"command": "cmd-a"}, "srv-b": {"command": "cmd-b"}}}'
+        )
+
+        enum_a = ServerEnumeration(tools=[ToolInfo(name="shared_tool")])
+        enum_b = ServerEnumeration(tools=[ToolInfo(name="shared_tool")])
+        enumerations = [enum_a, enum_b]
+        call_counter = {"n": 0}
+
+        async def _fake_connect(server, auth_token=None):  # noqa: ARG001
+            idx = call_counter["n"]
+            call_counter["n"] += 1
+            return enumerations[idx] if idx < len(enumerations) else ServerEnumeration()
+
+        with (
+            _patch_no_known_clients(),
+            patch(
+                "mcp_audit.mcp_client.connect_and_enumerate",
+                side_effect=_fake_connect,
+            ),
+        ):
+            result = await run_scan_async(
+                extra_paths=[config],
+                connect=True,
+                skip_rug_pull=True,
+            )
+
+        collide_findings = [f for f in result.findings if f.id == "COLLIDE-001"]
+        assert len(collide_findings) >= 1
+        assert collide_findings[0].severity == Severity.MEDIUM
+
+    async def test_no_collision_when_connect_errors(self, tmp_path: Path) -> None:
+        """All connect errors → no COLLIDE-001 findings."""
+        from mcp_audit.models import ServerEnumeration
+
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            '{"mcpServers":'
+            ' {"srv-a": {"command": "cmd-a"}, "srv-b": {"command": "cmd-b"}}}'
+        )
+
+        async def _fail_connect(server, auth_token=None):  # noqa: ARG001
+            return ServerEnumeration(error="connection refused")
+
+        with (
+            _patch_no_known_clients(),
+            patch(
+                "mcp_audit.mcp_client.connect_and_enumerate",
+                side_effect=_fail_connect,
+            ),
+        ):
+            result = await run_scan_async(
+                extra_paths=[config],
+                connect=True,
+                skip_rug_pull=True,
+            )
+
+        assert not any(f.id == "COLLIDE-001" for f in result.findings)
