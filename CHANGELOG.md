@@ -8,6 +8,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`mcp-audit vet <package>` — pre-install verdict on any public MCP server package.**
+  Ask before you install. Registry-corpus-based, offline by default, facts not grades.
+  Surfaces: verification status, known CVEs (with NVD links and fixed-in version),
+  declared capabilities, hash-pin availability, and Sigstore attestation expectation.
+  Typosquat detection reuses the same Levenshtein threshold as `mcp-audit scan`'s
+  supply-chain analyzer (threshold=1 for names ≤5 chars, threshold=3 otherwise).
+  Unknown packages exit 0 with an honest "no verdict available" panel — absence of
+  registry data is NOT a safety signal.
+  - `--ecosystem npm|pypi` — force ecosystem; auto-detected when omitted
+    (`@scope/name` → npm; plain names try npm then pypi).
+  - `--format json` — full verdict document conforming to
+    `https://mcp-audit.dev/v1/schema.json` (schema_version `"1.0.0"`).
+  - `--badge` — prints a Shields.io Markdown badge for the package.
+  - `--online` — fetches a live verdict from `mcp-audit.dev/v1/verdicts/{eco}/{slug}.json`
+    (HTTPS GET); caches result at `<user-config-dir>/mcp-audit/verdict-cache.json`
+    (0o600); falls back to bundled registry on network failure.  Plain `vet` makes
+    zero network calls.
+  - `--strict` — exit 1 for unknown packages (CI mode).
+  - Exit codes: 0 = known/unknown-without-strict; 1 = CVEs/typosquat/unknown+strict;
+    2 = error.
+  - PEP 503 normalisation for pypi lookups (`mcp_atlassian` = `mcp-atlassian`).
+  - New module `src/mcp_audit/verdict.py` — pure `build_verdict()` builder shared by
+    CLI and mcp-audit.dev website generator; `name_to_slug()` utility.
+  - New module `src/mcp_audit/cli/vet.py` — Typer command.
+  - 61 tests in `tests/test_vet.py`: clean/CVE/typosquat/unknown paths, all exit codes,
+    JSON schema conformance (all required fields per `mcp-audit.dev/v1/schema.json`),
+    CVE field normalisation (bare strings + rich dicts, deduplication), badge output,
+    PEP 503 round-trip, `--online` mock + 0o600 cache + fallback, slug round-trip.
+  - ADR: `docs/decisions/ADR-0003-vet-verdict.md`.
+  - Docs: `docs/vet.md`.
+  - Supersedes the stale `lookup` command on branch `story/0016-mcp-audit-dev`
+    (different URL shape, included letter grades — do not merge).
+
 ---
 
 ## [0.12.0] - 2026-06-13

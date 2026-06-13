@@ -135,6 +135,7 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     shadow,
     snapshot,
     version,
+    vet,
 )
 
 if __name__ == "__main__":
@@ -163,4 +164,5 @@ __all__ = [
     "run_scan",
     "shadow",
     "snapshot",
+    "vet",
 ]

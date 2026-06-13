@@ -111,6 +111,7 @@ If you installed via Homebrew Python, the path will be different — use `python
 ## Quick start
 
 ```bash
+mcp-audit vet @modelcontextprotocol/server-filesystem # Before you install
 mcp-audit check                                       # One-command security verdict (start here)
 mcp-audit check --verbose                             # Full scan output (equivalent to scan)
 mcp-audit check --json | jq '.score.grade'            # Machine-readable grade
@@ -361,7 +362,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-2,222 tests validate detection accuracy and guard against regressions.
+2,283 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -371,6 +372,7 @@ Every command is available to every user — no tier, no license required.
 
 | Command | Key flags | Description |
 |---------|-----------|-------------|
+| `mcp-audit vet <package>` | `--ecosystem`, `--format json`, `--badge`, `--online`, `--strict` | Pre-install verdict: verification status, known CVEs, capabilities. Ask before you install. Offline by default |
 | `mcp-audit check` | `--path`, `--verbose`, `--json` | One-command security verdict: grade, top findings, fix hints. Recommended entry point for new users |
 | `mcp-audit fix` | `--path`, `--input`, `--apply`, `--fix-type`, `--offline` | Apply safe remediations (credential redaction, transport upgrade, package pinning) directly to config files; dry-run by default |
 | `mcp-audit scan` | `--connect`, `--format`, `--output`, `--severity-threshold`, `--asset-prefix`, `--baseline`, `--policy`, `--verify-hashes`, `--no-score`, `--registry`, `--offline-registry`, `--rules-dir`, `--sast`, `--include-extensions` | Run all analyzers and report findings |
@@ -563,7 +565,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 2,222 tests
+uv run pytest                        # Run all 2,283 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
