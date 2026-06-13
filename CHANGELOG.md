@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Registry submission issue template.** Server authors can now request a verdict and badge via a structured GitHub issue form (`.github/ISSUE_TEMPLATE/registry-submission.yml`). The form collects package name, ecosystem, repo URL, maintainer, capability declarations, and a confirmation checklist. Linked from `mcp-audit.dev/submit/`. Once a submission is merged into `registry/known-servers.json`, developers running `mcp-audit vet` get an offline verdict and the maintainer gets an embeddable Shields.io badge.
+
 - **`mcp-audit vet <package>` — pre-install verdict on any public MCP server package.**
   Ask before you install. Registry-corpus-based, offline by default, facts not grades.
   Surfaces: verification status, known CVEs (with NVD links and fixed-in version),
