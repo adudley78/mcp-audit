@@ -292,6 +292,21 @@ class KnownServerRegistry:
         """
         return normalize_pypi_name(name) in self._pypi_norm_index
 
+    def get_pypi(self, name: str) -> RegistryEntry | None:
+        """Return the registry entry for PyPI package *name*, or ``None``.
+
+        Uses PEP 503 normalisation so ``mcp_server_filesystem`` and
+        ``mcp-server-filesystem`` resolve to the same entry.
+
+        Args:
+            name: Package or module name to look up.
+
+        Returns:
+            :class:`RegistryEntry` when the name matches a known PyPI entry,
+            otherwise ``None``.
+        """
+        return self._pypi_norm_index.get(normalize_pypi_name(name))
+
     def find_closest_pypi(self, name: str, threshold: int = 2) -> RegistryEntry | None:
         """Return the closest PyPI registry entry within *threshold* edit distance.
 

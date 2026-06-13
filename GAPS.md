@@ -161,7 +161,7 @@ Partially confirmed closed (2026-05-17) via community rules seed pack (STORY-004
 
 **`--verify-hashes` requires outbound network access.** Scans run fully offline by default. When `--verify-hashes` is passed, mcp-audit makes HTTPS requests to registry.npmjs.org and pypi.org. If the network is unavailable, INFO findings are produced for packages that could not be verified — the scan does not fail.
 
-~~**Layer 2 (Sigstore signature verification) and Layer 3 (dependency SBOM) are not yet implemented.**~~ **Layer 2 resolved 2026-04-23.** **Layer 3 resolved 2026-04-23.** `scan --verify-signatures` fetches SLSA provenance bundles from the npm and PyPI attestation APIs and verifies them with the `sigstore` Python library (Fulcio cert chain, SCT, Rekor inclusion proof). `scan --check-vulns` resolves transitive dependency graphs via [deps.dev](https://deps.dev) and queries [OSV.dev](https://osv.dev) for known CVEs; emits `VULN-<OSV-ID>` findings. `mcp-audit sbom` generates a CycloneDX 1.5 JSON SBOM. Both features are free for all tiers. `--vuln-registry URL` (Pro/Enterprise) allows a custom OSV-compatible endpoint. See `docs/supply-chain.md` for full documentation.
+~~**Layer 2 (Sigstore signature verification) and Layer 3 (dependency SBOM) are not yet implemented.**~~ **Layer 2 resolved 2026-04-23.** **Layer 3 resolved 2026-04-23.** `scan --verify-signatures` fetches SLSA provenance bundles from the npm and PyPI attestation APIs and verifies them with the `sigstore` Python library (Fulcio cert chain, SCT, Rekor inclusion proof). `scan --check-vulns` resolves transitive dependency graphs via [deps.dev](https://deps.dev) and queries [OSV.dev](https://osv.dev) for known CVEs; emits `VULN-<OSV-ID>` findings. `mcp-audit sbom` generates a CycloneDX 1.5 JSON SBOM. `--vuln-registry URL` allows a custom OSV-compatible endpoint. All features are free for all users (Apache 2.0; no paid tiers). See `docs/supply-chain.md` for full documentation.
 
 ## Supply chain coverage
 
@@ -171,6 +171,10 @@ Partially confirmed closed (2026-05-17) via community rules seed pack (STORY-004
 
 ~~**Levenshtein threshold may produce false positives for short package names.**~~ **Resolved 2026-04-30.** Package names of 5 characters or fewer now use a tighter threshold of 1 edit instead of 3. Names of 6+ characters keep the existing threshold of 3. The fix is in `analyzers/supply_chain.py` (`typo_threshold = 1 if len(package) <= 5 else 3`). Covered by `tests/test_supply_chain.py::TestShortNameThreshold`.
 
+**SC-004 does not validate version ranges.** The offline CVE check (`SC-004`) fires whenever an exact-match package has `known_vulnerabilities` entries in the registry — it does not compare the installed/pinned version against the CVE's affected range. Operators must manually verify whether the version they are running is within the advisory's affected range. Version-range matching (semver `< X.Y.Z` or `>= A.B.C`) is deferred to a future iteration; see also `--check-vulns` (requires network, queries OSV.dev) for version-aware scanning.
+
+**CVE-2026-32211 (`@azure-devops/mcp`) not in registry.** NVD records the affected product as `azure_web_apps` (CPE `cpe:2.3:a:microsoft:azure_web_apps`), a fully-hosted service. Microsoft applied the fix server-side; there is no npm package version to pin or compare against. A registry entry with a pinnable `known_vulnerabilities` CVE would be misleading. Operators using the Azure DevOps MCP Server integration should check the MSRC advisory (CVE-2026-32211) directly.
+
 ~~**No registry metadata enrichment.**~~ **Resolved 2026-04-23.** `RegistryEntry` now carries three optional metadata fields — `first_published` (ISO date), `weekly_downloads` (int), and `publisher_history` (ordered list of publisher accounts). Ten entries in `registry/known-servers.json` have been pre-populated with npm data. When a typosquatted or unknown package is flagged (SC-001/SC-002), the finding description now includes a pipe-delimited metadata blurb for the legitimate package (e.g. "first published: 2024-11-14 | weekly downloads: 42,800 | known publishers: anthropic-bot, modelcontextprotocol"). The `scripts/enrich_registry.py` maintainer script fetches live data from the npm registry API to keep metadata fresh without any network calls during scanning.
 
 ## Live connection (`--connect`)
@@ -179,7 +183,7 @@ Partially confirmed closed (2026-05-17) via community rules seed pack (STORY-004
 
 **Server stderr output leaks to terminal.** When `--connect` launches a stdio server, the server's stderr output (warnings, logs, startup messages) appears in the user's terminal interleaved with mcp-audit output. This should be captured and suppressed or redirected.
 
-**No authentication support.** Some MCP servers (particularly SSE/HTTP servers) require authentication tokens or headers. The current `--connect` implementation doesn't support passing authentication credentials to remote servers.
+~~**No authentication support.**~~ **Resolved v0.6.0.** `scan --connect-token TOKEN` passes a Bearer token to SSE/HTTP servers. STDIO servers that require authentication via environment variables can be configured with `--env KEY=VALUE`. The gap tracker at line 640 of this file was already marked resolved; this prose entry was stale.
 
 ## Toxic flow analysis
 

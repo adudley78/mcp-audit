@@ -144,6 +144,13 @@
       "owasp_names": ["Software Supply Chain Attacks"]
     },
     {
+      "finding_id": "SC-004",
+      "finding_title": "Known CVE advisory recorded for this package",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"],
+      "notes": "Fires when an exact-match registry entry has known_vulnerabilities. Offline check using bundled registry data; no network required. Severity HIGH. Operator should verify installed version is in affected range."
+    },
+    {
       "finding_id": "RUGPULL-000",
       "finding_title": "First scan — baseline recorded for server",
       "owasp_codes": [],
@@ -574,5 +581,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 82 static finding IDs are mapped (60 original + 22 new: COMM-000 template + COMM-016 through COMM-033 + AUTH-001 + AUTH-002 + TRUST-001 + COLLIDE-001). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 83 static finding IDs are mapped (60 original + 23 new: COMM-000 template + COMM-016 through COMM-033 + AUTH-001 + AUTH-002 + TRUST-001 + COLLIDE-001 + SC-004). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
 }

@@ -8,7 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.12.0] - 2026-06-13
+
 ### Added
+
+- **Registry: 4 new CVE advisories for known MCP packages (CVE-2026-23744, CVE-2026-0755, CVE-2025-59528, CVE-2026-26118).** Added `known_vulnerabilities` entries to `registry/known-servers.json` for confirmed public CVEs: `@mcpjam/inspector` (CVE-2026-23744, RCE via unauthenticated `/api/mcp/connect`, fixed in 1.4.3), `gemini-mcp-tool` (CVE-2026-0755, command injection via `execAsync`, no fix available as of disclosure), `flowise` (CVE-2025-59528, RCE via `Function()` constructor in CustomMCP node, fixed in 3.0.6), and `@azure/mcp` (CVE-2026-26118, SSRF privilege escalation, fixed in 1.0.2 / 2.0.0-beta.17). Also corrected CVE attribution: `CVE-2026-26118` moved to `@azure/mcp` (the affected package per OSV/NVD) from `@microsoft/mcp-server`.
+
+- **SC-004 — Offline CVE advisory check for known-vulnerable packages.** The supply chain analyzer now checks `known_vulnerabilities` on exact registry matches and emits `SC-004` (HIGH) when the configured package has one or more CVE advisories recorded in the bundled registry. No network required — purely offline. This activates the previously-dormant `known_vulnerabilities` field in `RegistryEntry` and closes the gap between "registry has CVE data" and "scan surfaces it as a finding". CWE-1104 / OWASP MCP04. CVE-2026-32211 (`@azure-devops/mcp`) was **skipped** — NVD CPE is `azure_web_apps` (a hosted service); no npm package version to pin, fix was applied server-side with no client update available.
 
 - **COLLIDE-001 — Tool-name collision detection across connected MCP servers.** New `detect_tool_collisions()` function (`analyzers/collision.py`) compares live `tools/list` results across all servers connected during `mcp-audit scan --connect`. When two or more distinct servers advertise the same tool name, the agent's tie-breaking behaviour is undocumented and order-dependent — an attacker registers a colliding name to shadow a trusted tool (the agentic analogue of PATH poisoning). Emits MEDIUM when names collide; HIGH when one claimant is verified in the known-server registry and another is not (unknown server shadowing a trusted name). Tool-name comparison is case-sensitive. Deduplication prevents the same logical server configured in multiple MCP client config files from self-colliding. Requires `--connect` — static configs don't carry tool lists. NSA CSI item 5; CWE-694; OWASP MCP01 + MCP09. No companion community rule (COMM-032 reserved/unissued): a static rule for collision detection cannot fire without tool-name data.
 
@@ -971,7 +979,7 @@ uv add mcp-audit-scanner
 
 ---
 
-## [0.11.0] - 2026-04-23 — Open Source Conversion
+## [0.11.0-internal] - 2026-04-23 — Open Source Conversion (internal dev milestone)
 
 ### Changed
 - **All features are now free.** mcp-audit is fully open source under Apache 2.0. There are no paid tiers. `is_pro_feature_available()` always returns `True`; `gate()` is a permanent no-op. This removes the Community / Pro / Enterprise split entirely.

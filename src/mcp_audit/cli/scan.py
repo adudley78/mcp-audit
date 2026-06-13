@@ -293,7 +293,7 @@ def _collect_extra_rules_dirs(
     rules_dir: Path | None,
     con: Console,
 ) -> list[Path]:
-    """Collect Pro-gated extra rule directories for the scanner.
+    """Collect extra rule directories for the scanner.
 
     Includes ``--rules-dir`` and the user-local rules directory at
     ``<user-config-dir>/mcp-audit/rules/`` when it exists.  Community rules ship
@@ -513,7 +513,7 @@ def _apply_sast(
 ) -> ScanResult:
     """Run Semgrep-based SAST analysis and inject findings.
 
-    Only called when ``--sast`` is active and Pro-gating passes.  A semgrep
+    Only called when ``--sast`` is active active.  A semgrep
     launch failure is surfaced as a yellow warning and the scan continues.
     """
     con.print(f"[dim]SAST: scanning {sast_path} with Semgrep rules…[/dim]")
@@ -558,7 +558,7 @@ def _apply_extensions(
 ) -> ScanResult:
     """Run extension security analysis and inject findings.
 
-    Only called when ``--include-extensions`` is active and Pro-gating passes.
+    Only called when ``--include-extensions`` is active active.
     """
     ext_list = _extensions_discovery.discover_extensions()
     ext_findings = _extensions_analyzer.analyze_extensions(ext_list)
@@ -1254,7 +1254,7 @@ def watch(
     rules_dir: Path | None = typer.Option(  # noqa: B008
         None,
         "--rules-dir",
-        help="Additional YAML rules directory per re-scan (Pro/Enterprise)",
+        help="Additional YAML rules directory per re-scan",
     ),
 ) -> None:
     """Continuously monitor MCP configs and scan on changes."""

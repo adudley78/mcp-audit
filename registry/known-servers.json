@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "last_updated": "2026-05-30",
-  "entry_count": 80,
+  "entry_count": 83,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -1243,6 +1243,9 @@
       "weekly_downloads": 6800,
       "publisher_history": [
         "azure-sdk"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2026-26118"
       ]
     },
     {
@@ -1365,13 +1368,8 @@
       "weekly_downloads": null,
       "publisher_history": [],
       "attestation_expected": false,
-      "known_vulns": [
-        {
-          "cve": "CVE-2026-33032",
-          "cvss": 9.8,
-          "description": "Unauthenticated RCE via nginx-ui admin API \u2014 do not expose this MCP server publicly",
-          "fixed_in": null
-        }
+      "known_vulnerabilities": [
+        "CVE-2026-33032"
       ]
     },
     {
@@ -1393,14 +1391,84 @@
       "publisher_history": [
         "microsoft"
       ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@mcpjam/inspector",
+      "source": "npm",
+      "repo": "https://github.com/MCPJam/inspector",
+      "maintainer": "MCPJam",
+      "verified": false,
+      "last_verified": "2026-06-13",
+      "known_versions": [],
+      "tags": [
+        "dev-tools",
+        "inspector",
+        "local"
+      ],
+      "capabilities": [
+        "network_out",
+        "subprocess"
+      ],
+      "first_published": "2025-07-01",
+      "weekly_downloads": null,
+      "publisher_history": [
+        "mcpjam"
+      ],
       "attestation_expected": false,
-      "known_vulns": [
-        {
-          "cve": "CVE-2026-26118",
-          "cvss": 8.1,
-          "description": "Tool hijacking via crafted tool description \u2014 update to patched version when available",
-          "fixed_in": null
-        }
+      "known_vulnerabilities": [
+        "CVE-2026-23744"
+      ]
+    },
+    {
+      "name": "gemini-mcp-tool",
+      "source": "npm",
+      "repo": "https://github.com/google-gemini/gemini-mcp-tool",
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-06-13",
+      "known_versions": [],
+      "tags": [
+        "ai",
+        "gemini",
+        "local"
+      ],
+      "capabilities": [
+        "subprocess"
+      ],
+      "first_published": "2025-06-01",
+      "weekly_downloads": null,
+      "publisher_history": [],
+      "attestation_expected": false,
+      "known_vulnerabilities": [
+        "CVE-2026-0755"
+      ]
+    },
+    {
+      "name": "flowise",
+      "source": "npm",
+      "repo": "https://github.com/FlowiseAI/Flowise",
+      "maintainer": "FlowiseAI",
+      "verified": false,
+      "last_verified": "2026-06-13",
+      "known_versions": [],
+      "tags": [
+        "ai",
+        "workflow",
+        "local"
+      ],
+      "capabilities": [
+        "network_out",
+        "subprocess"
+      ],
+      "first_published": "2023-06-01",
+      "weekly_downloads": null,
+      "publisher_history": [
+        "flowiseai"
+      ],
+      "attestation_expected": false,
+      "known_vulnerabilities": [
+        "CVE-2025-59528"
       ]
     }
   ]

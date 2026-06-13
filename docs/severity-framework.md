@@ -67,6 +67,7 @@ MCP-specific). See the reference tables at the bottom of this document.
 | SC-001     | CRITICAL | ASI02, ASI10 | MCP04 | Levenshtein distance 1 from a known-good package. Single-character substitutions are almost exclusively malicious per Vu et al. (NDSS 2021). CVSS: 9.1 |
 | SC-002     | HIGH     | ASI10 | MCP04 | Levenshtein distance 2. Still very likely malicious; two-character substitutions are a common squatting technique. CVSS: 7.5 |
 | SC-003     | MEDIUM   | ASI10 | MCP04 | Levenshtein distance 3. Possible innocent mismatch; warrants review. CVSS: 4.3 |
+| SC-004     | HIGH     | ASI10 | MCP04 | Exact registry match with `known_vulnerabilities` entries. Package is a known-legitimate server with a public CVE advisory. Operator must verify installed version is in the affected range. No network required (offline bundled registry). CWE-1104. |
 
 ### Rug-pull analyzer (`analyzers/rug_pull.py`)
 

@@ -121,7 +121,7 @@ def _run_rules_engine(
     """Load and run the policy-as-code rule engine against all servers.
 
     Always loads bundled community rules.  When *extra_rules_dirs* is
-    provided (caller is responsible for Pro-gating), also loads rules from
+    provided (caller-supplied;) also loads rules from
     those directories (user rules take precedence on ID conflicts).
 
     When *analyzers* is supplied and contains a
@@ -240,7 +240,8 @@ def _run_static_pipeline(
             registry-stats extraction.
         skip_rug_pull: Skip rug-pull analysis entirely (used by ``pin``/``diff``).
         state_path: Override the rug-pull state file location.
-        extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+        extra_rules_dirs: Additional rule directories to load
+            (optional; caller-supplied).
         scoring_weights: Optional custom scoring weights from a governance policy.
             When ``None``, the hardcoded defaults in :mod:`mcp_audit.scoring` are used.
         scoring_weights_source: Audit label written to ``ScanScore.weights_source``.
@@ -394,7 +395,8 @@ async def run_scan_async(
         state_path: Override the rug-pull state file location (useful in tests).
         skip_rug_pull: Skip rug-pull analysis entirely.  Used by ``pin``/``diff``.
         offline: When ``True``, forbid all network calls.
-        extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+        extra_rules_dirs: Additional rule directories to load
+            (optional; caller-supplied).
         auth_token: Bearer token forwarded to SSE/HTTP servers as
             ``Authorization: Bearer <token>``.  Silently ignored for stdio
             servers.  Never stored or logged.
@@ -523,7 +525,8 @@ def run_scan(
         skip_rug_pull: When ``True``, skip rug-pull analysis entirely.  Used by
             the ``pin`` and ``diff`` CLI commands which manage state directly.
         offline: When ``True``, forbid all network calls.
-        extra_rules_dirs: Additional rule directories to load (Pro-gated by caller).
+        extra_rules_dirs: Additional rule directories to load
+            (optional; caller-supplied).
         auth_token: Bearer token forwarded to SSE/HTTP servers as
             ``Authorization: Bearer <token>``.  Silently ignored for stdio
             servers.  Never stored or logged.
