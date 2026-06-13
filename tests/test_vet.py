@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -19,6 +20,12 @@ from mcp_audit.verdict import (
     build_verdict,
     name_to_slug,
     verdict_page_url,
+)
+
+# Windows does not support POSIX file permission bits — skip mode checks there.
+_windows_skip = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows does not support POSIX file permissions",
 )
 
 runner = CliRunner()
@@ -629,6 +636,7 @@ class TestVetCliOnline:
             result = runner.invoke(app, ["vet", "completely-unknown-pkg", "--online"])
         assert result.exit_code == 0
 
+    @_windows_skip
     def test_online_cache_written_at_0o600(self, tmp_path: Path) -> None:
         """Verdict cache file must be created with mode 0o600."""
         from mcp_audit.cli.vet import _write_verdict_cache  # noqa: PLC0415
