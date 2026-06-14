@@ -666,16 +666,16 @@ class TestShadowCommandIntegration:
 
         from mcp_audit.cli import app
 
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             app,
             ["shadow", "--path", str(cfg), "--allowlist", str(al_file)],
         )
         # Exit 1 because github is shadow
         assert result.exit_code == 1
-        stderr = result.stderr if hasattr(result, "stderr") else ""
-        combined = result.output + stderr
-        assert "shadow" in combined.lower() or "sanctioned" in combined.lower()
+        assert (
+            "shadow" in result.output.lower() or "sanctioned" in result.output.lower()
+        )
 
     def test_terminal_text_output_no_servers(self, tmp_path: Path) -> None:
         """Text mode with no servers prints a message and exits 0."""
@@ -683,7 +683,7 @@ class TestShadowCommandIntegration:
 
         from mcp_audit.cli import app
 
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             app,
             ["shadow", "--path", str(tmp_path / "nonexistent_dir")],
@@ -757,7 +757,7 @@ class TestShadowCommandIntegration:
 
         from mcp_audit.cli import app
 
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             app,
             ["shadow", "--path", str(cfg), "--allowlist", str(al_file)],
@@ -776,7 +776,7 @@ class TestShadowCommandIntegration:
             "mcp_audit.cli.shadow.load_registry",
             side_effect=FileNotFoundError("registry not found"),
         ):
-            runner = CliRunner(mix_stderr=False)
+            runner = CliRunner()
             result = runner.invoke(app, ["shadow", "--format", "json"])
         assert result.exit_code == 2
 
@@ -802,15 +802,14 @@ class TestShadowCommandIntegration:
 
         from mcp_audit.cli import app
 
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             app,
             ["shadow", "--path", str(cfg), "--allowlist", str(al_file)],
         )
         # exit 1 — shadow server present
         assert result.exit_code == 1
-        combined = result.output + (result.stderr if hasattr(result, "stderr") else "")
-        assert "shadow" in combined.lower()
+        assert "shadow" in result.output.lower()
 
 
 # ── cli/shadow.py — _emit_change_events ───────────────────────────────────────
