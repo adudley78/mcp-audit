@@ -1451,7 +1451,12 @@ def community_rules_dir() -> Path:
 
 
 def _load_rule(rule_id: str, community_rules_dir: Path) -> PolicyRule:
+    # Try exact name first, then allow descriptive suffix (e.g. COMM-034-god-key-*.yml).
     path = community_rules_dir / f"{rule_id}.yml"
+    if not path.exists():
+        candidates = sorted(community_rules_dir.glob(f"{rule_id}-*.yml"))
+        if candidates:
+            path = candidates[0]
     rules = load_rules_from_file(path)
     assert rules, f"Failed to load {rule_id}"
     rule = next((r for r in rules if r.id == rule_id), None)
@@ -1926,3 +1931,220 @@ class TestAllNewCommunityRulesValidate:
         rules = load_rules_from_file(community_rules_dir / f"{rule_id}.yml")
         assert rules, f"{rule_id}.yml failed to load"
         assert rules[0].id == rule_id
+
+
+# ── COMM-034: God Key / Overprivileged MCP Server Credential ──────────────────
+
+
+class TestComm034GodKey:
+    """COMM-034 detects credential SCOPE via env var key name heuristics.
+
+    Fully offline — no credential values read, no IAM API calls.
+    Three detection tiers in priority order:
+    1. ADMIN/ROOT/MASTER/SUPERUSER segment in any env var key name.
+    2. Kubernetes cluster credential names (KUBE_TOKEN, KUBECONFIG, etc.).
+    3. Org-scoped GitHub token names (GITHUB_TOKEN, GH_TOKEN, GITHUB_PAT, GH_PAT).
+    """
+
+    def test_rule_loads_without_error(self, community_rules_dir: Path) -> None:
+        rules = load_rules_from_file(
+            community_rules_dir / "COMM-034-god-key-credential-scope.yml"
+        )
+        assert rules, "COMM-034-god-key-credential-scope.yml failed to load"
+        assert rules[0].id == "COMM-034"
+        assert rules[0].severity == Severity.MEDIUM
+        assert "MCP06" in rules[0].owasp_mcp_top_10
+
+    # ── Condition 1: ADMIN/ROOT/MASTER/SUPERUSER segment ─────────────────────
+
+    def test_fires_on_my_admin_key(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"MY_ADMIN_KEY": "x"})
+        findings = engine.match_server(server)
+        assert findings
+        assert findings[0].severity == Severity.MEDIUM
+
+    def test_fires_on_root_token(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"ROOT_TOKEN": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    def test_fires_on_master_secret(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"MASTER_SECRET": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    def test_fires_on_superuser_pass(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"SUPERUSER_PASS": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    def test_fires_on_admin_key_mid_name(self, community_rules_dir: Path) -> None:
+        """Fires when the ADMIN segment is in the middle of the key name."""
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"DB_ADMIN_PASSWORD": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    # ── Condition 2: Kubernetes credentials ──────────────────────────────────
+
+    def test_fires_on_kube_token(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"KUBE_TOKEN": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    def test_fires_on_kubeconfig(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"KUBECONFIG": "/home/user/.kube/config"})
+        findings = engine.match_server(server)
+        assert findings
+
+    def test_fires_on_k8s_token(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"K8S_TOKEN": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    def test_fires_on_kubernetes_service_account_token(
+        self, community_rules_dir: Path
+    ) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"KUBERNETES_SERVICE_ACCOUNT_TOKEN": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    # ── Condition 3: GitHub org-scoped tokens ────────────────────────────────
+
+    def test_fires_on_github_token(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"GITHUB_TOKEN": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    def test_fires_on_gh_token(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"GH_TOKEN": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    def test_fires_on_github_pat(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"GITHUB_PAT": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    def test_fires_on_gh_pat(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"GH_PAT": "x"})
+        findings = engine.match_server(server)
+        assert findings
+
+    # ── No-fire: common legitimate env vars ──────────────────────────────────
+
+    def test_no_fire_empty_env(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={})
+        findings = engine.match_server(server)
+        assert not findings
+
+    def test_no_fire_no_env(self, community_rules_dir: Path) -> None:
+        """Server with no env block at all (empty dict default)."""
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server()  # env defaults to {}
+        findings = engine.match_server(server)
+        assert not findings
+
+    def test_no_fire_database_url_and_api_key(self, community_rules_dir: Path) -> None:
+        """Common non-privileged credential names must not fire."""
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"DATABASE_URL": "x", "API_KEY": "y"})
+        findings = engine.match_server(server)
+        assert not findings
+
+    def test_no_fire_secret_key_suffix(self, community_rules_dir: Path) -> None:
+        """SECRET_KEY has no ADMIN/ROOT/MASTER/SUPERUSER segment — must not fire."""
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"SECRET_KEY": "x"})
+        findings = engine.match_server(server)
+        assert not findings
+
+    def test_no_fire_access_token(self, community_rules_dir: Path) -> None:
+        """ACCESS_TOKEN has no broad-scope segment — must not fire."""
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"ACCESS_TOKEN": "x"})
+        findings = engine.match_server(server)
+        assert not findings
+
+    def test_no_fire_typical_clean_config(self, community_rules_dir: Path) -> None:
+        """A typical clean server with several common env vars must not fire."""
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(
+            env={
+                "DATABASE_URL": "x",
+                "API_KEY": "y",
+                "SECRET_KEY": "z",
+                "ACCESS_TOKEN": "w",
+                "LOG_LEVEL": "INFO",
+            }
+        )
+        findings = engine.match_server(server)
+        assert not findings
+
+    def test_no_fire_empty_server(self, community_rules_dir: Path) -> None:
+        """Minimal server with no env, args, or url must not fire."""
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(command="node", args=[], env={})
+        findings = engine.match_server(server)
+        assert not findings
+
+    def test_no_fire_administrator_word_is_not_admin_segment(
+        self, community_rules_dir: Path
+    ) -> None:
+        """ADMINISTRATOR contains ADMIN but is not a clean ADMIN_ segment — no fire."""
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        # ADMINISTRATOR_URL: regex requires segment boundary (_ADMIN_); "ADMINISTRAT"
+        # follows ADMIN so the trailing-underscore guard fails — no match.
+        server = _make_server(env={"ADMINISTRATOR_URL": "x"})
+        findings = engine.match_server(server)
+        assert not findings
+
+    def test_no_fire_mastery_key(self, community_rules_dir: Path) -> None:
+        """MASTERY_KEY contains MASTER but is followed by Y not _ — no fire."""
+        rule = _load_rule("COMM-034", community_rules_dir)
+        engine = RuleEngine([rule])
+        server = _make_server(env={"MASTERY_KEY": "x"})
+        findings = engine.match_server(server)
+        assert not findings
+
+    # ── load_bundled_community_rules integration ──────────────────────────────
+
+    def test_bundled_community_rules_includes_comm034(self) -> None:
+        """COMM-034 is shipped in the bundled community rules set."""
+        rules = load_bundled_community_rules()
+        rule_ids = {r.id for r in rules}
+        assert "COMM-034" in rule_ids

@@ -3,7 +3,7 @@
   "owasp_version": "2025-beta",
   "owasp_uri": "https://owasp.org/www-project-mcp-top-10/",
   "generated": "2026-05-17",
-  "description": "Machine-readable mapping of every mcp-audit finding ID to OWASP MCP Top 10 categories. Static finding IDs appear in 'mappings'; dynamic ID patterns (generated at scan time) appear in 'dynamic_patterns'. Both arrays must be kept current — validate_owasp_mapping.py enforces completeness in CI.",
+  "description": "Machine-readable mapping of every mcp-audit finding ID to OWASP MCP Top 10 categories. Static finding IDs appear in 'mappings'; dynamic ID patterns (generated at scan time) appear in 'dynamic_patterns'. Both arrays must be kept current \u2014 validate_owasp_mapping.py enforces completeness in CI.",
   "categories": {
     "MCP01": "Token Mismanagement and Secret Exposure",
     "MCP02": "Privilege Escalation via Scope Creep",
@@ -20,514 +20,887 @@
     {
       "finding_id": "POISON-001",
       "finding_title": "Tool description contains SSH/credentials exfiltration instructions",
-      "owasp_codes": ["MCP03", "MCP01"],
-      "owasp_names": ["Tool Poisoning", "Token Mismanagement and Secret Exposure"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Token Mismanagement and Secret Exposure"
+      ]
     },
     {
       "finding_id": "POISON-002",
       "finding_title": "Tool description contains cloud credentials exfiltration instructions",
-      "owasp_codes": ["MCP03", "MCP01"],
-      "owasp_names": ["Tool Poisoning", "Token Mismanagement and Secret Exposure"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Token Mismanagement and Secret Exposure"
+      ]
     },
     {
       "finding_id": "POISON-003",
       "finding_title": "Tool description contains .env file exfiltration instructions",
-      "owasp_codes": ["MCP03", "MCP01"],
-      "owasp_names": ["Tool Poisoning", "Token Mismanagement and Secret Exposure"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Token Mismanagement and Secret Exposure"
+      ]
     },
     {
       "finding_id": "POISON-010",
       "finding_title": "Tool description contains XML instruction injection",
-      "owasp_codes": ["MCP03", "MCP06"],
-      "owasp_names": ["Tool Poisoning", "Intent Flow Subversion"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ]
     },
     {
       "finding_id": "POISON-011",
       "finding_title": "Tool description contains LLM prompt format injection markers",
-      "owasp_codes": ["MCP03", "MCP06"],
-      "owasp_names": ["Tool Poisoning", "Intent Flow Subversion"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ]
     },
     {
       "finding_id": "POISON-012",
       "finding_title": "Tool description contains behavioral override instruction",
-      "owasp_codes": ["MCP03", "MCP06"],
-      "owasp_names": ["Tool Poisoning", "Intent Flow Subversion"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ]
     },
     {
       "finding_id": "POISON-020",
       "finding_title": "Tool description contains data exfiltration via encoding or side channel",
-      "owasp_codes": ["MCP03", "MCP10"],
-      "owasp_names": ["Tool Poisoning", "Context Injection and Over-sharing"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Context Injection and Over-sharing"
+      ]
     },
     {
       "finding_id": "POISON-021",
       "finding_title": "Tool description contains hidden parameter exfiltration",
-      "owasp_codes": ["MCP03", "MCP10"],
-      "owasp_names": ["Tool Poisoning", "Context Injection and Over-sharing"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Context Injection and Over-sharing"
+      ]
     },
     {
       "finding_id": "POISON-030",
       "finding_title": "Tool description contains cross-tool manipulation instruction",
-      "owasp_codes": ["MCP03", "MCP06"],
-      "owasp_names": ["Tool Poisoning", "Intent Flow Subversion"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ]
     },
     {
       "finding_id": "POISON-040",
       "finding_title": "Tool description contains zero-width Unicode characters",
-      "owasp_codes": ["MCP03"],
-      "owasp_names": ["Tool Poisoning"]
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Tool Poisoning"
+      ]
     },
     {
       "finding_id": "POISON-050",
       "finding_title": "Excessive tool description length",
-      "owasp_codes": ["MCP03"],
-      "owasp_names": ["Tool Poisoning"]
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Tool Poisoning"
+      ]
     },
     {
       "finding_id": "POISON-060",
       "finding_title": "Tool description contains Unicode homoglyph characters",
-      "owasp_codes": ["MCP03"],
-      "owasp_names": ["Tool Poisoning"]
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Tool Poisoning"
+      ]
     },
     {
       "finding_id": "CRED-001",
       "finding_title": "API key or secret in environment variable value",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure"]
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ]
     },
     {
       "finding_id": "CRED-002",
       "finding_title": "API key or secret in command arguments",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure"]
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ]
     },
     {
       "finding_id": "TRANSPORT-001",
       "finding_title": "Unencrypted remote endpoint (HTTP)",
-      "owasp_codes": ["MCP07"],
-      "owasp_names": ["Insufficient Authentication and Authorization"]
+      "owasp_codes": [
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Insufficient Authentication and Authorization"
+      ]
     },
     {
       "finding_id": "TRANSPORT-002",
       "finding_title": "Elevated privilege execution (sudo/root)",
-      "owasp_codes": ["MCP02", "MCP05"],
-      "owasp_names": ["Privilege Escalation via Scope Creep", "Command Injection and Execution"]
+      "owasp_codes": [
+        "MCP02",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Command Injection and Execution"
+      ]
     },
     {
       "finding_id": "TRANSPORT-003",
       "finding_title": "Runtime package fetching without version pin",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "TRANSPORT-004",
       "finding_title": "Server binds to wildcard network interface (0.0.0.0)",
-      "owasp_codes": ["MCP07"],
-      "owasp_names": ["Insufficient Authentication and Authorization"]
+      "owasp_codes": [
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Insufficient Authentication and Authorization"
+      ]
     },
     {
       "finding_id": "SC-001",
       "finding_title": "Package name is one edit distance from a known-good package (typosquat)",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "SC-002",
       "finding_title": "Package name is two edits from a known-good package",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "SC-003",
       "finding_title": "Package name is three edits from a known-good package",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "SC-004",
       "finding_title": "Known CVE advisory recorded for this package",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"],
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
       "notes": "Fires when an exact-match registry entry has known_vulnerabilities. Offline check using bundled registry data; no network required. Severity HIGH. Operator should verify installed version is in affected range."
     },
     {
       "finding_id": "RUGPULL-000",
-      "finding_title": "First scan — baseline recorded for server",
+      "finding_title": "First scan \u2014 baseline recorded for server",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Informational only — no prior state; no security violation. No OWASP category applies."
+      "notes": "Informational only \u2014 no prior state; no security violation. No OWASP category applies."
     },
     {
       "finding_id": "RUGPULL-001",
       "finding_title": "Server configuration changed since last scan",
-      "owasp_codes": ["MCP03", "MCP04"],
-      "owasp_names": ["Tool Poisoning", "Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP03",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "RUGPULL-002",
       "finding_title": "New MCP server detected since last scan",
-      "owasp_codes": ["MCP09"],
-      "owasp_names": ["Shadow MCP Servers"]
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ]
     },
     {
       "finding_id": "RUGPULL-003",
       "finding_title": "Previously tracked server no longer configured",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Informational only — removal is typically benign. No OWASP category applies."
+      "notes": "Informational only \u2014 removal is typically benign. No OWASP category applies."
     },
     {
       "finding_id": "TOXIC-001",
       "finding_title": "Dangerous capability combination: file read + network exfiltration",
-      "owasp_codes": ["MCP05", "MCP10"],
-      "owasp_names": ["Command Injection and Execution", "Context Injection and Over-sharing"]
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ]
     },
     {
       "finding_id": "TOXIC-002",
       "finding_title": "Dangerous capability combination: file read + email exfiltration",
-      "owasp_codes": ["MCP05", "MCP10"],
-      "owasp_names": ["Command Injection and Execution", "Context Injection and Over-sharing"]
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ]
     },
     {
       "finding_id": "TOXIC-003",
       "finding_title": "Dangerous capability combination: secrets store + network access",
-      "owasp_codes": ["MCP01", "MCP10"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure", "Context Injection and Over-sharing"]
+      "owasp_codes": [
+        "MCP01",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Context Injection and Over-sharing"
+      ]
     },
     {
       "finding_id": "TOXIC-004",
       "finding_title": "Dangerous capability combination: file read + shell execution",
-      "owasp_codes": ["MCP10"],
-      "owasp_names": ["Context Injection and Over-sharing"]
+      "owasp_codes": [
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Context Injection and Over-sharing"
+      ]
     },
     {
       "finding_id": "TOXIC-005",
       "finding_title": "Dangerous capability combination: database + network",
-      "owasp_codes": ["MCP05", "MCP10"],
-      "owasp_names": ["Command Injection and Execution", "Context Injection and Over-sharing"]
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ]
     },
     {
       "finding_id": "TOXIC-006",
       "finding_title": "Dangerous capability combination: shell execution + network",
-      "owasp_codes": ["MCP05", "MCP10"],
-      "owasp_names": ["Command Injection and Execution", "Context Injection and Over-sharing"]
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ]
     },
     {
       "finding_id": "TOXIC-007",
       "finding_title": "Capability combination: git access + network",
-      "owasp_codes": ["MCP10"],
-      "owasp_names": ["Context Injection and Over-sharing"],
+      "owasp_codes": [
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Context Injection and Over-sharing"
+      ],
       "notes": "Source code and commit history exfiltration via network access."
     },
     {
       "finding_id": "CFHYG-001",
       "finding_title": "MCP config file is world-readable",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure"]
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ]
     },
     {
       "finding_id": "CFHYG-002",
       "finding_title": "MCP config file resides in world-writable directory",
-      "owasp_codes": ["MCP01", "MCP09"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure", "Shadow MCP Servers"]
+      "owasp_codes": [
+        "MCP01",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Shadow MCP Servers"
+      ]
     },
     {
       "finding_id": "CFHYG-003",
       "finding_title": "Config file stores inline plaintext secret",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure"]
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ]
     },
     {
       "finding_id": "CFHYG-004",
       "finding_title": "Config uses environment variable references for credentials",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure"],
-      "notes": "Positive signal — correct credential hygiene practice."
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "Positive signal \u2014 correct credential hygiene practice."
     },
     {
       "finding_id": "CFHYG-005",
       "finding_title": "Claude Code hooks section detected in config",
-      "owasp_codes": ["MCP01", "MCP07"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure", "Insufficient Authentication and Authorization"]
+      "owasp_codes": [
+        "MCP01",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Insufficient Authentication and Authorization"
+      ]
     },
     {
       "finding_id": "CFHYG-006",
       "finding_title": "ANTHROPIC_BASE_URL overrides Anthropic API endpoint",
-      "owasp_codes": ["MCP01", "MCP08"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure", "Lack of Audit and Telemetry"]
+      "owasp_codes": [
+        "MCP01",
+        "MCP08"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Lack of Audit and Telemetry"
+      ]
     },
     {
       "finding_id": "ATTEST-010",
       "finding_title": "Sigstore provenance verified (valid match)",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Positive/informational signal — no security violation."
+      "notes": "Positive/informational signal \u2014 no security violation."
     },
     {
       "finding_id": "ATTEST-011",
       "finding_title": "Sigstore attestation from unexpected publisher",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "ATTEST-012",
       "finding_title": "Invalid Sigstore signature (tampered or forged)",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "ATTEST-013",
       "finding_title": "Expected Sigstore attestation missing for known-provenance package",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "ATTEST-014",
       "finding_title": "No Sigstore attestation found",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "ATTEST-015",
       "finding_title": "Sigstore attestation verification error",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Informational — network or API error prevented verification."
+      "notes": "Informational \u2014 network or API error prevented verification."
     },
     {
       "finding_id": "BL-001",
       "finding_title": "Baseline file could not be parsed",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Operational error — malformed baseline file. No security category applies."
+      "notes": "Operational error \u2014 malformed baseline file. No security category applies."
     },
     {
       "finding_id": "COMM-001",
       "finding_title": "Prohibited network binary used as MCP server",
-      "owasp_codes": ["MCP05"],
-      "owasp_names": ["Command Injection and Execution"]
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ]
     },
     {
       "finding_id": "COMM-002",
       "finding_title": "curl used as MCP server binary",
-      "owasp_codes": ["MCP05"],
-      "owasp_names": ["Command Injection and Execution"]
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ]
     },
     {
       "finding_id": "COMM-003",
       "finding_title": "Browser sandbox disabled",
-      "owasp_codes": ["MCP05", "MCP10"],
-      "owasp_names": ["Command Injection and Execution", "Context Injection and Over-sharing"]
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ]
     },
     {
       "finding_id": "COMM-004",
       "finding_title": "Unrecognized stdio server binary",
-      "owasp_codes": ["MCP05", "MCP09"],
-      "owasp_names": ["Command Injection and Execution", "Shadow MCP Servers"]
+      "owasp_codes": [
+        "MCP05",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Shadow MCP Servers"
+      ]
     },
     {
       "finding_id": "COMM-005",
       "finding_title": "/tmp referenced in server args",
-      "owasp_codes": ["MCP05"],
-      "owasp_names": ["Command Injection and Execution"]
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ]
     },
     {
       "finding_id": "COMM-006",
       "finding_title": "Inline code execution via -c flag",
-      "owasp_codes": ["MCP05"],
-      "owasp_names": ["Command Injection and Execution"]
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ]
     },
     {
       "finding_id": "COMM-007",
       "finding_title": "eval or exec passed in server args",
-      "owasp_codes": ["MCP05"],
-      "owasp_names": ["Command Injection and Execution"]
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ]
     },
     {
       "finding_id": "COMM-008",
       "finding_title": "SSH agent socket exposed to MCP server",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure"]
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ]
     },
     {
       "finding_id": "COMM-009",
       "finding_title": "AWS session token exposed to MCP server",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure"]
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ]
     },
     {
       "finding_id": "COMM-010",
       "finding_title": "npx used without pinned version",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "COMM-011",
       "finding_title": "Broad Deno permission flags in use",
-      "owasp_codes": ["MCP02"],
-      "owasp_names": ["Privilege Escalation via Scope Creep"]
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep"
+      ]
     },
     {
       "finding_id": "COMM-012",
       "finding_title": "Server binds to all interfaces (0.0.0.0)",
-      "owasp_codes": ["MCP07"],
-      "owasp_names": ["Insufficient Authentication and Authorization"]
+      "owasp_codes": [
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Insufficient Authentication and Authorization"
+      ]
     },
     {
       "finding_id": "COMM-013",
       "finding_title": "npx auto-confirm flag (silent execution)",
-      "owasp_codes": ["MCP04", "MCP05"],
-      "owasp_names": ["Software Supply Chain Attacks", "Command Injection and Execution"]
+      "owasp_codes": [
+        "MCP04",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks",
+        "Command Injection and Execution"
+      ]
     },
     {
       "finding_id": "COMM-014",
       "finding_title": "MCP Sampling capability declared",
-      "owasp_codes": ["MCP04", "MCP06"],
-      "owasp_names": ["Software Supply Chain Attacks", "Intent Flow Subversion"]
+      "owasp_codes": [
+        "MCP04",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks",
+        "Intent Flow Subversion"
+      ]
     },
     {
       "finding_id": "COMM-015",
       "finding_title": "Shell metacharacters in server args",
-      "owasp_codes": ["MCP05"],
-      "owasp_names": ["Command Injection and Execution"]
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ]
     },
     {
       "finding_id": "COMM-000",
-      "finding_title": "Template rule — replace before submitting",
+      "finding_title": "Template rule \u2014 replace before submitting",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Template stub rule — never matches real configs. OWASP codes should be set by contributor when creating a real rule from this template."
+      "notes": "Template stub rule \u2014 never matches real configs. OWASP codes should be set by contributor when creating a real rule from this template."
     },
     {
       "finding_id": "COMM-016",
       "finding_title": "Role-claim poisoning in server args",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Prompt Injection and Jailbreaks"]
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Prompt Injection and Jailbreaks"
+      ]
     },
     {
       "finding_id": "COMM-017",
-      "finding_title": "Authority-claim poisoning — AI identity impersonation",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Prompt Injection and Jailbreaks"]
+      "finding_title": "Authority-claim poisoning \u2014 AI identity impersonation",
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Prompt Injection and Jailbreaks"
+      ]
     },
     {
       "finding_id": "COMM-018",
       "finding_title": "Output-format hijack in server args",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Prompt Injection and Jailbreaks"]
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Prompt Injection and Jailbreaks"
+      ]
     },
     {
       "finding_id": "COMM-019",
       "finding_title": "Side-channel data exfiltration instruction in server args",
-      "owasp_codes": ["MCP01", "MCP02"],
-      "owasp_names": ["Prompt Injection and Jailbreaks", "Sensitive Data Exposure"]
+      "owasp_codes": [
+        "MCP01",
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Prompt Injection and Jailbreaks",
+        "Sensitive Data Exposure"
+      ]
     },
     {
       "finding_id": "COMM-020",
       "finding_title": "Confabulation trigger in server args",
-      "owasp_codes": ["MCP01"],
-      "owasp_names": ["Prompt Injection and Jailbreaks"]
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Prompt Injection and Jailbreaks"
+      ]
     },
     {
       "finding_id": "COMM-021",
       "finding_title": "Env key name suggests private or secret key",
-      "owasp_codes": ["MCP02"],
-      "owasp_names": ["Sensitive Data Exposure"]
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Sensitive Data Exposure"
+      ]
     },
     {
       "finding_id": "COMM-022",
       "finding_title": "Env key name suggests access token",
-      "owasp_codes": ["MCP02"],
-      "owasp_names": ["Sensitive Data Exposure"]
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Sensitive Data Exposure"
+      ]
     },
     {
       "finding_id": "COMM-023",
       "finding_title": "Env key name suggests password",
-      "owasp_codes": ["MCP02"],
-      "owasp_names": ["Sensitive Data Exposure"]
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Sensitive Data Exposure"
+      ]
     },
     {
       "finding_id": "COMM-024",
       "finding_title": "HTTP endpoint on sensitive or production port",
-      "owasp_codes": ["MCP06"],
-      "owasp_names": ["Intent Flow Subversion"]
+      "owasp_codes": [
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion"
+      ]
     },
     {
       "finding_id": "COMM-025",
       "finding_title": "Localhost endpoint with explicit SSE/HTTP transport URL",
-      "owasp_codes": ["MCP06", "MCP05"],
-      "owasp_names": ["Intent Flow Subversion", "Command Injection and Execution"]
+      "owasp_codes": [
+        "MCP06",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion",
+        "Command Injection and Execution"
+      ]
     },
     {
       "finding_id": "COMM-026",
       "finding_title": "Unencrypted WebSocket URL in server args",
-      "owasp_codes": ["MCP06"],
-      "owasp_names": ["Intent Flow Subversion"]
+      "owasp_codes": [
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion"
+      ]
     },
     {
       "finding_id": "COMM-027",
       "finding_title": "Generic or unnamed server key",
-      "owasp_codes": ["MCP07"],
-      "owasp_names": ["Excessive MCP Agent Permissions"]
+      "owasp_codes": [
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Excessive MCP Agent Permissions"
+      ]
     },
     {
       "finding_id": "COMM-028",
       "finding_title": "Command is an absolute path",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "COMM-029",
       "finding_title": "Command references a temp or volatile directory",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "finding_id": "COMM-030",
       "finding_title": "Generic-named server with network transport URL",
-      "owasp_codes": ["MCP09", "MCP07"],
-      "owasp_names": ["Shadow MCP Servers", "Excessive MCP Agent Permissions"]
+      "owasp_codes": [
+        "MCP09",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers",
+        "Excessive MCP Agent Permissions"
+      ]
     },
     {
       "finding_id": "COMM-031",
       "finding_title": "Remote MCP server configured without authentication",
-      "owasp_codes": ["MCP06"],
-      "owasp_names": ["Intent Flow Subversion"],
+      "owasp_codes": [
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion"
+      ],
       "notes": "Lightweight URL-pattern signal. For full severity tiering and auth-signal suppression, see AUTH-001 from the auth analyzer."
     },
     {
       "finding_id": "AUTH-001",
       "finding_title": "Remote MCP server configured without authentication",
-      "owasp_codes": ["MCP06"],
-      "owasp_names": ["Intent Flow Subversion"],
+      "owasp_codes": [
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion"
+      ],
       "notes": "Severity HIGH for public hosts, MEDIUM for private/RFC-1918 hosts. arXiv 2605.22333: 40.55% of 7,973 live remote MCP servers unauthenticated. CWE-306."
     },
     {
       "finding_id": "AUTH-002",
       "finding_title": "OAuth-configured server missing audience/resource binding",
-      "owasp_codes": ["MCP06"],
-      "owasp_names": ["Intent Flow Subversion"],
+      "owasp_codes": [
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion"
+      ],
       "notes": "RFC 8707 Resource Indicators. arXiv 2605.22333: every one of 119 OAuth-enabled MCP servers had at least one flaw. CWE-346."
     },
     {
       "finding_id": "TRUST-001",
       "finding_title": "MCP server defined in project-level config (TrustFall risk)",
-      "owasp_codes": ["MCP09"],
-      "owasp_names": ["Shadow MCP Servers"],
-      "notes": "Fires for every MCP server found in a project-level config file (.mcp.json, .cursor/mcp.json, .claude/settings.json, .vscode/mcp.json). Origin-based — fires on file location, not content. Adversa TrustFall May 2026; CVE-2026-30615. CWE-829."
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ],
+      "notes": "Fires for every MCP server found in a project-level config file (.mcp.json, .cursor/mcp.json, .claude/settings.json, .vscode/mcp.json). Origin-based \u2014 fires on file location, not content. Adversa TrustFall May 2026; CVE-2026-30615. CWE-829."
     },
     {
       "finding_id": "COMM-033",
       "finding_title": "Project-level MCP config file present in repository",
-      "owasp_codes": ["MCP09"],
-      "owasp_names": ["Shadow MCP Servers"],
-      "notes": "Community rule companion to TRUST-001. LOW severity — refer users to 'mcp-audit scan --project' for full TRUST-001 analysis. CWE-829."
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ],
+      "notes": "Community rule companion to TRUST-001. LOW severity \u2014 refer users to 'mcp-audit scan --project' for full TRUST-001 analysis. CWE-829."
+    },
+    {
+      "finding_id": "COMM-034",
+      "finding_title": "Overprivileged MCP server credential (potential god key)",
+      "owasp_codes": [
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion"
+      ],
+      "notes": "Detects credential SCOPE via env var key name heuristics (fully offline). Three condition tiers: (1) ADMIN/ROOT/MASTER/SUPERUSER segment in key name; (2) Kubernetes cluster credentials (KUBE_TOKEN, KUBECONFIG, K8S_TOKEN, KUBERNETES_SERVICE_ACCOUNT_TOKEN); (3) org-scoped GitHub tokens (GITHUB_TOKEN, GH_TOKEN, GITHUB_PAT, GH_PAT). A god key amplifies every other finding in the scan. CWE-250 (Execution with Unnecessary Privileges). Reference: CIS Controls v8.1; CoSAI RSAC 2026 Agentic IAM paper; Security Boulevard \"Addressing the God Key Challenge\" (March 2026)."
     },
     {
       "finding_id": "COLLIDE-001",
       "finding_title": "Tool name collision: tool claimed by multiple servers",
-      "owasp_codes": ["MCP01", "MCP09"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure", "Shadow MCP Servers"],
+      "owasp_codes": [
+        "MCP01",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Shadow MCP Servers"
+      ],
       "notes": "Requires --connect (live enumeration). Fires when >=2 distinct servers advertise the same tool name (case-sensitive). MEDIUM by default; HIGH when one claimant is registry-verified and another is not (unknown server shadowing a trusted tool). NSA CSI item 5. CWE-694."
     }
   ],
@@ -538,8 +911,12 @@
       "analyzer": "attestation",
       "source_file": "src/mcp_audit/attestation/verifier.py",
       "description": "Hash attestation finding (Layer 1 --verify-hashes). Dynamic ID derived from SHA-256 of package:version:kind.",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "id_prefix": "EXT-",
@@ -547,8 +924,12 @@
       "analyzer": "extensions",
       "source_file": "src/mcp_audit/extensions/analyzer.py",
       "description": "IDE extension security finding. Dynamic ID derived from extension ID and finding kind.",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"]
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     },
     {
       "id_prefix": "SAST-",
@@ -556,8 +937,16 @@
       "analyzer": "sast",
       "source_file": "src/mcp_audit/sast/runner.py",
       "description": "SAST finding from Semgrep rule execution. Dynamic ID derived from rule ID, file path, and line number. OWASP codes inherited from the semgrep rule's owasp-mcp-top-10 metadata field.",
-      "owasp_codes": ["MCP01", "MCP05", "MCP07"],
-      "owasp_names": ["Token Mismanagement and Secret Exposure", "Command Injection and Execution", "Insufficient Authentication and Authorization"],
+      "owasp_codes": [
+        "MCP01",
+        "MCP05",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Command Injection and Execution",
+        "Insufficient Authentication and Authorization"
+      ],
       "notes": "Actual codes vary per rule. Semgrep rules cover MCP01 (credential logging) and MCP07 (auth bypass)."
     },
     {
@@ -565,9 +954,13 @@
       "id_regex": "^DRIFT-[0-9]{3}$",
       "analyzer": "baseline",
       "source_file": "src/mcp_audit/cli/scan.py",
-      "description": "Baseline drift finding. Sequentially numbered per scan run (DRIFT-001, DRIFT-002, …). Emitted when --baseline flag detects changes from a saved snapshot.",
-      "owasp_codes": ["MCP09"],
-      "owasp_names": ["Shadow MCP Servers"]
+      "description": "Baseline drift finding. Sequentially numbered per scan run (DRIFT-001, DRIFT-002, \u2026). Emitted when --baseline flag detects changes from a saved snapshot.",
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ]
     },
     {
       "id_prefix": "GOV-",
@@ -577,9 +970,9 @@
       "description": "Governance policy finding. Dynamic ID derived from the policy check type. OWASP codes are configurable via the owasp_mcp_top_10 field in the policy YAML.",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "OWASP codes are policy-defined. Defaults to empty; policy author may specify any MCP01–MCP10 codes in the YAML."
+      "notes": "OWASP codes are policy-defined. Defaults to empty; policy author may specify any MCP01\u2013MCP10 codes in the YAML."
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 83 static finding IDs are mapped (60 original + 23 new: COMM-000 template + COMM-016 through COMM-033 + AUTH-001 + AUTH-002 + TRUST-001 + COLLIDE-001 + SC-004). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 84 static finding IDs are mapped (60 original + 24 new: COMM-000 template + COMM-016 through COMM-034 + AUTH-001 + AUTH-002 + TRUST-001 + COLLIDE-001 + SC-004). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
 }

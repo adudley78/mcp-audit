@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **New COMM-034: detect MCP servers configured with overprivileged credentials (god key pattern).** Env var key name heuristics flag admin-level scope across three tiers: (1) ADMIN/ROOT/MASTER/SUPERUSER segment in any key name (e.g. `MY_ADMIN_KEY`, `ROOT_TOKEN`, `MASTER_SECRET`); (2) Kubernetes cluster credential names (`KUBE_TOKEN`, `KUBECONFIG`, `K8S_TOKEN`, `KUBERNETES_SERVICE_ACCOUNT_TOKEN`); (3) org-scoped GitHub tokens (`GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_PAT`, `GH_PAT`). Fully offline — no credential values are read, no IAM API calls. A god key turns any finding from interesting to catastrophic. Severity: MEDIUM. OWASP MCP06, CWE-250. Reference: CIS Controls v8.1; CoSAI RSAC 2026 Agentic IAM paper; Security Boulevard "Addressing the God Key Challenge" (March 2026). Differentiates from Snyk (presence only) and Lasso (runtime, not static). Per-condition registry exemption for GitHub tokens tracked as COMM-034b.
+
 - **Registry submission issue template.** Server authors can now request a verdict and badge via a structured GitHub issue form (`.github/ISSUE_TEMPLATE/registry-submission.yml`). The form collects package name, ecosystem, repo URL, maintainer, capability declarations, and a confirmation checklist. Linked from `mcp-audit.dev/submit/`. Once a submission is merged into `registry/known-servers.json`, developers running `mcp-audit vet` get an offline verdict and the maintainer gets an embeddable Shields.io badge.
 
 - **`mcp-audit vet <package>` — pre-install verdict on any public MCP server package.**
