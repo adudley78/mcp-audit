@@ -502,6 +502,165 @@ imports, obfuscated network calls) will not be detected by this approach.
 feature key is reserved but `mcp-audit merge` does not yet aggregate extension findings
 across machines (post-launch roadmap).
 
+## Agent-file surface coverage (skills, memory, hooks)
+
+The sections below document unconfirmed client paths for the upcoming
+`agent_files/` scanner package (PHASE 1–3). Confirmed paths are implemented;
+unconfirmed paths are tracked here until official documentation or environment
+probes validate them. Do not write discovery or analysis code for unconfirmed
+paths — add them to `agent_files/discovery.py` only when confirmed.
+
+**Phase design decisions recorded 2026-06-14:**
+- Copilot prompt files (`.github/prompts/*.prompt.md`) scanned at the same
+  severity tier as instruction files; executable templates carry equal or higher
+  risk, not lower.
+- Memory analyzer (MEM-001/MEM-002) uses a restricted pattern subset:
+  POISON-010 (XML injection markers), POISON-011 (LLM format markers),
+  POISON-040 (zero-width Unicode), POISON-060 (homoglyphs) only. All other
+  PATTERNS entries — including POISON-050 (excessive length) — are excluded
+  from memory analysis to control false-positive rate on innocuous large files.
+- `--include-agent-files` flag includes project-tree walking for
+  `.claude/commands/`, `.cursor/rules/`, and `.github/` subtrees; the
+  cloned-malicious-repo scenario is the primary attack vector.
+- Hook content analysis (HOOK-001, HOOK-002) extends
+  `ConfigHygieneAnalyzer._check_hooks_and_permissions()` rather than
+  splitting into a separate analyzer. Hook responsibility stays with the
+  config-hygiene analyzer.
+- OWASP mappings confirmed: SKILL-001/002/003 → MCP03 (Prompt Injection)
+  + MCP01 (Token Mismanagement); HOOK-001/002 → MCP05 (Command Injection)
+  + MCP07 (Insufficient Auth); MEM-001/002 → MCP03.
+
+---
+
+### Windsurf — skill/memory/hook files
+
+**Status: unconfirmed. No code written.**
+
+Windsurf's global MCP config (`~/.codeium/windsurf/mcp_config.json`) is
+already discovered by `discovery.py`. However, Windsurf's equivalents of
+Claude Code memory files (`CLAUDE.md` tiers) and Cursor rules (`.mdc` files)
+are not documented in the official Codeium/Windsurf developer docs as of
+2026-06-14.
+
+**What is unknown:**
+- Whether Windsurf reads a `WINDSURF.md`, `~/.windsurf/rules/`, or similar
+  freetext-instruction file into the agent context.
+- Whether Windsurf supports a hook or lifecycle-command API analogous to
+  Claude Code's `preToolUse` / `postToolUse` hooks.
+- Whether the Codeium extension pack has an instruction-file mechanism visible
+  to the agent (distinct from VS Code Copilot instructions).
+
+**Action:** Add confirmed paths to `agent_files/discovery.py` WINDSURF entry
+when Codeium publishes documentation or a path is validated via environment
+probe. Until then, `agent_files/discovery.py` omits Windsurf from skill/memory
+discovery (the MCP config path remains in `discovery.py` as before).
+
+---
+
+### Augment — skill/memory/hook files
+
+**Status: unconfirmed. No code written.**
+
+Augment's global MCP config (`~/.augment/settings.json`) is already
+discovered by `discovery.py`. Augment's instruction/memory surface is not
+publicly documented.
+
+**What is unknown:**
+- Whether Augment reads a project-level instruction file (e.g., `AUGMENT.md`,
+  `.augment/instructions.md`, or a `context:` block in its settings file).
+- Whether Augment exposes a hooks or lifecycle-command API.
+- Whether Augment uses VS Code extension APIs that would make the Copilot
+  instruction files (`.github/copilot-instructions.md`) available to it as
+  well.
+
+**Action:** Add confirmed paths when Augment publishes developer documentation
+or a path is validated via probe. If Augment reads VS Code Copilot instruction
+files as part of its VS Code extension, those paths are already covered by the
+Copilot discovery in `agent_files/discovery.py`.
+
+---
+
+### Kiro — MCP config and skill/memory/hook files
+
+**Status: unconfirmed. No code written.**
+
+`~/.kiro/settings/mcp.json` was referenced as a credential-theft target in
+the 2026-04-22 supply-chain malware analysis (Bitwarden npm package), which
+confirms the path exists and is used by an active client. However, no
+Kiro/AWS Kiro developer documentation is publicly available as of 2026-06-14
+to confirm the exact schema, root key (`mcpServers` vs `servers` vs other),
+or whether project-level files exist.
+
+**What is unknown:**
+- Exact JSON root key for Kiro's MCP config (`mcpServers`? `servers`?
+  `context_servers`?).
+- Whether Kiro supports project-level MCP configs analogous to `.mcp.json`.
+- Whether Kiro reads a `KIRO.md` or `.kiro/instructions.md` file into agent
+  context.
+- Whether Kiro exposes a hooks API.
+- Platform availability: Kiro was announced for macOS and Windows; Linux
+  support is unconfirmed.
+
+**Action (MCP config):** When Kiro publishes documentation, add a `ClientSpec`
+entry to `_get_client_specs()` in `discovery.py` with the confirmed path and
+root key. Until then, mcp-audit will not discover or scan Kiro MCP configs,
+which is a false-negative risk for Kiro users.
+
+**Action (skill/memory/hook):** Add to `agent_files/discovery.py` after the
+MCP config path is confirmed.
+
+---
+
+### `.claude/skills/` — Claude Code skills directory
+
+**Status: unconfirmed. No code written.**
+
+Several third-party articles and community posts reference a `.claude/skills/`
+directory as a location for Claude Code "skills" (structured capability
+definitions). As of 2026-06-14, this path is **not confirmed** in the official
+Anthropic Claude Code documentation.
+
+**What is confirmed vs. unconfirmed:**
+- ✅ `~/.claude/commands/` and `.claude/commands/` — confirmed in official
+  Anthropic docs as the mechanism for custom slash commands; both are
+  implemented in `agent_files/discovery.py`.
+- ✅ `CLAUDE.md`, `.claude/CLAUDE.md`, `~/.claude/CLAUDE.md` — confirmed
+  memory/instruction tiers.
+- ❌ `.claude/skills/` — not present in official Anthropic Claude Code
+  documentation; may be a user convention, an unreleased feature, or a
+  mischaracterization of the `commands/` directory.
+
+**Action:** Monitor Anthropic release notes. If `.claude/skills/` is
+confirmed as an official path in a future Claude Code release, add it to
+`agent_files/discovery.py` under the `claude-code-skills` surface key. Until
+confirmed, do not add it to discovery.
+
+---
+
+### VS Code Copilot — user-global instruction files
+
+**Status: partially confirmed. Not yet implemented.**
+
+Workspace-level Copilot instruction files (`.github/copilot-instructions.md`,
+`.github/instructions/*.instructions.md`, `.github/prompts/*.prompt.md`) are
+confirmed and implemented in `agent_files/discovery.py` for project-tree
+walking.
+
+**What is unconfirmed:**
+- A user-global Copilot instruction file on macOS/Linux (the Windows path
+  `%APPDATA%\Code\User\prompts\` is referenced in VS Code docs but its
+  macOS/Linux equivalent — `~/Library/Application Support/Code/User/prompts/`
+  or `~/.config/Code/User/prompts/` — has not been probed on the build machine).
+- Whether Copilot respects user-global instruction files outside a workspace
+  context.
+
+**Action:** Probe `~/Library/Application Support/Code/User/prompts/` (macOS)
+and `~/.config/Code/User/prompts/` (Linux) on a machine with VS Code + Copilot
+installed. If present, add to `agent_files/discovery.py` COPILOT user-global
+entry. Until confirmed, only workspace/project-tree paths are discovered.
+
+---
+
 ## Missing capabilities
 
 ~~**Multi-arch binary CI release matrix**~~ **Resolved v0.4.0.** `release.yml` builds four PyInstaller executables in parallel on `v*.*.*` tag push: `macos-15-intel` (x86_64), `macos-latest` (arm64), `ubuntu-latest`, and `windows-latest`.
