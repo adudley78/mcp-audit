@@ -102,6 +102,18 @@ extensions_app = typer.Typer(
 )
 app.add_typer(extensions_app, name="extensions")
 
+# ── agent-files sub-app ───────────────────────────────────────────────────────
+
+agent_files_app = typer.Typer(
+    name="agent-files",
+    help=(
+        "Discover and scan agent instruction files (skills, memory, hooks)"
+        " across supported AI coding clients."
+    ),
+    no_args_is_help=True,
+)
+app.add_typer(agent_files_app, name="agent-files")
+
 
 # ── entry point ───────────────────────────────────────────────────────────────
 
@@ -116,6 +128,7 @@ def main() -> None:
 # via Typer decorators, so we import them after ``app`` and the sub-apps are
 # defined.  Ordering among submodules does not matter.
 from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports register commands
+    agent_files,
     baseline,
     check,
     dashboard,
@@ -147,6 +160,7 @@ __all__ = [
     "_REGISTRY_CACHE_PATH",
     "_UPDATE_REGISTRY_URL",
     "_USER_CONFIG_DIR",
+    "agent_files_app",
     "app",
     "baseline_app",
     "check",

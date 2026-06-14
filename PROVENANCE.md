@@ -333,3 +333,65 @@ collisions; any static heuristic (e.g. flagging two servers with the same server
 *name*) would produce misleading findings.  Shipping a dead or misleading rule
 inflates the corpus count and weakens trust in the rule pack.  COMM-032 is
 therefore reserved as an unissued ID; the next new community rule will be COMM-034.
+
+---
+
+## Agent-file scanner (SKILL-001/002/003, MEM-001/002, HOOK-001/002)
+
+Added 2026-06-14. Original implementation based on the research below.
+No code copied from existing scanners.
+
+### Detection patterns
+
+The agent-file analyzer **imports** detection patterns from
+`src/mcp_audit/analyzers/poisoning.py` (the existing `PATTERNS` list) rather
+than duplicating them.  The research sourcing for those patterns is already
+documented in the `Poisoning Analyzer (POISON-NNN)` section above.
+
+The **new** patterns specific to the agent-file surface are:
+
+- **Unpinned external URL in instruction files (SKILL-003)**: original
+  pattern.  Derived from the general supply-chain principle that instruction
+  files referencing external, unpinned URLs introduce an external-content
+  injection risk, analogous to dependency pinning.  No single paper cited;
+  this is an application of CWE-829 (Inclusion of Functionality from
+  Untrusted Control Sphere) to the instruction-file surface.
+
+- **Network-egress hook commands (HOOK-001)** and
+  **agent config reference in hooks (HOOK-002)**:
+  patterns derived from the CVE-2026-30615 disclosure.  The CVE describes
+  how a malicious `~/.claude.json` hook command can exfiltrate data and
+  persist changes by writing to other config files.  Our regex patterns
+  detect the command types that enable these attacks.
+
+### Research sources
+
+1. **OWASP GenAI Top 10 for LLM Risks — "Memory is a feature. It is also an
+   attack surface"** (May 2026)
+   ([https://owasp.org/www-project-gen-ai-red-teaming/](https://owasp.org/www-project-gen-ai-red-teaming/))
+   — Source for MEM-001/MEM-002 threat model: persistent memory injection as
+   a high-impact vector because it affects every future agent session.  The
+   restricted pattern subset (POISON-010/011/040/060 only) is calibrated to
+   the risk profile described in this document.
+
+2. **Unit 42, "Agentic Attack Surfaces: From Config to Memory"** (Q1 2026)
+   — Source for the general threat model: AI agent instruction files as attack
+   surfaces distinct from MCP configs.  Confirms that `.claude/commands/` and
+   `.cursor/rules/` are live attack vectors in wild-caught incidents.  Our
+   SKILL-001/002/003 finding categories map directly to Unit 42's taxonomy of
+   instruction-injection, obfuscation, and external-content-injection attacks.
+
+3. **CVE-2026-30615** — Claude Code hook injection via config file write.
+   Describes the persistence channel exploited by HOOK-002.  The hook command
+   regex in `_HOOK_CONFIG_WRITE_RE` covers all MCP config file paths known to
+   be targeted in this CVE's proof-of-concept.
+
+4. **CVE-2025-59536** (Check Point Research) — Claude Code hooks section
+   command injection.  Source for CFHYG-005 (already documented); HOOK-001
+   and HOOK-002 extend the same analysis to cover the specific command classes
+   that make hooks dangerous beyond mere presence.
+
+5. **Adversa AI TrustFall** (May 2026) — Project-level MCP config and
+   instruction file attacks via freshly-cloned repositories.  Source for the
+   `--project` / `--include-agent-files` cloned-repo threat model.
+

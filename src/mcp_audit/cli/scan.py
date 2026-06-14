@@ -558,7 +558,7 @@ def _apply_extensions(
 ) -> ScanResult:
     """Run extension security analysis and inject findings.
 
-    Only called when ``--include-extensions`` is active active.
+    Only called when ``--include-extensions`` is active.
     """
     ext_list = _extensions_discovery.discover_extensions()
     ext_findings = _extensions_analyzer.analyze_extensions(ext_list)
@@ -566,6 +566,39 @@ def _apply_extensions(
     con.print(
         f"[dim]Extensions: {len(ext_list)} extension(s) scanned, "
         f"{len(ext_findings)} issue(s) found[/dim]"
+    )
+    return result
+
+
+def _apply_agent_files(
+    result: ScanResult,
+    project_root: Path | None,
+    con: Console,
+) -> ScanResult:
+    """Run agent-file security analysis and inject findings.
+
+    Only called when ``--include-agent-files`` is active.  Scans user-global
+    agent instruction and memory files, plus any project-tree files when
+    ``project_root`` is not ``None``.
+
+    Args:
+        result: Mutable scan result to extend with new findings.
+        project_root: Optional resolved project directory for project-level file
+            discovery.  ``None`` restricts discovery to user-global paths only.
+        con: Rich ``Console`` for status messages.
+
+    Returns:
+        The same ``result`` object with agent-file findings appended.
+    """
+    from mcp_audit.agent_files import analyzer as _af_analyzer  # noqa: PLC0415
+    from mcp_audit.agent_files import discovery as _af_discovery  # noqa: PLC0415
+
+    af_list = _af_discovery.discover_agent_files(project_root=project_root)
+    af_findings = _af_analyzer.analyze_agent_files(af_list)
+    result.findings.extend(af_findings)
+    con.print(
+        f"[dim]Agent files: {len(af_list)} file(s) scanned, "
+        f"{len(af_findings)} issue(s) found[/dim]"
     )
     return result
 
@@ -948,6 +981,14 @@ def scan(
         "--include-extensions",
         help="Also scan installed IDE extensions for security issues.",
     ),
+    include_agent_files: bool = typer.Option(  # noqa: B008
+        False,
+        "--include-agent-files",
+        help=(
+            "Also scan agent instruction and memory files (skills, Cursor rules,"
+            " Copilot instructions, CLAUDE.md tiers) for security issues."
+        ),
+    ),
     owasp_report: bool = typer.Option(  # noqa: B008
         False,
         "--owasp-report",
@@ -1087,6 +1128,9 @@ def scan(
 
     if include_extensions:
         result = _apply_extensions(result, console)
+
+    if include_agent_files:
+        result = _apply_agent_files(result, resolved_project, console)
 
     if resolved_project is not None:
         result = _apply_project_scan(

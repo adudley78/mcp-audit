@@ -902,6 +902,55 @@
         "Shadow MCP Servers"
       ],
       "notes": "Requires --connect (live enumeration). Fires when >=2 distinct servers advertise the same tool name (case-sensitive). MEDIUM by default; HIGH when one claimant is registry-verified and another is not (unknown server shadowing a trusted tool). NSA CSI item 5. CWE-694."
+    },
+    {
+      "finding_id": "SKILL-001",
+      "finding_title": "Injection/exfiltration instruction in skill file",
+      "owasp_codes": ["MCP03", "MCP01"],
+      "owasp_names": ["Prompt Injection Attacks", "Token Mismanagement and Secret Exposure"],
+      "notes": "Fires when any poisoning.py PATTERNS entry (except obfuscation/length sub-set) matches the body of a skill/command/instruction file (.claude/commands/*.md, .cursor/rules/*.mdc, .github/**). Severity capped at HIGH. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-002",
+      "finding_title": "Obfuscated or oversized block in skill/command file",
+      "owasp_codes": ["MCP03"],
+      "owasp_names": ["Prompt Injection Attacks"],
+      "notes": "Fires on zero-width Unicode (POISON-040), homoglyph substitution (POISON-060), or body length >= 2000 chars in skill/command/instruction files. Severity MEDIUM. CWE-116. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-003",
+      "finding_title": "Skill file references external URL",
+      "owasp_codes": ["MCP03", "MCP04"],
+      "owasp_names": ["Prompt Injection Attacks", "Software Supply Chain Attacks"],
+      "notes": "Fires when a skill/instruction file body contains a raw http(s):// URL suggesting external content injection. Severity MEDIUM. CWE-829. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "HOOK-001",
+      "finding_title": "Hook command contains network-egress instruction",
+      "owasp_codes": ["MCP05", "MCP07"],
+      "owasp_names": ["Command Injection via Tool Responses", "Insufficient Authentication Controls"],
+      "notes": "Fires when a Claude Code hook command contains curl, wget, nc, socat, Invoke-WebRequest, or a raw HTTP(S) URL. Severity HIGH. CWE-78. Analyzer: config_hygiene (extends CFHYG-005)."
+    },
+    {
+      "finding_id": "HOOK-002",
+      "finding_title": "Hook command references agent config file path",
+      "owasp_codes": ["MCP05", "MCP07"],
+      "owasp_names": ["Command Injection via Tool Responses", "Insufficient Authentication Controls"],
+      "notes": "Fires when a Claude Code hook command references an MCP/agent config file path (CVE-2026-30615 persistence channel). Severity HIGH. CWE-78. Analyzer: config_hygiene (extends CFHYG-005)."
+    },
+    {
+      "finding_id": "MEM-001",
+      "finding_title": "Imperative override instruction in memory file",
+      "owasp_codes": ["MCP03"],
+      "owasp_names": ["Prompt Injection Attacks"],
+      "notes": "Fires when POISON-012 (behavioral override) matches a Claude Code CLAUDE.md memory file. Severity capped at MEDIUM. CWE-74. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "MEM-002",
+      "finding_title": "Injection pattern in memory file",
+      "owasp_codes": ["MCP03"],
+      "owasp_names": ["Prompt Injection Attacks"],
+      "notes": "Fires on restricted memory pattern subset: POISON-010/011/040/060 only. Exfiltration and length patterns excluded to control FP rate. Severity capped at MEDIUM. CWE-74. Analyzer: agent_files."
     }
   ],
   "dynamic_patterns": [
@@ -974,5 +1023,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 84 static finding IDs are mapped (60 original + 24 new: COMM-000 template + COMM-016 through COMM-034 + AUTH-001 + AUTH-002 + TRUST-001 + COLLIDE-001 + SC-004). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 91 static finding IDs are mapped (60 original + 24 new: COMM-000 template + COMM-016 through COMM-034 + AUTH-001 + AUTH-002 + TRUST-001 + COLLIDE-001 + SC-004 + 7 agent-file: SKILL-001/002/003, HOOK-001/002, MEM-001/002). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
 }

@@ -504,11 +504,30 @@ across machines (post-launch roadmap).
 
 ## Agent-file surface coverage (skills, memory, hooks)
 
-The sections below document unconfirmed client paths for the upcoming
-`agent_files/` scanner package (PHASE 1–3). Confirmed paths are implemented;
-unconfirmed paths are tracked here until official documentation or environment
-probes validate them. Do not write discovery or analysis code for unconfirmed
-paths — add them to `agent_files/discovery.py` only when confirmed.
+**Shipped 2026-06-14 (Phases 1–3):** The `src/mcp_audit/agent_files/` package
+is implemented and tested. Confirmed surfaces in `agent_files/discovery.py`:
+Claude Code commands (`~/.claude/commands/`, `.claude/commands/`), Claude Code
+memory (`CLAUDE.md` tiers), Cursor rules (`~/.cursor/rules/`, `.cursor/rules/`),
+GitHub Copilot workspace instructions, scoped instructions, and prompt templates.
+Hook analysis (`HOOK-001`, `HOOK-002`) extends `ConfigHygieneAnalyzer`.
+Known limitations per finding:
+
+- **SKILL-003** fires on all `https?://` URLs in instruction files, including
+  legitimate documentation links in `.github/copilot-instructions.md`.
+  False-positive rate is moderate on Copilot instruction files that reference
+  their own repo or third-party docs. Mitigation: `--severity-threshold medium`.
+- **HOOK-001** pattern may fire on local test scripts that contain `nc` (netcat)
+  as a tool invocation if the argument structure matches. Edge case; no known FP
+  in the current benchmark.
+- **MEM-002** (zero-width Unicode, POISON-040) fires even on CLAUDE.md files
+  that have copy-pasted content from a source that embedded invisible Unicode.
+  Inspect with `cat -A` or a Unicode hex dump to confirm.
+
+The sections below document unconfirmed client paths for future phases.
+Confirmed paths are implemented; unconfirmed paths are tracked here until
+official documentation or environment probes validate them. Do not write
+discovery or analysis code for unconfirmed paths — add them to
+`agent_files/discovery.py` only when confirmed.
 
 **Phase design decisions recorded 2026-06-14:**
 - Copilot prompt files (`.github/prompts/*.prompt.md`) scanned at the same
@@ -523,9 +542,9 @@ paths — add them to `agent_files/discovery.py` only when confirmed.
   `.claude/commands/`, `.cursor/rules/`, and `.github/` subtrees; the
   cloned-malicious-repo scenario is the primary attack vector.
 - Hook content analysis (HOOK-001, HOOK-002) extends
-  `ConfigHygieneAnalyzer._check_hooks_and_permissions()` rather than
-  splitting into a separate analyzer. Hook responsibility stays with the
-  config-hygiene analyzer.
+  `ConfigHygieneAnalyzer.analyze_config()` (via new `_check_hook_commands()`
+  helper) rather than splitting into a separate analyzer. Hook responsibility
+  stays with the config-hygiene analyzer.
 - OWASP mappings confirmed: SKILL-001/002/003 → MCP03 (Prompt Injection)
   + MCP01 (Token Mismanagement); HOOK-001/002 → MCP05 (Command Injection)
   + MCP07 (Insufficient Auth); MEM-001/002 → MCP03.

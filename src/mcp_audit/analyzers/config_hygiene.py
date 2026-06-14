@@ -9,6 +9,12 @@ npm package explicitly targeted ``~/.claude.json``, ``~/.claude/mcp.json``,
 and ``~/.kiro/settings/mcp.json`` as its primary credential-cache targets.
 mcp-audit's ``discover`` command already knows exactly where all 8 supported
 clients store their configs; this analyzer grades each file's exposure.
+
+**Hook analysis (HOOK-001, HOOK-002)** was added as part of the agent-file
+scanner (2026-06-14).  Claude Code executes hook commands at lifecycle events
+(``preToolUse``, ``postToolUse``, ``stop``, etc.); these checks fire on the
+`hooks` section of *any* claude-client config file, not just the user-global
+``.claude.json``.
 """
 
 from __future__ import annotations
@@ -25,6 +31,34 @@ from mcp_audit.analyzers.credentials import SECRET_PATTERNS
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 logger = logging.getLogger(__name__)
+
+# ── Hook-command analysis patterns ────────────────────────────────────────────
+
+# HOOK-001: network egress commands/URLs inside hook command strings.
+# Matches curl, wget, nc/ncat (netcat), socat, Python urllib/requests one-liners,
+# PowerShell Invoke-WebRequest, and raw http(s):// URLs.
+_HOOK_NETWORK_RE: re.Pattern[str] = re.compile(
+    r"(?i)\b(curl|wget|ncat|socat|Invoke-WebRequest|Invoke-RestMethod)\b"
+    r"|https?://[^\s\)\"\']{8,}"
+    r"|\bpython\b.{0,60}\b(urllib|requests|http\.client)\b"
+    r"|\bnc\s+(?!-[a-z])[^\s]",
+    re.IGNORECASE,
+)
+
+# HOOK-002: hook command writes to / references agent config file paths.
+# Covers the most common MCP config file locations across all 8 supported clients.
+_HOOK_CONFIG_WRITE_RE: re.Pattern[str] = re.compile(
+    r"(?i)"
+    r"\.claude\.json|claude_desktop_config\.json"
+    r"|\.cursor[/\\]mcp\.json|\.cursor[/\\]settings\.json"
+    r"|\.kiro[/\\]settings[/\\]mcp\.json"
+    r"|\.vscode[/\\]mcp\.json"
+    r"|\.codeium[/\\]windsurf[/\\]mcp[/_]server_config\.json"
+    r"|Library[/\\]Application Support[/\\](Claude|claude)"
+    r"|AppData[/\\]Roaming[/\\](Claude|claude)"
+)
+
+# ── Env-var reference patterns ────────────────────────────────────────────────
 
 # Env-var reference patterns: ${VAR}, $VAR, %(VAR)s, %VAR%
 _ENV_REF_PATTERNS: list[re.Pattern[str]] = [
@@ -50,10 +84,15 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
     - **CFHYG-003**: config file stores a plaintext secret inline.
     - **CFHYG-004**: config file uses env-var references for all credentials
       (positive signal — reinforces correct behaviour).
-    - **CFHYG-005**: ``.claude.json`` contains a non-empty ``hooks`` section
-      (CVE-2025-59536 — shell-command injection via config file write).
+    - **CFHYG-005**: any Claude client config file contains a non-empty
+      ``hooks`` section (CVE-2025-59536 — shell-command injection).
     - **CFHYG-006**: server env sets ``ANTHROPIC_BASE_URL`` to a non-Anthropic
       domain (CVE-2026-21852 — API traffic exfiltration).
+    - **HOOK-001**: a hook command contains network-egress primitives (curl,
+      wget, nc, socat, raw HTTP(S) URL, etc.), enabling data exfiltration or
+      C2 callback via the agent lifecycle.
+    - **HOOK-002**: a hook command references an MCP/agent config file path,
+      the CVE-2026-30615 persistence channel (write-to-config-and-survive).
 
     Permission checks (CFHYG-001, CFHYG-002) are skipped on Windows because
     POSIX ``st_mode`` bits do not represent Windows ACL semantics.
@@ -294,6 +333,140 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             logger.debug("config_hygiene: failed to parse JSON from %s", config_path)
             return None
 
+    # ── Hook helpers ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _is_claude_code_config(config_path: Path) -> bool:
+        """Return True when the config file is a Claude Code hooks-capable config.
+
+        Hooks are a Claude Code feature, not Claude Desktop.  Only three file
+        locations can contain a ``hooks`` section:
+
+        - ``~/.claude.json`` (user-global)
+        - ``.claude/settings.json`` (project-level)
+        - ``.claude/settings.local.json`` (project-level)
+        """
+        if config_path.name == ".claude.json":
+            return True
+        if config_path.name in ("settings.json", "settings.local.json"):
+            return config_path.parent.name == ".claude"
+        return False
+
+    @staticmethod
+    def _extract_hook_commands(hooks: dict) -> list[str]:
+        """Flatten a Claude Code ``hooks`` dict into a list of command strings.
+
+        The hooks dict looks like:
+        ``{"PreToolUse": [{"hooks": [{"type": "command", "command": "..."}]}]}``
+
+        Returns:
+            All ``"command"`` values found at any nesting depth.
+        """
+        commands: list[str] = []
+        if not isinstance(hooks, dict):
+            return commands
+        for _event, hook_groups in hooks.items():
+            if not isinstance(hook_groups, list):
+                continue
+            for group in hook_groups:
+                if not isinstance(group, dict):
+                    continue
+                for hook in group.get("hooks") or []:
+                    if isinstance(hook, dict) and hook.get("type") == "command":
+                        cmd = hook.get("command")
+                        if isinstance(cmd, str) and cmd.strip():
+                            commands.append(cmd)
+        return commands
+
+    def _check_hook_commands(
+        self,
+        hooks: dict,
+        config_path: Path,
+        client: str,
+    ) -> list[Finding]:
+        """HOOK-001 and HOOK-002: inspect hook command strings for risky patterns.
+
+        Args:
+            hooks: The ``hooks`` dict from the parsed config file.
+            config_path: Filesystem path to the config file (for evidence context).
+            client: Client name from the discovered config.
+
+        Returns:
+            List of HOOK-001/002 findings.
+        """
+        commands = self._extract_hook_commands(hooks)
+        findings: list[Finding] = []
+        seen_ids: set[str] = set()
+
+        for cmd in commands:
+            # HOOK-001: network egress
+            m = _HOOK_NETWORK_RE.search(cmd)
+            if m and "HOOK-001" not in seen_ids:
+                seen_ids.add("HOOK-001")
+                findings.append(
+                    Finding(
+                        id="HOOK-001",
+                        severity=Severity.HIGH,
+                        analyzer=self.name,
+                        client=client,
+                        server="(hook)",
+                        title="Hook command contains network-egress instruction",
+                        description=(
+                            f"A hook command in '{config_path.name}' contains a"
+                            " network-egress primitive (curl, wget, nc, socat, HTTP"
+                            " URL, etc.). Claude Code executes hook commands during"
+                            " its lifecycle (preToolUse, postToolUse, stop, etc.)."
+                            " A hook that calls out to the network can exfiltrate"
+                            " conversation content, credentials, or tool outputs to"
+                            " an attacker-controlled server."
+                        ),
+                        evidence=f"Command: {cmd[:120]!r}",
+                        remediation=(
+                            "Remove the network-egress instruction from the hook"
+                            " command. Hook commands should be limited to local"
+                            " operations. Review all hooks for commands you did not"
+                            " add intentionally."
+                        ),
+                        cwe="CWE-78",
+                        owasp_mcp_top_10=["MCP05", "MCP07"],
+                    )
+                )
+
+            # HOOK-002: writes to / references agent config files
+            m2 = _HOOK_CONFIG_WRITE_RE.search(cmd)
+            if m2 and "HOOK-002" not in seen_ids:
+                seen_ids.add("HOOK-002")
+                findings.append(
+                    Finding(
+                        id="HOOK-002",
+                        severity=Severity.HIGH,
+                        analyzer=self.name,
+                        client=client,
+                        server="(hook)",
+                        title="Hook command references agent config file path",
+                        description=(
+                            f"A hook command in '{config_path.name}' references"
+                            " an MCP or agent config file path. This matches the"
+                            " CVE-2026-30615 persistence pattern: a hook that"
+                            " modifies another agent config file can inject new"
+                            " servers or hooks that survive configuration resets,"
+                            " establishing a persistent backdoor."
+                        ),
+                        evidence=f"Command: {cmd[:120]!r}",
+                        remediation=(
+                            "Remove the hook command that references agent config"
+                            " file paths. Hook commands should never modify other"
+                            " config files. Review all hooks for commands you did"
+                            " not add intentionally."
+                        ),
+                        cwe="CWE-78",
+                        cve=["CVE-2026-30615"],
+                        owasp_mcp_top_10=["MCP05", "MCP07"],
+                    )
+                )
+
+        return findings
+
     def analyze_config(
         self,
         raw: dict,
@@ -307,8 +480,13 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
 
         Currently covers:
 
-        - **CFHYG-005**: non-empty ``hooks`` section in ``.claude.json``
-          (CVE-2025-59536 — shell-command injection via config file write).
+        - **CFHYG-005**: non-empty ``hooks`` section in any Claude client config
+          file (CVE-2025-59536 — shell-command injection via config file write).
+          Covers ``~/.claude.json``, ``.claude/settings.json``, and
+          ``.claude/settings.local.json``.
+        - **HOOK-001**: hook command contains network-egress primitives.
+        - **HOOK-002**: hook command references an agent config file path
+          (CVE-2026-30615 persistence channel).
 
         Args:
             raw: The parsed JSON dict for the config file.
@@ -319,40 +497,47 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             List of config-level findings.  Empty when no issues are detected.
         """
         findings: list[Finding] = []
-        if config_path.name == ".claude.json":
-            hooks = raw.get("hooks")
-            if hooks:
-                findings.append(
-                    Finding(
-                        id="CFHYG-005",
-                        severity=Severity.MEDIUM,
-                        analyzer=self.name,
-                        client=client,
-                        server="(config-level)",
-                        title="Claude Code hooks section detected in config",
-                        description=(
-                            "The .claude.json config file contains a non-empty"
-                            " 'hooks' section. Claude Code executes hooks as shell"
-                            " commands during its lifecycle (pre-tool, post-tool,"
-                            " etc.). A threat actor with write access to this file"
-                            " can inject arbitrary commands that run with your user"
-                            " privileges during normal Claude Code operation."
-                            " (CVE-2025-59536, Check Point Research)"
-                        ),
-                        evidence=(
-                            f"Config file {config_path} contains a non-empty"
-                            " 'hooks' section"
-                        ),
-                        remediation=(
-                            "Review the 'hooks' section in .claude.json. Remove any"
-                            " hooks you did not intentionally add. Restrict write"
-                            " access to the file: chmod 600 ~/.claude.json"
-                        ),
-                        cwe="CWE-78",
-                        cve=["CVE-2025-59536"],
-                        owasp_mcp_top_10=["MCP01", "MCP07"],
-                    )
-                )
+        if not self._is_claude_code_config(config_path):
+            return findings
+
+        hooks = raw.get("hooks")
+        if not hooks:
+            return findings
+
+        # CFHYG-005: presence of any hooks section
+        findings.append(
+            Finding(
+                id="CFHYG-005",
+                severity=Severity.MEDIUM,
+                analyzer=self.name,
+                client=client,
+                server="(config-level)",
+                title="Claude Code hooks section detected in config",
+                description=(
+                    f"The config file '{config_path.name}' contains a non-empty"
+                    " 'hooks' section. Claude Code executes hooks as shell"
+                    " commands during its lifecycle (pre-tool, post-tool,"
+                    " etc.). A threat actor with write access to this file"
+                    " can inject arbitrary commands that run with your user"
+                    " privileges during normal Claude Code operation."
+                    " (CVE-2025-59536, Check Point Research)"
+                ),
+                evidence=(
+                    f"Config file {config_path} contains a non-empty 'hooks' section"
+                ),
+                remediation=(
+                    f"Review the 'hooks' section in {config_path.name}. Remove any"
+                    " hooks you did not intentionally add. Restrict write"
+                    f" access to the file: chmod 600 {config_path}"
+                ),
+                cwe="CWE-78",
+                cve=["CVE-2025-59536"],
+                owasp_mcp_top_10=["MCP01", "MCP07"],
+            )
+        )
+
+        # HOOK-001/002: inspect individual hook commands for risky patterns
+        findings.extend(self._check_hook_commands(hooks, config_path, client))
         return findings
 
     def _check_anthropic_base_url(

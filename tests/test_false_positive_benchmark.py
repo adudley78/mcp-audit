@@ -230,3 +230,169 @@ class TestBenchmarkSummary:
             f"Poisoning FP rate is {fp_rate:.1f}% ({len(fp_servers)}/{total} servers): "
             + ", ".join(fp_servers)
         )
+
+
+# ---------------------------------------------------------------------------
+# Agent-file false-positive benchmark
+# Zero FPs on benign agent instruction and memory files is the ship bar.
+# ---------------------------------------------------------------------------
+
+
+BENIGN_SKILL_BODIES = [
+    # Typical deploy skill
+    (
+        "deploy_staging",
+        "# Deploy to Staging\n\nRun the deployment pipeline for staging.\n\n"
+        "```bash\n./scripts/deploy.sh --env staging --confirm\n```\n\n"
+        "Wait for the health check before proceeding.",
+    ),
+    # Git workflow skill
+    (
+        "git_workflow",
+        "# Create a PR\n\nCreate a pull request for the current branch.\n\n"
+        "1. Run `git push origin HEAD`\n2. Use `gh pr create` with a summary.\n"
+        "3. Add reviewers from the CODEOWNERS file.",
+    ),
+    # Test runner skill
+    (
+        "run_tests",
+        "# Run Tests\n\nExecute the full test suite and report results.\n\n"
+        "```bash\nuv run pytest tests/ -q\n```\n\nFix any failures before merging.",
+    ),
+    # Cursor rule: TypeScript conventions
+    (
+        "ts_conventions",
+        "---\napplyTo: '**/*.ts'\n---\n"
+        "# TypeScript Conventions\n\n"
+        "- Use strict TypeScript (`strict: true` in tsconfig)\n"
+        "- Prefer `const` over `let`\n"
+        "- Use named exports over default exports\n",
+    ),
+    # Copilot instruction: Python style
+    (
+        "python_style",
+        "# Python coding standards\n\n"
+        "Use Black for formatting and Ruff for linting.\n"
+        "All functions must have type hints and docstrings.\n"
+        "Use pytest for testing. Minimum coverage: 80%%.",
+    ),
+    # Copilot scoped instruction
+    (
+        "backend_instructions",
+        "# Backend Instructions\n\n"
+        "Apply to all Python files in `src/`.\n\n"
+        "- Use FastAPI for new endpoints\n"
+        "- Always return `JSONResponse` with appropriate status codes\n"
+        "- Log at INFO level; use structlog\n",
+    ),
+    # Copilot prompt template
+    (
+        "fix_bug_prompt",
+        "# Fix Bug\n\nAnalyze the following code and identify the bug:\n\n"
+        "```\n$SELECTION\n```\n\n"
+        "Provide a corrected version with an explanation of what was wrong.",
+    ),
+]
+
+BENIGN_MEMORY_BODIES = [
+    # Typical project CLAUDE.md
+    (
+        "project_context",
+        "# mcp-audit\n\n"
+        "## Stack\n- Python 3.11+, managed with uv\n- CLI: Typer + Rich\n\n"
+        "## Conventions\nRun `uv run pytest` after each change.\n"
+        "Run `uv run ruff check src/ tests/` before committing.\n\n"
+        "## Key directories\n"
+        "- `src/mcp_audit/` — main package\n"
+        "- `tests/` — test suite\n",
+    ),
+    # Frontend project memory
+    (
+        "frontend_context",
+        "# Frontend Project\n\n"
+        "## Stack\nNext.js 14, TypeScript, Tailwind CSS, Shadcn/ui.\n\n"
+        "## Commands\n- `npm run dev` — start dev server\n"
+        "- `npm run build` — production build\n"
+        "- `npm test` — run Jest suite\n\n"
+        "## Conventions\nUse named exports. Co-locate tests with components.",
+    ),
+    # Large project memory (should not trigger length-based MEM findings)
+    (
+        "large_benign_memory",
+        "# Large Project\n\n"
+        + "## Module notes\n\n"
+        + "".join(
+            f"### module_{i}\n\nHandles subsystem {i}.\nNo special notes.\n\n"
+            for i in range(40)
+        ),
+    ),
+]
+
+
+class TestAgentFileFalsePositives:
+    """Zero-FP benchmark for the agent-file analyzer on benign content."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        from mcp_audit.agent_files.analyzer import analyze_agent_files
+        from mcp_audit.agent_files.models import AgentFile, AgentFileSurface
+
+        self.analyze = analyze_agent_files
+        self.AgentFile = AgentFile
+        self.AgentFileSurface = AgentFileSurface
+
+    def _skill(self, name: str, body: str):
+        return self.AgentFile(
+            path=Path(f"/tmp/{name}.md"),  # noqa: S108
+            surface=self.AgentFileSurface.CLAUDE_COMMAND,
+            client="claude-code",
+            scope="user",
+            raw_content=body,
+            body=body,
+        )
+
+    def _memory(self, name: str, body: str):
+        return self.AgentFile(
+            path=Path(f"/tmp/{name}.md"),  # noqa: S108
+            surface=self.AgentFileSurface.CLAUDE_MEMORY,
+            client="claude-code",
+            scope="project",
+            raw_content=body,
+            body=body,
+        )
+
+    def test_benign_skills_zero_fp(self):
+        """All benign skill/instruction bodies → zero findings."""
+        false_positives = []
+        for name, body in BENIGN_SKILL_BODIES:
+            af = self._skill(name, body)
+            findings = self.analyze([af])
+            for f in findings:
+                false_positives.append((name, f))
+
+        assert not false_positives, (
+            f"Agent-file skill FPs on {len(false_positives)} finding(s) "
+            f"across {len(BENIGN_SKILL_BODIES)} benign files:\n"
+            + "\n".join(
+                f"  [{name}] {f.id} ({f.severity}): {f.title} — {f.evidence}"
+                for name, f in false_positives
+            )
+        )
+
+    def test_benign_memory_zero_fp(self):
+        """All benign CLAUDE.md bodies → zero findings."""
+        false_positives = []
+        for name, body in BENIGN_MEMORY_BODIES:
+            af = self._memory(name, body)
+            findings = self.analyze([af])
+            for f in findings:
+                false_positives.append((name, f))
+
+        assert not false_positives, (
+            f"Agent-file memory FPs on {len(false_positives)} finding(s) "
+            f"across {len(BENIGN_MEMORY_BODIES)} benign files:\n"
+            + "\n".join(
+                f"  [{name}] {f.id} ({f.severity}): {f.title} — {f.evidence}"
+                for name, f in false_positives
+            )
+        )
