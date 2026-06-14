@@ -4,6 +4,20 @@ The mcp-audit known-server registry (`registry/known-servers.json`) is a
 community-maintained dataset of legitimate MCP servers. Every entry improves
 typosquatting detection for all users.
 
+**Not listed yet?** Check your current status:
+
+```bash
+mcp-audit vet @your-scope/your-package
+```
+
+If the output shows `unknown`, your package is not in the registry. Adding it
+takes ~5 minutes (see [How to submit](#how-to-submit) below) and:
+- Turns your `mcp-audit vet` badge from grey to green.
+- Protects users from typosquats that mimic your package name.
+- Lets mcp-audit suppress false-positive findings on your server.
+
+See [docs/badge.md](badge.md) for badge documentation.
+
 ## When to add an entry
 
 Add a server to the registry if:

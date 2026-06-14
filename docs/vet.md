@@ -179,6 +179,11 @@ Exit code: **0** (1 with `--strict`)
 
 **Slug convention:** `@scope/name` → `at-scope-name`, lowercased, `_` → `-`.
 
+The badge shows registry verification status and known CVE count for the package —
+not a grade, not an endorsement, nothing about any deployment. See
+[docs/badge.md](badge.md) for the full specification: what the badge asserts, what
+it does not, and how badge data updates.
+
 ---
 
 ## Online mode

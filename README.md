@@ -144,6 +144,43 @@ mcp-audit snapshot --stream | vector --config ...     # NDJSON stream to SIEM/ED
 mcp-audit snapshot --rehydrate old-snapshot.json      # Reconstruct historical attack graph
 ```
 
+The three primary practitioner verbs — before, after, and fix:
+
+```bash
+mcp-audit vet @scope/your-server   # Before you install: registry status + known CVEs
+mcp-audit check                    # After installing: one-command security verdict
+mcp-audit fix --apply              # Fix detected issues automatically
+```
+
+## For MCP server authors
+
+If you publish an MCP server package, you can show users your registry status and
+known CVE count with a Shields.io badge:
+
+```bash
+mcp-audit vet @your-scope/your-mcp-server --badge
+```
+
+This prints a Markdown snippet you can paste directly into your README:
+
+[![mcp-audit verdict](https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/npm/at-modelcontextprotocol-server-filesystem.json)](https://mcp-audit.dev/v1/verdicts/npm/at-modelcontextprotocol-server-filesystem.json)
+
+The badge shows **registry verification status** (confirmed maintainer link) and
+**known CVE count** — two facts, nothing more. It is not a security grade or
+endorsement. See [docs/badge.md](docs/badge.md) for the full specification: what the
+badge asserts, what it does not assert, and how badge data updates.
+
+**Your package not listed?** The badge shows `unknown` (grey) until your entry is
+added to the registry. Add it in ~5 minutes:
+
+1. Run `mcp-audit vet @your-scope/your-server` to see what users see today.
+2. [Open a registry submission issue](https://github.com/adudley78/mcp-audit/issues/new?template=registry-submission.yml)
+   or edit `registry/known-servers.json` and open a PR.
+3. Once merged, your badge turns green (`verified · 0 known CVEs`).
+
+See [docs/registry-contributions.md](docs/registry-contributions.md) for the entry
+format and verification standard.
+
 ## Find your shadow MCP servers (OWASP MCP09)
 
 **[OWASP MCP09: Shadow MCP Servers](https://owasp.org/www-project-mcp-top-10/)** — MCP servers
