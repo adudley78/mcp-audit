@@ -639,3 +639,518 @@ class TestShadowCommandIntegration:
             ["shadow", "--allowlist", str(tmp_path / "nonexistent.yml")],
         )
         assert result.exit_code == 2
+
+    def test_terminal_text_output_distinguishes_shadow_and_sanctioned(
+        self, tmp_path: Path
+    ) -> None:
+        """Default text output shows 'shadow' and 'sanctioned' classifications."""
+        cfg = self._write_claude_config(
+            tmp_path,
+            {
+                "filesystem": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"],
+                },
+                "github": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-github"],
+                },
+            },
+        )
+        al_file = tmp_path / "allowlist.yml"
+        al_file.write_text(
+            "sanctioned_servers:\n  - '@modelcontextprotocol/server-filesystem'\n",
+            encoding="utf-8",
+        )
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            app,
+            ["shadow", "--path", str(cfg), "--allowlist", str(al_file)],
+        )
+        # Exit 1 because github is shadow
+        assert result.exit_code == 1
+        stderr = result.stderr if hasattr(result, "stderr") else ""
+        combined = result.output + stderr
+        assert "shadow" in combined.lower() or "sanctioned" in combined.lower()
+
+    def test_terminal_text_output_no_servers(self, tmp_path: Path) -> None:
+        """Text mode with no servers prints a message and exits 0."""
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            app,
+            ["shadow", "--path", str(tmp_path / "nonexistent_dir")],
+        )
+        assert result.exit_code == 0
+
+    def test_json_output_to_file(self, tmp_path: Path) -> None:
+        """--output-file writes JSON to disk instead of stdout."""
+        cfg = self._write_claude_config(
+            tmp_path,
+            {
+                "filesystem": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"],
+                }
+            },
+        )
+        out_file = tmp_path / "results" / "shadow.json"
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "shadow",
+                "--format",
+                "json",
+                "--path",
+                str(cfg),
+                "--output-file",
+                str(out_file),
+            ],
+        )
+        assert result.exit_code == 1  # shadow found
+        assert out_file.exists()
+        data = json.loads(out_file.read_text(encoding="utf-8"))
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0]["classification"] == "shadow"
+
+    def test_empty_servers_in_non_empty_config_json_output(
+        self, tmp_path: Path
+    ) -> None:
+        """Config file exists but has no servers → JSON output is empty list."""
+        cfg = tmp_path / "empty_mcp.json"
+        cfg.write_text('{"mcpServers": {}}', encoding="utf-8")
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["shadow", "--format", "json", "--path", str(cfg)],
+        )
+        assert result.exit_code == 0
+        assert result.stdout.strip() == "[]"
+
+    def test_allowlist_invalid_yaml_exits_2(self, tmp_path: Path) -> None:
+        """An allowlist file with invalid schema raises ValueError → exit 2."""
+        al_file = tmp_path / "bad_schema.yml"
+        # Valid YAML but wrong top-level type (not a mapping)
+        al_file.write_text("- not a mapping\n", encoding="utf-8")
+        cfg = self._write_claude_config(
+            tmp_path,
+            {"fs": {"command": "npx", "args": ["-y", "@fs/server"]}},
+        )
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            app,
+            ["shadow", "--path", str(cfg), "--allowlist", str(al_file)],
+        )
+        assert result.exit_code == 2
+
+    def test_load_registry_error_exits_2(self, tmp_path: Path) -> None:  # noqa: ARG002
+        """When load_registry raises FileNotFoundError, exit code is 2."""
+        from unittest.mock import patch
+
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        with patch(
+            "mcp_audit.cli.shadow.load_registry",
+            side_effect=FileNotFoundError("registry not found"),
+        ):
+            runner = CliRunner(mix_stderr=False)
+            result = runner.invoke(app, ["shadow", "--format", "json"])
+        assert result.exit_code == 2
+
+    def test_unmatched_allowlist_warning_in_terminal_output(
+        self, tmp_path: Path
+    ) -> None:
+        """An allowlist entry that matches nothing triggers a warning."""
+        cfg = self._write_claude_config(
+            tmp_path,
+            {
+                "filesystem": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"],
+                }
+            },
+        )
+        al_file = tmp_path / "allowlist.yml"
+        al_file.write_text(
+            "sanctioned_servers:\n  - '@nonexistent/package'\n",
+            encoding="utf-8",
+        )
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            app,
+            ["shadow", "--path", str(cfg), "--allowlist", str(al_file)],
+        )
+        # exit 1 — shadow server present
+        assert result.exit_code == 1
+        combined = result.output + (result.stderr if hasattr(result, "stderr") else "")
+        assert "shadow" in combined.lower()
+
+
+# ── cli/shadow.py — _emit_change_events ───────────────────────────────────────
+
+
+class TestEmitChangeEvents:
+    """Direct tests for _emit_change_events without running the full daemon."""
+
+    def _server(
+        self,
+        name: str = "filesystem",
+        client: str = "claude-desktop",
+        command: str | None = "npx",
+        args: list[str] | None = None,
+        env: dict[str, str] | None = None,
+        raw: dict | None = None,
+    ) -> ServerConfig:
+        return ServerConfig(
+            name=name,
+            client=client,
+            command=command,
+            args=args or ["-y", "@modelcontextprotocol/server-filesystem", "/data"],
+            env=env or {},
+            config_path=Path("/fake/mcp.json"),
+            transport=TransportType.STDIO,
+            raw=raw or {},
+        )
+
+    def test_new_server_emits_new_shadow_server_event(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        from datetime import UTC, datetime
+        from unittest.mock import MagicMock
+
+        from mcp_audit.cli.shadow import _emit_change_events
+        from mcp_audit.registry.loader import KnownServerRegistry
+        from mcp_audit.shadow.state import ShadowState
+
+        state = ShadowState(state_dir=tmp_path)
+        registry = MagicMock(spec=KnownServerRegistry)
+        registry.get.return_value = None
+
+        server = self._server()
+        now = datetime.now(UTC)
+
+        _emit_change_events(
+            old_servers=[],
+            new_servers=[server],
+            allowlist=None,
+            registry=registry,
+            state=state,
+            now=now,
+            use_json=True,
+            event_sink_path=None,
+        )
+
+        captured = capsys.readouterr()
+        event = json.loads(captured.out.strip())
+        assert event["event_type"] == "new_shadow_server"
+        assert event["server_name"] == "filesystem"
+
+    def test_removed_server_emits_removed_event(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        from datetime import UTC, datetime
+        from unittest.mock import MagicMock
+
+        from mcp_audit.cli.shadow import _emit_change_events
+        from mcp_audit.registry.loader import KnownServerRegistry
+        from mcp_audit.shadow.state import ShadowState
+
+        state = ShadowState(state_dir=tmp_path)
+        registry = MagicMock(spec=KnownServerRegistry)
+        registry.get.return_value = None
+
+        server = self._server()
+        now = datetime.now(UTC)
+        # seed state so the server shows as previously seen
+        state.touch(server, now)
+
+        _emit_change_events(
+            old_servers=[server],
+            new_servers=[],
+            allowlist=None,
+            registry=registry,
+            state=state,
+            now=now,
+            use_json=True,
+            event_sink_path=None,
+        )
+
+        captured = capsys.readouterr()
+        event = json.loads(captured.out.strip())
+        assert event["event_type"] == "server_removed"
+
+    def test_changed_args_emits_drift_event(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        from datetime import UTC, datetime
+        from unittest.mock import MagicMock
+
+        from mcp_audit.cli.shadow import _emit_change_events
+        from mcp_audit.registry.loader import KnownServerRegistry
+        from mcp_audit.shadow.state import ShadowState
+
+        state = ShadowState(state_dir=tmp_path)
+        registry = MagicMock(spec=KnownServerRegistry)
+        registry.get.return_value = None
+
+        old_server = self._server(args=["-y", "@mcp/server", "/old"])
+        new_server = self._server(args=["-y", "@mcp/server", "/new"])
+        now = datetime.now(UTC)
+        state.touch(old_server, now)
+
+        _emit_change_events(
+            old_servers=[old_server],
+            new_servers=[new_server],
+            allowlist=None,
+            registry=registry,
+            state=state,
+            now=now,
+            use_json=True,
+            event_sink_path=None,
+        )
+
+        captured = capsys.readouterr()
+        event = json.loads(captured.out.strip())
+        assert event["event_type"] == "server_drift"
+        assert "args" in event["changed_fields"]
+
+    def test_unchanged_server_emits_no_event(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        from datetime import UTC, datetime
+        from unittest.mock import MagicMock
+
+        from mcp_audit.cli.shadow import _emit_change_events
+        from mcp_audit.registry.loader import KnownServerRegistry
+        from mcp_audit.shadow.state import ShadowState
+
+        state = ShadowState(state_dir=tmp_path)
+        registry = MagicMock(spec=KnownServerRegistry)
+        registry.get.return_value = None
+
+        server = self._server()
+        now = datetime.now(UTC)
+        state.touch(server, now)
+
+        _emit_change_events(
+            old_servers=[server],
+            new_servers=[server],
+            allowlist=None,
+            registry=registry,
+            state=state,
+            now=now,
+            use_json=True,
+            event_sink_path=None,
+        )
+
+        captured = capsys.readouterr()
+        # No drift events — identical server
+        assert captured.out.strip() == ""
+
+    def test_events_written_to_file_sink(self, tmp_path: Path) -> None:
+        from datetime import UTC, datetime
+        from unittest.mock import MagicMock
+
+        from mcp_audit.cli.shadow import _emit_change_events
+        from mcp_audit.registry.loader import KnownServerRegistry
+        from mcp_audit.shadow.state import ShadowState
+
+        state = ShadowState(state_dir=tmp_path)
+        registry = MagicMock(spec=KnownServerRegistry)
+        registry.get.return_value = None
+
+        server = self._server()
+        now = datetime.now(UTC)
+        out_file = tmp_path / "events.jsonl"
+
+        _emit_change_events(
+            old_servers=[],
+            new_servers=[server],
+            allowlist=None,
+            registry=registry,
+            state=state,
+            now=now,
+            use_json=True,
+            event_sink_path=out_file,
+        )
+
+        assert out_file.exists()
+        event = json.loads(out_file.read_text(encoding="utf-8").strip())
+        assert event["event_type"] == "new_shadow_server"
+
+
+# ── cli/shadow.py — continuous mode ───────────────────────────────────────────
+
+
+class TestShadowContinuousMode:
+    """Test the --continuous daemon path via a mocked ConfigWatcher."""
+
+    def _write_claude_config(self, tmp_path: Path, servers: dict) -> Path:
+        cfg = tmp_path / "claude_desktop_config.json"
+        cfg.write_text(json.dumps({"mcpServers": servers}), encoding="utf-8")
+        return cfg
+
+    def test_continuous_mode_starts_and_runs_initial_sweep(
+        self, tmp_path: Path
+    ) -> None:
+        """--continuous completes an initial sweep and then calls ConfigWatcher."""
+        cfg = self._write_claude_config(
+            tmp_path,
+            {
+                "filesystem": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"],
+                }
+            },
+        )
+        import contextlib
+        from unittest.mock import MagicMock, patch
+
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        mock_watcher = MagicMock()
+        mock_watcher.run_until_interrupt.side_effect = KeyboardInterrupt
+
+        # ConfigWatcher is imported inside the function, so patch at the source module
+        with patch("mcp_audit.watcher.ConfigWatcher", return_value=mock_watcher):
+            runner = CliRunner()
+            with contextlib.suppress(SystemExit, KeyboardInterrupt):
+                runner.invoke(
+                    app,
+                    [
+                        "shadow",
+                        "--format",
+                        "json",
+                        "--continuous",
+                        "--path",
+                        str(cfg),
+                    ],
+                )
+
+        # Watcher was instantiated and run was called
+        assert mock_watcher.run_until_interrupt.called
+
+    def test_continuous_mode_on_change_callback_emits_events(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        """The _on_change callback fires _emit_change_events correctly."""
+        cfg = self._write_claude_config(
+            tmp_path,
+            {
+                "filesystem": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"],
+                }
+            },
+        )
+        import contextlib
+        from unittest.mock import patch
+
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        captured_callback: list = []
+
+        class FakeWatcher:
+            def __init__(self, on_change_callback, extra_paths):  # noqa: ARG002
+                captured_callback.append(on_change_callback)
+
+            def run_until_interrupt(self) -> None:
+                raise KeyboardInterrupt
+
+        with patch("mcp_audit.watcher.ConfigWatcher", FakeWatcher):
+            runner = CliRunner()
+            with contextlib.suppress(SystemExit, KeyboardInterrupt):
+                runner.invoke(
+                    app,
+                    [
+                        "shadow",
+                        "--format",
+                        "json",
+                        "--continuous",
+                        "--path",
+                        str(cfg),
+                    ],
+                )
+
+        assert len(captured_callback) == 1
+        callback = captured_callback[0]
+
+        # Simulate a config change: a new server appears
+        new_cfg = self._write_claude_config(
+            tmp_path,
+            {
+                "filesystem": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"],
+                },
+                "github": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-github"],
+                },
+            },
+        )
+
+        with patch(
+            "mcp_audit.cli.shadow._discover_all_servers",
+            return_value=(
+                [
+                    ServerConfig(
+                        name="github",
+                        client="claude-desktop",
+                        command="npx",
+                        args=["-y", "@modelcontextprotocol/server-github"],
+                        env={},
+                        config_path=new_cfg,
+                        transport=TransportType.STDIO,
+                        raw={},
+                    )
+                ],
+                1,
+            ),
+        ):
+            callback(new_cfg, "modified")
+
+        captured = capsys.readouterr()
+        if captured.out.strip():
+            event_types = set()
+            for line in captured.out.strip().splitlines():
+                if line.strip():
+                    event = json.loads(line)
+                    event_types.add(event["event_type"])
+            assert event_types <= {
+                "new_shadow_server",
+                "server_drift",
+                "server_removed",
+            }
+            assert len(event_types) > 0

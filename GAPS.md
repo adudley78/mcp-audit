@@ -149,6 +149,128 @@ Partially confirmed closed (2026-05-17) via community rules seed pack (STORY-004
 
 **POISON-050 checks statically available description fields only.** The oversized-payload rule (POISON-050) is scoped to `name` and `description` keys in the raw server config — the fields an AI model reads when deciding whether to invoke a tool. Fields such as `command`, `args`, and environment variable values are intentionally excluded because they are not model-visible and do not constitute an attack surface for tool description padding. Additionally, tool manifests fetched at runtime via the MCP protocol (i.e., `ToolInfo.description` returned by a live `tools/list` call) are not checked by the static analyzer; connecting with `--connect` enumerates live tools and runs the poisoning patterns against their descriptions, but this requires a running server and an optional SDK dependency. As a result, POISON-050 will not fire for servers whose tool descriptions are only visible after protocol negotiation.
 
+## Known detection evasions
+
+Catalogued during the adversarial-probe pass (2026-06-14). An attacker who has
+read mcp-audit's source can craft inputs that evade individual patterns. The
+items below were confirmed by probing the compiled patterns directly.
+
+### Fixed in the 2026-06-14 adversarial pass
+
+These were confirmed-exploitable false negatives (the "`nc -e`" class — a
+pattern that looked correct, passed its tests, but missed the most dangerous
+real-world form) and are now closed with regression tests:
+
+| Finding ID | Evasion that worked | Fix |
+|---|---|---|
+| HOOK-001 | `python3` / `python3.11` reverse-shell or exfil one-liners — a bare `\bpython\b` matched `python` but not `python3` (no word boundary before the digit), and the module list omitted `socket` | Clause broadened to `python[0-9.]*` and the network-module list extended to `socket`/`socketserver`/`http.server`/`httpx`/`smtplib`/`ftplib`; PowerShell `iwr`/`irm` aliases added |
+| SC-001/002/003 | `python3 -m <typosquat>` and `/usr/bin/python3 -m <typosquat>` — the supply-chain gate matched only the exact string `python`, so every non-`python` interpreter spelling skipped typosquat detection entirely | `_is_python_interpreter()` now matches `python`, `python3`, `python3.N`, `py`, and absolute paths to them |
+| POISON-012 | `ignore all previous instructions` — the single most common injection phrase — evaded because the regex demanded the literal `instructions` after exactly **one** adjective | Pattern now accepts 1–4 stacked adjectives and the verbs `ignore`/`disregard`/`forget` |
+| POISON-060 | Fullwidth-ASCII (`ＩＧＮＯＲＥ`) and Mathematical-Alphanumeric (`𝐢𝐠𝐧𝐨𝐫𝐞`) homoglyphs — neither decomposes to Cyrillic/Greek, so the original two-range class missed them | Character class extended to `U+FF01–FF5E` and `U+1D400–1D7FF`; further hardened in the normalization pass below (Armenian/Cherokee/Coptic) |
+| AUTH-002 | A dummy env var whose name merely *contained* `aud` (e.g. `AUDIO_PATH`, `FRAUD_FLAG`) silenced the finding, because the audience-env check used a raw substring test | Audience env-key fragments now matched as delimited tokens |
+| HOOK-002 | `~/.augment/settings.json` (one of the 8 supported clients) was absent from the config-path list | `.augment/settings.json` added to `_HOOK_CONFIG_WRITE_RE` |
+
+### Closed in the 2026-06-14 normalization pass
+
+These items were open after the adversarial probe and were closed by adding a
+Unicode normalization pass plus targeted pattern work. All carry regression
+tests.
+
+- **POISON-010..060 — homoglyph / compatibility / accent obfuscation
+  (architecture-level).** `normalize_for_detection()` in `analyzers/poisoning.py`
+  now folds text to ASCII *for matching only* before the literal patterns run:
+  NFKD decomposition (fullwidth, math-alphanumeric, compatibility forms) → strip
+  combining marks (category `Mn`, e.g. `cürl` → `curl`) → strip format chars
+  (category `Cf`, i.e. zero-width spaces/joiners and soft hyphen) → a minimal
+  hardcoded UTS #39 confusables map (Cyrillic / Greek / Armenian / Cherokee /
+  Coptic look-alikes). This is wired into `PoisoningAnalyzer.analyze()`, the
+  agent-file analyzer, and HOOK-001/002 matching, so a homoglyph-obfuscated
+  `ignore previous instructions` or Cherokee `curl` now fires the literal
+  pattern. POISON-060 itself is now driven by the union of the broad confusable
+  ranges and the confusables-map code points, so Armenian/Cherokee/Coptic
+  single-character substitutions fire it. Evidence always shows the attacker's
+  original (un-normalized) bytes — the normalized form is never stored. The full
+  4 MB UTS #39 dataset is intentionally not shipped; extending the minimal map to
+  the complete confusables table is a separate research task.
+
+- **POISON-020 — encoding-exfil evasion, closed with co-occurrence scoring.**
+  `DetectionPattern.requires_cooccurrence` gates POISON-020 so an encoding verb
+  only fires when an exfil-context term (`http`/`url`/`send`/`post`/`upload`/
+  `webhook`/`endpoint`/…) appears within 200 characters. The encoding vocabulary
+  was broadened to URL-safe base64 (`base64url`) and hex (`hex encode`,
+  `binascii.hexlify`, `.encode('hex')`, …) without re-introducing the benign
+  `base64 encode the image` false positive on the official filesystem server,
+  which carries no destination term. Co-occurrence is matched on word boundaries
+  so the `url` inside `base64url` cannot self-satisfy the gate.
+
+- **SKILL-003 — non-`http(s)` schemes.** The agent-file URL detector now matches
+  `ftp(s)://`, `ws(s)://` (a live bidirectional channel), and inline `data:`
+  URIs. `data:` URIs get a distinct finding description ("may embed an obfuscated
+  payload that is decoded and executed at runtime").
+
+- **CRED-001 — credentials in URL userinfo.** `CredentialsAnalyzer` now parses
+  `server.url` and fires CRED-001 (with the password redacted in the evidence,
+  `https://user:***@host`) when a *literal* password is present in the userinfo
+  component of any scheme. Env-var references (`${PASSWORD}`, `%PW%`) are not
+  flagged. The `auth.py` docstring was updated to reflect this.
+
+- **Obfuscation inside trigger words (now a real detection, not just
+  defense-in-depth).** A zero-width space or a homoglyph mid-word in
+  `ignore previous instructions` is folded away by `normalize_for_detection()`,
+  so POISON-012 (and the rest of the literal set) now fires directly — in
+  addition to POISON-040/060 still firing on the obfuscation character itself.
+
+### Documented but not fixed (open)
+
+- **CRED-001/002 — high-entropy tokens with no recognised prefix.**
+  Evasion: a custom internal credential format (high entropy, no `sk-`/`ghp_`/
+  `AKIA`/etc. prefix and not matching the generic `password|secret|token|api_key`
+  `=`/`:`-quoted form) is not detected. This is the same class as the "Pattern
+  coverage is thin" note — production scanners use 700+ patterns plus Shannon
+  entropy. What would close it: an entropy-based detector with an allow-list, at
+  the cost of a higher false-positive rate.
+
+- **POISON-060 — full UTS #39 confusables coverage.**
+  The normalization pass closes the highest-risk confusable scripts (Cyrillic,
+  Greek, Armenian, Cherokee, Coptic) with a minimal hardcoded map. Characters
+  from the long tail of the UTS #39 confusables table (hundreds of additional
+  blocks) are not mapped. Why not fixed: shipping the full 4 MB dataset and the
+  skeleton algorithm is a separate research task with its own FP-tuning needs.
+
+- **Supply chain — cross-naming-convention squatting.**
+  Evasion: a malicious package named `mcp-official-filesystem` is plausible to a
+  human but is a large Levenshtein distance from
+  `@modelcontextprotocol/server-filesystem`, so typosquat detection never fires.
+  PEP 503 normalisation only folds `-_.`/case; it does not bridge naming
+  conventions. This is an inherent limitation of edit-distance typosquatting.
+  What would close it: token-set / semantic similarity plus npm/PyPI popularity
+  and publish-date signals (the registry already carries `first_published` and
+  `weekly_downloads` for this purpose).
+
+- **COMM-034 (God Key) — intentional boundary precision.**
+  `MY_ADMIN` (no trailing `_`) and `XADMIN_KEY` (an alphabetic char immediately
+  before `ADMIN`) do not fire. This is **by design**: the
+  `(?<![A-Z0-9])(ADMIN|ROOT|MASTER|SUPERUSER)_` shape deliberately requires a
+  delimiter before and an underscore after the keyword so that
+  `ADMINISTRATOR_URL` and similar substrings do not produce false positives.
+  Confirmed intentional; the FP tradeoff is accepted.
+
+- **SAST — no cross-function taint (Semgrep OSS).**
+  Evasion: a tainted URL or secret passed through an intermediate variable
+  *across a function boundary* before reaching the sink evades the variable-URL
+  SSRF and hardcoded-secret rules. Within a single function the variable-URL
+  rules over-match (LOW confidence) rather than under-match. This is a hard
+  limit of Semgrep OSS pattern mode — full dataflow taint requires Semgrep Pro.
+  See "SAST Rules → No taint analysis" above. Not closeable without Semgrep Pro.
+
+- **HOOK-002 — dynamically-constructed config paths.**
+  The check is path-string based, which makes it robust to *write-method*
+  variation (`tee`, `dd`, `sed -i`, `python -c "open(...)"` all fire as long as
+  the literal config path appears). It does **not** fire when the target path is
+  assembled at runtime (`os.path.join`, shell variable expansion, or base64-
+  encoded path). Documented; closing it would require shell/Python parsing far
+  beyond the hook-string regex's intent.
+
 ## Severity calibration
 
 **Severity framework documented (2026-04-23).** Severity levels are now mapped to CVSS base score bands and OWASP Agentic Top 10 risk categories with written rationale for each finding ID. See `docs/severity-framework.md`. CVSS scores are approximate (no environmental/temporal modifiers applied) and should be reviewed by a credentialed practitioner before any formal CVE or compliance reporting.
@@ -237,7 +359,7 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 ### Medium
 
-**V-07: Resolved (2026-04-23).** Poisoning detection bypassed by Unicode homoglyphs. All regex patterns now run against NFKD-normalized ASCII text. A new `POISON-060` pattern detects Cyrillic, Greek, general-punctuation lookalikes, and fullwidth ASCII variants in the original (non-normalized) text. CWE-116.
+**V-07: Resolved (2026-06-14).** Poisoning detection bypassed by Unicode homoglyphs. Correction: the earlier (2026-04-23) write-up claimed "all regex patterns now run against NFKD-normalized ASCII text" — that normalization was **not** actually implemented at the time; only the `POISON-060` character-class check existed and patterns matched raw bytes. The normalization is now real: `normalize_for_detection()` (in `analyzers/poisoning.py`) applies NFKD decomposition, strips combining marks (`Mn`) and format characters (`Cf`, incl. zero-width), and folds a minimal UTS #39 confusables map (Cyrillic / Greek / Armenian / Cherokee / Coptic) to ASCII. Literal patterns (POISON-010..030, HOOK-001/002, agent-file SKILL/MEM) match the normalized text; `POISON-060` fires on the original obfuscation character. Evidence retains the attacker's original bytes. CWE-116. See "Known detection evasions → Closed in the 2026-06-14 normalization pass".
 
 **V-08: Resolved (2026-04-23).** Poisoning detection bypassed by nesting depth > 10. The recursion limit in `_extract_text_fields` and `_extract_description_fields` raised from 10 to 50. A depth of 50 guards against circular-reference DoS while making the bypass impractical.
 
@@ -512,10 +634,11 @@ GitHub Copilot workspace instructions, scoped instructions, and prompt templates
 Hook analysis (`HOOK-001`, `HOOK-002`) extends `ConfigHygieneAnalyzer`.
 Known limitations per finding:
 
-- **SKILL-003** fires on all `https?://` URLs in instruction files, including
-  legitimate documentation links in `.github/copilot-instructions.md`.
-  False-positive rate is moderate on Copilot instruction files that reference
-  their own repo or third-party docs. Mitigation: `--severity-threshold medium`.
+- **SKILL-003** fires on all `http(s)://`, `ftp(s)://`, `ws(s)://`, and inline
+  `data:` URIs in instruction files, including legitimate documentation links in
+  `.github/copilot-instructions.md`. False-positive rate is moderate on Copilot
+  instruction files that reference their own repo or third-party docs.
+  Mitigation: `--severity-threshold medium`.
 - **HOOK-001** pattern may fire on local test scripts that contain `nc` (netcat)
   as a tool invocation if the argument structure matches. Edge case; no known FP
   in the current benchmark.

@@ -15,9 +15,10 @@ SKILL-002 (MEDIUM)
 
 SKILL-003 (MEDIUM)
     Unpinned external content instruction.  Fires when the file body
-    references a raw ``http://`` or ``https://`` URL, suggesting the
-    instruction may pull in or reference external (and potentially
-    attacker-controlled) content at runtime.
+    references a raw ``http(s)://``, ``ftp(s)://``, or ``ws(s)://`` URL, or an
+    inline ``data:`` URI — any of which can pull in or reference external (and
+    potentially attacker-controlled) content at runtime.  ``data:`` URIs get a
+    distinct description because they can embed an obfuscated payload directly.
 
 MEM-001 (MEDIUM)
     Imperative override instruction in a memory file.  Fires on POISON-012
@@ -44,7 +45,12 @@ import re
 from typing import TYPE_CHECKING
 
 from mcp_audit.agent_files.models import AgentFile, AgentFileSurface
-from mcp_audit.analyzers.poisoning import PATTERNS, DetectionPattern
+from mcp_audit.analyzers.poisoning import (
+    PATTERNS,
+    DetectionPattern,
+    matched_pattern,
+    normalize_for_detection,
+)
 from mcp_audit.models import Finding, Severity
 
 if TYPE_CHECKING:
@@ -69,9 +75,18 @@ _MEM_OVERRIDE_ID: str = "POISON-012"
 # Minimum body length (chars) that triggers SKILL-002 oversized finding.
 _SKILL_OVERSIZED_THRESHOLD: int = 2_000
 
-# URL pattern for SKILL-003 (raw http/https URL in instruction text).
+# URL pattern for SKILL-003 (raw external URL in instruction text).  Covers
+# http(s), ftp(s), and ws(s) — the WebSocket schemes are a live bidirectional
+# channel and therefore higher risk than a one-shot HTTP fetch.
 _EXTERNAL_URL_RE: re.Pattern[str] = re.compile(
-    r"https?://[^\s\)\]>\"']{10,}", re.IGNORECASE
+    r"(?:https?|ftps?|wss?)://[^\s\)\]>\"']{4,}", re.IGNORECASE
+)
+
+# Inline data: URI (data:text/..., data:application/...).  These can embed an
+# obfuscated payload that is decoded and executed at runtime, so they get their
+# own SKILL-003 description distinct from the remote-URL case.
+_DATA_URI_RE: re.Pattern[str] = re.compile(
+    r"data:[a-z][a-z0-9.+-]*/[a-z0-9.+-]+[;,]", re.IGNORECASE
 )
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -132,6 +147,9 @@ def _analyze_skill(af: AgentFile) -> list[Finding]:
     """
     findings: list[Finding] = []
     text = af.body
+    # Normalize once for matching (homoglyph/compat folding); evidence always
+    # shows the original bytes via the raw-match fallback below.
+    norm_text = normalize_for_detection(text)
     seen: set[tuple[str, str]] = set()
 
     def _emit(fid: str, pat_id: str, f: Finding) -> None:
@@ -170,11 +188,15 @@ def _analyze_skill(af: AgentFile) -> list[Finding]:
                 )
             continue
 
-        match = pat.pattern.search(text)
+        match = matched_pattern(pat, text, norm_text)
         if not match:
             continue
 
-        evidence_snippet = match.group(0)[:120]
+        # Evidence shows the attacker's ORIGINAL text: prefer the raw match;
+        # fall back to a body snippet when the pattern only matched after
+        # Unicode normalization.
+        raw_match = pat.pattern.search(text)
+        evidence_snippet = (raw_match.group(0) if raw_match else text.strip())[:120]
 
         if pat.id in _OBFUSCATION_IDS:
             _emit(
@@ -254,6 +276,37 @@ def _analyze_skill(af: AgentFile) -> list[Finding]:
                 )
             )
 
+    # SKILL-003: inline data: URI (distinct description — payload carrier)
+    data_match = _DATA_URI_RE.search(text)
+    if data_match:
+        data_snippet = data_match.group(0)[:100]
+        key = ("SKILL-003", "data")
+        if key not in seen:
+            seen.add(key)
+            findings.append(
+                _skill_finding(
+                    af,
+                    "SKILL-003",
+                    Severity.MEDIUM,
+                    "Skill file contains inline data: URI",
+                    (
+                        f"The file '{af.path.name}' contains an inline data URI"
+                        f" ({data_snippet!r}). Inline data URIs in a skill"
+                        " instruction may embed an obfuscated payload that is"
+                        " decoded and executed at runtime, bypassing review of"
+                        " externally-hosted content."
+                    ),
+                    f"Data URI: {data_snippet!r}",
+                    (
+                        "Remove inline data: URIs from instruction files. If"
+                        " external content is required, reference a pinned,"
+                        " verified resource instead of embedding encoded data."
+                    ),
+                    owasp_mcp_top_10=["MCP03", "MCP04"],
+                    cwe="CWE-829",
+                )
+            )
+
     return findings
 
 
@@ -268,6 +321,8 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
     """
     findings: list[Finding] = []
     text = af.body
+    # Normalize once for matching; evidence shows original bytes (raw fallback).
+    norm_text = normalize_for_detection(text)
     seen: set[tuple[str, str]] = set()
 
     # Patterns indexed by ID for O(1) lookup.
@@ -282,9 +337,10 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
     # MEM-001: behavioral override patterns only (POISON-012)
     override_pat = patterns_by_id.get(_MEM_OVERRIDE_ID)
     if override_pat:
-        m = override_pat.pattern.search(text)
+        m = matched_pattern(override_pat, text, norm_text)
         if m:
-            evidence_snippet = m.group(0)[:120]
+            raw_m = override_pat.pattern.search(text)
+            evidence_snippet = (raw_m.group(0) if raw_m else text.strip())[:120]
             _emit(
                 "MEM-001",
                 _MEM_OVERRIDE_ID,
@@ -317,10 +373,11 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
         pat = patterns_by_id.get(pat_id)
         if pat is None:
             continue
-        m = pat.pattern.search(text)
+        m = matched_pattern(pat, text, norm_text)
         if not m:
             continue
-        evidence_snippet = m.group(0)[:120]
+        raw_m = pat.pattern.search(text)
+        evidence_snippet = (raw_m.group(0) if raw_m else text.strip())[:120]
         _emit(
             "MEM-002",
             pat_id,

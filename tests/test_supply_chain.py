@@ -538,6 +538,50 @@ class TestExtractPypiPackage:
     def test_npx_returns_none(self) -> None:
         assert extract_pypi_package("npx", ["-y", "some-pkg"]) is None
 
+    # ── python interpreter spelling (nc -e class: word-boundary evasion) ─────────
+
+    def test_python3_m_extraction(self) -> None:
+        # Regression: the bare ``command == "python"`` gate silently skipped the
+        # dominant real-world spelling ``python3`` — a ``python3 -m <typosquat>``
+        # invocation evaded supply-chain detection entirely.
+        assert extract_pypi_package("python3", ["-m", "mcp_server_git"]) == (
+            "mcp-server-git"
+        )
+
+    def test_python311_m_extraction(self) -> None:
+        assert extract_pypi_package("python3.11", ["-m", "mcp-server-git"]) == (
+            "mcp-server-git"
+        )
+
+    def test_python_abspath_m_extraction(self) -> None:
+        assert extract_pypi_package("/usr/bin/python3", ["-m", "mcp-server-git"]) == (
+            "mcp-server-git"
+        )
+
+    def test_py_launcher_m_extraction(self) -> None:
+        assert extract_pypi_package("py", ["-m", "mcp-server-git"]) == "mcp-server-git"
+
+
+class TestPythonInterpreterTyposquat:
+    """``python3 -m <typosquat>`` must fire the same as ``python -m``."""
+
+    def setup_method(self) -> None:
+        self.analyzer = SupplyChainAnalyzer(offline_registry=True)
+
+    @pytest.mark.parametrize("command", ["python", "python3", "python3.11"])
+    def test_interpreter_spelling_detects_pypi_typosquat(self, command: str) -> None:
+        # 1-edit typo of a known PyPI registry entry (mcp-server-git).
+        server = _make_server(command=command, args=["-m", "mcp-server-gix"])
+        findings = self.analyzer.analyze(server)
+        ids = [f.id for f in findings]
+        assert "SC-001" in ids, f"{command} -m typosquat must be detected"
+
+    def test_abspath_python3_detects_typosquat(self) -> None:
+        server = _make_server(
+            command="/usr/local/bin/python3", args=["-m", "mcp-server-gix"]
+        )
+        assert "SC-001" in [f.id for f in self.analyzer.analyze(server)]
+
 
 # ── KnownServerRegistry PyPI helpers ─────────────────────────────────────────
 

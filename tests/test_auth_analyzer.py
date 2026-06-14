@@ -534,6 +534,19 @@ class TestOauthAudienceState:
         )
         assert bound
 
+    def test_bare_aud_env_key_bound(self) -> None:
+        bound, _ = _oauth_audience_state({"client_id": "c"}, {"AUD": "x"})
+        assert bound
+
+    def test_unrelated_aud_substring_not_bound(self) -> None:
+        """Regression: an unrelated env var containing 'aud' as a substring must
+        NOT silence AUTH-002.  A raw ``"aud" in key`` check let an attacker add a
+        dummy ``AUDIO_PATH`` / ``FRAUD_FLAG`` env var to suppress the finding."""
+        for key in ("AUDIO_PATH", "FRAUD_FLAG", "APPLAUD"):
+            bound, evidence = _oauth_audience_state({"client_id": "c"}, {key: "x"})
+            assert not bound, f"{key} must not be treated as an audience binding"
+            assert "no audience" in evidence
+
 
 # ── Scanner pipeline integration ──────────────────────────────────────────────
 

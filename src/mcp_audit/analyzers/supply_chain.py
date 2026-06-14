@@ -9,6 +9,7 @@ Ref: "Typosquatting in Package Managers" — Vu et al., NDSS 2021
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from mcp_audit.analyzers.base import BaseAnalyzer
@@ -29,6 +30,33 @@ _FLAGS_WITH_VALUE: frozenset[str] = frozenset({"-p", "--package", "--call", "-c"
 
 # Commands that download and execute Python packages at runtime.
 _PYPI_LIKE: frozenset[str] = frozenset({"uvx", "pipx"})
+
+# Recognises the CPython interpreter under every common spelling so a
+# ``python -m <pkg>`` typosquat cannot evade detection simply by being launched
+# as ``python3`` / ``python3.11`` / ``/usr/bin/python3`` — the same word-boundary
+# false-negative class as the historic ``nc -e`` and HOOK-001 ``python3`` misses.
+_PY_INTERPRETER_RE: re.Pattern[str] = re.compile(r"^(?:python(?:[23](?:\.\d+)?)?|py)$")
+
+
+def _is_python_interpreter(command: str | None) -> bool:
+    """Return True if *command* is a CPython interpreter under any common spelling.
+
+    Matches bare names (``python``, ``python3``, ``python3.11``, ``py``) as well
+    as absolute / relative paths whose basename is one of those (e.g.
+    ``/usr/bin/python3``).  Used to gate the ``python -m`` typosquat path so that
+    the dominant real-world spelling ``python3`` is not silently skipped.
+
+    Args:
+        command: The ``command`` field from a :class:`~mcp_audit.models.ServerConfig`.
+
+    Returns:
+        ``True`` when *command* resolves to a Python interpreter.
+    """
+    if not command:
+        return False
+    base = command.rsplit("/", 1)[-1].rsplit("\\", 1)[-1].lower()
+    return bool(_PY_INTERPRETER_RE.match(base))
+
 
 # uvx/pipx flags whose *next* token is a value rather than a package name.
 _UVX_FLAGS_WITH_VALUE: frozenset[str] = frozenset(
@@ -101,7 +129,7 @@ def extract_pypi_package(command: str, args: list[str]) -> str | None:
     Returns:
         Normalised package name, or ``None`` if no package-like token is found.
     """
-    if command == "python":
+    if _is_python_interpreter(command):
         try:
             m_idx = args.index("-m")
             module = args[m_idx + 1]
@@ -273,8 +301,8 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         Returns:
             List of :class:`~mcp_audit.models.Finding` objects (empty if clean).
         """
-        # Python ecosystem: uvx, pipx, python -m
-        if server.command in _PYPI_LIKE or server.command == "python":
+        # Python ecosystem: uvx, pipx, python -m (any interpreter spelling)
+        if server.command in _PYPI_LIKE or _is_python_interpreter(server.command):
             return self._check_pypi_typosquatting(server)
 
         # npm ecosystem: npx / bunx / pnpx / yarn dlx

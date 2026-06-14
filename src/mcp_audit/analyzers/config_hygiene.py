@@ -28,6 +28,7 @@ from pathlib import Path
 
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
+from mcp_audit.analyzers.poisoning import normalize_for_detection
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,9 @@ logger = logging.getLogger(__name__)
 # ── Hook-command analysis patterns ────────────────────────────────────────────
 
 # HOOK-001: network egress commands/URLs inside hook command strings.
-# Matches curl, wget, nc/ncat (netcat), socat, Python urllib/requests one-liners,
-# PowerShell Invoke-WebRequest, and raw http(s):// URLs.
+# Matches curl, wget, nc/ncat (netcat), socat, Python network one-liners,
+# PowerShell Invoke-WebRequest / Invoke-RestMethod (and their iwr/irm aliases),
+# and raw http(s):// URLs.
 #
 # The ``nc`` clause matches any netcat invocation that carries an argument
 # (``\bnc\s+\S``).  An earlier ``(?!-[a-z])`` look-ahead was removed because it
@@ -44,22 +46,43 @@ logger = logging.getLogger(__name__)
 # reverse shell — while still matching benign-looking host-form invocations.
 # In an agent lifecycle hook there is no legitimate use of netcat, so matching
 # every ``nc <arg>`` form closes that false-negative without adding noise.
+#
+# The Python clause uses ``python[0-9.]*`` (not a bare ``python``) so that the
+# canonical interpreter names ``python3`` and ``python3.11`` — which an attacker
+# is overwhelmingly more likely to write than bare ``python`` — are matched.  A
+# bare ``\bpython\b`` silently excluded every ``python3`` reverse shell / exfil
+# one-liner (the same false-negative class as the historic ``nc -e`` miss).  The
+# network-module list covers HTTP egress (urllib/requests/httpx/http.client),
+# socket-level reverse shells (socket/socketserver), mail/ftp exfil
+# (smtplib/ftplib), and the ``http.server`` egress listener.
+#
+# PowerShell aliases ``iwr`` (Invoke-WebRequest) and ``irm`` (Invoke-RestMethod)
+# are matched alongside the full cmdlet names — a hook author can invoke either
+# spelling and the alias form carries no http(s):// token to fall back on.
 _HOOK_NETWORK_RE: re.Pattern[str] = re.compile(
-    r"(?i)\b(curl|wget|ncat|socat|Invoke-WebRequest|Invoke-RestMethod)\b"
+    r"(?i)\b(curl|wget|ncat|socat|iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b"
     r"|https?://[^\s\)\"\']{8,}"
-    r"|\bpython\b.{0,60}\b(urllib|requests|http\.client)\b"
+    r"|\bpython[0-9.]*\b.{0,80}"
+    r"\b(urllib|requests|httpx|http\.client|http\.server|"
+    r"socketserver|socket|smtplib|ftplib)\b"
     r"|\bnc\s+\S",
     re.IGNORECASE,
 )
 
 # HOOK-002: hook command writes to / references agent config file paths.
 # Covers the most common MCP config file locations across all 8 supported clients.
+# This path-string approach is robust to *write-method* variation (tee, dd,
+# sed -i, python -c "open(...)" all fire as long as the literal path appears).
+# EVASION-KNOWN: a path assembled at runtime (os.path.join, shell variable
+# expansion, base64-encoded path) is not matched — see GAPS.md "Known detection
+# evasions". Closing it needs shell/Python parsing beyond this regex's intent.
 _HOOK_CONFIG_WRITE_RE: re.Pattern[str] = re.compile(
     r"(?i)"
     r"\.claude\.json|claude_desktop_config\.json"
     r"|\.cursor[/\\]mcp\.json|\.cursor[/\\]settings\.json"
     r"|\.kiro[/\\]settings[/\\]mcp\.json"
     r"|\.vscode[/\\]mcp\.json"
+    r"|\.augment[/\\]settings\.json"
     r"|\.codeium[/\\]windsurf[/\\]mcp[/_]server_config\.json"
     r"|Library[/\\]Application Support[/\\](Claude|claude)"
     r"|AppData[/\\]Roaming[/\\](Claude|claude)"
@@ -406,8 +429,12 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         seen_ids: set[str] = set()
 
         for cmd in commands:
+            # Match against a Unicode-normalized copy so homoglyph/compat
+            # obfuscation (e.g. a Cherokee "curl") cannot evade the egress
+            # primitives; evidence below always shows the original command.
+            norm_cmd = normalize_for_detection(cmd)
             # HOOK-001: network egress
-            m = _HOOK_NETWORK_RE.search(cmd)
+            m = _HOOK_NETWORK_RE.search(norm_cmd)
             if m and "HOOK-001" not in seen_ids:
                 seen_ids.add("HOOK-001")
                 findings.append(
@@ -440,7 +467,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                 )
 
             # HOOK-002: writes to / references agent config files
-            m2 = _HOOK_CONFIG_WRITE_RE.search(cmd)
+            m2 = _HOOK_CONFIG_WRITE_RE.search(norm_cmd)
             if m2 and "HOOK-002" not in seen_ids:
                 seen_ids.add("HOOK-002")
                 findings.append(

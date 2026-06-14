@@ -31,6 +31,7 @@ performed purely by string/IP analysis of the configured URL.
 from __future__ import annotations
 
 import ipaddress
+import re
 from urllib.parse import urlparse
 
 from mcp_audit.analyzers.base import BaseAnalyzer
@@ -94,7 +95,17 @@ _WILDCARD_AUDIENCE_VALUES: frozenset[str] = frozenset({"*", "any", ""})
 
 # Env key name fragments that indicate an audience is supplied via env var
 # (treated as "bound" per the security invariant: never read env values).
-_AUDIENCE_ENV_KEY_FRAGMENTS: frozenset[str] = frozenset({"audience", "resource", "aud"})
+#
+# Matched as *delimited tokens*, not raw substrings.  A naive ``"aud" in key``
+# check treated unrelated env vars such as ``AUDIO_PATH``, ``FRAUD_FLAG``, or
+# ``APPLAUD`` as audience bindings — letting an attacker silence AUTH-002 by
+# adding any one dummy env var whose name happens to contain "aud".  The token
+# boundary (start/end of string or a non-alphabetic separator) closes that
+# trivial suppression while still matching legitimate keys like
+# ``OAUTH_AUDIENCE``, ``MY_RESOURCE_URL``, and a bare ``AUD``.
+_AUDIENCE_ENV_KEY_RE: re.Pattern[str] = re.compile(
+    r"(?i)(?:^|[^a-z])(audience|resource|aud)(?:$|[^a-z])"
+)
 
 # ── Localhost / private-range helpers ─────────────────────────────────────────
 
@@ -196,8 +207,10 @@ def _has_auth_signal(server: ServerConfig) -> bool:
     - A token/auth/key field in the raw server entry
     - An OAuth-related field in the raw server entry
     - URL userinfo (``https://user:pass@host``) — presence of a non-empty
-      ``netloc`` with an ``@`` is treated as auth; the credentials analyzer
-      will separately flag this as CRED-001.
+      ``netloc`` with an ``@`` is treated as auth (the request IS authenticated;
+      the credential is merely placed insecurely).  The credentials analyzer
+      separately fires CRED-001 for a *literal* password in the URL userinfo of
+      any scheme (env-var references like ``${PASSWORD}`` are not flagged).
     """
     if _has_auth_in_headers(server):
         return True
@@ -279,8 +292,7 @@ def _oauth_audience_state(oauth_block: dict, env: dict[str, str]) -> tuple[bool,
 
     # 2. Env key names that suggest audience is supplied at runtime.
     for env_key in env:
-        lower_key = env_key.lower()
-        if any(frag in lower_key for frag in _AUDIENCE_ENV_KEY_FRAGMENTS):
+        if _AUDIENCE_ENV_KEY_RE.search(env_key):
             return True, f"audience bound via env key {env_key!r}"
 
     # 3. No audience found.

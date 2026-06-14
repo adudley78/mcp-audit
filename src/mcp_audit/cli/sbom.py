@@ -109,7 +109,7 @@ def sbom(
     scan_result = ScanResult(
         servers=servers,
         findings=[],
-        clients_scanned=[],
+        clients_scanned=len({s.client for s in servers}),
         configs_found=len(discovered),
     )
 
