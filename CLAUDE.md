@@ -53,6 +53,7 @@ src/mcp_audit/
 │ ├── rules.py         # rule sub-app: validate / test / list
 │ ├── policy.py        # policy sub-app: validate / init / check (+ `_POLICY_TEMPLATE`)
 │ ├── extensions.py    # extensions sub-app: discover / scan
+│ ├── agent_files.py   # agent-files sub-app: discover / scan (skills, memory, hooks)
 │ ├── sast.py          # sast command
 │ ├── dashboard.py     # dashboard command
 │ ├── fleet.py         # merge command (+ `_collect_json_paths_from_dir`,
@@ -67,6 +68,11 @@ src/mcp_audit/
 ├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch); _McpConfigEventHandler serialises callbacks via _scan_lock with single-event coalesced re-trigger
 ├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect)
 ├── _paths.py          # data_dir() and resolve_bundled_resource() — shared helpers for locating bundled data in source, wheel, and PyInstaller frozen contexts
+├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001/002)
+│ ├── __init__.py    # Package marker; offline-only invariant docs
+│ ├── models.py      # AgentFile dataclass, AgentFileSurface StrEnum
+│ ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions)
+│ └── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked). NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
 ├── fleet/
 │ ├── __init__.py    # Package marker
 │ └── merger.py      # FleetMerger, MachineReport, DeduplicatedFinding, FleetStats, FleetReport; fleet HTML generation
@@ -172,6 +178,20 @@ Build and distribution scripts at project root:
 - **Supply chain attestation** (`attestation/`) implements Layer 1 hash-based integrity verification. `scan --verify-hashes` downloads package tarballs, computes SHA-256, and compares against pins in `RegistryEntry.known_hashes`. `mcp-audit verify` is a standalone command for interactive package verification. Attestation findings use `analyzer="attestation"`; CRITICAL for mismatches, INFO for unverifiable cases. See `docs/supply-chain.md`.
 - **`scan()` pipeline conventions** (`cli/scan.py`): the `scan` command is a thin orchestrator that delegates each optional phase to a named helper. Helpers are `_apply_*` for pipeline stages that mutate/inject into `ScanResult` (baseline drift, governance, SAST, extensions, severity threshold) and `_write_*` for output-layer dispatch (`_write_formatted_output`). Preflight validation lives in `_preflight_checks`. Each helper has a docstring that states when it is called and its contract when the feature is not requested. Future scan-pipeline additions should follow this `_apply_*` / `_write_*` naming and be inserted into `scan()` as a single-line delegation — do not inline new phases in the command body. Test-patched symbols (`verify_server_hashes`, `discover_extensions`, `analyze_extensions`, `run_semgrep`) are imported as their containing module (e.g. `from mcp_audit.sast import runner as _sast_runner`) so `patch("mcp_audit.sast.runner.run_semgrep", ...)` continues to intercept.
 - **Capability tags for toxic flow detection** are stored in `RegistryEntry.capabilities` (optional `list[str]` in `registry/known-servers.json`) and consulted by `analyzers/toxic_flow.py::tag_server(server, registry=...)` **before** any keyword or tool-name heuristic fallback. When `registry` is supplied and resolves a known package whose `capabilities` field is not `None`, those tags are returned verbatim — the registry is the single source of truth. The in-module `KNOWN_SERVERS` dict in `toxic_flow.py` is retained as a deterministic fallback for (a) unit tests that inject no registry and (b) cases where the registry is present but the entry has `capabilities=None`. `scanner.py` passes the `SupplyChainAnalyzer.registry` instance to `ToxicFlowAnalyzer(registry=…)` so the JSON file is read from disk exactly once per scan.
+
+- **Agent-file scanning** (`agent_files/`) covers the non-MCP-config instruction
+  surfaces an agent reads: Claude Code commands/memory, Cursor `.mdc` rules, and
+  Copilot instruction/prompt files. It is **not** part of `_run_static_pipeline()`;
+  the standalone `agent-files discover|scan` commands call it directly, and `scan
+  --include-agent-files` wires it via `_apply_agent_files()` in `cli/scan.py`
+  (same `_apply_*` additive convention as `--include-extensions`). Findings use
+  `analyzer="agent_files"` (SKILL-001/002/003, MEM-001/002). Detection patterns are
+  **imported** from `analyzers/poisoning.py` — never forked. **HOOK-001/002**
+  (network-egress and config-write hook commands) deliberately live in
+  `analyzers/config_hygiene.py::analyze_config` (pipeline step 0), not in
+  `agent_files/`, because they inspect the parsed `hooks` section of a Claude config
+  file; they are distinct IDs from CFHYG-005 (which fires on mere presence of a
+  `hooks` section) and the conditions do not overlap.
 
 ## Critical implementation details
 
@@ -287,10 +307,10 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 2363 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 2367 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
-- 24 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
+- 25 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
 - **push-nucleus** — `mcp-audit push-nucleus --url <url> --project-id <id>` runs a scan and pushes results directly to a Nucleus Security project via the FlexConnect API; available to all users; multipart/form-data upload using `urllib.request` only; polls import job to completion; Rich summary panel on success; `--output-file` for local copy; validated against a live Nucleus instance (2026-04-23); see `docs/nucleus-integration.md`
 - **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; available to all users; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action Marketplace-ready with `branding`, `config-paths`, `severity-threshold`, `sarif-output`, `upload-sarif`, `check-vulns`, `verify-signatures`, `run-sast`, `sast-path`, `baseline-name`, `fail-on-findings`, `version` inputs and `findings-count`, `grade`, `sarif-path` outputs; uploads SARIF to GitHub Code Scanning via `upload-sarif@v4` (continue-on-error so repos without Code Scanning still run cleanly); `.github/workflows/action-ci.yml` runs the composite against `demo/configs/` as a self-test on every PR; the Semgrep **rule pack** (`semgrep-rules/`) ships bundled in `mcp-audit-scanner`, but the Semgrep CLI binary itself is not — when `run-sast: 'true'` is set, the action installs Semgrep automatically (`pip install semgrep --quiet`) inside the SAST step, so users do not need a separate install step; see `docs/github-action.md`
@@ -317,6 +337,17 @@ What's built:
 - **`mcp-audit fix`** — apply safe remediations back to MCP config files (STORY-0031). Dry-run by default (unified diff to stdout). `--apply` writes changes atomically with a `.bak` backup. Three fix types: `credentials` (CRED-001/002 — redact plaintext secrets with `${ENV_KEY}`), `transport` (TRANSPORT-001 — upgrade `http://` URLs to `https://`), `pinning` (SC-001/002 — replace typosquatted package name with verified registry name and pin to `@latest-version`). Registry validation: checks mcp-audit's own `known-servers.json` before pinning; emits a warning (non-blocking) when replacement package is not in the registry. `--input <scan.json>` skips re-scan. `--fix-type` filter restricts which strategies run. `--offline` suppresses version-resolution network calls. Exit codes: 0 = success or no fixable findings; 2 = error. New modules: `src/mcp_audit/fixer/` (`fixer.py`, `strategies/base.py`, `strategies/credentials.py`, `strategies/transport.py`, `strategies/pinning.py`), `src/mcp_audit/cli/fix.py`; see `docs/fix.md`
 
 - **`mcp-audit snapshot`** — forensic-layer export (STORY-0015). Time-stamped, sigstore-signed snapshots of every MCP server on a host. CycloneDX 1.5 AI/ML-BOM by default; mcp-audit-native JSON optional (`--format native`). Each server is a CycloneDX `component` of `type: application` with capability tags, transport, and finding IDs in `properties`. Each finding is a CycloneDX `vulnerability` with ratings, CWEs, and OWASP MCP Top 10 mapping. `--sign` wraps sigstore signing (ambient OIDC; requires `[attestation]` extra). `--rehydrate <snapshot>` reconstructs the historical attack-path graph from recorded servers and findings — bypasses live discovery for incident response. `--stream` emits NDJSON (one finding per line) for SIEM/EDR ingestion. `--input <scan.json>` skips live scan. 56 tests in `tests/test_snapshot.py` including CycloneDX schema validation. SIEM recipes in `docs/integrations/splunk.md` and `docs/integrations/sentinel.md`. New modules: `src/mcp_audit/snapshot/` (`rehydrate.py`, `diff.py`), `src/mcp_audit/output/snapshot.py`, `src/mcp_audit/cli/snapshot.py`; see `docs/snapshot.md`
+
+- **Agent-file scanner** (v0.14.0) — extends scanning beyond MCP config files to the
+  agent instruction/memory surfaces: Claude Code commands (`~/.claude/commands/`,
+  `.claude/commands/`) and memory (`CLAUDE.md` tiers), Cursor rules (`.cursor/rules/*.mdc`),
+  and GitHub Copilot instruction/scoped/prompt files (`.github/`). `agent-files discover`
+  and `agent-files scan` standalone commands plus `scan --include-agent-files`; findings
+  use `analyzer="agent_files"` (SKILL-001/002/003, MEM-001/002). HOOK-001/002 hook-command
+  checks live in `config_hygiene.py`. Fully offline. New package `src/mcp_audit/agent_files/`
+  (`models.py`, `discovery.py`, `analyzer.py`) and `src/mcp_audit/cli/agent_files.py`;
+  see `docs/agent-files.md`. Unconfirmed surfaces (Windsurf, Augment, Kiro, `.claude/skills/`,
+  user-global Copilot) tracked in `GAPS.md`.
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic

