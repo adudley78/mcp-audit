@@ -34,63 +34,75 @@ via GitHub Sponsors (handle configured in `.github/FUNDING.yml`, with a
 ```
 src/mcp_audit/
 ├── cli/               # Typer app package — one submodule per command group
-│ ├── __init__.py      # Defines `app` + sub-apps (baseline/rule/policy/extensions);
-│ │                    #   re-exports `run_scan`, `discover_configs`,
-│ │                    #   `parse_config`, and `_REGISTRY_CACHE_PATH` so test
-│ │                    #   patches at `mcp_audit.cli.*` continue to intercept.
-│ │                    #   Imports the command submodules at the bottom so their
-│ │                    #   `@app.command()` decorators register.
-│ ├── __main__.py      # `python -m mcp_audit.cli` entry (plus PyInstaller target)
-│ ├── _helpers.py      # Cross-cutting helpers (`_write_output`)
-│ ├── scan.py          # scan, discover, pin, diff, watch (+ `_drift_to_findings`,
-│ │                    #   `_scoped_state_path`, `_newest_last_seen`).  The
-│ │                    #   `scan` command is composed from `_apply_*` pipeline
-│ │                    #   stages (baseline drift, governance, SAST,
-│ │                    #   extensions, severity filter) and `_write_*` output
-│ │                    #   helpers — see "scan() pipeline conventions" below.
-│ ├── baseline.py      # baseline sub-app: save / list / compare / delete / export
-│ ├── registry.py      # update-registry, verify
-│ ├── rules.py         # rule sub-app: validate / test / list
-│ ├── policy.py        # policy sub-app: validate / init / check (+ `_POLICY_TEMPLATE`)
-│ ├── extensions.py    # extensions sub-app: discover / scan
-│ ├── agent_files.py   # agent-files sub-app: discover / scan (skills, memory, hooks)
-│ ├── sast.py          # sast command
-│ ├── dashboard.py     # dashboard command
-│ ├── fleet.py         # merge command (+ `_collect_json_paths_from_dir`,
-│ │                    #   `_print_fleet_report`)
-│ ├── register.py      # register command: interactive opt-in flow, --clear, --status
-│ └── version.py       # version command
+│   ├── __init__.py      # Defines `app` + sub-apps (baseline/rule/policy/extensions/
+│   │                    #   agent-files); re-exports `run_scan`, `discover_configs`,
+│   │                    #   `parse_config`, and `_REGISTRY_CACHE_PATH` so test
+│   │                    #   patches at `mcp_audit.cli.*` continue to intercept.
+│   │                    #   Imports the command submodules at the bottom so their
+│   │                    #   `@app.command()` decorators register.
+│   ├── __main__.py      # `python -m mcp_audit.cli` entry (plus PyInstaller target)
+│   ├── _helpers.py      # Cross-cutting helpers (`_write_output`)
+│   ├── scan.py          # scan, discover, pin, watch (+ `_drift_to_findings`,
+│   │                    #   `_scoped_state_path`, `_newest_last_seen`).  The
+│   │                    #   `scan` command is composed from `_apply_*` pipeline
+│   │                    #   stages (baseline drift, governance, SAST, extensions,
+│   │                    #   agent-files, severity filter) and `_write_*` output
+│   │                    #   helpers — see "scan() pipeline conventions" below.
+│   ├── check.py         # check command: one-page practitioner verdict (+ _write_pdf_report)
+│   ├── fix.py           # fix command: apply safe remediations to config files
+│   ├── diff.py          # diff command: MCP-aware diff for PR review / CI gates
+│   ├── baseline.py      # baseline sub-app: save / list / compare / delete / export
+│   ├── registry.py      # update-registry, verify
+│   ├── rules.py         # rule sub-app: validate / test / list
+│   ├── policy.py        # policy sub-app: validate / init / check (+ `_POLICY_TEMPLATE`)
+│   ├── extensions.py    # extensions sub-app: discover / scan
+│   ├── agent_files.py   # agent-files sub-app: discover / scan (skills, memory, hooks)
+│   ├── sast.py          # sast command
+│   ├── sbom.py          # sbom command: CycloneDX 1.5 SBOM export
+│   ├── vet.py           # vet command: pre-install package verdict (offline, facts not grades)
+│   ├── shadow.py        # shadow command: shadow MCP server sweep (+ --continuous daemon)
+│   ├── killchain.py     # killchain command: top blast-radius-cutting changes
+│   ├── snapshot.py      # snapshot command: signed forensic snapshots (+ --rehydrate/--stream)
+│   ├── dashboard.py     # dashboard command
+│   ├── fleet.py         # merge command (+ `_collect_json_paths_from_dir`,
+│   │                    #   `_print_fleet_report`)
+│   ├── push_nucleus.py  # push-nucleus command: scan + push to Nucleus FlexConnect API
+│   ├── register.py      # register command: interactive opt-in flow, --clear, --status
+│   └── version.py       # version command
 ├── scanner.py         # Orchestrator: discovery → parsing → analysis → output
 ├── scoring.py         # Scan score calculation (0–100) and letter grade (A–F) formatting
 ├── discovery.py       # Finds MCP config files across all supported clients
 ├── config_parser.py   # Parses JSON configs, normalizes across client formats
 ├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, ScanScore, Severity, AttackPath, MachineInfo
+├── owasp_mcp.py       # Single source of truth for OWASP MCP Top 10 codes/names (MCP01–MCP10)
+├── verdict.py         # Pure verdict builder for `vet` (shared with the mcp-audit.dev generator)
 ├── watcher.py         # Filesystem watcher for continuous monitoring (mcp-audit watch); _McpConfigEventHandler serialises callbacks via _scan_lock with single-event coalesced re-trigger
 ├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect)
 ├── _paths.py          # data_dir() and resolve_bundled_resource() — shared helpers for locating bundled data in source, wheel, and PyInstaller frozen contexts
-├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001/002)
-│ ├── __init__.py    # Package marker; offline-only invariant docs
-│ ├── models.py      # AgentFile dataclass, AgentFileSurface StrEnum
-│ ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions)
-│ └── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked). NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
-├── fleet/
-│ ├── __init__.py    # Package marker
-│ └── merger.py      # FleetMerger, MachineReport, DeduplicatedFinding, FleetStats, FleetReport; fleet HTML generation
+├── _network.py        # NetworkPolicy + require_offline_compatible() — centralised --offline mutual-exclusion enforcement for network-touching flags
 ├── analyzers/
-│   ├── base.py        # BaseAnalyzer abstract class — all analyzers inherit this
-│   ├── poisoning.py   # Tool description poisoning detection (regex-based)
-│   ├── credentials.py # Secret/API key exposure in configs
-│   ├── transport.py   # Transport security (TLS, localhost binding, etc.)
-│   ├── supply_chain.py# Package provenance and typosquatting detection (registry-backed)
-│   ├── rug_pull.py    # Description change detection via hashing
-│   ├── toxic_flow.py  # Cross-server capability tagging and dangerous pair detection
-│   ├── auth.py        # Remote server authentication checks (AUTH-001, AUTH-002)
-│   ├── collision.py   # Tool-name collision detection across --connect servers (COLLIDE-001)
-│   └── attack_paths.py# Multi-hop attack path detection and greedy hitting set algorithm
-├── attestation/
+│   ├── base.py         # BaseAnalyzer abstract class — all analyzers inherit this
+│   ├── poisoning.py    # Tool description poisoning detection (regex-based); PATTERNS list reused by agent_files
+│   ├── credentials.py  # Secret/API key exposure in configs (SECRET_PATTERNS)
+│   ├── transport.py    # Transport security (TLS, localhost binding, etc.)
+│   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed)
+│   ├── config_hygiene.py # Config-file filesystem hygiene (CFHYG-001..006); hook-command checks HOOK-001/002 via analyze_config
+│   ├── rug_pull.py     # Description change detection via hashing
+│   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection
+│   ├── auth.py         # Remote server authentication checks (AUTH-001, AUTH-002)
+│   ├── collision.py    # Tool-name collision detection across --connect servers (COLLIDE-001)
+│   └── attack_paths.py # Multi-hop attack path detection and greedy hitting set algorithm
+├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001/002)
+│   ├── __init__.py    # Package marker; offline-only invariant docs
+│   ├── models.py      # AgentFile dataclass, AgentFileSurface StrEnum
+│   ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions)
+│   └── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked). NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+├── attestation/       # Supply-chain integrity verification (Layer 1 hashes, Layer 2 Sigstore)
 │   ├── __init__.py    # Package marker
 │   ├── hasher.py      # HashResult dataclass; compute_hash_from_file/url; resolve_npm/pip_tarball_url; verify_package_hash
-│   └── verifier.py    # verify_server_hashes(); extract_version_from_server(); bridges registry → hasher → Finding objects
+│   ├── verifier.py    # verify_server_hashes(); extract_version_from_server(); bridges registry → hasher → Finding objects
+│   ├── sigstore_client.py   # Layer 2 Sigstore bundle discovery/verification via npm + PyPI registry APIs
+│   └── sigstore_findings.py # AttestationResult → Finding translation for Layer 2 Sigstore verification
 ├── baselines/
 │   ├── __init__.py    # Package marker
 │   └── manager.py     # BaselineManager, Baseline, BaselineServer, DriftFinding, DriftType; save/load/compare
@@ -105,11 +117,56 @@ src/mcp_audit/
 │   ├── models.py      # GovernancePolicy, ApprovedServers, ScoreThreshold, TransportPolicy, RegistryPolicy, FindingPolicy, ClientOverride, PolicyMode
 │   ├── loader.py      # load_policy(); resolution order: explicit → cwd → repo root → user config
 │   └── evaluator.py   # evaluate_governance(); per-server policy checks; produces Finding objects with analyzer="governance"
+├── vulnerability/     # OSV.dev CVE lookups for `scan --check-vulns` (network, opt-in)
+│   ├── __init__.py    # Package marker
+│   ├── models.py      # ResolvedPackage, VulnAdvisory data models
+│   ├── resolver.py    # extract_ecosystem_and_version(); resolve_latest_version() from a ServerConfig
+│   ├── depsdev.py     # fetch_transitive_deps() — transitive dependency graph from deps.dev
+│   ├── osv.py         # query_vulns_batch() — OSV.dev batch CVE query
+│   └── scanner.py     # check_vulnerabilities() — orchestrates resolver → depsdev → osv → Finding objects
+├── diff/              # MCP-aware diff engine (mcp-audit diff)
+│   ├── __init__.py    # Package marker
+│   ├── loader.py      # Load diff inputs (directory, JSON scan file, or git SHA) into ServerConfig lists
+│   ├── comparator.py  # Compare two ServerConfig lists → flat list of Change objects
+│   ├── risk.py        # Risk classification for diff changes
+│   └── render.py      # Render diff to terminal, JSON, and PR-comment Markdown
+├── fixer/             # Safe-remediation engine (mcp-audit fix)
+│   ├── __init__.py    # Package marker
+│   ├── fixer.py       # Fixer orchestrator — load config, apply strategies, write atomically with .bak
+│   └── strategies/
+│       ├── __init__.py     # Package marker
+│       ├── base.py         # FixStrategy abstract base
+│       ├── credentials.py  # CRED-001/002 — redact plaintext secrets with ${ENV_KEY}
+│       ├── transport.py    # TRANSPORT-001 — upgrade http:// URLs to https://
+│       └── pinning.py      # SC-001/002 — replace typosquat with verified registry name @version
+├── killchain/         # Decision engine over the attack-path graph (mcp-audit killchain)
+│   ├── __init__.py    # Package marker
+│   ├── recommender.py # Rank kill switches from the hitting-set output by incremental path reduction
+│   ├── simulator.py   # What-if simulation: re-run summarize_attack_paths against the modified server list
+│   ├── patches.py     # Generate governance-policy denylist / PR-comment patch snippets
+│   └── render.py      # Markdown and JSON output formatters for killchain results
+├── shadow/            # Shadow MCP server detection (mcp-audit shadow)
+│   ├── __init__.py    # Package marker
+│   ├── allowlist.py   # Operator allowlist of sanctioned servers; load/match
+│   ├── classifier.py  # Pure sanctioned-vs-shadow classification given server + allowlist
+│   ├── risk.py        # RiskLevel scoring for a single server (toxic-flow capability logic)
+│   ├── events.py      # Structured events for --continuous daemon mode (new_shadow_server, server_drift, server_removed)
+│   └── state.py       # first_seen/last_seen state at <user-config-dir>/mcp-audit/shadow/state.json (0o600)
+├── snapshot/          # Forensic snapshot rehydrate/diff (mcp-audit snapshot)
+│   ├── __init__.py    # Package marker
+│   ├── rehydrate.py   # Reconstruct the historical attack-path graph from a recorded snapshot JSON
+│   └── diff.py        # "What changed since the snapshot?" — servers added/removed/changed
 ├── output/
+│   ├── __init__.py    # Package marker
+│   ├── base.py        # BaseFormatter abstract class — all formatters inherit this
 │   ├── terminal.py    # Rich-formatted console output (default); renders score/grade panel
 │   ├── sarif.py       # SARIF for GitHub Security integration
 │   ├── nucleus.py     # Nucleus FlexConnect formatter
-│   └── dashboard.py   # Self-contained HTML dashboard with embedded D3 v7 graph and grade badge
+│   ├── dashboard.py   # Self-contained HTML dashboard with embedded D3 v7 graph and grade badge
+│   ├── check.py       # One-page security verdict formatter for `mcp-audit check` (_HINTS)
+│   ├── cyclonedx.py   # CycloneDX SBOM formatter (supports cyclonedx-python-lib 7.x–11.x)
+│   ├── snapshot.py    # Snapshot formatters: CycloneDX AI/ML-BOM and native JSON
+│   └── pdf.py         # Letter-size PDF compliance report (mcp-audit scan --report pdf)
 ├── extensions/
 │   ├── __init__.py    # Package marker
 │   ├── models.py      # ExtensionManifest, ExtensionVulnEntry Pydantic models
@@ -124,6 +181,9 @@ src/mcp_audit/
 │   ├── __init__.py    # Package marker
 │   ├── runner.py      # SastResult; find_semgrep(); find_rules_dir(); run_semgrep(); parse_semgrep_output(); severity mapping
 │   └── bundler.py     # get_bundled_rules_path() — resolves semgrep-rules/ in PyInstaller builds
+├── fleet/
+│   ├── __init__.py    # Package marker
+│   └── merger.py      # FleetMerger, MachineReport, DeduplicatedFinding, FleetStats, FleetReport; fleet HTML generation
 └── data/
     ├── known_npm_packages.yaml  # Legacy npm package list (retained for reference; superseded by registry)
     └── d3.v7.min.js             # Bundled D3 v7 (embedded inline in dashboard HTML)
