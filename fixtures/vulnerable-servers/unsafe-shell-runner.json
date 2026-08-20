@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "shell-runner": {
+      "command": "uvx",
+      "args": [
+        "mcp-audit-fixture-shell-runner@0.3.1",
+        "--exec",
+        "sh -c \"$USER_COMMAND\"",
+        "--allow-all"
+      ],
+      "env": {
+        "ADMIN_API_KEY": "svc-admin-fixture-value-not-a-real-secret"
+      }
+    }
+  }
+}

@@ -32,6 +32,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **SAST rule pack** — 89 Semgrep rules (46 Python, 43 TypeScript) across 6 categories for MCP server source code
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
 - **Agent-file scanner** — scans the other instruction surfaces the AI agent reads: Claude Code custom commands, Cursor rules, GitHub Copilot instruction/prompt files, and CLAUDE.md memory files; also detects network-egress and config-persistence patterns in Claude Code hook commands (CVE-2026-30615); `mcp-audit agent-files scan` or `mcp-audit scan --include-agent-files`
+- **Signed advisory feed** — there is no CVE/OSV/NVD equivalent for MCP servers, so `mcp-audit advise` publishes one: findings become OSV 1.6.0 records with OWASP MCP Top 10 metadata, canonicalized (RFC 8785) and signed with cosign, ready for any osv-scanner-compatible consumer; `mcp-audit feed verify` checks the whole feed; see [`docs/advisory-feed.md`](docs/advisory-feed.md) and the committed [`examples/feed/`](examples/feed/)
 - **Config hygiene** — `ConfigHygieneAnalyzer` detects missing descriptions, duplicate tool names, and other structural config issues
 - **CVE tagging** — findings carry a `Finding.cve` field so matched CVEs surface in JSON, SARIF, and terminal output
 - **Authentication checks** — `AUTH-001` flags remote HTTP/SSE servers with no auth material (HIGH for public hosts, MEDIUM for private/RFC 1918); `AUTH-002` flags OAuth-configured servers missing RFC 8707 audience binding; backed by arXiv 2605.22333 (40.55% of 7,973 live remote MCP servers unauthenticated)
@@ -400,7 +401,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-2,511 tests validate detection accuracy and guard against regressions.
+2,860 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -441,6 +442,8 @@ Every command is available to every user — no tier, no license required.
 | `mcp-audit agent-files discover` | `--project PATH` | Inventory agent instruction/memory files across supported clients |
 | `mcp-audit agent-files scan` | `--project PATH`, `--format` | Scan agent instruction/memory files for injection, obfuscation, and hook exploits |
 | `mcp-audit snapshot` | `--output`, `--format`, `--sign`, `--stream`, `--rehydrate`, `--input` | Time-stamped forensic export — CycloneDX 1.5 AI/ML-BOM (default) or native JSON; sigstore-signed; NDJSON stream for SIEM/EDR |
+| `mcp-audit advise` | `--out`, `--input`, `--sign`, `--key`, `--key-alt`, `--severity-threshold`, `--observation`, `--published-at` | Convert findings into signed OSV 1.6.0 advisory records and write a publishable feed |
+| `mcp-audit feed verify` | `<dir>`, `--key-alt`, `--public-key`, `--identity`, `--oidc-issuer` | Re-canonicalize and verify every advisory signature, the index signature, and each recorded digest |
 
 **`mcp-audit scan` flags**
 
@@ -606,7 +609,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 2,511 tests
+uv run pytest                        # Run all 2,860 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

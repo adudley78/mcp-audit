@@ -1,0 +1,54 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "cvss_basis": "severity-band",
+        "finding_class": "excessive-scope",
+        "mcp_audit_rule_id": "COMM-034",
+        "mcp_transport": "stdio",
+        "observation": "deployment",
+        "owasp_mcp": [
+          "MCP06"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "PyPI",
+        "name": "mcp-audit-fixture-shell-runner",
+        "purl": "pkg:pypi/mcp-audit-fixture-shell-runner"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "0.3.1"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "details": "Server 'shell-runner' has an env var with a broad-scope credential pattern ('ADMIN_') — god key risk. A god key turns any other finding in this scan from interesting to catastrophic: an attacker who reaches this server inherits the full permissions of this credential. Scope this credential to only the operations this server requires. Reference: CIS Controls v8.1; CoSAI Zero Standing Privilege; Security Boulevard \"Addressing the God Key Challenge\" (March 2026). Evidence: rule:COMM-034; matched: ADMIN_ Remediation: Review the rule 'COMM-034' (Overprivileged MCP server credential (potential god key)) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-034 (rules analyzer, severity MEDIUM).",
+  "id": "x_MCPSA-2026-591f00712156",
+  "modified": "2026-01-31T00:00:00Z",
+  "published": "2026-01-31T00:00:00Z",
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "Overprivileged MCP server credential (potential god key)"
+}

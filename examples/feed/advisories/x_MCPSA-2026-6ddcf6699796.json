@@ -1,0 +1,57 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "cvss_basis": "finding-class-template",
+        "cwe_ids": [
+          "CWE-312"
+        ],
+        "finding_class": "hardcoded-secret",
+        "mcp_audit_rule_id": "CFHYG-003",
+        "mcp_transport": "stdio",
+        "observation": "deployment",
+        "owasp_mcp": [
+          "MCP01"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "npm",
+        "name": "mcp-audit-fixture-github-server",
+        "purl": "pkg:npm/mcp-audit-fixture-github-server"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "1.0.0"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "details": "Config file stores a plaintext secret inline — this file is a high-value target for supply-chain malware (Bitwarden incident 2026-04-22). Any process on this machine with read access to the config file can harvest the credential without further privilege escalation. Evidence: One or more env values in server 'github' match a known secret pattern Remediation: Replace inline secrets with environment variable references (e.g., ${MY_API_KEY}) and export the actual value from a credential manager or shell profile. Detected by mcp-audit rule CFHYG-003 (config_hygiene analyzer, severity HIGH).",
+  "id": "x_MCPSA-2026-6ddcf6699796",
+  "modified": "2026-01-31T00:00:00Z",
+  "published": "2026-01-31T00:00:00Z",
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "Config file stores a plaintext secret inline"
+}

@@ -1,0 +1,87 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "cvss_basis": "finding-class-template",
+        "finding_class": "unpinned-dependency",
+        "mcp_audit_rule_id": "COMM-013",
+        "mcp_transport": "stdio",
+        "observation": "deployment",
+        "owasp_mcp": [
+          "MCP04",
+          "MCP05"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "npm",
+        "name": "@modelcontextprotocol/server-filesytem",
+        "purl": "pkg:npm/@modelcontextprotocol/server-filesytem"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "aliases": [
+    "CVE-2025-49596",
+    "CVE-2025-54136",
+    "CVE-2025-54994",
+    "CVE-2026-22252",
+    "CVE-2026-22688",
+    "CVE-2026-30615"
+  ],
+  "details": "Server 'filesystem' uses npx/bunx with auto-confirm flag — silent execution risk (OX STDIO disclosure: CVE-2025-49596, CVE-2026-22252, CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615) Evidence: rule:COMM-013; matched: npx; -y Remediation: Review the rule 'COMM-013' (npx auto-confirm flag (silent execution)) and the server configuration for 'filesystem'. Detected by mcp-audit rule COMM-013 (rules analyzer, severity HIGH).",
+  "id": "x_MCPSA-2026-6e008dc0208b",
+  "modified": "2026-01-31T00:00:00Z",
+  "published": "2026-01-31T00:00:00Z",
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    },
+    {
+      "type": "ADVISORY",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49596"
+    },
+    {
+      "type": "ADVISORY",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-54136"
+    },
+    {
+      "type": "ADVISORY",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-54994"
+    },
+    {
+      "type": "ADVISORY",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22252"
+    },
+    {
+      "type": "ADVISORY",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22688"
+    },
+    {
+      "type": "ADVISORY",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-30615"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:H",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "npx auto-confirm flag (silent execution)"
+}

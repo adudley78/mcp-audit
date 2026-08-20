@@ -114,6 +114,15 @@ agent_files_app = typer.Typer(
 )
 app.add_typer(agent_files_app, name="agent-files")
 
+# ── feed sub-app ──────────────────────────────────────────────────────────────
+
+feed_app = typer.Typer(
+    name="feed",
+    help="Work with the signed MCP advisory feed produced by `mcp-audit advise`.",
+    no_args_is_help=True,
+)
+app.add_typer(feed_app, name="feed")
+
 
 # ── entry point ───────────────────────────────────────────────────────────────
 
@@ -128,6 +137,7 @@ def main() -> None:
 # via Typer decorators, so we import them after ``app`` and the sub-apps are
 # defined.  Ordering among submodules does not matter.
 from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports register commands
+    advise,
     agent_files,
     baseline,
     check,
@@ -160,6 +170,7 @@ __all__ = [
     "_REGISTRY_CACHE_PATH",
     "_UPDATE_REGISTRY_URL",
     "_USER_CONFIG_DIR",
+    "advise",
     "agent_files_app",
     "app",
     "baseline_app",
@@ -168,6 +179,7 @@ __all__ = [
     "diff",
     "discover_configs",
     "extensions_app",
+    "feed_app",
     "fix",
     "killchain",
     "main",

@@ -1,0 +1,56 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "finding_class": "hardcoded-secret",
+        "mcp_audit_rule_id": "mcp-audit.secrets.hardcoded-token",
+        "mcp_transport": "stdio",
+        "owasp_mcp": [
+          "MCP01"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "npm",
+        "name": "example-weather-mcp",
+        "purl": "pkg:npm/example-weather-mcp"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "details": "The server ships a long-lived provider API token embedded in its default config, exposing the connected account if the agent context or debug logs leak. Use short-lived, scoped credentials supplied at runtime.",
+  "id": "x_MCPSA-2026-b5fcc194f099",
+  "modified": "2026-07-30T12:51:11Z",
+  "published": "2026-07-30T12:51:11Z",
+  "references": [
+    {
+      "type": "ADVISORY",
+      "url": "https://owasp.org/www-project-mcp-top-10/2025/MCP01-2025-Token-Mismanagement-and-Secret-Exposure"
+    },
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "Hard-coded API token in server configuration"
+}
