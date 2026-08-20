@@ -104,6 +104,58 @@ class TestNumbers:
             canonicalize(value)
 
 
+class TestEcmaScriptNumberBoundary:
+    """RFC 8785 §3.2.2.3 requires ECMAScript ``Number::toString`` semantics exactly.
+
+    Python's ``repr()`` switches from fixed to scientific notation at ``1e-5``;
+    ECMAScript only switches below ``1e-6`` (``1e-6`` itself still renders fixed).
+    The previous implementation reformatted whichever notation ``repr`` picked
+    instead of applying ECMAScript's own fixed/exponential boundary, so every value
+    in that gap canonicalized to the wrong (but internally consistent) bytes — a
+    spec-conformance bug, not a collision: two different documents could never
+    produce identical canonical bytes from this, but the same document would not
+    canonicalize to the bytes an independent RFC 8785 implementation computes,
+    which breaks third-party signature verification of anything containing such a
+    value. These are the exact counter-examples from the security review.
+    """
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (1e-5, "0.00001"),
+            (1e-6, "0.000001"),
+            (2.5e-06, "0.0000025"),
+            (9.999e-6, "0.000009999"),
+        ],
+    )
+    def test_values_just_inside_the_ecmascript_fixed_window_stay_fixed(
+        self, value: float, expected: str
+    ) -> None:
+        assert canonicalize_str(value) == expected
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (1e-7, "1e-7"),
+            (2.5e-7, "2.5e-7"),
+        ],
+    )
+    def test_values_below_the_ecmascript_window_use_exponential(
+        self, value: float, expected: str
+    ) -> None:
+        assert canonicalize_str(value) == expected
+
+    def test_negative_small_fraction_keeps_its_sign(self) -> None:
+        assert canonicalize_str(-1e-5) == "-0.00001"
+
+    def test_1e21_is_the_exponential_boundary(self) -> None:
+        """n == 21 is the last integer that stays fixed; n == 22 goes exponential."""
+        assert canonicalize_str(1e21) == "1e+21"
+
+    def test_large_fixed_integer_below_the_boundary_has_no_decimal_point(self) -> None:
+        assert canonicalize_str(1.23e20) == "123000000000000000000"
+
+
 class TestRejections:
     def test_unsupported_type_raises(self) -> None:
         with pytest.raises(TypeError, match="Not JSON-serializable"):

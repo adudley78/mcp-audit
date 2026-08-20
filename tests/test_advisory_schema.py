@@ -223,26 +223,83 @@ class TestDatabaseSpecific:
         assert specific["mcp_transport"] is None
 
 
+# ── Timestamps ────────────────────────────────────────────────────────────────
+
+
+class TestNoWallClockDefault:
+    """`published`/`modified` must never silently default to `datetime.now()`.
+
+    A wall-clock default on a dataclass field whose output gets canonicalized and
+    signed is a non-determinism landmine even when today's only caller
+    (`build_advisory`) always supplies both explicitly: the next caller that
+    doesn't would produce a feed that is not byte-identical across two runs,
+    silently. Making both fields required forces that mistake to fail loudly at
+    construction time instead.
+    """
+
+    def test_published_is_required(self) -> None:
+        with pytest.raises(TypeError, match="published"):
+            Advisory(
+                package=Package(ecosystem="npm", name="x"),
+                summary="s",
+                details="d",
+                finding_class="unclassified",
+                mcp_audit_rule_id="X-1",
+                modified=FIXED_NOW,
+            )
+
+    def test_modified_is_required(self) -> None:
+        with pytest.raises(TypeError, match="modified"):
+            Advisory(
+                package=Package(ecosystem="npm", name="x"),
+                summary="s",
+                details="d",
+                finding_class="unclassified",
+                mcp_audit_rule_id="X-1",
+                published=FIXED_NOW,
+            )
+
+    def test_omitting_both_is_also_rejected(self) -> None:
+        with pytest.raises(TypeError):
+            Advisory(
+                package=Package(ecosystem="npm", name="x"),
+                summary="s",
+                details="d",
+                finding_class="unclassified",
+                mcp_audit_rule_id="X-1",
+            )
+
+
 # ── Identifiers ───────────────────────────────────────────────────────────────
 
 
 class TestStableIds:
     def test_id_uses_the_experimental_osv_namespace(self) -> None:
         """OSV reserves un-prefixed IDs for registered databases; `x_` is ours today."""
-        assert _advisory().id.startswith(f"{ID_PREFIX}-2026-")
+        assert _advisory().id.startswith(f"{ID_PREFIX}-")
 
-    def test_id_is_derived_from_the_publication_year(self) -> None:
-        assert _advisory(published="2031-01-01T00:00:00Z").id.startswith(
-            f"{ID_PREFIX}-2031-"
-        )
+    def test_id_is_independent_of_the_publication_year(self) -> None:
+        """Regression: the ID must never be derived from a timestamp.
+
+        An earlier version embedded ``published[:4]`` in the ID, so the same
+        vulnerability advised on either side of a UTC year boundary minted two
+        different IDs. This is exactly the failure mode that breaks a consumer's
+        "have I seen this advisory?" dedup — the ID must be a pure function of the
+        advisory's identifying content, never of when it was published.
+        """
+        assert _advisory(published="2031-01-01T00:00:00Z").id == _advisory().id
 
     def test_same_inputs_produce_the_same_id(self) -> None:
         assert _advisory().id == _advisory().id
 
-    def test_id_ignores_the_timestamp_within_a_year(self) -> None:
+    def test_id_ignores_the_timestamp_entirely(self) -> None:
         """Two hosts scanning at different moments must mint the same advisory."""
-        early = _advisory(published="2026-01-01T00:00:00Z")
-        late = _advisory(published="2026-12-31T23:59:59Z")
+        early = _advisory(
+            published="2026-01-01T00:00:00Z", modified="2026-01-01T00:00:00Z"
+        )
+        late = _advisory(
+            published="2026-12-31T23:59:59Z", modified="2026-12-31T23:59:59Z"
+        )
         assert early.id == late.id
 
     @pytest.mark.parametrize(
@@ -371,4 +428,6 @@ class TestOwaspMapping:
                 finding_class="unclassified",
                 mcp_audit_rule_id="X-1",
                 owasp_mcp=["MCP01:2025"],
+                published=FIXED_NOW,
+                modified=FIXED_NOW,
             )
