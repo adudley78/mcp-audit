@@ -73,9 +73,17 @@ def _driver(doc: dict) -> dict:
 
 
 class TestFindingToFileUri:
-    def test_absolute_path_produces_file_uri(self) -> None:
+    def test_absolute_path_is_redacted_to_a_relative_uri(self) -> None:
+        """The URI is no longer an absolute file:// URI.
+
+        GitHub's upload-sarif action reads `uri` literally and does not
+        resolve `uriBaseId` (github/codeql-action#2215) — an absolute
+        file:// URI never matches a repo-relative file, so this was also a
+        broken annotation, not just a path leak. See _finding_to_file_uri's
+        docstring.
+        """
         uri = _finding_to_file_uri("/Users/dev/.cursor/mcp.json")
-        assert uri.startswith("file://")
+        assert not uri.startswith("file://")
         assert "mcp.json" in uri
 
     def test_none_returns_unknown(self) -> None:
@@ -85,10 +93,63 @@ class TestFindingToFileUri:
     def test_empty_string_returns_unknown(self) -> None:
         assert _finding_to_file_uri("") == "unknown"
 
-    def test_path_preserved_in_uri(self) -> None:
-        uri = _finding_to_file_uri("/home/user/project/mcp.json")
-        assert "home" in uri
+    def test_path_outside_home_still_relativized(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A config path that isn't under $HOME at all (e.g. a container
+        mount) is still made relative to cwd rather than left absolute.
+
+        Unpatched, this assertion is host-dependent: `os.path.relpath` drops
+        whatever path segments are already common between the target and
+        cwd, so on a runner whose home and checkout share a "/home" prefix
+        with the target path, that shared segment silently disappears from
+        the output. Pin $HOME and cwd so the basename check is deterministic
+        everywhere.
+        """
+        home = tmp_path / "home" / "someone"
+        home.mkdir(parents=True)
+        cwd = tmp_path / "workspace"
+        cwd.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+
+        uri = _finding_to_file_uri(str(tmp_path / "mnt" / "project" / "mcp.json"))
+
         assert "mcp.json" in uri
+        assert not uri.startswith("/")
+
+    def test_scan_from_repo_root_produces_a_genuinely_relative_uri(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The realistic CI case: cwd is the checked-out repo root, and the
+        scanned config lives inside it. The emitted URI must be a plain
+        relative path with no scheme and no leading slash — exactly what
+        GitHub's SARIF uploader needs to match it against a file in the repo.
+        """
+        home = tmp_path / "home" / "runner"
+        repo = home / "work" / "myrepo" / "myrepo"
+        repo.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(repo)
+        config_path = repo / ".mcp.json"
+
+        uri = _finding_to_file_uri(str(config_path))
+
+        assert uri == ".mcp.json"
+        assert "runner" not in uri
+
+    def test_no_backslashes_in_uri_on_any_platform(self) -> None:
+        """SARIF URIs use "/" regardless of platform, even though
+        os.path.relpath() returns "\\"-separated paths on Windows: simulate
+        that by patching the redaction call to return a Windows-style path.
+        """
+        with patch(
+            "mcp_audit.output.sarif.redact_finding_path",
+            return_value="project\\mcp.json",
+        ):
+            uri = _finding_to_file_uri("/Users/dev/project/mcp.json")
+        assert "\\" not in uri
+        assert uri == "project/mcp.json"
 
 
 # ── _rule_name_from_title ─────────────────────────────────────────────────────
@@ -369,9 +430,12 @@ class TestResultFields:
     def test_message_contains_description(self) -> None:
         assert "SSH key files" in self.result["message"]["text"]
 
-    def test_location_uri_is_file_uri(self) -> None:
+    def test_location_uri_is_not_an_absolute_file_uri(self) -> None:
+        """See TestFindingToFileUri: absolute file:// URIs both leak the
+        operator's username and are silently dropped by GitHub's uploader.
+        """
         uri = self.result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
-        assert uri.startswith("file://")
+        assert not uri.startswith("file://")
 
     def test_location_uri_base_id(self) -> None:
         base = self.result["locations"][0]["physicalLocation"]["artifactLocation"][
@@ -602,3 +666,137 @@ class TestNoScoreSarifIntegration:
 
         doc = json.loads(sarif_out.read_text())
         assert "mcp-audit/grade" in doc["runs"][0]["properties"]
+
+
+# ── Local path redaction ──────────────────────────────────────────────────────
+
+
+class TestLocalPathRedaction:
+    """SARIF is uploaded to GitHub Code Scanning — the same "leaves the
+    machine" category as the advisory feed (see PR #46 and
+    tests/test_advisory_feed.py::TestLocalPathRedaction). Any occurrence of
+    this host's own scanned-config path, in artifactLocation.uri or in a
+    rule's help/fullDescription text, must not carry the operator's
+    $HOME-derived username off the machine.
+    """
+
+    def test_cfhyg_style_remediation_is_redacted_in_rule_help(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """CFHYG-001 embeds the real config path in remediation text — the
+        rule's help.text (SARIF's home for remediation advice) must not.
+        """
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "project" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        finding = _make_finding(
+            finding_id="CFHYG-001",
+            remediation=f"Run: chmod 600 {config_path}",
+            finding_path=str(config_path),
+        )
+        doc = _parse(_make_result(findings=[finding]))
+        rule = _driver(doc)["rules"][0]
+
+        assert str(config_path) not in rule["help"]["text"]
+        assert str(Path("project") / "mcp.json") in rule["help"]["text"]
+
+    def test_no_username_leaks_when_cwd_is_a_sibling_of_home(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "users" / "someusername"
+        home.mkdir(parents=True)
+        cwd = tmp_path / "checkouts" / "mcp-audit"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = home / "Library" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        finding = _make_finding(
+            finding_id="CFHYG-001",
+            remediation=f"Run: chmod 600 {config_path}",
+            finding_path=str(config_path),
+        )
+        doc = _parse(_make_result(findings=[finding]))
+        rule = _driver(doc)["rules"][0]
+        result_obj = _run(doc)["results"][0]
+
+        assert "someusername" not in rule["help"]["text"]
+        assert "someusername" not in json.dumps(result_obj)
+
+    def test_home_directory_itself_becomes_tilde_in_uri(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """cwd outside $HOME entirely (e.g. a container mount) falls back to
+        a ~-relative URI rather than a path that descends through $HOME.
+        """
+        home = tmp_path / "home"
+        outside = tmp_path / "container-mount"
+        outside.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(outside)
+        config_path = home / "mcp.json"
+
+        finding = _make_finding(finding_path=str(config_path))
+        doc = _parse(_make_result(findings=[finding]))
+        uri = _run(doc)["results"][0]["locations"][0]["physicalLocation"][
+            "artifactLocation"
+        ]["uri"]
+
+        assert str(home) not in uri
+        assert uri.startswith("~/")
+
+    def test_content_unrelated_to_the_config_path_is_untouched(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A path embedded in *scanned config content* (not the scan path
+        itself) must survive — it is fixture/deployment data, not a machine
+        artifact. Mirrors
+        test_advisory_feed.py::TestLocalPathRedaction::
+        test_content_unrelated_to_the_config_path_is_untouched.
+        """
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "mcp.json"
+
+        finding = _make_finding(
+            finding_id="TRANSPORT-003",
+            description=(
+                "Command: npx -y @modelcontextprotocol/server-filesystem /Users/shared"
+            ),
+            finding_path=str(config_path),
+        )
+        doc = _parse(_make_result(findings=[finding]))
+        rule = _driver(doc)["rules"][0]
+
+        assert "/Users/shared" in rule["fullDescription"]["text"]
+
+    def test_message_text_is_also_redacted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """result.message.text interpolates finding.description too."""
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "project" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        finding = _make_finding(
+            description=f"World-writable parent directory: {config_path.parent}",
+            finding_path=str(config_path),
+        )
+        doc = _parse(_make_result(findings=[finding]))
+        message = _run(doc)["results"][0]["message"]["text"]
+
+        assert str(config_path.parent) not in message
+        assert "project" in message

@@ -404,6 +404,171 @@ class TestFormatStreamLines:
         assert format_stream_lines(result) == []
 
 
+# ── Local path redaction ──────────────────────────────────────────────────────
+
+
+class TestLocalPathRedaction:
+    """Every snapshot format is signed and exported for off-host consumption —
+    the same "leaves the machine" category as the advisory feed (PR #46) and
+    SARIF/Nucleus output. ``ServerConfig.config_path`` and
+    ``Finding.finding_path`` (and any occurrence of the latter inside a
+    finding's own title/description/evidence/remediation) must not carry
+    this host's own path, or the operator's $HOME-derived username, into a
+    published snapshot.
+    """
+
+    def _cfhyg_finding(self, config_path: Path) -> Finding:
+        return Finding(
+            id="CFHYG-001",
+            severity=Severity.MEDIUM,
+            analyzer="config_hygiene",
+            client="claude_desktop",
+            server="filesystem",
+            title="Config file permissions too permissive",
+            description="Config file is readable by other users.",
+            evidence="Config file permissions: 0o100644",
+            remediation=f"Run: chmod 600 {config_path}",
+            finding_path=str(config_path),
+        )
+
+    def test_native_redacts_server_config_path_and_finding_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "project" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        server = _make_server()
+        server = server.model_copy(update={"config_path": config_path})
+        result = _make_result(
+            servers=[server], findings=[self._cfhyg_finding(config_path)]
+        )
+
+        doc = format_native(result, host_id="h")
+        data = doc["snapshot_data"]
+
+        assert str(config_path) not in json.dumps(data)
+        assert str(Path("project") / "mcp.json") in data["servers"][0]["config_path"]
+        assert str(Path("project") / "mcp.json") in data["findings"][0]["finding_path"]
+        assert str(Path("project") / "mcp.json") in data["findings"][0]["remediation"]
+
+    def test_native_snapshot_data_still_round_trips_after_redaction(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Redaction must not break the existing round-trip contract."""
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "mcp.json"
+
+        result = _make_result(findings=[self._cfhyg_finding(config_path)])
+        doc = format_native(result, host_id="h")
+        re_serialised = json.loads(json.dumps(doc, default=str))
+        assert re_serialised["snapshot_data"]["servers_found"] == result.servers_found
+
+    def test_cyclonedx_redacts_recommendation_and_evidence(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "project" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        result = _make_result(findings=[self._cfhyg_finding(config_path)])
+        doc = format_cyclonedx_aibom(result, host_id="h")
+
+        assert str(config_path) not in json.dumps(doc)
+        vuln = doc["vulnerabilities"][0]
+        assert str(Path("project") / "mcp.json") in vuln["recommendation"]
+
+    def test_stream_lines_redact_finding_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "project" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        result = _make_result(findings=[self._cfhyg_finding(config_path)])
+        line = json.loads(format_stream_lines(result)[0])
+
+        assert str(config_path) not in json.dumps(line)
+        assert str(Path("project") / "mcp.json") in line["finding_path"]
+
+    def test_no_username_leaks_when_cwd_is_a_sibling_of_home(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "users" / "someusername"
+        home.mkdir(parents=True)
+        cwd = tmp_path / "checkouts" / "mcp-audit"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = home / "Library" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        server = _make_server().model_copy(update={"config_path": config_path})
+        result = _make_result(
+            servers=[server], findings=[self._cfhyg_finding(config_path)]
+        )
+
+        native_doc = format_native(result, host_id="h")
+        cdx_doc = format_cyclonedx_aibom(result, host_id="h")
+        stream_line = format_stream_lines(result)[0]
+
+        assert "someusername" not in json.dumps(native_doc)
+        assert "someusername" not in json.dumps(cdx_doc)
+        assert "someusername" not in stream_line
+
+    def test_content_unrelated_to_the_config_path_is_untouched(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A path embedded in scanned config content (not the scan path
+        itself) must survive — it is fixture/deployment data.
+        """
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "mcp.json"
+
+        finding = Finding(
+            id="TRANSPORT-003",
+            severity=Severity.MEDIUM,
+            analyzer="transport",
+            client="claude_desktop",
+            server="filesystem",
+            title="Unpinned package",
+            description=(
+                "Command: npx -y @modelcontextprotocol/server-filesystem /Users/shared"
+            ),
+            evidence=(
+                "Command: npx -y @modelcontextprotocol/server-filesystem /Users/shared"
+            ),
+            remediation="Pin the version.",
+            finding_path=str(config_path),
+        )
+        result = _make_result(findings=[finding])
+
+        native_doc = format_native(result, host_id="h")
+        assert (
+            "/Users/shared" in native_doc["snapshot_data"]["findings"][0]["description"]
+        )
+
+
 # ── Rehydrate tests ───────────────────────────────────────────────────────────
 
 

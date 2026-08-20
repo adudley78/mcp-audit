@@ -109,6 +109,58 @@ This is not an error.  Your scan result is unaffected.
 
 ---
 
+## Local file paths in published output
+
+Every scan resolves the absolute path to each MCP config file it reads
+(``ServerConfig.config_path``), and most findings carry it too
+(``Finding.finding_path`` — a SAST source file, an extension manifest, or the
+scanned config itself). On the overwhelmingly common single-user desktop,
+that absolute path is rooted under your home directory and therefore encodes
+your OS username (e.g. ``/Users/sarah/.cursor/mcp.json``).
+
+**In terminal output, the HTML dashboard, and plain JSON output
+(`--format json` / `-o result.json`), that absolute path is shown as-is.**
+You are looking at your own machine, or you explicitly chose where the JSON
+goes — the real path is the useful part (it's what you'd paste into
+`chmod`, an editor, or a follow-up script), and several integrations
+(the mcp-audit VS Code extension's inline diagnostics, `scan --baseline`
+drift comparison) resolve it directly.
+
+**In the four outputs designed to leave the machine — the advisory feed
+(`mcp-audit advise`), SARIF (`scan --format sarif`), Nucleus FlexConnect
+(`push-nucleus` / `scan --format nucleus`), and the forensic snapshot export
+(`mcp-audit snapshot`, all formats including `--stream`) — the path is
+rewritten to a form relative to the current working directory (or, when that
+isn't safely possible, to `~/...`) before it is serialised.** This both
+protects your username and, for SARIF specifically, is what makes GitHub's
+`upload-sarif` action able to match a result back to a file in your
+repository at all — it reads the `uri` field literally rather than resolving
+`uriBaseId`, so an absolute path there was already silently failing to
+annotate pull requests. See `src/mcp_audit/_redact.py` and
+`docs/github-action.md` for the mechanics.
+
+**PDF reports** (`mcp-audit check --report pdf`) never include a raw file
+path or the finding's evidence/remediation text at all — only a canned,
+per-finding-ID remediation hint and a SHA-256 content hash — so there is
+nothing to redact there.
+
+### A stated limit, not a silent one
+
+This redaction protects *this invocation's own* `$HOME` — which is what "does
+mcp-audit leak my username" means for the overwhelming majority of scans,
+where you're scanning your own client configs. It does **not** scrub an
+unrelated username that happens to appear in a *different* account's
+directory named in an explicitly-scanned path outside your own `$HOME` — for
+example, running `mcp-audit scan --project /home/someone-else/shared-repo` on
+a shared multi-user host still emits `someone-else` in the published output.
+Recognising an arbitrary OS username anywhere in a string is a fundamentally
+different, open-ended problem from redacting the one home directory a
+process can name authoritatively as its own. If you publish scan output from
+a shared host, treat any path outside your own home directory as
+unredacted.
+
+---
+
 ## Open source audit
 
 mcp-audit is fully open source (Apache 2.0).  You can verify every privacy claim above by reading the source:
@@ -116,8 +168,15 @@ mcp-audit is fully open source (Apache 2.0).  You can verify every privacy claim
 - `src/mcp_audit/registration/models.py` — exact payload schemas
 - `src/mcp_audit/registration/client.py` — what is sent and when
 - `src/mcp_audit/registration/manager.py` — how the local file is stored
+- `src/mcp_audit/_redact.py` — the local-path redaction applied to every
+  output sink designed to leave the machine
 - `tests/test_registration.py` — automated tests that enforce privacy invariants
+- `tests/test_advisory_feed.py`, `tests/test_sarif_output.py`,
+  `tests/test_nucleus_output.py`, `tests/test_snapshot.py` — `TestLocalPathRedaction`
+  in each file pins the path-redaction behaviour per sink
+- `tests/test_terminal_output.py`, `tests/test_dashboard.py` — pin that the two
+  local-only outputs deliberately keep absolute paths
 
 ---
 
-*Last updated: 2026-05-17*
+*Last updated: 2026-08-20*

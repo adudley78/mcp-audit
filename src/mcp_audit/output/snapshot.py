@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from mcp_audit import __version__
+from mcp_audit._redact import redact_finding_path
 from mcp_audit.models import ScanResult
 
 # ── CycloneDX helpers ──────────────────────────────────────────────────────────
@@ -196,6 +197,17 @@ def format_cyclonedx_aibom(
             continue
         seen_ids.add(dedup_key)
 
+        # A snapshot is signed and exported for off-host consumption (the same
+        # "leaves the machine" category as the advisory feed and SARIF), so
+        # this host's own scanned-config path — and the operator's
+        # $HOME-derived username it would otherwise carry — is redacted from
+        # every finding text field. See mcp_audit._redact.redact_local_paths.
+        fp = finding.finding_path
+        title = redact_finding_path(finding.title, fp)
+        description = redact_finding_path(finding.description, fp)
+        remediation = redact_finding_path(finding.remediation, fp)
+        evidence = redact_finding_path(finding.evidence, fp)
+
         affects_ref = bom_ref_map.get(finding.server, f"mcp-server-{finding.server}")
         vuln_props: list[dict[str, str]] = [
             {
@@ -204,7 +216,7 @@ def format_cyclonedx_aibom(
             },
             {
                 "name": "mcp-audit:evidence",
-                "value": finding.evidence,
+                "value": evidence,
             },
         ]
         if finding.owasp_mcp_top_10:
@@ -236,9 +248,9 @@ def format_cyclonedx_aibom(
                     "method": "other",
                 }
             ],
-            "description": finding.title,
-            "detail": finding.description,
-            "recommendation": finding.remediation,
+            "description": title,
+            "detail": description,
+            "recommendation": remediation,
             "affects": [{"ref": affects_ref}],
             "properties": vuln_props,
         }
@@ -337,6 +349,39 @@ def format_cyclonedx_aibom(
     }
 
 
+_REDACTED_FINDING_TEXT_FIELDS = ("title", "description", "evidence", "remediation")
+
+
+def _redacted_scan_dict(result: ScanResult) -> dict[str, Any]:
+    """Return *result* as a plain dict with this host's local paths redacted.
+
+    The native snapshot format re-embeds the entire :class:`ScanResult`
+    verbatim, which is the largest leak surface of any sink: every
+    ``ServerConfig.config_path`` and every ``Finding.finding_path`` is this
+    host's own absolute path, and any of the four finding text fields may
+    additionally embed that same path (e.g. CFHYG's "Run: chmod 600 <path>").
+    A snapshot is signed and exported for off-host consumption exactly like
+    the advisory feed, so it gets the same treatment at serialisation time —
+    mutating a *copy* of the dumped dict, never the ``ScanResult`` itself, so
+    a later ``--format cyclonedx`` call in the same process still sees the
+    real path. See ``mcp_audit._redact.redact_local_paths``.
+    """
+    data = json.loads(result.model_dump_json(by_alias=True))
+    for server in data.get("servers", []):
+        config_path = server.get("config_path")
+        if config_path:
+            server["config_path"] = redact_finding_path(config_path, config_path)
+    for finding in data.get("findings", []):
+        fp = finding.get("finding_path")
+        for field_name in _REDACTED_FINDING_TEXT_FIELDS:
+            value = finding.get(field_name)
+            if value:
+                finding[field_name] = redact_finding_path(value, fp)
+        if fp:
+            finding["finding_path"] = redact_finding_path(fp, fp)
+    return data
+
+
 def format_native(
     result: ScanResult,
     host_id: str,
@@ -345,7 +390,8 @@ def format_native(
 
     Wraps the existing :class:`~mcp_audit.models.ScanResult` serialisation with
     additional snapshot metadata so the shape is consistent with the CycloneDX
-    output's metadata block.
+    output's metadata block. ``snapshot_data`` has this host's local paths
+    redacted — see :func:`_redacted_scan_dict`.
 
     Args:
         result: Completed :class:`~mcp_audit.models.ScanResult`.
@@ -394,7 +440,7 @@ def format_native(
         "format": "mcp-audit-native",
         "format_version": "1",
         "metadata": metadata,
-        "snapshot_data": json.loads(result.model_dump_json(by_alias=True)),
+        "snapshot_data": _redacted_scan_dict(result),
     }
 
 
@@ -418,11 +464,23 @@ def format_stream_lines(result: ScanResult) -> list[str]:
     ts = _cyclonedx_timestamp(result.timestamp)
     host_id = result.machine.hostname if result.machine else "unknown"
     for finding in result.findings:
+        dumped = finding.model_dump()
+        # --stream pipes straight into a SIEM/EDR forwarder — the same
+        # "leaves the machine" category as the other snapshot formats — so
+        # this host's own scanned-config path is redacted from every finding
+        # field before it goes on the wire.
+        fp = dumped.get("finding_path")
+        for field_name in _REDACTED_FINDING_TEXT_FIELDS:
+            value = dumped.get(field_name)
+            if value:
+                dumped[field_name] = redact_finding_path(value, fp)
+        if fp:
+            dumped["finding_path"] = redact_finding_path(fp, fp)
         record: dict[str, Any] = {
             "timestamp": ts,
             "host_id": host_id,
             "mcp_audit_version": result.version,
-            **finding.model_dump(),
+            **dumped,
         }
         lines.append(json.dumps(record, default=str))
     return lines

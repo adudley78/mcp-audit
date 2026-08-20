@@ -12,9 +12,9 @@ Schema reference:
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from mcp_audit import __version__
+from mcp_audit._redact import redact_finding_path
 from mcp_audit.models import Finding, ScanResult, Severity
 from mcp_audit.owasp_mcp import (
     OWASP_MCP_TOP_10,
@@ -66,27 +66,46 @@ def _build_owasp_mcp_taxonomy() -> dict:
 
 
 def _finding_to_file_uri(finding_path: str | None) -> str:
-    """Convert a finding_path string to a SARIF-compliant file URI.
+    """Convert a finding_path string to a SARIF artifact location URI.
 
-    When ``uriBaseId`` is ``"%SRCROOT%"`` in the artifact location, GitHub's
-    uploader resolves the URI relative to the repository root.  A relative
-    sentinel ``"unknown"`` renders as a non-linkable result rather than
-    triggering a rejection — ``file:///unknown`` is not a valid artifact URI
-    when ``uriBaseId`` is set and causes GitHub to discard the result.
+    GitHub's ``upload-sarif`` action does not implement ``uriBaseId``
+    resolution (tracked upstream as github/codeql-action#2215) — it reads the
+    ``uri`` string literally and matches it against the repo tree as-is. An
+    absolute ``file:///Users/name/project/mcp.json`` URI therefore never
+    matches any file in the repository and GitHub silently drops the
+    annotation ("Sorry, we couldn't find this file in the repository"), even
+    though ``uriBaseId: "%SRCROOT%"`` is set on every result. GitHub's own
+    guidance is to emit a path relative to the repository root, e.g.
+    ``src/main.js``.
+
+    :func:`~mcp_audit._redact.redact_local_paths` already produces exactly
+    that shape for the overwhelmingly common case (the scan invoked from
+    inside the repository/home tree): a path relative to the current working
+    directory. Reusing it here both protects the operator's username (this
+    was previously an absolute path leak, the same defect class PR #46 fixed
+    in the advisory feed) *and* repairs the annotation — a scan run from the
+    repository root during CI now emits a genuinely repo-relative URI.
+
+    When the redaction falls back to a ``~/...`` or still-absolute form (cwd
+    outside ``$HOME``, or a config path outside ``$HOME`` entirely), the
+    result is a harmless miss — GitHub won't resolve it to a file, the same
+    graceful non-linkable degrade as the ``"unknown"`` sentinel below, not a
+    leak or a crash.
 
     Args:
         finding_path: Absolute path string, or ``None``.
 
     Returns:
-        A ``file://`` URI string, or the sentinel ``"unknown"`` for missing paths.
+        A relative (or, rarely, ``~``-relative) URI string, or the sentinel
+        ``"unknown"`` for missing paths.
     """
     if not finding_path:
         # Relative sentinel — GitHub accepts this and renders as "unknown location."
         return "unknown"
-    try:
-        return Path(finding_path).as_uri()
-    except ValueError:
-        return f"file://{finding_path}"
+    redacted = redact_finding_path(finding_path, finding_path)
+    # SARIF URIs use "/" regardless of platform; os.path.relpath() (inside the
+    # redaction helper) returns "\\"-separated paths on Windows.
+    return redacted.replace("\\", "/")
 
 
 def _rule_name_from_title(title: str) -> str:
@@ -134,15 +153,24 @@ def _build_rule(finding: Finding) -> dict:
         cwe_num = finding.cwe.upper().replace("CWE-", "")
         tags.append(f"external/cwe/cwe-{cwe_num.lower()}")
 
+    # SARIF is a published artifact (uploaded to GitHub, sent to any consumer
+    # of --format sarif) — unlike terminal output, so any occurrence of this
+    # finding's own scanned path (e.g. CFHYG's "Run: chmod 600 <path>"
+    # remediation) is redacted before it leaves the machine. See
+    # mcp_audit._redact.redact_local_paths.
+    title = redact_finding_path(finding.title, finding.finding_path)
+    description = redact_finding_path(finding.description, finding.finding_path)
+    remediation = redact_finding_path(finding.remediation, finding.finding_path)
+
     rule: dict = {
         "id": finding.id,
-        "name": _rule_name_from_title(finding.title),
-        "shortDescription": {"text": finding.title},
-        "fullDescription": {"text": finding.description},
+        "name": _rule_name_from_title(title),
+        "shortDescription": {"text": title},
+        "fullDescription": {"text": description},
         # SARIF 2.1.0 §3.49.11: `help` carries free-text remediation advice.
         # This is the correct home for actionable guidance; the `fixes` field
         # (§3.55) is reserved for structured byte-level code patches only.
-        "help": {"text": finding.remediation},
+        "help": {"text": remediation},
         "helpUri": _HELP_URI,
         "defaultConfiguration": {"level": _LEVEL_MAP[finding.severity]},
         "properties": {"tags": tags},
@@ -181,9 +209,10 @@ def _build_result(finding: Finding, rule_index: int) -> dict:
     Returns:
         A dict conforming to the SARIF ``result`` schema.
     """
+    title = redact_finding_path(finding.title, finding.finding_path)
+    description = redact_finding_path(finding.description, finding.finding_path)
     message_text = (
-        f"{finding.title} detected in {finding.client}/{finding.server}. "
-        f"{finding.description}"
+        f"{title} detected in {finding.client}/{finding.server}. {description}"
     )
     # Governance findings use the policy file as the artifact location.
     if finding.analyzer == "governance":
