@@ -321,8 +321,8 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         if package is None:
             return []
 
-        if self._registry.is_known(package):
-            entry = self._registry.get(package)
+        if self._registry.is_known_npm(package):
+            entry = self._registry.get_npm(package)
             if entry and entry.known_vulnerabilities:
                 return _emit_known_cve_findings(server, entry)
             return []
@@ -331,7 +331,9 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         # at distance 3, producing high FP rates. Use a tighter threshold of 1
         # for those; long names keep the standard threshold of 3.
         typo_threshold = 1 if len(package) <= 5 else 3
-        closest_entry = self._registry.find_closest(package, threshold=typo_threshold)
+        closest_entry = self._registry.find_closest_npm(
+            package, threshold=typo_threshold
+        )
 
         if closest_entry is None:
             return []

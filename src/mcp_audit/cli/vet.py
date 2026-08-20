@@ -105,7 +105,7 @@ def _lookup(
     """
     if ecosystem == "pypi":
         return registry.get_pypi(name)
-    return registry.get(name)
+    return registry.get_npm(name)
 
 
 def _typosquat_check(
@@ -137,7 +137,7 @@ def _typosquat_check(
 
     if ecosystem == "pypi":
         return registry.find_closest_pypi(name, threshold=threshold)
-    return registry.find_closest(name, threshold=threshold)
+    return registry.find_closest_npm(name, threshold=threshold)
 
 
 # ── Online fetch + cache ───────────────────────────────────────────────────────

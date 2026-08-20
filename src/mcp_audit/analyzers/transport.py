@@ -13,6 +13,12 @@ from mcp_audit.registry.loader import KnownServerRegistry
 # launchers and are not relevant to npm typosquatting detection.
 _RUNTIME_FETCH_COMMANDS: frozenset[str] = frozenset({"npx", "uvx", "bunx", "pipx"})
 
+# npm-family launchers among _RUNTIME_FETCH_COMMANDS (plus "yarn dlx", handled
+# separately below since it requires an args[0] == "dlx" check). Everything
+# else in _RUNTIME_FETCH_COMMANDS (uvx, pipx) is pip-ecosystem and must be
+# looked up via the registry's pypi-scoped methods, not the npm-scoped ones.
+_NPM_FAMILY_COMMANDS: frozenset[str] = frozenset({"npx", "bunx", "yarn"})
+
 # Commands (and path-suffixes) that execute with elevated privileges.
 _PRIV_ESC_NAMES: frozenset[str] = frozenset({"sudo", "doas", "pkexec", "su", "run0"})
 
@@ -178,6 +184,15 @@ class TransportAnalyzer(BaseAnalyzer):
         registry entry — such packages do not merit a MEDIUM alarm on every
         scan.  Callers that constructed this analyzer without a registry
         always get a MEDIUM finding (historic behaviour preserved).
+
+        The registry lookup is ecosystem-scoped: ``npx``/``bunx``/``yarn dlx``
+        resolve via ``get_npm()``, ``uvx``/``pipx`` via ``get_pypi()``. Using
+        the ecosystem-blind ``get()`` here would let a package that exists
+        ONLY in the *other* ecosystem's registry entry (e.g. a PyPI-only
+        package launched via ``npx``) suppress a finding about a package that
+        was never actually vetted on the ecosystem it was launched from — the
+        same class of bug fixed in ``analyzers/supply_chain.py`` and
+        ``cli/vet.py`` for the ``mcp-server-git`` npm/pypi collision.
         """
         # Imported lazily to avoid adding a top-level dependency between the
         # transport and supply_chain analyzer modules.
@@ -192,11 +207,14 @@ class TransportAnalyzer(BaseAnalyzer):
             else server.args
         )
         package = extract_npm_package(effective_args)
-        entry = (
-            self._registry.get(package)
-            if (self._registry is not None and package is not None)
-            else None
-        )
+
+        entry = None
+        if self._registry is not None and package is not None:
+            entry = (
+                self._registry.get_npm(package)
+                if server.command in _NPM_FAMILY_COMMANDS
+                else self._registry.get_pypi(package)
+            )
 
         if entry is not None and entry.verified:
             # Verified registry entry: suppress — the signal is covered by
