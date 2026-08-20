@@ -433,7 +433,9 @@ class TestTransportRuntimeFetchRegistryTiering:
         registry = MagicMock()
         entry = MagicMock()
         entry.verified = False
-        registry.get.return_value = entry
+        # ``self._server`` defaults to command="npx" — the npm-family branch
+        # of _build_runtime_fetch_finding calls get_npm(), not get().
+        registry.get_npm.return_value = entry
 
         analyzer = TransportAnalyzer(registry=registry)
         server = self._server(tmp_path, "some-known-but-unverified-pkg")
@@ -459,6 +461,40 @@ class TestTransportRuntimeFetchRegistryTiering:
         server = self._server(tmp_path, "mcp-server-fetch", command="uvx")
         findings = [f for f in analyzer.analyze(server) if f.id == "TRANSPORT-003"]
         # mcp-server-fetch is a verified Anthropic pip package → suppressed.
+        assert findings == []
+
+    def test_npx_pypi_only_package_not_suppressed(self, tmp_path: Path) -> None:
+        """Regression test for the ecosystem-blind lookup bug.
+
+        "mcp-server-git" is registered ONLY as a ``package_ecosystem: "pypi"``
+        entry in the bundled registry. Before this fix, ``self._registry.get()``
+        was ecosystem-blind and matched that verified PyPI entry for an
+        npx-launched server, silently suppressing TRANSPORT-003. The npm-scoped
+        ``get_npm()`` lookup must not do this — the finding fires at the
+        historic MEDIUM severity for an unknown-on-npm package, exactly as if
+        no registry entry existed at all.
+        """
+        from mcp_audit.registry.loader import load_registry
+
+        registry = load_registry()
+        analyzer = TransportAnalyzer(registry=registry)
+        server = self._server(tmp_path, "mcp-server-git", command="npx")
+        findings = [f for f in analyzer.analyze(server) if f.id == "TRANSPORT-003"]
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.MEDIUM
+
+    def test_pipx_uses_pypi_scoped_lookup(self, tmp_path: Path) -> None:
+        """pipx (pip-ecosystem launcher) resolves via get_pypi(), not get_npm().
+
+        Companion to test_uvx_uses_same_tiering — pins that the pip-family
+        routing in _build_runtime_fetch_finding covers pipx too, not just uvx.
+        """
+        from mcp_audit.registry.loader import load_registry
+
+        registry = load_registry()
+        analyzer = TransportAnalyzer(registry=registry)
+        server = self._server(tmp_path, "mcp-server-fetch", command="pipx")
+        findings = [f for f in analyzer.analyze(server) if f.id == "TRANSPORT-003"]
         assert findings == []
 
 
@@ -1093,6 +1129,8 @@ class TestTransportYarnDlxAndPipx:
         registry.schema_version = "test"
         registry.last_updated = "2026-04-23"
         registry._name_index = {entry.name.lower(): entry}
+        registry._npm_entries = [entry]
+        registry._npm_name_index = {entry.name.lower(): entry}
 
         server = ServerConfig(
             name="test",

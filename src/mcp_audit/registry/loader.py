@@ -179,7 +179,9 @@ class KnownServerRegistry:
 
         Raises:
             FileNotFoundError: If no registry file can be located.
-            ValueError: If the registry JSON is malformed.
+            ValueError: If the registry JSON is malformed, or if two entries
+                share the same (case-insensitive) ``name`` — see
+                :meth:`_build_name_index`.
         """
         resolved = self._locate(path, offline=offline)
         raw = resolved.read_text(encoding="utf-8")
@@ -197,9 +199,22 @@ class KnownServerRegistry:
         ]
 
         # Build a lowercase name → entry index for O(1) exact lookups (all entries).
-        self._name_index: dict[str, RegistryEntry] = {
-            e.name.lower(): e for e in self.entries
-        }
+        #
+        # ``name`` is a *global* key here, not scoped by ``package_ecosystem``:
+        # get()/is_known() are called by toxic_flow, the rule engine, governance,
+        # attestation, and shadow-risk analyzers with no ecosystem context at all
+        # (they just want "is this token a known package"). Only supply_chain's
+        # npm branch and vet's npm branch treat get()/is_known() as npm-scoped —
+        # they never call this constructor with two same-named entries in mind.
+        # A second entry with the same lowercased name therefore cannot be
+        # resolved safely: silently keeping "whichever the dict saw last" lets
+        # get() return an unrelated entry's verified/capabilities data depending
+        # on JSON array order, which is exactly how vet and toxic-flow reported
+        # wrong data for "mcp-server-git" (an npm entry for an unrelated security
+        # canary package collided with the real, verified PyPI entry). Fail
+        # loudly at load time instead so the collision is fixed in the data, not
+        # silently outrun in a lookup.
+        self._name_index = self._build_name_index(self.entries)
 
         # PyPI-ecosystem sub-index (PEP 503 normalised name → entry).
         self._pypi_entries: list[RegistryEntry] = [
@@ -207,6 +222,21 @@ class KnownServerRegistry:
         ]
         self._pypi_norm_index: dict[str, RegistryEntry] = {
             normalize_pypi_name(e.name): e for e in self._pypi_entries
+        }
+
+        # npm-ecosystem sub-index (lowercased name → entry). Mirrors the PyPI
+        # sub-index above so npm-scoped callers (supply_chain's npm branch,
+        # vet's npm branch) never resolve a PyPI-only entry by name collision.
+        # npm names are case-sensitive in practice, but the pre-existing
+        # ecosystem-agnostic index already lowercases, so this sub-index keeps
+        # that behaviour rather than introducing a second comparison
+        # convention. No PEP 503 normalisation — that is a Python-packaging
+        # rule and does not apply to npm package names.
+        self._npm_entries: list[RegistryEntry] = [
+            e for e in self.entries if e.package_ecosystem in ("npm", "any")
+        ]
+        self._npm_name_index: dict[str, RegistryEntry] = {
+            e.name.lower(): e for e in self._npm_entries
         }
 
     # ── Query methods ──────────────────────────────────────────────────────────
@@ -353,7 +383,118 @@ class KnownServerRegistry:
         """
         return {normalize_pypi_name(e.name) for e in self._pypi_entries}
 
+    def is_known_npm(self, name: str) -> bool:
+        """Return ``True`` if *name* exactly matches an npm registry entry.
+
+        Comparison is case-insensitive, matching the existing ecosystem-agnostic
+        index. No PEP 503 normalisation is applied — that is a Python-packaging
+        rule and does not apply to npm package names.
+
+        Args:
+            name: Package name to look up.
+
+        Returns:
+            ``True`` when the name is a known-good npm entry.
+        """
+        return name.lower() in self._npm_name_index
+
+    def get_npm(self, name: str) -> RegistryEntry | None:
+        """Return the registry entry for npm package *name*, or ``None``.
+
+        Only matches entries whose ``package_ecosystem`` is ``"npm"`` or
+        ``"any"`` — a same-named PyPI-only entry is never returned here.
+
+        Args:
+            name: Package name to look up (case-insensitive).
+
+        Returns:
+            :class:`RegistryEntry` when the name matches a known npm entry,
+            otherwise ``None``.
+        """
+        return self._npm_name_index.get(name.lower())
+
+    def find_closest_npm(self, name: str, threshold: int = 2) -> RegistryEntry | None:
+        """Return the closest npm registry entry within *threshold* edit distance.
+
+        Compares *name* (lowercased) against all entries whose
+        ``package_ecosystem`` is ``"npm"`` or ``"any"`` — a PyPI-only entry is
+        never a typosquat comparison target for an npm package name. Returns
+        ``None`` for exact matches (use :meth:`is_known_npm` to filter those
+        first) and for names farther than *threshold* edits from every entry.
+
+        Args:
+            name: Package name to check (lowercased internally).
+            threshold: Maximum Levenshtein distance to consider (inclusive).
+
+        Returns:
+            Closest :class:`RegistryEntry`, or ``None``.
+        """
+        lower = name.lower()
+
+        if lower in self._npm_name_index:
+            return None  # exact match — not a typosquat
+
+        closest_entry: RegistryEntry | None = None
+        min_dist = threshold + 1  # sentinel
+
+        for entry in self._npm_entries:
+            d = levenshtein(lower, entry.name.lower())
+            if d == 0:
+                return None  # shouldn't happen given the index check above
+            if d < min_dist:
+                min_dist = d
+                closest_entry = entry
+                if d == 1:
+                    break  # can't improve without an exact match
+
+        return closest_entry if min_dist <= threshold else None
+
     # ── Private helpers ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _build_name_index(
+        entries: list[RegistryEntry],
+    ) -> dict[str, RegistryEntry]:
+        """Build the lowercase-name → entry index, rejecting name collisions.
+
+        Registry entry names must be globally unique (case-insensitively)
+        across the whole file, regardless of ``source`` / ``package_ecosystem``.
+        ``get()`` and ``is_known()`` are the ecosystem-agnostic lookup path
+        used by most callers (toxic_flow, the rule engine, governance,
+        attestation, shadow-risk) — they have no way to disambiguate two
+        entries that share a name, so a collision here means one of the two
+        entries is wrong (a duplicate, a misclassified ecosystem, or a bogus
+        submission) and must be fixed in the data, not papered over by
+        picking whichever entry happened to load last.
+
+        Args:
+            entries: Parsed registry entries, in file order.
+
+        Returns:
+            Mapping of lowercased name to its unique :class:`RegistryEntry`.
+
+        Raises:
+            ValueError: If two or more entries share a lowercased name.
+        """
+        index: dict[str, RegistryEntry] = {}
+        for entry in entries:
+            key = entry.name.lower()
+            existing = index.get(key)
+            if existing is not None:
+                raise ValueError(
+                    f"Duplicate registry entry name {entry.name!r}: "
+                    f"one entry is source={existing.source!r} "
+                    f"(package_ecosystem={existing.package_ecosystem!r}, "
+                    f"verified={existing.verified}), another is "
+                    f"source={entry.source!r} "
+                    f"(package_ecosystem={entry.package_ecosystem!r}, "
+                    f"verified={entry.verified}). get()/is_known() perform "
+                    "ecosystem-agnostic lookups by name, so two entries "
+                    "sharing a name would make lookups non-deterministic. "
+                    "Rename or remove one of the conflicting entries."
+                )
+            index[key] = entry
+        return index
 
     @staticmethod
     def _locate(path: Path | None, offline: bool = False) -> Path:

@@ -16,6 +16,7 @@ from mcp_audit.registry.loader import (
     RegistryEntry,
     levenshtein,
     load_registry,
+    normalize_pypi_name,
 )
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -118,6 +119,241 @@ class TestBundledRegistryLoad:
         data = json.loads(raw)
         reg = load_registry()
         assert len(reg.entries) == data["entry_count"]
+
+    def test_no_duplicate_names_across_ecosystems(self) -> None:
+        """No two entries may share a case-insensitive name.
+
+        get()/is_known() are ecosystem-agnostic lookups consulted by
+        toxic_flow, the rule engine, governance, attestation, and shadow-risk
+        with no way to disambiguate a same-named npm vs. pip entry — a
+        collision here previously let an unrelated, unverified npm entry for
+        "mcp-server-git" silently shadow the real, verified PyPI entry
+        depending on JSON array order. This test is a regression guard for
+        that class of bug; ``load_registry()`` itself now also raises
+        ``ValueError`` at load time if it ever recurs (see
+        ``TestNameCollisionDetection``).
+        """
+        raw = BUNDLED_REGISTRY_PATH.read_text(encoding="utf-8")
+        data = json.loads(raw)
+        names = [e["name"].lower() for e in data["entries"]]
+        seen: set[str] = set()
+        dupes = {n for n in names if n in seen or seen.add(n)}  # type: ignore[func-returns-value]
+        assert not dupes, f"Duplicate registry entry name(s): {sorted(dupes)}"
+
+
+# ── Name collision detection ──────────────────────────────────────────────────
+
+
+class TestNameCollisionDetection:
+    """KnownServerRegistry must refuse to load data with duplicate names."""
+
+    def test_duplicate_name_raises_value_error(self, tmp_path: Path) -> None:
+        """Two entries sharing a case-insensitive name raise ValueError."""
+        data = {
+            "schema_version": "1.0",
+            "last_updated": "2026-08-18",
+            "entry_count": 2,
+            "entries": [
+                {
+                    "name": "mcp-server-git",
+                    "source": "npm",
+                    "repo": None,
+                    "maintainer": "community",
+                    "verified": False,
+                    "last_verified": "2026-04-15",
+                    "known_versions": [],
+                    "tags": ["vcs", "local"],
+                },
+                {
+                    "name": "mcp-server-git",
+                    "source": "pip",
+                    "package_ecosystem": "pypi",
+                    "repo": "https://github.com/modelcontextprotocol/servers",
+                    "maintainer": "Anthropic",
+                    "verified": True,
+                    "last_verified": "2026-05-17",
+                    "known_versions": [],
+                    "tags": ["official", "git", "local"],
+                },
+            ],
+        }
+        p = tmp_path / "dup-registry.json"
+        p.write_text(json.dumps(data), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Duplicate registry entry name"):
+            KnownServerRegistry(path=p)
+
+    def test_duplicate_name_is_case_insensitive(self, tmp_path: Path) -> None:
+        """Names differing only by case still collide."""
+        data = {
+            "schema_version": "1.0",
+            "last_updated": "2026-08-18",
+            "entry_count": 2,
+            "entries": [
+                {
+                    "name": "Some-Package",
+                    "source": "npm",
+                    "repo": None,
+                    "maintainer": "community",
+                    "verified": False,
+                    "last_verified": "2026-04-15",
+                    "known_versions": [],
+                    "tags": ["local"],
+                },
+                {
+                    "name": "some-package",
+                    "source": "pip",
+                    "package_ecosystem": "pypi",
+                    "repo": None,
+                    "maintainer": "community",
+                    "verified": False,
+                    "last_verified": "2026-04-15",
+                    "known_versions": [],
+                    "tags": ["local"],
+                },
+            ],
+        }
+        p = tmp_path / "dup-case-registry.json"
+        p.write_text(json.dumps(data), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Duplicate registry entry name"):
+            KnownServerRegistry(path=p)
+
+
+# ── npm-scoped lookups (is_known_npm / get_npm / find_closest_npm) ────────────
+
+
+class TestNpmEcosystemScoping:
+    """Regression coverage for the ecosystem-blind npm lookup bug.
+
+    Before ``is_known_npm``/``get_npm``/``find_closest_npm`` existed, an
+    npx-launched server named after a package published ONLY to PyPI would be
+    silently treated as a known/verified npm package by the ecosystem-blind
+    ``get()``/``is_known()`` pair. The bundled registry's "mcp-server-git"
+    entry is exactly such a case: it is ``package_ecosystem: "pypi"`` and has
+    no npm counterpart (the previous, unrelated npm "mcp-server-git" entry —
+    a security-research canary, not a real MCP server — was removed as part
+    of this fix).
+    """
+
+    def test_pypi_only_entry_not_known_on_npm_path(self) -> None:
+        reg = load_registry()
+        assert reg.is_known_npm("mcp-server-git") is False
+        assert reg.get_npm("mcp-server-git") is None
+
+    def test_pypi_only_entry_still_resolves_generically(self) -> None:
+        """get()/is_known() remain the intentional ecosystem-agnostic fallback.
+
+        toxic_flow, the rule engine, governance, attestation, and shadow-risk
+        have no ecosystem context and legitimately want name-only lookup —
+        that behaviour is unchanged by this fix.
+        """
+        reg = load_registry()
+        assert reg.is_known("mcp-server-git") is True
+        entry = reg.get("mcp-server-git")
+        assert entry is not None
+        assert entry.package_ecosystem == "pypi"
+
+    def test_pypi_only_entry_resolves_on_pypi_path(self) -> None:
+        reg = load_registry()
+        assert reg.is_known_pypi("mcp-server-git") is True
+        entry = reg.get_pypi("mcp-server-git")
+        assert entry is not None
+        assert entry.verified is True
+
+
+class TestNpmPypiSameNameDisambiguation:
+    """Same package name legitimately present in both ecosystems.
+
+    ``KnownServerRegistry``'s global duplicate-name guard
+    (``_build_name_index``, see ``TestNameCollisionDetection`` above) rejects
+    two entries sharing a name regardless of ecosystem, so this scenario can
+    never reach ``KnownServerRegistry(path=...)`` through the public
+    constructor today — that guard is a deliberate, separate invariant from
+    this fix and is out of scope to change here. This test instead builds the
+    ecosystem-scoped sub-indices directly (bypassing ``__init__``) to prove
+    the disambiguation logic in ``is_known_npm``/``get_npm``/``is_known_pypi``/
+    ``get_pypi`` is correct in isolation.
+    """
+
+    def setup_method(self) -> None:
+        npm_entry = RegistryEntry(
+            name="shared-name-mcp",
+            source="npm",
+            package_ecosystem="npm",
+            repo=None,
+            maintainer="npm-org",
+            verified=False,
+            last_verified="2026-08-18",
+            known_versions=[],
+            tags=["community"],
+        )
+        pypi_entry = RegistryEntry(
+            name="shared-name-mcp",
+            source="pip",
+            package_ecosystem="pypi",
+            repo=None,
+            maintainer="pypi-org",
+            verified=True,
+            last_verified="2026-08-18",
+            known_versions=[],
+            tags=["community"],
+        )
+        reg = KnownServerRegistry.__new__(KnownServerRegistry)
+        reg.entries = [npm_entry, pypi_entry]
+        reg._npm_entries = [npm_entry]
+        reg._npm_name_index = {npm_entry.name.lower(): npm_entry}
+        reg._pypi_entries = [pypi_entry]
+        reg._pypi_norm_index = {normalize_pypi_name(pypi_entry.name): pypi_entry}
+        self.registry = reg
+
+    def test_is_known_npm_returns_npm_row(self) -> None:
+        assert self.registry.is_known_npm("shared-name-mcp") is True
+
+    def test_get_npm_returns_npm_row(self) -> None:
+        entry = self.registry.get_npm("shared-name-mcp")
+        assert entry is not None
+        assert entry.package_ecosystem == "npm"
+        assert entry.verified is False
+
+    def test_is_known_pypi_returns_pypi_row(self) -> None:
+        assert self.registry.is_known_pypi("shared-name-mcp") is True
+
+    def test_get_pypi_returns_pypi_row(self) -> None:
+        entry = self.registry.get_pypi("shared-name-mcp")
+        assert entry is not None
+        assert entry.package_ecosystem == "pypi"
+        assert entry.verified is True
+
+    def test_find_closest_npm_excludes_pypi_only_entries(self) -> None:
+        """A pypi-only entry must never be an npm typosquat comparison target.
+
+        Uses an isolated registry with an empty npm pool and a single
+        pypi-only entry one edit away from the query — a pre-fix,
+        ecosystem-blind ``find_closest()`` would have matched it.
+        """
+        only_pypi_entry = RegistryEntry(
+            name="close-typo-target",
+            source="pip",
+            package_ecosystem="pypi",
+            repo=None,
+            maintainer="pypi-org",
+            verified=True,
+            last_verified="2026-08-18",
+            known_versions=[],
+            tags=["community"],
+        )
+        reg = KnownServerRegistry.__new__(KnownServerRegistry)
+        reg.entries = [only_pypi_entry]
+        reg._npm_entries = []
+        reg._npm_name_index = {}
+        reg._pypi_entries = [only_pypi_entry]
+        reg._pypi_norm_index = {
+            normalize_pypi_name(only_pypi_entry.name): only_pypi_entry
+        }
+
+        result = reg.find_closest_npm("close-typo-targe", threshold=3)
+        assert result is None
 
 
 # ── is_known ──────────────────────────────────────────────────────────────────
@@ -299,27 +535,29 @@ class TestSupplyChainAnalyzerUsesRegistry:
     """Confirm SupplyChainAnalyzer calls the registry instead of the old YAML."""
 
     def test_analyzer_calls_is_known(self) -> None:
+        # The npm branch (npx args) is scoped via is_known_npm/get_npm since
+        # the ecosystem-blind lookup fix — see TestNpmEcosystemScoping.
         mock_reg = MagicMock(spec=KnownServerRegistry)
-        mock_reg.is_known.return_value = True
+        mock_reg.is_known_npm.return_value = True
 
         analyzer = SupplyChainAnalyzer(registry=mock_reg)
         server = _make_server(args=["-y", "@modelcontextprotocol/server-filesystem"])
         analyzer.analyze(server)
 
-        mock_reg.is_known.assert_called_once_with(
+        mock_reg.is_known_npm.assert_called_once_with(
             "@modelcontextprotocol/server-filesystem"
         )
 
     def test_analyzer_calls_find_closest_when_unknown(self) -> None:
         mock_reg = MagicMock(spec=KnownServerRegistry)
-        mock_reg.is_known.return_value = False
-        mock_reg.find_closest.return_value = None
+        mock_reg.is_known_npm.return_value = False
+        mock_reg.find_closest_npm.return_value = None
 
         analyzer = SupplyChainAnalyzer(registry=mock_reg)
         server = _make_server(args=["-y", "unknown-package"])
         analyzer.analyze(server)
 
-        mock_reg.find_closest.assert_called_once()
+        mock_reg.find_closest_npm.assert_called_once()
 
     def test_analyzer_emits_finding_with_maintainer(self) -> None:
         """Finding description and evidence must include maintainer and verified."""
@@ -334,8 +572,8 @@ class TestSupplyChainAnalyzerUsesRegistry:
             tags=["official"],
         )
         mock_reg = MagicMock(spec=KnownServerRegistry)
-        mock_reg.is_known.return_value = False
-        mock_reg.find_closest.return_value = mock_entry
+        mock_reg.is_known_npm.return_value = False
+        mock_reg.find_closest_npm.return_value = mock_entry
 
         analyzer = SupplyChainAnalyzer(registry=mock_reg)
         server = _make_server(args=["-y", "@modelcontextprotocol/server-filesyste"])

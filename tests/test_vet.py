@@ -98,12 +98,18 @@ def _make_registry(entries: list[RegistryEntry] | None = None) -> KnownServerReg
 
     from mcp_audit.registry.loader import normalize_pypi_name  # noqa: PLC0415
 
+    npm_entries = [e for e in entries if e.package_ecosystem in ("npm", "any")]
+    npm_index = {e.name.lower(): e for e in npm_entries}
+    reg.get_npm = lambda name: npm_index.get(name.lower())
+    reg.is_known_npm = lambda name: name.lower() in npm_index
+
     pypi_entries = [e for e in entries if e.package_ecosystem in ("pypi", "any")]
     pypi_norm = {normalize_pypi_name(e.name): e for e in pypi_entries}
     reg.get_pypi = lambda name: pypi_norm.get(normalize_pypi_name(name))
     reg.is_known_pypi = lambda name: normalize_pypi_name(name) in pypi_norm
 
     reg.find_closest = MagicMock(return_value=None)
+    reg.find_closest_npm = MagicMock(return_value=None)
     reg.find_closest_pypi = MagicMock(return_value=None)
     return reg
 
@@ -403,7 +409,7 @@ class TestVetCliCve:
 class TestVetCliTyposquat:
     def test_exit_1_for_typosquat(self) -> None:
         reg = _make_registry([_VERIFIED_ENTRY])
-        reg.find_closest = MagicMock(return_value=_VERIFIED_ENTRY)
+        reg.find_closest_npm = MagicMock(return_value=_VERIFIED_ENTRY)
         with patch("mcp_audit.cli.vet.load_registry", return_value=reg):
             result = runner.invoke(
                 app,
@@ -413,7 +419,7 @@ class TestVetCliTyposquat:
 
     def test_did_you_mean_in_output(self) -> None:
         reg = _make_registry([_VERIFIED_ENTRY])
-        reg.find_closest = MagicMock(return_value=_VERIFIED_ENTRY)
+        reg.find_closest_npm = MagicMock(return_value=_VERIFIED_ENTRY)
         with patch("mcp_audit.cli.vet.load_registry", return_value=reg):
             result = runner.invoke(
                 app,

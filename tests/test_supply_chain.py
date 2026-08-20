@@ -227,6 +227,25 @@ class TestSupplyChainAnalyzer:
         server = _make_server(command="uvx", args=["mcp-server-git"])
         assert self.analyzer.analyze(server) == []
 
+    def test_npx_pypi_only_name_not_short_circuited_as_known(self) -> None:
+        """Regression test for the ecosystem-blind lookup bug.
+
+        "mcp-server-git" is registered ONLY as a ``package_ecosystem: "pypi"``
+        entry in the bundled registry. Before ``is_known_npm``/``get_npm``
+        existed, the ecosystem-blind ``is_known()``/``get()`` pair matched
+        this pypi entry for an npx-launched server and silently suppressed
+        all findings (the package was treated as "known"). The npm-scoped
+        path must not do this — it falls through to typosquat detection and
+        correctly flags the real, unrelated npm entry "mcp-server-gcp" as a
+        distance-2 candidate instead.
+        """
+        server = _make_server(command="npx", args=["-y", "mcp-server-git"])
+        findings = self.analyzer.analyze(server)
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+        assert findings[0].id == "SC-002"
+        assert "mcp-server-gcp" in findings[0].remediation
+
     def test_bunx_triggers_check(self) -> None:
         typo = "@modelcontextprotocol/server-filesyste"
         server = _make_server(command="bunx", args=["-y", typo])
@@ -649,6 +668,72 @@ class TestRegistryPypiHelpers:
         entry = self.registry.get("@modelcontextprotocol/server-filesystem")
         assert entry is not None
         assert entry.package_ecosystem == "npm"
+
+
+# ── KnownServerRegistry npm helpers ──────────────────────────────────────────
+
+
+class TestRegistryNpmHelpers:
+    """Mirrors TestRegistryPypiHelpers for the npm-scoped lookup trio.
+
+    Regression coverage for the ecosystem-blind lookup bug: an npm-context
+    caller (this analyzer's npm branch) must never resolve a PyPI-only
+    entry's data by name, even when the two happen to share a name.
+    """
+
+    def setup_method(self) -> None:
+        self.registry = _loader_module.KnownServerRegistry()
+
+    def test_is_known_npm_exact_match(self) -> None:
+        assert (
+            self.registry.is_known_npm("@modelcontextprotocol/server-filesystem")
+            is True
+        )
+
+    def test_is_known_npm_unknown_returns_false(self) -> None:
+        assert self.registry.is_known_npm("totally-unknown-xyz-package") is False
+
+    def test_is_known_npm_pypi_only_entry_returns_false(self) -> None:
+        # "mcp-server-git" is a PyPI-only entry in the bundled registry — it
+        # must not resolve on the npm-scoped path.
+        assert self.registry.is_known_npm("mcp-server-git") is False
+
+    def test_get_npm_exact_match(self) -> None:
+        entry = self.registry.get_npm("@modelcontextprotocol/server-filesystem")
+        assert entry is not None
+        assert entry.package_ecosystem == "npm"
+
+    def test_get_npm_pypi_only_entry_returns_none(self) -> None:
+        """Regression guard for the "mcp-server-git" collision bug.
+
+        An npx-launched server whose package exists ONLY as a pypi entry
+        must NOT be treated as known/verified on the npm path.
+        """
+        assert self.registry.get_npm("mcp-server-git") is None
+
+    def test_find_closest_npm_exact_returns_none(self) -> None:
+        result = self.registry.find_closest_npm(
+            "@modelcontextprotocol/server-filesystem", threshold=3
+        )
+        assert result is None
+
+    def test_find_closest_npm_typo_found(self) -> None:
+        # "server-fliesystem" is 2 edits from "server-filesystem"
+        result = self.registry.find_closest_npm(
+            "@modelcontextprotocol/server-fliesystem", threshold=3
+        )
+        assert result is not None
+        assert result.name == "@modelcontextprotocol/server-filesystem"
+
+    def test_find_closest_npm_no_match_returns_none(self) -> None:
+        result = self.registry.find_closest_npm("completely-unrelated-zzz", threshold=3)
+        assert result is None
+
+    def test_find_closest_npm_excludes_pypi_only_entries(self) -> None:
+        # A pypi-only entry (e.g. "mcp-server-git") must never surface as the
+        # npm typosquat comparison target, even at a close edit distance.
+        result = self.registry.find_closest_npm("mcp-server-gitt", threshold=3)
+        assert result is None or result.package_ecosystem != "pypi"
 
 
 # ── SupplyChainAnalyzer Python-ecosystem tests ────────────────────────────────
