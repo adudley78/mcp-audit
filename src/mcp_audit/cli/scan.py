@@ -9,6 +9,7 @@ pattern.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 from datetime import UTC, datetime
@@ -105,9 +106,21 @@ def _drift_to_findings(
 
     Uses ``analyzer="baseline"`` so drift findings appear in all output
     formats alongside analyzer findings.
+
+    Each finding's ID is derived from the drift event's own identity (client,
+    server, drift type) rather than its position in the input list. A positional
+    ``DRIFT-{i:03d}`` id (the previous scheme) mints a *different* id for the exact
+    same drift event across two runs whenever an unrelated server's drift shifts it
+    earlier or later in the list — ``BaselineManager.compare()`` iterates a set
+    intersection for per-field drift, whose order is not guaranteed. That id feeds
+    ``Advisory.mcp_audit_rule_id``, part of the advisory ID's hash basis, so an
+    unstable finding id silently forks one recurring issue into two advisory records.
+    The drift type is embedded as a literal segment (not hashed away) so
+    ``advisory.classify.is_advisable()`` can recognise and exclude benign drift
+    kinds (e.g. a removed server) by id prefix alone.
     """
     findings: list[Finding] = []
-    for i, df in enumerate(drift):
+    for df in drift:
         evidence_parts = []
         if df.baseline_value is not None:
             evidence_parts.append(f"baseline: {df.baseline_value}")
@@ -115,9 +128,13 @@ def _drift_to_findings(
             evidence_parts.append(f"current: {df.current_value}")
         evidence = "; ".join(evidence_parts) if evidence_parts else "N/A"
 
+        digest = hashlib.sha256(
+            f"{df.client}|{df.server_name}|{df.drift_type.value}".encode()
+        ).hexdigest()[:12]
+
         findings.append(
             Finding(
-                id=f"DRIFT-{i + 1:03d}",
+                id=f"DRIFT-{df.drift_type.value.upper()}-{digest}",
                 severity=df.severity,
                 analyzer="baseline",
                 client=df.client,

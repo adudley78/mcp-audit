@@ -264,6 +264,20 @@ class TestCvssScoring:
     def test_real_findings_are_advisable(self) -> None:
         assert is_advisable("CRED-001")
 
+    def test_removed_server_drift_is_not_advisable(self) -> None:
+        """Regression: DRIFT-* ids can't sit in the static NON_ADVISORY_IDS set.
+
+        `_drift_to_findings` mints a content-derived id per event (see its
+        docstring), so a removed server is recognised by its stable prefix rather
+        than an exact id — it is the drift-pipeline equivalent of RUGPULL-003
+        (benign bookkeeping, not a vulnerability).
+        """
+        assert not is_advisable("DRIFT-SERVER_REMOVED-a1b2c3d4e5f6")
+
+    def test_other_drift_types_remain_advisable(self) -> None:
+        """Only SERVER_REMOVED is benign; a changed command is a real signal."""
+        assert is_advisable("DRIFT-COMMAND_CHANGED-a1b2c3d4e5f6")
+
 
 # ── Redaction ─────────────────────────────────────────────────────────────────
 

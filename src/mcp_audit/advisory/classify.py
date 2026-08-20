@@ -49,23 +49,37 @@ __all__ = [
 # Findings that assert no vulnerability and therefore must never become an advisory:
 # positive signals, first-run bookkeeping, and operational errors. Publishing these
 # would fill the feed with records that claim nothing and cannot be remediated.
-# Each is an entry in docs/owasp-mapping.json with an empty owasp_codes list.
+# Most are entries in docs/owasp-mapping.json with an empty owasp_codes list;
+# CFHYG-004 is the one exception (see its own comment below).
 NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
     {
         "RUGPULL-000",  # first scan — baseline recorded, no prior state to compare
+        "RUGPULL-002",  # new server detected — recorded for future comparison, benign
         "RUGPULL-003",  # server removed — benign
         "ATTEST-010",  # Sigstore provenance verified — positive signal
         "ATTEST-015",  # verification error — operational, not a defect
-        "CFHYG-004",  # env-var references used for credentials — positive signal
+        "CFHYG-004",  # env-var references used for credentials — positive signal;
+        # carries owasp_codes: ["MCP01"] in docs/owasp-mapping.json (it is itself a
+        # positive-signal *mapping*, not an empty one) — excluded here on its merits,
+        # not because it is unmapped.
         "BL-001",  # malformed baseline file — operational error
         "COMM-000",  # community rule template stub — never matches real configs
     }
 )
 
+# DRIFT-* ids are minted per-event at scan time (see cli/scan.py::_drift_to_findings)
+# and can't be enumerated into NON_ADVISORY_IDS above. A removed server is the
+# drift-pipeline equivalent of RUGPULL-003 (benign bookkeeping, not a vulnerability),
+# and is recognisable by a stable, literal id prefix rather than a hash — see
+# _drift_to_findings's docstring for why the drift type is embedded unhashed.
+_NON_ADVISORY_ID_PREFIXES: Final[tuple[str, ...]] = ("DRIFT-SERVER_REMOVED-",)
+
 
 def is_advisable(finding_id: str) -> bool:
     """Return True if a finding asserts something an advisory can meaningfully claim."""
-    return finding_id not in NON_ADVISORY_IDS
+    if finding_id in NON_ADVISORY_IDS:
+        return False
+    return not finding_id.startswith(_NON_ADVISORY_ID_PREFIXES)
 
 
 # ── Finding class ─────────────────────────────────────────────────────────────

@@ -142,22 +142,60 @@ def _serialize_number(value: float) -> str:
     return _es_number_to_string(value)
 
 
-def _es_number_to_string(value: float) -> str:
-    """Render an integer or non-integral float the way ECMAScript would.
+def _decimal_digits_and_point(value: float) -> tuple[str, int]:
+    """Return ``(s, n)`` for a nonzero float, matching ECMA-262's Number::toString.
 
-    Python's ``repr`` already produces the shortest round-tripping decimal, which is the
-    same digit string ECMAScript picks; only the exponent formatting differs, and only
-    outside the 1e-7 .. 1e21 window where ECMAScript switches to exponential notation.
+    ``s`` is the shortest round-tripping decimal digit string (no leading or trailing
+    zeros) and ``n`` is the integer such that ``value == int(s) * 10 ** (n - len(s))``.
+    This is exactly the pair the ECMAScript spec's steps 5-9 operate on.
+
+    Python's ``repr()`` already computes the shortest round-tripping decimal for a
+    float — correctly re-deriving *that* algorithm ourselves would be redundant and
+    error-prone. What's needed here is only to recover ``(s, n)`` from whichever
+    notation ``repr`` happened to choose (fixed or scientific), so the fixed/exponential
+    *boundary* below can be decided by ECMAScript's own rule rather than Python's.
     """
-    if isinstance(value, int):
-        return str(value)
+    text = repr(abs(value))
+    mantissa, _, exp_part = text.partition("e")
+    exp = int(exp_part) if exp_part else 0
+    int_part, _, frac_part = mantissa.partition(".")
+    raw_digits = int_part + frac_part
+    n = len(int_part) + exp
+    stripped = raw_digits.lstrip("0")
+    n -= len(raw_digits) - len(stripped)
+    digits = stripped.rstrip("0") or "0"
+    return digits, n
 
-    text = repr(value)
-    if "e" not in text and "E" not in text:
-        return text
 
-    mantissa, _, exponent = text.partition("e")
-    exp = int(exponent)
-    mantissa = mantissa.rstrip("0").rstrip(".") if "." in mantissa else mantissa
-    sign = "+" if exp >= 0 else "-"
-    return f"{mantissa}e{sign}{abs(exp)}"
+def _es_number_to_string(value: float) -> str:
+    """Render a float exactly as ECMAScript's Number::toString would.
+
+    See RFC 8785 §3.2.2.3.
+
+    Implements ECMA-262's Number::toString steps 5-9 directly on the ``(s, n)`` pair
+    from :func:`_decimal_digits_and_point`, rather than reformatting whatever notation
+    Python's ``repr`` happened to choose. That distinction matters: Python's ``repr``
+    switches from fixed to scientific notation at ``1e-5``, but ECMAScript only
+    switches below ``1e-6`` (``1e-6`` itself must still render as ``"0.000001"``, not
+    ``"1e-6"``). Reformatting repr's own exponent — the previous implementation —
+    gets every value in that gap wrong, e.g. ``1e-5`` must render ``"0.00001"``, not
+    ``"1e-5"``.
+    """
+    if value == 0:
+        return "0"
+    sign = "-" if value < 0 else ""
+    digits, n = _decimal_digits_and_point(value)
+    k = len(digits)
+
+    if k <= n <= 21:
+        return sign + digits + "0" * (n - k)
+    if 0 < n <= 21:
+        return sign + digits[:n] + "." + digits[n:]
+    if -6 < n <= 0:
+        return sign + "0." + "0" * (-n) + digits
+
+    # Exponential notation (n < -6 or n > 21).
+    exponent = n - 1
+    exp_sign = "+" if exponent >= 0 else "-"
+    mantissa = digits[0] + ("." + digits[1:] if k > 1 else "")
+    return f"{sign}{mantissa}e{exp_sign}{abs(exponent)}"

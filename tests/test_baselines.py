@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from mcp_audit import __version__
 from mcp_audit.baselines.manager import (
     BaselineManager,
+    DriftFinding,
     DriftType,
 )
 from mcp_audit.cli import app
@@ -873,3 +874,77 @@ def test_baseline_file_permissions(tmp_path: Path) -> None:
     saved_file = storage / "perm-test.json"
     mode = stat.S_IMODE(saved_file.stat().st_mode)
     assert mode == 0o600, f"Expected 0o600, got {oct(mode)}"
+
+
+# ── _drift_to_findings: id stability ────────────────────────────────────────────
+
+
+def _drift(
+    drift_type: DriftType,
+    server_name: str = "fs",
+    client: str = "claude-desktop",
+    severity: Severity = Severity.MEDIUM,
+) -> DriftFinding:
+    return DriftFinding(
+        drift_type=drift_type,
+        server_name=server_name,
+        client=client,
+        severity=severity,
+        description="test drift",
+        baseline_value="a",
+        current_value="b",
+    )
+
+
+class TestDriftToFindingsIds:
+    """Regression coverage for the positional-DRIFT-id bug found in the security review.
+
+    ``_drift_to_findings`` used to number findings ``DRIFT-{i+1:03d}`` by their
+    position in the input list. ``BaselineManager.compare()`` builds part of that
+    list from a set intersection (``baseline_map.keys() & current_map.keys()``),
+    whose iteration order is not guaranteed — so the exact same drift event could
+    land at a different index, and therefore mint a different id, across two runs
+    with no actual change to what happened. Because that id feeds
+    ``Advisory.mcp_audit_rule_id`` (part of the advisory id's hash basis), an
+    unstable finding id silently forks one recurring drift event into two advisory
+    records.
+    """
+
+    def test_id_is_stable_regardless_of_list_position(self) -> None:
+        from mcp_audit.cli.scan import _drift_to_findings
+
+        added = _drift(DriftType.SERVER_ADDED, server_name="other")
+        removed = _drift(DriftType.SERVER_REMOVED, server_name="fs")
+
+        ids_first = {f.server: f.id for f in _drift_to_findings([added, removed])}
+        ids_second = {f.server: f.id for f in _drift_to_findings([removed, added])}
+
+        assert ids_first == ids_second
+
+    def test_different_drift_types_on_the_same_server_get_different_ids(self) -> None:
+        from mcp_audit.cli.scan import _drift_to_findings
+
+        command_changed = _drift(DriftType.COMMAND_CHANGED)
+        args_changed = _drift(DriftType.ARGS_CHANGED)
+
+        findings = _drift_to_findings([command_changed, args_changed])
+        assert findings[0].id != findings[1].id
+
+    def test_same_content_produces_the_same_id_across_calls(self) -> None:
+        from mcp_audit.cli.scan import _drift_to_findings
+
+        drift = _drift(DriftType.COMMAND_CHANGED)
+        first = _drift_to_findings([drift])[0].id
+        second = _drift_to_findings([drift])[0].id
+        assert first == second
+
+    def test_server_removed_drift_id_is_recognisable_by_prefix(self) -> None:
+        """The advisory pipeline excludes SERVER_REMOVED by this exact prefix.
+
+        See ``mcp_audit.advisory.classify.is_advisable`` — this id shape is the
+        contract between the two modules.
+        """
+        from mcp_audit.cli.scan import _drift_to_findings
+
+        finding = _drift_to_findings([_drift(DriftType.SERVER_REMOVED)])[0]
+        assert finding.id.startswith("DRIFT-SERVER_REMOVED-")

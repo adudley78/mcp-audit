@@ -20,7 +20,6 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 
 from mcp_audit.owasp_mcp import is_valid_code
 
@@ -75,10 +74,6 @@ def owasp_for(finding_class: str) -> str:
 # (actionable by the operator).  See docs/advisory-feed.md.
 OBSERVATION_PACKAGE = "package-intrinsic"
 OBSERVATION_DEPLOYMENT = "deployment"
-
-
-def _utc_now() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _slug(text: str) -> str:
@@ -143,8 +138,13 @@ class Advisory:
     severity: list[Severity] = field(default_factory=list)
     references: list[Reference] = field(default_factory=list)
     verified_patch: VerifiedPatch = field(default_factory=VerifiedPatch)
-    published: str = field(default_factory=_utc_now)
-    modified: str = field(default_factory=_utc_now)
+    # Required, keyword-only, and deliberately undefaulted: a wall-clock default here
+    # would be a non-determinism landmine in a module whose output gets signed (see
+    # module docstring). Every caller must say what "now" is; build_advisory() and
+    # AdvisoryFormatter already do, via --published-at / SOURCE_DATE_EPOCH / clock in
+    # that priority order (see cli/advise.py::_resolve_now).
+    published: str = field(kw_only=True)
+    modified: str = field(kw_only=True)
     id: str | None = None  # noqa: A003 — set in __post_init__ if not provided
     # Package-intrinsic sub-location the finding applies to (e.g. an MCP tool name).
     # Deliberately NEVER a filesystem path or anything else derived from the scanning
@@ -177,11 +177,16 @@ class Advisory:
             self.id = self.stable_id()
 
     def stable_id(self) -> str:
-        """Deterministic ID: <prefix>-<year>-<12 hex of package+rule+class+location>.
+        """Deterministic ID: <prefix>-<12 hex of package+rule+class+introduced+loc>.
 
-        The basis contains only package coordinates and vulnerability identity, so two
-        machines observing the same issue mint the same advisory ID. ``location`` is
-        appended only when non-empty, which keeps IDs stable for whole-package records.
+        The basis contains only package coordinates and vulnerability identity — never
+        a timestamp — so two machines observing the same issue mint the same advisory
+        ID regardless of when either one scanned, and a recurring issue keeps the same
+        ID across a UTC year boundary. An earlier version embedded ``published[:4]``
+        (the publication year) in the ID; that meant the same vulnerability advised on
+        either side of midnight on Dec 31 minted two different IDs, breaking dedup for
+        anyone trying to answer "have I seen this advisory?". ``location`` is appended
+        only when non-empty, which keeps IDs stable for whole-package records.
         """
         basis_parts = [
             self.package.ecosystem,
@@ -193,8 +198,7 @@ class Advisory:
         if self.location:
             basis_parts.append(self.location)
         digest = hashlib.sha256("|".join(basis_parts).encode()).hexdigest()[:12]
-        year = self.published[:4]
-        return f"{ID_PREFIX}-{year}-{digest}"
+        return f"{ID_PREFIX}-{digest}"
 
     def to_osv(self) -> dict:
         """Return an OSV 1.6.0 record. Keys are sorted by to_canonical_json()."""

@@ -285,7 +285,8 @@
       ],
       "owasp_names": [
         "Shadow MCP Servers"
-      ]
+      ],
+      "notes": "INFO severity, bookkeeping (recorded for future comparison) rather than a vulnerability claim; excluded from the advisory feed via advisory/classify.py::NON_ADVISORY_IDS even though it carries an OWASP code."
     },
     {
       "finding_id": "RUGPULL-003",
@@ -1000,10 +1001,10 @@
     },
     {
       "id_prefix": "DRIFT-",
-      "id_regex": "^DRIFT-[0-9]{3}$",
+      "id_regex": "^DRIFT-[A-Z_]+-[0-9a-f]{12}$",
       "analyzer": "baseline",
       "source_file": "src/mcp_audit/cli/scan.py",
-      "description": "Baseline drift finding. Sequentially numbered per scan run (DRIFT-001, DRIFT-002, \u2026). Emitted when --baseline flag detects changes from a saved snapshot.",
+      "description": "Baseline drift finding. Id is DRIFT-<DRIFT_TYPE>-<12 hex of client+server+drift_type> (e.g. DRIFT-COMMAND_CHANGED-a1b2c3d4e5f6) \u2014 stable across scans of the same event, not sequentially numbered by position (a positional id would mint a different id for the same event depending on iteration order in BaselineManager.compare()). Emitted when --baseline flag detects changes from a saved snapshot. DRIFT-SERVER_REMOVED-* is excluded from the advisory feed (advisory/classify.py) as benign bookkeeping.",
       "owasp_codes": [
         "MCP09"
       ],
