@@ -141,6 +141,111 @@ class TestBundledRegistryLoad:
         assert not dupes, f"Duplicate registry entry name(s): {sorted(dupes)}"
 
 
+# ── repo=null grandfathering guard ──────────────────────────────────────────────
+
+
+class TestRepoNullRequiresDeliberateAcknowledgement:
+    """Guard against silently re-growing the unverified ``repo: null`` batch.
+
+    Context (see ``registry-audit-2026-08-18.md`` for the full investigation): a
+    batch of 26 ``maintainer: "community"``, ``repo: null`` entries was added to
+    ``registry/known-servers.json`` without ever being checked against the real
+    npm/PyPI registries. Three turned out to be a single security researcher's
+    canary package published under three different vendor names
+    (``mcp-server-notion``/``redis``/``supabase``), seven were v0.0.1 stub
+    packages from one unrelated npm account squatting on major vendor names
+    (``mcp-server-aws``/``gcp``/``azure``/``heroku``/``vercel``/``stripe``,
+    ``mcp-perplexity``), and several more simply do not exist at all and are
+    free for anyone — including an attacker — to register today.
+
+    Grandfathering (original state, 2026-08-18 audit): 26 of 85 entries (31%)
+    had ``repo: null``. The 2026-08-20 remediation pass (see
+    ``CHANGELOG.md`` and the registry audit corrections PR) deleted the
+    entries that turned out not to exist at all or to be an unrelated
+    squat-farm/security-canary account, and repaired the ones that were real
+    packages with stale/wrong metadata by attaching a verified real ``repo``.
+    That shrank the ``repo: null`` set from 26 down to exactly the 3 entries
+    below, each of which legitimately still has no confirmable repo:
+
+    - ``mcp-server-mysql`` / ``mcp-server-terraform`` — real, existing
+      packages (OK bucket) whose own npm metadata declares no repository
+      field at all; there is nothing to attach.
+    - ``mcp-server-postgres`` (PyPI) — previously `verified: true`,
+      `maintainer: "Anthropic"`, `repo` pointing at Anthropic's real
+      ``modelcontextprotocol/servers`` monorepo. The audit found the real
+      PyPI author is an unrelated personal account with a placeholder
+      ("Add your description here") package description — i.e. the old repo
+      pointer was a false attribution, not a legitimate-but-stale one. The
+      repo field was deliberately nulled out (rather than left pointing at
+      Anthropic's repo) alongside demoting ``verified`` to ``false``, since
+      keeping the old repo value would still misleadingly imply an Anthropic
+      connection this package doesn't have.
+
+    This test freezes the *current* set of ``repo: null`` names in an
+    explicit, reviewable allowlist below. Any *new* entry added with
+    ``repo: null`` must also be added here — a one-line addition to a list
+    named exactly for what it is, which a reviewer sees in the diff and can
+    push back on, unlike a silent JSON-only addition that passed CI without
+    comment the first time around.
+
+    A stronger long-term fix — an explicit, deliberately-set schema field like
+    ``repo_unavailable_confirmed: true`` that a submitter must affirmatively
+    set (instead of ``repo: null`` silently defaulting to "we didn't check") —
+    remains a recommendation for a future schema change, not implemented here.
+    """
+
+    # Exactly the entries with repo=null as of the 2026-08-20 remediation.
+    # Do not add new names here without discussing in code review — see the
+    # class docstring, registry-audit-2026-08-18.md, and CHANGELOG.md.
+    # Removing a name (because the entry was given a real repo, or removed
+    # entirely) is always safe and expected as entries get remediated.
+    _LEGACY_REPO_NULL_ALLOWLIST: frozenset[str] = frozenset(
+        {
+            "mcp-server-mysql",
+            "mcp-server-postgres",
+            "mcp-server-terraform",
+        }
+    )
+
+    def test_new_repo_null_entries_must_join_the_allowlist(self) -> None:
+        """A new ``repo: null`` entry not in the allowlist fails the build.
+
+        This is the part that would have caught the original batch at review
+        time: adding 26 names to a hardcoded allowlist in a test file is a
+        conspicuous, must-explain diff, unlike a silent JSON-only addition.
+        """
+        raw = BUNDLED_REGISTRY_PATH.read_text(encoding="utf-8")
+        data = json.loads(raw)
+        repo_null_names = {e["name"] for e in data["entries"] if e.get("repo") is None}
+        unexpected = repo_null_names - self._LEGACY_REPO_NULL_ALLOWLIST
+        assert not unexpected, (
+            "New registry entr(y/ies) added with repo=null, not checked against "
+            f"the real package registry: {sorted(unexpected)}. Run "
+            "`python scripts/audit_registry.py` and either add a real, "
+            "verified `repo` URL, or add the name to "
+            "_LEGACY_REPO_NULL_ALLOWLIST in this test *only* after confirming "
+            "in code review that the gap is deliberate and acknowledged "
+            "(see registry-audit-2026-08-18.md for the kind of findings a "
+            "null repo can hide)."
+        )
+
+    def test_allowlist_does_not_contain_stale_names(self) -> None:
+        """Names should be removed from the allowlist once remediated.
+
+        Keeps the allowlist from silently rotting into "already-fixed names"
+        that no longer do any protective work.
+        """
+        raw = BUNDLED_REGISTRY_PATH.read_text(encoding="utf-8")
+        data = json.loads(raw)
+        repo_null_names = {e["name"] for e in data["entries"] if e.get("repo") is None}
+        stale = self._LEGACY_REPO_NULL_ALLOWLIST - repo_null_names
+        assert not stale, (
+            f"Allowlist entr(y/ies) no longer have repo=null: {sorted(stale)}. "
+            "Remove them from _LEGACY_REPO_NULL_ALLOWLIST — they were fixed "
+            "(or removed), so keeping them here just weakens the guard."
+        )
+
+
 # ── Name collision detection ──────────────────────────────────────────────────
 
 
@@ -868,9 +973,18 @@ class TestRegistryEntryMetadataFields:
         assert entry.publisher_history is None
 
     def test_bundled_registry_loads_without_error(self) -> None:
-        """Bundled registry loads cleanly with the new optional fields present."""
+        """Bundled registry loads cleanly with the new optional fields present.
+
+        The lower bound here is a loose sanity check, not a growth target —
+        the 2026-08-20 audit correction (see registry-audit-2026-08-18.md and
+        CHANGELOG.md) legitimately shrank the registry from 85 to 50 entries
+        by removing entries for packages that do not exist or were
+        misattributed. A registry entry count going down is not itself a
+        regression; this assertion just guards against the file failing to
+        load at all or losing the bulk of its content.
+        """
         registry = KnownServerRegistry()
-        assert len(registry.entries) >= 60
+        assert len(registry.entries) >= 40
         # Entries with metadata should deserialise correctly.
         enriched = [e for e in registry.entries if e.first_published is not None]
         for e in enriched:
