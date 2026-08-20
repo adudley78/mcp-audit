@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-08-18",
-  "entry_count": 85,
+  "last_updated": "2026-08-20",
+  "entry_count": 50,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -75,21 +75,6 @@
       "attestation_expected": true
     },
     {
-      "name": "@modelcontextprotocol/server-google-drive",
-      "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "official",
-        "google",
-        "remote"
-      ],
-      "attestation_expected": true
-    },
-    {
       "name": "@modelcontextprotocol/server-google-maps",
       "source": "npm",
       "repo": "https://github.com/modelcontextprotocol/servers",
@@ -138,24 +123,6 @@
       "known_hashes": {
         "0.6.2": "sha256:af55200a01b13ae31949fb4a8864ee6043b891d00ff83330d1779b18aa5ba26f"
       },
-      "capabilities": [
-        "database"
-      ],
-      "attestation_expected": true
-    },
-    {
-      "name": "@modelcontextprotocol/server-sqlite",
-      "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "official",
-        "database",
-        "local"
-      ],
       "capabilities": [
         "database"
       ],
@@ -220,30 +187,6 @@
       "attestation_expected": true
     },
     {
-      "name": "@modelcontextprotocol/server-fetch",
-      "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "official",
-        "http",
-        "local"
-      ],
-      "capabilities": [
-        "network_out"
-      ],
-      "first_published": "2024-11-14",
-      "weekly_downloads": 28600,
-      "publisher_history": [
-        "anthropic-bot",
-        "modelcontextprotocol"
-      ],
-      "attestation_expected": true
-    },
-    {
       "name": "@modelcontextprotocol/server-memory",
       "source": "npm",
       "repo": "https://github.com/modelcontextprotocol/servers",
@@ -263,22 +206,6 @@
         "anthropic-bot",
         "modelcontextprotocol"
       ],
-      "attestation_expected": true
-    },
-    {
-      "name": "@modelcontextprotocol/server-sequentialthinking",
-      "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "official",
-        "reasoning",
-        "local"
-      ],
-      "capabilities": [],
       "attestation_expected": true
     },
     {
@@ -317,21 +244,6 @@
       "attestation_expected": true
     },
     {
-      "name": "@modelcontextprotocol/server-sentry",
-      "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "official",
-        "monitoring",
-        "remote"
-      ],
-      "attestation_expected": true
-    },
-    {
       "name": "@modelcontextprotocol/server-sequential-thinking",
       "source": "npm",
       "repo": "https://github.com/modelcontextprotocol/servers",
@@ -345,25 +257,6 @@
         "local"
       ],
       "capabilities": [],
-      "attestation_expected": true
-    },
-    {
-      "name": "@modelcontextprotocol/server-git",
-      "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-04-20",
-      "known_versions": [],
-      "tags": [
-        "official",
-        "vcs",
-        "local"
-      ],
-      "capabilities": [
-        "git",
-        "file_read"
-      ],
       "attestation_expected": true
     },
     {
@@ -381,25 +274,6 @@
       ],
       "capabilities": [
         "file_read",
-        "network_out"
-      ],
-      "attestation_expected": true
-    },
-    {
-      "name": "@modelcontextprotocol/server-gmail",
-      "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-04-20",
-      "known_versions": [],
-      "tags": [
-        "official",
-        "email",
-        "remote"
-      ],
-      "capabilities": [
-        "email",
         "network_out"
       ],
       "attestation_expected": true
@@ -446,20 +320,6 @@
         "dev-tools"
       ],
       "attestation_expected": true
-    },
-    {
-      "name": "@anthropic-ai/mcp-server-puppeteer",
-      "source": "npm",
-      "repo": "https://github.com/anthropics/anthropic-sdk-python",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "official",
-        "browser",
-        "local"
-      ]
     },
     {
       "name": "mcp",
@@ -536,10 +396,10 @@
     {
       "name": "@supabase/mcp-server-supabase",
       "source": "npm",
-      "repo": "https://github.com/supabase-community/supabase-mcp",
+      "repo": "https://github.com/supabase/mcp",
       "maintainer": "Supabase",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "database",
@@ -562,10 +422,10 @@
     {
       "name": "@stripe/agent-toolkit",
       "source": "npm",
-      "repo": "https://github.com/stripe/agent-toolkit",
+      "repo": "https://github.com/stripe/ai",
       "maintainer": "Stripe",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "payments",
@@ -576,19 +436,6 @@
       "publisher_history": [
         "stripe-bot",
         "stripe"
-      ]
-    },
-    {
-      "name": "mcp-server-playwright",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "browser",
-        "local"
       ]
     },
     {
@@ -607,10 +454,10 @@
     {
       "name": "mcp-server-docker",
       "source": "npm",
-      "repo": null,
-      "maintainer": "community",
+      "repo": "https://github.com/adamdude828/mcp-server-docker",
+      "maintainer": "aholsinger",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "docker",
@@ -620,10 +467,10 @@
     {
       "name": "mcp-server-kubernetes",
       "source": "npm",
-      "repo": null,
-      "maintainer": "community",
+      "repo": "https://github.com/Flux159/mcp-server-kubernetes",
+      "maintainer": "flux159",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "kubernetes",
@@ -633,144 +480,14 @@
     {
       "name": "mcp-server-linear",
       "source": "npm",
-      "repo": null,
-      "maintainer": "community",
+      "repo": "https://github.com/dvcrn/mcp-server-linear",
+      "maintainer": "dvcrn",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "project-management",
         "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-notion",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "productivity",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-obsidian",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "notes",
-        "local"
-      ]
-    },
-    {
-      "name": "mcp-server-jira",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "project-management",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-confluence",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "docs",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-datadog",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "monitoring",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-aws",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "cloud",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-gcp",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "cloud",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-azure",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "cloud",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-redis",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "database",
-        "local"
-      ]
-    },
-    {
-      "name": "mcp-server-mongodb",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "database",
-        "local"
       ]
     },
     {
@@ -800,123 +517,6 @@
       ]
     },
     {
-      "name": "mcp-server-time",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "utility",
-        "local"
-      ]
-    },
-    {
-      "name": "mcp-server-stripe",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "payments",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-zendesk",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "support",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-newrelic",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "monitoring",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-pagerduty",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "monitoring",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-heroku",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "cloud",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-vercel",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "cloud",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-supabase",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "database",
-        "remote"
-      ]
-    },
-    {
-      "name": "mcp-server-firebase",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-15",
-      "known_versions": [],
-      "tags": [
-        "database",
-        "remote"
-      ]
-    },
-    {
       "name": "mcp-server-terraform",
       "source": "npm",
       "repo": null,
@@ -927,24 +527,6 @@
       "tags": [
         "cloud",
         "local"
-      ]
-    },
-    {
-      "name": "@linear/mcp-server",
-      "source": "npm",
-      "repo": "https://github.com/linear/linear",
-      "maintainer": "Linear",
-      "verified": false,
-      "last_verified": "2026-04-23",
-      "known_versions": [],
-      "tags": [
-        "project-management",
-        "remote"
-      ],
-      "first_published": "2025-03-12",
-      "weekly_downloads": 6300,
-      "publisher_history": [
-        "linear-bot"
       ]
     },
     {
@@ -966,71 +548,12 @@
       ]
     },
     {
-      "name": "@notion/mcp-server",
-      "source": "npm",
-      "repo": "https://github.com/makenotion/notion-mcp-server",
-      "maintainer": "Notion",
-      "verified": false,
-      "last_verified": "2026-04-23",
-      "known_versions": [],
-      "tags": [
-        "productivity",
-        "remote"
-      ],
-      "first_published": "2025-03-28",
-      "weekly_downloads": 4700,
-      "publisher_history": [
-        "notion-bot"
-      ]
-    },
-    {
-      "name": "mcp-perplexity",
-      "source": "npm",
-      "repo": null,
-      "maintainer": "community",
-      "verified": false,
-      "last_verified": "2026-04-23",
-      "known_versions": [],
-      "tags": [
-        "search",
-        "remote"
-      ],
-      "first_published": "2025-01-09",
-      "weekly_downloads": 2200,
-      "publisher_history": [
-        "perplexity-ai"
-      ]
-    },
-    {
-      "name": "@github/github-mcp-server",
-      "source": "npm",
-      "repo": "https://github.com/github/github-mcp-server",
-      "maintainer": "GitHub",
-      "verified": false,
-      "last_verified": "2026-05-02",
-      "known_versions": [],
-      "tags": [
-        "github",
-        "vcs",
-        "remote"
-      ],
-      "capabilities": [
-        "git",
-        "network_out"
-      ],
-      "first_published": "2025-03-20",
-      "weekly_downloads": 15800,
-      "publisher_history": [
-        "github-actions"
-      ]
-    },
-    {
       "name": "@playwright/mcp",
       "source": "npm",
       "repo": "https://github.com/microsoft/playwright-mcp",
       "maintainer": "Microsoft",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "browser",
@@ -1072,10 +595,10 @@
     {
       "name": "firecrawl-mcp",
       "source": "npm",
-      "repo": "https://github.com/mendableai/firecrawl-mcp-server",
-      "maintainer": "Firecrawl",
+      "repo": "https://github.com/firecrawl/firecrawl-mcp-server",
+      "maintainer": "hello_sideguide",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "scraping",
@@ -1213,10 +736,10 @@
     {
       "name": "@azure/mcp",
       "source": "npm",
-      "repo": "https://github.com/Azure/azure-mcp",
+      "repo": "https://github.com/microsoft/mcp",
       "maintainer": "Microsoft",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "cloud",
@@ -1258,32 +781,6 @@
       ]
     },
     {
-      "name": "mcp-server-filesystem",
-      "source": "pip",
-      "package_ecosystem": "pypi",
-      "repo": "https://github.com/modelcontextprotocol/servers",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-05-17",
-      "known_versions": [],
-      "tags": [
-        "official",
-        "filesystem",
-        "local"
-      ],
-      "capabilities": [
-        "file_read",
-        "file_write"
-      ],
-      "first_published": "2024-11-14",
-      "weekly_downloads": 18900,
-      "publisher_history": [
-        "anthropic-bot",
-        "modelcontextprotocol"
-      ],
-      "attestation_expected": true
-    },
-    {
       "name": "mcp-server-git",
       "source": "pip",
       "package_ecosystem": "pypi",
@@ -1312,10 +809,10 @@
       "name": "mcp-server-postgres",
       "source": "pip",
       "package_ecosystem": "pypi",
-      "repo": "https://github.com/modelcontextprotocol/servers",
-      "maintainer": "Anthropic",
-      "verified": true,
-      "last_verified": "2026-05-17",
+      "repo": null,
+      "maintainer": "unknown \u2014 publisher does not match declared Anthropic attribution",
+      "verified": false,
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "official",
@@ -1332,53 +829,6 @@
         "modelcontextprotocol"
       ],
       "attestation_expected": true
-    },
-    {
-      "name": "nginx-ui-mcp",
-      "source": "npm",
-      "package_ecosystem": "npm",
-      "repo": "https://github.com/0xJacky/nginx-ui",
-      "maintainer": "0xJacky",
-      "verified": false,
-      "last_verified": "2026-05-30",
-      "known_versions": [],
-      "tags": [
-        "third-party",
-        "infrastructure",
-        "network"
-      ],
-      "capabilities": [
-        "network",
-        "filesystem"
-      ],
-      "first_published": null,
-      "weekly_downloads": null,
-      "publisher_history": [],
-      "attestation_expected": false,
-      "known_vulnerabilities": [
-        "CVE-2026-33032"
-      ]
-    },
-    {
-      "name": "@microsoft/mcp-server",
-      "source": "npm",
-      "package_ecosystem": "npm",
-      "repo": "https://github.com/microsoft/mcp-server",
-      "maintainer": "Microsoft",
-      "verified": false,
-      "last_verified": "2026-05-30",
-      "known_versions": [],
-      "tags": [
-        "third-party",
-        "enterprise"
-      ],
-      "capabilities": [],
-      "first_published": null,
-      "weekly_downloads": null,
-      "publisher_history": [
-        "microsoft"
-      ],
-      "attestation_expected": false
     },
     {
       "name": "@mcpjam/inspector",
@@ -1410,10 +860,10 @@
     {
       "name": "gemini-mcp-tool",
       "source": "npm",
-      "repo": "https://github.com/google-gemini/gemini-mcp-tool",
-      "maintainer": "community",
+      "repo": "https://github.com/jamubc/gemini-mcp-tool",
+      "maintainer": "filecrop",
       "verified": false,
-      "last_verified": "2026-06-13",
+      "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
         "ai",
