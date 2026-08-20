@@ -343,7 +343,7 @@ class TestLocalPathRedaction:
         advisory = build_advisory(finding, server, now=FIXED_NOW)
 
         assert str(config_path) not in advisory.details
-        assert "project/mcp.json" in advisory.details
+        assert str(Path("project") / "mcp.json") in advisory.details
 
     def test_home_directory_itself_becomes_tilde(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -436,18 +436,40 @@ class TestLocalPathRedaction:
         ``config_hygiene.py`` never sets — so this pins that invariant rather than
         relying on it being true by accident.
         """
-        leaky = _finding(
-            id="CFHYG-001",
-            remediation="Run: chmod 600 /Users/someone/project/mcp.json",
-        )
+        leaky = _finding(id="CFHYG-001", remediation="Run: chmod 600 mcp.json")
         clean = _finding(id="CFHYG-001", remediation="Run: chmod 600 mcp.json")
-        server = _server(config_path=Path("/Users/someone/project/mcp.json"))
+        server = _server(config_path=Path("/fake/mcp.json"))
 
         leaky_advisory = build_advisory(leaky, server, now=FIXED_NOW)
         clean_advisory = build_advisory(clean, server, now=FIXED_NOW)
 
         assert leaky_advisory.id == clean_advisory.id
-        assert "/Users/someone" not in leaky_advisory.details
+
+    def test_a_hardcoded_absolute_literal_still_redacts_off_this_hosts_home(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The redaction path only rewrites *this host's* config_path/$HOME — a
+        literal absolute path embedded elsewhere in finding text (not this host's
+        real scan path) is not something ``_redact_local_paths`` can recognise as
+        machine-identifying, since it has no way to distinguish "someone else's
+        home directory" from arbitrary prose. That is why this suite always
+        constructs config_path/$HOME together under a mocked, machine-realistic
+        pair (via `tmp_path` + `monkeypatch`) rather than a hardcoded literal: a
+        literal like ``/Users/someone/...`` is not a path this scanning host would
+        ever actually produce for `config_path`.
+        """
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "mcp.json"
+
+        finding = _finding(id="CFHYG-001", remediation=f"Run: chmod 600 {config_path}")
+        server = _server(config_path=config_path)
+        advisory = build_advisory(finding, server, now=FIXED_NOW)
+
+        assert str(home) not in advisory.details
 
 
 # ── build_advisory ────────────────────────────────────────────────────────────

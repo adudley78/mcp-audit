@@ -221,6 +221,15 @@ def _redact_local_paths(text: str, config_path: Path) -> str:
     case: never a leak, at the cost of exact reproducibility across two hosts whose
     container mounts disagree — the same caveat any tool's relative-path output
     would carry there.
+
+    Scope: this protects *this* invocation's own operator (``$HOME``), which is
+    what "mcp-audit leaks the local username" means for the overwhelmingly common
+    case of scanning your own client configs. It does not scrub an unrelated
+    username that happens to appear in a *different* user's directory named in an
+    explicitly-scanned path outside ``$HOME`` (e.g. ``--project`` pointed at
+    another account's shared project on a multi-user host) — recognising an
+    arbitrary OS username anywhere in a string is a different, open-ended problem
+    from redacting the one home directory this process can name authoritatively.
     """
     try:
         home: Path | None = Path.home()
