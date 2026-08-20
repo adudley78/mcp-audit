@@ -24,7 +24,7 @@ jobs:
         # Pin to a published release tag.  Switch to `@v1` once a major v1.x
         # release exists on GitHub Marketplace (the `v1` ref will then track
         # the latest 1.x release automatically).
-        uses: adudley78/mcp-audit@78ee9eca979351f43ced3e68ac53b1dd74b4c6c1 # v0.11.0
+        uses: adudley78/mcp-audit@1959b4922fe8b6ef4fea95b8326f574f157088d7 # v0.14.1
         with:
           severity-threshold: high
           upload-sarif: 'true'
