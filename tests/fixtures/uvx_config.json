@@ -2,19 +2,19 @@
   "mcpServers": {
     "typosquat-uvx": {
       "command": "uvx",
-      "args": ["mcp-server-fliesystem"]
+      "args": ["mcp-server-fethc"]
     },
     "known-good-uvx": {
       "command": "uvx",
-      "args": ["mcp-server-filesystem"]
+      "args": ["mcp-server-fetch"]
     },
     "pipx-typosquat": {
       "command": "pipx",
-      "args": ["run", "mcp-server-fliesystem"]
+      "args": ["run", "mcp-server-fethc"]
     },
     "python-m-typosquat": {
       "command": "python",
-      "args": ["-m", "mcp_server_fliesystem"]
+      "args": ["-m", "mcp_server_fethc"]
     }
   }
 }
