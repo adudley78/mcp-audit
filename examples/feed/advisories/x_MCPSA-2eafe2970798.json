@@ -36,7 +36,7 @@
       ]
     }
   ],
-  "details": "The MCP config file has world-readable permissions. Any process running on this machine — including supply-chain malware — can read credentials embedded in the file. The Bitwarden npm incident (2026-04-22) explicitly targeted these files as its primary credential-cache. Evidence: Config file permissions: 0o100644 Remediation: Run: chmod 600 /Users/MacBookAir/Projects/mcp-audit/fixtures/vulnerable-servers/unsafe-shell-runner.json Detected by mcp-audit rule CFHYG-001 (config_hygiene analyzer, severity HIGH).",
+  "details": "The MCP config file has world-readable permissions. Any process running on this machine — including supply-chain malware — can read credentials embedded in the file. The Bitwarden npm incident (2026-04-22) explicitly targeted these files as its primary credential-cache. Evidence: Config file permissions: 0o100644 Remediation: Run: chmod 600 fixtures/vulnerable-servers/unsafe-shell-runner.json Detected by mcp-audit rule CFHYG-001 (config_hygiene analyzer, severity HIGH).",
   "id": "x_MCPSA-2eafe2970798",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",

@@ -138,7 +138,7 @@
           ]
         }
       ],
-      "canonical_sha256": "411cb42da598b6066736555b0e2dcfbd258e2fe34e0d73f3b58ee291c800898e",
+      "canonical_sha256": "3c69c8563ec4c49764a93ab1fd8de4af716fdfaa41412fb3781a801f9770d8c7",
       "id": "x_MCPSA-2eafe2970798",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
@@ -607,7 +607,7 @@
           ]
         }
       ],
-      "canonical_sha256": "31a3c396e9fc9a076d2ab1b8383575049c178c8380fd168fda4d1d1306d5b392",
+      "canonical_sha256": "76aa7a63c361046e0c741e9e07e5e95579311b6d4cbddac8a5c448ea45031007",
       "id": "x_MCPSA-8502a2645df4",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
@@ -966,7 +966,7 @@
           ]
         }
       ],
-      "canonical_sha256": "f86ba68bb8c32793ac25e59f14c61b45416e7ba8a68fe286844538b4a242f9fe",
+      "canonical_sha256": "b07c664828a1840c813480fdfc8242c9f2136e1333d3d4f707a7453b948b4b59",
       "id": "x_MCPSA-ca5a39c71bf3",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
