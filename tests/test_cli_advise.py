@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -350,6 +351,19 @@ class TestFeedVerify:
 # ── examples/feed drift detection ────────────────────────────────────────────
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason=(
+        "config_hygiene.py's CFHYG-001/002 permission checks are documented as "
+        "POSIX-only (st_mode bits do not represent Windows ACL semantics) and are "
+        "unconditionally skipped on Windows. The committed examples/feed/ includes "
+        "three CFHYG-001 advisories from the fixture set, so a fresh Windows run "
+        "can never reproduce it byte-for-byte — that is an intentional platform "
+        "difference in the underlying scan, not feed drift. See TestLocalPathRedaction "
+        "in test_advisory_feed.py for platform-independent coverage of the redaction "
+        "logic this test would otherwise also be exercising."
+    ),
+)
 class TestExamplesFeedIsCurrent:
     """`examples/feed/` is a committed, hand-inspectable artifact, not something CI
     generates fresh — so if it drifts from what today's code actually produces (an
