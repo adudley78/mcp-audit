@@ -4,11 +4,11 @@
       "database_specific": {
         "cvss_basis": "severity-band",
         "finding_class": "excessive-scope",
-        "mcp_audit_rule_id": "COMM-034",
+        "mcp_audit_rule_id": "COMM-011",
         "mcp_transport": "stdio",
         "observation": "deployment",
         "owasp_mcp": [
-          "MCP06"
+          "MCP02"
         ],
         "verified_patch": {
           "cosign_bundle": null,
@@ -33,8 +33,8 @@
       ]
     }
   ],
-  "details": "Server 'shell-runner' has an env var with a broad-scope credential pattern ('ADMIN_') — god key risk. A god key turns any other finding in this scan from interesting to catastrophic: an attacker who reaches this server inherits the full permissions of this credential. Scope this credential to only the operations this server requires. Reference: CIS Controls v8.1; CoSAI Zero Standing Privilege; Security Boulevard \"Addressing the God Key Challenge\" (March 2026). Evidence: rule:COMM-034; matched: ADMIN_ Remediation: Review the rule 'COMM-034' (Overprivileged MCP server credential (potential god key)) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-034 (rules analyzer, severity MEDIUM).",
-  "id": "x_MCPSA-2026-591f00712156",
+  "details": "Server 'shell-runner' uses broad Deno permission flags: --allow-all Evidence: rule:COMM-011; matched: --allow-all Remediation: Review the rule 'COMM-011' (Broad Deno permission flags in use) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-011 (rules analyzer, severity MEDIUM).",
+  "id": "x_MCPSA-ffd17914efb0",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [
@@ -50,5 +50,5 @@
       "type": "CVSS_V3"
     }
   ],
-  "summary": "Overprivileged MCP server credential (potential god key)"
+  "summary": "Broad Deno permission flags in use"
 }

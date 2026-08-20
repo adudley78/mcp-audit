@@ -20,15 +20,15 @@
         }
       },
       "package": {
-        "ecosystem": "npm",
-        "name": "@modelcontextprotocol/server-filesytem",
-        "purl": "pkg:npm/@modelcontextprotocol/server-filesytem"
+        "ecosystem": "PyPI",
+        "name": "mcp-audit-fixture-shell-runner",
+        "purl": "pkg:pypi/mcp-audit-fixture-shell-runner"
       },
       "ranges": [
         {
           "events": [
             {
-              "introduced": "0"
+              "introduced": "0.3.1"
             }
           ],
           "type": "SEMVER"
@@ -36,8 +36,8 @@
       ]
     }
   ],
-  "details": "Server uses npx which downloads packages at runtime Evidence: Command: npx -y @modelcontextprotocol/server-filesytem /Users/shared Remediation: Install packages locally and reference the installed binary instead Detected by mcp-audit rule TRANSPORT-003 (transport analyzer, severity MEDIUM).",
-  "id": "x_MCPSA-2026-fdf85e30ecea",
+  "details": "Server uses uvx which downloads packages at runtime Evidence: Command: uvx mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" Remediation: Install packages locally and reference the installed binary instead Detected by mcp-audit rule TRANSPORT-003 (transport analyzer, severity MEDIUM).",
+  "id": "x_MCPSA-4deda91e4e28",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [

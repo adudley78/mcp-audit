@@ -3,15 +3,13 @@
     {
       "database_specific": {
         "cvss_basis": "severity-band",
-        "cwe_ids": [
-          "CWE-732"
-        ],
-        "finding_class": "config-hygiene",
-        "mcp_audit_rule_id": "CFHYG-001",
+        "finding_class": "command-injection",
+        "mcp_audit_rule_id": "COMM-004",
         "mcp_transport": "stdio",
         "observation": "deployment",
         "owasp_mcp": [
-          "MCP01"
+          "MCP05",
+          "MCP09"
         ],
         "verified_patch": {
           "cosign_bundle": null,
@@ -36,8 +34,8 @@
       ]
     }
   ],
-  "details": "The MCP config file has world-readable permissions. Any process running on this machine — including supply-chain malware — can read credentials embedded in the file. The Bitwarden npm incident (2026-04-22) explicitly targeted these files as its primary credential-cache. Evidence: Config file permissions: 0o100644 Remediation: Run: chmod 600 /Users/MacBookAir/Projects/mcp-audit/fixtures/vulnerable-servers/typosquat-filesystem.json Detected by mcp-audit rule CFHYG-001 (config_hygiene analyzer, severity HIGH).",
-  "id": "x_MCPSA-2026-ca5a39c71bf3",
+  "details": "Server 'filesystem' uses stdio transport and is not in the known-server registry — verify the binary is trusted Evidence: rule:COMM-004; matched: stdio Remediation: Review the rule 'COMM-004' (Unrecognized stdio server binary) and the server configuration for 'filesystem'. Detected by mcp-audit rule COMM-004 (rules analyzer, severity LOW).",
+  "id": "x_MCPSA-c4d98262a4dc",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [
@@ -49,9 +47,9 @@
   "schema_version": "1.6.0",
   "severity": [
     {
-      "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N",
+      "score": "CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:U/C:L/I:N/A:N",
       "type": "CVSS_V3"
     }
   ],
-  "summary": "Config file is world-readable"
+  "summary": "Unrecognized stdio server binary"
 }

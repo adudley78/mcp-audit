@@ -347,6 +347,60 @@ class TestFeedVerify:
         assert "Unknown backend" in result.output
 
 
+# ── examples/feed drift detection ────────────────────────────────────────────
+
+
+class TestExamplesFeedIsCurrent:
+    """`examples/feed/` is a committed, hand-inspectable artifact, not something CI
+    generates fresh — so if it drifts from what today's code actually produces (an
+    id-scheme change, a canonicalization fix, a new finding class), nothing catches
+    that except a human noticing a stale diff. This regenerates the feed with the
+    exact command documented in `examples/feed/README.md` and fails the build on
+    any byte difference, instead of leaving format drift to sit silently.
+    """
+
+    def test_matches_freshly_generated_output(self, tmp_path: Path) -> None:
+        committed = REPO_ROOT / "examples" / "feed"
+        fresh = tmp_path / "feed"
+
+        result = _advise(
+            str(FIXTURES),
+            "--out",
+            str(fresh),
+            "--no-sign",
+            "--severity-threshold",
+            "info",
+        )
+        assert result.exit_code == 0, result.output
+
+        # README.md is hand-written documentation, not a generated artifact.
+        committed_files = {
+            p.relative_to(committed)
+            for p in committed.rglob("*")
+            if p.is_file() and p.name != "README.md"
+        }
+        fresh_files = {p.relative_to(fresh) for p in fresh.rglob("*") if p.is_file()}
+        only_committed = sorted(str(p) for p in committed_files - fresh_files)
+        only_fresh = sorted(str(p) for p in fresh_files - committed_files)
+        assert committed_files == fresh_files, (
+            "examples/feed/ has drifted from `mcp-audit advise` output. "
+            f"Only in examples/feed/: {only_committed}. Only in a fresh run: "
+            f"{only_fresh}. Regenerate with the command in examples/feed/README.md "
+            "and commit the result."
+        )
+
+        mismatched = sorted(
+            str(rel)
+            for rel in committed_files
+            if (committed / rel).read_bytes() != (fresh / rel).read_bytes()
+        )
+        assert not mismatched, (
+            f"examples/feed/ is stale relative to current code for: {mismatched}. "
+            "Regenerate with the command in examples/feed/README.md and commit "
+            "the result."
+        )
+
+
 def _count(feed_dir: Path) -> int:
     index = json.loads((feed_dir / "index.json").read_text(encoding="utf-8"))
     return int(index["count"])

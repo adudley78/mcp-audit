@@ -3,12 +3,13 @@
     {
       "database_specific": {
         "cvss_basis": "severity-band",
-        "finding_class": "unpinned-dependency",
-        "mcp_audit_rule_id": "COMM-010",
+        "finding_class": "command-injection",
+        "mcp_audit_rule_id": "COMM-004",
         "mcp_transport": "stdio",
         "observation": "deployment",
         "owasp_mcp": [
-          "MCP04"
+          "MCP05",
+          "MCP09"
         ],
         "verified_patch": {
           "cosign_bundle": null,
@@ -18,14 +19,14 @@
       },
       "package": {
         "ecosystem": "npm",
-        "name": "@modelcontextprotocol/server-filesytem",
-        "purl": "pkg:npm/@modelcontextprotocol/server-filesytem"
+        "name": "mcp-audit-fixture-github-server",
+        "purl": "pkg:npm/mcp-audit-fixture-github-server"
       },
       "ranges": [
         {
           "events": [
             {
-              "introduced": "0"
+              "introduced": "1.0.0"
             }
           ],
           "type": "SEMVER"
@@ -33,21 +34,14 @@
       ]
     }
   ],
-  "aliases": [
-    "CVE-2025-49596"
-  ],
-  "details": "Server 'filesystem' uses npx without a pinned version — supply chain risk Evidence: rule:COMM-010; matched: npx Remediation: Review the rule 'COMM-010' (npx used without pinned version) and the server configuration for 'filesystem'. Detected by mcp-audit rule COMM-010 (rules analyzer, severity LOW).",
-  "id": "x_MCPSA-2026-20ce54c348dd",
+  "details": "Server 'github' uses stdio transport and is not in the known-server registry — verify the binary is trusted Evidence: rule:COMM-004; matched: stdio Remediation: Review the rule 'COMM-004' (Unrecognized stdio server binary) and the server configuration for 'github'. Detected by mcp-audit rule COMM-004 (rules analyzer, severity LOW).",
+  "id": "x_MCPSA-8de3fc9126e5",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [
     {
       "type": "WEB",
       "url": "https://owasp.org/www-project-mcp-top-10/"
-    },
-    {
-      "type": "ADVISORY",
-      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49596"
     }
   ],
   "schema_version": "1.6.0",
@@ -57,5 +51,5 @@
       "type": "CVSS_V3"
     }
   ],
-  "summary": "npx used without pinned version"
+  "summary": "Unrecognized stdio server binary"
 }

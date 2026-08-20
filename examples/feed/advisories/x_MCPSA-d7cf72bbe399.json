@@ -37,7 +37,7 @@
     }
   ],
   "details": "Package '@modelcontextprotocol/server-filesytem' is 1 edit(s) away from the known-legitimate package '@modelcontextprotocol/server-filesystem' (maintainer: Anthropic, verified; first published 2024-11-14; ~42,800 weekly downloads). This pattern is consistent with a typosquatting supply-chain attack. Evidence: command: npx -y @modelcontextprotocol/server-filesytem /Users/shared | closest: '@modelcontextprotocol/server-filesystem' (maintainer=Anthropic, verified=True) Remediation: Verify '@modelcontextprotocol/server-filesytem' is intentional. If you meant '@modelcontextprotocol/server-filesystem', correct the configuration. Inspect the package's npm page and source repository before trusting it. Detected by mcp-audit rule SC-001 (supply_chain analyzer, severity CRITICAL).",
-  "id": "x_MCPSA-2026-d7cf72bbe399",
+  "id": "x_MCPSA-d7cf72bbe399",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [

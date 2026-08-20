@@ -3,12 +3,12 @@
     {
       "database_specific": {
         "cvss_basis": "severity-band",
-        "finding_class": "hardcoded-secret",
-        "mcp_audit_rule_id": "COMM-022",
+        "finding_class": "excessive-scope",
+        "mcp_audit_rule_id": "COMM-034",
         "mcp_transport": "stdio",
         "observation": "deployment",
         "owasp_mcp": [
-          "MCP02"
+          "MCP06"
         ],
         "verified_patch": {
           "cosign_bundle": null,
@@ -33,8 +33,8 @@
       ]
     }
   ],
-  "details": "Server 'github' exposes an env key suggesting an access token: _TOKEN Evidence: rule:COMM-022; matched: _TOKEN Remediation: Review the rule 'COMM-022' (Env key name suggests access token) and the server configuration for 'github'. Detected by mcp-audit rule COMM-022 (rules analyzer, severity MEDIUM).",
-  "id": "x_MCPSA-2026-8b9f60e8b8f0",
+  "details": "Server 'github' has an env var with a broad-scope credential pattern ('GITHUB_TOKEN') — god key risk. A god key turns any other finding in this scan from interesting to catastrophic: an attacker who reaches this server inherits the full permissions of this credential. Scope this credential to only the operations this server requires. Reference: CIS Controls v8.1; CoSAI Zero Standing Privilege; Security Boulevard \"Addressing the God Key Challenge\" (March 2026). Evidence: rule:COMM-034; matched: GITHUB_TOKEN Remediation: Review the rule 'COMM-034' (Overprivileged MCP server credential (potential god key)) and the server configuration for 'github'. Detected by mcp-audit rule COMM-034 (rules analyzer, severity MEDIUM).",
+  "id": "x_MCPSA-d04e8112d65c",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [
@@ -50,5 +50,5 @@
       "type": "CVSS_V3"
     }
   ],
-  "summary": "Env key name suggests access token"
+  "summary": "Overprivileged MCP server credential (potential god key)"
 }
