@@ -1,0 +1,54 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "cvss_basis": "severity-band",
+        "finding_class": "excessive-scope",
+        "mcp_audit_rule_id": "COMM-011",
+        "mcp_transport": "stdio",
+        "observation": "deployment",
+        "owasp_mcp": [
+          "MCP02"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "PyPI",
+        "name": "mcp-audit-fixture-shell-runner",
+        "purl": "pkg:pypi/mcp-audit-fixture-shell-runner"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "0.3.1"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "details": "Server 'shell-runner' uses broad Deno permission flags: --allow-all Evidence: rule:COMM-011; matched: --allow-all Remediation: Review the rule 'COMM-011' (Broad Deno permission flags in use) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-011 (rules analyzer, severity MEDIUM).",
+  "id": "x_MCPSA-2026-ffd17914efb0",
+  "modified": "2026-01-31T00:00:00Z",
+  "published": "2026-01-31T00:00:00Z",
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "Broad Deno permission flags in use"
+}

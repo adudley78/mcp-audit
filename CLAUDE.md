@@ -68,6 +68,7 @@ src/mcp_audit/
 │   │                    #   `_print_fleet_report`)
 │   ├── push_nucleus.py  # push-nucleus command: scan + push to Nucleus FlexConnect API
 │   ├── register.py      # register command: interactive opt-in flow, --clear, --status
+│   ├── advise.py        # advise command + feed sub-app (feed verify): OSV advisory feed
 │   └── version.py       # version command
 ├── scanner.py         # Orchestrator: discovery → parsing → analysis → output
 ├── scoring.py         # Scan score calculation (0–100) and letter grade (A–F) formatting
@@ -97,6 +98,15 @@ src/mcp_audit/
 │   ├── models.py      # AgentFile dataclass, AgentFileSurface StrEnum
 │   ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions)
 │   └── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked). NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+├── advisory/          # OSV 1.6.0 advisory records + signed feed (mcp-audit advise / feed verify)
+│   ├── __init__.py    # Package marker; re-exports Advisory, build_advisory, write_feed, sign_feed, verify_feed
+│   ├── schema.py      # Advisory dataclass → OSV 1.6.0 JSON; stable `x_MCPSA-YYYY-<12hex>` IDs; MCP metadata under affected[].database_specific; FINDING_CLASS_TO_OWASP + owasp_for(); rejects codes owasp_mcp.py does not define
+│   ├── classify.py    # finding ID → finding_class / observation / CVSS 3.1 vector (cvss_base_score reconciliation); owasp_codes_for() validates against owasp_mcp.py; is_advisable() excludes non-vulnerability findings
+│   ├── canonical.py   # RFC 8785 JCS canonicalization (UTF-16 key order, ECMAScript number format) — the bytes that get signed
+│   ├── feed.py        # build_advisory / build_advisories / write_feed (advisories/, index.json, osv/all.json+zip); resolve_package, redact
+│   ├── sign.py        # cosign (default) + minisign backends, static project key; sign_feed / verify_feed / feed_is_signed; signing block embedded in index.json
+│   ├── validate.py    # validate_osv() against the vendored schema; ValidationUnavailableError when jsonschema is absent
+│   └── osv_schema/    # Vendored osv-1.6.0.json — pinned, offline, bundled in wheel and PyInstaller binary
 ├── attestation/       # Supply-chain integrity verification (Layer 1 hashes, Layer 2 Sigstore)
 │   ├── __init__.py    # Package marker
 │   ├── hasher.py      # HashResult dataclass; compute_hash_from_file/url; resolve_npm/pip_tarball_url; verify_package_hash
@@ -164,6 +174,7 @@ src/mcp_audit/
 │   ├── nucleus.py     # Nucleus FlexConnect formatter
 │   ├── dashboard.py   # Self-contained HTML dashboard with embedded D3 v7 graph and grade badge
 │   ├── check.py       # One-page security verdict formatter for `mcp-audit check` (_HINTS)
+│   ├── advisory.py    # AdvisoryFormatter(BaseFormatter) — ScanResult → JSON array of OSV 1.6.0 records; byte-identical to feed/osv/all.json (feed *directories* stay in advisory/feed.py)
 │   ├── cyclonedx.py   # CycloneDX SBOM formatter (supports cyclonedx-python-lib 7.x–11.x)
 │   ├── snapshot.py    # Snapshot formatters: CycloneDX AI/ML-BOM and native JSON
 │   └── pdf.py         # Letter-size PDF compliance report (mcp-audit scan --report pdf)
@@ -278,6 +289,91 @@ Build and distribution scripts at project root:
 - **Governance policy resolution order** when `--policy` is not given: explicit flag → cwd → git repo root → `<user-config-dir>/mcp-audit/policy.yml` (resolved via `platformdirs`). Returns `None` (no check) if no file found.
 - `scan --verify-hashes` downloads package tarballs and verifies SHA-256 against `known_hashes` pins in the registry; requires network; free for all tiers; findings appended to `result.findings` after the scan.
 
+## Advisory feed invariants
+
+The advisory feed is a published, externally-consumed artifact. Breaking any of the
+following silently breaks downstream consumers, so treat them as contract:
+
+- **Determinism is the whole product.** The same finding must produce byte-identical
+  advisory JSON on every host, forever. Advisory IDs are derived from ecosystem +
+  package + rule ID + finding class (+ normalized location when set) — never from a
+  filesystem path, hostname, or timestamp. Timestamps come from `--published-at`,
+  then `SOURCE_DATE_EPOCH`, and only then wall-clock; never call `datetime.now()`
+  inside `build_advisory`.
+- **`canonical.py` implements RFC 8785, not "JSON with sorted keys".** Object keys
+  sort by UTF-16 code unit (not code point) and numbers use ECMAScript
+  `Number::toString`. These differ from `json.dumps(sort_keys=True)` for non-BMP keys
+  and for floats. Signatures are over canonical bytes, so any change here invalidates
+  every published signature.
+- **`src/mcp_audit/owasp_mcp.py` is the only definition of the OWASP MCP Top 10.**
+  The advisory package must never hold its own copy of the code list. It publishes the
+  bare `MCP01`..`MCP10` form that SARIF output and `docs/owasp-mapping.json` already
+  use, so records join to the rest of mcp-audit's output without translation, and
+  `scripts/validate_owasp_mapping.py` stays the single CI gate. `owasp_codes_for()`
+  validates against `owasp_mcp.py` and drops anything unrecognised; `Advisory` raises
+  on an unknown code. A finding with no clean mapping gets `owasp_mcp: []` and an
+  `owasp_mcp_todo` string — it does not get a guessed code. Two tests enforce this: an
+  AST scan for year-suffixed codes in the advisory package's *code* (docstrings are
+  exempt — `owasp_codes_for` documents that it accepts that form on input), and a check
+  that `mcp_audit.advisory.owasp` stays deleted.
+- **The index is the integrity root.** `index.json` records a `canonical_sha256` per
+  advisory plus the `signing` block, and is itself signed. `verify_feed` re-canonicalizes
+  each advisory, checks its digest against the signed index, verifies its signature, and
+  fails on any advisory file present on disk but absent from the index. Do not add a
+  verification path that trusts a per-advisory signature alone — that would let an
+  attacker swap in a differently-but-validly signed record.
+- **Publishing is two-phase.** `write_feed()` emits the unsigned index; `sign_feed()`
+  rewrites it with the `signing` block and then signs it. Determinism assertions must
+  compare pre-signing output.
+- **A feed is signed with a static project key, not Sigstore keyless.** This is the
+  documented divergence from `snapshot --sign`, and it is threat-model driven: a
+  snapshot is a one-off forensic artifact verified online where the human identity is
+  the evidence; a feed is consumed offline, reproducibly, against a stable *project*
+  identity. `advise --sign` therefore requires `--key` / `$MCP_AUDIT_SIGNING_KEY` and
+  fails fast via `SigningConfig.require_signing_key()` before writing any signature.
+  `--keyless` stays reachable for one-off attestations but must never become the
+  default. Do not re-point this at `sigstore-python`: it is keyless-only, cannot use a
+  static key, and is excluded from the PyInstaller binary.
+- **cosign and minisign are optional external tools.** A missing backend degrades
+  exactly like a missing semgrep in `sast/runner.py` — an actionable message naming
+  the install step and `--no-sign`, never a traceback. Never vendor the crypto into
+  the binary to avoid this.
+- **Signatures stay detached and over canonical bytes, so rotation never rewrites a
+  record.** Nothing signature-shaped is ever stored inside an advisory, and the signed
+  payload is the JCS canonicalization rather than the on-disk file. Together these make
+  a key rotation invisible to anyone consuming records instead of signatures — IDs,
+  digests, and bytes are unchanged, and mirrors see no diff. Inlining a signature or
+  certificate into a record would make every rotation churn the whole feed; signing raw
+  file bytes would freeze the feed into one byte layout and break re-serialising
+  mirrors. `TestRotationLeavesRecordsUntouched` in `tests/test_advisory_sign.py` pins
+  this; no other test would catch either regression.
+- **An unsigned feed is a supported artifact.** `examples/feed/` ships unsigned
+  because signing it reproducibly would mean committing a private key. `verify_feed`
+  reports `signed=False` and checks integrity only; tampering is still caught through
+  `canonical_sha256`. A feed whose index carries a `signing` block still *fails* when
+  a signature is missing, so this can never become a silent downgrade. The signing
+  path is proven by ephemeral-keypair tests in `tests/test_advisory_sign.py`.
+  **Until the project key is minted, `canonical_sha256` is the only integrity
+  guarantee consumers of the in-repo `examples/feed/` get** — no signature covers that
+  case today, so `test_a_mutated_record_still_fails_when_unsigned` is load-bearing
+  rather than redundant with the signed-feed tests. Do not weaken it.
+- **`x_MCPSA` prefix is deliberate.** OSV restricts `id` prefixes to a registered
+  allowlist plus the `x_` experimental namespace, so records validate today. Drop the
+  `x_` only once `MCPSA` is registered upstream.
+- **Not every finding is an advisory.** `classify.py::is_advisable()` excludes
+  informational/stateful IDs (RUGPULL-000/003, ATTEST-010/015, BL-001, COMM-000,
+  CFHYG-004). New non-vulnerability finding IDs belong in `NON_ADVISORY_IDS`.
+  `observation` distinguishes `package-intrinsic` (the package itself is affected)
+  from `deployment` (this installation is misconfigured) — consumers rely on it to
+  decide whether the record indicts the upstream package.
+- **Advisory prose is published to the world.** `feed.py::redact()` scrubs
+  `SECRET_PATTERNS` matches from summary/details before write. Any new field that
+  carries analyzer text must go through it.
+- **The OSV schema is vendored, not fetched.** `advisory/osv_schema/osv-1.6.0.json`
+  is pinned so validation is offline and stable. Bumping it is a deliberate act:
+  update `OSV_SCHEMA_VERSION`, re-run the round-trip tests, and re-sign the example
+  feed. All four PyInstaller specs and the wheel must keep bundling it.
+
 ## Governance vs Rule Engine
 
 The rule engine (`rules/`) pattern-matches inside server configs and produces `Finding` objects with `analyzer="rules"`. The governance engine (`governance/`) enforces *organisational requirements* — approved server lists, minimum scan scores, transport constraints, registry membership, finding tolerances — and produces `Finding` objects with `analyzer="governance"`. They are complementary: run together in every scan when a policy file is present.
@@ -367,10 +463,10 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 2511 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 2860 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
-- 25 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan) — verify with `mcp-audit --help` before each release
+- 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
 - **push-nucleus** — `mcp-audit push-nucleus --url <url> --project-id <id>` runs a scan and pushes results directly to a Nucleus Security project via the FlexConnect API; available to all users; multipart/form-data upload using `urllib.request` only; polls import job to completion; Rich summary panel on success; `--output-file` for local copy; validated against a live Nucleus instance (2026-04-23); see `docs/nucleus-integration.md`
 - **Fleet merge** — `mcp-audit merge [FILES...] [--dir DIRECTORY]` consolidates JSON scan outputs from multiple machines into a single fleet report; available to all users; supports terminal, JSON, and HTML output formats; deduplicates findings across machines by `(analyzer, server_name, title)`; see `docs/fleet-scanning.md`
 - **GitHub Action** — `action.yml` at repo root; composite action Marketplace-ready with `branding`, `config-paths`, `severity-threshold`, `sarif-output`, `upload-sarif`, `check-vulns`, `verify-signatures`, `run-sast`, `sast-path`, `baseline-name`, `fail-on-findings`, `version` inputs and `findings-count`, `grade`, `sarif-path` outputs; uploads SARIF to GitHub Code Scanning via `upload-sarif@v4` (continue-on-error so repos without Code Scanning still run cleanly); `.github/workflows/action-ci.yml` runs the composite against `demo/configs/` as a self-test on every PR; the Semgrep **rule pack** (`semgrep-rules/`) ships bundled in `mcp-audit-scanner`, but the Semgrep CLI binary itself is not — when `run-sast: 'true'` is set, the action installs Semgrep automatically (`pip install semgrep --quiet`) inside the SAST step, so users do not need a separate install step; see `docs/github-action.md`
@@ -408,6 +504,22 @@ What's built:
   (`models.py`, `discovery.py`, `analyzer.py`) and `src/mcp_audit/cli/agent_files.py`;
   see `docs/agent-files.md`. Unconfirmed surfaces (Windsurf, Augment, Kiro, `.claude/skills/`,
   user-global Copilot) tracked in `GAPS.md`.
+
+- **Advisory feed** — `mcp-audit advise <target>` turns scan findings into OSV
+  schema_version 1.6.0 advisory records and publishes them as a signed, verifiable
+  feed; `mcp-audit feed verify <dir>` checks it. There is no CVE/OSV/NVD equivalent
+  for MCP servers, so this is the canonical machine-readable feed other registries,
+  gateways, and scanners can consume. Core OSV fields are used verbatim; everything
+  MCP-specific lives under `affected[].database_specific` (`owasp_mcp`,
+  `mcp_transport`, `finding_class`, `mcp_audit_rule_id`, `verified_patch`,
+  `mcp_observation`, `cvss_basis`). Output layout: `advisories/<id>.json`,
+  `index.json`, and an osv-scanner-consumable `osv/all.json` + `osv/all.zip`.
+  Records are deterministic (stable content-derived IDs, no host paths, RFC 8785
+  canonical bytes) and signed with cosign using a **static project key** —
+  `--keyless` is opt-in and never the default, `--key-alt minisign` for
+  low-dependency environments. The committed `examples/feed/` is unsigned by
+  design (no private key in the repo); `feed verify` still checks its integrity.
+  See "Advisory feed invariants" below and `docs/advisory-feed.md`.
 
 What's next (non-code):
 - Disclose project to Nucleus colleagues, get expert feedback on detection logic

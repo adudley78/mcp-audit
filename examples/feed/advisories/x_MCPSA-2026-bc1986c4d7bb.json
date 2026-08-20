@@ -1,0 +1,61 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "cvss_basis": "severity-band",
+        "finding_class": "command-injection",
+        "mcp_audit_rule_id": "COMM-007",
+        "mcp_transport": "stdio",
+        "observation": "deployment",
+        "owasp_mcp": [
+          "MCP05"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "PyPI",
+        "name": "mcp-audit-fixture-shell-runner",
+        "purl": "pkg:pypi/mcp-audit-fixture-shell-runner"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "0.3.1"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "aliases": [
+    "CVE-2026-30615"
+  ],
+  "details": "Server 'shell-runner' passes eval/exec in args (CVE-2026-30615): exec Evidence: rule:COMM-007; matched: exec Remediation: Review the rule 'COMM-007' (eval or exec passed in args) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-007 (rules analyzer, severity HIGH).",
+  "id": "x_MCPSA-2026-bc1986c4d7bb",
+  "modified": "2026-01-31T00:00:00Z",
+  "published": "2026-01-31T00:00:00Z",
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    },
+    {
+      "type": "ADVISORY",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-30615"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "eval or exec passed in args"
+}
