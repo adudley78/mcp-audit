@@ -3,12 +3,12 @@
     {
       "database_specific": {
         "cvss_basis": "severity-band",
-        "finding_class": "excessive-scope",
-        "mcp_audit_rule_id": "COMM-011",
+        "finding_class": "command-injection",
+        "mcp_audit_rule_id": "COMM-007",
         "mcp_transport": "stdio",
         "observation": "deployment",
         "owasp_mcp": [
-          "MCP02"
+          "MCP05"
         ],
         "verified_patch": {
           "cosign_bundle": null,
@@ -33,22 +33,29 @@
       ]
     }
   ],
-  "details": "Server 'shell-runner' uses broad Deno permission flags: --allow-all Evidence: rule:COMM-011; matched: --allow-all Remediation: Review the rule 'COMM-011' (Broad Deno permission flags in use) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-011 (rules analyzer, severity MEDIUM).",
-  "id": "x_MCPSA-2026-ffd17914efb0",
+  "aliases": [
+    "CVE-2026-30615"
+  ],
+  "details": "Server 'shell-runner' passes eval/exec in args (CVE-2026-30615): exec Evidence: rule:COMM-007; matched: exec Remediation: Review the rule 'COMM-007' (eval or exec passed in args) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-007 (rules analyzer, severity HIGH).",
+  "id": "x_MCPSA-bc1986c4d7bb",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [
     {
       "type": "WEB",
       "url": "https://owasp.org/www-project-mcp-top-10/"
+    },
+    {
+      "type": "ADVISORY",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-30615"
     }
   ],
   "schema_version": "1.6.0",
   "severity": [
     {
-      "score": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+      "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N",
       "type": "CVSS_V3"
     }
   ],
-  "summary": "Broad Deno permission flags in use"
+  "summary": "eval or exec passed in args"
 }

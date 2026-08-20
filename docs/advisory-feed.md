@@ -26,9 +26,9 @@ feed/
 ├── index.json.sig
 ├── index.json.sigstore.json
 ├── advisories/
-│   ├── x_MCPSA-2026-<12 hex>.json      one OSV 1.6.0 record
-│   ├── x_MCPSA-2026-<12 hex>.json.sig
-│   └── x_MCPSA-2026-<12 hex>.json.sigstore.json
+│   ├── x_MCPSA-<12 hex>.json           one OSV 1.6.0 record
+│   ├── x_MCPSA-<12 hex>.json.sig
+│   └── x_MCPSA-<12 hex>.json.sigstore.json
 └── osv/
     ├── all.json                        every record as a JSON array
     ├── all.zip                         every record, zipped
@@ -116,14 +116,14 @@ Treat them as a starting point, not a scored analysis.
 
 ## Advisory IDs
 
-Format: `x_MCPSA-<year>-<12 hex>`.
+Format: `x_MCPSA-<12 hex>`.
 
 `MCPSA` is "MCP Security Advisory". The `x_` prefix is OSV's experimental namespace,
 used because OSV restricts un-prefixed `id` values to registered home databases;
 registering `MCPSA` upstream is the standards move that lets us drop it.
 
 The hex suffix is a SHA-256 digest of package ecosystem, package name, rule ID, finding
-class, introduced version, and — when present — the MCP tool name. Three consequences
+class, introduced version, and — when present — the MCP tool name. Four consequences
 follow:
 
 1. **Two hosts observing the same issue mint the same ID.** Nothing host-specific
@@ -131,8 +131,13 @@ follow:
 2. **No filesystem paths or usernames are involved.** mcp-audit is privacy-first, and a
    published ID derived from `/Users/<name>/...` would leak.
 3. **Rewriting prose does not fork a record.** Only identity fields participate.
+4. **No timestamp enters the basis either.** An earlier version embedded the
+   publication year, so the same recurring vulnerability advised on either side of a
+   UTC year boundary minted two different IDs — which breaks the exact thing an ID is
+   for: letting a consumer answer "have I seen this before?". The ID is a pure
+   function of identifying content, full stop.
 
-Sequential numbering (`MCPSA-2026-0001`) was rejected: it needs a central allocator,
+Sequential numbering (e.g. `MCPSA-0001`) was rejected: it needs a central allocator,
 which is exactly the coordination the digest avoids.
 
 ## Determinism
@@ -358,7 +363,7 @@ OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY="$PWD/feed/osv" \
 Loaded npm local db from feed/osv/osv-scanner/npm/all.zip
 Total 1 package affected by 8 known vulnerabilities (0 Critical, 4 High, 3 Medium, 1 Low)
 
-| https://osv.dev/x_MCPSA-2026-2fa2713d0891 | 8.6 | npm | mcp-audit-fixture-github-server | 1.0.0 |
+| https://osv.dev/x_MCPSA-2fa2713d0891 | 8.6 | npm | mcp-audit-fixture-github-server | 1.0.0 |
 ```
 
 osv-scanner looks for `{cache_dir}/osv-scanner/{ecosystem}/all.zip`, which is why the

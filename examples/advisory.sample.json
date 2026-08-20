@@ -32,7 +32,7 @@
     }
   ],
   "details": "The server ships a long-lived provider API token embedded in its default config, exposing the connected account if the agent context or debug logs leak. Use short-lived, scoped credentials supplied at runtime.",
-  "id": "x_MCPSA-2026-b5fcc194f099",
+  "id": "x_MCPSA-b5fcc194f099",
   "modified": "2026-07-30T12:51:11Z",
   "published": "2026-07-30T12:51:11Z",
   "references": [

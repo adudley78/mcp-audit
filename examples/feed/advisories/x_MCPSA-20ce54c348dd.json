@@ -18,14 +18,14 @@
       },
       "package": {
         "ecosystem": "npm",
-        "name": "mcp-audit-fixture-github-server",
-        "purl": "pkg:npm/mcp-audit-fixture-github-server"
+        "name": "@modelcontextprotocol/server-filesytem",
+        "purl": "pkg:npm/@modelcontextprotocol/server-filesytem"
       },
       "ranges": [
         {
           "events": [
             {
-              "introduced": "1.0.0"
+              "introduced": "0"
             }
           ],
           "type": "SEMVER"
@@ -36,8 +36,8 @@
   "aliases": [
     "CVE-2025-49596"
   ],
-  "details": "Server 'github' uses npx without a pinned version — supply chain risk Evidence: rule:COMM-010; matched: npx Remediation: Review the rule 'COMM-010' (npx used without pinned version) and the server configuration for 'github'. Detected by mcp-audit rule COMM-010 (rules analyzer, severity LOW).",
-  "id": "x_MCPSA-2026-15bb864c7eef",
+  "details": "Server 'filesystem' uses npx without a pinned version — supply chain risk Evidence: rule:COMM-010; matched: npx Remediation: Review the rule 'COMM-010' (npx used without pinned version) and the server configuration for 'filesystem'. Detected by mcp-audit rule COMM-010 (rules analyzer, severity LOW).",
+  "id": "x_MCPSA-20ce54c348dd",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [

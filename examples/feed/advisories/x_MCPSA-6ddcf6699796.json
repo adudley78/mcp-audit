@@ -37,7 +37,7 @@
     }
   ],
   "details": "Config file stores a plaintext secret inline — this file is a high-value target for supply-chain malware (Bitwarden incident 2026-04-22). Any process on this machine with read access to the config file can harvest the credential without further privilege escalation. Evidence: One or more env values in server 'github' match a known secret pattern Remediation: Replace inline secrets with environment variable references (e.g., ${MY_API_KEY}) and export the actual value from a credential manager or shell profile. Detected by mcp-audit rule CFHYG-003 (config_hygiene analyzer, severity HIGH).",
-  "id": "x_MCPSA-2026-6ddcf6699796",
+  "id": "x_MCPSA-6ddcf6699796",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [

@@ -4,11 +4,12 @@
       "database_specific": {
         "cvss_basis": "severity-band",
         "finding_class": "command-injection",
-        "mcp_audit_rule_id": "COMM-006",
+        "mcp_audit_rule_id": "COMM-004",
         "mcp_transport": "stdio",
         "observation": "deployment",
         "owasp_mcp": [
-          "MCP05"
+          "MCP05",
+          "MCP09"
         ],
         "verified_patch": {
           "cosign_bundle": null,
@@ -33,29 +34,22 @@
       ]
     }
   ],
-  "aliases": [
-    "CVE-2026-22688"
-  ],
-  "details": "Server 'shell-runner' executes inline code via -c flag: mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" --allow-all Evidence: rule:COMM-006; matched: mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" --allow-all Remediation: Review the rule 'COMM-006' (Inline code execution via -c flag) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-006 (rules analyzer, severity HIGH).",
-  "id": "x_MCPSA-2026-38aec9703e90",
+  "details": "Server 'shell-runner' uses stdio transport and is not in the known-server registry — verify the binary is trusted Evidence: rule:COMM-004; matched: stdio Remediation: Review the rule 'COMM-004' (Unrecognized stdio server binary) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-004 (rules analyzer, severity LOW).",
+  "id": "x_MCPSA-82e9ae96b49c",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",
   "references": [
     {
       "type": "WEB",
       "url": "https://owasp.org/www-project-mcp-top-10/"
-    },
-    {
-      "type": "ADVISORY",
-      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22688"
     }
   ],
   "schema_version": "1.6.0",
   "severity": [
     {
-      "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N",
+      "score": "CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:U/C:L/I:N/A:N",
       "type": "CVSS_V3"
     }
   ],
-  "summary": "Inline code execution via -c flag"
+  "summary": "Unrecognized stdio server binary"
 }

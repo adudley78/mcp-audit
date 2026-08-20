@@ -48,11 +48,12 @@ def _server(
     args: list[str] | None = None,
     client: str = "claude-desktop",
     transport: TransportType = TransportType.STDIO,
+    config_path: Path = Path("/fake/mcp.json"),
 ) -> ServerConfig:
     return ServerConfig(
         name=name,
         client=client,
-        config_path=Path("/fake/mcp.json"),
+        config_path=config_path,
         command=command,
         args=args if args is not None else ["-y", "@example/mcp-github@1.4.2"],
         transport=transport,
@@ -301,6 +302,174 @@ class TestRedaction:
         )
         advisory = build_advisory(finding, _server(), now=FIXED_NOW)
         assert "ghp_" not in advisory.details
+
+
+# ── Local path redaction ──────────────────────────────────────────────────────
+
+
+class TestLocalPathRedaction:
+    """CFHYG-001/002/005 (config_hygiene.py) embed the real, absolute scanned path
+    in evidence/remediation text — correct for `scan` output, but an advisory
+    copies that text verbatim into a document published to the world. This is the
+    RFC 8785 float bug's failure mode wearing different clothes: the same finding
+    canonicalizes to different bytes depending on where the scanning host's
+    checkout happens to live, on top of leaking the operator's home-directory
+    username. See ``feed.py::_redact_local_paths``.
+    """
+
+    def test_absolute_config_path_becomes_cwd_relative(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """cwd under $HOME (the case every documented mcp-audit invocation
+        produces — running from inside a checkout or project directory under the
+        operator's home) uses cwd-relative, so two same-named config files in
+        different directories stay distinguishable rather than collapsing to a
+        bare filename.
+        """
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "project" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        finding = _finding(
+            id="CFHYG-001",
+            evidence="Config file permissions: 0o100644",
+            remediation=f"Run: chmod 600 {config_path}",
+        )
+        server = _server(config_path=config_path)
+        advisory = build_advisory(finding, server, now=FIXED_NOW)
+
+        assert str(config_path) not in advisory.details
+        assert str(Path("project") / "mcp.json") in advisory.details
+
+    def test_home_directory_itself_becomes_tilde(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home"
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(tmp_path)
+        config_path = home / "mcp.json"
+
+        finding = _finding(
+            id="CFHYG-002",
+            evidence=f"Parent directory {home} is world-writable",
+            remediation=f"Move the config file to {home}",
+        )
+        server = _server(config_path=config_path)
+        advisory = build_advisory(finding, server, now=FIXED_NOW)
+
+        assert str(home) not in advisory.details
+        assert "~" in advisory.details
+
+    def test_no_username_leaks_when_cwd_is_a_sibling_of_home(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The realistic case: cwd is some project directory, home is elsewhere.
+
+        ``os.path.relpath`` only ever emits ``..`` segments to climb from cwd up to
+        the shared ancestor, never the ancestor's own name — this covers every
+        topology mcp-audit's own CLI invocation actually produces (run from inside
+        a checkout, never from ``/`` or ``/Users`` — see the docstring on
+        ``_redact_local_paths`` for the one topology this does not cover).
+        """
+        home = tmp_path / "users" / "someusername"
+        home.mkdir(parents=True)
+        cwd = tmp_path / "checkouts" / "mcp-audit"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = home / "Library" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        finding = _finding(
+            id="CFHYG-001",
+            remediation=f"Run: chmod 600 {config_path}",
+        )
+        server = _server(config_path=config_path)
+        advisory = build_advisory(finding, server, now=FIXED_NOW)
+
+        assert "someusername" not in advisory.details
+        assert "~" in advisory.details
+
+    def test_climbing_never_reaches_the_filesystem_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: a config file outside $HOME must not make "/" a redaction
+        key. "/" is one character — replacing it globally would mangle every
+        unrelated path separator in the rest of the advisory text (e.g. inside an
+        npm scoped package name like "@modelcontextprotocol/server-filesystem").
+        """
+        monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
+        monkeypatch.chdir(tmp_path)
+        config_path = Path("/etc/mcp/config.json")
+
+        finding = _finding(
+            id="CFHYG-001",
+            evidence="Command: npx -y @modelcontextprotocol/server-filesystem",
+            remediation=f"Run: chmod 600 {config_path}",
+        )
+        server = _server(config_path=config_path)
+        advisory = build_advisory(finding, server, now=FIXED_NOW)
+
+        assert "@modelcontextprotocol/server-filesystem" in advisory.details
+
+    def test_content_unrelated_to_the_config_path_is_untouched(self) -> None:
+        """A path embedded in *scanned config content* (not the scan path itself)
+        must survive — it is fixture/deployment data, not a machine artifact.
+        """
+        finding = _finding(
+            id="TRANSPORT-003",
+            evidence=(
+                "Command: npx -y @modelcontextprotocol/server-filesystem /Users/shared"
+            ),
+        )
+        advisory = build_advisory(finding, _server(), now=FIXED_NOW)
+        assert "/Users/shared" in advisory.details
+
+    def test_path_redaction_does_not_change_the_advisory_id(self) -> None:
+        """Regression: redacting evidence/remediation text must never perturb
+        ``stable_id()``. It doesn't today because ``location`` is derived solely
+        from ``finding.tool`` (see ``normalize_location``'s docstring), which
+        ``config_hygiene.py`` never sets — so this pins that invariant rather than
+        relying on it being true by accident.
+        """
+        leaky = _finding(id="CFHYG-001", remediation="Run: chmod 600 mcp.json")
+        clean = _finding(id="CFHYG-001", remediation="Run: chmod 600 mcp.json")
+        server = _server(config_path=Path("/fake/mcp.json"))
+
+        leaky_advisory = build_advisory(leaky, server, now=FIXED_NOW)
+        clean_advisory = build_advisory(clean, server, now=FIXED_NOW)
+
+        assert leaky_advisory.id == clean_advisory.id
+
+    def test_a_hardcoded_absolute_literal_still_redacts_off_this_hosts_home(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The redaction path only rewrites *this host's* config_path/$HOME — a
+        literal absolute path embedded elsewhere in finding text (not this host's
+        real scan path) is not something ``_redact_local_paths`` can recognise as
+        machine-identifying, since it has no way to distinguish "someone else's
+        home directory" from arbitrary prose. That is why this suite always
+        constructs config_path/$HOME together under a mocked, machine-realistic
+        pair (via `tmp_path` + `monkeypatch`) rather than a hardcoded literal: a
+        literal like ``/Users/someone/...`` is not a path this scanning host would
+        ever actually produce for `config_path`.
+        """
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "mcp.json"
+
+        finding = _finding(id="CFHYG-001", remediation=f"Run: chmod 600 {config_path}")
+        server = _server(config_path=config_path)
+        advisory = build_advisory(finding, server, now=FIXED_NOW)
+
+        assert str(home) not in advisory.details
 
 
 # ── build_advisory ────────────────────────────────────────────────────────────

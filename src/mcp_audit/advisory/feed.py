@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -177,6 +178,105 @@ def redact(text: str) -> str:
     return cleaned
 
 
+#: Below this length a path string is too generic to redact safely — "/" itself is
+#: one character, and blindly `str.replace("/", ...)` would rewrite every path
+#: separator in the whole document, not just the scanned config's own path.
+_MIN_SAFE_PATH_LENGTH = 3
+
+
+def _redact_local_paths(text: str, config_path: Path) -> str:
+    """Rewrite *config_path* and its ancestors in *text* to a cwd-relative form.
+
+    ``config_hygiene.py`` (CFHYG-001/002/005) legitimately embeds the real, absolute
+    scanned path in a finding's evidence/remediation — you need the actual path to
+    run the ``chmod`` it suggests. But an advisory is copied from that finding
+    verbatim into a document meant to be published to the world, and an absolute
+    path there is the same defect class as the RFC 8785 float bug in a different
+    shape: two hosts scanning the *same relative target* resolve it to two different
+    absolute paths, so the same finding canonicalizes (and signs) differently
+    depending on where the scanning machine happens to keep its checkout — on top of
+    leaking the operator's home-directory username, which contradicts mcp-audit's
+    own privacy-first premise in the one component designed to leave the machine.
+
+    *config_path*, and each of its ancestors up to (but not including) ``$HOME``,
+    is replaced by its path relative to the current working directory — not just
+    the bare filename, which would make two same-named config files in different
+    directories indistinguishable. Climbing stops at ``$HOME`` (or does not start
+    at all when *config_path* is not under it) rather than continuing to the
+    filesystem root: an ancestor that short — ``/`` is one character — would match,
+    and get rewritten, everywhere a path separator appears in the rest of the text,
+    not just in the scanned config's own path. ``$HOME`` itself becomes the
+    conventional ``~``, since the directories above it carry no information a reader
+    needs and only encode the local username.
+
+    Cwd-relative is only safe when the working directory is itself under ``$HOME``:
+    then the climb from cwd up to any shared ancestor never needs to go above
+    ``$HOME``, so ``$HOME``'s own name is always climbed *past* (as an anonymous
+    ``..``) and never descended back *through*. When the working directory has
+    escaped ``$HOME`` entirely (e.g. a container mounting the repo outside the home
+    volume), that guarantee doesn't hold — reaching a config file under ``$HOME``
+    would require descending through ``$HOME``'s own directory entry from a shared
+    ancestor above it, putting the username literally in the output. Ancestors
+    under ``$HOME`` are rendered relative to ``$HOME`` (``~/...``) instead in that
+    case: never a leak, at the cost of exact reproducibility across two hosts whose
+    container mounts disagree — the same caveat any tool's relative-path output
+    would carry there.
+
+    Scope: this protects *this* invocation's own operator (``$HOME``), which is
+    what "mcp-audit leaks the local username" means for the overwhelmingly common
+    case of scanning your own client configs. It does not scrub an unrelated
+    username that happens to appear in a *different* user's directory named in an
+    explicitly-scanned path outside ``$HOME`` (e.g. ``--project`` pointed at
+    another account's shared project on a multi-user host) — recognising an
+    arbitrary OS username anywhere in a string is a different, open-ended problem
+    from redacting the one home directory this process can name authoritatively.
+    """
+    try:
+        home: Path | None = Path.home()
+    except RuntimeError:
+        home = None
+    under_home = home is not None and config_path.is_relative_to(home)
+    cwd = Path.cwd()
+    cwd_escaped_home = home is not None and not cwd.is_relative_to(home)
+
+    ancestors: list[Path] = [config_path]
+    if under_home:
+        current = config_path
+        while current != home:
+            parent = current.parent
+            if parent == home:
+                break
+            ancestors.append(parent)
+            current = parent
+
+    replacements: list[tuple[str, str]] = []
+    for ancestor in ancestors:
+        raw = str(ancestor)
+        if len(raw) < _MIN_SAFE_PATH_LENGTH:
+            continue
+        if under_home and cwd_escaped_home:
+            # cwd can't reach `ancestor` without passing through $HOME itself —
+            # relpath would spell out $HOME's name. Anchor on $HOME instead.
+            relative = f"~/{ancestor.relative_to(home)}" if ancestor != home else "~"
+        else:
+            try:
+                relative = os.path.relpath(ancestor, cwd)
+            except ValueError:
+                relative = ancestor.name
+        replacements.append((raw, relative))
+    if home is not None and len(str(home)) >= _MIN_SAFE_PATH_LENGTH:
+        replacements.append((str(home), "~"))
+
+    # Longest string first: config_path's full string must be replaced before any
+    # of its own ancestor directories, or a shorter ancestor's occurrence inside the
+    # still-unreplaced longer string would be replaced first, leaving a malformed
+    # hybrid path (part original, part rewritten) behind.
+    by_length_desc = sorted(replacements, key=lambda pair: len(pair[0]), reverse=True)
+    for raw, relative in by_length_desc:
+        text = text.replace(raw, relative)
+    return text
+
+
 # ── Advisory construction ─────────────────────────────────────────────────────
 
 
@@ -228,10 +328,13 @@ def build_advisory(
     cvss_vector, cvss_basis = cvss_for(finding_class, finding.severity)
     cwe_ids = [finding.cwe] if finding.cwe else []
 
+    def _sanitize(text: str) -> str:
+        return redact(_redact_local_paths(text, server.config_path))
+
     return Advisory(
         package=Package(ecosystem=pkg.ecosystem, name=pkg.name),
-        summary=redact(finding.title),
-        details=redact(_details_for(finding)),
+        summary=_sanitize(finding.title),
+        details=_sanitize(_details_for(finding)),
         finding_class=finding_class,
         mcp_audit_rule_id=finding.id,
         introduced=pkg.version or "0",
