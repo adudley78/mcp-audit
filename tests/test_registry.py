@@ -246,6 +246,57 @@ class TestRepoNullRequiresDeliberateAcknowledgement:
         )
 
 
+# ── Demoted entries must not keep verified-only signals ────────────────────────
+
+
+class TestDemotedEntriesDoNotCarryVerifiedSignals:
+    """A ``verified: false`` entry must not still look verified to a reader.
+
+    Context: the 2026-08-20 audit correction demoted ``mcp-server-postgres``
+    to ``verified: false`` (its ``maintainer``/``repo`` were false Anthropic
+    attribution) but initially left three verified-only signals in place:
+    ``tags: ["official", ...]`` (the public verdict page would render
+    "official" right next to a maintainer field saying the attribution is
+    false), ``attestation_expected: true`` (per the field's own docstring in
+    ``registry/loader.py``, this guarantees a false MEDIUM finding for a
+    package with no established Sigstore-provenance pipeline), and a
+    ``publisher_history`` still pointing at Anthropic's real accounts (an
+    account-takeover baseline that would misfire the moment the real
+    publisher appears). This is the general-case guard: it would have caught
+    that regression on its own, without a human re-reading every field.
+    """
+
+    def _entries(self) -> list[dict]:
+        raw = BUNDLED_REGISTRY_PATH.read_text(encoding="utf-8")
+        return json.loads(raw)["entries"]
+
+    def test_unverified_entries_do_not_carry_official_tag(self) -> None:
+        offenders = [
+            e["name"]
+            for e in self._entries()
+            if not e.get("verified", False) and "official" in e.get("tags", [])
+        ]
+        assert not offenders, (
+            f"verified: false entr(y/ies) still tagged 'official': "
+            f"{sorted(offenders)}. The 'official' tag renders on the public "
+            "mcp-audit.dev verdict page — it must not coexist with a "
+            "false-attribution demotion."
+        )
+
+    def test_unverified_entries_do_not_expect_attestation(self) -> None:
+        offenders = [
+            e["name"]
+            for e in self._entries()
+            if not e.get("verified", False) and e.get("attestation_expected", False)
+        ]
+        assert not offenders, (
+            f"verified: false entr(y/ies) still have attestation_expected=true: "
+            f"{sorted(offenders)}. Per its docstring in registry/loader.py, this "
+            "guarantees a false MEDIUM finding on a package we no longer trust "
+            "enough to verify."
+        )
+
+
 # ── Name collision detection ──────────────────────────────────────────────────
 
 

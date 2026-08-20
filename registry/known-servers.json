@@ -815,7 +815,6 @@
       "last_verified": "2026-08-20",
       "known_versions": [],
       "tags": [
-        "official",
         "database",
         "local"
       ],
@@ -824,11 +823,8 @@
       ],
       "first_published": "2024-11-14",
       "weekly_downloads": 9800,
-      "publisher_history": [
-        "anthropic-bot",
-        "modelcontextprotocol"
-      ],
-      "attestation_expected": true
+      "publisher_history": null,
+      "attestation_expected": false
     },
     {
       "name": "@mcpjam/inspector",
