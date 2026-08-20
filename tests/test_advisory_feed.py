@@ -314,7 +314,7 @@ class TestLocalPathRedaction:
     RFC 8785 float bug's failure mode wearing different clothes: the same finding
     canonicalizes to different bytes depending on where the scanning host's
     checkout happens to live, on top of leaking the operator's home-directory
-    username. See ``feed.py::_redact_local_paths``.
+    username. See ``mcp_audit._redact.redact_local_paths``.
     """
 
     def test_absolute_config_path_becomes_cwd_relative(
@@ -373,7 +373,7 @@ class TestLocalPathRedaction:
         the shared ancestor, never the ancestor's own name — this covers every
         topology mcp-audit's own CLI invocation actually produces (run from inside
         a checkout, never from ``/`` or ``/Users`` — see the docstring on
-        ``_redact_local_paths`` for the one topology this does not cover).
+        ``redact_local_paths`` for the one topology this does not cover).
         """
         home = tmp_path / "users" / "someusername"
         home.mkdir(parents=True)
@@ -450,7 +450,7 @@ class TestLocalPathRedaction:
     ) -> None:
         """The redaction path only rewrites *this host's* config_path/$HOME — a
         literal absolute path embedded elsewhere in finding text (not this host's
-        real scan path) is not something ``_redact_local_paths`` can recognise as
+        real scan path) is not something ``redact_local_paths`` can recognise as
         machine-identifying, since it has no way to distinguish "someone else's
         home directory" from arbitrary prose. That is why this suite always
         constructs config_path/$HOME together under a mocked, machine-realistic

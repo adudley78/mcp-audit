@@ -162,3 +162,33 @@ class TestOwaspMcpCodesInTerminalOutput:
         result = _make_result(findings=[_make_finding([])])
         output = _capture(result)
         assert "[MCP" not in output
+
+
+# ── Local paths are NOT redacted in terminal output ──────────────────────────
+
+
+class TestTerminalOutputKeepsAbsolutePaths:
+    """Terminal output is the user looking at their own machine — unlike SARIF,
+    Nucleus, and the snapshot export (all "leaves the machine" sinks that redact
+    this host's own scanned-config path), the absolute path here is the useful
+    part: it is what the reader would paste into ``chmod`` or an editor. This
+    pins that a later change to the shared redaction helper cannot silently reach
+    terminal output and make it useless for local remediation.
+    """
+
+    def test_remediation_absolute_path_survives(self) -> None:
+        finding = Finding(
+            id="CFHYG-001",
+            severity=Severity.MEDIUM,
+            analyzer="config_hygiene",
+            client="claude_desktop",
+            server="filesystem",
+            title="Config file permissions too permissive",
+            description="Config file is readable by other users.",
+            evidence="Config file permissions: 0o100644",
+            remediation="Run: chmod 600 /Users/alice/.config/claude/config.json",
+            finding_path="/Users/alice/.config/claude/config.json",
+        )
+        result = _make_result(findings=[finding])
+        output = _capture(result)
+        assert "/Users/alice/.config/claude/config.json" in output

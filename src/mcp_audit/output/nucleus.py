@@ -20,6 +20,7 @@ import json
 
 from rich.console import Console
 
+from mcp_audit._redact import redact_finding_path
 from mcp_audit.models import Finding, ScanResult, Severity
 
 # Maps our internal severity enum to Nucleus-accepted string values.
@@ -35,6 +36,12 @@ _SEVERITY_MAP: dict[Severity, str] = {
 def _finding_to_nucleus(finding: Finding, host_name: str) -> dict[str, str]:
     """Serialize a single Finding to a Nucleus FlexConnect finding object.
 
+    Nucleus is an external system this document is uploaded to — the same
+    "leaves the machine" category as the advisory feed and SARIF output — so
+    every text field, and ``finding_path`` itself, is redacted of this host's
+    own scanned-config path (and the operator's ``$HOME``-derived username)
+    before serialisation. See ``mcp_audit._redact.redact_local_paths``.
+
     Args:
         finding: The finding to serialize.
         host_name: The host_name that links this finding back to an entry in
@@ -44,15 +51,16 @@ def _finding_to_nucleus(finding: Finding, host_name: str) -> dict[str, str]:
     Returns:
         Dict with all required Nucleus finding fields.
     """
+    fp = finding.finding_path
     row: dict[str, str] = {
         "host_name": host_name,
         "finding_number": finding.id,
-        "finding_name": finding.title,
+        "finding_name": redact_finding_path(finding.title, fp),
         "finding_severity": _SEVERITY_MAP[finding.severity],
-        "finding_description": finding.description,
-        "finding_solution": finding.remediation,
-        "finding_output": finding.evidence,
-        "finding_path": finding.finding_path or "",
+        "finding_description": redact_finding_path(finding.description, fp),
+        "finding_solution": redact_finding_path(finding.remediation, fp),
+        "finding_output": redact_finding_path(finding.evidence, fp),
+        "finding_path": redact_finding_path(fp, fp) if fp else "",
         "finding_result": "Fail",
         "finding_type": "Vulnerability",
     }

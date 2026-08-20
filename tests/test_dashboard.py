@@ -278,6 +278,39 @@ class TestBuildScanData:
         assert data["version"]  # non-empty
 
 
+# ── Local paths are NOT redacted in the dashboard ────────────────────────────
+
+
+class TestDashboardKeepsAbsolutePaths:
+    """The dashboard is opened locally by the user who ran the scan — unlike
+    SARIF, Nucleus, and the snapshot export (all "leaves the machine" sinks
+    that redact this host's own scanned-config path), the absolute path in a
+    finding's remediation text is the useful part here. This pins that a
+    later change to the shared redaction helper cannot silently reach the
+    dashboard formatter too.
+    """
+
+    def test_remediation_absolute_path_survives_in_scan_data(self) -> None:
+        finding = Finding(
+            id="CFHYG-001",
+            severity=Severity.MEDIUM,
+            analyzer="config_hygiene",
+            client="claude_desktop",
+            server="filesystem",
+            title="Config file permissions too permissive",
+            description="Config file is readable by other users.",
+            evidence="Config file permissions: 0o100644",
+            remediation="Run: chmod 600 /Users/alice/.config/claude/config.json",
+            finding_path="/Users/alice/.config/claude/config.json",
+        )
+        result = ScanResult(clients_scanned=1, servers_found=0, findings=[finding])
+        data = _build_scan_data(result)
+        assert (
+            "/Users/alice/.config/claude/config.json"
+            in data["findings"][0]["remediation"]
+        )
+
+
 # ── generate_html ─────────────────────────────────────────────────────────────
 
 
