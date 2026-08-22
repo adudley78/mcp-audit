@@ -40,14 +40,15 @@ Listed on the composite itself so it does not live only in a PR body:
   Dependabot updates both; a drift is visible and harmless.
 - **`publish-pypi` `uv python install`.** Copies the composite default;
   pytest-locked. Cannot call the composite.
-- **`hatchling` in `build-system.requires`.** Still unpinned. Combined
-  with a floating interpreter, that re-cut the v0.15.0 tag (Core-Metadata
-  2.5 vs Twine 6). Pin hatchling in lockstep with
-  `pypa/gh-action-pypi-publish`.
 - **CI `if:` / timeout vs release `upload-artifact`.** Policy, not recipe.
+
+`hatchling` stays unpinned. CI `wheel-check` (`uvx twine==7.0.0 check --strict`)
+is the Core-Metadata invariant; do not re-propose a lockstep pin.
 
 Local binaries: `uv python install 3.12.14 && uv sync --all-extras && uv pip install pyinstaller && uv run pyinstaller mcp-audit-<target>.spec --distpath dist/`. There is no `scripts/build-linux.sh` and no `build.py`; those used Python 3.11 + pip and skipped the specs' `excludes=`.
 
 Size limits (40 MB warn / 50 MB fail) live in the composite. Do not raise
 the soft limit to hide a packaging regression; change the specs' excludes
-instead.
+instead. Byte-identical PyInstaller output is not a goal — deltas under a
+few kilobytes (timestamps, path lengths) are noise. Investigate only
+megabyte-scale changes.

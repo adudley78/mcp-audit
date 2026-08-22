@@ -39,11 +39,11 @@
 #   updates both; a drift is visible and does not change the artifact.
 # - publish-pypi `uv python install <pin>`. Same pin as this default;
 #   pytest-locked. This job cannot call the composite.
-# - hatchling in pyproject.toml build-system.requires is still unpinned
-#   (`["hatchling"]`). That, plus a floating interpreter, is what forced
-#   a re-cut of the v0.15.0 tag (Core-Metadata 2.5 vs Twine 6). Pin or
-#   floor-constrain hatchling in lockstep with pypa/gh-action-pypi-publish;
-#   do not bump one without the other.
+# - hatchling stays unpinned. CI job `wheel-check` runs
+#   `uvx twine==7.0.0 check --strict` on every PR (Twine 7 is what the
+#   pinned publish action bundles). That is the Core-Metadata invariant;
+#   do not replace it with a lockstep hatchling pin. #51 already solved
+#   the v0.15.0 break from the Twine side.
 # - CI `if:` / timeout vs release `upload-artifact`. Policy, not recipe.
 # - `workflow_dispatch` dry-run on release.yml exercises this composite
 #   on the release-side job graph without tagging. Tag pushes still
