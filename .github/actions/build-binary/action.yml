@@ -52,10 +52,13 @@
 #   workflow and here; Dependabot is what bumps actions that live only
 #   in a composite. `group-by: dependency-name` so one action is one PR
 #   across those directories.
-# - uv is `version: latest-known` on setup-uv: the newest uv whose
-#   checksum this action SHA knows. A function of the pin, not of when
-#   the job runs. Bump the action SHA (Dependabot) to pick up a newer
-#   uv. Do not set `version: latest`.
+# - uv is `version: latest` on setup-uv, deliberately. Downstream is
+#   pinned (CPython 3.12.14, uv.lock, four-platform PYZ inspect); an
+#   incompatible uv fails the build on every PR. `latest-known` was
+#   tried 2026-08-22 and resolved uv 0.12.4, which cannot fetch 3.12.14.
+#   Do not pin a uv version either — Dependabot does not bump action
+#   input strings. Revisit only if uv itself starts causing non-obvious
+#   drift.
 
 name: 'Build mcp-audit binary'
 description: >
@@ -82,9 +85,14 @@ runs:
   using: 'composite'
   steps:
     - name: Install uv
+      # uv is deliberately unpinned. Downstream (CPython 3.12.14, uv.lock,
+      # four-platform PYZ inspect) is pinned and checked; an incompatible
+      # uv fails the build immediately. latest-known was tried 2026-08-22
+      # and resolved uv 0.12.4, which cannot fetch 3.12.14. Do not pin a
+      # uv version — Dependabot does not bump action input strings.
       uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
-        version: "latest-known"
+        version: "latest"
 
     - name: Set up Python
       shell: bash

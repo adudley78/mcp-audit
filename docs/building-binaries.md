@@ -42,8 +42,10 @@ Listed on the composite itself so it does not live only in a PR body:
   pytest-locked. Cannot call the composite.
 - **CI `if:` / timeout vs release `upload-artifact`.** Policy, not recipe.
 - **Dependabot** `github-actions` scans `/` (workflows),
-  `/.github/actions/*` (this composite), and `/setup-action`. uv is
-  `latest-known` on setup-uv — a function of the pinned action SHA.
+  `/.github/actions/*` (this composite), and `/setup-action`. uv stays
+  `version: latest` on setup-uv: downstream pins (CPython 3.12.14,
+  lockfile, PYZ inspect) are the assertion. `latest-known` was tried
+  2026-08-22 and resolved uv 0.12.4, which cannot fetch 3.12.14.
 
 `hatchling` stays unpinned. CI `wheel-check` fetches the publish action's
 `runtime.txt` at the pinned SHA and runs that Twine; there is no copy of

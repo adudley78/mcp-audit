@@ -101,7 +101,7 @@ def test_shared_action_is_the_binary_recipe() -> None:
         for s in action["runs"]["steps"]
         if "astral-sh/setup-uv@" in str(s.get("uses", ""))
     )
-    assert setup_uv["with"]["version"] == "latest-known"
+    assert setup_uv["with"]["version"] == "latest"
     assert "astral-sh/setup-uv@" in uses
     assert "actions/setup-python@" not in uses
     assert "uv python install" in runs
@@ -174,14 +174,23 @@ def test_setup_uv_sha_is_the_same_everywhere() -> None:
     assert len(found) == 1, f"setup-uv SHA drift: {found}"
 
 
-def test_setup_uv_uses_latest_known() -> None:
-    """uv version is a function of the action SHA, not of wall-clock time."""
+def test_setup_uv_stays_unpinned() -> None:
+    """uv floats; downstream pins (CPython, lockfile, PYZ) are the assertion.
+
+    ``latest-known`` was tried 2026-08-22 and resolved uv 0.12.4, which
+    cannot fetch CPython 3.12.14. A hand-pinned ``0.12.5`` is also wrong:
+    Dependabot does not bump action input strings.
+    """
     for path in (ROOT / ".github").rglob("*.yml"):
         text = path.read_text(encoding="utf-8")
         if "astral-sh/setup-uv@" not in text:
             continue
-        assert 'version: "latest-known"' in text, path
-        assert 'version: "latest"' not in text, path
+        assert 'version: "latest"' in text, path
+        assert 'version: "latest-known"' not in text, path
+        assert not re.search(
+            r'astral-sh/setup-uv@[0-9a-f]{40}[^\n]*\n(?:[^\n]*\n){0,12}\s+version:\s*"\d+',
+            text,
+        ), path
 
 
 def test_dependabot_scans_every_composite() -> None:
