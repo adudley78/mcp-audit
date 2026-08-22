@@ -96,6 +96,12 @@ def test_shared_action_is_the_binary_recipe() -> None:
 
     uses = "\n".join(str(s.get("uses", "")) for s in action["runs"]["steps"])
     runs = "\n".join(str(s.get("run", "")) for s in action["runs"]["steps"])
+    setup_uv = next(
+        s
+        for s in action["runs"]["steps"]
+        if "astral-sh/setup-uv@" in str(s.get("uses", ""))
+    )
+    assert setup_uv["with"]["version"] == "latest-known"
     assert "astral-sh/setup-uv@" in uses
     assert "actions/setup-python@" not in uses
     assert "uv python install" in runs
@@ -155,11 +161,10 @@ def test_no_local_linux_binary_script() -> None:
 
 
 def test_setup_uv_sha_is_the_same_everywhere() -> None:
-    """Dependabot's github-actions ecosystem scans workflows, not composites.
+    """A workflow bump that leaves the composite behind re-opens interpreter drift.
 
-    A bump that moves ci.yml / release.yml but not
-    ``.github/actions/build-binary/`` would re-open interpreter drift:
-    wheel-check and publish-pypi on v10, the shipped binary still on v8.
+    Dependabot now scans ``/.github/actions/*`` too; this test is the
+    local lock if a human (or a split Dependabot PR) still desyncs them.
     """
     pattern = re.compile(r"astral-sh/setup-uv@([0-9a-f]{40})")
     found: dict[str, Path] = {}
@@ -167,3 +172,40 @@ def test_setup_uv_sha_is_the_same_everywhere() -> None:
         for sha in pattern.findall(path.read_text(encoding="utf-8")):
             found.setdefault(sha, path)
     assert len(found) == 1, f"setup-uv SHA drift: {found}"
+
+
+def test_setup_uv_uses_latest_known() -> None:
+    """uv version is a function of the action SHA, not of wall-clock time."""
+    for path in (ROOT / ".github").rglob("*.yml"):
+        text = path.read_text(encoding="utf-8")
+        if "astral-sh/setup-uv@" not in text:
+            continue
+        assert 'version: "latest-known"' in text, path
+        assert 'version: "latest"' not in text, path
+
+
+def test_dependabot_scans_every_composite() -> None:
+    """``directory: "/"`` only covers workflows. Composites must be listed."""
+    cfg = _load(ROOT / ".github" / "dependabot.yml")
+    actions_update = next(
+        u for u in cfg["updates"] if u["package-ecosystem"] == "github-actions"
+    )
+    directories = set(actions_update["directories"])
+    assert "/" in directories
+    assert "/.github/actions/*" in directories
+    assert "/setup-action" in directories
+    assert "directory" not in actions_update
+    assert actions_update["open-pull-requests-limit"] == 5
+    group = actions_update["groups"]["github-actions"]
+    assert group["patterns"] == ["*"]
+    assert group["group-by"] == "dependency-name"
+
+    # Every third-party-action composite is a scanned directory.
+    scanned_roots = {ROOT / ".github" / "actions", ROOT / "setup-action"}
+    for action_yml in ROOT.rglob("action.yml"):
+        if "examples" in action_yml.parts or action_yml == ROOT / "action.yml":
+            continue
+        parent = action_yml.parent
+        if parent.parent == ROOT / ".github" / "actions":
+            continue  # covered by the glob
+        assert parent in scanned_roots or parent.parent in scanned_roots, parent

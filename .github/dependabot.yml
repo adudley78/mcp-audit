@@ -27,11 +27,26 @@ updates:
           - "*"
 
   # GitHub Actions
+  # `/` covers `.github/workflows/` and a root `action.yml` only — not
+  # composites. #60's setup-uv bump inside `.github/actions/build-binary/`
+  # had to be applied by hand because of that. `/.github/actions/*` is a
+  # single-level glob (not `**`; that duplicates PRs). `/setup-action` is
+  # the other composite; it pins `actions/cache`, which no workflow uses.
+  # `group-by: dependency-name` keeps one PR per action across directories
+  # instead of a workflow PR and a composite PR for the same SHA.
   - package-ecosystem: github-actions
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/*"
+      - "/setup-action"
     schedule:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
     labels:
       - dependencies
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        group-by: dependency-name

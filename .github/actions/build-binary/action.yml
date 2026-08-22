@@ -46,6 +46,16 @@
 # - `workflow_dispatch` dry-run on release.yml exercises this composite
 #   on the release-side job graph without tagging. Tag pushes still
 #   create the GitHub Release and publish the wheel.
+# - Dependabot `github-actions` scans `/` (workflows + root action.yml),
+#   `/.github/actions/*` (this composite), and `/setup-action`. The
+#   SHA-unification test still locks actions that appear in both a
+#   workflow and here; Dependabot is what bumps actions that live only
+#   in a composite. `group-by: dependency-name` so one action is one PR
+#   across those directories.
+# - uv is `version: latest-known` on setup-uv: the newest uv whose
+#   checksum this action SHA knows. A function of the pin, not of when
+#   the job runs. Bump the action SHA (Dependabot) to pick up a newer
+#   uv. Do not set `version: latest`.
 
 name: 'Build mcp-audit binary'
 description: >
@@ -74,7 +84,7 @@ runs:
     - name: Install uv
       uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
-        version: "latest"
+        version: "latest-known"
 
     - name: Set up Python
       shell: bash

@@ -41,6 +41,9 @@ Listed on the composite itself so it does not live only in a PR body:
 - **`publish-pypi` `uv python install`.** Copies the composite default;
   pytest-locked. Cannot call the composite.
 - **CI `if:` / timeout vs release `upload-artifact`.** Policy, not recipe.
+- **Dependabot** `github-actions` scans `/` (workflows),
+  `/.github/actions/*` (this composite), and `/setup-action`. uv is
+  `latest-known` on setup-uv — a function of the pinned action SHA.
 
 `hatchling` stays unpinned. CI `wheel-check` fetches the publish action's
 `runtime.txt` at the pinned SHA and runs that Twine; there is no copy of
