@@ -2,19 +2,28 @@
 """Audit every entry in registry/known-servers.json against the live npm/PyPI
 registries and classify each one into a trust bucket.
 
-This is a **fact-finding** tool, not a remediation tool. It never modifies
-``registry/known-servers.json``. It fetches live package metadata, compares it
-against what the registry claims, and writes a machine-readable JSON report
-(plus prints a human-readable summary to stdout) so a human can decide what to
-do about any entry that looks wrong.
+Default mode is **report-only**: it never modifies ``registry/known-servers.json``.
+Pass ``--stamp`` to write back two field updates after a successful run:
+
+* ``last_verified`` → today's date, **only** for entries this run classified
+  as OK. Unverified / THIN / MISSING entries are left alone.
+* ``attestation_expected`` → ``false`` for every flagged entry whose latest
+  release has **no** Sigstore/SLSA/PEP 740 provenance. HAS_PROVENANCE is left
+  true. UNCHECKED (network/API failure) is left true and listed — an
+  unverifiable claim is not the same as a false one. This script never sets
+  ``attestation_expected: true``.
 
 Why this exists: a batch of ~26 "community" entries with ``repo: null`` was
 added to the registry without ever being checked against the real package
 registries. mcp-audit *vouches* for every name in this file (the supply-chain
 analyzer treats it as "this is a known-legitimate MCP server"), so an
 unverified name is not a neutral gap — it is a claim someone could exploit by
-registering that exact name with malicious code. Re-run this script whenever
-new entries are added, or periodically as a drift check on existing ones.
+registering that exact name with malicious code. ``attestation_expected: true``
+is the same class of claim one layer down: it turns a missing Sigstore
+attestation into a MEDIUM finding for every user who scans that package.
+
+Re-run this script whenever new entries are added, or periodically as a drift
+check on existing ones. Default is read-only. Stamping is opt-in.
 
 Buckets
 -------
@@ -38,11 +47,26 @@ UNCHECKED
     Could not be determined (network failure, rate-limit block that survived
     the retry, or ambiguous data). Never guessed or fabricated.
 
+Provenance (only entries with ``attestation_expected: true``)
+-------------------------------------------------------------
+HAS_PROVENANCE
+    Latest npm version has ``dist.attestations.provenance`` (SLSA) and/or the
+    npm attestations API returns an SLSA provenance predicate; or the PyPI
+    integrity API returns PEP 740 ``attestation_bundles`` for a release file.
+    The JSON packument on PyPI does **not** expose a ``provenance`` field —
+    absence there is not evidence, so we query ``/integrity/.../provenance``.
+NO_PROVENANCE
+    Latest release was fetched successfully and no SLSA/PEP 740 attestation
+    is present (npm attestations API 404 / empty, or PyPI integrity 404).
+UNCHECKED
+    Network failure or missing version/filename so we could not tell.
+
 Usage
 -----
     python scripts/audit_registry.py
     python scripts/audit_registry.py --refresh          # ignore local cache
     python scripts/audit_registry.py --out /tmp/out.json
+    python scripts/audit_registry.py --stamp            # opt-in write of field updates
 
 The on-disk cache (``.registry_audit_cache.json`` at the repo root, gitignored)
 lets re-runs skip packages already checked within the cache TTL, so repeated
@@ -59,7 +83,8 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -211,6 +236,11 @@ class EcosystemCheck:
     repo_url: str | None = None
     description: str | None = None
     monthly_downloads: int | None = None
+    dist_attestations: Any = None
+    pypi_filenames: list[str] = field(default_factory=list)
+    # HAS_PROVENANCE | NO_PROVENANCE | UNCHECKED | NOT_CHECKED
+    provenance: str = "NOT_CHECKED"
+    provenance_detail: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -282,6 +312,8 @@ def check_npm(name: str) -> EcosystemCheck:
     if dl_status == 200 and isinstance(dl_data, dict):
         result.monthly_downloads = dl_data.get("downloads")
 
+    result.dist_attestations = latest_meta.get("dist", {}).get("attestations")
+
     return result
 
 
@@ -338,7 +370,113 @@ def check_pypi(name: str) -> EcosystemCheck:
                     earliest = d
     result.created_or_earliest_release = earliest
 
+    urls = data.get("urls") or []
+    result.pypi_filenames = [
+        u["filename"] for u in urls if isinstance(u, dict) and u.get("filename")
+    ]
+
     return result
+
+
+# ── Provenance (Sigstore / SLSA / PEP 740) ─────────────────────────────────
+
+
+def _slsa_predicate(predicate_type: str | None) -> bool:
+    return bool(predicate_type) and predicate_type.startswith(
+        "https://slsa.dev/provenance/"
+    )
+
+
+def check_npm_provenance(
+    name: str, version: str | None, dist_attestations: Any
+) -> tuple[str, str]:
+    """Classify npm provenance for *name*@*version*.
+
+    Reads ``dist.attestations`` from the packument first (what npm actually
+    ships on the version document). If that is absent, queries the
+    attestations API. SLSA provenance counts; a publish-only attestation
+    without SLSA does not — ``attestation_expected`` means Sigstore
+    provenance, not merely ``npm publish --provenance``-adjacent signatures.
+    """
+    if not version:
+        return "UNCHECKED", "no latest version"
+    if isinstance(dist_attestations, dict):
+        provenance = dist_attestations.get("provenance")
+        if isinstance(provenance, dict) and _slsa_predicate(
+            provenance.get("predicateType")
+        ):
+            return "HAS_PROVENANCE", "dist.attestations.provenance"
+    encoded = name.replace("/", "%2F")
+    url = f"https://registry.npmjs.org/-/npm/v1/attestations/{encoded}@{version}"
+    status, data = _get_json(url)
+    _sleep()
+    if status == 404:
+        return "NO_PROVENANCE", "attestations API 404"
+    if status != 200 or not isinstance(data, dict):
+        return "UNCHECKED", f"attestations API http_{status}"
+    predicates = [
+        a.get("predicateType")
+        for a in (data.get("attestations") or [])
+        if isinstance(a, dict)
+    ]
+    if any(_slsa_predicate(p) for p in predicates):
+        return "HAS_PROVENANCE", "attestations API SLSA"
+    return "NO_PROVENANCE", "attestations API has no SLSA provenance"
+
+
+def check_pypi_provenance(
+    name: str, version: str | None, filenames: list[str]
+) -> tuple[str, str]:
+    """Classify PyPI PEP 740 provenance via the integrity API.
+
+    The JSON project API does not expose a ``provenance`` field on files
+    (observed 2026-08-22: the key is absent / always null). Absence there is
+    not evidence. Query ``/integrity/{name}/{version}/{filename}/provenance``.
+    """
+    if not version:
+        return "UNCHECKED", "no latest version"
+    if not filenames:
+        return "UNCHECKED", "no release filenames"
+    # Wheel first — PEP 740 is typically on every file of a release, but a
+    # 404 on the sdist alone is not enough to declare absence.
+    ordered = [f for f in filenames if f.endswith(".whl")] + [
+        f for f in filenames if not f.endswith(".whl")
+    ]
+    last_404: str | None = None
+    for filename in ordered:
+        quoted = urllib.parse.quote(filename)
+        url = (
+            f"https://pypi.org/integrity/{urllib.parse.quote(name)}/"
+            f"{urllib.parse.quote(version)}/{quoted}/provenance"
+        )
+        status, data = _get_json(url)
+        _sleep()
+        if status == 404:
+            last_404 = filename
+            continue
+        if status != 200 or not isinstance(data, dict):
+            return "UNCHECKED", f"integrity API http_{status} for {filename}"
+        bundles = data.get("attestation_bundles") or []
+        if bundles and isinstance(bundles[0], dict) and bundles[0].get("attestations"):
+            return "HAS_PROVENANCE", f"PEP 740 attestation_bundles on {filename}"
+        return "NO_PROVENANCE", f"integrity API 200 but empty bundles for {filename}"
+    return "NO_PROVENANCE", f"integrity API 404 for {last_404}"
+
+
+def fill_provenance(check: EcosystemCheck) -> None:
+    """Set ``check.provenance`` from npm or PyPI. Mutates *check*."""
+    if check.ecosystem == "npm":
+        status, detail = check_npm_provenance(
+            check.name, check.latest_version, check.dist_attestations
+        )
+    elif check.ecosystem == "pypi":
+        status, detail = check_pypi_provenance(
+            check.name, check.latest_version, check.pypi_filenames
+        )
+    else:
+        status, detail = "UNCHECKED", f"unknown ecosystem {check.ecosystem}"
+    check.provenance = status
+    check.provenance_detail = detail
 
 
 # ── Classification ──────────────────────────────────────────────────────────
@@ -526,6 +664,12 @@ def _cache_key(ecosystem: str, name: str) -> str:
     return f"{ecosystem}:{name}"
 
 
+def _check_from_cache(cached: dict) -> EcosystemCheck:
+    allowed = {f.name for f in fields(EcosystemCheck)}
+    payload = {k: v for k, v in cached.items() if k != "_fetched_at" and k in allowed}
+    return EcosystemCheck(**payload)
+
+
 # ── Main audit loop ─────────────────────────────────────────────────────────
 
 
@@ -551,16 +695,42 @@ def audit_registry(
         for eco in ecosystems:
             key = _cache_key(eco, name)
             cached = cache.get(key)
-            if cached and (now - cached.get("_fetched_at", 0)) < CACHE_TTL_SECONDS:
-                c = EcosystemCheck(
-                    **{k: v for k, v in cached.items() if k != "_fetched_at"}
-                )
+            fresh = (
+                cached is not None
+                and (now - cached.get("_fetched_at", 0)) < CACHE_TTL_SECONDS
+            )
+            if fresh:
+                c = _check_from_cache(cached)
             else:
                 c = check_npm(name) if eco == "npm" else check_pypi(name)
                 cache[key] = {**c.to_dict(), "_fetched_at": now}
             checks.append(c)
 
+        if entry.get("attestation_expected"):
+            primary = next((c for c in checks if c.checked and c.exists), None)
+            if primary is None:
+                for c in checks:
+                    if c.provenance == "NOT_CHECKED":
+                        c.provenance = "UNCHECKED"
+                        c.provenance_detail = "no existing package to inspect"
+            elif primary.provenance == "NOT_CHECKED":
+                fill_provenance(primary)
+                cache[_cache_key(primary.ecosystem, name)] = {
+                    **primary.to_dict(),
+                    "_fetched_at": now,
+                }
+
         verdict = classify(entry, checks)
+        provenance = "NOT_CHECKED"
+        provenance_detail = None
+        if entry.get("attestation_expected"):
+            primary = next((c for c in checks if c.checked and c.exists), None)
+            if primary is not None:
+                provenance = primary.provenance
+                provenance_detail = primary.provenance_detail
+            else:
+                provenance = "UNCHECKED"
+                provenance_detail = "no existing package to inspect"
         results.append(
             {
                 "name": name,
@@ -570,6 +740,9 @@ def audit_registry(
                 "declared_maintainer": entry.get("maintainer"),
                 "declared_verified": entry.get("verified"),
                 "declared_last_verified": entry.get("last_verified"),
+                "declared_attestation_expected": bool(
+                    entry.get("attestation_expected")
+                ),
                 "is_suspect_block": (
                     entry.get("last_verified") == "2026-04-15"
                     and entry.get("maintainer") == "community"
@@ -579,6 +752,8 @@ def audit_registry(
                 "bucket": verdict["bucket"],
                 "evidence": verdict["evidence"],
                 "plausible_maintainer": verdict["plausible_maintainer"],
+                "provenance": provenance,
+                "provenance_detail": provenance_detail,
             }
         )
         _save_cache(
@@ -586,6 +761,108 @@ def audit_registry(
         )  # incremental save so interrupts don't lose progress
 
     return results
+
+
+def apply_stamp(
+    registry_path: Path,
+    results: list[dict],
+    stamp_date: str,
+) -> dict[str, list[str]]:
+    """Write ``last_verified`` and ``attestation_expected`` updates.
+
+    Default callers must not invoke this — it is the only path that mutates
+    ``known-servers.json``. Never sets ``attestation_expected`` to True.
+    """
+    data = json.loads(registry_path.read_text(encoding="utf-8"))
+    by_name = {r["name"]: r for r in results}
+    cleared: list[str] = []
+    kept: list[str] = []
+    unchecked: list[str] = []
+    stamped: list[str] = []
+    skipped_non_ok: list[str] = []
+
+    for entry in data.get("entries", []):
+        result = by_name.get(entry["name"])
+        if result is None:
+            skipped_non_ok.append(entry["name"])
+            continue
+        if entry.get("attestation_expected"):
+            prov = result.get("provenance")
+            if prov == "NO_PROVENANCE":
+                entry["attestation_expected"] = False
+                cleared.append(entry["name"])
+            elif prov == "HAS_PROVENANCE":
+                kept.append(entry["name"])
+            else:
+                # UNCHECKED / NOT_CHECKED: leave the claim, list it.
+                unchecked.append(entry["name"])
+        if result.get("bucket") == "OK":
+            entry["last_verified"] = stamp_date
+            stamped.append(entry["name"])
+        else:
+            skipped_non_ok.append(entry["name"])
+
+    data["last_updated"] = stamp_date
+    text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+    registry_path.write_text(text, encoding="utf-8")
+    return {
+        "cleared": cleared,
+        "kept": kept,
+        "unchecked": unchecked,
+        "stamped": stamped,
+        "skipped_non_ok": skipped_non_ok,
+    }
+
+
+def _print_provenance_summary(results: list[dict]) -> None:
+    flagged = [r for r in results if r.get("declared_attestation_expected")]
+    counts: dict[str, int] = {}
+    for r in flagged:
+        counts[r.get("provenance", "NOT_CHECKED")] = (
+            counts.get(r.get("provenance", "NOT_CHECKED"), 0) + 1
+        )
+    print("\n=== Provenance (attestation_expected=true) ===", file=sys.stderr)
+    for label in ("HAS_PROVENANCE", "NO_PROVENANCE", "UNCHECKED", "NOT_CHECKED"):
+        print(f"  {label}: {counts.get(label, 0)}", file=sys.stderr)
+    print(f"  flagged: {len(flagged)}", file=sys.stderr)
+    for r in flagged:
+        if r.get("provenance") == "UNCHECKED":
+            print(
+                f"  UNCHECKED {r['name']}: {r.get('provenance_detail')}",
+                file=sys.stderr,
+            )
+
+
+def _print_stamp_summary(stats: dict[str, list[str]], wrote: bool) -> None:
+    print("\n=== Stamp ===", file=sys.stderr)
+    if not wrote:
+        print("  --stamp not given; registry not written", file=sys.stderr)
+        return
+    print(
+        f"  attestation_expected cleared (NO_PROVENANCE): {len(stats['cleared'])}",
+        file=sys.stderr,
+    )
+    for name in stats["cleared"]:
+        print(f"    - {name}", file=sys.stderr)
+    print(
+        f"  attestation_expected kept (HAS_PROVENANCE): {len(stats['kept'])}",
+        file=sys.stderr,
+    )
+    for name in stats["kept"]:
+        print(f"    - {name}", file=sys.stderr)
+    print(
+        f"  attestation_expected left (UNCHECKED): {len(stats['unchecked'])}",
+        file=sys.stderr,
+    )
+    for name in stats["unchecked"]:
+        print(f"    - {name}", file=sys.stderr)
+    print(f"  last_verified stamped (OK): {len(stats['stamped'])}", file=sys.stderr)
+    print(
+        f"  last_verified skipped (non-OK): {len(stats['skipped_non_ok'])}",
+        file=sys.stderr,
+    )
+    for name in stats["skipped_non_ok"]:
+        print(f"    - {name}", file=sys.stderr)
 
 
 def main() -> None:
@@ -608,7 +885,22 @@ def main() -> None:
     parser.add_argument(
         "--refresh", action="store_true", help="Ignore cache, re-fetch everything"
     )
+    parser.add_argument(
+        "--stamp",
+        action="store_true",
+        help=(
+            "Write last_verified (OK entries only) and clear "
+            "attestation_expected on NO_PROVENANCE. Default is report-only."
+        ),
+    )
+    parser.add_argument(
+        "--date",
+        default=date.today().isoformat(),
+        help="ISO date used by --stamp (default: today). Tests pass an explicit value.",
+    )
     args = parser.parse_args()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", args.date):
+        parser.error("--date must be YYYY-MM-DD")
 
     results = audit_registry(args.registry, args.cache, args.refresh)
 
@@ -622,6 +914,30 @@ def main() -> None:
     for bucket in ("OK", "MISSING", "UNCLAIMABLE_MISMATCH", "THIN", "UNCHECKED"):
         print(f"  {bucket}: {counts.get(bucket, 0)}", file=sys.stderr)
     print(f"  TOTAL: {len(results)}", file=sys.stderr)
+    non_ok = [r for r in results if r["bucket"] != "OK"]
+    if non_ok:
+        print("\n=== Non-OK (do not stamp last_verified) ===", file=sys.stderr)
+        for r in non_ok:
+            print(f"  {r['bucket']}: {r['name']}", file=sys.stderr)
+
+    _print_provenance_summary(results)
+
+    if args.stamp:
+        stats = apply_stamp(args.registry, results, args.date)
+        _print_stamp_summary(stats, wrote=True)
+        print(f"\nWrote {args.registry}", file=sys.stderr)
+    else:
+        _print_stamp_summary(
+            {
+                "cleared": [],
+                "kept": [],
+                "unchecked": [],
+                "stamped": [],
+                "skipped_non_ok": [],
+            },
+            wrote=False,
+        )
+
     print(f"\nRaw results written to {args.out}", file=sys.stderr)
 
 
