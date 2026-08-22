@@ -31,6 +31,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import sys
 import tempfile
 from typing import Any
 
@@ -64,6 +65,19 @@ SAFE_ENV_VARS: frozenset[str] = frozenset(
 MCP_NOT_INSTALLED = (
     "MCP SDK not installed. Run: pip install 'mcp-audit[mcp]'  or  pip install mcp"
 )
+# Standalone binary: pip-installing into the frozen artifact is not possible.
+# See the four *.spec files — `mcp` is excluded the same way `sigstore` is.
+MCP_NOT_INSTALLED_FROZEN = (
+    "MCP SDK is not bundled in the standalone binary. "
+    "Live --connect requires a pip install of mcp-audit-scanner with the mcp extra."
+)
+
+
+def _mcp_missing_message() -> str:
+    """Return the install hint appropriate for pip vs the frozen binary."""
+    if getattr(sys, "frozen", False):
+        return MCP_NOT_INSTALLED_FROZEN
+    return MCP_NOT_INSTALLED
 
 
 async def connect_and_enumerate(
@@ -178,7 +192,7 @@ async def _enumerate(
             stdio_client,
         )
     except ImportError:
-        return ServerEnumeration(error=MCP_NOT_INSTALLED)
+        return ServerEnumeration(error=_mcp_missing_message())
 
     if server.transport in (TransportType.SSE, TransportType.STREAMABLE_HTTP):
         return await _enumerate_sse(

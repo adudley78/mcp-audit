@@ -14,6 +14,11 @@ pip install 'mcp-audit[mcp]'
 pip install 'mcp-audit-scanner[mcp]'
 ```
 
+The GitHub Release standalone binary does **not** bundle the MCP SDK — `mcp`
+is excluded from the PyInstaller specs the same way `sigstore` is. Running
+`--connect` from that binary prints an install hint rather than connecting.
+Use a pip or uv install with the `[mcp]` extra for live analysis.
+
 ---
 
 ## Basic usage
@@ -133,7 +138,12 @@ a bearer token through your identity provider and pass it via `--connect-token`.
 
 ## Troubleshooting
 
-**`MCP SDK not installed`** — Run `pip install 'mcp-audit[mcp]'`.
+**`MCP SDK not installed`** — Run `pip install 'mcp-audit[mcp]'`. The standalone
+binary does not include the SDK; switch to a pip/uv install with the `[mcp]` extra.
+
+**`MCP SDK is not bundled in the standalone binary`** — Same cause, different
+wording: you ran the GitHub Release binary. Live `--connect` needs a pip or
+uv install of mcp-audit-scanner with the mcp extra.
 
 **Connection timed out** — The server did not complete the handshake within the
 default 10 s window.  Check that the server process starts correctly with
