@@ -22,11 +22,14 @@ import contextlib
 import json
 import os
 import platform
+import shutil
+import signal
 import subprocess
 import sys
 import tempfile
 import threading
 from pathlib import Path
+from typing import Any
 
 # Windows' default console codepage is cp1252, which cannot encode the box-
 # drawing / arrow characters used in this script's status lines (e.g. "→").
@@ -35,8 +38,12 @@ from pathlib import Path
 # contextlib.suppress because non-default streams (captured pipes, etc.) may
 # not expose .reconfigure().
 for _stream in (sys.stdout, sys.stderr):
-    with contextlib.suppress(AttributeError, OSError):
-        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    with contextlib.suppress(AttributeError, OSError, TypeError):
+        _stream.reconfigure(encoding="utf-8", line_buffering=True)  # type: ignore[attr-defined]
+
+# Per-command cap so a hung scan fails the smoke test instead of sitting until
+# the CI job timeout (30 min). Frozen onefile startup is ~10 s; 90 s is slack.
+_COMMAND_TIMEOUT_SECONDS = 90
 
 FIXTURES = Path(__file__).parent.parent / "tests" / "fixtures"
 MALICIOUS = FIXTURES / "smoke_test_config.json"
@@ -55,6 +62,47 @@ _MINIMAL_CONFIG = json.dumps(
 )
 
 
+def _grouped_popen(cmd: list[str], **kwargs: Any) -> subprocess.Popen[str]:
+    """Start *cmd* in its own process group so we can reap children.
+
+    ``uv run mcp-audit`` and a PyInstaller onefile binary both spawn a child
+    that outlives ``Popen.kill()`` on the parent. A new session (POSIX) or
+    process group (Windows) lets ``_kill_process_tree`` take the whole tree.
+    """
+    if os.name == "nt":
+        kwargs["creationflags"] = (
+            int(kwargs.get("creationflags", 0)) | subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+    else:
+        kwargs["start_new_session"] = True
+    return subprocess.Popen(cmd, **kwargs)  # noqa: S603
+
+
+def _kill_process_tree(proc: subprocess.Popen[str]) -> None:
+    """Kill *proc* and every descendant. Safe to call if *proc* has already exited."""
+    if proc.poll() is not None:
+        return
+    if os.name == "nt":
+        taskkill = shutil.which("taskkill")
+        if taskkill is None:
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
+        else:
+            subprocess.run(  # noqa: S603
+                [taskkill, "/F", "/T", "/PID", str(proc.pid)],
+                capture_output=True,
+                check=False,
+            )
+    else:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, OSError):
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
+    with contextlib.suppress(subprocess.TimeoutExpired, ProcessLookupError):
+        proc.wait(timeout=5)
+
+
 def run(
     binary_cmd: list[str],
     *args: str,
@@ -65,12 +113,31 @@ def run(
     # default subprocess decode uses locale.getpreferredencoding(), which is
     # cp1252 on Windows and raises UnicodeDecodeError on non-ASCII bytes.
     # Pin UTF-8 + errors="replace" so the script stays readable across OSes.
-    result = subprocess.run(  # noqa: S603
+    proc = _grouped_popen(
         [*binary_cmd, *args],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
         encoding="utf-8",
         errors="replace",
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=_COMMAND_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        _kill_process_tree(proc)
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            stdout, stderr = proc.communicate(timeout=5)
+        print(
+            f"FAIL: command timed out after {_COMMAND_TIMEOUT_SECONDS}s\n"
+            f"  command: {binary_cmd} {' '.join(args)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    result = subprocess.CompletedProcess(
+        proc.args,
+        proc.returncode if proc.returncode is not None else 1,
+        stdout or "",
+        stderr or "",
     )
     if expect_exit is not None and result.returncode != expect_exit:
         print(
@@ -116,10 +183,13 @@ def _get_claude_desktop_path() -> Path:
 
 # STEP 9: watcher round-trip
 def step_watcher_round_trip(binary_cmd: list[str]) -> bool:
-    """Launch the watcher, modify a fixture, confirm a re-scan fires within 10 s.
+    """Launch the watcher, modify a fixture, confirm a re-scan fires.
 
     Uses a threading.Event to avoid polling with time.sleep for the re-scan
-    signal.  The watcher subprocess is always killed in a finally block.
+    signal.  The watcher process *tree* is always killed in a finally block.
+    ``Popen.kill()`` on ``uv run`` or a PyInstaller onefile parent leaves the
+    actual ``watch`` child running; that leak is what made a local smoke run
+    look hung and can stall the next step.
 
     Returns True on success, False on timeout or error.
     """
@@ -138,7 +208,7 @@ def step_watcher_round_trip(binary_cmd: list[str]) -> bool:
         # Console also needs to know it is NOT a terminal so it skips ANSI
         # codes; that is handled automatically when stdout is a pipe.
         watch_env = {**os.environ, "PYTHONUNBUFFERED": "1"}
-        proc = subprocess.Popen(  # noqa: S603
+        proc = _grouped_popen(
             [*binary_cmd, "watch", "--path", str(fixture)],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,  # merge so Rich console output is captured
@@ -203,9 +273,7 @@ def step_watcher_round_trip(binary_cmd: list[str]) -> bool:
                 return False
 
         finally:
-            proc.kill()
-            with contextlib.suppress(subprocess.TimeoutExpired):
-                proc.wait(timeout=5)
+            _kill_process_tree(proc)
             t.join(timeout=2)
 
     if reader_exc:
