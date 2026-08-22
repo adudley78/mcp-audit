@@ -100,22 +100,24 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies
-        # The binary ships *without* the optional [attestation] extra: the
-        # sigstore stack adds ~15 MB and would push the binary over the 35 MB
-        # budget enforced below.  `--verify-signatures` gracefully degrades
-        # to a friendly error when sigstore isn't importable (see
-        # src/mcp_audit/cli/scan.py).  Users who want attestation verification
-        # should `pip install 'mcp-audit-scanner[attestation]'` instead.
-        run: uv pip install -e ".[dev]" --system
+        # Match release.yml: extras land in the venv so the spec's
+        # `excludes=` list is actually exercised.  Installing `[dev]` only
+        # never tests that sigstore (and any other excluded extra) stays out
+        # of the binary when those packages are present in the build env.
+        # Optional extras that the spec does *not* exclude will be frozen
+        # in — the same as the artifact users download from GitHub Releases.
+        run: uv sync --all-extras
 
       - name: Install PyInstaller
-        run: uv pip install pyinstaller --system
+        run: uv pip install pyinstaller
 
       - name: Build Linux binary
         run: uv run pyinstaller mcp-audit-linux-x86_64.spec --distpath dist/
 
       - name: Run smoke test
-        run: python scripts/smoke_test.py dist/mcp-audit-linux-x86_64
+        # `uv run python` pins the interpreter to the uv-managed .venv, matching
+        # release.yml, so the step does not depend on whatever `python` is on PATH.
+        run: uv run python scripts/smoke_test.py dist/mcp-audit-linux-x86_64
 
       - name: Check binary size
         run: |
