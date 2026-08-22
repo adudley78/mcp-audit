@@ -70,10 +70,33 @@ Use existing tags where possible to keep the registry consistent:
 
 ## Verification standard
 
-- `verified: true` requires a confirmed link between the package name and
-  the repository, and a named maintainer organization
-- `verified: false` is acceptable for community entries where the maintainer
-  is less clear — these still help typosquatting detection
-- `verified: true` entries will not be added without a public source repository
-- `verified: false` entries may have `repo: null` if the source is unknown,
-  but a repo URL is strongly recommended
+`verified: true` means we have evidence that **the person submitting the
+entry controls the package**, not just that a package with that name and a
+plausible-looking repo exists. Any one of the following counts:
+- The npm/PyPI publishing account is on the project's own domain or org
+  (e.g. the maintainer email resolves to the package's own domain).
+- The submitter demonstrates write access to the repository the package
+  declares — for example, a merged PR whose head branch lives in that repo
+  rather than a fork.
+- The publishing account itself comments on the submission issue.
+
+`verified: true` entries will not be added without a public source repository.
+
+`verified: false` means the entry is listed and typosquat-protected, but
+unconfirmed — this is an ordinary, common outcome, not a rejection. Most
+community submissions start here and stay here indefinitely; that's fine.
+`repo: null` is acceptable here if the source is unknown, but a repo URL is
+strongly recommended.
+
+**What does not count as evidence: a git commit author email.** That field
+is self-asserted at commit time and anyone can put anything in it — it
+proves nothing about who controls the package or the repo. Submitters
+often offer it in good faith, and that's appreciated, but it can't move an
+entry from `false` to `true` on its own.
+
+### Upgrading a `verified: false` entry
+
+If your entry is already listed as `verified: false`, you don't need to
+resubmit — reply on the original issue (or open a new one referencing it)
+with evidence matching one of the bullets above. A maintainer will confirm
+it independently and flip `verified` to `true` once it checks out.

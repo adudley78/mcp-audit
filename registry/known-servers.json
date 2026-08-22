@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-08-20",
+  "last_updated": "2026-08-22",
   "entry_count": 50,
   "entries": [
     {
@@ -936,8 +936,8 @@
       "package_ecosystem": "npm",
       "repo": "https://github.com/palisadeemail/palisade-mcp",
       "maintainer": "Palisade",
-      "verified": false,
-      "last_verified": "2026-08-18",
+      "verified": true,
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "community",
