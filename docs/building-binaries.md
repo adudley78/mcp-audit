@@ -42,8 +42,10 @@ Listed on the composite itself so it does not live only in a PR body:
   pytest-locked. Cannot call the composite.
 - **CI `if:` / timeout vs release `upload-artifact`.** Policy, not recipe.
 
-`hatchling` stays unpinned. CI `wheel-check` (`uvx twine==7.0.0 check --strict`)
-is the Core-Metadata invariant; do not re-propose a lockstep pin.
+`hatchling` stays unpinned. CI `wheel-check` (`uvx twine==… check --strict`)
+is the Core-Metadata invariant; the Twine version is pytest-locked to the
+publish action's `runtime.txt` at the pinned SHA. Do not re-propose a
+hatchling pin.
 
 Local binaries: `uv python install 3.12.14 && uv sync --all-extras && uv pip install pyinstaller && uv run pyinstaller mcp-audit-<target>.spec --distpath dist/`. There is no `scripts/build-linux.sh` and no `build.py`; those used Python 3.11 + pip and skipped the specs' `excludes=`.
 

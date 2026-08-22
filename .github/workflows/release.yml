@@ -174,9 +174,9 @@ jobs:
         # to *this specific workflow run*.  PyPI surfaces them on the
         # project page.  For a security-scanner project this is a
         # non-negotiable best practice.
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
-        # Twine 7.0.0 (this SHA's runtime.txt). CI `wheel-check` runs the
-        # same `uvx twine==7.0.0 check --strict` on every PR.
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2; runtime.txt twine==7.0.0
+        # CI `wheel-check` must pin the same Twine. pytest fetches this SHA's
+        # requirements/runtime.txt and fails if they diverge.
         with:
           attestations: true
 
