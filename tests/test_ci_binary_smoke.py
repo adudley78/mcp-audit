@@ -35,3 +35,15 @@ def test_binary_smoke_uses_release_install_and_inspects_archive() -> None:
     assert "uv sync --all-extras" in text
     assert "scripts/inspect_frozen_binary.py" in text
     assert "uv run pyinstaller ${{ matrix.spec }}" in text
+
+
+def test_binary_smoke_uses_uv_python_not_setup_python() -> None:
+    """The shipped libpython is uv's standalone CPython, not hostedtoolcache."""
+    ci = _load(CI_YML)
+    steps = ci["jobs"]["binary-smoke"]["steps"]
+    uses = "\n".join(step.get("uses", "") for step in steps)
+    runs = "\n".join(str(step.get("run", "")) for step in steps)
+    assert "astral-sh/setup-uv@" in uses
+    assert "actions/setup-python@" not in uses
+    assert "uv python install 3.12" in runs
+    assert "hostedtoolcache" in runs
