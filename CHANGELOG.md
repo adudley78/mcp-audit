@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Weekly read-only registry drift check** (`.github/workflows/registry-drift.yml`). Monday 14:00 UTC plus `workflow_dispatch`. Runs `scripts/audit_registry.py` in its default report-only mode, never `--stamp`, and fails the job if any entry is `MISSING` or if `attestation_expected: true` classifies `NO_PROVENANCE`. Does not fail on `THIN` or stale `last_verified`. Hashes `registry/known-servers.json` before and after and fails if the file moved. Each run uploads a counts artifact so provenance-adoption / disappearance is a time series without a bot commit. See `docs/registry.md`.
+
 ### Fixed
 
 - **Registry: `attestation_expected: true` was never checked against a real provenance publish for 20 of 50 entries.** The flag turns a missing Sigstore attestation into a MEDIUM finding (`ATTEST-013`) for every user who scans that package — so a `true` the package does not actually publish is the same class of defect as vouching for a nonexistent name. `scripts/audit_registry.py` now queries the live npm attestations API / packument `dist.attestations` (SLSA only) and the PyPI PEP 740 integrity API for every flagged entry. This run: **11 flags cleared to `false`** (npm attestations API 404, including `@modelcontextprotocol/server-github` and `-postgres` despite hash pins); **9 kept** (real SLSA / PEP 740); **0 UNCHECKED**. The script never sets the flag to `true`.
