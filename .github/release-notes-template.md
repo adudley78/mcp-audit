@@ -82,9 +82,17 @@ Don't build automation against today's exact record shape. See
 
 `screenpipe-mcp` (npm, verified), `@palisadeemail/mcp` (npm — submitted unverified,
 independently verified to `true` before this release shipped, see "What's fixed"),
-and `docpull` (PyPI, unverified). Submitted via the registry-submission issue
-template. See [`docs/registry-contributions.md`](docs/registry-contributions.md) to
-submit your own.
+and `docpull` (PyPI, unverified). Filed by
+[@louis030195](https://github.com/louis030195)
+([#39](https://github.com/adudley78/mcp-audit/issues/39)),
+[@samuelchenardlovesboards](https://github.com/samuelchenardlovesboards)
+([#38](https://github.com/adudley78/mcp-audit/issues/38)), and
+[@zacharyr0th](https://github.com/zacharyr0th)
+([#35](https://github.com/adudley78/mcp-audit/issues/35)) via the
+registry-submission issue template. Every entry — verified or not — improves
+typosquat detection for everyone running the scanner. See
+[`docs/registry-contributions.md`](docs/registry-contributions.md) to submit your
+own.
 
 ---
 
