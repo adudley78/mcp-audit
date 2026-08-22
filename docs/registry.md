@@ -158,9 +158,32 @@ classifies as `NO_PROVENANCE`.
 
 Do **not** wire `--stamp` to an unattended CI cron. Packages disappearing is a
 real event; a nightly job that mutates the registry without a human looking at
-the buckets is its own hazard. A read-only scheduled run that **fails** on
-`MISSING` or on `attestation_expected` + `NO_PROVENANCE` is the useful check;
-a human then runs `--stamp`.
+the buckets is its own hazard.
+
+### Scheduled drift check
+
+`.github/workflows/registry-drift.yml` runs the audit **read-only** every Monday
+at 14:00 UTC (`workflow_dispatch` for on-demand). It fails the job when the
+registry is lying:
+
+| Fails on | Why |
+|----------|-----|
+| `MISSING` | We are vouching for a name that no longer exists — the 2026-04 exposure. |
+| `attestation_expected` + `NO_PROVENANCE` | Every user who scans that package gets a MEDIUM finding (`ATTEST-013`) for a condition that is not true. |
+
+It deliberately does **not** fail on `THIN` (`@playwright/mcp` is legitimately
+`0.0.79`) or on a stale `last_verified`. Staleness is not drift, and failing on
+it is the pressure that produces unattended mutation.
+
+`--stamp` stays a human act. The job hashes `registry/known-servers.json`
+before and after the audit and fails if the bytes moved. It never opens a PR.
+Each run uploads a counts artifact (`registry-drift-report`); that series is
+the provenance-adoption / disappearance corpus. The report is not committed
+and is not published to mcp-audit.dev.
+
+Investigate a red run with `python scripts/audit_registry.py`. Clear a false
+`attestation_expected` with `python scripts/audit_registry.py --stamp`. Remove
+a `MISSING` entry; do not stamp it.
 
 ## Implementation Notes
 
