@@ -175,18 +175,27 @@ jobs:
           uv build
 
       - name: Publish to PyPI
-        # Pinned to the v1.14.0 commit SHA (2026-04-07) for supply-chain
+        # Pinned to the v1.14.2 commit SHA (2026-07-29) for supply-chain
         # hardening — `release/v1` is a floating branch that could be moved
         # to a future malicious commit without our knowledge.  Bump the SHA
         # deliberately when picking up a new upstream release and audit the
         # diff at https://github.com/pypa/gh-action-pypi-publish/compare.
+        #
+        # Bumped from v1.14.0 after the v0.15.0 release run failed publish
+        # with `InvalidDistribution: '2.5' is not a valid metadata version`:
+        # hatchling >=1.32 (picked up unpinned via `build-system.requires =
+        # ["hatchling"]`) now emits Core-Metadata 2.5 by default, and v1.14.0
+        # bundles Twine 6, which rejects it outright. v1.14.2 ships Twine 7,
+        # which accepts 2.5. Diff audited: a setup-python bump, the Twine 7
+        # upgrade itself, and a sigstore/pypi-attestations bump — no other
+        # behavioural changes.
         #
         # `attestations: true` enables PEP 740 provenance attestations —
         # sigstore-signed statements that bind *these specific artefacts*
         # to *this specific workflow run*.  PyPI surfaces them on the
         # project page.  For a security-scanner project this is a
         # non-negotiable best practice.
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
         with:
           attestations: true
 
