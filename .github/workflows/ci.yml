@@ -107,6 +107,7 @@ jobs:
         # Resolve Twine from the publish action's runtime.txt at the pinned
         # SHA — not a copy in this file. Dependabot bumping the action SHA
         # then gets the matching Twine on the next PR, not a silent desync.
+        # Parse with sed, not awk -F=: a double-equals pin leaves an empty field.
         run: |
           set -euo pipefail
           SHA=$(grep -oE 'pypa/gh-action-pypi-publish@[0-9a-f]{40}' \
@@ -118,9 +119,10 @@ jobs:
           RUNTIME_URL="https://raw.githubusercontent.com/pypa/gh-action-pypi-publish/${SHA}/requirements/runtime.txt"
           echo "Fetching $RUNTIME_URL"
           RUNTIME=$(curl -fsSL "$RUNTIME_URL")
-          TWINE=$(printf '%s\n' "$RUNTIME" | awk -F= '/^twine==/{print $2; exit}')
+          TWINE=$(printf '%s\n' "$RUNTIME" | sed -n 's/^twine==//p' | head -n1)
           if [ -z "$TWINE" ]; then
             echo "ERROR: no twine== pin in runtime.txt at $SHA" >&2
+            printf '%s\n' "$RUNTIME" | head -n20 >&2
             exit 1
           fi
           echo "Publish action $SHA bundles twine==$TWINE"
