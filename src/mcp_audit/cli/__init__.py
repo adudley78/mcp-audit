@@ -118,7 +118,10 @@ app.add_typer(agent_files_app, name="agent-files")
 
 feed_app = typer.Typer(
     name="feed",
-    help="Work with the signed MCP advisory feed produced by `mcp-audit advise`.",
+    help=(
+        "Work with the signed MCP advisory feed produced by `mcp-audit advise`. "
+        "EXPERIMENTAL: the record format may change before signing ships."
+    ),
     no_args_is_help=True,
 )
 app.add_typer(feed_app, name="feed")

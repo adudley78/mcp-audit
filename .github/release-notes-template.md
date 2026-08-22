@@ -7,7 +7,7 @@ via the "Compose release notes from template" step.
 Keep this file in sync with README.md copy — CI does not verify it.
 If the feature list or test count changes in README.md, update here too.
 -->
-## mcp-audit {{VERSION}} — IDE Extension, Automated Fixes, Compliance PDF
+## mcp-audit {{VERSION}} — Signed Advisory Feed (Experimental), Registry Cleanup, and a SARIF Path-Leak Fix
 
 Security scanner for MCP (Model Context Protocol) server configurations.
 Detects prompt injection, supply chain risks, credential exposure, toxic flow
@@ -16,144 +16,116 @@ Cursor, VS Code, Zed, and any MCP-compatible host.
 
 ---
 
+### Security — read this first
+
+**If you run `mcp-audit scan --format sarif` in CI, upload the result to GitHub Code
+Scanning, push to Nucleus, or run `mcp-audit snapshot`, this release fixes an
+information-disclosure bug you were exposed to.**
+
+- **Absolute path leak, fixed.** SARIF, the Nucleus FlexConnect push, and the
+  snapshot export all copied this scanning host's absolute config path — which
+  includes your home directory and OS username — verbatim into output meant to leave
+  the machine. If that SARIF file went to GitHub Code Scanning, your home directory
+  and username were published to GitHub, visible to anyone with read access to the
+  repo. No credentials, secrets, or file contents were exposed — only the path string
+  and the username it encodes. **Our assessment: low-severity information
+  disclosure**, disclosed here rather than as a CVE/GHSA — see `CHANGELOG.md` for the
+  full reasoning. Paths are now redacted to a relative form at all three sinks.
+- **SARIF annotations, fixed.** The same absolute URI is also why `mcp-audit`'s SARIF
+  output has never produced inline PR annotations in GitHub Code Scanning — GitHub's
+  `upload-sarif` action matches results to files by reading `artifactLocation.uri`
+  literally, and an absolute path never matches a repo-relative file. If you assumed
+  the GitHub Action didn't support annotations, it does now.
+
+Full detail, including exactly which fields were affected and what stays
+intentionally unredacted (terminal output, the HTML dashboard): `CHANGELOG.md`.
+
+---
+
 ### Highlights
 
-- **Security findings now appear as squiggles in VS Code and Cursor** — before you run a single command.
-- **`mcp-audit fix` writes the fixes for you.** Dry-run by default. One flag to apply them.
-- **`mcp-audit check --report pdf` produces an auditable compliance report** — grade, OWASP mapping, chain-of-custody hash. Something you can hand to a CISO.
+- **`mcp-audit advise` — a signed, OSV-compatible advisory feed for MCP packages.
+  EXPERIMENTAL.** Turns scan findings into OSV `schema_version` 1.6.0 records and
+  publishes a verifiable feed. The record format is **not yet stable** and no
+  mcp-audit-operated signing key exists yet — see "What's new" below.
+- **Registry cleanup: 85 → 50 entries.** A full live audit against real npm/PyPI
+  data found 35 entries — 9 of them `verified: true` and misattributed to Anthropic —
+  that pointed at packages that don't exist, security-research canaries, or
+  unrelated third-party placeholder stubs. All removed; a further 9 corrected in
+  place. See "What's fixed" below.
+- **The SARIF path leak and broken annotations, above.**
 
 ---
 
 ### What's new
 
-**VS Code / Cursor extension — inline diagnostics as you type**
+**`mcp-audit advise <target>` / `mcp-audit feed verify <dir>` — signed advisory feed (EXPERIMENTAL)**
 
-Open a Claude, Cursor, or any MCP config file and red/yellow underlines appear on the
-lines with problems. Hover over one to see the finding title, the evidence from your
-config, and the remediation step. No terminal required to know something is wrong.
+There is no CVE/OSV/NVD equivalent for MCP servers today. `mcp-audit advise` turns
+scan findings into stock OSV `schema_version` 1.6.0 advisory records — deterministic,
+content-derived `x_MCPSA-<12hex>` IDs, never a timestamp — and publishes them as a
+signed, verifiable feed (`advisories/<id>.json`, `index.json`, an
+osv-scanner-consumable `osv/all.json`/`.zip`). MCP-specific fields live under
+`affected[].database_specific` so a generic OSV parser needs to know nothing about
+MCP to consume it. `mcp-audit feed verify <dir>` checks a feed's integrity and
+signatures.
 
-The status bar shows your current grade and finding count at a glance. The command
-palette adds three commands: scan the current file, scan the workspace, and fix the
-current file.
-
-Install via the Open VSX Registry if you're on Cursor. For VS Code, install manually
-from the `.vsix` file available at the `mcp-audit-vscode` releases page (VS Code
-Marketplace listing is in progress). See `docs/ide-extension.md`.
-
-The extension shells out to the `mcp-audit` binary. No detection logic lives in
-TypeScript. The CLI is the source of truth.
-
----
-
-**`mcp-audit fix` — apply safe remediations to your config file**
-
-Run it and you get a unified diff showing proposed changes. Nothing is modified. Add
-`--apply` and the changes are written atomically, with a `.bak` backup of the
-original created first.
-
-Three fix types ship in {{VERSION}}:
-
-- **Credential redaction** (CRED-001, CRED-002): replaces plaintext secret values
-  with `${ENV_KEY_NAME}` placeholders. Idempotent — skips values already using the
-  `${...}` syntax.
-- **Transport upgrade** (TRANSPORT-001): rewrites `http://` server URLs to `https://`.
-  Idempotent — skips URLs already on HTTPS.
-- **Package pinning** (SC-001, SC-002): replaces a typosquatted package name with the
-  verified closest match from the known-server registry. Warns (non-blocking) if the
-  replacement is not a registry-known entry.
-
-`--fix-type` restricts which strategies run. `--input <scan.json>` skips re-scanning
-and reads findings from an existing JSON file. `--offline` suppresses network calls
-and skips pinning while credential and transport fixes still apply.
-
-See [`docs/fix.md`](docs/fix.md).
+**This is marked experimental on purpose.** The record format may still change
+before it stabilizes, and `--sign` requires you to bring your own
+`--key`/`$MCP_AUDIT_SIGNING_KEY` — there is no mcp-audit-operated project key yet.
+Don't build automation against today's exact record shape. See
+[`docs/advisory-feed.md`](docs/advisory-feed.md).
 
 ---
 
-**`mcp-audit check --report pdf` — PDF compliance report**
+**Registry: 3 new community submissions**
 
-`mcp-audit check --report pdf --output-file report.pdf` produces a Letter-size PDF
-you can include in an audit response or hand directly to a CISO without a terminal
-explanation.
-
-The report contains: a color-coded grade header (A/B green, C amber, D/F red), an
-executive summary with per-severity counts, a paginated findings table with OWASP MCP
-Top 10 category and remediation hint for each finding, and a SHA-256 content hash on
-the last page. The hash covers the `ScanResult` JSON, so it is reproducible from a
-scan export alone and does not change with re-rendering.
-
-`--org "Name"` sets the organisation name in the header. Falls back to the registered
-org from `mcp-audit register`, then "Not specified."
-
-`mcp-audit scan --report pdf` is also supported for full-pipeline scans.
-
-See [`docs/compliance-report.md`](docs/compliance-report.md).
+`screenpipe-mcp` (npm, verified), `@palisadeemail/mcp` (npm — submitted unverified,
+independently verified to `true` before this release shipped, see "What's fixed"),
+and `docpull` (PyPI, unverified). Submitted via the registry-submission issue
+template. See [`docs/registry-contributions.md`](docs/registry-contributions.md) to
+submit your own.
 
 ---
 
-**`mcp-audit register` — opt-in identification**
+### What's fixed
 
-Developers and security engineers can now identify their org to receive weekly
-new-rule notifications and an optional follow-up when their scan grade drops to C or
-below.
+**Registry: removed or corrected 35 of 85 entries following a full live audit**
+against the real npm/PyPI registries. 25 entries pointed at packages that don't
+exist in their declared ecosystem at all — 9 of them `verified: true` and
+attributed to Anthropic — plus a security-research canary and an unrelated third
+party's placeholder-stub "farm" registered under major-vendor-implied names. All 35
+removed. A further 9 real-but-misattributed entries corrected in place and demoted
+to `verified: false`. `entry_count`: **85 → 50**. Full detail:
+`registry-audit-2026-08-18.md` and `CHANGELOG.md`.
 
-Registration is entirely voluntary. An unregistered user sees no behaviour change and
-no network traffic. The initial registration POST sends name, org, email, version,
-grade, and follow-up preference. Nothing else. Subsequent pings from `mcp-audit check`
-send version and grade only — no PII.
+**Registry: duplicate-name and ecosystem-blind lookup bugs closed.** A same-named npm
+canary package and a legitimate PyPI entry could previously collide and resolve
+inconsistently depending on file order; the registry now raises at load time on any
+duplicate name instead of silently picking one. npm-scoped lookups (`is_known_npm`,
+`get_npm`, `find_closest_npm`) now mirror the PyPI-scoped ones that already existed,
+and `TRANSPORT-003` severity tiering is now ecosystem-scoped too.
 
-`mcp-audit register --status` shows current registration. `--clear` removes it and
-stops all pings. If the registration endpoint is unreachable, the scan completes
-normally with a dim one-liner at the bottom.
+**Advisory feed: pre-release security review fixes**, applied before this feature
+ever shipped in a tagged release — RFC 8785 float canonicalization conformance,
+advisory-ID stability (no year-boundary component), and gaps in the
+non-advisory-finding exclusion list. Full detail in `CHANGELOG.md`.
 
-See [`docs/privacy.md`](docs/privacy.md) for the plain-English privacy policy.
-
----
-
-**CVE registry additions**
-
-Two entries added to `registry/known-servers.json` before this release shipped:
-
-| CVE | Package | CVSS | Summary |
-|-----|---------|------|---------|
-| CVE-2026-33032 | nginx-ui-mcp | 9.8 | Unauthenticated RCE via nginx-ui admin API — do not expose publicly |
-| CVE-2026-26118 | @microsoft/mcp-server | 8.1 | Tool hijacking via crafted tool description |
-
-Users running `mcp-audit update-registry` will receive these entries immediately.
+**Registry: `@palisadeemail/mcp` verified `false → true`** on independently
+re-checked evidence (npm's own publishing account is on the package's own domain;
+the submitter demonstrated repo write access via a same-repo merged PR). This also
+prompted a rewrite of the registry contribution docs' verification standard, which
+previously didn't test the submitter at all.
 
 ---
 
 ### What changed
 
-No breaking changes. All existing scans, configs, baselines, policies, and rule files
-carry forward without modification.
-
-`RegistryEntry` in `registry/loader.py` gains an optional `known_vulns: list[dict]`
-field (default `[]`). This is additive — existing registry entries without the field
-are unaffected.
-
----
-
-### Fixed
-
-- `tests/test_network_policy.py`: fixed `click.exceptions.Exit` import that broke test
-  collection when `typer >= 0.26` vendored Click internally rather than installing it
-  as a standalone package. Changed to `typer.Exit` throughout.
-- `registration/client.py`: suppression annotations now include both `# noqa: S310`
-  (Ruff) and `# nosec B310` (Bandit) so both linters suppress cleanly.
-
----
-
-### Security
-
-| Advisory | What it is | Fix |
-|----------|-----------|-----|
-| CVE-2026-45409 | `idna` < 3.15: quadratic DoS bypass in `idna.encode()`. Surfaced as a direct dependency via the `[mcp]` extra path. | Bumped `idna` floor to `>=3.15` |
-| CVE-2026-24408 | `sigstore` < 4.2.0 in the optional `[attestation]` extra. Does not affect the core runtime or any user who has not explicitly installed the attestation extra. | Bumped `sigstore` floor to `>=4.2.0` in the `[attestation]` extra |
-
-SHA-pinning hardening: all 14 GitHub Actions workflow files now pin third-party actions
-to full 40-character commit SHAs, preventing supply-chain substitution attacks. Thanks
-to [@jsandov](https://github.com/jsandov) for the contribution, our first external PR.
+No breaking changes to existing scans, configs, baselines, policies, or rule files.
+`Finding` and `ServerConfig` objects are never mutated by the new path-redaction
+logic — it applies only at serialization time in SARIF, Nucleus, and snapshot output.
+Terminal output, the HTML dashboard, and plain JSON output (`--format json` /
+`-o file.json`) are unaffected by design; see `CHANGELOG.md` for why.
 
 ---
 
@@ -185,15 +157,16 @@ Full input/output reference in [`docs/github-action.md`](docs/github-action.md).
 Pin to a specific release tag (as shown) until a `v1.0.0` ships;
 after v1, `@v1` will track the latest 1.x release automatically.
 
+If you upload SARIF to Code Scanning, this release is the one where inline PR
+annotations start working — see "Security" above.
+
 ---
 
 ### Upgrading
 
 No action needed. `pip install --upgrade mcp-audit-scanner` or download the new binary
-from the release assets.
-
-If you use the VS Code / Cursor extension, download `mcp-audit-0.1.1.vsix` from the
-`mcp-audit-vscode` releases page and install via "Extensions: Install from VSIX."
+from the release assets. If you have automation parsing SARIF, Nucleus, or snapshot
+output for absolute paths, re-check it — those paths are now relative.
 
 ---
 
@@ -208,11 +181,13 @@ If you use the VS Code / Cursor extension, download `mcp-audit-0.1.1.vsix` from 
 
 ### Integrations
 
-- SARIF → GitHub Code Scanning (schema-validated, deduplication-safe)
+- SARIF → GitHub Code Scanning (schema-validated, deduplication-safe, and — as of
+  this release — annotations that actually attach)
 - Nucleus Security FlexConnect (`mcp-audit push-nucleus`)
 - Baseline diffing for CI regression gates (`mcp-audit baseline`)
 - HTML dashboard — self-contained, no CDN dependencies
 - VS Code / Cursor extension — inline squiggles and command palette
+- Signed OSV advisory feed (`mcp-audit advise`) — **experimental**, see above
 
 ### Validated against
 
