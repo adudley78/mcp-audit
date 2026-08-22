@@ -110,6 +110,58 @@ To add a server, open a pull request against the mcp-audit repository editing
 - Increment `entry_count` to match the actual number of entries in the array.
 - Set `last_verified` to the ISO date of your review.
 
+## Auditing the registry
+
+`scripts/audit_registry.py` re-checks every entry against the live npm / PyPI
+registries. **Default is read-only** — it prints a report and writes
+`.registry_audit_raw.json` (gitignored). It never adds or removes entries.
+
+```
+python scripts/audit_registry.py
+python scripts/audit_registry.py --refresh          # ignore the local cache
+python scripts/audit_registry.py --stamp            # write field updates
+python scripts/audit_registry.py --stamp --date 2026-08-22
+```
+
+### Buckets
+
+| Bucket | Meaning |
+|--------|---------|
+| `OK` | Package exists in its declared ecosystem and the registry `repo` matches the package's own metadata (after URL normalization). |
+| `MISSING` | Package does not exist (404). The registry is vouching for a name anyone could register. |
+| `UNCLAIMABLE_MISMATCH` | Package exists, but its declared repository does not match ours (or ours is `null` while the package points somewhere identifiable). |
+| `THIN` | Package exists but looks like a placeholder (version `0.0.x` and/or very low recent downloads). |
+| `UNCHECKED` | Network / rate-limit / ambiguous data. Never guessed. |
+
+`--stamp` sets `last_verified` to today's date **only** on entries this run
+classified as `OK`. Non-OK entries are left alone — the field is published as
+`entry_updated` on mcp-audit.dev, so it must mean this run actually verified
+the package.
+
+### `attestation_expected`
+
+The flag turns a missing Sigstore attestation from a neutral absence into a
+MEDIUM finding (`ATTEST-013`). A `true` that the package does not actually
+publish is the same class of defect as vouching for a nonexistent name.
+
+On `--stamp`, for every entry currently `attestation_expected: true`:
+
+| Provenance class | Action |
+|------------------|--------|
+| `HAS_PROVENANCE` | Leave `true` (npm `dist.attestations` SLSA, or PyPI PEP 740 integrity API). |
+| `NO_PROVENANCE` | Set to `false`. |
+| `UNCHECKED` | Leave `true` and list the name — unverifiable is not the same as false. |
+
+The script **never** sets `attestation_expected: true`. Weak evidence (for
+example an npm publish attestation without an SLSA provenance predicate)
+classifies as `NO_PROVENANCE`.
+
+Do **not** wire `--stamp` to an unattended CI cron. Packages disappearing is a
+real event; a nightly job that mutates the registry without a human looking at
+the buckets is its own hazard. A read-only scheduled run that **fails** on
+`MISSING` or on `attestation_expected` + `NO_PROVENANCE` is the useful check;
+a human then runs `--stamp`.
+
 ## Implementation Notes
 
 - `src/mcp_audit/registry/loader.py` — `KnownServerRegistry` class,

@@ -9,7 +9,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -37,7 +37,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -57,7 +57,7 @@
         "anthropic-bot",
         "modelcontextprotocol"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-gitlab",
@@ -65,14 +65,14 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
         "gitlab",
         "remote"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-google-maps",
@@ -80,14 +80,14 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
         "google",
         "remote"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-slack",
@@ -95,7 +95,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -105,7 +105,7 @@
       "capabilities": [
         "network_out"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-postgres",
@@ -113,7 +113,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -126,7 +126,7 @@
       "capabilities": [
         "database"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-puppeteer",
@@ -134,7 +134,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -145,7 +145,7 @@
         "browser",
         "network_out"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-brave-search",
@@ -153,7 +153,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -169,7 +169,7 @@
         "anthropic-bot",
         "modelcontextprotocol"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-everart",
@@ -177,14 +177,14 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
         "image",
         "remote"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-memory",
@@ -192,7 +192,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -214,14 +214,14 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
         "aws",
         "remote"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-everything",
@@ -229,7 +229,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -249,7 +249,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -265,7 +265,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -276,7 +276,7 @@
         "file_read",
         "network_out"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/server-redis",
@@ -284,14 +284,14 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
         "database",
         "local"
       ],
-      "attestation_expected": true
+      "attestation_expected": false
     },
     {
       "name": "@modelcontextprotocol/sdk",
@@ -299,7 +299,7 @@
       "repo": "https://github.com/modelcontextprotocol/typescript-sdk",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -313,7 +313,7 @@
       "repo": "https://github.com/modelcontextprotocol/inspector",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -328,7 +328,7 @@
       "repo": "https://github.com/modelcontextprotocol/python-sdk",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -346,7 +346,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -373,7 +373,7 @@
       "repo": "https://github.com/upstash/context7",
       "maintainer": "Upstash",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "docs",
@@ -386,7 +386,7 @@
       "repo": "https://github.com/mintlify/mcp",
       "maintainer": "Mintlify",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "docs",
@@ -399,7 +399,7 @@
       "repo": "https://github.com/supabase/mcp",
       "maintainer": "Supabase",
       "verified": false,
-      "last_verified": "2026-08-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "database",
@@ -412,7 +412,7 @@
       "repo": "https://github.com/cloudflare/mcp-server-cloudflare",
       "maintainer": "Cloudflare",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "cloud",
@@ -425,7 +425,7 @@
       "repo": "https://github.com/stripe/ai",
       "maintainer": "Stripe",
       "verified": false,
-      "last_verified": "2026-08-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "payments",
@@ -444,7 +444,7 @@
       "repo": "https://github.com/browserbase/mcp-server-browserbase",
       "maintainer": "Browserbase",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "browser",
@@ -457,7 +457,7 @@
       "repo": "https://github.com/adamdude828/mcp-server-docker",
       "maintainer": "aholsinger",
       "verified": false,
-      "last_verified": "2026-08-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "docker",
@@ -470,7 +470,7 @@
       "repo": "https://github.com/Flux159/mcp-server-kubernetes",
       "maintainer": "flux159",
       "verified": false,
-      "last_verified": "2026-08-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "kubernetes",
@@ -483,7 +483,7 @@
       "repo": "https://github.com/dvcrn/mcp-server-linear",
       "maintainer": "dvcrn",
       "verified": false,
-      "last_verified": "2026-08-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "project-management",
@@ -496,7 +496,7 @@
       "repo": null,
       "maintainer": "community",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "database",
@@ -509,7 +509,7 @@
       "repo": "https://github.com/makenotion/notion-mcp-server",
       "maintainer": "community",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "productivity",
@@ -522,7 +522,7 @@
       "repo": null,
       "maintainer": "community",
       "verified": false,
-      "last_verified": "2026-04-15",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "cloud",
@@ -535,7 +535,7 @@
       "repo": "https://github.com/exa-labs/exa-mcp-server",
       "maintainer": "Exa",
       "verified": false,
-      "last_verified": "2026-04-23",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "search",
@@ -577,7 +577,7 @@
       "repo": "https://github.com/tavily-ai/tavily-mcp",
       "maintainer": "Tavily",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "search",
@@ -598,7 +598,7 @@
       "repo": "https://github.com/firecrawl/firecrawl-mcp-server",
       "maintainer": "hello_sideguide",
       "verified": false,
-      "last_verified": "2026-08-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "scraping",
@@ -622,7 +622,7 @@
       "repo": "https://github.com/qdrant/mcp-server-qdrant",
       "maintainer": "Qdrant",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "database",
@@ -645,7 +645,7 @@
       "repo": "https://github.com/neondatabase/mcp-server-neon",
       "maintainer": "Neon",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "database",
@@ -668,7 +668,7 @@
       "repo": "https://github.com/Shopify/dev-mcp",
       "maintainer": "Shopify",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "ecommerce",
@@ -691,7 +691,7 @@
       "repo": "https://github.com/sooperset/mcp-atlassian",
       "maintainer": "community",
       "verified": false,
-      "last_verified": "2026-05-09",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "project-management",
@@ -716,7 +716,7 @@
       "repo": "https://github.com/AgentDeskAI/browser-tools-mcp",
       "maintainer": "AgentDesk",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "browser",
@@ -739,7 +739,7 @@
       "repo": "https://github.com/microsoft/mcp",
       "maintainer": "Microsoft",
       "verified": false,
-      "last_verified": "2026-08-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "cloud",
@@ -765,7 +765,7 @@
       "repo": "https://github.com/langchain-ai/langchain-mcp-adapters",
       "maintainer": "LangChain",
       "verified": false,
-      "last_verified": "2026-05-02",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "sdk",
@@ -787,7 +787,7 @@
       "repo": "https://github.com/modelcontextprotocol/servers",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-05-17",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "official",
@@ -810,9 +810,9 @@
       "source": "pip",
       "package_ecosystem": "pypi",
       "repo": null,
-      "maintainer": "unknown \u2014 publisher does not match declared Anthropic attribution",
+      "maintainer": "unknown — publisher does not match declared Anthropic attribution",
       "verified": false,
-      "last_verified": "2026-08-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "database",
@@ -832,7 +832,7 @@
       "repo": "https://github.com/MCPJam/inspector",
       "maintainer": "MCPJam",
       "verified": false,
-      "last_verified": "2026-06-13",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "dev-tools",
@@ -859,7 +859,7 @@
       "repo": "https://github.com/jamubc/gemini-mcp-tool",
       "maintainer": "filecrop",
       "verified": false,
-      "last_verified": "2026-08-20",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "ai",
@@ -883,7 +883,7 @@
       "repo": "https://github.com/FlowiseAI/Flowise",
       "maintainer": "FlowiseAI",
       "verified": false,
-      "last_verified": "2026-06-13",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "ai",
@@ -911,7 +911,7 @@
       "repo": "https://github.com/screenpipe/screenpipe",
       "maintainer": "screenpipe",
       "verified": true,
-      "last_verified": "2026-08-18",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "community",
@@ -962,7 +962,7 @@
       "repo": "https://github.com/raintree-technology/docpull",
       "maintainer": "Raintree Technology",
       "verified": false,
-      "last_verified": "2026-08-18",
+      "last_verified": "2026-08-22",
       "known_versions": [],
       "tags": [
         "community",
