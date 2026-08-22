@@ -13,6 +13,18 @@ updates:
       # sigstore has breaking changes between minors — pin manually
       - dependency-name: sigstore
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
+    # Version updates only bump packages named in pyproject.toml. Transitives
+    # that exist only in uv.lock (pillow via reportlab, pyasn1 via sigstore)
+    # generate Dependabot *alerts* but no version-update PRs. Repo-level
+    # security updates do open PRs for lockfile CVEs, but without grouping
+    # each CVE is its own PR and they stall behind the open-PR limit — that
+    # is how 33 alerts accumulated while version-update PRs kept merging.
+    # Group them; do not raise the limit.
+    groups:
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   # GitHub Actions
   - package-ecosystem: github-actions
