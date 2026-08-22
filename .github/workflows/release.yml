@@ -4,6 +4,21 @@ on:
   push:
     tags:
       - "v*.*.*"
+  # Dry-run: same `build` job (and therefore the same composite) as a tag
+  # push, including `upload-artifact`. Never creates a GitHub Release,
+  # publishes to PyPI, or moves @vN — those jobs are `if: push` only.
+  # Dispatch this after changing the composite or the upload path; do not
+  # wait for the next tag to be the first release-side execution.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: >
+          Ignored as a gate: workflow_dispatch never publishes. Builds the
+          four binaries via .github/actions/build-binary/ and keeps them as
+          workflow artifacts so the upload path is proven. Only a v*.*.*
+          tag push creates a GitHub Release or publishes the wheel.
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -59,6 +74,8 @@ jobs:
   release:
     name: Create GitHub Release
     needs: build
+    # Tag pushes only. workflow_dispatch is a dry-run of `build`.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
@@ -97,6 +114,8 @@ jobs:
     # not withhold the GitHub Release binaries, and vice versa.  Both still
     # depend on `build` so a broken build never publishes anywhere.
     needs: build
+    # Tag pushes only. workflow_dispatch is a dry-run of `build`.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     # Bound to the `pypi` Environment so PyPI's Trusted Publisher OIDC claim
@@ -122,7 +141,10 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.12
+        # Pin must match .github/actions/build-binary/ `python-version`
+        # default. This job cannot call the composite (PyInstaller). The
+        # copy is locked by tests/test_ci_binary_smoke.py.
+        run: uv python install 3.12.14
 
       - name: Build sdist + wheel
         # Pure-Python project (hatchling backend), so `uv build` produces a
@@ -163,6 +185,7 @@ jobs:
     # every `@v1` consumer to a release where `pip install mcp-audit-scanner`
     # 404s, and a broken GitHub Release must not advertise missing binaries.
     needs: [build, release, publish-pypi]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     permissions:

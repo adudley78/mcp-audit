@@ -1,4 +1,8 @@
 [build-system]
+# Unpinned. v0.15.0 failed PyPI upload when a newer hatchling emitted
+# Core-Metadata 2.5 that the then-pinned publish action's Twine 6 rejected
+# (tag re-cut). Pin or floor-constrain in lockstep with
+# pypa/gh-action-pypi-publish — do not bump one without the other.
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
