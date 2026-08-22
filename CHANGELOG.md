@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **Weekly read-only registry drift check** (`.github/workflows/registry-drift.yml`). Monday 14:00 UTC plus `workflow_dispatch`. Runs `scripts/audit_registry.py` in its default report-only mode, never `--stamp`, and fails the job if any entry is `MISSING` or if `attestation_expected: true` classifies `NO_PROVENANCE`. Does not fail on `THIN` or stale `last_verified`. Hashes `registry/known-servers.json` before and after and fails if the file moved. Each run uploads a counts artifact so provenance-adoption / disappearance is a time series without a bot commit. See `docs/registry.md`.
+- **CycloneDX 1.5 SBOMs on each GitHub Release.** Per-binary `mcp-audit-<platform>.cdx.json` inventories the PyInstaller PYZ (what that binary actually runs). `mcp-audit-scanner-wheel.cdx.json` inventories a default wheel install. Does not change `mcp-audit sbom`. See `docs/building-binaries.md`.
 
 ### Fixed
 

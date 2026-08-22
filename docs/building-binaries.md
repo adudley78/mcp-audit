@@ -58,3 +58,20 @@ the soft limit to hide a packaging regression; change the specs' excludes
 instead. Byte-identical PyInstaller output is not a goal — deltas under a
 few kilobytes (timestamps, path lengths) are noise. Investigate only
 megabyte-scale changes.
+
+## Release SBOMs
+
+Each GitHub Release attaches CycloneDX 1.5 JSON next to the artifacts:
+
+| Asset | Covers |
+|---|---|
+| `mcp-audit-<platform>.cdx.json` | Python packages frozen into that PyInstaller binary (PYZ ∩ build-venv versions). Not the full `--all-extras` venv. |
+| `mcp-audit-scanner-wheel.cdx.json` | A default `pip install mcp-audit-scanner` (no extras). Not a binary. |
+
+`mcp-audit sbom` is unrelated — it inventories **scanned MCP servers**, not mcp-audit itself.
+
+To check a downloaded binary against its SBOM, confirm the package and version you care about are in `components[]`. Example: `pillow` and `reportlab` must be present; `mcp` and `sigstore` must not (those extras are excluded from the binary).
+
+```bash
+python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(sorted(c['name']+'=='+c['version'] for c in d['components']))" mcp-audit-linux-x86_64.cdx.json
+```

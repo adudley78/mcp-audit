@@ -77,6 +77,9 @@ uv add mcp-audit-scanner
 > was already taken). The CLI command is still `mcp-audit`.
 > Standalone binaries are also available on
 > [GitHub Releases](https://github.com/adudley78/mcp-audit/releases).
+> Each release attaches a CycloneDX 1.5 SBOM per binary (`mcp-audit-<platform>.cdx.json`)
+> plus `mcp-audit-scanner-wheel.cdx.json` for the PyPI wheel. See
+> [docs/building-binaries.md](docs/building-binaries.md#release-sboms).
 
 For live server connection support:
 
@@ -401,7 +404,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-2,960 tests validate detection accuracy and guard against regressions.
+2,969 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -609,7 +612,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 2,960 tests
+uv run pytest                        # Run all 2,969 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

@@ -138,6 +138,21 @@ runs:
       shell: bash
       run: uv run python scripts/inspect_frozen_binary.py dist/${{ inputs.binary }} ${{ inputs.spec }}
 
+    - name: Generate CycloneDX SBOM
+      # (b) PYZ ∩ build-venv versions. Syft sees zero Python packages in a
+      # PyInstaller onefile (no .dist-info). cyclonedx-py would describe the
+      # venv including excluded extras. Fail if pillow/reportlab are missing
+      # or if a build-machine path leaked into the JSON.
+      shell: bash
+      run: |
+        set -euo pipefail
+        uv run python scripts/generate_release_sbom.py \
+          --binary dist/${{ inputs.binary }} \
+          --target ${{ inputs.target }} \
+          --output dist/mcp-audit-${{ inputs.target }}.cdx.json \
+          --schema tests/fixtures/cyclonedx-1.5.schema.json \
+          --require pillow,reportlab
+
     - name: Run smoke test
       shell: bash
       run: uv run python scripts/smoke_test.py dist/${{ inputs.binary }}
