@@ -39,11 +39,9 @@
 #   updates both; a drift is visible and does not change the artifact.
 # - publish-pypi `uv python install <pin>`. Same pin as this default;
 #   pytest-locked. This job cannot call the composite.
-# - hatchling stays unpinned. CI `wheel-check` runs twine check --strict
-#   against the Twine version in the publish action's runtime.txt at the
-#   pinned SHA — pytest-locked in tests/test_wheel_metadata.py. Do not pin
-#   hatchling. Do not let a Dependabot action bump silently desync the
-#   uvx twine pin from what will actually upload.
+# - hatchling stays unpinned. CI `wheel-check` fetches the publish
+#   action's runtime.txt at the pinned SHA and runs that Twine — no
+#   copy of the version in ci.yml. Do not pin hatchling.
 # - CI `if:` / timeout vs release `upload-artifact`. Policy, not recipe.
 # - `workflow_dispatch` dry-run on release.yml exercises this composite
 #   on the release-side job graph without tagging. Tag pushes still
