@@ -25,7 +25,29 @@
 #
 # Patch version is pinned (3.12.14, not 3.12) so a CPython patch release
 # cannot silently reopen (3). Bump the `python-version` default below
-# deliberately, the same way Action SHAs are bumped. See docs/building-binaries.md.
+# deliberately, the same way Action SHAs are bumped. That default is the
+# owner of the pin: `publish-pypi` copies it (it cannot invoke this
+# composite, which runs PyInstaller), and tests/test_ci_binary_smoke.py
+# asserts the copy matches. See docs/building-binaries.md.
+#
+# Knowingly not shared (do not "just quickly" copy a step to close these):
+#
+# - Job matrix (os / target / spec / binary). A composite cannot own
+#   strategy. CI ≡ release is asserted, including the `with:` block each
+#   caller passes to this action.
+# - actions/checkout SHA. Every job checkouts independently. Dependabot
+#   updates both; a drift is visible and does not change the artifact.
+# - publish-pypi `uv python install <pin>`. Same pin as this default;
+#   pytest-locked. This job cannot call the composite.
+# - hatchling in pyproject.toml build-system.requires is still unpinned
+#   (`["hatchling"]`). That, plus a floating interpreter, is what forced
+#   a re-cut of the v0.15.0 tag (Core-Metadata 2.5 vs Twine 6). Pin or
+#   floor-constrain hatchling in lockstep with pypa/gh-action-pypi-publish;
+#   do not bump one without the other.
+# - CI `if:` / timeout vs release `upload-artifact`. Policy, not recipe.
+# - `workflow_dispatch` dry-run on release.yml exercises this composite
+#   on the release-side job graph without tagging. Tag pushes still
+#   create the GitHub Release and publish the wheel.
 
 name: 'Build mcp-audit binary'
 description: >

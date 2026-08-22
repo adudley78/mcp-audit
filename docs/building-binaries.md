@@ -6,10 +6,14 @@ The artifact users download from GitHub Releases is built **one way**:
 composite. Do not copy its steps into a workflow to add a flag — add the
 flag to the composite so both callers pick it up.
 
-Pinned interpreter: **CPython 3.12.14** via `uv python install` (the
-`python-version` input default). Not `actions/setup-python`, and not a
-floating `3.12`. Bump the pin the same way Action SHAs are bumped:
-deliberately, in one place, after checking the changelog.
+Pinned interpreter: **CPython 3.12.14**, owned by the composite's
+`python-version` input default. `publish-pypi` copies that pin (it cannot
+invoke the composite). Bump the default, then the copy; pytest fails if
+they diverge. Not `actions/setup-python`, and not a floating `3.12`.
+
+Prove the release-side path with `workflow_dispatch` on the Release
+workflow (dry-run: build + artifact upload, no GitHub Release / PyPI).
+Do not wait for the next `v*.*.*` tag to be the first execution.
 
 ## Why this exists
 
@@ -25,19 +29,24 @@ was written twice:
 A floating `3.12` would reopen (3) on the next CPython patch: release
 picks up 3.12.15 while a cached CI runner still has 3.12.14.
 
-## What is still duplicated, and why
+## Knowingly not shared
+
+Listed on the composite itself so it does not live only in a PR body:
 
 - **Job matrix** (`os` / `target` / `spec` / `binary`). A composite cannot
   own a job strategy. `tests/test_ci_binary_smoke.py` asserts the two
-  matrices stay equal. A reusable `workflow_call` could share the matrix
-  but would also mix CI policy (`if:`, timeout) with release upload.
-- **`actions/checkout` SHA.** Every job checkouts independently; it is
-  not a build parameter.
-- **`publish-pypi`** still runs `uv python install 3.12` for the
-  wheel/sdist. That job does not produce the standalone binary (pure
-  Python, hatchling).
-- **`scripts/build-linux.sh`** is a local Docker convenience
-  (`python:3.11-slim` + pip + `build.py`). It is not the shipped path.
+  matrices **and** the `with:` block each caller passes to the composite.
+- **`actions/checkout` SHA.** Every job checkouts independently.
+  Dependabot updates both; a drift is visible and harmless.
+- **`publish-pypi` `uv python install`.** Copies the composite default;
+  pytest-locked. Cannot call the composite.
+- **`hatchling` in `build-system.requires`.** Still unpinned. Combined
+  with a floating interpreter, that re-cut the v0.15.0 tag (Core-Metadata
+  2.5 vs Twine 6). Pin hatchling in lockstep with
+  `pypa/gh-action-pypi-publish`.
+- **CI `if:` / timeout vs release `upload-artifact`.** Policy, not recipe.
+
+Local binaries: `uv python install 3.12.14 && uv sync --all-extras && uv pip install pyinstaller && uv run pyinstaller mcp-audit-<target>.spec --distpath dist/`. There is no `scripts/build-linux.sh` and no `build.py`; those used Python 3.11 + pip and skipped the specs' `excludes=`.
 
 Size limits (40 MB warn / 50 MB fail) live in the composite. Do not raise
 the soft limit to hide a packaging regression; change the specs' excludes

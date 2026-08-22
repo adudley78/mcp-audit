@@ -123,8 +123,8 @@ To add a server, open a pull request against the mcp-audit repository editing
   copies `registry/known-servers.json` into the wheel at
   `mcp_audit/registry/known-servers.json` so `importlib.resources` resolves it
   correctly in installed packages.
-- `build.py` passes `(registry/known-servers.json, "registry")` to PyInstaller's
-  `--add-data` so the file is available as `sys._MEIPASS/registry/known-servers.json`
+- Each PyInstaller spec passes `(registry/known-servers.json, "registry")` in
+  `datas=` so the file is available as `sys._MEIPASS/registry/known-servers.json`
   in the standalone binary.
 
 ## Known Limitations
