@@ -83,6 +83,14 @@ a = Analysis(
         'sigstore', 'sigstore_protobuf_specs', 'betterproto',
         'mcp_audit.attestation.sigstore_client',
         'mcp_audit.attestation.sigstore_findings',
+        # Optional [mcp] extra is pip-install-only, same policy as
+        # [attestation].  `--connect` guards for ImportError.  Release
+        # builds with `uv sync --all-extras`, so without this exclude the
+        # MCP SDK and its server-side transitives (starlette, uvicorn,
+        # python-multipart, pydantic-settings) would be frozen in.
+        'mcp',
+        'starlette', 'sse_starlette', 'python_multipart', 'pydantic_settings',
+        'uvicorn', 'httpx',
     ],
     noarchive=False,
     optimize=0,

@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The standalone binary no longer freezes the `[mcp]` extra.** `--connect` is a pip-install-only feature (`pip install 'mcp-audit-scanner[mcp]'`), matching `[attestation]`/`sigstore`. Release builds with `uv sync --all-extras`, so without an explicit spec exclude the MCP SDK and its server-side transitives (starlette, uvicorn, python-multipart, pydantic-settings) were ending up in the artifact users download. `--connect` from the binary now prints a clear install hint rather than attempting a handshake. Use a pip/uv install with the extra for live analysis.
+
 ---
 
 ## [0.15.0] - 2026-08-22

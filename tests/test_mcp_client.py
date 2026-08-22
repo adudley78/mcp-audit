@@ -19,6 +19,7 @@ import pytest
 
 from mcp_audit.mcp_client import (
     MCP_NOT_INSTALLED,
+    MCP_NOT_INSTALLED_FROZEN,
     SAFE_ENV_VARS,
     _classify_sse_error,
     _collect,
@@ -340,6 +341,19 @@ class TestMcpNotInstalled:
             result = await connect_and_enumerate(server)
 
         assert result.error == MCP_NOT_INSTALLED
+
+    @pytest.mark.asyncio
+    async def test_missing_mcp_package_frozen_binary_message(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Frozen binaries must not tell users to pip-install into the artifact."""
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        server = _stdio_server()
+        with patch.dict(sys.modules, _NULL_MODULES):  # type: ignore[arg-type]
+            result = await connect_and_enumerate(server)
+
+        assert result.error == MCP_NOT_INSTALLED_FROZEN
+        assert "standalone binary" in result.error
 
 
 # ── connect_and_enumerate — stdio transport ───────────────────────────────────
