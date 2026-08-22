@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Build a standalone Linux x86_64 mcp-audit binary using Docker + PyInstaller.
 #
+# Local convenience only (python:3.11-slim + pip + build.py). GitHub Release
+# and CI binaries are built by .github/actions/build-binary/ — do not treat
+# this script as the shipped recipe.
+#
 # Usage:  bash scripts/build-linux.sh
 # Output: dist/mcp-audit-linux-x86_64
 #

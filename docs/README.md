@@ -4,6 +4,7 @@
 |------|-------------|
 | [docs-usage.md](docs-usage.md) | Getting started, all CLI commands and flags, common workflows |
 | [github-action.md](github-action.md) | GitHub Action setup, example workflows, exit code behaviour |
+| [building-binaries.md](building-binaries.md) | How the shipped PyInstaller binary is built (one composite, CI and release) |
 | [scoring.md](scoring.md) | Scan score methodology, grade thresholds, score/filter interaction |
 | [telemetry.md](telemetry.md) | Privacy policy: what mcp-audit does and does not collect |
 | [baselines.md](baselines.md) | Baseline snapshot workflow, drift detection, commands |

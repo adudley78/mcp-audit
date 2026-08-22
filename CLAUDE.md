@@ -463,7 +463,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 2915 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 2916 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
@@ -579,7 +579,7 @@ Result: **CLEAN — safe to make public.**
 | `_resolve_bundled_path()` returns `_MEIPASS/registry/known-servers.json` when `sys.frozen=True` | `tests/test_registry.py::TestMeipassResolution` | Patches `sys.frozen` + `sys._MEIPASS` via `monkeypatch` |
 | `KnownServerRegistry` loads from a simulated `_MEIPASS` layout | `tests/test_registry.py::TestMeipassResolution::test_frozen_registry_loads_via_patched_bundled_path` | Monkeypatches `BUNDLED_REGISTRY_PATH` |
 | Corrupt PyInstaller bundle (missing registry file) raises `FileNotFoundError` | `tests/test_registry.py::TestMeipassResolution::test_locate_raises_when_bundled_path_missing` | Both user-cache and bundled path missing |
-| Binary entry point and bundled data intact after build | CI smoke test in `.github/workflows/release.yml` | `dist/<binary> version` runs before `upload-artifact` |
+| Binary entry point and bundled data intact after build | Shared composite + `scripts/smoke_test.py` | `.github/actions/build-binary/` is invoked by CI `binary-smoke` and `release.yml` `build` |
 
 ### CI workflow (`.github/workflows/ci.yml`)
 
@@ -595,6 +595,8 @@ Uses `actions/setup-python@v5` (not the `astral-sh/setup-uv` action) so uv insta
 ### Release workflow (`.github/workflows/release.yml`)
 
 Triggers on `v*.*.*` tags (e.g. `git tag v0.2.0 && git push --tags`). Builds four binaries in parallel, then creates a GitHub Release with all four attached and auto-generated release notes.
+
+**Shipped binaries are built by `.github/actions/build-binary/`.** CI `binary-smoke` and this workflow's `build` job both call it (CPython 3.12.14 via `uv python install`, `uv sync --all-extras`, spec, PyInstaller, PYZ inspect, smoke, size). Do not copy those steps into either workflow. History of the three CI/release drifts: `docs/building-binaries.md`.
 
 | Runner | Spec file | Output binary |
 |---|---|---|
