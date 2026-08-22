@@ -1,0 +1,122 @@
+# The shipped mcp-audit binary is built here, and only here.
+#
+# ci.yml (binary-smoke) and release.yml (build) both call this composite.
+# Do not copy these steps into a workflow to "just quickly" add a flag —
+# that is how the next mismatch appears. If you need a new build parameter,
+# add it here so both callers pick it up.
+#
+# Three historical CI/release drifts, found by hand, each because the recipe
+# was written twice:
+#
+# 1. Extras (2026-08, #53). CI ran `uv pip install -e ".[dev]"`; release ran
+#    `uv sync --all-extras`. CI never tested that spec excludes actually keep
+#    optional extras out of the PYZ when those packages are in the build env.
+#    Cost: a thinner, unrepresentative binary in CI.
+#
+# 2. Platforms (2026-08, #57). CI smoked linux only; release built four
+#    targets. A darwin/windows spec or exclude regression would ship until
+#    the next tag. Cost: three of four artifacts untested on every PR.
+#
+# 3. Interpreter (2026-08, #58). CI used actions/setup-python (hostedtoolcache
+#    libpython); release used `uv python install` (uv's standalone CPython).
+#    Same 3.12.14, different libpython, ~10 MB apart (47.5 vs 37.5 on linux),
+#    and potentially different bundled OpenSSL / cert handling / hooks.
+#    Cost: CI could not predict the artifact users download.
+#
+# Patch version is pinned (3.12.14, not 3.12) so a CPython patch release
+# cannot silently reopen (3). Bump the `python-version` default below
+# deliberately, the same way Action SHAs are bumped. See docs/building-binaries.md.
+
+name: 'Build mcp-audit binary'
+description: >
+  Acquire uv-managed CPython, sync extras, run PyInstaller, assert the
+  packed libpython is uv's, inspect the PYZ, smoke-test, and size-check.
+  The only recipe for a shipped mcp-audit binary.
+
+inputs:
+  spec:
+    description: 'PyInstaller spec filename at the repo root (e.g. mcp-audit-linux-x86_64.spec).'
+    required: true
+  binary:
+    description: 'Output filename under dist/ (e.g. mcp-audit-linux-x86_64 or …windows_x86_64.exe).'
+    required: true
+  target:
+    description: 'Release target label used only in the size-check log line (e.g. linux-x86_64).'
+    required: true
+  python-version:
+    description: 'Exact CPython patch to install via uv. Bump deliberately; do not float 3.12.'
+    required: false
+    default: '3.12.14'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@d31148d669074a8d0a63714ba94f3201e7020bc3 # v8.3.0
+      with:
+        version: "latest"
+
+    - name: Set up Python
+      shell: bash
+      env:
+        PYTHON_VERSION: ${{ inputs.python-version }}
+      run: |
+        set -euo pipefail
+        uv python install "$PYTHON_VERSION"
+        echo "UV_PYTHON=$PYTHON_VERSION" >> "$GITHUB_ENV"
+        echo "Pinned CPython: $PYTHON_VERSION"
+        echo "Resolved interpreter: $(uv python find "$PYTHON_VERSION")"
+        "$(uv python find "$PYTHON_VERSION")" -V
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync --all-extras
+
+    - name: Install PyInstaller
+      shell: bash
+      run: uv pip install pyinstaller
+
+    - name: Build binary
+      shell: bash
+      run: |
+        set -euo pipefail
+        uv run pyinstaller ${{ inputs.spec }} --distpath dist/ 2>&1 | tee pyinstaller.log
+        SHARED_LINE=$(grep "Using Python shared library:" pyinstaller.log | tail -n 1)
+        echo "$SHARED_LINE"
+        if [ -z "$SHARED_LINE" ]; then
+          echo "ERROR: PyInstaller did not log the shared library path" >&2
+          exit 1
+        fi
+        if echo "$SHARED_LINE" | grep -qi hostedtoolcache; then
+          echo "ERROR: packed libpython came from hostedtoolcache (setup-python), not uv" >&2
+          exit 1
+        fi
+        if ! echo "$SHARED_LINE" | grep -qiE 'uv[-_/\\]python|uv-python'; then
+          echo "ERROR: packed libpython is not from a uv-managed install: $SHARED_LINE" >&2
+          exit 1
+        fi
+
+    - name: Inspect frozen archive
+      shell: bash
+      run: uv run python scripts/inspect_frozen_binary.py dist/${{ inputs.binary }} ${{ inputs.spec }}
+
+    - name: Run smoke test
+      shell: bash
+      run: uv run python scripts/smoke_test.py dist/${{ inputs.binary }}
+
+    - name: Check binary size
+      shell: bash
+      run: |
+        BINARY="dist/${{ inputs.binary }}"
+        SIZE_BYTES=$(wc -c < "$BINARY" | tr -d ' ')
+        # `bc` is not installed in Windows' Git Bash; awk is on every runner.
+        SIZE_MB=$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.1f", b/1048576 }')
+        echo "Binary size: ${SIZE_MB} MB (${SIZE_BYTES} bytes) target=${{ inputs.target }}"
+        if [ "$SIZE_BYTES" -gt 52428800 ]; then
+          echo "ERROR: binary exceeds 50 MB hard limit (${SIZE_MB} MB)" >&2
+          exit 1
+        elif [ "$SIZE_BYTES" -gt 41943040 ]; then
+          echo "WARNING: binary exceeds 40 MB soft limit (${SIZE_MB} MB)"
+        else
+          echo "OK: binary is within size target"
+        fi
