@@ -139,6 +139,11 @@ def _make_page_callback(
     _img: ImageReader | None = None
     if header_path is not None:
         try:
+            # Reachability: this is the only Pillow/reportlab image open in
+            # mcp-audit, and *header_path* is always the bundled
+            # header_dark.png (or None). Passing a user-supplied image here
+            # invalidates the pillow Dependabot dismissals — see
+            # docs/dependency-reachability.md.
             _img = ImageReader(header_path)
         except Exception:
             _img = None
