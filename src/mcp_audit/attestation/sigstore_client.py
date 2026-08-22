@@ -323,6 +323,9 @@ def verify_attestation(
             # verify_dsse validates: Fulcio cert chain, Rekor inclusion proof,
             # and DSSE envelope signature.  UnsafeNoOp defers identity checking
             # to our own repo comparison below — the crypto proof is still full.
+            # Reachability: UnsafeNoOp never calls pyasn1.codec.der.decoder;
+            # swapping in Identity / _SingleX509ExtPolicyV2 invalidates the
+            # pyasn1 Dependabot dismissals. See docs/dependency-reachability.md.
             verifier.verify_dsse(bundle, UnsafeNoOp())
         except Exception as exc:  # sigstore VerificationError or parse error
             return AttestationResult(
