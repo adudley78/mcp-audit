@@ -4,6 +4,13 @@
 writes them to a feed directory, and signs them. ``feed verify`` re-canonicalizes an
 existing feed and checks every signature.
 
+EXPERIMENTAL: the advisory record format is not yet stable and no production signing
+key has been minted (``--sign`` requires an explicit ``--key``/$MCP_AUDIT_SIGNING_KEY
+you supply yourself; there is no mcp-audit-operated key to trust yet). Fields may be
+added, renamed, or reshaped before the feed is signed with a project key mcp-audit
+distributes, and existing records are not guaranteed to be byte-stable across that
+change. Do not build automation that depends on the exact shape of a record today.
+
 Exit codes follow the project convention: 0 success, 1 verification failure, 2 error.
 """
 
@@ -139,6 +146,11 @@ def advise(
     ),
 ) -> None:
     """Scan TARGET and publish signed, OSV-compatible advisories to ./feed.
+
+    EXPERIMENTAL: the record format is not yet stable and no mcp-audit-operated
+    signing key exists yet — --sign requires you to supply your own --key or
+    $MCP_AUDIT_SIGNING_KEY. Expect breaking changes before this ships as a
+    first-class, byte-stable feed.
 
     Advisories are minted only for servers that resolve to a published npm or PyPI
     package, because OSV records are keyed by package coordinate. Servers run from a
@@ -322,6 +334,10 @@ def feed_verify(
     ),
 ) -> None:
     """Re-canonicalize and verify every signature in a feed directory.
+
+    EXPERIMENTAL: the advisory record format this verifies against is not yet stable
+    and no mcp-audit-operated signing key exists yet. Expect breaking changes before
+    this ships as a first-class, byte-stable feed.
 
     Verifies the index signature, each advisory's signature, and that each advisory's
     recomputed canonical digest matches the one the signed index records — so an

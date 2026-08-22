@@ -1,5 +1,12 @@
 # Advisory feed
 
+> **EXPERIMENTAL.** The advisory record format below is not yet stable, and no
+> mcp-audit-operated signing key exists — `--sign` requires you to supply your own
+> `--key`/`$MCP_AUDIT_SIGNING_KEY`; there is no project key to trust yet. Fields may
+> be added, renamed, or reshaped before signing ships with a key mcp-audit
+> distributes, and today's records are not guaranteed to be byte-stable across that
+> change. Do not build automation against the exact shape of a record yet.
+
 `mcp-audit advise` turns scan findings into signed, OSV-compatible security advisories
 for MCP server packages, and publishes them as a feed on disk. `mcp-audit feed verify`
 checks one.
