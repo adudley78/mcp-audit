@@ -175,8 +175,8 @@ jobs:
         # project page.  For a security-scanner project this is a
         # non-negotiable best practice.
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
-        # Twine 7.0.0 (this SHA's runtime.txt). CI `wheel-check` runs the
-        # same `uvx twine==7.0.0 check --strict` on every PR.
+        # CI `wheel-check` fetches this SHA's requirements/runtime.txt and
+        # runs that Twine — no copy of the version in ci.yml.
         with:
           attestations: true
 

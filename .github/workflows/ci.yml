@@ -104,12 +104,30 @@ jobs:
         run: uv python install 3.12.14
 
       - name: Build wheel and twine-check
-        # Twine 7.0.0 is what pypa/gh-action-pypi-publish@v1.14.2 bundles
-        # (requirements/runtime.txt on SHA dc37677). When bumping that
-        # action SHA, set this pin to the new commit's runtime.txt.
+        # Resolve Twine from the publish action's runtime.txt at the pinned
+        # SHA — not a copy in this file. Dependabot bumping the action SHA
+        # then gets the matching Twine on the next PR, not a silent desync.
+        # Parse with sed, not awk -F=: a double-equals pin leaves an empty field.
         run: |
+          set -euo pipefail
+          SHA=$(grep -oE 'pypa/gh-action-pypi-publish@[0-9a-f]{40}' \
+            .github/workflows/release.yml | head -n1 | cut -d@ -f2)
+          if ! echo "$SHA" | grep -qxE '[0-9a-f]{40}'; then
+            echo "ERROR: could not parse publish action SHA from release.yml" >&2
+            exit 1
+          fi
+          RUNTIME_URL="https://raw.githubusercontent.com/pypa/gh-action-pypi-publish/${SHA}/requirements/runtime.txt"
+          echo "Fetching $RUNTIME_URL"
+          RUNTIME=$(curl -fsSL "$RUNTIME_URL")
+          TWINE=$(printf '%s\n' "$RUNTIME" | sed -n 's/^twine==//p' | head -n1)
+          if [ -z "$TWINE" ]; then
+            echo "ERROR: no twine== pin in runtime.txt at $SHA" >&2
+            printf '%s\n' "$RUNTIME" | head -n20 >&2
+            exit 1
+          fi
+          echo "Publish action $SHA bundles twine==$TWINE"
           uv build --wheel
-          uvx twine==7.0.0 check --strict dist/*.whl
+          uvx "twine==${TWINE}" check --strict dist/*.whl
 
   binary-smoke:
     name: Binary smoke (${{ matrix.target }})
