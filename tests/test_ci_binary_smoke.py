@@ -8,6 +8,7 @@ and release cannot drift on interpreter, extras, spec, or PyInstaller.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
@@ -151,3 +152,18 @@ def test_no_local_linux_binary_script() -> None:
     """A second recipe is how 37.5-vs-47.5 happened. The composite is the recipe."""
     assert not (ROOT / "scripts" / "build-linux.sh").is_file()
     assert not (ROOT / "build.py").is_file()
+
+
+def test_setup_uv_sha_is_the_same_everywhere() -> None:
+    """Dependabot's github-actions ecosystem scans workflows, not composites.
+
+    A bump that moves ci.yml / release.yml but not
+    ``.github/actions/build-binary/`` would re-open interpreter drift:
+    wheel-check and publish-pypi on v10, the shipped binary still on v8.
+    """
+    pattern = re.compile(r"astral-sh/setup-uv@([0-9a-f]{40})")
+    found: dict[str, Path] = {}
+    for path in (ROOT / ".github").rglob("*.yml"):
+        for sha in pattern.findall(path.read_text(encoding="utf-8")):
+            found.setdefault(sha, path)
+    assert len(found) == 1, f"setup-uv SHA drift: {found}"

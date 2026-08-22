@@ -203,7 +203,7 @@ output for absolute paths, re-check it — those paths are now relative.
 - 22-server false-positive benchmark — 0% poisoning FP rate on legitimate servers
 - CVSS + OWASP MCP Top 10 severity mappings on every finding ID
 
-**2,923 tests · Apache 2.0 · macOS · Linux · Windows**
+**2,924 tests · Apache 2.0 · macOS · Linux · Windows**
 
 ---
 
