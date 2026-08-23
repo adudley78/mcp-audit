@@ -35,8 +35,8 @@
   ],
   "details": "Server 'github' has an env var with a broad-scope credential pattern ('GITHUB_TOKEN') — god key risk. A god key turns any other finding in this scan from interesting to catastrophic: an attacker who reaches this server inherits the full permissions of this credential. Scope this credential to only the operations this server requires. Reference: CIS Controls v8.1; CoSAI Zero Standing Privilege; Security Boulevard \"Addressing the God Key Challenge\" (March 2026). Evidence: rule:COMM-034; matched: GITHUB_TOKEN Remediation: Review the rule 'COMM-034' (Overprivileged MCP server credential (potential god key)) and the server configuration for 'github'. Detected by mcp-audit rule COMM-034 (rules analyzer, severity MEDIUM).",
   "id": "x_MCPSA-d04e8112d65c",
-  "modified": "2026-08-23T16:37:12Z",
-  "published": "2026-08-23T16:37:12Z",
+  "modified": "2026-08-23T16:38:19Z",
+  "published": "2026-08-23T16:38:19Z",
   "references": [
     {
       "type": "WEB",

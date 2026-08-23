@@ -44,8 +44,8 @@
   ],
   "details": "Server 'github' uses npx/bunx with auto-confirm flag — silent execution risk (OX STDIO disclosure: CVE-2025-49596, CVE-2026-22252, CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615) Evidence: rule:COMM-013; matched: npx; -y Remediation: Review the rule 'COMM-013' (npx auto-confirm flag (silent execution)) and the server configuration for 'github'. Detected by mcp-audit rule COMM-013 (rules analyzer, severity HIGH).",
   "id": "x_MCPSA-866c7040087d",
-  "modified": "2026-08-23T16:37:12Z",
-  "published": "2026-08-23T16:37:12Z",
+  "modified": "2026-08-23T16:38:19Z",
+  "published": "2026-08-23T16:38:19Z",
   "references": [
     {
       "type": "WEB",

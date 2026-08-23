@@ -35,9 +35,9 @@
           ]
         }
       ],
-      "canonical_sha256": "ed2dc01e60e476dd387c1840f2fb000cafae94bc6dea0106dacf15dfdead24b1",
+      "canonical_sha256": "42b8d4e2d76bca95a577fd22d6f985f6bc37e2e04435a2e5f6415d1fdd238b93",
       "id": "x_MCPSA-15bb864c7eef",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP04"
       ],
@@ -85,9 +85,9 @@
           ]
         }
       ],
-      "canonical_sha256": "6b4b23c2336f5a17bc83ac8214d1cb89dacf63e275fc5233da73a4e6ed6f9489",
+      "canonical_sha256": "5d80c6c1301183a656de05a0e72a89c711d89271b9d824e43a6d3f2a23fb5461",
       "id": "x_MCPSA-20ce54c348dd",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP04"
       ],
@@ -138,9 +138,9 @@
           ]
         }
       ],
-      "canonical_sha256": "0b2b3f05f37b61c97c32dd8f74c4b30141933b52119c83f1c759879329190587",
+      "canonical_sha256": "aafab90dfab423b7b6833a60fcfcc1d4dda79a716edb75f5a4897b48367d5d75",
       "id": "x_MCPSA-2eafe2970798",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP01"
       ],
@@ -191,9 +191,9 @@
           ]
         }
       ],
-      "canonical_sha256": "ea0923d881f5dec6d89f9c1b6cb0e89bf2b2f792b03cb2a081882451205be09b",
+      "canonical_sha256": "dead8e6908fd65cbe674173e32f1bc6eff7f6362299e373133e4b0e8d73090fe",
       "id": "x_MCPSA-2fa2713d0891",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP01"
       ],
@@ -241,9 +241,9 @@
           ]
         }
       ],
-      "canonical_sha256": "ebd8a62346d8b6905842d8eda4aa9f5170df89b4c7a2fc32c6685c86a79edebc",
+      "canonical_sha256": "7a413e62657f84d1a8ac3fd87378d31b70dc16b562387efb731e1db40642c826",
       "id": "x_MCPSA-38aec9703e90",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP05"
       ],
@@ -294,9 +294,9 @@
           ]
         }
       ],
-      "canonical_sha256": "f14cbd9e7af2c9a1163892db13ba5832c71487beab44fd95e3b422ac35812f6e",
+      "canonical_sha256": "3299972558040fca63270eeefb07dc5f84d2c86e60ad77d83e819d266d45b6db",
       "id": "x_MCPSA-3be0fde225cc",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP04"
       ],
@@ -347,9 +347,9 @@
           ]
         }
       ],
-      "canonical_sha256": "1984811a852885c6ef1bcff67f6329d95308866b767822844824db40ab3654a8",
+      "canonical_sha256": "76fd2fcfc51ac70ad6eb64549c6ef5c8c4db45b8445b6693d210b63dbc23424c",
       "id": "x_MCPSA-4deda91e4e28",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP04"
       ],
@@ -397,9 +397,9 @@
           ]
         }
       ],
-      "canonical_sha256": "8f0e2830793187278b1966409dcdbff79fc981c46e9952a712a01ed0ebbc1377",
+      "canonical_sha256": "d5241e156fce67e54931adcb7099ef130fa5a389d4cb5550eb019b11386e6458",
       "id": "x_MCPSA-591f00712156",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP06"
       ],
@@ -450,9 +450,9 @@
           ]
         }
       ],
-      "canonical_sha256": "081d64c46aa6164b7fabbbc23737916f3c7a41a8a0a673dc1dd1255f2b499b0d",
+      "canonical_sha256": "d92a43ee45a4671f403708f7ee7f3da01d4984a232f0912fa2349b4237008591",
       "id": "x_MCPSA-6ddcf6699796",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP01"
       ],
@@ -501,9 +501,9 @@
           ]
         }
       ],
-      "canonical_sha256": "271dd9b88388090a0844dc8eca7a807ad242d01ef6824e7b4059db6fc0633267",
+      "canonical_sha256": "35704e339454a1c118d050cc5dd26a53750de3f9f1b70c8fa13fca74dd5cd5ee",
       "id": "x_MCPSA-6e008dc0208b",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP04",
         "MCP05"
@@ -553,9 +553,9 @@
           ]
         }
       ],
-      "canonical_sha256": "d02146bbbd07c2a7c79245a1632fd9401e27eb8652acd7821a429f91de50da7c",
+      "canonical_sha256": "b8cda7ceca93761cbca23202019fbe890ea045b15b11c6085562aeaa8834fd1d",
       "id": "x_MCPSA-82e9ae96b49c",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP05",
         "MCP09"
@@ -607,9 +607,9 @@
           ]
         }
       ],
-      "canonical_sha256": "c0d244a3c632857796eda42d8fdc9bd29c9e2d9e86aa920856136272ccab159d",
+      "canonical_sha256": "0109365138c41947222487d85f81257b06ddb37daac00a5bb03e0b6b808ca282",
       "id": "x_MCPSA-8502a2645df4",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP01"
       ],
@@ -658,9 +658,9 @@
           ]
         }
       ],
-      "canonical_sha256": "f686955aa8c3e897694864e6072cfa5c5d8629916e5af1ffea8d0445f293db42",
+      "canonical_sha256": "0867cdd74b1907253d329eab67378d05b4c0fc0e21871255f2ba63d82fe3eb37",
       "id": "x_MCPSA-866c7040087d",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP04",
         "MCP05"
@@ -709,9 +709,9 @@
           ]
         }
       ],
-      "canonical_sha256": "5d952816bf46082602b45011907a09e6c6bb6283788cfa01448fa0e6717e96c3",
+      "canonical_sha256": "431e28cf94dc318e01bff61ee55d70ed90a049059f132843a3d707b762fe2d54",
       "id": "x_MCPSA-8b9f60e8b8f0",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP02"
       ],
@@ -760,9 +760,9 @@
           ]
         }
       ],
-      "canonical_sha256": "edf13f4172639cbb60e0013602967a3d16b6967cce05ace6a8ed42eb44d97cf9",
+      "canonical_sha256": "e25fcf78c4ec8e2fdd3eec6019f6b0ce415c5a273dfb4359c7444268f46001eb",
       "id": "x_MCPSA-8de3fc9126e5",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP05",
         "MCP09"
@@ -811,9 +811,9 @@
           ]
         }
       ],
-      "canonical_sha256": "4da7051d5a6e75fbea4636906e7fa3f9f31fa9dd6f8633f2b308df263e444247",
+      "canonical_sha256": "de62615f72c534e9d31564f927a8ad849e9401089a6ba76dd197ff779f36eb41",
       "id": "x_MCPSA-8e7a2699ca2f",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP05"
       ],
@@ -861,9 +861,9 @@
           ]
         }
       ],
-      "canonical_sha256": "6bb56caf22144c8499ce6982bcecce9e12ddde32d70cbae5f24112ebdefd9f02",
+      "canonical_sha256": "e9d04ba5263779d8d490c24a6bc7c3eee409669a9da4531d3a39e9d4ac45624a",
       "id": "x_MCPSA-bc1986c4d7bb",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP05"
       ],
@@ -912,9 +912,9 @@
           ]
         }
       ],
-      "canonical_sha256": "44d342d96b1ae09539d1e127cd7b0278b83f60ca0fbfb57ea37168dbbbcc3473",
+      "canonical_sha256": "847cce1f6b39188f1fd80fc7c35a38518a770218d3e3cdc61c13fa61997e05c0",
       "id": "x_MCPSA-c4d98262a4dc",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP05",
         "MCP09"
@@ -966,9 +966,9 @@
           ]
         }
       ],
-      "canonical_sha256": "d3eac36583b8fa0738bdc6cfd03383a15e324802c75f65c53ee63ac1b9c44e47",
+      "canonical_sha256": "19049f13f8fa3d906642043988fd263b02d4503fbade9187e5c2df8aebee6684",
       "id": "x_MCPSA-ca5a39c71bf3",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP01"
       ],
@@ -1016,9 +1016,9 @@
           ]
         }
       ],
-      "canonical_sha256": "3270c93e6364bb032246aebeb9032556dd71f35174560a2487c51415a498d856",
+      "canonical_sha256": "0afe48899e715e8ef2646ed1431430cfbae9eaa871f679b76418e7bd11e7f2ee",
       "id": "x_MCPSA-d04e8112d65c",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP06"
       ],
@@ -1069,9 +1069,9 @@
           ]
         }
       ],
-      "canonical_sha256": "873ce6fa5c1a1e0d83a218e29b13aa7bcca6c4cbcf3865ecc6c142ef5a8b1d23",
+      "canonical_sha256": "13ca2da0720db23fa3a4201045dfd460ba4b2ea414653c6c1cb97ae9c1e3c859",
       "id": "x_MCPSA-d7cf72bbe399",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP04"
       ],
@@ -1122,9 +1122,9 @@
           ]
         }
       ],
-      "canonical_sha256": "15dfb54dafd05d576ddbb77c04f24a5b070e3ecab4c1540a331268efd97a5156",
+      "canonical_sha256": "76adea6846861a267882f67032247b2b5d9375d34973dba27c3663393d14fa33",
       "id": "x_MCPSA-fdf85e30ecea",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP04"
       ],
@@ -1172,9 +1172,9 @@
           ]
         }
       ],
-      "canonical_sha256": "9aec156fbd669bee0f15b04329785988b4d5530dde8fce4a4640b4e87c5ae263",
+      "canonical_sha256": "4c1e7ac2572b16d154285556973111598ce2630b8baf8de7f86c438c0362a42b",
       "id": "x_MCPSA-ffd17914efb0",
-      "modified": "2026-08-23T16:37:12Z",
+      "modified": "2026-08-23T16:38:19Z",
       "owasp_mcp": [
         "MCP02"
       ],
@@ -1189,10 +1189,10 @@
     }
   ],
   "count": 23,
-  "expires": "2026-09-06T16:37:12Z",
+  "expires": "2026-09-06T16:38:19Z",
   "feed_version": "1.1",
   "generator": "mcp-audit/0.15.0",
-  "published_at": "2026-08-23T16:37:12Z",
-  "snapshot_version": 2,
-  "updated": "2026-08-23T16:37:12Z"
+  "published_at": "2026-08-23T16:38:19Z",
+  "snapshot_version": 3,
+  "updated": "2026-08-23T16:38:19Z"
 }

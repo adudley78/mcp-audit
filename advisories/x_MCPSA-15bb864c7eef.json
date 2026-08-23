@@ -38,8 +38,8 @@
   ],
   "details": "Server 'github' uses npx without a pinned version — supply chain risk Evidence: rule:COMM-010; matched: npx Remediation: Review the rule 'COMM-010' (npx used without pinned version) and the server configuration for 'github'. Detected by mcp-audit rule COMM-010 (rules analyzer, severity LOW).",
   "id": "x_MCPSA-15bb864c7eef",
-  "modified": "2026-08-23T16:37:12Z",
-  "published": "2026-08-23T16:37:12Z",
+  "modified": "2026-08-23T16:38:19Z",
+  "published": "2026-08-23T16:38:19Z",
   "references": [
     {
       "type": "WEB",

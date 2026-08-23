@@ -39,8 +39,8 @@
     ],
     "details": "Server 'github' uses npx without a pinned version — supply chain risk Evidence: rule:COMM-010; matched: npx Remediation: Review the rule 'COMM-010' (npx used without pinned version) and the server configuration for 'github'. Detected by mcp-audit rule COMM-010 (rules analyzer, severity LOW).",
     "id": "x_MCPSA-15bb864c7eef",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -100,8 +100,8 @@
     ],
     "details": "Server 'filesystem' uses npx without a pinned version — supply chain risk Evidence: rule:COMM-010; matched: npx Remediation: Review the rule 'COMM-010' (npx used without pinned version) and the server configuration for 'filesystem'. Detected by mcp-audit rule COMM-010 (rules analyzer, severity LOW).",
     "id": "x_MCPSA-20ce54c348dd",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -161,8 +161,8 @@
     ],
     "details": "The MCP config file has world-readable permissions. Any process running on this machine — including supply-chain malware — can read credentials embedded in the file. The Bitwarden npm incident (2026-04-22) explicitly targeted these files as its primary credential-cache. Evidence: Config file permissions: 0o100644 Remediation: Run: chmod 600 fixtures/vulnerable-servers/unsafe-shell-runner.json Detected by mcp-audit rule CFHYG-001 (config_hygiene analyzer, severity HIGH).",
     "id": "x_MCPSA-2eafe2970798",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -218,8 +218,8 @@
     ],
     "details": "GitHub Token found in env var 'GITHUB_TOKEN' Evidence: env.GITHUB_TOKEN matches GitHub Token pattern Remediation: Use a credential manager, keychain, or vault reference instead of inline secrets Detected by mcp-audit rule CRED-001 (credentials analyzer, severity HIGH).",
     "id": "x_MCPSA-2fa2713d0891",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -275,8 +275,8 @@
     ],
     "details": "Server 'shell-runner' executes inline code via -c flag: mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" --allow-all Evidence: rule:COMM-006; matched: mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" --allow-all Remediation: Review the rule 'COMM-006' (Inline code execution via -c flag) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-006 (rules analyzer, severity HIGH).",
     "id": "x_MCPSA-38aec9703e90",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -336,8 +336,8 @@
     ],
     "details": "Server uses npx which downloads packages at runtime Evidence: Command: npx -y mcp-audit-fixture-github-server@1.0.0 Remediation: Install packages locally and reference the installed binary instead Detected by mcp-audit rule TRANSPORT-003 (transport analyzer, severity MEDIUM).",
     "id": "x_MCPSA-3be0fde225cc",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -393,8 +393,8 @@
     ],
     "details": "Server uses uvx which downloads packages at runtime Evidence: Command: uvx mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" Remediation: Install packages locally and reference the installed binary instead Detected by mcp-audit rule TRANSPORT-003 (transport analyzer, severity MEDIUM).",
     "id": "x_MCPSA-4deda91e4e28",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -447,8 +447,8 @@
     ],
     "details": "Server 'shell-runner' has an env var with a broad-scope credential pattern ('ADMIN_') — god key risk. A god key turns any other finding in this scan from interesting to catastrophic: an attacker who reaches this server inherits the full permissions of this credential. Scope this credential to only the operations this server requires. Reference: CIS Controls v8.1; CoSAI Zero Standing Privilege; Security Boulevard \"Addressing the God Key Challenge\" (March 2026). Evidence: rule:COMM-034; matched: ADMIN_ Remediation: Review the rule 'COMM-034' (Overprivileged MCP server credential (potential god key)) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-034 (rules analyzer, severity MEDIUM).",
     "id": "x_MCPSA-591f00712156",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -504,8 +504,8 @@
     ],
     "details": "Config file stores a plaintext secret inline — this file is a high-value target for supply-chain malware (Bitwarden incident 2026-04-22). Any process on this machine with read access to the config file can harvest the credential without further privilege escalation. Evidence: One or more env values in server 'github' match a known secret pattern Remediation: Replace inline secrets with environment variable references (e.g., ${MY_API_KEY}) and export the actual value from a credential manager or shell profile. Detected by mcp-audit rule CFHYG-003 (config_hygiene analyzer, severity HIGH).",
     "id": "x_MCPSA-6ddcf6699796",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -567,8 +567,8 @@
     ],
     "details": "Server 'filesystem' uses npx/bunx with auto-confirm flag — silent execution risk (OX STDIO disclosure: CVE-2025-49596, CVE-2026-22252, CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615) Evidence: rule:COMM-013; matched: npx; -y Remediation: Review the rule 'COMM-013' (npx auto-confirm flag (silent execution)) and the server configuration for 'filesystem'. Detected by mcp-audit rule COMM-013 (rules analyzer, severity HIGH).",
     "id": "x_MCPSA-6e008dc0208b",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -646,8 +646,8 @@
     ],
     "details": "Server 'shell-runner' uses stdio transport and is not in the known-server registry — verify the binary is trusted Evidence: rule:COMM-004; matched: stdio Remediation: Review the rule 'COMM-004' (Unrecognized stdio server binary) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-004 (rules analyzer, severity LOW).",
     "id": "x_MCPSA-82e9ae96b49c",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -703,8 +703,8 @@
     ],
     "details": "The MCP config file has world-readable permissions. Any process running on this machine — including supply-chain malware — can read credentials embedded in the file. The Bitwarden npm incident (2026-04-22) explicitly targeted these files as its primary credential-cache. Evidence: Config file permissions: 0o100644 Remediation: Run: chmod 600 fixtures/vulnerable-servers/hardcoded-secret-github.json Detected by mcp-audit rule CFHYG-001 (config_hygiene analyzer, severity HIGH).",
     "id": "x_MCPSA-8502a2645df4",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -766,8 +766,8 @@
     ],
     "details": "Server 'github' uses npx/bunx with auto-confirm flag — silent execution risk (OX STDIO disclosure: CVE-2025-49596, CVE-2026-22252, CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615) Evidence: rule:COMM-013; matched: npx; -y Remediation: Review the rule 'COMM-013' (npx auto-confirm flag (silent execution)) and the server configuration for 'github'. Detected by mcp-audit rule COMM-013 (rules analyzer, severity HIGH).",
     "id": "x_MCPSA-866c7040087d",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -844,8 +844,8 @@
     ],
     "details": "Server 'github' exposes an env key suggesting an access token: _TOKEN Evidence: rule:COMM-022; matched: _TOKEN Remediation: Review the rule 'COMM-022' (Env key name suggests access token) and the server configuration for 'github'. Detected by mcp-audit rule COMM-022 (rules analyzer, severity MEDIUM).",
     "id": "x_MCPSA-8b9f60e8b8f0",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -899,8 +899,8 @@
     ],
     "details": "Server 'github' uses stdio transport and is not in the known-server registry — verify the binary is trusted Evidence: rule:COMM-004; matched: stdio Remediation: Review the rule 'COMM-004' (Unrecognized stdio server binary) and the server configuration for 'github'. Detected by mcp-audit rule COMM-004 (rules analyzer, severity LOW).",
     "id": "x_MCPSA-8de3fc9126e5",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -956,8 +956,8 @@
     ],
     "details": "Server 'shell-runner' has shell metacharacters in args: $ Evidence: rule:COMM-015; matched: $ Remediation: Review the rule 'COMM-015' (Shell metacharacters in server args) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-015 (rules analyzer, severity CRITICAL).",
     "id": "x_MCPSA-8e7a2699ca2f",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -1017,8 +1017,8 @@
     ],
     "details": "Server 'shell-runner' passes eval/exec in args (CVE-2026-30615): exec Evidence: rule:COMM-007; matched: exec Remediation: Review the rule 'COMM-007' (eval or exec passed in args) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-007 (rules analyzer, severity HIGH).",
     "id": "x_MCPSA-bc1986c4d7bb",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -1076,8 +1076,8 @@
     ],
     "details": "Server 'filesystem' uses stdio transport and is not in the known-server registry — verify the binary is trusted Evidence: rule:COMM-004; matched: stdio Remediation: Review the rule 'COMM-004' (Unrecognized stdio server binary) and the server configuration for 'filesystem'. Detected by mcp-audit rule COMM-004 (rules analyzer, severity LOW).",
     "id": "x_MCPSA-c4d98262a4dc",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -1133,8 +1133,8 @@
     ],
     "details": "The MCP config file has world-readable permissions. Any process running on this machine — including supply-chain malware — can read credentials embedded in the file. The Bitwarden npm incident (2026-04-22) explicitly targeted these files as its primary credential-cache. Evidence: Config file permissions: 0o100644 Remediation: Run: chmod 600 fixtures/vulnerable-servers/typosquat-filesystem.json Detected by mcp-audit rule CFHYG-001 (config_hygiene analyzer, severity HIGH).",
     "id": "x_MCPSA-ca5a39c71bf3",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -1187,8 +1187,8 @@
     ],
     "details": "Server 'github' has an env var with a broad-scope credential pattern ('GITHUB_TOKEN') — god key risk. A god key turns any other finding in this scan from interesting to catastrophic: an attacker who reaches this server inherits the full permissions of this credential. Scope this credential to only the operations this server requires. Reference: CIS Controls v8.1; CoSAI Zero Standing Privilege; Security Boulevard \"Addressing the God Key Challenge\" (March 2026). Evidence: rule:COMM-034; matched: GITHUB_TOKEN Remediation: Review the rule 'COMM-034' (Overprivileged MCP server credential (potential god key)) and the server configuration for 'github'. Detected by mcp-audit rule COMM-034 (rules analyzer, severity MEDIUM).",
     "id": "x_MCPSA-d04e8112d65c",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -1244,8 +1244,8 @@
     ],
     "details": "Package '@modelcontextprotocol/server-filesytem' is 1 edit(s) away from the known-legitimate package '@modelcontextprotocol/server-filesystem' (maintainer: Anthropic, verified; first published 2024-11-14; ~42,800 weekly downloads). This pattern is consistent with a typosquatting supply-chain attack. Evidence: command: npx -y @modelcontextprotocol/server-filesytem /Users/shared | closest: '@modelcontextprotocol/server-filesystem' (maintainer=Anthropic, verified=True) Remediation: Verify '@modelcontextprotocol/server-filesytem' is intentional. If you meant '@modelcontextprotocol/server-filesystem', correct the configuration. Inspect the package's npm page and source repository before trusting it. Detected by mcp-audit rule SC-001 (supply_chain analyzer, severity CRITICAL).",
     "id": "x_MCPSA-d7cf72bbe399",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -1301,8 +1301,8 @@
     ],
     "details": "Server uses npx which downloads packages at runtime Evidence: Command: npx -y @modelcontextprotocol/server-filesytem /Users/shared Remediation: Install packages locally and reference the installed binary instead Detected by mcp-audit rule TRANSPORT-003 (transport analyzer, severity MEDIUM).",
     "id": "x_MCPSA-fdf85e30ecea",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",
@@ -1355,8 +1355,8 @@
     ],
     "details": "Server 'shell-runner' uses broad Deno permission flags: --allow-all Evidence: rule:COMM-011; matched: --allow-all Remediation: Review the rule 'COMM-011' (Broad Deno permission flags in use) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-011 (rules analyzer, severity MEDIUM).",
     "id": "x_MCPSA-ffd17914efb0",
-    "modified": "2026-08-23T16:37:12Z",
-    "published": "2026-08-23T16:37:12Z",
+    "modified": "2026-08-23T16:38:19Z",
+    "published": "2026-08-23T16:38:19Z",
     "references": [
       {
         "type": "WEB",

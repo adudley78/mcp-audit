@@ -38,8 +38,8 @@
   ],
   "details": "Server 'shell-runner' has shell metacharacters in args: $ Evidence: rule:COMM-015; matched: $ Remediation: Review the rule 'COMM-015' (Shell metacharacters in server args) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-015 (rules analyzer, severity CRITICAL).",
   "id": "x_MCPSA-8e7a2699ca2f",
-  "modified": "2026-08-23T16:37:12Z",
-  "published": "2026-08-23T16:37:12Z",
+  "modified": "2026-08-23T16:38:19Z",
+  "published": "2026-08-23T16:38:19Z",
   "references": [
     {
       "type": "WEB",
