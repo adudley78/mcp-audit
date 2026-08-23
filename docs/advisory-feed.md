@@ -161,6 +161,57 @@ SOURCE_DATE_EPOCH=1769817600 mcp-audit advise ./configs --out ./feed --no-sign
 Anyone can then rebuild the feed from the same inputs and diff it against what you
 published. Signatures are not reproducible; the payloads they cover are.
 
+## Feed freshness
+
+TUF's timestamp and snapshot roles are collapsed into `index.json`. There is one
+publisher and one integrity root, so a second document would buy nothing. Advisory
+records stay stock OSV 1.6.0 — `snapshot_version`, `published_at`, and `expires` live
+only on the index. An OSV record does not stop being true when the feed that carries
+it ages out.
+
+`feed_version` is the schema (`1.1`). It is not a counter. `updated` is
+`max(modified)` and is identical across republishes of the same set, which is exactly
+the replay being defended against — so it is not reused as freshness.
+
+`snapshot_version` is a monotonic integer. Gaps are allowed; decreases are not.
+`--sign` will not silently default it to `1`; pass `--snapshot-version` or
+`--previous-index`. Unsigned feeds may start at 1.
+
+`expires` is publish time plus 14 days (2–3× a weekly publish cadence). Override with
+`--expires` for the committed fixture only.
+
+### What fails, and what does not
+
+`mcp-audit feed verify` hard-fails on an expired feed. That command exists to answer
+"is this feed trustworthy." There is no `--allow-expired`.
+
+`mcp-audit scan --advisory-feed DIR` does not fail because the feed expired. It skips
+advisory correlation, says so, and completes. JSON and SARIF carry a `feed_status`
+object (`state`: `fresh` / `expired` / `absent`, plus `published_at`, `expires`,
+`age_days`) so a CI that genuinely wants to fail on a stale feed can assert on the
+field.
+
+On success, `feed verify` prints the publish date and age:
+`Verified. Published 2026-08-09, 13 days old.` On expiry it prints the client's
+UTC clock next to the expiry so a fast clock is self-diagnosing:
+`this feed expired on 2026-08-09T00:00:00Z; current time is 2027-01-14T00:00:00Z`.
+Rollback is a different sentence: `this feed is older than one you have already seen`.
+
+Client rollback state is `seen.json` under the user config directory, keyed on the
+stable signing identity (workflow identity plus OIDC issuer), not a certificate
+fingerprint. Changing the signing identity resets rollback protection for every
+client — that is a consequence of rotation, not a fingerprint of an ephemeral cert.
+
+A user who hits "this feed expired" is not under attack by default. The usual cause
+is a missed publish or a client clock in the future. `scan` still runs. `feed verify`
+refusing is the correct answer to "can I trust this snapshot."
+
+### Residual gap (plain)
+
+A **stateless** client (CI, first run) **accepts any unexpired validly-signed snapshot**, including last week’s, hiding yesterday’s advisories. The counter does nothing for them. **TTL is the only lever.** 14 days is the freeze window, not zero.
+
+Also not covered: stolen key, publisher omitting advisories at a *new* version, client clock in the past, mix-and-match (already bound by `canonical_sha256`).
+
 ## Signing
 
 The bytes that get signed are **not** the file on disk. Advisories are pretty-printed
@@ -282,6 +333,11 @@ then remove it and announce the change in the release notes. On suspected compro
 rotate immediately and skip the overlap window; the digests in a previously published
 `index.json` still let consumers detect whether any record was altered.
 
+Changing the signing identity (the workflow ref plus the OIDC issuer that key
+`seen.json`) resets rollback protection for every client. That is a consequence of
+rotation: a new identity looks like a first run. Record it in the key-custody decision
+alongside where the key lives.
+
 Rotation does not rewrite a single advisory record. IDs, digests, and bytes are all
 unchanged, so a mirror that tracks records rather than signatures sees no diff at all.
 That is a consequence of two design choices rather than a coincidence, and it is
@@ -341,6 +397,10 @@ secret that reaches one cannot be un-published.
 | `--severity-threshold` | `medium` | Minimum finding severity to publish |
 | `--observation` | `all` | `package-intrinsic`, `deployment`, or `all` |
 | `--published-at` | — | Pin the timestamp (`YYYY-MM-DDTHH:MM:SSZ`) |
+| `--snapshot-version` | — | Monotonic index counter. Required with `--sign` unless `--previous-index` is given |
+| `--previous-index` | — | Previous `index.json`; next `snapshot_version` is previous + 1 |
+| `--expires` | publish + 14 days | RFC 3339 expiry on the index (fixture override) |
+| `--ttl-days` | `14` | Used when `--expires` is omitted |
 | `--offline` | off | Fail rather than make any network call |
 
 Exit codes: 0 success, 2 error.
@@ -382,7 +442,7 @@ archive, for consumers that want the whole feed without walking the tree.
 
 ## See also
 
-- `examples/feed/` — a complete signed feed you can verify today
+- `examples/feed/` — a complete **unsigned** feed you can inspect and integrity-check today. It is unsigned by design (no private key in the repo).
 - `fixtures/vulnerable-servers/` — the three configurations it was built from
 - `docs/owasp-mapping.json` — the finding-ID to OWASP MCP Top 10 mapping CI enforces
 - [OSV schema](https://ossf.github.io/osv-schema/) — vendored at

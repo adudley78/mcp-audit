@@ -85,7 +85,13 @@ SOURCE_DATE_EPOCH=1769817600 \
   mcp-audit advise fixtures/vulnerable-servers \
     --out examples/feed \
     --no-sign \
-    --severity-threshold info
+    --severity-threshold info \
+    --expires 2099-01-01T00:00:00Z
 ```
+
+`--expires 2099-01-01T00:00:00Z` is **fixture-only**. A real publish uses the 14-day
+TTL (`published_at` + `--ttl-days`). Pinning a far-future expiry here keeps
+`mcp-audit feed verify examples/feed` passing for as long as the committed copy is
+meant to be inspectable; it is not the production SLA.
 
 Regenerating replaces this file, so restore it from git afterwards.

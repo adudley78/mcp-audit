@@ -1,0 +1,67 @@
+# Weekly unsigned advisory-feed publish.
+#
+# A TTL is a machine-enforced SLA. Fourteen days commits us to publishing at
+# least that often, or every client's `feed verify` degrades. On 2026-08-22
+# we declined to make registry freshness a public promise because a solo
+# maintainer cannot hold an SLA — and that one only made a webpage stale.
+# This one reaches into other people's tooling.
+#
+# GATE (Amendment 7): do not pass --sign until (1) this job is the publisher
+# and (2) the key-custody decision is recorded. A first signed publish that a
+# human has to remember is how expiry teaches users that "expired" means
+# "the maintainer went on holiday."
+#
+# This workflow therefore writes an unsigned feed and uploads it as an
+# artifact. It does not commit, does not tag, and does not sign.
+
+name: Advisory feed publish
+
+on:
+  schedule:
+    # Sunday 14:00 UTC — weekly. TTL is 14 days (2× this interval).
+    - cron: "0 14 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advisory-feed-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Unsigned weekly feed
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install mcp-audit
+        run: uv pip install -e ".[dev]" --system
+
+      - name: Write unsigned feed
+        run: |
+          mkdir -p "${RUNNER_TEMP}/feed"
+          mcp-audit advise fixtures/vulnerable-servers \
+            --out "${RUNNER_TEMP}/feed" \
+            --no-sign \
+            --severity-threshold info
+          # Do not add --sign. First signed publish is gated on key custody.
+
+      - name: Upload unsigned feed
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: advisory-feed-unsigned
+          path: ${{ runner.temp }}/feed
+          retention-days: 30

@@ -546,11 +546,12 @@ class TestSarifScoreProperties:
         doc = _parse(result)
         assert "properties" in _run(doc)
 
-    def test_properties_absent_when_score_none(self) -> None:
+    def test_properties_present_when_score_none(self) -> None:
         result = _make_result()
         result.score = None
         doc = _parse(result)
-        assert "properties" not in _run(doc)
+        assert "mcp-audit/feedStatus" in _run(doc)["properties"]
+        assert "mcp-audit/grade" not in _run(doc)["properties"]
 
     def test_grade_property(self) -> None:
         result = _make_result()
@@ -583,18 +584,21 @@ class TestSarifScoreProperties:
         result.score = _make_score()
         props = _run(_parse(result))["properties"]
         assert set(props.keys()) == {
+            "mcp-audit/feedStatus",
             "mcp-audit/grade",
             "mcp-audit/numericScore",
             "mcp-audit/positiveSignals",
             "mcp-audit/deductions",
         }
 
-    def test_no_score_no_properties_block(self) -> None:
-        """Verifies the --no-score equivalent: score=None means no properties block."""
+    def test_no_score_still_emits_feed_status(self) -> None:
+        """score=None still carries feed_status so CI can assert freshness."""
         result = _make_result(findings=[_make_finding()])
         result.score = None
         doc = _parse(result)
-        assert "properties" not in _run(doc)
+        props = _run(doc)["properties"]
+        assert props["mcp-audit/feedStatus"]["state"] == "absent"
+        assert "mcp-audit/grade" not in props
 
 
 # ── CLI-level --no-score SARIF integration ────────────────────────────────────
@@ -611,7 +615,7 @@ class TestNoScoreSarifIntegration:
     _MCP_CONFIG = '{"mcpServers": {"srv": {"command": "node", "args": ["s.js"]}}}'
 
     def test_no_score_flag_omits_sarif_properties(self, tmp_path: Path) -> None:
-        """--no-score must null result.score; SARIF must have no properties block."""
+        """--no-score must null result.score; SARIF still emits feedStatus."""
         from typer.testing import CliRunner  # noqa: PLC0415
 
         from mcp_audit.cli import app  # noqa: PLC0415
@@ -637,7 +641,9 @@ class TestNoScoreSarifIntegration:
             )
 
         doc = json.loads(sarif_out.read_text())
-        assert "properties" not in doc["runs"][0]
+        props = doc["runs"][0]["properties"]
+        assert "mcp-audit/grade" not in props
+        assert props["mcp-audit/feedStatus"]["state"] == "absent"
 
     def test_score_present_includes_sarif_properties(self, tmp_path: Path) -> None:
         """Without --no-score, SARIF properties block must contain mcp-audit/grade."""

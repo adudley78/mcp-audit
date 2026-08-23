@@ -100,10 +100,11 @@ src/mcp_audit/
 │   └── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked). NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
 ├── advisory/          # OSV 1.6.0 advisory records + signed feed (mcp-audit advise / feed verify)
 │   ├── __init__.py    # Package marker; re-exports Advisory, build_advisory, write_feed, sign_feed, verify_feed
-│   ├── schema.py      # Advisory dataclass → OSV 1.6.0 JSON; stable `x_MCPSA-YYYY-<12hex>` IDs; MCP metadata under affected[].database_specific; FINDING_CLASS_TO_OWASP + owasp_for(); rejects codes owasp_mcp.py does not define
+│   ├── schema.py      # Advisory dataclass → OSV 1.6.0 JSON; stable `x_MCPSA-<12hex>` IDs; MCP metadata under affected[].database_specific; FINDING_CLASS_TO_OWASP + owasp_for(); rejects codes owasp_mcp.py does not define
 │   ├── classify.py    # finding ID → finding_class / observation / CVSS 3.1 vector (cvss_base_score reconciliation); owasp_codes_for() validates against owasp_mcp.py; is_advisable() excludes non-vulnerability findings
-│   ├── canonical.py   # RFC 8785 JCS canonicalization (UTF-16 key order, ECMAScript number format) — the bytes that get signed
-│   ├── feed.py        # build_advisory / build_advisories / write_feed (advisories/, index.json, osv/all.json+zip); resolve_package, redact
+│   ├── canonical.py   # RFC 8785 JCS canonicalization (UTF-16 key order, ECMAScript number format) — the bytes that get signed; depth/size bound (CanonicalError)
+│   ├── freshness.py   # snapshot_version / published_at / expires on index.json only; TTL; seen.json keyed on signing identity
+│   ├── feed.py        # build_advisory / build_advisories / write_feed (advisories/, index.json, osv/all.json+zip); resolve_package, redact; feed_version 1.1
 │   ├── sign.py        # cosign (default) + minisign backends, static project key; sign_feed / verify_feed / feed_is_signed; signing block embedded in index.json
 │   ├── validate.py    # validate_osv() against the vendored schema; ValidationUnavailableError when jsonschema is absent
 │   └── osv_schema/    # Vendored osv-1.6.0.json — pinned, offline, bundled in wheel and PyInstaller binary
@@ -245,7 +246,7 @@ Build and distribution scripts at project root:
 - **Community rules always run.** The policy-as-code rule engine loads `rules/community/` for every scan. Authoring tools (`rule validate`, `rule test`) and custom rule directories (`--rules-dir`, `<user-config-dir>/mcp-audit/rules/`; path resolved via `platformdirs`) are available to everyone — gating has been removed. The engine is invoked via `_run_rules_engine()` in `scanner.py` after all built-in analyzers complete. Rule findings use `analyzer="rules"` and `id=rule.id`.
 - **Rule engine resolution order** for community rules: PyInstaller `sys._MEIPASS/rules/community/` → `importlib.resources` (installed wheel at `mcp_audit/rules/community/`) → dev repo-root fallback (`rules/community/`).
 - **Supply chain attestation** (`attestation/`) implements Layer 1 hash-based integrity verification. `scan --verify-hashes` downloads package tarballs, computes SHA-256, and compares against pins in `RegistryEntry.known_hashes`. `mcp-audit verify` is a standalone command for interactive package verification. Attestation findings use `analyzer="attestation"`; CRITICAL for mismatches, INFO for unverifiable cases. See `docs/supply-chain.md`.
-- **`scan()` pipeline conventions** (`cli/scan.py`): the `scan` command is a thin orchestrator that delegates each optional phase to a named helper. Helpers are `_apply_*` for pipeline stages that mutate/inject into `ScanResult` (baseline drift, governance, SAST, extensions, severity threshold) and `_write_*` for output-layer dispatch (`_write_formatted_output`). Preflight validation lives in `_preflight_checks`. Each helper has a docstring that states when it is called and its contract when the feature is not requested. Future scan-pipeline additions should follow this `_apply_*` / `_write_*` naming and be inserted into `scan()` as a single-line delegation — do not inline new phases in the command body. Test-patched symbols (`verify_server_hashes`, `discover_extensions`, `analyze_extensions`, `run_semgrep`) are imported as their containing module (e.g. `from mcp_audit.sast import runner as _sast_runner`) so `patch("mcp_audit.sast.runner.run_semgrep", ...)` continues to intercept.
+- **`scan()` pipeline conventions** (`cli/scan.py`): the `scan` command is a thin orchestrator that delegates each optional phase to a named helper. Helpers are `_apply_*` for pipeline stages that mutate/inject into `ScanResult` (baseline drift, governance, SAST, extensions, agent-files, advisory feed, severity threshold) and `_write_*` for output-layer dispatch (`_write_formatted_output`). Preflight validation lives in `_preflight_checks`. Each helper has a docstring that states when it is called and its contract when the feature is not requested. Future scan-pipeline additions should follow this `_apply_*` / `_write_*` naming and be inserted into `scan()` as a single-line delegation — do not inline new phases in the command body. Test-patched symbols (`verify_server_hashes`, `discover_extensions`, `analyze_extensions`, `run_semgrep`) are imported as their containing module (e.g. `from mcp_audit.sast import runner as _sast_runner`) so `patch("mcp_audit.sast.runner.run_semgrep", ...)` continues to intercept.
 - **Capability tags for toxic flow detection** are stored in `RegistryEntry.capabilities` (optional `list[str]` in `registry/known-servers.json`) and consulted by `analyzers/toxic_flow.py::tag_server(server, registry=...)` **before** any keyword or tool-name heuristic fallback. When `registry` is supplied and resolves a known package whose `capabilities` field is not `None`, those tags are returned verbatim — the registry is the single source of truth. The in-module `KNOWN_SERVERS` dict in `toxic_flow.py` is retained as a deterministic fallback for (a) unit tests that inject no registry and (b) cases where the registry is present but the entry has `capabilities=None`. `scanner.py` passes the `SupplyChainAnalyzer.registry` instance to `ToxicFlowAnalyzer(registry=…)` so the JSON file is read from disk exactly once per scan.
 
 - **Agent-file scanning** (`agent_files/`) covers the non-MCP-config instruction
@@ -320,6 +321,17 @@ following silently breaks downstream consumers, so treat them as contract:
   fails on any advisory file present on disk but absent from the index. Do not add a
   verification path that trusts a per-advisory signature alone — that would let an
   attacker swap in a differently-but-validly signed record.
+- **Feed freshness lives only on the index.** `snapshot_version`, `published_at`, and
+  `expires` are mcp-audit fields on `index.json` (`feed_version` 1.1). They are never
+  copied onto OSV advisory records. `feed verify` hard-fails on expiry or rollback;
+  `scan --advisory-feed` skips matching, emits `feed_status`, and still completes.
+  There is no `--allow-expired`. Client `seen.json` is keyed on the signing identity
+  (workflow ref + OIDC issuer), not a certificate fingerprint; changing that identity
+  resets rollback protection. Do not make the first signed publish until
+  `.github/workflows/advisory-feed-publish.yml` is the publisher (Amendment 7).
+  A stateless client accepts any unexpired validly-signed snapshot; TTL is the only
+  lever. Stolen key, a publisher omitting advisories at a new version, a client clock
+  in the past, and mix-and-match (already bound by `canonical_sha256`) are not covered.
 - **Publishing is two-phase.** `write_feed()` emits the unsigned index; `sign_feed()`
   rewrites it with the `signing` block and then signs it. Determinism assertions must
   compare pre-signing output.
@@ -461,7 +473,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 2979 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3000 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release

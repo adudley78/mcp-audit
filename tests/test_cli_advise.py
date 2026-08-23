@@ -23,6 +23,16 @@ FIXTURES = REPO_ROOT / "fixtures" / "vulnerable-servers"
 # 2026-01-31T00:00:00Z — pinned so every assertion below is reproducible.
 EPOCH = "1769817600"
 EPOCH_ISO = "2026-01-31T00:00:00Z"
+FIXTURE_EXPIRES = "2099-01-01T00:00:00Z"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_feed_seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "mcp_audit.advisory.freshness.default_seen_path",
+        lambda: tmp_path / "feed-seen.json",
+    )
+
 
 HAS_MINISIGN = shutil.which("minisign") is not None
 needs_minisign = pytest.mark.skipif(
@@ -194,7 +204,14 @@ class TestAdvise:
         self, tmp_path: Path
     ) -> None:
         """A feed is signed with a project key; there is no keyless fallback."""
-        result = _advise(str(FIXTURES), "--out", str(tmp_path / "feed"), "--sign")
+        result = _advise(
+            str(FIXTURES),
+            "--out",
+            str(tmp_path / "feed"),
+            "--sign",
+            "--snapshot-version",
+            "1",
+        )
         assert result.exit_code == 2
         flat = _flat(result.output)
         assert "needs a project key" in flat
@@ -202,7 +219,14 @@ class TestAdvise:
 
     def test_the_unsigned_feed_survives_a_signing_failure(self, tmp_path: Path) -> None:
         out = tmp_path / "feed"
-        result = _advise(str(FIXTURES), "--out", str(out), "--sign")
+        result = _advise(
+            str(FIXTURES),
+            "--out",
+            str(out),
+            "--sign",
+            "--snapshot-version",
+            "1",
+        )
         assert result.exit_code == 2
         assert (out / "index.json").is_file()
 
@@ -271,6 +295,10 @@ class TestFeedVerify:
             "minisign",
             "--key",
             str(private),
+            "--snapshot-version",
+            "1",
+            "--expires",
+            "2099-01-01T00:00:00Z",
         )
         assert result.exit_code == 0, result.output
         return feed
@@ -287,6 +315,10 @@ class TestFeedVerify:
             "minisign",
             "--key",
             str(private),
+            "--snapshot-version",
+            "1",
+            "--expires",
+            "2099-01-01T00:00:00Z",
         )
         assert "Signed" in result.output
 
@@ -306,6 +338,8 @@ class TestFeedVerify:
         )
         assert result.exit_code == 0, result.output
         assert "verified" in result.output
+        assert "Published 2026-01-31" in result.output
+        assert "days old" in result.output
 
     def test_a_mutated_advisory_fails_and_exits_1(
         self, signed_feed: Path, minisign_keys
@@ -384,6 +418,8 @@ class TestExamplesFeedIsCurrent:
             "--no-sign",
             "--severity-threshold",
             "info",
+            "--expires",
+            "2099-01-01T00:00:00Z",
         )
         assert result.exit_code == 0, result.output
 
@@ -413,6 +449,28 @@ class TestExamplesFeedIsCurrent:
             "Regenerate with the command in examples/feed/README.md and commit "
             "the result."
         )
+
+
+class TestSignedPublishRequiresSnapshotVersion:
+    def test_sign_without_snapshot_version_refuses_to_default(
+        self, tmp_path: Path
+    ) -> None:
+        result = _advise(
+            str(FIXTURES),
+            "--out",
+            str(tmp_path / "feed"),
+            "--sign",
+        )
+        assert result.exit_code == 2
+        assert "refusing to default to 1" in _flat(result.output)
+
+
+class TestFeedVerifyNowFlagIsHidden:
+    def test_now_is_not_in_user_help(self) -> None:
+        result = runner.invoke(app, ["feed", "verify", "--help"])
+        assert result.exit_code == 0
+        assert "--now" not in result.output
+        assert "allow-expired" not in result.output
 
 
 def _count(feed_dir: Path) -> int:

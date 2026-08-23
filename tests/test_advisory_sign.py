@@ -107,8 +107,16 @@ def rotated_minisign_keys(tmp_path_factory) -> tuple[Path, Path]:
 def feed_dir(tmp_path: Path) -> Path:
     """An unsigned feed built from the shared scan fixture."""
     advisories = build_advisories(_scan_result(), now=FIXED_NOW).advisories
-    write_feed(advisories, tmp_path / "feed")
+    write_feed(advisories, tmp_path / "feed", expires="2099-01-01T00:00:00Z")
     return tmp_path / "feed"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_feed_seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "mcp_audit.advisory.freshness.default_seen_path",
+        lambda: tmp_path / "feed-seen.json",
+    )
 
 
 # ── Configuration ─────────────────────────────────────────────────────────────
