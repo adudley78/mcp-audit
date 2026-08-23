@@ -35,11 +35,11 @@ jobs:
 
       - name: Record cosign version
         run: |
-          cosign version | tee cosign-version.json
+          mkdir -p artifact
+          cosign version | tee artifact/cosign-version.json
 
       - name: Create throwaway artifact with known contents
         run: |
-          mkdir -p artifact
           {
             echo "mcp-audit R27 offline-verification experiment"
             echo "repo=${GITHUB_REPOSITORY}"
@@ -74,10 +74,11 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: r27-artifact-and-bundle
-          path: |
-            artifact/artifact.txt
-            artifact/artifact.sigstore.json
-            cosign-version.json
+          # A single directory path (not a multi-line list) so upload-artifact
+          # flattens its *contents* to the artifact root instead of preserving
+          # the "artifact/" prefix — the verify job expects artifact.txt etc.
+          # directly at its working directory root.
+          path: artifact
           retention-days: 14
           if-no-files-found: error
 
@@ -100,6 +101,12 @@ jobs:
         with:
           name: r27-artifact-and-bundle
           path: .
+
+      - name: Sanity check the downloaded layout
+        run: |
+          find . -maxdepth 2 -type f | sort
+          test -f artifact.txt
+          test -f artifact.sigstore.json
 
       - name: Compute expected Fulcio identity from this workflow's own ref
         id: identity
@@ -133,7 +140,7 @@ jobs:
       - name: TEST 1 — fresh cosign, no cached trust root, network off
         run: |
           set +e
-          rm -rf "$HOME/.sigstore"
+          sudo rm -rf "$HOME/.sigstore"
           timeout 30 sudo --preserve-env=HOME unshare --net -- \
             "${{ steps.cosign_bin.outputs.path }}" verify-blob \
               --bundle artifact.sigstore.json \
@@ -144,7 +151,7 @@ jobs:
 
       - name: Pre-fetch the TUF trust root (network ON, one time, documented step)
         run: |
-          rm -rf "$HOME/.sigstore"
+          sudo rm -rf "$HOME/.sigstore"
           cosign initialize
           find "$HOME/.sigstore" -type f | sort
           cp "$HOME"/.sigstore/root/*/targets/trusted_root.json ./standalone_trusted_root.json
@@ -209,7 +216,7 @@ jobs:
       - name: TEST 5 — explicit --trusted-root FILE, TUF cache deleted, network off
         run: |
           set +e
-          rm -rf "$HOME/.sigstore"
+          sudo rm -rf "$HOME/.sigstore"
           timeout 30 sudo --preserve-env=HOME unshare --net -- \
             "${{ steps.cosign_bin.outputs.path }}" verify-blob \
               --bundle artifact.sigstore.json \
@@ -222,7 +229,7 @@ jobs:
       - name: TEST 6 — cached trust root aged past its own expiry, network off
         run: |
           set +e
-          rm -rf "$HOME/.sigstore"
+          sudo rm -rf "$HOME/.sigstore"
           cosign initialize
           EXPIRES=$(python3 -c "
           import json, glob
