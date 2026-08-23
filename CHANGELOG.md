@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Docs
 
+- **Standalone GitHub Release binaries take about ten seconds to start on each launch** (PyInstaller onefile unpack). Documented in `docs/building-binaries.md` and the README install note.
 - **`docs/contributors.md`: added a Registry Contributors section** for the three maintainers who listed their servers (`screenpipe-mcp`, `@palisadeemail/mcp`, `docpull`). Separate from the detection-rule bounty. "How to get listed here" now covers rules, code/infra, and registry submissions.
 
 ---

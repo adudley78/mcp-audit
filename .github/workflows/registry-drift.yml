@@ -24,9 +24,12 @@ on:
     # an hourly event; a noisy check gets muted, which is worse than none.
     - cron: "0 14 * * 1"
   workflow_dispatch:
-  # This PR introduces the workflow; GitHub will not dispatch a workflow
-  # that does not yet exist on the default branch. Path-filtered pull_request
-  # is how the first run is proven. Unrelated PRs do not pay the live audit.
+  # A PR that edits registry/known-servers.json is audited against live
+  # npm and PyPI before merge. That is the check that would have caught
+  # the 2026-04 batch at review time instead of four months later.
+  # Path-filtered, so unrelated PRs pay nothing. pull_request, not
+  # pull_request_target: fork PRs run read-only with no secrets.
+  # Do not delete this trigger.
   pull_request:
     paths:
       - "registry/known-servers.json"

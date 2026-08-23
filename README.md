@@ -77,6 +77,7 @@ uv add mcp-audit-scanner
 > was already taken). The CLI command is still `mcp-audit`.
 > Standalone binaries are also available on
 > [GitHub Releases](https://github.com/adudley78/mcp-audit/releases).
+> Each run of a standalone binary is silent for about ten seconds while it starts; that is expected.
 > Each release attaches a CycloneDX 1.5 SBOM per binary (`mcp-audit-<platform>.cdx.json`)
 > plus `mcp-audit-scanner-wheel.cdx.json` for the PyPI wheel. See
 > [docs/building-binaries.md](docs/building-binaries.md#release-sboms).
