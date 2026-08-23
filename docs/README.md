@@ -26,3 +26,4 @@
 | [community-rule-spec.md](community-rule-spec.md) | Community rule YAML format specification (Apache 2.0; ecosystem-adoptable) |
 | [contributors.md](contributors.md) | Attribution list for accepted community contributors |
 | [manual-test-matrix.md](manual-test-matrix.md) | Release-candidate manual validation checklist |
+| [offline-verification-findings.md](offline-verification-findings.md) | Empirical test of whether a Sigstore-signed artifact verifies with zero network access, and what it requires |
