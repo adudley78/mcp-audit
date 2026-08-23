@@ -25,6 +25,49 @@ mcp-audit feed verify ./feed --identity 'https://github.com/your-org/.*' \
                              --oidc-issuer 'https://token.actions.githubusercontent.com'
 ```
 
+## Where the published feed lives
+
+mcp-audit publishes its own weekly feed to a dedicated `feed` branch in this
+repo, over a stable raw URL — no git checkout, no repository access, no
+authentication required:
+
+```
+https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
+```
+
+**This published feed is currently unsigned.** `.github/workflows/advisory-feed-publish.yml`
+runs weekly (`workflow_dispatch` on demand), split into a `build` job
+(`contents: read`) and a `publish` job (`contents: write`, no key) that only
+commits when the built feed actually differs from what is already there.
+Signing has not landed yet — see "Key custody and rotation" below. `feed
+verify` on an unsigned feed still checks integrity (`canonical_sha256` binds
+every record to the index) and reports freshness; it just does not attest
+to who produced it.
+
+Fetch and verify it yourself:
+
+```bash
+mkdir feed && cd feed
+curl -fsSLO https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
+for p in $(python3 -c "import json; print('\n'.join(a['path'] for a in json.load(open('index.json'))['advisories']))"); do
+  mkdir -p "$(dirname "$p")"
+  curl -fsSLo "$p" "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/$p"
+done
+
+mcp-audit feed verify .
+```
+
+`osv/` (for `osv-scanner`) is not needed by `feed verify`; fetch it the same
+way from `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/osv/…`
+if you want the osv-scanner-compatible export.
+
+mcp-audit.dev is the intended long-term home for this feed (one origin for
+all mcp-audit data); the `feed` branch is today's destination because the
+site's deploy is manual and its generator lives in a private repo. Moving
+is free by construction — signatures are detached and over JCS canonical
+bytes (see "Signing" below), so the same signed bytes mirror to a new
+location with no diff and no re-signing.
+
 ## Feed layout
 
 ```

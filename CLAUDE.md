@@ -329,6 +329,10 @@ following silently breaks downstream consumers, so treat them as contract:
   (workflow ref + OIDC issuer), not a certificate fingerprint; changing that identity
   resets rollback protection. Do not make the first signed publish until
   `.github/workflows/advisory-feed-publish.yml` is the publisher (Amendment 7).
+  As of R30 it is: the `build`/`publish` split commits the unsigned feed to a
+  fetchable `feed` branch, so "publisher" is no longer aspirational — but
+  signing is still a separate, later step (key generation, then the first
+  signed publish, not compressed together).
   A stateless client accepts any unexpired validly-signed snapshot; TTL is the only
   lever. Stolen key, a publisher omitting advisories at a new version, a client clock
   in the past, and mix-and-match (already bound by `canonical_sha256`) are not covered.
@@ -473,7 +477,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3016 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3047 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
@@ -517,7 +521,13 @@ What's built:
 
 - **Advisory feed** — `mcp-audit advise <target>` turns scan findings into OSV
   schema_version 1.6.0 advisory records and publishes them as a signed, verifiable
-  feed; `mcp-audit feed verify <dir>` checks it. There is no CVE/OSV/NVD equivalent
+  feed; `mcp-audit feed verify <dir>` checks it. A weekly **unsigned** build is
+  published to a dedicated orphan `feed` branch in this repo, fetchable at
+  `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json` with no
+  repository access required (R30); the publish job only commits when the built
+  feed's advisories differ from what is already there (see
+  `.github/workflows/advisory-feed-publish.yml` and `scripts/feed_diff.py`).
+  There is no CVE/OSV/NVD equivalent
   for MCP servers, so this is the canonical machine-readable feed other registries,
   gateways, and scanners can consume. Core OSV fields are used verbatim; everything
   MCP-specific lives under `affected[].database_specific` (`owasp_mcp`,
