@@ -15,6 +15,19 @@ Prove the release-side path with `workflow_dispatch` on the Release
 workflow (dry-run: build + artifact upload, no GitHub Release / PyPI).
 Do not wait for the next `v*.*.*` tag to be the first execution.
 
+## Startup time
+
+The standalone binaries take about ten seconds to do anything. Each
+launch unpacks the whole application to a temp directory (PyInstaller
+onefile) before Python starts; there is no output during that wait.
+The cost is per invocation, not one-time, and every subcommand pays it
+(`scan`, `version`, `watch`, …). A source install (`pip` / `uv run`)
+does not.
+
+Measured 2026-08-22 on macOS darwin-x86_64: `uv run mcp-audit version`
+returned in ~0.5 s; `dist/mcp-audit-darwin-x86_64 version` sat silent
+for ~11 s, then printed.
+
 ## Why this exists
 
 Three CI/release mismatches were found in sequence because the recipe
