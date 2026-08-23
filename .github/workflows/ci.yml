@@ -67,7 +67,25 @@ jobs:
         # paths are actually exercised on every PR.
         run: uv pip install -e ".[dev,sbom,attestation,mcp]" --system
 
+      - name: Install cosign
+        # No workflow installed cosign for the test suite before this line —
+        # TestCosignRoundTrip (tests/test_advisory_sign.py) skipped silently
+        # everywhere except a developer machine that happened to have it.
+        # Same pinned version R27 measured offline-verification behaviour
+        # against (docs/offline-verification-findings.md); re-pin together if
+        # that document is ever re-tested against a newer cosign.
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Install minisign
+        # Closes the same silent-skip gap for TestMinisignRoundTrip. Ubuntu's
+        # apt repo ships a current build; no separate installer action exists.
+        run: sudo apt-get update && sudo apt-get install -y minisign
+
       - name: Run tests
+        # This is also the only CI leg with cosign, minisign, AND (being
+        # ubuntu-latest with passwordless sudo) a usable `unshare --net` —
+        # so it is the one place TestFeedVerificationIsOfflineByConstruction
+        # (tests/test_advisory_sign.py) actually runs rather than skips.
         run: pytest tests/ -x -q
 
       - name: Verify test-count docs in sync
