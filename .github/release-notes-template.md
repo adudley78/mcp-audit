@@ -6,9 +6,20 @@ Evergreen GitHub Release body. Per-release prose does NOT live here.
   - splices the CHANGELOG.md section ## [X.Y.Z] at the CHANGELOG_SECTION marker
   - fails the release if that heading is missing or any placeholder survives
 
-Keep Install / coverage / integrations in sync with README.md copy — CI
-does not verify the prose. Test counts are patched by
-scripts/update_test_count.py.
+Keep Install / coverage / integrations in sync with README.md copy.
+tests/test_release_notes_facts.py asserts the facts that actually go stale —
+package name, CLI command, binary asset filenames (checked against the
+PyInstaller specs, not README, since README never enumerates them),
+SBOM filenames, the supported-host list (checked as a subset of README's
+table, not equal — this tagline is a sample, not the full list), test count
+(cross-checked against README.md, not re-derived — see
+scripts/update_test_count.py), and the poisoning / credential / SAST /
+exploit-fixture / benchmark-server counts. It compares extracted values, not
+paragraphs: a reworded sentence will not fail CI; a renamed asset, a dropped
+host, or a changed count will.
+
+Everything else — wording, section order, which integrations get a bullet,
+flag descriptions in prose — is still unverified and can drift silently.
 
 Do not put Highlights, a What's-new block, or a security banner in this
 file. Those belong under the matching CHANGELOG heading (### Security is
@@ -21,7 +32,7 @@ release's notes.
 Security scanner for MCP (Model Context Protocol) server configurations.
 Detects prompt injection, supply chain risks, credential exposure, toxic flow
 combinations, transport vulnerabilities, and more — across Claude Desktop,
-Cursor, VS Code, Zed, and any MCP-compatible host.
+Cursor, VS Code, Windsurf, and any MCP-compatible host.
 
 ---
 
@@ -94,7 +105,7 @@ changelog section above.
 - 22-server false-positive benchmark — 0% poisoning FP rate on legitimate servers
 - CVSS + OWASP MCP Top 10 severity mappings on every finding ID
 
-**3,005 tests · Apache 2.0 · macOS · Linux · Windows**
+**3,016 tests · Apache 2.0 · macOS · Linux · Windows**
 
 ---
 
