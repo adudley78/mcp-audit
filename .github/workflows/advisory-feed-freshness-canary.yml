@@ -1,0 +1,61 @@
+# Daily read-only canary: fails loudly if the LIVE published advisory feed
+# is closer to expiry than one full publish interval.
+#
+# R31: advisory-feed-publish.yml refreshes `expires` on every scheduled
+# run now, whether or not advisory content changed (the R30 bug this fixes
+# was the opposite: it froze `expires` by skipping the commit on an
+# unchanged build, so the published feed was on track to hard-fail every
+# `feed verify` on 2026-09-06). But that fix lives *inside* the workflow it
+# is meant to protect against not running — if advisory-feed-publish.yml
+# itself stops firing (GitHub disables a schedule after enough repository
+# inactivity, a broken step, an outage), nothing inside it can notice.
+#
+# This job is the outside check, on its OWN schedule, independent of
+# advisory-feed-publish.yml's: one HTTPS GET of the live index.json, no
+# checkout of repo state, no mcp-audit install, no write permission. Cheap
+# enough to run daily, and daily is what makes this a canary rather than a
+# second copy of the same weekly risk — a week between checks would only
+# leave DEFAULT_TTL_DAYS - PUBLISH_INTERVAL_DAYS = 7 days of the 14-day TTL
+# as reaction time in the worst case; daily leaves ~6 of those 7 days.
+#
+# scripts/check_feed_freshness.py fails (exit 1) when the live `expires` is
+# less than one publish interval (7 days) away. That margin, and the
+# published URL, are the same constants advisory-feed-publish.yml and
+# docs/advisory-feed.md use — see that script for the single source of
+# truth.
+
+name: Advisory feed freshness canary
+
+on:
+  schedule:
+    # Daily, offset from advisory-feed-publish.yml's Sunday 14:00 UTC slot
+    # so a normal publish always lands well before this checks it.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advisory-feed-freshness-canary
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check the live feed's expiry margin
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Check the live published feed's expiry margin
+        run: python scripts/check_feed_freshness.py

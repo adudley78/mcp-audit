@@ -1,10 +1,14 @@
 """Structural checks for .github/workflows/advisory-feed-publish.yml.
 
 R30 split the single `publish` job into `build` (read-only) and `publish`
-(write, gated on a real content change) so the destination that Amendment 7
-gates signing on actually exists. These tests pin the shape of that split so
-a future edit cannot silently recombine the two capabilities or re-widen a
-permission.
+(write) so the destination that Amendment 7 gates signing on actually
+exists. R31 removed the R30 gate that skipped `publish` when advisory
+content was unchanged — that gate froze `expires` on a feed with a TTL,
+which is worse than a noisy commit log. `publish` now always runs; the
+diff only shapes the commit message. These tests pin the shape of that
+split, and of the unconditional publish, so a future edit cannot silently
+recombine the two capabilities, re-widen a permission, or reintroduce a
+publish gate.
 """
 
 from __future__ import annotations
@@ -70,10 +74,13 @@ def test_publish_job_has_write_and_nothing_else() -> None:
     assert publish["permissions"] == {"contents": "write"}
 
 
-def test_publish_depends_on_build_and_is_gated_on_a_real_change() -> None:
+def test_publish_depends_on_build_and_is_unconditional() -> None:
+    """R31: publish must run on every scheduled run, changed or not — a
+    TTL-backed feed cannot skip refreshing its expiry just because the
+    advisory content happens to be identical this week."""
     publish = _load()["jobs"]["publish"]
     assert publish["needs"] == "build"
-    assert publish["if"] == "needs.build.outputs.changed == 'true'"
+    assert "if" not in publish
 
 
 def test_build_never_checks_out_or_writes_the_feed_branch() -> None:
@@ -110,8 +117,10 @@ def test_build_declares_the_outputs_publish_consumes() -> None:
     build = _load()["jobs"]["build"]
     outputs = build["outputs"]
     assert outputs["changed"] == "${{ steps.diff.outputs.changed }}"
+    assert outputs["changed_count"] == "${{ steps.diff.outputs.changed_count }}"
     assert outputs["snapshot_version"] == "${{ steps.diff.outputs.snapshot_version }}"
     assert outputs["count"] == "${{ steps.diff.outputs.count }}"
+    assert outputs["commit_message"] == "${{ steps.diff.outputs.commit_message }}"
 
 
 def test_publish_checks_out_the_feed_branch_and_downloads_the_artifact() -> None:
@@ -122,16 +131,26 @@ def test_publish_checks_out_the_feed_branch_and_downloads_the_artifact() -> None
     assert any(str(s.get("uses", "")).startswith(DOWNLOAD) for s in steps)
 
 
-def test_publish_commit_message_names_version_and_count() -> None:
-    run_text = _run_text(_steps(_load()["jobs"]["publish"]))
-    assert "snapshot_version ${SNAPSHOT_VERSION}" in run_text
-    assert "${COUNT} advisories" in run_text
+def test_publish_commit_message_comes_from_build_diff_classification() -> None:
+    """R31: the commit message is built entirely by scripts/feed_diff.py
+    (unit-tested separately) and passed through, not reconstructed with
+    ad hoc bash string interpolation in the workflow."""
+    publish = _load()["jobs"]["publish"]
+    commit_step = next(
+        s for s in _steps(publish) if "COMMIT_MESSAGE" in str(s.get("env", {}))
+    )
+    assert commit_step["env"]["COMMIT_MESSAGE"] == (
+        "${{ needs.build.outputs.commit_message }}"
+    )
+    run_text = commit_step["run"]
+    assert 'git commit -m "${COMMIT_MESSAGE}"' in run_text
     assert "git push origin feed" in run_text
 
 
 def test_publish_has_a_belt_and_suspenders_empty_diff_guard() -> None:
-    """Even though `if:` already gates on build's verdict, the commit step
-    itself must refuse to commit an empty diff."""
+    """R31: publish is unconditional, so this is the only remaining guard
+    against an empty commit — defence-in-depth, expected to never fire
+    since snapshot_version/expires change every run."""
     run_text = _run_text(_steps(_load()["jobs"]["publish"]))
     assert "git diff --cached --quiet" in run_text
 

@@ -477,7 +477,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3047 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3071 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
@@ -524,9 +524,15 @@ What's built:
   feed; `mcp-audit feed verify <dir>` checks it. A weekly **unsigned** build is
   published to a dedicated orphan `feed` branch in this repo, fetchable at
   `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json` with no
-  repository access required (R30); the publish job only commits when the built
-  feed's advisories differ from what is already there (see
-  `.github/workflows/advisory-feed-publish.yml` and `scripts/feed_diff.py`).
+  repository access required (R30); the publish job runs — and commits —
+  on every scheduled run, whether or not advisory content changed, so
+  `expires` never freezes (R31 fixed an R30 bug where skipping the commit
+  on unchanged content froze the feed's own expiry); `scripts/feed_diff.py`
+  now only shapes the commit message (see
+  `.github/workflows/advisory-feed-publish.yml`). A separate, independently
+  scheduled `advisory-feed-freshness-canary.yml` fails loudly if the live
+  feed is ever closer to expiry than one publish interval — the signal
+  that the publisher itself has stopped running.
   There is no CVE/OSV/NVD equivalent
   for MCP servers, so this is the canonical machine-readable feed other registries,
   gateways, and scanners can consume. Core OSV fields are used verbatim; everything

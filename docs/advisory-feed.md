@@ -37,12 +37,23 @@ https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
 
 **This published feed is currently unsigned.** `.github/workflows/advisory-feed-publish.yml`
 runs weekly (`workflow_dispatch` on demand), split into a `build` job
-(`contents: read`) and a `publish` job (`contents: write`, no key) that only
-commits when the built feed actually differs from what is already there.
-Signing has not landed yet — see "Key custody and rotation" below. `feed
-verify` on an unsigned feed still checks integrity (`canonical_sha256` binds
-every record to the index) and reports freshness; it just does not attest
-to who produced it.
+(`contents: read`) and a `publish` job (`contents: write`, no key). `publish`
+commits on *every* scheduled run, whether or not the advisory content
+changed — a feed with a 14-day TTL cannot skip refreshing its own expiry
+just because this week's findings are identical to last week's, or `expires`
+freezes and the published feed eventually hard-fails its own `feed verify`
+with nobody having touched anything. The commit message says which kind of
+week it was: `feed: refresh expiry (snapshot 4, 23 advisories, no content
+change)` when nothing but the freshness envelope moved, or `feed: 2
+advisories changed (snapshot 5, 25 advisories)` when it did not. A separate,
+independently-scheduled, read-only canary
+(`.github/workflows/advisory-feed-freshness-canary.yml`) fails loudly if the
+live feed's `expires` is ever less than one publish interval away — the
+signal that the publish job itself has stopped running. Signing has not
+landed yet — see "Key custody and rotation" below. `feed verify` on an
+unsigned feed still checks integrity (`canonical_sha256` binds every record
+to the index) and reports freshness; it just does not attest to who
+produced it.
 
 Fetch and verify it yourself:
 

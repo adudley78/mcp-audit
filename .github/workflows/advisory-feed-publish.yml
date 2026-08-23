@@ -31,12 +31,31 @@
 #            ignores the published/modified timestamps every build stamps
 #            fresh — see that script's docstring), and uploads it as a job
 #            artifact.
-#   publish: contents: write. Only runs when build found a real change.
-#            Downloads the artifact, commits it to `feed`, pushes.
+#   publish: contents: write. ALWAYS runs (see R31 below). Downloads the
+#            artifact, commits it to `feed`, pushes.
 #
-# A run that finds no substantive change (the common case most weeks) makes
-# no commit. A stream of empty weekly commits would make a real change
-# invisible.
+# R31: publish is UNCONDITIONAL — it no longer skips when build found no
+# substantive advisory change. R30 made it skip, on the theory that a
+# no-op commit was noise. That was wrong: `expires` is content too. A feed
+# that says "trust me until the 6th" is a different statement every week
+# even when the advisory list is identical, and skipping the commit froze
+# that statement — the published feed was on track to hard-fail its own
+# `feed verify` on 2026-09-06 with nobody having touched anything. See
+# humans/decisions/2026-08-22-feed-freshness-design.md (marcus repo,
+# Amendment 7 / the TTL section) for why the TTL requires this cadence to
+# be unconditional rather than attention-triggered.
+#
+# scripts/feed_diff.py still runs every build, but only to shape the commit
+# message (steps.diff.outputs.commit_message), not to gate anything:
+#   feed: refresh expiry (snapshot 4, 23 advisories, no content change)
+#   feed: 2 advisories changed (snapshot 5, 25 advisories)
+# Scrolling the branch history still shows at a glance which weeks changed
+# advisory content vs. which weeks only pushed the expiry forward.
+#
+# The freshness canary in advisory-feed-freshness-canary.yml — a separate,
+# independently-scheduled, read-only workflow — is what now detects "the
+# publisher stopped running" instead of "expires froze" being the first
+# sign anyone gets.
 
 name: Advisory feed publish
 
@@ -62,8 +81,10 @@ jobs:
       contents: read
     outputs:
       changed: ${{ steps.diff.outputs.changed }}
+      changed_count: ${{ steps.diff.outputs.changed_count }}
       snapshot_version: ${{ steps.diff.outputs.snapshot_version }}
       count: ${{ steps.diff.outputs.count }}
+      commit_message: ${{ steps.diff.outputs.commit_message }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -108,7 +129,8 @@ jobs:
           mcp-audit advise "${ARGS[@]}"
           # Do not add --sign. First signed publish is gated on key custody.
 
-      - name: Compare against the published feed
+      - name: Classify this publish against the currently-published feed
+        # Informational only (R31) — feeds the commit message, never a gate.
         id: diff
         run: |
           python scripts/feed_diff.py \
@@ -126,7 +148,9 @@ jobs:
   publish:
     name: Publish to the feed branch
     needs: build
-    if: needs.build.outputs.changed == 'true'
+    # R31: unconditional. See the header comment — a TTL-backed feed must
+    # refresh its expiry on every scheduled run, even weeks where no
+    # advisory content changed.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -157,15 +181,17 @@ jobs:
 
       - name: Commit and push
         env:
-          SNAPSHOT_VERSION: ${{ needs.build.outputs.snapshot_version }}
-          COUNT: ${{ needs.build.outputs.count }}
+          COMMIT_MESSAGE: ${{ needs.build.outputs.commit_message }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           if git diff --cached --quiet; then
+            # Defence-in-depth only: with snapshot_version and expires
+            # incrementing/advancing on every run (R31), index.json always
+            # differs, so this should never actually trigger.
             echo "No staged changes after sync; nothing to publish."
             exit 0
           fi
-          git commit -m "feed: snapshot_version ${SNAPSHOT_VERSION}, ${COUNT} advisories"
+          git commit -m "${COMMIT_MESSAGE}"
           git push origin feed
