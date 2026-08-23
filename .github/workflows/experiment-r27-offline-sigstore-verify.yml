@@ -175,7 +175,10 @@ jobs:
               artifact.txt
           echo "TEST2_EXIT=$?" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: TEST 3 — cached trust root, network off, TAMPERED artifact
+      - name: TEST 3 — explicit --trusted-root, network off, TAMPERED artifact
+        # Uses --trusted-root (the only path TEST 1/2 showed works offline at
+        # all) so this isolates tamper detection instead of re-hitting the
+        # same "no trust root" failure TEST 1/2 hit without that flag.
         run: |
           set +e
           cp artifact.txt artifact.tampered.txt
@@ -187,6 +190,7 @@ jobs:
           timeout 30 sudo --preserve-env=HOME unshare --net -- \
             "${{ steps.cosign_bin.outputs.path }}" verify-blob \
               --bundle artifact.sigstore.json \
+              --trusted-root standalone_trusted_root.json \
               --certificate-identity "${{ steps.identity.outputs.identity }}" \
               --certificate-oidc-issuer "${{ steps.identity.outputs.issuer }}" \
               artifact.tampered.txt
@@ -197,12 +201,13 @@ jobs:
             exit 1
           fi
 
-      - name: TEST 4 — cached trust root, network off, WRONG identity
+      - name: TEST 4 — explicit --trusted-root, network off, WRONG identity
         run: |
           set +e
           timeout 30 sudo --preserve-env=HOME unshare --net -- \
             "${{ steps.cosign_bin.outputs.path }}" verify-blob \
               --bundle artifact.sigstore.json \
+              --trusted-root standalone_trusted_root.json \
               --certificate-identity "https://github.com/someone-else/not-this-repo/.github/workflows/other.yml@refs/heads/main" \
               --certificate-oidc-issuer "${{ steps.identity.outputs.issuer }}" \
               artifact.txt
