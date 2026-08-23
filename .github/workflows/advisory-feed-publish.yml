@@ -1,4 +1,4 @@
-# Weekly unsigned advisory-feed publish.
+# Weekly signed advisory-feed publish.
 #
 # A TTL is a machine-enforced SLA. Fourteen days commits us to publishing at
 # least that often, or every client's `feed verify` degrades. On 2026-08-22
@@ -6,33 +6,42 @@
 # maintainer cannot hold an SLA — and that one only made a webpage stale.
 # This one reaches into other people's tooling.
 #
-# GATE (Amendment 7): do not pass --sign until (1) this job is the publisher
-# and (2) the key-custody decision is recorded. A first signed publish that a
-# human has to remember is how expiry teaches users that "expired" means
-# "the maintainer went on holiday."
+# R32: Amendment 7's gate is satisfied — this job signs with a static
+# minisign project key. The private half lives only in the
+# `MCP_AUDIT_FEED_SIGNING_KEY` secret, scoped to the `feed-signing` GitHub
+# environment (restricted to the `main` branch), and never leaves this job:
+# `publish`, below, has `contents: write` and no access to the secret at
+# all, exactly per the split R30 built ahead of signing for this moment. The
+# public half is committed at `keys/mcp-audit-feed.pub` and bundled into the
+# installed package (see `docs/advisory-feed.md`, "Key custody and
+# rotation").
 #
-# R30: this job was not a publisher — it built an unsigned feed and uploaded
-# it to a 30-day GitHub Actions artifact that only repository collaborators
-# could reach. See humans/decisions/2026-08-23-feed-signing-and-publishing.md
-# (marcus repo). It now commits the feed to a dedicated orphan `feed` branch,
-# served over a stable raw URL any user can fetch:
+# R30: this job was not always a publisher — it used to build an unsigned
+# feed and upload it to a 30-day GitHub Actions artifact that only
+# repository collaborators could reach. See
+# humans/decisions/2026-08-23-feed-signing-and-publishing.md (marcus repo)
+# for that history. It now commits the signed feed to a dedicated orphan
+# `feed` branch, served over a stable raw URL any user can fetch:
 #
 #   https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
 #
-# Still no --sign, no key, no secret. Two jobs, split on purpose, ahead of
-# signing rather than at the same time as it: once a key exists, the signing
-# step belongs in `build` (no repository write) and publishing stays in a
-# job that has write and no key. Neither job alone can both forge a
-# signature and place it where users fetch it — turning on signing later
-# changes one thing.
+# Two jobs stay split even now that signing is live, for the same reason
+# R30 split them ahead of it: once a key exists, the signing step belongs
+# in `build` (no repository write) and publishing stays in a job that has
+# write and no key. Neither job alone can both forge a signature and place
+# it where users fetch it.
 #
-#   build:   contents: read.  Writes the candidate feed, diffs it against
-#            the currently-published feed (scripts/feed_diff.py, which
-#            ignores the published/modified timestamps every build stamps
-#            fresh — see that script's docstring), and uploads it as a job
-#            artifact.
+#   build:   contents: read. `environment: feed-signing` (the only place the
+#            signing secret is reachable). Writes and signs the candidate
+#            feed, verifies its own output before anything is uploaded,
+#            diffs it against the currently-published feed
+#            (scripts/feed_diff.py, which ignores the published/modified
+#            timestamps every build stamps fresh — see that script's
+#            docstring), and uploads it as a job artifact.
 #   publish: contents: write. ALWAYS runs (see R31 below). Downloads the
-#            artifact, commits it to `feed`, pushes.
+#            artifact, commits it to `feed`, pushes. Cannot read the
+#            signing secret — it does not declare `environment:
+#            feed-signing` and never will.
 #
 # R31: publish is UNCONDITIONAL — it no longer skips when build found no
 # substantive advisory change. R30 made it skip, on the theory that a
@@ -53,7 +62,7 @@
 # advisory content vs. which weeks only pushed the expiry forward.
 #
 # The freshness canary in advisory-feed-freshness-canary.yml — a separate,
-# independently-scheduled, read-only workflow — is what now detects "the
+# independently-scheduled, read-only workflow — is what detects "the
 # publisher stopped running" instead of "expires froze" being the first
 # sign anyone gets.
 
@@ -74,9 +83,13 @@ concurrency:
 
 jobs:
   build:
-    name: Build unsigned feed
+    name: Build and sign the candidate feed
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Restricted to the `main` branch (confirmed via the environment's
+    # deployment-branch-policy, not just the UI setting) — a workflow_dispatch
+    # from any other ref cannot read MCP_AUDIT_FEED_SIGNING_KEY.
+    environment: feed-signing
     permissions:
       contents: read
     outputs:
@@ -101,6 +114,12 @@ jobs:
       - name: Install mcp-audit
         run: uv pip install -e ".[dev]" --system
 
+      - name: Install minisign
+        # Ubuntu's apt repo ships a current build; no separate installer
+        # action exists. Same tool tests/test_advisory_sign.py exercises for
+        # real in ci.yml — this is the signing side of that same binary.
+        run: sudo apt-get update && sudo apt-get install -y minisign
+
       - name: Fetch the currently-published feed (read-only)
         # Reads the CURRENT feed branch on origin, fetched fresh this run —
         # never a locally cached copy — so snapshot_version stays monotonic
@@ -116,18 +135,43 @@ jobs:
             echo "No feed branch on origin yet; this will be the first publish."
           fi
 
-      - name: Write unsigned candidate feed
+      - name: Write and sign the candidate feed
+        env:
+          MCP_AUDIT_FEED_SIGNING_KEY: ${{ secrets.MCP_AUDIT_FEED_SIGNING_KEY }}
         run: |
+          # The secret's name (MCP_AUDIT_FEED_SIGNING_KEY) is deliberately not
+          # the env var mcp-audit's own CLI reads (MCP_AUDIT_SIGNING_KEY) — the
+          # key is written to a runner-temp file instead and passed explicitly
+          # via --key, so it never needs to collide with that name, never sits
+          # in a shell-history-visible argument, and is never picked up by
+          # `git add` in the publish job (this file lives under $RUNNER_TEMP,
+          # not the checkout).
+          KEYFILE="${RUNNER_TEMP}/feed-signing.key"
+          trap 'rm -f "$KEYFILE"' EXIT
+          umask 077
+          printf '%s' "$MCP_AUDIT_FEED_SIGNING_KEY" > "$KEYFILE"
+          chmod 600 "$KEYFILE"
+
           mkdir -p "${RUNNER_TEMP}/feed"
           ARGS=(fixtures/vulnerable-servers
                 --out "${RUNNER_TEMP}/feed"
-                --no-sign
+                --sign --key-alt minisign --key "$KEYFILE"
                 --severity-threshold info)
           if [ -f previous_feed/index.json ]; then
             ARGS+=(--previous-index previous_feed/index.json)
+          else
+            ARGS+=(--snapshot-version 1)
           fi
           mcp-audit advise "${ARGS[@]}"
-          # Do not add --sign. First signed publish is gated on key custody.
+
+      - name: Verify the candidate feed before it is ever uploaded
+        # A feed that fails its own verification must fail this workflow
+        # before `publish` ever sees it — no bad signature reaches the
+        # branch users fetch from. Verifies against the public key committed
+        # in this checkout, not a copy staged anywhere else.
+        run: |
+          mcp-audit feed verify "${RUNNER_TEMP}/feed" \
+            --key-alt minisign --public-key keys/mcp-audit-feed.pub
 
       - name: Classify this publish against the currently-published feed
         # Informational only (R31) — feeds the commit message, never a gate.
@@ -154,9 +198,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      # Scoped to exactly what pushing a commit to `feed` requires. No
-      # signing key lives in this job, and this job cannot read one — see
-      # the header comment on why that split matters once one exists.
+      # Scoped to exactly what pushing a commit to `feed` requires. This job
+      # does not declare `environment: feed-signing` and cannot read the
+      # signing secret — see the header comment on why that split matters.
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

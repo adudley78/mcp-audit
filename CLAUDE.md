@@ -329,10 +329,13 @@ following silently breaks downstream consumers, so treat them as contract:
   (workflow ref + OIDC issuer), not a certificate fingerprint; changing that identity
   resets rollback protection. Do not make the first signed publish until
   `.github/workflows/advisory-feed-publish.yml` is the publisher (Amendment 7).
-  As of R30 it is: the `build`/`publish` split commits the unsigned feed to a
-  fetchable `feed` branch, so "publisher" is no longer aspirational — but
-  signing is still a separate, later step (key generation, then the first
-  signed publish, not compressed together).
+  As of R30 it is: the `build`/`publish` split commits the feed to a fetchable
+  `feed` branch. As of R32, Amendment 7's gate is fully satisfied: a real
+  minisign project key exists (private half in the `MCP_AUDIT_FEED_SIGNING_KEY`
+  secret, scoped to the `feed-signing` GitHub environment restricted to `main`;
+  public half committed at `keys/mcp-audit-feed.pub` and bundled in the
+  package), `build` signs every scheduled publish and verifies its own output
+  before `publish` ever sees it, and the first real signed publish has shipped.
   A stateless client accepts any unexpired validly-signed snapshot; TTL is the only
   lever. Stolen key, a publisher omitting advisories at a new version, a client clock
   in the past, and mix-and-match (already bound by `canonical_sha256`) are not covered.
@@ -362,15 +365,17 @@ following silently breaks downstream consumers, so treat them as contract:
   mirrors. `TestRotationLeavesRecordsUntouched` in `tests/test_advisory_sign.py` pins
   this; no other test would catch either regression.
 - **An unsigned feed is a supported artifact.** `examples/feed/` ships unsigned
-  because signing it reproducibly would mean committing a private key. `verify_feed`
+  because signing it reproducibly would mean committing a private key — this stays
+  true even now that the *live published* feed on the `feed` branch is signed with
+  the real project key; the two are deliberately different artifacts. `verify_feed`
   reports `signed=False` and checks integrity only; tampering is still caught through
   `canonical_sha256`. A feed whose index carries a `signing` block still *fails* when
   a signature is missing, so this can never become a silent downgrade. The signing
   path is proven by ephemeral-keypair tests in `tests/test_advisory_sign.py`.
-  **Until the project key is minted, `canonical_sha256` is the only integrity
-  guarantee consumers of the in-repo `examples/feed/` get** — no signature covers that
-  case today, so `test_a_mutated_record_still_fails_when_unsigned` is load-bearing
-  rather than redundant with the signed-feed tests. Do not weaken it.
+  **`canonical_sha256` is the only integrity guarantee consumers of the in-repo
+  `examples/feed/` get** — no signature covers that fixture, so
+  `test_a_mutated_record_still_fails_when_unsigned` is load-bearing rather than
+  redundant with the signed-feed tests. Do not weaken it.
 - **`x_MCPSA` prefix is deliberate.** OSV restricts `id` prefixes to a registered
   allowlist plus the `x_` experimental namespace, so records validate today. Drop the
   `x_` only once `MCPSA` is registered upstream.
@@ -477,7 +482,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3071 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3082 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
@@ -521,17 +526,22 @@ What's built:
 
 - **Advisory feed** — `mcp-audit advise <target>` turns scan findings into OSV
   schema_version 1.6.0 advisory records and publishes them as a signed, verifiable
-  feed; `mcp-audit feed verify <dir>` checks it. A weekly **unsigned** build is
-  published to a dedicated orphan `feed` branch in this repo, fetchable at
+  feed; `mcp-audit feed verify <dir>` checks it. A weekly **signed** build (minisign,
+  R32) is published to a dedicated orphan `feed` branch in this repo, fetchable at
   `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json` with no
   repository access required (R30); the publish job runs — and commits —
   on every scheduled run, whether or not advisory content changed, so
   `expires` never freezes (R31 fixed an R30 bug where skipping the commit
   on unchanged content froze the feed's own expiry); `scripts/feed_diff.py`
   now only shapes the commit message (see
-  `.github/workflows/advisory-feed-publish.yml`). A separate, independently
-  scheduled `advisory-feed-freshness-canary.yml` fails loudly if the live
-  feed is ever closer to expiry than one publish interval — the signal
+  `.github/workflows/advisory-feed-publish.yml`). The `build` job signs with a
+  minisign project key held only in the `MCP_AUDIT_FEED_SIGNING_KEY` secret of the
+  `feed-signing` GitHub environment (restricted to `main`), verifies its own signed
+  output before `publish` ever sees it, and the public half is committed at
+  `keys/mcp-audit-feed.pub` and bundled in the package so `feed verify --key-alt
+  minisign` resolves it with no extra flag and no network fetch. A separate,
+  independently scheduled `advisory-feed-freshness-canary.yml` fails loudly if the
+  live feed is ever closer to expiry than one publish interval — the signal
   that the publisher itself has stopped running.
   There is no CVE/OSV/NVD equivalent
   for MCP servers, so this is the canonical machine-readable feed other registries,
@@ -541,10 +551,12 @@ What's built:
   `mcp_observation`, `cvss_basis`). Output layout: `advisories/<id>.json`,
   `index.json`, and an osv-scanner-consumable `osv/all.json` + `osv/all.zip`.
   Records are deterministic (stable content-derived IDs, no host paths, RFC 8785
-  canonical bytes) and signed with cosign using a **static project key** —
-  `--keyless` is opt-in and never the default, `--key-alt minisign` for
-  low-dependency environments. The committed `examples/feed/` is unsigned by
-  design (no private key in the repo); `feed verify` still checks its integrity.
+  canonical bytes) and always signed with a **static project key**, never keyless —
+  `advise --sign` defaults to the `cosign` backend, `--key-alt minisign` is the
+  low-dependency alternative and the one the published feed actually uses,
+  `--keyless` remains opt-in and is never the default. The committed
+  `examples/feed/` is unsigned by design (no private key in the repo); `feed
+  verify` still checks its integrity.
   See "Advisory feed invariants" below and `docs/advisory-feed.md`.
 
 What's next (non-code):

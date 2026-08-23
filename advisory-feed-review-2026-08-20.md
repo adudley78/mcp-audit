@@ -1,5 +1,21 @@
 # Advisory feed adversarial review — 2026-08-20
 
+> **SUPERSEDED (2026-08-23, R32).** This review's §3 "Key distribution channel"
+> section describes the *then-intended* custody plan — cosign, a `FEED_SIGNING_KEY`
+> secret with a `COSIGN_PASSWORD` passphrase, and a public key published at
+> `https://mcp-audit.dev/.well-known/mcp-audit-feed.pub` — as of the review date.
+> That plan was reversed the same week (2026-08-23): the backend is **minisign**, the
+> real secret is `MCP_AUDIT_FEED_SIGNING_KEY` in a `feed-signing` GitHub environment
+> restricted to `main`, the key has no passphrase, and the public key is committed at
+> `keys/mcp-audit-feed.pub` (bundled in the package) rather than served from a
+> well-known URL. A real key now exists and the feed is signed. See
+> `docs/advisory-feed.md`'s "Key custody and rotation" section for the current,
+> accurate story — do not treat anything below as describing today's custody model.
+> Everything else in this review (§1, §2, §4–§6 — field coverage, canonicalization,
+> fail-open behaviour, replay/rollback, the OWASP deletion guard) is about the
+> signing/verification *code*, not the key-distribution plan, and is unaffected by
+> this reversal.
+
 Scope: `src/mcp_audit/advisory/{sign,canonical,schema,validate,feed,classify}.py`,
 `src/mcp_audit/output/advisory.py`, `src/mcp_audit/cli/advise.py`, `docs/advisory-feed.md`,
 and the existing test suite (`tests/test_advisory_sign.py`, `test_advisory_canonical.py`,
