@@ -108,6 +108,10 @@ def _verify_feed_with_no_network(
         "config = SigningConfig(backend='cosign', public_key=Path(sys.argv[1]))\n"
         "report = verify_feed(Path(sys.argv[2]), config)\n"
         "print(json.dumps({'ok': report.ok, 'failures': report.failures}))\n"
+        # Without this, the interpreter always exits 0 regardless of the
+        # verdict, and the caller's `proc.returncode == 0` check is silently
+        # meaningless — it would report every verification as a pass.
+        "sys.exit(0 if report.ok else 1)\n"
     )
     child_path = f"{Path(cosign_path).parent}:/usr/bin:/bin"
     proc = subprocess.run(  # noqa: S603 — every executable resolved via shutil.which
@@ -131,7 +135,11 @@ def _verify_feed_with_no_network(
     )
     lines = [line for line in proc.stdout.splitlines() if line.strip()]
     payload = json.loads(lines[-1]) if lines else {}
-    return proc.returncode == 0, {**payload, "stderr": proc.stderr}
+    # The JSON payload is the direct signal (report.ok); the exit code is a
+    # fallback for a crash before the print (e.g. an import error), where no
+    # payload exists at all.
+    ok = payload.get("ok", proc.returncode == 0)
+    return ok, {**payload, "stderr": proc.stderr, "returncode": proc.returncode}
 
 
 # ── Key material ──────────────────────────────────────────────────────────────
