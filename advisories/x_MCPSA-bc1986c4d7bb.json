@@ -38,8 +38,8 @@
   ],
   "details": "Server 'shell-runner' passes eval/exec in args (CVE-2026-30615): exec Evidence: rule:COMM-007; matched: exec Remediation: Review the rule 'COMM-007' (eval or exec passed in args) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-007 (rules analyzer, severity HIGH).",
   "id": "x_MCPSA-bc1986c4d7bb",
-  "modified": "2026-08-23T15:05:12Z",
-  "published": "2026-08-23T15:05:12Z",
+  "modified": "2026-08-23T16:37:12Z",
+  "published": "2026-08-23T16:37:12Z",
   "references": [
     {
       "type": "WEB",

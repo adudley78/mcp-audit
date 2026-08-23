@@ -38,8 +38,8 @@
   ],
   "details": "Server uses uvx which downloads packages at runtime Evidence: Command: uvx mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" Remediation: Install packages locally and reference the installed binary instead Detected by mcp-audit rule TRANSPORT-003 (transport analyzer, severity MEDIUM).",
   "id": "x_MCPSA-4deda91e4e28",
-  "modified": "2026-08-23T15:05:12Z",
-  "published": "2026-08-23T15:05:12Z",
+  "modified": "2026-08-23T16:37:12Z",
+  "published": "2026-08-23T16:37:12Z",
   "references": [
     {
       "type": "WEB",

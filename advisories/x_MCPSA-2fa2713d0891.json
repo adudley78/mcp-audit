@@ -38,8 +38,8 @@
   ],
   "details": "GitHub Token found in env var 'GITHUB_TOKEN' Evidence: env.GITHUB_TOKEN matches GitHub Token pattern Remediation: Use a credential manager, keychain, or vault reference instead of inline secrets Detected by mcp-audit rule CRED-001 (credentials analyzer, severity HIGH).",
   "id": "x_MCPSA-2fa2713d0891",
-  "modified": "2026-08-23T15:05:12Z",
-  "published": "2026-08-23T15:05:12Z",
+  "modified": "2026-08-23T16:37:12Z",
+  "published": "2026-08-23T16:37:12Z",
   "references": [
     {
       "type": "WEB",

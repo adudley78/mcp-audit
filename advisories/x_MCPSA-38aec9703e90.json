@@ -38,8 +38,8 @@
   ],
   "details": "Server 'shell-runner' executes inline code via -c flag: mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" --allow-all Evidence: rule:COMM-006; matched: mcp-audit-fixture-shell-runner@0.3.1 --exec sh -c \"$USER_COMMAND\" --allow-all Remediation: Review the rule 'COMM-006' (Inline code execution via -c flag) and the server configuration for 'shell-runner'. Detected by mcp-audit rule COMM-006 (rules analyzer, severity HIGH).",
   "id": "x_MCPSA-38aec9703e90",
-  "modified": "2026-08-23T15:05:12Z",
-  "published": "2026-08-23T15:05:12Z",
+  "modified": "2026-08-23T16:37:12Z",
+  "published": "2026-08-23T16:37:12Z",
   "references": [
     {
       "type": "WEB",
