@@ -35,9 +35,7 @@ jobs:
 
       - name: Record cosign version
         run: |
-          cosign version
-          cosign version -o json > cosign-version.json
-          cat cosign-version.json
+          cosign version | tee cosign-version.json
 
       - name: Create throwaway artifact with known contents
         run: |
@@ -61,9 +59,10 @@ jobs:
 
       - name: Decode the Fulcio cert SAN and issuer for the record
         working-directory: artifact
+        continue-on-error: true
         run: |
           python3 - <<'PY'
-          import base64, json, subprocess
+          import base64, json
           bundle = json.load(open("artifact.sigstore.json"))
           cert_der_b64 = bundle["verificationMaterial"]["certificate"]["rawBytes"]
           with open("leaf.der", "wb") as f:
@@ -98,10 +97,12 @@ jobs:
 
       - name: Compute expected Fulcio identity from this workflow's own ref
         id: identity
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
-          echo "identity=https://github.com/${GITHUB_WORKFLOW_REF}" >> "$GITHUB_OUTPUT"
+          echo "identity=https://github.com/${WORKFLOW_REF}" >> "$GITHUB_OUTPUT"
           echo "issuer=https://token.actions.githubusercontent.com" >> "$GITHUB_OUTPUT"
-          echo "Computed identity: https://github.com/${GITHUB_WORKFLOW_REF}"
+          echo "Computed identity: https://github.com/${WORKFLOW_REF}"
 
       - name: CONTROL — confirm network works outside the namespace
         run: |
@@ -127,7 +128,7 @@ jobs:
         run: |
           set +e
           rm -rf "$HOME/.sigstore"
-          sudo --preserve-env=HOME unshare --net -- \
+          timeout 30 sudo --preserve-env=HOME unshare --net -- \
             cosign verify-blob \
               --bundle artifact.sigstore.json \
               --certificate-identity "${{ steps.identity.outputs.identity }}" \
@@ -153,7 +154,7 @@ jobs:
       - name: TEST 2 — cached trust root, network off, HAPPY PATH
         run: |
           set +e
-          sudo --preserve-env=HOME unshare --net -- \
+          timeout 30 sudo --preserve-env=HOME unshare --net -- \
             cosign verify-blob \
               --bundle artifact.sigstore.json \
               --certificate-identity "${{ steps.identity.outputs.identity }}" \
@@ -170,7 +171,7 @@ jobs:
           data[0] ^= 0xFF
           open('artifact.tampered.txt', 'wb').write(bytes(data))
           "
-          sudo --preserve-env=HOME unshare --net -- \
+          timeout 30 sudo --preserve-env=HOME unshare --net -- \
             cosign verify-blob \
               --bundle artifact.sigstore.json \
               --certificate-identity "${{ steps.identity.outputs.identity }}" \
@@ -186,7 +187,7 @@ jobs:
       - name: TEST 4 — cached trust root, network off, WRONG identity
         run: |
           set +e
-          sudo --preserve-env=HOME unshare --net -- \
+          timeout 30 sudo --preserve-env=HOME unshare --net -- \
             cosign verify-blob \
               --bundle artifact.sigstore.json \
               --certificate-identity "https://github.com/someone-else/not-this-repo/.github/workflows/other.yml@refs/heads/main" \
@@ -203,7 +204,7 @@ jobs:
         run: |
           set +e
           rm -rf "$HOME/.sigstore"
-          sudo --preserve-env=HOME unshare --net -- \
+          timeout 30 sudo --preserve-env=HOME unshare --net -- \
             cosign verify-blob \
               --bundle artifact.sigstore.json \
               --trusted-root standalone_trusted_root.json \
@@ -234,7 +235,7 @@ jobs:
           sudo timedatectl set-ntp false 2>/dev/null || true
           sudo date -u -s "$FUTURE"
           date -u
-          sudo --preserve-env=HOME unshare --net -- \
+          timeout 30 sudo --preserve-env=HOME unshare --net -- \
             cosign verify-blob \
               --bundle artifact.sigstore.json \
               --certificate-identity "${{ steps.identity.outputs.identity }}" \
@@ -246,7 +247,7 @@ jobs:
         run: |
           set +e
           date -u
-          sudo --preserve-env=HOME unshare --net -- \
+          timeout 30 sudo --preserve-env=HOME unshare --net -- \
             cosign verify-blob \
               --bundle artifact.sigstore.json \
               --trusted-root standalone_trusted_root.json \
