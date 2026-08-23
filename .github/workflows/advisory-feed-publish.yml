@@ -11,8 +11,32 @@
 # human has to remember is how expiry teaches users that "expired" means
 # "the maintainer went on holiday."
 #
-# This workflow therefore writes an unsigned feed and uploads it as an
-# artifact. It does not commit, does not tag, and does not sign.
+# R30: this job was not a publisher — it built an unsigned feed and uploaded
+# it to a 30-day GitHub Actions artifact that only repository collaborators
+# could reach. See humans/decisions/2026-08-23-feed-signing-and-publishing.md
+# (marcus repo). It now commits the feed to a dedicated orphan `feed` branch,
+# served over a stable raw URL any user can fetch:
+#
+#   https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
+#
+# Still no --sign, no key, no secret. Two jobs, split on purpose, ahead of
+# signing rather than at the same time as it: once a key exists, the signing
+# step belongs in `build` (no repository write) and publishing stays in a
+# job that has write and no key. Neither job alone can both forge a
+# signature and place it where users fetch it — turning on signing later
+# changes one thing.
+#
+#   build:   contents: read.  Writes the candidate feed, diffs it against
+#            the currently-published feed (scripts/feed_diff.py, which
+#            ignores the published/modified timestamps every build stamps
+#            fresh — see that script's docstring), and uploads it as a job
+#            artifact.
+#   publish: contents: write. Only runs when build found a real change.
+#            Downloads the artifact, commits it to `feed`, pushes.
+#
+# A run that finds no substantive change (the common case most weeks) makes
+# no commit. A stream of empty weekly commits would make a real change
+# invisible.
 
 name: Advisory feed publish
 
@@ -30,10 +54,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Unsigned weekly feed
+  build:
+    name: Build unsigned feed
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+      snapshot_version: ${{ steps.diff.outputs.snapshot_version }}
+      count: ${{ steps.diff.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -50,18 +80,92 @@ jobs:
       - name: Install mcp-audit
         run: uv pip install -e ".[dev]" --system
 
-      - name: Write unsigned feed
+      - name: Fetch the currently-published feed (read-only)
+        # Reads the CURRENT feed branch on origin, fetched fresh this run —
+        # never a locally cached copy — so snapshot_version stays monotonic
+        # across runs instead of restarting. A missing branch (only possible
+        # before the very first publish) is not an error: previous_feed/
+        # stays empty and the build below omits --previous-index.
+        run: |
+          mkdir -p previous_feed
+          if git ls-remote --exit-code --heads origin feed >/dev/null 2>&1; then
+            git fetch --depth 1 origin feed
+            git archive FETCH_HEAD | tar -x -C previous_feed
+          else
+            echo "No feed branch on origin yet; this will be the first publish."
+          fi
+
+      - name: Write unsigned candidate feed
         run: |
           mkdir -p "${RUNNER_TEMP}/feed"
-          mcp-audit advise fixtures/vulnerable-servers \
-            --out "${RUNNER_TEMP}/feed" \
-            --no-sign \
-            --severity-threshold info
+          ARGS=(fixtures/vulnerable-servers
+                --out "${RUNNER_TEMP}/feed"
+                --no-sign
+                --severity-threshold info)
+          if [ -f previous_feed/index.json ]; then
+            ARGS+=(--previous-index previous_feed/index.json)
+          fi
+          mcp-audit advise "${ARGS[@]}"
           # Do not add --sign. First signed publish is gated on key custody.
 
-      - name: Upload unsigned feed
+      - name: Compare against the published feed
+        id: diff
+        run: |
+          python scripts/feed_diff.py \
+            --old previous_feed \
+            --new "${RUNNER_TEMP}/feed" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Upload candidate feed
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: advisory-feed-unsigned
+          name: advisory-feed-candidate
           path: ${{ runner.temp }}/feed
-          retention-days: 30
+          retention-days: 7
+
+  publish:
+    name: Publish to the feed branch
+    needs: build
+    if: needs.build.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Scoped to exactly what pushing a commit to `feed` requires. No
+      # signing key lives in this job, and this job cannot read one — see
+      # the header comment on why that split matters once one exists.
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feed
+
+      - name: Download candidate feed
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: advisory-feed-candidate
+          path: new_feed
+
+      - name: Replace the published feed content
+        # README.md on the feed branch is deliberately left alone — only the
+        # feed's own files are managed here.
+        run: |
+          rm -rf advisories osv index.json
+          cp -r new_feed/advisories advisories
+          cp -r new_feed/osv osv
+          cp new_feed/index.json index.json
+          rm -rf new_feed
+
+      - name: Commit and push
+        env:
+          SNAPSHOT_VERSION: ${{ needs.build.outputs.snapshot_version }}
+          COUNT: ${{ needs.build.outputs.count }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No staged changes after sync; nothing to publish."
+            exit 0
+          fi
+          git commit -m "feed: snapshot_version ${SNAPSHOT_VERSION}, ${COUNT} advisories"
+          git push origin feed
