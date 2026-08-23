@@ -12,6 +12,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -40,6 +41,97 @@ needs_cosign = pytest.mark.skipif(not HAS_COSIGN, reason="cosign is not installe
 needs_minisign = pytest.mark.skipif(
     not HAS_MINISIGN, reason="minisign is not installed"
 )
+
+# ── Networkless proof (R28 / PART 3) ────────────────────────────────────────
+#
+# R27 (docs/offline-verification-findings.md) proved cosign's *keyless* path is
+# never offline-capable without an explicit --trusted-root, using a real network
+# namespace (`unshare --net`) rather than a mocked socket layer. That finding does
+# not apply to the feed: the default path signs and verifies with a static key
+# (`cosign verify-blob --key <pubkey> --insecure-ignore-tlog`), which touches no
+# Fulcio/Rekor/TUF machinery. That claim — stated in CLAUDE.md and sign.py's
+# docstring — had never actually been measured against a genuinely network-denied
+# environment; it was a docstring, not a test. This section measures it the same
+# way R27 did.
+#
+# unshare --net requires Linux + passwordless sudo (true on GitHub-hosted
+# ubuntu-latest runners, which is where R27 ran). It is not available on macOS or
+# Windows CI legs, or on a typical developer laptop, so these tests skip cleanly
+# there rather than present a weaker (mocked) test as equivalent.
+_SUDO = shutil.which("sudo")
+_UNSHARE = shutil.which("unshare") if sys.platform == "linux" else None
+_ENV_BIN = shutil.which("env")
+
+HAS_UNSHARE = sys.platform == "linux" and _UNSHARE is not None
+HAS_PASSWORDLESS_SUDO = False
+if HAS_UNSHARE and _SUDO is not None:
+    try:
+        HAS_PASSWORDLESS_SUDO = (
+            subprocess.run(  # noqa: S603 — absolute path resolved via shutil.which
+                [_SUDO, "-n", "true"], capture_output=True, timeout=5, check=False
+            ).returncode
+            == 0
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        HAS_PASSWORDLESS_SUDO = False
+
+needs_network_namespace = pytest.mark.skipif(
+    not (HAS_UNSHARE and HAS_PASSWORDLESS_SUDO),
+    reason=(
+        "requires Linux 'unshare --net' with passwordless sudo (available on "
+        "GitHub-hosted ubuntu-latest runners; not on macOS/Windows CI legs or a "
+        "typical developer machine)"
+    ),
+)
+
+# Pinned per docs/offline-verification-findings.md: cosign's own maintainers have
+# said this behaviour is not stable across versions (sigstore/cosign#4454).
+_EXPECTED_COSIGN_VERSION_PREFIX = "v3."
+
+
+def _verify_feed_with_no_network(
+    feed_dir: Path, public_key: Path, *, cosign_path: str, home: Path
+) -> tuple[bool, dict]:
+    """Run mcp_audit's own ``verify_feed()`` inside a genuinely networkless netns.
+
+    Mirrors R27's methodology exactly: ``sudo unshare --net --`` puts the process
+    tree in a fresh namespace with zero interfaces — not a timeout that happens to
+    expire, a real ``ENETUNREACH``. The one wrinkle R27 also hit: sudoers'
+    ``secure_path`` overrides ``PATH`` even under ``--preserve-env``, so ``cosign``
+    (resolved beforehand, outside the namespace) is handed to the child explicitly
+    via ``env PATH=...`` rather than left to PATH lookup inside the namespace.
+    """
+    script = (
+        "import json, sys\n"
+        "from pathlib import Path\n"
+        "from mcp_audit.advisory.sign import SigningConfig, verify_feed\n"
+        "config = SigningConfig(backend='cosign', public_key=Path(sys.argv[1]))\n"
+        "report = verify_feed(Path(sys.argv[2]), config)\n"
+        "print(json.dumps({'ok': report.ok, 'failures': report.failures}))\n"
+    )
+    child_path = f"{Path(cosign_path).parent}:/usr/bin:/bin"
+    proc = subprocess.run(  # noqa: S603 — every executable resolved via shutil.which
+        [
+            _SUDO,
+            _UNSHARE,
+            "--net",
+            "--",
+            _ENV_BIN,
+            f"PATH={child_path}",
+            f"HOME={home}",
+            sys.executable,
+            "-c",
+            script,
+            str(public_key),
+            str(feed_dir),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    lines = [line for line in proc.stdout.splitlines() if line.strip()]
+    payload = json.loads(lines[-1]) if lines else {}
+    return proc.returncode == 0, {**payload, "stderr": proc.stderr}
 
 
 # ── Key material ──────────────────────────────────────────────────────────────
@@ -87,6 +179,21 @@ def cosign_config(cosign_keys, monkeypatch: pytest.MonkeyPatch) -> SigningConfig
 def minisign_config(minisign_keys) -> SigningConfig:
     private, public = minisign_keys
     return SigningConfig(backend="minisign", private_key=private, public_key=public)
+
+
+@pytest.fixture(scope="module")
+def rotated_cosign_keys(tmp_path_factory) -> tuple[Path, Path]:
+    """A second, unrelated cosign key pair — the "wrong key" a verifier might hold."""
+    directory = tmp_path_factory.mktemp("cosign-keys-rotated")
+    subprocess.run(  # noqa: S603
+        [shutil.which("cosign"), "generate-key-pair"],
+        cwd=directory,
+        env={**os.environ, "COSIGN_PASSWORD": ""},
+        capture_output=True,
+        check=True,
+        timeout=120,
+    )
+    return directory / "cosign.key", directory / "cosign.pub"
 
 
 @pytest.fixture(scope="module")
@@ -591,6 +698,128 @@ class TestCosignRoundTrip:
         unpinned = SigningConfig(backend="cosign")
         report = verify_feed(feed_dir, unpinned)
         assert any("--identity" in failure for failure in report.failures)
+
+
+@needs_cosign
+@needs_network_namespace
+class TestFeedVerificationIsOfflineByConstruction:
+    """R28 PART 3: the feed's static-key verification claim, measured, not assumed.
+
+    CLAUDE.md and sign.py's docstring both assert that key-mode cosign verification
+    "works fully offline" because it skips Rekor. Every other test in this file
+    proves *correctness* (signing + verifying agree) with the network present but
+    unused. None of them proves *offline capability* — a test can pass in an
+    environment with network access whether or not the code path ever needed it.
+
+    These three tests run inside a real Linux network namespace with zero
+    interfaces (see ``_verify_feed_with_no_network`` above), the same methodology
+    R27 used to disprove the equivalent claim for cosign's keyless path. Signing
+    happens outside the namespace (it is not the claim under test — publishing
+    already assumes network); only verification runs with no network at all.
+    """
+
+    def test_cosign_version_matches_what_this_behaviour_was_pinned_against(
+        self,
+    ) -> None:
+        """Guard against silently trusting a cosign version R27/R28 never tested."""
+        proc = subprocess.run(  # noqa: S603, S607
+            [shutil.which("cosign"), "version"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert _EXPECTED_COSIGN_VERSION_PREFIX in output, (
+            f"cosign version does not contain "
+            f"{_EXPECTED_COSIGN_VERSION_PREFIX!r}; this behaviour is version-bound "
+            f"(see docs/offline-verification-findings.md) and must be re-verified "
+            f"before trusting it against a different major version. Output: "
+            f"{output!r}"
+        )
+
+    def test_the_namespace_used_below_genuinely_has_no_network(
+        self, tmp_path: Path
+    ) -> None:
+        """Control: prove the harness denies network before trusting what it reports.
+
+        A 0ms connection-refused (ENETUNREACH) is the R27 signal that there is no
+        route at all, as opposed to a slow DNS timeout that happened to expire.
+        """
+        curl = shutil.which("curl")
+        if curl is None:
+            pytest.skip("curl is not installed; cannot run the control check")
+        proc = subprocess.run(  # noqa: S603 — every executable resolved via shutil.which
+            [
+                _SUDO,
+                _UNSHARE,
+                "--net",
+                "--",
+                curl,
+                "--max-time",
+                "5",
+                "-sS",
+                "-o",
+                os.devnull,
+                "https://1.1.1.1",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert proc.returncode != 0, (
+            "control check failed: curl succeeded inside the namespace, so the "
+            "tests below would not actually be measuring offline behaviour"
+        )
+
+    def test_happy_path_verifies_with_zero_network_access(
+        self, feed_dir: Path, cosign_config: SigningConfig, tmp_path: Path
+    ) -> None:
+        sign_feed(feed_dir, cosign_config)
+        ok, payload = _verify_feed_with_no_network(
+            feed_dir,
+            cosign_config.public_key,
+            cosign_path=shutil.which("cosign"),
+            home=tmp_path / "netns-home",
+        )
+        assert ok, payload
+
+    def test_a_tampered_feed_still_fails_with_zero_network_access(
+        self, feed_dir: Path, cosign_config: SigningConfig, tmp_path: Path
+    ) -> None:
+        sign_feed(feed_dir, cosign_config)
+        target = advisory_json_paths(feed_dir / "advisories")[0]
+        record = json.loads(target.read_text(encoding="utf-8"))
+        record["summary"] = "tampered while offline"
+        target.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+
+        ok, payload = _verify_feed_with_no_network(
+            feed_dir,
+            cosign_config.public_key,
+            cosign_path=shutil.which("cosign"),
+            home=tmp_path / "netns-home",
+        )
+        assert not ok
+        assert payload.get("failures"), payload
+
+    def test_the_wrong_public_key_still_fails_with_zero_network_access(
+        self,
+        feed_dir: Path,
+        cosign_config: SigningConfig,
+        rotated_cosign_keys: tuple[Path, Path],
+        tmp_path: Path,
+    ) -> None:
+        sign_feed(feed_dir, cosign_config)
+        _private, wrong_public = rotated_cosign_keys
+
+        ok, payload = _verify_feed_with_no_network(
+            feed_dir,
+            wrong_public,
+            cosign_path=shutil.which("cosign"),
+            home=tmp_path / "netns-home",
+        )
+        assert not ok
+        assert payload.get("failures"), payload
 
 
 # ── Failure handling ──────────────────────────────────────────────────────────

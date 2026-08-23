@@ -1,8 +1,37 @@
 # Offline Sigstore verification — empirical findings (R27)
 
-**This document records a test result. It is not a recommendation.** The decision it feeds
-is Adam's and is recorded in `humans/decisions/` (in the `marcus` repo), specifically as an
-update to `2026-08-20-signing-key-custody.md`.
+## Scope: this is about cosign's keyless path, not mcp-audit's advisory feed
+
+**mcp-audit's advisory feed is signed with a static project key** (see `CLAUDE.md` and
+`src/mcp_audit/advisory/sign.py`), verified with:
+
+```bash
+cosign verify-blob --bundle <file>.sigstore.json --key <pubkey> --insecure-ignore-tlog <blob>
+```
+
+That command touches no Fulcio certificate, no Rekor transparency log, and no TUF trust root.
+**It is offline by construction and always has been.** Nothing in this document changes that or
+applies to it.
+
+Everything below is about cosign's separate **keyless** path — ambient-OIDC signing, verified
+with:
+
+```bash
+cosign verify-blob --bundle <file>.sigstore.json \
+  --certificate-identity <identity> --certificate-oidc-issuer <issuer> \
+  [--trusted-root <file>] <blob>
+```
+
+mcp-audit exposes this only as `--keyless` on `advise --sign`, for one-off attestations —
+`CLAUDE.md` states it must never become the feed's default, and it remains that way. A
+2026-08-20 decision briefly proposed keyless *for the feed itself*; that decision was reversed
+on 2026-08-23 (`humans/decisions/2026-08-23-signing-key-custody-reversed.md` in the `marcus`
+repo) precisely because of what this document found. Read what follows as "what keyless would
+have cost," not as "what verifying mcp-audit's feed costs."
+
+**This document records a test result. It is not a recommendation.** The decision it fed
+is Adam's and is recorded in `humans/decisions/` (in the `marcus` repo), originally as an
+update to `2026-08-20-signing-key-custody.md` and now folded into the 2026-08-23 reversal above.
 
 ## The question
 
