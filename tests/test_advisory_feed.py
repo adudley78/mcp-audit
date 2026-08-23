@@ -701,6 +701,9 @@ class TestWriteFeed:
         assert index["feed_version"] == FEED_VERSION
         assert index["count"] == len(advisories)
         assert index["updated"] == FIXED_NOW
+        assert index["snapshot_version"] == 1
+        assert index["published_at"] == FIXED_NOW
+        assert index["expires"] == "2026-08-13T12:00:00Z"
         for entry in index["advisories"]:
             for key in (
                 "id",

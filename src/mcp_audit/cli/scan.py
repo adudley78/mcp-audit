@@ -2,9 +2,9 @@
 
 The ``scan`` command is composed from small ``_apply_*`` pipeline stages and
 ``_write_*`` output helpers so that each optional phase (baseline drift,
-governance, SAST, extensions, severity filtering, formatting) can be read and
-reviewed in isolation.  New scan-pipeline stages should follow the same
-pattern.
+governance, SAST, extensions, agent-files, advisory feed, severity filtering,
+formatting) can be read and reviewed in isolation.  New scan-pipeline stages
+should follow the same pattern.
 """
 
 from __future__ import annotations
@@ -620,6 +620,127 @@ def _apply_agent_files(
     return result
 
 
+def _count_advisory_matches(result: ScanResult, index: dict) -> int:
+    """Count findings whose rule ID appears in the feed. Does not mutate findings."""
+    rule_ids: set[str] = set()
+    for entry in index.get("advisories") or []:
+        if not isinstance(entry, dict):
+            continue
+        for affected in entry.get("affected") or []:
+            if not isinstance(affected, dict):
+                continue
+            specific = affected.get("database_specific") or {}
+            if not isinstance(specific, dict):
+                continue
+            rule_id = specific.get("mcp_audit_rule_id")
+            if isinstance(rule_id, str) and rule_id:
+                rule_ids.add(rule_id)
+    return sum(1 for finding in result.findings if finding.id in rule_ids)
+
+
+def _apply_advisory_feed(
+    result: ScanResult,
+    feed_dir: Path | None,
+    con: Console,
+) -> ScanResult:
+    """Attach ``feed_status`` and optionally correlate findings against a feed.
+
+    Always called. When *feed_dir* is omitted the status is ``absent`` and the
+    scan is unchanged. An expired or unusable feed skips matching and still
+    completes — ``feed verify`` is the command that hard-fails on expiry.
+    """
+    from mcp_audit.advisory.freshness import (  # noqa: PLC0415
+        FreshnessError,
+        age_days,
+        check_expiry,
+        parse_freshness,
+        parse_utc,
+    )
+    from mcp_audit.advisory.sign import (  # noqa: PLC0415
+        SigningError,
+        canonical_bytes_for,
+    )
+    from mcp_audit.models import FeedStatus  # noqa: PLC0415
+
+    if feed_dir is None:
+        result.feed_status = FeedStatus()
+        return result
+
+    resolved = feed_dir.resolve()
+    if not resolved.exists():
+        con.print(f"[red]Error:[/red] Advisory feed not found: {feed_dir}")
+        raise typer.Exit(2)
+    index_path = resolved / "index.json"
+    if not index_path.is_file():
+        con.print(f"[red]Error:[/red] index.json not found in {feed_dir}")
+        raise typer.Exit(2)
+
+    now = datetime.now(UTC)
+    try:
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, RecursionError, json.JSONDecodeError) as exc:
+        con.print(f"[red]Error:[/red] Cannot read advisory feed: {exc}")
+        raise typer.Exit(2) from None
+
+    try:
+        freshness = parse_freshness(index)
+    except FreshnessError:
+        con.print(
+            "[yellow]Advisory feed is missing freshness fields; "
+            "known-CVE matching was skipped.[/yellow]"
+        )
+        result.feed_status = FeedStatus(state="absent")
+        return result
+
+    fields = {
+        "published_at": freshness.published_at,
+        "expires": freshness.expires,
+        "age_days": age_days(freshness.published_at, now),
+    }
+
+    try:
+        check_expiry(freshness, now)
+    except FreshnessError:
+        stale = max(0, (now - parse_utc(freshness.expires, field="expires")).days)
+        con.print(
+            f"[yellow]Advisory data expired {freshness.expires[:10]}, "
+            f"{stale} days stale, known-CVE matching was skipped.[/yellow]"
+        )
+        result.feed_status = FeedStatus(state="expired", **fields)
+        return result
+
+    for entry in index.get("advisories") or []:
+        if not isinstance(entry, dict):
+            continue
+        rel = entry.get("path") or f"advisories/{entry.get('id')}.json"
+        expected = entry.get("canonical_sha256")
+        try:
+            actual = hashlib.sha256(canonical_bytes_for(resolved / rel)).hexdigest()
+        except SigningError:
+            con.print(
+                "[yellow]Advisory feed failed integrity checks; "
+                "known-CVE matching was skipped.[/yellow]"
+            )
+            result.feed_status = FeedStatus(state="absent", **fields)
+            return result
+        if expected and actual != expected:
+            con.print(
+                "[yellow]Advisory feed failed integrity checks; "
+                "known-CVE matching was skipped.[/yellow]"
+            )
+            result.feed_status = FeedStatus(state="absent", **fields)
+            return result
+
+    matched = _count_advisory_matches(result, index)
+    con.print(
+        f"[dim]Advisory feed: matched {matched} finding(s) "
+        f"(published {freshness.published_at[:10]}, "
+        f"{fields['age_days']} days old)[/dim]"
+    )
+    result.feed_status = FeedStatus(state="fresh", **fields)
+    return result
+
+
 def _apply_severity_threshold(
     result: ScanResult,
     severity_threshold: str,
@@ -1006,6 +1127,14 @@ def scan(
             " Copilot instructions, CLAUDE.md tiers) for security issues."
         ),
     ),
+    advisory_feed: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--advisory-feed",
+        help=(
+            "Correlate findings against a local advisory feed directory. "
+            "An expired feed skips matching and still completes the scan."
+        ),
+    ),
     owasp_report: bool = typer.Option(  # noqa: B008
         False,
         "--owasp-report",
@@ -1155,6 +1284,7 @@ def scan(
         )
 
     result = _apply_severity_threshold(result, severity_threshold, console)
+    result = _apply_advisory_feed(result, advisory_feed, console)
 
     # Suppress score for formatters when --no-score is requested.  The scanner
     # always calculates the score; suppression is a presentation-layer decision

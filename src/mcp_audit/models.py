@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -214,6 +215,20 @@ class RegistryStats(BaseModel):
     last_updated: str
 
 
+class FeedStatus(BaseModel):
+    """Freshness of an optional advisory feed consulted during a scan.
+
+    ``absent`` means no feed was supplied, or the feed could not be used
+    (unreadable, rollback, integrity failure). ``scan`` never fails the run
+    because a feed expired — that is ``expired``, matching skipped.
+    """
+
+    state: Literal["fresh", "expired", "absent"] = "absent"
+    published_at: str | None = None
+    expires: str | None = None
+    age_days: int | None = None
+
+
 class ScanResult(BaseModel):
     """Complete results from a scan run."""
 
@@ -233,6 +248,7 @@ class ScanResult(BaseModel):
     attack_path_summary: AttackPathSummary | None = None
     score: ScanScore | None = None
     registry_stats: RegistryStats | None = None
+    feed_status: FeedStatus = Field(default_factory=FeedStatus)
     findings_below_threshold: int = 0
     active_severity_threshold: str | None = None
     # Captured stderr from stdio MCP server subprocesses launched during --connect.

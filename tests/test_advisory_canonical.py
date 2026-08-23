@@ -12,7 +12,12 @@ import json
 
 import pytest
 
-from mcp_audit.advisory.canonical import canonicalize, canonicalize_str
+from mcp_audit.advisory.canonical import (
+    MAX_DEPTH,
+    CanonicalError,
+    canonicalize,
+    canonicalize_str,
+)
 
 
 class TestStructure:
@@ -179,3 +184,21 @@ class TestDeterminism:
     def test_output_is_parseable_back_to_the_original(self) -> None:
         document = {"a": [1, "two", None, True], "b": {"c": 0.5}}
         assert json.loads(canonicalize(document)) == document
+
+
+def _nested(depth: int) -> dict:
+    document: dict = {}
+    cursor = document
+    for _ in range(depth):
+        cursor["n"] = {}
+        cursor = cursor["n"]
+    return document
+
+
+class TestCanonicalBounds:
+    def test_depth_at_the_limit_is_accepted(self) -> None:
+        canonicalize(_nested(MAX_DEPTH))
+
+    def test_depth_past_the_limit_raises_canonical_error(self) -> None:
+        with pytest.raises(CanonicalError, match="nested too deeply"):
+            canonicalize(_nested(MAX_DEPTH + 1))

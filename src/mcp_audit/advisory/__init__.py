@@ -10,6 +10,7 @@ Module map:
 ``schema``     the :class:`~mcp_audit.advisory.schema.Advisory` model and OSV export
 ``classify``   finding ID → vulnerability class, observation kind, and CVSS vector
 ``canonical``  RFC 8785 (JCS) canonicalization, the input to every signature
+``freshness``  snapshot_version / expires / published_at on index.json only
 ``feed``       building advisories from findings and writing the feed to disk
 ``sign``       cosign / minisign signing and ``mcp-audit feed verify``
 

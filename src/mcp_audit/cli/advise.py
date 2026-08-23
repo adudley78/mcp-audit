@@ -26,6 +26,7 @@ from rich.console import Console
 from rich.table import Table
 
 from mcp_audit.advisory.feed import BuildReport, build_advisories, write_feed
+from mcp_audit.advisory.freshness import DEFAULT_TTL_DAYS, FreshnessError
 from mcp_audit.advisory.sign import (
     BACKENDS,
     SigningConfig,
@@ -45,6 +46,17 @@ ENV_SOURCE_DATE_EPOCH = "SOURCE_DATE_EPOCH"
 _OBSERVATIONS = ("package-intrinsic", "deployment", "all")
 
 
+def _resolve_timestamp(value: str, *, flag: str) -> str:
+    """Parse an RFC 3339 UTC timestamp from a CLI flag."""
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError as exc:
+        raise typer.BadParameter(
+            f"{flag} must look like 2026-07-30T12:00:00Z ({exc})"
+        ) from exc
+    return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _resolve_now(published_at: str | None) -> str:
     """Return the RFC 3339 timestamp stamped on every advisory in this run.
 
@@ -54,13 +66,7 @@ def _resolve_now(published_at: str | None) -> str:
         typer.Exit: The supplied value is not a valid timestamp.
     """
     if published_at is not None:
-        try:
-            parsed = datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ")
-        except ValueError as exc:
-            raise typer.BadParameter(
-                f"--published-at must look like 2026-07-30T12:00:00Z ({exc})"
-            ) from exc
-        return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return _resolve_timestamp(published_at, flag="--published-at")
 
     epoch = os.environ.get(ENV_SOURCE_DATE_EPOCH)
     if epoch:
@@ -139,6 +145,32 @@ def advise(
             f"is byte-reproducible. Also read from ${ENV_SOURCE_DATE_EPOCH}."
         ),
     ),
+    snapshot_version: int | None = typer.Option(  # noqa: B008
+        None,
+        "--snapshot-version",
+        help=(
+            "Monotonic snapshot counter written on index.json. Required with "
+            "--sign unless --previous-index is given."
+        ),
+    ),
+    previous_index: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--previous-index",
+        help="Previous index.json; next snapshot_version is previous + 1.",
+    ),
+    expires: str | None = typer.Option(  # noqa: B008
+        None,
+        "--expires",
+        help=(
+            "RFC 3339 expiry (YYYY-MM-DDTHH:MM:SSZ) written on index.json. "
+            "Default is published_at plus --ttl-days."
+        ),
+    ),
+    ttl_days: int = typer.Option(  # noqa: B008
+        DEFAULT_TTL_DAYS,
+        "--ttl-days",
+        help="Days until the feed expires, used when --expires is omitted.",
+    ),
     offline: bool = typer.Option(  # noqa: B008
         False,
         "--offline",
@@ -186,6 +218,11 @@ def advise(
         raise typer.Exit(2)
 
     now = _resolve_now(published_at)
+    expires_at = _resolve_timestamp(expires, flag="--expires") if expires else None
+
+    if previous_index is not None and not previous_index.resolve().is_file():
+        console.print(f"[red]Error:[/red] Previous index not found: {previous_index}")
+        raise typer.Exit(2)
 
     result = _load_scan(console, target, input_scan, offline=offline)
 
@@ -196,7 +233,20 @@ def advise(
         only_observation=None if observation == "all" else observation,
     )
 
-    manifest = write_feed(report.advisories, out_dir)
+    try:
+        manifest = write_feed(
+            report.advisories,
+            out_dir,
+            published_at=now,
+            snapshot_version=snapshot_version,
+            expires=expires_at,
+            previous_index=previous_index.resolve() if previous_index else None,
+            ttl_days=ttl_days,
+            require_snapshot_version=sign,
+        )
+    except FreshnessError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(2) from None
 
     if sign:
         try:
@@ -332,6 +382,12 @@ def feed_verify(
         "--oidc-issuer",
         help="Expected cosign OIDC issuer (regex). Required for keyless.",
     ),
+    now: str | None = typer.Option(  # noqa: B008
+        None,
+        "--now",
+        hidden=True,
+        help="Override current UTC time (tests only).",
+    ),
 ) -> None:
     """Re-canonicalize and verify every signature in a feed directory.
 
@@ -370,12 +426,25 @@ def feed_verify(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(2) from None
 
-    report = verify_feed(directory, config)
+    clock = datetime.now(UTC)
+    if now is not None:
+        clock = datetime.strptime(
+            _resolve_timestamp(now, flag="--now"), "%Y-%m-%dT%H:%M:%SZ"
+        ).replace(tzinfo=UTC)
+
+    report = verify_feed(directory, config, now=clock)
 
     for name in report.verified:
         console.print(f"[green]OK[/green]      {name}")
     for failure in report.failures:
         console.print(f"[red]FAILED[/red]  {failure}")
+
+    published_line = ""
+    if report.published_at is not None and report.age_days is not None:
+        published_line = (
+            f"Verified. Published {report.published_at[:10]}, "
+            f"{report.age_days} days old."
+        )
 
     if report.ok and not report.signed:
         console.print(
@@ -384,6 +453,8 @@ def feed_verify(
             f"records, yet nothing attests to who produced it.\n"
             f"Feed: [cyan]{directory}[/cyan]"
         )
+        if published_line:
+            console.print(published_line)
         raise typer.Exit(0)
 
     if report.ok:
@@ -391,6 +462,8 @@ def feed_verify(
             f"\n[green]All {report.checked} artifact(s) verified.[/green] "
             f"Feed: [cyan]{directory}[/cyan]"
         )
+        if published_line:
+            console.print(published_line)
         raise typer.Exit(0)
 
     console.print(

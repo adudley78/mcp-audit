@@ -17,7 +17,11 @@ from __future__ import annotations
 import math
 from typing import Any
 
-__all__ = ["canonicalize", "canonicalize_str"]
+__all__ = ["CanonicalError", "canonicalize", "canonicalize_str"]
+
+# Recursion/size bound: a hostile document must refuse cleanly, not traceback.
+MAX_DEPTH = 64
+MAX_NODES = 100_000
 
 # RFC 8785 §3.2.2.2 — the only two-character escapes JCS emits. Every other control
 # character below U+0020 is escaped as \u00xx (lowercase hex).
@@ -32,6 +36,10 @@ _ESCAPES = {
 }
 
 
+class CanonicalError(ValueError):
+    """Document is nested too deeply or too large to canonicalize safely."""
+
+
 def canonicalize(value: Any) -> bytes:
     """Return the RFC 8785 canonical UTF-8 encoding of a JSON-compatible value.
 
@@ -44,6 +52,7 @@ def canonicalize(value: Any) -> bytes:
     Raises:
         TypeError: The structure contains a type JSON cannot represent.
         ValueError: The structure contains NaN or Infinity, which JSON forbids.
+        CanonicalError: Nesting or node count exceeds the safety bound.
     """
     return canonicalize_str(value).encode("utf-8")
 
@@ -51,11 +60,20 @@ def canonicalize(value: Any) -> bytes:
 def canonicalize_str(value: Any) -> str:
     """Return the RFC 8785 canonical form as a ``str``. See :func:`canonicalize`."""
     out: list[str] = []
-    _write(value, out)
+    _write(value, out, depth=0, nodes=[0])
     return "".join(out)
 
 
-def _write(value: Any, out: list[str]) -> None:
+def _write(value: Any, out: list[str], depth: int, nodes: list[int]) -> None:
+    if depth > MAX_DEPTH:
+        raise CanonicalError(
+            f"document is nested too deeply to canonicalize (limit {MAX_DEPTH})"
+        )
+    nodes[0] += 1
+    if nodes[0] > MAX_NODES:
+        raise CanonicalError(
+            f"document is too large to canonicalize (limit {MAX_NODES} nodes)"
+        )
     if value is None:
         out.append("null")
     elif value is True:
@@ -70,14 +88,14 @@ def _write(value: Any, out: list[str]) -> None:
     elif isinstance(value, float):
         out.append(_serialize_number(value))
     elif isinstance(value, dict):
-        _write_object(value, out)
+        _write_object(value, out, depth, nodes)
     elif isinstance(value, (list, tuple)):
-        _write_array(value, out)
+        _write_array(value, out, depth, nodes)
     else:
         raise TypeError(f"Not JSON-serializable for JCS: {type(value).__name__}")
 
 
-def _write_object(value: dict, out: list[str]) -> None:
+def _write_object(value: dict, out: list[str], depth: int, nodes: list[int]) -> None:
     out.append("{")
     first = True
     for key in sorted(value, key=_utf16_sort_key):
@@ -90,16 +108,16 @@ def _write_object(value: dict, out: list[str]) -> None:
         first = False
         out.append(_serialize_string(key))
         out.append(":")
-        _write(value[key], out)
+        _write(value[key], out, depth + 1, nodes)
     out.append("}")
 
 
-def _write_array(value: Any, out: list[str]) -> None:
+def _write_array(value: Any, out: list[str], depth: int, nodes: list[int]) -> None:
     out.append("[")
     for index, item in enumerate(value):
         if index:
             out.append(",")
-        _write(item, out)
+        _write(item, out, depth + 1, nodes)
     out.append("]")
 
 

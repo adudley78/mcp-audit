@@ -8,7 +8,13 @@ from rich.rule import Rule
 from rich.text import Text
 
 from mcp_audit import __version__
-from mcp_audit.models import AttackPathSummary, RegistryStats, ScanResult, Severity
+from mcp_audit.models import (
+    AttackPathSummary,
+    FeedStatus,
+    RegistryStats,
+    ScanResult,
+    Severity,
+)
 from mcp_audit.scoring import format_grade_terminal
 
 SEVERITY_COLORS = {
@@ -88,6 +94,24 @@ def _print_attack_path_summary(summary: AttackPathSummary, console: Console) -> 
     console.print()
 
 
+def _format_feed_status(status: FeedStatus) -> str | None:
+    """One-liner for a consulted advisory feed. Silent when none was supplied."""
+    if status.state == "absent":
+        return None
+    published = status.published_at[:10] if status.published_at else "unknown"
+    age = status.age_days if status.age_days is not None else "?"
+    if status.state == "expired":
+        return (
+            f"[yellow]Advisory feed: expired "
+            f"{status.expires[:10] if status.expires else published}, "
+            f"{age} days old, known-CVE matching was skipped[/yellow]"
+        )
+    return (
+        f"[dim]Advisory feed: published {published}, {age} days old "
+        f"(state={status.state})[/dim]"
+    )
+
+
 def _format_registry_stats(stats: RegistryStats) -> str:
     """Return a dim-styled Rich markup string for the registry stats line.
 
@@ -140,6 +164,9 @@ def print_results(
     # Registry stats — muted one-liner; always shown when available
     if result.registry_stats is not None:
         console.print(_format_registry_stats(result.registry_stats))
+    feed_line = _format_feed_status(result.feed_status)
+    if feed_line is not None:
+        console.print(feed_line)
 
     console.print()
 

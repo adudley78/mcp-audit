@@ -60,10 +60,22 @@ import shutil
 import subprocess  # nosec B404 — invoking the cosign/minisign CLIs is the whole point
 import tempfile
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 
-from .canonical import canonicalize
+from .canonical import CanonicalError, canonicalize
+from .freshness import (
+    FreshnessError,
+    age_days,
+    check_expiry,
+    check_rollback,
+    default_seen_path,
+    identity_key,
+    load_seen,
+    parse_freshness,
+    record_seen,
+)
 
 __all__ = [
     "BACKENDS",
@@ -234,7 +246,24 @@ def canonical_bytes_for(path: Path) -> bytes:
         raise SigningError(f"No such file to canonicalize: {path}") from exc
     except json.JSONDecodeError as exc:
         raise SigningError(f"{path} is not valid JSON: {exc}") from exc
-    return canonicalize(document)
+    except RecursionError:
+        raise SigningError(
+            f"{path}: document is nested too deeply to canonicalize"
+        ) from None
+    try:
+        return canonicalize(document)
+    except RecursionError:
+        raise SigningError(
+            f"{path}: document is nested too deeply to canonicalize"
+        ) from None
+    except CanonicalError as exc:
+        if "too large" in str(exc):
+            raise SigningError(
+                f"{path}: document is too large to canonicalize"
+            ) from None
+        raise SigningError(
+            f"{path}: document is nested too deeply to canonicalize"
+        ) from None
 
 
 # ── Subprocess plumbing ───────────────────────────────────────────────────────
@@ -455,6 +484,10 @@ class VerifyReport:
     verified: list[str] = field(default_factory=list)
     failures: list[str] = field(default_factory=list)
     signed: bool = True
+    published_at: str | None = None
+    expires: str | None = None
+    snapshot_version: int | None = None
+    age_days: int | None = None
 
     @property
     def ok(self) -> bool:
@@ -548,18 +581,29 @@ def _minisign_verify(blob: Path, sig_path: Path, config: SigningConfig) -> None:
         raise SigningError(f"signature does not verify: {_tail(proc)}")
 
 
-def verify_feed(out_dir: Path, config: SigningConfig) -> VerifyReport:
+def verify_feed(
+    out_dir: Path,
+    config: SigningConfig,
+    *,
+    now: datetime | None = None,
+    state_path: Path | None = None,
+) -> VerifyReport:
     """Re-canonicalize and verify every advisory and the index in a feed directory.
 
-    Four things are checked, because a signature alone does not make a feed sound:
+    Five things are checked, because a signature alone does not make a feed sound:
 
-    1. The index signature verifies over the index's canonical bytes.
-    2. Every advisory the index lists exists and its own signature verifies.
-    3. Each advisory's recomputed canonical digest matches the one in the index, which
+    1. ``snapshot_version``, ``published_at``, and ``expires`` parse (fail-closed).
+    2. The index signature verifies over the index's canonical bytes.
+    3. Every advisory the index lists exists and its own signature verifies.
+    4. Each advisory's recomputed canonical digest matches the one in the index, which
        is what stops an attacker swapping in a validly-signed record of their own.
-    4. No advisory file is present that the index does not list.
+    5. No advisory file is present that the index does not list.
 
-    A feed with no signatures at all is checked for integrity only — steps 3 and 4 —
+    After integrity, expiry is checked, then rollback against the client state file.
+    A fully successful verify records the snapshot version so an older feed cannot
+    be replayed later.
+
+    A feed with no signatures at all is checked for integrity only — steps 4 and 5 —
     and :attr:`VerifyReport.signed` is False. That is not a silent downgrade: an
     unsigned feed is an explicit publishing choice (see ``examples/feed/``), and the
     caller is told which guarantee it is getting. A feed that *claims* to be signed but
@@ -570,6 +614,10 @@ def verify_feed(out_dir: Path, config: SigningConfig) -> VerifyReport:
     """
     out_dir = Path(out_dir)
     report = VerifyReport()
+    if now is None:
+        now = datetime.now(UTC)
+    if state_path is None:
+        state_path = default_seen_path()
 
     index_path = out_dir / "index.json"
     if not index_path.is_file():
@@ -578,9 +626,25 @@ def verify_feed(out_dir: Path, config: SigningConfig) -> VerifyReport:
 
     try:
         index = json.loads(index_path.read_text(encoding="utf-8"))
+    except RecursionError:
+        report.failures.append(
+            f"{index_path}: document is nested too deeply to canonicalize"
+        )
+        return report
     except json.JSONDecodeError as exc:
         report.failures.append(f"index.json is not valid JSON: {exc}")
         return report
+
+    try:
+        freshness = parse_freshness(index)
+    except FreshnessError as exc:
+        report.failures.append(str(exc))
+        return report
+
+    report.published_at = freshness.published_at
+    report.expires = freshness.expires
+    report.snapshot_version = freshness.snapshot_version
+    report.age_days = age_days(freshness.published_at, now)
 
     # An index that records signing parameters asserts it was signed, so a missing
     # artifact from here on is a failure rather than an unsigned feed.
@@ -640,6 +704,18 @@ def verify_feed(out_dir: Path, config: SigningConfig) -> VerifyReport:
                     f"advisories/{path.name}: present on disk but absent from "
                     f"index.json"
                 )
+
+    try:
+        check_expiry(freshness, now)
+    except FreshnessError as exc:
+        report.failures.append(str(exc))
+    try:
+        check_rollback(freshness, load_seen(state_path), identity_key(index))
+    except FreshnessError as exc:
+        report.failures.append(str(exc))
+
+    if report.ok:
+        record_seen(state_path, identity_key(index), freshness.snapshot_version)
 
     return report
 

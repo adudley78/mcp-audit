@@ -50,6 +50,11 @@ from .classify import (
     observation_for,
     owasp_codes_for,
 )
+from .freshness import (
+    DEFAULT_TTL_DAYS,
+    expires_from_ttl,
+    resolve_snapshot_version,
+)
 from .schema import Advisory, Package, Reference
 from .schema import Severity as AdvisorySeverity
 
@@ -65,7 +70,7 @@ __all__ = [
     "write_feed",
 ]
 
-FEED_VERSION = "1.0"
+FEED_VERSION = "1.1"
 
 # Commands whose first non-flag argument names a package in a public registry.
 _NPM_COMMANDS = frozenset({"npx", "bunx", "pnpx"})
@@ -407,7 +412,17 @@ class FeedManifest:
         return [*self.advisory_paths, self.index_path]
 
 
-def write_feed(advisories: list[Advisory], out_dir: Path) -> FeedManifest:
+def write_feed(
+    advisories: list[Advisory],
+    out_dir: Path,
+    *,
+    published_at: str | None = None,
+    snapshot_version: int | None = None,
+    expires: str | None = None,
+    previous_index: Path | None = None,
+    ttl_days: int = DEFAULT_TTL_DAYS,
+    require_snapshot_version: bool = False,
+) -> FeedManifest:
     """Write a complete feed to *out_dir* and return the paths written.
 
     Layout::
@@ -426,6 +441,9 @@ def write_feed(advisories: list[Advisory], out_dir: Path) -> FeedManifest:
     Advisory files are pretty-printed for review. The bytes that get *signed* are the
     RFC 8785 canonicalization of the parsed document, which :mod:`sign` re-derives at
     verification time, so formatting the files for humans costs nothing.
+
+    ``snapshot_version``, ``published_at``, and ``expires`` are written on the
+    index only — never on advisory records.
     """
     out_dir = Path(out_dir)
     advisories_dir = out_dir / "advisories"
@@ -436,6 +454,18 @@ def write_feed(advisories: list[Advisory], out_dir: Path) -> FeedManifest:
     ordered = sorted(advisories, key=lambda a: a.id or "")
     records = [advisory.to_osv() for advisory in ordered]
 
+    if published_at is None:
+        published_at = max(
+            (a.modified for a in ordered), default="1970-01-01T00:00:00Z"
+        )
+    resolved_version = resolve_snapshot_version(
+        explicit=snapshot_version,
+        previous_index=previous_index,
+        require_explicit=require_snapshot_version,
+    )
+    if expires is None:
+        expires = expires_from_ttl(published_at, ttl_days)
+
     advisory_paths: list[Path] = []
     for advisory, record in zip(ordered, records, strict=True):
         path = advisories_dir / f"{advisory.id}.json"
@@ -443,7 +473,15 @@ def write_feed(advisories: list[Advisory], out_dir: Path) -> FeedManifest:
         advisory_paths.append(path)
 
     index_path = out_dir / "index.json"
-    _write_json(index_path, _build_index(ordered))
+    _write_json(
+        index_path,
+        _build_index(
+            ordered,
+            published_at=published_at,
+            snapshot_version=resolved_version,
+            expires=expires,
+        ),
+    )
 
     osv_json_path = osv_dir / "all.json"
     _write_json(osv_json_path, records)
@@ -463,13 +501,22 @@ def write_feed(advisories: list[Advisory], out_dir: Path) -> FeedManifest:
     )
 
 
-def _build_index(advisories: list[Advisory]) -> dict:
+def _build_index(
+    advisories: list[Advisory],
+    *,
+    published_at: str,
+    snapshot_version: int,
+    expires: str,
+) -> dict:
     """Build the feed index. ``updated`` is derived, never wall-clock.
 
     Each entry carries the SHA-256 of its advisory's canonical form. Because the index
     itself is signed, that digest binds every advisory to the index: swapping an
     advisory file for a re-signed forgery still fails, since its digest no longer
     matches the one the index signature covers.
+
+    Freshness fields (``snapshot_version``, ``published_at``, ``expires``) live
+    only here. They are never copied onto advisory records.
     """
     entries = []
     for advisory in advisories:
@@ -491,6 +538,9 @@ def _build_index(advisories: list[Advisory]) -> dict:
         "generator": f"mcp-audit/{__version__}",
         "count": len(entries),
         "updated": max((a.modified for a in advisories), default=""),
+        "published_at": published_at,
+        "snapshot_version": snapshot_version,
+        "expires": expires,
         "advisories": entries,
     }
 

@@ -328,13 +328,19 @@ def format_sarif(
         "taxonomies": [_build_owasp_mcp_taxonomy()],
     }
 
+    properties: dict = {
+        "mcp-audit/feedStatus": result.feed_status.model_dump(),
+    }
     if result.score is not None:
-        run["properties"] = {
-            "mcp-audit/grade": result.score.grade,
-            "mcp-audit/numericScore": result.score.numeric_score,
-            "mcp-audit/positiveSignals": result.score.positive_signals,
-            "mcp-audit/deductions": result.score.deductions,
-        }
+        properties.update(
+            {
+                "mcp-audit/grade": result.score.grade,
+                "mcp-audit/numericScore": result.score.numeric_score,
+                "mcp-audit/positiveSignals": result.score.positive_signals,
+                "mcp-audit/deductions": result.score.deductions,
+            }
+        )
+    run["properties"] = properties
 
     document = {
         "$schema": _SCHEMA,

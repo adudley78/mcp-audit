@@ -58,6 +58,7 @@ a = Analysis(
         'mcp_audit.cli.advise',
         'mcp_audit.advisory.canonical', 'mcp_audit.advisory.classify',
         'mcp_audit.advisory.feed',
+        'mcp_audit.advisory.freshness',
         'mcp_audit.advisory.schema', 'mcp_audit.advisory.sign',
         'mcp_audit.advisory.validate',
         'mcp_audit.cli.scan', 'mcp_audit.cli.sbom', 'mcp_audit.cli.version',
