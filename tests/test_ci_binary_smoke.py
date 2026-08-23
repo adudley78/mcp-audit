@@ -108,6 +108,7 @@ def test_shared_action_is_the_binary_recipe() -> None:
     assert "uv sync --all-extras" in runs
     assert "uv run pyinstaller ${{ inputs.spec }}" in runs
     assert "scripts/inspect_frozen_binary.py" in runs
+    assert "scripts/generate_release_sbom.py" in runs
     assert "scripts/smoke_test.py" in runs
     assert "hostedtoolcache" in runs
     assert "52428800" in runs  # 50 MB hard fail
@@ -127,6 +128,29 @@ def test_publish_pypi_installs_the_composite_python_pin() -> None:
     assert setup["run"].strip() == f"uv python install {pin}"
 
 
+def test_release_and_wheel_check_emit_named_sboms() -> None:
+    """Per-binary PYZ SBOMs plus a wheel document whose filename says wheel."""
+    pin = _load(BUILD_ACTION_YML)["inputs"]["python-version"]["default"]
+    release_runs = "\n".join(
+        str(s.get("run", "")) for s in _steps(_load(RELEASE_YML)["jobs"]["release"])
+    )
+    assert "scripts/generate_wheel_sbom.sh" in release_runs
+    assert "mcp-audit-scanner-wheel.cdx.json" in release_runs
+    assert f"uv python install {pin}" in release_runs
+    wheel_check = "\n".join(
+        str(s.get("run", "")) for s in _steps(_load(CI_YML)["jobs"]["wheel-check"])
+    )
+    assert "scripts/generate_wheel_sbom.sh" in wheel_check
+    assert "mcp-audit-scanner-wheel.cdx.json" in wheel_check
+    action_runs = "\n".join(
+        str(s.get("run", "")) for s in _load(BUILD_ACTION_YML)["runs"]["steps"]
+    )
+    assert "--require pillow,reportlab" in action_runs
+    assert "mcp-audit-${{ inputs.target }}.cdx.json" in action_runs
+    sh = (ROOT / "scripts" / "generate_wheel_sbom.sh").read_text(encoding="utf-8")
+    assert pin in sh
+
+
 def test_release_upload_consumes_composite_output() -> None:
     """The tag-push upload path must match what the composite writes."""
     upload = next(
@@ -134,8 +158,10 @@ def test_release_upload_consumes_composite_output() -> None:
         for s in _steps(_load(RELEASE_YML)["jobs"]["build"])
         if s.get("name") == "Upload artifact"
     )
+    path = upload["with"]["path"]
     assert upload["with"]["name"] == "${{ matrix.target }}"
-    assert upload["with"]["path"] == "dist/${{ matrix.binary }}"
+    assert "dist/${{ matrix.binary }}" in path
+    assert "dist/mcp-audit-${{ matrix.target }}.cdx.json" in path
     assert upload["with"]["if-no-files-found"] == "error"
 
 

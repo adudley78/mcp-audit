@@ -133,6 +133,11 @@ jobs:
           echo "Publish action $SHA bundles twine==$TWINE"
           uv build --wheel
           uvx "twine==${TWINE}" check --strict dist/*.whl
+          chmod +x scripts/generate_wheel_sbom.sh
+          export UV_PYTHON=3.12.14
+          scripts/generate_wheel_sbom.sh \
+            dist/*.whl \
+            dist/mcp-audit-scanner-wheel.cdx.json
 
   binary-smoke:
     name: Binary smoke (${{ matrix.target }})
