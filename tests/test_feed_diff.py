@@ -1,4 +1,9 @@
-"""Tests for scripts/feed_diff.py — the advisory-feed-publish idempotence gate."""
+"""Tests for scripts/feed_diff.py.
+
+R31: this is no longer a publish gate (R30's version skipped the commit when
+unchanged, which froze `expires` and let the published feed expire). It now
+only classifies *what kind* of publish this is, for the commit message.
+"""
 
 from __future__ import annotations
 
@@ -115,6 +120,51 @@ class TestFeedsChanged:
         assert feed_diff.feeds_changed(old, new) is False
 
 
+class TestDiffSummary:
+    def test_identical_content_has_all_zero_counts(self, tmp_path: Path) -> None:
+        old = _write_feed(tmp_path / "old", [_RECORD_A_V1, _RECORD_B])
+        new = _write_feed(tmp_path / "new", [_RECORD_A_V2_SAME_CONTENT, _RECORD_B])
+        summary = feed_diff.diff_summary(old, new)
+        assert (summary.added, summary.removed, summary.modified) == (0, 0, 0)
+        assert summary.changed_count == 0
+        assert summary.changed is False
+
+    def test_added_removed_modified_are_counted_independently(
+        self, tmp_path: Path
+    ) -> None:
+        old = _write_feed(tmp_path / "old", [_RECORD_A_V1, _RECORD_B])
+        record_c = {**_RECORD_B, "id": "x_MCPSA-cccccccccccc"}
+        new = _write_feed(tmp_path / "new", [_RECORD_A_V3_DIFFERENT_CONTENT, record_c])
+        summary = feed_diff.diff_summary(old, new)
+        assert summary.added == 1  # record_c
+        assert summary.removed == 1  # _RECORD_B dropped
+        assert summary.modified == 1  # _RECORD_A changed content
+        assert summary.changed_count == 3
+        assert summary.changed is True
+
+    def test_no_previous_feed_counts_everything_as_added(self, tmp_path: Path) -> None:
+        new = _write_feed(tmp_path / "new", [_RECORD_A_V1, _RECORD_B])
+        summary = feed_diff.diff_summary(tmp_path / "no-such-dir", new)
+        assert (summary.added, summary.removed, summary.modified) == (2, 0, 0)
+
+
+class TestBuildCommitMessage:
+    def test_no_content_change_wording(self) -> None:
+        message = feed_diff.build_commit_message(
+            snapshot_version=4, count=23, changed_count=0
+        )
+        assert (
+            message
+            == "feed: refresh expiry (snapshot 4, 23 advisories, no content change)"
+        )
+
+    def test_content_changed_wording(self) -> None:
+        message = feed_diff.build_commit_message(
+            snapshot_version=5, count=25, changed_count=2
+        )
+        assert message == "feed: 2 advisories changed (snapshot 5, 25 advisories)"
+
+
 class TestReadIndex:
     def test_missing_index_returns_empty_dict(self, tmp_path: Path) -> None:
         assert feed_diff.read_index(tmp_path / "nope") == {}
@@ -158,9 +208,16 @@ class TestMain:
         )
         contents = output_file.read_text(encoding="utf-8")
         assert "changed=false" in contents
+        assert "changed_count=0" in contents
         assert "snapshot_version=4" in contents
         assert "count=1" in contents
-        assert capsys.readouterr().out.strip() == "false"
+        assert (
+            "commit_message=feed: refresh expiry (snapshot 4, 1 advisories, "
+            "no content change)"
+        ) in contents
+        assert capsys.readouterr().out.strip() == (
+            "feed: refresh expiry (snapshot 4, 1 advisories, no content change)"
+        )
 
     def test_writes_github_output_when_changed(self, tmp_path: Path, capsys) -> None:
         new = _write_feed(tmp_path / "new", [_RECORD_A_V1], snapshot_version=1)
@@ -178,4 +235,11 @@ class TestMain:
         )
         contents = output_file.read_text(encoding="utf-8")
         assert "changed=true" in contents
-        assert capsys.readouterr().out.strip() == "true"
+        assert "changed_count=1" in contents
+        assert (
+            "commit_message=feed: 1 advisories changed (snapshot 1, 1 advisories)"
+            in contents
+        )
+        assert capsys.readouterr().out.strip() == (
+            "feed: 1 advisories changed (snapshot 1, 1 advisories)"
+        )
