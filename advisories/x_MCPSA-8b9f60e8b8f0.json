@@ -1,0 +1,54 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "cvss_basis": "severity-band",
+        "finding_class": "hardcoded-secret",
+        "mcp_audit_rule_id": "COMM-022",
+        "mcp_transport": "stdio",
+        "observation": "deployment",
+        "owasp_mcp": [
+          "MCP02"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "npm",
+        "name": "mcp-audit-fixture-github-server",
+        "purl": "pkg:npm/mcp-audit-fixture-github-server"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "1.0.0"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "details": "Server 'github' exposes an env key suggesting an access token: _TOKEN Evidence: rule:COMM-022; matched: _TOKEN Remediation: Review the rule 'COMM-022' (Env key name suggests access token) and the server configuration for 'github'. Detected by mcp-audit rule COMM-022 (rules analyzer, severity MEDIUM).",
+  "id": "x_MCPSA-8b9f60e8b8f0",
+  "modified": "2026-08-23T15:05:12Z",
+  "published": "2026-08-23T15:05:12Z",
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "Env key name suggests access token"
+}

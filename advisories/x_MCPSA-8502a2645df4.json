@@ -1,0 +1,57 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "cvss_basis": "severity-band",
+        "cwe_ids": [
+          "CWE-732"
+        ],
+        "finding_class": "config-hygiene",
+        "mcp_audit_rule_id": "CFHYG-001",
+        "mcp_transport": "stdio",
+        "observation": "deployment",
+        "owasp_mcp": [
+          "MCP01"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "npm",
+        "name": "mcp-audit-fixture-github-server",
+        "purl": "pkg:npm/mcp-audit-fixture-github-server"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "1.0.0"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "details": "The MCP config file has world-readable permissions. Any process running on this machine — including supply-chain malware — can read credentials embedded in the file. The Bitwarden npm incident (2026-04-22) explicitly targeted these files as its primary credential-cache. Evidence: Config file permissions: 0o100644 Remediation: Run: chmod 600 fixtures/vulnerable-servers/hardcoded-secret-github.json Detected by mcp-audit rule CFHYG-001 (config_hygiene analyzer, severity HIGH).",
+  "id": "x_MCPSA-8502a2645df4",
+  "modified": "2026-08-23T15:05:12Z",
+  "published": "2026-08-23T15:05:12Z",
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "Config file is world-readable"
+}

@@ -1,0 +1,57 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "cvss_basis": "finding-class-template",
+        "cwe_ids": [
+          "CWE-829"
+        ],
+        "finding_class": "typosquat",
+        "mcp_audit_rule_id": "SC-001",
+        "mcp_transport": "stdio",
+        "observation": "package-intrinsic",
+        "owasp_mcp": [
+          "MCP04"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "npm",
+        "name": "@modelcontextprotocol/server-filesytem",
+        "purl": "pkg:npm/@modelcontextprotocol/server-filesytem"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "details": "Package '@modelcontextprotocol/server-filesytem' is 1 edit(s) away from the known-legitimate package '@modelcontextprotocol/server-filesystem' (maintainer: Anthropic, verified; first published 2024-11-14; ~42,800 weekly downloads). This pattern is consistent with a typosquatting supply-chain attack. Evidence: command: npx -y @modelcontextprotocol/server-filesytem /Users/shared | closest: '@modelcontextprotocol/server-filesystem' (maintainer=Anthropic, verified=True) Remediation: Verify '@modelcontextprotocol/server-filesytem' is intentional. If you meant '@modelcontextprotocol/server-filesystem', correct the configuration. Inspect the package's npm page and source repository before trusting it. Detected by mcp-audit rule SC-001 (supply_chain analyzer, severity CRITICAL).",
+  "id": "x_MCPSA-d7cf72bbe399",
+  "modified": "2026-08-23T15:05:12Z",
+  "published": "2026-08-23T15:05:12Z",
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "Possible typosquatting: '@modelcontextprotocol/server-filesytem'"
+}

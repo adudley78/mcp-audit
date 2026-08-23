@@ -1,0 +1,57 @@
+{
+  "affected": [
+    {
+      "database_specific": {
+        "cvss_basis": "severity-band",
+        "cwe_ids": [
+          "CWE-829"
+        ],
+        "finding_class": "unpinned-dependency",
+        "mcp_audit_rule_id": "TRANSPORT-003",
+        "mcp_transport": "stdio",
+        "observation": "deployment",
+        "owasp_mcp": [
+          "MCP04"
+        ],
+        "verified_patch": {
+          "cosign_bundle": null,
+          "fixed_version": null,
+          "pr_url": null
+        }
+      },
+      "package": {
+        "ecosystem": "npm",
+        "name": "mcp-audit-fixture-github-server",
+        "purl": "pkg:npm/mcp-audit-fixture-github-server"
+      },
+      "ranges": [
+        {
+          "events": [
+            {
+              "introduced": "1.0.0"
+            }
+          ],
+          "type": "SEMVER"
+        }
+      ]
+    }
+  ],
+  "details": "Server uses npx which downloads packages at runtime Evidence: Command: npx -y mcp-audit-fixture-github-server@1.0.0 Remediation: Install packages locally and reference the installed binary instead Detected by mcp-audit rule TRANSPORT-003 (transport analyzer, severity MEDIUM).",
+  "id": "x_MCPSA-3be0fde225cc",
+  "modified": "2026-08-23T15:05:12Z",
+  "published": "2026-08-23T15:05:12Z",
+  "references": [
+    {
+      "type": "WEB",
+      "url": "https://owasp.org/www-project-mcp-top-10/"
+    }
+  ],
+  "schema_version": "1.6.0",
+  "severity": [
+    {
+      "score": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+      "type": "CVSS_V3"
+    }
+  ],
+  "summary": "Runtime package fetching"
+}
