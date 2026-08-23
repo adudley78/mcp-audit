@@ -28,8 +28,17 @@ FIXTURE_EXPIRES = "2099-01-01T00:00:00Z"
 
 @pytest.fixture(autouse=True)
 def _isolate_feed_seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate rollback state from the real per-user seen.json.
+
+    `feed_verify` calls `verify_feed()` without a `state_path`, which resolves it
+    through the name `default_seen_path` bound in `sign.py`'s own module namespace
+    (`from .freshness import default_seen_path`) — patching
+    `mcp_audit.advisory.freshness.default_seen_path` does not affect that already-bound
+    reference. Must patch `mcp_audit.advisory.sign.default_seen_path` instead, or these
+    tests silently read and write the real `<user-config-dir>/mcp-audit/feed/seen.json`.
+    """
     monkeypatch.setattr(
-        "mcp_audit.advisory.freshness.default_seen_path",
+        "mcp_audit.advisory.sign.default_seen_path",
         lambda: tmp_path / "feed-seen.json",
     )
 
@@ -380,6 +389,116 @@ class TestFeedVerify:
         )
         assert result.exit_code == 2
         assert "Unknown backend" in result.output
+
+
+@needs_minisign
+class TestFeedVerifyBundledKeyDefault:
+    """`--key-alt minisign` resolves `--public-key` to the bundled project key when
+    neither `--public-key` nor `$MCP_AUDIT_SIGNING_PUBKEY` is given (Part 1, R32).
+    An explicit flag or env var must still win over that default.
+    """
+
+    @pytest.fixture
+    def signed_feed(self, tmp_path: Path, minisign_keys) -> Path:
+        private, _ = minisign_keys
+        feed = tmp_path / "feed"
+        result = _advise(
+            str(FIXTURES),
+            "--out",
+            str(feed),
+            "--key-alt",
+            "minisign",
+            "--key",
+            str(private),
+            "--snapshot-version",
+            "1",
+            "--expires",
+            "2099-01-01T00:00:00Z",
+        )
+        assert result.exit_code == 0, result.output
+        return feed
+
+    @pytest.fixture(autouse=True)
+    def _bundled_key_is_the_test_key(
+        self, minisign_keys, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Stand in mcp-audit's real bundled key with a throwaway one for this test
+        class, since the real private half lives only in the `feed-signing` GitHub
+        environment and is never available to run a real sign here."""
+        _, public = minisign_keys
+        monkeypatch.setattr(
+            "mcp_audit.cli.advise.bundled_public_key_path", lambda: public
+        )
+
+    def test_default_resolves_to_the_bundled_key(self, signed_feed: Path) -> None:
+        result = runner.invoke(
+            app, ["feed", "verify", str(signed_feed), "--key-alt", "minisign"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "bundled project key" in result.output
+
+    def test_explicit_public_key_wins_over_the_bundled_default(
+        self, signed_feed: Path, tmp_path_factory
+    ) -> None:
+        """A *different*, unrelated key passed explicitly must be the one actually
+        used — proving the bundled default did not silently override it."""
+        other_dir = tmp_path_factory.mktemp("other-minisign")
+        other_public = other_dir / "other.pub"
+        subprocess.run(  # noqa: S603
+            [
+                shutil.which("minisign"),
+                "-G",
+                "-W",
+                "-p",
+                str(other_public),
+                "-s",
+                str(other_dir / "other.key"),
+            ],
+            capture_output=True,
+            check=True,
+            timeout=120,
+        )
+        result = runner.invoke(
+            app,
+            [
+                "feed",
+                "verify",
+                str(signed_feed),
+                "--key-alt",
+                "minisign",
+                "--public-key",
+                str(other_public),
+            ],
+        )
+        assert result.exit_code == 1, result.output
+        assert "bundled project key" not in result.output
+
+    def test_env_var_wins_over_the_bundled_default(
+        self, signed_feed: Path, tmp_path_factory
+    ) -> None:
+        other_dir = tmp_path_factory.mktemp("other-minisign-env")
+        other_public = other_dir / "other.pub"
+        subprocess.run(  # noqa: S603
+            [
+                shutil.which("minisign"),
+                "-G",
+                "-W",
+                "-p",
+                str(other_public),
+                "-s",
+                str(other_dir / "other.key"),
+            ],
+            capture_output=True,
+            check=True,
+            timeout=120,
+        )
+        result = runner.invoke(
+            app,
+            ["feed", "verify", str(signed_feed), "--key-alt", "minisign"],
+            env={"MCP_AUDIT_SIGNING_PUBKEY": str(other_public)},
+        )
+        assert result.exit_code == 1, result.output
+        assert "bundled project key" not in result.output
 
 
 # ── examples/feed drift detection ────────────────────────────────────────────

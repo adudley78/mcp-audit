@@ -24,6 +24,7 @@ from mcp_audit.advisory.sign import (
     SigningConfig,
     SigningError,
     advisory_json_paths,
+    bundled_public_key_path,
     canonical_bytes_for,
     feed_is_signed,
     sign_feed,
@@ -228,8 +229,18 @@ def feed_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture(autouse=True)
 def _isolate_feed_seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate rollback state from the real per-user seen.json.
+
+    `verify_feed()` (in `sign.py`) resolves its default `state_path` through the name
+    `default_seen_path` bound in *its own* module namespace via `from .freshness
+    import default_seen_path` — patching `mcp_audit.advisory.freshness.
+    default_seen_path` does not affect that already-bound reference. Every test below
+    that does not pass `state_path` explicitly must patch `mcp_audit.advisory.sign.
+    default_seen_path` instead, or it silently reads and writes the real
+    `<user-config-dir>/mcp-audit/feed/seen.json` on the machine running the tests.
+    """
     monkeypatch.setattr(
-        "mcp_audit.advisory.freshness.default_seen_path",
+        "mcp_audit.advisory.sign.default_seen_path",
         lambda: tmp_path / "feed-seen.json",
     )
 
@@ -879,3 +890,45 @@ class TestFeedLevelErrors:
         config = SigningConfig(backend="minisign", private_key=tmp_path / "k")
         with pytest.raises(SigningError, match="not installed or not on PATH"):
             sign_path(path, config)
+
+
+# ── Bundled project public key ───────────────────────────────────────────────
+
+
+class TestBundledPublicKey:
+    """`bundled_public_key_path()` — the minisign-only default `feed verify` uses.
+
+    CLI-level default/override precedence lives in `TestFeedVerifyBundledKeyDefault`
+    in `tests/test_cli_advise.py`; this class only covers the resolver itself.
+    """
+
+    def test_resolves_to_the_committed_key_in_a_dev_checkout(self) -> None:
+        path = bundled_public_key_path()
+        assert path is not None
+        assert path.name == "mcp-audit-feed.pub"
+        content = path.read_text(encoding="utf-8")
+        assert content.startswith("untrusted comment: minisign public key")
+        assert "RWTh0En+mVEKuP0KTB1CfAp1xQsJ3X2yplfbWzXZnHx9MRyuZ/z0Otz5" in content
+
+    def test_resolves_via_meipass_when_frozen(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Mirrors test_registry.py's TestMeipassResolution for known-servers.json."""
+        keys_dir = tmp_path / "keys"
+        keys_dir.mkdir()
+        (keys_dir / "mcp-audit-feed.pub").write_text("meipass-key\n", encoding="utf-8")
+
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+        assert bundled_public_key_path() == keys_dir / "mcp-audit-feed.pub"
+
+    def test_not_frozen_ignores_a_decoy_meipass(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sys, "frozen", False, raising=False)
+        monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+        result = bundled_public_key_path()
+        assert result is not None
+        assert str(tmp_path) not in str(result)

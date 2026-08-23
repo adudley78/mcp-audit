@@ -1,11 +1,10 @@
 # Advisory feed
 
-> **EXPERIMENTAL.** The advisory record format below is not yet stable, and no
-> mcp-audit-operated signing key exists — `--sign` requires you to supply your own
-> `--key`/`$MCP_AUDIT_SIGNING_KEY`; there is no project key to trust yet. Fields may
-> be added, renamed, or reshaped before signing ships with a key mcp-audit
-> distributes, and today's records are not guaranteed to be byte-stable across that
-> change. Do not build automation against the exact shape of a record yet.
+> **EXPERIMENTAL.** The advisory record *format* below is not yet stable. Fields may
+> be added, renamed, or reshaped, and today's records are not guaranteed to be
+> byte-stable across that change. Do not build automation against the exact shape of
+> a record yet. Signing is no longer experimental: the published feed is signed with
+> a minisign project key — see "Key custody and rotation" below.
 
 `mcp-audit advise` turns scan findings into signed, OSV-compatible security advisories
 for MCP server packages, and publishes them as a feed on disk. `mcp-audit feed verify`
@@ -35,25 +34,22 @@ authentication required:
 https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json
 ```
 
-**This published feed is currently unsigned.** `.github/workflows/advisory-feed-publish.yml`
+**This published feed is signed.** `.github/workflows/advisory-feed-publish.yml`
 runs weekly (`workflow_dispatch` on demand), split into a `build` job
-(`contents: read`) and a `publish` job (`contents: write`, no key). `publish`
-commits on *every* scheduled run, whether or not the advisory content
-changed — a feed with a 14-day TTL cannot skip refreshing its own expiry
-just because this week's findings are identical to last week's, or `expires`
-freezes and the published feed eventually hard-fails its own `feed verify`
-with nobody having touched anything. The commit message says which kind of
-week it was: `feed: refresh expiry (snapshot 4, 23 advisories, no content
-change)` when nothing but the freshness envelope moved, or `feed: 2
-advisories changed (snapshot 5, 25 advisories)` when it did not. A separate,
-independently-scheduled, read-only canary
-(`.github/workflows/advisory-feed-freshness-canary.yml`) fails loudly if the
-live feed's `expires` is ever less than one publish interval away — the
-signal that the publish job itself has stopped running. Signing has not
-landed yet — see "Key custody and rotation" below. `feed verify` on an
-unsigned feed still checks integrity (`canonical_sha256` binds every record
-to the index) and reports freshness; it just does not attest to who
-produced it.
+(`contents: read`, `environment: feed-signing`) and a `publish` job
+(`contents: write`, no access to the signing secret). `build` signs with a static
+minisign project key and verifies its own output before anything is uploaded — see
+"Key custody and rotation" below. `publish` commits on *every* scheduled run, whether
+or not the advisory content changed — a feed with a 14-day TTL cannot skip refreshing
+its own expiry just because this week's findings are identical to last week's, or
+`expires` freezes and the published feed eventually hard-fails its own `feed verify`
+with nobody having touched anything. The commit message says which kind of week it
+was: `feed: refresh expiry (snapshot 4, 23 advisories, no content change)` when
+nothing but the freshness envelope moved, or `feed: 2 advisories changed (snapshot
+5, 25 advisories)` when it did not. A separate, independently-scheduled, read-only
+canary (`.github/workflows/advisory-feed-freshness-canary.yml`) fails loudly if the
+live feed's `expires` is ever less than one publish interval away — the signal that
+the publish job itself has stopped running.
 
 Fetch and verify it yourself:
 
@@ -63,10 +59,18 @@ curl -fsSLO https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.jso
 for p in $(python3 -c "import json; print('\n'.join(a['path'] for a in json.load(open('index.json'))['advisories']))"); do
   mkdir -p "$(dirname "$p")"
   curl -fsSLo "$p" "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/$p"
+  curl -fsSLo "$p.sig" "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/$p.sig"
 done
+curl -fsSLo index.json.sig https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json.sig
 
-mcp-audit feed verify .
+mcp-audit feed verify . --key-alt minisign
 ```
+
+The last command needs no `--public-key`: `feed verify --key-alt minisign` resolves
+to mcp-audit's own bundled project key (`keys/mcp-audit-feed.pub`) by default when
+neither `--public-key` nor `$MCP_AUDIT_SIGNING_PUBKEY` is given. Pass either
+explicitly to verify against a different key instead — an explicit value always wins
+over the bundled default.
 
 `osv/` (for `osv-scanner`) is not needed by `feed verify`; fetch it the same
 way from `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/osv/…`
@@ -358,33 +362,53 @@ ephemeral key pair, signs a feed, verifies it, and asserts that a mutated record
 
 ### Key custody and rotation
 
-The signing key is generated once with `cosign generate-key-pair` and lives in exactly
-two places: the private half as a GitHub Actions secret (`FEED_SIGNING_KEY`, with its
-passphrase in `COSIGN_PASSWORD`), and the public half published in this repository and
-at a stable well-known URL so consumers can pin it:
+The backend is **minisign**, not cosign, and the key has **no passphrase** — both by
+deliberate decision (2026-08-23), not by omission. Adam generated the key pair himself,
+outside any AI coding tool, and backed up the private half encrypted offline before it
+ever touched CI.
 
-```
-https://mcp-audit.dev/.well-known/mcp-audit-feed.pub
-```
+The private half lives in exactly one place: the `MCP_AUDIT_FEED_SIGNING_KEY` secret,
+scoped to a `feed-signing` GitHub Actions environment that is restricted to the `main`
+branch — a `workflow_dispatch` run from any other ref cannot read it. It is never
+committed, never printed, and never leaves the CI runner. The public half is committed
+in this repository at [`keys/mcp-audit-feed.pub`](../keys/mcp-audit-feed.pub) and
+bundled into the installed package (wheel and PyInstaller binary alike) so
+`feed verify --key-alt minisign` can find it via `importlib.resources` with no network
+fetch — see `bundled_public_key_path()` in `src/mcp_audit/advisory/sign.py`. There is no
+well-known URL for it today; mcp-audit.dev is a possible future home for one, but that
+is a separate, not-yet-scheduled task, not part of this custody story.
 
-The private key is never committed, never printed, and never leaves the CI runner. The
-publish job passes it by path:
+The signing step in `.github/workflows/advisory-feed-publish.yml`'s `build` job
+(the only job with `environment: feed-signing`) writes the secret to a `chmod 600` file
+under `$RUNNER_TEMP` — never the checkout, so `publish`'s later `git add` cannot pick it
+up even by accident — and passes it explicitly by path, because the secret's name
+(`MCP_AUDIT_FEED_SIGNING_KEY`) deliberately does not match the environment variable
+this module's CLI reads (`$MCP_AUDIT_SIGNING_KEY`):
 
 ```yaml
-- name: Publish signed advisory feed
+- name: Write and sign the candidate feed
   env:
-    MCP_AUDIT_SIGNING_KEY: ${{ runner.temp }}/feed.key
-    COSIGN_PASSWORD: ${{ secrets.FEED_SIGNING_PASSWORD }}
+    MCP_AUDIT_FEED_SIGNING_KEY: ${{ secrets.MCP_AUDIT_FEED_SIGNING_KEY }}
   run: |
-    printf '%s' "${{ secrets.FEED_SIGNING_KEY }}" > "$MCP_AUDIT_SIGNING_KEY"
-    mcp-audit advise ./configs --out ./feed
+    KEYFILE="${RUNNER_TEMP}/feed-signing.key"
+    trap 'rm -f "$KEYFILE"' EXIT
+    umask 077
+    printf '%s' "$MCP_AUDIT_FEED_SIGNING_KEY" > "$KEYFILE"
+    chmod 600 "$KEYFILE"
+    mcp-audit advise fixtures/vulnerable-servers --out "${RUNNER_TEMP}/feed" \
+      --sign --key-alt minisign --key "$KEYFILE" --previous-index previous_feed/index.json
 ```
 
-**Rotation.** Generate a new pair, publish the new public key at the well-known URL
-alongside the old one, and re-sign the current feed with the new key. Keep the previous
-public key served for one release cycle so consumers pinning it do not break mid-upgrade,
-then remove it and announce the change in the release notes. On suspected compromise,
-rotate immediately and skip the overlap window; the digests in a previously published
+`build` then runs `mcp-audit feed verify` against its own signed output, using the
+public key committed in the same checkout, before uploading anything — a feed that
+fails its own verification never reaches `publish`.
+
+**Rotation.** Generate a new pair, commit the new public key at
+`keys/mcp-audit-feed.pub` alongside (or in place of) the old one, ship a release so the
+bundled copy updates, and re-sign the current feed with the new key. Because signing
+identity (not the public key file itself) drives client rollback protection, document
+any rotation in the release notes so consumers relying on the old key know to update.
+On suspected compromise, rotate immediately; the digests in a previously published
 `index.json` still let consumers detect whether any record was altered.
 
 Changing the signing identity (the workflow ref plus the OIDC issuer that key
@@ -464,9 +488,14 @@ Exit codes: 0 success, 2 error.
 | Option | Default | Purpose |
 | --- | --- | --- |
 | `--key-alt` | `cosign` | Backend the feed was signed with |
-| `--public-key` | — | Public key for key-based verification |
+| `--public-key` | mcp-audit's bundled `keys/mcp-audit-feed.pub` when `--key-alt minisign` and `$MCP_AUDIT_SIGNING_PUBKEY` is unset; otherwise none | Public key for key-based verification |
 | `--identity` | — | Expected certificate identity regex (keyless) |
 | `--oidc-issuer` | — | Expected OIDC issuer regex (keyless) |
+
+The bundled-key default applies **only** to `--key-alt minisign`. `cosign` and
+`--keyless` verification each pin identity through their own mechanism (a key path,
+or `--identity`/`--oidc-issuer`); silently substituting a default there would weaken
+what those modes already promise, not preserve it.
 
 Exit codes: 0 all verified, 1 one or more failed, 2 error.
 

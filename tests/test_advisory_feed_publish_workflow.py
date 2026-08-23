@@ -1,14 +1,17 @@
 """Structural checks for .github/workflows/advisory-feed-publish.yml.
 
 R30 split the single `publish` job into `build` (read-only) and `publish`
-(write) so the destination that Amendment 7 gates signing on actually
+(write) so the destination that Amendment 7 gated signing on actually
 exists. R31 removed the R30 gate that skipped `publish` when advisory
 content was unchanged — that gate froze `expires` on a feed with a TTL,
-which is worse than a noisy commit log. `publish` now always runs; the
-diff only shapes the commit message. These tests pin the shape of that
-split, and of the unconditional publish, so a future edit cannot silently
-recombine the two capabilities, re-widen a permission, or reintroduce a
-publish gate.
+which is worse than a noisy commit log. R32 turned signing on: `build`
+declares `environment: feed-signing` (the only place
+`MCP_AUDIT_FEED_SIGNING_KEY` is reachable) and signs with a minisign
+project key; `publish` still has no access to that secret at all. These
+tests pin the shape of that split, the unconditional publish, and the new
+signing step, so a future edit cannot silently recombine the two jobs'
+capabilities, re-widen a permission, reintroduce a publish gate, or let
+the signing secret leak into the wrong job.
 """
 
 from __future__ import annotations
@@ -45,6 +48,10 @@ def _uses(steps: list[dict]) -> list[str]:
 
 def _run_text(steps: list[dict]) -> str:
     return "\n".join(str(s.get("run", "")) for s in steps)
+
+
+def _has_secret_env(step: dict) -> bool:
+    return "MCP_AUDIT_FEED_SIGNING_KEY" in str(step.get("env", {}))
 
 
 def test_schedule_and_ttl_are_unchanged() -> None:
@@ -155,25 +162,95 @@ def test_publish_has_a_belt_and_suspenders_empty_diff_guard() -> None:
     assert "git diff --cached --quiet" in run_text
 
 
-def test_never_signs_or_touches_key_material() -> None:
-    """Only the advise invocation's own --no-sign may mention "sign"; no bare
-    --sign flag, no key material, no secret, anywhere in the workflow."""
-    text = WORKFLOW.read_text(encoding="utf-8")
-    assert "MCP_AUDIT_SIGNING_KEY" not in text
-    assert "secrets." not in text
-    assert "--keyless" not in text
-    run_text = _run_text(_steps(_load()["jobs"]["build"])) + _run_text(
-        _steps(_load()["jobs"]["publish"])
+def test_build_declares_the_feed_signing_environment() -> None:
+    """The signing secret is only reachable inside this environment, which is
+    restricted (via its deployment-branch-policy, confirmed separately with
+    `gh api`, not just the repo UI setting) to the `main` branch."""
+    build = _load()["jobs"]["build"]
+    assert build["environment"] == "feed-signing"
+
+
+def test_publish_never_declares_an_environment_or_touches_the_signing_secret() -> None:
+    """`publish` keeps `contents: write` and must stay key-blind — it cannot
+    declare `environment: feed-signing` and cannot reference the secret."""
+    publish = _load()["jobs"]["publish"]
+    assert "environment" not in publish
+    run_text = _run_text(_steps(publish))
+    assert "secrets." not in run_text
+    assert "MCP_AUDIT_FEED_SIGNING_KEY" not in run_text
+    for step in _steps(publish):
+        assert "MCP_AUDIT_FEED_SIGNING_KEY" not in str(step.get("env", {}))
+
+
+def test_build_signs_with_a_runner_temp_minisign_keyfile() -> None:
+    """The secret is written once to a chmod-600 file under $RUNNER_TEMP — never
+    the checkout (where `git add` in `publish` could pick it up), never passed
+    inline on the command line, and never relied on via mcp-audit's own
+    $MCP_AUDIT_SIGNING_KEY (the name mismatch the secret was deliberately not
+    renamed to match) — and is removed by a trap regardless of how the step
+    exits."""
+    build = _load()["jobs"]["build"]
+    sign_step = next(s for s in _steps(build) if _has_secret_env(s))
+    assert sign_step["env"]["MCP_AUDIT_FEED_SIGNING_KEY"] == (
+        "${{ secrets.MCP_AUDIT_FEED_SIGNING_KEY }}"
     )
-    for line in run_text.splitlines():
-        code = line.split("#", 1)[0]
-        assert "--sign" not in code.replace("--no-sign", "")
+    run_text = sign_step["run"]
+    assert 'KEYFILE="${RUNNER_TEMP}' in run_text
+    assert "chmod 600" in run_text
+    assert "trap" in run_text
+    assert "--sign" in run_text
+    assert "--key-alt minisign" in run_text
+    assert '--key "$KEYFILE"' in run_text
+    # Never rely on the CLI's own env-var name for the private key as an
+    # actual shell variable — the secret is passed explicitly by path
+    # instead. (The name is discussed in a comment, which is fine; it must
+    # just never be expanded as $MCP_AUDIT_SIGNING_KEY.)
+    assert "MCP_AUDIT_SIGNING_KEY" not in sign_step.get("env", {})
+    assert "$MCP_AUDIT_SIGNING_KEY" not in run_text
 
 
-def test_amendment_7_gate_comment_still_present() -> None:
+def test_build_verifies_the_signed_candidate_before_upload() -> None:
+    """A feed that fails its own verification must fail the workflow before
+    `publish` ever sees it, using the public key committed in this checkout."""
+    build = _load()["jobs"]["build"]
+    steps = _steps(build)
+    sign_idx = next(i for i, s in enumerate(steps) if _has_secret_env(s))
+    upload_idx = next(
+        i for i, s in enumerate(steps) if str(s.get("uses", "")).startswith(UPLOAD)
+    )
+    verify_idx = next(
+        i
+        for i, s in enumerate(steps)
+        if "feed verify" in str(s.get("run", ""))
+        and "mcp-audit" in str(s.get("run", ""))
+    )
+    assert sign_idx < verify_idx < upload_idx
+    run_text = steps[verify_idx]["run"]
+    assert "--key-alt minisign" in run_text
+    assert "--public-key keys/mcp-audit-feed.pub" in run_text
+
+
+def test_build_installs_minisign() -> None:
+    run_text = _run_text(_steps(_load()["jobs"]["build"]))
+    assert "install -y minisign" in run_text
+
+
+def test_no_keyless_signing_and_no_secret_outside_the_signing_step() -> None:
+    """`--keyless` binds a signature to an individual OIDC identity and is
+    never appropriate for a published feed (docs/advisory-feed.md); and no
+    step besides the one signing step may reference the secret at all."""
+    build = _load()["jobs"]["build"]
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "--keyless" not in text
+    steps_with_secret = [s for s in _steps(build) if _has_secret_env(s)]
+    assert len(steps_with_secret) == 1
+
+
+def test_amendment_7_gate_comment_reflects_it_is_now_satisfied() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "Amendment 7" in text
-    assert "key custody" in text
+    assert "satisfied" in text
+    assert "feed-signing" in text
 
 
 def test_documents_the_public_feed_url() -> None:
