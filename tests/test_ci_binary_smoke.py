@@ -137,6 +137,7 @@ def test_release_and_wheel_check_emit_named_sboms() -> None:
     assert "scripts/generate_wheel_sbom.sh" in release_runs
     assert "mcp-audit-scanner-wheel.cdx.json" in release_runs
     assert f"uv python install {pin}" in release_runs
+    assert "scripts/compose_release_notes.py" in release_runs
     wheel_check = "\n".join(
         str(s.get("run", "")) for s in _steps(_load(CI_YML)["jobs"]["wheel-check"])
     )

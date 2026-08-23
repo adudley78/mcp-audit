@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **GitHub Release notes are composed from the evergreen template plus this file's section for the tag.** `.github/release-notes-template.md` no longer holds Highlights / What's new / a security banner. `scripts/compose_release_notes.py` splices `## [X.Y.Z]` at a marker and fails the release if that heading is missing, so one release's notes cannot silently become the next's. See `.github/workflows/release.yml`.
 - **The standalone binary no longer bundles the MCP SDK.** `--connect` from a GitHub Release binary now prints an install hint instead of connecting. That was never a documented capability of the binary — it worked only because release used `uv sync --all-extras` and the specs did not exclude `mcp` and its server-side transitives (starlette, uvicorn, python-multipart, pydantic-settings). `--connect` is pip-install-only, same policy as `[attestation]`/`sigstore`. Users who need it should `pip install 'mcp-audit-scanner[mcp]'`.
 - CI `binary-smoke` and the release `build` job now share `.github/actions/build-binary/` (CPython **3.12.14**, `uv sync --all-extras`, spec, PyInstaller). See `docs/building-binaries.md`.
 
