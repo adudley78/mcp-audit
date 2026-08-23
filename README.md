@@ -466,6 +466,8 @@ Every command is available to every user — no tier, no license required.
 | `--offline-registry` | off | Use bundled registry only, skip user cache |
 | `--policy` | auto-discover | Path to a governance policy file; auto-discovers `.mcp-audit-policy.yml` in cwd/repo root when omitted |
 | `--verify-hashes` | off | Download and verify package hashes against registry (requires network) |
+| `--verify-signatures` | off | Verify Sigstore provenance attestations for registry-known packages (requires network; needs the `[attestation]` extra) |
+| `--check-vulns` | off | Check server dependencies for known CVEs via deps.dev + OSV.dev (requires network) |
 | `--sast` | none | Path to MCP server source code to scan with Semgrep SAST rules |
 | `--include-extensions` | off | Also scan installed IDE extensions for security issues |
 | `--include-agent-files` | off | Also scan agent instruction/memory files (skills, CLAUDE.md, Cursor rules, Copilot instructions) |

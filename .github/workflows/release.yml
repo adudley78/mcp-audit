@@ -138,9 +138,16 @@ jobs:
     runs-on: ubuntu-latest
 
     # Bound to the `pypi` Environment so PyPI's Trusted Publisher OIDC claim
-    # can scope the issued token to *this specific environment* (defence in
-    # depth against a forked workflow trying to impersonate the release
-    # pipeline).  Create the environment once via Settings → Environments.
+    # can scope the issued token to *this specific environment*. This is
+    # enforced, not just intended: the `pypi` environment has a deployment
+    # branch/tag policy (Settings → Environments → pypi) restricting it to
+    # the `main` branch and `v*.*.*` tags — set 2026-08-23, see
+    # humans/decisions/2026-08-23-signing-key-custody-recommendation.md in
+    # the `marcus` repo. A workflow run on any other ref cannot obtain this
+    # environment's OIDC token, which is what actually stops a forked
+    # workflow from impersonating the release pipeline. No required
+    # reviewers — this job is tag-triggered and fully automated; a human
+    # approval gate here would only stall releases.
     environment:
       name: pypi
       url: https://pypi.org/p/mcp-audit-scanner
