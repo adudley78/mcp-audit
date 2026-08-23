@@ -295,7 +295,9 @@ class TestScanDoesNotFailOnExpiredFeed:
         )
         buf = io.StringIO()
         result = _apply_advisory_feed(
-            ScanResult(), feed, Console(file=buf, force_terminal=True)
+            ScanResult(),
+            feed,
+            Console(file=buf, color_system=None, width=200),
         )
         assert result.feed_status.state == "expired"
         text = " ".join(buf.getvalue().split())
