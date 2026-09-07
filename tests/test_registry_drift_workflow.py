@@ -74,3 +74,19 @@ def test_runs_audit_script_report_only() -> None:
     assert "python scripts/audit_registry.py --refresh" in text
     assert "python scripts/check_registry_drift.py" in text
     assert "persist-credentials: false" in text
+
+
+def test_installs_mcp_audit_before_running_the_audit_script() -> None:
+    """R34 regression pin: audit_registry.py's capability checks import
+    mcp_audit.analyzers.toxic_flow. Without an install step first, the job
+    fails with ModuleNotFoundError before it ever reaches the network audit
+    (this happened on the R34 PR itself — caught by this workflow, not by
+    the test suite, since the dev venv always has the package installed)."""
+    steps = _load()["jobs"]["audit"]["steps"]
+    names = [s.get("name", "") for s in steps]
+    install_idx = next(
+        i for i, s in enumerate(steps) if "pip install" in s.get("run", "")
+    )
+    audit_idx = next(i for i, n in enumerate(names) if n.startswith("Audit"))
+    assert install_idx < audit_idx, "install step must precede the audit step"
+    assert "-e ." in steps[install_idx]["run"]
