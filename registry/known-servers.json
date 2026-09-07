@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-08-22",
+  "last_updated": "2026-09-07",
   "entry_count": 50,
   "entries": [
     {
@@ -961,8 +961,8 @@
       "package_ecosystem": "pypi",
       "repo": "https://github.com/raintree-technology/docpull",
       "maintainer": "Raintree Technology",
-      "verified": false,
-      "last_verified": "2026-08-22",
+      "verified": true,
+      "last_verified": "2026-09-07",
       "known_versions": [],
       "tags": [
         "community",
@@ -975,9 +975,11 @@
         "file_write"
       ],
       "first_published": "2025-11-14",
-      "weekly_downloads": null,
-      "publisher_history": null,
-      "attestation_expected": false
+      "weekly_downloads": 549,
+      "publisher_history": [
+        "raintree-technology"
+      ],
+      "attestation_expected": true
     }
   ]
 }
