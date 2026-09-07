@@ -57,18 +57,25 @@ body:
     id: capabilities
     attributes:
       label: What can this server do?
-      description: "Check all that apply. We'll verify these from source if left blank."
+      description: >
+        Check all that apply. This is a starting point for our review, not
+        the record: capabilities are derived from the package's own source
+        and documentation before an entry is verified, and the recorded
+        entry — not this checklist — is what ships. If your server persists
+        data across sessions (memory), check whichever box below matches
+        *how* it persists — local files, a database, or a remote/network
+        service — rather than looking for a "memory" option; persistence
+        is a mechanism, not a capability we track separately.
       options:
         - label: "Read files on the user's machine"
         - label: "Write or modify files on the user's machine"
-        - label: "Execute shell commands"
+        - label: "Execute shell commands or run arbitrary code"
         - label: "Make network requests or fetch content from the internet"
         - label: "Query databases"
         - label: "Handle credentials or secrets"
         - label: "Send or read email"
         - label: "Control a web browser"
-        - label: "Persist data across sessions (memory)"
-        - label: "Execute code"
+        - label: "Access git repositories or version history"
         - label: "Access cloud resources (AWS, GCP, Azure, etc.)"
 
   - type: textarea

@@ -44,6 +44,21 @@ class Capability(StrEnum):
     BROWSER = "browser"
     GIT = "git"
     SECRETS = "secrets"
+    # Tag-only: recorded and inferable, but deliberately NOT wired into
+    # TOXIC_PAIRS or attack_paths.CAPABILITY_FLOWS. Cloud resource access
+    # (AWS/GCP/Azure API calls) is already, mechanically, a form of
+    # NETWORK_OUT — every cloud SDK call is HTTPS — so it does not open a
+    # new exfiltration primitive TOXIC_PAIRS doesn't already cover via
+    # NETWORK_OUT. What it *does* add is a materially different blast
+    # radius (IAM-scoped infrastructure control, not just "can fetch a
+    # URL") that plausibly deserves its own severity/CWE-calibrated pairs
+    # (e.g. FILE_READ+CLOUD, SECRETS+CLOUD) — but that calibration needs
+    # its own research-and-measurement pass across real registry data, the
+    # same standard this file's own conventions hold new TOXIC_PAIRS to
+    # (see PROVENANCE.md). Added now so the registry-submission vocabulary
+    # is complete and the capability is recorded and auditable; wiring is
+    # deliberately deferred rather than guessed.
+    CLOUD = "cloud"
 
 
 @dataclass(frozen=True)
@@ -164,6 +179,24 @@ KEYWORD_RULES: list[KeywordRule] = [
     KeywordRule(
         keywords=("vault", "secret", "credential", "keychain", "1password", "password"),
         capabilities=frozenset({Capability.SECRETS}),
+    ),
+    KeywordRule(
+        keywords=(
+            "aws",
+            "gcp",
+            "azure",
+            "s3",
+            "ec2",
+            "lambda",
+            "cloudformation",
+            "kubernetes",
+            "k8s",
+            "gke",
+            "eks",
+            "boto3",
+            "gcloud",
+        ),
+        capabilities=frozenset({Capability.CLOUD}),
     ),
 ]
 
