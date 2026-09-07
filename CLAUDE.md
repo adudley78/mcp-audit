@@ -336,7 +336,21 @@ following silently breaks downstream consumers, so treat them as contract:
   public half committed at `keys/mcp-audit-feed.pub` and bundled in the
   package), `build` signs every scheduled publish and verifies its own output
   before `publish` ever sees it, and the first real signed publish has shipped.
-  A stateless client accepts any unexpired validly-signed snapshot; TTL is the only
+  That first publish (2026-09-07T19:40:39Z, snapshot_version 4) shipped
+  `index.json` with a `signing` block but no `index.json.sig` — `publish`'s
+  "Replace the published feed content" step copied `advisories/`, `osv/`, and
+  `index.json` from the candidate artifact but never the sibling `.sig` file
+  `sign_feed()` writes next to the index (advisory `.sig` files were
+  unaffected; they live inside `advisories/`, copied wholesale). CI's own
+  verify step never caught this because it only ever checks the candidate
+  artifact pre-`publish`, never the post-`publish` branch content. Caught the
+  same day by a disposable `unshare --net` proof against the live feed
+  (23/24 artifacts OK, `index.json` FAILED with "Missing signature artifact
+  index.json.sig"); fixed with one added `cp` line
+  (`test_publish_copies_index_json_sig_alongside_index_json` pins it) and
+  re-published. The corrected bytes (snapshot_version 5) were re-verified
+  offline the same way: all 24 artifacts OK, and a one-byte tamper of a
+  downloaded advisory still fails offline. A stateless client accepts any unexpired validly-signed snapshot; TTL is the only
   lever. Stolen key, a publisher omitting advisories at a new version, a client clock
   in the past, and mix-and-match (already bound by `canonical_sha256`) are not covered.
 - **Publishing is two-phase.** `write_feed()` emits the unsigned index; `sign_feed()`
