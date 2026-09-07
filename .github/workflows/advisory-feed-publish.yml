@@ -215,12 +215,21 @@ jobs:
 
       - name: Replace the published feed content
         # README.md on the feed branch is deliberately left alone — only the
-        # feed's own files are managed here.
+        # feed's own files are managed here. index.json.sig sits next to
+        # index.json in the candidate artifact (sign_feed() writes it there,
+        # not inside advisories/) — it must be copied explicitly or the
+        # published index ships with a "signing" block but no signature to
+        # back it, which fails closed on any client's `feed verify` even
+        # though every individual advisory verifies fine. R32 shipped without
+        # this line for one publish (2026-09-07T19:40:39Z, snapshot_version
+        # 4); caught by the offline-proof workflow before any user consumed
+        # it — see docs/advisory-feed.md.
         run: |
-          rm -rf advisories osv index.json
+          rm -rf advisories osv index.json index.json.sig
           cp -r new_feed/advisories advisories
           cp -r new_feed/osv osv
           cp new_feed/index.json index.json
+          cp new_feed/index.json.sig index.json.sig
           rm -rf new_feed
 
       - name: Commit and push

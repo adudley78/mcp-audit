@@ -162,6 +162,24 @@ def test_publish_has_a_belt_and_suspenders_empty_diff_guard() -> None:
     assert "git diff --cached --quiet" in run_text
 
 
+def test_publish_copies_index_json_sig_alongside_index_json() -> None:
+    """Regression test for the 2026-09-07T19:40:39Z publish (snapshot_version
+    4): sign_feed() writes index.json.sig next to index.json in the candidate
+    artifact, not inside advisories/, so the replace step must copy it
+    explicitly. Missing this line published a feed whose index.json carried
+    a "signing" block but no signature to back it — every advisory verified
+    fine, but `mcp-audit feed verify` failed closed on the index itself
+    ("Missing signature artifact index.json.sig"), caught by
+    experiment-r32-offline-feed-verify.yml before any user consumed it, not
+    by this test suite. It is now."""
+    run_text = _run_text(_steps(_load()["jobs"]["publish"]))
+    assert "cp new_feed/index.json.sig index.json.sig" in run_text
+    # Must also be cleared before the copy, same as index.json itself, or a
+    # stale signature from a previous publish could survive a run that
+    # regresses this again.
+    assert "rm -rf advisories osv index.json index.json.sig" in run_text
+
+
 def test_build_declares_the_feed_signing_environment() -> None:
     """The signing secret is only reachable inside this environment, which is
     restricted (via its deployment-branch-policy, confirmed separately with
