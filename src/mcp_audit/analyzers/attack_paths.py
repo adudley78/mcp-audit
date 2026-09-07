@@ -104,6 +104,11 @@ _CAP_LABELS: dict[Capability, str] = {
     Capability.BROWSER: "browser automation",
     Capability.GIT: "git access",
     Capability.SECRETS: "secret/credential access",
+    # CLOUD is tag-only (see toxic_flow.py) and never appears as a path
+    # endpoint today, but a label is provided so a hop-capability listing
+    # (_path_description's per-hop cap_labels) renders it readably rather
+    # than falling back to the raw enum string if that ever changes.
+    Capability.CLOUD: "cloud resource access",
 }
 
 

@@ -841,7 +841,7 @@
       ],
       "capabilities": [
         "network_out",
-        "subprocess"
+        "shell_exec"
       ],
       "first_published": "2025-07-01",
       "weekly_downloads": null,
@@ -867,7 +867,7 @@
         "local"
       ],
       "capabilities": [
-        "subprocess"
+        "shell_exec"
       ],
       "first_published": "2025-06-01",
       "weekly_downloads": null,
@@ -892,7 +892,7 @@
       ],
       "capabilities": [
         "network_out",
-        "subprocess"
+        "shell_exec"
       ],
       "first_published": "2023-06-01",
       "weekly_downloads": null,

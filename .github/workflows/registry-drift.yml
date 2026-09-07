@@ -59,6 +59,16 @@ jobs:
         with:
           python-version: "3.12"
 
+      # R34: the local capability checks (find_unknown_capabilities,
+      # find_undeclared_capabilities) import mcp_audit.analyzers.toxic_flow
+      # to reuse the real Capability enum and keyword heuristics rather than
+      # forking a copy that could drift. This is the only reason this
+      # workflow now installs the package it is checking out — no third-party
+      # code beyond what pyproject.toml already declares, no secrets, same
+      # "read-only, fork-safe" trust model as before.
+      - name: Install mcp-audit (for capability checks only)
+        run: pip install --quiet -e .
+
       - name: Hash registry before the audit
         run: sha256sum registry/known-servers.json | tee "${RUNNER_TEMP}/registry.before"
 

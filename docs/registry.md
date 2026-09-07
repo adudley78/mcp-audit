@@ -109,6 +109,23 @@ To add a server, open a pull request against the mcp-audit repository editing
   package name exactly as published. The `repo` field can be `null` if unknown.
 - Increment `entry_count` to match the actual number of entries in the array.
 - Set `last_verified` to the ISO date of your review.
+- **`capabilities` is derived from the package's own source and documentation,
+  never from the submission form's checkboxes.** The registry-submission
+  issue template's checkboxes are a starting point for that review, not the
+  record — a submitter's free-text description or the package's own README
+  frequently says more than their checkboxes do (docpull's checkbox omitted
+  filesystem access that both its own issue text and its README stated
+  plainly; R34 corrected a comment that had been written from the checkbox
+  instead of the merged entry). This matters beyond accuracy: when an entry
+  has an explicit `capabilities` list, `toxic_flow.py`'s registry-first
+  lookup returns it verbatim and skips the keyword-heuristic fallback
+  entirely — so an incomplete list on a `verified` entry is *strictly worse*
+  than no list at all, because it silently switches off the inference that
+  would otherwise have caught the gap. `scripts/audit_registry.py` reports
+  (read-only) any entry whose declared `capabilities` are a strict subset of
+  what the keyword heuristics alone would infer from the package name, and
+  separately reports any capability string that is not a defined
+  `Capability` enum member — see that script's module docstring.
 
 ## Auditing the registry
 

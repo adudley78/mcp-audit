@@ -238,6 +238,73 @@ class TestApplyStamp:
         assert data["entries"][0]["last_verified"] == "2026-04-15"
 
 
+class TestUnknownCapabilities:
+    """find_unknown_capabilities: capability strings not in the Capability enum."""
+
+    def test_flags_unknown_string(self) -> None:
+        entries = [{**_entry("flowise"), "capabilities": ["network_out", "subprocess"]}]
+        hits = mod.find_unknown_capabilities(entries)
+        assert hits == [{"name": "flowise", "unknown": ["subprocess"]}]
+
+    def test_all_known_strings_produce_no_hit(self) -> None:
+        entries = [
+            {**_entry("clean-pkg"), "capabilities": ["network_out", "file_write"]}
+        ]
+        assert mod.find_unknown_capabilities(entries) == []
+
+    def test_null_capabilities_skipped(self) -> None:
+        entries = [{**_entry("no-data"), "capabilities": None}]
+        assert mod.find_unknown_capabilities(entries) == []
+
+    def test_empty_capabilities_skipped(self) -> None:
+        entries = [{**_entry("empty"), "capabilities": []}]
+        assert mod.find_unknown_capabilities(entries) == []
+
+
+class TestUndeclaredCapabilities:
+    """find_undeclared_capabilities: declared ⊊ heuristic inference for the name."""
+
+    def test_under_declared_entry_is_flagged(self) -> None:
+        # "postgres" -> DATABASE, "fetch" -> NETWORK_OUT: heuristics infer both.
+        # The entry only declares network_out, silently dropping the registry
+        # override's ability to ever surface the database capability for this
+        # verified package (the docpull near-miss, reproduced as a fixture).
+        entries = [
+            {
+                **_entry("acme-postgres-fetch-tool"),
+                "capabilities": ["network_out"],
+            }
+        ]
+        hits = mod.find_undeclared_capabilities(entries)
+        assert len(hits) == 1
+        assert hits[0]["name"] == "acme-postgres-fetch-tool"
+        assert hits[0]["declared"] == ["network_out"]
+        assert hits[0]["inferred"] == ["database", "network_out"]
+        assert hits[0]["missing"] == ["database"]
+
+    def test_fully_declared_entry_is_not_flagged(self) -> None:
+        # Same heuristic inference, but the entry declares the full set —
+        # equal sets are not a *strict* subset, so this must not be a hit.
+        entries = [
+            {
+                **_entry("acme-postgres-fetch-tool-2"),
+                "capabilities": ["network_out", "database"],
+            }
+        ]
+        assert mod.find_undeclared_capabilities(entries) == []
+
+    def test_deliberately_narrowed_entry_is_not_flagged_as_subset(self) -> None:
+        # A name with no keyword hits at all: heuristics infer nothing, so a
+        # declared capability the heuristics don't know about is not a
+        # *subset* relationship (declared is not ⊆ inferred) and must not hit.
+        entries = [{**_entry("widgetco-thing"), "capabilities": ["shell_exec"]}]
+        assert mod.find_undeclared_capabilities(entries) == []
+
+    def test_null_capabilities_skipped(self) -> None:
+        entries = [{**_entry("no-data"), "capabilities": None}]
+        assert mod.find_undeclared_capabilities(entries) == []
+
+
 class TestDefaultIsReadOnly:
     def test_main_without_stamp_does_not_write(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -61,6 +61,37 @@ NO_PROVENANCE
 UNCHECKED
     Network failure or missing version/filename so we could not tell.
 
+Capability checks (local, offline, always run)
+------------------------------------------------
+These two checks never touch the network. They run unconditionally, before
+the network audit loop, and are report-only like everything else here.
+
+unknown capability strings
+    A value in an entry's ``capabilities`` list that is not a defined
+    ``Capability`` enum member (``toxic_flow.py``). ``_is_known_cap()``
+    drops these silently at read time BY DESIGN, so a registry file
+    published by a newer mcp-audit release (with a capability name an
+    older, still-installed client doesn't know about yet) never crashes
+    that client — that forward-compatibility contract must not change.
+    But this script speaks for the *maintainers* validating *our own* data
+    before it ships, not a client reading someone else's newer file, so a
+    typo here (e.g. "subprocess" instead of "shell_exec") is simply a
+    capability nobody will ever see fire, in either detection path. Fixing
+    it is opt-in and manual, same as everything else this script flags —
+    the script only ever reports.
+
+strict-subset capabilities (under-declared entries)
+    An entry with an explicit ``capabilities`` list whose recorded set is a
+    STRICT SUBSET of what ``toxic_flow.py``'s keyword heuristics alone
+    would infer from the package name. Registry-supplied capabilities
+    override heuristics entirely (``tag_server()``'s registry-first path)
+    rather than union with them, so an incomplete list on a ``verified``
+    entry silently suppresses detection that an *unverified* package with
+    the same name would still trigger. A subset is a signal, not proof —
+    the heuristics over-fire on some names, and a human deliberately
+    narrowing a verified entry's declared surface is legitimate — so this
+    is reported for human review, never auto-fixed.
+
 Usage
 -----
     python scripts/audit_registry.py
@@ -644,6 +675,139 @@ def classify(entry: dict, checks: list[EcosystemCheck]) -> dict:
     return {"bucket": "OK", "evidence": evidence, "plausible_maintainer": plausible}
 
 
+# ── Capability checks (local, offline) ──────────────────────────────────────
+#
+# Both checks below operate purely on the registry file already on disk —
+# no network, no cache. They exist because the registry-first override in
+# toxic_flow.py (tag_server()) makes an incomplete or misspelled explicit
+# `capabilities` list on a `verified` entry strictly worse than no list at
+# all: it switches off the keyword-heuristic fallback that would otherwise
+# have caught the gap. See the module docstring's "Capability checks" section.
+
+
+def _synthetic_server(name: str) -> Any:
+    """Build a minimal ServerConfig for *name* to feed toxic_flow's heuristics.
+
+    Mirrors what a real scan sees for a package with no registry capability
+    data: only the package name itself, in ``args`` and ``name``, no command,
+    no registry. This is exactly the fallback path an *unverified* package
+    with the same name would go through — the comparison point for deciding
+    whether a verified entry's explicit capabilities are under-declared.
+
+    Imports mcp_audit lazily so this script's other (network-audit) code
+    paths keep working even if the package is not importable in some future
+    invocation context; only the two capability checks need it.
+    """
+    from mcp_audit.models import ServerConfig  # noqa: PLC0415
+
+    return ServerConfig(
+        name=name,
+        client="registry-audit",
+        config_path=Path("registry-audit"),
+        args=[name],
+    )
+
+
+def compute_inferred_capabilities(name: str) -> frozenset[str]:
+    """Return the capability set toxic_flow's keyword heuristics infer for *name*.
+
+    Calls :func:`tag_server` with ``registry=None`` so the registry-first
+    override is bypassed entirely and only the three heuristic layers
+    (known-package table, keyword matching, tool-name matching) run — tool
+    names are unavailable here (no live ``--connect`` data), so effectively
+    layers 1 and 2.
+
+    Args:
+        name: The registry entry's package name.
+
+    Returns:
+        Frozen set of :class:`~mcp_audit.analyzers.toxic_flow.Capability`
+        ``.value`` strings the heuristics alone would assign.
+    """
+    from mcp_audit.analyzers.toxic_flow import tag_server  # noqa: PLC0415
+
+    server = _synthetic_server(name)
+    return frozenset(c.value for c in tag_server(server, registry=None))
+
+
+def find_unknown_capabilities(entries: list[dict]) -> list[dict]:
+    """Flag ``capabilities`` values that are not defined ``Capability`` members.
+
+    This is validation of OUR OWN data before it ships, not a client reading
+    someone else's registry — the silent-drop behaviour in
+    ``toxic_flow._is_known_cap()`` must stay silent for the latter case
+    (forward compatibility with older installed clients), but a typo in the
+    file we are about to publish is a defect, not a future schema value.
+
+    Args:
+        entries: The registry's ``entries`` list, as loaded from JSON.
+
+    Returns:
+        One dict per offending entry: ``{"name": ..., "unknown": [...]}``.
+        Empty when every declared capability string is a known member.
+    """
+    from mcp_audit.analyzers.toxic_flow import Capability  # noqa: PLC0415
+
+    known = {c.value for c in Capability}
+    hits: list[dict] = []
+    for entry in entries:
+        declared = entry.get("capabilities")
+        if not declared:
+            continue
+        unknown = sorted(set(declared) - known)
+        if unknown:
+            hits.append({"name": entry["name"], "unknown": unknown})
+    return hits
+
+
+def find_undeclared_capabilities(entries: list[dict]) -> list[dict]:
+    """Flag entries whose declared capabilities are a strict subset of the
+    heuristic inference for the same package name.
+
+    Args:
+        entries: The registry's ``entries`` list, as loaded from JSON.
+
+    Returns:
+        One dict per hit: ``{"name", "declared", "inferred", "missing"}``,
+        sorted lists of capability strings. Empty when no entry under-declares.
+    """
+    hits: list[dict] = []
+    for entry in entries:
+        declared_raw = entry.get("capabilities")
+        if declared_raw is None:
+            continue
+        declared = frozenset(declared_raw)
+        inferred = compute_inferred_capabilities(entry["name"])
+        if (
+            declared < inferred
+        ):  # strict subset: declared != inferred, declared ⊆ inferred
+            hits.append(
+                {
+                    "name": entry["name"],
+                    "declared": sorted(declared),
+                    "inferred": sorted(inferred),
+                    "missing": sorted(inferred - declared),
+                }
+            )
+    return hits
+
+
+def _print_capability_checks(unknown_hits: list[dict], subset_hits: list[dict]) -> None:
+    print("\n=== Capability checks (local, offline) ===", file=sys.stderr)
+    print(f"  Unknown capability strings: {len(unknown_hits)}", file=sys.stderr)
+    for h in unknown_hits:
+        print(f"    - {h['name']}: {h['unknown']}", file=sys.stderr)
+    print(
+        f"  Strict-subset (under-declared) entries: {len(subset_hits)}", file=sys.stderr
+    )
+    for h in subset_hits:
+        print(
+            f"    - {h['name']}: declared={h['declared']} "
+            f"inferred={h['inferred']} missing={h['missing']}",
+            file=sys.stderr,
+        )
+
+
 # ── Cache ────────────────────────────────────────────────────────────────
 
 
@@ -901,6 +1065,14 @@ def main() -> None:
     args = parser.parse_args()
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", args.date):
         parser.error("--date must be YYYY-MM-DD")
+
+    # Local, offline capability checks run first and unconditionally — no
+    # network cost, so there is no reason to gate them behind --stamp or a
+    # cache. See the module docstring's "Capability checks" section.
+    entries = json.loads(args.registry.read_text(encoding="utf-8")).get("entries", [])
+    unknown_cap_hits = find_unknown_capabilities(entries)
+    subset_cap_hits = find_undeclared_capabilities(entries)
+    _print_capability_checks(unknown_cap_hits, subset_cap_hits)
 
     results = audit_registry(args.registry, args.cache, args.refresh)
 

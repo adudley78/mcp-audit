@@ -248,6 +248,46 @@ Build and distribution scripts at project root:
 - **Supply chain attestation** (`attestation/`) implements Layer 1 hash-based integrity verification. `scan --verify-hashes` downloads package tarballs, computes SHA-256, and compares against pins in `RegistryEntry.known_hashes`. `mcp-audit verify` is a standalone command for interactive package verification. Attestation findings use `analyzer="attestation"`; CRITICAL for mismatches, INFO for unverifiable cases. See `docs/supply-chain.md`.
 - **`scan()` pipeline conventions** (`cli/scan.py`): the `scan` command is a thin orchestrator that delegates each optional phase to a named helper. Helpers are `_apply_*` for pipeline stages that mutate/inject into `ScanResult` (baseline drift, governance, SAST, extensions, agent-files, advisory feed, severity threshold) and `_write_*` for output-layer dispatch (`_write_formatted_output`). Preflight validation lives in `_preflight_checks`. Each helper has a docstring that states when it is called and its contract when the feature is not requested. Future scan-pipeline additions should follow this `_apply_*` / `_write_*` naming and be inserted into `scan()` as a single-line delegation — do not inline new phases in the command body. Test-patched symbols (`verify_server_hashes`, `discover_extensions`, `analyze_extensions`, `run_semgrep`) are imported as their containing module (e.g. `from mcp_audit.sast import runner as _sast_runner`) so `patch("mcp_audit.sast.runner.run_semgrep", ...)` continues to intercept.
 - **Capability tags for toxic flow detection** are stored in `RegistryEntry.capabilities` (optional `list[str]` in `registry/known-servers.json`) and consulted by `analyzers/toxic_flow.py::tag_server(server, registry=...)` **before** any keyword or tool-name heuristic fallback. When `registry` is supplied and resolves a known package whose `capabilities` field is not `None`, those tags are returned verbatim — the registry is the single source of truth. The in-module `KNOWN_SERVERS` dict in `toxic_flow.py` is retained as a deterministic fallback for (a) unit tests that inject no registry and (b) cases where the registry is present but the entry has `capabilities=None`. `scanner.py` passes the `SupplyChainAnalyzer.registry` instance to `ToxicFlowAnalyzer(registry=…)` so the JSON file is read from disk exactly once per scan.
+  **This override-not-union design means an incomplete `capabilities` list on
+  a `verified` entry is strictly worse than no list at all** — it switches
+  off the keyword-heuristic fallback that would otherwise have caught the
+  gap (R34, prompted by a docpull registry-entry-vs-checkbox mismatch that
+  had already produced one wrong public comment on
+  [#35](https://github.com/adudley78/mcp-audit/issues/35)). Two read-only,
+  offline checks in `scripts/audit_registry.py` guard against this on every
+  run, unconditionally, before the network audit loop: (1) any entry whose
+  declared `capabilities` are a **strict subset** of what the keyword
+  heuristics alone would infer for that package name (`compute_inferred_capabilities`
+  / `find_undeclared_capabilities`) is reported for human review — a subset
+  is a signal, not proof, so it is never auto-fixed; (2) any capability
+  string in the registry that is **not** a defined `Capability` enum member
+  (`find_unknown_capabilities`) is reported and must be fixed by hand — this
+  caught a real, live defect where three entries (`@mcpjam/inspector`,
+  `gemini-mcp-tool`, `flowise`) used `"subprocess"` instead of `"shell_exec"`,
+  meaning `_is_known_cap()` had been silently dropping it and `flowise`'s
+  declared `network_out` + intended `shell_exec` never once triggered
+  `TOXIC-006` (CRITICAL) for anyone scanning it, despite both packages
+  independently carrying RCE CVEs (CVE-2025-59528, GHSA-4h5r-5jm8-jxjm) that
+  corroborate the intended capability. Deliberately asymmetric with
+  `_is_known_cap()`'s own silent-drop behaviour at read time: that silence
+  is forward compatibility (an older installed client must not crash on a
+  capability name a newer registry file defines), while this script speaks
+  for the maintainers validating *our own* data before it ships, where the
+  same string is just a typo nobody would otherwise see.
+  `Capability.CLOUD` (added in R34) is deliberately **tag-only** — recorded,
+  inferable via a `KEYWORD_RULES` entry (aws/gcp/azure/s3/ec2/lambda/etc.),
+  but not wired into `TOXIC_PAIRS` or `attack_paths.CAPABILITY_FLOWS`, because
+  it does not open a new exfiltration primitive `NETWORK_OUT` doesn't already
+  cover (cloud SDK calls are HTTPS) and calibrating dedicated pairs for its
+  distinct blast radius (IAM-scoped infrastructure control) needs its own
+  research-and-measurement pass, not a guess. The registry-submission issue
+  template (`.github/ISSUE_TEMPLATE/registry-submission.yml`) offers exactly
+  one checkbox per `Capability` member and vice versa — pinned by
+  `tests/test_registry_submission_template.py` — after R34 dropped a
+  "persist data across sessions (memory)" checkbox that mapped to nothing
+  (submitters should check whichever of file/database/network already
+  covers their actual persistence mechanism) and merged "execute code" into
+  "execute shell commands" (both are `SHELL_EXEC`).
 
 - **Agent-file scanning** (`agent_files/`) covers the non-MCP-config instruction
   surfaces an agent reads: Claude Code commands/memory, Cursor `.mdc` rules, and
@@ -496,7 +536,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3083 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3097 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
