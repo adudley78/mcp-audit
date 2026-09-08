@@ -153,7 +153,15 @@ class TestDiscoverProjectConfigsSkipDirs:
 
 
 class TestDiscoverProjectConfigsSymlinks:
-    """Symlinked directories and files must not be followed."""
+    """Symlinked directories are never followed; symlinked files are TRUST-002.
+
+    Superseded 2026-09-08 (STORY-0065): a symlinked *file* candidate is no
+    longer dropped — it is included with ``is_symlink=True`` (coverage
+    restored) and the caller emits a TRUST-002 finding for it. A symlinked
+    *directory* is still never traversed — see
+    ``TestDiscoverProjectConfigsSymlinkHandling`` in test_discovery.py for
+    the TRUST-005 audibility coverage of that case.
+    """
 
     def test_does_not_follow_symlinked_dir(self, tmp_path: Path) -> None:
         real_dir = tmp_path / "real"
@@ -174,7 +182,7 @@ class TestDiscoverProjectConfigsSymlinks:
         # Symlinked dir path must NOT have been followed.
         assert link_dir / ".mcp.json" not in found_paths
 
-    def test_does_not_follow_symlinked_file(self, tmp_path: Path) -> None:
+    def test_symlinked_file_is_included_and_flagged(self, tmp_path: Path) -> None:
         real_file = tmp_path / "actual.json"
         _write_mcp_config(real_file)
         link_file = tmp_path / ".mcp.json"
@@ -184,7 +192,10 @@ class TestDiscoverProjectConfigsSymlinks:
             pytest.skip("Symlinks not supported on this platform")
 
         found = discover_project_configs(tmp_path)
-        assert not any(c.path == link_file for c in found)
+        matches = [c for c in found if c.path == link_file]
+        assert len(matches) == 1
+        assert matches[0].is_symlink is True
+        assert matches[0].symlink_root == tmp_path
 
 
 class TestDiscoverProjectConfigsEdgeCases:

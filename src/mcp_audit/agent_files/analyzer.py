@@ -32,6 +32,15 @@ MEM-002 (MEDIUM)
     Exfiltration, cross-tool, and length patterns are intentionally excluded
     — the false-positive rate on innocent memory files is too high.
 
+SKILL-004 (INFO)
+    Skill bundles executable scripts.  Fires once per discovered
+    ``SKILL.md`` when its own directory contains a ``scripts/`` subdirectory
+    with at least one file.  Purely an inventory finding — it lists bundled
+    script *filenames* only, never file contents, and never runs or reads
+    the scripts themselves.  A skill's bundled scripts run with the same
+    trust as the skill's instructions; this exists so a reviewer knows they
+    are there.
+
 Pattern import policy
 ---------------------
 Detection patterns are **imported** from :mod:`mcp_audit.analyzers.poisoning`
@@ -96,10 +105,48 @@ def _is_skill_surface(af: AgentFile) -> bool:
     """Return True for skill/command/instruction surfaces (not memory)."""
     return af.surface in (
         AgentFileSurface.CLAUDE_COMMAND,
+        AgentFileSurface.CLAUDE_SKILL,
         AgentFileSurface.CURSOR_RULE,
         AgentFileSurface.COPILOT_INSTRUCTION,
         AgentFileSurface.COPILOT_SCOPED,
         AgentFileSurface.COPILOT_PROMPT,
+    )
+
+
+def _check_skill_scripts(af: AgentFile) -> Finding | None:
+    """SKILL-004 (INFO): inventory a skill's bundled ``scripts/`` directory.
+
+    Fires once per skill (one Finding per ``SKILL.md``) when the skill's own
+    directory contains a ``scripts/`` subdirectory with at least one file.
+    Lists filenames only — never file contents — this is an inventory
+    finding, not a content-based detection, and never opens the scripts.
+    """
+    scripts_dir = af.path.parent / "scripts"
+    if not scripts_dir.is_dir() or scripts_dir.is_symlink():
+        return None
+    try:
+        filenames = sorted(
+            p.name for p in scripts_dir.iterdir() if p.is_file() and not p.is_symlink()
+        )
+    except OSError:
+        return None
+    if not filenames:
+        return None
+    return _skill_finding(
+        af,
+        "SKILL-004",
+        Severity.INFO,
+        "Skill bundles executable scripts",
+        (
+            f"The skill '{af.path.parent.name}' bundles a 'scripts/'"
+            f" directory containing {len(filenames)} file(s). Bundled"
+            " scripts run with the same trust as the skill's own"
+            " instructions — review their contents before relying on"
+            " this skill."
+        ),
+        f"scripts/: {', '.join(filenames)}",
+        "Review each bundled script's contents before trusting this skill.",
+        owasp_mcp_top_10=["MCP03"],
     )
 
 
@@ -426,6 +473,10 @@ def analyze_agent_files(files: list[AgentFile]) -> list[Finding]:
     for af in files:
         if _is_skill_surface(af):
             findings.extend(_analyze_skill(af))
+            if af.surface == AgentFileSurface.CLAUDE_SKILL:
+                script_finding = _check_skill_scripts(af)
+                if script_finding is not None:
+                    findings.append(script_finding)
         elif _is_memory_surface(af):
             findings.extend(_analyze_memory(af))
     return findings

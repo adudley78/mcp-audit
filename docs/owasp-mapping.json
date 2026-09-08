@@ -894,6 +894,41 @@
       "notes": "Fires under `scan --project` for a `.vscode/tasks.json` task with `runOptions.runOn: folderOpen` (or the legacy `version: 0.1.0` schema's top-level `runOn`), or a command-bearing `.vscode/settings.json` key (terminal profile/env/shellArgs, or a `*Path` interpreter setting) whose value is a shell command, URL, or absolute path outside the project root. HIGH by default; CRITICAL when the command reaches the network (`_HOOK_NETWORK_RE`). Anchor incidents: Keyv npm worm and Shai-Hulud \"V.A.P.E\" (2026), both of which planted this file alongside a `.claude/settings.json` SessionStart hook (CFHYG-005/HOOK-001/002). CWE-829."
     },
     {
+      "finding_id": "TRUST-002",
+      "finding_title": "Project-scoped config path is a symlink",
+      "owasp_codes": [
+        "MCP09",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers",
+        "Command Injection and Execution"
+      ],
+      "notes": "Fires when a project- or cwd-scoped MCP config candidate (.mcp.json, .vscode/mcp.json, the --project walk's _PROJECT_CONFIG_SPECS, or the TRUST-003 autoexec specs) is itself a symlink. The candidate is still parsed normally (coverage unaffected); this finding makes the previously-silent skip visible and flags the GhostApproval shape: a reviewed/committed path that is actually a decoy for content living elsewhere. HIGH when the resolved target falls outside the scanned root, MEDIUM when it resolves inside, INFO when the link is broken. Not fired for user-global client configs (see TRUST-004) — see humans/decisions/2026-09-08-trust-002-symlink-sites.md (marcus repo). CWE-61."
+    },
+    {
+      "finding_id": "TRUST-004",
+      "finding_title": "Config path is a symlink (user-global / explicit)",
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ],
+      "notes": "Fires when a user-global known-client config (e.g. ~/.claude.json, ~/.cursor/mcp.json) or an explicitly-supplied --path candidate is itself a symlink. Always INFO \u2014 dotfile managers (GNU Stow, chezmoi, yadm, dotbot) manage exactly these paths this way, and a rule that fires on every correctly-configured machine gets switched off wholesale. The candidate is still scanned normally through the link. CWE-61."
+    },
+    {
+      "finding_id": "TRUST-005",
+      "finding_title": "Symlinked directory was not scanned",
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ],
+      "notes": "Fires when discovery (the --project config/autoexec walk, or the agent-files project-tree and skills walk) encounters a symlinked directory. mcp-audit never follows a symlinked directory (loop/blow-up protection, unchanged); this finding makes that refusal visible instead of silent. Always LOW \u2014 a coverage note, not an accusation. CWE-61."
+    },
+    {
       "finding_id": "COMM-033",
       "finding_title": "Project-level MCP config file present in repository",
       "owasp_codes": [
@@ -948,6 +983,13 @@
       "owasp_codes": ["MCP03", "MCP04"],
       "owasp_names": ["Prompt Injection Attacks", "Software Supply Chain Attacks"],
       "notes": "Fires when a skill/instruction file body contains a raw http(s):// URL suggesting external content injection. Severity MEDIUM. CWE-829. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-004",
+      "finding_title": "Skill bundles executable scripts",
+      "owasp_codes": ["MCP03"],
+      "owasp_names": ["Prompt Injection Attacks"],
+      "notes": "Fires once per discovered Claude Code SKILL.md whose own directory contains a scripts/ subdirectory with at least one file. Inventory-only: lists bundled script filenames, never contents, and never executes or reads them. Always INFO. Analyzer: agent_files."
     },
     {
       "finding_id": "HOOK-001",

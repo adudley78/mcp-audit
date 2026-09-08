@@ -64,6 +64,12 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # not because it is unmapped.
         "BL-001",  # malformed baseline file — operational error
         "COMM-000",  # community rule template stub — never matches real configs
+        "TRUST-004",  # symlinked user-global/explicit config — dotfile-manager
+        # shape (GNU Stow, chezmoi, yadm); always INFO, not a vulnerability
+        "TRUST-005",  # symlinked directory not traversed — coverage note, not
+        # an assertion about anything found or missing under it
+        "SKILL-004",  # bundled-scripts inventory — positive/neutral signal,
+        # not itself a vulnerability
     }
 )
 
@@ -126,6 +132,7 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "COMM-033": "untrusted-config-origin",
     "COLLIDE-001": "tool-collision",
     "TRUST-001": "untrusted-config-origin",
+    "TRUST-002": "untrusted-config-origin",
     "CFHYG-005": "hook-execution",
 }
 
