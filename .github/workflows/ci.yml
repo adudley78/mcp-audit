@@ -157,6 +157,36 @@ jobs:
             dist/*.whl \
             dist/mcp-audit-scanner-wheel.cdx.json
 
+  action-input-contracts:
+    name: release.yml action input contracts
+    runs-on: ubuntu-latest
+    # release.yml only triggers on a v*.*.* tag push or workflow_dispatch —
+    # never pull_request — so a Dependabot bump to any action it pins
+    # (upload-artifact, download-artifact, action-gh-release,
+    # gh-action-pypi-publish, setup-uv, checkout) gets zero PR-time exercise
+    # of its actual input contract; see docs/release-ci-blind-spot.md for the
+    # full per-action execution table this job closes the gap in.
+    #
+    # This needs network (fetches each pinned action's action.yml from
+    # raw.githubusercontent.com at the exact pinned SHA) and runs
+    # unconditionally on every push/PR, same trade-off wheel-check (above)
+    # already accepts for its Twine-version bridge: a GitHub outage can fail
+    # an unrelated PR, but a check that only runs somewhere nobody looks
+    # would not have caught the gap #94 sits in.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: pip install "pyyaml>=6.0,<7.0"
+
+      - name: Check release.yml action input contracts
+        run: python scripts/check_release_action_contracts.py
+
   binary-smoke:
     name: Binary smoke (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
