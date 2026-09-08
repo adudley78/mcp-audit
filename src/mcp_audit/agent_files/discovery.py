@@ -27,6 +27,7 @@ in GAPS.md and intentionally omitted from this module.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -55,6 +56,112 @@ _WALK_SKIP_DIRS: frozenset[str] = frozenset(
 )
 
 _WALK_MAX_DEPTH: int = 8
+
+
+@dataclass(frozen=True)
+class AgentInstructionPathPattern:
+    """One relative-glob pattern describing where an agent-instruction file lives.
+
+    ``relative_glob`` is a ``/``-separated glob pattern resolved relative to a
+    base directory (``$HOME`` for ``scope="user"``, or a project-tree
+    directory for ``scope="project"`` — see :func:`_resolve_relative_pattern`).
+    The final path segment may contain glob wildcards (``*.md``); every
+    segment before it is treated as a literal directory name that must exist
+    and must not be a symlink, mirroring the guards this module has always
+    applied.
+    """
+
+    relative_glob: str
+    surface: AgentFileSurface
+    client: str
+    scope: str  # "user" | "project"
+
+
+# The single source of truth for every agent-instruction-file location this
+# module discovers. Both ``_discover_user_global`` and ``_discover_project_tree``
+# below are driven by this list rather than keeping a second, hand-written copy
+# of the same paths — a second copy that drifts from the module docstring above
+# is worse than the inline version it replaced (R39).
+#
+# Consumed outside this module by anything that needs to ask "does this
+# directory reach a known agent-instruction path?" without re-deriving the
+# path set — see GAPS.md ("FILE_WRITE integrity axis") for why that question
+# was investigated and what blocked building on it in R39.
+AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
+    # ── User-global ──────────────────────────────────────────────────────────
+    AgentInstructionPathPattern(
+        ".claude/commands/*.md", AgentFileSurface.CLAUDE_COMMAND, "claude-code", "user"
+    ),
+    AgentInstructionPathPattern(
+        ".claude/CLAUDE.md", AgentFileSurface.CLAUDE_MEMORY, "claude-code", "user"
+    ),
+    AgentInstructionPathPattern(
+        ".cursor/rules/*.mdc", AgentFileSurface.CURSOR_RULE, "cursor", "user"
+    ),
+    # ── Project-level (checked at every directory during the tree walk) ────────
+    AgentInstructionPathPattern(
+        ".claude/commands/*.md",
+        AgentFileSurface.CLAUDE_COMMAND,
+        "claude-code",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".claude/CLAUDE.md", AgentFileSurface.CLAUDE_MEMORY, "claude-code", "project"
+    ),
+    AgentInstructionPathPattern(
+        "CLAUDE.md", AgentFileSurface.CLAUDE_MEMORY, "claude-code", "project"
+    ),
+    AgentInstructionPathPattern(
+        ".cursor/rules/*.mdc", AgentFileSurface.CURSOR_RULE, "cursor", "project"
+    ),
+    AgentInstructionPathPattern(
+        ".github/copilot-instructions.md",
+        AgentFileSurface.COPILOT_INSTRUCTION,
+        "copilot",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".github/instructions/*.instructions.md",
+        AgentFileSurface.COPILOT_SCOPED,
+        "copilot",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".github/prompts/*.prompt.md",
+        AgentFileSurface.COPILOT_PROMPT,
+        "copilot",
+        "project",
+    ),
+)
+
+
+def _resolve_relative_pattern(base: Path, relative_glob: str) -> list[Path]:
+    """Resolve one ``/``-separated relative glob pattern under ``base``.
+
+    Every path segment before the final one is a literal directory name
+    (never a glob) and must exist, be a real directory, and not be a
+    symlink — the same guard this module has always applied per-directory,
+    generalised so it works for any pattern in :data:`AGENT_INSTRUCTION_PATTERNS`
+    regardless of how many directory levels it has. Only the final segment is
+    glob-matched (it may be a literal filename, e.g. ``"CLAUDE.md"``, which
+    ``Path.glob`` matches exactly).
+
+    Returns:
+        Matched paths that are regular files and not symlinks, sorted.
+        Empty list if any intermediate directory is missing or is a symlink.
+    """
+    segments = relative_glob.split("/")
+    current = base
+    for segment in segments[:-1]:
+        current = current / segment
+        if not current.is_dir() or current.is_symlink():
+            return []
+    final_pattern = segments[-1]
+    return [
+        p
+        for p in sorted(current.glob(final_pattern))
+        if p.is_file() and not p.is_symlink()
+    ]
 
 
 # ── YAML frontmatter parsing ──────────────────────────────────────────────────
@@ -116,40 +223,21 @@ def _read_agent_file(
 
 
 def _discover_user_global() -> list[AgentFile]:
-    """Discover agent files at user-global (non-project) paths."""
+    """Discover agent files at user-global (non-project) paths.
+
+    Driven by the ``scope="user"`` entries in :data:`AGENT_INSTRUCTION_PATTERNS`
+    rather than a hand-written copy of the same three paths.
+    """
     home = Path.home()
     results: list[AgentFile] = []
 
-    # ── Claude Code custom commands ───────────────────────────────────────────
-    commands_dir = home / ".claude" / "commands"
-    if commands_dir.is_dir() and not commands_dir.is_symlink():
-        for md in sorted(commands_dir.glob("*.md")):
-            if md.is_file() and not md.is_symlink():
-                af = _read_agent_file(
-                    md, AgentFileSurface.CLAUDE_COMMAND, "claude-code", "user"
-                )
-                if af is not None:
-                    results.append(af)
-
-    # ── Claude Code user-global memory ───────────────────────────────────────
-    user_memory = home / ".claude" / "CLAUDE.md"
-    if user_memory.is_file() and not user_memory.is_symlink():
-        af = _read_agent_file(
-            user_memory, AgentFileSurface.CLAUDE_MEMORY, "claude-code", "user"
-        )
-        if af is not None:
-            results.append(af)
-
-    # ── Cursor user-global rules ──────────────────────────────────────────────
-    cursor_rules_dir = home / ".cursor" / "rules"
-    if cursor_rules_dir.is_dir() and not cursor_rules_dir.is_symlink():
-        for mdc in sorted(cursor_rules_dir.glob("*.mdc")):
-            if mdc.is_file() and not mdc.is_symlink():
-                af = _read_agent_file(
-                    mdc, AgentFileSurface.CURSOR_RULE, "cursor", "user"
-                )
-                if af is not None:
-                    results.append(af)
+    for pattern in AGENT_INSTRUCTION_PATTERNS:
+        if pattern.scope != "user":
+            continue
+        for match in _resolve_relative_pattern(home, pattern.relative_glob):
+            af = _read_agent_file(match, pattern.surface, pattern.client, "user")
+            if af is not None:
+                results.append(af)
 
     return results
 
@@ -175,83 +263,16 @@ def _discover_project_tree(root: Path) -> list[AgentFile]:
         if depth > _WALK_MAX_DEPTH:
             return
 
-        # ── Claude Code commands (project-level) ─────────────────────────────
-        claude_cmds = dirpath / ".claude" / "commands"
-        if claude_cmds.is_dir() and not claude_cmds.is_symlink():
-            for md in sorted(claude_cmds.glob("*.md")):
-                if md.is_file() and not md.is_symlink():
-                    af = _read_agent_file(
-                        md, AgentFileSurface.CLAUDE_COMMAND, "claude-code", "project"
-                    )
-                    if af is not None:
-                        results.append(af)
-
-        # ── Claude Code project memory ────────────────────────────────────────
-        for rel_path in (".claude/CLAUDE.md", "CLAUDE.md"):
-            candidate = dirpath / rel_path
-            if candidate.is_file() and not candidate.is_symlink():
-                af = _read_agent_file(
-                    candidate,
-                    AgentFileSurface.CLAUDE_MEMORY,
-                    "claude-code",
-                    "project",
-                )
+        # Every project-scope pattern is checked at this directory. Driven by
+        # the ``scope="project"`` entries in AGENT_INSTRUCTION_PATTERNS rather
+        # than a hand-written copy of the same paths.
+        for pattern in AGENT_INSTRUCTION_PATTERNS:
+            if pattern.scope != "project":
+                continue
+            for match in _resolve_relative_pattern(dirpath, pattern.relative_glob):
+                af = _read_agent_file(match, pattern.surface, pattern.client, "project")
                 if af is not None:
                     results.append(af)
-
-        # ── Cursor project rules ──────────────────────────────────────────────
-        cursor_rules = dirpath / ".cursor" / "rules"
-        if cursor_rules.is_dir() and not cursor_rules.is_symlink():
-            for mdc in sorted(cursor_rules.glob("*.mdc")):
-                if mdc.is_file() and not mdc.is_symlink():
-                    af = _read_agent_file(
-                        mdc, AgentFileSurface.CURSOR_RULE, "cursor", "project"
-                    )
-                    if af is not None:
-                        results.append(af)
-
-        # ── GitHub Copilot instruction files ─────────────────────────────────
-        gh = dirpath / ".github"
-        if gh.is_dir() and not gh.is_symlink():
-            # Workspace-level instruction file
-            ci = gh / "copilot-instructions.md"
-            if ci.is_file() and not ci.is_symlink():
-                af = _read_agent_file(
-                    ci,
-                    AgentFileSurface.COPILOT_INSTRUCTION,
-                    "copilot",
-                    "project",
-                )
-                if af is not None:
-                    results.append(af)
-
-            # Scoped instruction files (.github/instructions/*.instructions.md)
-            instr_dir = gh / "instructions"
-            if instr_dir.is_dir() and not instr_dir.is_symlink():
-                for md in sorted(instr_dir.glob("*.instructions.md")):
-                    if md.is_file() and not md.is_symlink():
-                        af = _read_agent_file(
-                            md,
-                            AgentFileSurface.COPILOT_SCOPED,
-                            "copilot",
-                            "project",
-                        )
-                        if af is not None:
-                            results.append(af)
-
-            # Prompt template files (.github/prompts/*.prompt.md)
-            prompts_dir = gh / "prompts"
-            if prompts_dir.is_dir() and not prompts_dir.is_symlink():
-                for md in sorted(prompts_dir.glob("*.prompt.md")):
-                    if md.is_file() and not md.is_symlink():
-                        af = _read_agent_file(
-                            md,
-                            AgentFileSurface.COPILOT_PROMPT,
-                            "copilot",
-                            "project",
-                        )
-                        if af is not None:
-                            results.append(af)
 
         # Recurse
         try:
