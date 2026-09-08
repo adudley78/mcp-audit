@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util as _ilu
+import json
 import re
 import textwrap
 from pathlib import Path
@@ -21,6 +22,9 @@ _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
 _collect_sast_counts = _mod._collect_sast_counts
 _collect_community_rule_count = _mod._collect_community_rule_count
+_collect_community_max_id = _mod._collect_community_max_id
+_collect_real_community_rule_count = _mod._collect_real_community_rule_count
+_collect_registry_entry_count = _mod._collect_registry_entry_count
 _collect_analyzer_count = _mod._collect_analyzer_count
 ROOT = _mod.ROOT
 
@@ -45,6 +49,60 @@ def test_community_rule_count_matches_filesystem() -> None:
     expected = sum(1 for _ in community_dir.glob("*.yml"))
     assert _collect_community_rule_count() == expected
     assert expected > 0, "Expected at least one community rule"
+
+
+def test_community_max_id_excludes_template_and_matches_filesystem() -> None:
+    """_collect_community_max_id() must equal the highest real COMM-NNN id."""
+    community_dir = ROOT / "rules" / "community"
+    expected = 0
+    for yml_file in sorted(community_dir.glob("*.yml")):
+        if yml_file.name == "TEMPLATE.yml":
+            continue
+        import yaml
+
+        data = yaml.safe_load(yml_file.read_text(encoding="utf-8"))
+        rule_id = data.get("id") if isinstance(data, dict) else None
+        if isinstance(rule_id, str):
+            m = re.match(r"^COMM-(\d+)$", rule_id)
+            if m:
+                expected = max(expected, int(m.group(1)))
+    assert _collect_community_max_id() == expected
+    assert expected > 0, "Expected at least one real COMM-NNN rule id"
+
+
+def test_real_community_rule_count_excludes_template() -> None:
+    """_collect_real_community_rule_count() == total count minus TEMPLATE.yml."""
+    assert _collect_real_community_rule_count() == _collect_community_rule_count() - 1
+
+
+def test_registry_entry_count_matches_declared_field() -> None:
+    """_collect_registry_entry_count() must equal the JSON's own entry_count."""
+    registry_path = ROOT / "registry" / "known-servers.json"
+    import json as _json
+
+    data = _json.loads(registry_path.read_text(encoding="utf-8"))
+    assert _collect_registry_entry_count() == data["entry_count"]
+    assert _collect_registry_entry_count() == len(data["entries"])
+
+
+def test_registry_entry_count_raises_on_internal_mismatch(tmp_path: Path) -> None:
+    """A registry file whose entry_count disagrees with len(entries) must abort."""
+    bad_registry = tmp_path / "known-servers.json"
+    bad_registry.write_text(
+        json.dumps({"entry_count": 5, "entries": [{"name": "only-one"}]}),
+        encoding="utf-8",
+    )
+    with pytest.raises(SystemExit):
+        _collect_registry_entry_count(bad_registry)
+
+
+def test_community_max_id_raises_when_no_real_rules(tmp_path: Path) -> None:
+    """An empty (or template-only) community dir must fail loudly, not return 0."""
+    empty_dir = tmp_path / "community"
+    empty_dir.mkdir()
+    (empty_dir / "TEMPLATE.yml").write_text("id: COMM-000\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        _collect_community_max_id(empty_dir)
 
 
 def test_analyzer_count_matches_filesystem() -> None:
@@ -172,6 +230,28 @@ def test_check_mode_exits_nonzero_on_drift(
     gh.mkdir()
     (gh / "release-notes-template.md").write_text(
         "1 tests · Apache 2.0\n", encoding="utf-8"
+    )
+
+    # _apply() unconditionally calls every collector (including
+    # _collect_community_max_id and _collect_registry_entry_count, added in
+    # R43) before it ever looks at a substitution pattern, and both of those
+    # fail loudly — by design — when their source directory/file is missing
+    # rather than silently returning 0 (see their docstrings). Once ROOT is
+    # repointed at tmp_path below, both would find nothing and abort the
+    # test before it ever reaches the drift-detection assertion this test is
+    # actually about. Provide the minimal real inputs those two collectors
+    # need so they resolve normally; their specific values are irrelevant
+    # here since this test asserts exit-code-on-drift, not any single count.
+    community_dir = tmp_path / "rules" / "community"
+    community_dir.mkdir(parents=True)
+    (community_dir / "COMM-001.yml").write_text(
+        "id: COMM-001\nseverity: LOW\n", encoding="utf-8"
+    )
+    registry_dir = tmp_path / "registry"
+    registry_dir.mkdir()
+    (registry_dir / "known-servers.json").write_text(
+        json.dumps({"entry_count": 1, "entries": [{"name": "test-server"}]}),
+        encoding="utf-8",
     )
 
     # Point module ROOT at tmp_path; count helpers use real repo dirs (correct values)

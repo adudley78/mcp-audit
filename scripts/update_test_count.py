@@ -4,7 +4,18 @@
 Canonical sources of truth:
 - Test count:       ``uv run pytest --collect-only -q``
 - SAST rule count:  individual ``id:`` entries inside ``semgrep-rules/**/*.yml``
-- Community rules:  ``*.yml`` files under ``rules/community/``
+- Community rules:  ``*.yml`` files under ``rules/community/`` (includes the
+  always-inert ``TEMPLATE.yml``/``COMM-000`` — this is the same total
+  ``mcp-audit rule list`` prints, and the same one ``community_count`` below
+  has always meant; see the R43 manual-test-matrix baseline for why this is
+  the intended convention, not an oversight)
+- Community rule ID range: highest numeric ``COMM-NNN`` id among the
+  *non-template* files in ``rules/community/`` (independent of
+  ``community_count`` — a future reserved/unissued id, like ``COMM-032``
+  today, can make these two numbers diverge; see ``PROVENANCE.md``)
+- Real (non-template) community rule count: ``community_count`` minus
+  ``TEMPLATE.yml`` itself
+- Registry entry count: ``entry_count`` field in ``registry/known-servers.json``
 - Analyzer count:   concrete ``BaseAnalyzer`` subclasses in ``src/mcp_audit/analyzers/``
   (i.e. ``class XxxAnalyzer(BaseAnalyzer)`` in any file except ``base.py``)
 
@@ -25,6 +36,7 @@ Exit codes
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -41,7 +53,8 @@ ROOT = Path(__file__).resolve().parent.parent
 # Templates use named placeholders from the kwargs passed to str.format():
 #   test-count:    {count}  {formatted}
 #   SAST:          {sast_total}  {sast_py}  {sast_ts}
-#   community:     {community_count}
+#   community:     {community_count}  {community_max_id:03d}
+#   registry:      {registry_count}
 #   analyzers:     {analyzer_count}
 #
 # str.format() silently ignores unused keys, so every entry receives the full
@@ -80,6 +93,32 @@ _SUBSTITUTIONS: list[tuple[str, str, str]] = [
         "CLAUDE.md",
         r"\d+ community rules ship bundled",
         "{community_count} community rules ship bundled",
+    ),
+    # --- community rule total + real-rule count + COMM-NNN range form
+    # (CLAUDE.md). This is the phrase that let the R43 drift go unseen: the
+    # old regex for "N community rules ship bundled" (above) never matched
+    # this sentence, so --check stayed green while this line said 30 and
+    # reality said 34.
+    (
+        "CLAUDE.md",
+        r"\d+ bundled community rules total: \d+ real detection rules"
+        r" \(`COMM-001` through `COMM-\d+`;",
+        "{community_count} bundled community rules total:"
+        " {real_community_count} real detection rules"
+        " (`COMM-001` through `COMM-{community_max_id:03d}`;",
+    ),
+    # --- registry entry count — "curated dataset of N known-legitimate MCP
+    # servers" prose form (CLAUDE.md) ---
+    (
+        "CLAUDE.md",
+        r"curated dataset of \d+ known-legitimate MCP servers",
+        "curated dataset of {registry_count} known-legitimate MCP servers",
+    ),
+    # --- registry entry count — "N-entry curated dataset" form (CLAUDE.md) ---
+    (
+        "CLAUDE.md",
+        r"\d+-entry curated dataset of legitimate MCP servers",
+        "{registry_count}-entry curated dataset of legitimate MCP servers",
     ),
     # --- analyzer count — "N analyzers:" list item (CLAUDE.md) ---
     (
@@ -156,10 +195,88 @@ def _collect_sast_counts(rules_dir: Path | None = None) -> tuple[int, int, int]:
 
 
 def _collect_community_rule_count(community_dir: Path | None = None) -> int:
-    """Return the number of ``.yml`` files in ``rules/community/``."""
+    """Return the number of ``.yml`` files in ``rules/community/``.
+
+    This intentionally includes ``TEMPLATE.yml`` (loaded as ``COMM-000``) —
+    it is the same total ``load_bundled_community_rules()`` returns and
+    ``mcp-audit rule list`` prints as "N bundled community rule(s)", and the
+    convention every existing "N community rules ship bundled" reference in
+    README.md/CLAUDE.md already follows. See
+    ``tests/test_manual_test_matrix.py`` for a live assertion that this
+    number matches ``docs/manual-test-matrix.md``.
+    """
     if community_dir is None:
         community_dir = ROOT / "rules" / "community"
     return sum(1 for _ in community_dir.glob("*.yml"))
+
+
+def _collect_community_max_id(community_dir: Path | None = None) -> int:
+    """Return the highest numeric ``COMM-NNN`` id among *real* community rules.
+
+    Deliberately excludes ``TEMPLATE.yml`` (``COMM-000``) and is computed
+    independently of :func:`_collect_community_rule_count` — the two numbers
+    coincide today only because exactly one id (``COMM-032``) is reserved and
+    unissued (see ``PROVENANCE.md``). A second reserved id in the future
+    would make ``community_count`` and ``community_max_id`` diverge; treating
+    them as interchangeable would silently reintroduce the R43 drift this
+    script exists to close.
+    """
+    if community_dir is None:
+        community_dir = ROOT / "rules" / "community"
+    max_id = 0
+    for yml_file in sorted(community_dir.glob("*.yml")):
+        if yml_file.name == "TEMPLATE.yml":
+            continue
+        try:
+            data = yaml.safe_load(yml_file.read_text(encoding="utf-8"))
+        except yaml.YAMLError:
+            continue
+        rule_id = data.get("id") if isinstance(data, dict) else None
+        if not isinstance(rule_id, str):
+            continue
+        match = re.match(r"^COMM-(\d+)$", rule_id)
+        if match:
+            max_id = max(max_id, int(match.group(1)))
+    if max_id == 0:
+        raise SystemExit(
+            f"Error: found no COMM-NNN rule ids under {community_dir} "
+            "(excluding TEMPLATE.yml) — is the directory empty or moved?"
+        )
+    return max_id
+
+
+def _collect_real_community_rule_count(community_dir: Path | None = None) -> int:
+    """Return the count of real (non-template) files in ``rules/community/``.
+
+    Equal to :func:`_collect_community_rule_count` minus ``TEMPLATE.yml``
+    itself. Kept as its own collector (rather than ``community_count - 1``
+    inline) so a future second non-rule file in the directory fails a count
+    mismatch loudly instead of silently going stale by one.
+    """
+    if community_dir is None:
+        community_dir = ROOT / "rules" / "community"
+    return sum(1 for p in community_dir.glob("*.yml") if p.name != "TEMPLATE.yml")
+
+
+def _collect_registry_entry_count(registry_path: Path | None = None) -> int:
+    """Return the ``entry_count`` field from ``registry/known-servers.json``.
+
+    Cross-checked against ``len(entries)`` so a hand-edited, out-of-sync
+    ``entry_count`` field fails loudly instead of quietly propagating a wrong
+    number into every doc this script writes.
+    """
+    if registry_path is None:
+        registry_path = ROOT / "registry" / "known-servers.json"
+    data = json.loads(registry_path.read_text(encoding="utf-8"))
+    declared = data.get("entry_count")
+    actual = len(data.get("entries", []))
+    if declared != actual:
+        raise SystemExit(
+            f"Error: {registry_path} entry_count={declared!r} but "
+            f"len(entries)={actual} — the registry file is internally "
+            "inconsistent; fix it before trusting either number."
+        )
+    return actual
 
 
 def _collect_analyzer_count(analyzers_dir: Path | None = None) -> int:
@@ -195,14 +312,18 @@ def _apply(*, check_only: bool) -> int:
     test_formatted = f"{test_count:,}"
     sast_total, sast_py, sast_ts = _collect_sast_counts()
     community_count = _collect_community_rule_count()
+    community_max_id = _collect_community_max_id()
+    real_community_count = _collect_real_community_rule_count()
+    registry_count = _collect_registry_entry_count()
     analyzer_count = _collect_analyzer_count()
 
     print(f"Detected {test_count} tests ({test_formatted} formatted).")
+    print(f"Detected {sast_total} SAST rules ({sast_py} Python, {sast_ts} TypeScript).")
     print(
-        f"Detected {sast_total} SAST rules "
-        f"({sast_py} Python, {sast_ts} TypeScript)."
+        f"Detected {community_count} community rules "
+        f"(COMM-001 through COMM-{community_max_id:03d})."
     )
-    print(f"Detected {community_count} community rules.")
+    print(f"Detected {registry_count} registry entries.")
     print(f"Detected {analyzer_count} concrete analyzers.")
 
     fmt_kwargs = {
@@ -212,6 +333,9 @@ def _apply(*, check_only: bool) -> int:
         "sast_py": sast_py,
         "sast_ts": sast_ts,
         "community_count": community_count,
+        "community_max_id": community_max_id,
+        "real_community_count": real_community_count,
+        "registry_count": registry_count,
         "analyzer_count": analyzer_count,
     }
 
