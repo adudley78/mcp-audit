@@ -260,6 +260,7 @@ separately via the full analyzer pipeline.
 | Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
 |------------|----------|----------------------|------------------|-----------|
 | TRUST-001  | HIGH     | ASI07 | MCP09 | MCP server defined in project-level config. Auto-spawns with developer's full OS privileges on "Trust this folder". Supply-chain attacker or malicious contributor can silently backdoor all developers who trust the repo. Adversa TrustFall (May 2026); CVE-2026-30615 config-tamper channel. CWE-829. CVSS: 7.8 |
+| TRUST-003  | HIGH (CRITICAL on network) | ASI04, ASI09 | MCP05, MCP09 | Repo-planted IDE auto-execution file: a `.vscode/tasks.json` task with `runOptions.runOn: folderOpen`, or a command-bearing `.vscode/settings.json` key (terminal profile/env/shellArgs, `*Path` interpreter setting) pointing at a shell command, URL, or absolute path outside the project root. Same "trust this folder → arbitrary command runs" shape as TRUST-001, but for a non-MCP auto-execution surface. Anchor incidents: Keyv npm worm and Shai-Hulud "V.A.P.E" (2026) both planted this file alongside a `.claude/settings.json` SessionStart hook. CWE-829. CVSS: 7.8 (HIGH) / 9.1 (CRITICAL, network-reaching) |
 
 **Supported project-level config paths** (discovered by `discover_project_configs()`):
 
@@ -274,6 +275,13 @@ separately via the full analyzer pipeline.
 
 Windsurf has no project-level MCP config (global only). Zed uses a different
 schema (`context_servers`). See GAPS.md — *Project scan coverage limits*.
+
+**TRUST-003** is a separate, non-MCP surface walked alongside the table
+above under `--project`: `.vscode/tasks.json` and `.vscode/settings.json`
+carry no `mcpServers`/`servers` root key and are never parsed into a
+`ServerConfig` — they are read and analyzed directly by
+`ConfigHygieneAnalyzer.analyze_autoexec_file()` (see
+`discovery.py::discover_project_autoexec_files()`).
 
 ---
 

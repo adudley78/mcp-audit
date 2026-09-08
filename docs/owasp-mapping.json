@@ -881,6 +881,19 @@
       "notes": "Fires for every MCP server found in a project-level config file (.mcp.json, .cursor/mcp.json, .claude/settings.json, .vscode/mcp.json). Origin-based \u2014 fires on file location, not content. Adversa TrustFall May 2026; CVE-2026-30615. CWE-829."
     },
     {
+      "finding_id": "TRUST-003",
+      "finding_title": "Repo-planted IDE auto-execution file",
+      "owasp_codes": [
+        "MCP05",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Shadow MCP Servers"
+      ],
+      "notes": "Fires under `scan --project` for a `.vscode/tasks.json` task with `runOptions.runOn: folderOpen` (or the legacy `version: 0.1.0` schema's top-level `runOn`), or a command-bearing `.vscode/settings.json` key (terminal profile/env/shellArgs, or a `*Path` interpreter setting) whose value is a shell command, URL, or absolute path outside the project root. HIGH by default; CRITICAL when the command reaches the network (`_HOOK_NETWORK_RE`). Anchor incidents: Keyv npm worm and Shai-Hulud \"V.A.P.E\" (2026), both of which planted this file alongside a `.claude/settings.json` SessionStart hook (CFHYG-005/HOOK-001/002). CWE-829."
+    },
+    {
       "finding_id": "COMM-033",
       "finding_title": "Project-level MCP config file present in repository",
       "owasp_codes": [
