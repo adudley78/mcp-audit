@@ -373,6 +373,36 @@ Build and distribution scripts at project root:
   `TestCloudOnlyEntryYieldsNoToxicFlowFindings`, which builds a registry
   entry declaring only `["cloud"]`, runs it through `ToxicFlowAnalyzer`,
   and asserts the finding list is empty.
+  **R39 revisited the `FILE_WRITE + NETWORK_OUT` write-target blocker and
+  kept it declined, on new grounds.** The path-list half of R37's Part 3
+  blocker is fixed: `agent_files/discovery.py`'s relative-path list is now
+  a single importable constant, `AGENT_INSTRUCTION_PATTERNS`, with a
+  generic `_resolve_relative_pattern()` resolver driving both
+  `_discover_user_global()` and `_discover_project_tree()` — no more
+  hand-written duplicate of the same paths inside each walk function.
+  `discover_agent_files()`'s existing 50-test suite passed unmodified
+  against the refactor, proving behaviour didn't move. The harder half —
+  whether a server's write scope can be *read off its own config* instead
+  of invented — was then measured directly: 4 of 4 real/demo config
+  fixtures using `@modelcontextprotocol/server-filesystem` declare a
+  directory argument (100%), and the package's own docs confirm those
+  args are its access-control list. That looked like a green light, but
+  it does not unblock a rule for two reasons the measurement itself
+  surfaced: (1) it is a single-named-package convention, not a capability
+  signal — `server-everything` has no args-based scope at all and
+  `docpull` writes to its own internal cache, so a rule built on it would
+  need a hardcoded package-name allowlist, a different analyzer shape
+  from everything else in `toxic_flow.py`; (2) a server with *no* declared
+  args is not necessarily unconstrained — `server-filesystem` also honours
+  the MCP Roots protocol, a client-runtime capability grant invisible to
+  a static config scan, so "no args" is ambiguous between Roots-scoped,
+  unconstrained, and non-functional. Reading "no args" as "unconstrained,
+  therefore worse" would misclassify an unknown number of Roots-scoped
+  servers — the same "shipping a severity we cannot defend" trap R37
+  refused, now on the config-parsing side rather than the agent-path side.
+  `FILE_WRITE + NETWORK_OUT` stays the open, measured gap recorded in
+  GAPS.md; closing it for real needs a signal mcp-audit's offline static
+  scan structurally cannot have (whether the client granted Roots).
   **Also found while building this**: the first Part-1 measurement pass
   silently ran against a stale, separately pip-installed `mcp_audit`
   (bare `python3` resolved
@@ -653,7 +683,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3155 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3162 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
