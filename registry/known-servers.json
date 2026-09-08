@@ -747,6 +747,7 @@
         "remote"
       ],
       "capabilities": [
+        "cloud",
         "network_out"
       ],
       "first_published": "2025-04-15",
@@ -946,6 +947,7 @@
         "email"
       ],
       "capabilities": [
+        "email",
         "network_out"
       ],
       "first_published": "2026-07-29",

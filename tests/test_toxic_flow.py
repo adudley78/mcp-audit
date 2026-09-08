@@ -16,10 +16,14 @@ import pytest
 
 from mcp_audit.analyzers.toxic_flow import (
     KNOWN_SERVERS,
+    KNOWN_TAG_ONLY_CAPABILITIES,
     TOXIC_PAIRS,
     Capability,
+    TagOnlyCapability,
+    TagOnlyKind,
     ToxicFlowAnalyzer,
     ToxicPair,
+    compute_dead_capabilities,
     tag_server,
 )
 from mcp_audit.models import ServerConfig, Severity, TransportType
@@ -736,3 +740,122 @@ class TestRegistryEntryCapabilitiesField:
         assert fs_entry.capabilities is not None
         assert "file_read" in fs_entry.capabilities
         assert "file_write" in fs_entry.capabilities
+
+
+# ── R35: tag-only capability allowlist ────────────────────────────────────────
+
+
+class TestComputeDeadCapabilities:
+    """compute_dead_capabilities(): capabilities in no TOXIC_PAIRS/CAPABILITY_FLOWS."""
+
+    def test_dead_capabilities_are_exactly_the_known_allowlist(self) -> None:
+        """The hard, on-every-PR guarantee: nothing dead is unaccounted for.
+
+        A change to TOXIC_PAIRS, CAPABILITY_FLOWS, or the Capability enum
+        lives entirely in toxic_flow.py/attack_paths.py and would not
+        otherwise trigger registry-drift.yml (which only runs on changes to
+        the registry file or scripts/audit_registry.py) — this test is the
+        only mechanism that catches a new tag-only capability on every PR.
+        """
+        known = frozenset(t.capability for t in KNOWN_TAG_ONLY_CAPABILITIES)
+        unexpected = compute_dead_capabilities() - known
+        assert unexpected == frozenset(), (
+            f"Capability values {unexpected} participate in no TOXIC_PAIRS "
+            "entry and no CAPABILITY_FLOWS edge, and are not declared in "
+            "KNOWN_TAG_ONLY_CAPABILITIES. Either wire them into a detection "
+            "path or add them to that allowlist with a reason."
+        )
+
+    def test_cloud_is_currently_dead(self) -> None:
+        """Sanity check that the computation actually finds CLOUD dead —
+        guards against the check accidentally always passing vacuously."""
+        assert Capability.CLOUD in compute_dead_capabilities()
+
+    def test_file_write_is_currently_dead(self) -> None:
+        """R35's own discovery: FILE_WRITE has a display label in
+        attack_paths._CAP_LABELS and no role in TOXIC_PAIRS or
+        CAPABILITY_FLOWS. Pinned here so a future fix (R37) is a deliberate,
+        visible removal from KNOWN_TAG_ONLY_CAPABILITIES, not a silent one."""
+        assert Capability.FILE_WRITE in compute_dead_capabilities()
+
+    def test_a_capability_used_as_a_toxic_pair_source_is_not_dead(self) -> None:
+        assert Capability.FILE_READ not in compute_dead_capabilities()
+
+    def test_a_capability_used_only_in_capability_flows_is_not_dead(self) -> None:
+        # BROWSER is not a TOXIC_PAIRS source/sink but IS a CAPABILITY_FLOWS
+        # source (browser -> network_out / email) in attack_paths.py.
+        assert Capability.BROWSER not in compute_dead_capabilities()
+
+
+class TestKnownTagOnlyCapabilitiesAllowlist:
+    """The allowlist's shape: every entry must justify itself and its kind."""
+
+    def test_every_entry_has_a_non_empty_reason(self) -> None:
+        for entry in KNOWN_TAG_ONLY_CAPABILITIES:
+            assert entry.reason.strip()
+
+    def test_every_entry_has_a_valid_kind(self) -> None:
+        for entry in KNOWN_TAG_ONLY_CAPABILITIES:
+            assert entry.kind in {
+                TagOnlyKind.DELIBERATE_DEFERRAL,
+                TagOnlyKind.SUSPECTED_GAP,
+            }
+
+    def test_cloud_is_a_deliberate_deferral(self) -> None:
+        entry = next(
+            t for t in KNOWN_TAG_ONLY_CAPABILITIES if t.capability == Capability.CLOUD
+        )
+        assert entry.kind == TagOnlyKind.DELIBERATE_DEFERRAL
+
+    def test_file_write_is_a_suspected_gap_not_a_deliberate_deferral(self) -> None:
+        """The distinction that matters: FILE_WRITE must NOT be laundered
+        into looking like a considered design decision the way CLOUD is —
+        that flattening is exactly how `subprocess` sat inert for months."""
+        entry = next(
+            t
+            for t in KNOWN_TAG_ONLY_CAPABILITIES
+            if t.capability == Capability.FILE_WRITE
+        )
+        assert entry.kind == TagOnlyKind.SUSPECTED_GAP
+
+    def test_no_duplicate_capabilities_in_allowlist(self) -> None:
+        caps = [t.capability for t in KNOWN_TAG_ONLY_CAPABILITIES]
+        assert len(caps) == len(set(caps))
+
+    def test_empty_reason_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="empty reason"):
+            TagOnlyCapability(
+                capability=Capability.SECRETS,
+                kind=TagOnlyKind.DELIBERATE_DEFERRAL,
+                reason="   ",
+            )
+
+
+class TestCloudOnlyEntryYieldsNoToxicFlowFindings:
+    """Empirical proof for CLOUD's KNOWN_TAG_ONLY_CAPABILITIES entry.
+
+    R35 requires demonstrating, not just reasoning about, the claim that a
+    server whose entire capability set is {CLOUD} produces zero toxic-flow
+    findings — the exact bad state the entirely-tag-only-entry check in
+    scripts/audit_registry.py exists to catch before it enters real data.
+    """
+
+    def test_cloud_only_registry_entry_yields_no_toxic_flow_findings(self) -> None:
+        package = "@example/cloud-only-server"
+        reg = _stub_registry([_npm_entry(package, ["cloud"])])
+        server = _server("cloud-only", command="npx", args=["-y", package])
+
+        # tag_server really does resolve this server to {CLOUD} alone via the
+        # registry-first override — not a guess about what it would do.
+        caps = tag_server(server, registry=reg)
+        assert caps == frozenset({Capability.CLOUD})
+
+        analyzer = ToxicFlowAnalyzer(registry=reg)
+        # Self-pair: {CLOUD} alone can never supply both a TOXIC_PAIRS source
+        # and sink, since it is neither.
+        assert analyzer.analyze_all([server]) == []
+        # Cross-pair against a real NETWORK_OUT sink: still nothing, because
+        # CLOUD is not a valid TOXIC_PAIRS source for any sink — pairing it
+        # with the capability it is mechanically equivalent to (network
+        # calls are HTTPS) does not make it participate.
+        assert analyzer.analyze_all([server, _fetch()]) == []
