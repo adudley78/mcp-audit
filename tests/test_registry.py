@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -17,6 +18,15 @@ from mcp_audit.registry.loader import (
     levenshtein,
     load_registry,
     normalize_pypi_name,
+)
+
+# Windows does not support POSIX file permissions; stat() reports 0o666 for
+# everything regardless of the os.open() mode argument used to create the
+# file. Same convention as tests/test_baselines.py — tests that
+# equality-check a mode bitmask must skip on win32.
+_windows_skip = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows does not support POSIX file permissions",
 )
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -1422,7 +1432,7 @@ class TestWriteRegistryCacheAtomic:
     via a chmod after the rename, which would briefly leave it more
     permissive)."""
 
-    def test_writes_full_content_and_mode(self, tmp_path: Path) -> None:
+    def test_writes_full_content(self, tmp_path: Path) -> None:
         from mcp_audit.cli.registry import _write_registry_cache_atomic  # noqa: PLC0415
 
         dest = tmp_path / "registry" / "known-servers.json"
@@ -1431,9 +1441,17 @@ class TestWriteRegistryCacheAtomic:
         _write_registry_cache_atomic(dest, content)
 
         assert dest.read_text(encoding="utf-8") == content
-        assert (dest.stat().st_mode & 0o777) == 0o600
         # No leftover temp file.
         assert not dest.with_name(dest.name + ".tmp").exists()
+
+    @_windows_skip
+    def test_writes_mode_0600(self, tmp_path: Path) -> None:
+        from mcp_audit.cli.registry import _write_registry_cache_atomic  # noqa: PLC0415
+
+        dest = tmp_path / "registry" / "known-servers.json"
+        _write_registry_cache_atomic(dest, "{}")
+
+        assert (dest.stat().st_mode & 0o777) == 0o600
 
     def test_no_chmod_after_rename(self, tmp_path: Path) -> None:
         """Mode must come from os.open's own mode argument, not a later chmod."""
