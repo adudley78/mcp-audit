@@ -12,6 +12,8 @@ class AgentFileSurface(StrEnum):
 
     # Claude Code custom slash commands (~/.claude/commands/, .claude/commands/)
     CLAUDE_COMMAND = "claude-command"
+    # Claude Code skills (~/.claude/skills/**/SKILL.md, .claude/skills/**/SKILL.md)
+    CLAUDE_SKILL = "claude-code-skills"
     # Claude Code memory / project-context files (CLAUDE.md tiers)
     CLAUDE_MEMORY = "claude-memory"
     # Cursor AI rules (.cursor/rules/*.mdc, ~/.cursor/rules/*.mdc)

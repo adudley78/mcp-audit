@@ -53,9 +53,12 @@ runs on those servers too.
 
 **Project scan coverage limits (v0.12.0).**
 
-- **Confirmed project-level config paths** (6 patterns shipped; see `discovery.py`):
+- **Confirmed project-level config paths** (7 patterns shipped; see `discovery.py`):
   `.mcp.json`, `.claude/settings.json`, `.claude/settings.local.json`,
-  `.cursor/mcp.json`, `.cursor/settings.json`, `.vscode/mcp.json`.
+  `.cursor/mcp.json`, `.cursor/settings.json`, `.vscode/mcp.json`,
+  `.amazonq/mcp.json` (Amazon Q Developer, added 2026-09-08/STORY-0065; AWS
+  official docs confirm `mcpServers` root key, same schema as Claude
+  Code/Cursor).
 - **Windsurf:** no project-level MCP config support (global-only
   `~/.codeium/windsurf/mcp_config.json`). Omitted intentionally.
 - **Zed:** uses `"context_servers"` root key in `settings.json`. Different
@@ -89,6 +92,36 @@ used by the Keyv npm worm and Shai-Hulud "V.A.P.E" (2026; see
   `tasks.json`-equivalent auto-run-on-open mechanism separate from VS Code's
   (which Cursor forks); if Cursor ships one, it needs the same treatment as
   `.vscode/tasks.json`.
+
+**Symlinked config/agent-file candidates (TRUST-002/TRUST-004/TRUST-005,
+2026-09-08/STORY-0065).** All nine discovery sites that used to silently
+`continue` past a symlinked candidate (six in `discovery.py`, three in
+`agent_files/discovery.py`) now include it and report it instead — coverage
+is unaffected either way, since `Path.read_text()` follows a symlink
+transparently. See
+`humans/decisions/2026-09-08-trust-002-symlink-sites.md` (marcus repo) for
+the full evasion/escape design. Known boundaries:
+
+- **`--path <dir>` glob is one level deep, symlinked or not.** A directory
+  passed via `--path` is globbed with `*.json` (no recursion); a symlinked
+  *subdirectory* two levels down is neither walked nor reported. This is
+  pre-existing, unrelated scope — the same one-level limit applied before
+  this change and applies equally to non-symlinked nested directories.
+- **A `--path <symlink>` pointing at a directory is treated as a single
+  file-read candidate, not glob-expanded.** If the resolved target is
+  actually a directory, `parse_config()` raises (caught, surfaced as a
+  scan error) rather than transparently falling through to the directory-glob
+  branch. This is an accepted edge case, not the shape the site-4 fix
+  targeted (an explicit path symlinked to *a file*, the common case) — a
+  `--path` argument symlinked straight to a directory is rare enough that
+  building dual-mode resolution for it was not justified.
+- **TRUST-002's "inside/outside root" boundary is computed with
+  `Path.resolve()` on both sides**, so it is only as trustworthy as the
+  filesystem at the moment of the scan — a TOCTOU race that swaps the
+  symlink target between discovery and read is not defended against (the
+  same class of gap every "check then read" pattern in this codebase has;
+  MCP config scanning is not a privilege boundary this tool tries to
+  enforce in real time).
 
 ---
 
@@ -671,11 +704,14 @@ across machines (post-launch roadmap).
 
 ## Agent-file surface coverage (skills, memory, hooks)
 
-**Shipped 2026-06-14 (Phases 1–3):** The `src/mcp_audit/agent_files/` package
-is implemented and tested. Confirmed surfaces in `agent_files/discovery.py`:
-Claude Code commands (`~/.claude/commands/`, `.claude/commands/`), Claude Code
-memory (`CLAUDE.md` tiers), Cursor rules (`~/.cursor/rules/`, `.cursor/rules/`),
-GitHub Copilot workspace instructions, scoped instructions, and prompt templates.
+**Shipped 2026-06-14 (Phases 1–3), extended 2026-09-08 (STORY-0065):** The
+`src/mcp_audit/agent_files/` package is implemented and tested. Confirmed
+surfaces in `agent_files/discovery.py`: Claude Code commands
+(`~/.claude/commands/`, `.claude/commands/`), Claude Code skills
+(`~/.claude/skills/**/SKILL.md`, `.claude/skills/**/SKILL.md`, added
+2026-09-08 — see the dedicated section below), Claude Code memory (`CLAUDE.md`
+tiers), Cursor rules (`~/.cursor/rules/`, `.cursor/rules/`), GitHub Copilot
+workspace instructions, scoped instructions, and prompt templates.
 Hook analysis (`HOOK-001`, `HOOK-002`) extends `ConfigHygieneAnalyzer`.
 Known limitations per finding:
 
@@ -800,27 +836,23 @@ MCP config path is confirmed.
 
 ### `.claude/skills/` — Claude Code skills directory
 
-**Status: unconfirmed. No code written.**
+~~**Status: unconfirmed. No code written.**~~ **Resolved 2026-09-08
+(STORY-0065).** `.claude/skills/**/SKILL.md` (both `~/.claude/skills/` and
+`.claude/skills/`, matched recursively at any nesting depth up to the
+module's shared walk cap) is now confirmed and implemented under the
+`CLAUDE_SKILL` (`AgentFileSurface.CLAUDE_SKILL` = `"claude-code-skills"`)
+surface key in `agent_files/discovery.py`, driven by the same
+`AGENT_INSTRUCTION_PATTERNS` table as every other surface. Skill files run
+through the same SKILL-001/002/003 poisoning checks as commands and
+Cursor/Copilot instruction files, plus a new inventory-only finding,
+`SKILL-004` (INFO), that lists (never opens) the filenames in a skill's own
+`scripts/` subdirectory when one exists.
 
-Several third-party articles and community posts reference a `.claude/skills/`
-directory as a location for Claude Code "skills" (structured capability
-definitions). As of 2026-06-14, this path is **not confirmed** in the official
-Anthropic Claude Code documentation.
-
-**What is confirmed vs. unconfirmed:**
-- ✅ `~/.claude/commands/` and `.claude/commands/` — confirmed in official
-  Anthropic docs as the mechanism for custom slash commands; both are
-  implemented in `agent_files/discovery.py`.
-- ✅ `CLAUDE.md`, `.claude/CLAUDE.md`, `~/.claude/CLAUDE.md` — confirmed
-  memory/instruction tiers.
-- ❌ `.claude/skills/` — not present in official Anthropic Claude Code
-  documentation; may be a user convention, an unreleased feature, or a
-  mischaracterization of the `commands/` directory.
-
-**Action:** Monitor Anthropic release notes. If `.claude/skills/` is
-confirmed as an official path in a future Claude Code release, add it to
-`agent_files/discovery.py` under the `claude-code-skills` surface key. Until
-confirmed, do not add it to discovery.
+**Known boundary:** a bundled script's *contents* are never read or
+executed by mcp-audit — `SKILL-004` is a filename inventory, not a
+content-based detection. A malicious script referenced only by a skill's
+prose (not present as a literal file) is still caught by the existing
+SKILL-001/002/003 patterns on the `SKILL.md` body itself, not by SKILL-004.
 
 ---
 

@@ -43,6 +43,7 @@ from mcp_audit.baselines.manager import BaselineManager
 from mcp_audit.cli import app, console
 from mcp_audit.cli._helpers import _write_output
 from mcp_audit.discovery import (
+    build_project_symlink_finding,
     discover_project_autoexec_files,
     discover_project_configs,
 )
@@ -613,8 +614,11 @@ def _apply_agent_files(
     from mcp_audit.agent_files import analyzer as _af_analyzer  # noqa: PLC0415
     from mcp_audit.agent_files import discovery as _af_discovery  # noqa: PLC0415
 
-    af_list = _af_discovery.discover_agent_files(project_root=project_root)
-    af_findings = _af_analyzer.analyze_agent_files(af_list)
+    af_skip_findings: list[Finding] = []
+    af_list = _af_discovery.discover_agent_files(
+        project_root=project_root, skip_findings=af_skip_findings
+    )
+    af_findings = _af_analyzer.analyze_agent_files(af_list) + af_skip_findings
     result.findings.extend(af_findings)
     con.print(
         f"[dim]Agent files: {len(af_list)} file(s) scanned, "
@@ -802,6 +806,15 @@ def _apply_project_scan(
        poisoning, transport, supply-chain, and auth findings are also
        surfaced when servers are present.
 
+    A config or autoexec-file candidate that is itself a symlink is scanned
+    normally (coverage is unaffected — the OS follows the link transparently)
+    and additionally gets a TRUST-002 finding (HIGH outside *project_dir*,
+    MEDIUM inside, INFO if broken). A symlinked directory encountered during
+    either walk is still never traversed, but now emits a TRUST-005 (LOW)
+    finding naming it instead of vanishing silently; both walkers' skip lists
+    are deduplicated by ``(id, finding_path)`` before appending. See
+    ``humans/decisions/2026-09-08-trust-002-symlink-sites.md`` (marcus repo).
+
     Findings from steps 0–3 are appended to *result.findings* so they flow
     through all output formatters (terminal, JSON, SARIF, HTML dashboard).
     The main scan score is *not* recomputed — project findings are appended
@@ -818,9 +831,21 @@ def _apply_project_scan(
         get_default_analyzers,
     )
 
+    skip_findings: list[Finding] = []
+
     # ── TRUST-003: repo-planted IDE auto-execution files ────────────────────
+    # ── TRUST-002: a discovered autoexec candidate that is itself a symlink ──
     hygiene_analyzer = ConfigHygieneAnalyzer()
-    for autoexec_file in discover_project_autoexec_files(project_dir):
+    for autoexec_file in discover_project_autoexec_files(
+        project_dir, skip_findings=skip_findings
+    ):
+        if autoexec_file.is_symlink:
+            result.findings.append(
+                build_project_symlink_finding(
+                    autoexec_file.path, "vscode", autoexec_file.symlink_root
+                )
+            )
+            continue
         result.findings.extend(
             hygiene_analyzer.analyze_autoexec_file(
                 kind=autoexec_file.kind,
@@ -830,13 +855,33 @@ def _apply_project_scan(
             )
         )
 
-    project_configs = discover_project_configs(project_dir)
+    project_configs = discover_project_configs(project_dir, skip_findings=skip_findings)
+
+    # ── TRUST-002: a discovered MCP config candidate that is itself a symlink ─
+    for config in project_configs:
+        if config.is_symlink:
+            result.findings.append(
+                build_project_symlink_finding(
+                    config.path, config.client_name, config.symlink_root
+                )
+            )
+
+    # ── TRUST-005: symlinked directories not traversed by either walk above ──
+    seen_skip: set[tuple[str, str | None]] = set()
+    for finding in skip_findings:
+        key = (finding.id, finding.finding_path)
+        if key in seen_skip:
+            continue
+        seen_skip.add(key)
+        result.findings.append(finding)
 
     if not project_configs:
         con.print(f"[dim]No project MCP configs found under {project_dir}[/dim]")
         return result
 
-    # Parse all servers from the discovered project configs.
+    # Parse all servers from the discovered project configs. A symlinked
+    # config's real content is still read normally — Path.read_text() follows
+    # the link transparently — so its servers are surfaced here too.
     project_servers: list = []
     for config in project_configs:
         try:

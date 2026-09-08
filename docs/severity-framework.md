@@ -260,7 +260,10 @@ separately via the full analyzer pipeline.
 | Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
 |------------|----------|----------------------|------------------|-----------|
 | TRUST-001  | HIGH     | ASI07 | MCP09 | MCP server defined in project-level config. Auto-spawns with developer's full OS privileges on "Trust this folder". Supply-chain attacker or malicious contributor can silently backdoor all developers who trust the repo. Adversa TrustFall (May 2026); CVE-2026-30615 config-tamper channel. CWE-829. CVSS: 7.8 |
+| TRUST-002  | HIGH / MEDIUM / INFO | ASI07 | MCP09, MCP05 | A discovered config candidate (project-scoped, or cwd-scoped in a default scan) is itself a symlink. HIGH when the resolved target falls outside the scanned root (GhostApproval — the reviewed/committed path is a decoy); MEDIUM when it resolves inside; INFO when the link is broken. The candidate is still parsed normally — coverage is restored, not traded away, for what used to be a silent skip. CWE-61. |
 | TRUST-003  | HIGH (CRITICAL on network) | ASI04, ASI09 | MCP05, MCP09 | Repo-planted IDE auto-execution file: a `.vscode/tasks.json` task with `runOptions.runOn: folderOpen`, or a command-bearing `.vscode/settings.json` key (terminal profile/env/shellArgs, `*Path` interpreter setting) pointing at a shell command, URL, or absolute path outside the project root. Same "trust this folder → arbitrary command runs" shape as TRUST-001, but for a non-MCP auto-execution surface. Anchor incidents: Keyv npm worm and Shai-Hulud "V.A.P.E" (2026) both planted this file alongside a `.claude/settings.json` SessionStart hook. CWE-829. CVSS: 7.8 (HIGH) / 9.1 (CRITICAL, network-reaching) |
+| TRUST-004  | INFO     | ASI07 | MCP09 | A user-global known-client config or an explicit `--path` candidate is itself a symlink. Always INFO — this is exactly how dotfile managers (GNU Stow, chezmoi, yadm, dotbot) manage `~/.claude.json`, `~/.cursor/mcp.json`, etc.; a rule that fires on every correctly-configured machine gets switched off wholesale. CWE-61. |
+| TRUST-005  | LOW      | ASI07 | MCP09 | A symlinked directory was encountered during a project/agent-files tree walk and was not traversed (loop/blow-up protection, unchanged). Makes a previously-silent refusal visible. CWE-61. |
 
 **Supported project-level config paths** (discovered by `discover_project_configs()`):
 
@@ -272,6 +275,7 @@ separately via the full analyzer pipeline.
 | `.cursor/mcp.json` | Cursor | `mcpServers` |
 | `.cursor/settings.json` | Cursor | `mcpServers` |
 | `.vscode/mcp.json` | VS Code / GitHub Copilot | `servers` |
+| `.amazonq/mcp.json` | Amazon Q Developer | `mcpServers` |
 
 Windsurf has no project-level MCP config (global only). Zed uses a different
 schema (`context_servers`). See GAPS.md — *Project scan coverage limits*.
@@ -282,6 +286,12 @@ carry no `mcpServers`/`servers` root key and are never parsed into a
 `ServerConfig` — they are read and analyzed directly by
 `ConfigHygieneAnalyzer.analyze_autoexec_file()` (see
 `discovery.py::discover_project_autoexec_files()`).
+
+**TRUST-002 / TRUST-004 / TRUST-005** (symlink handling) apply uniformly
+across every discovery site — the default (non-`--project`) scan, the
+`--project` config/autoexec walk, and `agent-files discover`/`scan`. See
+`humans/decisions/2026-09-08-trust-002-symlink-sites.md` (marcus repo) for
+the full nine-site design and the evasion/escape harm split it is built on.
 
 ---
 

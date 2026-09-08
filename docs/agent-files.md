@@ -32,6 +32,8 @@ instruction file you load into your agent on every session.  Published attacks
 |---|---|---|
 | Custom slash commands | Claude Code | `~/.claude/commands/*.md` |
 | Project commands | Claude Code | `.claude/commands/*.md` (project) |
+| User skills | Claude Code | `~/.claude/skills/**/SKILL.md` (any nesting depth) |
+| Project skills | Claude Code | `.claude/skills/**/SKILL.md` (project, any nesting depth) |
 | User memory | Claude Code | `~/.claude/CLAUDE.md` |
 | Project memory | Claude Code | `CLAUDE.md`, `.claude/CLAUDE.md` |
 | AI rules | Cursor | `~/.cursor/rules/*.mdc` |
@@ -142,14 +144,32 @@ mcp-audit scan --project /path/to/repo --include-agent-files
 
 - **Windsurf, Augment, Kiro** agent file locations are unconfirmed — tracked
   in `GAPS.md`, not yet scanned.
-- **`.claude/skills/`** (a distinct path from `.claude/commands/`) — format
-  unconfirmed, tracked in `GAPS.md`.
 - **User-global Copilot instructions** (`~/.config/GitHub Copilot/`) — path
   unconfirmed across OS versions, tracked in `GAPS.md`.
 - **False positives** — Copilot instruction and Cursor rule files that
   legitimately reference external URLs will trigger SKILL-003.  Use the
   `--severity-threshold medium` flag to suppress if the FP rate is too high
   for your workflow.
+- **SKILL-004** lists a skill's bundled `scripts/` filenames only — it never
+  reads script contents and never executes them. A malicious script that a
+  skill's prose merely *references* by name (without the file being present)
+  is not caught by SKILL-004; it may still trip SKILL-001/002/003 on the
+  `SKILL.md` body itself.
+
+## Symlinked agent files (TRUST-002 / TRUST-004)
+
+A matched file (or an intermediate directory segment such as `.claude` or
+`.claude/skills/<name>`) that is itself a symlink is no longer dropped
+silently — it is read normally (the OS follows the link transparently, so
+coverage is unaffected) and reported: `TRUST-002` (HIGH outside the scanned
+project root, MEDIUM inside, INFO if broken) for a project-scoped match,
+`TRUST-004` (always INFO) for a user-global match — this is exactly how
+dotfile managers (GNU Stow, chezmoi, yadm, dotbot) manage `~/.claude/` and
+`~/.cursor/`, so it must never read as an accusation. A symlinked directory
+encountered mid-walk is still never traversed (loop/blow-up protection,
+unchanged) but now emits `TRUST-005` (LOW) naming it instead of the entire
+subtree vanishing with no explanation. See
+`humans/decisions/2026-09-08-trust-002-symlink-sites.md` (marcus repo).
 
 ---
 

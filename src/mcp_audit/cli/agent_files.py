@@ -132,8 +132,9 @@ def agent_files_scan(
             console.print(f"[red]Error:[/red] --project must be a directory: {project}")
             raise typer.Exit(2)
 
-    files = discover_agent_files(project_root=project_root)
-    findings = analyze_agent_files(files)
+    skip_findings: list = []
+    files = discover_agent_files(project_root=project_root, skip_findings=skip_findings)
+    findings = analyze_agent_files(files) + skip_findings
 
     if output_format == "json":
         typer.echo(_json.dumps([f.model_dump() for f in findings], indent=2))

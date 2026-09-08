@@ -468,7 +468,7 @@ Build and distribution scripts at project root:
 - `scan --output-file PATH` (alias for `--output` / `-o`) writes scan results to a file; parent directories are created automatically; required for the GitHub Action SARIF upload step
 - `scan --severity-threshold LEVEL` filters findings to only those at or above the given level and drives exit code; default is `INFO` (all findings); `--severity-threshold high` exits 1 only if HIGH or CRITICAL findings exist
 - `scan --rules-dir PATH` loads additional YAML rule files from PATH for this scan; available to all users; community rules always run regardless
-- `scan --project <dir>` walks the directory tree of a repository for project-level MCP config files (`.mcp.json`, `.cursor/mcp.json`, `.claude/settings.json`, `.claude/settings.local.json`, `.cursor/settings.json`, `.vscode/mcp.json`) and emits `TRUST-001` (HIGH) for every server found; runs the full analyzer pipeline on project-scoped servers too; tree walk caps at depth 8, skips `node_modules`/`.git`, does not follow symlinks; `--project` path is validated to exist (exit 2 on failure); use before opening a freshly cloned repo in an AI editor; additive — default scan is unchanged. CWE-829 / OWASP MCP09.
+- `scan --project <dir>` walks the directory tree of a repository for project-level MCP config files (`.mcp.json`, `.cursor/mcp.json`, `.claude/settings.json`, `.claude/settings.local.json`, `.cursor/settings.json`, `.vscode/mcp.json`, `.amazonq/mcp.json`) and emits `TRUST-001` (HIGH) for every server found; runs the full analyzer pipeline on project-scoped servers too; tree walk caps at depth 8, skips `node_modules`/`.git`; `--project` path is validated to exist (exit 2 on failure); use before opening a freshly cloned repo in an AI editor; additive — default scan is unchanged. CWE-829 / OWASP MCP09. **Symlink handling (TRUST-002/TRUST-004/TRUST-005, added 2026-09-08):** a symlinked directory is still never followed (unchanged loop/blow-up protection) but now emits `TRUST-005` (LOW) naming it instead of vanishing silently; a symlinked config/agent-file *candidate* is included and parsed normally (coverage was never actually at stake — `Path.read_text()` follows a symlink transparently) and reported as `TRUST-002` (HIGH outside the scanned root, MEDIUM inside, INFO if broken) for project/cwd-scoped candidates or `TRUST-004` (always INFO — the GNU Stow/chezmoi/yadm dotfile-manager shape) for user-global/explicit ones. Applies uniformly across `discovery.py` (six sites) and `agent_files/discovery.py` (three sites). See `humans/decisions/2026-09-08-trust-002-symlink-sites.md` (marcus repo).
 - `update-registry` fetches `registry/known-servers.json` from GitHub and saves it to the user-local cache; available to all users
 - **Baseline storage** uses 0o700 dir / 0o600 file permissions, same pattern as rug-pull state files; env values are never stored, only key names (security — prevents secrets being persisted to disk)
 - `scan --policy PATH` loads a governance policy file; governance findings are appended to `result.findings` after the scan completes (and after baseline drift) so they flow through all output formatters automatically. `--policy`, `policy init`, and `policy check` are all available to every user.
@@ -683,7 +683,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3254 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3273 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
@@ -714,16 +714,22 @@ What's built:
 
 - **`mcp-audit snapshot`** — forensic-layer export (STORY-0015). Time-stamped, sigstore-signed snapshots of every MCP server on a host. CycloneDX 1.5 AI/ML-BOM by default; mcp-audit-native JSON optional (`--format native`). Each server is a CycloneDX `component` of `type: application` with capability tags, transport, and finding IDs in `properties`. Each finding is a CycloneDX `vulnerability` with ratings, CWEs, and OWASP MCP Top 10 mapping. `--sign` wraps sigstore signing (ambient OIDC; requires `[attestation]` extra). `--rehydrate <snapshot>` reconstructs the historical attack-path graph from recorded servers and findings — bypasses live discovery for incident response. `--stream` emits NDJSON (one finding per line) for SIEM/EDR ingestion. `--input <scan.json>` skips live scan. 56 tests in `tests/test_snapshot.py` including CycloneDX schema validation. SIEM recipes in `docs/integrations/splunk.md` and `docs/integrations/sentinel.md`. New modules: `src/mcp_audit/snapshot/` (`rehydrate.py`, `diff.py`), `src/mcp_audit/output/snapshot.py`, `src/mcp_audit/cli/snapshot.py`; see `docs/snapshot.md`
 
-- **Agent-file scanner** (v0.14.0) — extends scanning beyond MCP config files to the
-  agent instruction/memory surfaces: Claude Code commands (`~/.claude/commands/`,
-  `.claude/commands/`) and memory (`CLAUDE.md` tiers), Cursor rules (`.cursor/rules/*.mdc`),
-  and GitHub Copilot instruction/scoped/prompt files (`.github/`). `agent-files discover`
-  and `agent-files scan` standalone commands plus `scan --include-agent-files`; findings
-  use `analyzer="agent_files"` (SKILL-001/002/003, MEM-001/002). HOOK-001/002 hook-command
-  checks live in `config_hygiene.py`. Fully offline. New package `src/mcp_audit/agent_files/`
-  (`models.py`, `discovery.py`, `analyzer.py`) and `src/mcp_audit/cli/agent_files.py`;
-  see `docs/agent-files.md`. Unconfirmed surfaces (Windsurf, Augment, Kiro, `.claude/skills/`,
-  user-global Copilot) tracked in `GAPS.md`.
+- **Agent-file scanner** (v0.14.0, skills added 2026-09-08/STORY-0065) — extends
+  scanning beyond MCP config files to the agent instruction/memory surfaces: Claude
+  Code commands (`~/.claude/commands/`, `.claude/commands/`), Claude Code skills
+  (`~/.claude/skills/**/SKILL.md`, `.claude/skills/**/SKILL.md`, matched recursively
+  at any nesting depth) and memory (`CLAUDE.md` tiers), Cursor rules
+  (`.cursor/rules/*.mdc`), and GitHub Copilot instruction/scoped/prompt files
+  (`.github/`). `agent-files discover` and `agent-files scan` standalone commands plus
+  `scan --include-agent-files`; findings use `analyzer="agent_files"`
+  (SKILL-001/002/003/004, MEM-001/002). SKILL-004 (INFO) inventories a skill's bundled
+  `scripts/` filenames only — never contents, never executed. HOOK-001/002 hook-command
+  checks live in `config_hygiene.py`. Fully offline. A symlinked candidate at any of
+  this package's three discovery sites is included (not dropped) and reported as
+  TRUST-002/TRUST-004 — see the `scan --project` symlink-handling note above. New
+  package `src/mcp_audit/agent_files/` (`models.py`, `discovery.py`, `analyzer.py`)
+  and `src/mcp_audit/cli/agent_files.py`; see `docs/agent-files.md`. Unconfirmed
+  surfaces (Windsurf, Augment, Kiro, user-global Copilot) tracked in `GAPS.md`.
 
 - **Advisory feed** — `mcp-audit advise <target>` turns scan findings into OSV
   schema_version 1.6.0 advisory records and publishes them as a signed, verifiable

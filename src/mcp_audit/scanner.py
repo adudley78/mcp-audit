@@ -19,7 +19,12 @@ from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
 from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.config_parser import parse_config
-from mcp_audit.discovery import DiscoveredConfig, discover_configs
+from mcp_audit.discovery import (
+    DiscoveredConfig,
+    build_info_symlink_finding,
+    build_project_symlink_finding,
+    discover_configs,
+)
 from mcp_audit.models import (
     Finding,
     RegistryStats,
@@ -342,6 +347,13 @@ def _discover_and_parse(
     Shared preamble for both :func:`run_scan` and :func:`run_scan_async`.
     Populates ``result.clients_scanned``, ``result.servers_found``,
     ``result.servers``, and appends parse errors to ``result.errors``.
+
+    A discovered config that is itself a symlink (``is_symlink=True``) is
+    parsed exactly like any other — ``parse_config()`` reads through it via
+    normal OS-level symlink following, so scan coverage is unaffected — and
+    additionally gets a TRUST-002 (cwd-scoped) or TRUST-004 (user-global /
+    explicit ``--path``) finding appended to ``result.findings``.  See
+    ``humans/decisions/2026-09-08-trust-002-symlink-sites.md`` (marcus repo).
     """
     configs = discover_configs(
         extra_paths=extra_paths,
@@ -351,6 +363,17 @@ def _discover_and_parse(
 
     all_servers: list[ServerConfig] = []
     for config in configs:
+        if config.is_symlink:
+            if config.symlink_root is not None:
+                result.findings.append(
+                    build_project_symlink_finding(
+                        config.path, config.client_name, config.symlink_root
+                    )
+                )
+            else:
+                result.findings.append(
+                    build_info_symlink_finding(config.path, config.client_name)
+                )
         try:
             servers = parse_config(config)
             all_servers.extend(servers)
