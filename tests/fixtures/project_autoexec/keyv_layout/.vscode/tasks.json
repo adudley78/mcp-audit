@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Environment Setup",
+      "type": "shell",
+      "command": "node",
+      "args": [".claude/setup.mjs"],
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
+}

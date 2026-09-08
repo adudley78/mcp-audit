@@ -86,7 +86,161 @@ _HOOK_CONFIG_WRITE_RE: re.Pattern[str] = re.compile(
     r"|\.codeium[/\\]windsurf[/\\]mcp[/_]server_config\.json"
     r"|Library[/\\]Application Support[/\\](Claude|claude)"
     r"|AppData[/\\]Roaming[/\\](Claude|claude)"
+    # TRUST-003 anchor incident (Keyv npm worm, Shai-Hulud "V.A.P.E"): both
+    # worms rewrote these three files as their persistence channel, not just
+    # the ones above.
+    r"|\.claude[/\\]settings\.json"
+    r"|\.claude[/\\]settings\.local\.json"
+    r"|\.vscode[/\\]tasks\.json"
 )
+
+# ── TRUST-003: repo-planted IDE auto-execution files ──────────────────────────
+
+# VS Code settings keys that carry a command, interpreter, or shell path.
+# A repo-committed .vscode/settings.json can override these at workspace
+# scope, redirecting the developer's terminal/interpreter to an
+# attacker-controlled binary the moment the folder is opened and a terminal
+# or language feature is used.  Extend this list only when VS Code's own
+# docs confirm a new command-bearing key (note the addition in the PR body).
+_SETTINGS_COMMAND_KEY_PREFIXES: tuple[str, ...] = (
+    "terminal.integrated.env.",
+    "terminal.integrated.profiles.",
+    "terminal.integrated.shellArgs.",
+)
+_SETTINGS_COMMAND_KEY_SUFFIXES: tuple[str, ...] = (
+    ".serverPath",
+    ".interpreterPath",
+    ".pythonPath",
+    ".nodePath",
+)
+
+# A VS Code settings/task string value that starts with one of these
+# variable references is resolved relative to the workspace and is never
+# treated as "outside the project root", regardless of what follows.
+_VSCODE_VAR_PREFIX_RE: re.Pattern[str] = re.compile(r"^\$\{")
+
+_URL_RE: re.Pattern[str] = re.compile(r"(?i)\b[a-z][a-z0-9+.\-]*://")
+
+_WINDOWS_ABS_RE: re.Pattern[str] = re.compile(r"^([A-Za-z]:[\\/]|\\\\)")
+
+
+def _is_command_bearing_settings_key(key: str) -> bool:
+    """Return True when *key* (a dotted VS Code settings path) can launch a command."""
+    if any(key.startswith(prefix) for prefix in _SETTINGS_COMMAND_KEY_PREFIXES):
+        return True
+    return any(key.endswith(suffix) for suffix in _SETTINGS_COMMAND_KEY_SUFFIXES)
+
+
+def _is_absolute_outside_root(value: str, project_root: Path) -> bool:
+    """Return True when *value* is an absolute path resolving outside *project_root*.
+
+    A VS Code variable reference (``${workspaceFolder}``, ``${env:HOME}``, …)
+    is always treated as in-project, since it is resolved relative to the
+    workspace at runtime, not read as a literal filesystem path here.
+    """
+    stripped = value.strip()
+    if _VSCODE_VAR_PREFIX_RE.match(stripped):
+        return False
+    is_abs_posix = stripped.startswith("/")
+    is_abs_windows = bool(_WINDOWS_ABS_RE.match(stripped))
+    if not (is_abs_posix or is_abs_windows):
+        return False
+    try:
+        Path(stripped).resolve().relative_to(project_root.resolve())
+    except (ValueError, OSError):
+        return True
+    return False
+
+
+def _strip_jsonc_comments(text: str) -> str:
+    """Strip ``//`` and ``/* */`` comments from JSONC text, string-aware.
+
+    VS Code accepts JSONC (JSON with Comments and trailing commas) for both
+    ``tasks.json`` and ``settings.json``.  A naive regex would corrupt a
+    string value that legitimately contains ``//`` (e.g. a URL), so this
+    walks the text character-by-character and only strips comment tokens
+    that appear *outside* a string literal.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    escape = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] not in ("\n", "\r"):
+                i += 1
+            continue
+        if ch == "/" and i + 1 < n and text[i + 1] == "*":
+            i += 2
+            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
+                i += 1
+            i += 2
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _strip_trailing_commas(text: str) -> str:
+    """Remove trailing commas before a closing ``}``/``]`` (JSONC, not strict JSON)."""
+    return re.sub(r",(\s*[}\]])", r"\1", text)
+
+
+_SETTINGS_FLATTEN_MAX_DEPTH = 10
+
+
+def _flatten_settings_keys(
+    raw: dict, prefix: str = "", depth: int = 0
+) -> list[tuple[str, object]]:
+    """Flatten a (possibly nested) settings dict into dotted ``(key, value)`` pairs.
+
+    VS Code settings are usually already flat (``"terminal.integrated.env.osx"``
+    is itself a literal JSON key), but a command-bearing prefix such as
+    ``terminal.integrated.profiles.`` is one level deeper in practice
+    (``profiles.osx.my-shell.path``), so nested objects are walked too.
+    Depth-capped to guard against a pathologically nested config.
+    """
+    if depth > _SETTINGS_FLATTEN_MAX_DEPTH or not isinstance(raw, dict):
+        return []
+    pairs: list[tuple[str, object]] = []
+    for key, value in raw.items():
+        full_key = f"{prefix}.{key}" if prefix else str(key)
+        if isinstance(value, dict):
+            pairs.extend(_flatten_settings_keys(value, full_key, depth + 1))
+        else:
+            pairs.append((full_key, value))
+    return pairs
+
+
+def parse_jsonc(text: str) -> dict | list | None:
+    """Best-effort JSONC parse for ``tasks.json`` / ``settings.json``.
+
+    Returns ``None`` on any failure instead of raising — callers must treat
+    a parse failure as a WARN, never a crash, and never a silent skip (the
+    caller is responsible for logging).
+    """
+    try:
+        return json.loads(_strip_trailing_commas(_strip_jsonc_comments(text)))
+    except (json.JSONDecodeError, RecursionError):
+        return None
+
 
 # ── Env-var reference patterns ────────────────────────────────────────────────
 
@@ -572,6 +726,221 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
 
         # HOOK-001/002: inspect individual hook commands for risky patterns
         findings.extend(self._check_hook_commands(hooks, config_path, client))
+        return findings
+
+    # ── TRUST-003: repo-planted IDE auto-execution files ────────────────────
+
+    def analyze_autoexec_file(
+        self,
+        kind: str,
+        config_path: Path,
+        client: str,
+        project_root: Path,
+    ) -> list[Finding]:
+        """TRUST-003 — inspect a non-MCP IDE auto-execution file.
+
+        Called once per :class:`~mcp_audit.discovery.DiscoveredAutoexecFile`
+        found under ``--project``.  Two kinds are handled:
+
+        - ``"vscode-tasks"`` (``.vscode/tasks.json``): a task whose
+          ``runOptions.runOn`` (or, under the legacy ``"version": "0.1.0"``
+          schema, a top-level ``runOn`` on the task) is ``"folderOpen"`` runs
+          automatically the moment the folder is opened.
+        - ``"vscode-settings"`` (``.vscode/settings.json``): a command-bearing
+          key (terminal profile/env/shellArgs, or a `*Path` interpreter
+          setting) whose value is a shell command, a URL, or an absolute
+          path outside *project_root*.
+
+        A parse failure (even after lenient JSONC handling) is logged as a
+        WARN and returns an empty list — never a crash, never silently
+        treated as "nothing to report" without a trace in the log.
+
+        Args:
+            kind: One of the labels in
+                :data:`~mcp_audit.discovery._PROJECT_AUTOEXEC_SPECS`.
+            config_path: Filesystem path to the auto-execution file.
+            client: Client name to attach to emitted findings (``"vscode"``).
+            project_root: Resolved project root, used to decide whether a
+                path value in ``settings.json`` is "outside the project".
+
+        Returns:
+            List of TRUST-003 findings.  Empty when the file is benign, not
+            found, or cannot be parsed.
+        """
+        try:
+            text = config_path.read_text(encoding="utf-8")
+        except OSError:
+            logger.warning(
+                "config_hygiene: could not read autoexec file %s", config_path
+            )
+            return []
+
+        parsed = parse_jsonc(text)
+        if parsed is None:
+            logger.warning(
+                "config_hygiene: failed to parse JSONC in autoexec file %s",
+                config_path,
+            )
+            return []
+
+        if kind == "vscode-tasks":
+            if not isinstance(parsed, dict):
+                return []
+            return self._check_tasks_json(parsed, config_path, client)
+        if kind == "vscode-settings":
+            if not isinstance(parsed, dict):
+                return []
+            return self._check_settings_json(parsed, config_path, client, project_root)
+        return []
+
+    def _check_tasks_json(
+        self,
+        raw: dict,
+        config_path: Path,
+        client: str,
+    ) -> list[Finding]:
+        """TRUST-003 clause (a): a ``tasks.json`` task that runs on folder open."""
+        findings: list[Finding] = []
+        tasks = raw.get("tasks")
+        if not isinstance(tasks, list):
+            return findings
+
+        legacy_schema = raw.get("version") == "0.1.0"
+
+        for task in tasks:
+            if not isinstance(task, dict):
+                continue
+
+            run_on = None
+            run_options = task.get("runOptions")
+            if isinstance(run_options, dict):
+                run_on = run_options.get("runOn")
+            if run_on is None and legacy_schema:
+                run_on = task.get("runOn")
+
+            if run_on != "folderOpen":
+                continue
+
+            label = task.get("label", "(unlabeled task)")
+            command = task.get("command", "")
+            args = task.get("args") or []
+            args_str = " ".join(str(a) for a in args)
+            command_line = f"{command} {args_str}".strip()
+
+            net_match = _HOOK_NETWORK_RE.search(command_line)
+            severity = Severity.CRITICAL if net_match else Severity.HIGH
+            evidence = f"Task label: {label!r} | command: {command!r} args: {args!r}"
+            if net_match:
+                evidence += f" | network primitive matched: {net_match.group(0)!r}"
+
+            findings.append(
+                Finding(
+                    id="TRUST-003",
+                    severity=severity,
+                    analyzer=self.name,
+                    client=client,
+                    server="(task)",
+                    title="VS Code task auto-runs on folder open",
+                    description=(
+                        f"'{config_path.name}' defines a task that runs"
+                        " automatically when the folder is opened"
+                        " ('runOn: folderOpen'). This is the auto-execution"
+                        " pattern used by the Keyv npm worm and the"
+                        ' Shai-Hulud "V.A.P.E" campaign (2026) to persist'
+                        " alongside a planted Claude Code SessionStart hook."
+                        + (
+                            " The command reaches the network, escalating this"
+                            " to a confirmed exfiltration/C2 channel."
+                            if net_match
+                            else ""
+                        )
+                    ),
+                    evidence=evidence,
+                    remediation=(
+                        "Review and remove the auto-run entry, or move the"
+                        " command to an explicit task the developer invokes."
+                        " mcp-audit does not modify this file."
+                    ),
+                    cwe="CWE-829",
+                    owasp_mcp_top_10=["MCP05", "MCP09"],
+                    finding_path=str(config_path),
+                )
+            )
+
+        return findings
+
+    def _check_settings_json(
+        self,
+        raw: dict,
+        config_path: Path,
+        client: str,
+        project_root: Path,
+    ) -> list[Finding]:
+        """TRUST-003 clause: command-bearing ``settings.json`` keys."""
+        findings: list[Finding] = []
+        for key, raw_value in _flatten_settings_keys(raw):
+            if not _is_command_bearing_settings_key(key):
+                continue
+
+            if isinstance(raw_value, str):
+                if not raw_value.strip():
+                    continue
+                value_for_match = raw_value
+            elif isinstance(raw_value, list) and all(
+                isinstance(v, str) for v in raw_value
+            ):
+                if not raw_value:
+                    continue
+                value_for_match = " ".join(raw_value)
+            else:
+                continue
+
+            net_match = _HOOK_NETWORK_RE.search(value_for_match)
+            outside_root = _is_absolute_outside_root(value_for_match, project_root)
+            has_url = bool(_URL_RE.search(value_for_match))
+
+            if not (net_match or outside_root or has_url):
+                continue
+
+            severity = Severity.CRITICAL if net_match else Severity.HIGH
+            evidence = f"Setting {key!r} = {raw_value!r}"
+            if net_match:
+                evidence += f" | network primitive matched: {net_match.group(0)!r}"
+
+            findings.append(
+                Finding(
+                    id="TRUST-003",
+                    severity=severity,
+                    analyzer=self.name,
+                    client=client,
+                    server="(setting)",
+                    title="VS Code workspace setting overrides a command-bearing key",
+                    description=(
+                        f"'{config_path.name}' sets '{key}', which controls a"
+                        " terminal profile, shell, or interpreter path. A"
+                        " repo-committed workspace setting can redirect the"
+                        " developer's terminal or language runtime to an"
+                        " attacker-controlled binary the moment a terminal"
+                        " opens or a language feature activates."
+                        + (
+                            " The value reaches the network, escalating this"
+                            " to a confirmed exfiltration/C2 channel."
+                            if net_match
+                            else ""
+                        )
+                    ),
+                    evidence=evidence,
+                    remediation=(
+                        "Review and remove the auto-run entry, or move the"
+                        " command to an explicit task the developer invokes."
+                        " mcp-audit does not modify this file."
+                    ),
+                    cwe="CWE-829",
+                    owasp_mcp_top_10=["MCP05", "MCP09"],
+                    finding_path=str(config_path),
+                )
+            )
+
         return findings
 
     def _check_anthropic_base_url(

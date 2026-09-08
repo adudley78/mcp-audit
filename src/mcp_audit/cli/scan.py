@@ -42,7 +42,10 @@ from mcp_audit.attestation import verifier as _attestation_verifier
 from mcp_audit.baselines.manager import BaselineManager
 from mcp_audit.cli import app, console
 from mcp_audit.cli._helpers import _write_output
-from mcp_audit.discovery import discover_project_configs
+from mcp_audit.discovery import (
+    discover_project_autoexec_files,
+    discover_project_configs,
+)
 from mcp_audit.extensions import analyzer as _extensions_analyzer
 from mcp_audit.extensions import discovery as _extensions_discovery
 from mcp_audit.governance.evaluator import evaluate_governance
@@ -783,25 +786,49 @@ def _apply_project_scan(
     resolved.  Does not touch or modify the default scan behaviour.
 
     Pipeline:
+    0. Walk *project_dir* for non-MCP IDE auto-execution files
+       (``.vscode/tasks.json``, ``.vscode/settings.json``) and emit TRUST-003
+       for any that auto-run a command on folder open. These files are never
+       parsed into ``ServerConfig`` objects.
     1. Walk *project_dir* for known project-level config file patterns.
     2. Emit TRUST-001 (HIGH) for every MCP server found — fires on *origin*
        (project-scoped), not content.
-    3. Run the full static analysis pipeline over those servers so that
-       credentials, poisoning, transport, supply-chain, and auth findings
-       are also surfaced.
+    3. Run the full static analysis pipeline over the discovered configs and
+       servers, unconditionally (even when zero servers were found). Step 0
+       of that pipeline (config-level checks — CFHYG-005, HOOK-001/002)
+       fires per config file independent of server count, so a hooks-only
+       file with no ``mcpServers`` key (the exact shape TRUST-003's anchor
+       incidents plant) still surfaces its config-level findings. Credentials,
+       poisoning, transport, supply-chain, and auth findings are also
+       surfaced when servers are present.
 
-    Findings from steps 2–3 are appended to *result.findings* so they flow
+    Findings from steps 0–3 are appended to *result.findings* so they flow
     through all output formatters (terminal, JSON, SARIF, HTML dashboard).
     The main scan score is *not* recomputed — project findings are appended
     post-score, consistent with ``_apply_governance``, ``_apply_baseline_drift``,
     and ``_apply_sast``.
     """
+    from mcp_audit.analyzers.config_hygiene import (
+        ConfigHygieneAnalyzer,  # noqa: PLC0415
+    )
     from mcp_audit.config_parser import parse_config  # noqa: PLC0415
     from mcp_audit.models import ScanResult as _ProjectScanResult  # noqa: PLC0415
     from mcp_audit.scanner import (  # noqa: PLC0415
         _run_static_pipeline,
         get_default_analyzers,
     )
+
+    # ── TRUST-003: repo-planted IDE auto-execution files ────────────────────
+    hygiene_analyzer = ConfigHygieneAnalyzer()
+    for autoexec_file in discover_project_autoexec_files(project_dir):
+        result.findings.extend(
+            hygiene_analyzer.analyze_autoexec_file(
+                kind=autoexec_file.kind,
+                config_path=autoexec_file.path,
+                client="vscode",
+                project_root=project_dir,
+            )
+        )
 
     project_configs = discover_project_configs(project_dir)
 
@@ -866,25 +893,30 @@ def _apply_project_scan(
             )
         )
 
-    if project_servers:
-        # Run the full static pipeline on project servers so credentials,
-        # poisoning, transport, supply-chain, and auth findings are surfaced.
-        # skip_rug_pull=True: project-level servers have no persistent user
-        # baseline; rug-pull state would always show "first seen".
-        effective_analyzers = (
-            analyzers if analyzers is not None else get_default_analyzers()
-        )
-        pipeline_result = _run_static_pipeline(
-            result=_ProjectScanResult(),
-            all_servers=project_servers,
-            configs=project_configs,
-            analyzers=effective_analyzers,
-            skip_rug_pull=True,
-            extra_rules_dirs=extra_rules_dirs,
-        )
-        # Merge pipeline findings only — score and registry_stats stay with
-        # the main result.
-        result.findings.extend(pipeline_result.findings)
+    # Run the full static pipeline over the discovered project configs —
+    # unconditionally, even when project_servers is empty. Step 0 of
+    # _run_static_pipeline (config-level checks, e.g. CFHYG-005/HOOK-001/002)
+    # runs once per config file independent of server count, mirroring the
+    # default (non-project) scan pipeline's documented behaviour. A config
+    # file that defines only a `hooks` section and no `mcpServers` (e.g.
+    # `.claude/settings.json` planted by TRUST-003's anchor incidents) must
+    # still surface its config-level findings.
+    # skip_rug_pull=True: project-level servers have no persistent user
+    # baseline; rug-pull state would always show "first seen".
+    effective_analyzers = (
+        analyzers if analyzers is not None else get_default_analyzers()
+    )
+    pipeline_result = _run_static_pipeline(
+        result=_ProjectScanResult(),
+        all_servers=project_servers,
+        configs=project_configs,
+        analyzers=effective_analyzers,
+        skip_rug_pull=True,
+        extra_rules_dirs=extra_rules_dirs,
+    )
+    # Merge pipeline findings only — score and registry_stats stay with
+    # the main result.
+    result.findings.extend(pipeline_result.findings)
 
     return result
 

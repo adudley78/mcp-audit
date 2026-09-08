@@ -243,6 +243,23 @@ _PROJECT_CONFIG_SPECS: list[tuple[str, str, str]] = [
     (".vscode/mcp.json", "vscode", "servers"),
 ]
 
+# Non-MCP IDE auto-execution surfaces (TRUST-003). These files have no
+# mcpServers/servers root key, so they are walked separately from
+# _PROJECT_CONFIG_SPECS and handed to the config-hygiene analyzer at
+# pipeline step 0 as DiscoveredAutoexecFile objects — never through
+# parse_config() and never turned into a ServerConfig.
+#
+# Research basis: two live 2026 worms (Keyv npm worm; Shai-Hulud "V.A.P.E"
+# via the official MCP Registry) planted a `.claude/settings.json`
+# SessionStart hook (already covered by CFHYG-005/HOOK-001/002) AND a
+# `.vscode/tasks.json` task with `"runOn": "folderOpen"` — the second file
+# was previously invisible to mcp-audit.
+_PROJECT_AUTOEXEC_SPECS: list[tuple[str, str]] = [
+    (".vscode/tasks.json", "vscode-tasks"),
+    (".vscode/settings.json", "vscode-settings"),
+]
+
+
 # Directory names to skip while walking the project tree.
 _WALK_SKIP_DIRS: frozenset[str] = frozenset(
     {
@@ -307,6 +324,69 @@ def discover_project_configs(root: Path) -> list[DiscoveredConfig]:
                 )
 
         # Recurse into non-symlink subdirectories not in the skip list.
+        try:
+            children = sorted(dirpath.iterdir())
+        except PermissionError:
+            return
+
+        for child in children:
+            if child.is_symlink():
+                continue
+            if not child.is_dir():
+                continue
+            if child.name in _WALK_SKIP_DIRS:
+                continue
+            _walk(child, depth + 1)
+
+    _walk(root, 0)
+    return discovered
+
+
+@dataclass
+class DiscoveredAutoexecFile:
+    """A discovered non-MCP IDE auto-execution surface (TRUST-003 input).
+
+    Deliberately **not** a :class:`DiscoveredConfig` — these files carry no
+    ``mcpServers``/``servers`` root key and are never parsed into
+    :class:`~mcp_audit.models.ServerConfig` objects.  They are read and
+    analyzed directly by
+    :meth:`~mcp_audit.analyzers.config_hygiene.ConfigHygieneAnalyzer.analyze_autoexec_file`.
+    """
+
+    kind: str  # one of the labels in _PROJECT_AUTOEXEC_SPECS
+    path: Path
+    is_project_scoped: bool = True
+
+
+def discover_project_autoexec_files(root: Path) -> list[DiscoveredAutoexecFile]:
+    """Walk a repository tree and find non-MCP IDE auto-execution files.
+
+    Mirrors :func:`discover_project_configs`'s walk rules (skip-dir list,
+    depth cap, no symlinked directories or files) but targets
+    ``.vscode/tasks.json`` and ``.vscode/settings.json`` — files with no MCP
+    root key that can still auto-run a command when a developer opens the
+    folder (TRUST-003).
+
+    Args:
+        root: Resolved absolute path of the repository root to walk.
+
+    Returns:
+        List of :class:`DiscoveredAutoexecFile` objects.  Empty when none
+        are found under *root*.
+    """
+    discovered: list[DiscoveredAutoexecFile] = []
+
+    def _walk(dirpath: Path, depth: int) -> None:
+        if depth > _WALK_MAX_DEPTH:
+            return
+
+        for rel_path, kind in _PROJECT_AUTOEXEC_SPECS:
+            candidate = dirpath / rel_path
+            if candidate.is_symlink():
+                continue
+            if candidate.is_file():
+                discovered.append(DiscoveredAutoexecFile(kind=kind, path=candidate))
+
         try:
             children = sorted(dirpath.iterdir())
         except PermissionError:

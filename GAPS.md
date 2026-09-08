@@ -72,6 +72,24 @@ runs on those servers too.
 - **Watcher integration out of scope:** `mcp-audit watch` does not watch
   project-level configs automatically; use `--project` in a manual step.
 
+**Repo-planted IDE auto-execution files (TRUST-003, v0.16.0).** `scan
+--project` now also flags `.vscode/tasks.json` tasks with `runOn: folderOpen`
+and command-bearing `.vscode/settings.json` keys — the persistence mechanism
+used by the Keyv npm worm and Shai-Hulud "V.A.P.E" (2026; see
+`docs/severity-framework.md`). Known boundary, not covered:
+
+- **`.vscode/launch.json`** (debug configurations) can also carry a
+  `preLaunchTask` or a `program`/`args` pointing at an arbitrary executable,
+  triggered on debug-session start rather than folder open. Not walked.
+- **JetBrains run configurations** (`.idea/runConfigurations/*.xml`,
+  "Startup Tasks" / "before launch" hooks) are a different client family and
+  schema entirely; out of scope until a JetBrains-family parser exists.
+- **Cursor folder-open hooks:** Cursor's `.cursor/` surface is walked for MCP
+  configs (`_PROJECT_CONFIG_SPECS`) but Cursor does not currently document a
+  `tasks.json`-equivalent auto-run-on-open mechanism separate from VS Code's
+  (which Cursor forks); if Cursor ships one, it needs the same treatment as
+  `.vscode/tasks.json`.
+
 ---
 
 ## Tool-name collision detection (COLLIDE-001)
