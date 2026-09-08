@@ -326,6 +326,140 @@ TOXIC_PAIRS: list[ToxicPair] = [
 ]
 
 
+# ── Tag-only capabilities ───────────────────────────────────────────────────
+#
+# A Capability member that appears in no TOXIC_PAIRS entry (source or sink)
+# and no attack_paths.CAPABILITY_FLOWS entry can be recorded on a server but
+# can never contribute to a toxic-flow or attack-path finding — the same
+# shape as the R34 "subprocess" defect (a capability that is recorded, looks
+# meaningful, and does nothing), just arriving through deliberate design (or
+# an unnoticed gap) instead of a typo. R35 added compute_dead_capabilities()
+# / scripts/audit_registry.py's find_dead_capabilities() to compute this set
+# at audit time and compare it against the explicit list below, so the next
+# tag-only addition is a conscious act, not an accident silently inherited
+# from adding an enum value without wiring it into either table. A capability
+# found dead but NOT listed here fails that check loudly, in the same spirit
+# as the duplicate-name guard in registry/loader.py — which fails loudly
+# because a silent wrong answer had already shipped once.
+#
+# ``kind`` distinguishes WHY a member is here, because collapsing that
+# distinction is exactly how "subprocess" sat inert for months: an allowlist
+# that can't tell an accepted design decision from a known-but-unfixed gap
+# launders the second into the first, and nobody looks at it again.
+#   - DELIBERATE_DEFERRAL: wiring was consciously postponed pending its own
+#     calibration pass; there is no known missing table row today.
+#   - SUSPECTED_GAP: the capability is dead because the detection MODEL has
+#     no axis to express it — not because someone chose to leave it out.
+#     This is a known, unfixed gap, not a settled decision; do not read it
+#     as one.
+# ``reason`` is mandatory and non-empty (enforced in __post_init__) — no
+# member may be added without saying, in prose, which of the two it is and
+# why.
+
+
+class TagOnlyKind(StrEnum):
+    """Why a capability is listed in KNOWN_TAG_ONLY_CAPABILITIES."""
+
+    DELIBERATE_DEFERRAL = "deliberate_deferral"
+    SUSPECTED_GAP = "suspected_gap"
+
+
+@dataclass(frozen=True)
+class TagOnlyCapability:
+    """One allowlisted tag-only capability, with a mandatory reason.
+
+    Raises:
+        ValueError: if ``reason`` is empty/whitespace-only. A tag-only entry
+            with no stated reason is indistinguishable from an accident —
+            the exact failure mode this allowlist exists to prevent.
+    """
+
+    capability: Capability
+    kind: TagOnlyKind
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not self.reason.strip():
+            raise ValueError(
+                f"TagOnlyCapability({self.capability!r}) has an empty reason — "
+                "every tag-only allowlist entry must say, in prose, why it is "
+                "here and whether it is a deliberate deferral or a suspected gap."
+            )
+
+
+KNOWN_TAG_ONLY_CAPABILITIES: tuple[TagOnlyCapability, ...] = (
+    TagOnlyCapability(
+        capability=Capability.CLOUD,
+        kind=TagOnlyKind.DELIBERATE_DEFERRAL,
+        reason=(
+            "Cloud SDK calls are already NETWORK_OUT mechanically, so CLOUD "
+            "does not open a new exfiltration primitive TOXIC_PAIRS doesn't "
+            "already cover. Calibrating dedicated pairs for its distinct "
+            "blast radius (IAM-scoped infrastructure control) needs its own "
+            "research-and-measurement pass (R34), not a guess made here."
+        ),
+    ),
+    TagOnlyCapability(
+        capability=Capability.FILE_WRITE,
+        kind=TagOnlyKind.SUSPECTED_GAP,
+        reason=(
+            "Every TOXIC_PAIRS/CAPABILITY_FLOWS entry is exfiltration-shaped: "
+            "attack_paths._SOURCE_CAPS/_SINK_CAPS model one axis — "
+            "confidentiality, source 'produces data' / sink 'exfiltrates' "
+            "(_SINK_CAPS == {NETWORK_OUT, EMAIL}). The model never asks "
+            "whether state can be changed, or whether a change persists and "
+            "later re-executes (e.g. a plant-then-execute chain: one server "
+            "writes a payload, a second server with SHELL_EXEC runs it). "
+            "FILE_WRITE has a display label in attack_paths._CAP_LABELS and "
+            "no role anywhere else because there is no axis in the model to "
+            "put it on — a missing dimension, not a missing table row. "
+            "Discovered incidentally by this allowlist (R35), NOT a "
+            "deliberate deferral like CLOUD — no severity/CWE guess is being "
+            "made or deferred here, because the shape of the fix isn't known "
+            "yet either. Measurement of the actual gap (does this cause real "
+            "missed findings, and what would the right pair(s) even be) is "
+            "queued as its own prompt (R37), which measures before designing."
+        ),
+    ),
+)
+
+_KNOWN_TAG_ONLY_CAP_SET: frozenset[Capability] = frozenset(
+    t.capability for t in KNOWN_TAG_ONLY_CAPABILITIES
+)
+
+
+def compute_dead_capabilities() -> frozenset[Capability]:
+    """Return Capability members that participate in no detection path.
+
+    "Participate" means appearing as a source or sink in :data:`TOXIC_PAIRS`,
+    or as either element of an :data:`~mcp_audit.analyzers.attack_paths.
+    CAPABILITY_FLOWS` edge. A capability outside both sets can be recorded on
+    a server (and inferred by keyword heuristics, if a :data:`KEYWORD_RULES`
+    entry exists for it) but can never cause a finding to fire.
+
+    Imports ``attack_paths`` lazily: ``attack_paths.py`` imports ``Capability``
+    and ``TOXIC_PAIRS`` FROM this module, so a top-level import here would be
+    circular.
+
+    Returns:
+        Frozen set of dead :class:`Capability` members. Compare against
+        :data:`KNOWN_TAG_ONLY_CAPABILITIES` (via ``_KNOWN_TAG_ONLY_CAP_SET``
+        for membership, or the full tuple for each entry's ``kind``/
+        ``reason``) to distinguish an accounted-for tag-only capability —
+        deliberate or a known suspected gap — from an accidental one.
+    """
+    from mcp_audit.analyzers.attack_paths import CAPABILITY_FLOWS  # noqa: PLC0415
+
+    used: set[Capability] = set()
+    for tp in TOXIC_PAIRS:
+        used.add(tp.source)
+        used.add(tp.sink)
+    for source_cap, sink_cap in CAPABILITY_FLOWS:
+        used.add(source_cap)
+        used.add(sink_cap)
+    return frozenset(Capability) - used
+
+
 # ── Capability tagging ────────────────────────────────────────────────────────
 
 

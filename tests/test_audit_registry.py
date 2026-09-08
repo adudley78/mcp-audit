@@ -262,9 +262,15 @@ class TestUnknownCapabilities:
 
 
 class TestUndeclaredCapabilities:
-    """find_undeclared_capabilities: declared ⊊ heuristic inference for the name."""
+    """find_undeclared_capabilities: R35 general predicate — any inferred
+    capability the entry does not declare, classified "subset" (declared ⊆
+    inferred) or "disjoint" (entry also declares something not inferred).
+    R34 shipped a strict-subset-only version; R35 measured the gap and
+    generalised after finding the strict form misses the partial-overlap
+    (disjoint) case entirely.
+    """
 
-    def test_under_declared_entry_is_flagged(self) -> None:
+    def test_under_declared_entry_is_flagged_as_subset(self) -> None:
         # "postgres" -> DATABASE, "fetch" -> NETWORK_OUT: heuristics infer both.
         # The entry only declares network_out, silently dropping the registry
         # override's ability to ever surface the database capability for this
@@ -281,10 +287,28 @@ class TestUndeclaredCapabilities:
         assert hits[0]["declared"] == ["network_out"]
         assert hits[0]["inferred"] == ["database", "network_out"]
         assert hits[0]["missing"] == ["database"]
+        assert hits[0]["extra"] == []
+        assert hits[0]["kind"] == "subset"
+
+    def test_disjoint_entry_is_flagged_and_labeled_disjoint(self) -> None:
+        # R35's generalisation target: the entry declares something the
+        # heuristics don't infer (network_out) AND omits something they do
+        # (cloud, via the "azure" keyword) — declared and inferred are
+        # incomparable, so the R34 strict-subset predicate (declared <
+        # inferred) is False and this entry passed unnoticed. Reproduces the
+        # real @azure/mcp shape found when re-measuring for this task.
+        entries = [{**_entry("acme-azure-tool"), "capabilities": ["network_out"]}]
+        hits = mod.find_undeclared_capabilities(entries)
+        assert len(hits) == 1
+        assert hits[0]["declared"] == ["network_out"]
+        assert hits[0]["inferred"] == ["cloud"]
+        assert hits[0]["missing"] == ["cloud"]
+        assert hits[0]["extra"] == ["network_out"]
+        assert hits[0]["kind"] == "disjoint"
 
     def test_fully_declared_entry_is_not_flagged(self) -> None:
         # Same heuristic inference, but the entry declares the full set —
-        # equal sets are not a *strict* subset, so this must not be a hit.
+        # equal sets have no missing capability, so this must not be a hit.
         entries = [
             {
                 **_entry("acme-postgres-fetch-tool-2"),
@@ -293,16 +317,117 @@ class TestUndeclaredCapabilities:
         ]
         assert mod.find_undeclared_capabilities(entries) == []
 
-    def test_deliberately_narrowed_entry_is_not_flagged_as_subset(self) -> None:
-        # A name with no keyword hits at all: heuristics infer nothing, so a
-        # declared capability the heuristics don't know about is not a
-        # *subset* relationship (declared is not ⊆ inferred) and must not hit.
+    def test_deliberately_narrowed_entry_is_not_flagged(self) -> None:
+        # A name with no keyword hits at all: heuristics infer nothing, so
+        # nothing can ever be "missing" regardless of what is declared.
         entries = [{**_entry("widgetco-thing"), "capabilities": ["shell_exec"]}]
         assert mod.find_undeclared_capabilities(entries) == []
 
     def test_null_capabilities_skipped(self) -> None:
         entries = [{**_entry("no-data"), "capabilities": None}]
         assert mod.find_undeclared_capabilities(entries) == []
+
+
+class TestDeadCapabilities:
+    """find_dead_capabilities(): tag-only capabilities vs the allowlist."""
+
+    def test_no_unexpected_tag_only_capabilities_today(self) -> None:
+        report = mod.find_dead_capabilities()
+        assert report["unexpected_tag_only"] == []
+
+    def test_cloud_and_file_write_are_known_tag_only(self) -> None:
+        report = mod.find_dead_capabilities()
+        names = {e["capability"] for e in report["known_tag_only"]}
+        assert names == {"cloud", "file_write"}
+
+    def test_known_tag_only_entries_carry_kind_and_reason(self) -> None:
+        report = mod.find_dead_capabilities()
+        by_name = {e["capability"]: e for e in report["known_tag_only"]}
+        assert by_name["cloud"]["kind"] == "deliberate_deferral"
+        assert by_name["file_write"]["kind"] == "suspected_gap"
+        assert by_name["cloud"]["reason"].strip()
+        assert by_name["file_write"]["reason"].strip()
+
+    def test_unexpected_tag_only_detected_when_allowlist_is_incomplete(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """If the allowlist were missing an entry, the check must say so."""
+        from mcp_audit.analyzers import toxic_flow as tf
+
+        monkeypatch.setattr(tf, "KNOWN_TAG_ONLY_CAPABILITIES", ())
+        report = mod.find_dead_capabilities()
+        assert set(report["unexpected_tag_only"]) >= {"cloud", "file_write"}
+        assert report["known_tag_only"] == []
+
+
+class TestEntirelyTagOnlyEntries:
+    """find_entirely_tag_only_entries(): every declared capability is dead."""
+
+    def test_no_hits_today(self) -> None:
+        entries = json.loads(
+            (ROOT / "registry" / "known-servers.json").read_text(encoding="utf-8")
+        )["entries"]
+        assert mod.find_entirely_tag_only_entries(entries) == []
+
+    def test_cloud_only_entry_is_flagged(self) -> None:
+        entries = [{**_entry("acme-cloud-only"), "capabilities": ["cloud"]}]
+        hits = mod.find_entirely_tag_only_entries(entries)
+        assert hits == [{"name": "acme-cloud-only", "declared": ["cloud"]}]
+
+    def test_mixed_real_and_tag_only_is_not_flagged(self) -> None:
+        # A real, wired-in capability alongside a tag-only one still
+        # contributes to detection — only ENTIRELY tag-only entries hit.
+        entries = [
+            {**_entry("acme-cloud-and-shell"), "capabilities": ["cloud", "shell_exec"]}
+        ]
+        assert mod.find_entirely_tag_only_entries(entries) == []
+
+    def test_unknown_string_alone_is_not_flagged_here(self) -> None:
+        # Already reported by find_unknown_capabilities — not double-counted.
+        entries = [{**_entry("acme-typo"), "capabilities": ["subprocess"]}]
+        assert mod.find_entirely_tag_only_entries(entries) == []
+
+    def test_null_capabilities_skipped(self) -> None:
+        entries = [{**_entry("no-data"), "capabilities": None}]
+        assert mod.find_entirely_tag_only_entries(entries) == []
+
+    def test_empty_capabilities_skipped(self) -> None:
+        entries = [{**_entry("empty"), "capabilities": []}]
+        assert mod.find_entirely_tag_only_entries(entries) == []
+
+
+class TestAssertMcpAuditIsRepoLocal:
+    """_assert_mcp_audit_is_repo_local(): fail loudly on a non-dev-tree import."""
+
+    def test_passes_for_the_real_dev_install(self) -> None:
+        # Under `uv run pytest`, mcp_audit resolves to this repo's src tree —
+        # must not raise/exit.
+        mod._assert_mcp_audit_is_repo_local()
+
+    def test_exits_loudly_for_a_foreign_install(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        import types
+
+        foreign = tmp_path / "somewhere-else" / "site-packages" / "mcp_audit"
+        foreign.mkdir(parents=True)
+        foreign_init = foreign / "__init__.py"
+        foreign_init.write_text("", encoding="utf-8")
+
+        fake = types.ModuleType("mcp_audit")
+        fake.__file__ = str(foreign_init)
+        monkeypatch.setitem(sys.modules, "mcp_audit", fake)
+        with pytest.raises(SystemExit) as exc_info:
+            mod._assert_mcp_audit_is_repo_local()
+        assert exc_info.value.code == 2
+        err = capsys.readouterr().err
+        assert "FATAL" in err
+        # Path formatting is platform-native (backslashes on Windows) — compare
+        # against str(Path(...).resolve()), not a hardcoded POSIX string.
+        assert str(foreign_init.resolve()) in err
 
 
 class TestDefaultIsReadOnly:
