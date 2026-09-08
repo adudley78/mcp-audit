@@ -7,7 +7,9 @@ Produces a :class:`RiskLevel` for a single server by:
    :attr:`RiskLevel.UNKNOWN`.
 2. Calling :func:`~mcp_audit.analyzers.toxic_flow.tag_server` to get
    capability tags.
-3. Checking all :data:`~mcp_audit.analyzers.toxic_flow.TOXIC_PAIRS` for
+3. Checking all
+   :data:`~mcp_audit.analyzers.toxic_flow.TOXIC_AND_INTEGRITY_PAIRS` (both
+   exfiltration-shaped TOXIC-* pairs and integrity-shaped INTEG-* pairs) for
    single-server self-pairs (a server that holds *both* the source and sink
    capability is at least as dangerous as a two-server combination).
 4. Taking the highest matched toxic-pair severity as the risk level.
@@ -23,7 +25,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from mcp_audit.analyzers.toxic_flow import TOXIC_PAIRS, tag_server
+from mcp_audit.analyzers.toxic_flow import TOXIC_AND_INTEGRITY_PAIRS, tag_server
 from mcp_audit.models import ServerConfig, Severity
 from mcp_audit.registry.loader import KnownServerRegistry
 
@@ -117,11 +119,11 @@ def score_risk(
             return RiskLevel.INFO, "INFO — no dangerous capabilities detected"
         return RiskLevel.UNKNOWN, "UNKNOWN — no capability data available"
 
-    # ── Toxic pair check (single-server self-pairs) ───────────────────────────
+    # ── Toxic/integrity pair check (single-server self-pairs) ────────────────
     highest: RiskLevel | None = None
     highest_label = ""
 
-    for tp in TOXIC_PAIRS:
+    for tp in TOXIC_AND_INTEGRITY_PAIRS:
         if tp.source in caps and tp.sink in caps:
             candidate = _SEVERITY_TO_RISK[tp.severity]
             is_higher = highest is None or _RISK_ORDER.index(

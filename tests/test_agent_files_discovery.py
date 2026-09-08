@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 
-from mcp_audit.agent_files.discovery import discover_agent_files
+from mcp_audit.agent_files.discovery import (
+    AGENT_INSTRUCTION_PATTERNS,
+    _resolve_relative_pattern,
+    discover_agent_files,
+)
 from mcp_audit.agent_files.models import AgentFileSurface
 
 # ---------------------------------------------------------------------------
@@ -274,3 +279,78 @@ def test_discover_reads_content_and_frontmatter(tmp_path: Path) -> None:
     assert af.frontmatter == {"applyTo": "**/*.py"}
     assert "# Rule body" in af.body
     assert "---" not in af.body
+
+
+# ---------------------------------------------------------------------------
+# AGENT_INSTRUCTION_PATTERNS / _resolve_relative_pattern (R39)
+#
+# The single importable path-pattern constant that both this module's own
+# discovery functions and any future write-target check are meant to share —
+# see GAPS.md ("FILE_WRITE integrity axis") for why nothing currently builds
+# on it beyond discovery itself.
+# ---------------------------------------------------------------------------
+
+
+def test_agent_instruction_patterns_covers_every_documented_surface() -> None:
+    """Every surface named in the module docstring has at least one pattern."""
+    surfaces = {p.surface for p in AGENT_INSTRUCTION_PATTERNS}
+    assert surfaces == {
+        AgentFileSurface.CLAUDE_COMMAND,
+        AgentFileSurface.CLAUDE_MEMORY,
+        AgentFileSurface.CURSOR_RULE,
+        AgentFileSurface.COPILOT_INSTRUCTION,
+        AgentFileSurface.COPILOT_SCOPED,
+        AgentFileSurface.COPILOT_PROMPT,
+    }
+
+
+def test_agent_instruction_patterns_scopes_are_user_or_project() -> None:
+    assert {p.scope for p in AGENT_INSTRUCTION_PATTERNS} == {"user", "project"}
+
+
+def test_resolve_relative_pattern_single_segment_literal(tmp_path: Path) -> None:
+    """A pattern with no directory component matches a literal filename."""
+    (tmp_path / "CLAUDE.md").write_text("hi", encoding="utf-8")
+    matches = _resolve_relative_pattern(tmp_path, "CLAUDE.md")
+    assert matches == [tmp_path / "CLAUDE.md"]
+
+
+def test_resolve_relative_pattern_multi_segment_glob(tmp_path: Path) -> None:
+    """A pattern with two directory levels (.github/instructions/*.md-style)."""
+    instr = tmp_path / ".github" / "instructions"
+    instr.mkdir(parents=True)
+    (instr / "a.instructions.md").write_text("a", encoding="utf-8")
+    (instr / "b.instructions.md").write_text("b", encoding="utf-8")
+    matches = _resolve_relative_pattern(
+        tmp_path, ".github/instructions/*.instructions.md"
+    )
+    assert matches == [instr / "a.instructions.md", instr / "b.instructions.md"]
+
+
+def test_resolve_relative_pattern_missing_intermediate_dir_returns_empty(
+    tmp_path: Path,
+) -> None:
+    assert _resolve_relative_pattern(tmp_path, ".claude/commands/*.md") == []
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need admin on Windows")
+def test_resolve_relative_pattern_refuses_symlinked_intermediate_dir(
+    tmp_path: Path,
+) -> None:
+    """A symlinked intermediate directory is never followed."""
+    real_dir = tmp_path / "real_claude"
+    real_dir.mkdir()
+    (real_dir / "CLAUDE.md").write_text("secret", encoding="utf-8")
+    (tmp_path / ".claude").symlink_to(real_dir, target_is_directory=True)
+
+    assert _resolve_relative_pattern(tmp_path, ".claude/CLAUDE.md") == []
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need admin on Windows")
+def test_resolve_relative_pattern_refuses_symlinked_file(tmp_path: Path) -> None:
+    """A symlinked file matching the final glob segment is excluded."""
+    real_file = tmp_path / "real.md"
+    real_file.write_text("real", encoding="utf-8")
+    (tmp_path / "CLAUDE.md").symlink_to(real_file)
+
+    assert _resolve_relative_pattern(tmp_path, "CLAUDE.md") == []

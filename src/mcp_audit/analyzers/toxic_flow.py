@@ -10,8 +10,17 @@ Detection strategy:
    three layers: known-package lookup → keyword matching on command/args →
    tool-name matching from live enumeration data.
 2. Check every ordered server pair (including self-pairs) for dangerous
-   capability combinations defined in TOXIC_PAIRS.
+   capability combinations defined in TOXIC_AND_INTEGRITY_PAIRS.
 3. Emit a finding naming both servers for each detected combination.
+
+Two claim types, two ID prefixes, one mechanism (R37): TOXIC_PAIRS models
+confidentiality ("does data leave?" — source produces data, sink exfiltrates,
+finding IDs TOXIC-00x). INTEGRITY_PAIRS models a distinct axis, state
+change/persistence ("can content written here be executed there?", finding
+IDs INTEG-00x). Both lists share the same ToxicPair shape and are checked by
+the same self-pair/cross-pair loop in ToxicFlowAnalyzer.analyze_all(), but
+are kept as separate source lists (combined only via TOXIC_AND_INTEGRITY_PAIRS)
+so a user filtering on one ID prefix never silently gets the other.
 
 Research basis:
   "Compromising LLM-Integrated Applications with Indirect Prompt Injection"
@@ -203,6 +212,12 @@ KEYWORD_RULES: list[KeywordRule] = [
 # ── Toxic pair definitions ────────────────────────────────────────────────────
 
 TOXIC_PAIRS: list[ToxicPair] = [
+    # NOTE: every pair below is exfiltration-shaped (source "produces data",
+    # sink "leaks it out" — see attack_paths._SOURCE_CAPS/_SINK_CAPS). This
+    # models exactly one axis: confidentiality. Integrity (state change /
+    # persistence) is a SEPARATE, narrower list — see INTEGRITY_PAIRS below.
+    # Do not add a persistence-shaped pair here; it would silently change
+    # what "TOXIC-*" means to anyone filtering on that ID prefix.
     ToxicPair(
         source=Capability.FILE_READ,
         sink=Capability.NETWORK_OUT,
@@ -324,6 +339,212 @@ TOXIC_PAIRS: list[ToxicPair] = [
         owasp_mcp_top_10=("MCP10",),
     ),
 ]
+
+
+# ── Integrity pairs ────────────────────────────────────────────────────────
+#
+# R37 measured what FILE_WRITE participates in nowhere: TOXIC_PAIRS only
+# models confidentiality (does data leave?). It never asks whether state can
+# be changed, or whether a change persists and later re-executes. Adding
+# FILE_WRITE to TOXIC_PAIRS was rejected for the general case — see the R37
+# measurement recorded in GAPS.md — so this is a second, narrower list for
+# a different claim: "content written by one server can be executed by
+# another." Kept separate from TOXIC_PAIRS deliberately, with a distinct
+# finding-ID prefix (INTEG-*, never TOXIC-*), so a user filtering on
+# TOXIC-* for exfiltration risk does not silently also get integrity
+# findings, and vice versa. ToxicFlowAnalyzer and shadow/risk.py both
+# consume TOXIC_AND_INTEGRITY_PAIRS (defined below), not this list alone.
+#
+# Measurement (R37, 50-entry registry, 2026-09-08):
+#   - FILE_WRITE + SHELL_EXEC: 1 self-pair (server-everything, a kitchen-sink
+#     demo server that is SUPPOSED to trip every rule) and 11 cross-server
+#     pairs across a mega-scan of all 50 registry entries combined (3
+#     FILE_WRITE-capable entries x 4 SHELL_EXEC-capable entries, minus
+#     self-overlaps). Small numbers, and the combinations are dominated by
+#     servers already flagged elsewhere for unrelated CVEs (@mcpjam/inspector,
+#     flowise, gemini-mcp-tool) rather than an "obviously benign, why did
+#     this fire" server. Severity is calibrated against TOXIC-004
+#     (FILE_READ + SHELL_EXEC) rather than borrowed from an exfiltration
+#     pair: the shape is identical (attacker-controlled content reaches a
+#     shell-exec sink), just via a write instead of a read, and SHELL_EXEC's
+#     reach is not scoped by mcp-audit's capability model any more for a
+#     write than for a read — so the write-target problem that blocks
+#     FILE_WRITE + NETWORK_OUT (see below) does not apply here.
+#   - FILE_WRITE + NETWORK_OUT was measured and explicitly REJECTED as a
+#     general pair (self- or cross-server): 2 self-pair hits (docpull —
+#     the exact motivating "fetch and persist" case — and server-everything)
+#     but 60 cross-server pairs in the same mega-scan, almost entirely
+#     `@modelcontextprotocol/server-filesystem` (a completely generic,
+#     extremely common server whose entire stated purpose is file I/O)
+#     paired against every one of the 21 NETWORK_OUT-capable registry
+#     entries. Severity for this pair depends almost entirely on WHERE the
+#     write lands — a scratch directory is nothing, `~/.claude/CLAUDE.md`
+#     is critical — and mcp-audit's capability model has no notion of write
+#     target (tag_server() never inspects a server's configured directory
+#     argument). Shipping one severity for two situations that differ by
+#     orders of magnitude was rejected as indefensible per this project's
+#     own severity-framework conventions. Recorded as a known, MEASURED gap
+#     in GAPS.md (not silently dropped, and not the same as CLOUD's
+#     deliberate-deferral shape) pending a write-target model.
+INTEGRITY_PAIRS: list[ToxicPair] = [
+    ToxicPair(
+        source=Capability.FILE_WRITE,
+        sink=Capability.SHELL_EXEC,
+        finding_id="INTEG-001",
+        severity=Severity.HIGH,
+        title="File write + shell execution path (plant-then-execute)",
+        description=(
+            "One server can write files while another can execute shell "
+            "commands. An attacker or prompt injection could write a "
+            "malicious script or payload via the file-writing server and "
+            "have the shell-execution server run it — the same "
+            "content-reaches-execution chain as reading a malicious file "
+            "and executing it (TOXIC-004), but via a write instead of a "
+            "read. This is an integrity finding (state change/persistence), "
+            "not an exfiltration finding."
+        ),
+        remediation=(
+            "Review whether both servers are necessary. Treat any location "
+            "the file-writing server can reach as untrusted input to the "
+            "shell-execution server, and restrict shell execution scope."
+        ),
+        cwe="CWE-78",
+        owasp_mcp_top_10=("MCP05",),
+    ),
+]
+
+# Combined pair list for pair-based detection. ToxicFlowAnalyzer.analyze_all()
+# and shadow/risk.py::score_risk() both need every rule — TOXIC_PAIRS
+# (confidentiality/exfiltration) plus INTEGRITY_PAIRS (integrity/persistence)
+# — but the two source lists stay separate so a reader auditing "what counts
+# as exfiltration" vs "what counts as integrity" can inspect each list on its
+# own. Do not collapse them back into one list; import THIS constant instead
+# of concatenating TOXIC_PAIRS + INTEGRITY_PAIRS at each call site.
+TOXIC_AND_INTEGRITY_PAIRS: list[ToxicPair] = TOXIC_PAIRS + INTEGRITY_PAIRS
+
+
+# ── Tag-only capabilities ───────────────────────────────────────────────────
+#
+# A Capability member that appears in no TOXIC_PAIRS entry (source or sink)
+# and no attack_paths.CAPABILITY_FLOWS entry can be recorded on a server but
+# can never contribute to a toxic-flow or attack-path finding — the same
+# shape as the R34 "subprocess" defect (a capability that is recorded, looks
+# meaningful, and does nothing), just arriving through deliberate design (or
+# an unnoticed gap) instead of a typo. R35 added compute_dead_capabilities()
+# / scripts/audit_registry.py's find_dead_capabilities() to compute this set
+# at audit time and compare it against the explicit list below, so the next
+# tag-only addition is a conscious act, not an accident silently inherited
+# from adding an enum value without wiring it into either table. A capability
+# found dead but NOT listed here fails that check loudly, in the same spirit
+# as the duplicate-name guard in registry/loader.py — which fails loudly
+# because a silent wrong answer had already shipped once.
+#
+# ``kind`` distinguishes WHY a member is here, because collapsing that
+# distinction is exactly how "subprocess" sat inert for months: an allowlist
+# that can't tell an accepted design decision from a known-but-unfixed gap
+# launders the second into the first, and nobody looks at it again.
+#   - DELIBERATE_DEFERRAL: wiring was consciously postponed pending its own
+#     calibration pass; there is no known missing table row today.
+#   - SUSPECTED_GAP: the capability is dead because the detection MODEL has
+#     no axis to express it — not because someone chose to leave it out.
+#     This is a known, unfixed gap, not a settled decision; do not read it
+#     as one.
+# ``reason`` is mandatory and non-empty (enforced in __post_init__) — no
+# member may be added without saying, in prose, which of the two it is and
+# why.
+
+
+class TagOnlyKind(StrEnum):
+    """Why a capability is listed in KNOWN_TAG_ONLY_CAPABILITIES."""
+
+    DELIBERATE_DEFERRAL = "deliberate_deferral"
+    SUSPECTED_GAP = "suspected_gap"
+
+
+@dataclass(frozen=True)
+class TagOnlyCapability:
+    """One allowlisted tag-only capability, with a mandatory reason.
+
+    Raises:
+        ValueError: if ``reason`` is empty/whitespace-only. A tag-only entry
+            with no stated reason is indistinguishable from an accident —
+            the exact failure mode this allowlist exists to prevent.
+    """
+
+    capability: Capability
+    kind: TagOnlyKind
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not self.reason.strip():
+            raise ValueError(
+                f"TagOnlyCapability({self.capability!r}) has an empty reason — "
+                "every tag-only allowlist entry must say, in prose, why it is "
+                "here and whether it is a deliberate deferral or a suspected gap."
+            )
+
+
+KNOWN_TAG_ONLY_CAPABILITIES: tuple[TagOnlyCapability, ...] = (
+    TagOnlyCapability(
+        capability=Capability.CLOUD,
+        kind=TagOnlyKind.DELIBERATE_DEFERRAL,
+        reason=(
+            "Cloud SDK calls are already NETWORK_OUT mechanically, so CLOUD "
+            "does not open a new exfiltration primitive TOXIC_PAIRS doesn't "
+            "already cover. Calibrating dedicated pairs for its distinct "
+            "blast radius (IAM-scoped infrastructure control) needs its own "
+            "research-and-measurement pass (R34), not a guess made here."
+        ),
+    ),
+    # R35 flagged FILE_WRITE here as a SUSPECTED_GAP (no axis in the model
+    # for state change/persistence). R37 measured it (see INTEGRITY_PAIRS
+    # above and GAPS.md's "Toxic flow analysis — FILE_WRITE integrity axis
+    # (R37)" section) and added INTEG-001 (FILE_WRITE + SHELL_EXEC).
+    # FILE_WRITE now participates in a real detection path via
+    # TOXIC_AND_INTEGRITY_PAIRS, so it is no longer dead and this allowlist
+    # entry is removed — do not re-add it without a fresh measurement.
+    # FILE_WRITE + NETWORK_OUT remains a separate, still-open, MEASURED gap
+    # (write-target severity problem) — tracked in GAPS.md, not here, since
+    # FILE_WRITE as a capability is no longer tag-only.
+)
+
+_KNOWN_TAG_ONLY_CAP_SET: frozenset[Capability] = frozenset(
+    t.capability for t in KNOWN_TAG_ONLY_CAPABILITIES
+)
+
+
+def compute_dead_capabilities() -> frozenset[Capability]:
+    """Return Capability members that participate in no detection path.
+
+    "Participate" means appearing as a source or sink in
+    :data:`TOXIC_AND_INTEGRITY_PAIRS` (i.e. :data:`TOXIC_PAIRS` or
+    :data:`INTEGRITY_PAIRS`), or as either element of an
+    :data:`~mcp_audit.analyzers.attack_paths.CAPABILITY_FLOWS` edge. A
+    capability outside both sets can be recorded on a server (and inferred
+    by keyword heuristics, if a :data:`KEYWORD_RULES` entry exists for it)
+    but can never cause a finding to fire.
+
+    Imports ``attack_paths`` lazily: ``attack_paths.py`` imports ``Capability``
+    and ``TOXIC_PAIRS`` FROM this module, so a top-level import here would be
+    circular.
+
+    Returns:
+        Frozen set of dead :class:`Capability` members. Compare against
+        :data:`KNOWN_TAG_ONLY_CAPABILITIES` (via ``_KNOWN_TAG_ONLY_CAP_SET``
+        for membership, or the full tuple for each entry's ``kind``/
+        ``reason``) to distinguish an accounted-for tag-only capability —
+        deliberate or a known suspected gap — from an accidental one.
+    """
+    from mcp_audit.analyzers.attack_paths import CAPABILITY_FLOWS  # noqa: PLC0415
+
+    used: set[Capability] = set()
+    for tp in TOXIC_AND_INTEGRITY_PAIRS:
+        used.add(tp.source)
+        used.add(tp.sink)
+    for source_cap, sink_cap in CAPABILITY_FLOWS:
+        used.add(source_cap)
+        used.add(sink_cap)
+    return frozenset(Capability) - used
 
 
 # ── Capability tagging ────────────────────────────────────────────────────────
@@ -475,6 +696,12 @@ class ToxicFlowAnalyzer(BaseAnalyzer):
     def analyze_all(self, servers: list[ServerConfig]) -> list[Finding]:
         """Check all server pairs for dangerous capability combinations.
 
+        Checks every rule in :data:`TOXIC_AND_INTEGRITY_PAIRS` — both the
+        exfiltration-shaped :data:`TOXIC_PAIRS` and the integrity-shaped
+        :data:`INTEGRITY_PAIRS` — so both claims are detected by the same
+        pair-matching mechanism while keeping distinct finding-ID prefixes
+        (``TOXIC-*`` vs ``INTEG-*``).
+
         Considers both cross-server pairs and single-server self-pairs (a
         server that alone has both the source and sink capability is at least
         as dangerous as a two-server combination).
@@ -504,7 +731,7 @@ class ToxicFlowAnalyzer(BaseAnalyzer):
             for j in range(i, n):
                 caps_a, caps_b = caps[i], caps[j]
 
-                for tp in TOXIC_PAIRS:
+                for tp in TOXIC_AND_INTEGRITY_PAIRS:
                     if i == j:
                         # Self-pair: one server holds both ends of the path.
                         if tp.source in caps_a and tp.sink in caps_a:

@@ -288,6 +288,152 @@ Build and distribution scripts at project root:
   (submitters should check whichever of file/database/network already
   covers their actual persistence mechanism) and merged "execute code" into
   "execute shell commands" (both are `SHELL_EXEC`).
+  **R35 tightened both of R34's own checks after they shipped with gaps:**
+  (1) `find_undeclared_capabilities()` was a strict-subset test
+  (`declared < inferred`), which misses the partial-overlap case where an
+  entry declares something the heuristics don't infer AND omits something
+  they do (those sets are incomparable, so `<` is `False`). Generalised to
+  `inferred - declared` non-empty (subsumes strict subset); each hit is
+  tagged `"subset"` or `"disjoint"` so the two shapes stay distinguishable
+  in the report. Measured before adopting, per the task's own decision
+  rule: re-running against all 50 live entries (correctly, via `uv run
+  python3` — see next point) found exactly one new hit beyond the zero the
+  strict form found, and it was real, not heuristic over-fire, so the
+  general predicate was adopted outright with no reviewed-exception
+  mechanism (there was no legitimate-narrowing case in the data to design
+  one against). Both real hits found across the two runs were fixed in the
+  same PR: `@palisadeemail/mcp` (declared only `network_out`; its own
+  `tags` already say `"email"`) and `@azure/mcp` (declared only
+  `network_out`; its own `tags` already say `"cloud"`) — the same
+  self-contradicting-metadata shape as the R34 `docpull` near-miss, just
+  caught before a comment about it went out this time.
+  (2) Added `find_dead_capabilities()`: a `Capability` that appears in no
+  `TOXIC_PAIRS` entry and no `attack_paths.CAPABILITY_FLOWS` edge can be
+  recorded but never contributes to a finding — the `subprocess` defect's
+  shape arriving through design instead of a typo. Compared against an
+  explicit, mandatory-reason allowlist, `toxic_flow.KNOWN_TAG_ONLY_CAPABILITIES`
+  (a tuple of `TagOnlyCapability(capability, kind, reason)` — `__post_init__`
+  rejects an empty `reason`), so the next tag-only addition is a conscious
+  act, not an accident. Running it found `Capability.CLOUD` as expected
+  (see above) **and, unexpectedly, `Capability.FILE_WRITE`**: every
+  `TOXIC_PAIRS`/`CAPABILITY_FLOWS` entry models one axis — confidentiality,
+  `attack_paths._SOURCE_CAPS`/`_SINK_CAPS`, source "produces data" / sink
+  "exfiltrates" — and never asks whether state can be changed or a change
+  can persist and later re-execute (e.g. one server writes a payload, a
+  second server with `SHELL_EXEC` runs it). `FILE_WRITE` has a display
+  label in `attack_paths._CAP_LABELS` and no role anywhere else because
+  there is no axis in the model to put it on — a missing dimension, not a
+  missing table row. `kind` exists specifically so this is NOT recorded the
+  same way as `CLOUD`: `CLOUD` is `DELIBERATE_DEFERRAL` (wiring consciously
+  postponed, no known missing row); `FILE_WRITE` is `SUSPECTED_GAP` (dead
+  because the model has no axis for it, a known-but-unfixed gap, not a
+  settled decision). Collapsing that distinction is exactly how
+  `subprocess` sat inert for months, so the allowlist can express it
+  instead of laundering a gap into a decision. `FILE_WRITE`'s wiring is
+  explicitly **not** designed here — the shape of the fix isn't known yet
+  either — and is queued as its own measure-first prompt (R37).
+  **R37 resolved this by measuring first, not by guessing.** Across the
+  live 50-entry registry: only 3 entries declare `file_write`
+  (`server-filesystem`, `server-everything`, `docpull`); a general
+  `FILE_WRITE + NETWORK_OUT` pair would fire on 60 cross-server
+  combinations dominated by `server-filesystem` paired against *any* of
+  the 21 `NETWORK_OUT`-capable entries (the exact "obviously that's what
+  it does, why did this fire" trap the task warned against), and its
+  severity is inherently write-target-dependent (a scratch directory vs.
+  `~/.claude/CLAUDE.md`) with no write-target model to calibrate it —
+  Part 3's own investigation found `agent_files/discovery.py` only holds
+  the agent-instruction path set as inline walk logic, not an importable
+  constant, and connecting it to a server's actual write scope would
+  require building a filesystem-scope inspector the task explicitly said
+  not to invent in-task. `FILE_WRITE + NETWORK_OUT` was therefore declined
+  and is tracked as a measured, open gap in GAPS.md ("FILE_WRITE integrity
+  axis (R37)") rather than shipped with an indefensible severity.
+  `FILE_WRITE + SHELL_EXEC` had none of that problem (11 cross-server hits,
+  dominated by entries already CVE-flagged elsewhere, not benign ones; and
+  SHELL_EXEC's reach is not write-target-scoped for a write any more than
+  for a read) and shipped as `INTEG-001` in a new `INTEGRITY_PAIRS` list —
+  deliberately a *separate* list from `TOXIC_PAIRS`, combined only via
+  `TOXIC_AND_INTEGRITY_PAIRS` (consumed by `ToxicFlowAnalyzer`,
+  `shadow/risk.py`, and `diff/comparator.py`), with its own `INTEG-*`
+  finding-ID prefix so filtering on `TOXIC-*` (confidentiality) never
+  silently returns an `INTEG-*` (integrity) finding or vice versa.
+  `Capability.FILE_WRITE` was removed from `KNOWN_TAG_ONLY_CAPABILITIES`
+  entirely — it now participates in a real detection path, so it is no
+  longer tag-only, and `compute_dead_capabilities()` was repointed at
+  `TOXIC_AND_INTEGRITY_PAIRS` so the dead-capability check still holds.
+  `tests/test_toxic_flow.py::TestComputeDeadCapabilities` asserts zero
+  unexpected tag-only capabilities on every PR (not just ones touching the
+  registry file or this script), since a capability-table change lives
+  entirely in `toxic_flow.py`/`attack_paths.py` and would not otherwise
+  trigger `registry-drift.yml`. Separately, `find_entirely_tag_only_entries()`
+  flags any registry entry whose *entire* declared capability set is
+  tag-only — such an entry produces zero toxic-flow findings while looking
+  fully described, the `subprocess` failure in a new costume; zero hits
+  today, proven (not just reasoned about) by
+  `TestCloudOnlyEntryYieldsNoToxicFlowFindings`, which builds a registry
+  entry declaring only `["cloud"]`, runs it through `ToxicFlowAnalyzer`,
+  and asserts the finding list is empty.
+  **R39 revisited the `FILE_WRITE + NETWORK_OUT` write-target blocker and
+  kept it declined, on new grounds.** The path-list half of R37's Part 3
+  blocker is fixed: `agent_files/discovery.py`'s relative-path list is now
+  a single importable constant, `AGENT_INSTRUCTION_PATTERNS`, with a
+  generic `_resolve_relative_pattern()` resolver driving both
+  `_discover_user_global()` and `_discover_project_tree()` — no more
+  hand-written duplicate of the same paths inside each walk function.
+  `discover_agent_files()`'s existing 50-test suite passed unmodified
+  against the refactor, proving behaviour didn't move. The harder half —
+  whether a server's write scope can be *read off its own config* instead
+  of invented — was then measured directly: 4 of 4 real/demo config
+  fixtures using `@modelcontextprotocol/server-filesystem` declare a
+  directory argument (100%), and the package's own docs confirm those
+  args are its access-control list. That looked like a green light, but
+  it does not unblock a rule for two reasons the measurement itself
+  surfaced: (1) it is a single-named-package convention, not a capability
+  signal — `server-everything` has no args-based scope at all and
+  `docpull` writes to its own internal cache, so a rule built on it would
+  need a hardcoded package-name allowlist, a different analyzer shape
+  from everything else in `toxic_flow.py`; (2) a server with *no* declared
+  args is not necessarily unconstrained — `server-filesystem` also honours
+  the MCP Roots protocol, a client-runtime capability grant invisible to
+  a static config scan, so "no args" is ambiguous between Roots-scoped,
+  unconstrained, and non-functional. Reading "no args" as "unconstrained,
+  therefore worse" would misclassify an unknown number of Roots-scoped
+  servers — the same "shipping a severity we cannot defend" trap R37
+  refused, now on the config-parsing side rather than the agent-path side.
+  `FILE_WRITE + NETWORK_OUT` stays the open, measured gap recorded in
+  GAPS.md; closing it for real needs a signal mcp-audit's offline static
+  scan structurally cannot have (whether the client granted Roots).
+  **Also found while building this**: the first Part-1 measurement pass
+  silently ran against a stale, separately pip-installed `mcp_audit`
+  (bare `python3` resolved
+  `/Library/.../site-packages/mcp_audit`, not this repo's `src/mcp_audit`,
+  because only `uv run python3` activates the dev venv) and, missing the
+  `CLOUD` capability entirely, undercounted the real hits by one. Fixed
+  with `_assert_mcp_audit_is_repo_local()`, called at the top of `main()`:
+  resolves `mcp_audit.__file__`, fails loudly (exit 2, naming the actual
+  resolved path) if it is not under `<repo>/src/mcp_audit`. Same class of
+  defect as a missing duplicate-name guard — a measurement tool that can
+  silently measure the wrong build produces confident wrong numbers, which
+  is worse than producing none.
+  **Provenance of the original `subprocess` defect (Part 3):** both invalid
+  entries' history traces to a single commit, `96f8210` ("release: v0.12.0
+  — SC-004 CVE advisories, COLLIDE-001 seed, release prep", 2026-06-13),
+  which added all three offending entries (`@mcpjam/inspector`,
+  `gemini-mcp-tool`, `flowise`) in one batch alongside their CVE data; the
+  commit message documents the CVE additions but never mentions
+  `capabilities` at all. No doc, template, or `CLAUDE.md` revision at any
+  point in the repo's history ever suggested `"subprocess"` as a capability
+  value (`git log --all -p -S'"subprocess"' -- '*.md' '*.yml' '*.yaml'`
+  returns zero matches touching registry/template/capability docs; the
+  `.github/ISSUE_TEMPLATE/registry-submission.yml` template — added the
+  same day, commit `844c240` — has only ever offered "Execute shell
+  commands" and "Execute code," never "subprocess"; these three entries
+  weren't submitted through that template anyway, since they are seeded
+  CVE-advisory entries, not community submissions). Conclusion: invented at
+  triage time, with no source — the template fix in R34 closes a door this
+  defect never used. This is a finding about process (an ad-hoc metadata
+  edit that never cross-checked the `Capability` enum), not about
+  documentation, and is recorded here rather than smoothed over.
 
 - **Agent-file scanning** (`agent_files/`) covers the non-MCP-config instruction
   surfaces an agent reads: Claude Code commands/memory, Cursor `.mdc` rules, and
@@ -309,6 +455,7 @@ Build and distribution scripts at project root:
 - MCP protocol communication is async — use asyncio and pytest-asyncio
 - Core scanning MUST work fully offline — no network calls by default
 - OSV.dev lookups **are implemented** via `scan --check-vulns` (deps.dev transitive graph + OSV.dev CVE batch query; shipped v0.6.0). The `--offline` flag enforces mutual exclusion with network-touching opt-in flags (`--verify-hashes`, `--verify-signatures`, `--check-vulns`, `--connect`); a plain scan already makes no network calls, so `--offline` is a no-op for the default configuration
+- **mcp-audit does not implement semver range resolution anywhere** — no semver library appears in `src/mcp_audit/vulnerability/` or `src/mcp_audit/attestation/`. For an unpinned npm server, `resolve_latest_version()` asks `registry.npmjs.org/<pkg>/latest` (the `latest` dist-tag, npm-pick-manifest's own first-preference rule) rather than computing a highest-satisfying version, so the class of resolver bug an external measurement (issue [#88](https://github.com/adudley78/mcp-audit/issues/88)) found in a from-scratch range resolver — preferring a higher non-`latest`-tagged version over the dist-tag — cannot reach us; we declined to implement the thing that has the bug. For PyPI, `info.version` from the PyPI JSON API is documented to report the latest **stable** release (pre-releases excluded), matching pip's/`uvx`'s/`pipx`'s own default install behaviour, so it errs the same direction a real install would. `resolver.is_version_range()` (R36) is a syntactic, non-semver detector for a config entry that carries a floating specifier (`^1.2.3`, `~1.2.3`, `>=1.0.0`, `1.2.x`, `*`, `1.0.0 - 2.0.0`, `latest`) rather than an exact pin; `check_vulnerabilities()` and `mcp-audit sbom` both check it before calling `fetch_transitive_deps()`, because deps.dev requires an exact `(name, version)` key and 404s on a range — without the check, that 404 was caught by `fetch_transitive_deps()`'s own `except URLError/HTTPError` and silently degraded to a top-level-only result carrying the literal range string as its "version," with no warning. Both call sites now resolve a concrete version first (same as the existing "unpinned" path) and surface a visible `VULN-UNPINNED` finding / Rich console warning naming the original range and the resolved version. See "Known limitation: the published graph vs. the installed tree" in `docs/supply-chain.md` for the measured, externally-contributed error-rate bound on the deps.dev-vs-real-install gap this same issue established.
 - Rug-pull state is stored in `<user-config-dir>/mcp-audit/state/state.json` (resolved via `platformdirs`; macOS: `~/Library/Application Support/mcp-audit/state/`); a one-time migration copies state files from the legacy `~/.mcp-audit/` location on first access
 - **No feature gating.** mcp-audit is fully open source (Apache 2.0); every feature ships in every binary. Do not re-introduce conditional feature availability at any layer.
 - **Watcher callback serialisation.** `_McpConfigEventHandler._fire()` holds `_scan_lock` for the entire duration of the user callback to prevent two `run_scan` calls from racing on `state_<hash>.json`. Events arriving while a scan is in flight are stored in `_pending_rescan` (tuple of latest `(path, event_type)`) and coalesced into a single re-trigger when the active callback returns. Never release the scan lock before the callback finishes.
@@ -536,7 +683,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3097 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3162 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
