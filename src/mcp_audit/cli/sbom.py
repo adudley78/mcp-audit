@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import urllib.error
 from pathlib import Path
 
 import typer
@@ -13,7 +14,11 @@ from mcp_audit.discovery import discover_configs
 from mcp_audit.models import ScanResult
 from mcp_audit.vulnerability.depsdev import fetch_transitive_deps
 from mcp_audit.vulnerability.models import ResolvedPackage
-from mcp_audit.vulnerability.resolver import extract_ecosystem_and_version
+from mcp_audit.vulnerability.resolver import (
+    extract_ecosystem_and_version,
+    is_version_range,
+    resolve_latest_version,
+)
 
 
 @app.command("sbom")
@@ -90,6 +95,42 @@ def sbom(
             continue
         ecosystem, name, version = result
         if not offline:
+            if is_version_range(version):
+                # We do not implement semver range resolution anywhere in
+                # this codebase. Handing deps.dev a range (e.g. "^1.2.3")
+                # gets a 404 and silently degrades to a top-level-only
+                # result carrying the literal range string as its
+                # "version" — the user asked for a transitive scan and
+                # got a top-level scan with no indication why. Resolve a
+                # concrete version first and say so; if that also fails,
+                # degrade visibly instead of silently.
+                original_version = version
+                try:
+                    version = resolve_latest_version(ecosystem, name)
+                except (ValueError, urllib.error.URLError) as exc:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] {name} is pinned to a "
+                        f"semver range ({original_version}); could not "
+                        f"resolve a concrete version ({exc}). Transitive "
+                        "dependency resolution skipped — SBOM includes the "
+                        "top-level package only."
+                    )
+                    all_packages.append(
+                        ResolvedPackage(
+                            ecosystem=ecosystem,
+                            name=name,
+                            version=original_version,
+                            direct=True,
+                            source_server=server.name,
+                        )
+                    )
+                    continue
+                console.print(
+                    f"[yellow]Warning:[/yellow] {name} is pinned to a semver "
+                    f"range ({original_version}); resolved to {version} for "
+                    "transitive dependency resolution (mcp-audit does not "
+                    "implement range resolution)."
+                )
             deps = fetch_transitive_deps(
                 ecosystem, name, version, source_server=server.name
             )

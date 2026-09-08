@@ -302,6 +302,32 @@ Dependency Review.
 (the `cyclonedx-python-lib` dependency is optional and not included in the default install
 or the PyInstaller binary).
 
+#### SBOM staleness
+
+Every SBOM `mcp-audit sbom` writes carries a CycloneDX `metadata.timestamp`
+set at generation time, so the document itself states when its dependency
+graph was resolved. What it does not do is expire: an SBOM describes the
+graph as resolved *at generation time*, and nothing re-validates that graph
+against current advisories when the SBOM is read later. Scanning — or
+re-reading — an old SBOM produces findings against versions that may no
+longer be what is actually installed, and, in the other direction, misses
+advisories that landed after generation.
+
+The measured shape of this failure mode is the mirror image of the deps.dev
+limitation documented below: the same independent study found that a
+dependency graph frozen at release accumulates **phantom findings** as
+advisories land on versions the machine no longer has —
+[4,037 phantom findings across 250 MCP server configs](https://github.com/adudley78/mcp-audit/issues/88#issuecomment-5584233690),
+against only 7 missed findings in the other direction. An SBOM generated at
+release and scanned a year later has exactly this shape; it is the same
+failure the advisory feed's `expires` field exists to prevent (see
+`docs/advisory-feed.md`), applied to a document type that currently carries
+no expiry mechanism at all.
+
+This is a caveat, not a fix. `mcp-audit sbom` does not currently carry a TTL
+or any other staleness signal beyond `metadata.timestamp`. Whether it should
+is a separate design question, not addressed here.
+
 ### Finding IDs
 
 | Finding ID     | Severity  | Meaning |
@@ -316,6 +342,50 @@ with network-touching opt-in flags: `--verify-hashes`, `--verify-signatures`,
 `--check-vulns`, and `--connect` will all produce an error (exit code 2) if
 combined with `--offline`. A plain scan makes no network calls regardless of
 this flag, so `--offline` is currently a no-op for the default configuration.
+
+### Known limitation: the published graph vs. the installed tree
+
+`--check-vulns` and `mcp-audit sbom` answer a specific, narrower question
+than "is this server vulnerable": for the exact `(name, version)` pinned in a
+config, what does deps.dev say the *published* dependency graph looks like,
+and does the OSV.dev batch API report advisories against that graph? They do
+**not** answer what a given machine actually materializes when it runs
+`npx` / `npm install` at a given moment. Semver-range resolution at install
+time (including npm's own `latest`-dist-tag preference over a higher
+satisfying version), lockfile state, and platform-specific optional
+dependencies all live in the gap between "published graph" and "installed
+tree," and mcp-audit models none of them.
+
+**Measured divergence.** [Prachet Poddar's independent 250-MCP-server-config study](https://github.com/adudley78/mcp-audit/issues/88#issuecomment-5584233690)
+compared deps.dev's published graph, a graph frozen at each root package's
+publish date, and a live `npm install`, against advisory verdicts from the
+same npm bulk advisory endpoint `npm audit` itself uses. The deps.dev-vs-live
+arm diverged on advisory verdicts for **0.8% of servers (2 of 249), six
+findings, zero phantom findings** — the measured bound this project can
+currently point to for how often the published-graph shortcut produces a
+different verdict than a real install would have.
+
+This is a limitation with a measured bound, **not an accuracy claim**. It is
+a single study of one corpus, at one point in time, produced by one person —
+treat it as a data point, not a guarantee. It is also easy to over-read in
+the wrong direction: node counts barely differ across all three arms
+(median 95 packages; deps.dev +0.6% total instances vs. live), while raw
+*version* disagreement between deps.dev and live runs to **68.3% of
+servers** — and the verdict-level gap is still only 0.8%. Version-disagreement
+rate alone is therefore a poor proxy for whether a graph gap matters; the
+small verdict gap is a fact about where advisory boundaries happen to fall in
+this corpus, not evidence that the two graphs generally agree.
+
+**The failure class that does bite, and is worth watching for.** When a graph
+gap does produce a wrong verdict, it has a specific, nameable shape: a
+version resolves *up* into an advisory window whose lower bound sits above
+the version the other arm holds (e.g. resolving to a version inside a
+`>=X <=Y` advisory range, while the reference graph held an earlier, unaffected
+version). **Pinning a version does not protect against this class** —
+pinning forward to a newer version is exactly what causes it, since the
+version you pinned to may itself already sit inside a later-disclosed
+advisory window. The mitigation is re-scanning against current advisory data,
+not pinning harder.
 
 ---
 
