@@ -355,6 +355,157 @@ class TestCredentialEvidenceNoSecretLeakage:
             assert secret[:12] not in f.evidence
 
 
+# ── CRED-003: literal secrets in authentication headers ───────────────────────
+# See humans/decisions/2026-09-08-cred-003-design.md (marcus repo).
+
+
+class TestCred003AuthHeaders:
+    """CRED-003 — key-driven detection of literal values in auth headers."""
+
+    def setup_method(self) -> None:
+        self.analyzer = CredentialsAnalyzer()
+
+    def _server(
+        self,
+        headers: dict[str, str],
+        transport: TransportType = TransportType.STDIO,
+        url: str | None = None,
+    ) -> ServerConfig:
+        return ServerConfig(
+            name="test",
+            client="test",
+            config_path=Path("/tmp/test.json"),  # noqa: S108
+            transport=transport,
+            command="node" if transport == TransportType.STDIO else None,
+            headers=headers,
+            url=url,
+            raw={"headers": headers},
+        )
+
+    def _cred003(self, findings: list) -> list:
+        return [f for f in findings if f.id == "CRED-003"]
+
+    def test_raw_jwt_with_no_provider_prefix_fires(self) -> None:
+        """The case a SECRET_PATTERNS-based rule would miss entirely."""
+        jwt = (  # noqa: S105 — synthetic, not a real token
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+            "eyJzdWIiOiIxMjM0NTY3ODkwIn0.FAKE_SIGNATURE_NOT_REAL"
+        )
+        server = self._server({"Authorization": f"Bearer {jwt}"})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+        assert jwt not in findings[0].evidence
+
+    def test_opaque_bearer_token_fires(self) -> None:
+        server = self._server({"Authorization": "Bearer live-token-abc123xyz"})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+
+    def test_env_reference_does_not_fire(self) -> None:
+        server = self._server({"Authorization": "Bearer ${TOKEN}"})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert findings == []
+
+    def test_bare_env_reference_no_scheme_prefix_does_not_fire(self) -> None:
+        server = self._server({"X-Api-Key": "${API_KEY}"})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert findings == []
+
+    def test_windows_env_reference_does_not_fire(self) -> None:
+        server = self._server({"X-Api-Key": "%API_KEY%"})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert findings == []
+
+    def test_env_reference_with_trailing_material_still_fires(self) -> None:
+        """A naive `_is_env_reference().search()` would wave this through."""
+        server = self._server({"Authorization": "Bearer sk-live-abc$FOO"})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+
+    @pytest.mark.parametrize(
+        "placeholder",
+        [
+            "<your-token>",
+            "REPLACE_ME",
+            "changeme",
+            "xxxxxxxx",
+            "",
+            "   ",
+        ],
+    )
+    def test_placeholder_value_fires_info_not_high(self, placeholder: str) -> None:
+        server = self._server({"Authorization": placeholder})
+        findings = self._cred003(self.analyzer.analyze(server))
+        if placeholder.strip() == "":
+            assert findings == []
+        else:
+            assert len(findings) == 1
+            assert findings[0].severity == Severity.INFO
+
+    def test_non_auth_header_key_with_provider_pattern_fires(self) -> None:
+        token = "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"  # noqa: S105
+        server = self._server({"X-Custom-Thing": token})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.HIGH
+        assert "GitHub" in findings[0].title
+        assert token not in findings[0].evidence
+
+    def test_non_auth_header_key_without_secret_pattern_does_not_fire(self) -> None:
+        server = self._server({"X-Request-Id": "abc-123-def-456"})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert findings == []
+
+    def test_no_headers_does_not_fire(self) -> None:
+        server = self._server({})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert findings == []
+
+    def test_fires_on_stdio_transport(self) -> None:
+        """Not remote-only: a stale headers block on a stdio server still fires."""
+        server = self._server(
+            {"Authorization": "Bearer live-token-abc123xyz"},
+            transport=TransportType.STDIO,
+        )
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert len(findings) == 1
+
+    def test_fires_on_remote_transport_alongside_no_auth001(self) -> None:
+        from mcp_audit.analyzers.auth import AuthAnalyzer
+
+        server = self._server(
+            {"Authorization": "Bearer live-token-abc123xyz"},
+            transport=TransportType.STREAMABLE_HTTP,
+            url="https://api.example.com/mcp",
+        )
+        cred_findings = self._cred003(self.analyzer.analyze(server))
+        auth_findings = AuthAnalyzer().analyze(server)
+        assert len(cred_findings) == 1
+        assert not any(f.id == "AUTH-001" for f in auth_findings)
+
+    def test_evidence_never_contains_the_value(self) -> None:
+        secret = "Bearer super-secret-live-value-999"  # noqa: S105
+        server = self._server({"Authorization": secret})
+        findings = self._cred003(self.analyzer.analyze(server))
+        assert len(findings) == 1
+        assert "super-secret-live-value-999" not in findings[0].evidence
+        assert "super-secret-live-value-999" not in findings[0].description
+        assert "super-secret-live-value-999" not in findings[0].title
+
+
+class TestCred003SharedAuthHeaderNames:
+    """The header-name set must be one shared object, not two copies (R45 pattern)."""
+
+    def test_credentials_and_auth_share_the_same_object(self) -> None:
+        import mcp_audit.analyzers.auth as auth_mod
+        import mcp_audit.analyzers.credentials as cred_mod
+
+        assert auth_mod.AUTH_HEADER_NAMES is cred_mod.AUTH_HEADER_NAMES
+
+
 class TestTransportAnalyzer:
     def setup_method(self):
         self.analyzer = TransportAnalyzer()

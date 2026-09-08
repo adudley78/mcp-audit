@@ -40,7 +40,15 @@ from mcp_audit.models import Finding, ServerConfig, Severity, TransportType
 # ── AUTH-001: auth-signal detection constants ─────────────────────────────────
 
 # Header names (case-insensitive) that carry authentication material.
-_AUTH_HEADER_NAMES: frozenset[str] = frozenset(
+#
+# Shared with ``analyzers/credentials.py`` (CRED-003) — imported there, never
+# copied. AUTH-001 suppresses on a header in this set; CRED-003 fires on one
+# whose value is a literal rather than an environment reference. A header
+# name that suppresses AUTH-001 but is absent from CRED-003's set would
+# recreate the clean-report hole under a different key, so both analyzers
+# read the same object. ``tests/test_auth_analyzer.py`` asserts the identity
+# (not just equality) of the two references.
+AUTH_HEADER_NAMES: frozenset[str] = frozenset(
     {
         "authorization",
         "x-api-key",
@@ -182,7 +190,7 @@ def _classify_host(hostname: str) -> str:
 
 def _has_auth_in_headers(server: ServerConfig) -> bool:
     """Return True if the server has at least one authentication header."""
-    return any(key.lower() in _AUTH_HEADER_NAMES for key in server.headers)
+    return any(key.lower() in AUTH_HEADER_NAMES for key in server.headers)
 
 
 def _has_auth_in_raw_fields(raw: dict) -> bool:

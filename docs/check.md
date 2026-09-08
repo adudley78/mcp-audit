@@ -121,6 +121,7 @@ automatically."
 |----|---------|
 | `CRED-001` | API key or secret in env var |
 | `CRED-002` | Hardcoded credential |
+| `CRED-003` | Literal secret in an authentication header |
 | `TRANSPORT-001` | HTTP instead of HTTPS |
 | `SC-001` | Likely-typosquatted package (edit distance 1) |
 | `SC-002` | Possible-typosquatted package (edit distance 2) |

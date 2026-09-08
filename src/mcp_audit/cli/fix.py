@@ -92,7 +92,7 @@ def fix(
     Three fix types are supported:
 
     \b
-    credentials  CRED-001/002 — redact plaintext secrets with ${ENV_KEY}
+    credentials  CRED-001/002/003 — redact plaintext secrets with ${ENV_KEY}
     transport    TRANSPORT-001 — upgrade http:// URLs to https://
     pinning      SC-001/002 — replace typosquatted package with verified@version
     """

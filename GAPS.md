@@ -265,6 +265,18 @@ tests.
   component of any scheme. Env-var references (`${PASSWORD}`, `%PW%`) are not
   flagged. The `auth.py` docstring was updated to reflect this.
 
+- **CRED-003 — literal secrets in authentication headers (closes the header-shaped
+  half of the CRED-001/002 high-entropy gap below).** A `SECRET_PATTERNS`-based
+  check would have missed exactly the config shape this rule targets: an opaque
+  bearer token or raw JWT (`Bearer eyJhbGci…`) has no provider prefix and no
+  quoted `key: "value"` form, so nothing in `SECRET_PATTERNS` matches it. CRED-003
+  is key-driven instead — the header key (`Authorization`, `x-api-key`, etc.,
+  `AUTH_HEADER_NAMES`, shared with AUTH-001's suppression list) already identifies
+  the value as a credential, so no value pattern is needed. This closes the gap
+  *for recognised auth-header keys specifically*; the underlying high-entropy
+  detection gap remains open everywhere else (env vars, args, and a header under a
+  *non-standard* key name), see below.
+
 - **Obfuscation inside trigger words (now a real detection, not just
   defense-in-depth).** A zero-width space or a homoglyph mid-word in
   `ignore previous instructions` is folded away by `normalize_for_detection()`,
@@ -273,13 +285,18 @@ tests.
 
 ### Documented but not fixed (open)
 
-- **CRED-001/002 — high-entropy tokens with no recognised prefix.**
+- **CRED-001/002/003 — high-entropy tokens with no recognised prefix.**
   Evasion: a custom internal credential format (high entropy, no `sk-`/`ghp_`/
   `AKIA`/etc. prefix and not matching the generic `password|secret|token|api_key`
   `=`/`:`-quoted form) is not detected. This is the same class as the "Pattern
   coverage is thin" note — production scanners use 700+ patterns plus Shannon
   entropy. What would close it: an entropy-based detector with an allow-list, at
-  the cost of a higher false-positive rate.
+  the cost of a higher false-positive rate. CRED-003 closes this gap specifically
+  for a header keyed under a name in `AUTH_HEADER_NAMES` (key-driven, no value
+  pattern needed — see above), but a high-entropy secret under a *non-standard*
+  header name (e.g. `X-Internal-Token: <opaque-value>` with no provider prefix)
+  still falls through to the same `SECRET_PATTERNS` fallback CRED-001/002 use and
+  is not detected.
 
 - **POISON-060 — full UTS #39 confusables coverage.**
   The normalization pass closes the highest-risk confusable scripts (Cyrillic,

@@ -37,11 +37,11 @@ mcp-audit fix --apply --fix-type credentials
 
 ## Supported fix types
 
-| Fix type      | Finding IDs        | What it does                                                  |
-|---------------|--------------------|---------------------------------------------------------------|
-| `credentials` | CRED-001, CRED-002 | Replaces plaintext secret values with `${ENV_VAR_NAME}`       |
-| `transport`   | TRANSPORT-001      | Rewrites `http://` server URLs to `https://`                  |
-| `pinning`     | SC-001, SC-002     | Replaces a typosquatted package name with the verified name and pins to `@latest-version` |
+| Fix type      | Finding IDs                | What it does                                                  |
+|---------------|-----------------------------|---------------------------------------------------------------|
+| `credentials` | CRED-001, CRED-002, CRED-003 | Replaces plaintext secret values with `${ENV_VAR_NAME}`       |
+| `transport`   | TRANSPORT-001               | Rewrites `http://` server URLs to `https://`                  |
+| `pinning`     | SC-001, SC-002               | Replaces a typosquatted package name with the verified name and pins to `@latest-version` |
 
 All three strategies are **idempotent** — re-running `fix` after `--apply`
 produces no further diff.
@@ -62,10 +62,13 @@ produces no further diff.
 
 ## Fix type details
 
-### Credentials (`CRED-001`, `CRED-002`)
+### Credentials (`CRED-001`, `CRED-002`, `CRED-003`)
 
 The credentials analyzer emits CRED-001 when a secret is found in a server's
-`env` dict, and CRED-002 when it appears in `args`.
+`env` dict, CRED-002 when it appears in `args`, and CRED-003 when a literal
+(non-env-referenced) value sits behind a recognised authentication header key
+(`Authorization`, `x-api-key`, `x-auth-token`, etc. — see
+[`docs/severity-framework.md`](severity-framework.md)).
 
 **What `fix` does:**
 
@@ -75,6 +78,25 @@ The credentials analyzer emits CRED-001 when a secret is found in a server's
   manager separately.
 - **CRED-002** — applies a regex substitution on the matching arg token,
   replacing the matched secret substring with `${REDACTED_SECRET}`.
+- **CRED-003** — replaces the header value with a synthesised
+  `${HEADER_NAME}` placeholder derived from the header key (e.g.
+  `Authorization` → `${AUTHORIZATION}`, `X-Api-Key` → `${X_API_KEY}`). Any
+  existing scheme prefix (`Bearer `, `Basic `, `Token `) is preserved
+  verbatim — only the credential tail is replaced.
+
+**Before (CRED-003):**
+```json
+"headers": {
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+**After:**
+```json
+"headers": {
+  "Authorization": "Bearer ${AUTHORIZATION}"
+}
+```
 
 **Before:**
 ```json

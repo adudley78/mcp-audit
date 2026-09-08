@@ -112,7 +112,7 @@ your repository. You will see findings from two tools:
 
 | Indicator | Tool | Example rule |
 |-----------|------|-------------|
-| Rule IDs starting with `POISON-`, `CRED-`, `SC-`, `TRANSPORT-`, `TOXIC-` | mcp-audit | `CRED-003: AWS access key in env value` |
+| Rule IDs starting with `POISON-`, `CRED-`, `SC-`, `TRANSPORT-`, `TOXIC-` | mcp-audit | `CRED-001: AWS access key in env value` |
 | Rule IDs starting with `javascript/` or `python/` | Snyk Code | `javascript/SqlInjection` |
 
 **Triage order:** prioritise CRITICAL and HIGH mcp-audit findings first —

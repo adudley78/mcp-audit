@@ -50,6 +50,10 @@ MCP-specific). See the reference tables at the bottom of this document.
 |------------|----------|----------------------|------------------|-----------|
 | CRED-001   | HIGH     | ASI06 | MCP01 | API key or secret in environment variable. Key is stored in plaintext and accessible to any process reading the config file. Credential types detected: AWS access/secret keys, GitHub tokens (classic `ghp_/gho_/ghu_/ghs_/ghr_` and fine-grained `github_pat_`), OpenAI keys (`sk-`), Anthropic keys (`sk-ant-`), Stripe keys, Slack tokens, GCP service-account JSON keys (`"private_key":"-----BEGIN`), Azure SAS tokens (`sv=…&sig=`), DigitalOcean tokens (`dop_v1_`), Vercel tokens (`vercel_`), PEM private key blocks (RSA/EC/DSA/OpenSSH), HashiCorp Vault service tokens (`hvs.`) and batch tokens (`hvb.`), generic secrets, and database URLs with inline credentials. CWE-798. CVSS: 7.5 |
 | CRED-002   | HIGH     | ASI06 | MCP01 | API key or secret in command arguments. Command lines are visible in process listings (`ps aux`) — wider exposure than env vars. Same credential patterns as CRED-001. CWE-798. CVSS: 7.5 |
+| CRED-003   | HIGH (literal secret) | ASI06 | MCP01 | Literal (non-env-referenced) value in an authentication header (`Authorization`, `x-api-key`, `api-key`, `x-auth-token`, `x-access-token`, `api_key`, `token` — the same `AUTH_HEADER_NAMES` set that suppresses AUTH-001, imported from `analyzers/auth.py` rather than copied). Key-driven, not value-driven: a raw JWT or opaque bearer token matches none of `SECRET_PATTERNS`' provider-shaped patterns, but the header *key* already identifies the value as a credential. Fires on any transport (a literal token on disk is exposed whether or not the transport ever sends it). A header key not in `AUTH_HEADER_NAMES` whose value matches a `SECRET_PATTERNS` provider pattern also fires (e.g. `X-Custom-Thing: ghp_…`). CWE-798. CVSS: 7.5 |
+| CRED-003   | INFO (placeholder value) | ASI06 | MCP01 | Same check, but the value is an obvious template placeholder (`<your-token>`, `REPLACE_ME`, `changeme`, `xxx…`, empty) rather than live material — firing HIGH here is the false positive that gets a rule switched off, since template configs are the most-copied configs in the ecosystem. Still worth a nudge before real use. |
+
+**CRED-003 does not fire** when the value is a recognised scheme prefix (`Bearer `, `Basic `, `Token `) — or no prefix at all — followed *entirely* by a single environment reference (`${VAR}`, `$VAR`, `%VAR%`). This is a full-string match, not a substring search: `"Bearer sk-live-abc$FOO"` still fires, because everything after stripping the scheme prefix must be nothing but the env reference. **CRED-003 and AUTH-001 are reasoned about together, not mutually exclusive**: AUTH-001 asks *whether* authentication is configured (suppressed by the mere presence of a recognised header key) and stays correctly suppressed when CRED-003 fires — CRED-003 is about *how* the value is stored, not whether the header is present. `mcp-audit fix --apply` remediates CRED-003 by replacing the value with a synthesised `${HEADER_NAME}` placeholder, preserving any existing scheme prefix.
 
 ### Transport analyzer (`analyzers/transport.py`)
 
@@ -239,13 +243,26 @@ See GAPS.md — *AUTH-002 coverage limits*.
 
 **Suppression rules for AUTH-001** (any one suppresses):
 - `Authorization`, `x-api-key`, `api-key`, `x-auth-token`, `x-access-token`,
-  `api_key`, or `token` header in `server.headers` (case-insensitive).
+  `api_key`, or `token` header in `server.headers` (case-insensitive). This
+  set is `AUTH_HEADER_NAMES` in `analyzers/auth.py`, imported (never copied)
+  by `analyzers/credentials.py` for CRED-003 — see below.
 - `token`, `apiKey`, `api_key`, `auth`, `bearer`, `authorization`,
   `access_token`, or `secret` field at the top level of the raw server entry.
 - Any OAuth-related field (`oauth`, `oauth2`, `authorization_endpoint`,
   `client_id`, `token_endpoint`).
 - URL userinfo component (`https://user:pass@host` or `https://token@host`).
 - `stdio` transport — local trust boundary, never fires.
+
+**CRED-003 relationship.** AUTH-001 asks *whether* a server is authenticated
+at all; CRED-003 (credentials analyzer, above) asks *how* the value behind a
+recognised auth header is stored. A header key in `AUTH_HEADER_NAMES`
+suppresses AUTH-001 regardless of whether its value is a literal secret or an
+env reference — authentication *is* configured either way. CRED-003 then
+fires independently when that value is a literal. The two are meant to
+co-occur on a config with a hardcoded token in `Authorization`: AUTH-001
+silent (correctly — auth is present), CRED-003 HIGH (the value's storage is
+the defect). Unlike AUTH-001, CRED-003 is not remote-only and does not
+suppress on `stdio` transport.
 
 ### Trust analyzer (`cli/scan.py::_apply_project_scan`, finding ID `TRUST-001`)
 
