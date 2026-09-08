@@ -36,7 +36,11 @@ from mcp_audit.cli import app
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import DiscoveredConfig, discover_configs
 from mcp_audit.models import ServerConfig
-from mcp_audit.registry.loader import KnownServerRegistry, load_registry
+from mcp_audit.registry.loader import (
+    KnownServerRegistry,
+    RegistryLoadError,
+    load_registry,
+)
 from mcp_audit.shadow.allowlist import (
     ShadowAllowlist,
     find_unmatched_allowlist_entries,
@@ -422,7 +426,7 @@ def shadow(
 
     try:
         registry = load_registry(offline=offline_registry)
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, RegistryLoadError) as exc:
         console.print(f"[bold red]Error:[/bold red] {exc}")
         raise typer.Exit(code=2) from exc
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -17,6 +18,15 @@ from mcp_audit.registry.loader import (
     levenshtein,
     load_registry,
     normalize_pypi_name,
+)
+
+# Windows does not support POSIX file permissions; stat() reports 0o666 for
+# everything regardless of the os.open() mode argument used to create the
+# file. Same convention as tests/test_baselines.py — tests that
+# equality-check a mode bitmask must skip on win32.
+_windows_skip = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows does not support POSIX file permissions",
 )
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -1223,3 +1233,461 @@ class TestVerifyConfigPath:
         # test-pkg has no known_hashes → "No hashes pinned" message, exit 0
         assert result.exit_code == 0
         assert "test-pkg" in result.output
+
+
+# ── R45: RegistryLoadError — a corrupt registry cache must never traceback ────
+
+
+def _duplicate_name_registry_payload() -> dict:
+    """A registry payload with two entries sharing a case-insensitive name.
+
+    Same shape as the real-world collision R43 hit once and could not
+    reproduce on four clean re-runs — different ecosystems (npm vs. pip),
+    same lowercased name, which is exactly what
+    ``KnownServerRegistry._build_name_index`` refuses to index.
+    """
+    return {
+        "schema_version": "1.0",
+        "last_updated": "2026-09-08",
+        "entry_count": 2,
+        "entries": [
+            {
+                "name": "dup-server",
+                "source": "npm",
+                "repo": None,
+                "maintainer": "test",
+                "verified": False,
+                "last_verified": "2026-09-08",
+                "known_versions": ["1.0.0"],
+                "tags": [],
+                "package_ecosystem": "npm",
+            },
+            {
+                "name": "dup-server",
+                "source": "pip",
+                "repo": None,
+                "maintainer": "test",
+                "verified": True,
+                "last_verified": "2026-09-08",
+                "known_versions": ["1.0.0"],
+                "tags": [],
+                "package_ecosystem": "pypi",
+            },
+        ],
+    }
+
+
+class TestRegistryLoadError:
+    """RegistryLoadError names the file and says how to recover, for both
+    ways a registry file can fail to load: malformed JSON (an interrupted
+    write) and a duplicate entry name (bad data)."""
+
+    def test_malformed_json_raises_registry_load_error(self, tmp_path: Path) -> None:
+        from mcp_audit.registry.loader import RegistryLoadError  # noqa: PLC0415
+
+        bad = tmp_path / "truncated.json"
+        # Simulates an interrupted write: a valid path, syntactically invalid
+        # JSON, cut off mid-object — exactly what a truncated write leaves.
+        bad.write_text('{"schema_version": "1.0", "entries": [', encoding="utf-8")
+
+        with pytest.raises(RegistryLoadError) as excinfo:
+            KnownServerRegistry(path=bad)
+
+        # Still a ValueError — existing `except ValueError` call sites
+        # (cli/fix.py) must keep working unchanged.
+        assert isinstance(excinfo.value, ValueError)
+        message = str(excinfo.value)
+        assert str(bad) in message
+        assert "update-registry" in message
+        assert excinfo.value.path == bad
+
+    def test_duplicate_name_raises_registry_load_error(self, tmp_path: Path) -> None:
+        from mcp_audit.registry.loader import RegistryLoadError  # noqa: PLC0415
+
+        p = tmp_path / "dup-cache.json"
+        p.write_text(json.dumps(_duplicate_name_registry_payload()), encoding="utf-8")
+
+        with pytest.raises(RegistryLoadError) as excinfo:
+            KnownServerRegistry(path=p)
+
+        message = str(excinfo.value)
+        assert str(p) in message, "message must name the cache file, not just the entry"
+        assert "dup-server" in message
+        assert "update-registry" in message
+
+    def test_invalid_entry_data_raises_registry_load_error(
+        self, tmp_path: Path
+    ) -> None:
+        """A schema-invalid entry (missing a required field) is also caught."""
+        from mcp_audit.registry.loader import RegistryLoadError  # noqa: PLC0415
+
+        p = tmp_path / "invalid-entry.json"
+        p.write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "last_updated": "2026-09-08",
+                    "entry_count": 1,
+                    # Missing every required field (name, source, ...).
+                    "entries": [{"tags": ["local"]}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(RegistryLoadError) as excinfo:
+            KnownServerRegistry(path=p)
+
+        assert str(p) in str(excinfo.value)
+
+
+# ── R45: update-registry validates before caching (STEP 3) ────────────────────
+
+
+class TestUpdateRegistryRefusesBadDataAtCacheTime:
+    """update-registry must refuse to write a registry the loader would later
+    reject — reusing KnownServerRegistry._build_name_index and RegistryEntry
+    directly (not a second copy of either rule)."""
+
+    def _invoke_update_registry(self, tmp_path: Path, payload: dict):  # noqa: ANN201
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        cache_path = tmp_path / "registry" / "known-servers.json"
+        fake_bytes = json.dumps(payload).encode()
+
+        runner = CliRunner()
+        with (
+            patch("mcp_audit.cli._REGISTRY_CACHE_PATH", cache_path),
+            patch("urllib.request.urlopen") as mock_urlopen,
+        ):
+            mock_resp = MagicMock()
+            mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_resp.read.return_value = fake_bytes
+            mock_urlopen.return_value = mock_resp
+
+            result = runner.invoke(app, ["update-registry"])
+        return result, cache_path
+
+    def test_duplicate_name_payload_refused_before_write(self, tmp_path: Path) -> None:
+        result, cache_path = self._invoke_update_registry(
+            tmp_path, _duplicate_name_registry_payload()
+        )
+
+        assert result.exit_code == 2, result.output
+        assert "dup-server" in result.output
+        assert not cache_path.exists(), (
+            "a registry that cannot be loaded must never reach the cache — "
+            f"but {cache_path} was written anyway"
+        )
+
+    def test_invalid_entry_payload_refused_before_write(self, tmp_path: Path) -> None:
+        payload = {
+            "schema_version": "1.0",
+            "last_updated": "2026-09-08",
+            "entry_count": 1,
+            "entries": [{"tags": ["local"]}],  # missing every required field
+        }
+        result, cache_path = self._invoke_update_registry(tmp_path, payload)
+
+        assert result.exit_code == 2, result.output
+        assert not cache_path.exists()
+
+    def test_valid_payload_still_writes_cache(self, tmp_path: Path) -> None:
+        """Sanity check: a clean payload is unaffected by the new validation."""
+        payload = {
+            "schema_version": "1.0",
+            "last_updated": "2026-09-08",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "name": "clean-server",
+                    "source": "npm",
+                    "repo": None,
+                    "maintainer": "test",
+                    "verified": False,
+                    "last_verified": "2026-09-08",
+                    "known_versions": ["1.0.0"],
+                    "tags": [],
+                }
+            ],
+        }
+        result, cache_path = self._invoke_update_registry(tmp_path, payload)
+
+        assert result.exit_code == 0, result.output
+        assert cache_path.exists()
+        assert "Registry updated" in result.output
+        # Cached bytes are the fetched JSON verbatim.
+        assert json.loads(cache_path.read_text(encoding="utf-8")) == payload
+
+
+# ── R45: update-registry writes the cache atomically (STEP 2) ─────────────────
+
+
+class TestWriteRegistryCacheAtomic:
+    """_write_registry_cache_atomic must never leave a half-written file at
+    the destination path, and must set 0o600 on the temp file itself (never
+    via a chmod after the rename, which would briefly leave it more
+    permissive)."""
+
+    def test_writes_full_content(self, tmp_path: Path) -> None:
+        from mcp_audit.cli.registry import _write_registry_cache_atomic  # noqa: PLC0415
+
+        dest = tmp_path / "registry" / "known-servers.json"
+        content = json.dumps({"schema_version": "1.0", "entries": []})
+
+        _write_registry_cache_atomic(dest, content)
+
+        assert dest.read_text(encoding="utf-8") == content
+        # No leftover temp file.
+        assert not dest.with_name(dest.name + ".tmp").exists()
+
+    @_windows_skip
+    def test_writes_mode_0600(self, tmp_path: Path) -> None:
+        from mcp_audit.cli.registry import _write_registry_cache_atomic  # noqa: PLC0415
+
+        dest = tmp_path / "registry" / "known-servers.json"
+        _write_registry_cache_atomic(dest, "{}")
+
+        assert (dest.stat().st_mode & 0o777) == 0o600
+
+    def test_no_chmod_after_rename(self, tmp_path: Path) -> None:
+        """Mode must come from os.open's own mode argument, not a later chmod."""
+        from mcp_audit.cli.registry import _write_registry_cache_atomic  # noqa: PLC0415
+
+        dest = tmp_path / "registry" / "known-servers.json"
+        with patch("os.chmod") as mock_chmod:
+            _write_registry_cache_atomic(dest, "{}")
+        mock_chmod.assert_not_called()
+
+    def test_interrupted_write_leaves_old_cache_untouched(self, tmp_path: Path) -> None:
+        """An interrupt after the temp file is created but before the atomic
+        replace must leave the ORIGINAL destination file completely
+        unchanged — never a half-written destination.
+
+        This is the exact failure this PR fixes: the previous implementation
+        opened the destination directly with O_TRUNC and wrote into it in
+        place, so an interrupt here used to leave a truncated file at
+        ``dest`` itself.
+        """
+        from mcp_audit.cli.registry import _write_registry_cache_atomic  # noqa: PLC0415
+
+        dest = tmp_path / "registry" / "known-servers.json"
+        dest.parent.mkdir(parents=True)
+        original_content = '{"schema_version": "1.0", "entries": ["ORIGINAL"]}'
+        dest.write_text(original_content, encoding="utf-8")
+
+        # Simulate an interrupt (e.g. Ctrl-C, disk full) that fires after the
+        # temp file has been written to but before the atomic replace.
+        with (
+            patch("os.fsync", side_effect=OSError("simulated interrupt")),
+            pytest.raises(OSError, match="simulated interrupt"),
+        ):
+            _write_registry_cache_atomic(
+                dest, '{"schema_version": "1.0", "entries": ["NEW"]}'
+            )
+
+        # The destination must be either fully the old content or fully the
+        # new content — here, since the replace never ran, it must be the
+        # untouched original. It must never be empty, truncated, or a mix.
+        assert dest.read_text(encoding="utf-8") == original_content, (
+            "an interrupted write must never mutate the destination file — "
+            "the old cache must survive intact"
+        )
+        # The temp file is cleaned up rather than left behind.
+        assert not dest.with_name(dest.name + ".tmp").exists()
+
+    def test_interrupted_write_when_no_old_cache_leaves_no_partial_file(
+        self, tmp_path: Path
+    ) -> None:
+        """Same interrupt, but for a first-ever `update-registry` run (no
+        pre-existing cache) — must leave no file at all, never a partial one.
+        """
+        from mcp_audit.cli.registry import _write_registry_cache_atomic  # noqa: PLC0415
+
+        dest = tmp_path / "registry" / "known-servers.json"
+
+        with (
+            patch("os.fsync", side_effect=OSError("simulated interrupt")),
+            pytest.raises(OSError, match="simulated interrupt"),
+        ):
+            _write_registry_cache_atomic(
+                dest, '{"schema_version": "1.0", "entries": []}'
+            )
+
+        assert not dest.exists(), "no partial file may appear at the destination"
+        assert not dest.with_name(dest.name + ".tmp").exists()
+
+    def test_update_registry_reports_clean_error_on_write_failure(
+        self, tmp_path: Path
+    ) -> None:
+        """A write failure (e.g. disk full) surfaces as a clean exit 2, not a
+        traceback, from the update-registry command itself."""
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        cache_path = tmp_path / "registry" / "known-servers.json"
+        payload = {
+            "schema_version": "1.0",
+            "last_updated": "2026-09-08",
+            "entry_count": 1,
+            "entries": [
+                {
+                    "name": "clean-server",
+                    "source": "npm",
+                    "repo": None,
+                    "maintainer": "test",
+                    "verified": False,
+                    "last_verified": "2026-09-08",
+                    "known_versions": ["1.0.0"],
+                    "tags": [],
+                }
+            ],
+        }
+
+        runner = CliRunner()
+        with (
+            patch("mcp_audit.cli._REGISTRY_CACHE_PATH", cache_path),
+            patch("urllib.request.urlopen") as mock_urlopen,
+            patch("os.fsync", side_effect=OSError("disk full")),
+        ):
+            mock_resp = MagicMock()
+            mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_resp.read.return_value = json.dumps(payload).encode()
+            mock_urlopen.return_value = mock_resp
+
+            result = runner.invoke(app, ["update-registry"])
+
+        assert result.exit_code == 2, result.output
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert "disk full" in result.output
+
+
+# ── R45: scan/vet/shadow/fix/check never traceback on a corrupt cache ─────────
+
+
+def _write_corrupt_registry_fixtures(tmp_path: Path) -> dict[str, Path]:
+    """Write both corruption shapes STEP 1 reproduced by hand and return their
+    paths keyed by a short label."""
+    dup = tmp_path / "dup-cache.json"
+    dup.write_text(json.dumps(_duplicate_name_registry_payload()), encoding="utf-8")
+
+    truncated = tmp_path / "truncated-cache.json"
+    # A truncated write: valid path, syntactically invalid JSON, cut off
+    # mid-object — simulates an interrupted write of a real registry file.
+    truncated.write_text(
+        json.dumps(_duplicate_name_registry_payload())[:80], encoding="utf-8"
+    )
+    return {"duplicate_name": dup, "truncated": truncated}
+
+
+class TestCorruptRegistryCacheGivesCleanExit:
+    """R45: scan, vet, shadow, fix, and check must never traceback on a
+    corrupt registry cache.
+
+    Before this PR: scan, vet, and shadow had no try/except at all around
+    registry construction. Reproduced by hand against a real
+    ``~/.config/mcp-audit`` cache (see the R45 PR description for the full
+    before/after matrices): both a duplicate-name cache and a truncated
+    (invalid-JSON) cache made all three exit 1 with the raw ``ValueError``
+    propagating uncaught — confirmed in-process below too, by running this
+    exact assertion against the pre-fix source (``result.exception`` was the
+    bare ``ValueError``, not a clean ``SystemExit(2)``).
+
+    fix and check already caught the exception broadly (an accident of an
+    existing ``except ValueError`` / ``except Exception``, not a deliberate
+    design for this case), so they already exited 2 — but the duplicate-name
+    message never named the cache file, only the conflicting entry names.
+    All five now get the identical, path-naming, recovery-hinting message
+    via ``RegistryLoadError``.
+    """
+
+    @pytest.fixture()
+    def minimal_config(self, tmp_path: Path) -> Path:
+        config = tmp_path / "claude_desktop_config.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "filesystem": {
+                            "command": "npx",
+                            "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        return config
+
+    @pytest.fixture()
+    def corrupt_caches(self, tmp_path: Path) -> dict[str, Path]:
+        return _write_corrupt_registry_fixtures(tmp_path)
+
+    @pytest.mark.parametrize("cache_label", ["duplicate_name", "truncated"])
+    @pytest.mark.parametrize(
+        ("command_name", "args_builder"),
+        [
+            ("scan", lambda cfg: ["scan", "--path", str(cfg)]),
+            (
+                "vet",
+                lambda cfg: ["vet", "@modelcontextprotocol/server-filesystem"],
+            ),
+            ("shadow", lambda cfg: ["shadow", "--path", str(cfg)]),
+            ("fix", lambda cfg: ["fix", "--path", str(cfg)]),
+            ("check", lambda cfg: ["check", "--path", str(cfg)]),
+        ],
+    )
+    def test_command_exits_clean_not_traceback(
+        self,
+        command_name: str,
+        args_builder,
+        cache_label: str,
+        corrupt_caches: dict[str, Path],
+        minimal_config: Path,
+    ) -> None:
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        import mcp_audit.registry.loader as loader_mod  # noqa: PLC0415
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        cache_path = corrupt_caches[cache_label]
+        args = args_builder(minimal_config)
+
+        runner = CliRunner()
+        with (
+            patch.object(loader_mod, "_USER_CACHE_PATH", cache_path),
+            patch("mcp_audit.discovery._get_client_specs", return_value=[]),
+        ):
+            result = runner.invoke(app, args)
+
+        assert result.exit_code == 2, (
+            f"`mcp-audit {command_name}` should exit 2 on a {cache_label} "
+            f"registry cache, got {result.exit_code}. Output:\n{result.output}"
+        )
+        assert not isinstance(result.exception, ValueError), (
+            f"`mcp-audit {command_name}` let a raw {type(result.exception).__name__} "
+            "escape instead of converting it to a clean exit — this is the "
+            "traceback this PR fixes."
+        )
+        # Compare against the output with newlines stripped: Rich soft-wraps
+        # long lines (the full tmp_path is long in a pytest tmp dir), which
+        # can split the path itself across a line break with no inserted
+        # characters — stripping "\n" reconstructs the original text exactly.
+        flat_output = result.output.replace("\n", "")
+        assert cache_path.name in flat_output, (
+            f"`mcp-audit {command_name}`'s error message must name the "
+            f"corrupt cache file. Output:\n{result.output}"
+        )
+        assert str(cache_path.parent) in flat_output, (
+            f"`mcp-audit {command_name}`'s error message must name the full "
+            f"corrupt cache path. Output:\n{result.output}"
+        )
+        assert "update-registry" in flat_output, (
+            f"`mcp-audit {command_name}`'s error message must say how to "
+            f"recover. Output:\n{result.output}"
+        )

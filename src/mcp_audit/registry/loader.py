@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Literal
 
 from platformdirs import user_config_dir
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 # ── PEP 503 normalisation ──────────────────────────────────────────────────────
 
@@ -86,6 +86,54 @@ def _resolve_bundled_path() -> Path:
 
 
 BUNDLED_REGISTRY_PATH: Path = _resolve_bundled_path()
+
+
+# ── Errors ───────────────────────────────────────────────────────────────────
+
+
+class RegistryLoadError(ValueError):
+    """A registry file exists but cannot be loaded (malformed JSON or a
+    duplicate entry name caught by :meth:`KnownServerRegistry._build_name_index`).
+
+    Subclasses ``ValueError`` on purpose: existing ``except ValueError`` call
+    sites (``cli/fix.py``'s ``_resolve_findings`` catch, and anything else
+    that already treats a bad registry as "just a ValueError") keep working
+    unchanged and automatically get the improved, path-naming,
+    recovery-hinting message below with no code change at their end. New call
+    sites that want to react *specifically* to a corrupt registry (as opposed
+    to some unrelated ``ValueError`` elsewhere in the same try block) should
+    catch ``RegistryLoadError``, not the broader ``ValueError`` — see
+    ``cli/scan.py``, ``cli/vet.py``, and ``cli/shadow.py``.
+
+    R45: found by re-running R43's transient "Duplicate registry entry" crash
+    deliberately instead of writing it off as noise. ``scan``, ``vet``, and
+    ``shadow`` had no catch at all around registry construction and printed a
+    raw Python traceback; ``fix`` and ``check`` happened to already catch
+    ``ValueError``/``Exception`` broadly, but neither message named the
+    offending file or said how to recover. This class fixes both: every
+    caller now gets the same path + reason + recovery text, whether it
+    catches broadly or narrowly.
+    """
+
+    def __init__(self, path: Path, reason: str) -> None:
+        """Build the error, storing *path* and *reason* for programmatic use.
+
+        Args:
+            path: The resolved registry file path that failed to load.
+            reason: Human-readable description of why (already includes any
+                nested exception detail — e.g. the JSON decoder message, or
+                :meth:`KnownServerRegistry._build_name_index`'s own duplicate-
+                name explanation).
+        """
+        self.path = path
+        self.reason = reason
+        super().__init__(
+            f"Registry file could not be loaded: {path}\n"
+            f"  Reason: {reason}\n"
+            "  To recover: delete this file, then run 'mcp-audit "
+            "update-registry' to fetch a fresh copy (or pass --registry to "
+            "use a different file)."
+        )
 
 
 # ── Data models ────────────────────────────────────────────────────────────────
@@ -179,24 +227,31 @@ class KnownServerRegistry:
 
         Raises:
             FileNotFoundError: If no registry file can be located.
-            ValueError: If the registry JSON is malformed, or if two entries
+            RegistryLoadError: If the located registry file's JSON is
+                malformed, an entry fails schema validation, or two entries
                 share the same (case-insensitive) ``name`` — see
-                :meth:`_build_name_index`.
+                :meth:`_build_name_index`. Subclasses ``ValueError``, so
+                existing ``except ValueError`` call sites keep working.
         """
         resolved = self._locate(path, offline=offline)
         raw = resolved.read_text(encoding="utf-8")
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
-            raise ValueError(f"Malformed registry JSON at {resolved}: {exc}") from exc
+            raise RegistryLoadError(
+                resolved, f"Malformed registry JSON: {exc}"
+            ) from exc
 
         self.schema_version: str = str(data.get("schema_version", "unknown"))
         self.last_updated: str = str(data.get("last_updated", "unknown"))
 
         raw_entries = data.get("entries", [])
-        self.entries: list[RegistryEntry] = [
-            RegistryEntry.model_validate(e) for e in raw_entries
-        ]
+        try:
+            self.entries: list[RegistryEntry] = [
+                RegistryEntry.model_validate(e) for e in raw_entries
+            ]
+        except ValidationError as exc:
+            raise RegistryLoadError(resolved, f"Invalid entry data: {exc}") from exc
 
         # Build a lowercase name → entry index for O(1) exact lookups (all entries).
         #
@@ -214,7 +269,15 @@ class KnownServerRegistry:
         # canary package collided with the real, verified PyPI entry). Fail
         # loudly at load time instead so the collision is fixed in the data, not
         # silently outrun in a lookup.
-        self._name_index = self._build_name_index(self.entries)
+        try:
+            self._name_index = self._build_name_index(self.entries)
+        except ValueError as exc:
+            # Wrap, don't change: _build_name_index's own raise (message,
+            # condition) is untouched — this only adds the file path and
+            # recovery instructions that a static method operating on a bare
+            # entries list has no way to know. See RegistryLoadError's
+            # docstring for why this stays a ValueError subclass.
+            raise RegistryLoadError(resolved, str(exc)) from exc
 
         # PyPI-ecosystem sub-index (PEP 503 normalised name → entry).
         self._pypi_entries: list[RegistryEntry] = [

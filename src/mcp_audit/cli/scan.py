@@ -53,7 +53,7 @@ from mcp_audit.output.nucleus import format_nucleus
 from mcp_audit.output.sarif import format_sarif
 from mcp_audit.output.terminal import print_results
 from mcp_audit.owasp_mcp import OWASP_MCP_TOP_10
-from mcp_audit.registry.loader import KnownServerRegistry
+from mcp_audit.registry.loader import KnownServerRegistry, RegistryLoadError
 from mcp_audit.sast import runner as _sast_runner
 from mcp_audit.scanner import _USER_RULES_DIR
 from mcp_audit.watcher import ConfigWatcher
@@ -1231,16 +1231,20 @@ def scan(
             resolved_policy_path = Path(".mcp-audit-policy.yml").resolve()
         scoring_weights_source = f"policy:{resolved_policy_path}"
 
-    result = _cli.run_scan(
-        extra_paths=extra_paths,
-        analyzers=analyzers,
-        connect=connect,
-        offline=offline,
-        extra_rules_dirs=extra_rules_dirs if extra_rules_dirs else None,
-        auth_token=connect_token,
-        scoring_weights=scoring_weights,
-        scoring_weights_source=scoring_weights_source,
-    )
+    try:
+        result = _cli.run_scan(
+            extra_paths=extra_paths,
+            analyzers=analyzers,
+            connect=connect,
+            offline=offline,
+            extra_rules_dirs=extra_rules_dirs if extra_rules_dirs else None,
+            auth_token=connect_token,
+            scoring_weights=scoring_weights,
+            scoring_weights_source=scoring_weights_source,
+        )
+    except RegistryLoadError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(2) from exc
 
     if asset_prefix:
         result.machine.asset_id = asset_prefix
@@ -1464,11 +1468,21 @@ def watch(
 
     def _run_and_print(label: str) -> None:
         """Execute a full scan and emit results with the configured formatter."""
-        result = _cli.run_scan(
-            extra_paths=extra_paths,
-            connect=connect,
-            extra_rules_dirs=watch_extra_rules,
-        )
+        try:
+            result = _cli.run_scan(
+                extra_paths=extra_paths,
+                connect=connect,
+                extra_rules_dirs=watch_extra_rules,
+            )
+        except RegistryLoadError as exc:
+            # For the initial (pre-loop) call this runs on the main thread and
+            # typer.Exit(2) exits watch cleanly, matching every other command's
+            # behaviour on a corrupt registry. For a rescan triggered from
+            # _on_change (a watchdog background thread) typer.Exit cannot stop
+            # the process from there — this at minimum still replaces a raw
+            # traceback with the same clean, actionable message.
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from exc
         result.findings = [
             f
             for f in result.findings

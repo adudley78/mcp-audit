@@ -2,18 +2,111 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
 from rich.table import Table
 
 from mcp_audit import cli as _cli
 from mcp_audit.cli import app, console
+from mcp_audit.registry.loader import KnownServerRegistry, RegistryEntry
 
 # ── update-registry ───────────────────────────────────────────────────────────
+
+
+def _validate_registry_payload(data: dict) -> None:
+    """Refuse a registry payload that the loader would later reject.
+
+    R45: ``update_registry`` used to accept anything with an ``entries``
+    list, so a bad upstream push (or a manual edit) could cache a file
+    guaranteed to crash the *next* scan/vet/fix/shadow/check with a
+    ``RegistryLoadError`` — the corrupt file just sat there until a human
+    found and deleted it. This runs the exact same checks
+    :class:`~mcp_audit.registry.loader.KnownServerRegistry` performs at load
+    time — Pydantic validation via :class:`RegistryEntry`, then
+    :meth:`KnownServerRegistry._build_name_index` for the duplicate-name
+    rule — *before* anything touches disk, by reusing those two pieces
+    directly rather than forking a second copy of either check (the DO NOT
+    that follows from R43's own postmortem: two copies of the same rule is
+    how they drift).
+
+    Args:
+        data: Parsed JSON payload (already confirmed to be a dict with a list
+            ``entries`` key by the caller).
+
+    Raises:
+        typer.Exit: With code 2 and a human-readable message naming the
+            offending entries, if the payload fails Pydantic validation or
+            contains a duplicate (case-insensitive) entry name.
+    """
+    try:
+        entries = [RegistryEntry.model_validate(e) for e in data["entries"]]
+    except ValidationError as exc:
+        console.print(
+            "[red]Refusing to cache: downloaded registry has invalid entry "
+            f"data and would fail to load on the next scan:[/red]\n{exc}"
+        )
+        raise typer.Exit(2) from exc
+
+    try:
+        KnownServerRegistry._build_name_index(entries)  # noqa: SLF001
+    except ValueError as exc:
+        console.print(
+            "[red]Refusing to cache: downloaded registry has a duplicate "
+            f"entry name and would fail to load on the next scan:[/red]\n{exc}"
+        )
+        raise typer.Exit(2) from exc
+
+
+def _write_registry_cache_atomic(path: Path, raw: str) -> None:
+    """Write *raw* to *path* atomically: temp file, fsync, then ``os.replace``.
+
+    R45: the previous implementation opened *path* directly with
+    ``O_TRUNC`` and wrote into it in place. Interrupting that write (Ctrl-C,
+    a laptop lid closing, a stalled read) left a truncated or half-written
+    cache file at the real destination — the exact "truncated cache" shape
+    reproduced in this PR's tests. Writing to a same-directory temp file
+    first and only replacing the destination via ``os.replace()`` (atomic on
+    both POSIX and Windows) means an interrupt anywhere before the final
+    replace leaves the *old* cache (or no cache) in place, never a partial
+    new one; an interrupt can never land "in between" because there is no
+    step that mutates *path* except the single atomic replace.
+
+    The temp file is created directly at mode 0o600 via the ``os.open``
+    mode argument (never a ``chmod`` after the fact — CLAUDE.md's own
+    invariant is that a sensitive file must never be briefly
+    world-readable), and ``os.replace`` preserves the temp file's own mode
+    across the rename, so the destination is 0o600 immediately, with no
+    window where it is not.
+
+    Args:
+        path: Final destination path (the registry cache file).
+        raw: Exact bytes (as ``str``) to write — the downloaded registry JSON
+            verbatim, unmodified, so the cached file is byte-identical to
+            what was validated.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    tmp_path = path.with_name(path.name + ".tmp")
+    fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(raw)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(str(tmp_path), str(path))
+    except BaseException:
+        # Best-effort cleanup of the temp file on any failure (including a
+        # KeyboardInterrupt landing mid-write) — the destination is
+        # untouched either way, since only the line above ever mutates it.
+        with contextlib.suppress(OSError):
+            tmp_path.unlink(missing_ok=True)
+        raise
 
 
 @app.command(name="update-registry")
@@ -23,6 +116,12 @@ def update_registry() -> None:
     Saves the registry to the platform user config directory under
     ``mcp-audit/registry/known-servers.json`` (path resolved via ``platformdirs``).
     On the next scan the updated registry is used automatically.
+
+    The write is atomic (temp file + ``os.replace``, see
+    :func:`_write_registry_cache_atomic`) and the payload is validated the
+    same way :class:`~mcp_audit.registry.loader.KnownServerRegistry` will
+    later load it (see :func:`_validate_registry_payload`) before anything
+    is written — a registry that cannot be loaded never reaches the cache.
     """
     console.print(f"[dim]Fetching registry from {_cli._UPDATE_REGISTRY_URL}…[/dim]")
 
@@ -45,18 +144,17 @@ def update_registry() -> None:
         )
         raise typer.Exit(2)  # noqa: B904
 
+    # Refuse to cache anything the loader would later reject (STEP 3).
+    _validate_registry_payload(data)
+
     # Security: 0o700 directory, 0o600 file — registry cache may contain
     # proprietary server metadata; restrict to the owning user only.
-    _cli._REGISTRY_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    import os as _os  # noqa: PLC0415
-
-    _reg_fd = _os.open(
-        str(_cli._REGISTRY_CACHE_PATH),
-        _os.O_WRONLY | _os.O_CREAT | _os.O_TRUNC,
-        0o600,
-    )
-    with _os.fdopen(_reg_fd, "w", encoding="utf-8") as _reg_fh:
-        _reg_fh.write(raw)
+    # Write is atomic (STEP 2): see _write_registry_cache_atomic.
+    try:
+        _write_registry_cache_atomic(_cli._REGISTRY_CACHE_PATH, raw)
+    except OSError as exc:
+        console.print(f"[red]Error writing registry cache: {exc}[/red]")
+        raise typer.Exit(2) from exc
 
     count = data.get("entry_count", len(data["entries"]))
     version_str = data.get("schema_version", "unknown")

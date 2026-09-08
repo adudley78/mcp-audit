@@ -398,12 +398,20 @@ class TestEntirelyTagOnlyEntries:
 
 
 class TestAssertMcpAuditIsRepoLocal:
-    """_assert_mcp_audit_is_repo_local(): fail loudly on a non-dev-tree import."""
+    """audit_registry.py's use of the shared dev_build_guard check.
+
+    R45 moved this check out of a private copy in this module and into
+    ``scripts/dev_build_guard.py`` (shared with
+    ``docs/manual-test-matrix.md``'s Setup Guard — see that module's
+    docstring). These tests confirm ``audit_registry.py`` still calls it with
+    identical behaviour (same message shape, same ``sys.exit(2)``); full
+    coverage of the check itself lives in ``tests/test_dev_build_guard.py``.
+    """
 
     def test_passes_for_the_real_dev_install(self) -> None:
         # Under `uv run pytest`, mcp_audit resolves to this repo's src tree —
         # must not raise/exit.
-        mod._assert_mcp_audit_is_repo_local()
+        mod.assert_mcp_audit_is_repo_local(mod.REPO_ROOT)
 
     def test_exits_loudly_for_a_foreign_install(
         self,
@@ -422,7 +430,7 @@ class TestAssertMcpAuditIsRepoLocal:
         fake.__file__ = str(foreign_init)
         monkeypatch.setitem(sys.modules, "mcp_audit", fake)
         with pytest.raises(SystemExit) as exc_info:
-            mod._assert_mcp_audit_is_repo_local()
+            mod.assert_mcp_audit_is_repo_local(mod.REPO_ROOT)
         assert exc_info.value.code == 2
         err = capsys.readouterr().err
         assert "FATAL" in err
