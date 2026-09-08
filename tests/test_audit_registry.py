@@ -405,19 +405,29 @@ class TestAssertMcpAuditIsRepoLocal:
         mod._assert_mcp_audit_is_repo_local()
 
     def test_exits_loudly_for_a_foreign_install(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture,
     ) -> None:
         import types
 
+        foreign = tmp_path / "somewhere-else" / "site-packages" / "mcp_audit"
+        foreign.mkdir(parents=True)
+        foreign_init = foreign / "__init__.py"
+        foreign_init.write_text("", encoding="utf-8")
+
         fake = types.ModuleType("mcp_audit")
-        fake.__file__ = "/somewhere/else/site-packages/mcp_audit/__init__.py"
+        fake.__file__ = str(foreign_init)
         monkeypatch.setitem(sys.modules, "mcp_audit", fake)
         with pytest.raises(SystemExit) as exc_info:
             mod._assert_mcp_audit_is_repo_local()
         assert exc_info.value.code == 2
         err = capsys.readouterr().err
         assert "FATAL" in err
-        assert "/somewhere/else/site-packages/mcp_audit/__init__.py" in err
+        # Path formatting is platform-native (backslashes on Windows) — compare
+        # against str(Path(...).resolve()), not a hardcoded POSIX string.
+        assert str(foreign_init.resolve()) in err
 
 
 class TestDefaultIsReadOnly:
