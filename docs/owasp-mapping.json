@@ -176,6 +176,16 @@
       ]
     },
     {
+      "finding_id": "CRED-003",
+      "finding_title": "Literal secret in authentication header",
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ]
+    },
+    {
       "finding_id": "TRANSPORT-001",
       "finding_title": "Unencrypted remote endpoint (HTTP)",
       "owasp_codes": [
@@ -1090,5 +1100,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 91 static finding IDs are mapped (60 original + 24 new: COMM-000 template + COMM-016 through COMM-034 + AUTH-001 + AUTH-002 + TRUST-001 + COLLIDE-001 + SC-004 + 7 agent-file: SKILL-001/002/003, HOOK-001/002, MEM-001/002). 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 98 static finding IDs are mapped. 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. Most recently added: CRED-003 (literal secret in an authentication header), TRUST-002/004/005 (symlinked config/agent-file candidates), SKILL-004 (skill bundled-scripts inventory), TRUST-003 (repo-planted IDE auto-execution). See docs/severity-framework.md for the full rationale table."
 }

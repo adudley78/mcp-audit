@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from urllib.parse import urlparse
 
+from mcp_audit.analyzers.auth import AUTH_HEADER_NAMES
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.models import Finding, ServerConfig, Severity
 
@@ -76,6 +77,75 @@ def _redact_url_password(url: str, password: str) -> str:
     string — the analyst sees the real URL shape without the secret.
     """
     return url.replace(f":{password}@", ":***@", 1)
+
+
+# ── CRED-003: literal secrets in authentication headers ───────────────────────
+#
+# CRED-003 is *key-driven*, not value-driven, and deliberately does not reuse
+# SECRET_PATTERNS as its primary rule. SECRET_PATTERNS is provider-shaped
+# (`AKIA…`, `ghp_…`, `sk-…`) plus one "Generic Secret" pattern that requires a
+# quoted `key: "value"` shape — a bearer token or raw JWT
+# (`Bearer eyJhbGciOi…`) matches none of it. For `headers`, the *key* already
+# tells you the value is a credential (this is exactly why AUTH_HEADER_NAMES
+# suppresses AUTH-001), so CRED-003 fires on any literal value under a
+# recognised auth-header key, independent of its shape. SECRET_PATTERNS is
+# still consulted as a supplement for header keys *not* in AUTH_HEADER_NAMES
+# (e.g. a custom `X-Custom-Thing: ghp_…`), where the value itself is the only
+# available signal.
+
+# Authentication scheme prefixes that may precede the credential in a header
+# value (RFC 7235 / RFC 6750). Matched case-insensitively; the captured prefix
+# (including trailing whitespace) is preserved verbatim when synthesising a
+# fix.
+_SCHEME_PREFIX_RE: re.Pattern[str] = re.compile(r"(?i)^(bearer|basic|token)\s+")
+
+# A *full-string* match of an env-var reference — deliberately not
+# ``_ENV_REF_RE.search()``, which would wave through
+# ``"Bearer sk-live-abc$FOO"`` because it merely *contains* ``$FOO``. The
+# correct header value is a scheme prefix followed *entirely* by a single env
+# reference; anything else left over after stripping the prefix is live
+# material.
+_ENV_REF_FULL_RE: re.Pattern[str] = re.compile(
+    r"^(?:\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*|%[A-Za-z0-9_]+%)$"
+)
+
+# Obvious placeholder/template values. Firing HIGH on a freshly-copied example
+# config is the false positive that gets a rule switched off wholesale, and
+# template configs are the most-copied configs in the ecosystem — so these
+# fire INFO at most rather than being suppressed outright (the header is
+# still not wired to an env var, which is worth a nudge before real use).
+_PLACEHOLDER_RE: re.Pattern[str] = re.compile(
+    r"(?i)^\s*$"  # empty / whitespace-only
+    r"|^<[^>]*>$"  # <your-token>, <API_KEY>, ...
+    r"|^(your[-_ ]?(api[-_ ]?)?(key|token)|replace[-_]?me|change[-_]?me"
+    r"|todo|fixme|placeholder|insert[-_ ]?token[-_ ]?here|x{3,})$"
+)
+
+
+def strip_scheme_prefix(value: str) -> str:
+    """Return *value* with a leading auth scheme prefix (``Bearer `` etc.) removed.
+
+    Returns *value* unchanged when no recognised scheme prefix is present, so a
+    header with no prefix at all (e.g. ``X-Api-Key: ${API_KEY}``) is handled by
+    the same code path as one with ``Bearer``/``Basic``/``Token``.
+    """
+    return _SCHEME_PREFIX_RE.sub("", value, count=1)
+
+
+def is_header_value_env_only(value: str) -> bool:
+    """Return True if *value* is (optionally scheme-prefixed) purely an env reference.
+
+    This is the "correct form" predicate for CRED-003: a scheme prefix
+    followed entirely by a single ``${VAR}``/``$VAR``/``%VAR%`` reference, with
+    nothing else. Used both to suppress the finding and, in the fixer, to
+    detect an already-remediated header (idempotency).
+    """
+    return bool(_ENV_REF_FULL_RE.match(strip_scheme_prefix(value)))
+
+
+def _is_placeholder_value(value: str) -> bool:
+    """Return True if *value* looks like a template/placeholder rather than a secret."""
+    return bool(_PLACEHOLDER_RE.match(value.strip()))
 
 
 class CredentialsAnalyzer(BaseAnalyzer):
@@ -180,4 +250,123 @@ class CredentialsAnalyzer(BaseAnalyzer):
                     )
                 )
 
+        # Check authentication headers for literal (non-env-referenced) secrets.
+        # Any transport — a literal token in a config file on disk is exposed
+        # whether or not the transport ever sends it, and a stdio server can
+        # carry a stale `headers` block. Not gated on `_is_remote_transport`.
+        findings.extend(self._check_headers(server))
+
         return findings
+
+    # ── CRED-003 ──────────────────────────────────────────────────────────────
+
+    def _check_headers(self, server: ServerConfig) -> list[Finding]:
+        """Detect literal secrets in authentication headers (CRED-003)."""
+        findings: list[Finding] = []
+        for key, value in server.headers.items():
+            if key.lower() in AUTH_HEADER_NAMES:
+                finding = self._check_auth_header_value(server, key, value)
+                if finding is not None:
+                    findings.append(finding)
+                continue
+            # Not a recognised auth-header key: fall back to provider-pattern
+            # matching, the one place value-matching earns its keep here — a
+            # leaked GitHub token under a non-standard header name is still a
+            # leaked GitHub token.
+            for secret_name, pattern, provider in SECRET_PATTERNS:
+                if pattern.search(value):
+                    findings.append(
+                        Finding(
+                            id="CRED-003",
+                            severity=Severity.HIGH,
+                            analyzer=self.name,
+                            client=server.client,
+                            server=server.name,
+                            title=f"{provider} credential in server header",
+                            description=(
+                                f"{secret_name} found in header {key!r}. This is"
+                                " not a recognised authentication header name,"
+                                f" but its value matches a known {provider}"
+                                " credential format."
+                            ),
+                            evidence=f"Header: {key} | Matches {secret_name} pattern",
+                            remediation=(
+                                "Move the value out of the header into an"
+                                " environment variable, e.g."
+                                f' "{key}": "${{MY_SERVER_TOKEN}}", with the'
+                                " variable set in the environment."
+                            ),
+                            cwe="CWE-798",
+                            owasp_mcp_top_10=["MCP01"],
+                        )
+                    )
+                    break
+        return findings
+
+    def _check_auth_header_value(
+        self, server: ServerConfig, key: str, value: str
+    ) -> Finding | None:
+        """Return a CRED-003 finding for a single recognised auth-header value.
+
+        Returns ``None`` when the value is the documented correct form: an
+        optional scheme prefix followed entirely by a single environment
+        reference.
+        """
+        if not value.strip():
+            return None
+
+        if is_header_value_env_only(value):
+            return None
+
+        if _is_placeholder_value(value):
+            return Finding(
+                id="CRED-003",
+                severity=Severity.INFO,
+                analyzer=self.name,
+                client=server.client,
+                server=server.name,
+                title="Placeholder value in authentication header",
+                description=(
+                    f"Server '{server.name}' sets the {key!r} header to what"
+                    " looks like a placeholder/template value rather than a"
+                    " real credential. Not flagged as a live secret, but the"
+                    " header should be wired to an environment variable"
+                    " before this configuration is used for anything real."
+                ),
+                evidence=f"Header: {key} | Placeholder value detected",
+                remediation=(
+                    f"Replace the placeholder in {key!r} with an environment"
+                    f' reference, e.g. "{key}": "Bearer ${{MY_SERVER_TOKEN}}",'
+                    " before using this configuration."
+                ),
+                cwe="CWE-798",
+                owasp_mcp_top_10=["MCP01"],
+            )
+
+        return Finding(
+            id="CRED-003",
+            severity=Severity.HIGH,
+            analyzer=self.name,
+            client=server.client,
+            server=server.name,
+            title="Live credential embedded in authentication header",
+            description=(
+                f"Server '{server.name}' sets the {key!r} header — a"
+                " recognised authentication header name — to a literal value"
+                " rather than an environment reference. The header key alone"
+                " is a strong signal the value is a credential; anyone who"
+                " can read this configuration file has the live token."
+                " Authentication is correctly configured here (AUTH-001 does"
+                " not fire); the defect is how the value is stored, not"
+                " whether the header is present."
+            ),
+            evidence=f"Header: {key}",
+            remediation=(
+                "Keep the header, move the value out: e.g."
+                f' "{key}": "Bearer ${{MY_SERVER_TOKEN}}" (or the scheme this'
+                " server expects), with MY_SERVER_TOKEN set in the"
+                " environment."
+            ),
+            cwe="CWE-798",
+            owasp_mcp_top_10=["MCP01"],
+        )

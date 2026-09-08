@@ -740,7 +740,7 @@ echo "exit: $?"
 **Expected:** single-screen summary showing: letter grade (A–F), numeric score
 (0–100), top 5 findings by severity with plain-English remediation hints, and
 a pointer to `mcp-audit fix --apply` if any auto-fixable findings are present
-(CRED-001, CRED-002, TRANSPORT-001, SC-001, SC-002). Exit 1 (demo configs have
+(CRED-001, CRED-002, CRED-003, TRANSPORT-001, SC-001, SC-002). Exit 1 (demo configs have
 HIGH/CRITICAL findings — grade C/D/F or CRIT/HIGH present). Must not show a
 Python traceback.
 

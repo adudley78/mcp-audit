@@ -184,6 +184,93 @@ class TestCredentialFixStrategy:
         _, desc = s.apply(config, finding)
         assert "already fixed" in desc
 
+    # ── CRED-003: literal secrets in authentication headers ───────────────────
+
+    def test_can_fix_cred003(self) -> None:
+        s = CredentialsFixStrategy()
+        assert s.can_fix(_make_finding("CRED-003"))
+
+    def _config_with_header(
+        self,
+        server_name: str = "my-server",
+        header_key: str = "Authorization",
+        header_value: str = "Bearer live-token-abc123",
+    ) -> dict:
+        return {
+            "mcpServers": {
+                server_name: {
+                    "command": "node",
+                    "headers": {header_key: header_value},
+                }
+            }
+        }
+
+    def test_cred003_replaces_header_value_preserving_scheme_prefix(self) -> None:
+        s = CredentialsFixStrategy()
+        config = self._config_with_header(
+            header_key="Authorization", header_value="Bearer live-token-abc123"
+        )
+        finding = _make_finding(
+            "CRED-003", evidence="Header: Authorization", analyzer="credentials"
+        )
+        new_config, desc = s.apply(config, finding)
+        headers = new_config["mcpServers"]["my-server"]["headers"]
+        assert headers["Authorization"] == "Bearer ${AUTHORIZATION}"  # noqa: S105
+        assert "Authorization" in desc
+        # Original must be unchanged (strategy must deep-copy)
+        assert config["mcpServers"]["my-server"]["headers"]["Authorization"] == (
+            "Bearer live-token-abc123"
+        )
+
+    def test_cred003_no_scheme_prefix_gets_bare_placeholder(self) -> None:
+        s = CredentialsFixStrategy()
+        config = self._config_with_header(
+            header_key="X-Api-Key", header_value="live-token-abc123"
+        )
+        finding = _make_finding("CRED-003", evidence="Header: X-Api-Key")
+        new_config, _ = s.apply(config, finding)
+        headers = new_config["mcpServers"]["my-server"]["headers"]
+        assert headers["X-Api-Key"] == "${X_API_KEY}"  # noqa: S105
+
+    def test_cred003_idempotent_when_already_env_ref(self) -> None:
+        s = CredentialsFixStrategy()
+        config = self._config_with_header(
+            header_key="Authorization", header_value="Bearer ${AUTHORIZATION}"
+        )
+        finding = _make_finding("CRED-003", evidence="Header: Authorization")
+        new_config, desc = s.apply(config, finding)
+        assert "already fixed" in desc
+        assert new_config == config
+
+    def test_cred003_raises_when_header_missing(self) -> None:
+        s = CredentialsFixStrategy()
+        config = self._config_with_header()
+        finding = _make_finding("CRED-003", evidence="Header: X-Nonexistent")
+        with pytest.raises(ValueError, match="not found"):
+            s.apply(config, finding)
+
+    def test_cred003_raises_on_bad_evidence(self) -> None:
+        s = CredentialsFixStrategy()
+        config = self._config_with_header()
+        finding = _make_finding("CRED-003", evidence="completely unparseable")
+        with pytest.raises(ValueError, match="Cannot parse header key"):
+            s.apply(config, finding)
+
+    def test_cred003_provider_pattern_branch_evidence_also_parses(self) -> None:
+        """Evidence with a trailing '| Matches ... pattern' detail still parses."""
+        s = CredentialsFixStrategy()
+        config = self._config_with_header(
+            header_key="X-Custom-Thing",
+            header_value="ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890",
+        )
+        finding = _make_finding(
+            "CRED-003",
+            evidence="Header: X-Custom-Thing | Matches GitHub Token pattern",
+        )
+        new_config, _ = s.apply(config, finding)
+        headers = new_config["mcpServers"]["my-server"]["headers"]
+        assert headers["X-Custom-Thing"] == "${X_CUSTOM_THING}"  # noqa: S105
+
 
 # ── TransportFixStrategy unit tests ───────────────────────────────────────────
 
