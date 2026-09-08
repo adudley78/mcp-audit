@@ -307,7 +307,7 @@ See [`docs/diff.md`](docs/diff.md) for input formats, severity table, and edge c
 | Transport security | TRANSPORT-001…003 | Unencrypted remote SSE connections, elevated privilege execution, runtime package fetching via `npx`/`uvx` without version pinning |
 | Supply chain | SC-001…003 | Typosquatted package names (`@modelcontextprotocol/server-filesytem` vs `server-filesystem`), distance-1 substitutions flagged CRITICAL |
 | Rug-pull | RUGPULL-001…003 | Tool description changed since last scan (HIGH), new server appeared (INFO), previously tracked server removed (INFO) |
-| Toxic flow | TOXIC-001…007 | File-read server + network server (exfiltration path), secret-access server + network server (credential theft), shell-exec server + network server (arbitrary command + exfiltration) |
+| Toxic flow | TOXIC-001…007, INTEG-001 | File-read server + network server (exfiltration path), secret-access server + network server (credential theft), shell-exec server + network server (arbitrary command + exfiltration), file-write server + shell-exec server (plant-then-execute integrity path) |
 
 ## Live server analysis
 
@@ -335,7 +335,7 @@ Most MCP security analysis focuses on individual servers. That misses an entire 
 
 Server A reads files. Server B makes HTTP requests. Neither is malicious alone — they each do exactly what the config says. Together, a prompt injection can instruct the agent to read your SSH keys with A and POST them to an attacker's endpoint with B. No single server ever looked dangerous.
 
-`mcp-audit` detects 7 categories of these toxic combinations by tagging each server with capability labels (`FILE_READ`, `NETWORK_OUT`, `SHELL_EXEC`, `DATABASE`, `SECRETS`, etc.) and checking every server pair for known-dangerous combinations:
+`mcp-audit` detects 8 categories of these toxic combinations by tagging each server with capability labels (`FILE_READ`, `NETWORK_OUT`, `SHELL_EXEC`, `DATABASE`, `SECRETS`, etc.) and checking every server pair for known-dangerous combinations:
 
 | ID | Combination | Severity |
 |----|-------------|----------|
@@ -346,8 +346,15 @@ Server A reads files. Server B makes HTTP requests. Neither is malicious alone �
 | TOXIC-005 | Database access + outbound network | HIGH |
 | TOXIC-006 | Shell execution + outbound network | CRITICAL |
 | TOXIC-007 | Git repository access + outbound network | MEDIUM |
+| INTEG-001 | File write + shell execution ("plant-then-execute") | HIGH |
 
 † A single server that provides both capabilities of a dangerous pair is also flagged — no second server required.
+
+TOXIC-001…007 all model the same axis: confidentiality (does data leave?). INTEG-001 is a
+different claim — integrity (can content written by one server be executed by another?) —
+which is why it gets its own `INTEG-*` ID prefix instead of being folded into the TOXIC-*
+numbering. See [GAPS.md](GAPS.md#toxic-flow-analysis) for why `FILE_WRITE + NETWORK_OUT`
+was measured and deliberately *not* added as a general rule.
 
 ## Attack graph dashboard
 
@@ -405,7 +412,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-3,139 tests validate detection accuracy and guard against regressions.
+3,155 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -615,7 +622,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 3,139 tests
+uv run pytest                        # Run all 3,155 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

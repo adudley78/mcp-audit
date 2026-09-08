@@ -93,6 +93,41 @@ capability combination, not any individual server.
 | TOXIC-006  | CRITICAL | ASI04 | MCP05, MCP10 | Shell execution + network. Arbitrary command execution with exfiltration capability. |
 | TOXIC-007  | MEDIUM   | — | MCP10 | Git access + network. Source code or commit history could be exfiltrated via outbound requests. |
 
+**Integrity axis (R37).** Every TOXIC-* pair above models one axis —
+confidentiality: does data leave? It never asks whether state can be changed,
+or whether a change persists and later re-executes. A separate,
+deliberately narrower list, `INTEGRITY_PAIRS`, was added in R37 for exactly
+that second axis, with its own `INTEG-*` finding-ID prefix so a user
+filtering on `TOXIC-*` for exfiltration risk never silently also gets an
+integrity finding, or vice versa. `ToxicFlowAnalyzer.analyze_all()` and
+`shadow/risk.py::score_risk()` both check the combined
+`TOXIC_AND_INTEGRITY_PAIRS` list; `TOXIC_PAIRS` and `INTEGRITY_PAIRS` stay
+separate source lists.
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| INTEG-001  | HIGH     | ASI04 | MCP05 | File write + shell execution ("plant-then-execute"). One server writes content, another executes it — the same content-reaches-execution shape as TOXIC-004 (file read + shell execution) via a write instead of a read. Severity is calibrated against TOXIC-004, not borrowed from an exfiltration pair, because SHELL_EXEC's reach is not scoped by mcp-audit's capability model any more for a write than for a read. |
+
+**Why FILE_WRITE + NETWORK_OUT was measured and rejected (R37).** The
+obvious complement to INTEG-001 — a server that fetches remote content and
+another (or the same) server that writes to disk — was measured against the
+50-entry registry and explicitly declined as a general pair. Self-pair hits
+were rare and mostly legitimate (2 of 50: `docpull`, whose own job is fetch
++ write, and the kitchen-sink `server-everything`), but cross-server hits
+were dominated by `@modelcontextprotocol/server-filesystem` (a completely
+generic, extremely common server) paired against every one of the 21
+`NETWORK_OUT`-capable registry entries — 60 combinatorial hits, nearly all
+of them the "obviously that's what it does, why did this fire" case the R37
+task explicitly warned against. Unlike INTEG-001, this pair's severity
+depends almost entirely on WHERE the write lands (a scratch directory is
+nothing; `~/.claude/CLAUDE.md` is critical), and mcp-audit's capability
+model has no notion of write target — `tag_server()` never inspects a
+server's configured directory argument. Shipping one severity for two
+situations that differ by orders of magnitude was rejected as indefensible.
+Recorded as a known, measured gap in GAPS.md — not silently dropped, and not
+a deliberate deferral like `CLOUD` (see toxic_flow.py's module docstring and
+`INTEGRITY_PAIRS` comment for the full measurement).
+
 ### Attestation (`attestation/`)
 
 **Layer 1 — hash verification (`--verify-hashes`)**
@@ -372,7 +407,7 @@ state for servers whose capability data is unavailable.
 | RiskLevel | Maps to | When assigned |
 |-----------|---------|---------------|
 | CRITICAL  | Severity.CRITICAL | Single server holds both SHELL_EXEC + NETWORK_OUT, or SECRETS + NETWORK_OUT |
-| HIGH      | Severity.HIGH | Single server holds DATABASE + NETWORK_OUT, FILE_READ + NETWORK_OUT, FILE_READ + EMAIL, or FILE_READ + SHELL_EXEC |
+| HIGH      | Severity.HIGH | Single server holds DATABASE + NETWORK_OUT, FILE_READ + NETWORK_OUT, FILE_READ + EMAIL, FILE_READ + SHELL_EXEC, or FILE_WRITE + SHELL_EXEC (INTEG-001, R37) |
 | MEDIUM    | Severity.MEDIUM | Single server holds GIT + NETWORK_OUT |
 | LOW       | Severity.LOW | Capabilities detected but no toxic pair fires |
 | INFO      | Severity.INFO | Registry-verified server with an explicitly empty capability set |

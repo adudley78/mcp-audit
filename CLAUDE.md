@@ -332,6 +332,35 @@ Build and distribution scripts at project root:
   instead of laundering a gap into a decision. `FILE_WRITE`'s wiring is
   explicitly **not** designed here — the shape of the fix isn't known yet
   either — and is queued as its own measure-first prompt (R37).
+  **R37 resolved this by measuring first, not by guessing.** Across the
+  live 50-entry registry: only 3 entries declare `file_write`
+  (`server-filesystem`, `server-everything`, `docpull`); a general
+  `FILE_WRITE + NETWORK_OUT` pair would fire on 60 cross-server
+  combinations dominated by `server-filesystem` paired against *any* of
+  the 21 `NETWORK_OUT`-capable entries (the exact "obviously that's what
+  it does, why did this fire" trap the task warned against), and its
+  severity is inherently write-target-dependent (a scratch directory vs.
+  `~/.claude/CLAUDE.md`) with no write-target model to calibrate it —
+  Part 3's own investigation found `agent_files/discovery.py` only holds
+  the agent-instruction path set as inline walk logic, not an importable
+  constant, and connecting it to a server's actual write scope would
+  require building a filesystem-scope inspector the task explicitly said
+  not to invent in-task. `FILE_WRITE + NETWORK_OUT` was therefore declined
+  and is tracked as a measured, open gap in GAPS.md ("FILE_WRITE integrity
+  axis (R37)") rather than shipped with an indefensible severity.
+  `FILE_WRITE + SHELL_EXEC` had none of that problem (11 cross-server hits,
+  dominated by entries already CVE-flagged elsewhere, not benign ones; and
+  SHELL_EXEC's reach is not write-target-scoped for a write any more than
+  for a read) and shipped as `INTEG-001` in a new `INTEGRITY_PAIRS` list —
+  deliberately a *separate* list from `TOXIC_PAIRS`, combined only via
+  `TOXIC_AND_INTEGRITY_PAIRS` (consumed by `ToxicFlowAnalyzer`,
+  `shadow/risk.py`, and `diff/comparator.py`), with its own `INTEG-*`
+  finding-ID prefix so filtering on `TOXIC-*` (confidentiality) never
+  silently returns an `INTEG-*` (integrity) finding or vice versa.
+  `Capability.FILE_WRITE` was removed from `KNOWN_TAG_ONLY_CAPABILITIES`
+  entirely — it now participates in a real detection path, so it is no
+  longer tag-only, and `compute_dead_capabilities()` was repointed at
+  `TOXIC_AND_INTEGRITY_PAIRS` so the dead-capability check still holds.
   `tests/test_toxic_flow.py::TestComputeDeadCapabilities` asserts zero
   unexpected tag-only capabilities on every PR (not just ones touching the
   registry file or this script), since a capability-table change lives
@@ -624,7 +653,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3139 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3155 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release

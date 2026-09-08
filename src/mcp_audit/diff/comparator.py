@@ -409,12 +409,16 @@ def _new_toxic_pair_changes(
     base_servers: list[ServerConfig],
     head_servers: list[ServerConfig],
 ) -> list[Change]:
-    """Detect new toxic-flow pairs introduced by *new_server*.
+    """Detect new toxic-flow / integrity pairs introduced by *new_server*.
 
     A pair is "new" if the partner server was already present in *base_servers*
-    (so the pair couldn't have existed before *new_server* was added).
+    (so the pair couldn't have existed before *new_server* was added). Checks
+    both exfiltration-shaped (TOXIC-*) and integrity-shaped (INTEG-*) pairs.
     """
-    from mcp_audit.analyzers.toxic_flow import TOXIC_PAIRS, tag_server  # noqa: PLC0415
+    from mcp_audit.analyzers.toxic_flow import (  # noqa: PLC0415
+        TOXIC_AND_INTEGRITY_PAIRS,
+        tag_server,
+    )
 
     new_caps = tag_server(new_server)
     if not new_caps:
@@ -432,7 +436,7 @@ def _new_toxic_pair_changes(
             continue
 
         existing_caps = tag_server(existing)
-        for pair in TOXIC_PAIRS:
+        for pair in TOXIC_AND_INTEGRITY_PAIRS:
             if (pair.source in new_caps and pair.sink in existing_caps) or (
                 pair.source in existing_caps and pair.sink in new_caps
             ):
