@@ -112,6 +112,10 @@ _HINTS: dict[str, str] = {
     "TOXIC-007": (
         "Review this cross-server capability chain for unintended escalation paths."
     ),
+    "INTEG-001": (
+        "Separate file-writing and shell-execution servers to prevent a"
+        " plant-then-execute chain."
+    ),
     # Config hygiene
     "CFHYG-001": (
         "Pin the package to an explicit version (e.g. @2.1.0)"

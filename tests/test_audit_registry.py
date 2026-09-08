@@ -335,18 +335,19 @@ class TestDeadCapabilities:
         report = mod.find_dead_capabilities()
         assert report["unexpected_tag_only"] == []
 
-    def test_cloud_and_file_write_are_known_tag_only(self) -> None:
+    def test_cloud_is_known_tag_only(self) -> None:
+        # FILE_WRITE was removed from the allowlist in R37 — it now
+        # participates in INTEG-001 (FILE_WRITE + SHELL_EXEC) and is no
+        # longer tag-only. Only CLOUD's deliberate deferral remains.
         report = mod.find_dead_capabilities()
         names = {e["capability"] for e in report["known_tag_only"]}
-        assert names == {"cloud", "file_write"}
+        assert names == {"cloud"}
 
     def test_known_tag_only_entries_carry_kind_and_reason(self) -> None:
         report = mod.find_dead_capabilities()
         by_name = {e["capability"]: e for e in report["known_tag_only"]}
         assert by_name["cloud"]["kind"] == "deliberate_deferral"
-        assert by_name["file_write"]["kind"] == "suspected_gap"
         assert by_name["cloud"]["reason"].strip()
-        assert by_name["file_write"]["reason"].strip()
 
     def test_unexpected_tag_only_detected_when_allowlist_is_incomplete(
         self, monkeypatch: pytest.MonkeyPatch
@@ -356,7 +357,7 @@ class TestDeadCapabilities:
 
         monkeypatch.setattr(tf, "KNOWN_TAG_ONLY_CAPABILITIES", ())
         report = mod.find_dead_capabilities()
-        assert set(report["unexpected_tag_only"]) >= {"cloud", "file_write"}
+        assert "cloud" in set(report["unexpected_tag_only"])
         assert report["known_tag_only"] == []
 
 

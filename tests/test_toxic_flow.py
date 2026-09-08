@@ -15,8 +15,10 @@ from pathlib import Path
 import pytest
 
 from mcp_audit.analyzers.toxic_flow import (
+    INTEGRITY_PAIRS,
     KNOWN_SERVERS,
     KNOWN_TAG_ONLY_CAPABILITIES,
+    TOXIC_AND_INTEGRITY_PAIRS,
     TOXIC_PAIRS,
     Capability,
     TagOnlyCapability,
@@ -456,6 +458,124 @@ class TestToxic007:
         assert f.severity == Severity.MEDIUM
 
 
+# ── analyze_all — INTEG-001: file write + shell execution (R37) ──────────────
+
+
+class TestInteg001:
+    """FILE_WRITE + SHELL_EXEC ('plant-then-execute') — the integrity axis
+    added in R37. Distinct finding-ID prefix (INTEG-*, not TOXIC-*) because
+    this is an integrity claim (state change/persistence), not exfiltration.
+    """
+
+    def test_filesystem_and_shell_server_trigger_integ001(self) -> None:
+        """Cross-server: a file-writing server + a separate shell-exec
+        server is the plant-then-execute chain INTEG-001 exists to catch."""
+        findings = ToxicFlowAnalyzer().analyze_all([_fs(), _shell_server()])
+        assert any(f.id == "INTEG-001" for f in findings)
+
+    def test_severity_is_high(self) -> None:
+        findings = ToxicFlowAnalyzer().analyze_all([_fs(), _shell_server()])
+        f = next(x for x in findings if x.id == "INTEG-001")
+        assert f.severity == Severity.HIGH
+
+    def test_analyzer_field_is_toxic_flow(self) -> None:
+        """INTEG-001 is produced by ToxicFlowAnalyzer, same as TOXIC-*; the
+        distinction users filter on is the finding ID prefix, not the
+        analyzer name (matches how sast/rules/agent_files IDs work)."""
+        findings = ToxicFlowAnalyzer().analyze_all([_fs(), _shell_server()])
+        f = next(x for x in findings if x.id == "INTEG-001")
+        assert f.analyzer == "toxic_flow"
+
+    def test_cwe_is_present(self) -> None:
+        findings = ToxicFlowAnalyzer().analyze_all([_fs(), _shell_server()])
+        f = next(x for x in findings if x.id == "INTEG-001")
+        assert f.cwe is not None
+
+    def test_everything_server_self_pair_triggers_integ001(self) -> None:
+        """server-everything has FILE_WRITE and SHELL_EXEC on one server."""
+        everything = _server(
+            "everything",
+            args=["-y", "@modelcontextprotocol/server-everything"],
+        )
+        findings = ToxicFlowAnalyzer().analyze_all([everything])
+        assert any(f.id == "INTEG-001" for f in findings)
+
+    def test_finding_names_both_servers(self) -> None:
+        findings = ToxicFlowAnalyzer().analyze_all([_fs(), _shell_server()])
+        f = next(x for x in findings if x.id == "INTEG-001")
+        combined = f"{f.server} {f.evidence}"
+        assert "filesystem" in combined
+        assert "bash-runner" in combined
+
+    def test_the_annoyed_user_fixture_filesystem_plus_fetch_does_not_fire(
+        self,
+    ) -> None:
+        """The R37 measurement's central finding: a scoped filesystem server
+        (FILE_READ+FILE_WRITE) paired with a fetch server (NETWORK_OUT) is
+        an extremely common, benign combination — "read local project files
+        and look things up online." A general FILE_WRITE + NETWORK_OUT pair
+        would have fired here (this is exactly the shape of 60 of the
+        cross-server hits measured across the registry), which is why that
+        pair was rejected. INTEG-001 only pairs FILE_WRITE with SHELL_EXEC,
+        which neither server has, so nothing fires — the legitimate
+        filesystem+fetch user is not flagged.
+        """
+        findings = ToxicFlowAnalyzer().analyze_all([_fs(), _fetch()])
+        assert not any(f.id == "INTEG-001" for f in findings)
+
+    def test_filesystem_alone_does_not_fire(self) -> None:
+        """A filesystem server with no shell-exec anywhere in the scan is the
+        single most common real-world MCP setup and must not fire INTEG-001
+        on its own — its capability set has FILE_WRITE but no SHELL_EXEC."""
+        findings = ToxicFlowAnalyzer().analyze_all([_fs()])
+        assert not any(f.id == "INTEG-001" for f in findings)
+
+
+# ── INTEGRITY_PAIRS list integrity ────────────────────────────────────────────
+
+
+class TestIntegrityPairsIntegrity:
+    def test_integ_001_defined(self) -> None:
+        ids = {tp.finding_id for tp in INTEGRITY_PAIRS}
+        assert "INTEG-001" in ids
+
+    def test_no_finding_id_overlaps_toxic_pairs(self) -> None:
+        """INTEG-* and TOXIC-* must never share a finding ID — that is the
+        whole point of keeping them as separate lists (R37)."""
+        toxic_ids = {tp.finding_id for tp in TOXIC_PAIRS}
+        integrity_ids = {tp.finding_id for tp in INTEGRITY_PAIRS}
+        assert toxic_ids.isdisjoint(integrity_ids)
+
+    def test_no_integ_id_starts_with_toxic_prefix(self) -> None:
+        for tp in INTEGRITY_PAIRS:
+            assert not tp.finding_id.startswith("TOXIC-"), (
+                f"{tp.finding_id} reuses the TOXIC- prefix — exfiltration "
+                "and integrity are different claims and must stay "
+                "distinguishable by ID prefix alone."
+            )
+
+    def test_toxic_and_integrity_pairs_is_the_concatenation(self) -> None:
+        assert TOXIC_AND_INTEGRITY_PAIRS == TOXIC_PAIRS + INTEGRITY_PAIRS
+
+    @pytest.mark.parametrize("tp", INTEGRITY_PAIRS, ids=lambda tp: tp.finding_id)
+    def test_each_pair_has_cwe(self, tp: ToxicPair) -> None:
+        assert tp.cwe is not None, f"{tp.finding_id} is missing a CWE"
+
+    @pytest.mark.parametrize("tp", INTEGRITY_PAIRS, ids=lambda tp: tp.finding_id)
+    def test_each_pair_has_non_empty_remediation(self, tp: ToxicPair) -> None:
+        assert tp.remediation.strip()
+
+    @pytest.mark.parametrize("tp", INTEGRITY_PAIRS, ids=lambda tp: tp.finding_id)
+    def test_each_pair_has_non_empty_description(self, tp: ToxicPair) -> None:
+        assert tp.description.strip()
+
+    @pytest.mark.parametrize("tp", INTEGRITY_PAIRS, ids=lambda tp: tp.finding_id)
+    def test_integrity_pair_severities_are_critical_high_or_medium(
+        self, tp: ToxicPair
+    ) -> None:
+        assert tp.severity in {Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM}
+
+
 # ── Self-pair (single server with both capabilities) ──────────────────────────
 
 
@@ -771,12 +891,15 @@ class TestComputeDeadCapabilities:
         guards against the check accidentally always passing vacuously."""
         assert Capability.CLOUD in compute_dead_capabilities()
 
-    def test_file_write_is_currently_dead(self) -> None:
-        """R35's own discovery: FILE_WRITE has a display label in
-        attack_paths._CAP_LABELS and no role in TOXIC_PAIRS or
-        CAPABILITY_FLOWS. Pinned here so a future fix (R37) is a deliberate,
-        visible removal from KNOWN_TAG_ONLY_CAPABILITIES, not a silent one."""
-        assert Capability.FILE_WRITE in compute_dead_capabilities()
+    def test_file_write_is_no_longer_dead(self) -> None:
+        """R35 flagged FILE_WRITE as dead (SUSPECTED_GAP). R37 measured the
+        gap (see GAPS.md) and added INTEG-001 (FILE_WRITE + SHELL_EXEC) to
+        INTEGRITY_PAIRS, so FILE_WRITE now participates in a real detection
+        path via TOXIC_AND_INTEGRITY_PAIRS. Pinned here so a future
+        regression that silently drops INTEG-001 (or removes FILE_WRITE as
+        its source) is caught rather than reverting to the old dead state
+        unnoticed."""
+        assert Capability.FILE_WRITE not in compute_dead_capabilities()
 
     def test_a_capability_used_as_a_toxic_pair_source_is_not_dead(self) -> None:
         assert Capability.FILE_READ not in compute_dead_capabilities()
@@ -807,16 +930,15 @@ class TestKnownTagOnlyCapabilitiesAllowlist:
         )
         assert entry.kind == TagOnlyKind.DELIBERATE_DEFERRAL
 
-    def test_file_write_is_a_suspected_gap_not_a_deliberate_deferral(self) -> None:
-        """The distinction that matters: FILE_WRITE must NOT be laundered
-        into looking like a considered design decision the way CLOUD is —
-        that flattening is exactly how `subprocess` sat inert for months."""
-        entry = next(
-            t
-            for t in KNOWN_TAG_ONLY_CAPABILITIES
-            if t.capability == Capability.FILE_WRITE
+    def test_file_write_is_no_longer_in_the_allowlist(self) -> None:
+        """R37 resolved FILE_WRITE's SUSPECTED_GAP entry by wiring INTEG-001
+        (FILE_WRITE + SHELL_EXEC) into INTEGRITY_PAIRS — FILE_WRITE is no
+        longer tag-only, so it must not appear in this allowlist at all.
+        An entry reappearing here would mean FILE_WRITE went dead again
+        (e.g. INTEG-001 was removed) without a fresh measurement."""
+        assert not any(
+            t.capability == Capability.FILE_WRITE for t in KNOWN_TAG_ONLY_CAPABILITIES
         )
-        assert entry.kind == TagOnlyKind.SUSPECTED_GAP
 
     def test_no_duplicate_capabilities_in_allowlist(self) -> None:
         caps = [t.capability for t in KNOWN_TAG_ONLY_CAPABILITIES]

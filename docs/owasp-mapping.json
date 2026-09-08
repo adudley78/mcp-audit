@@ -377,6 +377,17 @@
       "notes": "Source code and commit history exfiltration via network access."
     },
     {
+      "finding_id": "INTEG-001",
+      "finding_title": "Dangerous capability combination: file write + shell execution (plant-then-execute)",
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ],
+      "notes": "Integrity finding (state change/persistence), not exfiltration \u2014 deliberately a separate finding-ID prefix from TOXIC-*. Added R37 after measuring the FILE_WRITE dead-capability gap; see GAPS.md."
+    },
+    {
       "finding_id": "CFHYG-001",
       "finding_title": "MCP config file is world-readable",
       "owasp_codes": [
