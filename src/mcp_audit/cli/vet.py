@@ -39,6 +39,7 @@ from mcp_audit.cli import app
 from mcp_audit.registry.loader import (
     KnownServerRegistry,
     RegistryEntry,
+    RegistryLoadError,
     levenshtein,
     load_registry,
     normalize_pypi_name,
@@ -590,6 +591,9 @@ def vet(
     except FileNotFoundError as exc:
         console.print(f"[red]Registry not found:[/red] {exc}")
         raise typer.Exit(2) from None
+    except RegistryLoadError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(2) from exc
 
     # ── Online mode: attempt live fetch, fall back to registry ────────────────
     if online:

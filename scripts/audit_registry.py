@@ -158,6 +158,17 @@ REGISTRY_PATH = REPO_ROOT / "registry" / "known-servers.json"
 DEFAULT_CACHE_PATH = REPO_ROOT / ".registry_audit_cache.json"
 DEFAULT_OUT_PATH = REPO_ROOT / ".registry_audit_raw.json"
 
+# R45: the stale-build guard (formerly a private copy in this file, R39) now
+# lives in dev_build_guard.py, shared with docs/manual-test-matrix.md's Setup
+# Guard — see that module's docstring. sys.path is not guaranteed to already
+# contain this directory (e.g. a caller that imports this module without
+# running it as __main__), so make the sibling import explicit rather than
+# relying on Python's script-directory auto-insert.
+_scripts_dir = str(Path(__file__).resolve().parent)
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
+from dev_build_guard import assert_mcp_audit_is_repo_local  # noqa: E402
+
 USER_AGENT = (
     "mcp-audit-registry-audit/1.0 "
     "(+https://github.com/adudley78/mcp-audit; registry integrity audit script)"
@@ -719,50 +730,6 @@ def classify(entry: dict, checks: list[EcosystemCheck]) -> dict:
 # have caught the gap. See the module docstring's "Capability checks" section.
 
 
-def _assert_mcp_audit_is_repo_local() -> None:
-    """Fail loudly if the importable ``mcp_audit`` is not this repo's dev source.
-
-    The capability checks below import ``mcp_audit.analyzers.toxic_flow`` and
-    ``mcp_audit.models`` to reuse the real ``Capability`` enum, ``TOXIC_PAIRS``,
-    ``CAPABILITY_FLOWS``, and keyword heuristics instead of forking a copy
-    that could drift. That only makes sense if the imported code IS this
-    repo's code — the whole point of this script is checking this repo's
-    data against this repo's logic. A stale, separately-installed
-    ``mcp_audit`` (e.g. an older ``pip install mcp-audit-scanner`` on the
-    same machine, resolved because a bare ``python3`` was used instead of
-    ``uv run python3``) has no legitimate reading here: it would silently
-    measure the registry against a different, possibly older, version of
-    the detection logic. That happened while building this exact check (R35)
-    — a first measurement pass silently ran against a globally pip-installed
-    copy that predated the ``CLOUD`` capability and missed a real hit as a
-    result. Same class of defect as a missing duplicate-name guard: a
-    measurement tool that can silently measure the wrong build produces
-    confident wrong numbers, which is worse than producing none.
-
-    Raises:
-        SystemExit: with code 2 and the actually-resolved path, if
-            ``mcp_audit.__file__`` does not resolve inside ``<repo>/src/mcp_audit``.
-    """
-    import mcp_audit  # noqa: PLC0415
-
-    resolved = Path(mcp_audit.__file__).resolve()
-    expected_root = (REPO_ROOT / "src" / "mcp_audit").resolve()
-    try:
-        resolved.relative_to(expected_root)
-    except ValueError:
-        print(
-            f"FATAL: 'mcp_audit' resolved to {resolved!s}, not this repo's dev "
-            f"source tree at {expected_root!s}. The capability checks in this "
-            "script import mcp_audit modules and require them to be THIS "
-            "repo's code — run via `uv run python3 scripts/audit_registry.py`, "
-            "not a bare `python3` that may resolve a stale, separately "
-            "installed copy. Refusing to run rather than silently measuring "
-            "the wrong build.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-
 def _synthetic_server(name: str) -> Any:
     """Build a minimal ServerConfig for *name* to feed toxic_flow's heuristics.
 
@@ -1306,8 +1273,10 @@ def main() -> None:
     # cache. See the module docstring's "Capability checks" section. They
     # import mcp_audit modules, so verify that import resolves inside this
     # repo before trusting anything they compute (R35 — see
-    # _assert_mcp_audit_is_repo_local's docstring for why this matters).
-    _assert_mcp_audit_is_repo_local()
+    # dev_build_guard.assert_mcp_audit_is_repo_local's docstring for why
+    # this matters; R45 moved this check into that shared module so it is
+    # not a second, independently-drifting copy of the same rule).
+    assert_mcp_audit_is_repo_local(REPO_ROOT)
     entries = json.loads(args.registry.read_text(encoding="utf-8")).get("entries", [])
     unknown_cap_hits = find_unknown_capabilities(entries)
     undeclared_cap_hits = find_undeclared_capabilities(entries)

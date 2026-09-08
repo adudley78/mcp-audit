@@ -25,25 +25,24 @@ echo "Scratch dir: $SCRATCH"
 > checkout was `0.15.0`, and `feed`/`advise` (added after `0.14.1`) failed
 > with "No such command" purely from the wrong binary being first on `$PATH`.
 > Same failure class CLAUDE.md's R39 already hit for `python3` imports.
-> Run this guard once per session before Section 1:
+> R45 unified both checks into one shared `scripts/dev_build_guard.py` —
+> this guard prepends `.venv/bin` to `$PATH` (the fix) and then runs that
+> shared module (the check) instead of comparing version strings: two
+> installs can coincidentally report the same version, but they cannot
+> coincidentally resolve to the same file path, so this is strictly more
+> reliable than the version comparison it replaces. Run this guard once per
+> session before Section 1:
 
 ```bash
 uv sync --all-extras -q
 export PATH="$(pwd)/.venv/bin:$PATH"
-EXPECTED_VERSION=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
-ACTUAL_VERSION=$(mcp-audit version | awk '{print $2}')
-if [ "$ACTUAL_VERSION" = "$EXPECTED_VERSION" ]; then
-  echo "OK: mcp-audit $ACTUAL_VERSION is this checkout's dev build"
-else
-  echo "STALE BINARY: mcp-audit on \$PATH is $ACTUAL_VERSION, expected $EXPECTED_VERSION — check \`which mcp-audit\`"
-  exit 1
-fi
+python3 scripts/dev_build_guard.py || exit 1
 ```
 
-**Expected:** "OK: mcp-audit 0.15.0 is this checkout's dev build" (version
-number tracks `pyproject.toml`). If it prints "STALE BINARY", fix `$PATH`
-before running any section below — every subsequent result is unreliable
-until this line passes.
+**Expected:** "OK: mcp_audit resolved to .../src/mcp_audit/__init__.py (this
+repo's dev source)", exit 0. If it prints a `FATAL:` line instead, fix
+`$PATH` (check `which mcp-audit` and `which python3`) before running any
+section below — every subsequent result is unreliable until this line passes.
 
 ---
 
