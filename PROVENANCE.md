@@ -20,6 +20,8 @@ The poisoning analyzer detects malicious instructions hidden in MCP tool descrip
 - **The Vulnerable MCP Project** ([vulnerablemcp.info](https://vulnerablemcp.info)) — Community-maintained database of MCP security vulnerabilities and CVEs.
 - **OWASP Top 10 for Agentic Applications (December 2025)** — Risk categories ASI01 (Agent Goal Hijack) through ASI10 (Rogue Agents), developed by 100+ security researchers. ([OWASP](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/))
 - **OWASP Agentic Skills Top 10** — Documents real-world supply chain attacks on agent tool registries, including the ClawHub registry poisoning. ([OWASP](https://owasp.org/www-project-agentic-skills-top-10/))
+- **Johann Rehberger (Embrace The Red), "ASCII Smuggling and Hidden Prompt Instructions"** (Feb 2024) and follow-up "Microsoft Copilot: From prompt injection to exfiltration of personal information via ASCII smuggling" (Aug 2024) — first published the technique of encoding hidden instructions in the Unicode Tags block (U+E0000–U+E007F), which mirrors the ASCII set but renders as nothing in virtually every UI. wunderwuzzi's ASCII Smuggler tool (Jan 2024) demonstrated the encode/decode round-trip. Basis for POISON-041/042 (STORY-0068; design doc `humans/decisions/2026-09-09-poison-041-design.md` in the marcus repo): TAG characters are category `Cf` and are correctly dropped by `normalize_for_detection()`'s existing zero-width-splitting defence, but dropping a *payload* (rather than a separator) silently destroys the evidence instead of revealing it — POISON-041/042 extract the TAG run into its own string, decode it, and rescan it against the existing `PATTERNS` list as an independent pass. ([Blog post](https://embracethered.com/blog/posts/2024/ascii-smuggling-and-hidden-prompt-instructions/))
+- **Cloud Security Alliance, "Unicode Instruction Injection in AI Skills"** (research note) — extends the ASCII-smuggling threat model specifically to MCP tool descriptions and agent skill files, and documents confirmed exploitation via hidden Unicode Tags payloads across Claude Code, GitHub Copilot, OpenAI Codex Skills, and Gemini CLI. Corroborates scoping POISON-041/042 to both the config surface and the agent-file surface (`agent_files/analyzer.py`) in one shared implementation. ([Cloud Security Alliance](https://labs.cloudsecurityalliance.org/research/csa-research-note-unicode-instruction-injection-ai-skills-20/))
 
 ### Credential exposure (analyzers/credentials.py)
 
@@ -355,6 +357,14 @@ The agent-file analyzer **imports** detection patterns from
 `src/mcp_audit/analyzers/poisoning.py` (the existing `PATTERNS` list) rather
 than duplicating them.  The research sourcing for those patterns is already
 documented in the `Poisoning Analyzer (POISON-NNN)` section above.
+
+POISON-041/POISON-042 (concealment channels, STORY-0068) follow the same
+import-not-fork rule: `scan_concealed_channels()` and
+`build_concealment_finding()` live in `analyzers/poisoning.py` and are called
+by this module unchanged, so they carry `analyzer="poisoning"` even when the
+finding is produced from a skill or memory file — see the "documented
+exception" note in this module's own docstring. Research sourcing is in the
+`Poisoning Analyzer` section above.
 
 The **new** patterns specific to the agent-file surface are:
 

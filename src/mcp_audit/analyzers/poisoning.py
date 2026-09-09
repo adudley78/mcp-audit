@@ -162,6 +162,12 @@ def normalize_for_detection(text: str) -> str:
 
     This is for MATCHING ONLY.  Never store the result in ``Finding.evidence`` —
     the evidence must show the attacker's actual (un-normalized) text.
+    **Exception:** POISON-041/POISON-042 (concealment channels, below) show
+    the *decoded/extracted* content instead, explicitly labelled as such —
+    the concealed bytes themselves render as nothing (TAG characters) or are
+    not the payload (an HTML comment's own delimiters), so showing them
+    verbatim would produce a blank-looking evidence field. See
+    :func:`concealment_evidence`.
 
     Args:
         text: Raw text to normalize.
@@ -537,6 +543,348 @@ PATTERNS: list[DetectionPattern] = [
 # fmt: on
 
 
+# ── Concealment channels (extract → decode/extract → rescan) ───────────────────
+#
+# POISON-041 / POISON-042 (STORY-0068).  Two covert channels smuggle content
+# past a human reviewer while remaining fully present to a model reading the
+# raw string:
+#
+#   "tag"          Unicode TAG characters (U+E0000-U+E007F, category Cf).
+#                  These are NOT the zero-width/joiner characters POISON-040
+#                  already covers — they render as nothing in every tested
+#                  renderer AND carry an encoded message: each TAG character
+#                  in the printable range U+E0020-U+E007E mirrors the ASCII
+#                  character at (codepoint - 0xE0000).  ``normalize_for_
+#                  detection`` correctly drops these as ``Cf`` (that behaviour
+#                  is unchanged and MUST stay — see its docstring: dropping a
+#                  *separator* like a zero-width space splitting "c<zwsp>url"
+#                  is the intended defence). But dropping a *payload* instead
+#                  of decoding it destroys the evidence rather than revealing
+#                  it — that is the bug this section fixes.
+#
+#   "html_comment" ``<!-- ... -->`` markup.  Invisible when a Markdown
+#                  surface (a SKILL.md, a CLAUDE.md) is rendered; merely
+#                  unusual — not invisible — inside a JSON tool description.
+#                  Ordinary editorial comments are common and legitimate on
+#                  Markdown surfaces, so (unlike TAG characters) bare presence
+#                  of an HTML comment is never itself worth reporting — see
+#                  ``_CONCEALMENT_ONLY_KINDS`` below.
+#
+# Two-pass design, never decode-in-place: substituting decoded/extracted text
+# back into the original string would shift offsets, and concatenating it
+# with its neighbours could manufacture a match that exists in neither the
+# concealed content nor its surroundings on their own. Extract each channel
+# into its own string, decode/extract it, and run the EXISTING PATTERNS over
+# that string as a wholly separate pass — the main normalize-and-match pass
+# over the original text is untouched.
+#
+# One implementation site: both the config surface (``PoisoningAnalyzer``
+# below) and the agent-file surface (``agent_files/analyzer.py``) call
+# :func:`scan_concealed_channels` / :func:`build_concealment_finding` — a
+# second copy is how the two drift.
+
+_TAG_CHAR_RE: re.Pattern[str] = re.compile(r"[\U000E0020-\U000E007E]+")
+
+
+def _iter_html_comment_bodies(text: str) -> list[str]:
+    """Yield each ``<!-- ... -->`` comment body in *text* in one linear pass.
+
+    Deliberately NOT a ``<!--(.*?)-->`` regex with ``re.DOTALL``: on
+    adversarial input with many unclosed ``<!--`` openers, a lazy-dot regex
+    rescans forward to the end of the string from EVERY opener before
+    concluding no match exists — O(n^2) on a string of ``n`` repeated
+    ``"<!--"`` substrings with no closing ``-->`` (measured: ~8s at 80,000
+    chars, scaling quadratically). ``str.find()`` in a two-pointer walk never
+    revisits already-scanned text and returns immediately once no closing
+    delimiter remains, giving worst-case O(n) — the same discipline as the
+    ReDoS benchmarking already documented for the ``PATTERNS`` regexes in
+    GAPS.md.
+    """
+    bodies: list[str] = []
+    pos = 0
+    length = len(text)
+    while pos < length:
+        start = text.find("<!--", pos)
+        if start == -1:
+            break
+        end = text.find("-->", start + 4)
+        if end == -1:
+            break  # unterminated comment — nothing further to find
+        bodies.append(text[start + 4 : end])
+        pos = end + 3
+    return bodies
+
+
+def _decode_tag_run(run: str) -> str:
+    """Decode a contiguous run of Unicode TAG characters to ASCII.
+
+    Each TAG character in the printable range U+E0020-U+E007E mirrors the
+    ASCII character at ``codepoint - 0xE0000``: TAG SPACE (U+E0020) -> ``' '``
+    (0x20), ... TAG TILDE (U+E007E) -> ``'~'`` (0x7E).
+    """
+    return "".join(chr(ord(c) - 0xE0000) for c in run)
+
+
+@dataclass
+class ConcealedChannel:
+    """One instance of a concealment channel found in raw text.
+
+    Attributes:
+        kind: ``"tag"`` (a contiguous Unicode TAG-block run) or
+            ``"html_comment"``.
+        decoded: The decoded (``"tag"``) or extracted (``"html_comment"``)
+            ASCII content, ready to be rescanned against ``PATTERNS``.
+        char_count: Number of TAG characters in the run, or the length of
+            the HTML comment body.
+        codepoint_range: ``(min, max)`` TAG codepoints observed in the run.
+            ``None`` for ``"html_comment"``.
+    """
+
+    kind: str
+    decoded: str
+    char_count: int
+    codepoint_range: tuple[int, int] | None = None
+
+
+def extract_concealed_channels(text: str) -> list[ConcealedChannel]:
+    """Extract every concealment channel present in *text*.
+
+    Returns one :class:`ConcealedChannel` per contiguous TAG-character run
+    and per HTML comment found in *text*. Never substitutes decoded/extracted
+    content back into *text* — see the module-level note above for why.
+
+    Args:
+        text: Raw (un-normalized) text to scan.
+
+    Returns:
+        A list of extracted channels, in no particular order relative to
+        each other across the two kinds.
+    """
+    channels: list[ConcealedChannel] = []
+    for m in _TAG_CHAR_RE.finditer(text):
+        run = m.group(0)
+        codepoints = [ord(c) for c in run]
+        channels.append(
+            ConcealedChannel(
+                kind="tag",
+                decoded=_decode_tag_run(run),
+                char_count=len(run),
+                codepoint_range=(min(codepoints), max(codepoints)),
+            )
+        )
+    for body in _iter_html_comment_bodies(text):
+        channels.append(
+            ConcealedChannel(kind="html_comment", decoded=body, char_count=len(body))
+        )
+    return channels
+
+
+@dataclass
+class ConcealmentMatch:
+    """Result of rescanning one :class:`ConcealedChannel`'s decoded content.
+
+    ``matched_pattern`` is ``None`` for a "concealment present, nothing
+    matched" result — callers only see this for channel kinds in
+    :data:`_CONCEALMENT_ONLY_KINDS` (see :func:`scan_concealed_channels`).
+    """
+
+    channel: ConcealedChannel
+    matched_pattern: DetectionPattern | None
+    match_text: str | None
+
+
+# TAG characters have essentially no legitimate use in a tool description or
+# a SKILL.md (their original language-tagging purpose is deprecated), so bare
+# presence is itself worth a LOW signal even when nothing decodes to a known
+# payload. HTML comments are ordinary and common in Markdown (TODOs,
+# editorial notes) and must stay silent unless their content actually matches
+# an existing pattern — an "ordinary editorial comment" must produce no
+# finding at all, not even a LOW one.
+_CONCEALMENT_ONLY_KINDS: frozenset[str] = frozenset({"tag"})
+
+
+def scan_concealed_channels(text: str) -> list[ConcealmentMatch]:
+    """Extract every concealment channel in *text* and rescan its content.
+
+    Each channel's decoded/extracted content is matched against the full
+    non-``description_only`` ``PATTERNS`` set, independently of the normal
+    normalize-and-match pass over *text* itself (which is unaffected — ``Cf``
+    stripping there is unchanged; see the module-level note above).
+
+    Args:
+        text: Raw (un-normalized) text to scan.
+
+    Returns:
+        One :class:`ConcealmentMatch` per (channel, matched pattern) pair,
+        plus one no-match entry per channel whose ``kind`` is in
+        :data:`_CONCEALMENT_ONLY_KINDS` when nothing matched. Channels whose
+        decoded content is blank (e.g. an empty HTML comment) are skipped
+        entirely — there is nothing to scan or to report.
+    """
+    results: list[ConcealmentMatch] = []
+    candidate_patterns = [p for p in PATTERNS if not p.description_only]
+    for channel in extract_concealed_channels(text):
+        if not channel.decoded.strip():
+            continue
+        norm_decoded = normalize_for_detection(channel.decoded)
+        matched_any = False
+        for pat in candidate_patterns:
+            m = matched_pattern(pat, channel.decoded, norm_decoded)
+            if m is not None:
+                matched_any = True
+                results.append(
+                    ConcealmentMatch(
+                        channel=channel, matched_pattern=pat, match_text=m.group(0)
+                    )
+                )
+        if not matched_any and channel.kind in _CONCEALMENT_ONLY_KINDS:
+            results.append(
+                ConcealmentMatch(channel=channel, matched_pattern=None, match_text=None)
+            )
+    return results
+
+
+def concealment_evidence(match: ConcealmentMatch) -> str:
+    """Build the evidence string for a concealment-channel finding.
+
+    See the "Exception" note on :func:`normalize_for_detection`'s docstring:
+    this deliberately shows decoded/extracted content, not the attacker's
+    original (invisible-when-rendered, or delimiter-only) bytes.
+    """
+    channel = match.channel
+    snippet = channel.decoded.strip()[:100]
+    if channel.kind == "tag" and channel.codepoint_range is not None:
+        lo, hi = channel.codepoint_range
+        source = f"{channel.char_count} TAG character(s) (U+{lo:04X}-U+{hi:04X})"
+        verb = "Decoded"
+    else:
+        source = f"an HTML comment ({channel.char_count} char(s))"
+        verb = "Extracted"
+    return f"{verb} from {source}: {snippet!r}"
+
+
+def concealment_visibility_note(kind: str, *, markdown_surface: bool) -> str:
+    """One-sentence clause describing how invisible *kind* is on this surface.
+
+    TAG characters render as nothing on every surface. HTML comments are
+    invisible only when a Markdown surface renders them — inside a JSON tool
+    description they are merely unusual, not invisible, and the finding text
+    must not claim more than that.
+
+    Args:
+        kind: ``"tag"`` or ``"html_comment"``.
+        markdown_surface: ``True`` for a skill/memory file rendered as
+            Markdown; ``False`` for a JSON config field.
+    """
+    if kind == "tag":
+        return (
+            "Unicode TAG characters render as nothing in any surface — a"
+            " terminal, an editor, or a rendered document — while remaining"
+            " ordinary text to a language model reading the raw string."
+        )
+    if markdown_surface:
+        return (
+            "An HTML comment is invisible when this file is rendered as"
+            " Markdown, while remaining ordinary text to a language model"
+            " reading the raw file."
+        )
+    return (
+        "An HTML comment is not rendered anywhere in a JSON tool"
+        " description, so its presence here is unusual rather than"
+        " invisible — but it remains ordinary text to a language model"
+        " reading the raw field."
+    )
+
+
+def build_concealment_finding(
+    cmatch: ConcealmentMatch,
+    *,
+    client: str,
+    server: str,
+    surface_noun: str,
+    markdown_surface: bool,
+    finding_path: str | None = None,
+) -> Finding:
+    """Build the POISON-041 (matched) or POISON-042 (concealment-only) Finding.
+
+    Shared by the config surface (:class:`PoisoningAnalyzer`) and the
+    agent-file surface (``agent_files/analyzer.py``) so the two Finding-text
+    implementations never drift — see the module-level note above. The
+    resulting Finding always carries ``analyzer="poisoning"``, regardless of
+    which surface calls this, mirroring how ``discovery.py``'s shared
+    symlink-finding builders always carry ``analyzer="discovery"`` regardless
+    of whether ``discovery.py`` or ``agent_files/discovery.py`` calls them.
+
+    Args:
+        cmatch: The match to build a Finding for.
+        client: ``Finding.client`` — the MCP client name (config surface) or
+            the agent file's client (agent-file surface).
+        server: ``Finding.server`` — the server name (config surface) or the
+            agent file's display name (agent-file surface).
+        surface_noun: Human-readable noun phrase for the description text,
+            e.g. ``"this server's configuration"`` or
+            ``"the skill file 'foo.md'"``.
+        markdown_surface: Passed through to :func:`concealment_visibility_note`.
+        finding_path: Optional ``Finding.finding_path`` (agent-file surface
+            only; config-surface callers pass ``None``, matching every other
+            finding ``PoisoningAnalyzer`` emits).
+
+    Returns:
+        A POISON-041 (HIGH) or POISON-042 (LOW) :class:`Finding`.
+    """
+    channel = cmatch.channel
+    kind_label = (
+        "Unicode TAG-character channel" if channel.kind == "tag" else "HTML comment"
+    )
+    note = concealment_visibility_note(channel.kind, markdown_surface=markdown_surface)
+    evidence = concealment_evidence(cmatch)
+
+    if cmatch.matched_pattern is not None:
+        pat = cmatch.matched_pattern
+        return Finding(
+            id="POISON-041",
+            severity=Severity.HIGH,
+            analyzer="poisoning",
+            client=client,
+            server=server,
+            title=f"Concealed instruction via {kind_label.lower()}",
+            description=(
+                f"A {kind_label} in {surface_noun} decodes to content matching"
+                f" the '{pat.name}' detection pattern: {pat.description}. {note}"
+            ),
+            evidence=evidence,
+            remediation=(
+                "Remove this content; it conceals an instruction from human"
+                " review while keeping it readable to the model."
+            ),
+            finding_path=finding_path,
+            cwe="CWE-116",
+            owasp_mcp_top_10=["MCP03", "MCP01"],
+        )
+
+    return Finding(
+        id="POISON-042",
+        severity=Severity.LOW,
+        analyzer="poisoning",
+        client=client,
+        server=server,
+        title=f"Concealment channel present ({kind_label})",
+        description=(
+            f"{surface_noun[0].upper()}{surface_noun[1:]} contains a"
+            f" {kind_label} whose decoded content did not match any known"
+            f" poisoning pattern. {note}"
+        ),
+        evidence=evidence,
+        remediation=(
+            "Investigate this content; concealment channels have essentially"
+            " no legitimate use here."
+        ),
+        finding_path=finding_path,
+        cwe="CWE-116",
+        owasp_mcp_top_10=["MCP03"],
+    )
+
+
 class PoisoningAnalyzer(BaseAnalyzer):
     """Detect tool description poisoning in MCP server configurations."""
 
@@ -590,6 +938,21 @@ class PoisoningAnalyzer(BaseAnalyzer):
                             owasp_mcp_top_10=pattern.owasp_mcp_top_10,
                         )
                     )
+
+            # POISON-041/042: concealment channels (Unicode TAG runs, HTML
+            # comments) whose decoded/extracted content is rescanned against
+            # `general_patterns` as an independent pass — see the
+            # "Concealment channels" section above `PoisoningAnalyzer`.
+            for cmatch in scan_concealed_channels(text):
+                findings.append(
+                    build_concealment_finding(
+                        cmatch,
+                        client=server.client,
+                        server=server.name,
+                        surface_noun="this server's configuration",
+                        markdown_surface=False,
+                    )
+                )
 
         # Only description/name values — used for patterns whose threat model
         # is specifically about oversized or manipulated tool descriptions.

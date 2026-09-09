@@ -88,6 +88,38 @@ Fires on the **restricted** pattern subset for memory:
 Exfiltration, cross-tool, and excessive-length patterns are **excluded** to
 control false-positive rate on legitimate project context files.
 
+### POISON-041 (HIGH) / POISON-042 (LOW): concealment channels
+
+Fires on skill, command, and memory files alike when the file body contains
+a **concealment channel** — content hidden from a human reviewer while fully
+present to a language model reading the raw text:
+
+- A contiguous run of Unicode TAG characters (U+E0000–U+E007F) that decodes
+  to ASCII. TAG characters render as nothing in every renderer, and each one
+  in the printable range mirrors an ASCII character at `codepoint - 0xE0000`
+  — the "ASCII smuggling" technique (Rehberger, 2024).
+- An HTML comment (`<!-- ... -->`), invisible when this file is rendered as
+  Markdown.
+
+The concealed content is extracted into its own string and rescanned against
+the full poisoning `PATTERNS` list as an independent pass — it is never
+spliced back into the file body, so a match can never span the concealed
+content and its surroundings.
+
+- **POISON-041 (HIGH)** — the decoded/extracted content matches an existing
+  pattern. Evidence shows the decoded/extracted ASCII text, explicitly
+  labelled, since the concealed bytes themselves would render as nothing.
+- **POISON-042 (LOW)** — TAG characters are present but decode to nothing
+  that matches. **HTML comments never trigger this tier on their own** —
+  an ordinary editorial comment (`<!-- TODO: ... -->`) is common and
+  legitimate in Markdown and must stay silent; only a TAG-character run's
+  bare presence is anomalous enough to report without a matched payload.
+
+Both findings carry `analyzer="poisoning"`, not `analyzer="agent_files"` —
+a deliberate exception, shared unchanged with the config-surface analyzer
+(`PoisoningAnalyzer`) so the detection logic and finding text never drift
+between the two surfaces.
+
 ### HOOK-001 (HIGH): hook command contains network egress
 
 Fires when a Claude Code hook command contains a network-egress primitive:

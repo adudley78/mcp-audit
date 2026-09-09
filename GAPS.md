@@ -932,6 +932,44 @@ entry. Until confirmed, only workspace/project-tree paths are discovered.
 
 ---
 
+## Concealment channel detection (POISON-041/042, STORY-0068)
+
+Design doc: `humans/decisions/2026-09-09-poison-041-design.md` (marcus repo).
+Deliberate scope limits, recorded rather than smoothed over:
+
+- **Only two channel types are covered:** Unicode TAG-block runs
+  (U+E0020–U+E007E, decoded per UTS #39) and HTML comments (`<!-- ... -->`).
+  Other known Unicode covert channels — Variation Selectors (U+FE00–FE0F,
+  U+E0100–E01EF; the "emoji variation selector smuggling" technique) and
+  Private Use Area codepoints — are not covered. Not measured, not built;
+  a future pass would need the same "extract into its own string, decode,
+  rescan independently, never splice back" design this story established,
+  plus its own false-positive measurement (Variation Selectors have a
+  *legitimate* use — CJK ideograph variant selection — so a bare-presence
+  LOW signal analogous to POISON-042 cannot be assumed safe without
+  checking that against real-world text first).
+- **No recursive nesting.** A channel's decoded/extracted content is
+  rescanned against `PATTERNS` exactly once. A TAG payload that itself
+  contains an HTML comment, or an HTML comment whose body contains a
+  further TAG-encoded run, is not specially unwrapped — only the first
+  layer is decoded. Not observed in the wild; the design doc did not ask
+  for it, and building it without a measured example would be exactly the
+  "shipping a severity we cannot defend" trap `CLAUDE.md` already warns
+  against for `FILE_WRITE + NETWORK_OUT` (R37).
+- **HTML comment extraction is a plain non-greedy regex**
+  (`<!--(.*?)-->` with `DOTALL`), matching standard comment semantics. It
+  does not special-case a comment body that itself contains the literal
+  substring `-->` (which HTML disallows in a well-formed comment anyway)
+  or an unterminated `<!--` with no closing delimiter (which this regex
+  simply does not match, i.e. treated as no comment present — the
+  conservative, no-false-positive direction).
+- **No `mcp-audit fix` strategy.** The design doc's scope is detection
+  only — it does not mention a fixer strategy anywhere, and none was
+  added. Removing a TAG-character run or an HTML comment from a config or
+  agent file is a plausible future `fixer/strategies/` addition but is
+  out of scope for STORY-0068; tracked here rather than built without a
+  request.
+
 ## Missing capabilities
 
 ~~**Multi-arch binary CI release matrix**~~ **Resolved v0.4.0.** `release.yml` builds four PyInstaller executables in parallel on `v*.*.*` tag push: `macos-15-intel` (x86_64), `macos-latest` (arm64), `ubuntu-latest`, and `windows-latest`.
@@ -982,6 +1020,22 @@ All 12 compiled patterns in `poisoning.py` were benchmarked against a
 50 000-character adversarial string (`"a" * 50_000 + "!"`).  Max observed
 match time: 2.5 ms (pattern 1).  No pattern exceeded 3 ms — no ReDoS risk.
 Result documented in the module-level docstring of `poisoning.py`.
+
+**POISON-041/042 HTML-comment extraction — quadratic blowup found and fixed
+during implementation, not shipped (STORY-0068, 2026-09-09).** The first
+implementation used `<!--(.*?)-->` with `re.DOTALL`. On adversarial input
+with many unclosed `<!--` openers and no `-->` anywhere (a plausible tool
+description or `SKILL.md` body), the lazy-dot regex rescans forward to the
+end of the string from *every* opener before concluding no match exists:
+measured ~8s at 80,000 characters (20,000 repetitions of `"<!--"`), scaling
+quadratically (confirmed 1k/2k/4k/8k repetitions roughly quadrupling time
+per doubling). Replaced with a two-pointer `str.find()` walk
+(`_iter_html_comment_bodies`) that never revisits already-scanned text and
+returns as soon as no closing delimiter remains — same discipline as the
+already-benchmarked `PATTERNS` regexes above. Measured after the fix:
+40,000 repetitions (160,000 chars) in ~2ms.
+`test_unterminated_html_comments_do_not_cause_quadratic_blowup` pins a
+sub-second bound at 20,000 repetitions.
 
 ## Self-scan results (2026-04-23)
 

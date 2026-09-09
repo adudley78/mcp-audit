@@ -83,7 +83,7 @@ src/mcp_audit/
 ├── _network.py        # NetworkPolicy + require_offline_compatible() — centralised --offline mutual-exclusion enforcement for network-touching flags
 ├── analyzers/
 │   ├── base.py         # BaseAnalyzer abstract class — all analyzers inherit this
-│   ├── poisoning.py    # Tool description poisoning detection (regex-based); PATTERNS list reused by agent_files
+│   ├── poisoning.py    # Tool description poisoning detection (regex-based); PATTERNS list reused by agent_files; also owns POISON-041/042 concealment-channel extract/decode/rescan (scan_concealed_channels, build_concealment_finding), shared with agent_files
 │   ├── credentials.py  # Secret/API key exposure in configs (SECRET_PATTERNS)
 │   ├── transport.py    # Transport security (TLS, localhost binding, etc.)
 │   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed)
@@ -93,11 +93,11 @@ src/mcp_audit/
 │   ├── auth.py         # Remote server authentication checks (AUTH-001, AUTH-002)
 │   ├── collision.py    # Tool-name collision detection across --connect servers (COLLIDE-001)
 │   └── attack_paths.py # Multi-hop attack path detection and greedy hitting set algorithm
-├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001/002)
+├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001/002; also emits POISON-041/042, analyzer="poisoning")
 │   ├── __init__.py    # Package marker; offline-only invariant docs
 │   ├── models.py      # AgentFile dataclass, AgentFileSurface StrEnum
 │   ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions)
-│   └── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked). NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+│   └── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked), plus scan_concealed_channels/build_concealment_finding for POISON-041/042. NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
 ├── advisory/          # OSV 1.6.0 advisory records + signed feed (mcp-audit advise / feed verify)
 │   ├── __init__.py    # Package marker; re-exports Advisory, build_advisory, write_feed, sign_feed, verify_feed
 │   ├── schema.py      # Advisory dataclass → OSV 1.6.0 JSON; stable `x_MCPSA-<12hex>` IDs; MCP metadata under affected[].database_specific; FINDING_CLASS_TO_OWASP + owasp_for(); rejects codes owasp_mcp.py does not define
@@ -441,10 +441,15 @@ Build and distribution scripts at project root:
   the standalone `agent-files discover|scan` commands call it directly, and `scan
   --include-agent-files` wires it via `_apply_agent_files()` in `cli/scan.py`
   (same `_apply_*` additive convention as `--include-extensions`). Findings use
-  `analyzer="agent_files"` (SKILL-001/002/003, MEM-001/002). Detection patterns are
-  **imported** from `analyzers/poisoning.py` — never forked. **HOOK-001/002**
-  (network-egress and config-write hook commands) deliberately live in
-  `analyzers/config_hygiene.py::analyze_config` (pipeline step 0), not in
+  `analyzer="agent_files"` (SKILL-001/002/003/004, MEM-001/002) — **except**
+  POISON-041/042 (concealment channels, STORY-0068), which this module also
+  emits but which always carry `analyzer="poisoning"`, matching the config
+  surface, because the shared builder `build_concealment_finding()` lives in
+  and is owned by `analyzers/poisoning.py` (see that module's docstring and
+  `agent_files/analyzer.py`'s own "documented exception" note). Detection
+  patterns are **imported** from `analyzers/poisoning.py` — never forked.
+  **HOOK-001/002** (network-egress and config-write hook commands) deliberately
+  live in `analyzers/config_hygiene.py::analyze_config` (pipeline step 0), not in
   `agent_files/`, because they inspect the parsed `hooks` section of a Claude config
   file; they are distinct IDs from CFHYG-005 (which fires on mere presence of a
   `hooks` section) and the conditions do not overlap.
@@ -683,7 +688,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 53 findings across all demo configs (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3356 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 3379 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 27 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
@@ -730,6 +735,11 @@ What's built:
   package `src/mcp_audit/agent_files/` (`models.py`, `discovery.py`, `analyzer.py`)
   and `src/mcp_audit/cli/agent_files.py`; see `docs/agent-files.md`. Unconfirmed
   surfaces (Windsurf, Augment, Kiro, user-global Copilot) tracked in `GAPS.md`.
+  **POISON-041/042** (concealment channels — Unicode TAG-character runs decoded
+  per UTS #39/ASCII-smuggling research, and HTML comments — STORY-0068, added
+  2026-09-09) fire from both this module and `PoisoningAnalyzer`, always with
+  `analyzer="poisoning"`; see `analyzers/poisoning.py`'s "Concealment channels"
+  section and this module's own docstring for the shared-builder rationale.
 
 - **Advisory feed** — `mcp-audit advise <target>` turns scan findings into OSV
   schema_version 1.6.0 advisory records and publishes them as a signed, verifiable
