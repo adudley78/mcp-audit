@@ -643,6 +643,14 @@ not close, recorded here rather than smoothed over:
   `enabled: true`, or passing `--rules-dir` at a directory containing such
   a copy. Wiring a governance-policy toggle for a specific bundled rule ID
   is unbuilt and is its own future story, not a side effect of this one.
+  **Corrected R47 (2026-09-09):** `STDIO-001` was originally scoped (see the
+  EPIC-0006 design notes) to count toward the community-rule maturity/gate
+  metric alongside every other bundled rule. It does not, and should not,
+  count toward any such metric: a rule that cannot be enabled by anyone
+  cannot contribute a capability, so counting it inflates that number
+  without inflating real coverage. `PROVENANCE.md`'s community-rules count
+  now states the enabled-by-default figure (35) separately from the total
+  real-rule figure (36) for this reason.
 
 ## Pre-commit hook
 
@@ -1015,11 +1023,35 @@ storage directory is `0o700` (only the owning user can write to it). Using
 `try: open(path)` / `except FileNotFoundError` would eliminate the race but
 requires restructuring the error messages; deferred to a future refactor.
 
-**Regex backtracking on adversarial tool descriptions — RESOLVED (2026-04-23).**
-All 12 compiled patterns in `poisoning.py` were benchmarked against a
-50 000-character adversarial string (`"a" * 50_000 + "!"`).  Max observed
-match time: 2.5 ms (pattern 1).  No pattern exceeded 3 ms — no ReDoS risk.
-Result documented in the module-level docstring of `poisoning.py`.
+**Regex backtracking on adversarial tool descriptions — asserted by a live
+test, not a 2026-04-23 memory (corrected R47, 2026-09-09).** The original
+form of this note said "All 12 compiled patterns in `poisoning.py` were
+benchmarked" against a 50,000-character adversarial string, as a one-off
+measurement written into prose. Nothing re-ran it: by R47, `poisoning.py`
+had grown to 14 `re.compile()` call sites (two added by STORY-0068's
+concealment-channel work, see below) and the stale "12" invited misreading
+as "every compiled regex in the file," which was never true and was no
+longer even the right count for the list it did describe.
+
+The claim is now `tests/test_analyzers.py::TestPatternReDoSBenchmark` —
+parametrized directly over `poisoning.PATTERNS` (12 entries today), so it
+covers however many entries exist at test-run time with no prose edit
+required when one is added. Ceiling: 0.25s per pattern against
+`"a" * 50_000 + "!"`; slowest observed is `POISON-020` at ~4.4ms, comfortably
+under. If a future pattern exceeds the ceiling, the test fails and the
+ceiling must not be raised to fit — the pattern needs to be rewritten.
+
+The other two compiled regexes in the module are excluded from this test
+**by construction, not by omission**: `_cooccurrence_regex()` (POISON-020's
+co-occurrence gate) is a literal-alternation word-boundary regex with no
+nested quantifiers, and is only ever searched against a small
+`_COOCCURRENCE_WINDOW` slice, never the full text; `_TAG_CHAR_RE`
+(POISON-041/042 TAG-character extraction) is a single linear character
+class with no quantifier nesting. Neither has a backtracking degree of
+freedom for an adversarial input to exploit. The HTML-comment side of
+concealment-channel extraction — the one part of STORY-0068 that _did_ have
+a real quadratic bug — has its own dedicated regression test, described
+next.
 
 **POISON-041/042 HTML-comment extraction — quadratic blowup found and fixed
 during implementation, not shipped (STORY-0068, 2026-09-09).** The first

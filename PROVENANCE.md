@@ -221,10 +221,18 @@ We don't accept detection patterns based on undisclosed or private research.
 
 ## Community rules (rules/community/)
 
-33 bundled community detection rules (COMM-001 through COMM-033, with gaps for
-retired IDs) ship with mcp-audit and run for all users automatically.
-(COMM-032 is intentionally reserved and unissued; the next new rule will be COMM-034.
-See the COLLIDE-001 section below for why COMM-032 was skipped.)
+37 `.yml` files ship in `rules/community/`: 36 real (non-template) detection
+rules plus `TEMPLATE.yml` itself (loads as the always-inert `COMM-000`
+contribution template; `BOUNTY.md` ships alongside but is not a rule file).
+Of the 36 real rules, **35 run for every user automatically** and **1**
+(`STDIO-001`) ships `enabled: false` with no governance-policy mechanism to
+turn it on (see `GAPS.md`) — a rule nobody can enable does not count toward
+a community-rule capability claim, so counts used for that purpose should
+read 35, not 36 or 37.
+(`COMM-032` is intentionally reserved and unissued; the next new numbered
+rule will be `COMM-035` (`COMM-034` already exists — see the god-key
+credential-scope entry in the table below).
+See the COLLIDE-001 section below for why `COMM-032` was skipped.)
 
 | Rule | Description | Basis |
 |------|-------------|-------|
@@ -342,7 +350,8 @@ RPC.  A rule that fires on static config content cannot detect tool-name
 collisions; any static heuristic (e.g. flagging two servers with the same server
 *name*) would produce misleading findings.  Shipping a dead or misleading rule
 inflates the corpus count and weakens trust in the rule pack.  COMM-032 is
-therefore reserved as an unissued ID; the next new community rule will be COMM-034.
+therefore reserved as an unissued ID; the next new community rule will be
+COMM-035 (COMM-034 already exists).
 
 ---
 
