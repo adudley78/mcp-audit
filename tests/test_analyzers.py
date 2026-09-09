@@ -7,7 +7,11 @@ from pathlib import Path
 import pytest
 
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
-from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
+from mcp_audit.analyzers.poisoning import (
+    PATTERNS,
+    DetectionPattern,
+    PoisoningAnalyzer,
+)
 from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import DiscoveredConfig
@@ -125,6 +129,53 @@ class TestPoisoningAnalyzer:
         # Filesystem server should have no poisoning findings
         poisoning_findings = [f for f in findings if f.analyzer == "poisoning"]
         assert len(poisoning_findings) == 0
+
+
+class TestPatternReDoSBenchmark:
+    """R47: live assertion replacing the 2026-04-23 GAPS.md prose note.
+
+    That note said "All 12 compiled patterns in poisoning.py were
+    benchmarked" — true when written, but a hardcoded count that nothing
+    re-ran as ``PATTERNS`` grew, and easy to misread as covering every
+    compiled regex in the module rather than only the ``PATTERNS`` list.
+    This test is parametrized directly over :data:`PATTERNS`, so it covers
+    however many entries exist today and automatically covers any pattern
+    added later with no matching prose edit required.
+
+    Two other compiled regexes live in this module and are deliberately
+    OUT of scope here, not merely unmeasured — see their own docstrings:
+    ``_cooccurrence_regex()`` (POISON-020's gate; a literal-alternation
+    word-boundary regex with no nested quantifiers, searched only against a
+    small ``_COOCCURRENCE_WINDOW`` slice, never the full text) and
+    ``_TAG_CHAR_RE`` (POISON-041/042 TAG-character extraction; a single
+    linear character class with no backtracking hazard by construction).
+    The HTML-comment side of concealment-channel extraction has its own
+    dedicated regression test,
+    ``test_unterminated_html_comments_do_not_cause_quadratic_blowup`` above.
+    """
+
+    # Same adversarial input class as the original 2026-04-23 measurement
+    # (worst observed there: 2.5ms). The ceiling below is deliberately
+    # generous relative to that so this stays a backtracking-blowup
+    # tripwire, not a flaky timing test.
+    _ADVERSARIAL_TEXT = "a" * 50_000 + "!"
+    _CEILING_SECONDS = 0.25
+
+    @pytest.mark.parametrize("detection_pattern", PATTERNS, ids=lambda p: p.id)
+    def test_pattern_completes_within_ceiling(
+        self, detection_pattern: DetectionPattern
+    ) -> None:
+        import time
+
+        start = time.perf_counter()
+        detection_pattern.pattern.search(self._ADVERSARIAL_TEXT)
+        elapsed = time.perf_counter() - start
+        assert elapsed < self._CEILING_SECONDS, (
+            f"{detection_pattern.id} took {elapsed:.3f}s against a "
+            f"{len(self._ADVERSARIAL_TEXT):,}-char adversarial string, "
+            f"exceeding the {self._CEILING_SECONDS}s ceiling — possible "
+            "ReDoS backtracking blowup, do not raise the ceiling to fit"
+        )
 
 
 def _encode_tag(text: str) -> str:
