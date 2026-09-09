@@ -136,6 +136,30 @@
       ]
     },
     {
+      "finding_id": "POISON-041",
+      "finding_title": "Concealed instruction via concealment channel",
+      "owasp_codes": [
+        "MCP03",
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Unauthorized Privilege Escalation"
+      ],
+      "notes": "A concealment channel (Unicode TAG-character run decoding per UTS #39, or an HTML comment) decodes/extracts to content matching an existing PATTERNS entry. Two-pass design: the channel is extracted into its own string and rescanned independently, never spliced back into the original text. Fires identically from the config surface (PoisoningAnalyzer, analyzer=poisoning) and the agent-file surface (agent_files/analyzer.py, also analyzer=poisoning \u2014 a documented exception to that module's usual analyzer=agent_files). Evidence shows the decoded/extracted ASCII content, explicitly labelled, since the concealed bytes themselves render as nothing. HIGH."
+    },
+    {
+      "finding_id": "POISON-042",
+      "finding_title": "Concealment channel present, no matched payload",
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Tool Poisoning"
+      ],
+      "notes": "Unicode TAG characters are present but decode to content matching no existing pattern. TAG characters have essentially no legitimate use in a tool description or an agent-instruction file, so bare presence alone is worth a LOW signal \u2014 unlike an HTML comment, which is ordinary and common in Markdown and stays silent unless its content actually matches a pattern (see POISON-041). LOW."
+    },
+    {
       "finding_id": "POISON-050",
       "finding_title": "Excessive tool description length",
       "owasp_codes": [
@@ -1121,5 +1145,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 101 static finding IDs are mapped. 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. Most recently added: STDIO-001/002a/002b (launch-command trust boundary; STDIO-001 ships disabled), CRED-003 (literal secret in an authentication header), TRUST-002/004/005 (symlinked config/agent-file candidates), SKILL-004 (skill bundled-scripts inventory), TRUST-003 (repo-planted IDE auto-execution). See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 103 static finding IDs are mapped. 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. Most recently added: POISON-041/042 (concealment channels \u2014 Unicode TAG-character decode / HTML-comment extraction, then rescan; fires with analyzer=poisoning from both the config and agent-file surfaces), STDIO-001/002a/002b (launch-command trust boundary; STDIO-001 ships disabled), CRED-003 (literal secret in an authentication header), TRUST-002/004/005 (symlinked config/agent-file candidates), SKILL-004 (skill bundled-scripts inventory), TRUST-003 (repo-planted IDE auto-execution). See docs/severity-framework.md for the full rationale table."
 }

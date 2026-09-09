@@ -41,6 +41,25 @@ SKILL-004 (INFO)
     trust as the skill's instructions; this exists so a reviewer knows they
     are there.
 
+POISON-041 (HIGH) / POISON-042 (LOW) — documented exception
+    Concealment channels (Unicode TAG-character runs decoding to hidden
+    text; HTML comments invisible when this file renders as Markdown).
+    Fires on both skill/command/instruction and memory surfaces via
+    :func:`mcp_audit.analyzers.poisoning.scan_concealed_channels` and
+    :func:`mcp_audit.analyzers.poisoning.build_concealment_finding` — the
+    SAME shared builder the config surface (``PoisoningAnalyzer``) calls, so
+    the two never drift (STORY-0068).  Unlike every other finding this
+    module emits, these two carry ``analyzer="poisoning"``, not
+    ``"agent_files"`` — a deliberate exception, because the finding IDs and
+    their meaning are identical regardless of surface (an "outer" SKILL-/
+    MEM- rebrand would imply severity or scope differs by surface, which it
+    does not; the precedent is ``discovery.py``'s shared symlink-finding
+    builders, which keep ``analyzer="discovery"`` regardless of whether
+    ``discovery.py`` or ``agent_files/discovery.py`` calls them).
+    POISON-042 fires only for the TAG-character channel — a bare HTML
+    comment is common and legitimate in Markdown and must stay silent
+    unless its content actually matches an existing pattern.
+
 Pattern import policy
 ---------------------
 Detection patterns are **imported** from :mod:`mcp_audit.analyzers.poisoning`
@@ -57,8 +76,10 @@ from mcp_audit.agent_files.models import AgentFile, AgentFileSurface
 from mcp_audit.analyzers.poisoning import (
     PATTERNS,
     DetectionPattern,
+    build_concealment_finding,
     matched_pattern,
     normalize_for_detection,
+    scan_concealed_channels,
 )
 from mcp_audit.models import Finding, Severity
 
@@ -354,6 +375,26 @@ def _analyze_skill(af: AgentFile) -> list[Finding]:
                 )
             )
 
+    # POISON-041/042: concealment channels (TAG-character runs, HTML
+    # comments). Shared builder with the config surface — see the module
+    # docstring's "documented exception" note (analyzer="poisoning" here,
+    # not "agent_files").
+    for cmatch in scan_concealed_channels(text):
+        pat_key = cmatch.matched_pattern.id if cmatch.matched_pattern else "none"
+        fid = "POISON-041" if cmatch.matched_pattern is not None else "POISON-042"
+        _emit(
+            fid,
+            f"concealment:{cmatch.channel.kind}:{pat_key}",
+            build_concealment_finding(
+                cmatch,
+                client=af.client,
+                server=af.display_name,
+                surface_noun=f"the file '{af.path.name}'",
+                markdown_surface=True,
+                finding_path=str(af.path),
+            ),
+        )
+
     return findings
 
 
@@ -447,6 +488,27 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
                 ),
                 owasp_mcp_top_10=["MCP03"],
                 cwe=pat.cwe or "CWE-74",
+            ),
+        )
+
+    # POISON-041/042: concealment channels — same shared builder as
+    # _analyze_skill (see the module docstring's "documented exception"
+    # note). Applied to memory files too: a concealment channel is
+    # anomalous on its own merit, independent of the restricted
+    # _MEM_INJECTION_IDS subset used above for direct pattern matches.
+    for cmatch in scan_concealed_channels(text):
+        pat_key = cmatch.matched_pattern.id if cmatch.matched_pattern else "none"
+        fid = "POISON-041" if cmatch.matched_pattern is not None else "POISON-042"
+        _emit(
+            fid,
+            f"concealment:{cmatch.channel.kind}:{pat_key}",
+            build_concealment_finding(
+                cmatch,
+                client=af.client,
+                server=af.display_name,
+                surface_noun=f"the memory file '{af.path.name}'",
+                markdown_surface=True,
+                finding_path=str(af.path),
             ),
         )
 
