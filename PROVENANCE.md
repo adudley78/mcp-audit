@@ -258,6 +258,14 @@ See the COLLIDE-001 section below for why COMM-032 was skipped.)
 | COMM-030 | Generic-named server with network URL | OWASP MCP Top 10 MCP09 (Shadow Servers) and MCP07; unnamed network servers resist discovery, fleet auditing, and access-review workflows |
 | COMM-031 | Remote MCP server configured without authentication | arXiv 2605.22333 (40.55% of live remote MCP servers unauthenticated); Censys (12,520 internet-exposed MCP services); CWE-306; OWASP MCP Top 10 MCP06. Lightweight URL-pattern companion to AUTH-001 in auth.py. |
 | COMM-033 | Project-level MCP config file present in repository | Adversa TrustFall (May 2026) — first published demonstration that committing project-level MCP config causes AI editors to auto-spawn MCP servers with developer OS privileges on "trust folder". CVE-2026-30615 config-tamper channel. CWE-829; OWASP MCP Top 10 MCP09. Lightweight config_path-pattern companion to TRUST-001 in cli/scan.py. |
+| STDIO-002a | Hidden (dotfile) launcher binary | Pillar Security "Deadbugz" MCP supply-chain campaign disclosure, 2026-08-12 (https://www.pillar.security/blog/deadbugz-currently-active-mcp-supply-chain-campaign) — four of 23 GitHub pull requests the campaign opened configured a local MCP server at `~/.config/.cache/.sys/.deadbug-mcp.py`; the leaf, not merely a containing directory, is hidden. OWASP MCP Top 10 MCP04/MCP05. |
+| STDIO-002b | Inline script launcher | Original — closes a gap COMM-015 (shell metacharacters) leaves open: an interpreter invoked with `-c`/`-e`/`--eval`/`-Command` executes code with no character in COMM-015's metacharacter class present and no file on disk to review. OWASP MCP Top 10 MCP05. |
+| STDIO-001 | Launcher binary not in allowlist | Original — policy-gated allowlist derived from this project's own demo/fixture corpus; ships `enabled: false` (see GAPS.md). OWASP MCP Top 10 MCP04/MCP09. |
+
+See `humans/decisions/2026-09-09-stdio-001-002-design.md` (marcus repo) for the
+full STDIO-001/002a/002b design, including the amendment dropping an
+"outside the scanned repository" criterion from STDIO-002 (unbuildable in the
+rule engine's `MatchField` vocabulary — see GAPS.md).
 
 All community rules are original implementations based on common security
 practice and published CWE categories. None are derived from proprietary

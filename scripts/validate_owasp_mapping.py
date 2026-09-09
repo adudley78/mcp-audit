@@ -73,12 +73,18 @@ def _collect_source_ids() -> set[str]:
                 continue
             ids.add(candidate)
 
-    # Community YAML rules — their `id:` field is the finding ID
+    # Community YAML rules — their `id:` field is the finding ID.
+    # Not restricted to COMM-NNN: STORY-0067 added STDIO-001/002a/002b, whose
+    # IDs carry a different prefix and (for 002a/002b) a lowercase letter
+    # suffix. Any top-level `id: PREFIX-suffix` line in rules/community/ is a
+    # real finding ID this script must be able to audit.
     if RULES_DIR.exists():
         for yaml_file in RULES_DIR.glob("*.yml"):
             text = yaml_file.read_text(encoding="utf-8", errors="replace")
-            # Match: ^id: COMM-001  (only the top-level id field)
-            m = re.search(r"^id:\s*(COMM-\d{3})\b", text, re.MULTILINE)
+            # Match: ^id: COMM-001  or  ^id: STDIO-002a  (top-level id field only)
+            m = re.search(
+                r"^id:\s*([A-Z][A-Z0-9]*-[A-Za-z0-9]+)\s*$", text, re.MULTILINE
+            )
             if m:
                 ids.add(m.group(1))
 

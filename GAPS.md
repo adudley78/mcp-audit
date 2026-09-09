@@ -609,6 +609,41 @@ stdio when a remote transport would be expected. See
 (`PolicyRule.exempt_known_servers`, `_server_in_registry`), and
 `docs/writing-rules.md` for details.
 
+**STDIO-001/002a/002b: launch-command trust boundary rules (STORY-0067,
+2026-09-09).** See `humans/decisions/2026-09-09-stdio-001-002-design.md`
+(marcus repo) for the full design. Three gaps this story deliberately did
+not close, recorded here rather than smoothed over:
+
+- **"Outside the scanned root" was dropped from STDIO-002, amending epic
+  decision #1.** The rule engine has no notion of a project or scan root —
+  `MatchField` offers only `command`, `args`, `env`, `server_name`, `url`,
+  `transport`, `capabilities`, `config_path`; there is no way to express
+  "this path resolves outside the directory being scanned" in that
+  vocabulary, and this story did not relocate the criterion into Python.
+  It was also a bad criterion on its own terms: every ordinary launcher
+  (`npx`, `node`, `uvx`, a `~/.nvm/...` shim) resolves outside the project,
+  so an "outside-repo" rule would fire on nearly every server on every
+  machine for no signal. The Deadbugz shape it was meant to catch is fully
+  covered by STDIO-002a's hidden-leaf test instead (see below).
+- **Hidden-leaf detection (STDIO-002a) is a POSIX convention only.**
+  Dot-prefixed hidden files/directories are a POSIX shell convention; on
+  Windows this rule contributes no signal (`command` there is not
+  dot-hidden by any OS or shell convention). No Windows-equivalent
+  detection has been designed or measured.
+- **STDIO-001 ships `enabled: false` with no way to turn it on.** The
+  design asked this story to verify whether a governance policy can enable
+  a disabled community rule, and to stop and report rather than build that
+  plumbing if it does not exist. It does not exist:
+  `PolicyRule.enabled` is read once, statically, from the rule's YAML
+  (`RuleEngine.match_server` skips the rule unconditionally when
+  `enabled: false`), and `grep -rn "enabled" src/mcp_audit/governance/`
+  returns zero matches. STDIO-001 therefore ships as a rule nobody can
+  currently turn on short of hand-editing
+  `<user-config-dir>/mcp-audit/rules/` with a copy that sets
+  `enabled: true`, or passing `--rules-dir` at a directory containing such
+  a copy. Wiring a governance-policy toggle for a specific bundled rule ID
+  is unbuilt and is its own future story, not a side effect of this one.
+
 ## Pre-commit hook
 
 **Hook re-scans all configs on every triggered commit, not just staged ones.** `pass_filenames: false` is required because mcp-audit uses its own client-aware discovery rather than accepting individual filenames. As a side effect, on large multi-client machines (e.g., Claude Desktop + Cursor + VS Code + Windsurf all configured), the hook re-scans all discovered configs even if only one JSON file was staged. Scan time is proportional to total server count across all clients, not to the size of the diff. On typical developer machines this is well under 5 seconds, but may be surprising on machines with dozens of MCP servers.
