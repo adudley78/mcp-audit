@@ -1028,6 +1028,27 @@
       "owasp_codes": ["MCP03"],
       "owasp_names": ["Prompt Injection Attacks"],
       "notes": "Fires on restricted memory pattern subset: POISON-010/011/040/060 only. Exfiltration and length patterns excluded to control FP rate. Severity capped at MEDIUM. CWE-74. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "STDIO-002a",
+      "finding_title": "Hidden (dotfile) launcher binary",
+      "owasp_codes": ["MCP04", "MCP05"],
+      "owasp_names": ["Software Supply Chain Attacks", "Command Injection and Execution"],
+      "notes": "Launch command resolves to a path whose final component (the binary itself, not merely a containing directory) begins with a dot. This is the shape used by the Deadbugz MCP supply-chain campaign (Pillar Security, disclosed 2026-08-12; ~/.config/.cache/.sys/.deadbug-mcp.py). Default-on, HIGH. Community rule, category code-execution."
+    },
+    {
+      "finding_id": "STDIO-002b",
+      "finding_title": "Inline script launcher",
+      "owasp_codes": ["MCP05"],
+      "owasp_names": ["Command Injection and Execution"],
+      "notes": "Command is an interpreter invoked with an inline-code flag (-c, -e, --eval, -Command) rather than a script file path. Boundaried against COMM-015 (shell metacharacters in args): COMM-015 owns the metacharacter class, this rule owns the inline-code flag shape whether or not metacharacters are present. Default-on, HIGH. Community rule, category code-execution."
+    },
+    {
+      "finding_id": "STDIO-001",
+      "finding_title": "Launcher binary not in allowlist",
+      "owasp_codes": ["MCP04", "MCP09"],
+      "owasp_names": ["Software Supply Chain Attacks", "Shadow MCP Servers"],
+      "notes": "Launch command basename is outside a small allowlist of well-known runtime/package-manager launchers. Ships enabled: false \u2014 no governance-policy mechanism currently exists to enable a disabled community rule (verified; see GAPS.md). Policy-gated, MEDIUM when enabled. Community rule, category code-execution."
     }
   ],
   "dynamic_patterns": [
@@ -1100,5 +1121,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 98 static finding IDs are mapped. 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. Most recently added: CRED-003 (literal secret in an authentication header), TRUST-002/004/005 (symlinked config/agent-file candidates), SKILL-004 (skill bundled-scripts inventory), TRUST-003 (repo-planted IDE auto-execution). See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 101 static finding IDs are mapped. 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. Most recently added: STDIO-001/002a/002b (launch-command trust boundary; STDIO-001 ships disabled), CRED-003 (literal secret in an authentication header), TRUST-002/004/005 (symlinked config/agent-file candidates), SKILL-004 (skill bundled-scripts inventory), TRUST-003 (repo-planted IDE auto-execution). See docs/severity-framework.md for the full rationale table."
 }

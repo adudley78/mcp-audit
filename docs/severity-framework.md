@@ -358,6 +358,25 @@ Notable CVE-tagged community rules:
 | COMM-012   | HIGH     | MCP07 | **CVE-2026-33032** (MCPwn) | Server args contain `0.0.0.0` — binds to all interfaces. Same network-exposure precondition as TRANSPORT-004. |
 | COMM-013   | HIGH     | MCP04, MCP05 | CVE-2025-49596, CVE-2026-22252, CVE-2026-22688, CVE-2025-54994, CVE-2025-54136, CVE-2026-30615 | OX Security STDIO disclosure fingerprint: npx/bunx with `--yes`/`-y` bypasses interactive prompt, enabling silent RCE when the attacker controls the package name. COMM-010 flags the missing version pin; COMM-013 flags the auto-confirm flag that removes the last safety check. |
 
+**Launch-command trust boundary (STDIO-001/002a/002b, STORY-0067).** See
+`humans/decisions/2026-09-09-stdio-001-002-design.md` (marcus repo).
+
+| Finding ID | Severity | Default | OWASP MCP Top 10 | Rationale |
+|------------|----------|---------|-------------------|-----------|
+| STDIO-002a | HIGH     | on      | MCP04, MCP05 | `command` resolves to a path whose final component — the binary itself, not merely a containing directory — begins with a dot. Toolchains hide a *directory* in a launcher's path (`~/.nvm/`, `~/.local/bin/`, `node_modules/.bin/`) but never the binary at the end of it, so a hidden leaf is not how any legitimate runtime or package manager installs an executable. This is the exact shape of the "Deadbugz" MCP supply-chain campaign (Pillar Security, disclosed 2026-08-12): four of 23 GitHub pull requests the campaign opened configured a local MCP server at `~/.config/.cache/.sys/.deadbug-mcp.py`. POSIX-only signal — dot-hiding contributes nothing on Windows (see `GAPS.md`). |
+| STDIO-002b | HIGH     | on      | MCP05 | `command` is an interpreter (`python`, `node`, `bash`, `sh`, `pwsh`, etc.) invoked with an inline-code flag (`-c`, `-e`, `--eval`, `-Command`) rather than a script file path — the executed code has no file on disk to review. Deliberately boundaried against COMM-015 (shell metacharacters in `args`): COMM-015 owns the metacharacter class; STDIO-002b owns the inline-code flag shape whether or not metacharacters are also present. A command like `sh -c "curl x | sh"` legitimately fires both rules once each, for two independent conditions — not a double report of either one. |
+| STDIO-001  | MEDIUM   | **off** | MCP04, MCP09 | `command` basename is outside a small allowlist of well-known launchers (npx, node, npm, pnpm, yarn, bunx, bun, deno, python, python3, uv, uvx, pipx, docker, podman, sh, bash, zsh). Ships `enabled: false`: an allowlist rule fires on every legitimate custom or in-house launcher, and a rule that fires constantly on correct configurations is one operators disable wholesale — taking the two rules above down with it if all three shared one policy toggle. **No governance-policy mechanism currently exists to enable a disabled community rule** (`grep -rn "enabled" src/mcp_audit/governance/` returns zero matches) — this was verified, not assumed, per the design doc's own stop-and-report instruction; see `GAPS.md`. |
+
+The epic decision that originally scoped STDIO-002 to also include an
+"outside the scanned repository" criterion was amended: the rule engine's
+`MatchField` vocabulary (`command`, `args`, `env`, `server_name`, `url`,
+`transport`, `capabilities`, `config_path`) has no notion of a project or
+scan root, and the criterion was independently a poor one — every ordinary
+launcher (`npx`, `node`, a `~/.nvm/...` shim) resolves outside the project,
+so it would have fired on nearly every server on every machine. The
+Deadbugz shape it targeted is fully covered by STDIO-002a's hidden-leaf
+test instead.
+
 ---
 
 ## How to assign severity to a new finding

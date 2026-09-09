@@ -1,0 +1,35 @@
+id: STDIO-001
+name: Launcher binary not in allowlist
+description: >
+  The server's launch command is not one of a small set of well-known
+  runtime/package-manager launchers. Ships disabled: an allowlist rule
+  fires on every legitimate custom or in-house launcher (a company's own
+  wrapper script, a compiled binary, a bespoke shell entrypoint), and a
+  rule that fires constantly on correct configurations is one operators
+  disable wholesale — taking STDIO-002a and STDIO-002b down with it if all
+  three live in one policy toggle. Intended for organisations that want to
+  enforce a closed launcher allowlist deliberately, via policy, on top of
+  the two default-on sharper rules above. The default allowlist (npx, node,
+  npm, pnpm, yarn, bunx, bun, deno, python, python3, uv, uvx, pipx, docker,
+  podman, sh, bash, zsh) is derived from every launcher observed across this
+  project's own demo and fixture configs: npx (31), node (7), uvx (5),
+  python3 (2), npm (2), python (1), pipx (1).
+severity: MEDIUM
+category: code-execution
+match:
+  field: command
+  pattern: "(?i)(?:^|/)(npx|node|npm|pnpm|yarn|bunx|bun|deno|python3?|uv|uvx|pipx|docker|podman|sh|bash|zsh)$"
+  type: regex
+  negate: true
+message: "Server '{server_name}' uses a launcher binary outside the
+  configured allowlist: {matched_value} — verify this binary is trusted
+  before relying on it in an environment enforcing this policy."
+tags:
+  - code-execution
+  - launch-command
+  - allowlist
+enabled: false
+owasp_mcp_top_10:
+  - MCP04
+  - MCP09
+cve: []

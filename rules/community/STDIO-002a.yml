@@ -1,0 +1,35 @@
+id: STDIO-002a
+name: Hidden (dotfile) launcher binary
+description: >
+  The server's launch command resolves to a path whose final component — the
+  binary itself, not merely a containing directory — begins with a dot.
+  Toolchains routinely hide a *directory* somewhere in a launcher's path
+  (~/.nvm/, ~/.local/bin/, ~/.cargo/bin/, node_modules/.bin/) but never the
+  binary at the end of it; a hidden leaf is not how any legitimate package
+  manager or language runtime installs an executable. This is the exact
+  shape used by the "Deadbugz" MCP supply-chain campaign (Pillar Security,
+  disclosed 2026-08-12): of 23 GitHub pull requests the campaign opened
+  against unrelated public repositories, four configured a local MCP server
+  at the hidden path ~/.config/.cache/.sys/.deadbug-mcp.py — chosen
+  specifically to read as ordinary system cache clutter under a quick
+  review, while the remaining 17 used a remote endpoint instead (a
+  different delivery shape, not covered by this rule).
+severity: HIGH
+category: code-execution
+match:
+  field: command
+  pattern: "(?:^|/)\\.[^/]+$"
+  type: regex
+message: "Server '{server_name}' launches from a hidden (dotfile) path:
+  {matched_value} — the launcher binary itself is hidden, not just a
+  containing directory. This is the Deadbugz MCP campaign shape
+  (~/.config/.cache/.sys/.deadbug-mcp.py)."
+tags:
+  - code-execution
+  - supply-chain
+  - launch-command
+enabled: true
+owasp_mcp_top_10:
+  - MCP04
+  - MCP05
+cve: []

