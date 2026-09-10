@@ -14,8 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.17.0] - 2026-09-10
 
-> **Correction (2026-09-10, R50):** this section originally misstated the LOCK finding severities
-> and, most importantly, LOCK-005's meaning — it was described as an informational note about an
+> **Correction (2026-09-10):** this section originally misstated the LOCK finding severities and,
+> most importantly, LOCK-005's meaning — it was described as an informational note about an
 > unresolved `--offline` entry; the shipped code's LOCK-005 is the CRITICAL tamper/hand-edit check
 > that short-circuits every other check with exit code 2. The text below now matches
 > `src/mcp_audit/lock/verifier.py`. The public GitHub Release body for v0.17.0 was corrected to
