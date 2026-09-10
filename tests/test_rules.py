@@ -25,6 +25,7 @@ from mcp_audit.rules.engine import (
     load_rules_from_file,
     merge_rules,
 )
+from tests.conftest import unwrapped
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -1290,7 +1291,7 @@ class TestRuleValidateMissingFile:
             f"Expected exit 2 (file not found), got {result.exit_code}. "
             f"Output: {result.output!r}"
         )
-        assert "not found" in result.output.lower(), (
+        assert "not found" in unwrapped(result.output.lower()), (
             f"Expected 'not found' in output, got: {result.output!r}"
         )
 

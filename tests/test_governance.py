@@ -34,6 +34,7 @@ from mcp_audit.models import (
     Severity,
     TransportType,
 )
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -590,7 +591,7 @@ class TestGovernanceCLI:
         existing.write_text("name: existing", encoding="utf-8")
         result = runner.invoke(app, ["policy", "init", "--output", str(existing)])
         assert result.exit_code == 2
-        assert "already exists" in result.output.lower()
+        assert "already exists" in unwrapped(result.output.lower())
 
     def test_scan_with_policy_flag(self, tmp_path: Path) -> None:
         policy_file = tmp_path / "policy.yml"

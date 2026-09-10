@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from mcp_audit.advisory.validate import validate_osv
 from mcp_audit.cli import app
 from mcp_audit.cli.advise import ENV_SOURCE_DATE_EPOCH, _resolve_now
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -257,12 +258,12 @@ class TestAdviseArgumentErrors:
     def test_missing_target_exits_2(self, tmp_path: Path) -> None:
         result = _advise(str(tmp_path / "absent"), "--no-sign")
         assert result.exit_code == 2
-        assert "Path not found" in result.output
+        assert "Path not found" in unwrapped(result.output)
 
     def test_missing_input_scan_exits_2(self, tmp_path: Path) -> None:
         result = _advise("--input", str(tmp_path / "absent.json"), "--no-sign")
         assert result.exit_code == 2
-        assert "Scan file not found" in result.output
+        assert "Scan file not found" in unwrapped(result.output)
 
     def test_malformed_input_scan_exits_2(self, tmp_path: Path) -> None:
         bad = tmp_path / "bad.json"
@@ -274,17 +275,17 @@ class TestAdviseArgumentErrors:
     def test_unknown_backend_exits_2(self, tmp_path: Path) -> None:
         result = _advise(str(FIXTURES), "--key-alt", "pgp")
         assert result.exit_code == 2
-        assert "Unknown backend" in result.output
+        assert "Unknown backend" in unwrapped(result.output)
 
     def test_unknown_severity_exits_2(self, tmp_path: Path) -> None:
         result = _advise(str(FIXTURES), "--severity-threshold", "spicy", "--no-sign")
         assert result.exit_code == 2
-        assert "Unknown severity" in result.output
+        assert "Unknown severity" in unwrapped(result.output)
 
     def test_unknown_observation_exits_2(self, tmp_path: Path) -> None:
         result = _advise(str(FIXTURES), "--observation", "vibes", "--no-sign")
         assert result.exit_code == 2
-        assert "Unknown --observation" in result.output
+        assert "Unknown --observation" in unwrapped(result.output)
 
 
 # ── feed verify ───────────────────────────────────────────────────────────────
@@ -347,8 +348,8 @@ class TestFeedVerify:
         )
         assert result.exit_code == 0, result.output
         assert "verified" in result.output
-        assert "Published 2026-01-31" in result.output
-        assert "days old" in result.output
+        assert "Published 2026-01-31" in unwrapped(result.output)
+        assert "days old" in unwrapped(result.output)
 
     def test_a_mutated_advisory_fails_and_exits_1(
         self, signed_feed: Path, minisign_keys
@@ -381,14 +382,14 @@ class TestFeedVerify:
     def test_missing_directory_exits_2(self, tmp_path: Path) -> None:
         result = runner.invoke(app, ["feed", "verify", str(tmp_path / "absent")])
         assert result.exit_code == 2
-        assert "Feed directory not found" in result.output
+        assert "Feed directory not found" in unwrapped(result.output)
 
     def test_unknown_backend_exits_2(self, signed_feed: Path) -> None:
         result = runner.invoke(
             app, ["feed", "verify", str(signed_feed), "--key-alt", "pgp"]
         )
         assert result.exit_code == 2
-        assert "Unknown backend" in result.output
+        assert "Unknown backend" in unwrapped(result.output)
 
 
 @needs_minisign
@@ -435,7 +436,7 @@ class TestFeedVerifyBundledKeyDefault:
             app, ["feed", "verify", str(signed_feed), "--key-alt", "minisign"]
         )
         assert result.exit_code == 0, result.output
-        assert "bundled project key" in result.output
+        assert "bundled project key" in unwrapped(result.output)
 
     def test_explicit_public_key_wins_over_the_bundled_default(
         self, signed_feed: Path, tmp_path_factory
@@ -471,7 +472,7 @@ class TestFeedVerifyBundledKeyDefault:
             ],
         )
         assert result.exit_code == 1, result.output
-        assert "bundled project key" not in result.output
+        assert "bundled project key" not in unwrapped(result.output)
 
     def test_env_var_wins_over_the_bundled_default(
         self, signed_feed: Path, tmp_path_factory
@@ -498,7 +499,7 @@ class TestFeedVerifyBundledKeyDefault:
             env={"MCP_AUDIT_SIGNING_PUBKEY": str(other_public)},
         )
         assert result.exit_code == 1, result.output
-        assert "bundled project key" not in result.output
+        assert "bundled project key" not in unwrapped(result.output)
 
 
 # ── examples/feed drift detection ────────────────────────────────────────────

@@ -19,6 +19,7 @@ from mcp_audit.registry.loader import (
     load_registry,
     normalize_pypi_name,
 )
+from tests.conftest import unwrapped
 
 # Windows does not support POSIX file permissions; stat() reports 0o666 for
 # everything regardless of the os.open() mode argument used to create the
@@ -805,7 +806,7 @@ class TestUpdateRegistry:
             result = runner.invoke(app, ["update-registry"])
 
         assert result.exit_code == 0
-        assert "Registry updated" in result.output
+        assert "Registry updated" in unwrapped(result.output)
         assert cache_path.exists()
 
 
@@ -1214,7 +1215,9 @@ class TestVerifyConfigPath:
         result = runner.invoke(app, ["verify", str(tmp_path / "no-such-file.json")])
 
         assert result.exit_code == 2
-        assert "not found" in result.output.lower() or "Error" in result.output
+        assert "not found" in unwrapped(result.output.lower()) or (
+            "Error" in result.output
+        )
 
     def test_verify_package_name_still_works(self, tmp_path: Path) -> None:
         """Package-name form (no path separator, no .json) still works."""
@@ -1418,7 +1421,7 @@ class TestUpdateRegistryRefusesBadDataAtCacheTime:
 
         assert result.exit_code == 0, result.output
         assert cache_path.exists()
-        assert "Registry updated" in result.output
+        assert "Registry updated" in unwrapped(result.output)
         # Cached bytes are the fetched JSON verbatim.
         assert json.loads(cache_path.read_text(encoding="utf-8")) == payload
 
@@ -1564,7 +1567,7 @@ class TestWriteRegistryCacheAtomic:
 
         assert result.exit_code == 2, result.output
         assert result.exception is None or isinstance(result.exception, SystemExit)
-        assert "disk full" in result.output
+        assert "disk full" in unwrapped(result.output)
 
 
 # ── R45: scan/vet/shadow/fix/check never traceback on a corrupt cache ─────────

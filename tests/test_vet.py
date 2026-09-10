@@ -21,6 +21,7 @@ from mcp_audit.verdict import (
     name_to_slug,
     verdict_page_url,
 )
+from tests.conftest import unwrapped
 
 # Windows does not support POSIX file permission bits — skip mode checks there.
 _windows_skip = pytest.mark.skipif(
@@ -451,7 +452,9 @@ class TestVetCliUnknown:
         reg = _make_registry([_VERIFIED_ENTRY])
         with patch("mcp_audit.cli.vet.load_registry", return_value=reg):
             result = runner.invoke(app, ["vet", "completely-unknown-package"])
-        assert "NOT a safety signal" in result.output or "not" in result.output.lower()
+        assert "NOT a safety signal" in unwrapped(result.output) or (
+            "not" in result.output.lower()
+        )
 
     def test_unknown_output_suggests_scan(self) -> None:
         reg = _make_registry([_VERIFIED_ENTRY])
@@ -594,7 +597,7 @@ class TestVetCliValidation:
         reg = _make_registry()
         with patch("mcp_audit.cli.vet.load_registry", return_value=reg):
             result = runner.invoke(app, ["vet", "some-pkg", "--ecosystem", "docker"])
-        assert "Unknown ecosystem" in result.output or "npm" in result.output
+        assert "Unknown ecosystem" in unwrapped(result.output) or "npm" in result.output
 
 
 # ── CLI: --online mode ─────────────────────────────────────────────────────────

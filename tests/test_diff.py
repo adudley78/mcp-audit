@@ -36,6 +36,7 @@ from mcp_audit.diff.render import (
 )
 from mcp_audit.diff.risk import classify_added_server, classify_modified_server
 from mcp_audit.models import ServerConfig, Severity, TransportType
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -645,7 +646,7 @@ class TestCLIDiff:
         f = tmp_path / "mcp.json"
         f.write_text(json.dumps(cfg), encoding="utf-8")
         result = runner.invoke(app, ["diff", str(tmp_path), str(tmp_path)])
-        assert "No MCP changes" in result.output
+        assert "No MCP changes" in unwrapped(result.output)
 
     def test_added_server_exits_1(self, tmp_path: Path) -> None:
         base_dir = tmp_path / "base"
@@ -703,7 +704,7 @@ class TestCLIDiff:
             app, ["diff", str(base_dir), str(head_dir), "--format", "pr-comment"]
         )
         assert result.exit_code == 1
-        assert "## MCP Security Diff" in result.output
+        assert "## MCP Security Diff" in unwrapped(result.output)
         assert len(result.output.splitlines()) <= 100
 
     def test_severity_threshold_high_filters_low(self, tmp_path: Path) -> None:

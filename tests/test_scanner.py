@@ -30,6 +30,7 @@ from mcp_audit.scanner import (
     run_scan,
     run_scan_async,
 )
+from tests.conftest import unwrapped
 
 
 def _make_server(name: str = "test-server") -> ServerConfig:
@@ -324,7 +325,7 @@ class TestPositionalPathArgument:
             result = runner.invoke(app, ["diff", str(config)])
         # diff exits 2 when no baseline exists — that's expected, not an argument error
         # The key assertion: output must not contain Typer's "unexpected extra argument"
-        assert "unexpected extra argument" not in result.output.lower(), (
+        assert "unexpected extra argument" not in unwrapped(result.output.lower()), (
             f"diff rejected positional path as an argument error: {result.output!r}"
         )
 
@@ -343,10 +344,10 @@ class TestPositionalPathArgument:
             f"Expected exit 2 for multiple positional paths, got {result.exit_code}; "
             f"output={result.output!r}"
         )
-        assert "single config path" in result.output, (
+        assert "single config path" in unwrapped(result.output), (
             f"Expected friendly error message, got: {result.output!r}"
         )
-        assert "unexpected extra argument" not in result.output.lower(), (
+        assert "unexpected extra argument" not in unwrapped(result.output.lower()), (
             f"Must not surface raw Typer error; got: {result.output!r}"
         )
 

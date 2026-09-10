@@ -16,6 +16,7 @@ from mcp_audit.fixer.strategies.credentials import CredentialsFixStrategy
 from mcp_audit.fixer.strategies.pinning import PackagePinningStrategy, _find_package_arg
 from mcp_audit.fixer.strategies.transport import TransportFixStrategy
 from mcp_audit.models import Finding, ScanResult, ServerConfig, Severity, TransportType
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -961,7 +962,7 @@ class TestFixCLI:
             result = runner.invoke(app, ["fix", "--path", str(cp)])
 
         assert result.exit_code == 0
-        assert "No fixable findings" in result.output
+        assert "No fixable findings" in unwrapped(result.output)
 
     def test_invalid_fix_type_exits_2(self, tmp_path: Path) -> None:
         config = {"mcpServers": {}}
@@ -996,7 +997,9 @@ class TestFixCLI:
 
         result = runner.invoke(app, ["fix", "--input", str(scan_json)])
         assert result.exit_code == 0
-        assert "${GITHUB_TOKEN}" in result.output or "Would apply" in result.output  # noqa: S105
+        assert "${GITHUB_TOKEN}" in result.output or "Would apply" in unwrapped(  # noqa: S105
+            result.output
+        )
 
     def test_path_and_input_mutually_exclusive(self, tmp_path: Path) -> None:
         cp = _write_config(tmp_path, {"mcpServers": {}})

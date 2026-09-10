@@ -19,6 +19,7 @@ from mcp_audit.sast.runner import (
     parse_semgrep_output,
     run_semgrep,
 )
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -424,7 +425,7 @@ class TestSastCLI:
                 ["sast", str(tmp_path), "--rules-dir", str(rules_dir)],
             )
         assert result.exit_code == 0
-        assert "No SAST findings" in result.output or "0" in result.output
+        assert "No SAST findings" in unwrapped(result.output) or "0" in result.output
 
 
 # ── Security hardening tests ──────────────────────────────────────────────────
@@ -642,8 +643,8 @@ class TestSastSecurityHardening:
 
         assert result.exit_code == 2
         # Must mention the bad path in a human-readable message.
-        assert (
-            "nonexistent_src" in result.output or "not exist" in result.output.lower()
+        assert "nonexistent_src" in result.output or "not exist" in unwrapped(
+            result.output.lower()
         )
         # Must not be a raw Python traceback.
         assert "Traceback" not in result.output

@@ -19,6 +19,7 @@ from mcp_audit.baselines.manager import (
 )
 from mcp_audit.cli import app
 from mcp_audit.models import ServerConfig, Severity, TransportType
+from tests.conftest import unwrapped
 
 # Windows does not support POSIX file permissions; stat() reports 0o666 / 0o777
 # for everything regardless of what we chmod.  Tests that equality-check modes
@@ -489,7 +490,7 @@ def test_baseline_list_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(_bm_mod, "_DEFAULT_STORAGE_DIR", tmp_path / "baselines")
     result = runner.invoke(app, ["baseline", "list"])
     assert result.exit_code == 0
-    assert "No baselines saved" in result.output
+    assert "No baselines saved" in unwrapped(result.output)
 
 
 def test_baseline_save_and_list(

@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from mcp_audit.cli import app
 from mcp_audit.lock.writer import regenerate, write_lock
 from mcp_audit.scanner import run_scan
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -63,7 +64,7 @@ class TestScanAutoVerifiesLock:
         _write_matching_lock(tmp_path, config)
         with _patch_no_known_clients():
             r = runner.invoke(app, ["scan", "--path", str(config)])
-        assert "Lock: verified (1 servers)" in r.output
+        assert "Lock: verified (1 servers)" in unwrapped(r.output)
 
     def test_clean_lock_status_in_json(self, tmp_path: Path) -> None:
         (tmp_path / ".git").mkdir()

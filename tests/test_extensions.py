@@ -31,6 +31,7 @@ from mcp_audit.extensions.discovery import (
 )
 from mcp_audit.extensions.models import ExtensionManifest, ExtensionVulnEntry
 from mcp_audit.models import Severity
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -629,7 +630,7 @@ class TestExtensionsCLI:
             result = runner.invoke(app, ["extensions", "scan"])
 
         assert result.exit_code == 0
-        assert "No issues" in result.output
+        assert "No issues" in unwrapped(result.output)
 
     def test_scan_include_extensions_flag(self, tmp_path: Path) -> None:
         """scan --include-extensions appends extension findings to scan output."""

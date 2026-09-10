@@ -21,6 +21,7 @@ from mcp_audit.fleet.merger import (
     FleetReport,
     generate_fleet_html,
 )
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -504,8 +505,8 @@ def test_terminal_output_renders_without_error(tmp_path: Path) -> None:
     assert result.exit_code in (0, 1), (
         f"Unexpected exit code: {result.exit_code}\n{result.output}"
     )
-    assert "Fleet Summary" in result.output
-    assert "Finding Breakdown" in result.output
+    assert "Fleet Summary" in unwrapped(result.output)
+    assert "Finding Breakdown" in unwrapped(result.output)
 
 
 def test_terminal_output_shows_version_mismatch_warning(tmp_path: Path) -> None:
@@ -559,8 +560,10 @@ def test_html_output_contains_fleet_summary(tmp_path: Path) -> None:
     result = runner.invoke(app, ["merge", str(f1), "--format", "html"])
 
     assert result.exit_code in (0, 1)
-    assert "Fleet Summary" in result.output
-    assert "<!DOCTYPE html>" in result.output or "<html" in result.output.lower()
+    assert "Fleet Summary" in unwrapped(result.output)
+    assert "<!DOCTYPE html>" in unwrapped(result.output) or (
+        "<html" in result.output.lower()
+    )
 
 
 def test_generate_fleet_html_returns_html_string(tmp_path: Path) -> None:
