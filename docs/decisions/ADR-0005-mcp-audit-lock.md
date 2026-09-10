@@ -447,3 +447,73 @@ the scope of what it just checked.
   `verify(root) -> list[Finding]` function — lock verification operates on the lock file plus the
   full discovered server list, not a single `ServerConfig`, the same shape reason `rug_pull.py` and
   `toxic_flow.py` already use `analyze_all` instead of `analyze`.
+
+---
+
+## Addendum (STORY-0070, EPIC-0006 v0.17.0 R49): lock adoption surface
+
+This section extends the decision above rather than replacing any of it. STORY-0070 wires `lock`
+into the commands practitioners already run daily (`fix`, `check`, `scan`), plus CI/pre-commit
+adoption paths, without a second ADR — the story's own scope note says this addendum is sufficient.
+
+- **`fix --fix-type pinning` gains VULN-UNPINNED/LOCK-004.** The existing `PackagePinningStrategy`
+  (SC-001/002 typosquat replacement) is extended, not forked: a new `lock_doc` constructor parameter
+  lets the strategy read a server's `package.resolved_version` from the nearest ancestor lock (via
+  a new `lock/discovery.py::find_lock_for()`) with zero network calls, falling back to the existing
+  live npm/PyPI resolution helpers when no lock entry covers the server. **Decision, not literal
+  compliance:** STORY-0070's acceptance-criteria text said `uvx foo` should pin as `foo==<version>`;
+  the shipped code pins `foo@<version>` instead, for both npm and uvx, because
+  `tests/test_fixer.py::test_apply_with_mocked_pypi_registry` (pre-existing, passing) and
+  `analyzers/supply_chain.py::extract_pypi_package`'s own docstring already establish `@`-syntax as
+  the one pin grammar every other reader in this codebase (`vulnerability/resolver.py` included)
+  assumes. Introducing a second, inconsistent `==` syntax alongside it would have silently broken
+  round-trip parsing elsewhere for no benefit; the acceptance text was read as directional intent
+  ("pin to an exact version"), not as a literal byte-for-byte spec.
+- **`check`/`scan` auto-verify `mcp-lock.json`, no flag required; `--no-lock` opts out.** A new
+  `lock/auto_verify.py::auto_verify()` groups a scan's servers by nearest ancestor lock (monorepo-safe
+  — a subtree's own lock is used, never a parent's) and merges every group's `VerifyResult` into one
+  `LockStatus` (a new model on `ScanResult`, added the same way `FeedStatus` was for the advisory
+  feed). **Deliberate deviation from every other post-score `_apply_*` scan stage**
+  (baseline/governance/SAST/extensions/agent-files/project — all appended *after*
+  `calculate_score()` runs and never affect the grade, per `cli/scan.py`'s own documented
+  convention): STORY-0070's acceptance criteria explicitly require LOCK findings to affect the
+  grade, so `_apply_lock_verification` recomputes `result.score` after appending LOCK-* findings,
+  using whatever scoring weights the main pipeline already resolved from a governance policy.
+  `check` has no governance-weight plumbing today, so its copy of the same logic always uses
+  `calculate_score`'s bare defaults — matching the weights `run_scan` itself used for the
+  un-recomputed score.
+- **`--if-present` (new `lock --verify` flag) is the mechanism behind safe CI/pre-commit adoption.**
+  A missing lock file becomes a dim, exit-0 informational skip instead of the normal exit-2 error.
+  Considered and rejected: a `language: script` pre-commit hook with a bash wrapper checking
+  `[ -f mcp-lock.json ]` before invoking `mcp-audit` — pre-commit does not guarantee two hooks with
+  different `language:` values share an isolated venv/PATH, risking a `command not found` failure
+  for the wrapper, whereas today's single hook works only because `language: python` triggers
+  pre-commit's own isolated-venv install for that specific hook. `--if-present` keeps `entry:
+  mcp-audit`/`language: python` unchanged for the new `mcp-audit-lock-verify` hook and the Action's
+  `lock-verify` step alike, and is a generically useful, independently testable CLI addition rather
+  than duplicated ad hoc logic in two YAML files.
+- **The Action's `lock-verify` step fails regardless of `severity-threshold` "for free."**
+  `lock --verify` has no severity-threshold concept of its own — every finding it can produce
+  (`LOCK-001/002/004/005`) is already fail-worthy drift — so no special-casing was needed to satisfy
+  that acceptance criterion; `fail-on-findings` is still honoured, matching the existing scan step's
+  gating pattern exactly.
+- **`diff` lock-awareness was split into a follow-up, not shipped in this PR.** The story explicitly
+  pre-authorised this ("if `diff` turns out larger than S, split it into its own PR and say so").
+  Wiring `mcp-lock.json` as a first-class `diff` input touches `loader.py` (a third load path
+  alongside directory/JSON-file/git-SHA), `comparator.py` (a new comparison axis: locked vs. current
+  resolution, independent of config-level changes), `risk.py`, and `render.py` (MCP-terms rendering
+  plus the "lock updated to match" consistent-change wording) — enough surface, with its own
+  fixture/test needs, to warrant its own review rather than riding along with the fixer/check/scan/
+  Action/pre-commit surface above. Tracked as an open follow-up, not a dropped requirement.
+- **The `trees`-introspection acceptance criterion ("`check` reports `trees: N servers, M packages`
+  in the `Lock:` line") was declined, not implemented.** Counting servers/packages inside `trees`
+  would require assuming a specific internal shape for Prachet Poddar's independently-owned,
+  undocumented format — precisely the boundary §3/§7 of the original decision (above) already
+  drew mcp-audit back from ("mcp-audit structurally cannot produce `trees`... implementing it would
+  mean building the one capability the tool promises not to have" extends naturally to *parsing* it
+  with assumed internal structure, not just to *writing* it). What ships instead is the existing,
+  already-general `unverified_sections` mechanism from STORY-0069 (`lock/model.py`) — `check`'s
+  `Lock:` line surfaces "not verified: trees" when the section is present, with no assumption about
+  its contents. Tracked as a declined-with-reasoning gap, consistent with `CLAUDE.md`'s
+  established pattern for scope boundaries the codebase has already drawn once and should not
+  redraw quietly a second time.

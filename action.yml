@@ -75,6 +75,24 @@ inputs:
     required: false
     default: 'true'
 
+  lock-verify:
+    description: >
+      Verify mcp-lock.json (if one exists in the repo) via `mcp-audit lock --verify`.
+      Fails the step on LOCK-001/002/004/005 regardless of severity-threshold
+      (still honours fail-on-findings). A repo with no mcp-lock.json passes
+      with a warning — this never breaks a repo that has not adopted `lock`.
+      Only used when mode is `scan`.
+    required: false
+    default: 'false'
+
+  lock-resolve:
+    description: >
+      With lock-verify, also re-resolve floating specs against the registry
+      (network access; produces LOCK-004 for drifted versions). Ignored when
+      lock-verify is false.
+    required: false
+    default: 'false'
+
   version:
     description: >
       mcp-audit release tag to install (e.g. "v0.10.0") or "latest" to
@@ -254,6 +272,71 @@ runs:
         # Exit code 1 means findings at or above the threshold — honour fail-on-findings.
         if [ "$FAIL_ON_FINDINGS" = "true" ] && [ "$SCAN_EXIT" -ne 0 ]; then
           exit "$SCAN_EXIT"
+        fi
+
+    - name: Verify mcp-audit lock
+      if: inputs.lock-verify == 'true' && inputs.mode != 'diff'
+      shell: bash
+      # `--if-present` (STORY-0070) makes a missing mcp-lock.json a soft,
+      # non-failing skip — a repo that has not run `mcp-audit lock` yet must
+      # not have this input silently break its build the day it is enabled.
+      # LOCK-001/002/004/005 fail the step regardless of severity-threshold
+      # (`lock --verify` has no such flag — every finding it produces is
+      # already fail-worthy drift); fail-on-findings is still honoured, same
+      # as the scan step above.
+      env:
+        SARIF_OUTPUT: ${{ inputs.sarif-output }}
+        LOCK_RESOLVE: ${{ inputs.lock-resolve }}
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+      run: |
+        set +e
+
+        LOCK_ARGS=(lock --verify --if-present)
+        [ "$LOCK_RESOLVE" = "true" ] && LOCK_ARGS+=(--resolve)
+
+        mcp-audit "${LOCK_ARGS[@]}"
+        LOCK_EXIT=$?
+
+        # Merge lock findings into the main SARIF file (when both are
+        # enabled) so Code Scanning sees LOCK-* alongside everything else in
+        # one upload, rather than a separate, easy-to-miss category.
+        if [ -n "$SARIF_OUTPUT" ]; then
+          LOCK_SARIF_TMP=$(mktemp /tmp/mcp-audit-lock-XXXXXX.sarif)
+          LOCK_SARIF_ARGS=(lock --verify --if-present --format sarif)
+          [ "$LOCK_RESOLVE" = "true" ] && LOCK_SARIF_ARGS+=(--resolve)
+          mcp-audit "${LOCK_SARIF_ARGS[@]}" > "$LOCK_SARIF_TMP" 2>/dev/null
+
+          if [ -f "$SARIF_OUTPUT" ] && [ -s "$LOCK_SARIF_TMP" ]; then
+            SARIF_OUTPUT="$SARIF_OUTPUT" python3 -c "
+        import json, os, sys
+        main_path = os.environ['SARIF_OUTPUT']
+        lock_path = sys.argv[1]
+        try:
+            with open(main_path) as f:
+                main_doc = json.load(f)
+            with open(lock_path) as f:
+                lock_doc = json.load(f)
+        except Exception:
+            sys.exit(0)
+        lock_runs = lock_doc.get('runs') or []
+        if lock_runs:
+            main_doc.setdefault('runs', []).extend(lock_runs)
+            with open(main_path, 'w') as f:
+                json.dump(main_doc, f, indent=2)
+        " "$LOCK_SARIF_TMP"
+          fi
+          rm -f "$LOCK_SARIF_TMP"
+        fi
+
+        set -e
+
+        # Exit code 2 is always a tool error — propagate regardless of fail-on-findings.
+        if [ "$LOCK_EXIT" -eq 2 ]; then
+          exit 2
+        fi
+
+        if [ "$FAIL_ON_FINDINGS" = "true" ] && [ "$LOCK_EXIT" -ne 0 ]; then
+          exit "$LOCK_EXIT"
         fi
 
     - name: Run mcp-audit SAST

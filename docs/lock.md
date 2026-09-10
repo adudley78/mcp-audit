@@ -214,6 +214,47 @@ skip the file.
 
 ---
 
+## Adoption surface (STORY-0070): fix, check, scan, Action, pre-commit, diff
+
+`lock` composes with the rest of mcp-audit rather than living in its own silo:
+
+- **`mcp-audit fix --fix-type pinning`** now also remediates `VULN-UNPINNED` and `LOCK-004`.
+  When a lock exists for the server being fixed, the fix uses the lock's own
+  `package.resolved_version` — no network call — so the fix pins to the exact version already
+  reviewed at lock time. Without a lock (or offline with no lock entry), it falls back to live
+  registry resolution, identical to the existing `SC-001`/`SC-002` typosquat-pinning behaviour. A
+  semver range collapsed to an exact pin is called out explicitly in the fix message.
+- **`mcp-audit check` and `mcp-audit scan`** auto-verify the nearest ancestor `mcp-lock.json` for
+  every scanned server, when one exists — no flag required. `--no-lock` opts out entirely. A
+  project with no lock file anywhere sees zero change in behaviour or output. Unlike every other
+  post-scoring finding source (baseline drift, governance, SAST, extensions, agent-files), LOCK
+  findings **do** recompute the scan score and grade — this is deliberate, not an inconsistency.
+  `check`'s one-page verdict gets a `Lock: verified (N servers)` line (or a finding-count summary on
+  drift), plus one `WARN` per entry that was locked offline and never confirmed. `check --json` gets
+  a `lock_status: {present, verified, findings, checked_servers, lock_paths, unresolved_entries}`
+  object mirroring `feed_status`'s shape. A monorepo with several `mcp-lock.json` files verifies each
+  project config against its own nearest ancestor lock, never a sibling's.
+- **The GitHub Action** (`action.yml`) gains `lock-verify` (default `false`) and `lock-resolve`
+  (default `false`). When `lock-verify: true`, the action runs `mcp-audit lock --verify --if-present`
+  and fails the step on `LOCK-001`/`002`/`004`/`005` regardless of `severity-threshold` (still
+  honouring `fail-on-findings`). A repo with no `mcp-lock.json` yet gets a warning and a passing step
+  — turning this input on can never break an existing workflow. When `sarif-output` is also set, lock
+  findings are merged into the same SARIF file so Code Scanning shows them alongside everything else.
+- **A new `mcp-audit-lock-verify` pre-commit hook** (`.pre-commit-hooks.yaml`) runs
+  `mcp-audit lock --verify --if-present` on any commit touching a known MCP config path or
+  `mcp-lock.json`. `always_run: false`, so it is silent on unrelated commits. A drifted commit is
+  blocked; run `mcp-audit lock --accept` after reviewing the drift to unblock it.
+- **`--if-present`** is the flag underpinning both of the above: `lock --verify --if-present` treats
+  a missing lock file as a soft, exit-0 skip instead of the normal exit-2 error, so an adoption path
+  (Action input, pre-commit hook) can be turned on unconditionally without breaking a repo that has
+  not run `mcp-audit lock` yet. Plain `lock --verify` (no flag) keeps its strict exit-2 behaviour for
+  direct/explicit CI use.
+- **`mcp-audit diff`** lock-awareness (comparing `mcp-lock.json` across two refs in MCP terms) is
+  tracked as a follow-up, not shipped in the same change as the above — see the STORY-0070 PR
+  description for why it was split out.
+
+---
+
 ## Known limitations
 
 - No semver range resolution: a range spec (`foo@^1.2.3`) is recorded verbatim in `spec_as_written`

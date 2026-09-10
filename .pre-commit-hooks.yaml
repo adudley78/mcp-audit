@@ -7,3 +7,16 @@
   types: [json]
   pass_filenames: false
   always_run: false
+
+- id: mcp-audit-lock-verify
+  name: mcp-audit Lock Verify
+  description: Block a commit that drifts from the reviewed mcp-lock.json
+  language: python
+  entry: mcp-audit
+  # --if-present (STORY-0070): a repo that has never run `mcp-audit lock`
+  # must not have this hook fail — it only blocks once a lock exists and
+  # has drifted. Run `mcp-audit lock --accept` to unblock after review.
+  args: [lock, --verify, --if-present]
+  files: (\.mcp\.json|\.cursor/mcp\.json|\.claude/settings(\.local)?\.json|\.vscode/mcp\.json|\.amazonq/mcp\.json|mcp-lock\.json)$
+  pass_filenames: false
+  always_run: false

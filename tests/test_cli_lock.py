@@ -90,6 +90,59 @@ class TestLockVerify:
         assert result.exit_code == 2
 
 
+class TestLockVerifyIfPresent:
+    """``--if-present`` (STORY-0070) — soft-adoption for Action/pre-commit."""
+
+    def test_missing_lock_with_if_present_exits_0(self, tmp_path: Path) -> None:
+        _write_cursor_config(tmp_path)
+        result = runner.invoke(app, ["lock", str(tmp_path), "--verify", "--if-present"])
+        assert result.exit_code == 0
+        out_lower = result.output.lower()
+        assert "skipping" in out_lower
+        assert "--if-present" in out_lower
+
+    def test_missing_lock_without_if_present_still_exits_2(
+        self, tmp_path: Path
+    ) -> None:
+        """--if-present must not change behaviour when omitted."""
+        _write_cursor_config(tmp_path)
+        result = runner.invoke(app, ["lock", str(tmp_path), "--verify"])
+        assert result.exit_code == 2
+
+    def test_present_lock_with_if_present_still_verifies(self, tmp_path: Path) -> None:
+        """--if-present only changes the missing-file case, not a real drift check."""
+        _write_cursor_config(tmp_path)
+        runner.invoke(app, ["lock", str(tmp_path), "--offline"])
+        result = runner.invoke(app, ["lock", str(tmp_path), "--verify", "--if-present"])
+        assert result.exit_code == 0
+        assert "verified" in result.output
+
+    def test_present_but_drifted_lock_with_if_present_still_fails(
+        self, tmp_path: Path
+    ) -> None:
+        """--if-present never masks a genuine drift finding once a lock exists."""
+        config_path = _write_cursor_config(tmp_path)
+        runner.invoke(app, ["lock", str(tmp_path), "--offline"])
+        config_path.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "github": {
+                            "command": "npx",
+                            "args": [
+                                "-y",
+                                "@modelcontextprotocol/server-github@9.9.9",
+                            ],
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["lock", str(tmp_path), "--verify", "--if-present"])
+        assert result.exit_code == 1
+
+
 class TestLockAccept:
     def test_accept_preserves_first_locked(self, tmp_path: Path) -> None:
         _write_cursor_config(tmp_path)

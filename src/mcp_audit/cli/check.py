@@ -10,11 +10,13 @@ import typer
 from rich.console import Console
 
 from mcp_audit.cli import app, run_scan
-from mcp_audit.models import Severity
+from mcp_audit.lock.auto_verify import auto_verify as _lock_auto_verify
+from mcp_audit.models import LockStatus, ScanResult, Severity
 from mcp_audit.output.check import print_check_results
 from mcp_audit.output.terminal import print_results
 from mcp_audit.registration import client as _reg_client
 from mcp_audit.registration import manager as _reg_manager
+from mcp_audit.scoring import calculate_score
 
 # Severity order for exit-code threshold check (descending priority).
 _SEVERITY_ORDER: list[Severity] = [
@@ -24,6 +26,40 @@ _SEVERITY_ORDER: list[Severity] = [
     Severity.LOW,
     Severity.INFO,
 ]
+
+
+def _apply_lock_verification(
+    result: ScanResult, no_lock: bool, console: Console
+) -> ScanResult:
+    """Auto-verify ``mcp-lock.json`` for *result*'s servers (STORY-0070).
+
+    Mirrors ``cli.scan._apply_lock_verification`` (kept as a separate,
+    small copy rather than a cross-module import so ``check.py`` and
+    ``scan.py`` stay independently importable — the two already have an
+    asymmetric relationship where ``scan.py`` lazily imports from
+    ``check.py`` for PDF reports, never the reverse). ``check`` has no
+    governance-policy weight plumbing today, so the score recompute below
+    always uses ``calculate_score``'s own defaults, matching the "default"
+    weights ``run_scan`` itself used for the main score.
+
+    Always offline; never adds ``--resolve``-equivalent network calls to
+    ``check`` (an explicit STORY-0070 non-goal). Returns *result* unchanged
+    (``lock_status.present=False``) when no ``mcp-lock.json`` is
+    discoverable for any scanned server, or when *no_lock* is set.
+    """
+    if no_lock:
+        result.lock_status = LockStatus()
+        return result
+
+    lock_findings, status = _lock_auto_verify(result.servers)
+    result.lock_status = status
+    if not status.present:
+        return result
+
+    if lock_findings:
+        result.findings.extend(lock_findings)
+        result.score = calculate_score(result.findings)
+    return result
 
 
 def _exit_code(result) -> int:  # type: ignore[no-untyped-def]
@@ -107,6 +143,15 @@ def check(
             "After the scan, prompt for opt-in registration if not already registered."
         ),
     ),
+    no_lock: bool = typer.Option(  # noqa: B008
+        False,
+        "--no-lock",
+        help=(
+            "Skip automatic mcp-lock.json verification. By default, check "
+            "auto-verifies the nearest ancestor lock file for each scanned "
+            "server, if one exists."
+        ),
+    ),
 ) -> None:
     """One-command security verdict: grade, top findings, and fix hints.
 
@@ -157,6 +202,8 @@ def check(
     except Exception as exc:  # noqa: BLE001
         console.print(f"[red]Scan error:[/red] {exc}")
         raise typer.Exit(2) from None
+
+    result = _apply_lock_verification(result, no_lock, console)
 
     # ── No configs found ──────────────────────────────────────────────────────
     if result.clients_scanned == 0 and result.servers_found == 0 and not extra_paths:
