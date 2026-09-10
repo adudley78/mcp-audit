@@ -285,13 +285,26 @@ def _print_terminal_results(
         return
 
     # Results table
+    # R55: every column below carries an explicit hard `width=`. Previously
+    # Client/Server/Class/Risk had `no_wrap=True` with no width at all, and
+    # Package/Capabilities had `overflow="fold"` with no width either —
+    # neither is sufficient on its own. At common terminal widths (measured
+    # at 60 and 80, the `env -i` fallback), Rich squeezed the un-widthed
+    # columns to *zero* width, dropping Package/Capabilities (and their
+    # headers) entirely with no indication anything was cut. An explicit
+    # width guarantees each column keeps a floor: Client/Class/Risk are
+    # short, bounded enumerations and get `no_wrap=True` (visible "…" is the
+    # worst case); Server/Package/Capabilities are unbounded (user-chosen
+    # names, package names, capability lists) and get `overflow="fold"` so a
+    # long value wraps within the cell rather than vanishing or losing
+    # characters. See tests/test_terminal_width.py.
     table = Table(show_header=True, header_style="bold", expand=True)
-    table.add_column("Client", style="dim", no_wrap=True)
-    table.add_column("Server", no_wrap=True)
-    table.add_column("Package", overflow="fold")
-    table.add_column("Class", no_wrap=True)
-    table.add_column("Risk", no_wrap=True)
-    table.add_column("Capabilities", overflow="fold")
+    table.add_column("Client", style="dim", no_wrap=True, width=14)
+    table.add_column("Server", overflow="fold", width=10)
+    table.add_column("Package", overflow="fold", width=10)
+    table.add_column("Class", no_wrap=True, width=10)
+    table.add_column("Risk", no_wrap=True, width=8)
+    table.add_column("Capabilities", overflow="fold", width=9)
 
     for rec in sorted(
         records,

@@ -315,10 +315,28 @@ def _load_scan(
 def _print_summary(console: Console, report: BuildReport, out_dir: Path) -> None:
     """Print what was published and, just as importantly, what was not."""
     table = Table(title="Advisory feed", title_justify="left", show_edge=False)
-    table.add_column("Advisory", style="cyan", no_wrap=True)
-    table.add_column("Package")
-    table.add_column("Class")
-    table.add_column("OWASP")
+    # R55: every column below carries an explicit hard `width=`, never a bare
+    # `min_width`/`max_width`/no-width declaration. A Rich Table column sized
+    # only with `min_width` that gets forced to shrink below its own stated
+    # minimum (because the sum of all columns' requirements exceeds the
+    # console width) silently drops characters mid-word with no visual
+    # marker at all — worse than ellipsis truncation, because nothing
+    # indicates the row is now wrong. An explicit `width=` avoids that: Rich
+    # either wraps within the cell (multi-line, full content — see
+    # `overflow="fold"` on Package below) or truncates with a *visible* "…"
+    # (see `no_wrap=True` below), even when it must shrink further than the
+    # declared width. See tests/test_terminal_width.py for the regression
+    # coverage and docs/decisions (R55) for the reproduction.
+    # "x_MCPSA-" + 12 hex, always exactly 20 chars.
+    table.add_column("Advisory", style="cyan", no_wrap=True, width=20)
+    # ecosystem:name — package names are unbounded and unbreakable.
+    table.add_column("Package", overflow="fold", width=26)
+    # Longest finding_class today is 23 chars (untrusted-config-origin);
+    # folds to 2 lines rather than losing characters.
+    table.add_column("Class", overflow="fold", width=14)
+    # "MCPnn, MCPnn" — two codes is the common case; folds rather than
+    # silently truncating a rare 3rd code.
+    table.add_column("OWASP", overflow="fold", width=9)
 
     for advisory in report.advisories[:20]:
         table.add_row(

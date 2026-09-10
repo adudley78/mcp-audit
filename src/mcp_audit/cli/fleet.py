@@ -90,10 +90,18 @@ def _print_fleet_report(report: object, con: Console) -> None:
     }
 
     table = Table(show_header=True, header_style="bold", title="Finding Breakdown")
-    table.add_column("Severity", width=10)
-    table.add_column("Finding")
-    table.add_column("Affected Machines", justify="center", width=20)
-    table.add_column("First Seen", width=20)
+    table.add_column("Severity", no_wrap=True, width=10)
+    # R55: "Finding" is the finding title — the actual security content of
+    # the row. Left with no explicit width, Rich auto-sizes it against the
+    # other three fixed-width columns and, at common terminal widths, either
+    # silently drops characters mid-word or collapses the whole column to
+    # zero width (observed at width 60: the column and its header vanished
+    # entirely, taking the finding title with them). overflow="fold" +
+    # an explicit width wraps a long title within the cell instead — taller
+    # rows, never a missing finding. See tests/test_terminal_width.py.
+    table.add_column("Finding", overflow="fold", width=25)
+    table.add_column("Affected Machines", justify="center", no_wrap=True, width=16)
+    table.add_column("First Seen", no_wrap=True, width=16)
 
     for df in report.deduplicated_findings:
         sev_display = _SEV_STYLE.get(df.severity.value, df.severity.value)
