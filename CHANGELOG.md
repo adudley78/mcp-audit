@@ -8,7 +8,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+(nothing yet)
+
+---
+
+## [0.17.0] - 2026-09-10
+
 ### Added
+
+- **`mcp-audit lock` / `lock --verify` — a committable, reviewable record of exactly which MCP
+  servers your team approved (STORY-0069, EPIC-0006).** `mcp-audit lock` writes `mcp-lock.json`:
+  one entry per server, keyed `<client>/<name>`, covering identity, transport, resolved version
+  and how it was resolved, and an owned-section checksum (RFC 8785 canonical bytes) that changes
+  only when the fields mcp-audit owns change. `lock --verify` re-derives that checksum against the
+  current config and reports drift as new findings **LOCK-001** (identity/config drift, HIGH),
+  **LOCK-002** (server present in config but missing from the lock, MEDIUM), **LOCK-003** (locked
+  server no longer present, LOW), **LOCK-004** (resolved-version drift without a checksum mismatch,
+  MEDIUM), **LOCK-005** (unresolved entry, was locked `--offline`, INFO). Verification is offline by
+  default — comparing the lock against the config only, so registry movement cannot fail a build;
+  `--resolve` opts into network re-resolution under its own finding id and exit condition, never
+  merged with config drift, so a red CI job always says which one it is. The file reserves a
+  `trees` section for Prachet Poddar's independently-owned dependency-tree generator (format
+  convergence, ratified 2026-09-10) — mcp-audit never writes it, never validates it (that needs a
+  real package-manager install this tool will never perform), and preserves it byte-for-byte;
+  `trees` validation is a documented external command, not an in-repo path.
+  `generated_at` lives outside the checksummed body (a re-lock with no real change stays
+  byte-identical, which is the property a diff-reviewed format is bought for); `resolved_at`
+  changes only when a resolved version actually changes, so a routine re-lock doesn't churn every
+  entry's timestamp. See [`docs/lock.md`](docs/lock.md) and
+  [ADR-0005](docs/decisions/ADR-0005-mcp-audit-lock.md) for the full design, including the four
+  MUSTs (section provenance, byte preservation, unknown-section preservation, and a verifier that
+  states what it checked instead of implying it checked everything).
 
 - **The lock is now part of the everyday commands (STORY-0070).** `mcp-audit fix --fix-type pinning`
   writes the exact locked version into your config (`npx -y foo` → `npx -y foo@1.4.2`), giving
@@ -21,6 +51,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   missing lock file a no-op, not a failure). `mcp-lock.json`-aware `diff` output is tracked as a
   follow-up, not included here. See [`docs/lock.md`](docs/lock.md) and the STORY-0070 addendum in
   [ADR-0005](docs/decisions/ADR-0005-mcp-audit-lock.md).
+
+### Deferred
+
+- **STORY-0071 (org allowlist interop, P2) dropped from this tag.** Evaluating configs against the
+  GitHub Copilot / Claude Code / VS Code `allowedMcpServers` convergence, and exporting one from the
+  lock, needs matcher semantics verified against each vendor's *current* docs plus a new finding id
+  with its own fixtures and OWASP mapping — larger than its "S" sizing once scoped, the same shape
+  STORY-0070's own `diff` half was split out for. Per the story's explicit P2/drop allowance, it
+  stays in `backlog/ready/` rather than shipping rushed. `mcp-lock.json`-aware `diff` output
+  (STORY-0070's own deferred half) also remains a tracked follow-up.
 
 ---
 
