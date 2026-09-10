@@ -210,6 +210,28 @@ When wiring a new flag or subcommand into `src/mcp_audit/cli/`:
 
 2. **Tests cover the feature working end-to-end**, never via license patches.
 
+## Cursor cloud agents
+
+`.cursor/environment.json` lets a Cursor cloud agent boot a working dev box
+for this repo instead of editing blind. Its `install` script mirrors the
+`ubuntu-latest` / Python 3.12 CI cell (`test-all-extras` in
+`.github/workflows/ci.yml`): `uv pip install -e ".[dev,attestation,sbom,mcp]"
+--system`, then Playwright's `chromium` browser. There is no `start` command
+or Dockerfile — this is a CLI with no long-running service, and a pinned
+snapshot is one more thing to silently drift from CI.
+
+**semgrep is installed system-wide via `pipx`, deliberately outside the
+Python environment mcp-audit's own deps live in.** `pyproject.toml`'s `dev`
+extra explains why: `pysemgrep` breaks with a `pkg_resources` import error
+under `capture_output=True` (used by `sast/runner.py`) when it shares an
+environment with mcp-audit's own dependencies.
+
+**No release or signing credential is ever configured as a cloud-agent
+secret** — no PyPI token, no minisign project signing key, no `keys/`
+material, no GitHub release-write token. Releases stay on a maintainer's
+machine and in GitHub Actions; a cloud agent's job is branch → PR → merge,
+never an artifact the public consumes.
+
 ## What we won't accept
 
 - PRs that remove or weaken existing detection patterns without strong justification
