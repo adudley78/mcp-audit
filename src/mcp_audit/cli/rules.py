@@ -110,11 +110,19 @@ def rule_test(
     table = Table(
         show_header=True, header_style="bold", title=f"Rule test: {file.name}"
     )
-    table.add_column("Server", style="cyan")
-    table.add_column("Rule ID")
-    table.add_column("Rule Name")
-    table.add_column("Matched?", justify="center")
-    table.add_column("Matched Value")
+    # R55: Server identifies which config the row is about; Matched Value is
+    # the actual matched security-relevant text (a secret preview, a command
+    # line, a URL). Both are unbounded and get an explicit width +
+    # overflow="fold" so a long value wraps within the cell rather than
+    # losing characters mid-word with no visual marker. Rule ID and
+    # Matched? are drawn from short, bounded formats and get a matching
+    # explicit width so neither can be squeezed to nothing by its
+    # neighbours. See tests/test_terminal_width.py.
+    table.add_column("Server", style="cyan", overflow="fold", width=14)
+    table.add_column("Rule ID", no_wrap=True, width=10)
+    table.add_column("Rule Name", width=14)
+    table.add_column("Matched?", justify="center", no_wrap=True, width=10)
+    table.add_column("Matched Value", overflow="fold", width=16)
 
     for server in servers:
         for rule in rules:
@@ -167,12 +175,19 @@ def rule_list(
     }
 
     table = Table(show_header=True, header_style="bold", title="Loaded Rules")
-    table.add_column("Source", style="dim")
-    table.add_column("Rule ID", style="cyan")
-    table.add_column("Name")
-    table.add_column("Severity")
-    table.add_column("Author", style="dim")
-    table.add_column("Tags")
+    # R55: Rule ID is the identifier `--rules-dir`/policy tooling matches
+    # against — it must never lose characters. Source and Severity are
+    # short, bounded enumerations. All get an explicit width so none of the
+    # six columns can be squeezed to nothing by its neighbours; Name/
+    # Author/Tags stay flexible-but-bounded since they are cosmetic (a
+    # truncated author or tag list doesn't make a row ambiguous or unsafe).
+    # See tests/test_terminal_width.py.
+    table.add_column("Source", style="dim", no_wrap=True, width=9)
+    table.add_column("Rule ID", style="cyan", no_wrap=True, width=12)
+    table.add_column("Name", width=14)
+    table.add_column("Severity", no_wrap=True, width=8)
+    table.add_column("Author", style="dim", width=8)
+    table.add_column("Tags", width=10)
 
     def _add_rule_row(source: str, rule: object) -> None:  # type: ignore[type-arg]
         sev_display = _SEV_STYLE.get(rule.severity.value, rule.severity.value)  # type: ignore[attr-defined]

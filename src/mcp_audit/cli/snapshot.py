@@ -140,9 +140,19 @@ def _print_rehydrate_summary(rehydrated: object, delta: object | None) -> None: 
     result = rehydrated.result
     aps = result.attack_path_summary
 
+    # R55: the value column carries forensic identity data (host id, server
+    # names in the hitting set / delta) that must never lose characters
+    # silently. A grid column left with no width at all is squeezed the same
+    # way a `min_width`-only Table column is: Rich can drop characters
+    # mid-word with no visual marker when forced narrower than the content
+    # needs. An explicit width + overflow="fold" wraps a long value within
+    # the cell instead. The label column is a small set of known short
+    # strings (longest today: "Snapshot timestamp:", 20 chars) and gets a
+    # matching explicit width so it never competes with the value column for
+    # space. See tests/test_terminal_width.py.
     table = Table.grid(padding=(0, 1))
-    table.add_column(style="dim")
-    table.add_column()
+    table.add_column(style="dim", no_wrap=True, width=20)
+    table.add_column(overflow="fold", width=50)
     table.add_row("Snapshot timestamp:", rehydrated.snapshot_timestamp)
     table.add_row("Host:", rehydrated.host_id)
     table.add_row("mcp-audit version:", rehydrated.version)

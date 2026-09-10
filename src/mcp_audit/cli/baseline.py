@@ -69,7 +69,12 @@ def baseline_list() -> None:
         return
 
     table = Table(show_header=True, header_style="bold")
-    table.add_column("Name", style="cyan")
+    # R55: Name is the identifier `baseline compare NAME` takes — it must
+    # never lose characters. A bare (no-width) column that Rich forces below
+    # its natural content size can silently drop characters mid-word with no
+    # visual marker; an explicit width + overflow="fold" instead wraps within
+    # the cell, preserving every character. See tests/test_terminal_width.py.
+    table.add_column("Name", style="cyan", overflow="fold", width=24)
     table.add_column("Created")
     table.add_column("Findings", justify="right")
     table.add_column("Scanner Version")
@@ -142,11 +147,21 @@ def baseline_compare(
     }
 
     table = Table(show_header=True, header_style="bold")
-    table.add_column("Severity")
-    table.add_column("Type")
-    table.add_column("Client", style="cyan")
-    table.add_column("Server", style="cyan")
-    table.add_column("Detail")
+    # R55: every column gets an explicit hard `width=` so none of the five
+    # can be squeezed to zero width by its neighbours (observed: pinning
+    # only some columns starves the rest to nothing at width 80). Severity,
+    # Type, and Client are drawn from small known enumerations, so their
+    # width is each field's longest current real value ("CRITICAL",
+    # "command_changed", "claude-code-project") — they never need to wrap.
+    # Server and Detail are unbounded (user-chosen names, arbitrary command
+    # lines/paths) and get overflow="fold" so a long value wraps within the
+    # cell — taller rows, but never a lost character. See
+    # tests/test_terminal_width.py.
+    table.add_column("Severity", no_wrap=True, width=8)
+    table.add_column("Type", no_wrap=True, width=15)
+    table.add_column("Client", style="cyan", no_wrap=True, width=19)
+    table.add_column("Server", style="cyan", overflow="fold", width=10)
+    table.add_column("Detail", overflow="fold", width=12)
 
     for df in drift:
         sev_display = _SEV_STYLE.get(df.severity.value, df.severity.value)

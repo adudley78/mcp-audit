@@ -254,10 +254,34 @@ def _print_owasp_report(result: ScanResult, con: Console) -> None:
         padding=(0, 1),
         expand=False,
     )
-    table.add_column("Category", style="bold", width=7, no_wrap=True)
-    table.add_column("Name", min_width=38, max_width=44)
-    table.add_column("Findings", justify="right", width=9, no_wrap=True)
-    table.add_column("Worst finding", min_width=30)
+    # R55: all four columns were declared with `min_width`/`max_width` only
+    # (no hard `width=`), or (an earlier revision of this fix) `no_wrap=True`
+    # on columns whose content is not actually bounded. A `min_width`-only
+    # column forced to shrink below its stated minimum silently drops
+    # characters mid-word with no visual marker at all (confirmed at width
+    # 80, the `env -i` fallback: "Live credential embedded in authentication
+    # header" rendered as "Live cre" + "embedded in authent" + "header",
+    # losing "dential" and "ication" with no "…" anywhere). A hard `width=`
+    # fixes that class of defect, but `no_wrap=True` on top of it is only
+    # correct for content with a genuinely fixed, small maximum length — the
+    # first version of this fix used `no_wrap=True` on "Category" and
+    # "Findings" too, and a follow-up regression test
+    # (tests/test_terminal_width.py) caught both at width 60: "Category"
+    # ("MCP01".."MCP10", always 5 chars) and "Findings" (an integer count
+    # that can exceed 1 digit at scale) both got squeezed below their
+    # declared width and lost characters *visibly* rather than *silently* —
+    # better than the original defect, but still not "correct." Every
+    # column here now uses `overflow="fold"` instead: "Worst finding" is a
+    # SIGNAL column with genuinely unbounded content (a real finding title);
+    # "Name" is a small closed enumeration (longest word 14 chars, fits
+    # within 16); "Category" and "Findings" are short but not immune to
+    # squeeze pressure from their siblings, and folding them costs nothing
+    # in the common case (they never wrap unless the table is already
+    # under width pressure) while guaranteeing they never lose a character.
+    table.add_column("Category", style="bold", overflow="fold", width=7)
+    table.add_column("Name", overflow="fold", width=16)
+    table.add_column("Findings", justify="right", overflow="fold", width=7)
+    table.add_column("Worst finding", overflow="fold", width=42)
 
     for code, name in OWASP_MCP_TOP_10.items():
         findings = category_findings.get(code, [])
