@@ -14,6 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.17.0] - 2026-09-10
 
+> **Correction (2026-09-10, R50):** this section originally misstated the LOCK finding severities
+> and, most importantly, LOCK-005's meaning — it was described as an informational note about an
+> unresolved `--offline` entry; the shipped code's LOCK-005 is the CRITICAL tamper/hand-edit check
+> that short-circuits every other check with exit code 2. The text below now matches
+> `src/mcp_audit/lock/verifier.py`. The public GitHub Release body for v0.17.0 was corrected to
+> match. Nothing in the shipped code changed.
+
 ### Added
 
 - **`mcp-audit lock` / `lock --verify` — a committable, reviewable record of exactly which MCP
@@ -21,10 +28,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   one entry per server, keyed `<client>/<name>`, covering identity, transport, resolved version
   and how it was resolved, and an owned-section checksum (RFC 8785 canonical bytes) that changes
   only when the fields mcp-audit owns change. `lock --verify` re-derives that checksum against the
-  current config and reports drift as new findings **LOCK-001** (identity/config drift, HIGH),
-  **LOCK-002** (server present in config but missing from the lock, MEDIUM), **LOCK-003** (locked
-  server no longer present, LOW), **LOCK-004** (resolved-version drift without a checksum mismatch,
-  MEDIUM), **LOCK-005** (unresolved entry, was locked `--offline`, INFO). Verification is offline by
+  current config and reports drift as new findings **LOCK-001** (identity/env/header drift since
+  locking, HIGH), **LOCK-002** (server present in config but missing from the lock, HIGH),
+  **LOCK-003** (locked server no longer present, MEDIUM; alone, it never fails the exit code),
+  **LOCK-004** (opt-in `--resolve` only, network: resolved version changed since locking, HIGH; or
+  the *same* resolved version now hashes differently — a republished artifact — CRITICAL),
+  **LOCK-005** (the lock file's own checksum over the fields mcp-audit owns does not match its
+  stored value — hand-edited or tampered, CRITICAL). LOCK-005 always short-circuits: once it fires,
+  no other LOCK id is evaluated and the run exits 2, the same exit code as a missing lock file. A
+  locked entry whose version was never resolved (recorded `--offline`) is a distinct, non-finding
+  condition — it never manufactures a LOCK id; it surfaces as a `WARN` line in `lock --verify`,
+  `check`, and `scan` output (and `unresolved_entries` in JSON), so a clean, `findings: 0` result can
+  never be read as "every entry's version was confirmed." Verification is offline by
   default — comparing the lock against the config only, so registry movement cannot fail a build;
   `--resolve` opts into network re-resolution under its own finding id and exit condition, never
   merged with config drift, so a red CI job always says which one it is. The file reserves a

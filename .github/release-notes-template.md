@@ -105,7 +105,7 @@ changelog section above.
 - 22-server false-positive benchmark — 0% poisoning FP rate on legitimate servers
 - CVSS + OWASP MCP Top 10 severity mappings on every finding ID
 
-**3,487 tests · Apache 2.0 · macOS · Linux · Windows**
+**3,488 tests · Apache 2.0 · macOS · Linux · Windows**
 
 ---
 
