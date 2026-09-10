@@ -8,6 +8,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from mcp_audit.cli import app
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -33,7 +34,7 @@ class TestLockNoConfigs:
     def test_nothing_to_lock(self, tmp_path: Path) -> None:
         result = runner.invoke(app, ["lock", str(tmp_path), "--offline"])
         assert result.exit_code == 0
-        assert "nothing to lock" in result.output
+        assert "nothing to lock" in unwrapped(result.output)
 
 
 class TestLockWrite:

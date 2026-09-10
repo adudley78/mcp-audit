@@ -21,6 +21,7 @@ from mcp_audit.models import (
     TransportType,
 )
 from mcp_audit.output.dashboard import _build_scan_data, generate_html
+from tests.conftest import unwrapped
 
 # ── Test fixtures ─────────────────────────────────────────────────────────────
 
@@ -729,7 +730,9 @@ class TestDashboardPathValidation:
         missing = tmp_path / "does_not_exist.json"
         result = runner.invoke(app, ["dashboard", "--path", str(missing), "--no-open"])
         assert result.exit_code == 2
-        assert "not found" in result.output.lower() or "Config path" in result.output
+        assert "not found" in unwrapped(result.output.lower()) or (
+            "Config path" in unwrapped(result.output)
+        )
 
     def test_valid_path_passes_to_run_scan(self, tmp_path: Path) -> None:
         config_dir = tmp_path / "configs"
@@ -772,7 +775,7 @@ class TestDashboardPathValidation:
             ],
         )
         assert result.exit_code == 2
-        assert "mutually exclusive" in result.output
+        assert "mutually exclusive" in unwrapped(result.output)
 
 
 class TestDashboardFromJson:
@@ -831,7 +834,9 @@ class TestDashboardFromJson:
             app, ["dashboard", "--from-json", str(missing), "--no-open"]
         )
         assert result.exit_code == 2
-        assert "not found" in result.output.lower() or "JSON results" in result.output
+        assert "not found" in unwrapped(result.output.lower()) or (
+            "JSON results" in unwrapped(result.output)
+        )
 
     def test_malformed_json_exits_2(self, tmp_path: Path) -> None:
         bad_json = tmp_path / "bad.json"
@@ -859,7 +864,7 @@ class TestDashboardFromJson:
                 app, ["dashboard", "--from-json", str(json_path), "--no-open"]
             )
 
-        assert "Loaded scan results" in result.output
+        assert "Loaded scan results" in unwrapped(result.output)
 
     def test_from_json_serves_html_with_findings(self, tmp_path: Path) -> None:
         """HTML served from --from-json contains findings from the loaded result."""

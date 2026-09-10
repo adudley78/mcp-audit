@@ -18,6 +18,7 @@ from mcp_audit.governance.models import (
 )
 from mcp_audit.models import Finding, ScanResult, ScanScore, Severity
 from mcp_audit.scoring import calculate_score, format_grade_terminal
+from tests.conftest import unwrapped
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -341,7 +342,7 @@ class TestNoScoreFlag:
         with patch("mcp_audit.cli.run_scan", return_value=dummy_result):
             result_no_score = runner.invoke(app, ["scan", "--no-score"])
 
-        assert "Scan Score" not in result_no_score.output
+        assert "Scan Score" not in unwrapped(result_no_score.output)
 
     def test_score_shown_by_default(self) -> None:
         """Without --no-score, 'Scan Score' must appear in output."""
@@ -352,7 +353,7 @@ class TestNoScoreFlag:
         with patch("mcp_audit.cli.run_scan", return_value=dummy_result):
             result_default = runner.invoke(app, ["scan"])
 
-        assert "Scan Score" in result_default.output
+        assert "Scan Score" in unwrapped(result_default.output)
 
 
 # ── Custom scoring weights ─────────────────────────────────────────────────────

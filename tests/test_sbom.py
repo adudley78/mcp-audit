@@ -25,6 +25,7 @@ from mcp_audit.cli import app
 from mcp_audit.discovery import DiscoveredConfig
 from mcp_audit.models import ServerConfig, TransportType
 from mcp_audit.vulnerability.models import Ecosystem, ResolvedPackage
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -148,14 +149,16 @@ class TestSbomCommand:
         missing = tmp_path / "does_not_exist.json"
         result = runner.invoke(app, ["sbom", str(missing)])
         assert result.exit_code == 2
-        assert "not found" in result.output.lower() or "error" in result.output.lower()
+        assert "not found" in unwrapped(result.output.lower()) or (
+            "error" in result.output.lower()
+        )
 
     def test_no_config_files_found_exits_0(self, tmp_path: Path) -> None:
         """No MCP config files discovered → exit 0 with message."""
         with patch("mcp_audit.cli.sbom.discover_configs", return_value=[]):
             result = runner.invoke(app, ["sbom", str(tmp_path)])
         assert result.exit_code == 0
-        assert "no mcp config" in result.output.lower()
+        assert "no mcp config" in unwrapped(result.output.lower())
 
     def test_config_found_but_no_servers_exits_0(self, tmp_path: Path) -> None:
         """Config file found but it contains no servers → exit 0."""
@@ -172,7 +175,7 @@ class TestSbomCommand:
             result = runner.invoke(app, ["sbom", str(cfg_path)])
 
         assert result.exit_code == 0
-        assert "no servers" in result.output.lower() or "0" in result.output
+        assert "no servers" in unwrapped(result.output.lower()) or "0" in result.output
 
     def test_cyclonedx_import_error_exits_2(self, tmp_path: Path) -> None:
         """When cyclonedx-python-lib is missing, exit 2 with a clean message."""
@@ -257,7 +260,7 @@ class TestSbomCommand:
             )
 
         assert result.exit_code == 2
-        assert "unknown format" in result.output.lower()
+        assert "unknown format" in unwrapped(result.output.lower())
 
     def test_offline_skips_transitive_deps(self, tmp_path: Path) -> None:
         """--offline mode uses registry-only data, not fetch_transitive_deps."""

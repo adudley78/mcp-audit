@@ -32,6 +32,7 @@ from mcp_audit.models import (
     Severity,
     TransportType,
 )
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -606,7 +607,7 @@ class TestKillchainCLI:
         scan_file = self._empty_scan_json(tmp_path)
         result = runner.invoke(app, ["killchain", "--input", str(scan_file)])
         assert result.exit_code == 0
-        assert "No reachable attack paths" in result.output
+        assert "No reachable attack paths" in unwrapped(result.output)
 
     def test_with_findings_exits_0(self, tmp_path: Path) -> None:
         scan_file = self._minimal_scan_json(tmp_path)

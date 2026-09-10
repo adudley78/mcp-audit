@@ -25,6 +25,7 @@ from mcp_audit.attestation.verifier import (
 from mcp_audit.cli import app
 from mcp_audit.models import ServerConfig, Severity, TransportType
 from mcp_audit.registry.loader import KnownServerRegistry, RegistryEntry
+from tests.conftest import unwrapped
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -447,7 +448,7 @@ class TestVerifyCLI:
             ["verify", "totally-unknown-server", "--registry", str(reg_path)],
         )
         assert result.exit_code == 0
-        assert "not in the registry" in result.output
+        assert "not in the registry" in unwrapped(result.output)
 
     def test_verify_all_no_hashes_pinned(self, tmp_path: Path) -> None:
         """--all with no servers that have pinned hashes exits 0."""

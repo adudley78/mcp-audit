@@ -19,6 +19,7 @@ from typer.testing import CliRunner
 
 from mcp_audit.cli import app
 from mcp_audit.models import Finding, MachineInfo, ScanResult, Severity
+from tests.conftest import unwrapped
 
 runner = CliRunner()
 
@@ -124,7 +125,7 @@ def test_push_nucleus_missing_api_key_exits_2() -> None:
                 os.environ["NUCLEUS_API_KEY"] = env_backup
 
     assert result.exit_code == 2
-    assert "NUCLEUS_API_KEY" in result.output or "API key" in result.output
+    assert "NUCLEUS_API_KEY" in result.output or "API key" in unwrapped(result.output)
 
 
 # ── Test 4: successful push ───────────────────────────────────────────────────
@@ -302,7 +303,9 @@ def test_push_nucleus_invalid_config_path_exits_2(tmp_path: Path) -> None:
         [*_BASE_ARGS, "--config-paths", str(missing)],
     )
     assert result.exit_code == 2
-    assert "not found" in result.output.lower() or "error" in result.output.lower()
+    assert "not found" in unwrapped(result.output.lower()) or (
+        "error" in result.output.lower()
+    )
 
 
 def test_push_nucleus_descheduled_job_treated_as_error() -> None:

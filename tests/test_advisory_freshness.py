@@ -32,6 +32,7 @@ from mcp_audit.advisory.sign import (
 from mcp_audit.cli import app
 from mcp_audit.cli.scan import _apply_advisory_feed
 from mcp_audit.models import ScanResult
+from tests.conftest import unwrapped
 from tests.test_advisory_feed import FIXED_NOW, _scan_result
 
 HAS_MINISIGN = shutil.which("minisign") is not None
@@ -283,7 +284,7 @@ class TestNestedJsonRefusesCleanly:
         result = runner.invoke(app, ["feed", "verify", str(feed)])
         assert result.exit_code == 1
         assert "Traceback" not in result.output
-        assert "nested too deeply" in result.output
+        assert "nested too deeply" in unwrapped(result.output)
 
 
 class TestScanDoesNotFailOnExpiredFeed:
@@ -348,4 +349,4 @@ class TestScanDoesNotFailOnExpiredFeed:
                 ],
             )
         assert result.exit_code == 2
-        assert "Advisory feed not found" in result.output
+        assert "Advisory feed not found" in unwrapped(result.output)

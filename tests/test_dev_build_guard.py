@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import unwrapped
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -105,4 +107,4 @@ class TestMain:
             check=False,
         )
         assert result.returncode == 0, result.stderr
-        assert "OK: mcp_audit resolved to" in result.stdout
+        assert "OK: mcp_audit resolved to" in unwrapped(result.stdout)

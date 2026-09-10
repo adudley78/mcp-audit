@@ -14,6 +14,7 @@ from mcp_audit.watcher import (
     _McpConfigEventHandler,
     _watch_directories,
 )
+from tests.conftest import unwrapped
 
 # ── _known_config_filenames ────────────────────────────────────────────────────
 
@@ -430,7 +431,7 @@ class TestWatchCLI:
 
         assert result.exit_code == 0
         assert "Watching" in result.output
-        assert "Stopped watching" in result.output
+        assert "Stopped watching" in unwrapped(result.output)
 
     def test_watch_command_accepts_all_flags(self, tmp_path: Path) -> None:
         """All documented flags must be accepted without 'No such option' errors."""
