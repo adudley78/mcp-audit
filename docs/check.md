@@ -16,6 +16,7 @@ mcp-audit check                    # Auto-discover all MCP configs on this machi
 mcp-audit check --path config.json # Scan a specific config file
 mcp-audit check --verbose          # Full scan output (equivalent to mcp-audit scan)
 mcp-audit check --json             # Output full ScanResult JSON
+mcp-audit check --no-lock          # Skip automatic mcp-lock.json verification
 ```
 
 ---
@@ -80,6 +81,44 @@ mcp-audit — Security Check
 | `--verbose` | Prints full scan output (Rich panels, OWASP codes, attack paths) |
 | `--json` | Outputs the full `ScanResult` JSON to stdout; no summary text |
 | `--path /nonexistent` | Prints "File not found" and exits 2 |
+| `mcp-lock.json` present (default) | Auto-verifies the nearest ancestor lock; adds a `Lock:` line and folds any `LOCK-*` findings into the grade |
+| `--no-lock` | Skips lock verification entirely; no `Lock:` line, no `LOCK-*` findings |
+| No `mcp-lock.json` anywhere | No change in output or behaviour — the feature is fully additive |
+
+---
+
+## Automatic lock verification
+
+`check` (and `scan`) auto-verify `mcp-lock.json` when one exists for the
+scanned project — see [`docs/lock.md`](lock.md) for the full design.
+No flag is needed to opt in; `--no-lock` opts out.
+
+```
+  Grade: A  (Score: 95/100)
+  Lock: verified (3 servers)
+```
+
+A drifted lock adds `LOCK-*` findings to the normal findings list (they also
+recompute the grade — the one deliberate exception to "post-scan additions
+don't affect scoring"), and the `Lock:` line summarizes the count instead of
+saying "verified":
+
+```
+  Lock: 1 finding(s) across 3 locked server(s) — see `mcp-audit lock --verify`.
+```
+
+`check --json` gets a `lock_status` object:
+
+```json
+"lock_status": {
+  "present": true,
+  "verified": false,
+  "findings": 1,
+  "checked_servers": 3,
+  "lock_paths": ["/repo/mcp-lock.json"],
+  "unresolved_entries": []
+}
+```
 
 ---
 
@@ -125,6 +164,7 @@ automatically."
 | `TRANSPORT-001` | HTTP instead of HTTPS |
 | `SC-001` | Likely-typosquatted package (edit distance 1) |
 | `SC-002` | Possible-typosquatted package (edit distance 2) |
+| `LOCK-004` | Config's resolved version drifted from the lock's `resolved_version` |
 
 All other findings receive a specific manual instruction derived from a
 per-ID lookup table in `output/check.py::_HINTS`.

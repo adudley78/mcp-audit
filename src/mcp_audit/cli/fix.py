@@ -4,9 +4,13 @@ Dry-run by default: prints a unified diff showing what would change.
 Pass ``--apply`` to write changes atomically with a ``.bak`` backup.
 
 Supported finding types (MVP):
-    credentials  CRED-001, CRED-002 — redact plaintext secrets with ${ENV_KEY}
-    transport    TRANSPORT-001      — upgrade http:// URLs to https://
-    pinning      SC-001, SC-002     — replace typosquatted pkg with verified@version
+    credentials  CRED-001, CRED-002      — redact plaintext secrets with ${ENV_KEY}
+    transport    TRANSPORT-001           — upgrade http:// URLs to https://
+    pinning      SC-001, SC-002          — replace typosquatted pkg, pin version
+                 VULN-UNPINNED, LOCK-004 — pin a floating spec to an exact version
+                                            (prefers mcp-lock.json's
+                                            resolved_version when a lock exists
+                                            — STORY-0070)
 
 Exit codes:
     0  No fixable findings, or dry-run / apply completed successfully.
@@ -25,6 +29,8 @@ from rich.rule import Rule
 
 from mcp_audit.cli import app
 from mcp_audit.fixer.fixer import FixType, run_fix
+from mcp_audit.lock.discovery import find_lock_for
+from mcp_audit.lock.writer import load_existing as load_existing_lock
 from mcp_audit.models import Finding, ScanResult
 from mcp_audit.scanner import run_scan
 
@@ -95,6 +101,8 @@ def fix(
     credentials  CRED-001/002/003 — redact plaintext secrets with ${ENV_KEY}
     transport    TRANSPORT-001 — upgrade http:// URLs to https://
     pinning      SC-001/002 — replace typosquatted package with verified@version
+                 VULN-UNPINNED/LOCK-004 — pin a floating spec to an exact version
+                 (prefers mcp-lock.json's resolved_version when a lock exists)
     """
     # ── Validate --fix-type values ────────────────────────────────────────────
     validated_types: list[FixType] | None = None
@@ -133,6 +141,14 @@ def fix(
         except Exception as exc:  # noqa: BLE001
             logger.debug("Registry unavailable for pinning strategy: %s", exc)
 
+    # ── Load the nearest ancestor mcp-lock.json for the pinning strategy ──────
+    # (STORY-0070). A missing or unreadable lock is not an error here — the
+    # strategy falls back to live resolution exactly as it did before this
+    # feature existed. `load_existing` itself never raises (returns None for
+    # both "absent" and "unreadable").
+    lock_path = find_lock_for(config_path)
+    lock_doc = load_existing_lock(lock_path) if lock_path is not None else None
+
     # ── Run fixer ─────────────────────────────────────────────────────────────
     try:
         result = run_fix(
@@ -142,6 +158,7 @@ def fix(
             fix_types=validated_types,
             offline=offline,
             registry=registry,
+            lock_doc=lock_doc,
         )
     except FileNotFoundError as exc:
         err_console.print(f"[red]Error:[/red] {exc}")

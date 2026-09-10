@@ -39,7 +39,9 @@ _ALL_FIX_TYPES: tuple[FixType, ...] = ("credentials", "transport", "pinning")
 _FIX_TYPE_IDS: dict[FixType, frozenset[str]] = {
     "credentials": frozenset({"CRED-001", "CRED-002"}),
     "transport": frozenset({"TRANSPORT-001"}),
-    "pinning": frozenset({"SC-001", "SC-002"}),
+    # VULN-UNPINNED and LOCK-004 (STORY-0070) pin an exact version; SC-001/002
+    # replace a typosquatted name and pin. All three share one strategy.
+    "pinning": frozenset({"SC-001", "SC-002", "VULN-UNPINNED", "LOCK-004"}),
 }
 
 
@@ -72,6 +74,7 @@ def run_fix(
     fix_types: list[FixType] | None = None,
     offline: bool = False,
     registry=None,  # KnownServerRegistry | None — avoids circular import at module load
+    lock_doc: dict | None = None,
 ) -> FixResult:
     """Apply safe remediations for *findings* to *config_path*.
 
@@ -91,6 +94,11 @@ def run_fix(
         registry: Optional pre-loaded
             :class:`~mcp_audit.registry.loader.KnownServerRegistry` instance
             used by the pinning strategy to validate replacement package names.
+        lock_doc: Optional raw ``mcp-lock.json`` document (as returned by
+            :func:`mcp_audit.lock.writer.load_existing`) for the nearest
+            ancestor lock. When a server has a resolved-version entry here,
+            the pinning strategy uses it instead of a live network call for
+            VULN-UNPINNED / LOCK-004 fixes.
 
     Returns:
         :class:`FixResult` describing what was (or would be) changed.
@@ -116,7 +124,9 @@ def run_fix(
     active_types: tuple[FixType, ...] = (
         tuple(fix_types) if fix_types else _ALL_FIX_TYPES  # type: ignore[arg-type]
     )
-    pinning_strategy = PackagePinningStrategy(registry=registry, offline=offline)
+    pinning_strategy = PackagePinningStrategy(
+        registry=registry, offline=offline, lock_doc=lock_doc
+    )
     strategies: list[tuple[FixType, BaseFixStrategy]] = []
     for ft in active_types:
         if ft == "credentials":

@@ -36,12 +36,23 @@ def _load_yaml(path: Path) -> object:
 
 
 def _hook_def() -> dict:
-    """Return the first (and only) hook definition from .pre-commit-hooks.yaml."""
+    """Return the first hook definition (id: mcp-audit) from .pre-commit-hooks.yaml."""
     doc = _load_yaml(_HOOKS_FILE)
     assert isinstance(doc, list) and len(doc) >= 1, (
         ".pre-commit-hooks.yaml must be a non-empty YAML list"
     )
     return doc[0]
+
+
+def _lock_hook_def() -> dict:
+    """Return the `mcp-audit-lock-verify` hook definition (STORY-0070)."""
+    doc = _load_yaml(_HOOKS_FILE)
+    for hook in doc:
+        if hook.get("id") == "mcp-audit-lock-verify":
+            return hook
+    raise AssertionError(
+        "mcp-audit-lock-verify hook not found in .pre-commit-hooks.yaml"
+    )
 
 
 def _finding(severity: Severity, idx: int = 0) -> Finding:
@@ -177,6 +188,61 @@ class TestHookDefinition:
         assert hook.get("always_run") is False, (
             "always_run must be False — hook should only fire when JSON files are staged"  # noqa: E501
         )
+
+
+# ── mcp-audit-lock-verify hook (STORY-0070) ─────────────────────────────────
+
+
+class TestLockVerifyHookDefinition:
+    def test_hooks_file_has_two_hooks(self) -> None:
+        doc = _load_yaml(_HOOKS_FILE)
+        assert len(doc) == 2, (
+            f".pre-commit-hooks.yaml must define mcp-audit and "
+            f"mcp-audit-lock-verify; found {len(doc)} hook(s)"
+        )
+
+    def test_first_hook_unaffected(self) -> None:
+        """Appending the new hook must not change the original hook at all."""
+        hook = _hook_def()
+        assert hook["id"] == "mcp-audit"
+        assert hook["args"] == ["scan", "--severity-threshold", "high"]
+
+    def test_lock_hook_has_id(self) -> None:
+        hook = _lock_hook_def()
+        assert hook["id"] == "mcp-audit-lock-verify"
+
+    def test_lock_hook_language_is_python(self) -> None:
+        hook = _lock_hook_def()
+        assert hook["language"] == "python"
+
+    def test_lock_hook_entry_is_mcp_audit(self) -> None:
+        """Must stay `entry: mcp-audit` / `language: python` — a bash wrapper
+        with a different `language:` cannot rely on sharing the same
+        isolated pre-commit venv/PATH as this hook."""
+        hook = _lock_hook_def()
+        assert hook["entry"] == "mcp-audit"
+
+    def test_lock_hook_args_use_if_present(self) -> None:
+        hook = _lock_hook_def()
+        assert hook["args"] == ["lock", "--verify", "--if-present"]
+
+    def test_lock_hook_pass_filenames_is_false(self) -> None:
+        hook = _lock_hook_def()
+        assert hook.get("pass_filenames") is False
+
+    def test_lock_hook_always_run_is_false(self) -> None:
+        hook = _lock_hook_def()
+        assert hook.get("always_run") is False
+
+    def test_lock_hook_files_matches_mcp_lock_json(self) -> None:
+        import re
+
+        hook = _lock_hook_def()
+        pattern = re.compile(hook["files"])
+        assert pattern.search("mcp-lock.json")
+        assert pattern.search(".cursor/mcp.json")
+        assert pattern.search(".mcp.json")
+        assert not pattern.search("package.json")
 
 
 # ── Exit-code behaviour ──────────────────────────────────────────────────────

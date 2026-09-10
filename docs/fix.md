@@ -42,8 +42,9 @@ mcp-audit fix --apply --fix-type credentials
 | `credentials` | CRED-001, CRED-002, CRED-003 | Replaces plaintext secret values with `${ENV_VAR_NAME}`       |
 | `transport`   | TRANSPORT-001               | Rewrites `http://` server URLs to `https://`                  |
 | `pinning`     | SC-001, SC-002               | Replaces a typosquatted package name with the verified name and pins to `@latest-version` |
+| `pinning`     | VULN-UNPINNED, LOCK-004     | Pins a floating spec (`npx foo`, `foo@^1.2.3`) to an exact version — the lock's `resolved_version` when a lock exists, otherwise the current registry resolution |
 
-All three strategies are **idempotent** — re-running `fix` after `--apply`
+All strategies are **idempotent** — re-running `fix` after `--apply`
 produces no further diff.
 
 ---
@@ -180,6 +181,43 @@ mcp-audit known-server registry, a warning is printed but the fix proceeds:
 
 When `--offline` is active or the npm/PyPI registry is unreachable, the
 pinning fix is skipped with a warning and other fix types still apply.
+
+---
+
+### Version pinning (`VULN-UNPINNED`, `LOCK-004`)
+
+`VULN-UNPINNED` fires when a server's package spec floats (no version, or a
+semver range like `^1.2.3`). `LOCK-004` fires when `mcp-audit lock --verify`
+finds the config's resolved version has drifted from what `mcp-lock.json`
+recorded. Both are fixed the same way: pin to an exact version.
+
+**What `fix` does:**
+
+1. Looks for a nearest-ancestor `mcp-lock.json` for the server being fixed.
+   If found and its `package.resolved_version` is set, that version is used
+   directly — **no network call.**
+2. Otherwise (no lock, or offline with no lock entry), resolves the current
+   latest version live from npm/PyPI, identical to the `SC-001`/`SC-002` path.
+3. Replaces the current spec with `package@version`. A semver range that got
+   collapsed to an exact pin is called out explicitly in the fix message; a
+   pin sourced from live resolution (not the lock) suggests running
+   `mcp-audit lock` to record it.
+
+**Before (unpinned):**
+```json
+"command": "npx",
+"args": ["-y", "some-mcp-server"]
+```
+
+**After (locked, pinned to the lock's resolved version, no network call):**
+```json
+"command": "npx",
+"args": ["-y", "some-mcp-server@2.5.0"]
+```
+
+`--offline` with no lock entry for the server skips the fix with the same
+warning shape as `SC-001`/`SC-002`; `--offline` with a lock entry still
+pins, since no network call is needed either way.
 
 ---
 

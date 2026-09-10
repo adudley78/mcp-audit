@@ -70,6 +70,8 @@ class TestActionYamlStructure:
             "sast-path",
             "baseline-name",
             "fail-on-findings",
+            "lock-verify",
+            "lock-resolve",
             "version",
         }
         missing = expected - set(action["inputs"].keys())
@@ -151,6 +153,31 @@ class TestActionYamlSecurity:
             "`baseline compare` does not accept --name. "
             'Use: mcp-audit baseline compare "$BASELINE_NAME" (positional).'
         )
+
+    def test_lock_verify_step_uses_if_present(self, action: dict) -> None:
+        """The lock-verify step must never break a repo with no mcp-lock.json.
+
+        `--if-present` (STORY-0070) makes a missing lock file a soft, exit-0
+        skip; without it, enabling `lock-verify` on a repo that has not run
+        `mcp-audit lock` yet would hard-fail with exit 2.
+        """
+        steps = action["runs"]["steps"]
+        lock_steps = [s for s in steps if "lock" in s.get("name", "").lower()]
+        assert lock_steps, "action.yml must have a lock-verification step"
+        combined_run = "\n".join(s.get("run", "") for s in lock_steps)
+        assert "--if-present" in combined_run, (
+            "lock-verify step must pass --if-present so a repo without "
+            "mcp-lock.json does not get a hard failure."
+        )
+        assert "lock --verify" in combined_run
+
+    def test_lock_verify_step_gated_by_input(self, action: dict) -> None:
+        steps = action["runs"]["steps"]
+        lock_steps = [s for s in steps if "lock" in s.get("name", "").lower()]
+        for step in lock_steps:
+            assert "inputs.lock-verify" in step.get("if", ""), (
+                f"Step {step.get('name')!r} must be gated on inputs.lock-verify"
+            )
 
     def test_scanner_action_uses_setup_action(self, action: dict) -> None:
         """The scanner action must delegate install to ./setup-action, not pip."""

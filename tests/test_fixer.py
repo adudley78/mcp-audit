@@ -497,6 +497,151 @@ class TestPackagePinningStrategy:
             s.apply(config, finding)
 
 
+# ── VULN-UNPINNED / LOCK-004 version pinning (STORY-0070) ─────────────────────
+
+
+def _config_unpinned(
+    server_name: str = "my-server",
+    command: str = "npx",
+    pkg: str = "some-mcp-server",
+) -> dict:
+    return {
+        "mcpServers": {
+            server_name: {
+                "command": command,
+                "args": ["-y", pkg],
+            }
+        }
+    }
+
+
+def _version_finding(
+    finding_id: str = "VULN-UNPINNED",
+    server: str = "my-server",
+    evidence: str = "unpinned package",
+) -> Finding:
+    return _make_finding(
+        finding_id,
+        server=server,
+        evidence=evidence,
+        analyzer="vulnerability" if finding_id == "VULN-UNPINNED" else "lock",
+    )
+
+
+def _lock_doc(
+    client: str = "claude-desktop",
+    server: str = "my-server",
+    name: str = "some-mcp-server",
+    resolved_version: str = "2.5.0",
+    range_spec: str | None = None,
+) -> dict:
+    return {
+        "servers": {
+            f"{client}/{server}": {
+                "package": {
+                    "name": name,
+                    "resolved_version": resolved_version,
+                    "range_spec": range_spec,
+                }
+            }
+        }
+    }
+
+
+class TestVersionPinningStrategy:
+    def test_can_fix_vuln_unpinned_and_lock_004(self) -> None:
+        s = PackagePinningStrategy()
+        assert s.can_fix(_make_finding("VULN-UNPINNED"))
+        assert s.can_fix(_make_finding("LOCK-004"))
+
+    def test_uses_lock_resolved_version_with_no_network_call(self) -> None:
+        config = _config_unpinned()
+        finding = _version_finding("LOCK-004")
+        s = PackagePinningStrategy(lock_doc=_lock_doc())
+        with patch(_URLOPEN) as mock_urlopen:
+            new_config, msg = s.apply(config, finding)
+        mock_urlopen.assert_not_called()
+        assert new_config["mcpServers"]["my-server"]["args"] == [
+            "-y",
+            "some-mcp-server@2.5.0",
+        ]
+        assert "some-mcp-server@2.5.0" in msg
+        assert not s.warnings
+
+    def test_falls_back_to_live_resolution_without_lock(self) -> None:
+        config = _config_unpinned()
+        finding = _version_finding("VULN-UNPINNED")
+        s = PackagePinningStrategy()
+        with patch(_URLOPEN, return_value=_npm_mock("3.1.0")):
+            new_config, msg = s.apply(config, finding)
+        assert new_config["mcpServers"]["my-server"]["args"] == [
+            "-y",
+            "some-mcp-server@3.1.0",
+        ]
+        assert "run `mcp-audit lock`" in msg
+
+    def test_pypi_uses_at_syntax_not_double_equals(self) -> None:
+        """uvx pins use `pkg@version`, matching the existing SC-001/002
+        convention and `extract_pypi_package`'s own documented grammar —
+        not the `pkg==version` form."""
+        config = _config_unpinned(command="uvx", pkg="some-pypi-server")
+        finding = _version_finding("VULN-UNPINNED")
+        s = PackagePinningStrategy()
+        with patch(_URLOPEN, return_value=_pypi_mock("0.4.0")):
+            new_config, _ = s.apply(config, finding)
+        assert new_config["mcpServers"]["my-server"]["args"] == [
+            "-y",
+            "some-pypi-server@0.4.0",
+        ]
+
+    def test_range_spec_noted_as_collapsed(self) -> None:
+        config = _config_unpinned()
+        finding = _version_finding("LOCK-004")
+        s = PackagePinningStrategy(
+            lock_doc=_lock_doc(range_spec="^2.0.0"),
+        )
+        _, msg = s.apply(config, finding)
+        assert "semver range collapsed" in msg
+
+    def test_offline_without_lock_skips_with_warning(self) -> None:
+        config = _config_unpinned()
+        finding = _version_finding("VULN-UNPINNED")
+        s = PackagePinningStrategy(offline=True)
+        new_config, msg = s.apply(config, finding)
+        assert new_config == config
+        assert "offline" in msg
+        assert s.warnings
+
+    def test_offline_with_lock_still_pins_no_network_needed(self) -> None:
+        config = _config_unpinned()
+        finding = _version_finding("LOCK-004")
+        s = PackagePinningStrategy(offline=True, lock_doc=_lock_doc())
+        new_config, msg = s.apply(config, finding)
+        assert new_config["mcpServers"]["my-server"]["args"] == [
+            "-y",
+            "some-mcp-server@2.5.0",
+        ]
+        assert "2.5.0" in msg
+
+    def test_unresolvable_version_skips_without_raising(self) -> None:
+        config = _config_unpinned()
+        finding = _version_finding("VULN-UNPINNED")
+        s = PackagePinningStrategy()
+        with patch(_URLOPEN, side_effect=OSError("network down")):
+            new_config, msg = s.apply(config, finding)
+        assert new_config == config
+        assert "unresolvable" in msg
+        assert s.warnings
+
+    def test_idempotent_already_pinned(self) -> None:
+        config = _config_unpinned(pkg="some-mcp-server@2.5.0")
+        finding = _version_finding("LOCK-004")
+        s = PackagePinningStrategy(lock_doc=_lock_doc())
+        new_config, msg = s.apply(config, finding)
+        assert new_config == config
+        assert "already fixed" in msg
+
+
 # ── _find_package_arg helper ──────────────────────────────────────────────────
 
 

@@ -9,13 +9,16 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from mcp_audit.cli import app
+from mcp_audit.lock.writer import regenerate, write_lock
 from mcp_audit.models import (
     AttackPath,
     AttackPathSummary,
     Finding,
     ScanResult,
     ScanScore,
+    ServerConfig,
     Severity,
+    TransportType,
 )
 from mcp_audit.output.check import _remediation_hint, print_check_results
 
@@ -550,3 +553,101 @@ class TestCheckCommand:
         with self._patch_run_scan(result):
             r = runner.invoke(app, ["check"])
         assert "more" not in r.output or "mcp-audit scan" in r.output
+
+
+# ── Lock auto-verification (STORY-0070) ───────────────────────────────────────
+
+
+def _server(config_path: Path, name: str = "github") -> ServerConfig:
+    return ServerConfig(
+        name=name,
+        client="cursor",
+        config_path=config_path,
+        transport=TransportType.STDIO,
+        command="npx",
+        args=["-y", "foo@1.0.0"],
+    )
+
+
+def _write_lock_for(lock_dir: Path, servers: list[ServerConfig]) -> None:
+    doc = regenerate(None, servers, lock_dir, offline=True, registry=None)
+    write_lock(lock_dir / "mcp-lock.json", doc)
+
+
+class TestLockAutoVerification:
+    def _patch_run_scan(self, result: ScanResult):
+        return patch("mcp_audit.cli.check.run_scan", return_value=result)
+
+    def test_no_lock_file_no_output_change(self, tmp_path: Path) -> None:
+        config_path = tmp_path / ".mcp.json"
+        server = _server(config_path)
+        result = _findings_result([], numeric=100, grade="A")
+        result.servers = [server]
+        with self._patch_run_scan(result):
+            r = runner.invoke(app, ["check"])
+        assert "Lock:" not in r.output
+        assert r.exit_code == 0
+
+    def test_clean_lock_prints_verified_line(self, tmp_path: Path) -> None:
+        (tmp_path / ".git").mkdir()
+        config_path = tmp_path / ".mcp.json"
+        server = _server(config_path)
+        _write_lock_for(tmp_path, [server])
+        result = _findings_result([], numeric=100, grade="A")
+        result.servers = [server]
+        with self._patch_run_scan(result):
+            r = runner.invoke(app, ["check"])
+        assert "Lock: verified (1 server" in r.output
+        # trees/tools are always-present reserved-foreign stub sections —
+        # never silently claimed as verified.
+        assert "not verified: tools, trees" in r.output
+        assert r.exit_code == 0
+
+    def test_drifted_lock_appends_findings_and_affects_grade(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / ".git").mkdir()
+        config_path = tmp_path / ".mcp.json"
+        server = _server(config_path)
+        _write_lock_for(tmp_path, [server])
+
+        drifted = _server(config_path)
+        drifted.args = ["-y", "foo@9.9.9"]
+        result = _findings_result([], numeric=100, grade="A")
+        result.servers = [drifted]
+        with self._patch_run_scan(result):
+            r = runner.invoke(app, ["check"])
+        # A LOCK-001/HIGH finding drags a clean A-grade result below the
+        # A/B threshold, so check must fail even though run_scan's own
+        # score object said "A, no findings".
+        assert r.exit_code == 1
+        assert "Lock:" in r.output
+
+    def test_no_lock_flag_skips_verification(self, tmp_path: Path) -> None:
+        (tmp_path / ".git").mkdir()
+        config_path = tmp_path / ".mcp.json"
+        server = _server(config_path)
+        _write_lock_for(tmp_path, [server])
+
+        drifted = _server(config_path)
+        drifted.args = ["-y", "foo@9.9.9"]
+        result = _findings_result([], numeric=100, grade="A")
+        result.servers = [drifted]
+        with self._patch_run_scan(result):
+            r = runner.invoke(app, ["check", "--no-lock"])
+        assert "Lock:" not in r.output
+        assert r.exit_code == 0
+
+    def test_json_output_includes_lock_status(self, tmp_path: Path) -> None:
+        (tmp_path / ".git").mkdir()
+        config_path = tmp_path / ".mcp.json"
+        server = _server(config_path)
+        _write_lock_for(tmp_path, [server])
+        result = _findings_result([], numeric=100, grade="A")
+        result.servers = [server]
+        with self._patch_run_scan(result):
+            r = runner.invoke(app, ["check", "--json"])
+        parsed = json.loads(r.output)
+        assert parsed["lock_status"]["present"] is True
+        assert parsed["lock_status"]["verified"] is True
+        assert parsed["lock_status"]["checked_servers"] == 1

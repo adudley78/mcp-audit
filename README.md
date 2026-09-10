@@ -158,6 +158,17 @@ mcp-audit check                    # After installing: one-command security verd
 mcp-audit fix --apply              # Fix detected issues automatically
 ```
 
+Then lock it — a committable, reviewable record of exactly which servers your
+team approved, checked automatically by `check`/`scan` from then on:
+
+```bash
+mcp-audit lock                     # Write mcp-lock.json, commit it
+mcp-audit lock --verify            # Fail CI if anything drifted
+mcp-audit check                    # Auto-verifies the lock too — no extra flag
+```
+
+See [docs/lock.md](docs/lock.md) for the full design and how it differs from `pin`/`baseline`.
+
 ## For MCP server authors
 
 If you publish an MCP server package, you can show users your registry status and
@@ -413,7 +424,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-3,443 tests validate detection accuracy and guard against regressions.
+3,487 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -424,9 +435,9 @@ Every command is available to every user — no tier, no license required.
 | Command | Key flags | Description |
 |---------|-----------|-------------|
 | `mcp-audit vet <package>` | `--ecosystem`, `--format json`, `--badge`, `--online`, `--strict` | Pre-install verdict: verification status, known CVEs, capabilities. Ask before you install. Offline by default |
-| `mcp-audit check` | `--path`, `--verbose`, `--json` | One-command security verdict: grade, top findings, fix hints. Recommended entry point for new users |
-| `mcp-audit fix` | `--path`, `--input`, `--apply`, `--fix-type`, `--offline` | Apply safe remediations (credential redaction, transport upgrade, package pinning) directly to config files; dry-run by default |
-| `mcp-audit scan` | `--connect`, `--format`, `--output`, `--severity-threshold`, `--asset-prefix`, `--baseline`, `--policy`, `--verify-hashes`, `--no-score`, `--registry`, `--offline-registry`, `--rules-dir`, `--sast`, `--include-extensions` | Run all analyzers and report findings |
+| `mcp-audit check` | `--path`, `--verbose`, `--json`, `--no-lock` | One-command security verdict: grade, top findings, fix hints. Auto-verifies `mcp-lock.json` when present. Recommended entry point for new users |
+| `mcp-audit fix` | `--path`, `--input`, `--apply`, `--fix-type`, `--offline` | Apply safe remediations (credential redaction, transport upgrade, package pinning — including pinning a floating version from `mcp-lock.json`) directly to config files; dry-run by default |
+| `mcp-audit scan` | `--connect`, `--format`, `--output`, `--severity-threshold`, `--asset-prefix`, `--baseline`, `--policy`, `--verify-hashes`, `--no-score`, `--registry`, `--offline-registry`, `--rules-dir`, `--sast`, `--include-extensions`, `--no-lock` | Run all analyzers and report findings. Auto-verifies `mcp-lock.json` when present |
 | `mcp-audit dashboard` | `--path`, `--port`, `--connect`, `--no-open` | Generate and open the interactive attack graph dashboard |
 | `mcp-audit watch` | `--path`, `--format`, `--severity-threshold`, `--connect` | Monitor config files and re-scan on any change |
 | `mcp-audit discover` | — | List all detected MCP clients and their configured servers |
@@ -615,6 +626,15 @@ hooks:
 
 **Note:** `pass_filenames: false` is set intentionally. pre-commit would otherwise pass individual staged JSON filenames to the command, but `mcp-audit scan` requires full config files discovered through its own client-aware logic. The hook re-scans all MCP configs (not just staged ones) each time it fires.
 
+If you've adopted [`mcp-audit lock`](docs/lock.md), add the second hook to block commits that drift
+from it (safe to enable before you've ever run `mcp-audit lock` — it's a no-op until a lock exists):
+
+```yaml
+hooks:
+  - id: mcp-audit
+  - id: mcp-audit-lock-verify
+```
+
 See [`examples/pre-commit/`](examples/pre-commit/) for ready-to-copy config patterns and [`docs/pre-commit.md`](docs/pre-commit.md) for the full reference.
 
 ## Development
@@ -624,7 +644,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 3,443 tests
+uv run pytest                        # Run all 3,487 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

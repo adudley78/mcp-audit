@@ -29,6 +29,7 @@ _AUTO_FIXABLE: frozenset[str] = frozenset(
         "TRANSPORT-001",
         "SC-001",
         "SC-002",
+        "LOCK-004",
     }
 )
 
@@ -145,6 +146,24 @@ _HINTS: dict[str, str] = {
         "The package hash does not match the registry"
         " — do not use this server until verified."
     ),
+    # Lock (mcp-lock.json drift — STORY-0070)
+    "LOCK-001": (
+        "This server's config no longer matches the lock."
+        " Review the change, then run `mcp-audit lock --accept`."
+    ),
+    "LOCK-002": (
+        "This server is not in the lock."
+        " Run `mcp-audit lock` to add it once you've reviewed it."
+    ),
+    "LOCK-003": (
+        "This server is in the lock but no longer in your config."
+        " Run `mcp-audit lock` to remove it, or restore the server."
+    ),
+    "LOCK-004": "Run `mcp-audit fix --apply` to re-pin to the locked version.",
+    "LOCK-005": (
+        "The lock file itself looks tampered or corrupted."
+        " Inspect `git diff mcp-lock.json` before trusting it."
+    ),
 }
 
 
@@ -232,6 +251,7 @@ def print_check_results(
         )
         if registration:
             _print_registered_as(console, registration)
+        _print_lock_line(console, result)
         console.print()
         console.print("  Your MCP configuration looks clean.")
         console.print()
@@ -246,6 +266,7 @@ def print_check_results(
     )
     if registration:
         _print_registered_as(console, registration)
+    _print_lock_line(console, result)
     console.print()
 
     # ── Attack path warning ───────────────────────────────────────────────────
@@ -307,6 +328,38 @@ def print_check_results(
     console.print("[dim]To see all findings:  mcp-audit scan[/dim]")
     if fixable_shown > 0:
         console.print("[dim]To apply auto-fixes:  mcp-audit fix --apply[/dim]")
+
+
+def _print_lock_line(console: Console, result: ScanResult) -> None:
+    """Print the ``Lock:`` line beneath the grade, when a lock was found.
+
+    Silent (prints nothing) when ``result.lock_status.present`` is ``False``
+    — a project with no ``mcp-lock.json`` must see no output change at all
+    (STORY-0070). Emits one WARN line per unresolved entry so a clean
+    ``verified`` line can never silently hide one.
+    """
+    status = result.lock_status
+    if not status.present:
+        return
+    n = status.checked_servers
+    server_word = "server" if n == 1 else "servers"
+    not_verified = (
+        f"; not verified: {', '.join(status.unverified_sections)}"
+        if status.unverified_sections
+        else ""
+    )
+    if status.verified:
+        console.print(f"  [dim]Lock: verified ({n} {server_word}){not_verified}[/dim]")
+    else:
+        console.print(
+            f"  [yellow]Lock:[/yellow] {status.findings} finding(s) across "
+            f"{n} locked {server_word}{not_verified} — see `mcp-audit lock --verify`."
+        )
+    for key in status.unresolved_entries:
+        console.print(
+            f"  [yellow]WARN:[/yellow] {key!r} was locked offline — "
+            "version/hash not confirmed."
+        )
 
 
 def _print_registered_as(console: Console, registration: RegistrationConfig) -> None:

@@ -229,6 +229,36 @@ class FeedStatus(BaseModel):
     age_days: int | None = None
 
 
+class LockStatus(BaseModel):
+    """Result of automatic ``mcp-lock.json`` verification during ``check``/``scan``.
+
+    Mirrors :class:`FeedStatus`'s shape (R9 precedent): a small, always-present
+    summary object rather than requiring callers to re-derive it from
+    ``findings``. ``present=False`` (the default) means no ``mcp-lock.json``
+    was found for any scanned server — STORY-0070's "no lock file → no change
+    in behavior" contract; ``findings`` stays 0 and no LOCK-* findings are
+    appended to the scan in that case. ``verified`` is ``True`` only when a
+    lock was present and produced zero LOCK-001/002/004/005 findings.
+    """
+
+    present: bool = False
+    verified: bool = False
+    findings: int = 0
+    checked_servers: int = 0
+    #: Absolute paths to every distinct ``mcp-lock.json`` consulted (a
+    #: monorepo may have more than one — the nearest ancestor per server).
+    lock_paths: list[str] = Field(default_factory=list)
+    #: Locked server keys whose package resolution was never confirmed
+    #: (``source: "unresolved"``, e.g. locked while offline) — surfaced so a
+    #: clean ``verified=True`` never silently hides one.
+    unresolved_entries: list[str] = Field(default_factory=list)
+    #: Top-level lock sections present but never checked by mcp-audit (e.g.
+    #: ``["trees"]``) — merged across every lock file consulted. See
+    #: ``lock/model.py::unverified_sections()``; mcp-audit never assumes an
+    #: internal shape for a foreign section, so this can only ever name it.
+    unverified_sections: list[str] = Field(default_factory=list)
+
+
 class ScanResult(BaseModel):
     """Complete results from a scan run."""
 
@@ -249,6 +279,7 @@ class ScanResult(BaseModel):
     score: ScanScore | None = None
     registry_stats: RegistryStats | None = None
     feed_status: FeedStatus = Field(default_factory=FeedStatus)
+    lock_status: LockStatus = Field(default_factory=LockStatus)
     findings_below_threshold: int = 0
     active_severity_threshold: str | None = None
     # Captured stderr from stdio MCP server subprocesses launched during --connect.

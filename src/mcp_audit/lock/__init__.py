@@ -13,6 +13,12 @@ package is intentionally split the same way the ADR is organised:
 - :mod:`mcp_audit.lock.writer` — writes/regenerates ``mcp-lock.json``.
 - :mod:`mcp_audit.lock.verifier` — ``lock --verify``; returns
   ``list[Finding]``.
+- :mod:`mcp_audit.lock.discovery` — ``find_lock_for()``, the nearest-ancestor
+  lock lookup used by ``check``/``scan`` auto-verification and the pinning
+  fix strategy (STORY-0070).
+- :mod:`mcp_audit.lock.auto_verify` — ``auto_verify()``, the shared
+  "group servers by nearest lock, merge results" helper behind ``check`` and
+  ``scan``'s automatic (offline, ``--no-lock``-able) verification.
 
 Nothing in this package executes a package manager, connects to a live MCP
 server, or enforces anything at runtime — it is a static, offline-by-default

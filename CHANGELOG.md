@@ -8,7 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-(nothing yet)
+### Added
+
+- **The lock is now part of the everyday commands (STORY-0070).** `mcp-audit fix --fix-type pinning`
+  writes the exact locked version into your config (`npx -y foo` → `npx -y foo@1.4.2`), giving
+  `VULN-UNPINNED` its first remediation — no network call when a lock already has the resolved
+  version. `check` and `scan` verify `mcp-lock.json` automatically when present (`--no-lock` to
+  skip); LOCK findings are the one deliberate exception to "post-scan additions don't affect the
+  grade" — they do. The GitHub Action gains `lock-verify` / `lock-resolve`; a new
+  `mcp-audit-lock-verify` pre-commit hook blocks commits that drift from the lock, safe to enable
+  before you've ever run `mcp-audit lock` (a new `--if-present` flag on `lock --verify` makes a
+  missing lock file a no-op, not a failure). `mcp-lock.json`-aware `diff` output is tracked as a
+  follow-up, not included here. See [`docs/lock.md`](docs/lock.md) and the STORY-0070 addendum in
+  [ADR-0005](docs/decisions/ADR-0005-mcp-audit-lock.md).
 
 ---
 

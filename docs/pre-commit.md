@@ -100,6 +100,36 @@ See [`examples/pre-commit/`](../examples/pre-commit/) for ready-to-copy configs:
 - [`basic.yaml`](../examples/pre-commit/basic.yaml) — minimal setup, blocks on HIGH+
 - [`strict.yaml`](../examples/pre-commit/strict.yaml) — blocks on MEDIUM+
 
+## `mcp-audit-lock-verify` — block commits that drift from `mcp-lock.json`
+
+If you've adopted [`mcp-audit lock`](lock.md), a second hook enforces it:
+
+```yaml
+repos:
+  - repo: https://github.com/adudley78/mcp-audit
+    rev: v0.17.0
+    hooks:
+      - id: mcp-audit
+      - id: mcp-audit-lock-verify
+```
+
+This hook runs `mcp-audit lock --verify --if-present` whenever a commit
+touches a known MCP config path or `mcp-lock.json`. It is safe to add to a
+repo that has not run `mcp-audit lock` yet — `--if-present` makes a missing
+lock file a no-op, not a failure, so this hook only starts blocking commits
+once you've written a lock file with `mcp-audit lock`.
+
+A drifted commit is blocked. Review the drift, then run:
+
+```bash
+mcp-audit lock --accept
+git add mcp-lock.json
+git commit
+```
+
+`--accept` re-writes the lock from the current state (preserving each
+surviving entry's `first_locked`) — the explicit "I reviewed this" step.
+
 ## Known limitations
 
 **Re-scans all configs, not just staged files.** Because `pass_filenames: false` is set, the hook runs `mcp-audit scan` with its default discovery. It scans every MCP config file found on the machine — across all supported clients (Claude Desktop, Cursor, VS Code, Windsurf, etc.) — not only the files staged in the current commit. On machines with many MCP clients configured this may be slightly slower than expected, but ensures that a config file that was modified outside the repo is still caught.

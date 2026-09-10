@@ -119,6 +119,18 @@ def lock(
         "-f",
         help="Output format for --verify: terminal, json, sarif",
     ),
+    if_present: bool = typer.Option(  # noqa: B008
+        False,
+        "--if-present",
+        help=(
+            "With --verify: treat a missing mcp-lock.json as a soft skip "
+            "(exit 0, dim informational message) instead of an error "
+            "(exit 2). For CI/pre-commit adoption paths that must not break "
+            "a repo that has not adopted `lock` yet — e.g. the GitHub "
+            "Action's `lock-verify` input and the `mcp-audit-lock-verify` "
+            "pre-commit hook both pass this flag."
+        ),
+    ),
 ) -> None:
     """Write, verify, or re-accept a committable MCP server lock.
 
@@ -143,7 +155,13 @@ def lock(
 
     if verify:
         _run_verify(
-            root, lock_path, include_user, resolve, registry_path, output_format
+            root,
+            lock_path,
+            include_user,
+            resolve,
+            registry_path,
+            output_format,
+            if_present=if_present,
         )
         return
 
@@ -207,9 +225,24 @@ def _run_verify(
     resolve: bool,
     registry_path: Path | None,
     output_format: str,
+    *,
+    if_present: bool = False,
 ) -> None:
-    """Handle ``lock --verify`` (and ``--verify --resolve``)."""
+    """Handle ``lock --verify`` (and ``--verify --resolve``).
+
+    With ``if_present=True``, a missing lock file is a soft, non-failing
+    skip rather than an error — see the ``--if-present`` flag's help text.
+    This lets an Action step or pre-commit hook adopt lock verification
+    unconditionally without breaking a repo that has not run `mcp-audit
+    lock` yet.
+    """
     if not lock_path.exists():
+        if if_present:
+            console.print(
+                f"[dim]No mcp-lock.json found at {lock_path} — "
+                "skipping lock verification (--if-present).[/dim]"
+            )
+            raise typer.Exit(0)
         console.print(
             f"[red]Error:[/red] No lock file found at {lock_path}. "
             "Run `mcp-audit lock` first."

@@ -52,6 +52,7 @@ from mcp_audit.extensions import discovery as _extensions_discovery
 from mcp_audit.governance.evaluator import evaluate_governance
 from mcp_audit.governance.loader import load_policy
 from mcp_audit.governance.models import GovernancePolicy
+from mcp_audit.lock.auto_verify import auto_verify as _lock_auto_verify
 from mcp_audit.models import Finding, ScanResult, Severity
 from mcp_audit.output.nucleus import format_nucleus
 from mcp_audit.output.sarif import format_sarif
@@ -60,6 +61,7 @@ from mcp_audit.owasp_mcp import OWASP_MCP_TOP_10
 from mcp_audit.registry.loader import KnownServerRegistry, RegistryLoadError
 from mcp_audit.sast import runner as _sast_runner
 from mcp_audit.scanner import _USER_RULES_DIR
+from mcp_audit.scoring import calculate_score
 from mcp_audit.watcher import ConfigWatcher
 
 # Severity comparison uses a descending-critical list so ``index`` returns a
@@ -966,6 +968,68 @@ def _apply_project_scan(
     return result
 
 
+def _apply_lock_verification(
+    result: ScanResult,
+    no_lock: bool,
+    con: Console,
+    scoring_weights: object | None = None,
+    scoring_weights_source: str = "default",
+) -> ScanResult:
+    """Auto-verify ``mcp-lock.json`` when one exists for the scanned servers.
+
+    Called unconditionally (unless *no_lock* is set) — STORY-0070. Always
+    offline: this never resolves a floating version over the network; that
+    stays an explicit opt-in on ``mcp-audit lock --verify --resolve``.
+
+    Contract: when no ``mcp-lock.json`` is discoverable for any scanned
+    server, ``result`` is returned unchanged (``lock_status.present`` stays
+    ``False``) — adding a lock file to a project must not silently change an
+    existing scan's output, and a project with none must see zero behaviour
+    change from this feature existing at all.
+
+    Deliberate deviation from every other post-score ``_apply_*`` stage
+    (baseline/governance/SAST/extensions/agent-files/project, all of which
+    are appended *after* ``calculate_score`` already ran and do not affect
+    ``result.score``): STORY-0070's acceptance criteria require LOCK findings
+    to affect the grade, so this stage recomputes ``result.score`` with the
+    same scoring weights already resolved for the main pipeline (from a
+    governance policy, when one is loaded) after appending LOCK-* findings.
+    """
+    from mcp_audit.models import LockStatus  # noqa: PLC0415
+
+    if no_lock:
+        result.lock_status = LockStatus()
+        return result
+
+    lock_findings, status = _lock_auto_verify(result.servers)
+    result.lock_status = status
+    if not status.present:
+        return result
+
+    if status.unresolved_entries:
+        con.print(
+            f"[yellow]Lock:[/yellow] {len(status.unresolved_entries)} entr"
+            f"{'y' if len(status.unresolved_entries) == 1 else 'ies'} unresolved "
+            f"(locked offline; version/hash not confirmed): "
+            f"{', '.join(status.unresolved_entries)}"
+        )
+    if lock_findings:
+        con.print(
+            f"[dim]Lock: {status.findings} finding(s) across "
+            f"{status.checked_servers} locked server(s)[/dim]"
+        )
+    else:
+        con.print(f"[dim]Lock: verified ({status.checked_servers} servers)[/dim]")
+
+    result.findings.extend(lock_findings)
+    result.score = calculate_score(
+        result.findings,
+        weights=scoring_weights,
+        weights_source=scoring_weights_source,
+    )
+    return result
+
+
 def _write_formatted_output(
     result: ScanResult,
     fmt: str,
@@ -1248,6 +1312,16 @@ def scan(
             " Runs the full analyzer pipeline over project-scoped servers too."
         ),
     ),
+    no_lock: bool = typer.Option(  # noqa: B008
+        False,
+        "--no-lock",
+        help=(
+            "Skip automatic mcp-lock.json verification. "
+            "By default, scan auto-verifies the nearest ancestor lock file "
+            "for each scanned server, if one exists; a project with no lock "
+            "file sees no change in behaviour either way."
+        ),
+    ),
 ) -> None:
     """Scan MCP configurations for security issues."""
     if configs and len(configs) > 1:
@@ -1363,6 +1437,14 @@ def scan(
         result = _apply_project_scan(
             result, resolved_project, analyzers, extra_rules_dirs or None, console
         )
+
+    result = _apply_lock_verification(
+        result,
+        no_lock,
+        console,
+        scoring_weights=scoring_weights,
+        scoring_weights_source=scoring_weights_source,
+    )
 
     result = _apply_severity_threshold(result, severity_threshold, console)
     result = _apply_advisory_feed(result, advisory_feed, console)

@@ -113,6 +113,8 @@ break reproducibility on release day.
     sast-path: src/
     baseline-name: ''
     fail-on-findings: 'true'
+    lock-verify: 'false'
+    lock-resolve: 'false'
     version: latest
 ```
 
@@ -165,7 +167,22 @@ See `examples/github-actions/diff-mode.yml` for the full reference workflow and
 | `sast-path` | `src/` | Path passed to `mcp-audit sast`. Only used when `run-sast: 'true'`. |
 | `baseline-name` | _(empty)_ | Saved baseline name. When non-empty, runs `mcp-audit baseline compare <name>` and writes the diff to the step summary. |
 | `fail-on-findings` | `'true'` | Fail the workflow step if the scan finds anything at or above `severity-threshold`. Set to `'false'` for visibility-only mode. |
+| `lock-verify` | `'false'` | Verify `mcp-lock.json` (if present) via `mcp-audit lock --verify --if-present`. Fails on `LOCK-001`/`002`/`004`/`005` regardless of `severity-threshold` (still honours `fail-on-findings`). A repo with no lock file yet gets a warning and a passing step. |
+| `lock-resolve` | `'false'` | With `lock-verify`, also re-resolve floating specs against the registry (network; produces `LOCK-004` on version drift). Ignored when `lock-verify` is `'false'`. |
 | `version` | `latest` | Release tag to install (e.g. `v0.10.1`). The binary is downloaded from GitHub Releases, not PyPI. |
+
+### Verifying `mcp-lock.json` in CI
+
+```yaml
+- uses: adudley78/mcp-audit@v0.17.0
+  with:
+    lock-verify: 'true'
+    lock-resolve: 'true'   # optional: also catch a republished package version
+```
+
+This is additive to the normal scan — enabling it never requires a repo to
+have adopted `mcp-audit lock` first. See [`docs/lock.md`](lock.md) for what
+gets locked and verified.
 
 ### Severity threshold behaviour
 
