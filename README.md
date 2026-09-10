@@ -19,8 +19,8 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 ## Features
 
 - **Auto-discovers** MCP configs across 8 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code user-level, Claude Code project-level, GitHub Copilot CLI, Augment Code)
-- **Tool poisoning detection** — 11 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with zero false positives on our published 22-server benchmark (a regression test)
-- **Credential exposure** — 9 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
+- **Tool poisoning detection** — 12 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with zero false positives on our published 22-server benchmark (a regression test)
+- **Credential exposure** — 17 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
 - **Supply chain** — typosquatting detection via Levenshtein distance against 83 known-legitimate MCP servers; offline CVE advisory check (`SC-004`) against the bundled registry (`known_vulnerabilities`); SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
 - **Rug-pull detection** — stateful SHA-256 hash comparison of tool descriptions across scans
@@ -314,7 +314,7 @@ See [`docs/diff.md`](docs/diff.md) for input formats, severity table, and edge c
 
 | Analyzer | Finding IDs | Examples |
 |----------|-------------|---------|
-| Tool poisoning | 11 patterns (POISON-001 – POISON-050) | SSH key exfiltration instructions, XML injection markers (`<IMPORTANT>`), behavioral overrides ("ignore previous instructions"), zero-width Unicode stealth characters |
+| Tool poisoning | 12 patterns (POISON-001 – POISON-050) | SSH key exfiltration instructions, XML injection markers (`<IMPORTANT>`), behavioral overrides ("ignore previous instructions"), zero-width Unicode stealth characters |
 | Credential exposure | CRED-001…009 | AWS access keys, GitHub tokens, OpenAI/Anthropic API keys, Stripe secrets, database connection strings with embedded passwords |
 | Transport security | TRANSPORT-001…003 | Unencrypted remote SSE connections, elevated privilege execution, runtime package fetching via `npx`/`uvx` without version pinning |
 | Supply chain | SC-001…003 | Typosquatted package names (`@modelcontextprotocol/server-filesytem` vs `server-filesystem`), distance-1 substitutions flagged CRITICAL |
