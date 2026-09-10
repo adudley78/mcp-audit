@@ -150,6 +150,7 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     fix,
     fleet,
     killchain,
+    lock,
     policy,
     push_nucleus,
     register,

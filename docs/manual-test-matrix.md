@@ -1275,6 +1275,73 @@ second scan panel headed "`<time>` — triggered by modified: …"; the final
 
 ---
 
+## Section 46 — lock (mcp-lock.json write and verify, ADR-0005)
+
+```bash
+mkdir -p "$SCRATCH/lock-fixture"
+cat > "$SCRATCH/lock-fixture/.mcp.json" <<'EOF'
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github@1.0.0"]
+    }
+  }
+}
+EOF
+
+mcp-audit lock "$SCRATCH/lock-fixture" --offline
+echo "exit: $?"
+cat "$SCRATCH/lock-fixture/mcp-lock.json"
+```
+
+**Expected:** "Locked 1 server(s)." and the server key `claude-code/github`;
+exit 0; `mcp-lock.json` is written at the project root with `lock_version`,
+`generated_by`, `generated_at`, a per-server `checksum`-covered `servers` map,
+and an empty reserved `trees: {}` section (mcp-audit never populates `trees` —
+see `docs/lock.md`).
+
+```bash
+mcp-audit lock "$SCRATCH/lock-fixture" --verify
+echo "exit: $?"
+```
+
+**Expected:** "Lock: 1 servers verified; not verified: tools, trees (see
+docs/lock.md)"; exit 0 (nothing changed since the write above — `tools` and
+`trees` are foreign sections mcp-audit does not own, so they are always
+reported as unverified, never treated as tampering).
+
+```bash
+cat > "$SCRATCH/lock-fixture/.mcp.json" <<'EOF'
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github@2.0.0"]
+    }
+  }
+}
+EOF
+
+mcp-audit lock "$SCRATCH/lock-fixture" --verify
+echo "exit: $?"
+```
+
+**Expected:** a `lock`-analyzer `LOCK-001` finding ("Server drifted from
+lock: 'github'"), evidence showing the `identity` mismatch (`1.0.0` locked vs.
+`2.0.0` now); exit 1.
+
+```bash
+mcp-audit lock "$SCRATCH/lock-fixture" --accept
+grep -c "$(whoami)" "$SCRATCH/lock-fixture/mcp-lock.json"
+echo "^ must print 0"
+```
+
+**Expected:** "Re-locked 1 server(s)."; the redaction grep prints `0` — no
+username, absolute path, or raw config leaks into `mcp-lock.json`.
+
+---
+
 ## Teardown
 
 ```bash
