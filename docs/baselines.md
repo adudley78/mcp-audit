@@ -11,6 +11,25 @@ Baselines are architecturally separate from the rug-pull analyzer.  The rug-pull
 analyzer tracks automatic per-scan hash state and detects silent changes between
 consecutive runs.  Baselines are explicit, user-named snapshots that you control.
 
+## `pin` vs. `baseline` vs. `lock`
+
+`mcp-audit` has three related-but-distinct state-tracking mechanisms.  All three
+record server state; they differ in *where* the record lives and *who* can see it:
+
+| | `pin` | `baseline save` | `lock` |
+|---|---|---|---|
+| Storage | user config dir (machine-local) | user config dir (machine-local) | **project root, committed to git** |
+| Reviewable in a pull request | no | no | **yes** |
+| Named / multiple snapshots | no (single latest) | yes | no (one lock per project root) |
+| Compared with | `diff` | `baseline compare` / `scan --baseline` | `lock --verify` |
+| Package version resolution | no | no | yes — resolves floating specs to a concrete version |
+| Best for | quick local "did anything change since I last looked" checks | named historical snapshots (e.g. `production-2026q1`) for point-in-time comparison and incident response | team/CI-visible approval record of which MCP servers are sanctioned |
+
+Use `pin`/`diff` for a fast local check.  Use `baseline` when you want multiple
+named, timestamped snapshots to compare against later.  Use `lock` when the set
+of approved MCP servers needs to be part of your repository's review history —
+see [`docs/lock.md`](lock.md).
+
 ---
 
 ## Workflow overview

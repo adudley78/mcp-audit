@@ -413,7 +413,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-3,391 tests validate detection accuracy and guard against regressions.
+3,443 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -432,6 +432,7 @@ Every command is available to every user — no tier, no license required.
 | `mcp-audit discover` | — | List all detected MCP clients and their configured servers |
 | `mcp-audit pin` | — | Record current server state as a trusted baseline |
 | `mcp-audit diff` | — | Show configuration changes since the last `pin` |
+| `mcp-audit lock` | `--verify`, `--resolve`, `--accept`, `--include-user`, `--offline`, `--output`, `--format` | Write or verify a committable `mcp-lock.json` of approved MCP servers for code review and CI drift detection. `EXPERIMENTAL` in v0.17.0 |
 | `mcp-audit verify` | `<package\|config-path>` | Verify server hashes: pass a package name (`@scope/pkg`), a config file path, or `--all` |
 | `mcp-audit version` | — | Print version string |
 | `mcp-audit update-registry` | — | Fetch the latest known-server registry from upstream |
@@ -623,7 +624,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 3,391 tests
+uv run pytest                        # Run all 3,443 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

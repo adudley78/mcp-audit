@@ -1073,6 +1073,41 @@
       "owasp_codes": ["MCP04", "MCP09"],
       "owasp_names": ["Software Supply Chain Attacks", "Shadow MCP Servers"],
       "notes": "Launch command basename is outside a small allowlist of well-known runtime/package-manager launchers. Ships enabled: false \u2014 no governance-policy mechanism currently exists to enable a disabled community rule (verified; see GAPS.md). Policy-gated, MEDIUM when enabled. Community rule, category code-execution."
+    },
+    {
+      "finding_id": "LOCK-001",
+      "finding_title": "Server drifted from lock",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"],
+      "notes": "mcp-audit lock --verify (offline). A locked server's launch identity (command/args or canonical URL), env key names, or header key names changed since it was approved through mcp-audit lock. HIGH. See docs/decisions/ADR-0005-mcp-audit-lock.md."
+    },
+    {
+      "finding_id": "LOCK-002",
+      "finding_title": "Server not in lock",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"],
+      "notes": "mcp-audit lock --verify (offline). A configured server was never approved through mcp-audit lock. HIGH."
+    },
+    {
+      "finding_id": "LOCK-003",
+      "finding_title": "Locked server missing",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"],
+      "notes": "mcp-audit lock --verify (offline). A previously locked server is no longer configured. MEDIUM \u2014 does not fail the exit code alone (removing a server is not a failure)."
+    },
+    {
+      "finding_id": "LOCK-004",
+      "finding_title": "Resolution drifted",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"],
+      "notes": "mcp-audit lock --verify --resolve (network, opt-in). A floating/range spec now resolves to a different version than the one locked (HIGH), or the same version now hashes differently \u2014 a republished artifact (CRITICAL). Never produced by default --verify."
+    },
+    {
+      "finding_id": "LOCK-005",
+      "finding_title": "Lock file tampered or hand-edited",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"],
+      "notes": "mcp-audit lock --verify (always, offline). mcp-audit's own owned-section checksum ({lock_version, generated_by, servers}) does not match the lock file's checksum field. CRITICAL; short-circuits every other check, exit 2. Never fires on an edit inside a foreign section (e.g. trees) \u2014 checksum scope matches ownership scope, ADR-0005 \u00a710."
     }
   ],
   "dynamic_patterns": [
