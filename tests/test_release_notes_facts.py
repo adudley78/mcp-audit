@@ -17,6 +17,22 @@ Test counts are already patched by ``scripts/update_test_count.py`` from a
 live ``pytest --collect-only`` count; this module does not re-derive that
 count, it only asserts the template and README, both patched from that one
 source, still agree with each other.
+
+**R51 (2026-09-10):** the tool-poisoning and credential-exposure pattern
+counts used to be a template-vs-README cross-check only — the two docs could
+(and did) drift together to the same wrong number with this module still
+green, because it never looked at the code that actually defines the
+patterns. Both counts now import ``PATTERNS``/``SECRET_PATTERNS`` directly
+and assert every doc's stated count equals ``len()`` of the real list, not
+just each other. Everything else in this module remains a cross-check, not a
+code-derived fact, by design — see the module-level note above.
+
+Wording, section order, which integrations get a bullet, and prose flag
+descriptions remain deliberately unasserted here, same as R26's original
+scope line. The advisory-feed status line in particular is prose (its
+signing state cannot be reduced to one `len()` call the way a pattern count
+can) and there is currently no checklist of release-time claims that need a
+human re-read before tagging — this module does not attempt to build one.
 """
 
 from __future__ import annotations
@@ -206,7 +222,43 @@ def test_test_count_matches_readme() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _code_poisoning_pattern_count() -> int:
+    """Ground truth: the number of entries in ``analyzers.poisoning.PATTERNS``.
+
+    Deliberately excludes POISON-041/042 (concealment channels): those are
+    produced by a separate extract-then-rescan pass, not a ``PATTERNS`` list
+    entry, and neither doc's prose claims to count them.
+    """
+    from mcp_audit.analyzers.poisoning import PATTERNS
+
+    return len(PATTERNS)
+
+
+def _code_credential_pattern_count() -> int:
+    """Ground truth: entry count of ``analyzers.credentials.SECRET_PATTERNS``."""
+    from mcp_audit.analyzers.credentials import SECRET_PATTERNS
+
+    return len(SECRET_PATTERNS)
+
+
+def _assert_doc_matches_code(
+    fact: str, doc_path: Path, doc_value: str, code_value: int
+) -> None:
+    assert doc_value == str(code_value), (
+        f"{fact} drifted between {doc_path} and the code:\n"
+        f"  {doc_path} says: {doc_value!r}\n"
+        f"  the code actually has: {code_value!r}\n"
+        f"Update {doc_path} (or fix the pattern list if this count is genuinely wrong)."
+    )
+
+
 def test_poisoning_pattern_count_matches() -> None:
+    """Both docs' stated tool-poisoning pattern count must equal ``len(PATTERNS)``.
+
+    R51: this used to only cross-check the template against README, which
+    passed even when both said "11" against a real count of 12 — neither
+    side was ever compared to the code that defines the patterns.
+    """
     (template_val,) = _extract(
         r"tool poisoning\*\* — (\d+) patterns",
         TEMPLATE_TEXT,
@@ -219,10 +271,15 @@ def test_poisoning_pattern_count_matches() -> None:
         README_PATH,
         "tool poisoning pattern count",
     )
-    _assert_fact_matches("Tool poisoning pattern count", template_val, readme_val)
+    code_val = _code_poisoning_pattern_count()
+    fact = "Tool poisoning pattern count"
+    _assert_doc_matches_code(fact, TEMPLATE_PATH, template_val, code_val)
+    _assert_doc_matches_code(fact, README_PATH, readme_val, code_val)
 
 
 def test_credential_pattern_count_matches() -> None:
+    """Both docs' stated credential-exposure pattern count must equal
+    ``len(SECRET_PATTERNS)``. Same R51 rationale as the poisoning count above."""
     (template_val,) = _extract(
         r"Credential exposure\*\* — (\d+) patterns",
         TEMPLATE_TEXT,
@@ -235,7 +292,10 @@ def test_credential_pattern_count_matches() -> None:
         README_PATH,
         "credential pattern count",
     )
-    _assert_fact_matches("Credential pattern count", template_val, readme_val)
+    code_val = _code_credential_pattern_count()
+    fact = "Credential pattern count"
+    _assert_doc_matches_code(fact, TEMPLATE_PATH, template_val, code_val)
+    _assert_doc_matches_code(fact, README_PATH, readme_val, code_val)
 
 
 def test_sast_rule_counts_match() -> None:

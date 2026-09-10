@@ -8,7 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-(nothing yet)
+### Fixed
+
+- **The evergreen GitHub Release template (`.github/release-notes-template.md`) undersold two
+  detection counts and named a shipped feature as unshipped (R51).** "Prompt injection / tool
+  poisoning" said 11 patterns; `len(PATTERNS)` in `analyzers/poisoning.py` is 12. "Credential
+  exposure" said 9 patterns; `len(SECRET_PATTERNS)` in `analyzers/credentials.py` is 17. The
+  advisory-feed line said "experimental until a project signing key ships" — the key shipped in
+  R32 and the published feed has been signed with it since 2026-09-07; the line now says so, while
+  still flagging that the advisory record *format* remains experimental (don't build automation on
+  today's exact field layout). Matching stale counts in `README.md` and `GAPS.md` are corrected
+  too. `tests/test_release_notes_facts.py`'s two pattern-count tests now import `PATTERNS` /
+  `SECRET_PATTERNS` directly and assert against `len()`, not just against each other — the old
+  cross-check form let both docs drift to the same wrong number without ever failing. Everything
+  else in that template block (SAST rule count, exploit-fixture count, the 22-server false-positive
+  benchmark, test count, client list) was checked against the code/repo and still holds; no fix
+  needed there. This fix applies from the next tag — the already-published v0.16.0/v0.17.0 Release
+  bodies are not retroactively edited.
 
 ---
 
