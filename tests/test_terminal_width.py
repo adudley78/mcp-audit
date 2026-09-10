@@ -46,6 +46,24 @@ height=N)``. ``rich.console.Console.size`` only honours an explicit
 is identical whether or not the conftest pin exists, which is the point:
 STEP 3 is supposed to test the width a real user has, not the width the rest
 of the suite is pinned to.
+
+Also passes ``legacy_windows=False`` explicitly. Rich's own
+``Console.size`` subtracts one column whenever ``self.legacy_windows`` is
+true (``rich/console.py``, ``ConsoleDimensions(self._width -
+self.legacy_windows, ...)``), and ``legacy_windows`` auto-detects true on
+a Windows CI runner whose captured-output pipe doesn't report VT100
+support — unrelated to the column width being tested here. Without this,
+a column declared with zero safety margin (e.g. the 20-char Advisory ID
+in a `width=20` column) loses its last character on `windows-latest` CI
+but not on macOS/Linux CI, which is a CI-environment artifact, not a
+column-configuration defect. This is a pre-existing Rich behavior (Rich
+itself reserves that column to avoid worse line-wrap bugs in a real
+legacy `cmd.exe`), not something introduced by R55 — it just means a
+zero-margin column's true safety floor on an actual legacy Windows
+terminal is one column narrower than its declared width. Forcing
+``legacy_windows=False`` here keeps this file's assertions about
+Rich's column-negotiation math independent of which CI runner executes
+it.
 """
 
 from __future__ import annotations
@@ -98,7 +116,7 @@ def _render_column(
     table.add_column(overflow=overflow, no_wrap=no_wrap, width=width)
     table.add_row(value)
     buf = io.StringIO()
-    console = Console(file=buf, width=width, height=50)
+    console = Console(file=buf, width=width, height=50, legacy_windows=False)
     console.print(table)
     return _stripped(buf.getvalue())
 
@@ -439,7 +457,9 @@ class TestRegressionProof:
             ADVISORY_ID, f"npm:{PKG_LONG_BARE}", FINDING_CLASS_LONG, "MCP09, MCP03"
         )
         old_buf = io.StringIO()
-        Console(file=old_buf, width=80, height=50).print(old_table)
+        Console(file=old_buf, width=80, height=50, legacy_windows=False).print(
+            old_table
+        )
         old_output = old_buf.getvalue()
 
         # This is the failure being proven: the bug is real, not hypothetical.
