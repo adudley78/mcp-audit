@@ -14,8 +14,10 @@
 #   # throwaway commit and drift edit made inside demo/lock above.
 #
 # The drift edit below (`args[-1] += "@1.0.0"`) must match the one
-# demo/lock/run.sh makes (see STORY-0072/R57) so the README, the GIF, and
-# this script all show the same LOCK-001 output.
+# demo/lock/run.sh makes (see STORY-0072/R57, updated to target 'notion' in
+# STORY-0073/R58 — the demo no longer uses the deprecated server-github
+# package) so the README, the GIF, and this script all show the same
+# LOCK-001 output.
 #
 # If recording inside this repo's own dev checkout (rather than a plain
 # clone), temporarily move .git/hooks/pre-commit out of the way first — its
@@ -50,12 +52,12 @@ Type "git add demo/lock/mcp-lock.json && git commit -qm 'Lock approved MCP serve
 Enter
 Sleep 2s
 
-# the drift: pin the github server to a different version (same edit demo/lock/run.sh makes)
+# the drift: pin the notion server to a different version (same edit demo/lock/run.sh makes)
 Type "python3 - <<'PY'"
 Enter
 Type "import json,pathlib;p=pathlib.Path('demo/lock/.cursor/mcp.json');d=json.loads(p.read_text())"
 Enter
-Type "d['mcpServers']['github']['args'][-1]+='@1.0.0';p.write_text(json.dumps(d,indent=2))"
+Type "d['mcpServers']['notion']['args'][-1]+='@1.0.0';p.write_text(json.dumps(d,indent=2))"
 Enter
 Type "PY"
 Enter
