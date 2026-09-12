@@ -74,6 +74,25 @@ The script runs eight commands in sequence:
 
 Generated files land in `demo/output/` (gitignored).
 
+## Try `mcp-audit lock`
+
+`demo/lock/` is a separate, smaller fixture — two servers
+(`@modelcontextprotocol/server-filesystem`, `@modelcontextprotocol/server-github`)
+under `demo/lock/.cursor/mcp.json` — built specifically to reproduce the
+`lock` → drift → `lock --verify` → `lock --accept` sequence shown in the
+main [README.md](../README.md) first screen. Run it directly:
+
+```bash
+bash demo/lock/run.sh
+```
+
+It requires network (package version resolution against the npm registry),
+asserts every exit code along the way (a failed `lock --verify` after a
+one-line config edit, exit 1 with exactly one `LOCK-001`; a clean `--verify`
+after `--accept`, exit 0), and restores the fixture and deletes the
+generated `mcp-lock.json` when it finishes. See [docs/lock.md](../docs/lock.md)
+for the full `lock` reference.
+
 ## Run individual commands
 
 ```bash

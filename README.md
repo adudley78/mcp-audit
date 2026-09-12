@@ -1,8 +1,57 @@
 # mcp-audit
 
+mcp-audit is an offline security scanner and committable lock for the MCP servers your AI coding tools run.
+
 [![CI](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/adudley78/mcp-audit/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/mcp-audit.mcp-audit-vscode?label=VS%20Code%20Extension&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=mcp-audit.mcp-audit-vscode)
+[![Open VSX](https://img.shields.io/open-vsx/v/mcp-audit/mcp-audit-vscode)](https://open-vsx.org/extension/mcp-audit/mcp-audit-vscode)
+
+```bash
+pip install mcp-audit-scanner
+```
+
+> PyPI package name is `mcp-audit-scanner`; the CLI command is `mcp-audit`.
+
+## Lock the MCP servers you approved
+
+```bash
+mcp-audit lock                      # Write mcp-lock.json, commit it
+git add mcp-lock.json && git commit -m "Lock approved MCP servers"
+
+mcp-audit lock --verify             # ...someone edits a server's config...
+```
+
+```
+LOCK-001  Server drifted from lock: 'github'
+  identity: locked={'args': ['-y', '@modelcontextprotocol/server-github'], 'command': 'npx'} now={'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-github@1.0.0']}
+Lock: 2 servers checked; not verified: tools, trees (see docs/lock.md)
+```
+
+`lock --verify` exits `1` — the command CI runs to fail a pull request. Review the
+change, then approve it:
+
+```bash
+mcp-audit lock --accept
+mcp-audit lock --verify
+```
+
+```
+Lock: 2 servers verified; not verified: tools, trees (see docs/lock.md)
+```
+
+- **Records:** client, server name, package name + resolved version + integrity hash, and environment/header variable *names* — never values.
+- **Never records:** environment/header values, absolute filesystem paths, hostname, or username.
+- `lock --verify` runs entirely offline and exits non-zero on drift or on anything it could not verify.
+- `lock --accept` is the explicit "I reviewed this" step after a failed `--verify`.
+
+`lock` is experimental in this release (`lock_version` 1); the file shape may change
+before it is frozen — see [docs/lock.md](docs/lock.md).
+
+<!-- RECORDING: replace with asciinema/GIF link before Show HN -->
+
+Reproduce this exact sequence yourself: [`demo/lock/run.sh`](demo/lock/run.sh).
+
+---
 
 **Privacy-first security scanner for MCP server configurations.**
 
@@ -49,7 +98,7 @@ MCP security findings typically exist in isolation: a developer runs a scanner, 
 
 `mcp-audit`'s `--format nucleus` output and `mcp-audit push-nucleus` command align with the [Nucleus Security](https://nucleussec.com) FlexConnect schema — the same ingestion pipeline that normalizes data from Qualys, Tenable, CrowdStrike, and 200+ other security tools. Validated end-to-end against a live Nucleus instance on 2026-04-23; see [`docs/nucleus-integration.md`](docs/nucleus-integration.md).
 
-Tenable WAS has added MCP server detection plugins that scan server-side code for web vulnerabilities, but no other standalone MCP configuration scanner bridges developer-side config analysis (tool poisoning, credential exposure, toxic flows, supply chain risks) with enterprise vulnerability management. Most output to terminal or JSON and stop there.
+This carries developer-side config analysis — tool poisoning, credential exposure, toxic flows, supply chain risks — directly into that same enterprise pipeline, rather than stopping at terminal or JSON output.
 
 ## Free & open source
 
@@ -424,7 +473,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-3,541 tests validate detection accuracy and guard against regressions.
+3,544 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -644,7 +693,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 3,541 tests
+uv run pytest                        # Run all 3,544 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
