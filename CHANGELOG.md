@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+(nothing yet)
+
+---
+
+## [0.18.0] - 2026-09-12
+
+> **Why a minor bump, not a patch:** this release ships the R56 exit-code behaviour change
+> documented under Changed below. A CI pipeline that is passing today on v0.17.0 because of that
+> gap can start failing on this version with no config change on the caller's side — that is a
+> minor-version-worthy signal under 0.x, not a patch.
+
+### Added
+
+- **README now opens with the `lock` → `verify` → `accept` workflow and ships a reproducible
+  `demo/lock/` fixture that produces the exact output shown (STORY-0072).**
+
 ### Changed
 
 - **BEHAVIOUR CHANGE: `lock --verify` now exits non-zero over unresolved/unverified state, not
