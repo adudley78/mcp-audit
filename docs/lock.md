@@ -57,6 +57,9 @@ mcp-audit lock --verify
 `.claude/settings.local.json`, `.vscode/mcp.json`, `.amazonq/mcp.json`, etc.), resolves each server's
 package version, and writes `mcp-lock.json` next to the project root.
 
+Try it: [`demo/lock/`](../demo/lock/) — a small, reproducible fixture that runs this exact sequence
+(`bash demo/lock/run.sh`) and asserts every exit code along the way.
+
 ---
 
 ## What's in the file

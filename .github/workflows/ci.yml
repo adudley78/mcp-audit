@@ -88,6 +88,17 @@ jobs:
         # (tests/test_advisory_sign.py) actually runs rather than skips.
         run: pytest tests/ -x -q
 
+      - name: Run demo/lock/run.sh (README first-screen fixture)
+        # Resolves real npm package versions over the network, so it is
+        # gated on this env var (see tests/test_demo_lock.py, which runs the
+        # same script and asserts the same LOCK-001 count) rather than
+        # unconditional on every leg. This is also the ubuntu/py3.12 leg
+        # `update_test_count.py --check` below trusts to match the demo
+        # output the README shows.
+        env:
+          MCP_AUDIT_DEMO_NETWORK: "1"
+        run: bash demo/lock/run.sh
+
       - name: Verify test-count docs in sync
         # Runs in this job (all optional extras installed) so the collected
         # count matches the full 1,391-test baseline written into the docs.
