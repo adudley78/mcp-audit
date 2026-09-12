@@ -171,12 +171,66 @@ silently treated as verified: every `--verify` run (default or `--resolve`) prin
 per unresolved entry alongside the pass/finding lines, so an offline-written lock can never present
 a clean summary indistinguishable from a fully resolved one.
 
+### Unverified state now fails the exit code (R56)
+
+> **Behaviour change, v0.18.0.** Before this change, an unresolved entry or a genuinely populated
+> foreign section (e.g. a real `trees` payload from another producer) was reported honestly in the
+> printed summary and in JSON — but never affected the exit code, so a CI job reading only the exit
+> code saw a clean pass. A pipeline that was green because of this gap **may start failing** after
+> upgrading. See [Finding 2 of issue #88](https://github.com/adudley78/mcp-audit/issues/88).
+
+`lock --verify`'s exit code is now `1` when either of the following is true, in addition to an
+actual LOCK-001/002/004 drift finding:
+
+- one or more locked entries have `package.source == "unresolved"` (locked while offline, never
+  confirmed against the registry), or
+- a foreign top-level section (`trees`, `tools`, or any other key mcp-audit does not write) is
+  genuinely **populated** — i.e. holds something other than mcp-audit's own default stub
+  (`trees: {}`, `tools: null`).
+
+**mcp-audit's own default stubs never trip this.** Every lock file mcp-audit writes always includes
+the empty `trees: {}` / `null` `tools` stubs (ADR-0005 §1/§4/§11), and ADR-0005 §4's MUST — "never a
+reason to fail `lock` or `--verify`" — still holds for that default case: a project that has never
+run a `trees` generator sees no change in exit code from this release.
+
+Use `--allow-unverified` to waive unresolved entries and populated foreign sections from the exit
+code, explicitly:
+
+```bash
+mcp-audit lock --verify --allow-unverified
+```
+
+The waiver **never** hides an actual LOCK-001/002/004/005 finding — only the unresolved/foreign-content
+condition. Terminal output names exactly what was waived:
+
+```
+WAIVED by --allow-unverified: entry 'cursor/github' — locked with an unresolved version (offline at
+lock time) — never confirmed against the registry
+```
+
+`--format json` carries the same detail structurally, per item, rather than a single true/false flag:
+
+```jsonc
+{
+  "waived": true,
+  "unverified": [
+    {
+      "kind": "entry",
+      "name": "cursor/github",
+      "reason": "locked with an unresolved version (offline at lock time) — never confirmed against the registry"
+    }
+  ],
+  "exit_code": 0
+}
+```
+
 ### Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--verify` | off | Verify the existing lock instead of writing a new one |
 | `--resolve` | off | With `--verify`, also re-resolve floating specs against the registry (network; produces `LOCK-004`) |
+| `--allow-unverified` | off | With `--verify`, waive unresolved entries and populated foreign sections from the exit code (restores exit 0), printing exactly what was waived. Never waives an actual LOCK-001/002/004/005 finding. See "Unverified state now fails the exit code" above. |
 | `--accept` | off | Re-write the lock from the current state, preserving each surviving entry's `first_locked` — the explicit "I reviewed the drift" step after a failed `--verify` |
 | `--include-user` | off | Also lock user-global configs (for dotfiles repositories) |
 | `--offline` | off | Never touch the network while writing the lock |

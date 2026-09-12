@@ -5,6 +5,7 @@ from __future__ import annotations
 from mcp_audit.lock.model import (
     LOCK_VERSION,
     compute_checksum,
+    foreign_sections_with_content,
     owned_subdocument,
     unverified_sections,
 )
@@ -94,3 +95,31 @@ class TestUnverifiedSections:
             "checksum": "sha256:x",
         }
         assert unverified_sections(doc) == []
+
+
+class TestForeignSectionsWithContent:
+    """R56: the exit-code-affecting subset of unverified_sections()."""
+
+    def test_default_stubs_are_excluded(self) -> None:
+        """`trees: {}` / `tools: null` are mcp-audit's own placeholders."""
+        doc = _doc(trees={}, tools=None)
+        assert foreign_sections_with_content(doc) == []
+
+    def test_populated_trees_is_included(self) -> None:
+        doc = _doc(trees={"_producer": "mcp-lock-tree-gen", "_schema_version": 1})
+        assert foreign_sections_with_content(doc) == ["trees"]
+
+    def test_non_null_tools_is_included(self) -> None:
+        doc = _doc(trees={}, tools={"_producer": "some-connect-layer"})
+        assert foreign_sections_with_content(doc) == ["tools"]
+
+    def test_wholly_unrecognised_key_is_always_included(self) -> None:
+        """Never written by mcp-audit at all — presence alone is signal."""
+        doc = _doc(trees={})
+        doc["resolutions"] = {"_producer": "some-other-tool"}
+        assert set(foreign_sections_with_content(doc)) == {"resolutions"}
+
+    def test_subset_of_unverified_sections(self) -> None:
+        doc = _doc(trees={})  # tools=None default from _doc()
+        assert foreign_sections_with_content(doc) == []
+        assert unverified_sections(doc) == ["tools", "trees"]

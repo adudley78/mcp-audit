@@ -94,6 +94,14 @@ def lock(
         help="With --verify, also re-resolve floating specs against the "
         "registry (network; produces LOCK-004)",
     ),
+    allow_unverified: bool = typer.Option(  # noqa: B008
+        False,
+        "--allow-unverified",
+        help="With --verify, waive unresolved package versions and populated "
+        "foreign sections (e.g. a populated `trees`) from the exit code, "
+        "restoring exit 0. Prints exactly what was waived. Never waives an "
+        "actual LOCK-001/002/004/005 finding.",
+    ),
     accept: bool = typer.Option(  # noqa: B008
         False,
         "--accept",
@@ -162,6 +170,7 @@ def lock(
             registry_path,
             output_format,
             if_present=if_present,
+            allow_unverified=allow_unverified,
         )
         return
 
@@ -227,6 +236,7 @@ def _run_verify(
     output_format: str,
     *,
     if_present: bool = False,
+    allow_unverified: bool = False,
 ) -> None:
     """Handle ``lock --verify`` (and ``--verify --resolve``).
 
@@ -235,6 +245,10 @@ def _run_verify(
     This lets an Action step or pre-commit hook adopt lock verification
     unconditionally without breaking a repo that has not run `mcp-audit
     lock` yet.
+
+    With ``allow_unverified=True`` (``--allow-unverified``, R56), unresolved
+    entries and populated foreign sections no longer fail the exit code —
+    see :func:`mcp_audit.lock.verifier.verify`'s ``allow_unverified`` param.
     """
     if not lock_path.exists():
         if if_present:
@@ -252,17 +266,32 @@ def _run_verify(
     servers = _discover_lock_servers(root, include_user, console)
     registry = _load_registry(registry_path, console) if resolve else None
 
-    result = verify_lock(lock_path, servers, resolve=resolve, registry=registry)
+    result = verify_lock(
+        lock_path,
+        servers,
+        resolve=resolve,
+        registry=registry,
+        allow_unverified=allow_unverified,
+    )
 
     if output_format == "json":
         payload = {
             "checked_servers": result.checked_servers,
             "unverified_sections": result.unverified_sections,
             "unresolved_entries": result.unresolved_entries,
+            "unverified": [
+                {"kind": item.kind, "name": item.name, "reason": item.reason}
+                for item in result.unverified
+            ],
+            "waived": result.waived,
             "findings": [f.model_dump(mode="json") for f in result.findings],
             "exit_code": result.exit_code,
         }
-        console.print(json.dumps(payload, indent=2))
+        # typer.echo, not console.print: Rich soft-wraps long lines at the
+        # terminal width, which corrupts JSON once a string (e.g. a
+        # `reason`) exceeds it — R56 surfaced this once `reason` strings
+        # got long enough to trigger it.
+        typer.echo(json.dumps(payload, indent=2))
     elif output_format == "sarif":
         from mcp_audit.models import ScanResult  # noqa: PLC0415
 
@@ -286,9 +315,16 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
         console.print(f"[{color}]{finding.id}[/{color}]  {finding.title}")
         console.print(f"  {finding.evidence}")
 
-    if not result.findings:
+    if not result.findings and not result.unverified:
         console.print(
             f"[green]Lock: {result.checked_servers} servers verified[/green]", end=""
+        )
+    elif not result.findings:
+        # Findings are clean, but something was not checked (unresolved
+        # entry / populated foreign section) — R56: never say "verified"
+        # when that is not literally true, waived or not.
+        console.print(
+            f"[yellow]Lock: {result.checked_servers} servers checked[/yellow]", end=""
         )
     else:
         console.print(f"Lock: {result.checked_servers} servers checked", end="")
@@ -303,4 +339,17 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
         console.print(
             f"[yellow]WARN[/yellow] {key} was locked with an unresolved version "
             "(offline at lock time) — never treated as verified."
+        )
+
+    if result.waived:
+        for item in result.unverified:
+            console.print(
+                f"[yellow]WAIVED[/yellow] by --allow-unverified: "
+                f"{item.kind} {item.name!r} — {item.reason}"
+            )
+    elif result.unverified and result.exit_code != 0:
+        console.print(
+            "[red]Unverified state is present and not waived — exit code "
+            "reflects this. Re-run with --allow-unverified to waive "
+            "explicitly, or resolve/populate it and re-lock.[/red]"
         )

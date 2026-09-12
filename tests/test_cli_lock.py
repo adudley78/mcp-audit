@@ -144,6 +144,69 @@ class TestLockVerifyIfPresent:
         assert result.exit_code == 1
 
 
+class TestLockVerifyUnverifiedExitCode:
+    """R56 Part 1: exit code now reflects unresolved/foreign-content state."""
+
+    def _write_unresolved_lock(self, tmp_path: Path) -> None:
+        """A floating spec locked --offline never resolves a version."""
+        config_dir = tmp_path / ".cursor"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "mcp.json").write_text(
+            json.dumps(
+                {"mcpServers": {"github": {"command": "npx", "args": ["-y", "foo"]}}}
+            ),
+            encoding="utf-8",
+        )
+        runner.invoke(app, ["lock", str(tmp_path), "--offline"])
+
+    def test_unresolved_entry_now_exits_1(self, tmp_path: Path) -> None:
+        self._write_unresolved_lock(tmp_path)
+        result = runner.invoke(app, ["lock", str(tmp_path), "--verify"])
+        assert result.exit_code == 1
+        assert "WARN" in result.output
+
+    def test_allow_unverified_restores_exit_0_and_names_waived(
+        self, tmp_path: Path
+    ) -> None:
+        self._write_unresolved_lock(tmp_path)
+        result = runner.invoke(
+            app, ["lock", str(tmp_path), "--verify", "--allow-unverified"]
+        )
+        assert result.exit_code == 0
+        assert "WAIVED" in result.output
+        assert "cursor/github" in result.output
+
+    def test_allow_unverified_json_includes_waived_and_unverified_detail(
+        self, tmp_path: Path
+    ) -> None:
+        self._write_unresolved_lock(tmp_path)
+        result = runner.invoke(
+            app,
+            [
+                "lock",
+                str(tmp_path),
+                "--verify",
+                "--allow-unverified",
+                "--format",
+                "json",
+            ],
+        )
+        assert result.exit_code == 0
+        payload = json.loads(result.output)
+        assert payload["waived"] is True
+        assert payload["exit_code"] == 0
+        assert payload["unverified"][0]["name"] == "cursor/github"
+        assert payload["unverified"][0]["kind"] == "entry"
+
+    def test_clean_pinned_lock_still_exits_0_without_flag(self, tmp_path: Path) -> None:
+        """Regression guard: the default (exact-pin) fixture is unaffected."""
+        _write_cursor_config(tmp_path)
+        runner.invoke(app, ["lock", str(tmp_path), "--offline"])
+        result = runner.invoke(app, ["lock", str(tmp_path), "--verify"])
+        assert result.exit_code == 0
+        assert "WAIVED" not in result.output
+
+
 class TestLockAccept:
     def test_accept_preserves_first_locked(self, tmp_path: Path) -> None:
         _write_cursor_config(tmp_path)

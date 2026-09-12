@@ -15,10 +15,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
 
 from mcp_audit.analyzers.rug_pull import server_key
 from mcp_audit.lock.identity import build_identity
-from mcp_audit.lock.model import compute_checksum, unverified_sections
+from mcp_audit.lock.model import (
+    compute_checksum,
+    foreign_sections_with_content,
+    unverified_sections,
+)
 from mcp_audit.lock.resolve import resolve_package
 from mcp_audit.lock.writer import load_existing
 from mcp_audit.models import Finding, ServerConfig, Severity
@@ -28,17 +33,45 @@ _OWASP = ["MCP04"]
 
 
 @dataclass
+class UnverifiedItem:
+    """One thing this run could not check, with a human-readable why (R56).
+
+    ``lock --verify``'s exit code now reflects these (see :func:`verify`),
+    so the waiver flag (``--allow-unverified``) has something concrete to
+    name in its output — "the waiver must name every unverified
+    section/entry" (R56 Part 1, STEP 3) — rather than a bare count.
+    """
+
+    kind: Literal["entry", "section"]
+    name: str
+    reason: str
+
+
+@dataclass
 class VerifyResult:
     """Outcome of one ``lock --verify`` run."""
 
     findings: list[Finding] = field(default_factory=list)
     #: Top-level sections present in the lock that this run did not verify
     #: (e.g. ``["trees"]``) — ADR-0005 §3's generic, not-`trees`-specific rule.
+    #: Includes mcp-audit's own default ``trees``/``tools`` stubs (informational
+    #: only — see :attr:`unverified` for the exit-code-affecting subset).
     unverified_sections: list[str] = field(default_factory=list)
     #: Locked server keys whose ``package.source == "unresolved"`` — never
     #: silently presented as verified (ADR-0005 §8's "plausible answer
     #: instead of a complaint" guard).
     unresolved_entries: list[str] = field(default_factory=list)
+    #: Per-item detail behind the exit code (R56): one entry per unresolved
+    #: package plus one per foreign section that is genuinely populated
+    #: (excludes mcp-audit's own untouched default stubs — ADR-0005 §4's
+    #: "never a reason to fail" MUST still holds for those). Empty when
+    #: everything this run could check was fully verified.
+    unverified: list[UnverifiedItem] = field(default_factory=list)
+    #: ``True`` when :attr:`unverified` was non-empty *and* the caller passed
+    #: ``allow_unverified=True`` to :func:`verify`, restoring exit 0 for that
+    #: reason. Never ``True`` when the exit code is 1 because of an actual
+    #: LOCK-001/002/004 drift finding — the waiver does not hide real drift.
+    waived: bool = False
     checked_servers: int = 0
     exit_code: int = 0
     lock_missing: bool = False
@@ -51,6 +84,7 @@ def verify(
     *,
     resolve: bool = False,
     registry: KnownServerRegistry | None = None,
+    allow_unverified: bool = False,
 ) -> VerifyResult:
     """Compare *servers* against the lock file at *lock_path*.
 
@@ -61,12 +95,22 @@ def verify(
             (network; produces LOCK-004). Offline by default — ADR-0005 §8.
         registry: Known-server registry, consulted only when *resolve* is
             ``True``.
+        allow_unverified: Waive unresolved entries and populated foreign
+            sections from the exit code (``--allow-unverified``, R56 Part 1
+            STEP 3). Never waives an actual LOCK-001/002/004 drift finding —
+            see :attr:`VerifyResult.waived`.
 
     Returns:
         A :class:`VerifyResult`. ``exit_code`` is ``2`` when the lock is
-        missing or tampered (LOCK-005), ``1`` when any LOCK-001/002/004
-        finding exists, ``0`` otherwise — LOCK-003 alone (a server was
-        removed) never fails the exit code.
+        missing or tampered (LOCK-005); otherwise ``1`` when any
+        LOCK-001/002/004 finding exists, **or** (R56, unless waived) when
+        :attr:`VerifyResult.unverified` is non-empty — an unresolved package
+        version or a genuinely populated foreign section (not mcp-audit's own
+        default ``trees: {}``/``tools: null`` stub — ADR-0005 §4's "never a
+        reason to fail" MUST still holds for that default case) was present
+        and this run could not check it. ``0`` otherwise — LOCK-003 alone (a
+        server was removed) never fails the exit code, and neither does an
+        unresolved/foreign condition that was explicitly waived.
     """
     doc = load_existing(lock_path)
     if doc is None:
@@ -132,12 +176,39 @@ def verify(
             findings.append(_lock_003(key, entry))
 
     ids_present = {f.id for f in findings}
-    exit_code = 1 if ids_present & {"LOCK-001", "LOCK-002", "LOCK-004"} else 0
+    has_drift = bool(ids_present & {"LOCK-001", "LOCK-002", "LOCK-004"})
+
+    unverified_items: list[UnverifiedItem] = [
+        UnverifiedItem(
+            kind="entry",
+            name=key,
+            reason="locked with an unresolved version (offline at lock time) "
+            "— never confirmed against the registry",
+        )
+        for key in unresolved_entries
+    ] + [
+        UnverifiedItem(
+            kind="section",
+            name=section,
+            reason="foreign section mcp-audit did not write and cannot "
+            "verify the contents of — see docs/lock.md#trees",
+        )
+        for section in foreign_sections_with_content(doc)
+    ]
+
+    if has_drift or (unverified_items and not allow_unverified):
+        exit_code = 1
+        waived = False
+    else:
+        exit_code = 0
+        waived = bool(unverified_items) and allow_unverified
 
     return VerifyResult(
         findings=findings,
         unverified_sections=unverified_sections(doc),
         unresolved_entries=unresolved_entries,
+        unverified=unverified_items,
+        waived=waived,
         checked_servers=len(locked_servers),
         exit_code=exit_code,
     )
