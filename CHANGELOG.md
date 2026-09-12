@@ -8,7 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-(nothing yet)
+### Added
+
+- **`mcp-audit lock` now flags deprecated packages: new `SC-005` finding (STORY-0073).** When
+  `lock` (or `lock --verify --resolve`) resolves an unpinned spec to a version the package registry
+  itself marks deprecated (npm's `deprecated` field on `dist-tags.latest`), the lock entry's
+  `package.deprecated` records the registry's own message and mcp-audit emits one `SC-005`
+  (MEDIUM, `analyzer: "supply_chain"`) naming the package, version, and message. Fires only at
+  `lock` resolution and `lock --verify --resolve` — never from a plain offline `scan`, `vet`
+  (without `--online`), or `scan --check-vulns` (deferred to STORY-0074). PyPI is not covered; see
+  `GAPS.md`. See `docs/lock.md` and ADR-0005's dated addendum.
 
 ---
 

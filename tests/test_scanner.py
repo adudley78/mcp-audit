@@ -70,6 +70,41 @@ class TestOfflineConnectConflict:
         assert result is not None
 
 
+class TestDeprecatedPackageNeverFiresOnPlainScan:
+    """STORY-0073/R58 Step 8 scope cut: SC-005 fires only at `lock` resolution
+    and `lock --verify --resolve` — never from a plain offline `scan`, which
+    never re-resolves a version over the network at all."""
+
+    def test_sc_005_absent_from_offline_scan_of_deprecated_package(
+        self, tmp_path: Path
+    ) -> None:
+        config_file = tmp_path / "mcp.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "github": {
+                            "command": "npx",
+                            "args": [
+                                "-y",
+                                "@modelcontextprotocol/server-github@2025.4.8",
+                            ],
+                        }
+                    }
+                }
+            )
+        )
+        with _patch_no_known_clients():
+            result = run_scan(
+                extra_paths=[config_file],
+                offline=True,
+                connect=False,
+                skip_rug_pull=True,
+            )
+        assert result is not None
+        assert all(f.id != "SC-005" for f in result.findings)
+
+
 class TestAnalyzerCrashFinding:
     """V-04: a crashing analyzer must produce a HIGH finding."""
 

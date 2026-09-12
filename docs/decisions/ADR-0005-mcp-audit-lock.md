@@ -531,3 +531,21 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   its contents. Tracked as a declined-with-reasoning gap, consistent with `CLAUDE.md`'s
   established pattern for scope boundaries the codebase has already drawn once and should not
   redraw quietly a second time.
+- **Addendum (STORY-0073/R58, v0.18.1): `package.deprecated` — an additive field, not a
+  schema break.** Extracting frames from the lock-demo GIF (PR #121) surfaced that `mcp-audit lock`
+  had silently recorded `cursor/github` resolving to a version npm itself marks deprecated
+  ("Package no longer supported"). §7's per-entry resolution provenance already reads the manifest
+  fetched for `dist-tag:latest` resolution; this addendum threads one more field out of that same
+  fetch — no new network call, no new resolver (consistent with the "no new resolver" note in
+  `resolve.py`'s own module docstring). `deprecated` is a string or `null`, owned by mcp-audit,
+  covered by the checksum like every other field in `package` (§10 is unaffected — `servers` was
+  already in the owned checksum body; this only adds a key inside one of its sub-objects).
+  `lock_version` stays `1`: an old lock file simply lacks the key until its next `lock`/`--accept`
+  run re-resolves it (Pydantic's field default handles the read side; §6's write-on-change is
+  extended so a deprecation-status change alone — no version bump — is not silently swallowed as a
+  no-op). A non-null value emits `SC-005` (MEDIUM, `analyzer: "supply_chain"`) from the `lock` write
+  path and from `lock --verify --resolve` — deliberately **not** from a plain `lock --verify`
+  (mirrors §8's existing `--resolve`-gates-network-facts pattern for `LOCK-004`) and deliberately
+  **not** from `vet --online` or `scan --check-vulns`, which is STORY-0074 (icebox, scope-cut after
+  sizing during R58 — see `GAPS.md`). PyPI is not covered: its JSON API exposes "yanked" only
+  per-release inside `releases`, not on the `info` object the latest-version fetch reads.
