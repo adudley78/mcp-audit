@@ -47,9 +47,11 @@ Lock: 2 servers verified; not verified: tools, trees (see docs/lock.md)
 `lock` is experimental in this release (`lock_version` 1); the file shape may change
 before it is frozen — see [docs/lock.md](docs/lock.md).
 
-<!-- RECORDING: replace with asciinema/GIF link before Show HN -->
+![Terminal recording: mcp-audit lock, a drift edit, a failed --verify, then --accept and a passing --verify](docs/media/lock-demo.gif)
 
-Reproduce this exact sequence yourself: [`demo/lock/run.sh`](demo/lock/run.sh).
+Reproduce this exact sequence yourself: [`demo/lock/run.sh`](demo/lock/run.sh), or regenerate
+the recording above with [`docs/media/lock-demo.tape`](docs/media/lock-demo.tape) (`vhs
+docs/media/lock-demo.tape`).
 
 ---
 
