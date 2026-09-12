@@ -71,13 +71,14 @@ def _changelog_severities(section: str) -> dict[str, set[str]]:
     tolerates a single id naming two severities in one sentence, which
     LOCK-004 does (HIGH for a version change, CRITICAL for a same-version
     hash change).
+
+    Returns an empty dict when the section names no ``LOCK-NNN`` id at all —
+    not every release touches `lock`/`verifier.py` (e.g. v0.18.1's SC-005-only
+    section, STORY-0073/R58); this test's job is to catch a *named* LOCK id
+    whose described severity disagrees with the code, not to require every
+    release to discuss LOCK-* in the first place.
     """
     markers = list(re.finditer(r"\*\*(LOCK-\d{3})\*\*", section))
-    assert markers, (
-        "No **LOCK-NNN** mentions found in the CHANGELOG's current release "
-        f"section ({CHANGELOG_PATH}) — has the LOCK section been reworded "
-        "away from bold id markers?"
-    )
     result: dict[str, set[str]] = {}
     for index, marker in enumerate(markers):
         start = marker.end()
@@ -86,6 +87,13 @@ def _changelog_severities(section: str) -> dict[str, set[str]]:
         found = {word for word in _SEVERITY_WORDS if re.search(rf"\b{word}\b", chunk)}
         result.setdefault(marker.group(1), set()).update(found)
     return result
+
+
+def test_changelog_severities_empty_when_section_names_no_lock_id() -> None:
+    """A release section that never mentions LOCK-NNN (e.g. an SC-005-only
+    release) yields an empty dict, not an assertion failure."""
+    section = "### Added\n\n- Some unrelated change naming SC-005, not LOCK-*.\n"
+    assert _changelog_severities(section) == {}
 
 
 def test_changelog_lock_severities_match_verifier_code() -> None:
