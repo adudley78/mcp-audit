@@ -1191,7 +1191,7 @@
   "count": 23,
   "expires": "2099-01-01T00:00:00Z",
   "feed_version": "1.1",
-  "generator": "mcp-audit/0.18.0",
+  "generator": "mcp-audit/0.18.1",
   "published_at": "2026-01-31T00:00:00Z",
   "snapshot_version": 1,
   "updated": "2026-01-31T00:00:00Z"

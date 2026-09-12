@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+(nothing yet)
+
+---
+
+## [0.18.1] - 2026-09-12
+
 ### Added
 
 - **`mcp-audit lock` now flags deprecated packages: new `SC-005` finding (STORY-0073).** When
