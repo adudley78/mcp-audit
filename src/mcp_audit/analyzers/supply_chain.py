@@ -235,6 +235,68 @@ def _emit_known_cve_findings(
     return findings
 
 
+def build_deprecated_package_finding(
+    *,
+    client: str,
+    server: str,
+    config_path: str,
+    package: dict,
+) -> Finding | None:
+    """Return an SC-005 finding when *package* carries a deprecation notice.
+
+    Shared builder (STORY-0073/R58) for the two call sites that can see a
+    freshly network-resolved ``package`` dict carrying a non-null
+    ``deprecated``: the ``lock`` write path (``cli/lock.py``, iterating a
+    just-regenerated ``mcp-lock.json`` document) and ``lock --verify
+    --resolve`` (``lock/verifier.py``, re-resolving each locked entry).
+    Deliberately **not** wired into ``vet --online`` or ``scan
+    --check-vulns`` — that is STORY-0074 (icebox, post-window); see
+    ``GAPS.md``.
+
+    Args:
+        client: The MCP client name (e.g. ``"cursor"``).
+        server: The MCP server name as configured (``Finding.server``).
+        config_path: Path to the config file, for ``Finding.finding_path``.
+        package: A lock ``package`` sub-object (or equivalent dict)
+            carrying at least ``name``, ``resolved_version``, and
+            ``deprecated``.
+
+    Returns:
+        One SC-005 (MEDIUM) :class:`~mcp_audit.models.Finding`, or ``None``
+        when ``package["deprecated"]`` is falsy/absent.
+    """
+    deprecated = package.get("deprecated")
+    if not deprecated:
+        return None
+
+    pkg_name = package.get("name", "")
+    version = package.get("resolved_version") or "unknown"
+
+    return Finding(
+        id="SC-005",
+        severity=Severity.MEDIUM,
+        analyzer="supply_chain",
+        client=client,
+        server=server,
+        title=f"Deprecated package: {pkg_name} ({version})",
+        description=(
+            f"Package {pkg_name!r} version {version} is marked deprecated "
+            f"by its registry: {deprecated!r}. A deprecated package may be "
+            "unmaintained, superseded, or withdrawn without further "
+            "security patches."
+        ),
+        evidence=(
+            f"package: {pkg_name} | version: {version} | deprecated: {deprecated}"
+        ),
+        remediation=(
+            f"Check {pkg_name!r}'s registry page for a maintained "
+            "replacement and migrate off the deprecated package/version."
+        ),
+        owasp_mcp_top_10=["MCP04"],
+        finding_path=config_path,
+    )
+
+
 class SupplyChainAnalyzer(BaseAnalyzer):
     """Detect typosquatting of known-legitimate MCP npm and PyPI packages.
 

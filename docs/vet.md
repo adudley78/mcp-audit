@@ -194,6 +194,13 @@ Network failure is non-fatal — it logs a dim note and falls back to the bundle
 
 Plain `vet` (without `--online`) makes **zero** network calls.
 
+**Not yet surfaced here:** `mcp-audit lock`'s deprecated-package check
+(`SC-005` — a registry-marked-deprecated version, npm's own `deprecated`
+field) is not wired into `vet --online` or `scan --check-vulns`. It fires
+only at `lock` resolution and `lock --verify --resolve` for now — see
+[docs/lock.md](lock.md#whats-in-the-file) and `GAPS.md`. Tracked as
+STORY-0074.
+
 ---
 
 ## Typosquat detection

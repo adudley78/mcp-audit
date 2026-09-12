@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from mcp_audit.cli import app
+from mcp_audit.lock import resolve as resolve_module
 from tests.conftest import unwrapped
 
 runner = CliRunner()
@@ -205,6 +207,117 @@ class TestLockVerifyUnverifiedExitCode:
         result = runner.invoke(app, ["lock", str(tmp_path), "--verify"])
         assert result.exit_code == 0
         assert "WAIVED" not in result.output
+
+
+def _write_unpinned_github_config(root: Path) -> Path:
+    config_dir = root / ".cursor"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_path = config_dir / "mcp.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "github": {
+                        "command": "npx",
+                        "args": ["-y", "@modelcontextprotocol/server-github"],
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    return config_path
+
+
+class TestLockDeprecatedPackageSC005:
+    """STORY-0073/R58: SC-005 at `lock` resolution and `lock --verify --resolve`."""
+
+    def test_lock_emits_one_sc_005_for_deprecated_package(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2025.4.8", "Package no longer supported."),
+        )
+        _write_unpinned_github_config(tmp_path)
+
+        result = runner.invoke(app, ["lock", str(tmp_path)])
+
+        assert result.exit_code == 0
+        out = unwrapped(result.output)
+        assert out.count("SC-005") == 1
+        assert "@modelcontextprotocol/server-github" in out
+        assert "2025.4.8" in out
+        assert "Package no longer supported." in out
+
+        doc = json.loads((tmp_path / "mcp-lock.json").read_text(encoding="utf-8"))
+        assert (
+            doc["servers"]["cursor/github"]["package"]["deprecated"]
+            == "Package no longer supported."
+        )
+
+    def test_lock_emits_no_sc_005_for_non_deprecated_package(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2.5.1", None),
+        )
+        _write_unpinned_github_config(tmp_path)
+
+        result = runner.invoke(app, ["lock", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert "SC-005" not in unwrapped(result.output)
+
+    def test_lock_emits_no_sc_005_when_offline(self, tmp_path: Path) -> None:
+        """--offline never resolves a version, so `deprecated` is always null."""
+        _write_unpinned_github_config(tmp_path)
+
+        result = runner.invoke(app, ["lock", str(tmp_path), "--offline"])
+
+        assert result.exit_code == 0
+        assert "SC-005" not in unwrapped(result.output)
+
+    def test_verify_without_resolve_never_emits_sc_005(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A plain `--verify` (no --resolve) is scope-cut out — STEP 8."""
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2025.4.8", "Package no longer supported."),
+        )
+        _write_unpinned_github_config(tmp_path)
+        runner.invoke(app, ["lock", str(tmp_path)])
+
+        result = runner.invoke(app, ["lock", str(tmp_path), "--verify"])
+
+        assert "SC-005" not in unwrapped(result.output)
+
+    def test_verify_with_resolve_emits_sc_005_for_deprecated_package(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2025.4.8", None),
+        )
+        _write_unpinned_github_config(tmp_path)
+        runner.invoke(app, ["lock", str(tmp_path)])
+
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2025.4.8", "Package no longer supported."),
+        )
+        result = runner.invoke(app, ["lock", str(tmp_path), "--verify", "--resolve"])
+
+        out = unwrapped(result.output)
+        assert out.count("SC-005") == 1
+        assert "Package no longer supported." in out
 
 
 class TestLockAccept:
