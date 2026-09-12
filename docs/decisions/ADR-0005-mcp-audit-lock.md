@@ -505,6 +505,20 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   plus the "lock updated to match" consistent-change wording) — enough surface, with its own
   fixture/test needs, to warrant its own review rather than riding along with the fixer/check/scan/
   Action/pre-commit surface above. Tracked as an open follow-up, not a dropped requirement.
+- **Addendum (R56, v0.18.0): §4's "never a reason to fail" MUST is refined, not reversed.**
+  §3/§4 above establish that `lock --verify` never *claims* to have checked a foreign section, and
+  §4 says an unrecognised key is never a reason to fail. Issue [#88](https://github.com/adudley78/mcp-audit/issues/88)
+  (Finding 2) pointed out this MUST had a gap in practice: the printed summary and JSON already
+  named an unresolved entry or a populated foreign section honestly, but the *exit code* — the only
+  thing CI reads — stayed 0 regardless, reproducing the exact "clean result over a section it
+  cannot read" defect this ADR exists to prevent. The fix distinguishes two cases §4's original text
+  did not: mcp-audit's own default stub (`trees: {}`, `tools: null`, written on every `lock` run —
+  §1/§11) still never fails the exit code, because mcp-audit *did* write that value and there is
+  nothing outstanding to flag; a section genuinely populated by another producer, or an unresolved
+  package version, now does fail the exit code (`1`) unless explicitly waived with
+  `--allow-unverified`, which names exactly what it waives and never waives an actual LOCK-001/
+  002/004/005 finding. See `docs/lock.md`'s "Unverified state now fails the exit code" section for
+  the practitioner-facing detail and the CHANGELOG for the exact behaviour-change note.
 - **The `trees`-introspection acceptance criterion ("`check` reports `trees: N servers, M packages`
   in the `Lock:` line") was declined, not implemented.** Counting servers/packages inside `trees`
   would require assuming a specific internal shape for Prachet Poddar's independently-owned,

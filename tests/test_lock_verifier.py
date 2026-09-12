@@ -139,7 +139,11 @@ class TestLock005Tampered:
 
         result = verify(lock_path, [server], resolve=False, registry=None)
 
-        assert result.exit_code == 0
+        # R56: a genuinely populated foreign section now fails the exit code
+        # on its own (unverified, not LOCK-005) — the point of this test is
+        # that it is LOCK-005 (tampering) that never fires, not that the run
+        # is silently clean.
+        assert result.exit_code == 1
         assert result.findings == []
         assert "trees" in result.unverified_sections
 
@@ -160,6 +164,123 @@ class TestUnverifiedSectionsGeneric:
         assert set(result.unverified_sections) >= {"trees", "resolutions"}
 
 
+class TestR56UnverifiedExitCode:
+    """R56 Part 1: exit code now reflects unverified state, not just findings.
+
+    STEP 1's regression proof: both cases below were pinned at ``exit_code
+    == 0`` against the *unmodified* ``verify()`` (confirmed passing — see the
+    R56 PR description for the pre-fix run), then inverted in place once the
+    fix landed, so the same test now pins the corrected behaviour and would
+    catch a regression back to the old bug.
+    """
+
+    def test_unresolved_entry_now_fails_exit_code(self, tmp_path: Path) -> None:
+        server = _server(args=["-y", "foo"])  # unpinned, offline=True at write time
+        lock_path = _write_lock_for(tmp_path, [server])
+
+        result = verify(lock_path, [server], resolve=False, registry=None)
+
+        assert result.exit_code == 1  # was 0 before R56 — CI now sees this
+        assert result.unresolved_entries == ["cursor/github"]
+        assert result.waived is False
+        assert [item.name for item in result.unverified] == ["cursor/github"]
+
+    def test_populated_foreign_trees_now_fails_exit_code(self, tmp_path: Path) -> None:
+        import json
+
+        server = _server(args=["-y", "foo@1.0.0"])
+        lock_path = _write_lock_for(tmp_path, [server])
+
+        doc = json.loads(lock_path.read_text(encoding="utf-8"))
+        doc["trees"] = {
+            "_producer": "mcp-lock-tree-gen",
+            "_schema_version": 1,
+            "servers": {"github": {"deps": ["a", "b", "c"]}},
+        }
+        lock_path.write_text(json.dumps(doc), encoding="utf-8")
+
+        result = verify(lock_path, [server], resolve=False, registry=None)
+
+        assert result.exit_code == 1  # was 0 before R56 — CI now sees this
+        assert "trees" in result.unverified_sections
+        assert [item.name for item in result.unverified] == ["trees"]
+
+    def test_default_empty_trees_and_null_tools_stub_never_fails(
+        self, tmp_path: Path
+    ) -> None:
+        """ADR-0005 §4's MUST holds: mcp-audit's own stub is not "foreign"."""
+        server = _server(args=["-y", "foo@1.0.0"])
+        lock_path = _write_lock_for(tmp_path, [server])
+
+        result = verify(lock_path, [server], resolve=False, registry=None)
+
+        assert result.exit_code == 0
+        assert result.unverified_sections == ["tools", "trees"]  # reported...
+        assert result.unverified == []  # ...but never fails the exit code
+
+
+class TestAllowUnverifiedWaiver:
+    def test_allow_unverified_restores_exit_0_for_unresolved_entry(
+        self, tmp_path: Path
+    ) -> None:
+        server = _server(args=["-y", "foo"])  # unpinned, offline at write time
+        lock_path = _write_lock_for(tmp_path, [server])
+
+        result = verify(
+            lock_path, [server], resolve=False, registry=None, allow_unverified=True
+        )
+
+        assert result.exit_code == 0
+        assert result.waived is True
+        assert [item.name for item in result.unverified] == ["cursor/github"]
+
+    def test_allow_unverified_restores_exit_0_for_populated_foreign_section(
+        self, tmp_path: Path
+    ) -> None:
+        import json
+
+        server = _server(args=["-y", "foo@1.0.0"])
+        lock_path = _write_lock_for(tmp_path, [server])
+
+        doc = json.loads(lock_path.read_text(encoding="utf-8"))
+        doc["trees"] = {"_producer": "mcp-lock-tree-gen", "_schema_version": 1}
+        lock_path.write_text(json.dumps(doc), encoding="utf-8")
+
+        result = verify(
+            lock_path, [server], resolve=False, registry=None, allow_unverified=True
+        )
+
+        assert result.exit_code == 0
+        assert result.waived is True
+
+    def test_allow_unverified_does_not_waive_real_drift(self, tmp_path: Path) -> None:
+        """The waiver must not hide an actual LOCK-001/002/004 finding."""
+        server = _server(args=["-y", "foo@1.0.0"])
+        lock_path = _write_lock_for(tmp_path, [server])
+
+        drifted = _server(args=["-y", "foo@1.0.0", "--extra-flag"])
+        result = verify(
+            lock_path, [drifted], resolve=False, registry=None, allow_unverified=True
+        )
+
+        assert result.exit_code == 1
+        assert [f.id for f in result.findings] == ["LOCK-001"]
+        assert result.waived is False  # nothing to waive; drift is not waivable
+
+    def test_allow_unverified_is_a_no_op_when_nothing_is_unverified(
+        self, tmp_path: Path
+    ) -> None:
+        server = _server(args=["-y", "foo@1.0.0"])
+        lock_path = _write_lock_for(tmp_path, [server])
+
+        result = verify(
+            lock_path, [server], resolve=False, registry=None, allow_unverified=True
+        )
+
+        assert result.exit_code == 0
+        assert result.waived is False  # nothing was actually waived
+
+
 class TestUnresolvedEntriesWarned:
     def test_unresolved_entry_is_reported_not_silently_verified(
         self, tmp_path: Path
@@ -169,7 +290,6 @@ class TestUnresolvedEntriesWarned:
 
         result = verify(lock_path, [server], resolve=False, registry=None)
 
-        assert result.exit_code == 0
         assert result.unresolved_entries == ["cursor/github"]
 
 

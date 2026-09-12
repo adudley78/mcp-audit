@@ -37,6 +37,13 @@ STRUCTURAL_KEYS: frozenset[str] = frozenset(
 #: never populates or verifies their contents (ADR-0005 §1, §4, §11).
 RESERVED_FOREIGN_KEYS: frozenset[str] = frozenset({"trees", "tools"})
 
+#: The exact default stub value ``lock/writer.py::regenerate()`` writes for
+#: each reserved-but-foreign key when no other producer has populated it yet
+#: (``trees: {}``, ``tools: null``).  A key present with exactly this value is
+#: mcp-audit's own placeholder, not evidence any other producer touched the
+#: file — see :func:`foreign_sections_with_content`.
+RESERVED_FOREIGN_DEFAULTS: dict[str, object] = {"trees": {}, "tools": None}
+
 
 class LockResolution(BaseModel):
     """How and when a package's version was resolved (ADR-0005 §7)."""
@@ -152,3 +159,43 @@ def unverified_sections(doc: dict) -> list[str]:
     """
     owned_and_structural = OWNED_CHECKSUM_KEYS | STRUCTURAL_KEYS
     return sorted(k for k in doc if k not in owned_and_structural)
+
+
+def foreign_sections_with_content(doc: dict) -> list[str]:
+    """Return unverified top-level sections that carry real foreign content.
+
+    Strict subset of :func:`unverified_sections` (R56, prompted by issue #88 —
+    `humans/...` correspondence, and ADR-0005 §3's "honest partial
+    verification" MUST applied to ``lock --verify``'s *exit code*, not just
+    its printed summary line).
+
+    ``lock`` itself always writes the ``trees: {}`` / ``tools: null`` default
+    stubs (``writer.py::regenerate()``, ``RESERVED_FOREIGN_DEFAULTS`` above) —
+    their mere presence is mcp-audit's own placeholder, not evidence that any
+    other producer touched the file. Per ADR-0005 §4's MUST ("never a reason
+    to fail `lock` or `--verify`"), that default-stub case must **not** flip
+    the exit code, or every single lock file mcp-audit has ever written would
+    fail `--verify` unconditionally.
+
+    A key present with a value *other than* its declared default (Prachet
+    Poddar's tree generator has actually populated ``trees``; a future
+    ``--connect``-derived ``tools`` payload; a wholly unrecognised key
+    mcp-audit never writes at all, e.g. a synthetic ``resolutions`` sidecar)
+    means a section mcp-audit did not write and structurally cannot check is
+    genuinely present. That is the gap this function exists to catch:
+    distinct from, and narrower than, the always-present empty-stub case
+    already covered by :func:`unverified_sections`.
+
+    Args:
+        doc: The full on-disk lock document as a plain dict.
+
+    Returns:
+        Sorted list of top-level keys mcp-audit did not write and cannot
+        verify, excluding its own untouched default stubs.
+    """
+    return [
+        key
+        for key in unverified_sections(doc)
+        if key not in RESERVED_FOREIGN_DEFAULTS
+        or doc.get(key) != RESERVED_FOREIGN_DEFAULTS[key]
+    ]

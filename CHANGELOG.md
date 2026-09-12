@@ -8,6 +8,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **BEHAVIOUR CHANGE: `lock --verify` now exits non-zero over unresolved/unverified state, not
+  just over drift findings (R56).** Reported by [issue #88](https://github.com/adudley78/mcp-audit/issues/88)
+  (Finding 2): a locked entry whose version was never resolved (`package.source == "unresolved"`,
+  e.g. locked `--offline`) and a foreign top-level section (`trees`, `tools`, or anything else
+  mcp-audit does not write) that is genuinely populated by another producer were both already
+  reported honestly in the printed summary and in `--format json` — but neither affected the exit
+  code, and the exit code is the only thing CI reads. **A CI pipeline that is passing today because
+  of this gap may start failing after upgrading.** mcp-audit's own default stubs (`trees: {}`,
+  `tools: null`, written on every `lock` run) are explicitly exempt — a project that has never run
+  a `trees` generator sees no change. Use the new `--allow-unverified` flag to waive unresolved
+  entries and populated foreign sections from the exit code; it prints exactly what it waived and
+  never waives an actual `LOCK-001`/`002`/`004`/`005` finding. This is a bare exit-code change, not
+  a new finding ID — the underlying facts (`unresolved_entries`, `unverified_sections`, and the new
+  per-item `unverified`/`reason` detail) were already surfaced; only the exit code lagged behind
+  them. `--format json` gains `unverified` (per-item `{kind, name, reason}`) and `waived` fields.
+  See `docs/lock.md`'s "Unverified state now fails the exit code" section and
+  `docs/decisions/ADR-0005-mcp-audit-lock.md`'s R56 addendum.
+
 ### Fixed
 
 - **The evergreen GitHub Release template (`.github/release-notes-template.md`) undersold two
