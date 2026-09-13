@@ -334,10 +334,19 @@ class TestOutsideLockRoot:
     """A config not under the lock root is skipped, never LOCK-002/003."""
 
     def test_verify_skips_outside_root_with_no_lock_findings(
-        self, tmp_path: Path
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from mcp_audit.lock.verifier import verify
         from mcp_audit.models import ServerConfig
+
+        # pytest's tmp dir lives under $HOME on Windows GitHub runners, and
+        # relative_config_path maps $HOME-relative files to ``~/...`` (the
+        # --include-user shape) instead of "outside the lock root". Pin home
+        # so this fixture actually exercises the outside-root branch.
+        monkeypatch.setattr(
+            "mcp_audit.lock.identity.Path.home",
+            lambda *args: tmp_path / "fake-home",
+        )
 
         root = _repo(tmp_path)
         _write_config(root, ".mcp.json", _one_server())
