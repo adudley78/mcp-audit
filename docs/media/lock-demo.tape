@@ -23,6 +23,34 @@
 # clone), temporarily move .git/hooks/pre-commit out of the way first — its
 # ruff/format/count-sync output has no relevance to an end-user demo and
 # will visibly clutter the `git commit` frame. Restore it afterward.
+#
+# vhs 0.12.0 cannot encode: it logs "Creating <file>..." , exits 0, and writes
+# no file, for .gif/.mp4/.webm alike. It is not sandbox-specific — it
+# reproduces on macOS with the brew build (vhs 0.12.0 / ttyd 1.7.7 /
+# ffmpeg 9.0.1). Frame capture is fine; only the encode stage is dead, because
+# video.go's makeMedia() uses exec.CommandContext and the context is already
+# done by then, so ffmpeg is never spawned (a PATH shim over ffmpeg is never
+# called). Work around it by capturing the PNG sequence and running vhs's own
+# ffmpeg recipe yourself — add `Output recframes/` next to the Output line
+# above (relative path; absolute paths silently produce nothing), then:
+#
+#   ffmpeg -y -r 20 -start_number 1 -i recframes/frame-text-%05d.png \
+#          -r 20 -start_number 1 -i recframes/frame-cursor-%05d.png \
+#     -filter_complex "[0][1]overlay[merged];
+#       [merged]scale=1060:580:force_original_aspect_ratio=1[scaled];
+#       [scaled]fps=20,setpts=PTS/1.000000[speed];
+#       [speed]pad=1100:620:(ow-iw)/2:(oh-ih)/2:#1e1e2e[padded];
+#       [padded]fillborders=left=20:right=20:top=20:bottom=20:mode=fixed:color=#1e1e2e[padded];
+#       [padded]split[plt_a][plt_b];
+#       [plt_a]palettegen=max_colors=256[plt];
+#       [plt_b][plt]paletteuse[palette]" \
+#     -map "[palette]" docs/media/lock-demo.gif
+#
+# Those numbers are derived from the Set values below (scale = Width/Height
+# minus twice Padding; pad = Width x Height; fps = Framerate; #1e1e2e is
+# Catppuccin Mocha's background), so re-derive them if you change the Set
+# block. vhs writes frames only while visible, numbered from 1, so the
+# Hide/Show block is already excluded and -start_number 1 is correct.
 
 Output docs/media/lock-demo.gif
 Set FontSize 16
