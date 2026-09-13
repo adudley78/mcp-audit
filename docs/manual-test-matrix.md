@@ -5,14 +5,14 @@
 > update this line (and re-run all sections) after every release that
 > touches config parsing, analyzers, or CLI surface.
 >
-> **Last full run: 2026-09-13 against the shipped `v0.18.1` — NOT green.**
-> Sections 1–51 and 53–58 pass; **Sections 52, 54 and 59 fail** and are
-> labelled `KNOWN FAILING` inline. Run against both the PyPI wheel
-> (`mcp-audit-scanner==0.18.1`, clean venv) and the `v0.18.1`
-> `mcp-audit-darwin-x86_64` release binary. `mcp-audit-darwin-arm64` was
-> **not** exercised — the run host is an Intel Mac. Findings, root causes
-> and classification: `docs/manual-test-matrix-gaps-2026-09-13.md`. Do not
-> restore the "green" line above until Section 52 passes.
+> **Run complete against the shipped `v0.18.1` on 2026-09-13 — 3 regressions
+> open, see `docs/manual-test-matrix-gaps-2026-09-13.md`.** Not green.
+> Artifacts: PyPI `mcp-audit-scanner==0.18.1` wheel in a clean venv, and the
+> `v0.18.1` `mcp-audit-darwin-x86_64` release binary —
+> **`mcp-audit-darwin-arm64` was NOT exercised**, the run host is an Intel
+> Mac (R60-06). Sections 1–51 and 53–58 pass; **Sections 52, 54 and 59 fail**
+> and are labelled `KNOWN FAILING` inline. Do not restore the "green" line
+> above until Section 52 passes.
 
 Paste this file into Cursor (or run each section manually) to validate a release
 candidate.  Run all sections in order on a clean machine (or reset `$SCRATCH`
