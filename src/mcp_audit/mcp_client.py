@@ -63,7 +63,8 @@ SAFE_ENV_VARS: frozenset[str] = frozenset(
 
 # Shown to the user when the optional mcp package is absent.
 MCP_NOT_INSTALLED = (
-    "MCP SDK not installed. Run: pip install 'mcp-audit[mcp]'  or  pip install mcp"
+    "MCP SDK not installed. Run: pip install 'mcp-audit-scanner[mcp]' "
+    "or pip install mcp"
 )
 # Standalone binary: pip-installing into the frozen artifact is not possible.
 # See the four *.spec files — `mcp` is excluded the same way `sigstore` is.

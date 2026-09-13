@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import json
 import platform
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from mcp_audit.models import Finding, Severity
+
+#: ``mcp-lock.json``'s own filename. Imported here as a literal rather than
+#: from ``lock.model`` so ``discovery`` keeps no dependency on the ``lock``
+#: package (``lock`` depends on discovery, not the reverse); pinned by
+#: ``tests/test_lock_autoverify.py``.
+_LOCK_FILENAME = "mcp-lock.json"
 
 
 @dataclass
@@ -20,6 +27,35 @@ class ClientSpec:
 
 def _home() -> Path:
     return Path.home()
+
+
+def is_lock_file(path: Path) -> bool:
+    """Return ``True`` when *path* is an ``mcp-lock.json``, not an MCP config.
+
+    A lock file's top-level ``servers`` key looks exactly like a VS Code MCP
+    config root, so the explicit-directory ``*.json`` glob used to ingest a
+    project's own lock and invent a phantom server named after the lock's
+    ``<client>/<name>`` entry key (R60-01's compounding half). Two
+    independent signals, either of which is sufficient:
+
+    - the conventional filename, so a lock is skipped without being read;
+    - a top-level ``lock_version`` key, so a *renamed* lock — or any other
+      producer's lock-shaped file, e.g. an issue-#88 tree generator's
+      output — is skipped too.
+
+    Args:
+        path: A candidate JSON file.
+
+    Returns:
+        ``True`` if the file should never be parsed as an MCP config.
+    """
+    if path.name == _LOCK_FILENAME:
+        return True
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    return isinstance(data, dict) and "lock_version" in data
 
 
 def _get_client_specs() -> list[ClientSpec]:
@@ -420,6 +456,8 @@ def discover_configs(
                 continue
             resolved = expanded.resolve()
             if resolved.is_file() and resolved.exists():
+                if is_lock_file(resolved):
+                    continue
                 discovered.append(
                     DiscoveredConfig(
                         client_name="custom",
@@ -432,6 +470,8 @@ def discover_configs(
                 # root-key detection (mcpServers vs servers) and silently
                 # returns [] for files that contain neither key.
                 for candidate in sorted(resolved.glob("*.json")):
+                    if is_lock_file(candidate):
+                        continue
                     if candidate.is_symlink():
                         discovered.append(
                             DiscoveredConfig(
@@ -570,6 +610,8 @@ def discover_project_configs(
         for rel_path, client_name, root_key in _PROJECT_CONFIG_SPECS:
             candidate = dirpath / rel_path
             if candidate.is_symlink():
+                if is_lock_file(candidate):
+                    continue
                 discovered.append(
                     DiscoveredConfig(
                         client_name=client_name,
@@ -581,7 +623,7 @@ def discover_project_configs(
                     )
                 )
                 continue
-            if candidate.is_file():
+            if candidate.is_file() and not is_lock_file(candidate):
                 discovered.append(
                     DiscoveredConfig(
                         client_name=client_name,

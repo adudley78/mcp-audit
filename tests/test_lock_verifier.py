@@ -18,8 +18,21 @@ def _server(
     command: str = "npx",
     args: list[str] | None = None,
     env: dict[str, str] | None = None,
-    config_path: Path = Path("/home/tester/.cursor/mcp.json"),
+    config_path: Path | None = None,
+    *,
+    root: Path | None = None,
 ) -> ServerConfig:
+    # R61: matching is by (config relative to lock root, name). A fake
+    # ``/home/tester/...`` path is outside both the lock root and $HOME, so
+    # verify would skip it as ``outside_root`` and report the locked entry
+    # as LOCK-003. Tests that write + verify must place the config under
+    # *root* (the same directory ``_write_lock_for`` uses as lock root).
+    if config_path is None:
+        config_path = (
+            (root / ".cursor" / "mcp.json")
+            if root is not None
+            else Path("/home/tester/.cursor/mcp.json")
+        )
     return ServerConfig(
         name=name,
         client=client,
@@ -47,7 +60,7 @@ class TestMissingLock:
 
 class TestCleanVerify:
     def test_no_drift_exits_0(self, tmp_path: Path) -> None:
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
         result = verify(lock_path, [server], resolve=False, registry=None)
         assert result.findings == []
@@ -57,20 +70,22 @@ class TestCleanVerify:
 
 class TestLock001Drift:
     def test_identity_change_flags_lock_001(self, tmp_path: Path) -> None:
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
-        drifted = _server(args=["-y", "foo@1.0.0", "--extra-flag"])
+        drifted = _server(root=tmp_path, args=["-y", "foo@1.0.0", "--extra-flag"])
         result = verify(lock_path, [drifted], resolve=False, registry=None)
 
         assert result.exit_code == 1
         assert [f.id for f in result.findings] == ["LOCK-001"]
 
     def test_new_env_key_flags_lock_001(self, tmp_path: Path) -> None:
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
-        drifted = _server(args=["-y", "foo@1.0.0"], env={"NEW_TOKEN": "x"})
+        drifted = _server(
+            root=tmp_path, args=["-y", "foo@1.0.0"], env={"NEW_TOKEN": "x"}
+        )
         result = verify(lock_path, [drifted], resolve=False, registry=None)
 
         assert result.exit_code == 1
@@ -79,10 +94,10 @@ class TestLock001Drift:
 
 class TestLock002UnlockedServer:
     def test_new_server_flags_lock_002(self, tmp_path: Path) -> None:
-        server_a = _server(name="github", args=["-y", "foo@1.0.0"])
+        server_a = _server(root=tmp_path, name="github", args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server_a])
 
-        server_b = _server(name="fetch", args=["-y", "bar@1.0.0"])
+        server_b = _server(root=tmp_path, name="fetch", args=["-y", "bar@1.0.0"])
         result = verify(lock_path, [server_a, server_b], resolve=False, registry=None)
 
         assert result.exit_code == 1
@@ -93,8 +108,8 @@ class TestLock002UnlockedServer:
 
 class TestLock003MissingServer:
     def test_removed_server_flags_lock_003_but_exits_0(self, tmp_path: Path) -> None:
-        server_a = _server(name="github", args=["-y", "foo@1.0.0"])
-        server_b = _server(name="fetch", args=["-y", "bar@1.0.0"])
+        server_a = _server(root=tmp_path, name="github", args=["-y", "foo@1.0.0"])
+        server_b = _server(root=tmp_path, name="fetch", args=["-y", "bar@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server_a, server_b])
 
         result = verify(lock_path, [server_a], resolve=False, registry=None)
@@ -109,7 +124,7 @@ class TestLock005Tampered:
     def test_hand_edited_checksum_short_circuits(self, tmp_path: Path) -> None:
         import json
 
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         doc = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -126,7 +141,7 @@ class TestLock005Tampered:
         """The checkpoint-review fix: regenerating `trees` is not tampering."""
         import json
 
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         doc = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -152,7 +167,7 @@ class TestUnverifiedSectionsGeneric:
     def test_names_trees_and_a_synthetic_foreign_key(self, tmp_path: Path) -> None:
         import json
 
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         doc = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -175,7 +190,8 @@ class TestR56UnverifiedExitCode:
     """
 
     def test_unresolved_entry_now_fails_exit_code(self, tmp_path: Path) -> None:
-        server = _server(args=["-y", "foo"])  # unpinned, offline=True at write time
+        # unpinned, offline=True at write time
+        server = _server(root=tmp_path, args=["-y", "foo"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         result = verify(lock_path, [server], resolve=False, registry=None)
@@ -188,7 +204,7 @@ class TestR56UnverifiedExitCode:
     def test_populated_foreign_trees_now_fails_exit_code(self, tmp_path: Path) -> None:
         import json
 
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         doc = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -209,7 +225,7 @@ class TestR56UnverifiedExitCode:
         self, tmp_path: Path
     ) -> None:
         """ADR-0005 §4's MUST holds: mcp-audit's own stub is not "foreign"."""
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         result = verify(lock_path, [server], resolve=False, registry=None)
@@ -223,7 +239,8 @@ class TestAllowUnverifiedWaiver:
     def test_allow_unverified_restores_exit_0_for_unresolved_entry(
         self, tmp_path: Path
     ) -> None:
-        server = _server(args=["-y", "foo"])  # unpinned, offline at write time
+        # unpinned, offline at write time
+        server = _server(root=tmp_path, args=["-y", "foo"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         result = verify(
@@ -239,7 +256,7 @@ class TestAllowUnverifiedWaiver:
     ) -> None:
         import json
 
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         doc = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -255,10 +272,10 @@ class TestAllowUnverifiedWaiver:
 
     def test_allow_unverified_does_not_waive_real_drift(self, tmp_path: Path) -> None:
         """The waiver must not hide an actual LOCK-001/002/004 finding."""
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
-        drifted = _server(args=["-y", "foo@1.0.0", "--extra-flag"])
+        drifted = _server(root=tmp_path, args=["-y", "foo@1.0.0", "--extra-flag"])
         result = verify(
             lock_path, [drifted], resolve=False, registry=None, allow_unverified=True
         )
@@ -270,7 +287,7 @@ class TestAllowUnverifiedWaiver:
     def test_allow_unverified_is_a_no_op_when_nothing_is_unverified(
         self, tmp_path: Path
     ) -> None:
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         result = verify(
@@ -285,7 +302,8 @@ class TestUnresolvedEntriesWarned:
     def test_unresolved_entry_is_reported_not_silently_verified(
         self, tmp_path: Path
     ) -> None:
-        server = _server(args=["-y", "foo"])  # unpinned, offline=True at write time
+        # unpinned, offline=True at write time
+        server = _server(root=tmp_path, args=["-y", "foo"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         result = verify(lock_path, [server], resolve=False, registry=None)
@@ -303,7 +321,7 @@ class TestResolveOptIn:
             )
 
         monkeypatch.setattr(resolve_module, "resolve_latest_version_info", _boom)
-        server = _server(args=["-y", "foo@1.0.0"])
+        server = _server(root=tmp_path, args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
         result = verify(lock_path, [server], resolve=False, registry=None)
@@ -317,7 +335,7 @@ class TestResolveOptIn:
             "resolve_latest_version_info",
             lambda eco, name: ("9.9.9", None),
         )
-        server = _server(args=["-y", "foo"])  # unpinned
+        server = _server(root=tmp_path, args=["-y", "foo"])  # unpinned
         # Write offline so the lock records resolved_version=None (unresolved).
         doc = regenerate(None, [server], tmp_path, offline=True, registry=None)
         lock_path = tmp_path / "mcp-lock.json"
@@ -331,7 +349,10 @@ class TestResolveOptIn:
     def test_resolve_flag_flags_lock_004_critical_on_same_version_different_hash(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        server = _server(args=["-y", "@modelcontextprotocol/server-github@1.2.3"])
+        server = _server(
+            root=tmp_path,
+            args=["-y", "@modelcontextprotocol/server-github@1.2.3"],
+        )
         lock_path = _write_lock_for(tmp_path, [server])
 
         def _fake_resolve_package(srv, *, offline, registry, existing):  # noqa: ANN001

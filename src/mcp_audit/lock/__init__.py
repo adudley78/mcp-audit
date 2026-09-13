@@ -7,7 +7,8 @@ package is intentionally split the same way the ADR is organised:
   (which top-level sections mcp-audit owns vs. treats as foreign), and the
   owned-section checksum.
 - :mod:`mcp_audit.lock.identity` — pure identity canonicalization
-  (``canonicalize_url``), exported for STORY-0071.
+  (``canonicalize_url``) plus :func:`~mcp_audit.lock.identity.match_key`
+  (R61: ``(config, name)``, not the client label).
 - :mod:`mcp_audit.lock.resolve` — thin wrappers over
   ``vulnerability.resolver`` / ``attestation.hasher`` for package resolution.
 - :mod:`mcp_audit.lock.writer` — writes/regenerates ``mcp-lock.json``.

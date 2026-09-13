@@ -4,13 +4,24 @@
 function with no dependency on the rest of the ``lock`` package — STORY-0071
 (org allowlist interop) imports it directly rather than re-implementing the
 platform allowlist ``serverUrl`` matcher semantics a second time.
+
+:func:`match_key` is the single function that decides whether a discovered
+server *is* a given lock entry (R61). It deliberately does not consult the
+client label: the label is a property of which discovery found the file, not
+of the server, and three different entry points produce three different
+labels for the same path — see the module's own R61 note on :func:`match_key`.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from mcp_audit.models import ServerConfig
+
+#: Identity of one server for lock-matching purposes: the config file's path
+#: relative to the lock root, plus the server's name within that file.
+MatchKey = tuple[str, str]
 
 #: Ports considered "default" for their scheme and therefore dropped from
 #: the canonical form (a URL with an explicit ``:443`` and one without are
@@ -78,3 +89,82 @@ def build_identity(server: ServerConfig) -> dict[str, str | list[str]]:
     if server.url:
         return {"url": canonicalize_url(server.url)}
     return {"command": server.command or "", "args": list(server.args)}
+
+
+def normalize_config_ref(config: str) -> str:
+    """Return the canonical form of a lock entry's ``config`` string.
+
+    Tolerates the two spellings a hand-edited or foreign-producer lock might
+    carry for the same file — backslash separators and a leading ``./`` — so
+    that matching never fails on punctuation.
+
+    Args:
+        config: A relative config path as recorded in a lock entry.
+
+    Returns:
+        A forward-slash path with no leading ``./``.
+    """
+    normalized = config.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def relative_config_path(config_path: Path, root: Path) -> str | None:
+    """Return *config_path* expressed relative to *root*, or ``~``-relative.
+
+    This is the exact string recorded as a lock entry's ``config`` field —
+    never an absolute, machine-specific path (ADR-0005's "never contains an
+    absolute path" invariant).
+
+    Args:
+        config_path: Absolute path to a discovered config file.
+        root: The lock root (the directory ``mcp-lock.json`` describes).
+
+    Returns:
+        A POSIX-style relative path when *config_path* is under *root*;
+        ``~/...`` when it is under the user's home directory instead (the
+        ``lock --include-user`` dotfiles-repo case); ``None`` when it is
+        under neither, meaning this file is outside the lock's scope.
+    """
+    resolved = config_path.resolve()
+    try:
+        return resolved.relative_to(root.resolve()).as_posix()
+    except ValueError:
+        pass
+    try:
+        return f"~/{resolved.relative_to(Path.home()).as_posix()}"
+    except (ValueError, RuntimeError):
+        return None
+
+
+def match_key(config_path: Path, root: Path, name: str) -> MatchKey | None:
+    """Return the lock-matching identity of one discovered server.
+
+    R61: matching is by **(config path relative to the lock root, server
+    name)**, not by the ``<client>/<name>`` string used as the entry's key in
+    the file. The client label describes which discovery pass found the file,
+    not the server: ``lock``'s project walk labels ``.mcp.json``
+    ``claude-code``, a bare ``scan``'s cwd discovery labels the same file
+    ``claude-code-project``, and ``scan --path <file>`` labels it ``custom``.
+    Keying on the label made every server in a correctly locked repo report
+    as both LOCK-002 ("not in lock") and LOCK-003 ("locked server missing")
+    simultaneously — see ADR-0005's R61 addendum and R60-01.
+
+    The pair is also what makes one server name defined in two configs under
+    the same root unambiguous, which ``<client>/<name>`` was not.
+
+    Args:
+        config_path: Absolute path to the config file declaring the server.
+        root: The lock root.
+        name: The server's name as written in that config file.
+
+    Returns:
+        The ``(relative_config, name)`` pair, or ``None`` when *config_path*
+        is outside the lock's scope — such a server gets no LOCK findings at
+        all rather than a spurious one.
+    """
+    relative = relative_config_path(config_path, root)
+    if relative is None:
+        return None
+    return (normalize_config_ref(relative), name)

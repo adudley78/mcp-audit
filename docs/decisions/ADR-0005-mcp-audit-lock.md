@@ -572,3 +572,19 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   **not** from `vet --online` or `scan --check-vulns`, which is STORY-0074 (icebox, scope-cut after
   sizing during R58 — see `GAPS.md`). PyPI is not covered: its JSON API exposes "yanked" only
   per-release inside `releases`, not on the `info` object the latest-version fetch reads.
+
+- **Addendum (R61, v0.18.2): match by (config, name); the client label is not part of identity.**
+  R60 ran the shipped v0.18.1 matrix and found that `mcp-audit lock` → `lock --verify` (exit 0) →
+  `mcp-audit check` graded a correctly locked repo D with both `LOCK-002` and `LOCK-003` for the
+  same server. The lock key string is `<client>/<name>`, and the client label is assigned by
+  whichever discovery pass found the file: `lock`'s project walk labels `.mcp.json` `claude-code`;
+  a bare `scan`'s cwd discovery labels the same file `claude-code-project`; `scan --path <file>`
+  labels it `custom`. Matching on that string made every server simultaneously unlocked and
+  missing. This addendum does **not** unify the discovery taxonomies and does **not** change
+  `lock_version` or the file's key strings. Lookup now goes through
+  `(config path relative to the lock root, server name)` — the pair the lock already records —
+  via one function (`lock/identity.py::match_key`) shared by `lock --verify` and the
+  `scan`/`check` auto-verify path. A discovered config not under the lock root produces no LOCK
+  findings (one `WARN`, "outside the lock root"). `mcp-lock.json` is never ingested as an MCP
+  config: the explicit-directory `*.json` glob skips it by name and skips any JSON whose top
+  level has `lock_version`.

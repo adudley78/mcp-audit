@@ -19,7 +19,12 @@ from typing import Literal
 
 from mcp_audit.analyzers.rug_pull import server_key
 from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
-from mcp_audit.lock.identity import build_identity
+from mcp_audit.lock.identity import (
+    MatchKey,
+    build_identity,
+    match_key,
+    normalize_config_ref,
+)
 from mcp_audit.lock.model import (
     compute_checksum,
     foreign_sections_with_content,
@@ -77,21 +82,40 @@ class VerifyResult:
     exit_code: int = 0
     lock_missing: bool = False
     tampered: bool = False
+    #: Config files this run saw that live outside the lock root (and outside
+    #: ``$HOME``, the ``--include-user`` dotfiles shape). Such a file is not
+    #: something this lock describes, so it produces no LOCK finding in either
+    #: direction — just one warning line, so the skip is visible (R61).
+    outside_root: list[str] = field(default_factory=list)
 
 
 def verify(
     lock_path: Path,
     servers: list[ServerConfig],
     *,
+    root: Path | None = None,
     resolve: bool = False,
     registry: KnownServerRegistry | None = None,
     allow_unverified: bool = False,
 ) -> VerifyResult:
     """Compare *servers* against the lock file at *lock_path*.
 
+    A discovered server is matched to a lock entry by
+    **(config path relative to** *root* **, server name)** —
+    :func:`mcp_audit.lock.identity.match_key`, R61 — never by the
+    ``<client>/<name>`` entry key, because the client label is assigned by
+    whichever discovery pass found the file and differs between ``lock``,
+    a bare ``scan``, and ``scan --path``. That key string is still the
+    entry's id in the file and in every message.
+
     Args:
         lock_path: Path to ``mcp-lock.json``.
         servers: Currently discovered and parsed servers.
+        root: The lock root — the directory the lock's relative ``config``
+            paths are expressed against. Defaults to *lock_path*'s own
+            parent, which is correct for every case except a lock written
+            elsewhere via ``lock --output``; the CLI passes the real root
+            explicitly for that.
         resolve: Also re-resolve floating specs against the registry
             (network; produces LOCK-004). Offline by default — ADR-0005 §8.
         registry: Known-server registry, consulted only when *resolve* is
@@ -146,8 +170,10 @@ def verify(
         )
         return VerifyResult(findings=[finding], exit_code=2, tampered=True)
 
+    lock_root = root if root is not None else lock_path.resolve().parent
     locked_servers: dict = doc.get("servers", {})
-    current: dict[str, ServerConfig] = {server_key(s): s for s in servers}
+    locked_by_match = _index_locked_entries(locked_servers)
+    current, outside_root = _index_current_servers(servers, lock_root)
     findings: list[Finding] = []
 
     unresolved_entries = [
@@ -156,12 +182,12 @@ def verify(
         if (entry.get("package") or {}).get("source") == "unresolved"
     ]
 
-    for key, server in current.items():
-        if key not in locked_servers:
-            findings.append(_lock_002(key, server))
+    for match, server in current.items():
+        if match not in locked_by_match:
+            findings.append(_lock_002(server_key(server), server))
             continue
 
-        locked_entry = locked_servers[key]
+        key, locked_entry = locked_by_match[match]
         drift_finding = _check_drift(key, server, locked_entry)
         if drift_finding is not None:
             findings.append(drift_finding)
@@ -181,8 +207,8 @@ def verify(
             if deprecation_finding is not None:
                 findings.append(deprecation_finding)
 
-    for key, entry in locked_servers.items():
-        if key not in current:
+    for match, (key, entry) in locked_by_match.items():
+        if match not in current:
             findings.append(_lock_003(key, entry))
 
     ids_present = {f.id for f in findings}
@@ -221,7 +247,63 @@ def verify(
         waived=waived,
         checked_servers=len(locked_servers),
         exit_code=exit_code,
+        outside_root=outside_root,
     )
+
+
+def _index_locked_entries(
+    locked_servers: dict,
+) -> dict[MatchKey, tuple[str, dict]]:
+    """Index the lock's entries by their ``(config, name)`` match key (R61).
+
+    Args:
+        locked_servers: The lock's ``servers`` object.
+
+    Returns:
+        A mapping from match key to ``(entry_key, entry)``, where
+        ``entry_key`` is the original ``<client>/<name>`` string — still the
+        entry's id for every message and for the file's own shape. An entry
+        missing either half of the pair keeps its key string as a fallback
+        identity so a malformed lock degrades to the old behaviour for that
+        one entry rather than silently dropping it.
+    """
+    indexed: dict[MatchKey, tuple[str, dict]] = {}
+    for key, entry in locked_servers.items():
+        config = entry.get("config")
+        name = entry.get("name") or key.partition("/")[2]
+        match: MatchKey = (
+            (normalize_config_ref(config), name) if config else (key, name)
+        )
+        indexed[match] = (key, entry)
+    return indexed
+
+
+def _index_current_servers(
+    servers: list[ServerConfig], root: Path
+) -> tuple[dict[MatchKey, ServerConfig], list[str]]:
+    """Index discovered *servers* by match key, separating out-of-scope ones.
+
+    Args:
+        servers: Currently discovered and parsed servers.
+        root: The lock root.
+
+    Returns:
+        ``(by_match, outside_root)`` — the second element names the config
+        files that are under neither *root* nor ``$HOME`` and so are not
+        described by this lock at all. Those produce no LOCK finding in
+        either direction; see :attr:`VerifyResult.outside_root`.
+    """
+    by_match: dict[MatchKey, ServerConfig] = {}
+    outside: list[str] = []
+    for server in servers:
+        match = match_key(server.config_path, root, server.name)
+        if match is None:
+            path = str(server.config_path)
+            if path not in outside:
+                outside.append(path)
+            continue
+        by_match[match] = server
+    return by_match, outside
 
 
 def _lock_002(key: str, server: ServerConfig) -> Finding:
@@ -237,8 +319,7 @@ def _lock_002(key: str, server: ServerConfig) -> Finding:
         ),
         evidence=f"config: {server.config_path}",
         remediation=(
-            "If intentional, run `mcp-audit lock --accept` to add it to the "
-            "lock. If not, remove it from the configuration."
+            "Run `mcp-audit lock` to approve it (or `lock --accept` after review)."
         ),
         finding_path=str(server.config_path),
         owasp_mcp_top_10=_OWASP,
@@ -259,10 +340,7 @@ def _lock_003(key: str, entry: dict) -> Finding:
             "configured."
         ),
         evidence=f"first_locked: {entry.get('first_locked', 'unknown')}",
-        remediation=(
-            "If intentionally removed, no action needed. If unexpected, "
-            "verify your MCP configuration was not tampered with."
-        ),
+        remediation=("If the removal was intended, run `mcp-audit lock --accept`."),
         finding_path=str(entry.get("config", "")),
         owasp_mcp_top_10=_OWASP,
     )

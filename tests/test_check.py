@@ -112,10 +112,32 @@ class TestRemediationHint:
         hint = _remediation_hint(f)
         assert "127.0.0.1" in hint.lower() or "localhost" in hint.lower()
 
-    def test_cfhyg001_pin_instruction(self) -> None:
+    def test_cfhyg001_permissions_instruction(self) -> None:
         f = _make_finding(finding_id="CFHYG-001")
         hint = _remediation_hint(f)
-        assert "pin" in hint.lower() or "version" in hint.lower()
+        assert "permission" in hint.lower() or "chmod" in hint.lower()
+
+    def test_hint_nouns_match_finding_ids(self) -> None:
+        """Each CFHYG / LOCK / SC hint must mention the right noun (R61 Part 5)."""
+        expected = {
+            "CFHYG-001": ("permission", "chmod"),
+            "CFHYG-002": ("directory", "writable", "permission"),
+            "CFHYG-003": ("secret", "environment"),
+            "CFHYG-004": ("environment", "credential"),
+            "CFHYG-005": ("hook",),
+            "CFHYG-006": ("anthropic", "url"),
+            "LOCK-001": ("lock",),
+            "LOCK-002": ("lock",),
+            "LOCK-003": ("lock",),
+            "LOCK-004": ("pin", "lock", "version"),
+            "LOCK-005": ("lock",),
+            "SC-001": ("package", "fix"),
+            "SC-002": ("package", "fix"),
+            "SC-003": ("package", "registry"),
+        }
+        for finding_id, nouns in expected.items():
+            hint = _remediation_hint(_make_finding(finding_id=finding_id)).lower()
+            assert any(n in hint for n in nouns), (finding_id, hint)
 
     def test_unknown_id_falls_back_to_remediation_text(self) -> None:
         f = _make_finding(

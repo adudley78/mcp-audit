@@ -1531,10 +1531,11 @@ and informational at lock time, not a verification failure.
 
 ## Section 52 — scan / check auto-verify the nearest mcp-lock.json
 
-> **KNOWN FAILING as of v0.18.1 — see `docs/manual-test-matrix-gaps-2026-09-13.md`
-> (R60-01).** Recorded here as the contract, not as a passing section. Do not
-> file this as a fresh regression; do not mark the matrix green until it
-> passes.
+> **Fixed in v0.18.2 (R61).** Matching is by (config path relative to the lock
+> root, server name), not the client label. Re-run against the R61 branch on
+> 2026-09-13: `lock --verify` exit 0, `check` Grade B with
+> `Lock: verified (1 server)`, **no** `LOCK-*` findings, same grade as
+> `--no-lock`. `scan --path .mcp.json` also emits zero `LOCK-*`.
 
 ```bash
 mkdir -p "$SCRATCH/autoverify" && cd "$SCRATCH/autoverify" && git init -q .
@@ -1667,8 +1668,9 @@ bug. Note `agent-files scan --format json` emits a bare JSON array (not a
 
 ## Section 54 — CRED-003 (secret in an auth header), severity and fix
 
-> **PARTIALLY KNOWN FAILING as of v0.18.1 — R60-02 and R60-03 in
-> `docs/manual-test-matrix-gaps-2026-09-13.md`.**
+> **R60-02 fixed in v0.18.2** (`CRED-003` is now in `_FIX_TYPE_IDS["credentials"]`;
+> `fix --apply` preserves the `Bearer ` prefix). **R60-03 remains** (placeholder
+> + scheme prefix still HIGH — icebox STORY-0076).
 
 ```bash
 python3 - "$SCRATCH/cred003.json" <<'PY'
@@ -1694,12 +1696,9 @@ echo "exit: $?"
 
 **Expected:** a unified diff replacing the secret with
 `"Bearer ${AUTHORIZATION}"` — the `Bearer ` scheme prefix is **preserved**,
-only the credential is redacted. **Actual (v0.18.1):** "No fixable findings
-in this scan.", exit 0 — `_FIX_TYPE_IDS["credentials"]` in
-`fixer/fixer.py` is `{"CRED-001", "CRED-002"}`, so `CRED-003` is filtered out
-before `CredentialsFixStrategy.can_fix()` (which accepts it) is consulted,
-making the implemented `_fix_header()` unreachable. `check` nevertheless
-prints "Run `mcp-audit fix --apply` to auto-remediate [CRED-003]".
+only the credential is redacted. (`check` already printed
+"Run `mcp-audit fix --apply` to auto-remediate [CRED-003]"; the apply path
+now reaches `_fix_header()`.)
 
 ```bash
 python3 - "$SCRATCH/cred003-ph.json" <<'PY'
@@ -1929,11 +1928,9 @@ command that includes the extra in brackets and the real distribution name:
 `pip install 'mcp-audit-scanner[attestation]'`,
 `pip install 'mcp-audit-scanner[mcp]'`.
 
-**Actual (v0.18.1) — R60-04 / R60-05:** the bracketed extra is silently
-deleted from all three, because the print sites interpolate exception text
-into `console.print()` and Rich parses `[sbom]` as a style tag. The
-`--connect` message additionally names distribution `mcp-audit`, which is
-**unclaimed on PyPI** (404); ours is `mcp-audit-scanner`.
+**Fixed in v0.18.2 (R60-04 / R60-05):** hints use `rich.markup.escape` /
+`markup=False` so `[sbom]` / `[mcp]` / `[attestation]` survive, and they
+name `mcp-audit-scanner`.
 
 ---
 

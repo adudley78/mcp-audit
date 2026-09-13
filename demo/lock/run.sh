@@ -46,6 +46,15 @@ if [ ! -f "$LOCK_FILE" ]; then
     exit 1
 fi
 
+echo ""
+echo "=== a2. mcp-audit scan demo/lock (expect no LOCK-* on a just-locked repo) ==="
+SCAN_OUTPUT="$($MCP_AUDIT scan "$DEMO_DIR" 2>&1 || true)"
+if printf '%s\n' "$SCAN_OUTPUT" | grep -q "LOCK-"; then
+    echo "FAIL: scan of a just-locked repo reported LOCK findings:" >&2
+    echo "$SCAN_OUTPUT" >&2
+    exit 1
+fi
+
 # An offline (or network-degraded) resolution writes package.source ==
 # "unresolved" instead of "registry"/"known_hashes". Asserting drift on an
 # unresolved lock would lie about what the demo is showing (R56 makes an
