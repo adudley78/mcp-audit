@@ -1,18 +1,19 @@
 # mcp-audit Manual Test Matrix
 
-> Last run green against commit `6143455c55d6ff35ffce00ab68dccde5386c18e1`
-> on 2026-09-08. A matrix with no such line cannot be known to be stale —
-> update this line (and re-run all sections) after every release that
+> Last run green against commit `109221328741803532ec630c7e4a6d86ea6844ff`
+> (`v0.18.2`) on 2026-09-13. A matrix with no such line cannot be known to be
+> stale — update this line (and re-run all sections) after every release that
 > touches config parsing, analyzers, or CLI surface.
 >
-> **Run complete against the shipped `v0.18.1` on 2026-09-13 — 4 regressions
-> open, see `docs/manual-test-matrix-gaps-2026-09-13.md`.** Not green.
-> Artifacts: PyPI `mcp-audit-scanner==0.18.1` wheel in a clean venv, and the
-> `v0.18.1` `mcp-audit-darwin-x86_64` release binary —
-> **`mcp-audit-darwin-arm64` was NOT exercised**, the run host is an Intel
-> Mac (R60-06). Sections 1–51 and 53–58 pass; **Sections 52, 54 and 59 fail**
-> and are labelled `KNOWN FAILING` inline. Do not restore the "green" line
-> above until Section 52 passes.
+> Sections 46–59 re-run against the R61 dev build, then the README first-screen
+> + `check` sequence against a clean-venv `mcp-audit-scanner==0.18.2`:
+> `lock --verify` exit 0, `check` Grade B, **no** `LOCK-*`, same grade as
+> `--no-lock`. arm64 evidence is the v0.18.2 release build
+> ([`release.yml` run](https://github.com/adudley78/mcp-audit/actions/runs/34771200271),
+> [Build darwin-arm64](https://github.com/adudley78/mcp-audit/actions/runs/34771200271/job/103760999465)
+> — `scripts/smoke_test.py` Check 17 lock round-trip). R60-03 (CRED-003
+> placeholder + `Bearer ` prefix still HIGH) remains labelled in Section 54
+> (icebox STORY-0076); it is not launch-blocking.
 
 Paste this file into Cursor (or run each section manually) to validate a release
 candidate.  Run all sections in order on a clean machine (or reset `$SCRATCH`
