@@ -12,6 +12,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.18.2] - 2026-09-13
+
+### Fixed
+
+- **`scan`/`check` auto-verify no longer reports every locked server as both
+  unlocked and missing (R60-01).** `mcp-audit lock` → `lock --verify` (exit 0)
+  → `mcp-audit check` used to grade D/F with `LOCK-002` and `LOCK-003` for the
+  same server, because matching used the `<client>/<name>` key and the client
+  label differs across discovery paths (`claude-code` vs `claude-code-project`
+  vs `custom`). Matching is now by **(config path relative to the lock root,
+  server name)**. The lock file's key strings and `lock_version` are unchanged.
+  A config outside any lock root produces no LOCK findings and one WARN.
+  `mcp-lock.json` is never ingested as a config (by name and by a top-level
+  `lock_version` key).
+- **`fix --fix-type credentials` remediates CRED-003 (R60-02).** Header-embedded
+  secrets were advertised as auto-fixable by `check` but filtered out before
+  the credentials strategy ran. The `Bearer ` scheme prefix is preserved.
+- **Install hints name the real distribution and keep extras visible.**
+  `--connect` / SBOM / snapshot messages now say `mcp-audit-scanner[mcp]` /
+  `[sbom]` / `[attestation]`; Rich no longer swallows the bracketed extra.
+- **README no longer claims the published advisory feed is unsigned.** The
+  weekly feed has been signed with the project minisign key since 2026-09-07;
+  the record format remains experimental. `examples/feed/` stays unsigned.
+- **`check` CFHYG-* remediation hints describe the finding they sit under.**
+  The six rows were systematically offset (world-readable → "pin a version").
+
+---
+
 ## [0.18.1] - 2026-09-12
 
 ### Added
