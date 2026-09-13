@@ -22,8 +22,8 @@ mcp-audit lock --verify             # ...someone edits a server's config...
 ```
 
 ```
-LOCK-001  Server drifted from lock: 'github'
-  identity: locked={'args': ['-y', '@modelcontextprotocol/server-github'], 'command': 'npx'} now={'command': 'npx', 'args': ['-y', '@modelcontextprotocol/server-github@1.0.0']}
+LOCK-001  Server drifted from lock: 'notion'
+  identity: locked={'args': ['-y', '@notionhq/notion-mcp-server'], 'command': 'npx'} now={'command': 'npx', 'args': ['-y', '@notionhq/notion-mcp-server@1.0.0']}
 Lock: 2 servers checked; not verified: tools, trees (see docs/lock.md)
 ```
 

@@ -4,11 +4,11 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"]
     },
-    "github": {
+    "notion": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "args": ["-y", "@notionhq/notion-mcp-server"],
       "env": {
-        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+        "NOTION_TOKEN": "${NOTION_TOKEN}"
       }
     }
   }

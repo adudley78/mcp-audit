@@ -66,7 +66,7 @@ sys.exit(0 if unresolved else 1)
 fi
 
 echo ""
-echo "=== b. edit demo/lock/.cursor/mcp.json (github package spec) ==="
+echo "=== b. edit demo/lock/.cursor/mcp.json (notion package spec) ==="
 # python3, not sed -i: identical behavior on macOS (BSD sed) and Linux (GNU sed).
 python3 - "$CONFIG" <<'PY'
 import json
@@ -75,7 +75,7 @@ import sys
 path = sys.argv[1]
 with open(path, encoding="utf-8") as f:
     data = json.load(f)
-data["mcpServers"]["github"]["args"][-1] += "@1.0.0"
+data["mcpServers"]["notion"]["args"][-1] += "@1.0.0"
 with open(path, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
     f.write("\n")
