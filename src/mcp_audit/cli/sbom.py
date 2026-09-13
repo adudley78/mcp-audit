@@ -160,7 +160,9 @@ def sbom(
         try:
             content = CycloneDxFormatter().format(scan_result)
         except ImportError as exc:
-            console.print(f"[red]Error:[/red] {exc}")
+            from rich.markup import escape  # noqa: PLC0415
+
+            console.print(f"[red]Error:[/red] {escape(str(exc))}")
             raise typer.Exit(2) from None
         if output:
             output.parent.mkdir(parents=True, exist_ok=True)

@@ -291,4 +291,4 @@ def print_results(
     if result.errors:
         console.print("[yellow bold]Errors:[/yellow bold]")
         for error in result.errors:
-            console.print(f"  ⚠ {error}", style="yellow")
+            console.print(f"  ⚠ {error}", style="yellow", markup=False)

@@ -1164,7 +1164,7 @@ def scan(
         help=(
             "Connect to running MCP servers via the protocol handshake and "
             "analyze live tool descriptions "
-            "(requires: pip install 'mcp-audit\\[mcp]')"
+            "(requires: pip install 'mcp-audit-scanner\\[mcp]')"
         ),
     ),
     connect_token: str | None = typer.Option(  # noqa: B008

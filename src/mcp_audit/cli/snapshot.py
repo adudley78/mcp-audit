@@ -337,7 +337,9 @@ def snapshot(  # noqa: PLR0912, PLR0913, PLR0915
             sig_path = sign_snapshot(written_path)
             _err.print(f"[green]Signed:[/green] {sig_path}")
         except ImportError as exc:
-            _err.print(f"[red]Error:[/red] {exc}")
+            from rich.markup import escape  # noqa: PLC0415
+
+            _err.print(f"[red]Error:[/red] {escape(str(exc))}")
             raise typer.Exit(2) from exc
         except RuntimeError as exc:
             _err.print(f"[red]Error:[/red] Signing failed: {exc}")
