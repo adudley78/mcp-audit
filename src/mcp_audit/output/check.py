@@ -121,21 +121,29 @@ _HINTS: dict[str, str] = {
     ),
     # Config hygiene
     "CFHYG-001": (
-        "Pin the package to an explicit version (e.g. @2.1.0)"
-        " to prevent unexpected updates."
+        "Restrict the config file permissions (chmod 600) so other users"
+        " cannot read it."
     ),
-    "CFHYG-002": "Remove unused or disabled server entries from the config.",
+    "CFHYG-002": (
+        "Move the config out of this world-writable directory, or restrict"
+        " the directory's write permissions."
+    ),
     "CFHYG-003": (
-        "Replace the wildcard tool-activation pattern"
-        " with an explicit list of allowed tools."
+        "Replace the inline secret with an environment-variable reference"
+        " (e.g. ${MY_API_KEY})."
     ),
     "CFHYG-004": (
-        "Use a specific version tag instead of 'latest' to get deterministic behaviour."
+        "No action needed — environment-variable references are the right"
+        " way to hold credentials."
     ),
     "CFHYG-005": (
-        "Remove environment variable names that look like placeholders or test values."
+        "Review every hook command in this file; Claude Code will execute them"
+        " as shell. Restrict who can write the hooks section."
     ),
-    "CFHYG-006": ("Remove or update the stale server entry — it appears to be unused."),
+    "CFHYG-006": (
+        "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
+        " — a third-party base URL receives every API call and its secrets."
+    ),
     # Baseline drift
     "DRIFT": (
         "Review this change. If intentional,"
