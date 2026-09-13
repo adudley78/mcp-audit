@@ -153,11 +153,11 @@ _HINTS: dict[str, str] = {
     ),
     "LOCK-002": (
         "This server is not in the lock."
-        " Run `mcp-audit lock` to add it once you've reviewed it."
+        " Run `mcp-audit lock` to approve it (or `lock --accept` after review)."
     ),
     "LOCK-003": (
         "This server is in the lock but no longer in your config."
-        " Run `mcp-audit lock` to remove it, or restore the server."
+        " If the removal was intended, run `mcp-audit lock --accept`."
     ),
     "LOCK-004": "Run `mcp-audit fix --apply` to re-pin to the locked version.",
     "LOCK-005": (
@@ -359,6 +359,11 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
         console.print(
             f"  [yellow]WARN:[/yellow] {key!r} was locked offline — "
             "version/hash not confirmed."
+        )
+    if status.outside_root:
+        console.print(
+            "  [yellow]WARN:[/yellow] config(s) outside the lock root "
+            "were skipped (no LOCK findings)."
         )
 
 

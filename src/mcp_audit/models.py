@@ -257,6 +257,10 @@ class LockStatus(BaseModel):
     #: ``lock/model.py::unverified_sections()``; mcp-audit never assumes an
     #: internal shape for a foreign section, so this can only ever name it.
     unverified_sections: list[str] = Field(default_factory=list)
+    #: Config files seen during verification that live outside every lock
+    #: root consulted — not described by any lock, so they produce no LOCK
+    #: finding in either direction (R61). Named here so the skip is visible.
+    outside_root: list[str] = Field(default_factory=list)
 
 
 class ScanResult(BaseModel):

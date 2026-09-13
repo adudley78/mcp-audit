@@ -1037,6 +1037,11 @@ def _apply_lock_verification(
             f"(locked offline; version/hash not confirmed): "
             f"{', '.join(status.unresolved_entries)}"
         )
+    if status.outside_root:
+        con.print(
+            "[yellow]WARN[/yellow] config(s) outside the lock root were "
+            "skipped (no LOCK findings)"
+        )
     if lock_findings:
         con.print(
             f"[dim]Lock: {status.findings} finding(s) across "

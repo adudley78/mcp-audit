@@ -375,6 +375,12 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
             "(offline at lock time) — never treated as verified."
         )
 
+    if result.outside_root:
+        console.print(
+            "[yellow]WARN[/yellow] config(s) outside the lock root were "
+            "skipped (no LOCK findings): " + ", ".join(result.outside_root)
+        )
+
     if result.waived:
         for item in result.unverified:
             console.print(

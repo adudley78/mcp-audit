@@ -27,6 +27,12 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
     every group's :class:`~mcp_audit.lock.verifier.VerifyResult` into one
     flat finding list plus a summary :class:`~mcp_audit.models.LockStatus`.
 
+    Each group is verified against its own lock file's directory as the lock
+    root, which is what makes the ``(config, name)`` match key (R61) resolve
+    to the same pair ``mcp-audit lock`` recorded — the grouping key *is* the
+    root, since :func:`~mcp_audit.lock.discovery.find_lock_for` walks up from
+    the config file to find it.
+
     Args:
         servers: All servers discovered for this scan/check run.
 
@@ -50,12 +56,14 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
     total_checked = 0
     unresolved: list[str] = []
     unverified_sections: set[str] = set()
+    outside_root: list[str] = []
     for lock_path, group_servers in groups.items():
-        result = verify_lock(lock_path, group_servers)
+        result = verify_lock(lock_path, group_servers, root=lock_path.parent)
         all_findings.extend(result.findings)
         total_checked += result.checked_servers
         unresolved.extend(result.unresolved_entries)
         unverified_sections.update(result.unverified_sections)
+        outside_root.extend(result.outside_root)
 
     verified = not any(f.id in _DRIFT_IDS for f in all_findings)
     status = LockStatus(
@@ -66,5 +74,6 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
         lock_paths=sorted(str(p) for p in groups),
         unresolved_entries=unresolved,
         unverified_sections=sorted(unverified_sections),
+        outside_root=sorted(set(outside_root)),
     )
     return all_findings, status

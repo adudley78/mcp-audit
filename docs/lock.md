@@ -298,14 +298,19 @@ skip the file.
   semver range collapsed to an exact pin is called out explicitly in the fix message.
 - **`mcp-audit check` and `mcp-audit scan`** auto-verify the nearest ancestor `mcp-lock.json` for
   every scanned server, when one exists — no flag required. `--no-lock` opts out entirely. A
-  project with no lock file anywhere sees zero change in behaviour or output. Unlike every other
-  post-scoring finding source (baseline drift, governance, SAST, extensions, agent-files), LOCK
-  findings **do** recompute the scan score and grade — this is deliberate, not an inconsistency.
+  project with no lock file anywhere sees zero change in behaviour or output. Matching is by
+  **(config path relative to the lock root, server name)**, not by the `<client>/<name>` string
+  used as the entry's id in the file — that string is a label, not identity (R61). A discovered
+  config whose path is not under the lock root produces **no** LOCK findings and one `WARN`
+  ("outside the lock root"). `mcp-lock.json` itself is never ingested as an MCP config. Unlike every
+  other post-scoring finding source (baseline drift, governance, SAST, extensions, agent-files),
+  LOCK findings **do** recompute the scan score and grade — this is deliberate, not an inconsistency.
   `check`'s one-page verdict gets a `Lock: verified (N servers)` line (or a finding-count summary on
   drift), plus one `WARN` per entry that was locked offline and never confirmed. `check --json` gets
-  a `lock_status: {present, verified, findings, checked_servers, lock_paths, unresolved_entries}`
-  object mirroring `feed_status`'s shape. A monorepo with several `mcp-lock.json` files verifies each
-  project config against its own nearest ancestor lock, never a sibling's.
+  a `lock_status: {present, verified, findings, checked_servers, lock_paths, unresolved_entries,
+  unverified_sections, outside_root}` object mirroring `feed_status`'s shape. A monorepo with several
+  `mcp-lock.json` files verifies each project config against its own nearest ancestor lock, never a
+  sibling's.
 - **The GitHub Action** (`action.yml`) gains `lock-verify` (default `false`) and `lock-resolve`
   (default `false`). When `lock-verify: true`, the action runs `mcp-audit lock --verify --if-present`
   and fails the step on `LOCK-001`/`002`/`004`/`005` regardless of `severity-threshold` (still

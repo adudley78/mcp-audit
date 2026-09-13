@@ -24,7 +24,7 @@ from pathlib import Path
 from mcp_audit import __version__
 from mcp_audit.advisory.canonical import CanonicalError, canonicalize
 from mcp_audit.analyzers.rug_pull import compute_hashes, server_key
-from mcp_audit.lock.identity import build_identity
+from mcp_audit.lock.identity import build_identity, relative_config_path
 from mcp_audit.lock.model import (
     LOCK_VERSION,
     RESERVED_FOREIGN_KEYS,
@@ -73,6 +73,12 @@ def _relative_config_path(config_path: Path, root: Path) -> str:
     Never an absolute, machine-specific path — ADR-0005's "never contains an
     absolute path" invariant.
 
+    Delegates to :func:`mcp_audit.lock.identity.relative_config_path` so the
+    string written here is byte-identical to the one
+    :func:`mcp_audit.lock.identity.match_key` computes at verify time (R61) —
+    the two must never drift, since that string is now half of a server's
+    lock identity.
+
     Args:
         config_path: The absolute path to a discovered config file.
         root: The project root ``lock`` was run against.
@@ -80,18 +86,11 @@ def _relative_config_path(config_path: Path, root: Path) -> str:
     Returns:
         A POSIX-style relative path (project-relative when under *root*,
         ``~/...`` when under ``$HOME``, otherwise just the file name as a
-        last resort).
+        last resort — a file under neither is out of the lock's scope and
+        ``verify`` will skip it, so that fallback is a label, not a key).
     """
-    resolved = config_path.resolve()
-    try:
-        return resolved.relative_to(root.resolve()).as_posix()
-    except ValueError:
-        pass
-    try:
-        home = Path.home()
-        return f"~/{resolved.relative_to(home).as_posix()}"
-    except (ValueError, RuntimeError):
-        return resolved.name
+    relative = relative_config_path(config_path, root)
+    return relative if relative is not None else config_path.resolve().name
 
 
 def build_entry(
