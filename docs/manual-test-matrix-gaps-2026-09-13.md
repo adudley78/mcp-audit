@@ -148,11 +148,38 @@ the PR description and summarised here.
 | R60-04 | MATRIX-GAP (long-standing defect, predates `6143455`) | POST-LAUNCH |
 | R60-05 | MATRIX-GAP (long-standing defect, predates `6143455`) | POST-LAUNCH |
 | R60-06 | ENV | n/a — needs an Apple Silicon host |
+| R60-07 | REGRESSION (docs contradict behaviour) | POST-LAUNCH |
 
 ### R60-01 — `scan`/`check` lock auto-verify contradicts `lock --verify` (LAUNCH-BLOCKING)
 
 On a project that `lock --verify` reports as **clean**, `check` reports
 **Grade F** with `Server not in lock` for the server just locked, and exits 1.
+
+Reproduced with the **literal README commands** — no path arguments, which is
+the form the first screen actually shows:
+
+```
+$ mcp-audit lock
+Locked 1 server(s).   claude-code/notion  2.5.1              [exit 0]
+
+$ mcp-audit lock --verify
+Lock: 1 servers verified; not verified: tools, trees          [exit 0]
+
+$ mcp-audit check
+  Grade: D  (Score: 55/100)
+  Lock: 2 finding(s) across 1 locked server
+  4. [HIGH]   Server not in lock: 'notion'
+     -> This server is not in the lock. Run `mcp-audit lock` to add it once
+        you've reviewed it.
+  5. [MEDIUM] Locked server missing: 'notion'
+     -> This server is in the lock but no longer in your config. Run
+        `mcp-audit lock` to remove it, or restore the server.    [exit 1]
+```
+
+The two remediation hints contradict each other about the same server, and
+both tell the user to run `mcp-audit lock` — which changes nothing, because
+the lock is already correct. There is no escape from the loop except
+`--no-lock`.
 
 Root cause: the lock key is `<client>/<name>`, and the client label for the
 same server differs per entry point — `lock` writes `claude-code`, `scan
@@ -214,6 +241,33 @@ R60-05 is the separate, sharper half: `scan --connect` names distribution
 ours is `mcp-audit-scanner`). A supply-chain scanner that detects typosquatting
 is telling users to `pip install` a name it does not own. Also at
 `mcp_client.py:66` and `scanner.py:412`.
+
+### R60-07 — README says the published feed is unsigned; it is signed (POST-LAUNCH)
+
+`README.md:86` states the advisory feed is "a weekly **unsigned** build … 
+(signing is not live yet)". The live feed disagrees:
+
+```
+$ curl -fsSL .../feed/index.json | …
+feed_version: 1.1
+snapshot_version: 5
+signing block present: True
+signing: {"backend": "minisign", "mode": "key", …}
+
+$ curl -sI .../feed/index.json.sig     # → 200
+```
+
+Section 37 of the matrix verifies the live feed *as signed*
+(`feed verify --key-alt minisign`) and it passes. This is R32's work
+(real minisign project key, `feed-signing` environment, first signed publish
+2026-09-07, corrected `index.json.sig` copy at snapshot_version 5) — the
+README was simply never updated.
+
+Unusually, this drift **understates** the product: "Signed advisory feed" is a
+headline bullet whose own body says signing is not live, on a launch where a
+reader could reasonably ding the project for shipping an unsigned feed it
+already signs. Not edited here because this prompt forbids touching
+`README.md`; flagged for a separate decision.
 
 ### R60-06 — `mcp-audit-darwin-arm64` not validated (ENV)
 

@@ -5,7 +5,7 @@
 > update this line (and re-run all sections) after every release that
 > touches config parsing, analyzers, or CLI surface.
 >
-> **Run complete against the shipped `v0.18.1` on 2026-09-13 — 3 regressions
+> **Run complete against the shipped `v0.18.1` on 2026-09-13 — 4 regressions
 > open, see `docs/manual-test-matrix-gaps-2026-09-13.md`.** Not green.
 > Artifacts: PyPI `mcp-audit-scanner==0.18.1` wheel in a clean venv, and the
 > `v0.18.1` `mcp-audit-darwin-x86_64` release binary —
