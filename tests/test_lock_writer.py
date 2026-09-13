@@ -140,7 +140,9 @@ class TestResolvedAtWriteOnChange:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
-            resolve_module, "resolve_latest_version", lambda eco, name: "2.0.0"
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2.0.0", None),
         )
         root = Path("/home/tester/project")
         server = _server(args=["-y", "foo"])  # unpinned -> dist-tag:latest
@@ -158,7 +160,9 @@ class TestResolvedAtWriteOnChange:
     def test_updates_on_version_change(self, monkeypatch: pytest.MonkeyPatch) -> None:
         versions = iter(["2.0.0", "3.0.0"])
         monkeypatch.setattr(
-            resolve_module, "resolve_latest_version", lambda eco, name: next(versions)
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: (next(versions), None),
         )
         root = Path("/home/tester/project")
         server = _server(args=["-y", "foo"])
@@ -172,6 +176,121 @@ class TestResolvedAtWriteOnChange:
         pkg2 = doc2["servers"]["cursor/github"]["package"]
         assert pkg2["resolved_version"] == "3.0.0"
         assert pkg2["resolution"]["resolved_at"] != resolved_at_1
+
+
+# ── `deprecated` field threading (STORY-0073/R58) ───────────────────────────────
+
+
+class TestDeprecatedField:
+    def test_deprecated_package_records_message_in_package_dict(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2025.4.8", "Package no longer supported."),
+        )
+        root = Path("/home/tester/project")
+        server = _server(args=["-y", "@modelcontextprotocol/server-github"])  # unpinned
+
+        doc = regenerate(None, [server], root, offline=False, registry=None)
+
+        pkg = doc["servers"]["cursor/github"]["package"]
+        assert pkg["resolved_version"] == "2025.4.8"
+        assert pkg["deprecated"] == "Package no longer supported."
+
+    def test_non_deprecated_package_records_null(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2.5.1", None),
+        )
+        root = Path("/home/tester/project")
+        server = _server(name="notion", args=["-y", "@notionhq/notion-mcp-server"])
+
+        doc = regenerate(None, [server], root, offline=False, registry=None)
+
+        pkg = doc["servers"]["cursor/notion"]["package"]
+        assert pkg["resolved_version"] == "2.5.1"
+        assert pkg["deprecated"] is None
+
+    def test_empty_string_deprecated_normalised_upstream_is_preserved_verbatim(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """resolve_latest_version_info() itself normalises "" -> "(no message)";
+        resolve_package()/regenerate() must thread that value through unchanged."""
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("1.0.0", "(no message)"),
+        )
+        root = Path("/home/tester/project")
+        server = _server(args=["-y", "some-pkg"])
+
+        doc = regenerate(None, [server], root, offline=False, registry=None)
+
+        pkg = doc["servers"]["cursor/github"]["package"]
+        assert pkg["deprecated"] == "(no message)"
+
+    def test_offline_never_calls_resolver_and_deprecated_is_null(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _boom(*args: object, **kwargs: object) -> tuple[str, str | None]:
+            raise AssertionError("must not resolve over the network when --offline")
+
+        monkeypatch.setattr(resolve_module, "resolve_latest_version_info", _boom)
+        root = Path("/home/tester/project")
+        server = _server(args=["-y", "@modelcontextprotocol/server-github"])  # unpinned
+
+        doc = regenerate(None, [server], root, offline=True, registry=None)
+
+        pkg = doc["servers"]["cursor/github"]["package"]
+        assert pkg["resolved_version"] is None
+        assert pkg["deprecated"] is None
+
+    def test_exact_pin_never_calls_resolver_and_deprecated_is_null(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An exact pin is fully offline today; no manifest is fetched to
+        read `deprecated` from — STORY-0073/R58 does not add a new network
+        call for this path."""
+
+        def _boom(*args: object, **kwargs: object) -> tuple[str, str | None]:
+            raise AssertionError("exact-pin must never call the network resolver")
+
+        monkeypatch.setattr(resolve_module, "resolve_latest_version_info", _boom)
+        root = Path("/home/tester/project")
+        server = _server(args=["-y", "@modelcontextprotocol/server-github@1.2.3"])
+
+        doc = regenerate(None, [server], root, offline=False, registry=None)
+
+        pkg = doc["servers"]["cursor/github"]["package"]
+        assert pkg["resolved_version"] == "1.2.3"
+        assert pkg["deprecated"] is None
+
+    def test_deprecation_status_change_alone_bypasses_write_on_change_cache(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A package going deprecated in place (no version bump) must not be
+        silently suppressed by ADR-0005 §6 write-on-change."""
+        deprecated_values = iter([None, "Package no longer supported."])
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2025.4.8", next(deprecated_values)),
+        )
+        root = Path("/home/tester/project")
+        server = _server(args=["-y", "@modelcontextprotocol/server-github"])
+
+        doc1 = regenerate(None, [server], root, offline=False, registry=None)
+        assert doc1["servers"]["cursor/github"]["package"]["deprecated"] is None
+
+        doc2 = regenerate(doc1, [server], root, offline=False, registry=None)
+        pkg2 = doc2["servers"]["cursor/github"]["package"]
+        assert pkg2["resolved_version"] == "2025.4.8"
+        assert pkg2["deprecated"] == "Package no longer supported."
 
 
 # ── Ownership-scoped checksum, integrated through regenerate() ─────────────────

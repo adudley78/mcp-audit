@@ -299,10 +299,10 @@ class TestResolveOptIn:
     ) -> None:
         def _boom(*args: object, **kwargs: object) -> str:
             raise AssertionError(
-                "resolve_latest_version must not be called without --resolve"
+                "resolve_latest_version_info must not be called without --resolve"
             )
 
-        monkeypatch.setattr(resolve_module, "resolve_latest_version", _boom)
+        monkeypatch.setattr(resolve_module, "resolve_latest_version_info", _boom)
         server = _server(args=["-y", "foo@1.0.0"])
         lock_path = _write_lock_for(tmp_path, [server])
 
@@ -313,7 +313,9 @@ class TestResolveOptIn:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
-            resolve_module, "resolve_latest_version", lambda eco, name: "9.9.9"
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("9.9.9", None),
         )
         server = _server(args=["-y", "foo"])  # unpinned
         # Write offline so the lock records resolved_version=None (unresolved).

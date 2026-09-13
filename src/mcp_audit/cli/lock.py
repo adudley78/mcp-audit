@@ -15,6 +15,7 @@ import typer
 from rich.console import Console
 
 from mcp_audit import cli as _cli
+from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
 from mcp_audit.cli import app, console
 from mcp_audit.discovery import discover_project_configs
 from mcp_audit.lock.model import LOCK_FILENAME
@@ -78,6 +79,34 @@ def _load_registry(
             "continuing without it.[/yellow]"
         )
         return None
+
+
+def _deprecation_findings(doc: dict) -> list:
+    """Return SC-005 findings for every locked entry with a deprecated package.
+
+    Called after :func:`~mcp_audit.lock.writer.regenerate` builds the new
+    document — walks ``doc["servers"]`` rather than re-resolving, so this
+    reflects exactly what was just written (whether freshly resolved this
+    run or reused byte-for-byte via ADR-0005 §6 write-on-change). Empty
+    under ``--offline`` (no resolution ever attempted, so every
+    ``package.deprecated`` is ``None``) — STORY-0073/R58, scope-cut to the
+    ``lock`` write path and ``lock --verify --resolve`` only.
+    """
+    findings = []
+    for key in sorted(doc.get("servers", {})):
+        entry = doc["servers"][key]
+        package = entry.get("package")
+        if not package:
+            continue
+        finding = build_deprecated_package_finding(
+            client=entry.get("client", ""),
+            server=entry.get("name", ""),
+            config_path=entry.get("config", ""),
+            package=package,
+        )
+        if finding is not None:
+            findings.append(finding)
+    return findings
 
 
 @app.command()
@@ -225,6 +254,11 @@ def _run_write(
         )
         console.print(f"  [cyan]{key}[/cyan]{version_note}")
     console.print()
+
+    for finding in _deprecation_findings(doc):
+        color = _SEVERITY_COLOR.get(finding.severity, "white")
+        console.print(f"[{color}]{finding.id}[/{color}]  {finding.title}")
+        console.print(f"  {finding.evidence}")
 
 
 def _run_verify(

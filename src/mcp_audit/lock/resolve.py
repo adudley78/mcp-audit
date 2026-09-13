@@ -29,7 +29,7 @@ from mcp_audit.vulnerability.models import Ecosystem
 from mcp_audit.vulnerability.resolver import (
     extract_ecosystem_and_version,
     is_version_range,
-    resolve_latest_version,
+    resolve_latest_version_info,
 )
 
 _NPM_LAUNCHERS = {"npx", "bunx", "pnpx"}
@@ -132,7 +132,10 @@ def resolve_package(
         or ``None`` when the launch command has no recognisable package
         identity (a local script, a custom launcher, ``docker run``, …) —
         callers store ``package: null`` for these; config-drift
-        verification still applies via ``identity``/``env_keys``.
+        verification still applies via ``identity``/``env_keys``. The
+        ``deprecated`` key is populated only when *offline* is ``False``
+        and the spec required a ``dist-tag:latest`` network resolution
+        (STORY-0073/R58) — ``None`` for an exact pin or an unresolved entry.
     """
     identity = extract_package_identity(server)
     if identity is None:
@@ -142,6 +145,7 @@ def resolve_package(
     range_spec = is_version_range(spec)
     eco_enum = Ecosystem.NPM if ecosystem == "npm" else Ecosystem.PYPI
 
+    deprecated: str | None = None
     if not range_spec and spec not in ("latest", "*"):
         resolved_version: str | None = spec
         method: str = "exact-pin"
@@ -150,17 +154,22 @@ def resolve_package(
         method = "unresolved"
     else:
         try:
-            resolved_version = resolve_latest_version(eco_enum, name)
+            resolved_version, deprecated = resolve_latest_version_info(eco_enum, name)
             method = "dist-tag:latest"
         except (ValueError, urllib.error.URLError, OSError):
             resolved_version = None
             method = "unresolved"
 
     # ── ADR-0005 §6: write-on-change only ───────────────────────────────────
+    # Also requires `deprecated` to be unchanged: a package going deprecated
+    # in place (no version bump) is itself a real change worth re-recording
+    # and re-emitting SC-005 for — STORY-0073/R58 — not something write-on-change
+    # should silently suppress by returning the stale cached sub-object.
     if (
         existing is not None
         and resolved_version is not None
         and existing.get("resolved_version") == resolved_version
+        and existing.get("deprecated") == deprecated
     ):
         return existing
 
@@ -201,4 +210,5 @@ def resolve_package(
         "resolution": {"method": method, "resolved_at": resolved_at},
         "integrity": integrity,
         "source": source,
+        "deprecated": deprecated,
     }

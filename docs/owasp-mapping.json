@@ -293,6 +293,17 @@
       "notes": "Fires when an exact-match registry entry has known_vulnerabilities. Offline check using bundled registry data; no network required. Severity HIGH. Operator should verify installed version is in affected range."
     },
     {
+      "finding_id": "SC-005",
+      "finding_title": "Deprecated package resolved at lock time",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when `mcp-audit lock` (or `lock --verify --resolve`) resolves an unpinned spec to a version the package registry itself marks deprecated (npm's `deprecated` field on dist-tags.latest; PyPI is not covered — see GAPS.md). Network check, opt-in via the same resolution these commands already perform; never fires on a plain offline `scan`, `vet` (without `--online`), or `scan --check-vulns` (STORY-0074, deferred). Severity MEDIUM."
+    },
+    {
       "finding_id": "RUGPULL-000",
       "finding_title": "First scan \u2014 baseline recorded for server",
       "owasp_codes": [],

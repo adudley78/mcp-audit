@@ -83,7 +83,8 @@ Try it: [`demo/lock/`](../demo/lock/) — a small, reproducible fixture that run
         "resolved_version": "2026.7.10",
         "resolution": { "method": "dist-tag:latest", "resolved_at": "2026-09-07T09:00:00Z" },
         "integrity": "sha256:e563…",
-        "source": "registry"
+        "source": "registry",
+        "deprecated": null
       },
       "env_keys": ["GITHUB_TOKEN"],
       "header_keys": [],
@@ -97,6 +98,20 @@ Try it: [`demo/lock/`](../demo/lock/) — a small, reproducible fixture that run
   "checksum": "sha256:<hex>"
 }
 ```
+
+**`package.deprecated`** (added in v0.18.1, STORY-0073): the package registry's own deprecation
+notice for `resolved_version`, or `null`. Populated only when resolution actually made a network
+call — `resolution.method == "dist-tag:latest"` (a plain `mcp-audit lock` on an unpinned spec, or
+`lock --verify --resolve`) — never for an exact pin (no manifest is fetched to read it from) and
+never under `--offline`. npm's own `deprecated` field on `dist-tags.latest` is the source; an empty
+deprecation string is normalised to `"(no message)"` so a finding always has readable text. PyPI's
+JSON API exposes "yanked" only per-release, not on the latest-version object this reads, so it is
+never populated for PyPI packages — see `GAPS.md`. A non-null value emits one `SC-005` (MEDIUM,
+`analyzer: "supply_chain"`) naming the package, version, and message, printed by both `lock` and
+`lock --verify --resolve`. Like every other field in `package`, `deprecated` is owned by mcp-audit
+and covered by the `checksum`; `lock_version` stays `1` (an additive field, not a schema break).
+Running `lock --accept` after a package goes deprecated re-resolves and records it, exactly like any
+other lock update.
 
 **Never in the file:** environment variable *values*, header *values*, absolute filesystem paths,
 the scanning machine's hostname or username, or the raw config block. Only key names (`env_keys`,
@@ -151,7 +166,7 @@ job, not an edit to anything mcp-audit owns or verifies.
 | Mode | Compares lock against | Network | Finding IDs on drift |
 |---|---|---|---|
 | `lock --verify` (default) | current on-disk configs only: identity, env/header key names, presence/absence | none | `LOCK-001` (drifted), `LOCK-002` (unlocked server present), `LOCK-003` (locked server missing) |
-| `lock --verify --resolve` | the above, **plus** the current registry resolution of every floating/range spec vs. the locked `resolved_version`/`integrity` | npm/PyPI (same policy as `fix --fix-type pinning` / `vet`) | adds `LOCK-004` (resolution drifted; **CRITICAL** when the *same* version now hashes differently — a republished artifact) |
+| `lock --verify --resolve` | the above, **plus** the current registry resolution of every floating/range spec vs. the locked `resolved_version`/`integrity` | npm/PyPI (same policy as `fix --fix-type pinning` / `vet`) | adds `LOCK-004` (resolution drifted; **CRITICAL** when the *same* version now hashes differently — a republished artifact) and `SC-005` (MEDIUM; the freshly re-resolved version is deprecated) |
 | always | mcp-audit's own owned-section `checksum` against its recomputed value | none | `LOCK-005` (mcp-audit's own record — header + `servers` — tampered or hand-edited) — short-circuits all other checks, exit 2 |
 
 `lock --verify`'s exit code and message vocabulary are permanently scoped to what it can see offline
@@ -320,6 +335,11 @@ skip the file.
   this in the entry.
 - PyPI package `integrity` is not yet populated (npm tarball hashes are, via the same hasher
   `--verify-hashes` uses); left `null` until a PyPI equivalent ships.
+- `package.deprecated` is npm-only for the same reason: PyPI's JSON API exposes "yanked" only
+  per-release inside `releases`, not on the latest-version object this reads, and none of the
+  bundled `registry/known-servers.json` entries carry a separate maintenance-status field mcp-audit
+  could fall back on. `vet --online` and `scan --check-vulns` do not surface `deprecated` at all yet
+  — tracked as STORY-0074, not this release.
 - No signing. Git history is the audit trail for a committed file; a signed lock is a possible future
   addition, not blocked by anything here.
 - No runtime enforcement — `lock` is a record checked at `lock`/CI time, never enforced against a

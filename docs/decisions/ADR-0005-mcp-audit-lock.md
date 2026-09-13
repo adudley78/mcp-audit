@@ -519,6 +519,29 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   `--allow-unverified`, which names exactly what it waives and never waives an actual LOCK-001/
   002/004/005 finding. See `docs/lock.md`'s "Unverified state now fails the exit code" section for
   the practitioner-facing detail and the CHANGELOG for the exact behaviour-change note.
+- **Addendum (R59): the lock_version 2 set, agreed with the trees producer on** [**#88**](https://github.com/adudley78/mcp-audit/issues/88)**.**
+  Four changes were agreed with Prachet Poddar during the #88 discussion but are deliberately **not**
+  shipped in this window — they are recorded here as a set so they ship together rather than being
+  relitigated piecemeal:
+  (a) **Per-section digest alongside the canonical encoding.** §10's canonical serialisation makes
+  byte preservation *possible*; a per-section digest makes a violation of it *detectable by the other
+  tool* — a non-producing tool (e.g. mcp-audit, for the `trees` section it does not write) leaves the
+  other section's digest intact, and tampering or accidental reformatting by either side is then a
+  checkable fact, not a diff nobody reads.
+  (b) **Resolution context recorded per entry: registry state, npm major, and node version.** Today's
+  `resolution` sub-object records only `method` and `resolved_at` — not enough to distinguish a
+  *context* mismatch (the same package resolves differently under a different Node/npm) from a real
+  *content* mismatch (the package actually changed). `lock --verify --resolve` will report a context
+  mismatch as its own distinct outcome, never folded into a content-change finding.
+  (c) **Bare spec recorded as written, not as `"latest"`.** See GAPS.md's "Bare package spec is
+  recorded and resolved as `latest`" entry for the full defect description; the fix belongs in this
+  set because it is a `lock_version`-relevant format change, not a bugfix that can land quietly.
+  (d) **SC-005's message reworded to "latest is deprecated."** Tightens the finding's claim to match
+  what it can actually verify once (c) ships — see the GAPS.md entry above for why the current
+  wording overstates the claim for a bare spec specifically.
+  None of (a)–(d) ship before the PROBATIO day-30 verdict, and `lock_version` stays `1` until all four
+  ship together in one bump — a partial migration would leave a verifier unable to tell which of the
+  four guarantees a given file actually carries.
 - **The `trees`-introspection acceptance criterion ("`check` reports `trees: N servers, M packages`
   in the `Lock:` line") was declined, not implemented.** Counting servers/packages inside `trees`
   would require assuming a specific internal shape for Prachet Poddar's independently-owned,
@@ -531,3 +554,21 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   its contents. Tracked as a declined-with-reasoning gap, consistent with `CLAUDE.md`'s
   established pattern for scope boundaries the codebase has already drawn once and should not
   redraw quietly a second time.
+- **Addendum (STORY-0073/R58, v0.18.1): `package.deprecated` — an additive field, not a
+  schema break.** Extracting frames from the lock-demo GIF (PR #121) surfaced that `mcp-audit lock`
+  had silently recorded `cursor/github` resolving to a version npm itself marks deprecated
+  ("Package no longer supported"). §7's per-entry resolution provenance already reads the manifest
+  fetched for `dist-tag:latest` resolution; this addendum threads one more field out of that same
+  fetch — no new network call, no new resolver (consistent with the "no new resolver" note in
+  `resolve.py`'s own module docstring). `deprecated` is a string or `null`, owned by mcp-audit,
+  covered by the checksum like every other field in `package` (§10 is unaffected — `servers` was
+  already in the owned checksum body; this only adds a key inside one of its sub-objects).
+  `lock_version` stays `1`: an old lock file simply lacks the key until its next `lock`/`--accept`
+  run re-resolves it (Pydantic's field default handles the read side; §6's write-on-change is
+  extended so a deprecation-status change alone — no version bump — is not silently swallowed as a
+  no-op). A non-null value emits `SC-005` (MEDIUM, `analyzer: "supply_chain"`) from the `lock` write
+  path and from `lock --verify --resolve` — deliberately **not** from a plain `lock --verify`
+  (mirrors §8's existing `--resolve`-gates-network-facts pattern for `LOCK-004`) and deliberately
+  **not** from `vet --online` or `scan --check-vulns`, which is STORY-0074 (icebox, scope-cut after
+  sizing during R58 — see `GAPS.md`). PyPI is not covered: its JSON API exposes "yanked" only
+  per-release inside `releases`, not on the `info` object the latest-version fetch reads.

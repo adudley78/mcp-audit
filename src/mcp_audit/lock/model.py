@@ -63,6 +63,13 @@ class LockPackage(BaseModel):
     resolution: LockResolution
     integrity: str | None = None
     source: Literal["registry", "known_hashes", "unresolved"]
+    #: The package registry's own deprecation notice for `resolved_version`,
+    #: or `None` when not deprecated. Populated only via the network-fetch
+    #: path (`resolution.method == "dist-tag:latest"`) — an exact pin never
+    #: makes the network call this is read from (STORY-0073/R58). Owned by
+    #: mcp-audit and covered by the checksum like every other field here;
+    #: `lock_version` stays 1 (additive field, not a schema break).
+    deprecated: str | None = None
 
 
 class LockIdentity(BaseModel):

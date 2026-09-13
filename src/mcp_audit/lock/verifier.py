@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Literal
 
 from mcp_audit.analyzers.rug_pull import server_key
+from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
 from mcp_audit.lock.identity import build_identity
 from mcp_audit.lock.model import (
     compute_checksum,
@@ -167,9 +168,18 @@ def verify(
             continue
 
         if resolve:
-            resolution_finding = _check_resolution(server, locked_entry, registry)
+            package = locked_entry.get("package")
+            fresh = (
+                resolve_package(server, offline=False, registry=registry, existing=None)
+                if package
+                else None
+            )
+            resolution_finding = _check_resolution(package, fresh, server)
             if resolution_finding is not None:
                 findings.append(resolution_finding)
+            deprecation_finding = _check_deprecation(server, fresh)
+            if deprecation_finding is not None:
+                findings.append(deprecation_finding)
 
     for key, entry in locked_servers.items():
         if key not in current:
@@ -300,16 +310,22 @@ def _check_drift(key: str, server: ServerConfig, locked_entry: dict) -> Finding 
 
 
 def _check_resolution(
+    package: dict | None,
+    fresh: dict | None,
     server: ServerConfig,
-    locked_entry: dict,
-    registry: KnownServerRegistry | None,
 ) -> Finding | None:
-    """Return a LOCK-004 finding under ``--resolve`` when resolution drifted."""
-    package = locked_entry.get("package")
+    """Return a LOCK-004 finding under ``--resolve`` when resolution drifted.
+
+    Args:
+        package: The currently-locked ``package`` sub-object, or ``None``.
+        fresh: A freshly re-resolved ``package`` dict for *server* (already
+            computed once by the caller — see :func:`verify` — so this and
+            :func:`_check_deprecation` never each make their own network
+            call for the same server).
+        server: The server being verified.
+    """
     if not package:
         return None
-
-    fresh = resolve_package(server, offline=False, registry=registry, existing=None)
     if fresh is None or fresh.get("resolved_version") is None:
         return None
 
@@ -365,3 +381,22 @@ def _check_resolution(
         )
 
     return None
+
+
+def _check_deprecation(server: ServerConfig, fresh: dict | None) -> Finding | None:
+    """Return an SC-005 finding under ``--resolve`` when the fresh resolution
+    is deprecated.
+
+    Fires from the same freshly re-resolved ``package`` dict
+    :func:`_check_resolution` uses (no second network call) — STORY-0073/R58,
+    scope-cut to ``lock`` and ``lock --verify --resolve`` only; see
+    :func:`mcp_audit.analyzers.supply_chain.build_deprecated_package_finding`.
+    """
+    if fresh is None:
+        return None
+    return build_deprecated_package_finding(
+        client=server.client,
+        server=server.name,
+        config_path=str(server.config_path),
+        package=fresh,
+    )
