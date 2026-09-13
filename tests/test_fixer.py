@@ -787,6 +787,34 @@ class TestRunFix:
         assert new_data["mcpServers"]["my-server"]["env"]["TOKEN"] == "${TOKEN}"  # noqa: S105
         assert new_data["mcpServers"]["my-server"]["url"] == "http://remote:8080"
 
+    def test_fix_type_credentials_includes_cred003(self, tmp_path: Path) -> None:
+        """R60-02: CRED-003 must reach the credentials strategy, not be filtered out."""
+        config: dict = {
+            "mcpServers": {
+                "my-server": {
+                    "command": "node",
+                    "headers": {"Authorization": "Bearer live-token-abc123"},
+                }
+            }
+        }
+        cp = _write_config(tmp_path, config)
+        findings = [
+            _make_finding(
+                "CRED-003",
+                evidence="Header: Authorization",
+                analyzer="credentials",
+            )
+        ]
+
+        result = run_fix(findings, cp, apply=True, fix_types=["credentials"])
+
+        assert not result.no_fixable
+        new_data = json.loads(cp.read_text(encoding="utf-8"))
+        assert (
+            new_data["mcpServers"]["my-server"]["headers"]["Authorization"]
+            == "Bearer ${AUTHORIZATION}"
+        )
+
     def test_pinning_apply(self, tmp_path: Path) -> None:
         config = _config_with_typosquat(pkg="@modelcontextprotocol/server-filesytem")
         cp = _write_config(tmp_path, config)

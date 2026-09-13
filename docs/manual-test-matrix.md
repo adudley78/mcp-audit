@@ -1667,8 +1667,9 @@ bug. Note `agent-files scan --format json` emits a bare JSON array (not a
 
 ## Section 54 — CRED-003 (secret in an auth header), severity and fix
 
-> **PARTIALLY KNOWN FAILING as of v0.18.1 — R60-02 and R60-03 in
-> `docs/manual-test-matrix-gaps-2026-09-13.md`.**
+> **R60-02 fixed in v0.18.2** (`CRED-003` is now in `_FIX_TYPE_IDS["credentials"]`;
+> `fix --apply` preserves the `Bearer ` prefix). **R60-03 remains** (placeholder
+> + scheme prefix still HIGH — icebox STORY-0076).
 
 ```bash
 python3 - "$SCRATCH/cred003.json" <<'PY'
@@ -1694,12 +1695,9 @@ echo "exit: $?"
 
 **Expected:** a unified diff replacing the secret with
 `"Bearer ${AUTHORIZATION}"` — the `Bearer ` scheme prefix is **preserved**,
-only the credential is redacted. **Actual (v0.18.1):** "No fixable findings
-in this scan.", exit 0 — `_FIX_TYPE_IDS["credentials"]` in
-`fixer/fixer.py` is `{"CRED-001", "CRED-002"}`, so `CRED-003` is filtered out
-before `CredentialsFixStrategy.can_fix()` (which accepts it) is consulted,
-making the implemented `_fix_header()` unreachable. `check` nevertheless
-prints "Run `mcp-audit fix --apply` to auto-remediate [CRED-003]".
+only the credential is redacted. (`check` already printed
+"Run `mcp-audit fix --apply` to auto-remediate [CRED-003]"; the apply path
+now reaches `_fix_header()`.)
 
 ```bash
 python3 - "$SCRATCH/cred003-ph.json" <<'PY'

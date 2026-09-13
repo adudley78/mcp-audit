@@ -37,7 +37,7 @@ _ALL_FIX_TYPES: tuple[FixType, ...] = ("credentials", "transport", "pinning")
 
 # Maps each FixType label to the finding IDs it handles.
 _FIX_TYPE_IDS: dict[FixType, frozenset[str]] = {
-    "credentials": frozenset({"CRED-001", "CRED-002"}),
+    "credentials": frozenset({"CRED-001", "CRED-002", "CRED-003"}),
     "transport": frozenset({"TRANSPORT-001"}),
     # VULN-UNPINNED and LOCK-004 (STORY-0070) pin an exact version; SC-001/002
     # replace a typosquatted name and pin. All three share one strategy.
