@@ -542,6 +542,13 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   None of (a)–(d) ship before the PROBATIO day-30 verdict, and `lock_version` stays `1` until all four
   ship together in one bump — a partial migration would leave a verifier unable to tell which of the
   four guarantees a given file actually carries.
+  **(R62): resolution context is recorded per section by the producer that resolved it, never
+  copied across sections** — `servers` carries its own registry-state/npm-major/node-version
+  fields written by `mcp-audit`, `trees` carries its own written by its producer, and `--verify`
+  compares each section only against its own recorded context. The measured reason, attributed:
+  "184 of 250 non-deprecated MCP server roots resolved to a different package set ten days apart
+  (Prachet Poddar, [#88](https://github.com/adudley78/mcp-audit/issues/88), 2026-09-21); the
+  substitution is in transitive trees and is invisible to the `servers` section by design."
 - **The `trees`-introspection acceptance criterion ("`check` reports `trees: N servers, M packages`
   in the `Lock:` line") was declined, not implemented.** Counting servers/packages inside `trees`
   would require assuming a specific internal shape for Prachet Poddar's independently-owned,
