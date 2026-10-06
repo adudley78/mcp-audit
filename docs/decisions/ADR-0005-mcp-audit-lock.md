@@ -528,11 +528,15 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   tool* — a non-producing tool (e.g. mcp-audit, for the `trees` section it does not write) leaves the
   other section's digest intact, and tampering or accidental reformatting by either side is then a
   checkable fact, not a diff nobody reads.
-  (b) **Resolution context recorded per entry: registry state, npm major, and node version.** Today's
+  (b) **Resolution context recorded per entry: `resolution_context`, npm major, and node version.** Today's
   `resolution` sub-object records only `method` and `resolved_at` — not enough to distinguish a
   *context* mismatch (the same package resolves differently under a different Node/npm) from a real
   *content* mismatch (the package actually changed). `lock --verify --resolve` will report a context
-  mismatch as its own distinct outcome, never folded into a content-change finding.
+  mismatch as its own distinct outcome, never folded into a content-change finding. The context fields
+  (resolved date, the `latest` tag and deprecation state as seen, npm major, node version) explain why
+  two locks differ. Only the resolved versions and integrity hashes can regenerate a lock.
+  Explanatory, never reproducible: tags and deprecation flags have no queryable history, so no
+  recorded context is a coordinate anyone can return to.
   (c) **Bare spec recorded as written, not as `"latest"`.** See GAPS.md's "Bare package spec is
   recorded and resolved as `latest`" entry for the full defect description; the fix belongs in this
   set because it is a `lock_version`-relevant format change, not a bugfix that can land quietly.
@@ -546,9 +550,16 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   copied across sections** — `servers` carries its own registry-state/npm-major/node-version
   fields written by `mcp-audit`, `trees` carries its own written by its producer, and `--verify`
   compares each section only against its own recorded context. The measured reason, attributed:
-  "184 of 250 non-deprecated MCP server roots resolved to a different package set ten days apart
-  (Prachet Poddar, [#88](https://github.com/adudley78/mcp-audit/issues/88), 2026-09-21); the
-  substitution is in transitive trees and is invisible to the `servers` section by design."
+  "184 of 250 MCP servers (73.6%), sampled from npm's mcp-server keyword frame, which excludes deprecated
+  packages, resolved to a different package set when the same resolver ran against the registry as of
+  2026-09-07 (rebuilt from publish timestamps) and as of 2026-09-17. The corpus barely grew, from 2,867
+  distinct name@version pairs to 2,882. Routine releases of five packages (zod, hono, proxy-addr, fast-uri,
+  ip-address) account for most of it." (Prachet Poddar, [#88](https://github.com/adudley78/mcp-audit/issues/88),
+  2026-09-21)
+  Resolver output (13 of 13 npm-pick-manifest vectors), not a real install;
+  the rebuild cannot see versions unpublished since the 7th and reads today's deprecation flags, both of which
+  hide change rather than create it, so 184 is a floor on those two counts, unmeasured. The substitution is in
+  transitive trees and is invisible to the `servers` section by design.
 - **The `trees`-introspection acceptance criterion ("`check` reports `trees: N servers, M packages`
   in the `Lock:` line") was declined, not implemented.** Counting servers/packages inside `trees`
   would require assuming a specific internal shape for Prachet Poddar's independently-owned,
