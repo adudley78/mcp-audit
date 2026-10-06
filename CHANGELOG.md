@@ -8,7 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-(nothing yet)
+### Added
+
+- **Two verified registry entries from community submissions:** `hol-guard`
+  (PyPI, [#135](https://github.com/adudley78/mcp-audit/issues/135), submitted by
+  [@kantorcodes](https://github.com/kantorcodes)) and `@autoposting.ai/cli`
+  (npm, [#134](https://github.com/adudley78/mcp-audit/issues/134), submitted by
+  [@uditgoenka](https://github.com/uditgoenka)). Both maintainers are credited in
+  `docs/contributors.md`. Registry is now 52 entries.
 
 ---
 

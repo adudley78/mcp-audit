@@ -38,6 +38,8 @@ is not a bounty, and it is not equivalent to contributing a detection rule.
 | Louis Beaumont ([@louis030195](https://github.com/louis030195)) | `screenpipe-mcp` | npm | 2026-08-18 |
 | [@samuelchenardlovesboards](https://github.com/samuelchenardlovesboards) | `@palisadeemail/mcp` | npm | 2026-08-18 |
 | Zachary Roth ([@zacharyr0th](https://github.com/zacharyr0th)) | `docpull` | PyPI | 2026-08-18 |
+| [@kantorcodes](https://github.com/kantorcodes) | `hol-guard` | PyPI | 2026-10-06 |
+| [@uditgoenka](https://github.com/uditgoenka) | `@autoposting.ai/cli` | npm | 2026-10-06 |
 
 See [docs/registry-contributions.md](registry-contributions.md) to list a server.
 
