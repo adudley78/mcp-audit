@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-09-07",
-  "entry_count": 50,
+  "last_updated": "2026-10-06",
+  "entry_count": 52,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -982,6 +982,52 @@
         "raintree-technology"
       ],
       "attestation_expected": true
+    },
+    {
+      "name": "hol-guard",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/hashgraph-online/hol-guard",
+      "maintainer": "HOL (Hashgraph Online)",
+      "verified": true,
+      "last_verified": "2026-10-06",
+      "known_versions": [],
+      "tags": [
+        "community",
+        "local",
+        "dev-tools"
+      ],
+      "capabilities": [
+        "file_read"
+      ],
+      "first_published": "2026-06-11",
+      "weekly_downloads": 14936,
+      "publisher_history": null,
+      "attestation_expected": true
+    },
+    {
+      "name": "@autoposting.ai/cli",
+      "source": "npm",
+      "package_ecosystem": "npm",
+      "repo": "https://github.com/Autoposting-ai/autoposting-cli",
+      "maintainer": "Autoposting-ai",
+      "verified": true,
+      "last_verified": "2026-10-06",
+      "known_versions": [],
+      "tags": [
+        "community",
+        "cloud",
+        "automation"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2026-05-13",
+      "weekly_downloads": 921,
+      "publisher_history": [
+        "uditgoenka"
+      ],
+      "attestation_expected": false
     }
   ]
 }
