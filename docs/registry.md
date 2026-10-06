@@ -91,12 +91,13 @@ Each entry follows this schema:
 
 ## Current Coverage
 
-64 entries as of April 2026, covering:
-
-- **22 official Anthropic/MCP packages** — all `@modelcontextprotocol/server-*`
-  npm packages, the Python SDK (`mcp`), and related tooling
-- **35 community packages** — high-profile servers from Upstash, Supabase,
-  Cloudflare, Stripe, Browserbase, and community-maintained integrations
+The live figures are `entry_count` and `last_updated` at the top of
+`registry/known-servers.json`; the terminal scan output's "Registry:" line
+prints the same numbers from whichever copy the scan loaded. Entries tagged
+`official` are the Anthropic-maintained reference servers and SDK
+(`@modelcontextprotocol/*`, `mcp`, `mcp-server-fetch`, `mcp-server-git`);
+every other entry is community-maintained. Counts are not repeated here
+because a hand-maintained number drifts from the file.
 
 ## Contributing to the Registry
 
