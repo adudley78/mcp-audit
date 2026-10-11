@@ -1051,6 +1051,34 @@
       "notes": "Fires when a Claude Code hook command references an MCP/agent config file path (CVE-2026-30615 persistence channel). Severity HIGH. CWE-78. Analyzer: config_hygiene (extends CFHYG-005)."
     },
     {
+      "finding_id": "HARNESS-001",
+      "finding_title": "Claude Code sessions start with permission prompts skipped",
+      "owasp_codes": ["MCP02", "MCP07"],
+      "owasp_names": ["Privilege Escalation via Scope Creep", "Insufficient Authentication and Authorization"],
+      "notes": "Fires when a Claude Code settings file sets permissions.defaultMode to bypassPermissions (suppressed when the same file sets permissions.disableBypassPermissionsMode to \"disable\"). Severity HIGH. CWE-862. Basis: HarnessSecurity-Bench, arXiv 2610.07639. Analyzer: config_hygiene (STORY-0079)."
+    },
+    {
+      "finding_id": "HARNESS-002",
+      "finding_title": "Every project .mcp.json server is approved without a prompt",
+      "owasp_codes": ["MCP09", "MCP07"],
+      "owasp_names": ["Shadow MCP Servers", "Insufficient Authentication and Authorization"],
+      "notes": "Fires when a Claude Code settings file sets enableAllProjectMcpServers to true. Severity HIGH. CWE-862. Analyzer: config_hygiene (STORY-0079)."
+    },
+    {
+      "finding_id": "HARNESS-003",
+      "finding_title": "Confirmation before bypass mode is switched off",
+      "owasp_codes": ["MCP02", "MCP07"],
+      "owasp_names": ["Privilege Escalation via Scope Creep", "Insufficient Authentication and Authorization"],
+      "notes": "Fires when a Claude Code settings file sets skipDangerousModePermissionPrompt to true (suppressed by disableBypassPermissionsMode \"disable\" in the same file). Severity MEDIUM. CWE-862. Analyzer: config_hygiene (STORY-0079)."
+    },
+    {
+      "finding_id": "HARNESS-004",
+      "finding_title": "Every shell command is pre-approved",
+      "owasp_codes": ["MCP02", "MCP05"],
+      "owasp_names": ["Privilege Escalation via Scope Creep", "Command Injection and Execution"],
+      "notes": "Fires when permissions.allow in a Claude Code settings file contains bare Bash, Bash(*), PowerShell or PowerShell(*). Severity HIGH. CWE-862. Analyzer: config_hygiene (STORY-0079)."
+    },
+    {
       "finding_id": "MEM-001",
       "finding_title": "Imperative override instruction in memory file",
       "owasp_codes": ["MCP03"],

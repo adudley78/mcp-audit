@@ -207,6 +207,10 @@ the two exploitation pre-conditions that malware relied on.
 | CFHYG-003   | HIGH     | ASI06 | MCP01 | Config file stores a plaintext secret inline. The file itself becomes a high-value harvesting target. Complements CRED-001/002 with a file-level signal and explicit malware-targeting context. CWE-312. CVSS: 7.5 |
 | CFHYG-004   | INFO     | — | MCP01 | Config uses env-var references for all credentials (e.g., `${VAR}`, `$VAR`, `%(VAR)s`). Positive signal — reinforces correct practice. No security impact. |
 | CFHYG-005   | MEDIUM   | ASI06 | MCP01, MCP07 | Claude Code hooks section detected in `.claude.json`. Hooks execute as shell commands — a write-access threat actor can inject arbitrary commands. CVE-2025-59536. CWE-78. CVSS: 6.5 |
+| HARNESS-001 | HIGH     | ASI02, ASI03 | MCP02, MCP07 | Claude Code `permissions.defaultMode: bypassPermissions` — every session starts with approval prompts skipped. CWE-862. Basis: arXiv 2610.07639 (auto-approve 29.2% → 95.6% attack success) |
+| HARNESS-002 | HIGH     | ASI03, ASI04 | MCP09, MCP07 | `enableAllProjectMcpServers: true` — every server in a repository's `.mcp.json` approved without a prompt. CWE-862 |
+| HARNESS-003 | MEDIUM   | ASI02, ASI03 | MCP02, MCP07 | `skipDangerousModePermissionPrompt: true` — no confirmation before bypass mode. CWE-862 |
+| HARNESS-004 | HIGH     | ASI02, ASI05 | MCP02, MCP05 | `permissions.allow` contains bare `Bash`/`Bash(*)` (or PowerShell) — every shell command pre-approved. CWE-862 |
 | CFHYG-006   | MEDIUM   | ASI06 | MCP01, MCP08 | `ANTHROPIC_BASE_URL` overrides the Anthropic API endpoint. All API traffic (including the API key) is routed to the configured domain. CVE-2026-21852. CWE-441. CVSS: 7.5 |
 
 **Windows note:** CFHYG-001 and CFHYG-002 are skipped on Windows because POSIX

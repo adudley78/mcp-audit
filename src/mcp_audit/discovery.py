@@ -121,7 +121,10 @@ def _get_client_specs() -> list[ClientSpec]:
         ClientSpec(
             name="claude-code",
             root_key="mcpServers",
-            config_paths=[home / ".claude.json"],
+            # ~/.claude/settings.json holds user-level hooks and permissions but no
+            # MCP servers; it is discovered so config-level checks (HOOK-*,
+            # CFHYG-005/006, HARNESS-*) see it.  Added in STORY-0079.
+            config_paths=[home / ".claude.json", home / ".claude" / "settings.json"],
         )
     )
 

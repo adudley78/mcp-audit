@@ -140,6 +140,19 @@ _HINTS: dict[str, str] = {
         "Review every hook command in this file; Claude Code will execute them"
         " as shell. Restrict who can write the hooks section."
     ),
+    "HARNESS-001": (
+        "Remove permissions.defaultMode: bypassPermissions; keep bypass for one"
+        " session in an isolated container."
+    ),
+    "HARNESS-002": (
+        "Remove enableAllProjectMcpServers; approve trusted servers by name with"
+        " enabledMcpjsonServers."
+    ),
+    "HARNESS-003": (
+        "Remove skipDangerousModePermissionPrompt so bypass mode stays a confirmed"
+        " step."
+    ),
+    "HARNESS-004": ("Replace the blanket Bash allow rule with specific command rules."),
     "CFHYG-006": (
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
         " — a third-party base URL receives every API call and its secrets."
