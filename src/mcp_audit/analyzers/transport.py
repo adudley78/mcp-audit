@@ -198,6 +198,7 @@ class TransportAnalyzer(BaseAnalyzer):
         # transport and supply_chain analyzer modules.
         from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
             extract_npm_package,
+            strip_npm_version_suffix,
         )
 
         # For `yarn dlx <pkg>`, skip the 'dlx' subcommand token.
@@ -206,7 +207,8 @@ class TransportAnalyzer(BaseAnalyzer):
             if server.command == "yarn" and server.args and server.args[0] == "dlx"
             else server.args
         )
-        package = extract_npm_package(effective_args)
+        spec = extract_npm_package(effective_args)
+        package = strip_npm_version_suffix(spec) if spec is not None else None
 
         entry = None
         if self._registry is not None and package is not None:

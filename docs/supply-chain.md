@@ -455,26 +455,42 @@ date, download count, publisher history).
 ## SC-004: Offline CVE advisory check
 
 `SC-004` (HIGH, `CWE-1104`, OWASP MCP04) fires when an exact-match registry entry
-carries one or more CVE IDs in `RegistryEntry.known_vulnerabilities`.  No network
-access is required — the check runs purely against the bundled registry.
+carries CVE IDs in `RegistryEntry.known_vulnerabilities` and/or structured records
+in `RegistryEntry.known_vulns` (`cve`, `cvss`, `description`, `fixed_in`).  No
+network access is required — the check runs purely against the bundled registry.
+
+**One finding per package** (STORY-0078, 2026-10-11).  A package with several
+advisories produces a single SC-004 that lists them all, not one finding per CVE:
 
 ```
-FINDING SC-004: Known CVE advisory: @mcpjam/inspector (CVE-2026-23744)
+FINDING SC-004: Known CVE advisories: mcp-atlassian (24 CVEs)
   Severity: HIGH  Analyzer: supply_chain
-  Package '@mcpjam/inspector' has a public CVE advisory (CVE-2026-23744) recorded
-  in the mcp-audit known-server registry.  Verify whether the version pinned in
-  your config falls within the affected range and upgrade to the patched version.
-  Check NVD: https://nvd.nist.gov/vuln/detail/CVE-2026-23744
+  Package 'mcp-atlassian' has 24 public CVE advisories recorded in the mcp-audit
+  known-server registry: CVE-2026-27826, CVE-2026-73498, ... The config does not
+  pin an exact version, so mcp-audit cannot tell offline whether the installed
+  release is affected; an unpinned launch usually installs the latest release.
+  Every advisory listed here is fixed in 0.22.0 or later.
 ```
 
-**Important limitation:** `SC-004` does not compare the installed version against
-the CVE's affected version range — it fires whenever the package name matches
-regardless of version.  Use `scan --check-vulns` for version-aware scanning via
-OSV.dev.  See `GAPS.md` for details.
+A single advisory keeps the original title form:
+`Known CVE advisory: @mcpjam/inspector (CVE-2026-23744)`.
 
-CVE IDs seeded at v0.12.0: CVE-2026-23744 (`@mcpjam/inspector`),
-CVE-2026-0755 (`gemini-mcp-tool`), CVE-2025-59528 (`flowise`),
-CVE-2026-26118 (`@azure/mcp`), CVE-2026-33032 (`nginx-ui`).
+**Version-aware when the config pins an exact version.**  When the launch command
+pins one (`npx pkg@1.4.0`, `uvx pkg==0.21.1`, `uvx pkg@0.21.1`) and a `known_vulns`
+record gives `fixed_in` for a CVE, that CVE is dropped if the pinned version is at
+or above the fix.  If every CVE is dropped, no SC-004 fires.  A CVE with no
+`fixed_in`, or a version that won't parse, is kept.
+
+**What it still can't do:** mcp-audit never resolves ranges, so a range
+(`pkg@^1.4.0`, `pkg>=0.21`) or no version at all is treated as unpinned and every
+recorded CVE is reported.  Use `scan --check-vulns` for a network lookup against
+OSV.dev.
+
+Seeded data: CVE-2026-23744 (`@mcpjam/inspector`), CVE-2026-0755
+(`gemini-mcp-tool`), CVE-2025-59528 (`flowise`), CVE-2026-26118 (`@azure/mcp`),
+CVE-2026-33032 (`nginx-ui`) at v0.12.0; 24 CVEs for `mcp-atlassian` (all fixed by
+0.22.0, from PyPI's vulnerability data) and CVE-2026-14540 for `@toolbox-sdk/server`
+(fixed in 1.5.0) on 2026-10-11.
 
 ---
 

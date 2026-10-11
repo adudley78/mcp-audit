@@ -19,9 +19,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Prachet Poddar credited in `docs/contributors.md`** under a new Research and
   Design Contributors section, for the measurements and `mcp-lock.json` format work
   the docs cite ([#88](https://github.com/adudley78/mcp-audit/issues/88)).
+- **Registry advisory data (STORY-0078):** `mcp-atlassian` now carries all 24 CVEs
+  PyPI's vulnerability data lists for releases before 0.22.0 (it had one), with
+  `fixed_in` per CVE, and its capabilities add `file_read` and `file_write` (its
+  attachment tools read and write local files, confirmed in the v0.23.1 source).
+  New unverified entry `@toolbox-sdk/server` (Google's MCP Toolbox, npm) with
+  CVE-2026-14540, fixed in 1.5.0. Registry is now 53 entries.
+
+### Changed
+
+- **SC-004 emits one finding per package, and is version-aware for exact pins
+  (STORY-0078).** A package with several advisories now produces one HIGH finding
+  listing them, instead of one per CVE. When the config pins an exact version at
+  or above a CVE's `fixed_in`, that CVE is dropped; if all are, no finding.
 
 ### Fixed
 
+- **Pinned package specs now match the registry.** `npx @scope/pkg@1.2.3` and
+  `uvx pkg==1.2.3` never matched their registry entry, so SC-004, typosquat
+  detection and TRANSPORT-003's registry tiering silently skipped pinned configs.
 - **`docs/lock.md` credited Prachet Poddar with the wrong GitHub link and a project
   name he never used.** It now links his account and the generator
   (`code/mcp_lock.py`) and spec in his `mcp-supply-chain-study` repository.
