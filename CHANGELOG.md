@@ -16,6 +16,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (npm, [#134](https://github.com/adudley78/mcp-audit/issues/134), submitted by
   [@uditgoenka](https://github.com/uditgoenka)). Both maintainers are credited in
   `docs/contributors.md`. Registry is now 52 entries.
+- **Prachet Poddar credited in `docs/contributors.md`** under a new Research and
+  Design Contributors section, for the measurements and `mcp-lock.json` format work
+  the docs cite ([#88](https://github.com/adudley78/mcp-audit/issues/88)).
+
+### Fixed
+
+- **`docs/lock.md` credited Prachet Poddar with the wrong GitHub link and a project
+  name he never used.** It now links his account and the generator
+  (`code/mcp_lock.py`) and spec in his `mcp-supply-chain-study` repository.
 
 ---
 
