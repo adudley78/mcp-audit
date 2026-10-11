@@ -351,6 +351,7 @@ def build_untraversed_symlink_dir_finding(path: Path, client_name: str) -> Findi
 def discover_configs(
     extra_paths: list[Path] | None = None,
     skip_auto_discovery: bool = False,
+    include_plugins: bool = False,
 ) -> list[DiscoveredConfig]:
     """Find all MCP configuration files on this machine.
 
@@ -361,6 +362,11 @@ def discover_configs(
             caller has already provided an explicit config path — combining
             that with auto-discovery would inflate ``clients_scanned`` with
             zero-server system configs.
+        include_plugins: When ``True``, also return the MCP server declarations
+            shipped by installed Claude Code plugins (``.mcp.json`` or inline
+            ``mcpServers`` in ``plugin.json``), as client ``claude-code-plugin``
+            (STORY-0080).  Independent of *skip_auto_discovery*: it is an
+            explicit opt-in.
 
     Returns:
         List of discovered configuration files.  A candidate that is itself a
@@ -493,6 +499,21 @@ def discover_configs(
                                 path=candidate,
                             )
                         )
+
+    if include_plugins:
+        from mcp_audit.plugins.discovery import (  # noqa: PLC0415
+            discover_installed_plugins,
+            plugin_mcp_config_paths,
+        )
+
+        for plugin_config in plugin_mcp_config_paths(discover_installed_plugins()):
+            discovered.append(
+                DiscoveredConfig(
+                    client_name="claude-code-plugin",
+                    root_key="mcpServers",
+                    path=plugin_config,
+                )
+            )
 
     return discovered
 

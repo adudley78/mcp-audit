@@ -1079,6 +1079,20 @@
       "notes": "Fires when permissions.allow in a Claude Code settings file contains bare Bash, Bash(*), PowerShell or PowerShell(*). Severity HIGH. CWE-862. Analyzer: config_hygiene (STORY-0079)."
     },
     {
+      "finding_id": "PLUGIN-001",
+      "finding_title": "Installed plugin does not match its marketplace pin",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"],
+      "notes": "Fires when a Claude Code marketplace entry pins a git-sourced plugin (github/url) to a 40-hex sha, neither plugin.json nor the entry sets a version, and the version recorded in installed_plugins.json is not the sha's 12-character prefix: the on-disk symptom of Plugin4Shell (AIR Security, 2026-09-17), or a plugin not updated since the pin moved. Severity MEDIUM. CWE-494. Analyzer: plugins (STORY-0080)."
+    },
+    {
+      "finding_id": "PLUGIN-002",
+      "finding_title": "Plugin source is not pinned to a commit",
+      "owasp_codes": ["MCP04"],
+      "owasp_names": ["Software Supply Chain Attacks"],
+      "notes": "Fires when a Claude Code marketplace entry fetches a github, url or git-subdir plugin source with no sha. Severity LOW. CWE-829. Analyzer: plugins (STORY-0080)."
+    },
+    {
       "finding_id": "MEM-001",
       "finding_title": "Imperative override instruction in memory file",
       "owasp_codes": ["MCP03"],

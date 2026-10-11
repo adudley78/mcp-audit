@@ -438,3 +438,18 @@ The **new** patterns specific to the agent-file surface are:
   "`Bash(*)` is equivalent to `Bash` and matches all Bash commands".
 - All four checks are original implementations; no code was copied.
 
+## Claude Code plugins (PLUGIN-001/002, plugins/ — STORY-0080)
+
+- **Plugin4Shell** — Or Nevo, Dor Granat, Niv Hoffman, AIR Security, 2026-09-17
+  (https://www.air.security/blog-posts/plugin4shell). Agents checked out a
+  marketplace-pinned commit without verifying `HEAD`; a branch named like the SHA, or a
+  default branch named `FETCH_HEAD`, swapped the code. Patched in Claude Code 2.1.179.
+  Source for PLUGIN-001.
+- **Claude Code plugin documentation** — code.claude.com/docs/en/plugins/loading
+  (plugins root, `installed_plugins.json`, `known_marketplaces.json`, cache layout, "How
+  Claude Code computes the version") and plugins/marketplace-reference (plugin source
+  types and the `ref`/`sha` fields).
+- **`installed_plugins.json` shape** — anthropics/claude-code issues #45997 and #17032,
+  which quote the `{"version": 2, "plugins": {"<id>": [records]}}` structure.
+- Original implementation; no code was copied.
+
