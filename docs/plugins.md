@@ -1,7 +1,8 @@
 # Claude Code plugins
 
-`mcp-audit plugins discover`, `mcp-audit plugins scan`, and `scan --include-plugins`
-look at the plugins Claude Code has installed (STORY-0080). Fully offline: mcp-audit
+`mcp-audit plugins discover` and `mcp-audit plugins scan` look at the plugins Claude
+Code has installed (STORY-0080), and a normal `mcp-audit scan` includes them by
+default. Fully offline: mcp-audit
 reads the files Claude Code keeps under its plugins root and never runs git, a
 package manager, or the agent.
 
@@ -44,7 +45,23 @@ the recorded version is `unknown` (anthropics/claude-code#17032).
 - **Skills and commands** go through the agent-file checks (POISON-*, SKILL-*), with
   scope `plugin`.
 - **MCP servers** declared in a plugin's `.mcp.json` or inline in `plugin.json` go
-  through the full analyzer pipeline as client `claude-code-plugin`, under
-  `scan --include-plugins` and `plugins scan`.
+  through the full analyzer pipeline as client `claude-code-plugin`.
+
+## In a normal scan
+
+A plugin's MCP servers run in Claude Code like any other configured server, so
+`mcp-audit scan` (and `check`, `dashboard`, `shadow`, `sbom`, `watch`, everything that
+auto-discovers configs) includes them by default, along with PLUGIN-001/002:
+
+| Command | Plugin MCP servers | PLUGIN-001/002 | Plugin skills and commands |
+|---|---|---|---|
+| `mcp-audit scan` | yes | yes | with `--include-agent-files` |
+| `mcp-audit scan --path <file>` | no | no | with `--include-agent-files` |
+| `mcp-audit scan --no-plugins` | no | no | no |
+| `mcp-audit plugins scan` | yes | yes | yes |
+
+An explicit `--path` means "scan exactly this", so plugin servers stay out of it.
+`mcp-audit lock` never records plugin servers: their marketplace `sha` already pins
+them (PLUGIN-001 checks it), and their cache paths differ per machine.
 
 See `GAPS.md` for what is not covered.

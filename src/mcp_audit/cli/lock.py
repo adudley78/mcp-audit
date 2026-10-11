@@ -59,7 +59,10 @@ def _discover_lock_servers(
         except ValueError as exc:
             con.print(f"[yellow]Warning: {exc}[/yellow]")
     if include_user:
-        for config in _cli.discover_configs():
+        # Plugin-shipped servers are pinned by their marketplace sha and
+        # checked by PLUGIN-001, and their cache paths are machine-specific,
+        # so they never belong in a committed lock.
+        for config in _cli.discover_configs(include_plugins=False):
             try:
                 servers.extend(_cli.parse_config(config))
             except ValueError as exc:

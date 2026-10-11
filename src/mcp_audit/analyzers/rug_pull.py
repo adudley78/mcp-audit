@@ -100,8 +100,15 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
         A path like ``~/.mcp-audit/state_a1b2c3d4.json``.  Falls back to
         :data:`DEFAULT_STATE_PATH` when *configs* is empty so that there is
         always a valid path to write to.
+
+    Configs from Claude Code plugins (client ``claude-code-plugin``) are left
+    out of the key.  Their paths contain the plugin version, so including them
+    would move every server's rug-pull history to a fresh state file on each
+    plugin update.  Their servers are still tracked in whichever file the rest
+    of the scan uses.
     """
     _migrate_legacy_state()
+    configs = [c for c in configs if c.client_name != "claude-code-plugin"]
     if not configs:
         return DEFAULT_STATE_PATH
     paths_str = "\n".join(sorted(str(c.path) for c in configs))
