@@ -8,6 +8,8 @@ import * as https from "https";
 import * as http from "http";
 import * as fs from "fs";
 import * as path from "path";
+import * as dns from "dns";
+import * as net from "net";
 import { Pool } from "pg";
 import axios from "axios";
 
@@ -134,4 +136,24 @@ async function fetchWithValidation(args: { url: string }): Promise<unknown> {
   }
   const response = await fetch(args.url); // nosemgrep: mcp-ts-tool-arg-url-ssrf
   return response.json();
+}
+
+// Safe: resolve the hostname and check every address before connecting
+// ok: mcp-ts-ssrf-ip-literal-only-guard
+async function hostResolvesPublic(host: string): Promise<boolean> {
+  const addrs = await dns.promises.lookup(host, { all: true });
+  return addrs.every((a) => net.isIP(a.address) !== 0 && !isLoopbackOrPrivate(a.address));
+}
+
+// Safe: IP-literal guard that refuses hostnames outright (fail-closed)
+// ok: mcp-ts-ssrf-ip-literal-only-guard
+function requirePublicIpLiteral(host: string): void {
+  if (!net.isIP(host)) {
+    throw new Error("hostnames are not accepted");
+  }
+  if (isLoopbackOrPrivate(host)) throw new Error("internal address");
+}
+
+function isLoopbackOrPrivate(ip: string): boolean {
+  return ip.startsWith("10.") || ip.startsWith("127.") || ip.startsWith("169.254.");
 }

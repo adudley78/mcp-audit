@@ -87,7 +87,7 @@ changelog section above.
 - **Credential exposure** — 17 patterns (AWS, GitHub, Stripe, Slack, and more)
 - **Supply chain risk** — npm/PyPI provenance, Sigstore signature verification (`--verify-signatures`), SBOM + OSV.dev CVE scan (`--check-vulns`)
 - **Toxic flow detection** — dangerous server *combinations* (e.g. database + web fetch)
-- **SAST** — 89 rules across Python (46) and TypeScript (43)
+- **SAST** — 91 rules across Python (47) and TypeScript (44)
 - **Transport security** — insecure bindings, wildcard hosts, unverified TLS
 
 ### Integrations

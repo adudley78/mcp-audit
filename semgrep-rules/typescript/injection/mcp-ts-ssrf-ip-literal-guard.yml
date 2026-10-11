@@ -1,0 +1,110 @@
+rules:
+  - id: mcp-ts-ssrf-ip-literal-only-guard
+    message: >
+      SSRF guard classifies the host with net.isIP() / ipaddr.js but never
+      resolves hostnames, so it can only reject IP literals. A hostname that
+      points at 127.0.0.1, 10.x.x.x or 169.254.169.254 (or an attacker's DNS
+      record that does) is not an IP, skips the private-range check and
+      reaches fetch(). This is the shape of the Wazuh MCP server advisory
+      GHSA-pw2j-pj4h-f5vg. Resolve the hostname (dns.promises.lookup with
+      all: true), reject it if any address is private, loopback, link-local
+      or reserved, and connect to the address you checked (for example via a
+      custom lookup on the agent) rather than resolving again, or DNS
+      rebinding reopens the hole.
+    severity: WARNING
+    languages: [typescript, javascript]
+    metadata:
+      category: injection
+      cwe: CWE-918
+      owasp: A10:2021
+      owasp-mcp-top-10:
+        - MCP05
+      references:
+        - https://github.com/INFOKOM-KI/Wazuh-MCP-Server/security/advisories/GHSA-pw2j-pj4h-f5vg
+        - https://thenextweb.com/news/mcp-flaw-ssrf-google-jpmorgan-dinum-protocol-pivoting
+      description: SSRF guard that only blocks IP literals — hostnames bypass it
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+      fp-guidance: >
+        Fires on net.isIP / isIPv4 / isIPv6 / ipaddr.parse / ipaddr.process /
+        ipaddr.isValid inside a function (declaration or arrow) that looks
+        like an SSRF guard (an ipaddr .range() check, a private-range string
+        or regex literal, or a call named like isPrivate / isInternal /
+        isLoopback) and never calls dns.lookup, dns.promises.lookup,
+        dns.resolve4/6 or lookup(). A non-IP branch that throws is excluded.
+        If the function's return value makes the caller reject hostnames
+        outright, the guard is fail-closed: suppress with
+        // nosemgrep: mcp-ts-ssrf-ip-literal-only-guard.
+    patterns:
+      - pattern-either:
+          - pattern: net.isIP($HOST)
+          - pattern: net.isIPv4($HOST)
+          - pattern: net.isIPv6($HOST)
+          - pattern: isIP($HOST)
+          - pattern: isIPv4($HOST)
+          - pattern: isIPv6($HOST)
+          - pattern: ipaddr.parse($HOST)
+          - pattern: ipaddr.process($HOST)
+          - pattern: ipaddr.isValid($HOST)
+      - pattern-either:
+          - pattern-inside: |
+              function $F(...) { ... <... $A.range() ...>; ... }
+          - pattern-inside: |
+              (...) => { ... <... $A.range() ...>; ... }
+          - pattern-inside: |
+              function $F(...) { ... <... "=~/^(127\.|10\.|169\.254|192\.168|172\.(1[6-9]|2[0-9]|3[01])|0\.0\.0\.0|localhost|::1|fc00|fe80)/" ...>; ... }
+          - pattern-inside: |
+              (...) => { ... <... "=~/^(127\.|10\.|169\.254|192\.168|172\.(1[6-9]|2[0-9]|3[01])|0\.0\.0\.0|localhost|::1|fc00|fe80)/" ...>; ... }
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      function $F(...) { ... <... $CHK(...) ...>; ... }
+                  - pattern-inside: |
+                      (...) => { ... <... $CHK(...) ...>; ... }
+              - metavariable-regex:
+                  metavariable: $CHK
+                  regex: (?i).*(private|internal|loopback|reserved|link_?local|blocked|bogon).*
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      function $F(...) { ... <... $RE.test($X) ...>; ... }
+                  - pattern-inside: |
+                      (...) => { ... <... $RE.test($X) ...>; ... }
+              - metavariable-regex:
+                  metavariable: $RE
+                  regex: ^/.*(127|10\\\.|169|192|172|localhost).*/[a-z]*$
+      - pattern-not-inside: |
+          if (!net.isIP($HOST)) { ... throw $E; }
+      - pattern-not-inside: |
+          if (!net.isIP($HOST)) throw $E;
+      - pattern-not-inside: |
+          if (net.isIP($HOST) === 0) { ... throw $E; }
+      - pattern-not-inside: |
+          if (net.isIP($HOST) === 0) throw $E;
+      - pattern-not-inside: |
+          if (!isIP($HOST)) { ... throw $E; }
+      - pattern-not-inside: |
+          if (!isIP($HOST)) throw $E;
+      - pattern-not-inside: |
+          if (isIP($HOST) === 0) { ... throw $E; }
+      - pattern-not-inside: |
+          if (isIP($HOST) === 0) throw $E;
+      - pattern-not-inside: |
+          try { ... } catch ($ERR) { ... throw $E; }
+      - pattern-not-inside: |
+          try { ... } catch { ... throw $E; }
+      - pattern-not-inside: |
+          function $F(...) { ... <... dns.lookup(...) ...>; ... }
+      - pattern-not-inside: |
+          function $F(...) { ... <... dns.promises.lookup(...) ...>; ... }
+      - pattern-not-inside: |
+          function $F(...) { ... <... dns.resolve4(...) ...>; ... }
+      - pattern-not-inside: |
+          function $F(...) { ... <... dns.resolve6(...) ...>; ... }
+      - pattern-not-inside: |
+          function $F(...) { ... <... lookup(...) ...>; ... }
+      - pattern-not-inside: |
+          (...) => { ... <... dns.lookup(...) ...>; ... }
+      - pattern-not-inside: |
+          (...) => { ... <... lookup(...) ...>; ... }
