@@ -537,6 +537,13 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   two locks differ. Only the resolved versions and integrity hashes can regenerate a lock.
   Explanatory, never reproducible: tags and deprecation flags have no queryable history, so no
   recorded context is a coordinate anyone can return to.
+  Worked case, from Prachet Poddar's `RESOLVER-NOTES.md`
+  ([mcp-supply-chain-study v3.6](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.6/RESOLVER-NOTES.md)):
+  run on the same day by the same resolver, `@types/node` resolves to 26.4.1 against the registry
+  rebuilt as of 2026-09-07 and to 22.20.3 against the live registry. Today's `latest` tag points at a
+  22.20.x published after the cutoff, so the rebuild cannot apply the tag preference and falls back to
+  the highest version. A context field reading "as of 2026-09-07" explains that difference; it cannot
+  recover what `latest` pointed at on that date.
   (c) **Bare spec recorded as written, not as `"latest"`.** See GAPS.md's "Bare package spec is
   recorded and resolved as `latest`" entry for the full defect description; the fix belongs in this
   set because it is a `lock_version`-relevant format change, not a bugfix that can land quietly.
