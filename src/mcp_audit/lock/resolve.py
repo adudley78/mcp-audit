@@ -21,7 +21,11 @@ from __future__ import annotations
 import urllib.error
 from datetime import UTC, datetime
 
-from mcp_audit.analyzers.supply_chain import extract_npm_package, extract_pypi_package
+from mcp_audit.analyzers.supply_chain import (
+    extract_npm_package,
+    extract_pypi_package,
+    strip_npm_version_suffix,
+)
 from mcp_audit.attestation.hasher import compute_hash_from_url, resolve_npm_tarball_url
 from mcp_audit.models import ServerConfig
 from mcp_audit.registry.loader import KnownServerRegistry
@@ -39,19 +43,11 @@ _PYPI_LAUNCHERS = {"uvx", "pipx"}
 def _strip_npm_version_suffix(name: str) -> str:
     """Strip a trailing ``@version`` from an npm package token.
 
-    ``analyzers.supply_chain.extract_npm_package`` deliberately does *not*
-    strip a version suffix (it is used only for typosquat detection against
-    a bare package name, and its own test suite pins the un-stripped
-    behaviour — see ``tests/test_supply_chain.py::TestExtractNpmPackage``).
-    A lock entry's ``package.name`` must be the bare name regardless: for a
-    scoped package the version sits after the *second* ``@``
-    (``@scope/name@1.2.3``); for an unscoped package, after the first.
+    Thin alias for :func:`mcp_audit.analyzers.supply_chain.strip_npm_version_suffix`
+    (moved there in STORY-0078 so the supply-chain analyzer's registry lookup
+    and the lock agree on what a bare npm name is).
     """
-    if name.startswith("@"):
-        scope, _, rest = name.partition("/")
-        pkg_name = rest.rsplit("@", 1)[0] if "@" in rest else rest
-        return f"{scope}/{pkg_name}"
-    return name.rsplit("@", 1)[0] if "@" in name else name
+    return strip_npm_version_suffix(name)
 
 
 def extract_package_identity(server: ServerConfig) -> tuple[str, str] | None:

@@ -1086,8 +1086,13 @@ class TestKnownCveAdvisory:
         assert f.analyzer == "supply_chain"
         assert f.owasp_mcp_top_10 == ["MCP04"]
 
-    def test_sc004_one_finding_per_cve(self) -> None:
-        """Multiple CVEs on one entry produce one SC-004 finding each."""
+    def test_sc004_one_finding_per_package(self) -> None:
+        """Multiple CVEs on one entry produce ONE SC-004 listing all of them.
+
+        STORY-0078: per-CVE emission turned a package with two dozen
+        advisories into two dozen HIGH findings, and every SC-004 for a
+        package already shares one advisory ID in the feed.
+        """
         registry = self._make_registry(
             [
                 {
@@ -1107,9 +1112,13 @@ class TestKnownCveAdvisory:
         analyzer = SupplyChainAnalyzer(registry=registry)
         findings = analyzer.analyze(server)
 
-        assert len(findings) == 2
-        cve_ids = {f.title.split("(")[1].rstrip(")") for f in findings}
-        assert cve_ids == {"CVE-2025-59528", "CVE-2026-99999"}
+        assert len(findings) == 1
+        f = findings[0]
+        assert f.id == "SC-004"
+        assert f.title == "Known CVE advisories: flowise (2 CVEs)"
+        assert "CVE-2025-59528" in f.description
+        assert "CVE-2026-99999" in f.description
+        assert "cves: CVE-2025-59528, CVE-2026-99999" in f.evidence
 
     def test_sc004_no_finding_when_no_known_vulnerabilities(self) -> None:
         """Known package without CVEs does not produce SC-004."""
@@ -1183,3 +1192,214 @@ class TestKnownCveAdvisory:
             f"got {findings}"
         )
         assert any("CVE-2026-23744" in f.title for f in sc004)
+
+
+# ── SC-004: version-aware suppression (STORY-0078) ────────────────────────────
+
+
+def _vuln_registry(entries: list) -> _loader_module.KnownServerRegistry:
+    """Build a KnownServerRegistry from in-memory entries."""
+    import json
+    import tempfile
+
+    from mcp_audit.registry.loader import KnownServerRegistry
+
+    payload = {
+        "schema_version": "1.0",
+        "last_updated": "2026-10-11",
+        "entries": entries,
+    }
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as fh:
+        json.dump(payload, fh)
+        tmp = fh.name
+    return KnownServerRegistry(path=Path(tmp))
+
+
+def _pypi_entry(**extra: object) -> dict:
+    entry: dict = {
+        "name": "acme-mcp",
+        "source": "pip",
+        "package_ecosystem": "pypi",
+        "repo": "https://example.invalid/acme-mcp",
+        "maintainer": "acme",
+        "verified": False,
+        "last_verified": "2026-10-11",
+        "known_versions": [],
+        "tags": [],
+    }
+    entry.update(extra)
+    return entry
+
+
+_TWO_FIXED = {
+    "known_vulnerabilities": ["CVE-2026-00001", "CVE-2026-00002"],
+    "known_vulns": [
+        {
+            "cve": "CVE-2026-00001",
+            "cvss": None,
+            "description": "a",
+            "fixed_in": "0.17.0",
+        },
+        {
+            "cve": "CVE-2026-00002",
+            "cvss": None,
+            "description": "b",
+            "fixed_in": "0.22.0",
+        },
+    ],
+}
+
+
+def _srv(command: str, args: list[str]) -> ServerConfig:
+    return ServerConfig(
+        name="s", command=command, args=args, client="claude", config_path="/x.json"
+    )
+
+
+class TestSc004VersionAware:
+    """SC-004 drops CVEs a pinned version is already past."""
+
+    def test_pinned_above_every_fix_is_silent(self) -> None:
+        reg = _vuln_registry([_pypi_entry(**_TWO_FIXED)])
+        out = SupplyChainAnalyzer(registry=reg).analyze(
+            _srv("uvx", ["acme-mcp==0.23.1"])
+        )
+        assert [f for f in out if f.id == "SC-004"] == []
+
+    def test_pinned_between_fixes_keeps_only_the_unfixed_cve(self) -> None:
+        reg = _vuln_registry([_pypi_entry(**_TWO_FIXED)])
+        out = SupplyChainAnalyzer(registry=reg).analyze(
+            _srv("uvx", ["acme-mcp@0.18.0"])
+        )
+        assert len(out) == 1
+        f = out[0]
+        assert f.title == "Known CVE advisory: acme-mcp (CVE-2026-00002)"
+        assert "pins version 0.18.0" in f.description
+        assert "pinned: 0.18.0" in f.evidence
+        assert "fixed_in: 0.22.0" in f.evidence
+
+    def test_unpinned_keeps_all_and_names_the_fix(self) -> None:
+        reg = _vuln_registry([_pypi_entry(**_TWO_FIXED)])
+        out = SupplyChainAnalyzer(registry=reg).analyze(_srv("uvx", ["acme-mcp"]))
+        assert len(out) == 1
+        assert out[0].title == "Known CVE advisories: acme-mcp (2 CVEs)"
+        assert "fixed in 0.22.0 or later" in out[0].description
+        assert "Upgrade 'acme-mcp' to 0.22.0 or later" in out[0].remediation
+
+    def test_cve_without_fixed_in_is_kept_even_when_pinned(self) -> None:
+        reg = _vuln_registry(
+            [
+                _pypi_entry(
+                    known_vulnerabilities=["CVE-2026-00009"], **{"known_vulns": []}
+                )
+            ]
+        )
+        out = SupplyChainAnalyzer(registry=reg).analyze(
+            _srv("uvx", ["acme-mcp==9.9.9"])
+        )
+        assert len(out) == 1
+        assert "CVE-2026-00009" in out[0].title
+
+    def test_known_vulns_alone_still_fires(self) -> None:
+        reg = _vuln_registry(
+            [
+                _pypi_entry(
+                    known_vulns=[
+                        {
+                            "cve": "CVE-2026-00003",
+                            "cvss": None,
+                            "description": "c",
+                            "fixed_in": "2.0.0",
+                        }
+                    ]
+                )
+            ]
+        )
+        out = SupplyChainAnalyzer(registry=reg).analyze(_srv("uvx", ["acme-mcp"]))
+        assert len(out) == 1
+        assert "CVE-2026-00003" in out[0].title
+
+    def test_npm_exact_pin_suppresses_and_range_does_not(self) -> None:
+        entry = {
+            "name": "@acme/server",
+            "source": "npm",
+            "package_ecosystem": "npm",
+            "repo": "https://example.invalid/acme",
+            "maintainer": "acme",
+            "verified": False,
+            "last_verified": "2026-10-11",
+            "known_versions": [],
+            "tags": [],
+            "known_vulnerabilities": ["CVE-2026-00004"],
+            "known_vulns": [
+                {
+                    "cve": "CVE-2026-00004",
+                    "cvss": None,
+                    "description": "d",
+                    "fixed_in": "1.5.0",
+                }
+            ],
+        }
+        reg = _vuln_registry([entry])
+        an = SupplyChainAnalyzer(registry=reg)
+        assert an.analyze(_srv("npx", ["-y", "@acme/server@1.5.0"])) == []
+        assert len(an.analyze(_srv("npx", ["-y", "@acme/server@1.4.0"]))) == 1
+        # A range is not a pin: offline, mcp-audit can't know what it installs.
+        assert len(an.analyze(_srv("npx", ["-y", "@acme/server@^1.5.0"]))) == 1
+
+
+class TestPinnedVersion:
+    """_pinned_version only returns exact pins."""
+
+    @pytest.mark.parametrize(
+        ("command", "args", "expected"),
+        [
+            ("npx", ["-y", "@scope/pkg@1.2.3"], "1.2.3"),
+            ("npx", ["pkg@1.2.3-beta.1"], "1.2.3-beta.1"),
+            ("npx", ["-y", "@scope/pkg"], None),
+            ("npx", ["pkg@latest"], None),
+            ("npx", ["pkg@^1.2.3"], None),
+            ("yarn", ["dlx", "pkg@2.0.0"], "2.0.0"),
+            ("uvx", ["mcp-atlassian==0.21.1"], "0.21.1"),
+            ("uvx", ["mcp-atlassian@0.21.1"], "0.21.1"),
+            ("uvx", ["mcp-atlassian>=0.21"], None),
+            ("uvx", ["mcp-atlassian"], None),
+            ("pipx", ["run", "mcp-atlassian==0.22.0"], "0.22.0"),
+            ("node", ["server.js"], None),
+        ],
+    )
+    def test_forms(self, command: str, args: list[str], expected: str | None) -> None:
+        from mcp_audit.analyzers.supply_chain import _pinned_version
+
+        assert _pinned_version(_srv(command, args)) == expected
+
+
+class TestBundledRegistryAdvisories:
+    """The shipped registry data drives SC-004 end to end (STORY-0078)."""
+
+    def test_mcp_atlassian_unpinned_is_one_finding_with_all_cves(self) -> None:
+        out = SupplyChainAnalyzer().analyze(_srv("uvx", ["mcp-atlassian"]))
+        sc004 = [f for f in out if f.id == "SC-004"]
+        assert len(sc004) == 1
+        assert sc004[0].title == "Known CVE advisories: mcp-atlassian (24 CVEs)"
+        assert "CVE-2026-77244" in sc004[0].description
+        assert "fixed_in: 0.22.0" in sc004[0].evidence
+
+    def test_mcp_atlassian_fixed_release_is_silent(self) -> None:
+        out = SupplyChainAnalyzer().analyze(_srv("uvx", ["mcp-atlassian==0.23.1"]))
+        assert [f for f in out if f.id == "SC-004"] == []
+
+    def test_mcp_atlassian_vulnerable_release_fires(self) -> None:
+        out = SupplyChainAnalyzer().analyze(_srv("uvx", ["mcp-atlassian==0.21.1"]))
+        sc004 = [f for f in out if f.id == "SC-004"]
+        assert len(sc004) == 1
+        assert "(23 CVEs)" in sc004[0].title  # CVE-2026-27826 was fixed in 0.17.0
+
+    def test_toolbox_server_pin_below_and_at_fix(self) -> None:
+        an = SupplyChainAnalyzer()
+        below = an.analyze(_srv("npx", ["-y", "@toolbox-sdk/server@1.4.0"]))
+        assert [f.title for f in below if f.id == "SC-004"] == [
+            "Known CVE advisory: @toolbox-sdk/server (CVE-2026-14540)"
+        ]
+        at_fix = an.analyze(_srv("npx", ["-y", "@toolbox-sdk/server@1.5.0"]))
+        assert [f for f in at_fix if f.id == "SC-004"] == []

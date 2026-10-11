@@ -12,6 +12,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from packaging.version import InvalidVersion, Version
+
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.models import Finding, ServerConfig, Severity
 from mcp_audit.registry.loader import (
@@ -73,6 +75,27 @@ _UVX_FLAGS_WITH_VALUE: frozenset[str] = frozenset(
 )
 
 
+def strip_npm_version_suffix(name: str) -> str:
+    """Strip a trailing ``@version`` from an npm package token.
+
+    :func:`extract_npm_package` deliberately returns the whole token (its test
+    suite pins that), so callers that look a package up by name strip the
+    version first.  For a scoped package the version sits after the *second*
+    ``@`` (``@scope/name@1.2.3``); for an unscoped one, after the first.
+
+    Args:
+        name: An npm package token, with or without a version suffix.
+
+    Returns:
+        The bare package name.
+    """
+    if name.startswith("@"):
+        scope, _, rest = name.partition("/")
+        pkg_name = rest.rsplit("@", 1)[0] if "@" in rest else rest
+        return f"{scope}/{pkg_name}"
+    return name.rsplit("@", 1)[0] if "@" in name else name
+
+
 def extract_npm_package(args: list[str]) -> str | None:
     """Return the first npm package name found in an npx-style argument list.
 
@@ -101,6 +124,16 @@ def extract_npm_package(args: list[str]) -> str | None:
         # Accept scoped (@org/name) or plain package names.
         return arg.lower()
     return None
+
+
+# A PyPI requirement token ends its name at the first PEP 508 specifier,
+# extras bracket, marker, or ``@`` (uvx's ``pkg@1.2.3`` form).
+_PYPI_NAME_END_RE: re.Pattern[str] = re.compile(r"[=<>!~;\[@\s]")
+
+
+def _bare_pypi_name(token: str) -> str:
+    """Return the name from ``pkg``, ``pkg==1.2``, ``pkg@1.2`` or ``pkg[x]>=1``."""
+    return _PYPI_NAME_END_RE.split(token, maxsplit=1)[0]
 
 
 def extract_pypi_package(command: str, args: list[str]) -> str | None:
@@ -155,8 +188,7 @@ def extract_pypi_package(command: str, args: list[str]) -> str | None:
     # when a separate executable name follows it.
     for i, arg in enumerate(effective):
         if arg in ("--from", "-f") and i + 1 < len(effective):
-            pkg = effective[i + 1].split("@")[0]
-            return normalize_pypi_name(pkg)
+            return normalize_pypi_name(_bare_pypi_name(effective[i + 1]))
 
     # General flag-skipping scan: consume known-value flags and their arguments,
     # ignore bare flags, and take the first remaining positional as the package.
@@ -176,63 +208,230 @@ def extract_pypi_package(command: str, args: list[str]) -> str | None:
             continue
         if arg.startswith("-"):
             continue
-        # First non-flag positional: strip optional @version suffix.
-        return normalize_pypi_name(arg.split("@")[0])
+        # First non-flag positional: strip an optional version pin or specifier.
+        return normalize_pypi_name(_bare_pypi_name(arg))
 
     return None
+
+
+# An exact npm version: MAJOR.MINOR.PATCH with optional pre-release/build.
+# Anything else (ranges, dist-tags, ``latest``) is not a pin.
+_NPM_EXACT_VERSION_RE: re.Pattern[str] = re.compile(
+    r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
+)
+
+# Characters that make a PyPI version string a specifier rather than a pin.
+_PYPI_SPECIFIER_CHARS: frozenset[str] = frozenset("<>=!~*,")
+
+
+def _pinned_version(server: ServerConfig) -> str | None:
+    """Return the exact package version the launch command pins, or ``None``.
+
+    Only an exact pin counts.  A range, a dist-tag, ``latest``, or no version
+    at all returns ``None``, because mcp-audit never resolves ranges and an
+    offline scan cannot know what an unpinned launch will install.
+
+    Handles ``npx [flags] pkg@1.2.3`` / ``@scope/pkg@1.2.3`` (and ``yarn dlx``,
+    ``bunx``, ``pnpx``) and ``uvx pkg==1.2.3`` / ``uvx pkg@1.2.3`` (and
+    ``pipx run``, ``uvx --from``).
+
+    Args:
+        server: The MCP server configuration to inspect.
+
+    Returns:
+        The pinned version string, or ``None`` when the version is not pinned.
+    """
+    command = server.command or ""
+    args = list(server.args or [])
+
+    if command == "yarn" and args[:1] == ["dlx"]:
+        command, args = "npx", args[1:]
+
+    if command in _NPX_LIKE:
+        spec = extract_npm_package(args)
+        if spec is None:
+            return None
+        if spec.startswith("@"):
+            _scope, _slash, rest = spec.partition("/")
+            _name, sep, version = rest.rpartition("@")
+        else:
+            _name, sep, version = spec.rpartition("@")
+        if sep and _NPM_EXACT_VERSION_RE.match(version):
+            return version
+        return None
+
+    if command in _PYPI_LIKE:
+        package = extract_pypi_package(command, args)
+        if package is None:
+            return None
+        for token in args:
+            if token.startswith("-"):
+                continue
+            base, version = token, ""
+            if "==" in token:
+                base, version = token.split("==", 1)
+            elif "@" in token:
+                base, version = token.split("@", 1)
+            if normalize_pypi_name(base) != package or not version:
+                continue
+            if any(ch in _PYPI_SPECIFIER_CHARS for ch in version):
+                return None
+            try:
+                Version(version)
+            except InvalidVersion:
+                return None
+            return version
+        return None
+
+    return None
+
+
+def _version_lt(a: str, b: str) -> bool | None:
+    """Return ``a < b`` under PEP 440 ordering, or ``None`` if either won't parse."""
+    try:
+        return Version(a) < Version(b)
+    except InvalidVersion:
+        return None
+
+
+def _highest_version(versions: set[str]) -> str | None:
+    """Return the highest of *versions*, or ``None`` if any fails to parse."""
+    try:
+        return str(max(versions, key=Version)) if versions else None
+    except InvalidVersion:
+        return None
 
 
 def _emit_known_cve_findings(
     server: ServerConfig,
     entry: RegistryEntry,
 ) -> list[Finding]:
-    """Emit SC-004 findings for each CVE in *entry.known_vulnerabilities*.
+    """Emit one SC-004 finding for the CVEs recorded against *entry*.
 
     Called when an exact-match package has public CVE advisories recorded in
-    the bundled registry.  Severity is HIGH — the package is confirmed
-    vulnerable; the operator should check whether the installed version is
-    affected and upgrade if so.
+    the bundled registry (``known_vulnerabilities`` and/or the structured
+    ``known_vulns`` records).  Severity is HIGH.
+
+    One finding per package, not one per CVE (STORY-0078): a package with
+    two dozen advisories used to produce two dozen HIGH findings, and every
+    SC-004 for the same package already shares one advisory ID in the feed.
+
+    Version-aware when it can be: if the launch command pins an exact version
+    and a structured record gives ``fixed_in`` for a CVE, that CVE is dropped
+    when the pinned version is at or above the fix.  A CVE with no recorded
+    ``fixed_in``, or a version that won't parse, is kept.  When nothing
+    remains, no finding is emitted.
 
     Args:
         server: The MCP server configuration that references this package.
         entry: Registry entry for the matched package.
 
     Returns:
-        One SC-004 :class:`~mcp_audit.models.Finding` per CVE ID.
+        A list with at most one SC-004 :class:`~mcp_audit.models.Finding`.
     """
-    findings: list[Finding] = []
+    cves: list[str] = []
+    fixed_in: dict[str, str] = {}
     for cve_id in entry.known_vulnerabilities or []:
-        findings.append(
-            Finding(
-                id="SC-004",
-                severity=Severity.HIGH,
-                analyzer="supply_chain",
-                client=server.client,
-                server=server.name,
-                title=f"Known CVE advisory: {entry.name} ({cve_id})",
-                description=(
-                    f"Package {entry.name!r} has a public CVE advisory "
-                    f"({cve_id}) recorded in the mcp-audit known-server registry. "
-                    "Verify whether the version pinned in your config falls within "
-                    "the affected range and upgrade to the patched version if so. "
-                    "Check NVD (https://nvd.nist.gov/vuln/detail/"
-                    f"{cve_id}) for the full advisory."
-                ),
-                evidence=(
-                    f"package: {entry.name} | "
-                    f"cve: {cve_id} | "
-                    f"maintainer: {entry.maintainer}"
-                ),
-                remediation=(
-                    f"Review {cve_id} at https://nvd.nist.gov/vuln/detail/{cve_id} "
-                    f"and upgrade {entry.name!r} to the patched version."
-                ),
-                cwe="CWE-1104",
-                owasp_mcp_top_10=["MCP04"],
-                finding_path=str(server.config_path),
-            )
+        if cve_id and cve_id not in cves:
+            cves.append(cve_id)
+    for record in entry.known_vulns or []:
+        cve_id = record.get("cve") if isinstance(record, dict) else None
+        if not cve_id:
+            continue
+        if cve_id not in cves:
+            cves.append(cve_id)
+        if record.get("fixed_in"):
+            fixed_in[cve_id] = str(record["fixed_in"])
+    if not cves:
+        return []
+
+    pinned = _pinned_version(server)
+    if pinned is None:
+        affected = cves
+    else:
+        affected = [
+            c
+            for c in cves
+            if c not in fixed_in or _version_lt(pinned, fixed_in[c]) is not False
+        ]
+    if not affected:
+        return []
+
+    fixes = {fixed_in[c] for c in affected if c in fixed_in}
+    all_fixed_known = len(fixes) > 0 and all(c in fixed_in for c in affected)
+    highest_fix = _highest_version(fixes) if all_fixed_known else None
+
+    if pinned is not None:
+        version_note = (
+            f" The config pins version {pinned}, which is below the fixed "
+            f"version {highest_fix}."
+            if highest_fix
+            else f" The config pins version {pinned}."
         )
-    return findings
+    else:
+        version_note = (
+            " The config does not pin an exact version, so mcp-audit cannot "
+            "tell offline whether the installed release is affected; an unpinned "
+            "launch usually installs the latest release."
+        )
+        if highest_fix:
+            version_note += (
+                f" Every advisory listed here is fixed in {highest_fix} or later."
+            )
+
+    if len(affected) == 1:
+        cve_id = affected[0]
+        title = f"Known CVE advisory: {entry.name} ({cve_id})"
+        description = (
+            f"Package {entry.name!r} has a public CVE advisory "
+            f"({cve_id}) recorded in the mcp-audit known-server registry."
+            f"{version_note} Check NVD (https://nvd.nist.gov/vuln/detail/"
+            f"{cve_id}) for the full advisory."
+        )
+        evidence = f"package: {entry.name} | cve: {cve_id}"
+    else:
+        listed = ", ".join(affected)
+        title = f"Known CVE advisories: {entry.name} ({len(affected)} CVEs)"
+        description = (
+            f"Package {entry.name!r} has {len(affected)} public CVE advisories "
+            f"recorded in the mcp-audit known-server registry: {listed}."
+            f"{version_note} Each advisory is at "
+            "https://nvd.nist.gov/vuln/detail/<CVE-ID>."
+        )
+        evidence = f"package: {entry.name} | cves: {listed}"
+    if pinned is not None:
+        evidence += f" | pinned: {pinned}"
+    if highest_fix:
+        evidence += f" | fixed_in: {highest_fix}"
+    evidence += f" | maintainer: {entry.maintainer}"
+
+    if highest_fix:
+        remediation = (
+            f"Upgrade {entry.name!r} to {highest_fix} or later and pin that "
+            "version in the launch command so the scan can confirm it."
+        )
+    else:
+        remediation = (
+            f"Review {', '.join(affected)} at https://nvd.nist.gov/vuln/detail/ "
+            f"and upgrade {entry.name!r} to the patched version."
+        )
+
+    return [
+        Finding(
+            id="SC-004",
+            severity=Severity.HIGH,
+            analyzer="supply_chain",
+            client=server.client,
+            server=server.name,
+            title=title,
+            description=description,
+            evidence=evidence,
+            remediation=remediation,
+            cwe="CWE-1104",
+            owasp_mcp_top_10=["MCP04"],
+            finding_path=str(server.config_path),
+        )
+    ]
 
 
 def build_deprecated_package_finding(
@@ -379,13 +578,16 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         else:
             return []
 
-        package = extract_npm_package(effective_args)
-        if package is None:
+        spec = extract_npm_package(effective_args)
+        if spec is None:
             return []
+        # A pinned spec (``@scope/pkg@1.2.3``) must match its registry entry
+        # by name; before STORY-0078 a pin silently skipped every check here.
+        package = strip_npm_version_suffix(spec)
 
         if self._registry.is_known_npm(package):
             entry = self._registry.get_npm(package)
-            if entry and entry.known_vulnerabilities:
+            if entry and (entry.known_vulnerabilities or entry.known_vulns):
                 return _emit_known_cve_findings(server, entry)
             return []
 
@@ -468,7 +670,7 @@ class SupplyChainAnalyzer(BaseAnalyzer):
 
         if self._registry.is_known_pypi(package):
             entry = self._registry.get_pypi(package)
-            if entry and entry.known_vulnerabilities:
+            if entry and (entry.known_vulnerabilities or entry.known_vulns):
                 return _emit_known_cve_findings(server, entry)
             return []
 

@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-10-06",
-  "entry_count": 52,
+  "last_updated": "2026-10-11",
+  "entry_count": 53,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -691,7 +691,7 @@
       "repo": "https://github.com/sooperset/mcp-atlassian",
       "maintainer": "community",
       "verified": false,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-10-11",
       "known_versions": [],
       "tags": [
         "project-management",
@@ -699,15 +699,186 @@
         "remote"
       ],
       "capabilities": [
+        "file_read",
+        "file_write",
         "network_out"
       ],
       "known_vulnerabilities": [
-        "CVE-2026-27826"
+        "CVE-2026-27826",
+        "CVE-2026-73498",
+        "CVE-2026-77243",
+        "CVE-2026-77244",
+        "CVE-2026-77246",
+        "CVE-2026-77247",
+        "CVE-2026-77248",
+        "CVE-2026-77249",
+        "CVE-2026-77250",
+        "CVE-2026-77251",
+        "CVE-2026-77253",
+        "CVE-2026-77255",
+        "CVE-2026-77258",
+        "CVE-2026-77259",
+        "CVE-2026-77260",
+        "CVE-2026-77261",
+        "CVE-2026-77265",
+        "CVE-2026-77266",
+        "CVE-2026-77267",
+        "CVE-2026-77268",
+        "CVE-2026-77269",
+        "CVE-2026-77271",
+        "CVE-2026-77272",
+        "CVE-2026-77274"
       ],
       "first_published": "2025-02-15",
       "weekly_downloads": 2900,
       "publisher_history": [
         "sooperset"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2026-27826",
+          "cvss": null,
+          "description": "SSRF: unauthenticated callers can make the server request arbitrary URLs through the Jira/Confluence URL headers.",
+          "fixed_in": "0.17.0"
+        },
+        {
+          "cve": "CVE-2026-73498",
+          "cvss": null,
+          "description": "confluence_upload_attachment opens a caller-supplied file_path with no path validation (arbitrary file read).",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77243",
+          "cvss": null,
+          "description": "ENABLED_TOOLS / TOOLSETS filters are enforced only at tools/list time, so filtered tools stay callable.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77244",
+          "cvss": null,
+          "description": "Auth bypass in the HTTP transport: any non-empty token is accepted, exposing the operator's credentials.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77246",
+          "cvss": null,
+          "description": "Attachment upload tools open arbitrary server-side paths, enabling local file exfiltration.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77247",
+          "cvss": null,
+          "description": "Jira and Confluence upload tools read caller-controlled local paths before uploading them.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77248",
+          "cvss": null,
+          "description": "Unauthenticated local file read via upload_attachment in the multi-user streamable-HTTP deployment.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77249",
+          "cvss": null,
+          "description": "Incomplete fix for CVE-2026-27826: SSRF via redirects in the Jira permission lookup.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77250",
+          "cvss": null,
+          "description": "OAuth tokens are always written to a plaintext fallback file under ~/.mcp-atlassian/.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77251",
+          "cvss": null,
+          "description": "Filter settings allow access to Jira/Confluence content that should be forbidden.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77253",
+          "cvss": null,
+          "description": "Jira and Confluence upload tools upload arbitrary local files to Atlassian.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77255",
+          "cvss": null,
+          "description": "Confused deputy: Jira update_issue can read and exfiltrate arbitrary host files.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77258",
+          "cvss": null,
+          "description": "Confluence upload_attachment reads and uploads local files without validate_safe_path().",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77259",
+          "cvss": null,
+          "description": "Missing path validation in confluence_upload_attachment lets clients read and exfiltrate server files.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77260",
+          "cvss": null,
+          "description": "Arbitrary local file read via file_path in the Jira and Confluence upload tools.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77261",
+          "cvss": null,
+          "description": "SSRF redirect protection is missing in the basic-auth and OAuth branches.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77265",
+          "cvss": null,
+          "description": "SSRF protection for header-based auth is vulnerable to DNS rebinding (validate-then-use).",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77266",
+          "cvss": null,
+          "description": "Jira and Confluence upload_attachment open user-controlled paths without validate_safe_path().",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77267",
+          "cvss": null,
+          "description": "Incomplete SSRF remediation: X-Atlassian-*-Url headers reach API clients without SSRF validation.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77268",
+          "cvss": null,
+          "description": "OAuth token files are created with default (group-readable) permissions.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77269",
+          "cvss": null,
+          "description": "Path traversal in confluence_upload_attachment(s); incomplete fix for CVE-2026-27825.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77271",
+          "cvss": null,
+          "description": "Incomplete path traversal fix allows module overwrite and code execution.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77272",
+          "cvss": null,
+          "description": "Reflected XSS in the OAuth setup wizard's local callback server.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77274",
+          "cvss": null,
+          "description": "SSRF protection bypass in validate_url_for_ssrf() on the header-based auth flow.",
+          "fixed_in": "0.22.0"
+        }
       ]
     },
     {
@@ -1028,6 +1199,41 @@
         "uditgoenka"
       ],
       "attestation_expected": false
+    },
+    {
+      "name": "@toolbox-sdk/server",
+      "source": "npm",
+      "package_ecosystem": "npm",
+      "repo": "https://github.com/googleapis/mcp-toolbox",
+      "maintainer": "Google",
+      "verified": false,
+      "last_verified": "2026-10-11",
+      "known_versions": [],
+      "tags": [
+        "database",
+        "google"
+      ],
+      "capabilities": [
+        "database",
+        "network_out"
+      ],
+      "first_published": "2025-11-28",
+      "weekly_downloads": 63326,
+      "publisher_history": [
+        "google-wombot"
+      ],
+      "attestation_expected": false,
+      "known_vulnerabilities": [
+        "CVE-2026-14540"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2026-14540",
+          "cvss": null,
+          "description": "SSRF: the generic HTTP source and tool follow redirects with no target-IP validation.",
+          "fixed_in": "1.5.0"
+        }
+      ]
     }
   ]
 }
