@@ -422,3 +422,19 @@ The **new** patterns specific to the agent-file surface are:
    instruction file attacks via freshly-cloned repositories.  Source for the
    `--project` / `--include-agent-files` cloned-repo threat model.
 
+## Harness posture (HARNESS-001..004, analyzers/config_hygiene.py — STORY-0079)
+
+- **HarnessSecurity-Bench** — Zhu, Huang, Ji et al., "HarnessSecurity-Bench: Do
+  Security Mechanisms Really Protect Coding Agent Harnesses?", arXiv 2610.07639
+  (2026-10-06). Six harnesses (Claude Code, Codex CLI, Gemini CLI, gptme, Qwen Code,
+  GitHub Copilot), a ten-mechanism taxonomy, 2,500 trials: about half of confirmed
+  mechanism implementations are opt-in, and enabling auto-approve raised attack
+  success from 29.2% to 95.6%. Source for treating approval-disabling settings as
+  findings and for the severity of HARNESS-001 and HARNESS-004.
+- **Claude Code permissions and settings documentation** (code.claude.com/docs/en/
+  permissions, settings-reference) — the exact keys and values: `defaultMode`
+  values including `bypassPermissions`, `disableBypassPermissionsMode`,
+  `skipDangerousModePermissionPrompt`, `enableAllProjectMcpServers`, and
+  "`Bash(*)` is equivalent to `Bash` and matches all Bash commands".
+- All four checks are original implementations; no code was copied.
+

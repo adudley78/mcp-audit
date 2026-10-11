@@ -1498,3 +1498,124 @@ def test_trust003_missing_file_returns_empty_no_crash(tmp_path: Path) -> None:
         project_root=tmp_path,
     )
     assert findings == []
+
+
+# ── HARNESS-001..004: settings that switch human approval off (STORY-0079) ────
+
+
+def _harness(raw: dict, path: Path) -> list:
+    findings = ConfigHygieneAnalyzer().analyze_config(raw, path, "claude-code")
+    return [f for f in findings if f.id.startswith("HARNESS-")]
+
+
+@pytest.fixture
+def project_settings(tmp_path: Path) -> Path:
+    p = tmp_path / "repo" / ".claude" / "settings.json"
+    p.parent.mkdir(parents=True)
+    return p
+
+
+class TestHarnessPosture:
+    def test_bypass_default_mode_fires_high(self, project_settings: Path) -> None:
+        out = _harness(
+            {"permissions": {"defaultMode": "bypassPermissions"}}, project_settings
+        )
+        assert [(f.id, f.severity) for f in out] == [("HARNESS-001", Severity.HIGH)]
+        assert "committed project settings" in out[0].description.lower()
+        assert out[0].finding_path == str(project_settings)
+        assert out[0].owasp_mcp_top_10 == ["MCP02", "MCP07"]
+
+    @pytest.mark.parametrize("mode", ["default", "acceptEdits", "plan", "dontAsk"])
+    def test_other_modes_are_silent(self, project_settings: Path, mode: str) -> None:
+        assert _harness({"permissions": {"defaultMode": mode}}, project_settings) == []
+
+    def test_disable_bypass_in_same_file_suppresses_001_and_003(
+        self, project_settings: Path
+    ) -> None:
+        raw = {
+            "permissions": {
+                "defaultMode": "bypassPermissions",
+                "disableBypassPermissionsMode": "disable",
+            },
+            "skipDangerousModePermissionPrompt": True,
+        }
+        assert _harness(raw, project_settings) == []
+
+    def test_enable_all_project_mcp_servers(self, project_settings: Path) -> None:
+        out = _harness({"enableAllProjectMcpServers": True}, project_settings)
+        assert [(f.id, f.severity) for f in out] == [("HARNESS-002", Severity.HIGH)]
+        assert out[0].owasp_mcp_top_10 == ["MCP09", "MCP07"]
+        assert _harness({"enableAllProjectMcpServers": False}, project_settings) == []
+
+    def test_skip_dangerous_mode_prompt(self, tmp_path: Path) -> None:
+        local = tmp_path / ".claude" / "settings.local.json"
+        local.parent.mkdir(parents=True)
+        out = _harness({"skipDangerousModePermissionPrompt": True}, local)
+        assert [(f.id, f.severity) for f in out] == [("HARNESS-003", Severity.MEDIUM)]
+        assert "local project settings" in out[0].description.lower()
+
+    @pytest.mark.parametrize(
+        "rule", ["Bash", "Bash(*)", "PowerShell", " PowerShell(*) "]
+    )
+    def test_blanket_shell_allow_fires(self, project_settings: Path, rule: str) -> None:
+        out = _harness({"permissions": {"allow": [rule, "Read"]}}, project_settings)
+        assert [(f.id, f.severity) for f in out] == [("HARNESS-004", Severity.HIGH)]
+        assert rule.strip() in out[0].evidence
+
+    @pytest.mark.parametrize(
+        "rule", ["Bash(npm run test *)", "Bash(git log *)", "mcp__github", "WebFetch"]
+    )
+    def test_specific_allow_rules_are_silent(
+        self, project_settings: Path, rule: str
+    ) -> None:
+        assert _harness({"permissions": {"allow": [rule]}}, project_settings) == []
+
+    def test_harness_findings_do_not_need_a_hooks_section(
+        self, project_settings: Path
+    ) -> None:
+        raw = {"permissions": {"defaultMode": "bypassPermissions"}}
+        ids = {
+            f.id
+            for f in ConfigHygieneAnalyzer().analyze_config(
+                raw, project_settings, "claude-code"
+            )
+        }
+        assert ids == {"HARNESS-001"}
+
+    def test_absent_or_malformed_keys_are_silent(self, project_settings: Path) -> None:
+        assert _harness({}, project_settings) == []
+        assert _harness({"permissions": "bypassPermissions"}, project_settings) == []
+        assert _harness({"permissions": {"allow": "Bash"}}, project_settings) == []
+
+    def test_non_claude_config_is_ignored(self, tmp_path: Path) -> None:
+        cursor = tmp_path / ".cursor" / "mcp.json"
+        cursor.parent.mkdir(parents=True)
+        assert (
+            _harness({"permissions": {"defaultMode": "bypassPermissions"}}, cursor)
+            == []
+        )
+
+    def test_user_settings_scope_is_named(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        user = tmp_path / ".claude" / "settings.json"
+        user.parent.mkdir(parents=True)
+        user.write_text("{}")
+        out = _harness({"enableAllProjectMcpServers": True}, user)
+        assert "user settings (~/.claude/settings.json)" in out[0].description.lower()
+
+    def test_user_settings_file_is_discovered(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.discovery import discover_configs
+
+        monkeypatch.setattr("mcp_audit.discovery._home", lambda: tmp_path)
+        user = tmp_path / ".claude" / "settings.json"
+        user.parent.mkdir(parents=True)
+        user.write_text(
+            json.dumps({"permissions": {"defaultMode": "bypassPermissions"}})
+        )
+        found = [c for c in discover_configs() if c.path == user]
+        assert len(found) == 1
+        assert found[0].client_name == "claude-code"

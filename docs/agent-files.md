@@ -137,6 +137,28 @@ This matches the CVE-2026-30615 persistence pattern: a hook that modifies
 another agent config file can inject new servers or hooks that survive
 user-initiated configuration resets.
 
+### HARNESS-001..004: settings that switch human approval off
+
+Claude Code settings files (`~/.claude/settings.json`, a project's
+`.claude/settings.json` and `.claude/settings.local.json`, and `~/.claude.json`)
+can turn off the approval prompts that stand between an injected instruction and
+an executed one. HarnessSecurity-Bench (arXiv 2610.07639, October 2026) measured
+attack success on coding agents rising from 29.2% to 95.6% with auto-approve on.
+Keys and semantics follow code.claude.com/docs/en/permissions.
+
+| ID | Severity | Fires when |
+|---|---|---|
+| HARNESS-001 | HIGH | `permissions.defaultMode` is `bypassPermissions` |
+| HARNESS-002 | HIGH | `enableAllProjectMcpServers` is `true` (every server in a repo's `.mcp.json` approved without a prompt) |
+| HARNESS-003 | MEDIUM | `skipDangerousModePermissionPrompt` is `true` |
+| HARNESS-004 | HIGH | `permissions.allow` contains bare `Bash`, `Bash(*)`, `PowerShell` or `PowerShell(*)` |
+
+`permissions.disableBypassPermissionsMode: "disable"` in the same file suppresses
+HARNESS-001 and HARNESS-003. Each file is checked on its own; Claude Code's
+precedence across user, project, local and managed settings is not modelled (see
+`GAPS.md`). `~/.claude/settings.json` is discovered for these checks from
+STORY-0079 on, which also brings user-level hooks under HOOK-001/002 and CFHYG-005.
+
 ---
 
 ## Usage

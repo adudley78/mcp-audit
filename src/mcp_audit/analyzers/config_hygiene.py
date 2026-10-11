@@ -15,6 +15,12 @@ scanner (2026-06-14).  Claude Code executes hook commands at lifecycle events
 (``preToolUse``, ``postToolUse``, ``stop``, etc.); these checks fire on the
 `hooks` section of *any* claude-client config file, not just the user-global
 ``.claude.json``.
+
+**Harness posture (HARNESS-001..004)** was added in STORY-0079 (2026-10-11):
+Claude Code settings that switch human approval off.  Basis: HarnessSecurity-Bench
+(arXiv 2610.07639) measured attack success on coding agents rising from 29.2% to
+95.6% with auto-approve on, and found about half of their security mechanisms
+opt-in.  Keys and semantics follow code.claude.com/docs/en/permissions.
 """
 
 from __future__ import annotations
@@ -675,6 +681,9 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         - **HOOK-001**: hook command contains network-egress primitives.
         - **HOOK-002**: hook command references an agent config file path
           (CVE-2026-30615 persistence channel).
+        - **HARNESS-001..004**: settings that switch Claude Code's human approval
+          off (bypassPermissions default mode, auto-approved project MCP servers,
+          skipped bypass confirmation, blanket shell allow rules).
 
         Args:
             raw: The parsed JSON dict for the config file.
@@ -687,6 +696,8 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         findings: list[Finding] = []
         if not self._is_claude_code_config(config_path):
             return findings
+
+        findings.extend(self._check_harness_posture(raw, config_path, client))
 
         hooks = raw.get("hooks")
         if not hooks:
@@ -726,6 +737,212 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
 
         # HOOK-001/002: inspect individual hook commands for risky patterns
         findings.extend(self._check_hook_commands(hooks, config_path, client))
+        return findings
+
+    # ── Harness posture (STORY-0079) ──────────────────────────────────────────
+
+    @staticmethod
+    def _settings_scope(config_path: Path) -> str:
+        """Describe which Claude Code settings layer *config_path* is."""
+        if config_path.name == ".claude.json":
+            return "the global Claude Code config"
+        if config_path.name == "settings.local.json":
+            return "local project settings (.claude/settings.local.json)"
+        try:
+            if (
+                config_path.resolve()
+                == (Path.home() / ".claude" / "settings.json").resolve()
+            ):
+                return (
+                    "user settings (~/.claude/settings.json), which apply to"
+                    " every project"
+                )
+        except OSError:
+            pass
+        return (
+            "committed project settings (.claude/settings.json), which reach"
+            " everyone who clones the repository"
+        )
+
+    def _harness_finding(
+        self,
+        *,
+        finding_id: str,
+        severity: Severity,
+        client: str,
+        config_path: Path,
+        title: str,
+        description: str,
+        evidence: str,
+        remediation: str,
+        cwe: str,
+        owasp: list[str],
+    ) -> Finding:
+        return Finding(
+            id=finding_id,
+            severity=severity,
+            analyzer=self.name,
+            client=client,
+            server="(config-level)",
+            title=title,
+            description=description,
+            evidence=evidence,
+            remediation=remediation,
+            cwe=cwe,
+            owasp_mcp_top_10=owasp,
+            finding_path=str(config_path),
+        )
+
+    def _check_harness_posture(
+        self,
+        raw: dict,
+        config_path: Path,
+        client: str,
+    ) -> list[Finding]:
+        """HARNESS-001..004 — Claude Code settings that switch human approval off.
+
+        Evaluated per file.  Claude Code merges user, project, local and managed
+        settings with precedence; that merge is not modelled here (GAPS.md), so a
+        finding says what this file asks for, not the effective setting.  The one
+        in-file interaction honoured: ``permissions.disableBypassPermissionsMode:
+        "disable"`` in the same file suppresses HARNESS-001 and HARNESS-003.
+
+        Args:
+            raw: Parsed JSON of a Claude Code settings or global config file.
+            config_path: Path to that file.
+            client: Client name from discovery.
+
+        Returns:
+            Zero or more HARNESS-* findings.
+        """
+        findings: list[Finding] = []
+        if not isinstance(raw, dict):
+            return findings
+        perms = raw.get("permissions")
+        perms = perms if isinstance(perms, dict) else {}
+        bypass_disabled = perms.get("disableBypassPermissionsMode") == "disable"
+        scope = self._settings_scope(config_path)
+        scope_cap = scope[:1].upper() + scope[1:]
+        basis = (
+            " HarnessSecurity-Bench (arXiv 2610.07639) measured attack success on"
+            " coding agents rising from 29.2% to 95.6% with auto-approve on."
+        )
+
+        if perms.get("defaultMode") == "bypassPermissions" and not bypass_disabled:
+            findings.append(
+                self._harness_finding(
+                    finding_id="HARNESS-001",
+                    severity=Severity.HIGH,
+                    client=client,
+                    config_path=config_path,
+                    title="Claude Code sessions start with permission prompts skipped",
+                    description=(
+                        f"{scope_cap} set permissions.defaultMode to"
+                        " 'bypassPermissions'. Every session starts with tool-call"
+                        " approval skipped, including writes to .git and .claude, so"
+                        " an instruction injected through a file, a tool result or an"
+                        " MCP server runs without a person seeing it." + basis
+                    ),
+                    evidence=(
+                        f"{config_path}: permissions.defaultMode = bypassPermissions"
+                    ),
+                    remediation=(
+                        "Remove defaultMode or set it to 'default'. Use bypass mode"
+                        " only for a single session in an isolated container, and set"
+                        ' permissions.disableBypassPermissionsMode to "disable" in'
+                        " managed or user settings to prevent it elsewhere."
+                    ),
+                    cwe="CWE-862",
+                    owasp=["MCP02", "MCP07"],
+                )
+            )
+
+        if raw.get("enableAllProjectMcpServers") is True:
+            findings.append(
+                self._harness_finding(
+                    finding_id="HARNESS-002",
+                    severity=Severity.HIGH,
+                    client=client,
+                    config_path=config_path,
+                    title="Every project .mcp.json server is approved without a prompt",
+                    description=(
+                        f"{scope_cap} set enableAllProjectMcpServers to true."
+                        " Claude Code then starts every MCP server declared in a"
+                        " repository's .mcp.json without asking, so a cloned"
+                        " repository can launch servers it chose. Compare TRUST-001,"
+                        " which flags those project-scoped servers."
+                    ),
+                    evidence=f"{config_path}: enableAllProjectMcpServers = true",
+                    remediation=(
+                        "Remove enableAllProjectMcpServers. Approve servers you trust"
+                        " by name with enabledMcpjsonServers, and reject the rest with"
+                        " disabledMcpjsonServers."
+                    ),
+                    cwe="CWE-862",
+                    owasp=["MCP09", "MCP07"],
+                )
+            )
+
+        if raw.get("skipDangerousModePermissionPrompt") is True and not bypass_disabled:
+            findings.append(
+                self._harness_finding(
+                    finding_id="HARNESS-003",
+                    severity=Severity.MEDIUM,
+                    client=client,
+                    config_path=config_path,
+                    title="Confirmation before bypass mode is switched off",
+                    description=(
+                        f"{scope_cap} set skipDangerousModePermissionPrompt"
+                        " to true, which removes the confirmation dialog shown before"
+                        " a session enters bypassPermissions mode."
+                    ),
+                    evidence=f"{config_path}: skipDangerousModePermissionPrompt = true",
+                    remediation=(
+                        "Remove skipDangerousModePermissionPrompt so entering bypass"
+                        " mode stays a deliberate, confirmed step."
+                    ),
+                    cwe="CWE-862",
+                    owasp=["MCP02", "MCP07"],
+                )
+            )
+
+        allow = perms.get("allow")
+        allow = allow if isinstance(allow, list) else []
+        blanket = sorted(
+            {
+                rule.strip()
+                for rule in allow
+                if isinstance(rule, str)
+                and rule.strip() in {"Bash", "Bash(*)", "PowerShell", "PowerShell(*)"}
+            }
+        )
+        if blanket:
+            findings.append(
+                self._harness_finding(
+                    finding_id="HARNESS-004",
+                    severity=Severity.HIGH,
+                    client=client,
+                    config_path=config_path,
+                    title="Every shell command is pre-approved",
+                    description=(
+                        f"{scope_cap} allow-list {', '.join(blanket)}, which"
+                        " matches every shell command, so Claude Code runs any command"
+                        " without asking. It is auto-approve for the shell." + basis
+                    ),
+                    evidence=(
+                        f"{config_path}: permissions.allow contains "
+                        f"{', '.join(blanket)}"
+                    ),
+                    remediation=(
+                        "Replace the blanket rule with specific ones, such as"
+                        " 'Bash(npm run test *)'. Command allowlists cut attack success"
+                        " at a small cost in the same benchmark."
+                    ),
+                    cwe="CWE-862",
+                    owasp=["MCP02", "MCP05"],
+                )
+            )
+
         return findings
 
     # ── TRUST-003: repo-planted IDE auto-execution files ────────────────────

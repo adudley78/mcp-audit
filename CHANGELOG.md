@@ -25,6 +25,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   attachment tools read and write local files, confirmed in the v0.23.1 source).
   New unverified entry `@toolbox-sdk/server` (Google's MCP Toolbox, npm) with
   CVE-2026-14540, fixed in 1.5.0. Registry is now 53 entries.
+- **Harness posture checks, HARNESS-001..004 (STORY-0079).** Claude Code settings
+  that switch human approval off: `permissions.defaultMode: bypassPermissions`
+  (HIGH), `enableAllProjectMcpServers: true` (HIGH),
+  `skipDangerousModePermissionPrompt: true` (MEDIUM), and a blanket `Bash` /
+  `Bash(*)` allow rule (HIGH). Basis: HarnessSecurity-Bench (arXiv 2610.07639),
+  where auto-approve raised attack success from 29.2% to 95.6%.
+- **`~/.claude/settings.json` is now discovered.** It holds user-level permissions
+  and hooks, so HOOK-001/002, CFHYG-005/006 and the new HARNESS checks now see
+  user-level settings that were previously never read.
 
 ### Changed
 
