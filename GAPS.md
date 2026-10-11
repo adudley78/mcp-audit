@@ -738,6 +738,11 @@ The Semgrep SAST rule pack (`semgrep-rules/`) has the following known limitation
 - `mcp-audit scan --sast` and `mcp-audit sast` require `pip install semgrep` separately. The rule files are bundled; the semgrep engine is not. This matches how other SAST tools (bandit, eslint, etc.) work in the ecosystem.
 - Rule file discovery works correctly in all installation modes: PyInstaller binary, `pip install mcp-audit` wheel, and editable dev installs. The resolution uses `mcp_audit._paths.resolve_bundled_resource()` with an `importlib.resources` step so that pip-installed wheels find `mcp_audit/semgrep-rules/` without requiring a source checkout.
 
+**SSRF guards that only block IP literals (`mcp-ssrf-ip-literal-only-guard`, `mcp-ts-ssrf-ip-literal-only-guard`, STORY-0081):**
+- Both rules can't tell which way a guard's return value points. `except ValueError: return False` is fail-open in `is_blocked()` but fail-closed in `is_safe()`. The rules exclude a handler that raises or throws and report the rest; a fail-closed guard that returns needs `nosemgrep`.
+- A guard is recognised only by its private-range check: `is_private` / `is_loopback` / `is_link_local` / `is_reserved` / `is_global` in Python; an ipaddr.js `.range()` call, a private-range string or regex literal, or a call named like `isPrivate` / `isInternal` in TypeScript. A guard that tests `ip in BLOCKED_NETWORKS`, or a TypeScript class method, is missed.
+- DNS rebinding is out of scope. A guard that resolves the name and checks every address is treated as safe even when the request then resolves the name again. Pinning the connection to the checked address is a dataflow property these pattern rules can't see.
+
 **No taint analysis:**
 - Current rules are pattern-based, not dataflow-aware. A variable URL used for SSRF only fires if the HTTP call is in the same function, not if the URL is passed from an outer scope. Full taint tracking requires Semgrep Pro rules (dataflow mode).
 

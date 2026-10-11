@@ -5,8 +5,11 @@ DO NOT deploy or run this code. It intentionally contains security vulnerabiliti
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import subprocess
+import urllib.parse
+from ipaddress import ip_address
 from pathlib import Path
 
 import aiohttp
@@ -131,6 +134,45 @@ async def tool_with_base_url_param(base_url: str) -> str:
     # ruleid: mcp-tool-arg-url-ssrf-param
     response = requests.get(base_url)  # noqa: S113
     return response.text
+
+
+# --- SSRF: guard that only blocks IP literals (Wazuh MCP, GHSA-pw2j-pj4h-f5vg) ---
+# ipaddress.ip_address() raises ValueError for a hostname, and each handler
+# below lets that through, so "metadata.internal" or a DNS name pointing at
+# 127.0.0.1 is never checked.
+
+
+def _host_is_internal(url: str) -> bool:
+    host = urllib.parse.urlparse(url).hostname or ""
+    try:
+        # ruleid: mcp-ssrf-ip-literal-only-guard
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_private or ip.is_loopback or ip.is_link_local
+
+
+async def tool_fetch_with_inline_literal_guard(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    try:
+        # ruleid: mcp-ssrf-ip-literal-only-guard
+        if ipaddress.ip_address(parsed.hostname).is_private:
+            raise PermissionError("internal address")
+    except ValueError:
+        pass
+    # mcp-tool-arg-url-ssrf-param stays silent here: it counts the urlparse()
+    # call above as validation, which is why this guard needed its own rule.
+    # ruleid: mcp-requests-variable-url
+    return requests.get(url).text  # noqa: S113
+
+
+def is_internal_address(host: str) -> bool:
+    try:
+        # ruleid: mcp-ssrf-ip-literal-only-guard
+        addr = ip_address(host)
+    except (TypeError, ValueError):
+        return False
+    return addr.is_private or addr.is_reserved
 
 
 # --- SQL injection ---

@@ -286,6 +286,22 @@ literal. Suppress when the URL is validated against an allowlist:
 const response = await fetch(url); // nosemgrep: mcp-ts-fetch-ssrf
 ```
 
+**`mcp-ssrf-ip-literal-only-guard`** and **`mcp-ts-ssrf-ip-literal-only-guard`**
+
+Fire on an SSRF guard that checks the host with `ipaddress.ip_address()` (Python)
+or `net.isIP()` / ipaddr.js (TypeScript) but never resolves hostnames, so a name
+pointing at an internal address passes (Wazuh MCP, GHSA-pw2j-pj4h-f5vg). A
+handler that raises, or a function that resolves the name first, is not flagged.
+Suppress when the guard's return value makes the caller refuse hostnames outright:
+
+```python
+ip = ipaddress.ip_address(host)  # nosemgrep: mcp-ssrf-ip-literal-only-guard
+```
+
+The fix is to resolve the name, reject it if any address is private, loopback,
+link-local or reserved, and connect to the address you checked so a DNS rebind
+can't swap it.
+
 **`mcp-ts-no-type-check-before-use`**
 
 Fires when `args[key]` is passed directly to a function without a `typeof` guard.

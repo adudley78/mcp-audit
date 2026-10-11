@@ -453,3 +453,25 @@ The **new** patterns specific to the agent-file surface are:
   which quote the `{"version": 2, "plugins": {"<id>": [records]}}` structure.
 - Original implementation; no code was copied.
 
+
+## SAST: SSRF guards that only block IP literals (STORY-0081)
+
+`semgrep-rules/python/injection/mcp-ssrf-ip-literal-guard.yml`
+(`mcp-ssrf-ip-literal-only-guard`) and
+`semgrep-rules/typescript/injection/mcp-ts-ssrf-ip-literal-guard.yml`
+(`mcp-ts-ssrf-ip-literal-only-guard`).
+
+- **Wazuh MCP server advisory GHSA-pw2j-pj4h-f5vg** (published 2026-09-03,
+  https://github.com/INFOKOM-KI/Wazuh-MCP-Server/security/advisories/GHSA-pw2j-pj4h-f5vg).
+  A tool advertised SSRF protection, but the check only blocked literal IP
+  addresses and never resolved hostnames, so a name pointing at an internal
+  address passed. Source for both rules' shape.
+- **The Next Web, 2026-10-06**
+  (https://thenextweb.com/news/mcp-flaw-ssrf-google-jpmorgan-dinum-protocol-pivoting).
+  Coverage of the October 2026 MCP SSRF wave (Google MCP Toolbox, JPMorgan,
+  DINUM, Wazuh) that pointed to the Wazuh advisory. Its note that Google's
+  Toolbox fix added a DNS-rebinding guard is why the rules' remediation text
+  says to connect to the checked address.
+- **OWASP Server-Side Request Forgery Prevention Cheat Sheet** (already cited
+  above): resolve, then validate every resolved address.
+- Original implementation; no code was copied.

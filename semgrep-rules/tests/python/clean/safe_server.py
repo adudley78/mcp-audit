@@ -5,8 +5,10 @@ This file should produce zero findings when scanned with the mcp-audit Semgrep r
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
+import socket
 import subprocess
 import urllib.parse
 from pathlib import Path
@@ -85,6 +87,30 @@ async def fetch_with_validated_url(url: str) -> str:
         raise ValueError("URL not in allowlist")
     response = requests.get(url)  # noqa: S113  # nosemgrep: mcp-tool-arg-url-ssrf-param
     return response.text
+
+
+# Safe: resolve the hostname and check every address it resolves to
+# ok: mcp-ssrf-ip-literal-only-guard
+def host_resolves_public(host: str) -> bool:
+    for info in socket.getaddrinfo(host, None):
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return False
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return False
+    return True
+
+
+# Safe: IP-literal guard that refuses hostnames outright (fail-closed)
+# ok: mcp-ssrf-ip-literal-only-guard
+def require_public_ip_literal(host: str) -> None:
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        raise PermissionError("hostnames are not accepted") from None
+    if ip.is_private or ip.is_loopback:
+        raise PermissionError("internal address")
 
 
 # Safe: parameterized SQL query

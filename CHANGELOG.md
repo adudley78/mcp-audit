@@ -41,6 +41,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   skills and commands plugins ship go through the agent-file checks, and the MCP
   servers they declare go through the full analyzer pipeline as client
   `claude-code-plugin`. Offline; reads only Claude Code's own plugin records.
+- **SAST rules for SSRF guards that only block IP literals (STORY-0081).**
+  `mcp-ssrf-ip-literal-only-guard` (Python) and `mcp-ts-ssrf-ip-literal-only-guard`
+  (TypeScript) flag a guard that checks a URL's host with `ipaddress.ip_address()` /
+  `net.isIP()` / ipaddr.js and lets hostnames through unresolved, the bug in the Wazuh
+  MCP server advisory GHSA-pw2j-pj4h-f5vg. The existing CVE-tied rule
+  `mcp-tool-arg-url-ssrf-param` missed the inline form, because it treats any
+  `urlparse()` call as validation. Vulnerable and clean fixtures added for both
+  languages. SAST pack is now 91 rules (47 Python, 44 TypeScript).
 
 ### Changed
 
