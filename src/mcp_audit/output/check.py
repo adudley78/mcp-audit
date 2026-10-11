@@ -140,6 +140,13 @@ _HINTS: dict[str, str] = {
         "Review every hook command in this file; Claude Code will execute them"
         " as shell. Restrict who can write the hooks section."
     ),
+    "PLUGIN-001": (
+        "Run `claude plugin update <plugin>` on Claude Code 2.1.179+; if the"
+        " version still differs from the pin, uninstall the plugin."
+    ),
+    "PLUGIN-002": (
+        "Ask the marketplace owner to pin the plugin entry with a full commit sha."
+    ),
     "HARNESS-001": (
         "Remove permissions.defaultMode: bypassPermissions; keep bypass for one"
         " session in an isolated container."

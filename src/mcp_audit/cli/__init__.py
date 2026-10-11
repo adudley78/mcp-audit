@@ -114,6 +114,15 @@ agent_files_app = typer.Typer(
 )
 app.add_typer(agent_files_app, name="agent-files")
 
+# ── plugins sub-app ───────────────────────────────────────────────────────────
+
+plugins_app = typer.Typer(
+    name="plugins",
+    help="Inventory and scan installed Claude Code plugins.",
+    no_args_is_help=True,
+)
+app.add_typer(plugins_app, name="plugins")
+
 # ── feed sub-app ──────────────────────────────────────────────────────────────
 
 feed_app = typer.Typer(
@@ -151,6 +160,7 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     fleet,
     killchain,
     lock,
+    plugins,
     policy,
     push_nucleus,
     register,
@@ -188,6 +198,7 @@ __all__ = [
     "killchain",
     "main",
     "parse_config",
+    "plugins_app",
     "policy_app",
     "register",
     "rule_app",

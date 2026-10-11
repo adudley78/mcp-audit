@@ -136,6 +136,8 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "TRUST-002": "untrusted-config-origin",
     "CFHYG-005": "hook-execution",
     "HARNESS-002": "untrusted-config-origin",
+    "PLUGIN-001": "unverified-provenance",
+    "PLUGIN-002": "unpinned-dependency",
 }
 
 # Prefix → class, applied when no exact ID match exists. Longest prefix wins.

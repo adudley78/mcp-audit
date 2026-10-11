@@ -341,6 +341,7 @@ def _run_static_pipeline(
 def _discover_and_parse(
     extra_paths: list[Path] | None,
     result: ScanResult,
+    include_plugins: bool = False,
 ) -> tuple[list[DiscoveredConfig], list[ServerConfig]]:
     """Discover client configs and parse them into static ServerConfigs.
 
@@ -358,6 +359,7 @@ def _discover_and_parse(
     configs = discover_configs(
         extra_paths=extra_paths,
         skip_auto_discovery=bool(extra_paths),
+        include_plugins=include_plugins,
     )
     result.clients_scanned = len({c.client_name for c in configs})
 
@@ -396,6 +398,7 @@ async def run_scan_async(
     auth_token: str | None = None,
     scoring_weights: ScoringWeights | None = None,
     scoring_weights_source: str = "default",
+    include_plugins: bool = False,
 ) -> ScanResult:
     """Async scan entrypoint with optional live server enumeration.
 
@@ -413,6 +416,8 @@ async def run_scan_async(
 
     Args:
         extra_paths: Additional config paths to scan.
+        include_plugins: Also scan MCP servers shipped by installed Claude
+            Code plugins (client ``claude-code-plugin``; STORY-0080).
         analyzers: Custom per-server analyzer list.  Uses defaults if ``None``.
         connect: When ``True``, attempt live MCP protocol connections.
         state_path: Override the rug-pull state file location (useful in tests).
@@ -439,7 +444,9 @@ async def run_scan_async(
         analyzers = get_default_analyzers()
 
     result = ScanResult()
-    configs, all_servers = _discover_and_parse(extra_paths, result)
+    configs, all_servers = _discover_and_parse(
+        extra_paths, result, include_plugins=include_plugins
+    )
 
     # ── Live enumeration (opt-in, --connect) ──────────────────────────────────
     # Runs before the static pipeline so the returned ScanResult's findings,
@@ -527,6 +534,7 @@ def run_scan(
     auth_token: str | None = None,
     scoring_weights: ScoringWeights | None = None,
     scoring_weights_source: str = "default",
+    include_plugins: bool = False,
 ) -> ScanResult:
     """Run a complete scan: discover configs, parse them, analyze, return results.
 
@@ -542,6 +550,8 @@ def run_scan(
 
     Args:
         extra_paths: Additional config paths to scan.
+        include_plugins: Also scan MCP servers shipped by installed Claude
+            Code plugins (client ``claude-code-plugin``; STORY-0080).
         analyzers: Custom per-server analyzer list.  Uses defaults if ``None``.
         connect: When ``True``, attempt live MCP protocol connections.
         state_path: Override the rug-pull state file location.  Useful in tests.
@@ -578,6 +588,7 @@ def run_scan(
                 auth_token=auth_token,
                 scoring_weights=scoring_weights,
                 scoring_weights_source=scoring_weights_source,
+                include_plugins=include_plugins,
             )
         )
 
@@ -585,7 +596,9 @@ def run_scan(
         analyzers = get_default_analyzers()
 
     result = ScanResult()
-    configs, all_servers = _discover_and_parse(extra_paths, result)
+    configs, all_servers = _discover_and_parse(
+        extra_paths, result, include_plugins=include_plugins
+    )
 
     return _run_static_pipeline(
         result=result,

@@ -653,6 +653,38 @@ def _apply_agent_files(
     return result
 
 
+def _apply_plugins(result: ScanResult, con: Console) -> ScanResult:
+    """Run Claude Code plugin integrity and plugin agent-file analysis.
+
+    Only called when ``--include-plugins`` is active.  The MCP servers plugins
+    ship are not handled here: ``run_scan(include_plugins=True)`` already put
+    them through the full analyzer pipeline as client ``claude-code-plugin``.
+
+    Args:
+        result: Mutable scan result to extend with new findings.
+        con: Rich ``Console`` for status messages.
+
+    Returns:
+        The same ``result`` object with plugin findings appended.
+    """
+    from mcp_audit.agent_files import analyzer as _af_analyzer  # noqa: PLC0415
+    from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415
+    from mcp_audit.plugins import discovery as _plugin_discovery  # noqa: PLC0415
+
+    plugins = _plugin_discovery.discover_installed_plugins()
+    files = _plugin_discovery.plugin_agent_files(plugins)
+    findings = _plugin_analyzer.analyze_plugin_integrity(
+        plugins
+    ) + _af_analyzer.analyze_agent_files(files)
+    result.findings.extend(findings)
+    con.print(
+        f"[dim]Plugins: {len({p.plugin_id for p in plugins})} plugin(s),"
+        f" {len(files)} skill/command file(s) scanned, {len(findings)} issue(s)"
+        " found[/dim]"
+    )
+    return result
+
+
 def _count_advisory_matches(result: ScanResult, index: dict) -> int:
     """Count findings whose rule ID appears in the feed. Does not mutate findings."""
     rule_ids: set[str] = set()
@@ -1297,6 +1329,14 @@ def scan(
             " Copilot instructions, CLAUDE.md tiers) for security issues."
         ),
     ),
+    include_plugins: bool = typer.Option(  # noqa: B008
+        False,
+        "--include-plugins",
+        help=(
+            "Also scan installed Claude Code plugins: pin integrity (PLUGIN-001/002),"
+            " the skills and commands they ship, and their MCP servers."
+        ),
+    ),
     advisory_feed: Path | None = typer.Option(  # noqa: B008
         None,
         "--advisory-feed",
@@ -1421,6 +1461,7 @@ def scan(
             auth_token=connect_token,
             scoring_weights=scoring_weights,
             scoring_weights_source=scoring_weights_source,
+            include_plugins=include_plugins,
         )
     except RegistryLoadError as exc:
         console.print(f"[red]Error:[/red] {exc}")
@@ -1461,6 +1502,9 @@ def scan(
 
     if include_agent_files:
         result = _apply_agent_files(result, resolved_project, console)
+
+    if include_plugins:
+        result = _apply_plugins(result, console)
 
     if resolved_project is not None:
         result = _apply_project_scan(
