@@ -142,13 +142,14 @@ mcp-lock.json diff=json-pretty
 mcp-audit **owns** `lock_version`, `generated_by`, `generated_at`, and `servers` — it writes,
 checksums, and verifies these. `trees` and `tools` are **reserved, foreign** sections:
 
-- `trees` is reserved for [Prachet Poddar](https://github.com/pracheteer)'s independent
-  `mcp-lock-tree-gen` project, which materializes the full transitive install tree (the equivalent of
+- `trees` is reserved for [Prachet Poddar](https://github.com/prachetpoddar)'s independent
+  install-tree generator ([`code/mcp_lock.py`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.6/code/mcp_lock.py),
+  specified in [`spec/mcp-lock-spec.md`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.6/spec/mcp-lock-spec.md),
+  both in his `mcp-supply-chain-study` repository), which materializes the full transitive install tree (the equivalent of
   `package-lock.json`'s dependency graph). **mcp-audit never populates `trees`** — it has no
   package-manager execution capability and does not attempt to build one. `mcp-audit lock` always
   writes it as an empty `{}` stub if absent, and preserves it byte-for-byte (in canonical form) if
-  another tool has already populated it. Once that generator has a documented public invocation,
-  it will be linked here.
+  another tool has already populated it.
 - `tools` is reserved as `null` for a future `--connect`-derived tool-contract-hash layer — not
   written by this release.
 - Any other top-level key mcp-audit does not recognize is preserved the same way: untouched,
