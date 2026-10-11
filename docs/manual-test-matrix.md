@@ -1,5 +1,11 @@
 # mcp-audit Manual Test Matrix
 
+> **v0.19.0 (2026-10-11): not fully re-run.** Section 60 (plugins) was run
+> against the release candidate; Sections 1–59 were last run green against
+> v0.18.2 (below). v0.19.0 changes discovery (`~/.claude/settings.json`,
+> installed plugins), SC-004 and the registry, so treat sections that scan a
+> real home directory as unverified for this release.
+>
 > Last run green against commit `109221328741803532ec630c7e4a6d86ea6844ff`
 > (`v0.18.2`) on 2026-09-13. A matrix with no such line cannot be known to be
 > stale — update this line (and re-run all sections) after every release that

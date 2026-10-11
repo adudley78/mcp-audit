@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.19.0] - 2026-10-11
+
+**Upgrade note:** a default `scan` (and `check`, `dashboard`, `shadow`, `sbom`) now
+also reads `~/.claude/settings.json` and installed Claude Code plugins, so a
+developer machine can show new findings and a lower grade after upgrading. That is
+the point: both surfaces were live and unscanned. `--no-plugins` drops the plugin
+part; an explicit `--path` scans exactly what it names, as before.
+
 ### Added
 
 - **Two verified registry entries from community submissions:** `hol-guard`
@@ -15,7 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   [@kantorcodes](https://github.com/kantorcodes)) and `@autoposting.ai/cli`
   (npm, [#134](https://github.com/adudley78/mcp-audit/issues/134), submitted by
   [@uditgoenka](https://github.com/uditgoenka)). Both maintainers are credited in
-  `docs/contributors.md`. Registry is now 52 entries.
+  `docs/contributors.md`.
 - **Prachet Poddar credited in `docs/contributors.md`** under a new Research and
   Design Contributors section, for the measurements and `mcp-lock.json` format work
   the docs cite ([#88](https://github.com/adudley78/mcp-audit/issues/88)).
