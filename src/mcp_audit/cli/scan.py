@@ -653,34 +653,34 @@ def _apply_agent_files(
     return result
 
 
-def _apply_plugins(result: ScanResult, con: Console) -> ScanResult:
-    """Run Claude Code plugin integrity and plugin agent-file analysis.
+def _apply_plugin_agent_files(result: ScanResult, con: Console) -> ScanResult:
+    """Scan the skills and commands that installed Claude Code plugins ship.
 
-    Only called when ``--include-plugins`` is active.  The MCP servers plugins
-    ship are not handled here: ``run_scan(include_plugins=True)`` already put
-    them through the full analyzer pipeline as client ``claude-code-plugin``.
+    Called when ``--include-agent-files`` is active and ``--no-plugins`` is
+    not, so plugin skills follow the same opt-in as the user's own skills.
+    Plugin MCP servers and the PLUGIN-001/002 pin checks are not handled here:
+    ``run_scan()`` covers both by default during auto-discovery.
 
     Args:
         result: Mutable scan result to extend with new findings.
         con: Rich ``Console`` for status messages.
 
     Returns:
-        The same ``result`` object with plugin findings appended.
+        The same ``result`` object with plugin agent-file findings appended.
     """
     from mcp_audit.agent_files import analyzer as _af_analyzer  # noqa: PLC0415
-    from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415
     from mcp_audit.plugins import discovery as _plugin_discovery  # noqa: PLC0415
 
     plugins = _plugin_discovery.discover_installed_plugins()
+    if not plugins:
+        return result
     files = _plugin_discovery.plugin_agent_files(plugins)
-    findings = _plugin_analyzer.analyze_plugin_integrity(
-        plugins
-    ) + _af_analyzer.analyze_agent_files(files)
+    findings = _af_analyzer.analyze_agent_files(files)
     result.findings.extend(findings)
     con.print(
-        f"[dim]Plugins: {len({p.plugin_id for p in plugins})} plugin(s),"
-        f" {len(files)} skill/command file(s) scanned, {len(findings)} issue(s)"
-        " found[/dim]"
+        f"[dim]Plugin agent files: {len(files)} skill/command file(s) from"
+        f" {len({p.plugin_id for p in plugins})} plugin(s) scanned,"
+        f" {len(findings)} issue(s) found[/dim]"
     )
     return result
 
@@ -1329,12 +1329,13 @@ def scan(
             " Copilot instructions, CLAUDE.md tiers) for security issues."
         ),
     ),
-    include_plugins: bool = typer.Option(  # noqa: B008
+    no_plugins: bool = typer.Option(  # noqa: B008
         False,
-        "--include-plugins",
+        "--no-plugins",
         help=(
-            "Also scan installed Claude Code plugins: pin integrity (PLUGIN-001/002),"
-            " the skills and commands they ship, and their MCP servers."
+            "Skip installed Claude Code plugins. By default a scan without --path"
+            " includes their MCP servers and pin checks (PLUGIN-001/002);"
+            " --include-agent-files adds the skills and commands they ship."
         ),
     ),
     advisory_feed: Path | None = typer.Option(  # noqa: B008
@@ -1461,7 +1462,7 @@ def scan(
             auth_token=connect_token,
             scoring_weights=scoring_weights,
             scoring_weights_source=scoring_weights_source,
-            include_plugins=include_plugins,
+            include_plugins=not no_plugins,
         )
     except RegistryLoadError as exc:
         console.print(f"[red]Error:[/red] {exc}")
@@ -1503,8 +1504,8 @@ def scan(
     if include_agent_files:
         result = _apply_agent_files(result, resolved_project, console)
 
-    if include_plugins:
-        result = _apply_plugins(result, console)
+    if include_agent_files and not no_plugins:
+        result = _apply_plugin_agent_files(result, console)
 
     if resolved_project is not None:
         result = _apply_project_scan(

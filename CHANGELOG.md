@@ -34,13 +34,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`~/.claude/settings.json` is now discovered.** It holds user-level permissions
   and hooks, so HOOK-001/002, CFHYG-005/006 and the new HARNESS checks now see
   user-level settings that were previously never read.
-- **Claude Code plugins (STORY-0080).** `mcp-audit plugins discover` / `plugins scan`
-  and `scan --include-plugins`. PLUGIN-001 (MEDIUM): a git plugin's recorded version
+- **Claude Code plugins (STORY-0080).** `mcp-audit plugins discover` / `plugins scan`,
+  and a default `scan` now includes installed plugins (`--no-plugins` to skip; an
+  explicit `--path` skips them too). PLUGIN-001 (MEDIUM): a git plugin's recorded version
   is not the commit its marketplace pins, the on-disk symptom of Plugin4Shell (AIR
   Security, 2026-09-17). PLUGIN-002 (LOW): a git plugin source with no `sha` pin. The
-  skills and commands plugins ship go through the agent-file checks, and the MCP
-  servers they declare go through the full analyzer pipeline as client
-  `claude-code-plugin`. Offline; reads only Claude Code's own plugin records.
+  skills and commands plugins ship go through the agent-file checks (with
+  `--include-agent-files`), and the MCP servers they declare go through the full
+  analyzer pipeline as client `claude-code-plugin`. `lock` never records plugin
+  servers. Offline; reads only Claude Code's own plugin records.
 - **SAST rules for SSRF guards that only block IP literals (STORY-0081).**
   `mcp-ssrf-ip-literal-only-guard` (Python) and `mcp-ts-ssrf-ip-literal-only-guard`
   (TypeScript) flag a guard that checks a URL's host with `ipaddress.ip_address()` /

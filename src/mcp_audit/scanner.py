@@ -341,7 +341,7 @@ def _run_static_pipeline(
 def _discover_and_parse(
     extra_paths: list[Path] | None,
     result: ScanResult,
-    include_plugins: bool = False,
+    include_plugins: bool = True,
 ) -> tuple[list[DiscoveredConfig], list[ServerConfig]]:
     """Discover client configs and parse them into static ServerConfigs.
 
@@ -355,6 +355,12 @@ def _discover_and_parse(
     additionally gets a TRUST-002 (cwd-scoped) or TRUST-004 (user-global /
     explicit ``--path``) finding appended to ``result.findings``.  See
     ``humans/decisions/2026-09-08-trust-002-symlink-sites.md`` (marcus repo).
+
+    With *include_plugins* (the default) and no *extra_paths*, installed Claude
+    Code plugins are part of discovery: their MCP servers arrive as client
+    ``claude-code-plugin`` and the PLUGIN-001/002 pin checks are appended to
+    ``result.findings`` here, so every ``run_scan`` consumer (``scan``,
+    ``check``, ``dashboard`` …) sees them and the score counts them.
     """
     configs = discover_configs(
         extra_paths=extra_paths,
@@ -362,6 +368,16 @@ def _discover_and_parse(
         include_plugins=include_plugins,
     )
     result.clients_scanned = len({c.client_name for c in configs})
+
+    if include_plugins and not extra_paths:
+        from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415
+        from mcp_audit.plugins import discovery as _plugin_discovery  # noqa: PLC0415
+
+        result.findings.extend(
+            _plugin_analyzer.analyze_plugin_integrity(
+                _plugin_discovery.discover_installed_plugins()
+            )
+        )
 
     all_servers: list[ServerConfig] = []
     for config in configs:
@@ -398,7 +414,7 @@ async def run_scan_async(
     auth_token: str | None = None,
     scoring_weights: ScoringWeights | None = None,
     scoring_weights_source: str = "default",
-    include_plugins: bool = False,
+    include_plugins: bool = True,
 ) -> ScanResult:
     """Async scan entrypoint with optional live server enumeration.
 
@@ -416,8 +432,11 @@ async def run_scan_async(
 
     Args:
         extra_paths: Additional config paths to scan.
-        include_plugins: Also scan MCP servers shipped by installed Claude
-            Code plugins (client ``claude-code-plugin``; STORY-0080).
+        include_plugins: Include installed Claude Code plugins (STORY-0080):
+            their MCP servers as client ``claude-code-plugin`` and the
+            PLUGIN-001/002 pin checks.  On by default; ignored when
+            *extra_paths* is given, because an explicit path means "scan
+            exactly this".
         analyzers: Custom per-server analyzer list.  Uses defaults if ``None``.
         connect: When ``True``, attempt live MCP protocol connections.
         state_path: Override the rug-pull state file location (useful in tests).
@@ -534,7 +553,7 @@ def run_scan(
     auth_token: str | None = None,
     scoring_weights: ScoringWeights | None = None,
     scoring_weights_source: str = "default",
-    include_plugins: bool = False,
+    include_plugins: bool = True,
 ) -> ScanResult:
     """Run a complete scan: discover configs, parse them, analyze, return results.
 
@@ -550,8 +569,11 @@ def run_scan(
 
     Args:
         extra_paths: Additional config paths to scan.
-        include_plugins: Also scan MCP servers shipped by installed Claude
-            Code plugins (client ``claude-code-plugin``; STORY-0080).
+        include_plugins: Include installed Claude Code plugins (STORY-0080):
+            their MCP servers as client ``claude-code-plugin`` and the
+            PLUGIN-001/002 pin checks.  On by default; ignored when
+            *extra_paths* is given, because an explicit path means "scan
+            exactly this".
         analyzers: Custom per-server analyzer list.  Uses defaults if ``None``.
         connect: When ``True``, attempt live MCP protocol connections.
         state_path: Override the rug-pull state file location.  Useful in tests.

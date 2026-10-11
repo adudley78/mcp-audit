@@ -289,15 +289,21 @@ class TestScanIntegration:
         from mcp_audit.discovery import discover_configs
 
         monkeypatch.setenv("CLAUDE_CODE_PLUGIN_CACHE_DIR", str(plugin_root))
-        plugin_cfgs = [
-            c
-            for c in discover_configs(include_plugins=True)
-            if c.client_name == "claude-code-plugin"
-        ]
-        assert sorted(c.path.name for c in plugin_cfgs) == [".mcp.json", "plugin.json"]
-        assert [
-            c for c in discover_configs() if c.client_name == "claude-code-plugin"
-        ] == []
+
+        def plugin_cfgs(**kwargs: object) -> list[str]:
+            return sorted(
+                c.path.name
+                for c in discover_configs(**kwargs)  # type: ignore[arg-type]
+                if c.client_name == "claude-code-plugin"
+            )
+
+        assert plugin_cfgs() == [".mcp.json", "plugin.json"]  # on by default
+        assert plugin_cfgs(include_plugins=False) == []
+        # An explicit path means "scan exactly this": no plugin servers.
+        assert (
+            plugin_cfgs(extra_paths=[tmp_path / "x.json"], skip_auto_discovery=True)
+            == []
+        )
 
     def test_run_scan_analyzes_plugin_servers(
         self, plugin_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -306,7 +312,7 @@ class TestScanIntegration:
 
         monkeypatch.setenv("CLAUDE_CODE_PLUGIN_CACHE_DIR", str(plugin_root))
         monkeypatch.setattr("mcp_audit.discovery._home", lambda: tmp_path / "home")
-        result = run_scan(include_plugins=True, skip_rug_pull=True)
+        result = run_scan(skip_rug_pull=True)
         names = {s.name for s in result.servers if s.client == "claude-code-plugin"}
         assert names == {"leaky", "inline-srv"}
         assert any(
@@ -315,6 +321,95 @@ class TestScanIntegration:
             and f.client == "claude-code-plugin"
             for f in result.findings
         )
+        # Pin checks ride along in the default scan and count toward the score.
+        ids = sorted(f.id for f in result.findings if f.id.startswith("PLUGIN"))
+        assert ids == ["PLUGIN-001", "PLUGIN-002"]
+        assert result.score is not None and result.score.numeric_score < 100
+
+    def test_run_scan_opt_out_and_explicit_path_skip_plugins(
+        self, plugin_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.scanner import run_scan
+
+        monkeypatch.setenv("CLAUDE_CODE_PLUGIN_CACHE_DIR", str(plugin_root))
+        monkeypatch.setattr("mcp_audit.discovery._home", lambda: tmp_path / "home")
+        cfg = tmp_path / "only.json"
+        _write(cfg, {"mcpServers": {"solo": {"command": "node", "args": ["a.js"]}}})
+        for result in (
+            run_scan(include_plugins=False, skip_rug_pull=True),
+            run_scan(extra_paths=[cfg], skip_rug_pull=True),
+        ):
+            assert not [s for s in result.servers if s.client == "claude-code-plugin"]
+            assert not [f for f in result.findings if f.id.startswith("PLUGIN")]
+
+    def test_scan_cli_default_no_plugins_and_agent_files(
+        self, plugin_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.cli import app
+
+        monkeypatch.setenv("CLAUDE_CODE_PLUGIN_CACHE_DIR", str(plugin_root))
+        monkeypatch.setattr("mcp_audit.discovery._home", lambda: tmp_path / "home")
+        monkeypatch.setenv("HOME", str(tmp_path / "home"))
+        monkeypatch.chdir(tmp_path)
+        # Only plugin configs exist here, so rug-pull would use the default
+        # state file; keep it out of the real user config dir.
+        monkeypatch.setattr("mcp_audit.analyzers.rug_pull._STATE_DIR", tmp_path / "st")
+        monkeypatch.setattr(
+            "mcp_audit.analyzers.rug_pull.DEFAULT_STATE_PATH",
+            tmp_path / "st" / "state.json",
+        )
+
+        def scan_ids(*extra: str) -> set[str]:
+            report = tmp_path / "report.json"
+            out = CliRunner().invoke(
+                app,
+                ["scan", "--format", "json", "--offline", "-o", str(report), *extra],
+            )
+            assert out.exit_code in (0, 1), out.output
+            return {f["id"] for f in json.loads(report.read_text())["findings"]}
+
+        default = scan_ids()
+        assert {"PLUGIN-001", "PLUGIN-002"} <= default
+        assert not any(i.startswith("SKILL") for i in default)
+        assert not any(i.startswith("PLUGIN") for i in scan_ids("--no-plugins"))
+        with_files = scan_ids("--include-agent-files")
+        assert any(i.startswith("SKILL") for i in with_files)
+        assert not any(
+            i.startswith("SKILL")
+            for i in scan_ids("--include-agent-files", "--no-plugins")
+        )
+
+    def test_plugin_configs_do_not_move_rug_pull_state(self, tmp_path: Path) -> None:
+        from mcp_audit.analyzers.rug_pull import derive_state_path
+        from mcp_audit.discovery import DiscoveredConfig
+
+        user = DiscoveredConfig(
+            client_name="claude-desktop", root_key="mcpServers", path=tmp_path / "a"
+        )
+
+        def plugin(version: str) -> DiscoveredConfig:
+            return DiscoveredConfig(
+                client_name="claude-code-plugin",
+                root_key="mcpServers",
+                path=tmp_path / "cache" / "mkt" / "p" / version / ".mcp.json",
+            )
+
+        base = derive_state_path([user])
+        assert derive_state_path([user, plugin("aaaaaaaaaaaa")]) == base
+        assert derive_state_path([user, plugin("bbbbbbbbbbbb")]) == base
+
+    def test_lock_user_configs_never_include_plugin_servers(
+        self, plugin_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from rich.console import Console
+
+        from mcp_audit.cli.lock import _discover_lock_servers
+
+        monkeypatch.setenv("CLAUDE_CODE_PLUGIN_CACHE_DIR", str(plugin_root))
+        monkeypatch.setattr("mcp_audit.discovery._home", lambda: tmp_path / "home")
+        (tmp_path / "proj").mkdir()
+        servers = _discover_lock_servers(tmp_path / "proj", True, Console())
+        assert not [s for s in servers if s.client == "claude-code-plugin"]
 
 
 class TestCli:

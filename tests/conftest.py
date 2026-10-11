@@ -52,6 +52,24 @@ import pytest
 os.environ["COLUMNS"] = "200"
 
 
+@pytest.fixture(autouse=True)
+def _isolate_claude_plugins(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Point plugin discovery at an empty root for every test.
+
+    Plugin MCP servers and PLUGIN-001/002 are part of default discovery
+    (STORY-0080), and ``plugins_root()`` falls back to the real
+    ``~/.claude/plugins``.  Without this, a contributor with Claude Code
+    plugins installed would see extra servers and findings in any test that
+    runs a default scan.  Tests that need plugins set the variable themselves.
+    """
+    monkeypatch.setenv(
+        "CLAUDE_CODE_PLUGIN_CACHE_DIR",
+        str(tmp_path_factory.getbasetemp() / "no-claude-plugins"),
+    )
+
+
 @pytest.fixture()
 def pro_enabled() -> None:  # type: ignore[return]
     """Historical no-op fixture — all features are available to all users."""

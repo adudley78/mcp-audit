@@ -1986,8 +1986,9 @@ unset CLAUDE_CODE_PLUGIN_CACHE_DIR
 `pinned@mkt` (the install records commit `aaaaaaaaaaaa` but the marketplace
 pins `cccc…`), `PLUGIN-002` (LOW) on `floating@mkt` (tracks `main`), two
 `SKILL-001` (HIGH) and one `SKILL-003` (MEDIUM) from the plugin's bundled
-`SKILL.md`; exit 1. `mcp-audit scan --include-plugins` adds the same findings
-to a normal scan.
+`SKILL.md`; exit 1. A plain `mcp-audit scan` with the variable still exported
+reports `PLUGIN-001`/`PLUGIN-002`; add `--include-agent-files` for the `SKILL-*`
+findings, or `--no-plugins` to drop all of them.
 
 ---
 
