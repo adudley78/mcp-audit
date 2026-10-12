@@ -444,7 +444,8 @@ The **new** patterns specific to the agent-file surface are:
   (https://www.air.security/blog-posts/plugin4shell). Agents checked out a
   marketplace-pinned commit without verifying `HEAD`; a branch named like the SHA, or a
   default branch named `FETCH_HEAD`, swapped the code. Patched in Claude Code 2.1.179.
-  Source for PLUGIN-001.
+  Background and remediation source for PLUGIN-001; PLUGIN-001 compares install records
+  with the current pin and does not detect a swap recorded at the requested commit.
 - **Claude Code plugin documentation** — code.claude.com/docs/en/plugins/loading
   (plugins root, `installed_plugins.json`, `known_marketplaces.json`, cache layout, "How
   Claude Code computes the version") and plugins/marketplace-reference (plugin source

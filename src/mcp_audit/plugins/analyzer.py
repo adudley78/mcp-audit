@@ -1,13 +1,19 @@
 """Plugin integrity checks: PLUGIN-001 (pin mismatch) and PLUGIN-002 (unpinned).
 
-Basis: Plugin4Shell (AIR Security, 2026-09-17) — Claude Code, Codex, Copilot and
-Gemini CLI checked out a marketplace-pinned commit without verifying ``HEAD``,
-so a hostile plugin repository could swap the code while the pin still looked
-honored.  Claude Code records a git-sourced plugin's version as the commit SHA
-shortened to 12 characters when neither ``plugin.json`` nor the marketplace
-entry sets ``version`` (docs: plugins/loading, "How Claude Code computes the
-version").  An installed version that is not the pinned SHA's prefix is the
-on-disk symptom — or a plugin that has not been updated since the pin moved.
+Background: Plugin4Shell (AIR Security, 2026-09-17) — Claude Code, Codex,
+Copilot and Gemini CLI checked out a marketplace-pinned commit without
+verifying ``HEAD``, so a hostile plugin repository could swap the code while
+the pin still looked honored.  Claude Code records a git-sourced plugin's
+version as the commit SHA shortened to 12 characters when neither
+``plugin.json`` nor the marketplace entry sets ``version`` (docs:
+plugins/loading, "How Claude Code computes the version").
+
+PLUGIN-001 compares that record with the marketplace's *current* pin.  A
+mismatch means the plugin has not been updated since the pin moved, or the
+record does not match the pin.  It does not hash plugin files, so it cannot
+see a swap that Claude Code recorded at the requested commit — which is how
+the agents reported a Plugin4Shell install.  It is a pin-drift check, not a
+Plugin4Shell detector.
 """
 
 from __future__ import annotations
@@ -35,9 +41,9 @@ def _mismatch(plugin: InstalledPlugin, sha: str) -> Finding:
             f"The marketplace pins {plugin.plugin_id} to commit {sha[:12]}, but"
             f" Claude Code recorded version {plugin.version} for this install"
             f" ({where}). Either the plugin has not been updated since the"
-            " marketplace moved its pin, or the checkout did not land on the"
-            " pinned commit, which is how Plugin4Shell (AIR Security, 2026-09-17)"
-            " swapped plugin code while the pin still looked honored."
+            " marketplace moved its pin, or the install record does not match"
+            " the pin. This compares records only; it does not hash plugin"
+            " files, so it cannot confirm what code is installed."
         ),
         evidence=(
             f"plugin: {plugin.plugin_id} | pinned sha: {sha} | installed version:"

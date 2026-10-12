@@ -268,7 +268,9 @@ class TestIntegrity:
         assert f.severity.value == "MEDIUM"
         assert SHA_BAD_PIN in f.evidence
         assert "999999999999" in f.evidence
-        assert "Plugin4Shell" in f.description
+        assert "does not hash plugin files" in f.description
+        assert "Plugin4Shell" not in f.description
+        assert "Plugin4Shell" in f.remediation
         assert "claude plugin update bad@mkt" in f.remediation
         assert f.owasp_mcp_top_10 == ["MCP04"]
         assert f.finding_path.endswith("installed_plugins.json")
