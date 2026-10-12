@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A scan run inside a repository now reads its Claude Code settings
+  (STORY-0082).** `.claude/settings.json` and `.claude/settings.local.json` in the
+  working directory are discovered alongside `.mcp.json` (client
+  `claude-code-project`), so HARNESS-001..004 and HOOK-001/002 see repository
+  settings in the GitHub Action's default run. Before this, a pull request that
+  switched approval off passed CI unless `config-paths` named the file. Prompted
+  by user feedback on the v0.19.0 announcement. An explicit `--path` is
+  unchanged.
+
 ---
 
 ## [0.19.0] - 2026-10-11

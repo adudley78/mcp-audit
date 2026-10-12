@@ -426,25 +426,39 @@ def discover_configs(
                 )
             )
 
-        claude_code_project = cwd / ".mcp.json"
-        if claude_code_project.is_symlink():
-            discovered.append(
-                DiscoveredConfig(
-                    client_name="claude-code-project",
-                    root_key="mcpServers",
-                    path=claude_code_project,
-                    is_symlink=True,
-                    symlink_root=cwd,
+        # Claude Code's project files: the server list (.mcp.json) and the
+        # settings that govern approval (.claude/settings.json, committed, and
+        # .claude/settings.local.json, personal).  The settings files carry no
+        # servers as a rule, but config hygiene reads them for HOOK-001/002 and
+        # HARNESS-001..004 — so a scan run from a repo checkout (the GitHub
+        # Action's default) sees a commit that switches approval off
+        # (STORY-0082).  A path already discovered above (cwd == $HOME makes
+        # .claude/settings.json the user-level file) is not added twice.
+        already = {d.path.resolve() for d in discovered}
+        for rel in (
+            ".mcp.json",
+            ".claude/settings.json",
+            ".claude/settings.local.json",
+        ):
+            candidate = cwd / rel
+            if candidate.is_symlink():
+                discovered.append(
+                    DiscoveredConfig(
+                        client_name="claude-code-project",
+                        root_key="mcpServers",
+                        path=candidate,
+                        is_symlink=True,
+                        symlink_root=cwd,
+                    )
                 )
-            )
-        elif claude_code_project.exists():
-            discovered.append(
-                DiscoveredConfig(
-                    client_name="claude-code-project",
-                    root_key="mcpServers",
-                    path=claude_code_project,
+            elif candidate.is_file() and candidate.resolve() not in already:
+                discovered.append(
+                    DiscoveredConfig(
+                        client_name="claude-code-project",
+                        root_key="mcpServers",
+                        path=candidate,
+                    )
                 )
-            )
 
     # Check extra paths. Explicit — info-shaped (TRUST-004): the user named
     # this path themselves, and today's silent `continue` here is a plain bug

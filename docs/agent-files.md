@@ -158,6 +158,10 @@ HARNESS-001 and HARNESS-003. Each file is checked on its own; Claude Code's
 precedence across user, project, local and managed settings is not modelled (see
 `GAPS.md`). `~/.claude/settings.json` is discovered for these checks from
 STORY-0079 on, which also brings user-level hooks under HOOK-001/002 and CFHYG-005.
+From STORY-0082 on, a scan run inside a repository also reads that repository's
+`.claude/settings.json` and `.claude/settings.local.json` (client
+`claude-code-project`), so the GitHub Action's default run fails a pull request
+that switches approval off. An explicit `--path` still scans only what it names.
 
 ---
 

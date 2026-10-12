@@ -515,3 +515,84 @@ class TestDiscoverProjectAutoexecFilesSymlinkHandling:
         assert len(matches) == 1
         assert matches[0].is_symlink is True
         assert matches[0].symlink_root == tmp_path
+
+
+# ── Repo-level Claude Code settings in CWD (STORY-0082) ──────────────────────
+
+
+class TestCwdClaudeCodeSettings:
+    """A scan run from a repo checkout reads its committed Claude Code settings.
+
+    The GitHub Action runs ``mcp-audit scan`` from the checkout with no paths;
+    before STORY-0082 that never read ``.claude/settings.json``, so a commit
+    that switched approval off (HARNESS-001..004) passed CI silently.
+    """
+
+    @staticmethod
+    def _settings(root: Path, name: str, raw: dict) -> Path:
+        path = root / ".claude" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(raw), encoding="utf-8")
+        return path
+
+    def test_project_and_local_settings_are_discovered(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        project = self._settings(tmp_path, "settings.json", {})
+        local = self._settings(tmp_path, "settings.local.json", {})
+        monkeypatch.chdir(tmp_path)
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            results = discover_configs()
+        found = {r.path: r.client_name for r in results}
+        assert found.get(project) == "claude-code-project"
+        assert found.get(local) == "claude-code-project"
+
+    def test_not_added_twice_when_cwd_is_home(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        user_settings = self._settings(tmp_path, "settings.json", {})
+        spec = ClientSpec(
+            name="claude-code", root_key="mcpServers", config_paths=[user_settings]
+        )
+        monkeypatch.chdir(tmp_path)
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[spec]):
+            results = discover_configs()
+        assert [r.client_name for r in results if r.path == user_settings] == [
+            "claude-code"
+        ]
+
+    def test_explicit_path_scan_does_not_read_cwd_settings(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._settings(tmp_path, "settings.json", {})
+        other = tmp_path / "elsewhere.json"
+        other.write_text(json.dumps({"mcpServers": {}}), encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        results = discover_configs(extra_paths=[other], skip_auto_discovery=True)
+        assert [r.path for r in results] == [other]
+
+    def test_default_scan_from_checkout_flags_approval_off(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.scanner import run_scan
+
+        self._settings(
+            tmp_path,
+            "settings.json",
+            {
+                "permissions": {"defaultMode": "bypassPermissions"},
+                "enableAllProjectMcpServers": True,
+            },
+        )
+        monkeypatch.chdir(tmp_path)
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            result = run_scan(skip_rug_pull=True)
+        got = sorted(
+            (f.id, f.severity, f.client)
+            for f in result.findings
+            if f.id.startswith("HARNESS")
+        )
+        assert got == [
+            ("HARNESS-001", Severity.HIGH, "claude-code-project"),
+            ("HARNESS-002", Severity.HIGH, "claude-code-project"),
+        ]
