@@ -1,5 +1,10 @@
 # mcp-audit Manual Test Matrix
 
+> **v0.19.1 (2026-10-12): not fully re-run either.** Its one change (cwd
+> discovery reads `.claude/settings.json`, STORY-0082) was checked against a
+> sample repository: default `scan` from the checkout reports HARNESS-001/002/004
+> and exits 1.
+>
 > **v0.19.0 (2026-10-11): not fully re-run.** Section 60 (plugins) was run
 > against the release candidate; Sections 1–59 were last run green against
 > v0.18.2 (below). v0.19.0 changes discovery (`~/.claude/settings.json`,
