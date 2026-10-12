@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **PLUGIN-001 no longer claims to catch Plugin4Shell (STORY-0080).** The finding,
+  README and docs said a mismatch between a plugin's recorded version and its
+  marketplace pin was the on-disk symptom of Plugin4Shell. In Plugin4Shell the agents
+  reported a clean install at the pinned commit after a swap, so the record can match
+  the pin, and PLUGIN-001 does not hash plugin files. The finding text and docs now describe it as a
+  pin-drift check. Detection logic is unchanged.
+
 ---
 
 ## [0.19.1] - 2026-10-12

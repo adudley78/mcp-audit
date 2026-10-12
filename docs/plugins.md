@@ -25,15 +25,20 @@ The plugins root is `~/.claude/plugins`, or `CLAUDE_CODE_PLUGIN_CACHE_DIR` when 
 | PLUGIN-001 | MEDIUM | A git-sourced plugin (`github`/`url`) is pinned to a commit, but the version Claude Code recorded is not that commit |
 | PLUGIN-002 | LOW | A git-sourced plugin has no `sha` pin, so it follows a branch |
 
-**Why PLUGIN-001 matters.** Plugin4Shell (AIR Security, 2026-09-17) showed Claude
-Code, Codex, Copilot and Gemini CLI checking out a marketplace-pinned commit without
-verifying the result, so a hostile plugin repository could swap the code while the pin
-still looked honored. Claude Code fixed it in 2.1.179. When neither `plugin.json` nor
-the marketplace entry sets `version`, Claude Code records a git plugin's version as
-the commit SHA shortened to 12 characters, so a recorded version that is not the
-pinned SHA's prefix is the on-disk symptom. It is also what a plugin looks like when
-the marketplace moved its pin and the plugin has not been updated yet, which is why
-the finding is MEDIUM and the remediation is to update first.
+**What PLUGIN-001 checks, and what it does not.** When neither `plugin.json` nor the
+marketplace entry sets `version`, Claude Code records a git plugin's version as the
+commit SHA shortened to 12 characters. PLUGIN-001 compares that record with the
+commit the marketplace pins today. A mismatch usually means the marketplace moved its
+pin and the plugin has not been updated yet; it can also mean the record does not
+match the pin for some other reason. That is why the finding is MEDIUM and the
+remediation is to update first.
+
+It is not a Plugin4Shell detector. Plugin4Shell (AIR Security, 2026-09-17) showed
+Claude Code, Codex, Copilot and Gemini CLI checking out a marketplace-pinned commit
+without verifying the result, so a hostile plugin repository could swap the code
+while the agent still reported the pinned commit. A swap recorded that way leaves no
+mismatch, and PLUGIN-001 does not hash plugin files, so it cannot see one. Claude
+Code fixed the checkout in 2.1.179; the remediation points there.
 
 PLUGIN-001 never guesses. It is skipped when a version is set in `plugin.json` or the
 marketplace entry (the recorded version is then that string), for `git-subdir`

@@ -83,7 +83,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **SAST rule pack** — 91 Semgrep rules (47 Python, 44 TypeScript) across 6 categories for MCP server source code
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
 - **Agent-file scanner** — scans the other instruction surfaces the AI agent reads: Claude Code custom commands, Cursor rules, GitHub Copilot instruction/prompt files, and CLAUDE.md memory files; also detects network-egress and config-persistence patterns in Claude Code hook commands (CVE-2026-30615); `mcp-audit agent-files scan` or `mcp-audit scan --include-agent-files`
-- **Claude Code plugins** — inventories installed plugins, flags a plugin whose recorded version is not the commit its marketplace pins (the Plugin4Shell symptom, `PLUGIN-001`) or that follows a branch with no pin (`PLUGIN-002`), and runs the skills and MCP servers plugins ship through the existing checks; a default `scan` includes plugin MCP servers and the pin checks (`mcp-audit plugins scan` for the plugin-only view)
+- **Claude Code plugins** — inventories installed plugins, flags a plugin whose recorded version is not the commit its marketplace currently pins (`PLUGIN-001`, a pin-drift check that compares records and does not hash plugin files) or that follows a branch with no pin (`PLUGIN-002`), and runs the skills and MCP servers plugins ship through the existing checks; a default `scan` includes plugin MCP servers and the pin checks (`mcp-audit plugins scan` for the plugin-only view)
 - **Signed advisory feed** — there is no CVE/OSV/NVD equivalent for MCP servers, so `mcp-audit advise` publishes one: findings become OSV 1.6.0 records with OWASP MCP Top 10 metadata, canonicalized (RFC 8785) and signed with the project minisign key (since 2026-09-07; the record format is still experimental); `mcp-audit feed verify` checks the whole feed; a weekly signed build is published to `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json` — see [`docs/advisory-feed.md`](docs/advisory-feed.md) — alongside the committed unsigned [`examples/feed/`](examples/feed/) fixture
 - **Config hygiene** — `ConfigHygieneAnalyzer` detects missing descriptions, duplicate tool names, and other structural config issues
 - **CVE tagging** — findings carry a `Finding.cve` field so matched CVEs surface in JSON, SARIF, and terminal output
@@ -741,6 +741,8 @@ Sponsorship funds ongoing MCP attack-pattern research, false-positive tuning,
 new detection rules, and timely releases. Every dollar goes to development
 time — there is no legal entity, no paid tier, and no gated features.
 All work remains Apache 2.0 and available to every user.
+
+If mcp-audit is useful to you, a star helps others find it.
 
 Not in a position to sponsor? You can help just as much by:
 

@@ -1083,7 +1083,7 @@
       "finding_title": "Installed plugin does not match its marketplace pin",
       "owasp_codes": ["MCP04"],
       "owasp_names": ["Software Supply Chain Attacks"],
-      "notes": "Fires when a Claude Code marketplace entry pins a git-sourced plugin (github/url) to a 40-hex sha, neither plugin.json nor the entry sets a version, and the version recorded in installed_plugins.json is not the sha's 12-character prefix: the on-disk symptom of Plugin4Shell (AIR Security, 2026-09-17), or a plugin not updated since the pin moved. Severity MEDIUM. CWE-494. Analyzer: plugins (STORY-0080)."
+      "notes": "Fires when a Claude Code marketplace entry pins a git-sourced plugin (github/url) to a 40-hex sha, neither plugin.json nor the entry sets a version, and the version recorded in installed_plugins.json is not the sha's 12-character prefix: usually a plugin not updated since the pin moved, or a record that does not match the pin. Compares records only and does not hash plugin files, so it cannot see a Plugin4Shell (AIR Security, 2026-09-17) swap recorded at the requested commit. Severity MEDIUM. CWE-494. Analyzer: plugins (STORY-0080)."
     },
     {
       "finding_id": "PLUGIN-002",
