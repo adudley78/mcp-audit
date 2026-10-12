@@ -89,6 +89,18 @@ The `permissions` block is **required** for the SARIF upload. Composite
 actions inherit workflow-token permissions; declare `security-events: write`
 at either the workflow or the job level (as shown above).
 
+### Catch approval settings changed in a pull request
+
+A pull request can switch off Claude Code's approval prompts for everyone who
+clones the repository, by editing `.claude/settings.json` (HARNESS-001..004).
+Config files like that rarely get reviewed the way code does. The quick-start
+workflow above already covers it: the action scans from the checkout, a scan
+run inside a repository reads its `.claude/settings.json`, and
+the HARNESS findings in committed settings are HIGH, so the default
+`severity-threshold: high` with `fail-on-findings: true` fails the check on that
+pull request. With mcp-audit v0.19.0 or earlier, set
+`config-paths: .claude/settings.json .mcp.json` to get the same result.
+
 ### Version pinning
 
 Until `v1.0.0` ships, pin to a specific release tag (e.g. `@v0.3.0`).
