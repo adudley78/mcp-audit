@@ -70,6 +70,7 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # an assertion about anything found or missing under it
         "SKILL-004",  # bundled-scripts inventory — positive/neutral signal,
         # not itself a vulnerability
+        "MOD-005",  # Claude Code mod inventory (STORY-0085) — neutral, not a defect
     }
 )
 
@@ -138,6 +139,9 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "HARNESS-002": "untrusted-config-origin",
     "PLUGIN-001": "unverified-provenance",
     "PLUGIN-002": "unpinned-dependency",
+    "MOD-002": "toxic-flow",
+    "MOD-003": "tool-poisoning",
+    "MOD-006": "untrusted-config-origin",
 }
 
 # Prefix → class, applied when no exact ID match exists. Longest prefix wins.
@@ -146,6 +150,7 @@ _CLASS_BY_PREFIX: Final[dict[str, str]] = {
     "SKILL-": "tool-poisoning",
     "MEM-": "tool-poisoning",
     "HOOK-": "hook-execution",
+    "MOD-": "hook-execution",
     "HARNESS-": "excessive-scope",
     "SC-": "typosquat",
     "CFHYG-": "config-hygiene",

@@ -70,17 +70,25 @@ def test_kill_process_tree_reaps_grandchild() -> None:
         text=True,
     )
     try:
-        time.sleep(0.4)
-        assert proc.poll() is None, "precondition: parent still running"
         pgrep = shutil.which("pgrep")
         assert pgrep is not None
-        kids = subprocess.run(  # noqa: S603
-            [pgrep, "-P", str(proc.pid)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        grand_pids = [int(x) for x in kids.stdout.split() if x.strip().isdigit()]
+        # Poll rather than sleep a fixed 0.4 s: on a loaded macOS runner the
+        # child interpreter can take longer than that to start and spawn the
+        # grandchild (seen on PR #155's CI, 2026-10-13).
+        grand_pids: list[int] = []
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            assert proc.poll() is None, "precondition: parent still running"
+            kids = subprocess.run(  # noqa: S603
+                [pgrep, "-P", str(proc.pid)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            grand_pids = [int(x) for x in kids.stdout.split() if x.strip().isdigit()]
+            if grand_pids:
+                break
+            time.sleep(0.1)
         assert grand_pids, "precondition: grandchild must exist before kill"
 
         smoke._kill_process_tree(proc)

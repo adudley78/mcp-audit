@@ -6,6 +6,19 @@ import typer
 from rich.table import Table
 
 from mcp_audit.cli import console, plugins_app
+from mcp_audit.plugins.mods import Mod
+
+
+def _mod_row(mod: Mod | None) -> dict | None:
+    """JSON-friendly summary of a mod, or ``None`` when the plugin has none."""
+    if mod is None:
+        return None
+    return {
+        "origin": mod.origin,
+        "module": str(mod.module_path),
+        "events": list(mod.events),
+        "calls": list(mod.calls),
+    }
 
 
 @plugins_app.command("discover")
@@ -26,11 +39,15 @@ def plugins_discover(
         plugin_mcp_config_paths,
         plugins_root,
     )
+    from mcp_audit.plugins.mods import discover_mods  # noqa: PLC0415
 
     plugins = discover_installed_plugins()
+    mods = discover_mods(plugins)
+    mod_by_root = {m.root: m for m in mods if m.origin == "installed"}
     rows = []
     for plugin in plugins:
         files = plugin_agent_files([plugin])
+        mod = mod_by_root.get(plugin.install_path) if plugin.install_path else None
         rows.append(
             {
                 "plugin": plugin.plugin_id,
@@ -49,6 +66,27 @@ def plugins_discover(
                     1 for f in files if f.surface.value == "claude-command"
                 ),
                 "mcp_configs": [str(p) for p in plugin_mcp_config_paths([plugin])],
+                "mod": _mod_row(mod),
+            }
+        )
+    # Mods that aren't installed plugins: Claude-written dev mods and
+    # CLAUDE_CODE_PLUGIN_DIRS directories (STORY-0085).
+    for mod in mods:
+        if mod.origin == "installed":
+            continue
+        rows.append(
+            {
+                "plugin": mod.name,
+                "scope": mod.origin,
+                "project_path": None,
+                "version": None,
+                "source_type": None,
+                "pinned_sha": None,
+                "install_path": str(mod.root),
+                "skills": 0,
+                "commands": 0,
+                "mcp_configs": [],
+                "mod": _mod_row(mod),
             }
         )
 
@@ -69,6 +107,7 @@ def plugins_discover(
         "Skills",
         "Commands",
         "MCP",
+        "Mod",
         show_header=True,
         header_style="bold",
         border_style="blue",
@@ -83,6 +122,7 @@ def plugins_discover(
             str(row["skills"]),
             str(row["commands"]),
             str(len(row["mcp_configs"])),
+            f"{len(row['mod']['events'])} hooks" if row["mod"] else "—",
         )
     console.print(table)
     console.print(
@@ -99,7 +139,7 @@ def plugins_scan(
         help="Output format: terminal, json, sarif",
     ),
 ) -> None:
-    """Scan installed Claude Code plugins: pin integrity, skills, MCP servers."""
+    """Scan installed Claude Code plugins: pin integrity, mods, skills, MCP servers."""
     import json as _json  # noqa: PLC0415
 
     from mcp_audit.agent_files.analyzer import analyze_agent_files  # noqa: PLC0415
@@ -109,10 +149,18 @@ def plugins_scan(
         discover_installed_plugins,
         plugin_agent_files,
     )
+    from mcp_audit.plugins.mods import (  # noqa: PLC0415
+        analyze_mods,
+        analyze_plugin_dirs_setting,
+        discover_mods,
+    )
 
     plugins = discover_installed_plugins()
-    findings = analyze_plugin_integrity(plugins) + analyze_agent_files(
-        plugin_agent_files(plugins)
+    findings = (
+        analyze_plugin_integrity(plugins)
+        + analyze_mods(discover_mods(plugins))
+        + analyze_plugin_dirs_setting()
+        + analyze_agent_files(plugin_agent_files(plugins))
     )
     if plugins:
         # Plugin MCP servers go through the full analyzer pipeline; keep only

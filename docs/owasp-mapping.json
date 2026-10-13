@@ -3,7 +3,7 @@
   "owasp_version": "2025-beta",
   "owasp_uri": "https://owasp.org/www-project-mcp-top-10/",
   "generated": "2026-05-17",
-  "description": "Machine-readable mapping of every mcp-audit finding ID to OWASP MCP Top 10 categories. Static finding IDs appear in 'mappings'; dynamic ID patterns (generated at scan time) appear in 'dynamic_patterns'. Both arrays must be kept current \u2014 validate_owasp_mapping.py enforces completeness in CI.",
+  "description": "Machine-readable mapping of every mcp-audit finding ID to OWASP MCP Top 10 categories. Static finding IDs appear in 'mappings'; dynamic ID patterns (generated at scan time) appear in 'dynamic_patterns'. Both arrays must be kept current — validate_owasp_mapping.py enforces completeness in CI.",
   "categories": {
     "MCP01": "Token Mismanagement and Secret Exposure",
     "MCP02": "Privilege Escalation via Scope Creep",
@@ -146,7 +146,7 @@
         "Tool Poisoning",
         "Unauthorized Privilege Escalation"
       ],
-      "notes": "A concealment channel (Unicode TAG-character run decoding per UTS #39, or an HTML comment) decodes/extracts to content matching an existing PATTERNS entry. Two-pass design: the channel is extracted into its own string and rescanned independently, never spliced back into the original text. Fires identically from the config surface (PoisoningAnalyzer, analyzer=poisoning) and the agent-file surface (agent_files/analyzer.py, also analyzer=poisoning \u2014 a documented exception to that module's usual analyzer=agent_files). Evidence shows the decoded/extracted ASCII content, explicitly labelled, since the concealed bytes themselves render as nothing. HIGH."
+      "notes": "A concealment channel (Unicode TAG-character run decoding per UTS #39, or an HTML comment) decodes/extracts to content matching an existing PATTERNS entry. Two-pass design: the channel is extracted into its own string and rescanned independently, never spliced back into the original text. Fires identically from the config surface (PoisoningAnalyzer, analyzer=poisoning) and the agent-file surface (agent_files/analyzer.py, also analyzer=poisoning — a documented exception to that module's usual analyzer=agent_files). Evidence shows the decoded/extracted ASCII content, explicitly labelled, since the concealed bytes themselves render as nothing. HIGH."
     },
     {
       "finding_id": "POISON-042",
@@ -157,7 +157,7 @@
       "owasp_names": [
         "Tool Poisoning"
       ],
-      "notes": "Unicode TAG characters are present but decode to content matching no existing pattern. TAG characters have essentially no legitimate use in a tool description or an agent-instruction file, so bare presence alone is worth a LOW signal \u2014 unlike an HTML comment, which is ordinary and common in Markdown and stays silent unless its content actually matches a pattern (see POISON-041). LOW."
+      "notes": "Unicode TAG characters are present but decode to content matching no existing pattern. TAG characters have essentially no legitimate use in a tool description or an agent-instruction file, so bare presence alone is worth a LOW signal — unlike an HTML comment, which is ordinary and common in Markdown and stays silent unless its content actually matches a pattern (see POISON-041). LOW."
     },
     {
       "finding_id": "POISON-050",
@@ -305,10 +305,10 @@
     },
     {
       "finding_id": "RUGPULL-000",
-      "finding_title": "First scan \u2014 baseline recorded for server",
+      "finding_title": "First scan — baseline recorded for server",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Informational only \u2014 no prior state; no security violation. No OWASP category applies."
+      "notes": "Informational only — no prior state; no security violation. No OWASP category applies."
     },
     {
       "finding_id": "RUGPULL-001",
@@ -338,7 +338,7 @@
       "finding_title": "Previously tracked server no longer configured",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Informational only \u2014 removal is typically benign. No OWASP category applies."
+      "notes": "Informational only — removal is typically benign. No OWASP category applies."
     },
     {
       "finding_id": "TOXIC-001",
@@ -430,7 +430,7 @@
       "owasp_names": [
         "Command Injection and Execution"
       ],
-      "notes": "Integrity finding (state change/persistence), not exfiltration \u2014 deliberately a separate finding-ID prefix from TOXIC-*. Added R37 after measuring the FILE_WRITE dead-capability gap; see GAPS.md."
+      "notes": "Integrity finding (state change/persistence), not exfiltration — deliberately a separate finding-ID prefix from TOXIC-*. Added R37 after measuring the FILE_WRITE dead-capability gap; see GAPS.md."
     },
     {
       "finding_id": "CFHYG-001",
@@ -473,7 +473,7 @@
       "owasp_names": [
         "Token Mismanagement and Secret Exposure"
       ],
-      "notes": "Positive signal \u2014 correct credential hygiene practice."
+      "notes": "Positive signal — correct credential hygiene practice."
     },
     {
       "finding_id": "CFHYG-005",
@@ -504,7 +504,7 @@
       "finding_title": "Sigstore provenance verified (valid match)",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Positive/informational signal \u2014 no security violation."
+      "notes": "Positive/informational signal — no security violation."
     },
     {
       "finding_id": "ATTEST-011",
@@ -551,14 +551,14 @@
       "finding_title": "Sigstore attestation verification error",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Informational \u2014 network or API error prevented verification."
+      "notes": "Informational — network or API error prevented verification."
     },
     {
       "finding_id": "BL-001",
       "finding_title": "Baseline file could not be parsed",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Operational error \u2014 malformed baseline file. No security category applies."
+      "notes": "Operational error — malformed baseline file. No security category applies."
     },
     {
       "finding_id": "COMM-001",
@@ -720,10 +720,10 @@
     },
     {
       "finding_id": "COMM-000",
-      "finding_title": "Template rule \u2014 replace before submitting",
+      "finding_title": "Template rule — replace before submitting",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "Template stub rule \u2014 never matches real configs. OWASP codes should be set by contributor when creating a real rule from this template."
+      "notes": "Template stub rule — never matches real configs. OWASP codes should be set by contributor when creating a real rule from this template."
     },
     {
       "finding_id": "COMM-016",
@@ -737,7 +737,7 @@
     },
     {
       "finding_id": "COMM-017",
-      "finding_title": "Authority-claim poisoning \u2014 AI identity impersonation",
+      "finding_title": "Authority-claim poisoning — AI identity impersonation",
       "owasp_codes": [
         "MCP01"
       ],
@@ -923,7 +923,7 @@
       "owasp_names": [
         "Shadow MCP Servers"
       ],
-      "notes": "Fires for every MCP server found in a project-level config file (.mcp.json, .cursor/mcp.json, .claude/settings.json, .vscode/mcp.json). Origin-based \u2014 fires on file location, not content. Adversa TrustFall May 2026; CVE-2026-30615. CWE-829."
+      "notes": "Fires for every MCP server found in a project-level config file (.mcp.json, .cursor/mcp.json, .claude/settings.json, .vscode/mcp.json). Origin-based — fires on file location, not content. Adversa TrustFall May 2026; CVE-2026-30615. CWE-829."
     },
     {
       "finding_id": "TRUST-003",
@@ -960,7 +960,7 @@
       "owasp_names": [
         "Shadow MCP Servers"
       ],
-      "notes": "Fires when a user-global known-client config (e.g. ~/.claude.json, ~/.cursor/mcp.json) or an explicitly-supplied --path candidate is itself a symlink. Always INFO \u2014 dotfile managers (GNU Stow, chezmoi, yadm, dotbot) manage exactly these paths this way, and a rule that fires on every correctly-configured machine gets switched off wholesale. The candidate is still scanned normally through the link. CWE-61."
+      "notes": "Fires when a user-global known-client config (e.g. ~/.claude.json, ~/.cursor/mcp.json) or an explicitly-supplied --path candidate is itself a symlink. Always INFO — dotfile managers (GNU Stow, chezmoi, yadm, dotbot) manage exactly these paths this way, and a rule that fires on every correctly-configured machine gets switched off wholesale. The candidate is still scanned normally through the link. CWE-61."
     },
     {
       "finding_id": "TRUST-005",
@@ -971,7 +971,7 @@
       "owasp_names": [
         "Shadow MCP Servers"
       ],
-      "notes": "Fires when discovery (the --project config/autoexec walk, or the agent-files project-tree and skills walk) encounters a symlinked directory. mcp-audit never follows a symlinked directory (loop/blow-up protection, unchanged); this finding makes that refusal visible instead of silent. Always LOW \u2014 a coverage note, not an accusation. CWE-61."
+      "notes": "Fires when discovery (the --project config/autoexec walk, or the agent-files project-tree and skills walk) encounters a symlinked directory. mcp-audit never follows a symlinked directory (loop/blow-up protection, unchanged); this finding makes that refusal visible instead of silent. Always LOW — a coverage note, not an accusation. CWE-61."
     },
     {
       "finding_id": "COMM-033",
@@ -982,7 +982,7 @@
       "owasp_names": [
         "Shadow MCP Servers"
       ],
-      "notes": "Community rule companion to TRUST-001. LOW severity \u2014 refer users to 'mcp-audit scan --project' for full TRUST-001 analysis. CWE-829."
+      "notes": "Community rule companion to TRUST-001. LOW severity — refer users to 'mcp-audit scan --project' for full TRUST-001 analysis. CWE-829."
     },
     {
       "finding_id": "COMM-034",
@@ -1011,156 +1011,338 @@
     {
       "finding_id": "SKILL-001",
       "finding_title": "Injection/exfiltration instruction in skill file",
-      "owasp_codes": ["MCP03", "MCP01"],
-      "owasp_names": ["Prompt Injection Attacks", "Token Mismanagement and Secret Exposure"],
+      "owasp_codes": [
+        "MCP03",
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Prompt Injection Attacks",
+        "Token Mismanagement and Secret Exposure"
+      ],
       "notes": "Fires when any poisoning.py PATTERNS entry (except obfuscation/length sub-set) matches the body of a skill/command/instruction file (.claude/commands/*.md, .cursor/rules/*.mdc, .github/**). Severity capped at HIGH. Analyzer: agent_files."
     },
     {
       "finding_id": "SKILL-002",
       "finding_title": "Obfuscated or oversized block in skill/command file",
-      "owasp_codes": ["MCP03"],
-      "owasp_names": ["Prompt Injection Attacks"],
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Prompt Injection Attacks"
+      ],
       "notes": "Fires on zero-width Unicode (POISON-040), homoglyph substitution (POISON-060), or body length >= 2000 chars in skill/command/instruction files. Severity MEDIUM. CWE-116. Analyzer: agent_files."
     },
     {
       "finding_id": "SKILL-003",
       "finding_title": "Skill file references external URL",
-      "owasp_codes": ["MCP03", "MCP04"],
-      "owasp_names": ["Prompt Injection Attacks", "Software Supply Chain Attacks"],
+      "owasp_codes": [
+        "MCP03",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Prompt Injection Attacks",
+        "Software Supply Chain Attacks"
+      ],
       "notes": "Fires when a skill/instruction file body contains a raw http(s):// URL suggesting external content injection. Severity MEDIUM. CWE-829. Analyzer: agent_files."
     },
     {
       "finding_id": "SKILL-004",
       "finding_title": "Skill bundles executable scripts",
-      "owasp_codes": ["MCP03"],
-      "owasp_names": ["Prompt Injection Attacks"],
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Prompt Injection Attacks"
+      ],
       "notes": "Fires once per discovered Claude Code SKILL.md whose own directory contains a scripts/ subdirectory with at least one file. Inventory-only: lists bundled script filenames, never contents, and never executes or reads them. Always INFO. Analyzer: agent_files."
     },
     {
       "finding_id": "HOOK-001",
       "finding_title": "Hook command contains network-egress instruction",
-      "owasp_codes": ["MCP05", "MCP07"],
-      "owasp_names": ["Command Injection via Tool Responses", "Insufficient Authentication Controls"],
+      "owasp_codes": [
+        "MCP05",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Command Injection via Tool Responses",
+        "Insufficient Authentication Controls"
+      ],
       "notes": "Fires when a Claude Code hook command contains curl, wget, nc, socat, Invoke-WebRequest, or a raw HTTP(S) URL. Severity HIGH. CWE-78. Analyzer: config_hygiene (extends CFHYG-005)."
     },
     {
       "finding_id": "HOOK-002",
       "finding_title": "Hook command references agent config file path",
-      "owasp_codes": ["MCP05", "MCP07"],
-      "owasp_names": ["Command Injection via Tool Responses", "Insufficient Authentication Controls"],
+      "owasp_codes": [
+        "MCP05",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Command Injection via Tool Responses",
+        "Insufficient Authentication Controls"
+      ],
       "notes": "Fires when a Claude Code hook command references an MCP/agent config file path (CVE-2026-30615 persistence channel). Severity HIGH. CWE-78. Analyzer: config_hygiene (extends CFHYG-005)."
     },
     {
       "finding_id": "HARNESS-001",
       "finding_title": "Claude Code sessions start with permission prompts skipped",
-      "owasp_codes": ["MCP02", "MCP07"],
-      "owasp_names": ["Privilege Escalation via Scope Creep", "Insufficient Authentication and Authorization"],
+      "owasp_codes": [
+        "MCP02",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Insufficient Authentication and Authorization"
+      ],
       "notes": "Fires when a Claude Code settings file sets permissions.defaultMode to bypassPermissions (suppressed when the same file sets permissions.disableBypassPermissionsMode to \"disable\"). Severity HIGH. CWE-862. Basis: HarnessSecurity-Bench, arXiv 2610.07639. Analyzer: config_hygiene (STORY-0079)."
     },
     {
       "finding_id": "HARNESS-002",
       "finding_title": "Every project .mcp.json server is approved without a prompt",
-      "owasp_codes": ["MCP09", "MCP07"],
-      "owasp_names": ["Shadow MCP Servers", "Insufficient Authentication and Authorization"],
+      "owasp_codes": [
+        "MCP09",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers",
+        "Insufficient Authentication and Authorization"
+      ],
       "notes": "Fires when a Claude Code settings file sets enableAllProjectMcpServers to true. Severity HIGH. CWE-862. Analyzer: config_hygiene (STORY-0079)."
     },
     {
       "finding_id": "HARNESS-003",
       "finding_title": "Confirmation before bypass mode is switched off",
-      "owasp_codes": ["MCP02", "MCP07"],
-      "owasp_names": ["Privilege Escalation via Scope Creep", "Insufficient Authentication and Authorization"],
+      "owasp_codes": [
+        "MCP02",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Insufficient Authentication and Authorization"
+      ],
       "notes": "Fires when a Claude Code settings file sets skipDangerousModePermissionPrompt to true (suppressed by disableBypassPermissionsMode \"disable\" in the same file). Severity MEDIUM. CWE-862. Analyzer: config_hygiene (STORY-0079)."
     },
     {
       "finding_id": "HARNESS-004",
       "finding_title": "Every shell command is pre-approved",
-      "owasp_codes": ["MCP02", "MCP05"],
-      "owasp_names": ["Privilege Escalation via Scope Creep", "Command Injection and Execution"],
+      "owasp_codes": [
+        "MCP02",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Command Injection and Execution"
+      ],
       "notes": "Fires when permissions.allow in a Claude Code settings file contains bare Bash, Bash(*), PowerShell or PowerShell(*). Severity HIGH. CWE-862. Analyzer: config_hygiene (STORY-0079)."
     },
     {
       "finding_id": "PLUGIN-001",
       "finding_title": "Installed plugin does not match its marketplace pin",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"],
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
       "notes": "Fires when a Claude Code marketplace entry pins a git-sourced plugin (github/url) to a 40-hex sha, neither plugin.json nor the entry sets a version, and the version recorded in installed_plugins.json is not the sha's 12-character prefix: usually a plugin not updated since the pin moved, or a record that does not match the pin. Compares records only and does not hash plugin files, so it cannot see a Plugin4Shell (AIR Security, 2026-09-17) swap recorded at the requested commit. Severity MEDIUM. CWE-494. Analyzer: plugins (STORY-0080)."
     },
     {
       "finding_id": "PLUGIN-002",
       "finding_title": "Plugin source is not pinned to a commit",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"],
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
       "notes": "Fires when a Claude Code marketplace entry fetches a github, url or git-subdir plugin source with no sha. Severity LOW. CWE-829. Analyzer: plugins (STORY-0080)."
+    },
+    {
+      "finding_id": "MOD-001",
+      "finding_title": "Mod can approve tool calls before the permission prompt",
+      "owasp_codes": [
+        "MCP07",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Insufficient Authentication and Authorization",
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when a Claude Code mod's hooks module registers a tool.check hook, so it can allow or deny tool calls before the permission prompt (and skip the auto-mode classifier). Notes whether a managed settings file (and so the built-in sec-default guard) was found, and allowModsToOverrideDenyRules. Severity HIGH. CWE-863. Analyzer: plugins (STORY-0085)."
+    },
+    {
+      "finding_id": "MOD-002",
+      "finding_title": "Mod can read secrets or files and send data out",
+      "owasp_codes": [
+        "MCP01",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when one mod calls a read ($.env.get, $.settings.read: HIGH; $.fs.read: MEDIUM) and makes network requests ($.http.fetch). CWE-201. Analyzer: plugins (STORY-0085)."
+    },
+    {
+      "finding_id": "MOD-003",
+      "finding_title": "Mod can change what Claude reads",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Fires when a mod hooks tool.describe, prompt.compose, prompt.section, prompt.context, prompt.attachment, skill.prompt or session.append, or calls $.prompt.submit. Severity MEDIUM. CWE-1427. Analyzer: plugins (STORY-0085)."
+    },
+    {
+      "finding_id": "MOD-004",
+      "finding_title": "Mod starts programs or changes their environment",
+      "owasp_codes": [
+        "MCP05",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when a mod calls $.process.run, $.process.spawn or $.env.set. Severity MEDIUM. CWE-250. Analyzer: plugins (STORY-0085)."
+    },
+    {
+      "finding_id": "MOD-005",
+      "finding_title": "Claude Code mod installed",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Inventory: one per mod found (installed plugin, Claude-written dev mod, or CLAUDE_CODE_PLUGIN_DIRS), listing its events and mods API calls. Severity INFO. CWE-1357. Not an advisory. Analyzer: plugins (STORY-0085)."
+    },
+    {
+      "finding_id": "MOD-006",
+      "finding_title": "Plugin directories load in every Claude Code session",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when the env block of ~/.claude/settings.json sets CLAUDE_CODE_PLUGIN_DIRS. Severity MEDIUM. CWE-829. Analyzer: plugins (STORY-0085)."
     },
     {
       "finding_id": "MEM-001",
       "finding_title": "Imperative override instruction in memory file",
-      "owasp_codes": ["MCP03"],
-      "owasp_names": ["Prompt Injection Attacks"],
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Prompt Injection Attacks"
+      ],
       "notes": "Fires when POISON-012 (behavioral override) matches a Claude Code CLAUDE.md memory file. Severity capped at MEDIUM. CWE-74. Analyzer: agent_files."
     },
     {
       "finding_id": "MEM-002",
       "finding_title": "Injection pattern in memory file",
-      "owasp_codes": ["MCP03"],
-      "owasp_names": ["Prompt Injection Attacks"],
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Prompt Injection Attacks"
+      ],
       "notes": "Fires on restricted memory pattern subset: POISON-010/011/040/060 only. Exfiltration and length patterns excluded to control FP rate. Severity capped at MEDIUM. CWE-74. Analyzer: agent_files."
     },
     {
       "finding_id": "STDIO-002a",
       "finding_title": "Hidden (dotfile) launcher binary",
-      "owasp_codes": ["MCP04", "MCP05"],
-      "owasp_names": ["Software Supply Chain Attacks", "Command Injection and Execution"],
+      "owasp_codes": [
+        "MCP04",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks",
+        "Command Injection and Execution"
+      ],
       "notes": "Launch command resolves to a path whose final component (the binary itself, not merely a containing directory) begins with a dot. This is the shape used by the Deadbugz MCP supply-chain campaign (Pillar Security, disclosed 2026-08-12; ~/.config/.cache/.sys/.deadbug-mcp.py). Default-on, HIGH. Community rule, category code-execution."
     },
     {
       "finding_id": "STDIO-002b",
       "finding_title": "Inline script launcher",
-      "owasp_codes": ["MCP05"],
-      "owasp_names": ["Command Injection and Execution"],
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ],
       "notes": "Command is an interpreter invoked with an inline-code flag (-c, -e, --eval, -Command) rather than a script file path. Boundaried against COMM-015 (shell metacharacters in args): COMM-015 owns the metacharacter class, this rule owns the inline-code flag shape whether or not metacharacters are present. Default-on, HIGH. Community rule, category code-execution."
     },
     {
       "finding_id": "STDIO-001",
       "finding_title": "Launcher binary not in allowlist",
-      "owasp_codes": ["MCP04", "MCP09"],
-      "owasp_names": ["Software Supply Chain Attacks", "Shadow MCP Servers"],
-      "notes": "Launch command basename is outside a small allowlist of well-known runtime/package-manager launchers. Ships enabled: false \u2014 no governance-policy mechanism currently exists to enable a disabled community rule (verified; see GAPS.md). Policy-gated, MEDIUM when enabled. Community rule, category code-execution."
+      "owasp_codes": [
+        "MCP04",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks",
+        "Shadow MCP Servers"
+      ],
+      "notes": "Launch command basename is outside a small allowlist of well-known runtime/package-manager launchers. Ships enabled: false — no governance-policy mechanism currently exists to enable a disabled community rule (verified; see GAPS.md). Policy-gated, MEDIUM when enabled. Community rule, category code-execution."
     },
     {
       "finding_id": "LOCK-001",
       "finding_title": "Server drifted from lock",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"],
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
       "notes": "mcp-audit lock --verify (offline). A locked server's launch identity (command/args or canonical URL), env key names, or header key names changed since it was approved through mcp-audit lock. HIGH. See docs/decisions/ADR-0005-mcp-audit-lock.md."
     },
     {
       "finding_id": "LOCK-002",
       "finding_title": "Server not in lock",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"],
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
       "notes": "mcp-audit lock --verify (offline). A configured server was never approved through mcp-audit lock. HIGH."
     },
     {
       "finding_id": "LOCK-003",
       "finding_title": "Locked server missing",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"],
-      "notes": "mcp-audit lock --verify (offline). A previously locked server is no longer configured. MEDIUM \u2014 does not fail the exit code alone (removing a server is not a failure)."
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify (offline). A previously locked server is no longer configured. MEDIUM — does not fail the exit code alone (removing a server is not a failure)."
     },
     {
       "finding_id": "LOCK-004",
       "finding_title": "Resolution drifted",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"],
-      "notes": "mcp-audit lock --verify --resolve (network, opt-in). A floating/range spec now resolves to a different version than the one locked (HIGH), or the same version now hashes differently \u2014 a republished artifact (CRITICAL). Never produced by default --verify."
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify --resolve (network, opt-in). A floating/range spec now resolves to a different version than the one locked (HIGH), or the same version now hashes differently — a republished artifact (CRITICAL). Never produced by default --verify."
     },
     {
       "finding_id": "LOCK-005",
       "finding_title": "Lock file tampered or hand-edited",
-      "owasp_codes": ["MCP04"],
-      "owasp_names": ["Software Supply Chain Attacks"],
-      "notes": "mcp-audit lock --verify (always, offline). mcp-audit's own owned-section checksum ({lock_version, generated_by, servers}) does not match the lock file's checksum field. CRITICAL; short-circuits every other check, exit 2. Never fires on an edit inside a foreign section (e.g. trees) \u2014 checksum scope matches ownership scope, ADR-0005 \u00a710."
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify (always, offline). mcp-audit's own owned-section checksum ({lock_version, generated_by, servers}) does not match the lock file's checksum field. CRITICAL; short-circuits every other check, exit 2. Never fires on an edit inside a foreign section (e.g. trees) — checksum scope matches ownership scope, ADR-0005 §10."
     }
   ],
   "dynamic_patterns": [
@@ -1213,7 +1395,7 @@
       "id_regex": "^DRIFT-[A-Z_]+-[0-9a-f]{12}$",
       "analyzer": "baseline",
       "source_file": "src/mcp_audit/cli/scan.py",
-      "description": "Baseline drift finding. Id is DRIFT-<DRIFT_TYPE>-<12 hex of client+server+drift_type> (e.g. DRIFT-COMMAND_CHANGED-a1b2c3d4e5f6) \u2014 stable across scans of the same event, not sequentially numbered by position (a positional id would mint a different id for the same event depending on iteration order in BaselineManager.compare()). Emitted when --baseline flag detects changes from a saved snapshot. DRIFT-SERVER_REMOVED-* is excluded from the advisory feed (advisory/classify.py) as benign bookkeeping.",
+      "description": "Baseline drift finding. Id is DRIFT-<DRIFT_TYPE>-<12 hex of client+server+drift_type> (e.g. DRIFT-COMMAND_CHANGED-a1b2c3d4e5f6) — stable across scans of the same event, not sequentially numbered by position (a positional id would mint a different id for the same event depending on iteration order in BaselineManager.compare()). Emitted when --baseline flag detects changes from a saved snapshot. DRIFT-SERVER_REMOVED-* is excluded from the advisory feed (advisory/classify.py) as benign bookkeeping.",
       "owasp_codes": [
         "MCP09"
       ],
@@ -1229,9 +1411,9 @@
       "description": "Governance policy finding. Dynamic ID derived from the policy check type. OWASP codes are configurable via the owasp_mcp_top_10 field in the policy YAML.",
       "owasp_codes": [],
       "owasp_names": [],
-      "notes": "OWASP codes are policy-defined. Defaults to empty; policy author may specify any MCP01\u2013MCP10 codes in the YAML."
+      "notes": "OWASP codes are policy-defined. Defaults to empty; policy author may specify any MCP01–MCP10 codes in the YAML."
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 103 static finding IDs are mapped. 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. Most recently added: POISON-041/042 (concealment channels \u2014 Unicode TAG-character decode / HTML-comment extraction, then rescan; fires with analyzer=poisoning from both the config and agent-file surfaces), STDIO-001/002a/002b (launch-command trust boundary; STDIO-001 ships disabled), CRED-003 (literal secret in an authentication header), TRUST-002/004/005 (symlinked config/agent-file candidates), SKILL-004 (skill bundled-scripts inventory), TRUST-003 (repo-planted IDE auto-execution). See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "All 103 static finding IDs are mapped. 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. Most recently added: POISON-041/042 (concealment channels — Unicode TAG-character decode / HTML-comment extraction, then rescan; fires with analyzer=poisoning from both the config and agent-file surfaces), STDIO-001/002a/002b (launch-command trust boundary; STDIO-001 ships disabled), CRED-003 (literal secret in an authentication header), TRUST-002/004/005 (symlinked config/agent-file candidates), SKILL-004 (skill bundled-scripts inventory), TRUST-003 (repo-planted IDE auto-execution). See docs/severity-framework.md for the full rationale table."
 }

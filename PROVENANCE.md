@@ -438,6 +438,17 @@ The **new** patterns specific to the agent-file surface are:
   "`Bash(*)` is equivalent to `Bash` and matches all Bash commands".
 - All four checks are original implementations; no code was copied.
 
+## Claude Code mods (MOD-001..006, plugins/mods.py — STORY-0085)
+
+- **Claude Code mods documentation** — code.claude.com/docs/en/plugins/mods/overview,
+  /reference (files, every event and mods API method), /admin ("Review what a mod can
+  do", the sec-default guard and its options), /create (static analysis rules that make
+  a literal read sound). The MOD-* rules are that review checklist, applied offline.
+- **Practitioner signal** — @ClaudeDevs launch post, 2026-10-01 (4.46M views); @zouyanjian,
+  2026-10-05 ("Read it, pin it, watch anything that hooks permission events"); @LacorteMichele,
+  2026-10-06; @alekdobrohotov and @deeponailabs, 2026-10-09. Brief:
+  products/mcp-audit/discovery/briefs/2026-10-12-signal-sweep.md (Marcus).
+
 ## Claude Code plugins (PLUGIN-001/002, plugins/ — STORY-0080)
 
 - **Plugin4Shell** — Or Nevo, Dor Granat, Niv Hoffman, AIR Security, 2026-09-17
