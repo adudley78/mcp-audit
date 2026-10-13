@@ -12,7 +12,9 @@ possibly cross-language producers (mcp-audit and the #88 tree generator)
 always agree on the bytes for a value neither one has changed.
 
 mcp-audit's own ``checksum`` covers only the sub-document it owns
-(:func:`mcp_audit.lock.model.owned_subdocument`) — see ADR-0005 §10.
+(:func:`mcp_audit.lock.model.owned_subdocument`) — see ADR-0005 §10. The
+``tools`` section, once ``lock --connect`` has populated it, is mcp-audit's
+too and carries its own ``_checksum`` (:mod:`mcp_audit.lock.tool_digests`).
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from pathlib import Path
 from mcp_audit import __version__
 from mcp_audit.advisory.canonical import CanonicalError, canonicalize
 from mcp_audit.analyzers.rug_pull import compute_hashes, server_key
+from mcp_audit.lock import tool_digests
 from mcp_audit.lock.identity import build_identity, relative_config_path
 from mcp_audit.lock.model import (
     LOCK_VERSION,
@@ -153,12 +156,17 @@ def regenerate(
     *,
     offline: bool,
     registry: KnownServerRegistry | None,
+    tool_records: dict[str, dict] | None = None,
 ) -> dict:
     """Build the new full lock document from the current server list.
 
-    Foreign top-level sections in *existing_doc* (``trees``, ``tools``, and
-    anything unrecognised) are copied through verbatim as the exact parsed
-    Python values — never re-derived, never touched.  Used by both
+    Foreign top-level sections in *existing_doc* (``trees``, a ``tools``
+    section from another producer, and anything unrecognised) are copied
+    through verbatim as the exact parsed Python values — never re-derived,
+    never touched.  An mcp-audit-owned ``tools`` section is rebuilt by
+    :func:`mcp_audit.lock.tool_digests.merge_section`: records from
+    *tool_records* replace earlier ones, records for servers no longer locked
+    are dropped, and the rest carry forward.  Used by both
     ``mcp-audit lock`` and ``mcp-audit lock --accept``: the two commands
     perform the same regeneration; ``--accept`` exists as the explicit,
     named step in the "review the drift, then re-lock" workflow.
@@ -170,11 +178,22 @@ def regenerate(
         root: The project root ``lock`` was run against.
         offline: Suppress all network resolution when ``True``.
         registry: The known-server registry.
+        tool_records: ``{lock key: tool_digests.server_record(...)}`` from
+            ``lock --connect``; ``None`` when tools were not enumerated.
 
     Returns:
         The new full document, including a freshly computed ``checksum``
         (ADR-0005 §10 — scoped to ``{lock_version, generated_by, servers}``
         only).
+
+    Raises:
+        LockWriteError: *tool_records* were given but ``tools`` belongs to
+            another producer (ADR-0005 §1: never overwrite another
+            producer's section); or the existing mcp-audit ``tools`` section
+            fails its own checksum and *tool_records* is ``None`` (carrying
+            it forward would re-checksum a hand edit into a valid record).
+            With *tool_records*, a section that fails its checksum is
+            discarded and only this run's records are written.
     """
     existing_servers: dict = (existing_doc or {}).get("servers", {})
     now = datetime.now(UTC).isoformat()
@@ -199,12 +218,58 @@ def regenerate(
     for key in RESERVED_FOREIGN_KEYS:
         doc.setdefault(key, {} if key == "trees" else None)
 
+    existing_tools = doc[tool_digests.TOOLS_KEY]
+    if tool_records is not None:
+        check_tools_writable(existing_doc)
+    if existing_tools is None or tool_digests.is_owned(existing_tools):
+        if tools_tampered(existing_doc):
+            if tool_records is None:
+                raise LockWriteError(
+                    "The lock's `tools` section does not match its own "
+                    "checksum (hand-edited or corrupted), so mcp-audit will not "
+                    "carry it forward. Inspect `git diff mcp-lock.json`, then "
+                    "re-record it from the live servers with "
+                    "`mcp-audit lock --accept --connect`."
+                )
+            existing_tools = None  # start over: keep nothing from it
+        doc[tool_digests.TOOLS_KEY] = tool_digests.merge_section(
+            existing_tools, tool_records or {}, keep_keys=set(new_servers)
+        )
+
     doc["lock_version"] = LOCK_VERSION
     doc["generated_by"] = f"mcp-audit/{__version__}"
     doc["generated_at"] = now
     doc["servers"] = new_servers
     doc["checksum"] = compute_checksum(doc)
     return doc
+
+
+def tools_tampered(existing_doc: dict | None) -> bool:
+    """Whether *existing_doc*'s mcp-audit ``tools`` section fails its checksum."""
+    section = (existing_doc or {}).get(tool_digests.TOOLS_KEY)
+    return tool_digests.is_owned(section) and not tool_digests.checksum_ok(section)
+
+
+def check_tools_writable(existing_doc: dict | None) -> None:
+    """Raise unless ``lock --connect`` may write the ``tools`` section.
+
+    Called before any server is started, as well as by :func:`regenerate`.
+
+    Raises:
+        LockWriteError: ``tools`` belongs to another producer or to a newer
+            mcp-audit schema (ADR-0005 §1: never overwrite another
+            producer's section).
+    """
+    section = (existing_doc or {}).get(tool_digests.TOOLS_KEY)
+    if section is None or tool_digests.is_owned(section):
+        return
+    producer = section.get("_producer") if isinstance(section, dict) else None
+    raise LockWriteError(
+        "The lock's `tools` section was written by "
+        f"{producer or 'another tool'!s} (or a newer mcp-audit), so "
+        "mcp-audit will not overwrite it. Remove that section first if "
+        "mcp-audit should record tool definitions here — see docs/lock.md."
+    )
 
 
 def _find_oversized_key(doc: dict) -> str:

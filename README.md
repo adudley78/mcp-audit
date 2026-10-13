@@ -24,7 +24,7 @@ mcp-audit lock --verify             # ...someone edits a server's config...
 ```
 LOCK-001  Server drifted from lock: 'notion'
   identity: locked={'args': ['-y', '@notionhq/notion-mcp-server'], 'command': 'npx'} now={'command': 'npx', 'args': ['-y', '@notionhq/notion-mcp-server@1.0.0']}
-Lock: 2 servers checked; not verified: tools, trees (see docs/lock.md)
+Lock: 2 servers checked; not verified: trees (see docs/lock.md)
 ```
 
 `lock --verify` exits `1` — the command CI runs to fail a pull request. Review the
@@ -36,13 +36,14 @@ mcp-audit lock --verify
 ```
 
 ```
-Lock: 2 servers verified; not verified: tools, trees (see docs/lock.md)
+Lock: 2 servers verified; not verified: trees (see docs/lock.md)
 ```
 
 - **Records:** client, server name, package name + resolved version + integrity hash, and environment/header variable *names* — never values.
 - **Never records:** environment/header values, absolute filesystem paths, hostname, or username.
 - `lock --verify` runs entirely offline and exits non-zero on drift or on anything it could not verify.
 - `lock --accept` is the explicit "I reviewed this" step after a failed `--verify`.
+- `lock --connect` also records a digest of every tool each server lists; `lock --verify --connect` reports tools added, changed, or removed (LOCK-006…009).
 
 `lock` is experimental in this release (`lock_version` 1); the file shape may change
 before it is frozen — see [docs/lock.md](docs/lock.md).
@@ -74,7 +75,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **Credential exposure** — 17 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
 - **Supply chain** — typosquatting detection via Levenshtein distance against 54 known MCP servers; offline CVE advisory check (`SC-004`) against the bundled registry (`known_vulnerabilities`); SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
-- **Rug-pull detection** — stateful SHA-256 comparison of each server's configuration entry (command, arguments, environment variable names, raw entry) across scans; live tool definitions are not hashed
+- **Rug-pull detection** — stateful SHA-256 comparison of each server's configuration entry (command, arguments, environment variable names, raw entry) across scans. Live tool definitions are pinned separately, by `lock --connect` ([docs/lock.md](docs/lock.md#tool-definitions---connect))
 - **Cross-server toxic flows** — capability tagging and 7 dangerous pair patterns detecting multi-server attack paths (file-read + network, secrets + network, shell-exec + network, etc.)
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
 - **Interactive attack graph dashboard** — `mcp-audit dashboard` opens a D3 force-directed graph in your browser with light/dark mode, click-to-highlight attack paths, and hitting set recommendations
@@ -370,7 +371,7 @@ See [`docs/diff.md`](docs/diff.md) for input formats, severity table, and edge c
 | Credential exposure | CRED-001…009 | AWS access keys, GitHub tokens, OpenAI/Anthropic API keys, Stripe secrets, database connection strings with embedded passwords |
 | Transport security | TRANSPORT-001…003 | Unencrypted remote SSE connections, elevated privilege execution, runtime package fetching via `npx`/`uvx` without version pinning |
 | Supply chain | SC-001…003 | Typosquatted package names (`@modelcontextprotocol/server-filesytem` vs `server-filesystem`), distance-1 substitutions flagged CRITICAL |
-| Rug-pull | RUGPULL-001…003 | Server configuration entry changed since last scan (HIGH), new server appeared (INFO), previously tracked server removed (INFO) |
+| Rug-pull | RUGPULL-001…003 | Server configuration entry changed since last scan (HIGH), new server appeared (INFO), previously tracked server removed (INFO). For changed *tool definitions*, see `lock --verify --connect` (LOCK-006…009, [docs/lock.md](docs/lock.md#tool-definitions---connect)) |
 | Toxic flow | TOXIC-001…007, INTEG-001 | File-read server + network server (exfiltration path), secret-access server + network server (credential theft), shell-exec server + network server (arbitrary command + exfiltration), file-write server + shell-exec server (plant-then-execute integrity path) |
 
 ## Live server analysis
@@ -445,7 +446,7 @@ The dashboard works against your real MCP environment — whatever `mcp-audit sc
 
 MCP servers can update their tool definitions at any time. A server can publish clean, trusted descriptions during initial review and silently swap them for malicious ones after developers have granted access.
 
-`mcp-audit pin` records SHA-256 hashes of every tracked server's configuration as a trusted baseline. Subsequent `mcp-audit scan` runs compare against that baseline and flag any change as RUGPULL-001 (HIGH).
+`mcp-audit pin` records SHA-256 hashes of every tracked server's configuration as a trusted baseline. Subsequent `mcp-audit scan` runs compare against that baseline and flag any change as RUGPULL-001 (HIGH). That covers the configuration entry, not what the server's tools say. To record and check the tool definitions themselves, use `mcp-audit lock --connect` and `mcp-audit lock --verify --connect` ([docs/lock.md](docs/lock.md#tool-definitions---connect)).
 
 ```bash
 mcp-audit pin   # Record current state as trusted
@@ -476,7 +477,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-3,727 tests validate detection accuracy and guard against regressions.
+3,788 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -699,7 +700,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 3,727 tests
+uv run pytest                        # Run all 3,788 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

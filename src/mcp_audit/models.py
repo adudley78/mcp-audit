@@ -106,11 +106,21 @@ class ServerConfig(BaseModel):
 
 
 class ToolInfo(BaseModel):
-    """A tool exposed by a live MCP server."""
+    """A tool exposed by a live MCP server.
+
+    ``title``, ``output_schema`` and ``annotations`` are carried as the server
+    sent them (wire format, camelCase keys inside ``annotations``) so
+    ``mcp-audit lock --connect`` can digest the whole definition — see
+    :mod:`mcp_audit.lock.tool_digests`. ``None`` means the server did not
+    send the field.
+    """
 
     name: str
+    title: str | None = None
     description: str | None = None
     input_schema: dict = Field(default_factory=dict)
+    output_schema: dict | None = None
+    annotations: dict | None = None
 
 
 class ResourceInfo(BaseModel):
@@ -142,6 +152,13 @@ class ServerEnumeration(BaseModel):
     prompts: list[PromptInfo] = Field(default_factory=list)
     error: str | None = None
     server_stderr: str | None = None
+    #: Set when the handshake succeeded but ``tools/list`` failed or could not
+    #: be read to the last page. ``tools`` is then empty or partial and must
+    #: not be read as "this server has no tools" — ``lock --connect`` keeps
+    #: the previous record and ``lock --verify --connect`` reports the server
+    #: as not compared. ``error`` stays ``None`` (resources and prompts may
+    #: still have been read).
+    tools_error: str | None = None
 
 
 class Finding(BaseModel):
@@ -261,6 +278,11 @@ class LockStatus(BaseModel):
     #: root consulted — not described by any lock, so they produce no LOCK
     #: finding in either direction (R61). Named here so the skip is visible.
     outside_root: list[str] = Field(default_factory=list)
+    #: Locked servers with recorded tool definitions (STORY-0086). Automatic
+    #: verification never starts servers, so these are never compared here;
+    #: the count lets the ``Lock:`` line say so instead of reading as fully
+    #: verified.
+    tools_recorded: int = 0
 
 
 class ScanResult(BaseModel):

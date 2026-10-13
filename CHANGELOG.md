@@ -8,6 +8,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+**Upgrade note:** once anyone commits a lock written with `lock --connect`, mcp-audit
+0.18.0 through 0.20.0 report its `tools` section as unverified, so their
+`lock --verify` exits 1 (waivable with `--allow-unverified`); 0.17.x ignores it.
+Upgrade CI, including any pinned GitHub Action `version`, before that commit. Locks
+written without `--connect` are unchanged.
+
+### Added
+
+- **`lock --connect` records what each server's tools say, not just which server
+  runs** (STORY-0086). It lists every tool each configured server exposes and stores
+  two SHA-256 digests per tool in the lock's `tools` section: one over the whole
+  definition, one over everything except the description and title. Only names and
+  digests are written, never tool text. `lock --verify --connect` compares the live
+  lists against them: **LOCK-006** (HIGH) a tool was added, **LOCK-007** (HIGH) a
+  tool's input schema, output schema, or annotations changed, **LOCK-008** (MEDIUM)
+  only its description or title changed, **LOCK-009** (LOW, does not fail the exit
+  code) a tool was removed. A server that cannot be compared (no record yet, or its
+  tool list could not be read) is reported as unverified, never passed. Verification
+  starts only servers that match the lock, have not drifted, and have a record; an
+  unapproved or changed launch command is reported, not run. ADR-0005 is
+  amended: mcp-audit now owns `tools`, and the section carries its own checksum, so
+  a hand edit to it is **LOCK-005** (CRITICAL), and `lock` refuses to carry a section
+  that fails its checksum forward, while the top-level checksum keeps its old scope.
+  See `docs/lock.md`, "Tool definitions".
+
+### Fixed
+
+- **`scan --connect` dropped every tool's input schema with `mcp` 2.x.** The SDK
+  renamed the attribute, and mcp-audit's `getattr(t, "inputSchema")` quietly returned
+  nothing, so parameter descriptions never reached the poisoning analyzer. Tools are
+  now read in the protocol's own wire format, which works on 1.x and 2.x.
+- **`scan --connect` read only the first page of a paginated tool list.** A server
+  with 250 tools in pages of 100 showed 100. Every page is now read, up to 100 pages;
+  past that, or on an `mcp` release too old to paginate, the scan says the list may
+  be incomplete.
+
 ---
 
 ## [0.20.0] - 2026-10-13

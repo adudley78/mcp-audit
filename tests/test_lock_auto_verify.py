@@ -54,10 +54,11 @@ class TestAutoVerify:
         assert status.verified is True
         assert status.checked_servers == 1
         assert status.lock_paths == [str(lock_path.resolve())]
-        # trees/tools are always-present reserved-foreign stub sections
+        # trees is an always-present reserved-foreign stub section
         # (ADR-0005 §1/§4/§11) — never claimed as verified, same as
-        # `lock --verify`'s own terminal summary line.
-        assert status.unverified_sections == ["tools", "trees"]
+        # `lock --verify`'s own terminal summary line. `tools: null` holds
+        # nothing and is mcp-audit's own once populated (STORY-0086).
+        assert status.unverified_sections == ["trees"]
 
     def test_drifted_lock_reports_findings_and_unverified(self, tmp_path: Path) -> None:
         (tmp_path / ".git").mkdir()

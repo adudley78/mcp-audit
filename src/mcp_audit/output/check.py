@@ -212,6 +212,22 @@ _HINTS: dict[str, str] = {
         "The lock file itself looks tampered or corrupted."
         " Inspect `git diff mcp-lock.json` before trusting it."
     ),
+    # Tool definitions (`lock --verify --connect` — STORY-0086)
+    "LOCK-006": (
+        "This server now offers tools the lock never approved."
+        " Review them, then run `mcp-audit lock --accept --connect`."
+    ),
+    "LOCK-007": (
+        "A tool's schema or annotations changed since the lock."
+        " Review the change, then run `mcp-audit lock --accept --connect`."
+    ),
+    "LOCK-008": (
+        "A tool's description changed since the lock; read the new text"
+        " (`mcp-audit scan --connect` checks it), then re-lock with --connect."
+    ),
+    "LOCK-009": (
+        "A locked tool is gone. If expected, run `mcp-audit lock --accept --connect`."
+    ),
 }
 
 
@@ -396,6 +412,10 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
         if status.unverified_sections
         else ""
     )
+    if status.tools_recorded:
+        # Recorded tool definitions are only compared by an explicit
+        # `lock --verify --connect`, never by check/scan (STORY-0086).
+        not_verified += "; tool definitions not compared (lock --verify --connect)"
     if status.verified:
         console.print(f"  [dim]Lock: verified ({n} {server_word}){not_verified}[/dim]")
     else:

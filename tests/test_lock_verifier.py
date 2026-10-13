@@ -231,7 +231,7 @@ class TestR56UnverifiedExitCode:
         result = verify(lock_path, [server], resolve=False, registry=None)
 
         assert result.exit_code == 0
-        assert result.unverified_sections == ["tools", "trees"]  # reported...
+        assert result.unverified_sections == ["trees"]  # reported...
         assert result.unverified == []  # ...but never fails the exit code
 
 

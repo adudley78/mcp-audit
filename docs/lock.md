@@ -137,10 +137,11 @@ mcp-lock.json diff=json-pretty
     textconv = python3 -m json.tool
 ```
 
-### Ownership boundary: `servers` vs. `trees`/`tools`
+### Ownership boundary: `servers` and `tools` vs. `trees`
 
 mcp-audit **owns** `lock_version`, `generated_by`, `generated_at`, and `servers` — it writes,
-checksums, and verifies these. `trees` and `tools` are **reserved, foreign** sections:
+checksums, and verifies these — and, once `lock --connect` has populated it, the `tools` section
+(see [Tool definitions](#tool-definitions---connect)). `trees` is a **reserved, foreign** section:
 
 - `trees` is reserved for [Prachet Poddar](https://github.com/prachetpoddar)'s independent
   install-tree generator ([`code/mcp_lock.py`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.10/code/mcp_lock.py),
@@ -150,13 +151,17 @@ checksums, and verifies these. `trees` and `tools` are **reserved, foreign** sec
   package-manager execution capability and does not attempt to build one. `mcp-audit lock` always
   writes it as an empty `{}` stub if absent, and preserves it byte-for-byte (in canonical form) if
   another tool has already populated it.
-- `tools` is reserved as `null` for a future `--connect`-derived tool-contract-hash layer — not
-  written by this release.
+- `tools` is `null` until `lock --connect` records tool definitions. From then on it is
+  mcp-audit's own section, identified by `"_producer": "mcp-audit"` and protected by its own
+  `_checksum` (ADR-0005, STORY-0086 amendment). A `tools` section written by any other producer
+  stays foreign: preserved untouched, reported by `--verify`, and never overwritten
+  (`lock --connect` refuses with exit 2 rather than replace it).
 - Any other top-level key mcp-audit does not recognize is preserved the same way: untouched,
   reported by `--verify`, never checksummed.
 
 `mcp-audit lock`'s own `checksum` field covers **only** `{lock_version, generated_by, servers}` —
-never `trees`, `tools`, or any other foreign section. This means running the `trees` generator
+never `trees`, `tools`, or any other section. (`tools` carries its own `_checksum` instead; see
+[Tool definitions](#tool-definitions---connect) for why.) This means running the `trees` generator
 against a locked repository never trips `LOCK-005` (tampering) — it is the other producer doing its
 job, not an edit to anything mcp-audit owns or verifies.
 
@@ -168,7 +173,8 @@ job, not an edit to anything mcp-audit owns or verifies.
 |---|---|---|---|
 | `lock --verify` (default) | current on-disk configs only: identity, env/header key names, presence/absence | none | `LOCK-001` (drifted), `LOCK-002` (unlocked server present), `LOCK-003` (locked server missing) |
 | `lock --verify --resolve` | the above, **plus** the current registry resolution of every floating/range spec vs. the locked `resolved_version`/`integrity` | npm/PyPI (same policy as `fix --fix-type pinning` / `vet`) | adds `LOCK-004` (resolution drifted; **CRITICAL** when the *same* version now hashes differently — a republished artifact) and `SC-005` (MEDIUM; the freshly re-resolved version is deprecated) |
-| always | mcp-audit's own owned-section `checksum` against its recomputed value | none | `LOCK-005` (mcp-audit's own record — header + `servers` — tampered or hand-edited) — short-circuits all other checks, exit 2 |
+| `lock --verify --connect` | the above, **plus** each server's live tool list vs. the digests in `tools` | starts each configured server (same as `scan --connect`) | adds `LOCK-006` (tool added, HIGH), `LOCK-007` (schema or annotations changed, HIGH), `LOCK-008` (only the description or title changed, MEDIUM), `LOCK-009` (tool removed, LOW) |
+| always | mcp-audit's own owned-section `checksum`, and `tools._checksum` when `tools` is populated, against their recomputed values | none | `LOCK-005` (mcp-audit's own record — header + `servers`, or the `tools` section — tampered or hand-edited) — short-circuits all other checks, exit 2 |
 
 `lock --verify`'s exit code and message vocabulary are permanently scoped to what it can see offline
 unless `--resolve` is passed. A green default `--verify` never implies the registry was consulted.
@@ -176,7 +182,14 @@ A green result never implies a foreign section (`trees`, or any other) was check
 line names every unverified section present, generically:
 
 ```
-Lock: 4 servers verified; not verified: tools, trees (see docs/lock.md)
+Lock: 4 servers verified; not verified: trees (see docs/lock.md)
+```
+
+When `tools` holds tool records but `--connect` was not passed, a second line says so — a green
+default `--verify` never implies tool definitions were compared either:
+
+```
+Tool definitions are recorded for 4 server(s) but were not compared (add --connect).
 ```
 
 or, when there is nothing foreign present:
@@ -203,9 +216,11 @@ actual LOCK-001/002/004 drift finding:
 
 - one or more locked entries have `package.source == "unresolved"` (locked while offline, never
   confirmed against the registry), or
-- a foreign top-level section (`trees`, `tools`, or any other key mcp-audit does not write) is
-  genuinely **populated** — i.e. holds something other than mcp-audit's own default stub
-  (`trees: {}`, `tools: null`).
+- a foreign top-level section (`trees`, a `tools` section from another producer, or any other key
+  mcp-audit does not write) is genuinely **populated** — i.e. holds something other than
+  mcp-audit's own default stub (`trees: {}`, `tools: null`), or
+- under `--connect`, a locked server's tools could not be compared: it has no tool record yet, or
+  its tool list could not be read in full this run.
 
 **mcp-audit's own default stubs never trip this.** Every lock file mcp-audit writes always includes
 the empty `trees: {}` / `null` `tools` stubs (ADR-0005 §1/§4/§11), and ADR-0005 §4's MUST — "never a
@@ -251,6 +266,8 @@ lock time) — never confirmed against the registry
 | `--resolve` | off | With `--verify`, also re-resolve floating specs against the registry (network; produces `LOCK-004`) |
 | `--allow-unverified` | off | With `--verify`, waive unresolved entries and populated foreign sections from the exit code (restores exit 0), printing exactly what was waived. Never waives an actual LOCK-001/002/004/005 finding. See "Unverified state now fails the exit code" above. |
 | `--accept` | off | Re-write the lock from the current state, preserving each surviving entry's `first_locked` — the explicit "I reviewed the drift" step after a failed `--verify` |
+| `--connect` | off | Start each configured server and list its tools. Writing: record a digest of every tool definition in `tools`. With `--verify`: report `LOCK-006`..`LOCK-009`. Needs the `mcp` extra (`pip install 'mcp-audit-scanner[mcp]'`); not available in the standalone binary. Cannot be combined with `--offline`. |
+| `--connect-token` | none | Bearer token sent to remote (SSE/HTTP) servers during `--connect`. Never stored or logged. |
 | `--include-user` | off | Also lock user-global configs (for dotfiles repositories) |
 | `--offline` | off | Never touch the network while writing the lock |
 | `--output / -o` | `<root>/mcp-lock.json` | Write to a custom path |
@@ -258,6 +275,113 @@ lock time) — never confirmed against the registry
 | `--format / -f` | `terminal` | Output format for `--verify`: `terminal`, `json`, `sarif` |
 
 `--verify` and `--accept` are mutually exclusive (exit 2 if both are given).
+
+---
+
+## Tool definitions (`--connect`)
+
+`servers` pins *which* server runs and which package version it resolved to. It says nothing about
+what that server tells the model once it starts: its tools, their descriptions, and their schemas.
+Those can change under a pinned server (a new release behind a floating spec, a remote server
+redeployed, a server that builds its tool list at runtime). In github-mcp-server v2.0.0, 124 of 131
+tool definitions changed with no new capability advertised
+([github/github-mcp-server#3466](https://github.com/github/github-mcp-server/issues/3466)).
+
+```bash
+mcp-audit lock --connect              # record the current tool definitions
+git add mcp-lock.json && git commit -m "Lock MCP tool definitions"
+
+mcp-audit lock --verify --connect     # later, or in a scheduled job
+```
+
+```
+LOCK-006  Tool added since lock: 'notes'
+  added: 'send_email'
+LOCK-007  Tool contract changed since lock: 'notes'
+  changed: 'list_notes'
+LOCK-008  Tool description changed since lock: 'notes'
+  changed: 'read_note'
+LOCK-009  Tool removed since lock: 'notes'
+  removed: 'delete_note'
+Lock: 1 servers checked; not verified: trees (see docs/lock.md)
+Tool definitions compared for 1 server(s).
+```
+
+**What is recorded.** For each tool, two SHA-256 digests of the RFC 8785 canonical JSON of what the
+server sent over the protocol (`tools/list`, every page):
+
+- `definition` covers `name`, `title`, `description`, `inputSchema`, `outputSchema`, and
+  `annotations`;
+- `contract` covers the same minus the free text (`title`, `description`).
+
+Only tool names and digests are written, never the tool text:
+
+```jsonc
+"tools": {
+  "_producer": "mcp-audit",
+  "_schema_version": 1,
+  "servers": {
+    "claude-code/notes": {
+      "tools": {
+        "read_note": { "contract": "sha256:c301…", "definition": "sha256:974f…" }
+      }
+    }
+  },
+  "_checksum": "sha256:8d1b…"
+}
+```
+
+The digests are taken over the protocol's own wire format, so they do not depend on the `mcp`
+package version doing the listing: the same server digests identically under `mcp` 1.27 and 2.3.
+
+**What `--verify --connect` reports.** One finding per kind of change per server, naming the tools:
+
+| ID | Severity | Meaning | Fails the exit code |
+|---|---|---|---|
+| `LOCK-006` | HIGH | The server lists a tool that was not there when its tools were locked | yes |
+| `LOCK-007` | HIGH | A tool's `inputSchema`, `outputSchema`, or `annotations` changed: what it accepts, returns, or declares about itself (for example read-only or destructive). A parameter description lives inside `inputSchema`, so it lands here | yes |
+| `LOCK-008` | MEDIUM | Only a tool's `description` or `title` changed | yes |
+| `LOCK-009` | LOW | A locked tool is gone | no (like `LOCK-003`) |
+
+`LOCK-008` is not "cosmetic". The description is the text the model reads, and it is where tool
+poisoning arrives. It is ranked below a schema change because the tool still accepts and returns
+the same things, but it still fails the build until someone reads the new text and re-locks.
+`mcp-audit scan --connect` runs the poisoning checks over the current text.
+
+A server that cannot be compared is reported, never passed: no tool record yet (run
+`lock --connect`), the connection failed, or the tool list could not be read to the last page. Each
+is an unverified entry in the sense of R56 above: exit 1 unless `--allow-unverified`. A server that
+drifted (`LOCK-001`) is not compared; approve the config change first.
+
+**Re-locking.** `lock --accept --connect` replaces the records for every server it could list. A
+server that could not be listed keeps its previous record (a timeout never erases an approval) and
+gets a `WARN` line. `lock` or `lock --accept` without `--connect` keeps the existing records and
+drops records for servers no longer in the lock. If the `tools` section fails its own checksum,
+`lock` without `--connect` refuses (exit 2) rather than re-checksum a hand edit into a valid record;
+`lock --accept --connect` discards every old record and writes only what it listed. After approving a launch change with
+`lock --accept`, run `lock --accept --connect` too, or the next `--verify --connect` compares the
+new server's tools against the old record.
+
+**Why `tools` has its own checksum.** The top-level `checksum` still covers
+`{lock_version, generated_by, servers}` only. If `tools` were folded into it, every mcp-audit from
+0.17 to 0.20 would recompute the old scope on a lock written with `--connect`, find a mismatch, and
+report `LOCK-005` "tampered" — a false security event for any team on mixed versions, or CI pinned
+to an older Action. With a section-local `_checksum`, 0.18–0.20 see a populated section they cannot
+verify and say so (exit 1 under R56, waivable with `--allow-unverified`); 0.17 ignores it. Upgrade
+CI before the first `lock --connect` is committed. A hand edit inside `tools` is caught by
+`tools._checksum` and reported as `LOCK-005`. Like the top-level `checksum`, it is an unkeyed hash:
+it catches hand edits and corruption, not someone who recomputes it, and renaming `_producer` or
+bumping `_schema_version` makes the section foreign (exit 1 unless waived). Review changes to
+`mcp-lock.json` in the pull request like any other change.
+
+**Running servers.** `lock --connect` starts every configured stdio server, the same as
+`scan --connect`. `lock --verify --connect` starts only the servers it can compare: matched to a
+locked entry, no `LOCK-001` drift, with a tool record, and only when both checksums pass. A server
+the lock does not approve, or whose launch line changed, is reported and never run. Only an allowlisted set of host environment variables is passed through (the
+same `SAFE_ENV_VARS` as `scan --connect`), plus the server's own `env` from its config. Remote
+servers that need a bearer token take `--connect-token`. The GitHub Action's `lock-verify` input
+does not pass `--connect`; whether CI should start MCP servers is your call, made explicitly in
+your own workflow step.
 
 ---
 
@@ -348,6 +472,12 @@ skip the file.
   — tracked as STORY-0074, not this release.
 - No signing. Git history is the audit trail for a committed file; a signed lock is a possible future
   addition, not blocked by anything here.
+- Tool definitions are compared at the moment `--verify --connect` lists them. A server that changes
+  its tool list later in a session (after the handshake, after a few calls, or by sending
+  `notifications/tools/list_changed`) is not caught by this; the lock is a review-time check, not a
+  runtime monitor. Tools that differ by caller (per-user or per-token tool lists) digest differently
+  for different callers.
+- Only tools are recorded. Resources and prompts are not, yet.
 - No runtime enforcement — `lock` is a record checked at `lock`/CI time, never enforced against a
   running MCP client. This is a permanent design decision, not a gap.
 

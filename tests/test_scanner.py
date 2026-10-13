@@ -1302,6 +1302,30 @@ class TestRunScanAsync:
         assert result.servers_found == 1
         assert result.score is not None
 
+    async def test_connect_reports_an_incomplete_tool_list(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A partial tools/list is named in result.errors, and still analyzed."""
+        from mcp_audit import mcp_client
+        from mcp_audit.models import ServerEnumeration, ToolInfo
+
+        async def fake(server, timeout=10.0, auth_token=None):  # noqa: ANN001, ANN202, ASYNC109
+            return ServerEnumeration(
+                tools=[ToolInfo(name="t", description="ok")],
+                tools_error="tools/list returned more than 100 pages; stopped reading",
+            )
+
+        monkeypatch.setattr(mcp_client, "connect_and_enumerate", fake)
+        config = tmp_path / "mcp.json"
+        config.write_text(
+            '{"mcpServers": {"srv": {"command": "node", "args": ["s.js"]}}}'
+        )
+        with _patch_no_known_clients():
+            result = await run_scan_async(
+                extra_paths=[config], skip_rug_pull=True, connect=True
+            )
+        assert any("tool list may be incomplete" in e for e in result.errors)
+
     async def test_async_scan_with_rug_pull(self, tmp_path: Path) -> None:
         """Rug-pull block executes when skip_rug_pull=False."""
         config = tmp_path / "mcp.json"
