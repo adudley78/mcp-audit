@@ -26,6 +26,17 @@ SCHEMA_VERSION = "1.0.0"
 _VERDICT_BASE_URL = "https://mcp-audit.dev/v1/verdicts"
 _BADGE_BASE_URL = "https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge"
 _NVD_BASE_URL = "https://nvd.nist.gov/vuln/detail"
+
+
+def advisory_link(advisory_id: str) -> str:
+    """Public page for an advisory ID: NVD for CVEs, GitHub for GHSA, OSV otherwise."""
+    if advisory_id.startswith("CVE-"):
+        return f"{_NVD_BASE_URL}/{advisory_id}"
+    if advisory_id.startswith("GHSA-"):
+        return f"https://github.com/advisories/{advisory_id}"
+    return f"https://osv.dev/vulnerability/{advisory_id}"
+
+
 _REGISTRY_CONTRIBUTION_URL = "https://mcp-audit.dev/contribute"
 
 # Matches @scope/name (npm scoped packages).
@@ -123,7 +134,7 @@ def _normalise_vulns(entry: RegistryEntry) -> list[dict[str, Any]]:
                 "description": vuln.get("description"),
                 "fixed_in": vuln.get("fixed_in"),
                 "source": "NVD",
-                "link": f"{_NVD_BASE_URL}/{cve}",
+                "link": advisory_link(cve),
             }
         )
 
@@ -139,7 +150,7 @@ def _normalise_vulns(entry: RegistryEntry) -> list[dict[str, Any]]:
                 "description": None,
                 "fixed_in": None,
                 "source": "NVD",
-                "link": f"{_NVD_BASE_URL}/{cve_id}",
+                "link": advisory_link(cve_id),
             }
         )
 

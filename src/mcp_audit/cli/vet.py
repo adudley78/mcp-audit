@@ -10,8 +10,12 @@ Offline behaviour:
 - ``--online``: fetches a live verdict from ``mcp-audit.dev`` and caches it.
 
 Exit codes:
-- 0: package known, verified, no CVEs  (or unknown but ``--strict`` not set)
-- 1: CVEs present **or** typosquat suspicion (or unknown + ``--strict``)
+- 0: package known and every recorded CVE has a fix (or none recorded), no
+  typosquat; or unknown without ``--strict``
+- 1: a recorded CVE has no fix, **or** typosquat suspicion (or unknown + ``--strict``)
+
+A package's fixed history does not fail ``vet`` (STORY-0083): ``vet`` takes no
+version, so it answers for the latest release, which a recorded fix covers.
 - 2: invalid / empty package name, network error that cannot fall back, etc.
 
 Supersedes the stale ``lookup`` command on branch ``story/0016-mcp-audit-dev``
@@ -302,12 +306,19 @@ def _print_known_verdict(
     t.append(f"  Sigstore attestation expected: {att_note}\n\n")
 
     # CVEs.
+    unfixed = [v for v in vulns if not v.get("fixed_in")]
     if vulns:
-        t.append_text(
-            Text.from_markup(
-                f"  [red bold]Known vulnerabilities: {len(vulns)}[/red bold]\n\n"
+        if unfixed:
+            heading = (
+                f"  [red bold]Known vulnerabilities: {len(vulns)} "
+                f"({len(unfixed)} with no fix)[/red bold]\n\n"
             )
-        )
+        else:
+            heading = (
+                f"  [yellow bold]Known vulnerabilities: {len(vulns)} (all fixed; "
+                "pin a version at or above each fix)[/yellow bold]\n\n"
+            )
+        t.append_text(Text.from_markup(heading))
         for v in vulns:
             cve = v.get("cve", "unknown")
             desc = v.get("description") or ""
@@ -333,7 +344,11 @@ def _print_known_verdict(
         t.append(f"  Repo: {links['repo']}\n", style="dim")
     t.append(f"  Verdict page: {links['verdict_page']}\n", style="dim")
 
-    border = "red" if vulns else ("green" if reg.get("verified") else "yellow")
+    border = (
+        "red"
+        if unfixed
+        else ("green" if reg.get("verified") and not vulns else "yellow")
+    )
     console.print(Panel(t, title="[bold]mcp-audit verdict[/bold]", border_style=border))
 
 
@@ -468,8 +483,9 @@ def _verdict_exit_code(verdict: dict[str, Any], strict: bool) -> int:
     """Map a verdict dict to the appropriate process exit code.
 
     Rules:
-    - 0: listed in registry, no CVEs, no typosquat suspicion
-    - 1: CVEs present **or** typosquat suspicion **or** (not listed + ``--strict``)
+    - 0: listed in registry, every recorded CVE has a fix, no typosquat suspicion
+    - 1: a recorded CVE has no fix **or** typosquat suspicion **or**
+      (not listed + ``--strict``)
 
     Args:
         verdict: Fully built verdict dict.
@@ -481,8 +497,9 @@ def _verdict_exit_code(verdict: dict[str, Any], strict: bool) -> int:
     vulns = verdict.get("known_vulnerabilities", [])
     typosquat = verdict.get("typosquat_of")
     listed = verdict.get("registry", {}).get("listed", False)
+    unfixed = [v for v in vulns if not v.get("fixed_in")]
 
-    if vulns or typosquat:
+    if unfixed or typosquat:
         return 1
     if not listed and strict:
         return 1
@@ -546,8 +563,8 @@ def vet(
     — no network calls for a plain ``vet``.
 
     Exit codes:
-    - 0: known + no CVEs + no typosquat (or unknown without --strict)
-    - 1: CVEs present, typosquat suspicion, or unknown + --strict
+    - 0: known, every recorded CVE fixed, no typosquat (or unknown without --strict)
+    - 1: a recorded CVE has no fix, typosquat suspicion, or unknown + --strict
     - 2: invalid/empty package name or unrecoverable error
 
     Examples::

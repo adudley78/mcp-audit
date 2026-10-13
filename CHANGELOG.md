@@ -22,6 +22,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   when the launch is unpinned and every advisory is fixed. Descriptions list at
   most 10 advisory IDs and point to `vet` for the rest. GHSA-only advisories link
   to GitHub instead of NVD.
+- **`vet` no longer fails on a package's fixed past (STORY-0083).** It exits 1 only
+  when a recorded CVE has no fix (or for a typosquat, or an unknown package with
+  `--strict`). `vet` takes no version, so it answers for the latest release; CVEs
+  with a fix are still listed, with their fixed version. Without this, the full
+  advisory history would have made `vet` fail for the official filesystem server.
 - **PLUGIN-001 no longer claims to catch Plugin4Shell (STORY-0080).** The finding,
   README and docs said a mismatch between a plugin's recorded version and its
   marketplace pin was the on-disk symptom of Plugin4Shell. In Plugin4Shell the agents
