@@ -595,4 +595,5 @@ class TestCwdClaudeCodeSettings:
         assert got == [
             ("HARNESS-001", Severity.HIGH, "claude-code-project"),
             ("HARNESS-002", Severity.HIGH, "claude-code-project"),
+            ("HARNESS-006", Severity.MEDIUM, "claude-code-project"),
         ]

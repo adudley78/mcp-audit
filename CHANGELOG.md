@@ -36,6 +36,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **What replaced the approval prompt (STORY-0087).** HARNESS-005 (MEDIUM) flags allow
+  rules that approve every argument to a command that can write, run code or reach the
+  network, such as `Bash(gh:*)`, `Bash(curl *)` or `Bash(python3:*)`, and `git push`,
+  `npm publish` or `gh api` even when narrowed. HARNESS-006 (MEDIUM) flags a settings
+  file that turns approval off with no deny rule for recursive deletes and no
+  PreToolUse hook on shell commands.
 - **Claude Code mods audit (STORY-0085).** Mods (Claude Code 2.1.287, 2026-10-01) are
   plugins that run code inside Claude Code, unsandboxed, with your permissions. A
   default `scan` and `plugins scan` now read each mod's hooks module statically

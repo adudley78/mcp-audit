@@ -1135,6 +1135,32 @@
       "notes": "Fires when permissions.allow in a Claude Code settings file contains bare Bash, Bash(*), PowerShell or PowerShell(*). Severity HIGH. CWE-862. Analyzer: config_hygiene (STORY-0079)."
     },
     {
+      "finding_id": "HARNESS-005",
+      "finding_title": "Allow rules pre-approve commands that can write or reach the network",
+      "owasp_codes": [
+        "MCP02",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Command Injection and Execution"
+      ],
+      "notes": "Fires when permissions.allow in a Claude Code settings file approves every argument to a command whose arguments alone can write files, run code or reach the network (interpreters, network tools, cloud/GitHub CLIs, package runners, rm, find, xargs, env, sudo, bare git), or git push / npm publish / gh api even when narrowed. Severity MEDIUM. CWE-862. Analyzer: config_hygiene (STORY-0087)."
+    },
+    {
+      "finding_id": "HARNESS-006",
+      "finding_title": "Approval is off and nothing guards recursive deletes",
+      "owasp_codes": [
+        "MCP02",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Command Injection and Execution"
+      ],
+      "notes": "Fires when a Claude Code settings file turns approval off (bypassPermissions or skipDangerousModePermissionPrompt) and the same file has no permissions.deny rule for recursive deletes and no PreToolUse hook matching shell commands. Severity MEDIUM. CWE-862. Analyzer: config_hygiene (STORY-0087)."
+    },
+    {
       "finding_id": "PLUGIN-001",
       "finding_title": "Installed plugin does not match its marketplace pin",
       "owasp_codes": [
