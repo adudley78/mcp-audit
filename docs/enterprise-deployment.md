@@ -452,5 +452,5 @@ findings; use `--severity-threshold MEDIUM` to catch more.
 | **Credentials** | API keys, tokens, passwords, and database connection strings hardcoded in server environment variables or command arguments. |
 | **Transport** | Insecure transport configurations: HTTP (non-TLS) remote URLs, servers bound to all interfaces, and runtime package fetchers (`npx`, `uvx`) that download arbitrary code. |
 | **Supply Chain** | Typosquatted package names detected via Levenshtein distance against the known-server registry. Packages with no version pin and known-malicious package names. |
-| **Rug Pull** | Detects changes to server descriptions since the last pinned baseline — the mechanism used in supply-chain substitution attacks. |
+| **Rug Pull** | Detects changes to each server's configuration entry (command, arguments, environment variable names) since the last pinned baseline — the mechanism used in supply-chain substitution attacks. Live tool definitions are not hashed. |
 | **Toxic Flow** | Multi-hop attack paths where a server with read capability (file system, database) is co-installed with a server with write/network capability, enabling data exfiltration chains. |

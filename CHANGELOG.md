@@ -10,6 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Rug-pull docs say what the code hashes (STORY-0084).** The README said rug-pull
+  detection compared hashes of tool descriptions. It compares each server's
+  configuration entry (command, arguments, environment variable names, raw entry);
+  live tool definitions from `--connect` were never hashed. README, enterprise
+  deployment notes, the test matrix and the Snyk integration page now say so.
+  Detection is unchanged.
 - **The registry now lists the CVEs its packages actually have (STORY-0083).**
   47 of 53 entries listed none, so the default scan and `vet` called MCP Inspector
   clean despite its unauthenticated RCE (CVE-2025-49596). A new
