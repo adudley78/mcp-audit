@@ -1,5 +1,14 @@
 # mcp-audit Manual Test Matrix
 
+> **v0.20.0 (2026-10-13): not fully re-run.** What was checked for this release:
+> `vet` against the bundled registry (Inspector and server-filesystem list their
+> fixed CVEs and exit 0; `mcp-remote` exits 1 on CVE-2026-108716, which has no
+> fix); §43 SC-004 on unpinned `mcp-atlassian` (MEDIUM, 30 CVEs); the mods audit
+> against Anthropic's three sample mods and four built-in mods; HARNESS-005/006
+> through the unit suite; and the source smoke test (checks 1–12). Sections that
+> scan demo configs report more findings than before because the registry now
+> carries each package's advisory history.
+>
 > **v0.19.1 (2026-10-12): not fully re-run either.** Its one change (cwd
 > discovery reads `.claude/settings.json`, STORY-0082) was checked against a
 > sample repository: default `scan` from the checkout reports HARNESS-001/002/004
