@@ -1,5 +1,14 @@
 # mcp-audit Manual Test Matrix
 
+> **v0.21.0 (2026-10-13): not fully re-run.** What was checked for this release,
+> against the built 0.21.0 wheel with the `mcp` extra: Section 61 verbatim (lock
+> `--connect`, verify, LOCK-006..009, `tools._checksum` tamper, `--offline`
+> refusal), which also passed under `mcp` 1.27 and 2.3 from source with identical
+> digests; the source smoke test (checks 1–17, with an empty `HOME` so the
+> machine's own skills stay out of check 13); and the demo count (68 first scan,
+> 60 after, unchanged). `lock --verify` from 0.20.0 against a lock written with
+> `--connect` exits 1 naming `tools`, never LOCK-005.
+>
 > **v0.20.0 (2026-10-13): not fully re-run.** What was checked for this release:
 > `vet` against the bundled registry (Inspector and server-filesystem list their
 > fixed CVEs and exit 0; `mcp-remote` exits 1 on CVE-2026-108716, which has no
