@@ -224,9 +224,11 @@ echo "exit: $?"
 **Expected:** prints "Pinned baseline for N server(s)" with a state-file reference;
 exit 0.
 
-> **Note — rug-pull detection:** `pin` records a SHA-256 hash of each server's
-> description. On the next `mcp-audit scan`, the rug-pull analyzer compares live
-> descriptions against these hashes and emits a finding if any description changed.
+> **Note — rug-pull detection:** `pin` records SHA-256 hashes of each server's
+> configuration entry (command, arguments, environment variable names, raw entry).
+> On the next `mcp-audit scan`, the rug-pull analyzer compares the current entries
+> against these hashes and emits RUGPULL-001 if one changed. Live tool definitions
+> from `--connect` are not hashed (STORY-0084).
 > The old `mcp-audit diff --path` command (rug-pull diff) was **removed** in v0.8.0
 > when the `diff` command was repurposed for MCP-aware base/head comparison
 > (Section 23).  Rug-pull changes are now surfaced inline in `scan` output.
@@ -482,7 +484,7 @@ that lists the flagged servers; exit 0.
 > **Note:** this is the `mcp-audit diff <base> <head>` command introduced in
 > v0.8.0 (STORY-0014). It compares two MCP config states (directories, JSON scan
 > files, or git refs) and surfaces structural changes. It is **not** the rug-pull
-> description-change detector — see Section 10 for rug-pull coverage.
+> configuration-change detector — see Section 10 for rug-pull coverage.
 
 ```bash
 mcp-audit diff demo/configs/claude_desktop_config.json demo/configs/cursor_mcp.json

@@ -10,7 +10,7 @@ are designed to be run together, not as alternatives.
 
 | Layer | Tool | What it finds |
 |-------|------|---------------|
-| **Config layer** | mcp-audit | Misconfigured MCP servers: tool poisoning, credential exposure in JSON configs, typosquatted packages, toxic cross-server flows, rug-pull description changes, transport misconfigurations |
+| **Config layer** | mcp-audit | Misconfigured MCP servers: tool poisoning, credential exposure in JSON configs, typosquatted packages, toxic cross-server flows, rug-pull configuration changes, transport misconfigurations |
 | **Source layer** | Snyk Code | Vulnerabilities in your MCP server *source code*: injection sinks, unsafe deserialization, hardcoded secrets, insecure APIs |
 
 Snyk Code reads `.js`, `.ts`, `.py`, and other source files. It does not parse

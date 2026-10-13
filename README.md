@@ -74,7 +74,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **Credential exposure** — 17 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
 - **Supply chain** — typosquatting detection via Levenshtein distance against 54 known MCP servers; offline CVE advisory check (`SC-004`) against the bundled registry (`known_vulnerabilities`); SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
-- **Rug-pull detection** — stateful SHA-256 hash comparison of tool descriptions across scans
+- **Rug-pull detection** — stateful SHA-256 comparison of each server's configuration entry (command, arguments, environment variable names, raw entry) across scans; live tool definitions are not hashed
 - **Cross-server toxic flows** — capability tagging and 7 dangerous pair patterns detecting multi-server attack paths (file-read + network, secrets + network, shell-exec + network, etc.)
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
 - **Interactive attack graph dashboard** — `mcp-audit dashboard` opens a D3 force-directed graph in your browser with light/dark mode, click-to-highlight attack paths, and hitting set recommendations
@@ -370,7 +370,7 @@ See [`docs/diff.md`](docs/diff.md) for input formats, severity table, and edge c
 | Credential exposure | CRED-001…009 | AWS access keys, GitHub tokens, OpenAI/Anthropic API keys, Stripe secrets, database connection strings with embedded passwords |
 | Transport security | TRANSPORT-001…003 | Unencrypted remote SSE connections, elevated privilege execution, runtime package fetching via `npx`/`uvx` without version pinning |
 | Supply chain | SC-001…003 | Typosquatted package names (`@modelcontextprotocol/server-filesytem` vs `server-filesystem`), distance-1 substitutions flagged CRITICAL |
-| Rug-pull | RUGPULL-001…003 | Tool description changed since last scan (HIGH), new server appeared (INFO), previously tracked server removed (INFO) |
+| Rug-pull | RUGPULL-001…003 | Server configuration entry changed since last scan (HIGH), new server appeared (INFO), previously tracked server removed (INFO) |
 | Toxic flow | TOXIC-001…007, INTEG-001 | File-read server + network server (exfiltration path), secret-access server + network server (credential theft), shell-exec server + network server (arbitrary command + exfiltration), file-write server + shell-exec server (plant-then-execute integrity path) |
 
 ## Live server analysis

@@ -89,7 +89,7 @@ src/mcp_audit/
 │   ├── transport.py    # Transport security (TLS, localhost binding, etc.)
 │   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed)
 │   ├── config_hygiene.py # Config-file filesystem hygiene (CFHYG-001..006); hook-command checks HOOK-001/002 and harness posture HARNESS-001..006 (STORY-0079, STORY-0087) via analyze_config
-│   ├── rug_pull.py     # Description change detection via hashing
+│   ├── rug_pull.py     # Config-entry change detection via hashing (command, args, env key names, raw entry; not live tool definitions)
 │   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection
 │   ├── auth.py         # Remote server authentication checks (AUTH-001, AUTH-002)
 │   ├── collision.py    # Tool-name collision detection across --connect servers (COLLIDE-001)
