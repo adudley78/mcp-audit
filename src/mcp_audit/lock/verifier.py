@@ -158,14 +158,15 @@ def verify(
     Returns:
         A :class:`VerifyResult`. ``exit_code`` is ``2`` when the lock is
         missing or tampered (LOCK-005); otherwise ``1`` when any
-        LOCK-001/002/004 finding exists, **or** (R56, unless waived) when
-        :attr:`VerifyResult.unverified` is non-empty — an unresolved package
-        version or a genuinely populated foreign section (not mcp-audit's own
-        default ``trees: {}``/``tools: null`` stub — ADR-0005 §4's "never a
-        reason to fail" MUST still holds for that default case) was present
-        and this run could not check it. ``0`` otherwise — LOCK-003 alone (a
-        server was removed) never fails the exit code, and neither does an
-        unresolved/foreign condition that was explicitly waived.
+        LOCK-001/002/004/006/007/008 finding exists, **or** (R56, unless
+        waived) when :attr:`VerifyResult.unverified` is non-empty — an
+        unresolved package version, a genuinely populated foreign section
+        (not mcp-audit's own default ``trees: {}``/``tools: null`` stub —
+        ADR-0005 §4's "never a reason to fail" MUST still holds for that
+        default case), or, with *tool_enumerations*, a server whose tools
+        could not be compared. ``0`` otherwise — LOCK-003 or LOCK-009 alone
+        (something was removed) never fails the exit code, and neither does
+        an unverified condition that was explicitly waived.
     """
     doc = load_existing(lock_path)
     if doc is None:
@@ -300,6 +301,42 @@ def verify(
         tools_recorded=len(locked_tool_servers),
         tools_compared=tools_compared if tool_enumerations is not None else None,
     )
+
+
+def servers_to_connect(
+    lock_path: Path, servers: list[ServerConfig], *, root: Path | None = None
+) -> list[ServerConfig]:
+    """Return the servers ``lock --verify --connect`` needs to start.
+
+    Only a server whose tools can actually be compared: it matches a locked
+    entry, has not drifted (no LOCK-001), and has a tool record. Nothing is
+    started for a lock that is missing or fails either checksum, for an
+    unlocked server (LOCK-002), or for one whose launch line changed — that
+    command was never approved, so it is reported, not run.
+
+    Args:
+        lock_path: Path to ``mcp-lock.json``.
+        servers: Currently discovered and parsed servers.
+        root: The lock root (see :func:`verify`).
+    """
+    doc = load_existing(lock_path)
+    if doc is None or doc.get("checksum") != compute_checksum(doc):
+        return []
+    section = doc.get(tool_digests.TOOLS_KEY)
+    if not tool_digests.is_owned(section) or not tool_digests.checksum_ok(section):
+        return []
+    records = section["servers"]
+    lock_root = root if root is not None else lock_path.resolve().parent
+    locked_by_match = _index_locked_entries(doc.get("servers", {}))
+    current, _ = _index_current_servers(servers, lock_root)
+    eligible: list[ServerConfig] = []
+    for match, server in current.items():
+        if match not in locked_by_match:
+            continue
+        key, entry = locked_by_match[match]
+        if key in records and _check_drift(key, server, entry) is None:
+            eligible.append(server)
+    return eligible
 
 
 def _lock_005(lock_path: Path, *, scope: str, evidence: str) -> Finding:

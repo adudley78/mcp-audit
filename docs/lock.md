@@ -356,21 +356,28 @@ drifted (`LOCK-001`) is not compared; approve the config change first.
 **Re-locking.** `lock --accept --connect` replaces the records for every server it could list. A
 server that could not be listed keeps its previous record (a timeout never erases an approval) and
 gets a `WARN` line. `lock` or `lock --accept` without `--connect` keeps the existing records and
-drops records for servers no longer in the lock. After approving a launch change with
+drops records for servers no longer in the lock. If the `tools` section fails its own checksum,
+`lock` without `--connect` refuses (exit 2) rather than re-checksum a hand edit into a valid record;
+`lock --accept --connect` discards every old record and writes only what it listed. After approving a launch change with
 `lock --accept`, run `lock --accept --connect` too, or the next `--verify --connect` compares the
 new server's tools against the old record.
 
 **Why `tools` has its own checksum.** The top-level `checksum` still covers
-`{lock_version, generated_by, servers}` only. If `tools` were folded into it, every mcp-audit up to
-0.20 would recompute the old scope on a lock written with `--connect`, find a mismatch, and report
-`LOCK-005` "tampered" — a false security event for any team on mixed versions, or CI pinned to an
-older Action. With a section-local `_checksum`, those versions see a populated section they cannot
-verify and say so (exit 1 under R56, waivable with `--allow-unverified`). Upgrade CI before the
-first `lock --connect` is committed. An edit to `tools` is caught by `tools._checksum` and reported
-as `LOCK-005`, exactly like an edit to `servers`.
+`{lock_version, generated_by, servers}` only. If `tools` were folded into it, every mcp-audit from
+0.17 to 0.20 would recompute the old scope on a lock written with `--connect`, find a mismatch, and
+report `LOCK-005` "tampered" — a false security event for any team on mixed versions, or CI pinned
+to an older Action. With a section-local `_checksum`, 0.18–0.20 see a populated section they cannot
+verify and say so (exit 1 under R56, waivable with `--allow-unverified`); 0.17 ignores it. Upgrade
+CI before the first `lock --connect` is committed. A hand edit inside `tools` is caught by
+`tools._checksum` and reported as `LOCK-005`. Like the top-level `checksum`, it is an unkeyed hash:
+it catches hand edits and corruption, not someone who recomputes it, and renaming `_producer` or
+bumping `_schema_version` makes the section foreign (exit 1 unless waived). Review changes to
+`mcp-lock.json` in the pull request like any other change.
 
-**Running servers.** `--connect` starts every configured stdio server, the same as
-`scan --connect`. Only an allowlisted set of host environment variables is passed through (the
+**Running servers.** `lock --connect` starts every configured stdio server, the same as
+`scan --connect`. `lock --verify --connect` starts only the servers it can compare: matched to a
+locked entry, no `LOCK-001` drift, with a tool record, and only when both checksums pass. A server
+the lock does not approve, or whose launch line changed, is reported and never run. Only an allowlisted set of host environment variables is passed through (the
 same `SAFE_ENV_VARS` as `scan --connect`), plus the server's own `env` from its config. Remote
 servers that need a bearer token take `--connect-token`. The GitHub Action's `lock-verify` input
 does not pass `--connect`; whether CI should start MCP servers is your call, made explicitly in

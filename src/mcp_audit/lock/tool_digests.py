@@ -5,7 +5,7 @@ STORY-0086, ADR-0005 amendment "mcp-audit owns ``tools``". ``mcp-audit lock
 SHA-256 digests of the RFC 8785 canonical JSON of what the server sent:
 
 - ``definition`` — name, title, description, inputSchema, outputSchema and
-  annotations: everything the tool says about itself.
+  annotations. (``icons``, ``_meta`` and ``execution`` are not digested.)
 - ``contract`` — the same minus the free text (title and description).
 
 Comparing both tells ``lock --verify --connect`` which kind of change it is
@@ -161,13 +161,19 @@ def merge_section(
     the lock. A server whose enumeration failed this run keeps its previous
     record: a transient failure never erases an approval.
 
+    Records are only carried forward from a section that passes
+    :func:`checksum_ok`; the caller decides what to do about one that does
+    not (``lock/writer.py::regenerate`` refuses, or with ``--connect``
+    starts over), so a hand-edited record is never re-checksummed into a
+    valid one here.
+
     Args:
-        existing: The current ``tools`` value (must be owned or ``None``).
+        existing: The current ``tools`` value (owned or ``None``).
         new_records: ``{lock key: server_record(...)}`` from this run.
         keep_keys: The lock keys present in the rewritten ``servers``.
     """
     servers: dict[str, dict] = {}
-    if is_owned(existing):
+    if is_owned(existing) and checksum_ok(existing):  # type: ignore[arg-type]
         servers.update(existing["servers"])  # type: ignore[index]
     servers.update(new_records)
     return build_section({k: v for k, v in servers.items() if k in keep_keys})

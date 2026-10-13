@@ -59,6 +59,7 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
     unresolved: list[str] = []
     unverified_sections: set[str] = set()
     outside_root: list[str] = []
+    tools_recorded = 0
     for lock_path, group_servers in groups.items():
         result = verify_lock(lock_path, group_servers, root=lock_path.parent)
         all_findings.extend(result.findings)
@@ -66,6 +67,7 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
         unresolved.extend(result.unresolved_entries)
         unverified_sections.update(result.unverified_sections)
         outside_root.extend(result.outside_root)
+        tools_recorded += result.tools_recorded
 
     verified = not any(f.id in _DRIFT_IDS for f in all_findings)
     status = LockStatus(
@@ -77,5 +79,6 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
         unresolved_entries=unresolved,
         unverified_sections=sorted(unverified_sections),
         outside_root=sorted(set(outside_root)),
+        tools_recorded=tools_recorded,
     )
     return all_findings, status

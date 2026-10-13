@@ -412,6 +412,10 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
         if status.unverified_sections
         else ""
     )
+    if status.tools_recorded:
+        # Recorded tool definitions are only compared by an explicit
+        # `lock --verify --connect`, never by check/scan (STORY-0086).
+        not_verified += "; tool definitions not compared (lock --verify --connect)"
     if status.verified:
         console.print(f"  [dim]Lock: verified ({n} {server_word}){not_verified}[/dim]")
     else:

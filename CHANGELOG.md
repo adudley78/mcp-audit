@@ -9,10 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 **Upgrade note:** once anyone commits a lock written with `lock --connect`, mcp-audit
-0.20.0 and earlier report its `tools` section as unverified, so their `lock --verify`
-exits 1 (waivable with `--allow-unverified`). Upgrade CI, including any pinned
-GitHub Action `version`, before that commit. Locks written without `--connect` are
-unchanged.
+0.18.0 through 0.20.0 report its `tools` section as unverified, so their
+`lock --verify` exits 1 (waivable with `--allow-unverified`); 0.17.x ignores it.
+Upgrade CI, including any pinned GitHub Action `version`, before that commit. Locks
+written without `--connect` are unchanged.
 
 ### Added
 
@@ -25,10 +25,13 @@ unchanged.
   tool's input schema, output schema, or annotations changed, **LOCK-008** (MEDIUM)
   only its description or title changed, **LOCK-009** (LOW, does not fail the exit
   code) a tool was removed. A server that cannot be compared (no record yet, or its
-  tool list could not be read) is reported as unverified, never passed. ADR-0005 is
+  tool list could not be read) is reported as unverified, never passed. Verification
+  starts only servers that match the lock, have not drifted, and have a record; an
+  unapproved or changed launch command is reported, not run. ADR-0005 is
   amended: mcp-audit now owns `tools`, and the section carries its own checksum, so
-  an edit to it is **LOCK-005** (CRITICAL) like an edit to `servers`, while the
-  top-level checksum keeps its old scope. See `docs/lock.md`, "Tool definitions".
+  a hand edit to it is **LOCK-005** (CRITICAL), and `lock` refuses to carry a section
+  that fails its checksum forward, while the top-level checksum keeps its old scope.
+  See `docs/lock.md`, "Tool definitions".
 
 ### Fixed
 

@@ -30,11 +30,14 @@ from mcp_audit.cli import app, console
 from mcp_audit.discovery import discover_project_configs
 from mcp_audit.lock import tool_digests
 from mcp_audit.lock.model import LOCK_FILENAME
+from mcp_audit.lock.verifier import servers_to_connect
 from mcp_audit.lock.verifier import verify as verify_lock
 from mcp_audit.lock.writer import (
     LockWriteError,
+    check_tools_writable,
     load_existing,
     regenerate,
+    tools_tampered,
     write_lock,
 )
 from mcp_audit.models import ServerConfig, ServerEnumeration, Severity
@@ -143,9 +146,10 @@ def _enumerate_tools(
     Returns:
         Enumerations keyed by :func:`tool_digests.enumeration_key`.
     """
+    if not servers:
+        return {}
     _stderr.print(
-        f"[dim]Listing tools from {len(servers)} server(s); this starts each "
-        "configured stdio server…[/dim]"
+        f"[dim]Listing tools from {len(servers)} server(s); this starts each one…[/dim]"
     )
 
     async def _run() -> dict[tuple[str, str], ServerEnumeration]:
@@ -319,9 +323,17 @@ def _run_write(
             )
         return
 
+    existing_doc = load_existing(lock_path)
     tool_records: dict[str, dict] | None = None
     tool_failures: list[tuple[str, str]] = []
+    discarded = False
     if connect:
+        try:
+            check_tools_writable(existing_doc)  # before starting anything
+        except LockWriteError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from None
+        discarded = tools_tampered(existing_doc)
         enumerations = _enumerate_tools(servers, connect_token)
         tool_records = {}
         for server in servers:
@@ -335,7 +347,6 @@ def _run_write(
             )
 
     registry = None if offline else _load_registry(registry_path, console)
-    existing_doc = load_existing(lock_path)
     try:
         doc = regenerate(
             existing_doc,
@@ -376,6 +387,11 @@ def _run_write(
     console.print()
 
     if connect:
+        if discarded:
+            console.print(
+                "[yellow]WARN[/yellow] the previous `tools` section did not "
+                "match its own checksum; none of its records were kept."
+            )
         console.print(
             f"Tool definitions recorded for {len(tool_records or {})} of "
             f"{len(servers)} server(s)."
@@ -437,7 +453,14 @@ def _run_verify(
 
     servers = _discover_lock_servers(root, include_user, console)
     registry = _load_registry(registry_path, console) if resolve else None
-    enumerations = _enumerate_tools(servers, connect_token) if connect else None
+    # Start only servers whose tools can be compared: never one the lock
+    # does not approve, one whose launch line drifted, or anything when the
+    # lock fails its checksum.
+    enumerations = (
+        _enumerate_tools(servers_to_connect(lock_path, servers), connect_token)
+        if connect
+        else None
+    )
 
     result = verify_lock(
         lock_path,

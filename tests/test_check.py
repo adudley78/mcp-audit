@@ -625,6 +625,32 @@ class TestLockAutoVerification:
         assert "not verified: trees" in r.output
         assert r.exit_code == 0
 
+    def test_recorded_tool_definitions_are_named_as_not_compared(
+        self, tmp_path: Path
+    ) -> None:
+        """check never starts servers, so it must not read as fully verified."""
+        from mcp_audit.lock import tool_digests
+        from mcp_audit.models import ToolInfo
+
+        (tmp_path / ".git").mkdir()
+        server = _server(tmp_path / ".mcp.json")
+        key = f"{server.client}/{server.name}"
+        doc = regenerate(
+            None,
+            [server],
+            tmp_path,
+            offline=True,
+            registry=None,
+            tool_records={key: tool_digests.server_record([ToolInfo(name="t")])},
+        )
+        write_lock(tmp_path / "mcp-lock.json", doc)
+        result = _findings_result([], numeric=100, grade="A")
+        result.servers = [server]
+        with self._patch_run_scan(result):
+            r = runner.invoke(app, ["check"])
+        assert "tool definitions not compared" in r.output
+        assert r.exit_code == 0
+
     def test_drifted_lock_appends_findings_and_affects_grade(
         self, tmp_path: Path
     ) -> None:

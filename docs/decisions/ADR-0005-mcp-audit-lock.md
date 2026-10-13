@@ -649,12 +649,12 @@ verify.
 (§2 byte preservation, §3 reported as unverified) and `lock --connect` refuses to overwrite it.
 
 **Checksum: section-local, not folded into §10.** The top-level `checksum` keeps covering
-`{lock_version, generated_by, servers}`. Folding `tools` into it would make every mcp-audit up to
-0.20.0 recompute the old scope, mismatch, and report LOCK-005 ("tampered", exit 2) on any lock
-written with `--connect`: the "security event and a Tuesday reported identically" failure the §10
+`{lock_version, generated_by, servers}`. Folding `tools` into it would make every mcp-audit from
+0.17.0 to 0.20.0 recompute the old scope, mismatch, and report LOCK-005 ("tampered", exit 2) on any
+lock written with `--connect`: the "security event and a Tuesday reported identically" failure the §10
 checkpoint fix exists to prevent, this time between two versions of the same producer. With
-`tools._checksum`, an older version sees a populated section it cannot verify and reports it as
-such (R56: exit 1, named, waivable with `--allow-unverified`). A current version checks
+`tools._checksum`, 0.18.0–0.20.0 see a populated section they cannot verify and report it as
+such (R56: exit 1, named, waivable with `--allow-unverified`); 0.17.x predates R56 and ignores it. A current version checks
 `tools._checksum` on every verify, with or without `--connect`; a mismatch is LOCK-005, keeping its
 one meaning: mcp-audit's own record was edited. `lock_version` stays `1` (additive).
 
@@ -669,7 +669,21 @@ compared.
 
 **Write semantics.** `lock --connect` replaces the records of servers it listed; a server it could
 not list keeps its previous record. `lock` without `--connect` carries records forward and drops
-those of servers no longer in `servers`. When no records remain, `tools` returns to `null`.
+those of servers no longer in `servers`. When no records remain, `tools` returns to `null`. A
+section that fails its own `_checksum` is never carried forward: re-checksumming it would turn a
+hand edit into a valid record. Without `--connect`, `lock` refuses (exit 2); with `--connect`, it
+discards every old record and keeps only what it listed.
+
+**What starts.** `lock --connect` starts every configured server, since recording needs them all.
+`lock --verify --connect` starts only servers it can compare: matched to a locked entry, no
+LOCK-001 drift, with a tool record, and only when both checksums pass. An unapproved or changed
+launch command is reported, never run.
+
+**What the checksum is.** `_checksum`, like the top-level `checksum`, is an unkeyed hash. It catches
+hand edits and corruption; anyone who can edit the file can recompute it, and an edit that renames
+`_producer` or bumps `_schema_version` turns the section foreign, which R56 reports (exit 1) unless
+waived. Review of `mcp-lock.json` changes in pull requests is the control; the checksum is the
+tripwire.
 
 **Out of scope.** Resources and prompts; tool lists that change after the handshake or differ per
 caller (see `GAPS.md`); running `--connect` from the GitHub Action's `lock-verify` input.
