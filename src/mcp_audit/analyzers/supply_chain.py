@@ -302,6 +302,19 @@ def _highest_version(versions: set[str]) -> str | None:
         return None
 
 
+# Longest CVE list written into one SC-004 description; `vet` shows the rest.
+_MAX_LISTED_CVES = 10
+
+
+def _advisory_url(advisory_id: str) -> str:
+    """Public page for an advisory ID: NVD for CVEs, GitHub for GHSA, OSV otherwise."""
+    if advisory_id.startswith("CVE-"):
+        return f"https://nvd.nist.gov/vuln/detail/{advisory_id}"
+    if advisory_id.startswith("GHSA-"):
+        return f"https://github.com/advisories/{advisory_id}"
+    return f"https://osv.dev/vulnerability/{advisory_id}"
+
+
 def _emit_known_cve_findings(
     server: ServerConfig,
     entry: RegistryEntry,
@@ -321,6 +334,14 @@ def _emit_known_cve_findings(
     when the pinned version is at or above the fix.  A CVE with no recorded
     ``fixed_in``, or a version that won't parse, is kept.  When nothing
     remains, no finding is emitted.
+
+    Severity (STORY-0083): HIGH when the config pins an affected version, or
+    when any listed CVE has no recorded fix.  MEDIUM when the launch is
+    unpinned and every listed CVE has a fix: the launcher normally installs a
+    patched release, but npx and uvx can reuse a cached older install, so the
+    finding stays as a prompt to pin.  This keeps long-fixed advisories on
+    official servers from raising HIGH on every unpinned config once the
+    registry carries their full history.
 
     Args:
         server: The MCP server configuration that references this package.
@@ -368,29 +389,43 @@ def _emit_known_cve_findings(
             if highest_fix
             else f" The config pins version {pinned}."
         )
+        severity = Severity.HIGH
     else:
         version_note = (
             " The config does not pin an exact version, so mcp-audit cannot "
-            "tell offline whether the installed release is affected; an unpinned "
-            "launch usually installs the latest release."
+            "tell offline whether the installed release is affected."
         )
         if highest_fix:
             version_note += (
-                f" Every advisory listed here is fixed in {highest_fix} or later."
+                f" Every advisory listed here is fixed in {highest_fix} or later. "
+                "An unpinned launch normally installs a patched release, but npx "
+                "and uvx can reuse a cached older install."
             )
+            severity = Severity.MEDIUM
+        else:
+            version_note += (
+                " At least one advisory listed here has no recorded fix, so the "
+                "latest release may still be affected."
+            )
+            severity = Severity.HIGH
 
     if len(affected) == 1:
         cve_id = affected[0]
+        listed = cve_id
         title = f"Known CVE advisory: {entry.name} ({cve_id})"
         description = (
             f"Package {entry.name!r} has a public CVE advisory "
             f"({cve_id}) recorded in the mcp-audit known-server registry."
-            f"{version_note} Check NVD (https://nvd.nist.gov/vuln/detail/"
-            f"{cve_id}) for the full advisory."
+            f"{version_note} The full advisory is at {_advisory_url(cve_id)}."
         )
         evidence = f"package: {entry.name} | cve: {cve_id}"
     else:
-        listed = ", ".join(affected)
+        listed = ", ".join(affected[:_MAX_LISTED_CVES])
+        if len(affected) > _MAX_LISTED_CVES:
+            listed += (
+                f" and {len(affected) - _MAX_LISTED_CVES} more"
+                f" (`mcp-audit vet {entry.name}` lists them all)"
+            )
         title = f"Known CVE advisories: {entry.name} ({len(affected)} CVEs)"
         description = (
             f"Package {entry.name!r} has {len(affected)} public CVE advisories "
@@ -412,14 +447,15 @@ def _emit_known_cve_findings(
         )
     else:
         remediation = (
-            f"Review {', '.join(affected)} at https://nvd.nist.gov/vuln/detail/ "
-            f"and upgrade {entry.name!r} to the patched version."
+            f"Review the advisories ({listed}) and upgrade {entry.name!r} to a "
+            "patched version; if an advisory has no fix yet, consider removing "
+            "the server until one ships."
         )
 
     return [
         Finding(
             id="SC-004",
-            severity=Severity.HIGH,
+            severity=severity,
             analyzer="supply_chain",
             client=server.client,
             server=server.name,

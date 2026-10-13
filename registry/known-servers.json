@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-10-11",
-  "entry_count": 53,
+  "last_updated": "2026-10-13",
+  "entry_count": 54,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -29,7 +29,25 @@
         "anthropic-bot",
         "modelcontextprotocol"
       ],
-      "attestation_expected": true
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-53109",
+        "CVE-2025-53110"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-53109",
+          "cvss": null,
+          "description": "@modelcontextprotocol/server-filesystem allows for path validation bypass via prefix matching and symlink handling",
+          "fixed_in": "2025.7.1"
+        },
+        {
+          "cve": "CVE-2025-53110",
+          "cvss": null,
+          "description": "@modelcontextprotocol/server-filesystem vulnerability allows for path validation bypass via colliding path prefix",
+          "fixed_in": "2025.7.1"
+        }
+      ]
     },
     {
       "name": "@modelcontextprotocol/server-github",
@@ -305,7 +323,39 @@
         "official",
         "sdk"
       ],
-      "attestation_expected": true
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-66414",
+        "CVE-2026-0621",
+        "CVE-2026-104850",
+        "CVE-2026-25536"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-66414",
+          "cvss": null,
+          "description": "Model Context Protocol (MCP) TypeScript SDK does not enable DNS rebinding protection by default",
+          "fixed_in": "1.24.0"
+        },
+        {
+          "cve": "CVE-2026-0621",
+          "cvss": null,
+          "description": "Anthropic's MCP TypeScript SDK has a ReDoS vulnerability",
+          "fixed_in": "1.25.2"
+        },
+        {
+          "cve": "CVE-2026-104850",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server",
+          "fixed_in": "1.31.0"
+        },
+        {
+          "cve": "CVE-2026-25536",
+          "cvss": null,
+          "description": "@modelcontextprotocol/sdk has cross-client data leak via shared server/transport instance reuse",
+          "fixed_in": "1.26.0"
+        }
+      ]
     },
     {
       "name": "@modelcontextprotocol/inspector",
@@ -319,7 +369,25 @@
         "official",
         "dev-tools"
       ],
-      "attestation_expected": true
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-49596",
+        "CVE-2025-58444"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-49596",
+          "cvss": null,
+          "description": "MCP Inspector proxy server lacks authentication between the Inspector client and proxy",
+          "fixed_in": "0.14.1"
+        },
+        {
+          "cve": "CVE-2025-58444",
+          "cvss": null,
+          "description": "MCP Inspector is Vulnerable to Potential Command Execution via XSS When Connecting to an Untrusted MCP Server",
+          "fixed_in": "0.16.6"
+        }
+      ]
     },
     {
       "name": "mcp",
@@ -337,7 +405,53 @@
       "known_hashes": {
         "1.27.0": "sha256:d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83"
       },
-      "attestation_expected": true
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-53365",
+        "CVE-2025-53366",
+        "CVE-2025-66416",
+        "CVE-2026-52869",
+        "CVE-2026-52870",
+        "CVE-2026-59950"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-53365",
+          "cvss": null,
+          "description": "MCP Python SDK has Unhandled Exception in Streamable HTTP Transport, Leading to Denial of Service",
+          "fixed_in": "1.10.0"
+        },
+        {
+          "cve": "CVE-2025-53366",
+          "cvss": null,
+          "description": "MCP Python SDK vulnerability in the FastMCP Server causes validation error, leading to DoS",
+          "fixed_in": "1.9.4"
+        },
+        {
+          "cve": "CVE-2025-66416",
+          "cvss": null,
+          "description": "Model Context Protocol (MCP) Python SDK does not enable DNS rebinding protection by default",
+          "fixed_in": "1.23.0"
+        },
+        {
+          "cve": "CVE-2026-52869",
+          "cvss": null,
+          "description": "MCP Python SDK: HTTP transports serve session requests without verifying the authenticated principal",
+          "fixed_in": "1.27.2"
+        },
+        {
+          "cve": "CVE-2026-52870",
+          "cvss": null,
+          "description": "MCP Python SDK: Experimental task handlers allow any client to access and cancel other clients' tasks",
+          "fixed_in": "1.27.2"
+        },
+        {
+          "cve": "CVE-2026-59950",
+          "cvss": null,
+          "description": "MCP Python SDK: WebSocket server transport does not support Host/Origin validation",
+          "fixed_in": "1.28.1"
+        }
+      ]
     },
     {
       "name": "mcp-server-fetch",
@@ -475,6 +589,45 @@
       "tags": [
         "kubernetes",
         "local"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2025-53355",
+        "CVE-2025-66404",
+        "CVE-2026-39884",
+        "CVE-2026-46519",
+        "CVE-2026-47250"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-53355",
+          "cvss": null,
+          "description": "MCP Server Kubernetes vulnerable to command injection in several tools",
+          "fixed_in": "2.5.0"
+        },
+        {
+          "cve": "CVE-2025-66404",
+          "cvss": null,
+          "description": "mcp-server-kubernetes has potential security issue in exec_in_pod tool",
+          "fixed_in": "2.9.8"
+        },
+        {
+          "cve": "CVE-2026-39884",
+          "cvss": null,
+          "description": "MCP Server Kubernetes has an Argument Injection in port_forward tool via space-splitting",
+          "fixed_in": "3.5.0"
+        },
+        {
+          "cve": "CVE-2026-46519",
+          "cvss": null,
+          "description": "MCP Server Kubernetes: Tool Access Control Bypass via Presentation-Layer Filtering Without Execution-Layer Enforcement",
+          "fixed_in": "3.6.0"
+        },
+        {
+          "cve": "CVE-2026-47250",
+          "cvss": null,
+          "description": "MCP Server Kubernetes: kubectl-generic flag injection enables Kubernetes bearer token exfiltration",
+          "fixed_in": "3.7.0"
+        }
       ]
     },
     {
@@ -569,6 +722,17 @@
       "publisher_history": [
         "playwright-bot",
         "microsoft"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2025-9611"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-9611",
+          "cvss": null,
+          "description": "Microsoft Playwright MCP Server vulnerable to DNS Rebinding Attack; Allows Attackers Access to All Server Tools",
+          "fixed_in": "0.0.40"
+        }
       ]
     },
     {
@@ -727,7 +891,13 @@
         "CVE-2026-77269",
         "CVE-2026-77271",
         "CVE-2026-77272",
-        "CVE-2026-77274"
+        "CVE-2026-77274",
+        "CVE-2026-27825",
+        "CVE-2026-73496",
+        "CVE-2026-73497",
+        "CVE-2026-77257",
+        "CVE-2026-77262",
+        "CVE-2026-77270"
       ],
       "first_published": "2025-02-15",
       "weekly_downloads": 2900,
@@ -878,6 +1048,42 @@
           "cvss": null,
           "description": "SSRF protection bypass in validate_url_for_ssrf() on the header-based auth flow.",
           "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-27825",
+          "cvss": null,
+          "description": "MCP Atlassian has an arbitrary file write leading to arbitrary code execution via unconstrained download_path in confluence_download_attachment",
+          "fixed_in": "0.17.0"
+        },
+        {
+          "cve": "CVE-2026-73496",
+          "cvss": null,
+          "description": "mcp-atlassian: Arbitrary server-side file read via attachment upload",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-73497",
+          "cvss": null,
+          "description": "MCP Atlassian: DNS-rebinding TOCTOU bypass of the SSRF fix (CVE-2026-27826)",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77257",
+          "cvss": null,
+          "description": "MCP Atlassian: HTTP upload tools accept arbitrary server-local file paths",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77262",
+          "cvss": null,
+          "description": "MCP Atlassian: Path Traversal / Arbitrary File Read in confluence_upload_attachment MCP tool (incomplete fix of GHSA-xjgw-4wvw-rgm4)",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77270",
+          "cvss": null,
+          "description": "MCP Atlassian: Arbitrary File Read via Upload Attachment Tools",
+          "fixed_in": "0.22.0"
         }
       ]
     },
@@ -975,7 +1181,39 @@
         "anthropic-bot",
         "modelcontextprotocol"
       ],
-      "attestation_expected": true
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-68143",
+        "CVE-2025-68144",
+        "CVE-2025-68145",
+        "CVE-2026-27735"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-68143",
+          "cvss": null,
+          "description": "mcp-server-git's unrestricted git_init tool allows repository creation at arbitrary filesystem locations",
+          "fixed_in": "2025.9.25"
+        },
+        {
+          "cve": "CVE-2025-68144",
+          "cvss": null,
+          "description": "mcp-server-git argument injection in git_diff and git_checkout functions allows overwriting local files",
+          "fixed_in": "2025.12.18"
+        },
+        {
+          "cve": "CVE-2025-68145",
+          "cvss": null,
+          "description": "mcp-server-git has missing path validation when using --repository flag",
+          "fixed_in": "2025.12.18"
+        },
+        {
+          "cve": "CVE-2026-27735",
+          "cvss": null,
+          "description": "mcp-server-git : Path traversal in git_add allows staging files outside repository boundaries",
+          "fixed_in": "2026.1.14"
+        }
+      ]
     },
     {
       "name": "mcp-server-postgres",
@@ -1073,7 +1311,800 @@
       ],
       "attestation_expected": false,
       "known_vulnerabilities": [
-        "CVE-2025-59528"
+        "CVE-2025-59528",
+        "CVE-2024-31621",
+        "CVE-2024-36420",
+        "CVE-2024-36421",
+        "CVE-2024-36422",
+        "CVE-2024-36423",
+        "CVE-2024-37145",
+        "CVE-2024-37146",
+        "CVE-2024-58351",
+        "CVE-2024-8181",
+        "CVE-2024-8182",
+        "CVE-2024-9148",
+        "CVE-2025-26319",
+        "CVE-2025-29192",
+        "CVE-2025-34267",
+        "CVE-2025-50538",
+        "CVE-2025-55346",
+        "CVE-2025-57164",
+        "CVE-2025-58434",
+        "CVE-2025-59527",
+        "CVE-2025-61687",
+        "CVE-2025-61913",
+        "CVE-2025-71324",
+        "CVE-2025-71327",
+        "CVE-2025-71331",
+        "CVE-2025-71332",
+        "CVE-2025-71333",
+        "CVE-2025-71334",
+        "CVE-2025-71335",
+        "CVE-2025-71336",
+        "CVE-2025-71338",
+        "CVE-2025-8943",
+        "CVE-2026-30820",
+        "CVE-2026-30821",
+        "CVE-2026-30822",
+        "CVE-2026-30823",
+        "CVE-2026-30824",
+        "CVE-2026-31829",
+        "CVE-2026-40933",
+        "CVE-2026-41137",
+        "CVE-2026-41138",
+        "CVE-2026-41264",
+        "CVE-2026-41265",
+        "CVE-2026-41266",
+        "CVE-2026-41267",
+        "CVE-2026-41268",
+        "CVE-2026-41269",
+        "CVE-2026-41270",
+        "CVE-2026-41271",
+        "CVE-2026-41272",
+        "CVE-2026-41273",
+        "CVE-2026-41274",
+        "CVE-2026-41275",
+        "CVE-2026-41276",
+        "CVE-2026-41277",
+        "CVE-2026-41278",
+        "CVE-2026-41279",
+        "CVE-2026-42861",
+        "CVE-2026-42862",
+        "CVE-2026-42863",
+        "CVE-2026-43995",
+        "CVE-2026-46440",
+        "CVE-2026-46441",
+        "CVE-2026-46442",
+        "CVE-2026-46443",
+        "CVE-2026-46444",
+        "CVE-2026-46475",
+        "CVE-2026-46476",
+        "CVE-2026-46477",
+        "CVE-2026-46478",
+        "CVE-2026-46479",
+        "CVE-2026-46480",
+        "CVE-2026-56267",
+        "CVE-2026-56268",
+        "CVE-2026-56269",
+        "CVE-2026-56270",
+        "CVE-2026-56271",
+        "CVE-2026-56272",
+        "CVE-2026-56273",
+        "CVE-2026-56274",
+        "CVE-2026-56275",
+        "CVE-2026-56276",
+        "CVE-2026-56277",
+        "CVE-2026-56278",
+        "CVE-2026-69250",
+        "CVE-2026-69251",
+        "CVE-2026-69252",
+        "CVE-2026-69253",
+        "CVE-2026-69254",
+        "CVE-2026-69255",
+        "CVE-2026-69256",
+        "CVE-2026-69257",
+        "CVE-2026-69258",
+        "CVE-2026-69259",
+        "CVE-2026-69262",
+        "CVE-2026-69263",
+        "CVE-2026-69264",
+        "CVE-2026-70470",
+        "CVE-2026-70471",
+        "CVE-2026-70472",
+        "CVE-2026-70473",
+        "CVE-2026-70474",
+        "CVE-2026-70475",
+        "CVE-2026-70476",
+        "CVE-2026-70477",
+        "CVE-2026-70478",
+        "CVE-2026-73483",
+        "CVE-2026-73487",
+        "CVE-2026-73488",
+        "CVE-2026-73603",
+        "CVE-2026-73604",
+        "CVE-2026-8026",
+        "GHSA-88pr-878c-24wf",
+        "GHSA-j44m-5v8f-gc9c"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2024-31621",
+          "cvss": null,
+          "description": "Flowise vulnerable to code injection via api/v1",
+          "fixed_in": "1.8.1"
+        },
+        {
+          "cve": "CVE-2024-36420",
+          "cvss": null,
+          "description": "Flowise Path Injection at /api/v1/openai-assistants-file",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-36421",
+          "cvss": null,
+          "description": "Flowise Cors Misconfiguration in packages/server/src/index.ts",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-36422",
+          "cvss": null,
+          "description": "Flowise Cross-site Scripting in api/v1/chatflows/id",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-36423",
+          "cvss": null,
+          "description": "Flowise Cross-site Scripting in /api/v1/public-chatflows/id",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-37145",
+          "cvss": null,
+          "description": "Flowise Cross-site Scripting in /api/v1/chatflows-streaming/id",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-37146",
+          "cvss": null,
+          "description": "Flowise Cross-site Scripting in/api/v1/credentials/id",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-58351",
+          "cvss": null,
+          "description": "Flowise OverrideConfig security vulnerability",
+          "fixed_in": "2.1.4"
+        },
+        {
+          "cve": "CVE-2024-8181",
+          "cvss": null,
+          "description": "Flowise Authentication Bypass vulnerability",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-8182",
+          "cvss": null,
+          "description": "Flowise Unauthenticated Denial of Service (DoS) vulnerability",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-9148",
+          "cvss": null,
+          "description": "Flowise and Flowise Chat Embed vulnerable to Stored Cross-site Scripting",
+          "fixed_in": "2.1.1"
+        },
+        {
+          "cve": "CVE-2025-26319",
+          "cvss": null,
+          "description": "FlowiseAI Flowise arbitrary file upload vulnerability",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-29192",
+          "cvss": null,
+          "description": "Flowise Stored XSS vulnerability through logs in chatbot",
+          "fixed_in": "3.0.5"
+        },
+        {
+          "cve": "CVE-2025-34267",
+          "cvss": null,
+          "description": "Flowise: Authenticated Command Execution and Sandbox Bypass via Puppeteer and Playwright Packages",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-50538",
+          "cvss": null,
+          "description": "Flowise is vulnerable to stored XSS via \"View Messages\" allows credential theft in FlowiseAI admin panel",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-55346",
+          "cvss": null,
+          "description": "Flowise vulnerable to RCE via Dynamic function constructor injection",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-57164",
+          "cvss": null,
+          "description": "FlowiseAI Pre-Auth Arbitrary Code Execution",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-58434",
+          "cvss": null,
+          "description": "Flowise Cloud and Local Deployments have Unauthenticated Password Reset Token Disclosure that Leads to Account Takeover",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-59527",
+          "cvss": null,
+          "description": "FlowiseAI/Flowise has Server-Side Request Forgery (SSRF) vulnerability",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-61687",
+          "cvss": null,
+          "description": "FlowiseAI/Flosise has File Upload vulnerability",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-61913",
+          "cvss": null,
+          "description": "Flowise is vulnerable to arbitrary file write through its WriteFileTool",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-71324",
+          "cvss": null,
+          "description": "Flowise has an Arbitrary File Read",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-71327",
+          "cvss": null,
+          "description": "Flowise has Authentication Bypass Using Unprotected Registration Endpoint (/register)",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-71331",
+          "cvss": null,
+          "description": "Flowise vulnerable to XSS",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-71332",
+          "cvss": null,
+          "description": "FlowiseDB vulnerable to SQL Injection by authenticated users",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-71333",
+          "cvss": null,
+          "description": "Flowise Pre-auth Arbitrary File Upload",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-71334",
+          "cvss": null,
+          "description": "Flowise has arbitrary file access due to missing chat flow id validation",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-71335",
+          "cvss": null,
+          "description": "Flowise Fails to Invalidate Existing Sessions After Password Changes",
+          "fixed_in": "3.0.10"
+        },
+        {
+          "cve": "CVE-2025-71336",
+          "cvss": null,
+          "description": "Flowise has unsandboxed remote code execution via Custom MCP",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-71338",
+          "cvss": null,
+          "description": "Flowise allows arbitrary file write to RCE",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-8943",
+          "cvss": null,
+          "description": "Flowise OS command remote code execution",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-30820",
+          "cvss": null,
+          "description": "Flowise has Authorization Bypass via Spoofed x-request-from Header",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-30821",
+          "cvss": null,
+          "description": "Flowise has Arbitrary File Upload via MIME Spoofing",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-30822",
+          "cvss": null,
+          "description": "Flowise Allows Mass Assignment in `/api/v1/leads` Endpoint",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-30823",
+          "cvss": null,
+          "description": "Flowise has IDOR leading to Account Takeover and Enterprise Feature Bypass via SSO Configuration",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-30824",
+          "cvss": null,
+          "description": "Flowise Missing Authentication on NVIDIA NIM Endpoints",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-31829",
+          "cvss": null,
+          "description": "Flowise affected by Server-Side Request Forgery (SSRF) in HTTP Node Leading to Internal Network Access",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-40933",
+          "cvss": null,
+          "description": "Flowise: Authenticated RCE Via MCP Adapters",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41137",
+          "cvss": null,
+          "description": "Flowise: Code Injection in CSVAgent leads to Authenticated RCE",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41138",
+          "cvss": null,
+          "description": "Flowise: Remote code execution vulnerability in AirtableAgent.ts caused by lack of input verification when using `Pandas`.",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41264",
+          "cvss": null,
+          "description": "Flowise: CSV Agent Prompt Injection Remote Code Execution Vulnerability",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41265",
+          "cvss": null,
+          "description": "Flowise: Airtable_Agent Code Injection Remote Code Execution Vulnerability",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41266",
+          "cvss": null,
+          "description": "Flowise: Sensitive Data Leak in public-chatbotConfig",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41267",
+          "cvss": null,
+          "description": "Flowise: Improper Mass Assignment in Account Registration Enables Unauthorized Organization Association",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41268",
+          "cvss": null,
+          "description": "Flowise: Parameter Override Bypass Remote Command Execution",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41269",
+          "cvss": null,
+          "description": "Flowise: File Upload Validation Bypass in createAttachment",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41270",
+          "cvss": null,
+          "description": "Flowise: SSRF Protection Bypass via Unprotected Built-in HTTP Modules in Custom Function Sandbox",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41271",
+          "cvss": null,
+          "description": "Flowise:  APIChain Prompt Injection SSRF in GET/POST API Chains",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41272",
+          "cvss": null,
+          "description": "Flowise: SSRF Protection Bypass (TOCTOU & Default Insecure)",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41273",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated OAuth 2.0 Access Token Disclosure via Public Chatflow in Flowise",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41274",
+          "cvss": null,
+          "description": "Flowise: Cypher Injection in GraphCypherQAChain",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41275",
+          "cvss": null,
+          "description": "Flowise: Password Reset Link Sent Over Unsecured HTTP",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41276",
+          "cvss": null,
+          "description": "Flowise: resetPassword Authentication Bypass Vulnerability",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41277",
+          "cvss": null,
+          "description": "Flowise: Mass Assignment in DocumentStore Create Endpoint Leads to Cross-Workspace Object Takeover (IDOR)",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41278",
+          "cvss": null,
+          "description": "Flowise: Public chatflow endpoints return unsanitized flowData including plaintext API keys, passwords, and credential IDs",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41279",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated TTS endpoint accepts arbitrary credential IDs — enables API credit abuse via stored credentials",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-42861",
+          "cvss": null,
+          "description": "FlowiseAI has Mass Assignment in Variable Update Endpoint that Allows Cross-Workspace Resource Reassignment",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-42862",
+          "cvss": null,
+          "description": "FlowiseAI has Mass Assignment in Tool Update Endpoint that Allows Cross-Workspace Resource Reassignment",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-42863",
+          "cvss": null,
+          "description": "FlowiseAI has Mass Assignment in Chatflow Update Endpoint that Allows Cross-Workspace AgentFlow Reassignment",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-43995",
+          "cvss": null,
+          "description": "Flowise: SSRF Protection Bypass via Direct node-fetch / axios Usage (Patch Enforcement Failure)",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-46440",
+          "cvss": null,
+          "description": "FlowiseAI Exposes Basic Auth Credentials via API",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46441",
+          "cvss": null,
+          "description": "FlowiseAI has Mass Assignment in Assistant Update Endpoint that Allows Cross-Workspace Resource Reassignment",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46442",
+          "cvss": null,
+          "description": "FlowiseAI: Authenticated Host RCE via POST /api/v1/node-custom-function and NodeVM Sandbox Escape",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46443",
+          "cvss": null,
+          "description": "FlowiseAI Vulnerable to Credential Data Leak",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46444",
+          "cvss": null,
+          "description": "FlowiseAI: Vector Store No Permission Checks",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46475",
+          "cvss": null,
+          "description": "FlowiseAI: Assistant create+update mass-assignment allows cross-workspace assistant takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46476",
+          "cvss": null,
+          "description": "FlowiseAI: CustomTemplate create+update mass-assignment allows cross-workspace template takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46477",
+          "cvss": null,
+          "description": "FlowiseAI: Dataset create+update mass-assignment allows cross-workspace dataset takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46478",
+          "cvss": null,
+          "description": "FlowiseAI: DatasetRow create+update mass-assignment allows cross-workspace row takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46479",
+          "cvss": null,
+          "description": "FlowiseAI: Evaluation create+update mass-assignment allows cross-workspace evaluation takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46480",
+          "cvss": null,
+          "description": "FlowiseAI: Evaluator create+update mass-assignment allows cross-workspace evaluator takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56267",
+          "cvss": null,
+          "description": "Flowise Vulnerable to PII Disclosure on Unauthenticated Forgot Password Endpoint",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-56268",
+          "cvss": null,
+          "description": "Flowise: Cross-Workspace Chatflow Disclosure via chatflows/apikey Endpoint Returns All Unprotected Chatflows",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56269",
+          "cvss": null,
+          "description": "Flowise: Weak Default Token Hash Secret",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56270",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated Information Disclosure of OAuth Secrets (Cleartext) via GET Request",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56271",
+          "cvss": null,
+          "description": "Flowise: Weak Default JWT Secrets",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56272",
+          "cvss": null,
+          "description": "Flowise has Insufficient Password Salt Rounds",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-56273",
+          "cvss": null,
+          "description": "Flowise: Path Traversal in Vector Store basePath",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56274",
+          "cvss": null,
+          "description": "Flowise has an MCP Security Bypass that Enables RCE",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56275",
+          "cvss": null,
+          "description": "Flowise Execute Flow function has an SSRF vulnerability",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56276",
+          "cvss": null,
+          "description": "Flowise: Mass Assignment in PUT /api/v1/user Allows Authenticated Users to Override Password Hash and Bypass Password Change Verification",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56277",
+          "cvss": null,
+          "description": "Flowise: Hardcoded CORS wildcard on TTS endpoint enables cross-origin credential abuse from any webpage",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56278",
+          "cvss": null,
+          "description": "Flowise: Weak Default Express Session Secret",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-69250",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated OAuth2 Refresh Enables Non-Blind SSRF and Secret Exfiltration",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69251",
+          "cvss": null,
+          "description": "Flowise RCE via TypeORM DataSource",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69252",
+          "cvss": null,
+          "description": "Flowise: Missing authorization on `/api/v1/files` allows low-privileged API keys to list and delete files across workspaces within the same organization",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69253",
+          "cvss": null,
+          "description": "Flowise Sandbox Escape to RCE",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69254",
+          "cvss": null,
+          "description": "Flowise: RCE via NodeVM Sandbox Escape in executeJavaScriptCode() nodeVMOptions Override",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69255",
+          "cvss": null,
+          "description": "Flowise: CSV Agent Remote Code Execution via Pyodide Code Injection — Root Shell Verified",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69256",
+          "cvss": null,
+          "description": "Flowise: Remote Code Execution Vulnerability in CSVAgent",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69257",
+          "cvss": null,
+          "description": "Flowise: SSRF Protection Bypass via IPv4-Mapped IPv6 Addresses",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69258",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated Property Injection into Flow Execution Context via Ungated `overrideConfig` Spread in Prediction API",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69259",
+          "cvss": null,
+          "description": "Flowise RCE via SQLite Record Manager Node",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69262",
+          "cvss": null,
+          "description": "Flowise: `DELETE /api/v1/chatflows/:id` does not validate resource type, allowing `agentflows:delete` and `chatflows:delete` to delete each other’s flow type",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69263",
+          "cvss": null,
+          "description": "Flowise: CVE-2025-8943 Patch Bypass: npm_config_yes bypasses MCP environment variable blocklist (Unauthenticated RCE)",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69264",
+          "cvss": null,
+          "description": "Flowise: RCE via CSVAgent csvFile data URI base64 segment is interpolated into Python source without validation",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70470",
+          "cvss": null,
+          "description": "Flowise: Pyodide validator Unicode homoglyph bypass leads to RCE",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70471",
+          "cvss": null,
+          "description": "Flowise: RBAC Bypass Leading to Unauthorized Workspace Variables Disclosure",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70472",
+          "cvss": null,
+          "description": "Flowise: Cross-workspace credential IDOR in openai-assistants-vector-store",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70473",
+          "cvss": null,
+          "description": "Flowise: Information Disclosure in GET /api/v1/upsert-history returns the entire server-wide upsert history",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70474",
+          "cvss": null,
+          "description": "Flowise: Cross-Workspace OAuth2 Credential Metadata Leak",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70475",
+          "cvss": null,
+          "description": "Flowise: Missing Authorization on Execution Update Endpoint",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70476",
+          "cvss": null,
+          "description": "Flowise: Broken Access Control in Stripe Subscription Endpoints Allows Cross-Tenant Billing Manipulation",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70477",
+          "cvss": null,
+          "description": "Flowise: CSV Agent Prompt Injection Remote Code Execution Vulnerability",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70478",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated OAuth2 token refresh endpoint returns access tokens — enables token theft for any connected service",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-73483",
+          "cvss": null,
+          "description": "Flowise NodeVM sandbox escape via puppeteer allowlist - authenticated RCE and arbitrary file read via Chromium",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-73487",
+          "cvss": null,
+          "description": "Flowise Prompt Injection to RCE and SSRF via CSV/Airtable Agent Python Validator Bypass",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-73488",
+          "cvss": null,
+          "description": "Flowise: IDOR vulnerability exists at the GET /api/v1/organization/customer-default-source endpoint",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-73603",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated Credential Abuse via Text-to-Speech Endpoint Allows Unauthorized Use of Private Chatflow TTS Credentials",
+          "fixed_in": "3.1.4"
+        },
+        {
+          "cve": "CVE-2026-73604",
+          "cvss": null,
+          "description": "Flowise: Incomplete Credential Redaction Exposes Secrets via API",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-8026",
+          "cvss": null,
+          "description": "Flowise: Bcrypt Password Hash Exposure",
+          "fixed_in": null
+        },
+        {
+          "cve": "GHSA-88pr-878c-24wf",
+          "cvss": null,
+          "description": "Flowise: Authenticated arbitrary file write in the `S3 Directory` document loader via unsanitized S3 object keys",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "GHSA-j44m-5v8f-gc9c",
+          "cvss": null,
+          "description": "Flowise is vulnerable to arbitrary file exposure through its ReadFileTool",
+          "fixed_in": "3.0.8"
+        }
       ]
     },
     {
@@ -1232,6 +2263,83 @@
           "cvss": null,
           "description": "SSRF: the generic HTTP source and tool follow redirects with no target-IP validation.",
           "fixed_in": "1.5.0"
+        }
+      ]
+    },
+    {
+      "name": "mcp-remote",
+      "source": "npm",
+      "repo": "https://github.com/punkpeye/mcp-remote",
+      "maintainer": "punkpeye (from 0.2.5, 2026-08-26; earlier releases geelen/mcp-remote)",
+      "verified": false,
+      "last_verified": "2026-10-13",
+      "known_versions": [],
+      "tags": [
+        "proxy",
+        "remote",
+        "oauth"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2025-03-17",
+      "weekly_downloads": 614534,
+      "publisher_history": [
+        "punkpeye",
+        "threepointone",
+        "geelen"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2026-51994",
+        "CVE-2026-51995",
+        "CVE-2026-51996",
+        "CVE-2026-51997",
+        "CVE-2026-52001",
+        "CVE-2026-108716",
+        "CVE-2025-6514"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2026-51994",
+          "cvss": null,
+          "description": "SSRF via the resource_metadata URL in a remote server's WWW-Authenticate header (0.1.32–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-51995",
+          "cvss": null,
+          "description": "Information disclosure through authorization-server metadata handling (0.1.32–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-51996",
+          "cvss": null,
+          "description": "Remote code execution through getServerUrlHash in src/lib/utils.ts (0.1.16–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-51997",
+          "cvss": null,
+          "description": "Remote code execution through open() handling (0.1.16–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-52001",
+          "cvss": null,
+          "description": "Information disclosure through the SSE transport's eventSourceInit fetch wrapper (0.1.18–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-108716",
+          "cvss": null,
+          "description": "Cleartext transmission in 0.8.0 through 0.14.3; no patched version recorded (GHSA-jrvg-vw6c-rp59).",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-6514",
+          "cvss": null,
+          "description": "mcp-remote exposed to OS command injection via untrusted MCP server connections",
+          "fixed_in": "0.1.16"
         }
       ]
     }

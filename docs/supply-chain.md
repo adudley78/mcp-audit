@@ -454,7 +454,7 @@ date, download count, publisher history).
 
 ## SC-004: Offline CVE advisory check
 
-`SC-004` (HIGH, `CWE-1104`, OWASP MCP04) fires when an exact-match registry entry
+`SC-004` (HIGH or MEDIUM, `CWE-1104`, OWASP MCP04) fires when an exact-match registry entry
 carries CVE IDs in `RegistryEntry.known_vulnerabilities` and/or structured records
 in `RegistryEntry.known_vulns` (`cve`, `cvss`, `description`, `fixed_in`).  No
 network access is required — the check runs purely against the bundled registry.
@@ -463,14 +463,31 @@ network access is required — the check runs purely against the bundled registr
 advisories produces a single SC-004 that lists them all, not one finding per CVE:
 
 ```
-FINDING SC-004: Known CVE advisories: mcp-atlassian (24 CVEs)
-  Severity: HIGH  Analyzer: supply_chain
-  Package 'mcp-atlassian' has 24 public CVE advisories recorded in the mcp-audit
-  known-server registry: CVE-2026-27826, CVE-2026-73498, ... The config does not
-  pin an exact version, so mcp-audit cannot tell offline whether the installed
-  release is affected; an unpinned launch usually installs the latest release.
-  Every advisory listed here is fixed in 0.22.0 or later.
+FINDING SC-004: Known CVE advisories: mcp-atlassian (30 CVEs)
+  Severity: MEDIUM  Analyzer: supply_chain
+  Package 'mcp-atlassian' has 30 public CVE advisories recorded in the mcp-audit
+  known-server registry: CVE-2026-27826, CVE-2026-73498, ... and 20 more
+  (`mcp-audit vet mcp-atlassian` lists them all). The config does not pin an
+  exact version, so mcp-audit cannot tell offline whether the installed release
+  is affected. Every advisory listed here is fixed in 0.22.0 or later. An
+  unpinned launch normally installs a patched release, but npx and uvx can reuse
+  a cached older install.
 ```
+
+The description lists at most 10 advisory IDs; `vet` shows the full list.
+
+**Severity** (STORY-0083, 2026-10-13):
+
+| Launch | Recorded advisories | Severity |
+|---|---|---|
+| Pins an affected version | any | HIGH |
+| Unpinned | at least one has no recorded fix | HIGH |
+| Unpinned | every one has a recorded `fixed_in` | MEDIUM |
+| Pins a version at or above every fix | — | no finding |
+
+The MEDIUM row exists because the registry now carries each package's full
+advisory history. Without it, long-fixed CVEs on official servers would raise
+HIGH on every unpinned config.
 
 A single advisory keeps the original title form:
 `Known CVE advisory: @mcpjam/inspector (CVE-2026-23744)`.
@@ -491,6 +508,30 @@ Seeded data: CVE-2026-23744 (`@mcpjam/inspector`), CVE-2026-0755
 CVE-2026-33032 (`nginx-ui`) at v0.12.0; 24 CVEs for `mcp-atlassian` (all fixed by
 0.22.0, from PyPI's vulnerability data) and CVE-2026-14540 for `@toolbox-sdk/server`
 (fixed in 1.5.0) on 2026-10-11.
+
+**Keeping it current** (STORY-0083, 2026-10-13). `scripts/sync_registry_advisories.py`
+queries OSV for every registry package and merges missing advisories into
+`known_vulnerabilities` and `known_vulns`, with `fixed_in` taken from OSV's ranges.
+It only adds; it never removes or rewrites an entry. The first run added 144
+advisories across 10 entries, including MCP Inspector's CVE-2025-49596,
+server-filesystem's CVE-2025-53109/53110, the TypeScript SDK's CVE-2026-104850,
+and 113 for `flowise`. It also added `mcp-remote` (614K weekly downloads) to
+the registry with its six 2026 advisories, entered by hand because OSV did not
+yet map them to the package.
+
+The weekly `registry-advisory-sync.yml` workflow runs the script in `--check`
+mode and fails when anything is missing. Like `registry-drift.yml`, it never
+writes the registry; someone runs `--write` and opens a PR.
+
+```bash
+python scripts/sync_registry_advisories.py           # check; exit 1 if anything is missing
+python scripts/sync_registry_advisories.py --write   # merge into registry/known-servers.json
+```
+
+What it can't see: unreviewed GitHub advisories carry no package data, so OSV
+does not map them until GitHub reviews them; NVD-only CVEs; and `MAL-*`
+malicious-release records, which it skips on purpose because a malicious release
+is a different finding class from a CVE.
 
 ---
 

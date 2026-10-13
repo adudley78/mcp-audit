@@ -1173,9 +1173,11 @@ mcp-audit scan "$SCRATCH/sc004.json"
 echo "exit: $?"
 ```
 
-**Expected:** `SC-004` finding at HIGH severity; title "Known CVE advisory:
-mcp-atlassian (CVE-2026-27826)"; evidence line names the package, CVE ID, and
-maintainer; exit 1.
+**Expected:** one `SC-004` finding at MEDIUM severity (unpinned, and every
+listed CVE has a recorded fix); title "Known CVE advisories: mcp-atlassian (30
+CVEs)"; the description lists 10 IDs and "and 20 more"; evidence names the
+package, the CVEs and `fixed_in: 0.22.0`; exit 1. Pinning `mcp-atlassian==0.21.1`
+raises it to HIGH; `mcp-atlassian==0.23.1` makes it disappear.
 
 > `mcp-atlassian` is the registry's current `known_vulnerabilities`-bearing entry.
 > If its CVE list ever changes, find another via:

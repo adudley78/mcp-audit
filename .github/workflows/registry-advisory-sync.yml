@@ -1,0 +1,76 @@
+# Weekly check that registry/known-servers.json lists every advisory OSV has
+# for its packages (STORY-0083).
+#
+# SC-004 and `vet` read only the registry's known_vulnerabilities and
+# known_vulns. On 2026-10-13, 47 of 53 entries listed none, so
+# `vet @modelcontextprotocol/inspector` reported nothing for an unauthenticated
+# RCE. About 50 MCP advisories are published a week; a one-time sync is stale
+# within days.
+#
+# Same trust rule as registry-drift.yml: automation never writes the registry.
+# This job runs the sync in --check mode, writes the missing IDs to the job
+# summary, uploads the proposed file as an artifact, and FAILS when anything is
+# missing. A human (or the weekly build loop, in a reviewed PR) runs
+# `python scripts/sync_registry_advisories.py --write`. The weekly signal sweep
+# reads this job's latest result.
+
+name: Registry advisory sync
+
+on:
+  schedule:
+    # Monday 10:00 UTC, before the weekly signal sweep reads the result.
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: registry-advisory-sync
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Registry advisories match OSV
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install version parser
+        run: pip install --quiet packaging
+
+      - name: Hash registry before the check
+        run: sha256sum registry/known-servers.json | tee "${RUNNER_TEMP}/registry.before"
+
+      - name: Check advisories (report-only, never --write)
+        id: check
+        run: |
+          python scripts/sync_registry_advisories.py --check \
+            --summary "${GITHUB_STEP_SUMMARY}" \
+            --out "${RUNNER_TEMP}/known-servers.proposed.json"
+
+      - name: Assert the registry file was not mutated
+        if: ${{ always() && !cancelled() }}
+        run: |
+          sha256sum registry/known-servers.json | tee "${RUNNER_TEMP}/registry.after"
+          if ! cmp -s "${RUNNER_TEMP}/registry.before" "${RUNNER_TEMP}/registry.after"; then
+            echo "MUTATION: registry/known-servers.json changed during a read-only check."
+            exit 1
+          fi
+
+      - name: Upload proposed registry
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: registry-advisory-sync-proposed
+          path: ${{ runner.temp }}/known-servers.proposed.json
+          if-no-files-found: ignore
+          retention-days: 30

@@ -10,12 +10,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The registry now lists the CVEs its packages actually have (STORY-0083).**
+  47 of 53 entries listed none, so the default scan and `vet` called MCP Inspector
+  clean despite its unauthenticated RCE (CVE-2025-49596). A new
+  `scripts/sync_registry_advisories.py` pulls advisories from OSV; its first run
+  added 144 across 10 entries, including server-filesystem, server-git, both MCP
+  SDKs, Playwright MCP, mcp-server-kubernetes and 113 for `flowise`. `mcp-remote`
+  (614K weekly downloads, CVE-2026-51996 rated 9.8) joins the registry.
+- **SC-004 severity now depends on whether a fix exists (STORY-0083).** HIGH when
+  the config pins an affected version or an advisory has no recorded fix; MEDIUM
+  when the launch is unpinned and every advisory is fixed. Descriptions list at
+  most 10 advisory IDs and point to `vet` for the rest. GHSA-only advisories link
+  to GitHub instead of NVD.
 - **PLUGIN-001 no longer claims to catch Plugin4Shell (STORY-0080).** The finding,
   README and docs said a mismatch between a plugin's recorded version and its
   marketplace pin was the on-disk symptom of Plugin4Shell. In Plugin4Shell the agents
   reported a clean install at the pinned commit after a swap, so the record can match
   the pin, and PLUGIN-001 does not hash plugin files. The finding text and docs now describe it as a
   pin-drift check. Detection logic is unchanged.
+
+### Added
+
+- **Weekly registry advisory check (STORY-0083).** `registry-advisory-sync.yml`
+  runs the sync in `--check` mode every Monday and fails when the registry is
+  missing an advisory OSV knows about. It never writes the registry.
 
 ---
 
