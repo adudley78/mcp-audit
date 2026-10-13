@@ -68,6 +68,16 @@ def _isolate_claude_plugins(
         "CLAUDE_CODE_PLUGIN_CACHE_DIR",
         str(tmp_path_factory.getbasetemp() / "no-claude-plugins"),
     )
+    # Mods (STORY-0085) also come from ~/.claude/dev-mods, CLAUDE_CODE_PLUGIN_DIRS
+    # and the managed settings directory.  Point all three at nothing.
+    monkeypatch.setenv(
+        "CLAUDE_CONFIG_DIR", str(tmp_path_factory.getbasetemp() / "no-claude-config")
+    )
+    monkeypatch.delenv("CLAUDE_CODE_PLUGIN_DIRS", raising=False)
+    monkeypatch.setattr(
+        "mcp_audit.plugins.mods.managed_settings_dir",
+        lambda: tmp_path_factory.getbasetemp() / "no-managed-settings",
+    )
 
 
 @pytest.fixture()

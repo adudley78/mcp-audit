@@ -209,6 +209,12 @@ the two exploitation pre-conditions that malware relied on.
 | CFHYG-005   | MEDIUM   | ASI06 | MCP01, MCP07 | Claude Code hooks section detected in `.claude.json`. Hooks execute as shell commands — a write-access threat actor can inject arbitrary commands. CVE-2025-59536. CWE-78. CVSS: 6.5 |
 | PLUGIN-001  | MEDIUM   | ASI04 | MCP04 | Claude Code plugin's recorded version is not the 12-char prefix of the marketplace's pinned sha (git source, no manifest/entry version). Usually a plugin not updated since the pin moved, or a record that does not match the pin. Compares records only; does not hash plugin files, so it cannot see a Plugin4Shell-style swap recorded at the requested commit. CWE-494 |
 | PLUGIN-002  | LOW      | ASI04 | MCP04 | Plugin marketplace entry fetches a git source with no `sha`, so installs follow a branch. CWE-829 |
+| MOD-001     | HIGH     | ASI02, ASI03 | MCP07, MCP04 | Claude Code mod hooks `tool.check`: it can approve or deny tool calls before the permission prompt, and in auto mode an approved call skips the classifier. CWE-863 (STORY-0085) |
+| MOD-002     | HIGH / MEDIUM | ASI06 | MCP01, MCP04 | One mod reads secrets (`$.env.get`/`$.settings.read`, HIGH) or files (`$.fs.read`, MEDIUM) and can send data out (`$.http.fetch`, `$.process.run`/`spawn`). CWE-201 |
+| MOD-003     | MEDIUM   | ASI01 | MCP03, MCP06 | Mod rewrites what Claude reads (tool descriptions, system prompt sections, context, stored rows) or submits prompts as the user. CWE-1427 |
+| MOD-004     | MEDIUM   | ASI05 | MCP05, MCP04 | Mod starts programs or sets environment variables for later commands. CWE-250 |
+| MOD-005     | INFO     | — | MCP04 | Mod inventory: events and mods API calls, guard status. Not an advisory. CWE-1357 |
+| MOD-006     | MEDIUM   | ASI04 | MCP04 | `CLAUDE_CODE_PLUGIN_DIRS` set in Claude Code settings, so plugin directories load in every session. CWE-829 |
 | HARNESS-001 | HIGH     | ASI02, ASI03 | MCP02, MCP07 | Claude Code `permissions.defaultMode: bypassPermissions` — every session starts with approval prompts skipped. CWE-862. Basis: arXiv 2610.07639 (auto-approve 29.2% → 95.6% attack success) |
 | HARNESS-002 | HIGH     | ASI03, ASI04 | MCP09, MCP07 | `enableAllProjectMcpServers: true` — every server in a repository's `.mcp.json` approved without a prompt. CWE-862 |
 | HARNESS-003 | MEDIUM   | ASI02, ASI03 | MCP02, MCP07 | `skipDangerousModePermissionPrompt: true` — no confirmation before bypass mode. CWE-862 |

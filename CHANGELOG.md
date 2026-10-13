@@ -36,6 +36,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Claude Code mods audit (STORY-0085).** Mods (Claude Code 2.1.287, 2026-10-01) are
+  plugins that run code inside Claude Code, unsandboxed, with your permissions. A
+  default `scan` and `plugins scan` now read each mod's hooks module statically
+  (installed plugins, Claude-written dev mods in `~/.claude/dev-mods`, and
+  `CLAUDE_CODE_PLUGIN_DIRS`) and apply Anthropic's own review checklist: MOD-001
+  (HIGH) the mod can approve tool calls before the permission prompt; MOD-002 (HIGH
+  or MEDIUM) it can read secrets or files and send data out; MOD-003 (MEDIUM) it
+  rewrites tool descriptions or prompts; MOD-004 (MEDIUM) it starts programs; MOD-005
+  (INFO) inventory; MOD-006 (MEDIUM) `CLAUDE_CODE_PLUGIN_DIRS` set in settings.
+  Findings say whether a managed settings file (and so the built-in guard) was found.
+  `plugins discover` gains a Mod column.
 - **Weekly registry advisory check (STORY-0083).** `registry-advisory-sync.yml`
   runs the sync in `--check` mode every Monday and fails when the registry is
   missing an advisory OSV knows about. It never writes the registry.

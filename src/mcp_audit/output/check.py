@@ -144,6 +144,20 @@ _HINTS: dict[str, str] = {
         "Run `claude plugin update <plugin>` on Claude Code 2.1.179+; if the"
         " version still differs from the pin, uninstall the plugin."
     ),
+    "MOD-001": (
+        "Remove the mod unless you have read its tool.check hook; organizations can"
+        " set allowManagedModsOnly on the built-in guard."
+    ),
+    "MOD-002": (
+        "Read what the mod reads and where it sends it; remove it if you can't tell."
+    ),
+    "MOD-003": "Read the mod's prompt and description hooks and diff them on update.",
+    "MOD-004": "Check which programs the mod starts and why before keeping it.",
+    "MOD-005": "Review installed mods with `claude plugin validate <dir>`.",
+    "MOD-006": (
+        "Remove CLAUDE_CODE_PLUGIN_DIRS from settings; load dev plugins with"
+        " --plugin-dir only when needed."
+    ),
     "PLUGIN-002": (
         "Ask the marketplace owner to pin the plugin entry with a full commit sha."
     ),

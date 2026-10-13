@@ -372,12 +372,16 @@ def _discover_and_parse(
     if include_plugins and not extra_paths:
         from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415
         from mcp_audit.plugins import discovery as _plugin_discovery  # noqa: PLC0415
+        from mcp_audit.plugins import mods as _plugin_mods  # noqa: PLC0415
 
+        installed = _plugin_discovery.discover_installed_plugins()
+        result.findings.extend(_plugin_analyzer.analyze_plugin_integrity(installed))
+        # Mods (STORY-0085): installed plugins, Claude-written dev mods and
+        # CLAUDE_CODE_PLUGIN_DIRS, read statically, never executed.
         result.findings.extend(
-            _plugin_analyzer.analyze_plugin_integrity(
-                _plugin_discovery.discover_installed_plugins()
-            )
+            _plugin_mods.analyze_mods(_plugin_mods.discover_mods(installed))
         )
+        result.findings.extend(_plugin_mods.analyze_plugin_dirs_setting())
 
     all_servers: list[ServerConfig] = []
     for config in configs:
