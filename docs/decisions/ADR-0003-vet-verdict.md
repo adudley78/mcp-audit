@@ -77,8 +77,9 @@ maintainer, and verification status.
 | Condition | Exit code |
 |---|---|
 | Known, no CVEs, no typosquat | 0 |
+| Known, every recorded CVE has a fix (amended 2026-10-13, STORY-0083) | 0 |
 | Unknown, `--strict` not set | 0 |
-| CVEs present | 1 |
+| A recorded CVE has no fix | 1 |
 | Typosquat suspicion | 1 |
 | Unknown + `--strict` | 1 |
 | Empty/invalid name, bad ecosystem flag, registry not found | 2 |

@@ -443,7 +443,7 @@ def step_vet_contract(binary_cmd: list[str]) -> bool:
     Verifies, against the bundled registry (fully offline):
       - a verified package        → exit 0, "Verified" in output
       - a typosquat candidate     → exit 1, "typosquat" in output
-      - a package with a CVE       → exit 1, "CVE-" in output
+      - a package with an unfixed CVE → exit 1, "CVE-" in output
       - an unknown package         → exit 0, "unknown" in output
       - an empty package name      → exit 2, clean error (no traceback)
       - `--format json`            → valid JSON document
@@ -453,7 +453,9 @@ def step_vet_contract(binary_cmd: list[str]) -> bool:
     """
     verified = "@modelcontextprotocol/server-filesystem"
     typosquat = "@modelcontextprotocol/server-filesytem"  # deliberate typo
-    cve_pkg = "mcp-atlassian"
+    # mcp-remote carries CVE-2026-108716 with no recorded fix.  A package
+    # whose CVEs are all fixed exits 0 (STORY-0083).
+    cve_pkg = "mcp-remote"
 
     r = run(binary_cmd, "vet", verified, expect_exit=0)
     if "Verified" not in r.stdout:
@@ -465,7 +467,7 @@ def step_vet_contract(binary_cmd: list[str]) -> bool:
         print("FAIL: vet typosquat candidate did not warn", file=sys.stderr)
         return False
 
-    r = run(binary_cmd, "vet", cve_pkg, "--ecosystem", "pypi", expect_exit=1)
+    r = run(binary_cmd, "vet", cve_pkg, expect_exit=1)
     if "CVE-" not in r.stdout:
         print("FAIL: vet CVE package did not list a CVE", file=sys.stderr)
         return False

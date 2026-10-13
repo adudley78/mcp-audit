@@ -39,8 +39,13 @@ mcp-audit vet @scope/name --strict
 
 | Code | Condition |
 |------|-----------|
-| 0 | Package known + no CVEs + no typosquat (or unknown without `--strict`) |
-| 1 | CVEs present, typosquat suspicion, or unknown + `--strict` |
+| 0 | Package known, every recorded CVE has a fix (or none recorded), no typosquat; or unknown without `--strict` |
+| 1 | A recorded CVE has no fix, typosquat suspicion, or unknown + `--strict` |
+
+`vet` takes no version, so it answers for the latest release. A CVE with a
+recorded fix is listed with its fixed version but does not fail `vet`
+(STORY-0083, 2026-10-13); before that, any recorded CVE did, which made `vet` fail
+for every package with a fixed past.
 | 2 | Invalid/empty package name, bad `--ecosystem` flag, registry not found |
 
 ---
@@ -86,14 +91,15 @@ mcp-audit vet @scope/name --strict
 │                                                              │
 │   Registry:      Listed · Verified · sooperset               │
 │                                                              │
-│   Known vulnerabilities: 1                                   │
+│   Known vulnerabilities: 1 (all fixed; pin a version at or  │
+│   above each fix)                                            │
 │                                                              │
 │   CVE-2026-27826 — Authentication bypass via crafted token   │
 │   fixed in 0.9.4                                             │
 │   https://nvd.nist.gov/vuln/detail/CVE-2026-27826            │
 ╰──────────────────────────────────────────────────────────────╯
 ```
-Exit code: **1**
+Exit code: **0** (a CVE with no recorded fix exits 1)
 
 ## Output: typosquat suspicion
 

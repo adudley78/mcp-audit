@@ -385,11 +385,41 @@ class TestVetCliClean:
 
 
 class TestVetCliCve:
-    def test_exit_1_for_cve(self) -> None:
+    def test_exit_0_when_every_cve_has_a_fix(self) -> None:
+        """STORY-0083: vet answers for the latest release, which the fix covers."""
         reg = _make_registry([_CVE_ENTRY])
         with patch("mcp_audit.cli.vet.load_registry", return_value=reg):
             result = runner.invoke(app, ["vet", "mcp-atlassian", "--ecosystem", "pypi"])
+        assert result.exit_code == 0
+        assert "all fixed" in unwrapped(result.output)
+
+    def test_exit_1_for_cve_without_a_fix(self) -> None:
+        unfixed = _CVE_ENTRY.model_copy(
+            update={
+                "known_vulns": [
+                    {
+                        "cve": "CVE-2026-27826",
+                        "cvss": 9.8,
+                        "description": "Authentication bypass via crafted token",
+                        "fixed_in": None,
+                    }
+                ]
+            }
+        )
+        reg = _make_registry([unfixed])
+        with patch("mcp_audit.cli.vet.load_registry", return_value=reg):
+            result = runner.invoke(app, ["vet", "mcp-atlassian", "--ecosystem", "pypi"])
         assert result.exit_code == 1
+        assert "with no fix" in unwrapped(result.output)
+
+    def test_ghsa_only_advisory_links_to_github(self) -> None:
+        ghsa = _CVE_ENTRY.model_copy(
+            update={"known_vulnerabilities": ["GHSA-aaaa-bbbb-cccc"], "known_vulns": []}
+        )
+        reg = _make_registry([ghsa])
+        with patch("mcp_audit.cli.vet.load_registry", return_value=reg):
+            result = runner.invoke(app, ["vet", "mcp-atlassian", "--ecosystem", "pypi"])
+        assert "github.com/advisories/GHSA-aaaa-bbbb-cccc" in unwrapped(result.output)
 
     def test_cve_id_in_output(self) -> None:
         reg = _make_registry([_CVE_ENTRY])
