@@ -2,10 +2,14 @@
 
 See ``docs/decisions/ADR-0005-mcp-audit-lock.md`` for the full rationale.
 This module implements the ADR's ownership boundary: mcp-audit owns
-``lock_version``, ``generated_by``, ``generated_at``, and ``servers``.  Every
-other top-level key (``trees``, ``tools``, and anything unrecognised) is
-foreign — mcp-audit preserves it, reports it, and never includes it in its
-own ``checksum`` or claims to have verified it (ADR §1, §3, §10).
+``lock_version``, ``generated_by``, ``generated_at``, and ``servers``, and
+(since the STORY-0086 amendment) a ``tools`` section that declares
+``_producer: "mcp-audit"``. That section carries its own ``_checksum`` — see
+:mod:`mcp_audit.lock.tool_digests`; the top-level ``checksum`` scope is
+unchanged. Every other top-level key (``trees``, a ``tools`` section from any
+other producer, and anything unrecognised) is foreign — mcp-audit preserves
+it, reports it, and never includes it in its own ``checksum`` or claims to
+have verified it (ADR §1, §3, §10).
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from mcp_audit.advisory.canonical import canonicalize
+from mcp_audit.lock import tool_digests
 
 LOCK_VERSION = 1
 LOCK_FILENAME = "mcp-lock.json"
@@ -33,15 +38,17 @@ STRUCTURAL_KEYS: frozenset[str] = frozenset(
     {"lock_version", "generated_by", "generated_at", "checksum"}
 )
 
-#: Reserved-but-foreign sections: mcp-audit declares them in the schema but
-#: never populates or verifies their contents (ADR-0005 §1, §4, §11).
+#: Reserved sections ``lock`` always writes a stub for. ``trees`` is
+#: reserved-but-foreign (ADR-0005 §1, §4, §11). ``tools`` is mcp-audit's own
+#: once populated by ``lock --connect`` (STORY-0086 amendment); until then it
+#: is ``null``.
 RESERVED_FOREIGN_KEYS: frozenset[str] = frozenset({"trees", "tools"})
 
 #: The exact default stub value ``lock/writer.py::regenerate()`` writes for
-#: each reserved-but-foreign key when no other producer has populated it yet
-#: (``trees: {}``, ``tools: null``).  A key present with exactly this value is
-#: mcp-audit's own placeholder, not evidence any other producer touched the
-#: file — see :func:`foreign_sections_with_content`.
+#: each reserved key when nothing has populated it yet (``trees: {}``,
+#: ``tools: null``).  A key present with exactly this value is mcp-audit's
+#: own placeholder, not evidence any other producer touched the file — see
+#: :func:`foreign_sections_with_content`.
 RESERVED_FOREIGN_DEFAULTS: dict[str, object] = {"trees": {}, "tools": None}
 
 
@@ -160,12 +167,26 @@ def unverified_sections(doc: dict) -> list[str]:
     Args:
         doc: The full on-disk lock document as a plain dict.
 
+    A ``tools`` value that is ``null`` or an mcp-audit-owned section is not
+    listed: the first holds nothing, and the second is mcp-audit's own record,
+    integrity-checked by its ``_checksum`` on every verify. Whether its tool
+    digests were *compared* against live servers is reported separately
+    (``VerifyResult.tools_compared``).
+
     Returns:
         Sorted list of top-level keys outside mcp-audit's owned/structural
         set (e.g. ``["trees"]``).
     """
     owned_and_structural = OWNED_CHECKSUM_KEYS | STRUCTURAL_KEYS
-    return sorted(k for k in doc if k not in owned_and_structural)
+    return sorted(
+        k
+        for k in doc
+        if k not in owned_and_structural
+        and not (
+            k == tool_digests.TOOLS_KEY
+            and (doc[k] is None or tool_digests.is_owned(doc[k]))
+        )
+    )
 
 
 def foreign_sections_with_content(doc: dict) -> list[str]:
@@ -185,8 +206,8 @@ def foreign_sections_with_content(doc: dict) -> list[str]:
     fail `--verify` unconditionally.
 
     A key present with a value *other than* its declared default (Prachet
-    Poddar's tree generator has actually populated ``trees``; a future
-    ``--connect``-derived ``tools`` payload; a wholly unrecognised key
+    Poddar's tree generator has actually populated ``trees``; a ``tools``
+    section written by another producer; a wholly unrecognised key
     mcp-audit never writes at all, e.g. a synthetic ``resolutions`` sidecar)
     means a section mcp-audit did not write and structurally cannot check is
     genuinely present. That is the gap this function exists to catch:

@@ -88,6 +88,9 @@ preserves them, reports their presence, and never includes them in its own `chec
 have verified their contents. Ownership, not schema position, is what `checksum` covers (§10) and
 what "byte preservation" (§2) is checked against.
 
+> **Amended 2026-10-13 (STORY-0086):** mcp-audit now owns `tools` once `lock --connect` populates
+> it, with a section-local `_checksum`. See "Amendment (STORY-0086)" at the end.
+
 ### 1. Section provenance (decision #7, MUST)
 
 Every top-level section that is not part of the fixed schema header carries an explicit producer and
@@ -200,7 +203,8 @@ test that asserts the summary string names every unverified section present (par
 An unrecognised top-level key is preserved verbatim (§2) and reported as `unknown section: <key>`
 at INFO level — never an error, never a reason to fail `lock` or `--verify`. `tools` is reserved
 (schema stub, `null` when absent) for a future `--connect`-derived tool-contract-hash layer; writing
-it is out of scope for this story (STORY-0069's "Out-of-bounds").
+it is out of scope for this story (STORY-0069's "Out-of-bounds"). *(That layer shipped in
+STORY-0086; see the amendment at the end.)*
 
 ### 5. `generated_at` outside the checksummed body (resolves STORY-0069 Open Question #2)
 
@@ -369,6 +373,7 @@ the scope of what it just checked.
   diffed against a real install. Credited to Prachet Poddar in `docs/lock.md` once a documented
   external command exists to point at.
 - **`tools`**: reserved as `null`; needs `--connect`-derived tool-contract hashes, not in scope.
+  *(Shipped in STORY-0086; see the amendment at the end.)*
 - **Signing**: git history is the audit trail for a committed file; a signed lock is a future,
   separate decision, not blocked by anything here.
 - **Runtime enforcement**: permanent non-goal (epic decision #6). The lock is a record checked at
@@ -613,3 +618,59 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   findings (one `WARN`, "outside the lock root"). `mcp-lock.json` is never ingested as an MCP
   config: the explicit-directory `*.json` glob skips it by name and skips any JSON whose top
   level has `lock_version`.
+
+## Amendment (STORY-0086, 2026-10-13): mcp-audit owns `tools`
+
+**Decision.** The `tools` key §4 and §11 reserved for a `--connect`-derived tool-contract layer
+belongs to mcp-audit. `lock --connect` populates it; `lock --verify --connect` compares against it.
+
+**Why mcp-audit and not a foreign producer.** This ADR reserved `tools` for this exact layer, and
+Prachet Poddar's mcp-lock spec (v3.6) defines no `tools` key, so no outside format has a claim on
+it. The alternatives were weaker: per-server digests inside `servers` would leave `tools` reserved
+for nobody and mix live, enumerated data into entries that are otherwise derived from the config;
+writing `tools` but treating it as foreign would mean mcp-audit writes data it then declines to
+verify.
+
+**Shape.** Ownership is declared, per §1:
+
+```jsonc
+"tools": {
+  "_producer": "mcp-audit",
+  "_schema_version": 1,
+  "servers": { "<client>/<name>": { "tools": { "<tool>": { "contract": "sha256:…", "definition": "sha256:…" } } } },
+  "_checksum": "sha256:<hex>"
+}
+```
+
+`definition` is the SHA-256 of the RFC 8785 canonical JSON of the tool's `name`, `title`,
+`description`, `inputSchema`, `outputSchema` and `annotations`, exactly as the server sent them;
+`contract` is the same minus `title` and `description`. Only names and digests are stored. A
+`tools` value from any other producer, or from a newer mcp-audit `_schema_version`, stays foreign
+(§2 byte preservation, §3 reported as unverified) and `lock --connect` refuses to overwrite it.
+
+**Checksum: section-local, not folded into §10.** The top-level `checksum` keeps covering
+`{lock_version, generated_by, servers}`. Folding `tools` into it would make every mcp-audit up to
+0.20.0 recompute the old scope, mismatch, and report LOCK-005 ("tampered", exit 2) on any lock
+written with `--connect`: the "security event and a Tuesday reported identically" failure the §10
+checkpoint fix exists to prevent, this time between two versions of the same producer. With
+`tools._checksum`, an older version sees a populated section it cannot verify and reports it as
+such (R56: exit 1, named, waivable with `--allow-unverified`). A current version checks
+`tools._checksum` on every verify, with or without `--connect`; a mismatch is LOCK-005, keeping its
+one meaning: mcp-audit's own record was edited. `lock_version` stays `1` (additive).
+
+**Findings.** `lock --verify --connect`, one finding per kind of change per server:
+LOCK-006 tool added (HIGH), LOCK-007 `inputSchema`/`outputSchema`/`annotations` changed (HIGH),
+LOCK-008 only `description`/`title` changed (MEDIUM), LOCK-009 tool removed (LOW, does not fail
+the exit code, like LOCK-003). The story called the description-only class "cosmetic"; that word
+is not used, because the description is where tool poisoning arrives, and LOCK-008 fails the exit
+code. A locked server that cannot be compared (no record, connection failed, tool list not read to
+the last page) is an R56 unverified entry, never a pass. A server with LOCK-001 drift is not
+compared.
+
+**Write semantics.** `lock --connect` replaces the records of servers it listed; a server it could
+not list keeps its previous record. `lock` without `--connect` carries records forward and drops
+those of servers no longer in `servers`. When no records remain, `tools` returns to `null`.
+
+**Out of scope.** Resources and prompts; tool lists that change after the handshake or differ per
+caller (see `GAPS.md`); running `--connect` from the GitHub Action's `lock-verify` input.
+

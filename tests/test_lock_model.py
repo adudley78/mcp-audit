@@ -77,7 +77,21 @@ class TestComputeChecksum:
 
 class TestUnverifiedSections:
     def test_names_trees(self) -> None:
-        assert unverified_sections(_doc()) == ["tools", "trees"]
+        # `tools: null` holds nothing; since STORY-0086 an empty or
+        # mcp-audit-owned `tools` section is not a foreign section.
+        assert unverified_sections(_doc()) == ["trees"]
+
+    def test_owned_tools_section_is_not_listed(self) -> None:
+        doc = _doc(tools={"_producer": "mcp-audit", "_schema_version": 1})
+        assert unverified_sections(doc) == ["trees"]
+
+    def test_tools_from_another_producer_is_listed(self) -> None:
+        doc = _doc(tools={"_producer": "some-connect-layer"})
+        assert unverified_sections(doc) == ["tools", "trees"]
+
+    def test_tools_from_a_newer_mcp_audit_schema_is_listed(self) -> None:
+        doc = _doc(tools={"_producer": "mcp-audit", "_schema_version": 2})
+        assert unverified_sections(doc) == ["tools", "trees"]
 
     def test_generic_over_any_foreign_key(self) -> None:
         """Not `trees`-specific — a future foreign section is caught too."""
@@ -122,4 +136,4 @@ class TestForeignSectionsWithContent:
     def test_subset_of_unverified_sections(self) -> None:
         doc = _doc(trees={})  # tools=None default from _doc()
         assert foreign_sections_with_content(doc) == []
-        assert unverified_sections(doc) == ["tools", "trees"]
+        assert unverified_sections(doc) == ["trees"]

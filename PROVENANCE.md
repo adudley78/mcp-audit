@@ -446,6 +446,23 @@ The **new** patterns specific to the agent-file surface are:
   products/mcp-audit/discovery/briefs/2026-10-12-signal-sweep.md (Marcus).
 - All six checks are original implementations; no code was copied.
 
+## Tool-definition digests in mcp-lock.json (LOCK-006..009, lock/tool_digests.py — STORY-0086)
+
+- **Invariant Labs** — tool poisoning and the MCP "rug pull" (see Rug-pull detection above), and
+  pinning tool descriptions by hash as the countermeasure. mcp-audit's version is an original
+  implementation: digests go into the committed `mcp-lock.json`, not a local state file.
+- **AAtomless, [github/github-mcp-server#3466](https://github.com/github/github-mcp-server/issues/3466)**
+  (2026-10-09) — measured 124 of 131 tool definitions changing in v2.0.0 with no new capability,
+  and proposed a two-tier digest that separates a description change from a schema change. The
+  `definition` / `contract` split follows that idea; no code was taken.
+- **Practitioner signal** — surfacepin and mcp-pin (home-built tool-pinning tools), kenneives on
+  [OWASP/CheatSheetSeries#2756](https://github.com/OWASP/CheatSheetSeries/issues/2756), yellowgram on
+  [modelcontextprotocol/typescript-sdk#2880](https://github.com/modelcontextprotocol/typescript-sdk/issues/2880).
+  Ledger PAIN-2026-007 and brief 2026-10-12 §2.2 (Marcus). Their code was not read.
+- **MCP specification** — `tools/list` (cursor pagination) and the Tool fields `name`, `title`,
+  `description`, `inputSchema`, `outputSchema`, `annotations`; **RFC 8785** for the canonical
+  JSON that is hashed (`advisory/canonical.py`, shared with the advisory feed).
+
 ## Claude Code mods (MOD-001..006, plugins/mods.py — STORY-0085)
 
 - **Claude Code mods documentation** — code.claude.com/docs/en/plugins/mods/overview,

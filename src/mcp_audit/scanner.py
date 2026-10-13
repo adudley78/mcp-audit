@@ -498,6 +498,12 @@ async def run_scan_async(
             if enumeration.error:
                 result.errors.append(f"[connect] {server.name}: {enumeration.error}")
                 continue
+            if enumeration.tools_error:
+                # The tool list may be partial; say so, then analyze what was read.
+                result.errors.append(
+                    f"[connect] {server.name}: tool list may be incomplete — "
+                    f"{enumeration.tools_error}"
+                )
 
             # Record successful enumeration for collision detection.
             connect_pairs.append((server, enumeration))

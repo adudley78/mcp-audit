@@ -1368,7 +1368,57 @@
       "owasp_names": [
         "Software Supply Chain Attacks"
       ],
-      "notes": "mcp-audit lock --verify (always, offline). mcp-audit's own owned-section checksum ({lock_version, generated_by, servers}) does not match the lock file's checksum field. CRITICAL; short-circuits every other check, exit 2. Never fires on an edit inside a foreign section (e.g. trees) — checksum scope matches ownership scope, ADR-0005 §10."
+      "notes": "mcp-audit lock --verify (always, offline). mcp-audit's own owned-section checksum ({lock_version, generated_by, servers}) does not match the lock file's checksum field, or a populated mcp-audit tools section does not match its own tools._checksum (STORY-0086). CRITICAL; short-circuits every other check, exit 2. Never fires on an edit inside a foreign section (e.g. trees) — checksum scope matches ownership scope, ADR-0005 §10."
+    },
+    {
+      "finding_id": "LOCK-006",
+      "finding_title": "Tool added since lock",
+      "owasp_codes": [
+        "MCP02",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify --connect (starts each server, opt-in). A server lists a tool that was not in its tool record when it was locked with lock --connect. HIGH. One finding per server naming the tools. See docs/lock.md, Tool definitions."
+    },
+    {
+      "finding_id": "LOCK-007",
+      "finding_title": "Tool contract changed since lock",
+      "owasp_codes": [
+        "MCP03",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify --connect. A tool's inputSchema, outputSchema, or annotations digest differs from its lock record (parameter descriptions live inside inputSchema). HIGH."
+    },
+    {
+      "finding_id": "LOCK-008",
+      "finding_title": "Tool description changed since lock",
+      "owasp_codes": [
+        "MCP03",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify --connect. Only a tool's description or title changed; schemas and annotations match the lock record. MEDIUM, still fails the exit code: the description is where tool poisoning arrives."
+    },
+    {
+      "finding_id": "LOCK-009",
+      "finding_title": "Tool removed since lock",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify --connect. A tool in the lock record is no longer listed. LOW; does not fail the exit code on its own, like LOCK-003."
     }
   ],
   "dynamic_patterns": [

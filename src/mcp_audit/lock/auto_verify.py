@@ -16,7 +16,9 @@ from mcp_audit.lock.discovery import find_lock_for
 from mcp_audit.lock.verifier import verify as verify_lock
 from mcp_audit.models import Finding, LockStatus, ServerConfig
 
-_DRIFT_IDS = frozenset({"LOCK-001", "LOCK-002", "LOCK-004", "LOCK-005"})
+_DRIFT_IDS = frozenset(
+    {"LOCK-001", "LOCK-002", "LOCK-004", "LOCK-005", "LOCK-006", "LOCK-007", "LOCK-008"}
+)
 
 
 def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]:

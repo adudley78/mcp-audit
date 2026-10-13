@@ -620,9 +620,9 @@ class TestLockAutoVerification:
         with self._patch_run_scan(result):
             r = runner.invoke(app, ["check"])
         assert "Lock: verified (1 server" in r.output
-        # trees/tools are always-present reserved-foreign stub sections —
-        # never silently claimed as verified.
-        assert "not verified: tools, trees" in r.output
+        # trees is an always-present reserved-foreign stub section — never
+        # silently claimed as verified (`tools: null` holds nothing).
+        assert "not verified: trees" in r.output
         assert r.exit_code == 0
 
     def test_drifted_lock_appends_findings_and_affects_grade(

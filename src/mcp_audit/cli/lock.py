@@ -4,10 +4,17 @@ See ``docs/decisions/ADR-0005-mcp-audit-lock.md`` for the design.  This
 command is intentionally a single Typer command with flags
 (``--verify``, ``--resolve``, ``--accept``) rather than a sub-app, matching
 the shape shown throughout STORY-0069.
+
+``--connect`` (STORY-0086) adds the live layer: ``lock --connect`` records a
+digest of every tool each server lists, and ``lock --verify --connect``
+compares the live tool lists against those digests. Both start every
+configured stdio server, exactly like ``scan --connect``.
 """
 
 from __future__ import annotations
 
+import asyncio
+import importlib.util
 import json
 from pathlib import Path
 
@@ -15,9 +22,13 @@ import typer
 from rich.console import Console
 
 from mcp_audit import cli as _cli
+from mcp_audit import mcp_client as _mcp_client
+from mcp_audit._network import NetworkPolicy, require_offline_compatible
+from mcp_audit.analyzers.rug_pull import server_key
 from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
 from mcp_audit.cli import app, console
 from mcp_audit.discovery import discover_project_configs
+from mcp_audit.lock import tool_digests
 from mcp_audit.lock.model import LOCK_FILENAME
 from mcp_audit.lock.verifier import verify as verify_lock
 from mcp_audit.lock.writer import (
@@ -26,7 +37,7 @@ from mcp_audit.lock.writer import (
     regenerate,
     write_lock,
 )
-from mcp_audit.models import ServerConfig, Severity
+from mcp_audit.models import ServerConfig, ServerEnumeration, Severity
 from mcp_audit.output.sarif import format_sarif
 from mcp_audit.registry.loader import KnownServerRegistry, RegistryLoadError
 
@@ -112,6 +123,42 @@ def _deprecation_findings(doc: dict) -> list:
     return findings
 
 
+_stderr = Console(stderr=True)
+
+
+def _sdk_problem() -> str | None:
+    """Return why ``--connect`` cannot run here, or ``None`` when it can."""
+    if importlib.util.find_spec("mcp") is None:
+        return _mcp_client._mcp_missing_message()
+    return None
+
+
+def _enumerate_tools(
+    servers: list[ServerConfig], auth_token: str | None
+) -> dict[tuple[str, str], ServerEnumeration]:
+    """Connect to each server in turn and list its tools.
+
+    Progress goes to stderr so ``--format json`` output stays parseable.
+
+    Returns:
+        Enumerations keyed by :func:`tool_digests.enumeration_key`.
+    """
+    _stderr.print(
+        f"[dim]Listing tools from {len(servers)} server(s); this starts each "
+        "configured stdio server…[/dim]"
+    )
+
+    async def _run() -> dict[tuple[str, str], ServerEnumeration]:
+        results: dict[tuple[str, str], ServerEnumeration] = {}
+        for server in servers:
+            results[
+                tool_digests.enumeration_key(server)
+            ] = await _mcp_client.connect_and_enumerate(server, auth_token=auth_token)
+        return results
+
+    return asyncio.run(_run())
+
+
 @app.command()
 def lock(
     path: Path | None = typer.Argument(  # noqa: B008
@@ -159,6 +206,25 @@ def lock(
         "-f",
         help="Output format for --verify: terminal, json, sarif",
     ),
+    connect: bool = typer.Option(  # noqa: B008
+        False,
+        "--connect",
+        help=(
+            "Start each configured server and list its tools. Writing: "
+            "record a digest of every tool definition. With --verify: report "
+            "tools added (LOCK-006), changed (LOCK-007 schema/annotations, "
+            "LOCK-008 description only) or removed (LOCK-009). Requires the "
+            "mcp extra."
+        ),
+    ),
+    connect_token: str | None = typer.Option(  # noqa: B008
+        None,
+        "--connect-token",
+        help=(
+            "Bearer token sent to remote (SSE/HTTP) servers during --connect. "
+            "Never stored or logged."
+        ),
+    ),
     if_present: bool = typer.Option(  # noqa: B008
         False,
         "--if-present",
@@ -193,6 +259,13 @@ def lock(
 
     lock_path = output.resolve() if output else root / LOCK_FILENAME
 
+    if connect:
+        require_offline_compatible(NetworkPolicy(connect=True), offline)
+        problem = _sdk_problem()
+        if problem is not None:
+            console.print(f"[red]Error:[/red] --connect: {problem}")
+            raise typer.Exit(2)
+
     if verify:
         _run_verify(
             root,
@@ -203,10 +276,21 @@ def lock(
             output_format,
             if_present=if_present,
             allow_unverified=allow_unverified,
+            connect=connect,
+            connect_token=connect_token,
         )
         return
 
-    _run_write(root, lock_path, include_user, offline, registry_path, accept=accept)
+    _run_write(
+        root,
+        lock_path,
+        include_user,
+        offline,
+        registry_path,
+        accept=accept,
+        connect=connect,
+        connect_token=connect_token,
+    )
 
 
 def _run_write(
@@ -217,6 +301,8 @@ def _run_write(
     registry_path: Path | None,
     *,
     accept: bool,
+    connect: bool = False,
+    connect_token: str | None = None,
 ) -> None:
     """Handle plain ``lock`` and ``lock --accept`` (same regeneration)."""
     servers = _discover_lock_servers(root, include_user, console)
@@ -233,15 +319,41 @@ def _run_write(
             )
         return
 
+    tool_records: dict[str, dict] | None = None
+    tool_failures: list[tuple[str, str]] = []
+    if connect:
+        enumerations = _enumerate_tools(servers, connect_token)
+        tool_records = {}
+        for server in servers:
+            enumeration = enumerations[tool_digests.enumeration_key(server)]
+            problem = enumeration.error or enumeration.tools_error
+            if problem:
+                tool_failures.append((server_key(server), problem))
+                continue
+            tool_records[server_key(server)] = tool_digests.server_record(
+                enumeration.tools
+            )
+
     registry = None if offline else _load_registry(registry_path, console)
     existing_doc = load_existing(lock_path)
-    doc = regenerate(existing_doc, servers, root, offline=offline, registry=registry)
-
     try:
+        doc = regenerate(
+            existing_doc,
+            servers,
+            root,
+            offline=offline,
+            registry=registry,
+            tool_records=tool_records,
+        )
         write_lock(lock_path, doc)
     except LockWriteError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(2) from None
+
+    tools_section = doc.get(tool_digests.TOOLS_KEY)
+    recorded: dict = (
+        tools_section["servers"] if tool_digests.is_owned(tools_section) else {}
+    )
 
     verb = "Re-locked" if accept else "Locked"
     console.print(
@@ -255,8 +367,29 @@ def _run_write(
             if pkg and pkg.get("resolved_version")
             else ""
         )
-        console.print(f"  [cyan]{key}[/cyan]{version_note}")
+        tools_note = (
+            f"  [dim]{len(recorded[key].get('tools', {}))} tools[/dim]"
+            if key in recorded
+            else ""
+        )
+        console.print(f"  [cyan]{key}[/cyan]{version_note}{tools_note}")
     console.print()
+
+    if connect:
+        console.print(
+            f"Tool definitions recorded for {len(tool_records or {})} of "
+            f"{len(servers)} server(s)."
+        )
+        for key, problem in tool_failures:
+            kept = " (kept the previous record)" if key in recorded else ""
+            console.print(
+                f"[yellow]WARN[/yellow] {key}: tools not recorded{kept} — {problem}"
+            )
+    elif recorded:
+        console.print(
+            f"[dim]Kept tool records for {len(recorded)} server(s) from the "
+            "previous lock; add --connect to refresh them.[/dim]"
+        )
 
     for finding in _deprecation_findings(doc):
         color = _SEVERITY_COLOR.get(finding.severity, "white")
@@ -274,8 +407,10 @@ def _run_verify(
     *,
     if_present: bool = False,
     allow_unverified: bool = False,
+    connect: bool = False,
+    connect_token: str | None = None,
 ) -> None:
-    """Handle ``lock --verify`` (and ``--verify --resolve``).
+    """Handle ``lock --verify`` (and ``--verify --resolve`` / ``--connect``).
 
     With ``if_present=True``, a missing lock file is a soft, non-failing
     skip rather than an error — see the ``--if-present`` flag's help text.
@@ -302,6 +437,7 @@ def _run_verify(
 
     servers = _discover_lock_servers(root, include_user, console)
     registry = _load_registry(registry_path, console) if resolve else None
+    enumerations = _enumerate_tools(servers, connect_token) if connect else None
 
     result = verify_lock(
         lock_path,
@@ -309,6 +445,7 @@ def _run_verify(
         resolve=resolve,
         registry=registry,
         allow_unverified=allow_unverified,
+        tool_enumerations=enumerations,
     )
 
     if output_format == "json":
@@ -321,6 +458,8 @@ def _run_verify(
                 for item in result.unverified
             ],
             "waived": result.waived,
+            "tools_recorded": result.tools_recorded,
+            "tools_compared": result.tools_compared,
             "findings": [f.model_dump(mode="json") for f in result.findings],
             "exit_code": result.exit_code,
         }
@@ -376,6 +515,16 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
         console.print(
             f"[yellow]WARN[/yellow] {key} was locked with an unresolved version "
             "(offline at lock time) — never treated as verified."
+        )
+
+    if result.tools_compared is not None:
+        console.print(
+            f"Tool definitions compared for {result.tools_compared} server(s)."
+        )
+    elif result.tools_recorded:
+        console.print(
+            f"[dim]Tool definitions are recorded for {result.tools_recorded} "
+            "server(s) but were not compared (add --connect).[/dim]"
         )
 
     if result.outside_root:

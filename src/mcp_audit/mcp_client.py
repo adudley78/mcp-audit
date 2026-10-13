@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 import os
 import sys
 import tempfile
@@ -287,6 +288,7 @@ async def _enumerate_stdio(
         prompts=result.prompts,
         error=result.error,
         server_stderr=captured_stderr or None,
+        tools_error=result.tools_error,
     )
 
 
@@ -368,11 +370,156 @@ def _classify_sse_error(exc: Exception, url: str) -> ServerEnumeration:
     return ServerEnumeration(error=f"SSE connection failed ({exc_type}): {exc_str}")
 
 
+#: Upper bound on ``tools/list`` pages read from one server. A server that
+#: keeps returning a cursor past this is reported via ``tools_error`` rather
+#: than looped on forever.
+_MAX_TOOL_PAGES = 100
+
+
+def _str_or_none(value: Any) -> str | None:
+    """Return *value* when it is a string, else ``None``."""
+    return value if isinstance(value, str) else None
+
+
+def _dict_or_none(value: Any) -> dict | None:
+    """Return a copy of *value* when it is a dict, else ``None``."""
+    return dict(value) if isinstance(value, dict) else None
+
+
+def _wire(obj: Any) -> dict:
+    """Return *obj* as the server sent it, in MCP wire format.
+
+    The SDK's pydantic models dump to the protocol's own camelCase keys with
+    ``by_alias=True``; ``exclude_unset=True`` keeps only the fields the server
+    actually sent, so an SDK upgrade that adds a default never changes what a
+    digest is computed over. Returns ``{}`` for anything that is not a
+    pydantic model (very old SDKs, test doubles).
+    """
+    dump = getattr(obj, "model_dump", None)
+    if callable(dump):
+        try:
+            data = dump(by_alias=True, exclude_unset=True, mode="json")
+        except Exception:  # noqa: BLE001
+            data = None
+        if isinstance(data, dict):
+            return data
+    return {}
+
+
+def _tool_info(tool: Any) -> ToolInfo:
+    """Build a :class:`ToolInfo` from one SDK tool object.
+
+    Reads the wire-format dump first. ``mcp`` 2.x renamed the Python
+    attribute to ``input_schema`` (alias ``inputSchema``), so the old
+    ``getattr(t, "inputSchema")`` silently returned nothing on 2.x and live
+    input schemas never reached the poisoning analyzer.
+    """
+    wire = _wire(tool)
+    if wire:
+        schema = wire.get("inputSchema")
+        return ToolInfo(
+            name=str(wire.get("name", getattr(tool, "name", ""))),
+            title=_str_or_none(wire.get("title")),
+            description=_str_or_none(wire.get("description")),
+            input_schema=dict(schema) if isinstance(schema, dict) else {},
+            output_schema=_dict_or_none(wire.get("outputSchema")),
+            annotations=_dict_or_none(wire.get("annotations")),
+        )
+    schema = getattr(tool, "inputSchema", None)
+    if not isinstance(schema, dict):
+        schema = getattr(tool, "input_schema", None)
+    output_schema = getattr(tool, "outputSchema", None)
+    if not isinstance(output_schema, dict):
+        output_schema = getattr(tool, "output_schema", None)
+    return ToolInfo(
+        name=tool.name,
+        title=_str_or_none(getattr(tool, "title", None)),
+        description=_str_or_none(getattr(tool, "description", None)),
+        input_schema=dict(schema) if isinstance(schema, dict) else {},
+        output_schema=_dict_or_none(output_schema),
+        annotations=_dict_or_none(getattr(tool, "annotations", None)),
+    )
+
+
+def _next_cursor(resp: Any) -> str | None:
+    """Return the pagination cursor of a list result, or ``None`` on the last page."""
+    for attr in ("next_cursor", "nextCursor"):
+        value = getattr(resp, attr, None)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+async def _list_tools_page(session: Any, cursor: str) -> Any | None:
+    """Request the ``tools/list`` page after *cursor*.
+
+    ``mcp`` 2.x takes ``params=PaginatedRequestParams(cursor=...)``; later
+    1.x releases take ``cursor=``; the earliest 1.x releases cannot paginate
+    at all, in which case this returns ``None``.
+    """
+    try:
+        accepted = inspect.signature(session.list_tools).parameters
+    except (TypeError, ValueError):
+        accepted = {}
+    if "params" in accepted:
+        from mcp import types as mcp_types  # noqa: PLC0415
+
+        return await session.list_tools(
+            params=mcp_types.PaginatedRequestParams(cursor=cursor)
+        )
+    if "cursor" in accepted:
+        return await session.list_tools(cursor=cursor)
+    return None
+
+
+async def _list_all_tools(session: Any) -> tuple[list[Any], str | None]:
+    """Read every ``tools/list`` page.
+
+    Returns:
+        ``(tools, problem)``. *problem* is ``None`` when the last page was
+        reached, otherwise a sentence saying why the list may be incomplete.
+    """
+    resp = await session.list_tools()
+    tools = list(resp.tools)
+    cursor = _next_cursor(resp)
+    pages = 1
+    while cursor is not None:
+        if pages >= _MAX_TOOL_PAGES:
+            return tools, (
+                f"tools/list returned more than {_MAX_TOOL_PAGES} pages; "
+                "stopped reading"
+            )
+        resp = await _list_tools_page(session, cursor)
+        if resp is None:
+            return tools, (
+                "the server paginates tools/list and this version of the mcp "
+                "package cannot request later pages; upgrade it"
+            )
+        tools.extend(resp.tools)
+        cursor = _next_cursor(resp)
+        pages += 1
+    return tools, None
+
+
+def _declares_tools(init_result: Any) -> bool | None:
+    """Whether the server's ``initialize`` result declares the tools capability.
+
+    ``None`` when the result does not say (very old SDKs, test doubles).
+    """
+    caps = getattr(init_result, "capabilities", None)
+    if caps is None or not hasattr(caps, "tools"):
+        return None
+    return caps.tools is not None
+
+
 async def _collect(session: Any) -> ServerEnumeration:
     """Initialize a session and call list_tools / list_resources / list_prompts.
 
     Each list call is attempted independently — partial results are returned
-    when a server supports only a subset of the MCP capabilities.
+    when a server supports only a subset of the MCP capabilities. Every
+    ``tools/list`` page is read. When the server declares tools but the list
+    could not be read in full, ``tools_error`` says why, so a caller never
+    mistakes a failed read for "this server has no tools".
 
     Args:
         session: An initialized :class:`mcp.ClientSession`.
@@ -381,24 +528,20 @@ async def _collect(session: Any) -> ServerEnumeration:
         :class:`~mcp_audit.models.ServerEnumeration` with whatever the server
         reported.
     """
-    await session.initialize()
+    init_result = await session.initialize()
 
     tools: list[ToolInfo] = []
     resources: list[ResourceInfo] = []
     prompts: list[PromptInfo] = []
+    tools_error: str | None = None
 
     try:
-        resp = await session.list_tools()
-        for t in resp.tools:
-            tools.append(
-                ToolInfo(
-                    name=t.name,
-                    description=getattr(t, "description", None),
-                    input_schema=dict(getattr(t, "inputSchema", {})),
-                )
-            )
-    except Exception:  # noqa: BLE001, S110
-        pass  # Server may not implement tools capability.
+        raw_tools, tools_error = await _list_all_tools(session)
+        tools = [_tool_info(t) for t in raw_tools]
+    except Exception as exc:  # noqa: BLE001
+        # A server that does not declare tools legitimately has none.
+        if _declares_tools(init_result) is not False:
+            tools_error = f"tools/list failed: {exc}"
 
     try:
         resp = await session.list_resources()
@@ -425,4 +568,9 @@ async def _collect(session: Any) -> ServerEnumeration:
     except Exception:  # noqa: BLE001, S110
         pass  # Server may not implement prompts capability.
 
-    return ServerEnumeration(tools=tools, resources=resources, prompts=prompts)
+    return ServerEnumeration(
+        tools=tools,
+        resources=resources,
+        prompts=prompts,
+        tools_error=tools_error,
+    )

@@ -332,3 +332,105 @@ class TestLockAccept:
         assert result.exit_code == 0
         second_doc = json.loads(lock_path.read_text(encoding="utf-8"))
         assert second_doc["servers"]["cursor/github"]["first_locked"] == first_locked
+
+
+class TestLockConnect:
+    """`lock --connect` / `lock --verify --connect` (STORY-0086), no live server."""
+
+    @pytest.fixture
+    def cli_lock(self, monkeypatch: pytest.MonkeyPatch):  # noqa: ANN201
+        import importlib
+
+        module = importlib.import_module("mcp_audit.cli.lock")
+        monkeypatch.setattr(module, "_sdk_problem", lambda: None)
+        return module
+
+    @staticmethod
+    def _serve(monkeypatch: pytest.MonkeyPatch, enumeration_for) -> None:  # noqa: ANN001
+        from mcp_audit import mcp_client
+
+        async def fake(server, timeout=10.0, auth_token=None):  # noqa: ANN001, ANN202, ASYNC109
+            return enumeration_for(server)
+
+        monkeypatch.setattr(mcp_client, "connect_and_enumerate", fake)
+
+    @staticmethod
+    def _tools(*descriptions: str):  # noqa: ANN205
+        from mcp_audit.models import ServerEnumeration, ToolInfo
+
+        return ServerEnumeration(
+            tools=[
+                ToolInfo(name=f"t{i}", description=d, input_schema={"type": "object"})
+                for i, d in enumerate(descriptions)
+            ]
+        )
+
+    def test_connect_and_offline_are_exclusive(self, tmp_path: Path) -> None:
+        _write_cursor_config(tmp_path)
+        result = runner.invoke(app, ["lock", str(tmp_path), "--offline", "--connect"])
+        assert result.exit_code == 2
+        assert "--connect" in unwrapped(result.output)
+
+    def test_missing_sdk_exits_2_before_writing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import importlib
+
+        module = importlib.import_module("mcp_audit.cli.lock")
+        monkeypatch.setattr(module, "_sdk_problem", lambda: "MCP SDK not installed.")
+        _write_cursor_config(tmp_path)
+        result = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert result.exit_code == 2
+        assert "MCP SDK not installed" in unwrapped(result.output)
+        assert not (tmp_path / "mcp-lock.json").exists()
+
+    def test_write_then_verify_reports_a_description_change(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        _write_cursor_config(tmp_path)
+        self._serve(monkeypatch, lambda s: self._tools("Old text."))
+        written = runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        assert written.exit_code == 0, written.output
+        assert "Tool definitions recorded for 1 of 1" in unwrapped(written.output)
+        doc = json.loads((tmp_path / "mcp-lock.json").read_text(encoding="utf-8"))
+        assert doc["tools"]["_producer"] == "mcp-audit"
+        assert "Old text." not in json.dumps(doc)
+
+        clean = runner.invoke(app, ["lock", str(tmp_path), "--verify"])
+        assert clean.exit_code == 0
+        assert "not compared (add --connect)" in unwrapped(clean.output)
+
+        self._serve(monkeypatch, lambda s: self._tools("New text."))
+        drifted = runner.invoke(
+            app, ["lock", str(tmp_path), "--verify", "--connect", "--format", "json"]
+        )
+        assert drifted.exit_code == 1
+        # Progress goes to stderr; click < 8.2's runner mixes it into stdout.
+        payload = json.loads(drifted.stdout[drifted.stdout.index("{") :])
+        assert payload["tools_compared"] == 1
+        assert [f["id"] for f in payload["findings"]] == ["LOCK-008"]
+
+    def test_failed_listing_keeps_previous_record(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        cli_lock,  # noqa: ANN001
+    ) -> None:
+        from mcp_audit.models import ServerEnumeration
+
+        _write_cursor_config(tmp_path)
+        self._serve(monkeypatch, lambda s: self._tools("Text."))
+        runner.invoke(app, ["lock", str(tmp_path), "--connect"])
+        before = json.loads((tmp_path / "mcp-lock.json").read_text(encoding="utf-8"))
+
+        self._serve(monkeypatch, lambda s: ServerEnumeration(error="timed out"))
+        result = runner.invoke(app, ["lock", str(tmp_path), "--accept", "--connect"])
+        assert result.exit_code == 0
+        output = unwrapped(result.output)
+        assert "kept the previous record" in output
+        assert "timed out" in output
+        after = json.loads((tmp_path / "mcp-lock.json").read_text(encoding="utf-8"))
+        assert after["tools"] == before["tools"]

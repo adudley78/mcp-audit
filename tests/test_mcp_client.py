@@ -12,11 +12,15 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
+from mcp_audit import mcp_client
 from mcp_audit.mcp_client import (
     MCP_NOT_INSTALLED,
     MCP_NOT_INSTALLED_FROZEN,
@@ -857,3 +861,163 @@ class TestClassifySseError:
         assert result.error is not None
         assert "401" in result.error
         assert "--connect-token" in result.error
+
+
+# ── Tool definitions in wire format, and tools/list pagination (STORY-0086) ──
+
+
+class _V2Tool(BaseModel):
+    """Shaped like mcp 2.x's Tool: snake_case attributes, camelCase on the wire."""
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    name: str
+    title: str | None = None
+    description: str | None = None
+    input_schema: dict
+    output_schema: dict | None = None
+    annotations: dict | None = None
+
+
+def _v2_tool(name: str, **wire: Any) -> _V2Tool:
+    return _V2Tool.model_validate(
+        {"name": name, "inputSchema": {"type": "object"}, **wire}
+    )
+
+
+class TestToolInfoFromSdkObjects:
+    def test_v2_style_model_keeps_input_schema(self) -> None:
+        """mcp 2.x has no `inputSchema` attribute; the old getattr returned {}."""
+        tool = _v2_tool(
+            "read",
+            inputSchema={"type": "object", "properties": {"path": {"type": "string"}}},
+            outputSchema={"type": "object"},
+            annotations={"readOnlyHint": True},
+            title="Read",
+        )
+        info = mcp_client._tool_info(tool)
+        assert info.input_schema["properties"] == {"path": {"type": "string"}}
+        assert info.output_schema == {"type": "object"}
+        assert info.annotations == {"readOnlyHint": True}
+        assert info.title == "Read"
+
+    def test_unset_fields_stay_none(self) -> None:
+        info = mcp_client._tool_info(_v2_tool("bare"))
+        assert info.title is None
+        assert info.output_schema is None
+        assert info.annotations is None
+
+    def test_plain_objects_still_work(self) -> None:
+        info = mcp_client._tool_info(_make_tool("legacy", schema={"type": "object"}))
+        assert info.input_schema == {"type": "object"}
+        assert info.title is None  # MagicMock attribute, not a string
+
+
+def _page(tools: list, cursor: str | None = None) -> SimpleNamespace:
+    return SimpleNamespace(tools=tools, next_cursor=cursor)
+
+
+class _CursorSession:
+    """mcp 1.x style: list_tools(cursor=None)."""
+
+    def __init__(self, pages: dict[str | None, SimpleNamespace]) -> None:
+        self.pages = pages
+        self.calls: list[str | None] = []
+
+    async def initialize(self) -> SimpleNamespace:
+        return SimpleNamespace(capabilities=SimpleNamespace(tools=object()))
+
+    async def list_tools(self, cursor: str | None = None) -> SimpleNamespace:
+        self.calls.append(cursor)
+        return self.pages[cursor]
+
+    async def list_resources(self) -> SimpleNamespace:
+        return SimpleNamespace(resources=[])
+
+    async def list_prompts(self) -> SimpleNamespace:
+        return SimpleNamespace(prompts=[])
+
+
+class TestToolsPagination:
+    @pytest.mark.asyncio
+    async def test_reads_every_page_with_cursor_kwarg(self) -> None:
+        session = _CursorSession(
+            {
+                None: _page([_v2_tool("a")], "p2"),
+                "p2": _page([_v2_tool("b")], "p3"),
+                "p3": _page([_v2_tool("c")]),
+            }
+        )
+        result = await _collect(session)
+        assert [t.name for t in result.tools] == ["a", "b", "c"]
+        assert result.tools_error is None
+        assert session.calls == [None, "p2", "p3"]
+
+    @pytest.mark.asyncio
+    async def test_reads_every_page_with_params_kwarg(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        types_mod = ModuleType("mcp.types")
+        types_mod.PaginatedRequestParams = lambda cursor: SimpleNamespace(cursor=cursor)  # type: ignore[attr-defined]
+        mcp_mod = ModuleType("mcp")
+        mcp_mod.types = types_mod  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "mcp", mcp_mod)
+        monkeypatch.setitem(sys.modules, "mcp.types", types_mod)
+
+        pages = {None: _page([_v2_tool("a")], "p2"), "p2": _page([_v2_tool("b")])}
+
+        class _ParamsSession(_CursorSession):
+            async def list_tools(self, *, params: Any = None) -> SimpleNamespace:  # type: ignore[override]
+                cursor = params.cursor if params else None
+                self.calls.append(cursor)
+                return self.pages[cursor]
+
+        result = await _collect(_ParamsSession(pages))
+        assert [t.name for t in result.tools] == ["a", "b"]
+        assert result.tools_error is None
+
+    @pytest.mark.asyncio
+    async def test_sdk_that_cannot_paginate_reports_tools_error(self) -> None:
+        class _NoPaging(_CursorSession):
+            async def list_tools(self) -> SimpleNamespace:  # type: ignore[override]
+                return _page([_v2_tool("a")], "p2")
+
+        result = await _collect(_NoPaging({}))
+        assert [t.name for t in result.tools] == ["a"]
+        assert "cannot request later pages" in (result.tools_error or "")
+
+    @pytest.mark.asyncio
+    async def test_endless_cursor_stops_at_the_page_cap(self) -> None:
+        class _Endless(_CursorSession):
+            async def list_tools(self, cursor: str | None = None) -> SimpleNamespace:  # type: ignore[override]
+                return _page([_v2_tool(f"t{cursor}")], "again")
+
+        result = await _collect(_Endless({}))
+        assert len(result.tools) == mcp_client._MAX_TOOL_PAGES
+        assert "pages" in (result.tools_error or "")
+
+
+class TestToolsError:
+    @pytest.mark.asyncio
+    async def test_failure_on_a_server_that_declares_tools(self) -> None:
+        class _Broken(_CursorSession):
+            async def list_tools(self, cursor: str | None = None) -> SimpleNamespace:  # type: ignore[override]
+                raise RuntimeError("boom")
+
+        result = await _collect(_Broken({}))
+        assert result.tools == []
+        assert result.tools_error == "tools/list failed: boom"
+        assert result.error is None
+
+    @pytest.mark.asyncio
+    async def test_server_without_tools_capability_has_no_tools_error(self) -> None:
+        class _NoTools(_CursorSession):
+            async def initialize(self) -> SimpleNamespace:  # type: ignore[override]
+                return SimpleNamespace(capabilities=SimpleNamespace(tools=None))
+
+            async def list_tools(self, cursor: str | None = None) -> SimpleNamespace:  # type: ignore[override]
+                raise RuntimeError("Method not found")
+
+        result = await _collect(_NoTools({}))
+        assert result.tools == []
+        assert result.tools_error is None
