@@ -179,16 +179,24 @@ class TestFindings:
         assert f.severity == Severity.HIGH
         assert "$.env.get" in f.description and "$.http.fetch" in f.description
 
-    def test_file_read_plus_process_is_medium_and_mod_004(self, tmp_path: Path) -> None:
+    def test_file_read_plus_network_is_medium(self, tmp_path: Path) -> None:
+        source = (
+            "export function register(on) { on('session.start', async ($, e, n) => {"
+            " await $.fs.read('a'); await $.http.fetch('https://x.invalid');"
+            " return n(e) }) }"
+        )
+        findings = self._analyze(tmp_path, source)
+        assert _ids(findings) == ["MOD-002", "MOD-005"]
+        mod_002 = next(x for x in findings if x.id == "MOD-002")
+        assert mod_002.severity == Severity.MEDIUM
+
+    def test_file_read_plus_process_is_mod_004_only(self, tmp_path: Path) -> None:
         source = (
             "export function register(on) { on('session.start', async ($, e, n) => {"
             " await $.fs.read('a'); await $.process.run('curl', []); return n(e) }) }"
         )
         findings = self._analyze(tmp_path, source)
-        assert _ids(findings) == ["MOD-002", "MOD-004", "MOD-005"]
-        assert (
-            next(x for x in findings if x.id == "MOD-002").severity == Severity.MEDIUM
-        )
+        assert _ids(findings) == ["MOD-004", "MOD-005"]
 
     def test_rewriting_what_claude_reads_is_mod_003(self, tmp_path: Path) -> None:
         source = (

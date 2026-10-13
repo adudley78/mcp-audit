@@ -1180,7 +1180,7 @@
         "Token Mismanagement and Secret Exposure",
         "Software Supply Chain Attacks"
       ],
-      "notes": "Fires when one mod calls a read ($.env.get, $.settings.read: HIGH; $.fs.read: MEDIUM) and a sink ($.http.fetch, $.process.run, $.process.spawn). CWE-201. Analyzer: plugins (STORY-0085)."
+      "notes": "Fires when one mod calls a read ($.env.get, $.settings.read: HIGH; $.fs.read: MEDIUM) and makes network requests ($.http.fetch). CWE-201. Analyzer: plugins (STORY-0085)."
     },
     {
       "finding_id": "MOD-003",

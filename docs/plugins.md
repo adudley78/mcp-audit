@@ -68,7 +68,7 @@ written in full, so this static read sees the same hooks and calls that
 | ID | Severity | Fires when |
 |---|---|---|
 | MOD-001 | HIGH | The mod hooks `tool.check`, so it can allow or deny tool calls before you're asked. In auto mode, a call it approves skips the classifier. |
-| MOD-002 | HIGH / MEDIUM | One mod reads secrets (`$.env.get`, `$.settings.read`: HIGH) or files (`$.fs.read`: MEDIUM) and can send data out (`$.http.fetch`, `$.process.run`, `$.process.spawn`). A `Read(.env)` deny rule doesn't cover a mod's own `$.fs.read`. |
+| MOD-002 | HIGH / MEDIUM | One mod reads secrets (`$.env.get`, `$.settings.read`: HIGH) or files (`$.fs.read`: MEDIUM) and makes network requests (`$.http.fetch`). A `Read(.env)` deny rule doesn't cover a mod's own `$.fs.read`. A program the mod starts could also send data; that is MOD-004. |
 | MOD-003 | MEDIUM | The mod rewrites what Claude reads (`tool.describe`, `prompt.compose`, `prompt.section`, `prompt.context`, `prompt.attachment`, `skill.prompt`, `session.append`) or submits prompts as you (`$.prompt.submit`). |
 | MOD-004 | MEDIUM | The mod starts programs (`$.process.run`/`spawn`) or sets environment variables for later commands (`$.env.set`). |
 | MOD-005 | INFO | Inventory: one per mod, with its events and calls. |

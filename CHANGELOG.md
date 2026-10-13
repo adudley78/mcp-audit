@@ -42,7 +42,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (installed plugins, Claude-written dev mods in `~/.claude/dev-mods`, and
   `CLAUDE_CODE_PLUGIN_DIRS`) and apply Anthropic's own review checklist: MOD-001
   (HIGH) the mod can approve tool calls before the permission prompt; MOD-002 (HIGH
-  or MEDIUM) it can read secrets or files and send data out; MOD-003 (MEDIUM) it
+  or MEDIUM) it can read secrets or files and make network requests; MOD-003 (MEDIUM) it
   rewrites tool descriptions or prompts; MOD-004 (MEDIUM) it starts programs; MOD-005
   (INFO) inventory; MOD-006 (MEDIUM) `CLAUDE_CODE_PLUGIN_DIRS` set in settings.
   Findings say whether a managed settings file (and so the built-in guard) was found.

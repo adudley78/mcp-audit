@@ -66,7 +66,10 @@ _REWRITES_WHAT_CLAUDE_READS = frozenset(
 )
 _SECRET_READS = frozenset({"env.get", "settings.read"})
 _FILE_READS = frozenset({"fs.read"})
-_SENDS_OUT = frozenset({"http.fetch", "process.run", "process.spawn"})
+# Network sink only.  A started program could also send data, but that is
+# MOD-004's finding; counting process.run here flagged Anthropic's own /diff
+# mod (env.get + process.run for git) as a HIGH exfiltration risk.
+_SENDS_OUT = frozenset({"http.fetch"})
 _RUNS_PROGRAMS = frozenset({"process.run", "process.spawn", "env.set"})
 _SUBMITS_AS_USER = frozenset({"prompt.submit"})
 
@@ -503,8 +506,8 @@ def analyze_mods(mods: list[Mod], guard: GuardState | None = None) -> list[Findi
                     f"Mod can read secrets or files and send data out: {mod.name}",
                     f"{mod.name} calls {', '.join('$.' + s for s in sources)} and"
                     f" {', '.join('$.' + s for s in sorted(sinks))}. One mod that can"
-                    " read environment variables, settings or files and also reach the"
-                    " network or start programs can move secrets off the machine."
+                    " read environment variables, settings or files and also make"
+                    " network requests can move secrets off the machine."
                     " Deny rules such as Read(.env) do not cover a mod's own"
                     " $.fs.read calls.",
                     "Read what the mod reads and where it sends it before keeping it."
