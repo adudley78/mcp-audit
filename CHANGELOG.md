@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.20.0] - 2026-10-13
+
+**Upgrade note:** expect more findings after upgrading, and a few different ones.
+
+- **More CVEs.** The registry now carries each package's advisory history, so SC-004
+  fires for packages that used to look clean.
+- **Lower severity when every advisory has a fix.** SC-004 is MEDIUM when the launch
+  is unpinned and every listed advisory has a fix, and HIGH when an affected version
+  is pinned or an advisory has no fix.
+- **`vet` exits 1 only for a CVE with no fix.** A CI step that relied on `vet` failing
+  for any recorded CVE now passes for packages whose CVEs are all fixed.
+- **New default checks.** A default `scan` now also reports Claude Code mods (MOD-*)
+  and allow rules or bypass setups that don't hold (HARNESS-005/006).
+
 ### Fixed
 
 - **Rug-pull docs say what the code hashes (STORY-0084).** The README said rug-pull
