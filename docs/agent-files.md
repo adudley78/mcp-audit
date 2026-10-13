@@ -137,7 +137,7 @@ This matches the CVE-2026-30615 persistence pattern: a hook that modifies
 another agent config file can inject new servers or hooks that survive
 user-initiated configuration resets.
 
-### HARNESS-001..004: settings that switch human approval off
+### HARNESS-001..006: settings that switch human approval off, and what replaced it
 
 Claude Code settings files (`~/.claude/settings.json`, a project's
 `.claude/settings.json` and `.claude/settings.local.json`, and `~/.claude.json`)
@@ -152,9 +152,14 @@ Keys and semantics follow code.claude.com/docs/en/permissions.
 | HARNESS-002 | HIGH | `enableAllProjectMcpServers` is `true` (every server in a repo's `.mcp.json` approved without a prompt) |
 | HARNESS-003 | MEDIUM | `skipDangerousModePermissionPrompt` is `true` |
 | HARNESS-004 | HIGH | `permissions.allow` contains bare `Bash`, `Bash(*)`, `PowerShell` or `PowerShell(*)` |
+| HARNESS-005 | MEDIUM | `permissions.allow` approves every argument to a command that can write, run code or reach the network: an interpreter or shell, `curl`/`wget`/`ssh`/…, `gh`/`aws`/`gcloud`/`az`/`kubectl`/`docker`/`terraform`, a package runner or manager, `rm`, `find`, `xargs`, `env`, `sudo`, bare `git`; plus `git push`, `npm publish` and `gh api` even when narrowed (STORY-0087) |
+| HARNESS-006 | MEDIUM | Approval is off in this file (as HARNESS-001 or HARNESS-003) and the same file has no `permissions.deny` rule for recursive deletes (`rm -r`/`-rf`, `Remove-Item -Recurse`, `rd /s`, `rmdir /s`) and no PreToolUse hook matching shell commands (STORY-0087) |
 
-`permissions.disableBypassPermissionsMode: "disable"` in the same file suppresses
-HARNESS-001 and HARNESS-003. Each file is checked on its own; Claude Code's
+HARNESS-005 and HARNESS-006 ask what replaced the approval prompt. People who turn
+approval off rely on allow rules and hooks instead; a rule like `Bash(gh:*)` approves
+`gh api` writes too, and bypass mode with nothing denying recursive deletes leaves the
+filesystem unguarded. `permissions.disableBypassPermissionsMode: "disable"` in the
+same file suppresses HARNESS-001, HARNESS-003 and HARNESS-006. Each file is checked on its own; Claude Code's
 precedence across user, project, local and managed settings is not modelled (see
 `GAPS.md`). `~/.claude/settings.json` is discovered for these checks from
 STORY-0079 on, which also brings user-level hooks under HOOK-001/002 and CFHYG-005.

@@ -436,7 +436,15 @@ The **new** patterns specific to the agent-file surface are:
   values including `bypassPermissions`, `disableBypassPermissionsMode`,
   `skipDangerousModePermissionPrompt`, `enableAllProjectMcpServers`, and
   "`Bash(*)` is equivalent to `Bash` and matches all Bash commands".
-- All four checks are original implementations; no code was copied.
+- **HARNESS-005/006 practitioner signal (STORY-0087)** — a bare `gh` allow entry let an
+  agent post a review on another organization's repository (Cursor forum, thread
+  173328, 2026-09-29, staff-confirmed: "covers every gh subcommand, including gh api
+  graphql calls that write"); allow rules wider than they read (HN, Luker88,
+  2026-10-01, item 49918997); a user running bypass mode in every session lost a drive
+  and then added global hooks blocking deletes outside the workspace (X,
+  @PerceptualPeak, 2026-10-06/08, 1.04M views). Brief:
+  products/mcp-audit/discovery/briefs/2026-10-12-signal-sweep.md (Marcus).
+- All six checks are original implementations; no code was copied.
 
 ## Claude Code mods (MOD-001..006, plugins/mods.py — STORY-0085)
 

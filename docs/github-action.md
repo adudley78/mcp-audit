@@ -92,7 +92,7 @@ at either the workflow or the job level (as shown above).
 ### Catch approval settings changed in a pull request
 
 A pull request can switch off Claude Code's approval prompts for everyone who
-clones the repository, by editing `.claude/settings.json` (HARNESS-001..004).
+clones the repository, by editing `.claude/settings.json` (HARNESS-001..006).
 Config files like that rarely get reviewed the way code does. The quick-start
 workflow above already covers it: the action scans from the checkout, a scan
 run inside a repository reads its `.claude/settings.json`, and

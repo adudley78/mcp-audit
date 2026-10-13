@@ -174,6 +174,12 @@ _HINTS: dict[str, str] = {
         " step."
     ),
     "HARNESS-004": ("Replace the blanket Bash allow rule with specific command rules."),
+    "HARNESS-005": (
+        "Narrow the allow rule to the subcommands you need, e.g. Bash(gh pr view:*)."
+    ),
+    "HARNESS-006": (
+        "Add deny rules for rm -rf / rm -r or a PreToolUse hook that blocks deletes."
+    ),
     "CFHYG-006": (
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
         " — a third-party base URL receives every API call and its secrets."

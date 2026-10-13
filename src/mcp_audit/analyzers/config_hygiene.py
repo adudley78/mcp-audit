@@ -264,6 +264,123 @@ def _looks_like_env_ref(value: str) -> bool:
     return any(pat.search(value) for pat in _ENV_REF_PATTERNS)
 
 
+# ── HARNESS-005/006 helpers (STORY-0087) ─────────────────────────────────────
+
+# First words of shell commands whose arguments alone can write files, run code
+# or reach the network.  A bare rule for one of these (``Bash(gh:*)``,
+# ``Bash(curl *)``) approves all of that.  Sources: brief 2026-10-12 §2.3 (a bare
+# ``gh`` allow entry let an agent post on another org's repo, Cursor forum 173328;
+# HN 49918997 on allow rules wider than they read).
+_BROAD_COMMANDS: frozenset[str] = frozenset(
+    {
+        # interpreters and shells
+        "python",
+        "python3",
+        "node",
+        "deno",
+        "bun",
+        "ruby",
+        "perl",
+        "php",
+        "bash",
+        "sh",
+        "zsh",
+        "pwsh",
+        "powershell",
+        # network tools
+        "curl",
+        "wget",
+        "nc",
+        "ncat",
+        "ssh",
+        "scp",
+        "rsync",
+        # CLIs with broad API reach
+        "gh",
+        "aws",
+        "gcloud",
+        "az",
+        "kubectl",
+        "docker",
+        "terraform",
+        # package runners and managers
+        "npx",
+        "uvx",
+        "pipx",
+        "bunx",
+        "npm",
+        "pnpm",
+        "yarn",
+        "pip",
+        "pip3",
+        # file and process power tools
+        "rm",
+        "find",
+        "xargs",
+        "env",
+        "sudo",
+        "git",
+        "cat",
+    }
+)
+# Two-word commands that are broad on their own even when narrowed.
+_BROAD_SUBCOMMANDS: frozenset[tuple[str, str]] = frozenset(
+    {("git", "push"), ("npm", "publish"), ("gh", "api")}
+)
+_RULE_RE = re.compile(r"^(Bash|PowerShell)\((.+)\)$")
+_RECURSIVE_DELETE_RE = re.compile(
+    r"\brm\s+-[a-z]*r|\bRemove-Item\b.*-Recurse|\brd\s+/s|\brmdir\s+/s",
+    re.IGNORECASE,
+)
+
+
+def _is_broad_allow_rule(rule: object) -> bool:
+    """True for ``Bash(<cmd>:*)``-style rules on a command in ``_BROAD_COMMANDS``.
+
+    ``Bash``/``Bash(*)`` alone is HARNESS-004's and is not repeated here.  A rule
+    narrowed to a subcommand (``Bash(gh pr view:*)``) is not broad, except for
+    the subcommands in ``_BROAD_SUBCOMMANDS``.
+    """
+    if not isinstance(rule, str):
+        return False
+    m = _RULE_RE.match(rule.strip())
+    if m is None:
+        return False
+    inner = m.group(2).strip()
+    for suffix in (":*", " *", "*"):
+        if inner.endswith(suffix):
+            inner = inner[: -len(suffix)].strip()
+            break
+    words = inner.split()
+    if not words:
+        return False
+    first = words[0].rsplit("/", 1)[-1].lower()
+    if len(words) == 1:
+        return first in _BROAD_COMMANDS
+    return (first, words[1].lower()) in _BROAD_SUBCOMMANDS
+
+
+def _guards_recursive_delete(perms: dict, hooks: object) -> bool:
+    """True when this file denies recursive deletes or hooks shell commands."""
+    deny = perms.get("deny")
+    if isinstance(deny, list) and any(
+        isinstance(rule, str) and _RECURSIVE_DELETE_RE.search(rule) for rule in deny
+    ):
+        return True
+    if not isinstance(hooks, dict):
+        return False
+    for entry in hooks.get("PreToolUse") or []:
+        if not isinstance(entry, dict):
+            continue
+        matcher = str(entry.get("matcher", "") or "")
+        shell_matcher = matcher in ("", "*") or re.search(
+            r"\b(Bash|PowerShell)\b", matcher
+        )
+        if shell_matcher and entry.get("hooks"):
+            return True
+    return False
+
+
 class ConfigHygieneAnalyzer(BaseAnalyzer):
     """Grade MCP config files for filesystem security hygiene.
 
@@ -799,7 +916,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         config_path: Path,
         client: str,
     ) -> list[Finding]:
-        """HARNESS-001..004 — Claude Code settings that switch human approval off.
+        """HARNESS-001..006 — approval switched off, and what replaced it.
 
         Evaluated per file.  Claude Code merges user, project, local and managed
         settings with precedence; that merge is not modelled here (GAPS.md), so a
@@ -937,6 +1054,74 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                         "Replace the blanket rule with specific ones, such as"
                         " 'Bash(npm run test *)'. Command allowlists cut attack success"
                         " at a small cost in the same benchmark."
+                    ),
+                    cwe="CWE-862",
+                    owasp=["MCP02", "MCP05"],
+                )
+            )
+
+        broad = sorted({rule.strip() for rule in allow if _is_broad_allow_rule(rule)})
+        if broad:
+            findings.append(
+                self._harness_finding(
+                    finding_id="HARNESS-005",
+                    severity=Severity.MEDIUM,
+                    client=client,
+                    config_path=config_path,
+                    title="Allow rules pre-approve commands that can write or reach "
+                    "the network",
+                    description=(
+                        f"{scope_cap} allow-list {', '.join(broad)}. Each rule"
+                        " approves every argument to a command whose arguments alone"
+                        " can write files, run code or reach the network (an"
+                        " interpreter, a network tool, a cloud or GitHub CLI, a"
+                        " package runner, rm, or git push), so it carries much of"
+                        " HARNESS-004's risk for that command."
+                    ),
+                    evidence=(
+                        f"{config_path}: permissions.allow contains {', '.join(broad)}"
+                    ),
+                    remediation=(
+                        "Narrow each rule to the subcommands you need, such as"
+                        " 'Bash(gh pr view:*)' instead of 'Bash(gh:*)', and add deny"
+                        " rules for the writes you never want approved."
+                    ),
+                    cwe="CWE-862",
+                    owasp=["MCP02", "MCP05"],
+                )
+            )
+
+        approval_off = (
+            perms.get("defaultMode") == "bypassPermissions" and not bypass_disabled
+        ) or (
+            raw.get("skipDangerousModePermissionPrompt") is True and not bypass_disabled
+        )
+        if approval_off and not _guards_recursive_delete(perms, raw.get("hooks")):
+            findings.append(
+                self._harness_finding(
+                    finding_id="HARNESS-006",
+                    severity=Severity.MEDIUM,
+                    client=client,
+                    config_path=config_path,
+                    title="Approval is off and nothing guards recursive deletes",
+                    description=(
+                        f"{scope_cap} turns approval prompts off (bypassPermissions or"
+                        " skipDangerousModePermissionPrompt) but has no deny rule for"
+                        " recursive deletes and no PreToolUse hook on shell commands."
+                        " With approval off, those are the only things between a bad"
+                        " command and your files. Only this file is checked; a guard"
+                        " in another settings file isn't seen."
+                    ),
+                    evidence=(
+                        f"{config_path}: approval off; no permissions.deny rule"
+                        " matching rm -r/-rf, Remove-Item -Recurse, rd /s or rmdir /s;"
+                        " no PreToolUse hook matching Bash"
+                    ),
+                    remediation=(
+                        "Add deny rules such as 'Bash(rm -rf:*)' and"
+                        " 'Bash(rm -r:*)', or a PreToolUse hook that blocks deletes"
+                        " outside the project, and run bypass mode only in a"
+                        " disposable container."
                     ),
                     cwe="CWE-862",
                     owasp=["MCP02", "MCP05"],

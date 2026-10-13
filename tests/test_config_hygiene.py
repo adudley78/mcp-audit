@@ -1520,7 +1520,11 @@ class TestHarnessPosture:
         out = _harness(
             {"permissions": {"defaultMode": "bypassPermissions"}}, project_settings
         )
-        assert [(f.id, f.severity) for f in out] == [("HARNESS-001", Severity.HIGH)]
+        # HARNESS-006 (STORY-0087): nothing in this file guards recursive deletes.
+        assert [(f.id, f.severity) for f in out] == [
+            ("HARNESS-001", Severity.HIGH),
+            ("HARNESS-006", Severity.MEDIUM),
+        ]
         assert "committed project settings" in out[0].description.lower()
         assert out[0].finding_path == str(project_settings)
         assert out[0].owasp_mcp_top_10 == ["MCP02", "MCP07"]
@@ -1551,7 +1555,10 @@ class TestHarnessPosture:
         local = tmp_path / ".claude" / "settings.local.json"
         local.parent.mkdir(parents=True)
         out = _harness({"skipDangerousModePermissionPrompt": True}, local)
-        assert [(f.id, f.severity) for f in out] == [("HARNESS-003", Severity.MEDIUM)]
+        assert [(f.id, f.severity) for f in out] == [
+            ("HARNESS-003", Severity.MEDIUM),
+            ("HARNESS-006", Severity.MEDIUM),
+        ]
         assert "local project settings" in out[0].description.lower()
 
     @pytest.mark.parametrize(
@@ -1580,7 +1587,91 @@ class TestHarnessPosture:
                 raw, project_settings, "claude-code"
             )
         }
-        assert ids == {"HARNESS-001"}
+        assert ids == {"HARNESS-001", "HARNESS-006"}
+
+    @pytest.mark.parametrize(
+        "rule",
+        [
+            "Bash(gh:*)",
+            "Bash(curl *)",
+            "Bash(python3:*)",
+            "Bash(/usr/bin/node:*)",
+            "Bash(git:*)",
+            "Bash(git push:*)",
+            "Bash(npm publish *)",
+            "Bash(gh api:*)",
+            "PowerShell(curl *)",
+            "Bash(rm *)",
+        ],
+    )
+    def test_broad_command_rules_fire_005(
+        self, project_settings: Path, rule: str
+    ) -> None:
+        """STORY-0087: a rule that approves every argument to a powerful command."""
+        out = _harness({"permissions": {"allow": [rule, "Read"]}}, project_settings)
+        assert [(f.id, f.severity) for f in out] == [("HARNESS-005", Severity.MEDIUM)]
+        assert rule in out[0].evidence
+
+    @pytest.mark.parametrize(
+        "rule",
+        [
+            "Bash(gh pr view:*)",
+            "Bash(git log *)",
+            "Bash(npm run test *)",
+            "Bash(ls:*)",
+            "Bash(cat README.md)",
+            "WebFetch(domain:example.com)",
+        ],
+    )
+    def test_narrow_rules_do_not_fire_005(
+        self, project_settings: Path, rule: str
+    ) -> None:
+        assert _harness({"permissions": {"allow": [rule]}}, project_settings) == []
+
+    @pytest.mark.parametrize(
+        "guard",
+        [
+            {"permissions": {"deny": ["Bash(rm -rf:*)"]}},
+            {"permissions": {"deny": ["Bash(rm -r *)"]}},
+            {"permissions": {"deny": ["PowerShell(Remove-Item * -Recurse)"]}},
+            {
+                "hooks": {
+                    "PreToolUse": [
+                        {
+                            "matcher": "Bash",
+                            "hooks": [{"type": "command", "command": "guard.sh"}],
+                        }
+                    ]
+                }
+            },
+        ],
+    )
+    def test_a_delete_guard_silences_006(
+        self, project_settings: Path, guard: dict
+    ) -> None:
+        raw: dict = {"permissions": {"defaultMode": "bypassPermissions"}}
+        raw["permissions"].update(guard.get("permissions", {}))
+        if "hooks" in guard:
+            raw["hooks"] = guard["hooks"]
+        ids = [f.id for f in _harness(raw, project_settings)]
+        assert ids == ["HARNESS-001"]
+
+    def test_a_hook_on_other_tools_does_not_count_as_a_guard(
+        self, project_settings: Path
+    ) -> None:
+        raw = {
+            "permissions": {"defaultMode": "bypassPermissions"},
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Edit|Write",
+                        "hooks": [{"type": "command", "command": "x"}],
+                    }
+                ]
+            },
+        }
+        ids = [f.id for f in _harness(raw, project_settings)]
+        assert "HARNESS-006" in ids
 
     def test_absent_or_malformed_keys_are_silent(self, project_settings: Path) -> None:
         assert _harness({}, project_settings) == []

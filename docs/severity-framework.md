@@ -219,6 +219,8 @@ the two exploitation pre-conditions that malware relied on.
 | HARNESS-002 | HIGH     | ASI03, ASI04 | MCP09, MCP07 | `enableAllProjectMcpServers: true` — every server in a repository's `.mcp.json` approved without a prompt. CWE-862 |
 | HARNESS-003 | MEDIUM   | ASI02, ASI03 | MCP02, MCP07 | `skipDangerousModePermissionPrompt: true` — no confirmation before bypass mode. CWE-862 |
 | HARNESS-004 | HIGH     | ASI02, ASI05 | MCP02, MCP05 | `permissions.allow` contains bare `Bash`/`Bash(*)` (or PowerShell) — every shell command pre-approved. CWE-862 |
+| HARNESS-005 | MEDIUM   | ASI02, ASI05 | MCP02, MCP05 | `permissions.allow` approves every argument to a command that can write, run code or reach the network (interpreters, network tools, cloud/GitHub CLIs, package runners, `rm`, `find`, `xargs`, `env`, `sudo`, bare `git`; `git push`, `npm publish`, `gh api` even when narrowed). CWE-862 (STORY-0087) |
+| HARNESS-006 | MEDIUM   | ASI02, ASI05 | MCP02, MCP05 | Approval off in the file (bypassPermissions or skipDangerousModePermissionPrompt) with no deny rule for recursive deletes and no PreToolUse hook on shell commands in the same file. CWE-862 (STORY-0087) |
 | CFHYG-006   | MEDIUM   | ASI06 | MCP01, MCP08 | `ANTHROPIC_BASE_URL` overrides the Anthropic API endpoint. All API traffic (including the API key) is routed to the configured domain. CVE-2026-21852. CWE-441. CVSS: 7.5 |
 
 **Windows note:** CFHYG-001 and CFHYG-002 are skipped on Windows because POSIX
