@@ -314,12 +314,16 @@ longer be what is actually installed, and, in the other direction, misses
 advisories that landed after generation.
 
 The measured shape of this failure mode is the mirror image of the deps.dev
-limitation documented below: the same independent study found that a
-dependency graph frozen at release accumulates **phantom findings** as
-advisories land on versions the machine no longer has —
-[4,037 phantom findings across 250 MCP server configs](https://github.com/adudley78/mcp-audit/issues/88#issuecomment-5584233690),
-against only 7 missed findings in the other direction. An SBOM generated at
-release and scanned a year later has exactly this shape; it is the same
+limitation documented below. In the same independent study, an advisory
+scanner reading a dependency tree frozen at each root package's release date
+flagged **130 of 249 MCP servers (52.2%) that are clean when installed**, and
+none the other way round (affected when installed, clean frozen)
+([spec §13, v3.10](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.10/spec/mcp-lock-spec.md#13-security-considerations);
+recomputed 2026-10-09 with both arms through his corrected resolver, see
+`RESOLVER-NOTES.md` at the same tag). Counts of individual findings are left
+out on purpose: five packages carry 82% of them, so the rate is stable and the
+count is not. An SBOM generated at release and scanned a year later has
+exactly this shape; it is the same
 failure the advisory feed's `expires` field exists to prevent (see
 `docs/advisory-feed.md`), applied to a document type that currently carries
 no expiry mechanism at all.
@@ -358,12 +362,16 @@ tree," and mcp-audit models none of them.
 
 **Measured divergence.** [Prachet Poddar's independent 250-MCP-server-config study](https://github.com/adudley78/mcp-audit/issues/88#issuecomment-5584233690)
 compared deps.dev's published graph, a graph frozen at each root package's
-publish date, and a live `npm install`, against advisory verdicts from the
-same npm bulk advisory endpoint `npm audit` itself uses. The deps.dev-vs-live
-arm diverged on advisory verdicts for **0.8% of servers (2 of 249), six
-findings, zero phantom findings** — the measured bound this project can
-currently point to for how often the published-graph shortcut produces a
-different verdict than a real install would have.
+publish date, and the tree his resolver computed against the live registry,
+against advisory verdicts from the same npm bulk advisory endpoint `npm audit`
+itself uses. The deps.dev-vs-live arm diverged on advisory verdicts for
+**0.8% of servers (2 of 249), six findings, zero phantom findings** — the
+measured bound this project can currently point to for how often the
+published-graph shortcut produces a different verdict than a real install
+would have. **It was measured on 2026-09-08, before his later resolver
+corrections, and has not been recomputed since**: the trees it used match
+neither walk his study now releases. The other figures below come from the
+same measurement.
 
 This is a limitation with a measured bound, **not an accuracy claim**. It is
 a single study of one corpus, at one point in time, produced by one person —
