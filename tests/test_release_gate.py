@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -187,6 +189,47 @@ def test_cli_tag_reads_the_parent_version(tmp_path: Path, monkeypatch) -> None:
     out.write_text("")
     assert main(args) == 0
     assert out.read_text() == "create=true\ntag=v0.22.0\n"
+
+
+def test_runs_as_a_script(tmp_path: Path) -> None:
+    """CI runs the file directly, which takes the fallback import path."""
+    out = tmp_path / "out"
+    result = subprocess.run(  # noqa: S603 - fixed argv, our own script
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "release_gate.py"),
+            "publish",
+            "--event",
+            "workflow_dispatch",
+            "--ref",
+            "refs/heads/x",
+            "--publish",
+            "false",
+            "--on-main",
+            "false",
+        ],
+        cwd=tmp_path,
+        env={"GITHUB_OUTPUT": str(out), "PATH": ""},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert out.read_text() == "publish=false\n"
+    result = subprocess.run(  # noqa: S603 - fixed argv, our own script
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "release_gate.py"),
+            "tag",
+            "--tags",
+            "v0.0.1",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "ImportError" not in result.stderr and "Traceback" not in result.stderr
 
 
 # ── workflow wiring ───────────────────────────────────────────────────────

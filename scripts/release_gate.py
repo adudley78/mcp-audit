@@ -59,7 +59,7 @@ from pathlib import Path
 
 try:  # imported as ``scripts.release_gate`` (tests) or run as a script (CI)
     from scripts.compose_release_notes import ComposeError, extract_changelog_section
-except ImportError:  # pragma: no cover - the workflow runs it as a script
+except ImportError:  # the workflow runs it as a script; see test_runs_as_a_script
     from compose_release_notes import (  # type: ignore[no-redef]
         ComposeError,
         extract_changelog_section,
@@ -157,8 +157,8 @@ def decide_publish(
     publish_input: str,
     version: str,
     on_main: bool,
-    changelog: str | None = None,
-    existing_tags: str = "",
+    changelog: str,
+    existing_tags: str,
 ) -> Decision:
     if is_dry_run(event, publish_input):
         return Decision(False, DRY_RUN)
@@ -176,8 +176,7 @@ def decide_publish(
         )
     if not on_main:
         raise GateError(f"v{tag_version} points at a commit that is not on main")
-    if changelog is not None:
-        require_changelog_section(changelog, version)
+    require_changelog_section(changelog, version)
     require_not_behind(version, existing_tags)
     return Decision(
         True, f"v{tag_version} is on main, matches pyproject.toml, has notes", version

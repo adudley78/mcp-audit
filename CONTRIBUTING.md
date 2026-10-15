@@ -256,9 +256,9 @@ CI's.
 
 **No release or signing credential is ever configured as a cloud-agent
 secret** — no PyPI token, no minisign project signing key, no `keys/`
-material, no GitHub release-write token. Releases stay on a maintainer's
-machine and in GitHub Actions; a cloud agent's job is branch → PR → merge,
-never an artifact the public consumes. Ephemeral keypairs generated inside a
+material, no GitHub release-write token. Publishing happens only in GitHub
+Actions. Since R73, though, merging a version-bump PR starts a release (see
+"Releasing" below), so an agent allowed to merge one is allowed to release. Ephemeral keypairs generated inside a
 test are fine (the signing round-trip tests already do this) — only the
 project's own signing key is off-limits.
 
@@ -331,6 +331,10 @@ bump workflow won't help: it sees the tag and reports "already tagged".
 Never move to a personal token for the tag push: a tag pushed with one
 starts `release.yml` on its own, and the dispatch would then start a second
 run.
+
+A stray higher `vX.Y.Z` tag (for example one created off `main`) makes the
+gate refuse every later release as "behind". It fails safe, but the fix is
+to delete that tag.
 
 ## What we won't accept
 
