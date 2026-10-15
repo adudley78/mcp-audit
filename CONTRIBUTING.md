@@ -300,6 +300,32 @@ form is followed exactly. Use a bare `pytest tests/ -q -rs` (this section's
 form) against the `--system` install, not `uv run pytest`, when verifying a
 cloud-agent box.
 
+## Releasing
+
+Merging a version bump to `main` is the release. A release PR changes
+`[project].version` in `pyproject.toml` and promotes the CHANGELOG
+`[Unreleased]` section to `## [X.Y.Z]`. When it merges,
+`.github/workflows/release-on-version-bump.yml` checks (via
+`scripts/release_gate.py tag`) that this commit changed the version, that the
+version is new and higher than every release tag, and that the CHANGELOG has
+its section. It then tags that commit `vX.Y.Z` and dispatches `release.yml`
+on the tag with `publish=true`. A commit that only edits `pyproject.toml`
+(a dependency bump) never tags.
+
+`release.yml`'s `gate` job (`scripts/release_gate.py publish`) decides for
+every run whether it may publish: the ref must be a `vX.Y.Z` tag on `main`
+that matches `pyproject.toml` at that commit. A plain `workflow_dispatch` is
+still a build-only dry run. Pushing a tag by hand still works, and passes
+the same gate.
+
+No credential is involved beyond the workflow's own `GITHUB_TOKEN`, so the
+rule above still holds: nothing that can publish lives in an agent.
+
+If the tag was pushed but the dispatch failed, recover with
+`gh workflow run release.yml --ref vX.Y.Z -f publish=true`. Never move to a
+personal token for the tag push: a tag pushed with one starts `release.yml`
+on its own, and the dispatch would then start a second run.
+
 ## What we won't accept
 
 - PRs that remove or weaken existing detection patterns without strong justification

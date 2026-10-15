@@ -167,18 +167,31 @@ def test_release_upload_consumes_composite_output() -> None:
 
 
 def test_release_dispatch_is_a_dry_run() -> None:
-    """workflow_dispatch must build but never publish.
+    """workflow_dispatch builds, and publishes only through the `gate` job.
 
-    The first tag push must not be the first release-side execution.
+    The first tag push must not be the first release-side execution, so a
+    plain dispatch still builds everything and publishes nothing. A dispatch
+    publishes only with ``publish: true`` on a vX.Y.Z tag, and that decision
+    lives in one job (``gate``, backed by ``scripts/release_gate.py``) that
+    every publishing job depends on.
     """
     release = _load(RELEASE_YML)
     on = _on(release)
     assert "workflow_dispatch" in on
     assert "push" in on
+    publish_input = on["workflow_dispatch"]["inputs"]["publish"]
+    assert publish_input["type"] == "boolean"
+    assert publish_input["default"] is False
     for name in ("release", "publish-pypi", "tag-major"):
-        condition = release["jobs"][name].get("if", "")
-        assert "github.event_name == 'push'" in condition, name
+        job = release["jobs"][name]
+        assert "gate" in job["needs"], name
+        assert job.get("if", "") == "needs.gate.outputs.publish == 'true'", name
     assert "if" not in release["jobs"]["build"]
+    gate_run = "\n".join(s.get("run", "") for s in _steps(release["jobs"]["gate"]))
+    assert "scripts/release_gate.py publish" in gate_run
+    assert "${{" not in gate_run  # inputs reach the script through env only
+    assert release["concurrency"]["group"] == "release-${{ github.ref }}"
+    assert release["concurrency"]["cancel-in-progress"] is False
 
 
 def test_no_local_linux_binary_script() -> None:

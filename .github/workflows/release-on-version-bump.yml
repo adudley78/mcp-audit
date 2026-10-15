@@ -1,0 +1,107 @@
+name: Release on version bump
+
+# Merging a version bump to main IS the release.
+#
+# For the commit that was pushed to main (or the SHA given to a manual run),
+# scripts/release_gate.py checks that this very commit changed
+# [project].version, that the version is untagged and higher than every
+# release tag, and that CHANGELOG.md has its section. Only then does this job
+# tag THAT commit and dispatch release.yml on the tag with publish=true.
+# A later commit that merely edits pyproject.toml (Dependabot) never tags.
+#
+# Why a dispatch and not just the tag: a tag pushed with GITHUB_TOKEN does not
+# start other workflows (GitHub's loop guard), but workflow_dispatch is the
+# documented exception. release.yml's `gate` job re-checks everything on its
+# own before any job publishes, so this workflow cannot publish by itself.
+#
+# Recovery: if the tag was pushed but the dispatch failed, run
+#   gh workflow run release.yml --ref vX.Y.Z -f publish=true
+# Never add a personal token here: a tag pushed with one starts release.yml
+# by itself, and the dispatch below would then publish twice.
+#
+# Assumes squash merges (one commit per push to main), which branch
+# protection enforces. For anything else, run this by hand with the SHA.
+
+on:
+  push:
+    branches: [main]
+    paths: [pyproject.toml]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full SHA of the merged version-bump commit on main to release.
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: release-on-version-bump
+  cancel-in-progress: false
+
+jobs:
+  tag-and-dispatch:
+    name: Tag and dispatch release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the vX.Y.Z tag
+      actions: write # dispatch release.yml
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the commit to release
+        id: commit
+        env:
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          SHA="${INPUT_SHA:-$GITHUB_SHA}"
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::not a full commit SHA: $SHA"
+            exit 1
+          fi
+          git fetch --force --tags origin main
+          if ! git merge-base --is-ancestor "$SHA" FETCH_HEAD; then
+            echo "::error::$SHA is not on main"
+            exit 1
+          fi
+          git show "$SHA:pyproject.toml" > "$RUNNER_TEMP/pyproject.toml"
+          git show "$SHA:CHANGELOG.md" > "$RUNNER_TEMP/CHANGELOG.md"
+          if ! git show "$SHA^:pyproject.toml" > "$RUNNER_TEMP/previous.toml" 2>/dev/null; then
+            rm -f "$RUNNER_TEMP/previous.toml"
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Decide whether this commit is a release
+        id: decide
+        run: |
+          set -euo pipefail
+          python3 scripts/release_gate.py tag \
+            --pyproject "$RUNNER_TEMP/pyproject.toml" \
+            --previous-pyproject "$RUNNER_TEMP/previous.toml" \
+            --changelog "$RUNNER_TEMP/CHANGELOG.md" \
+            --tags "$(git tag -l 'v*.*.*')"
+
+      - name: Create the release tag
+        if: steps.decide.outputs.create == 'true'
+        env:
+          TAG: ${{ steps.decide.outputs.tag }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git tag "$TAG" "$SHA"
+          git push origin "refs/tags/$TAG"
+
+      - name: Dispatch release.yml on the tag
+        if: steps.decide.outputs.create == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.decide.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG" -f publish=true
+          echo "Dispatched release.yml for $TAG" >> "$GITHUB_STEP_SUMMARY"

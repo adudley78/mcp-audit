@@ -4,26 +4,79 @@ on:
   push:
     tags:
       - "v*.*.*"
-  # Dry-run: same `build` job (and therefore the same composite) as a tag
-  # push, including `upload-artifact`. Never creates a GitHub Release,
-  # publishes to PyPI, or moves @vN — those jobs are `if: push` only.
-  # Dispatch this after changing the composite or the upload path; do not
-  # wait for the next tag to be the first release-side execution.
+  # Two uses, one rule: nothing publishes unless the `gate` job says so.
+  #
+  # 1. Dry run (the default). Same `build` job (and therefore the same
+  #    composite) as a tag push, including `upload-artifact`. Never creates
+  #    a GitHub Release, publishes to PyPI, or moves @vN. Dispatch this after
+  #    changing the composite or the upload path; do not wait for the next
+  #    tag to be the first release-side execution.
+  # 2. Release. release-on-version-bump.yml dispatches this workflow on a
+  #    vX.Y.Z tag with publish=true after a version bump merges to main,
+  #    because a tag pushed with GITHUB_TOKEN cannot start a workflow.
+  #    `gate` applies the same checks to that run as to a tag push.
   workflow_dispatch:
     inputs:
       dry_run:
         description: >
-          Ignored as a gate: workflow_dispatch never publishes. Builds the
-          four binaries via .github/actions/build-binary/ and keeps them as
-          workflow artifacts so the upload path is proven. Only a v*.*.*
-          tag push creates a GitHub Release or publishes the wheel.
+          Kept so old dispatch commands still parse; it gates nothing.
+          Without publish=true a dispatch only builds the four binaries via
+          .github/actions/build-binary/ and keeps them as artifacts.
         type: boolean
         default: true
+      publish:
+        description: >
+          Publish this run. Honoured only when the run's ref is a vX.Y.Z tag
+          on main that matches pyproject.toml (scripts/release_gate.py).
+          Anything else fails the gate instead of publishing.
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+# One run per ref at a time: a tag can never publish twice in parallel.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  gate:
+    name: Decide whether this run publishes
+    # Every job that creates a Release, publishes to PyPI, or moves a tag
+    # needs this one. A PyPI version can never be reused, so a refusal
+    # fails the run with the reason instead of quietly skipping.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag, the version, and main
+        id: decide
+        env:
+          PUBLISH_INPUT: ${{ inputs.publish }}
+        # `if` form on purpose: under bash -e a bare `merge-base
+        # --is-ancestor` on a non-main ref would exit before the gate
+        # prints its reason.
+        run: |
+          set -euo pipefail
+          git fetch --force origin main
+          if git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            ON_MAIN=true
+          else
+            ON_MAIN=false
+          fi
+          python3 scripts/release_gate.py publish \
+            --event "$GITHUB_EVENT_NAME" \
+            --ref "$GITHUB_REF" \
+            --publish "${PUBLISH_INPUT:-false}" \
+            --on-main "$ON_MAIN"
+
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -75,9 +128,10 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: build
-    # Tag pushes only. workflow_dispatch is a dry-run of `build`.
-    if: github.event_name == 'push'
+    needs: [build, gate]
+    # Only when `gate` says this run publishes (a tag push, or a dispatch
+    # with publish=true on a vX.Y.Z tag). A plain dispatch is a dry run.
+    if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -132,9 +186,9 @@ jobs:
     # Runs independently of the `release` job — a transient PyPI outage must
     # not withhold the GitHub Release binaries, and vice versa.  Both still
     # depend on `build` so a broken build never publishes anywhere.
-    needs: build
-    # Tag pushes only. workflow_dispatch is a dry-run of `build`.
-    if: github.event_name == 'push'
+    needs: [build, gate]
+    # Only when `gate` says this run publishes. A plain dispatch is a dry run.
+    if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
 
     # Bound to the `pypi` Environment so PyPI's Trusted Publisher OIDC claim
@@ -146,8 +200,9 @@ jobs:
     # the `marcus` repo. A workflow run on any other ref cannot obtain this
     # environment's OIDC token, which is what actually stops a forked
     # workflow from impersonating the release pipeline. No required
-    # reviewers — this job is tag-triggered and fully automated; a human
-    # approval gate here would only stall releases.
+    # reviewers — this job runs only on a vX.Y.Z tag ref (pushed, or
+    # dispatched by release-on-version-bump.yml) and is fully automated; a
+    # human approval gate here would only stall releases.
     environment:
       name: pypi
       url: https://pypi.org/p/mcp-audit-scanner
@@ -217,8 +272,8 @@ jobs:
     # the floating `@vN` tag.  A broken PyPI publish must NOT silently upgrade
     # every `@v1` consumer to a release where `pip install mcp-audit-scanner`
     # 404s, and a broken GitHub Release must not advertise missing binaries.
-    needs: [build, release, publish-pypi]
-    if: github.event_name == 'push'
+    needs: [build, gate, release, publish-pypi]
+    if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
 
     permissions:
