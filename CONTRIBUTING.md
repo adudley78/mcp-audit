@@ -256,9 +256,9 @@ CI's.
 
 **No release or signing credential is ever configured as a cloud-agent
 secret** — no PyPI token, no minisign project signing key, no `keys/`
-material, no GitHub release-write token. Releases stay on a maintainer's
-machine and in GitHub Actions; a cloud agent's job is branch → PR → merge,
-never an artifact the public consumes. Ephemeral keypairs generated inside a
+material, no GitHub release-write token. Publishing happens only in GitHub
+Actions. Since R73, though, merging a version-bump PR starts a release (see
+"Releasing" below), so an agent allowed to merge one is allowed to release. Ephemeral keypairs generated inside a
 test are fine (the signing round-trip tests already do this) — only the
 project's own signing key is off-limits.
 
@@ -299,6 +299,42 @@ install script writes to) and, missing `--extra sbom`, leaves
 form is followed exactly. Use a bare `pytest tests/ -q -rs` (this section's
 form) against the `--system` install, not `uv run pytest`, when verifying a
 cloud-agent box.
+
+## Releasing
+
+Merging a version bump to `main` is the release. A release PR changes
+`[project].version` in `pyproject.toml` and promotes the CHANGELOG
+`[Unreleased]` section to `## [X.Y.Z]`. When it merges,
+`.github/workflows/release-on-version-bump.yml` checks (via
+`scripts/release_gate.py tag`) that this commit changed the version, that the
+version is new and higher than every release tag, and that the CHANGELOG has
+its section. It then tags that commit `vX.Y.Z` and dispatches `release.yml`
+on the tag with `publish=true`. A commit that only edits `pyproject.toml`
+(a dependency bump) never tags.
+
+`release.yml`'s `gate` job (`scripts/release_gate.py publish`) decides for
+every run whether it may publish: the ref must be a `vX.Y.Z` tag on `main`
+that matches `pyproject.toml` at that commit, CHANGELOG must have a non-empty
+section for it, and no release tag may be higher. A plain
+`workflow_dispatch` is still a build-only dry run. Pushing a tag by hand
+still works, and passes the same gate.
+
+**This means merge rights are release rights.** Anyone, or any agent, who
+can merge a PR that bumps `[project].version` publishes that version to PyPI
+and GitHub. The publishing credentials themselves still live only in GitHub
+Actions (the workflow's `GITHUB_TOKEN` and PyPI trusted publishing); none is
+ever configured as an agent secret.
+
+If the tag was created but the dispatch failed, recover with
+`gh workflow run release.yml --ref vX.Y.Z -f publish=true`. Re-running the
+bump workflow won't help: it sees the tag and reports "already tagged".
+Never move to a personal token for the tag push: a tag pushed with one
+starts `release.yml` on its own, and the dispatch would then start a second
+run.
+
+A stray higher `vX.Y.Z` tag (for example one created off `main`) makes the
+gate refuse every later release as "behind". It fails safe, but the fix is
+to delete that tag.
 
 ## What we won't accept
 
