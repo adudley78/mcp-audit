@@ -314,17 +314,23 @@ on the tag with `publish=true`. A commit that only edits `pyproject.toml`
 
 `release.yml`'s `gate` job (`scripts/release_gate.py publish`) decides for
 every run whether it may publish: the ref must be a `vX.Y.Z` tag on `main`
-that matches `pyproject.toml` at that commit. A plain `workflow_dispatch` is
-still a build-only dry run. Pushing a tag by hand still works, and passes
-the same gate.
+that matches `pyproject.toml` at that commit, CHANGELOG must have a non-empty
+section for it, and no release tag may be higher. A plain
+`workflow_dispatch` is still a build-only dry run. Pushing a tag by hand
+still works, and passes the same gate.
 
-No credential is involved beyond the workflow's own `GITHUB_TOKEN`, so the
-rule above still holds: nothing that can publish lives in an agent.
+**This means merge rights are release rights.** Anyone, or any agent, who
+can merge a PR that bumps `[project].version` publishes that version to PyPI
+and GitHub. The publishing credentials themselves still live only in GitHub
+Actions (the workflow's `GITHUB_TOKEN` and PyPI trusted publishing); none is
+ever configured as an agent secret.
 
-If the tag was pushed but the dispatch failed, recover with
-`gh workflow run release.yml --ref vX.Y.Z -f publish=true`. Never move to a
-personal token for the tag push: a tag pushed with one starts `release.yml`
-on its own, and the dispatch would then start a second run.
+If the tag was created but the dispatch failed, recover with
+`gh workflow run release.yml --ref vX.Y.Z -f publish=true`. Re-running the
+bump workflow won't help: it sees the tag and reports "already tagged".
+Never move to a personal token for the tag push: a tag pushed with one
+starts `release.yml` on its own, and the dispatch would then start a second
+run.
 
 ## What we won't accept
 

@@ -65,7 +65,7 @@ jobs:
         # prints its reason.
         run: |
           set -euo pipefail
-          git fetch --force origin main
+          git fetch --force --tags origin main
           if git merge-base --is-ancestor HEAD FETCH_HEAD; then
             ON_MAIN=true
           else
@@ -75,7 +75,8 @@ jobs:
             --event "$GITHUB_EVENT_NAME" \
             --ref "$GITHUB_REF" \
             --publish "${PUBLISH_INPUT:-false}" \
-            --on-main "$ON_MAIN"
+            --on-main "$ON_MAIN" \
+            --tags "$(git tag -l 'v*.*.*')"
 
   build:
     name: Build ${{ matrix.target }}

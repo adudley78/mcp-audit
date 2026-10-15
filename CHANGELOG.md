@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **Releases: merging a version bump to `main` now tags and publishes it.** A new workflow, `release-on-version-bump.yml`, tags the commit that changed the version (never a later commit) and dispatches `release.yml`. A new `gate` job decides for every release run whether it may publish: only a `vX.Y.Z` tag on `main` that matches `pyproject.toml`. A plain manual dispatch is still a build-only dry run, and pushing a tag by hand still works.
+- **Releases: merging a version bump to `main` now tags and publishes it.** A new workflow, `release-on-version-bump.yml`, tags the commit that changed the version (never a later commit) and dispatches `release.yml`. A new `gate` job decides for every release run whether it may publish: only a `vX.Y.Z` tag on `main` that matches `pyproject.toml`, has a non-empty CHANGELOG section, and isn't behind an existing release tag. A plain manual dispatch is still a build-only dry run, and pushing a tag by hand still works.
 
 ---
 

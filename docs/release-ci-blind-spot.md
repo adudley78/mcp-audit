@@ -1,8 +1,9 @@
 # The release.yml blind spot (R42)
 
 `release.yml` runs on two triggers: a `v*.*.*` tag push, and
-`workflow_dispatch` (a dry-run of the `build` job only — see the comments at
-the top of the workflow). **Neither is a `pull_request` trigger.** That
+`workflow_dispatch` (a dry-run of the `build` job unless dispatched on a
+`vX.Y.Z` tag with `publish: true`, which is how `release-on-version-bump.yml`
+starts a release; see the comments at the top of the workflow). **Neither is a `pull_request` trigger.** That
 means every action pinned in `release.yml` is only as tested as whatever
 *other* workflow happens to exercise the same action, on a PR, before the
 next tag.
@@ -17,7 +18,7 @@ For each action `release.yml` pins, whether it is actually **executed**
 | `actions/checkout` | every job | **Yes** | Same pinned SHA is checked out, unconditionally, in `ci.yml` (`test`, `test-all-extras`, `wheel-check`, `binary-smoke`, `source-smoke`), `action-ci.yml`, `registry-drift.yml`, and `mcp-audit-example.yml` — all `pull_request`-triggered with no blocking job/step `if:`. |
 | `astral-sh/setup-uv` | `release`, `publish-pypi` jobs | **Yes** | Directly, unconditionally, in `ci.yml`'s `wheel-check` job (every push/PR, no `if:`). Also transitively via `.github/actions/build-binary`, which `ci.yml`'s `binary-smoke` job invokes under `if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'` — true for every PR. |
 | `actions/upload-artifact` | `build` job | **Partially** | Also pinned in `registry-drift.yml`, whose job runs on `pull_request` but is **path-filtered** (only PRs touching `registry/known-servers.json`, `scripts/audit_registry.py`, `scripts/check_registry_drift.py`, or the workflow file itself). Most PRs never execute it. Not exercised by `ci.yml` at all. |
-| `actions/download-artifact` | `release`, `report` jobs | **No** | Not referenced by any `pull_request`-triggered workflow anywhere in the repo. `report` itself only runs `needs: [build, release]`, and `release` is `if: github.event_name == 'push'`. |
+| `actions/download-artifact` | `release`, `report` jobs | **No** | Not referenced by any `pull_request`-triggered workflow anywhere in the repo. `report` itself only runs `needs: [build, release]`, and `release` runs only when the `gate` job outputs `publish=true`. |
 | `softprops/action-gh-release` | `release` job | **No** | Appears only in `release.yml`. No other workflow references it. |
 | `pypa/gh-action-pypi-publish` | `publish-pypi` job | **No direct execution, but contract-checked** | `ci.yml`'s `wheel-check` job parses this exact pinned SHA out of `release.yml`, fetches its `requirements/runtime.txt` from that SHA, and runs the matching Twine version against a freshly built wheel — on every PR. This does not invoke the action itself, but it does prove the one historical failure mode (`hatchling` emitting a `Metadata-Version` the bundled Twine rejects) can't recur silently. |
 
@@ -32,7 +33,8 @@ next tag push actually runs `release.yml` for real.
 ## What actually closes the gap: an input-contract check, not an execution check
 
 Running these jobs on every PR is not the fix — `release`, `publish-pypi`,
-and `tag-major` are deliberately `if: github.event_name == 'push'` because
+and `tag-major` deliberately run only when the `gate` job says the run
+publishes (a `vX.Y.Z` tag on `main`; see `scripts/release_gate.py`) because
 they create a GitHub Release, publish to PyPI, and move a floating tag;
 none of that is something a PR should ever be able to trigger, dry-run or
 not.

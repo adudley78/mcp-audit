@@ -1,29 +1,32 @@
 #!/usr/bin/env python3
 """Decide when a version bump becomes a release, and when a run may publish.
 
-Two decisions, one module, so both read the version the same way:
+Two decisions, one module, so both read the version and the changelog the
+same way:
 
 ``tag``
     Run by ``.github/workflows/release-on-version-bump.yml`` for one commit
     on ``main``. Creates no tag itself; it prints ``create``/``tag`` for the
     workflow. A tag is due only when that commit itself changed
     ``[project].version`` (compared with its parent), the new version has no
-    ``vX.Y.Z`` tag yet, CHANGELOG.md has a ``## [X.Y.Z]`` section, and the
-    version is higher than every existing release tag. A commit that leaves
-    the version alone (a Dependabot edit to pyproject.toml) is a quiet
+    ``vX.Y.Z`` tag yet, CHANGELOG.md has a non-empty ``## [X.Y.Z]`` section,
+    and the version is higher than every existing release tag. A commit that
+    leaves the version alone (a Dependabot edit to pyproject.toml) is a quiet
     no-op even while an older bump is still untagged, so a release always
     tags the commit that bumped it, never whatever happens to be HEAD.
-    Already tagged is also a no-op. A bump with no changelog section, or one
-    that goes backwards, is an error.
+    Already tagged is also a no-op. A bump with a missing or empty changelog
+    section, or one that goes backwards, is an error.
 
 ``publish``
     Run by ``.github/workflows/release.yml``'s ``gate`` job. Every job that
     creates a GitHub Release, publishes to PyPI, or moves a tag needs it.
     A run may publish only when its ref is a ``vX.Y.Z`` tag that names the
-    version in pyproject.toml at that commit, and that commit is on
-    ``main``. A tag push qualifies as before. A ``workflow_dispatch``
-    qualifies only with ``publish: true`` on such a tag ref; without it the
-    dispatch stays the build-only dry run it has always been.
+    version in pyproject.toml at that commit, that commit is on ``main``,
+    CHANGELOG.md has a non-empty section for it (the release notes are
+    composed from it), and no other release tag is higher. A tag push
+    qualifies as before. A ``workflow_dispatch`` qualifies only with
+    ``publish: true`` on such a tag ref; without it the dispatch stays the
+    build-only dry run it has always been, decided before anything is read.
 
 Why the dispatch path exists: a tag pushed with the workflow's own
 GITHUB_TOKEN does not start other workflows, but a dispatch does. That
@@ -31,6 +34,11 @@ lets a merged version bump release itself with no personal token.
 
 A PyPI version can never be reused, so every refusal on the publish path
 exits non-zero with the reason. A silent skip would look like a release.
+
+The changelog check reuses ``compose_release_notes.extract_changelog_section``
+so the gate and the ``release`` job can never disagree about whether notes
+exist: a section that is present but empty fails here, before
+``publish-pypi`` (which does not wait for ``release``) uses up the version.
 
 Usage::
 
@@ -49,12 +57,21 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+try:  # imported as ``scripts.release_gate`` (tests) or run as a script (CI)
+    from scripts.compose_release_notes import ComposeError, extract_changelog_section
+except ImportError:  # pragma: no cover - the workflow runs it as a script
+    from compose_release_notes import (  # type: ignore[no-redef]
+        ComposeError,
+        extract_changelog_section,
+    )
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PYPROJECT = ROOT / "pyproject.toml"
 DEFAULT_CHANGELOG = ROOT / "CHANGELOG.md"
 
 VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 TAG_REF_RE = re.compile(r"^refs/tags/v(\d+\.\d+\.\d+)$")
+DRY_RUN = "workflow_dispatch without publish: build-only dry run"
 
 
 class GateError(Exception):
@@ -80,13 +97,14 @@ def parse_version(text: str) -> tuple[int, int, int]:
     return major, minor, patch
 
 
-def read_version(pyproject: Path) -> str:
+def read_version(pyproject: Path, *, validate: bool = True) -> str:
     data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     try:
-        version = data["project"]["version"]
+        version = str(data["project"]["version"])
     except KeyError as exc:
         raise GateError(f"{pyproject} has no [project].version") from exc
-    parse_version(version)
+    if validate:
+        parse_version(version)
     return version
 
 
@@ -99,9 +117,25 @@ def release_tags(raw: str) -> list[tuple[int, int, int]]:
     return found
 
 
-def has_changelog_section(changelog: str, version: str) -> bool:
-    pattern = rf"^## \[{re.escape(version)}\]"
-    return re.search(pattern, changelog, flags=re.MULTILINE) is not None
+def require_changelog_section(changelog: str, version: str) -> None:
+    """Fail unless the release notes for this version can be composed."""
+    try:
+        extract_changelog_section(changelog, f"v{version}")
+    except ComposeError as exc:
+        raise GateError(str(exc)) from exc
+
+
+def require_not_behind(version: str, existing_tags: str) -> None:
+    """Fail if any other release tag is higher than this version."""
+    current = parse_version(version)
+    others = [t for t in release_tags(existing_tags) if t != current]
+    if others and current < max(others):
+        highest = "v" + ".".join(str(n) for n in max(others))
+        raise GateError(f"v{version} is lower than the latest release tag {highest}")
+
+
+def is_dry_run(event: str, publish_input: str) -> bool:
+    return event == "workflow_dispatch" and publish_input.strip().lower() != "true"
 
 
 def decide_tag(
@@ -110,27 +144,24 @@ def decide_tag(
     current = parse_version(version)
     if previous_version is not None and previous_version.strip() == version:
         return Decision(False, f"this commit did not change the version ({version})")
-    tags = release_tags(existing_tags)
-    if current in tags:
+    if current in release_tags(existing_tags):
         return Decision(False, f"v{version} is already tagged; nothing to do")
-    if not has_changelog_section(changelog, version):
-        raise GateError(
-            f"pyproject.toml says {version} but CHANGELOG.md has no "
-            f"'## [{version}]' section; promote [Unreleased] first"
-        )
-    if tags and current < max(tags):
-        highest = "v" + ".".join(str(n) for n in max(tags))
-        raise GateError(f"v{version} is lower than the latest release tag {highest}")
-    return Decision(
-        True, f"v{version} is untagged and has a changelog section", version
-    )
+    require_changelog_section(changelog, version)
+    require_not_behind(version, existing_tags)
+    return Decision(True, f"v{version} is untagged and has release notes", version)
 
 
 def decide_publish(
-    event: str, ref: str, publish_input: str, version: str, on_main: bool
+    event: str,
+    ref: str,
+    publish_input: str,
+    version: str,
+    on_main: bool,
+    changelog: str | None = None,
+    existing_tags: str = "",
 ) -> Decision:
-    if event == "workflow_dispatch" and publish_input.strip().lower() != "true":
-        return Decision(False, "workflow_dispatch without publish: build-only dry run")
+    if is_dry_run(event, publish_input):
+        return Decision(False, DRY_RUN)
     if event not in ("push", "workflow_dispatch"):
         raise GateError(f"release.yml does not publish on {event!r} events")
 
@@ -145,8 +176,11 @@ def decide_publish(
         )
     if not on_main:
         raise GateError(f"v{tag_version} points at a commit that is not on main")
+    if changelog is not None:
+        require_changelog_section(changelog, version)
+    require_not_behind(version, existing_tags)
     return Decision(
-        True, f"v{tag_version} is on main and matches pyproject.toml", version
+        True, f"v{tag_version} is on main, matches pyproject.toml, has notes", version
     )
 
 
@@ -183,21 +217,28 @@ def main(argv: list[str] | None = None) -> int:
 
     pub = sub.add_parser("publish", help="may this release.yml run publish?")
     pub.add_argument("--pyproject", type=Path, default=DEFAULT_PYPROJECT)
+    pub.add_argument("--changelog", type=Path, default=DEFAULT_CHANGELOG)
+    pub.add_argument("--tags", default="", help="whitespace-separated tag names")
     pub.add_argument("--event", required=True)
     pub.add_argument("--ref", required=True)
     pub.add_argument("--publish", default="false")
     pub.add_argument("--on-main", required=True)
 
     args = parser.parse_args(argv)
+    if args.command == "publish" and is_dry_run(args.event, args.publish):
+        # Decided before reading anything, so a dry run from a branch with a
+        # dev version (0.23.0.dev0) still builds instead of failing red.
+        _write_outputs({"publish": "false"})
+        print(DRY_RUN, file=sys.stderr)
+        return 0
     try:
         version = read_version(args.pyproject)
+        changelog = args.changelog.read_text(encoding="utf-8")
         if args.command == "tag":
             previous = None
             if args.previous_pyproject and args.previous_pyproject.is_file():
-                previous = read_version(args.previous_pyproject)
-            decision = decide_tag(
-                version, previous, args.changelog.read_text(encoding="utf-8"), args.tags
-            )
+                previous = read_version(args.previous_pyproject, validate=False)
+            decision = decide_tag(version, previous, changelog, args.tags)
             _write_outputs(
                 {
                     "create": str(decision.go).lower(),
@@ -206,7 +247,13 @@ def main(argv: list[str] | None = None) -> int:
             )
         else:
             decision = decide_publish(
-                args.event, args.ref, args.publish, version, _flag(args.on_main)
+                args.event,
+                args.ref,
+                args.publish,
+                version,
+                _flag(args.on_main),
+                changelog,
+                args.tags,
             )
             _write_outputs({"publish": str(decision.go).lower()})
     except GateError as exc:

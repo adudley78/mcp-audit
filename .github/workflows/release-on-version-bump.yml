@@ -11,16 +11,23 @@ name: Release on version bump
 #
 # Why a dispatch and not just the tag: a tag pushed with GITHUB_TOKEN does not
 # start other workflows (GitHub's loop guard), but workflow_dispatch is the
-# documented exception. release.yml's `gate` job re-checks everything on its
-# own before any job publishes, so this workflow cannot publish by itself.
+# documented exception. release.yml's `gate` job independently re-checks the
+# tag, the version, main, the changelog section and that no release tag is
+# higher before any job publishes, so this workflow cannot publish by itself.
 #
-# Recovery: if the tag was pushed but the dispatch failed, run
+# The tag is created through the refs API, which refuses (HTTP 422) a tag that
+# already exists. If someone pushed the same tag by hand in the meantime, this
+# job fails at that step and never dispatches, so a release can't run twice.
+#
+# Recovery: if the tag was created but the dispatch failed, run
 #   gh workflow run release.yml --ref vX.Y.Z -f publish=true
+# Re-running this job will NOT help: it sees the tag, reports "already
+# tagged" and goes green without dispatching.
 # Never add a personal token here: a tag pushed with one starts release.yml
 # by itself, and the dispatch below would then publish twice.
 #
-# Assumes squash merges (one commit per push to main), which branch
-# protection enforces. For anything else, run this by hand with the SHA.
+# Assumes one commit per push to main (squash merges). If a push carries
+# several commits, the job warns; run it by hand with the bump commit's SHA.
 
 on:
   push:
@@ -35,8 +42,10 @@ on:
 
 permissions: {}
 
+# One group per commit: a later Dependabot push can never cancel the pending
+# run for a version bump (a shared group keeps only the newest pending run).
 concurrency:
-  group: release-on-version-bump
+  group: release-on-version-bump-${{ inputs.sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -57,6 +66,7 @@ jobs:
         id: commit
         env:
           INPUT_SHA: ${{ inputs.sha }}
+          BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
           SHA="${INPUT_SHA:-$GITHUB_SHA}"
@@ -68,6 +78,10 @@ jobs:
           if ! git merge-base --is-ancestor "$SHA" FETCH_HEAD; then
             echo "::error::$SHA is not on main"
             exit 1
+          fi
+          PARENT="$(git rev-parse "$SHA^" 2>/dev/null || true)"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "$PARENT" ]; then
+            echo "::warning::this push carried more than one commit; only $SHA was checked. If a version bump is in an earlier commit, run this workflow by hand with that SHA."
           fi
           git show "$SHA:pyproject.toml" > "$RUNNER_TEMP/pyproject.toml"
           git show "$SHA:CHANGELOG.md" > "$RUNNER_TEMP/CHANGELOG.md"
@@ -89,12 +103,15 @@ jobs:
       - name: Create the release tag
         if: steps.decide.outputs.create == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.decide.outputs.tag }}
           SHA: ${{ steps.commit.outputs.sha }}
+        # The refs API returns 422 when the tag already exists (unlike `git
+        # push`, which exits 0 for an identical tag), so a concurrent hand-
+        # pushed tag stops this job before the dispatch.
         run: |
           set -euo pipefail
-          git tag "$TAG" "$SHA"
-          git push origin "refs/tags/$TAG"
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$TAG" -f "sha=$SHA"
 
       - name: Dispatch release.yml on the tag
         if: steps.decide.outputs.create == 'true'
