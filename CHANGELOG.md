@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **Refreshed vulnerable dependencies in the lockfile, which is what the standalone binaries are built from.** `mcp` 1.27.0 → 1.30.0 (CVE-2026-59951, CVE-2026-52870, CVE-2026-52869, CVE-2026-59950), `starlette` 1.0.1 → 1.8.0 (CVE-2026-48817, -48818, -54282, -54283), `python-multipart` 0.0.28 → 0.0.32 (CVE-2026-53538, -53539, -53540), `pydantic-settings` 2.13.1 → 2.16.0 (CVE-2026-58203), `pyasn1` 0.6.3 → 0.6.4 (CVE-2026-59884, -59885, -59886), `pillow` 12.2.0 → 12.3.0 (13 advisories) and, build-time only, `setuptools` 82.0.1 → 84.0.0 (CVE-2026-59890). The `mcp`, `starlette`, `python-multipart` and `pydantic-settings` advisories are in server-side code; mcp-audit uses only the MCP client, for `--connect`. `pyasn1` parses certificates for `--verify-signatures`. `pillow` arrives through `reportlab` for PDF reports. A fresh `pip install` already resolves current versions. `pip-audit` on the refreshed lock reports no known vulnerabilities.
+
 ### Changed
 
 - **Releases: merging a version bump to `main` now tags and publishes it.** A new workflow, `release-on-version-bump.yml`, tags the commit that changed the version (never a later commit) and dispatches `release.yml`. A new `gate` job decides for every release run whether it may publish: only a `vX.Y.Z` tag on `main` that matches `pyproject.toml`, has a non-empty CHANGELOG section, and isn't behind an existing release tag. A plain manual dispatch is still a build-only dry run, and pushing a tag by hand still works.
