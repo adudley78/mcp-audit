@@ -318,11 +318,19 @@ limitation documented below. In the same independent study, an advisory
 scanner reading a dependency tree frozen at each root package's release date
 flagged **130 of 249 MCP servers (52.2%) that are clean when installed**, and
 none the other way round (affected when installed, clean frozen)
-([spec §13, v3.10](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.10/spec/mcp-lock-spec.md#13-security-considerations);
+([spec §13, v3.13](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.13/spec/mcp-lock-spec.md#13-security-considerations);
 recomputed 2026-10-09 with both arms through his corrected resolver, see
 `RESOLVER-NOTES.md` at the same tag). Counts of individual findings are left
 out on purpose: five packages carry 82% of them, so the rate is stable and the
-count is not. An SBOM generated at release and scanned a year later has
+count is not. The same study's decomposition says why the frozen tree
+over-reports: of the findings it reports, the share whose advisory was
+published after the root package shipped runs from 90.6% for roots 30 days old
+or less to 100.0% for roots more than a year old. A frozen description
+over-reports because advisories keep accruing against it, not because
+publishers shipped versions an advisory already covered
+(`PREREGISTRATION-6.md` and `code/gap_cause_split.py` at the same tag; the
+bands between those endpoints are not monotone, so only the endpoints are
+quoted). An SBOM generated at release and scanned a year later has
 exactly this shape; it is the same
 failure the advisory feed's `expires` field exists to prevent (see
 `docs/advisory-feed.md`), applied to a document type that currently carries
