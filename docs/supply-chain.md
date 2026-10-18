@@ -318,7 +318,7 @@ limitation documented below. In the same independent study, an advisory
 scanner reading a dependency tree frozen at each root package's release date
 flagged **130 of 249 MCP servers (52.2%) that are clean when installed**, and
 none the other way round (affected when installed, clean frozen)
-([spec §13, v3.13](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.13/spec/mcp-lock-spec.md#13-security-considerations);
+([spec §13, v3.15](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.15/spec/mcp-lock-spec.md#13-security-considerations);
 recomputed 2026-10-09 with both arms through his corrected resolver, see
 `RESOLVER-NOTES.md` at the same tag). Counts of individual findings are left
 out on purpose: five packages carry 82% of them, so the rate is stable and the
@@ -366,7 +366,13 @@ and does the OSV.dev batch API report advisories against that graph? They do
 time (including npm's own `latest`-dist-tag preference over a higher
 satisfying version), lockfile state, and platform-specific optional
 dependencies all live in the gap between "published graph" and "installed
-tree," and mcp-audit models none of them.
+tree," and mcp-audit models none of them. One measured instance: deps.dev's
+graph carries `get-intrinsic@1.3.1`, while npm's `latest` tag for that package
+is `1.3.0`, which is what npm picks when a range allows both. Version 1.3.1
+declares three dependencies 1.3.0 does not (`async-function`, `async-generator-function`,
+`generator-function`), so in Prachet Poddar's corpus deps.dev lists those three
+for 158 to 159 of 248 MCP servers where his corrected resolver installs none of
+them ([`RESOLVER-NOTES.md`, v3.15](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.15/RESOLVER-NOTES.md)).
 
 **Measured divergence.** [Prachet Poddar's independent 250-MCP-server-config study](https://github.com/adudley78/mcp-audit/issues/88#issuecomment-5584233690)
 compared deps.dev's published graph, a graph frozen at each root package's
@@ -377,15 +383,24 @@ itself uses. The deps.dev-vs-live arm diverged on advisory verdicts for
 measured bound this project can currently point to for how often the
 published-graph shortcut produces a different verdict than a real install
 would have. **It was measured on 2026-09-08, before his later resolver
-corrections, and has not been recomputed since**: the trees it used match
-neither walk his study now releases. The other figures below come from the
-same measurement.
+corrections, and has not been recomputed.** His v3.15 recomputes the graph
+comparison behind it against a tree from his corrected resolver at a matched
+registry date: once the `get-intrinsic` edge above and the three packages it
+pulls in are set aside, deps.dev's graph is identical to the corrected tree for 79.4% of 248 servers, against
+62.1% for the pre-correction tree
+([`PREREGISTRATION-7.md`, v3.15](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.15/preregistrations/PREREGISTRATION-7.md)).
+That recomputation compares graphs, not advisory verdicts, so it does not
+recompute the 0.8%. The figures in the next paragraph come from his first
+report, a few hours before those corrections.
 
 This is a limitation with a measured bound, **not an accuracy claim**. It is
 a single study of one corpus, at one point in time, produced by one person —
 treat it as a data point, not a guarantee. It is also easy to over-read in
 the wrong direction: node counts barely differ across all three arms
-(median 95 packages; deps.dev +0.6% total instances vs. live), while raw
+(median 95 packages; deps.dev +0.6% total instances vs. live), counting one
+version per package name. Counting every version an install nests, his v3.15
+corrected tree carries 8.1% more package instances than deps.dev's graph, which
+holds one version per name by construction. Meanwhile raw
 *version* disagreement between deps.dev and live runs to **68.3% of
 servers** — and the verdict-level gap is still only 0.8%. Version-disagreement
 rate alone is therefore a poor proxy for whether a graph gap matters; the
