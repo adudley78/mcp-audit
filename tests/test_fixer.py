@@ -905,6 +905,8 @@ class TestRunFix:
 
         if sys.platform == "win32":
             pytest.skip("chmod semantics differ on Windows")
+        if os.geteuid() == 0:
+            pytest.skip("root ignores file mode bits, so 0o444 cannot block the write")
 
         original_mode = cp.stat().st_mode
         os.chmod(cp, 0o444)
