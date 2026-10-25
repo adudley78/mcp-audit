@@ -318,7 +318,7 @@ limitation documented below. In the same independent study, an advisory
 scanner reading a dependency tree frozen at each root package's release date
 flagged **130 of 249 MCP servers (52.2%) that are clean when installed**, and
 none the other way round (affected when installed, clean frozen)
-([spec §13, v3.15](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.15/spec/mcp-lock-spec.md#13-security-considerations);
+([spec §13, v3.16.1](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/spec/mcp-lock-spec.md#13-security-considerations);
 recomputed 2026-10-09 with both arms through his corrected resolver, see
 `RESOLVER-NOTES.md` at the same tag). Counts of individual findings are left
 out on purpose: five packages carry 82% of them, so the rate is stable and the
@@ -372,40 +372,63 @@ is `1.3.0`, which is what npm picks when a range allows both. Version 1.3.1
 declares three dependencies 1.3.0 does not (`async-function`, `async-generator-function`,
 `generator-function`), so in Prachet Poddar's corpus deps.dev lists those three
 for 158 to 159 of 248 MCP servers where his corrected resolver installs none of
-them ([`RESOLVER-NOTES.md`, v3.15](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.15/RESOLVER-NOTES.md)).
+them ([`RESOLVER-NOTES.md`, v3.16.1](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/RESOLVER-NOTES.md)).
 
-**Measured divergence.** [Prachet Poddar's independent 250-MCP-server-config study](https://github.com/adudley78/mcp-audit/issues/88#issuecomment-5584233690)
-compared deps.dev's published graph, a graph frozen at each root package's
-publish date, and the tree his resolver computed against the live registry,
-against advisory verdicts from the same npm bulk advisory endpoint `npm audit`
-itself uses. The deps.dev-vs-live arm diverged on advisory verdicts for
-**0.8% of servers (2 of 249), six findings, zero phantom findings** — the
-measured bound this project can currently point to for how often the
-published-graph shortcut produces a different verdict than a real install
-would have. **It was measured on 2026-09-08, before his later resolver
-corrections, and has not been recomputed.** His v3.15 recomputes the graph
-comparison behind it against a tree from his corrected resolver at a matched
-registry date: once the `get-intrinsic` edge above and the three packages it
-pulls in are set aside, deps.dev's graph is identical to the corrected tree for 79.4% of 248 servers, against
-62.1% for the pre-correction tree
-([`PREREGISTRATION-7.md`, v3.15](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.15/preregistrations/PREREGISTRATION-7.md)).
-That recomputation compares graphs, not advisory verdicts, so it does not
-recompute the 0.8%. The figures in the next paragraph come from his first
-report, a few hours before those corrections.
+**Measured divergence.** [Prachet Poddar's independent study of 250 MCP server configs](https://github.com/prachetpoddar/mcp-supply-chain-study/tree/v3.16.1)
+compared deps.dev's published graph with the tree his corrected resolver
+computes against the registry as of the date deps.dev's graphs were fetched
+(2026-09-07/08), and scored both against the same npm advisory data. On that
+comparison, keyed by package name and version, deps.dev's graph gives a
+different advisory verdict for **2 of 248 servers (0.8%): eight missed
+findings (four high, four moderate) and zero phantom findings**
+([`data/verdict_recompute.json`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/data/verdict_recompute.json),
+pre-registered in [`PREREGISTRATION-8.md`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/preregistrations/PREREGISTRATION-8.md)).
+That is the measured bound this project can currently point to for how often
+the published-graph shortcut produces a different verdict than a real install
+would have. It comes with four qualifications, all his:
+
+- It is a missed rate, not a two-way difference rate. The corrected tree is
+  close to a superset of deps.dev's graph by construction, so the comparison
+  shows what deps.dev misses and says little about what it adds.
+- Two servers is a small count. The 95% Clopper–Pearson interval is 0.10% to
+  2.88%.
+- One package, `qs`, carries half of it. Set `qs` aside and the difference
+  falls to 1 server.
+- It ages. Against a tree resolved about a month later, the same deps.dev
+  graphs give a different verdict for 15 of 248 servers (6.0%), with 17 missed
+  and 30 phantom findings.
+
+The figure this section quoted before, 2 of 249 servers with six findings
+(measured 2026-09-08), is retracted. It was keyed by name only on both sides,
+both arms predate his 11–17 September resolver corrections, and its inputs no
+longer exist (`PREREGISTRATION-8.md`).
+
+His graph recomputation points the same way
+([`PREREGISTRATION-7.md`, v3.16.1](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/preregistrations/PREREGISTRATION-7.md),
+`data/depsdev_recompute.json`). Once the `get-intrinsic` edge above and the
+three packages it pulls in are set aside, deps.dev's graph is identical to the
+corrected tree for 79.4% of 248 servers, against 67.7% for the pre-correction
+tree. Both figures exclude, from both sides of both trees, the package names
+the corrected tree carries at more than one version: 170 servers have one,
+and the exclusion removes 763 of deps.dev's 21,134 nodes. An earlier pairing
+of 79.4% against 62.1% is not comparable, because the 62.1% was scored on a
+node set that lost nothing to that exclusion.
 
 This is a limitation with a measured bound, **not an accuracy claim**. It is
 a single study of one corpus, at one point in time, produced by one person —
 treat it as a data point, not a guarantee. It is also easy to over-read in
-the wrong direction: node counts barely differ across all three arms
-(median 95 packages; deps.dev +0.6% total instances vs. live), counting one
-version per package name. Counting every version an install nests, his v3.15
-corrected tree carries 8.1% more package instances than deps.dev's graph, which
-holds one version per name by construction. Meanwhile raw
-*version* disagreement between deps.dev and live runs to **68.3% of
-servers** — and the verdict-level gap is still only 0.8%. Version-disagreement
-rate alone is therefore a poor proxy for whether a graph gap matters; the
-small verdict gap is a fact about where advisory boundaries happen to fall in
-this corpus, not evidence that the two graphs generally agree.
+the wrong direction. Matched to the fetch date and counting every version an
+install nests, the two graphs are close in size (median 91 packages per server
+in the corrected tree, 94 in deps.dev's), and the corrected tree carries 8.1%
+more package instances, since deps.dev's graph holds one version per name by
+construction. Yet they disagree on at least one package's version for
+**66.1% of servers**; deps.dev's graph lacks a package the tree installs for
+10.9% of servers and lists one the tree does not install for 64.9%, most of
+those the three `get-intrinsic` packages above. The verdict-level gap is still
+0.8%. Version-disagreement rate alone is therefore a poor proxy for whether a
+graph gap matters; the small verdict gap is a fact about where advisory
+boundaries happen to fall in this corpus, not evidence that the two graphs
+generally agree.
 
 **The failure class that does bite, and is worth watching for.** When a graph
 gap does produce a wrong verdict, it has a specific, nameable shape: a
