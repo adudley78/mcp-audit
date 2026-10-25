@@ -73,7 +73,7 @@ src/mcp_audit/
 │   └── version.py       # version command
 ├── scanner.py         # Orchestrator: discovery → parsing → analysis → output
 ├── scoring.py         # Scan score calculation (0–100) and letter grade (A–F) formatting
-├── discovery.py       # Finds MCP config files across all supported clients
+├── discovery.py       # Finds MCP config files across all supported clients; `_PROJECT_AUTOEXEC_SPECS` drives the TRUST-003/008 auto-run walk (`--project`) and the TRUST-003/008 cwd-root check of a default scan (skipped when cwd is `$HOME`) (`discover_cwd_autoexec_files`, called from `scanner._cwd_autoexec_findings`); see docs/agent-execution-surface.md
 ├── config_parser.py   # Parses JSON configs, normalizes across client formats
 ├── models.py          # Pydantic models: Finding, ServerConfig, ScanResult, ScanScore, Severity, AttackPath, MachineInfo
 ├── owasp_mcp.py       # Single source of truth for OWASP MCP Top 10 codes/names (MCP01–MCP10)
@@ -88,7 +88,7 @@ src/mcp_audit/
 │   ├── credentials.py  # Secret/API key exposure in configs (SECRET_PATTERNS)
 │   ├── transport.py    # Transport security (TLS, localhost binding, etc.)
 │   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed)
-│   ├── config_hygiene.py # Config-file filesystem hygiene (CFHYG-001..006); hook-command checks HOOK-001/002 and harness posture HARNESS-001..006 (STORY-0079, STORY-0087) via analyze_config
+│   ├── config_hygiene.py # Config-file filesystem hygiene (CFHYG-001..007; CFHYG-007 = project settings `env` redirecting API traffic, STORY-0090); hook-command checks HOOK-001/002 and harness posture HARNESS-001..007 (STORY-0079, STORY-0087, STORY-0090) via analyze_config; repo-planted auto-run files TRUST-003 (VS Code) and TRUST-008 (Gemini CLI, Codex, Claude Code scheduled tasks/workflows, STORY-0090) via analyze_autoexec_file
 │   ├── rug_pull.py     # Config-entry change detection via hashing (command, args, env key names, raw entry; not live tool definitions)
 │   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection
 │   ├── auth.py         # Remote server authentication checks (AUTH-001, AUTH-002)
@@ -703,7 +703,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 68 findings on a first scan of all demo configs (60 once rug-pull state exists; counted 2026-10-13 for v0.20.0 and unchanged in v0.21.0, after the registry gained each package's advisory history) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 3890 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 4046 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 28 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release

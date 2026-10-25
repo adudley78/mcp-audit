@@ -9,6 +9,7 @@ should follow the same pattern.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import threading
@@ -835,6 +836,19 @@ def _apply_severity_threshold(
     return result
 
 
+def _autoexec_finding_key(finding: Finding) -> tuple[str, str, str, str]:
+    """Identity of an autoexec finding: ID, resolved file, title and evidence.
+
+    The path is resolved so the cwd pass (``Path.cwd() / rel``) and the
+    ``--project`` walk (``project_dir / rel``) agree on the same file.
+    """
+    path = finding.finding_path or ""
+    if path:
+        with contextlib.suppress(OSError, RuntimeError):
+            path = str(Path(path).resolve())
+    return (finding.id, path, finding.title, finding.evidence)
+
+
 def _apply_project_scan(
     result: ScanResult,
     project_dir: Path,
@@ -848,10 +862,12 @@ def _apply_project_scan(
     resolved.  Does not touch or modify the default scan behaviour.
 
     Pipeline:
-    0. Walk *project_dir* for non-MCP IDE auto-execution files
-       (``.vscode/tasks.json``, ``.vscode/settings.json``) and emit TRUST-003
-       for any that auto-run a command on folder open. These files are never
-       parsed into ``ServerConfig`` objects.
+    0. Walk *project_dir* for non-MCP auto-execution files
+       (``.vscode/tasks.json``, ``.vscode/settings.json``: TRUST-003; Gemini
+       CLI, Codex and Claude Code auto-run files: TRUST-008) and emit findings
+       for any that auto-run a command. These files are never parsed into
+       ``ServerConfig`` objects. Findings the default scan's cwd-root pass
+       already produced for the same file are not repeated.
     1. Walk *project_dir* for known project-level config file patterns.
     2. Emit TRUST-001 (HIGH) for every MCP server found — fires on *origin*
        (project-scoped), not content.
@@ -891,26 +907,31 @@ def _apply_project_scan(
 
     skip_findings: list[Finding] = []
 
-    # ── TRUST-003: repo-planted IDE auto-execution files ────────────────────
+    # ── TRUST-003 / TRUST-008: repo-planted auto-execution files ────────────
     # ── TRUST-002: a discovered autoexec candidate that is itself a symlink ──
+    # A default scan run from inside *project_dir* has already reported the
+    # TRUST-003/TRUST-008 files at its root (scanner._cwd_autoexec_findings);
+    # those are not reported twice.
+    already_reported = {_autoexec_finding_key(f) for f in result.findings}
     hygiene_analyzer = ConfigHygieneAnalyzer()
     for autoexec_file in discover_project_autoexec_files(
         project_dir, skip_findings=skip_findings
     ):
         if autoexec_file.is_symlink:
-            result.findings.append(
+            new_findings = [
                 build_project_symlink_finding(
-                    autoexec_file.path, "vscode", autoexec_file.symlink_root
+                    autoexec_file.path, autoexec_file.client, autoexec_file.symlink_root
                 )
-            )
-            continue
-        result.findings.extend(
-            hygiene_analyzer.analyze_autoexec_file(
+            ]
+        else:
+            new_findings = hygiene_analyzer.analyze_autoexec_file(
                 kind=autoexec_file.kind,
                 config_path=autoexec_file.path,
-                client="vscode",
+                client=autoexec_file.client,
                 project_root=project_dir,
             )
+        result.findings.extend(
+            f for f in new_findings if _autoexec_finding_key(f) not in already_reported
         )
 
     project_configs = discover_project_configs(project_dir, skip_findings=skip_findings)

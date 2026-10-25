@@ -16,6 +16,11 @@ scanner (2026-06-14).  Claude Code executes hook commands at lifecycle events
 `hooks` section of *any* claude-client config file, not just the user-global
 ``.claude.json``.
 
+**Other harnesses' auto-run files (TRUST-008) and settings that redirect API
+traffic (CFHYG-007)** were added in STORY-0090 (2026-10-25); key semantics
+come from the Gemini CLI, Codex and Claude Code docs, cited where each check
+is defined.
+
 **Harness posture (HARNESS-001..004)** was added in STORY-0079 (2026-10-11):
 Claude Code settings that switch human approval off.  Basis: HarnessSecurity-Bench
 (arXiv 2610.07639) measured attack success on coding agents rising from 29.2% to
@@ -25,16 +30,23 @@ opt-in.  Keys and semantics follow code.claude.com/docs/en/permissions.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import os
 import re
 import stat as stat_module
+import tomllib
 from pathlib import Path
+from typing import NamedTuple
+from urllib.parse import unquote, urlsplit
 
 from mcp_audit.analyzers.base import BaseAnalyzer
-from mcp_audit.analyzers.credentials import SECRET_PATTERNS
+from mcp_audit.analyzers.credentials import SECRET_PATTERNS, CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import normalize_for_detection
+from mcp_audit.discovery import (
+    SIBLING_HARNESS_AUTOEXEC_KINDS as _SIBLING_HARNESS_CHECKS,
+)
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 logger = logging.getLogger(__name__)
@@ -248,6 +260,82 @@ def parse_jsonc(text: str) -> dict | list | None:
         return None
 
 
+# ── TRUST-008: other harnesses' auto-run files (STORY-0090) ───────────────────
+
+#: Largest TRUST-008 file that is read.  A bigger one is reported unread
+#: (MEDIUM) instead of skipped, so padding a file cannot hide what it holds.
+_AUTOEXEC_MAX_BYTES = 2 * 1024 * 1024
+#: Names an inventory-style evidence string lists before "(+N more)".
+_INVENTORY_LIST_CAP = 20
+#: Hook or notify commands a TRUST-008 evidence string quotes.
+_EVIDENCE_COMMAND_CAP = 3
+
+_DOTENV_LINE_RE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_.]*)\s*=\s*(.*)$")
+
+
+def _parse_dotenv(text: str) -> dict[str, str]:
+    """Parse ``KEY=value`` lines of a ``.env`` file; never raises.
+
+    Comments, blank lines and lines that are not assignments are skipped.
+    Matching single or double quotes around a value are removed, and an
+    unquoted value loses a trailing `` # comment``.
+    """
+    env: dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = _DOTENV_LINE_RE.match(line)
+        if match is None:
+            continue
+        key, value = match.group(1), match.group(2).strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+            value = value[1:-1]
+        elif " #" in value:
+            value = value.split(" #", 1)[0].rstrip()
+        env[key] = value
+    return env
+
+
+def _short_path(path: Path) -> str:
+    """``.gemini/settings.json``-style name: the parent directory plus the name."""
+    return f"{path.parent.name}/{path.name}" if path.parent.name else path.name
+
+
+def _mask_secrets(text: str) -> str:
+    """Replace every :data:`SECRET_PATTERNS` match in *text* with ``***``."""
+    for _name, pattern, _provider in SECRET_PATTERNS:
+        text = pattern.sub("***", text)
+    return text
+
+
+def _capped_list(names: list[str]) -> str:
+    """Join *names*, listing at most :data:`_INVENTORY_LIST_CAP` of them."""
+    shown = ", ".join(names[:_INVENTORY_LIST_CAP])
+    if len(names) > _INVENTORY_LIST_CAP:
+        shown += f" (+{len(names) - _INVENTORY_LIST_CAP} more)"
+    return shown
+
+
+def _quote_commands(commands: list[str]) -> str:
+    """Quote up to :data:`_EVIDENCE_COMMAND_CAP` commands, secrets masked."""
+    quoted = "; ".join(
+        repr(_mask_secrets(cmd)[:120]) for cmd in commands[:_EVIDENCE_COMMAND_CAP]
+    )
+    if len(commands) > _EVIDENCE_COMMAND_CAP:
+        quoted += f" (+{len(commands) - _EVIDENCE_COMMAND_CAP} more)"
+    return quoted
+
+
+def _network_primitive(commands: list[str]) -> str | None:
+    """Return the first network-egress primitive in *commands* (HOOK-001's regex)."""
+    for cmd in commands:
+        match = _HOOK_NETWORK_RE.search(normalize_for_detection(cmd))
+        if match:
+            return match.group(0)
+    return None
+
+
 # ── Env-var reference patterns ────────────────────────────────────────────────
 
 # Env-var reference patterns: ${VAR}, $VAR, %(VAR)s, %VAR%
@@ -262,6 +350,213 @@ _ENV_REF_PATTERNS: list[re.Pattern[str]] = [
 def _looks_like_env_ref(value: str) -> bool:
     """Return True when *value* is an env-var reference, not a literal secret."""
     return any(pat.search(value) for pat in _ENV_REF_PATTERNS)
+
+
+# ── First-party API endpoints (CFHYG-006, CFHYG-007, TRUST-008) ──────────────
+
+#: The Anthropic API origin CFHYG-006 treats as first-party.  CFHYG-007 reuses
+#: it, so the two checks cannot drift apart.
+_ANTHROPIC_API_ORIGIN = "https://api.anthropic.com"
+_ANTHROPIC_API_HOST = urlsplit(_ANTHROPIC_API_ORIGIN).hostname or ""
+
+
+def _is_first_party_anthropic_base_url(value: str) -> bool:
+    """CFHYG-006's first-party test: an env-var reference or the Anthropic origin.
+
+    This is a prefix test and is kept exactly as CFHYG-006 has always applied
+    it.  CFHYG-007 calls it too and then also requires the parsed host to be
+    exactly ``api.anthropic.com`` (:func:`_redirect_host`), so a value such as
+    ``https://api.anthropic.com.example.net`` passes here but not there.
+    """
+    return _looks_like_env_ref(value) or value.startswith(_ANTHROPIC_API_ORIGIN)
+
+
+# Environment variables that choose where an AI API client sends its requests
+# (and so its API key), each with the hosts its vendor documents as its own.
+# ``None`` means no first-party host exists: any remote host is a redirect.
+# Sources: code.claude.com/docs/en/env-vars (the ANTHROPIC_* endpoints,
+# HTTP_PROXY, HTTPS_PROXY), the Bedrock / Agent Platform / Foundry / Claude
+# Platform on AWS pages for their default hosts, geminicli.com configuration
+# reference (GOOGLE_GEMINI_BASE_URL, GOOGLE_VERTEX_BASE_URL) and the
+# openai-python README (OPENAI_BASE_URL).  A settings ``env`` block reaches
+# every subprocess Claude Code starts, so a redirect of another vendor's
+# client is in scope too.  ALL_PROXY and lowercase proxy names are not
+# documented by Claude Code and are left out (GAPS.md).
+_VERTEX_HOST_RE = re.compile(
+    r"^(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com$"
+    r"|^aiplatform\.[a-z0-9-]+\.rep\.googleapis\.com$"
+)
+_REDIRECT_ENV_FIRST_PARTY: dict[str, re.Pattern[str] | None] = {
+    "ANTHROPIC_BASE_URL": re.compile(rf"^{re.escape(_ANTHROPIC_API_HOST)}$"),
+    # bedrock-runtime(-fips).<region>.amazonaws.com and interface VPC endpoints
+    # vpce-<id>.bedrock-runtime.<region>.vpce.amazonaws.com (AWS Bedrock user
+    # guide, "Use interface VPC endpoints").
+    "ANTHROPIC_BEDROCK_BASE_URL": re.compile(
+        r"^bedrock-runtime(?:-fips)?\.[a-z0-9-]+\.amazonaws\.com$"
+        r"|^vpce-[a-z0-9-]+\.bedrock-runtime(?:-fips)?\.[a-z0-9-]+\.vpce\.amazonaws\.com$"
+    ),
+    "ANTHROPIC_BEDROCK_MANTLE_BASE_URL": None,
+    "ANTHROPIC_VERTEX_BASE_URL": _VERTEX_HOST_RE,
+    "ANTHROPIC_FOUNDRY_BASE_URL": re.compile(r"^[a-z0-9-]+\.services\.ai\.azure\.com$"),
+    "ANTHROPIC_AWS_BASE_URL": re.compile(
+        r"^aws-external-anthropic\.[a-z0-9-]+\.api\.aws$"
+    ),
+    "OPENAI_BASE_URL": re.compile(r"^api\.openai\.com$"),
+    "GOOGLE_GEMINI_BASE_URL": re.compile(r"^generativelanguage\.googleapis\.com$"),
+    "GOOGLE_VERTEX_BASE_URL": _VERTEX_HOST_RE,
+    "HTTP_PROXY": None,
+    "HTTPS_PROXY": None,
+}
+# Any other ANTHROPIC_*BASE_URL name is treated as an endpoint override with
+# no known first-party host (Claude Code adds these per provider).
+_ANTHROPIC_BASE_URL_NAME_RE = re.compile(r"^ANTHROPIC_[A-Z0-9_]*BASE_URL$")
+# A host that is wholly an env-var reference (``${HOST}``, ``$HOST``,
+# ``%HOST%``) is not a literal destination: Claude Code does not expand
+# references in ``env``, so such a value names no host at all.
+_TEMPLATE_HOST_RE = re.compile(
+    r"^(?:\$\{[^}]*\}|\$[a-z_][a-z0-9_]*|%[a-z0-9_]+%)$", re.IGNORECASE
+)
+_URL_SCHEME_RE = re.compile(r"^([A-Za-z][A-Za-z0-9+.\-]*):(.*)$", re.DOTALL)
+# WHATWG "special" schemes: a backslash is a path separator and any run of
+# slashes before the authority is skipped.  Node (Claude Code, Gemini CLI)
+# parses URLs this way; Python's urlsplit does not.
+_SPECIAL_SCHEMES = frozenset({"http", "https", "ws", "wss", "ftp"})
+_C0_OR_SPACE = "".join(chr(c) for c in range(0x21))
+
+
+class _Endpoint(NamedTuple):
+    """Where a URL-valued variable sends traffic, as one parser reads it."""
+
+    scheme: str  # lower case; "" for a bare ``host:port`` proxy value
+    host: str  # lower case, percent-decoded, IPv6 without brackets; "" if none
+    userinfo: bool  # a user name or password before "@" in the authority
+    canonical: str  # scheme://host[:port]/path with scheme and host lower-cased
+
+
+def _parse_endpoint(text: str, *, whatwg: bool) -> _Endpoint:
+    """Read the authority of *text*; never raises.
+
+    With *whatwg*, backslashes before the query are path separators for the
+    special schemes and for a bare ``host:port`` value (which proxy clients
+    read as ``http://``), as Node's URL parser treats them.  Without it, the
+    text is taken literally, as Python's urlsplit would.  The caller checks
+    both readings and reports a value if either one leaves first-party hosts.
+    """
+    match = _URL_SCHEME_RE.match(text)
+    scheme, rest = "", text
+    if match and (
+        match.group(1).lower() in _SPECIAL_SCHEMES or match.group(2).startswith("//")
+    ):
+        scheme, rest = match.group(1).lower(), match.group(2)
+    if scheme in _SPECIAL_SCHEMES or not scheme:
+        if whatwg:
+            cut = min(
+                (i for i in (rest.find("?"), rest.find("#")) if i >= 0),
+                default=len(rest),
+            )
+            rest = rest[:cut].replace("\\", "/") + rest[cut:]
+            rest = rest.lstrip("/")
+        elif rest.startswith("//"):
+            rest = rest[2:]
+    else:
+        rest = rest[2:]
+    authority = re.split(r"[/?#]", rest, maxsplit=1)[0]
+    hostport = authority.rpartition("@")[2]
+    if hostport.startswith("["):
+        host = hostport[1:].split("]", 1)[0]
+    else:
+        host = hostport.split(":", 1)[0]
+    host = unquote(host).lower()
+    canonical = (
+        f"{scheme or 'http'}://{unquote(hostport).lower()}{rest[len(authority) :]}"
+    )
+    return _Endpoint(scheme, host, "@" in authority, canonical)
+
+
+def _is_loopback_literal(host: str) -> bool:
+    """True for ``localhost``, ``*.localhost`` or a loopback IP literal.
+
+    This classifies text in a config file; it does not guard a connection.
+    Any other hostname is *not* exempted and gets reported, so a name that
+    happens to resolve to 127.0.0.1 is still a finding: fail-closed.
+    """
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)  # nosemgrep: mcp-ssrf-ip-literal-only-guard
+    except ValueError:
+        return False
+    return ip.is_loopback
+
+
+def _endpoint_is_first_party(
+    name: str, endpoint: _Endpoint, first_party: re.Pattern[str] | None
+) -> bool:
+    """True when *endpoint* (one parser's reading) stays on first-party hosts."""
+    if endpoint.userinfo or not endpoint.host:
+        return False
+    host = endpoint.host.rstrip(".")
+    if _is_loopback_literal(host):
+        return True
+    if name == "ANTHROPIC_BASE_URL":
+        # CFHYG-006's own test, on the lower-cased URL, then an exact host.
+        return (
+            _is_first_party_anthropic_base_url(endpoint.canonical)
+            and host == _ANTHROPIC_API_HOST
+        )
+    return first_party is not None and bool(first_party.match(host))
+
+
+def _redirect_host(name: str, value: object) -> str | None:
+    """Return a label for where *value* redirects traffic, else ``None``.
+
+    *name* is an environment variable name.  ``None`` is returned when the
+    variable does not choose an API endpoint or proxy, when the value is
+    empty (Claude Code treats ``""`` as unset) or wholly an env-var
+    reference, and when every reading of the URL stays on the vendor's own
+    host or on loopback.  Anything else is reported, fail-closed: a host the
+    two URL parsers disagree on, user info before ``@`` (which can disguise
+    the real host), or a value with no parsable host.  The label is the host
+    Node would connect to; it never carries the URL's userinfo, path or
+    query, so a proxy password is never echoed.
+    """
+    if name in _REDIRECT_ENV_FIRST_PARTY:
+        first_party = _REDIRECT_ENV_FIRST_PARTY[name]
+    elif _ANTHROPIC_BASE_URL_NAME_RE.match(name):
+        first_party = None
+    else:
+        return None
+    if not isinstance(value, str):
+        return None
+    text = re.sub(r"[\t\n\r]", "", value.strip(_C0_OR_SPACE))
+    if not text:
+        return None
+    node = _parse_endpoint(text, whatwg=True)
+    literal = _parse_endpoint(text, whatwg=False)
+    if _TEMPLATE_HOST_RE.match(node.host) and not (node.userinfo or literal.userinfo):
+        return None
+    if _endpoint_is_first_party(name, node, first_party) and _endpoint_is_first_party(
+        name, literal, first_party
+    ):
+        return None
+    label = node.host or "(no parsable host)"
+    if node.userinfo or literal.userinfo:
+        label += " (user info before '@')"
+    elif literal.host != node.host:
+        label += f" (read literally: {literal.host or 'no host'})"
+    return label
+
+
+def _redirecting_env_vars(env: dict) -> list[tuple[str, str]]:
+    """``(name, host)`` for each variable in *env* that redirects API traffic."""
+    found: list[tuple[str, str]] = []
+    for name, value in env.items():
+        if not isinstance(name, str):
+            continue
+        host = _redirect_host(name, value)
+        if host is not None:
+            found.append((name, host))
+    return found
 
 
 # ── HARNESS-005/006 helpers (STORY-0087) ─────────────────────────────────────
@@ -395,6 +690,10 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
       ``hooks`` section (CVE-2025-59536 — shell-command injection).
     - **CFHYG-006**: server env sets ``ANTHROPIC_BASE_URL`` to a non-Anthropic
       domain (CVE-2026-21852 — API traffic exfiltration).
+    - **CFHYG-007**: a project settings file's own ``env`` block points an API
+      endpoint or proxy variable at a non-first-party host (``analyze_config``).
+    - **TRUST-003 / TRUST-008**: repo-planted auto-run files of VS Code and of
+      Gemini CLI, Codex and Claude Code (``analyze_autoexec_file``).
     - **HOOK-001**: a hook command contains network-egress primitives (curl,
       wget, nc, socat, raw HTTP(S) URL, etc.), enabling data exfiltration or
       C2 callback via the agent lifecycle.
@@ -798,9 +1097,13 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         - **HOOK-001**: hook command contains network-egress primitives.
         - **HOOK-002**: hook command references an agent config file path
           (CVE-2026-30615 persistence channel).
-        - **HARNESS-001..004**: settings that switch Claude Code's human approval
+        - **HARNESS-001..007**: settings that switch Claude Code's human approval
           off (bypassPermissions default mode, auto-approved project MCP servers,
-          skipped bypass confirmation, blanket shell allow rules).
+          skipped bypass confirmation, blanket shell allow rules), and the
+          named-server approval inventory (HARNESS-007, INFO).
+        - **CFHYG-007**: a project-scoped ``.claude/settings*.json`` whose
+          top-level ``env`` block points an API endpoint or proxy variable at a
+          non-first-party host (the CVE-2026-21852 shape).
 
         Args:
             raw: The parsed JSON dict for the config file.
@@ -815,6 +1118,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             return findings
 
         findings.extend(self._check_harness_posture(raw, config_path, client))
+        findings.extend(self._check_settings_env_redirect(raw, config_path, client))
 
         hooks = raw.get("hooks")
         if not hooks:
@@ -1128,6 +1432,139 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                 )
             )
 
+        approved = raw.get("enabledMcpjsonServers")
+        named = (
+            sorted({s.strip() for s in approved if isinstance(s, str) and s.strip()})
+            if isinstance(approved, list)
+            else []
+        )
+        if named:
+            shown = _capped_list(named)
+            findings.append(
+                self._harness_finding(
+                    finding_id="HARNESS-007",
+                    severity=Severity.INFO,
+                    client=client,
+                    config_path=config_path,
+                    title="Named .mcp.json servers are approved without a prompt",
+                    description=(
+                        f"{scope_cap} list {len(named)} server name(s) in"
+                        " enabledMcpjsonServers. Claude Code connects a project"
+                        " .mcp.json server with one of these names without asking,"
+                        " once the folder is trusted. Claude Code writes this key to"
+                        " .claude/settings.local.json when you approve a server, so"
+                        " there it is usually your own choice; in a committed"
+                        " .claude/settings.json it is the repository's choice, and in"
+                        " user settings it applies to every project. Compare"
+                        " HARNESS-002, which approves every server."
+                    ),
+                    evidence=f"{config_path}: enabledMcpjsonServers = {shown}",
+                    remediation=(
+                        "Keep approvals in your own .claude/settings.local.json or user"
+                        " settings, and review each named server's command in"
+                        " .mcp.json before trusting the folder."
+                    ),
+                    cwe="CWE-862",
+                    owasp=["MCP09", "MCP07"],
+                )
+            )
+
+        return findings
+
+    # ── CFHYG-007: settings env that redirects API traffic (STORY-0090) ─────
+
+    @staticmethod
+    def _is_project_claude_settings(config_path: Path) -> bool:
+        """True for ``.claude/settings.json`` / ``settings.local.json`` in a project.
+
+        The user-level ``~/.claude/`` directory is excluded: an endpoint or
+        proxy set there is the user's own choice (an LLM gateway is a common,
+        legitimate setup), not one a cloned repository made for them.
+        """
+        if config_path.name not in ("settings.json", "settings.local.json"):
+            return False
+        if config_path.parent.name != ".claude":
+            return False
+        try:
+            return config_path.parent.resolve() != (Path.home() / ".claude").resolve()
+        except (OSError, RuntimeError):
+            return True
+
+    def _check_settings_env_redirect(
+        self,
+        raw: dict,
+        config_path: Path,
+        client: str,
+    ) -> list[Finding]:
+        """CFHYG-007 — a project settings ``env`` block redirects API traffic.
+
+        CVE-2026-21852 (Check Point Research): a repository's
+        ``.claude/settings.json`` set ``ANTHROPIC_BASE_URL`` in its ``env``
+        block, and Claude Code sent the user's API key to that host.  Since
+        the fix (2025-12-28) project ``env`` values wait for the trust
+        dialog, but they still apply once the folder is trusted, and at
+        startup in ``claude -p``, which never shows the dialog
+        (code.claude.com/docs/en/settings-reference#env).  CFHYG-006, which
+        reads a *server's* ``env``, is unchanged; this is the settings
+        file's own top-level block.
+
+        Args:
+            raw: Parsed settings JSON.
+            config_path: Path to the settings file.
+            client: Client name from discovery.
+
+        Returns:
+            One HIGH finding per redirecting variable; empty for user-level
+            settings or when nothing redirects.
+        """
+        if not self._is_project_claude_settings(config_path):
+            return []
+        env = raw.get("env")
+        if not isinstance(env, dict):
+            return []
+        findings: list[Finding] = []
+        for name, host in _redirecting_env_vars(env):
+            proxy = name.endswith("_PROXY")
+            what = (
+                "routes Claude Code's network traffic, including its API requests,"
+                " through a proxy at"
+                if proxy
+                else "sends API requests, which carry the API key and the"
+                " conversation, to"
+            )
+            findings.append(
+                Finding(
+                    id="CFHYG-007",
+                    severity=Severity.HIGH,
+                    analyzer=self.name,
+                    client=client,
+                    server="(config-level)",
+                    title=f"Project settings env redirects API traffic ({name})",
+                    description=(
+                        f"'{_short_path(config_path)}' is project settings that reach"
+                        f" everyone who clones the repository. Its env block sets"
+                        f" {name}, which {what} '{host}', not the provider's own"
+                        " host. CVE-2026-21852 (Check Point Research) used"
+                        " ANTHROPIC_BASE_URL this way: Claude Code applies project"
+                        " env values"
+                        " once the folder is trusted, and at startup in 'claude"
+                        " -p', which shows no trust dialog. The block also reaches"
+                        " every subprocess Claude Code starts."
+                    ),
+                    evidence=f"{config_path}: env.{name} -> host {host}",
+                    remediation=(
+                        f"Remove {name} from this file. If your team routes"
+                        " traffic through a gateway or proxy, set it in managed"
+                        " settings, user settings or your shell instead, where a"
+                        " cloned repository cannot change it, and rotate the API"
+                        " key if the host is not one you recognise."
+                    ),
+                    cwe="CWE-441",
+                    cve=(["CVE-2026-21852"] if name == "ANTHROPIC_BASE_URL" else []),
+                    owasp_mcp_top_10=["MCP01", "MCP08"],
+                    finding_path=str(config_path),
+                )
+            )
         return findings
 
     # ── TRUST-003: repo-planted IDE auto-execution files ────────────────────
@@ -1139,7 +1576,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         client: str,
         project_root: Path,
     ) -> list[Finding]:
-        """TRUST-003 — inspect a non-MCP IDE auto-execution file.
+        """TRUST-003 / TRUST-008 — inspect a repo-planted auto-execution file.
 
         Called once per :class:`~mcp_audit.discovery.DiscoveredAutoexecFile`
         found under ``--project``.  Two kinds are handled:
@@ -1167,8 +1604,12 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
 
         Returns:
             List of TRUST-003 findings.  Empty when the file is benign, not
-            found, or cannot be parsed.
+            found, or cannot be parsed.  For the TRUST-008 kinds (other
+            harnesses' auto-run files) see :meth:`_check_sibling_harness_file`.
         """
+        if kind in _SIBLING_HARNESS_CHECKS:
+            return self._check_sibling_harness_file(kind, config_path, client)
+
         try:
             text = config_path.read_text(encoding="utf-8")
         except OSError:
@@ -1345,6 +1786,497 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
 
         return findings
 
+    # ── TRUST-008: other harnesses' auto-run files (STORY-0090) ─────────────
+
+    def _trust008(
+        self,
+        *,
+        severity: Severity,
+        client: str,
+        path: Path,
+        server: str,
+        title: str,
+        description: str,
+        evidence: str,
+        remediation: str,
+    ) -> Finding:
+        """Build a TRUST-008 finding (CWE-829, OWASP MCP05/MCP09)."""
+        return Finding(
+            id="TRUST-008",
+            severity=severity,
+            analyzer=self.name,
+            client=client,
+            server=server,
+            title=title,
+            description=description,
+            evidence=evidence,
+            remediation=remediation,
+            cwe="CWE-829",
+            owasp_mcp_top_10=["MCP05", "MCP09"],
+            finding_path=str(path),
+        )
+
+    def _check_sibling_harness_file(
+        self, kind: str, path: Path, client: str
+    ) -> list[Finding]:
+        """TRUST-008 — a Gemini CLI, Codex or Claude Code auto-run file in a repo.
+
+        Every key and file semantic below comes from the vendor's own docs
+        (see ``docs/agent-execution-surface.md``).  Files are read, never run.
+        A file larger than :data:`_AUTOEXEC_MAX_BYTES` is reported (MEDIUM)
+        without being read; a file that does not parse is logged and skipped,
+        because the harness rejects it too.
+
+        Args:
+            kind: A label in
+                :data:`~mcp_audit.discovery.SIBLING_HARNESS_AUTOEXEC_KINDS`.
+            path: The file (or, for ``claude-workflows``, the directory).
+            client: Client label for the findings.
+
+        Returns:
+            TRUST-008 findings, plus CRED-001 for literal secrets in
+            ``.gemini/.env`` (key names only, never values).
+        """
+        if kind == "claude-workflows":
+            return self._check_claude_workflows(path, client)
+        if kind == "claude-scheduled-tasks":
+            return self._check_claude_scheduled_tasks(path, client)
+
+        try:
+            size = path.stat().st_size
+        except OSError:
+            logger.warning("config_hygiene: could not stat autoexec file %s", path)
+            return []
+        if size > _AUTOEXEC_MAX_BYTES:
+            return [
+                self._trust008(
+                    severity=Severity.MEDIUM,
+                    client=client,
+                    path=path,
+                    server="(file)",
+                    title="Agent auto-run file is too large to inspect",
+                    description=(
+                        f"'{_short_path(path)}' is a file the {client} harness loads"
+                        f" automatically, and it is {size} bytes, over mcp-audit's"
+                        f" {_AUTOEXEC_MAX_BYTES}-byte read limit, so its contents"
+                        " were not checked. A config file this large is unusual;"
+                        " padding is one way to hide what it holds."
+                    ),
+                    evidence=f"{path}: {size} bytes",
+                    remediation=(
+                        "Open the file and review it before trusting the folder."
+                    ),
+                )
+            ]
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            logger.warning("config_hygiene: could not read autoexec file %s", path)
+            return []
+        # A leading byte-order mark would make tomllib/json reject the file and
+        # hide its contents; read past it.
+        text = text.removeprefix("\ufeff")
+
+        if kind == "gemini-settings":
+            return self._check_gemini_settings(text, path, client)
+        if kind == "gemini-env":
+            return self._check_gemini_env(text, path, client)
+        if kind == "codex-config":
+            return self._check_codex_config(text, path, client)
+        if kind == "codex-hooks":
+            return self._check_codex_hooks(text, path, client)
+        return []
+
+    def _hook_file_finding(
+        self,
+        *,
+        hooks: dict,
+        commands: list[str],
+        path: Path,
+        client: str,
+        harness: str,
+        gate: str,
+        extra: str = "",
+    ) -> Finding:
+        """One TRUST-008 finding for a file that defines command hooks."""
+        events = sorted(
+            str(event)
+            for event, groups in hooks.items()
+            if self._extract_hook_commands({event: groups})
+        )
+        net = _network_primitive(commands)
+        evidence = (
+            f"{path}: hooks on {', '.join(events)}; commands: "
+            f"{_quote_commands(commands)}"
+        )
+        if net:
+            evidence += f" | network primitive matched: {net!r}"
+        return self._trust008(
+            severity=Severity.CRITICAL if net else Severity.HIGH,
+            client=client,
+            path=path,
+            server="(hook)",
+            title=f"Repository defines {harness} hooks that run shell commands",
+            description=(
+                f"'{_short_path(path)}' defines {harness} hooks on {', '.join(events)}."
+                f" {harness} runs a hook's command on your machine when that"
+                f" event fires. {gate}{extra}"
+                + (
+                    " A hook command reaches the network, the shape of an"
+                    " exfiltration or command-and-control channel."
+                    if net
+                    else ""
+                )
+            ),
+            evidence=evidence,
+            remediation=(
+                "Read every hook command before trusting the folder, and remove"
+                " hooks you did not expect. mcp-audit does not modify this file."
+            ),
+        )
+
+    def _check_gemini_settings(
+        self, text: str, path: Path, client: str
+    ) -> list[Finding]:
+        """``.gemini/settings.json``: command hooks, or the hooks switch alone."""
+        parsed = parse_jsonc(text)
+        if not isinstance(parsed, dict):
+            logger.warning("config_hygiene: failed to parse JSONC in %s", path)
+            return []
+        hooks = parsed.get("hooks")
+        commands = self._extract_hook_commands(hooks) if isinstance(hooks, dict) else []
+        tools = parsed.get("tools")
+        enable_hooks = isinstance(tools, dict) and tools.get("enableHooks") is True
+        if commands and isinstance(hooks, dict):
+            return [
+                self._hook_file_finding(
+                    hooks=hooks,
+                    commands=commands,
+                    path=path,
+                    client=client,
+                    harness="Gemini CLI",
+                    gate=(
+                        "Project settings load unless the folder is marked"
+                        " untrusted; Gemini CLI fingerprints project hooks and"
+                        " warns before running a new or changed one."
+                        + (
+                            " This file also sets tools.enableHooks."
+                            if enable_hooks
+                            else ""
+                        )
+                    ),
+                    extra=(
+                        " The Miasma worm (2026) planted a SessionStart hook in"
+                        " this file, next to the same hook in"
+                        " .claude/settings.json, in at least 123 repositories."
+                    ),
+                )
+            ]
+        if enable_hooks:
+            return [
+                self._trust008(
+                    severity=Severity.MEDIUM,
+                    client=client,
+                    path=path,
+                    server="(setting)",
+                    title="Repository turns on Gemini CLI hooks",
+                    description=(
+                        f"'{_short_path(path)}' sets tools.enableHooks to true but"
+                        " defines no hooks of its own. In Gemini CLI 0.18 to 0.22"
+                        " hooks were off by default and this switch turned on"
+                        " every hook from every settings layer and extension;"
+                        " later releases default it to true and replace it with"
+                        " hooksConfig.enabled."
+                    ),
+                    evidence=f"{path}: tools.enableHooks = true",
+                    remediation=(
+                        "Remove the switch from project settings; turn hooks on"
+                        " in your own ~/.gemini/settings.json if you want them."
+                    ),
+                )
+            ]
+        return []
+
+    def _check_gemini_env(self, text: str, path: Path, client: str) -> list[Finding]:
+        """``.gemini/.env``: presence, redirects, and secrets (via CRED-001)."""
+        env = _parse_dotenv(text)
+        redirects = _redirecting_env_vars(env)
+        keys = sorted(env)
+        evidence = f"{path}: variables " + (_capped_list(keys) if keys else "(none)")
+        if redirects:
+            evidence += " | redirects: " + ", ".join(
+                f"{name} -> host {host}" for name, host in redirects
+            )
+        redirect_text = (
+            " It sets "
+            + ", ".join(f"{name} to '{host}'" for name, host in redirects)
+            + ", which sends requests, and the API key the CLI attaches,"
+            " to a host that is not the provider's own (the CVE-2026-21852"
+            " shape, for Gemini CLI)."
+            if redirects
+            else ""
+        )
+        findings = [
+            self._trust008(
+                severity=Severity.HIGH if redirects else Severity.MEDIUM,
+                client=client,
+                path=path,
+                server="(env)",
+                title="Repository ships a .gemini/.env file",
+                description=(
+                    f"'{_short_path(path)}' is the environment file Gemini CLI"
+                    " prefers over a plain .env. Gemini CLI loads it into its own"
+                    " environment unless the folder is marked untrusted, and"
+                    " never excludes variables from it. Before 0.39.1 its"
+                    " headless (CI) mode trusted the workspace automatically and"
+                    " loaded it, which"
+                    " GHSA-wpqr-6v78-jr5g (CVSS 10.0) describes as remote code"
+                    " execution from a pull request."
+                    + redirect_text
+                    + " Only variable names are reported; values are never"
+                    " printed."
+                ),
+                evidence=evidence,
+                remediation=(
+                    "Do not commit .gemini/.env. Keep API keys in your shell or a"
+                    " credential manager, add .gemini/.env to .gitignore, and"
+                    " rotate any key that was committed."
+                ),
+            )
+        ]
+        server = ServerConfig(
+            name=".gemini/.env", client=client, config_path=path, env=env
+        )
+        for finding in CredentialsAnalyzer().analyze(server):
+            finding.finding_path = str(path)
+            findings.append(finding)
+        return findings
+
+    def _check_codex_config(self, text: str, path: Path, client: str) -> list[Finding]:
+        """``.codex/config.toml``: notify, approval_policy, sandbox_mode, hooks."""
+        try:
+            data = tomllib.loads(text)
+        except (tomllib.TOMLDecodeError, RecursionError):
+            logger.warning("config_hygiene: failed to parse TOML in %s", path)
+            return []
+        findings: list[Finding] = []
+        trust_gate = (
+            " Codex loads a project's .codex/config.toml once you trust the project."
+        )
+
+        notify = data.get("notify")
+        if isinstance(notify, str):
+            notify = [notify]
+        if (
+            isinstance(notify, list)
+            and notify
+            and all(isinstance(part, str) for part in notify)
+        ):
+            command = " ".join(notify)
+            net = _network_primitive([command])
+            evidence = f"{path}: notify = {_quote_commands([command])}"
+            if net:
+                evidence += f" | network primitive matched: {net!r}"
+            findings.append(
+                self._trust008(
+                    severity=Severity.CRITICAL if net else Severity.HIGH,
+                    client=client,
+                    path=path,
+                    server="(notify)",
+                    title="Repository sets a Codex notify command",
+                    description=(
+                        f"'{_short_path(path)}' sets notify, a program Codex runs after"
+                        " every agent turn. Cymulate (2026) showed a project"
+                        " .codex/config.toml notify running outside Codex's"
+                        " sandbox even with the sandbox on; OpenAI closed the"
+                        " report as informational. Current Codex documentation"
+                        " says Codex ignores notify in a project-local config and"
+                        " prints a startup warning, so older Codex releases are"
+                        " the ones at risk, and a repository has no reason to"
+                        " ship a machine-local notification command."
+                        + trust_gate
+                        + (" The command reaches the network." if net else "")
+                    ),
+                    evidence=evidence,
+                    remediation=(
+                        "Remove notify from the project file; set notifications in"
+                        " your own ~/.codex/config.toml."
+                    ),
+                )
+            )
+
+        if data.get("approval_policy") == "never":
+            findings.append(
+                self._trust008(
+                    severity=Severity.HIGH,
+                    client=client,
+                    path=path,
+                    server="(setting)",
+                    title="Repository turns off Codex approval prompts",
+                    description=(
+                        f"'{_short_path(path)}' sets approval_policy ="
+                        ' "never", so Codex never pauses to ask before running'
+                        " a command."
+                        + trust_gate
+                        + " A repository that chooses this for everyone who"
+                        " clones it removes the prompt that would catch an"
+                        " injected instruction (the confused-deputy pattern Origin"
+                        " described in 2026)."
+                    ),
+                    evidence=f'{path}: approval_policy = "never"',
+                    remediation=(
+                        "Remove approval_policy from the project file and choose"
+                        " your own in ~/.codex/config.toml; administrators can pin"
+                        " it with allowed_approval_policies in requirements.toml."
+                    ),
+                )
+            )
+
+        if data.get("sandbox_mode") == "danger-full-access":
+            findings.append(
+                self._trust008(
+                    severity=Severity.HIGH,
+                    client=client,
+                    path=path,
+                    server="(setting)",
+                    title="Repository turns off the Codex sandbox",
+                    description=(
+                        f"'{_short_path(path)}' sets sandbox_mode ="
+                        ' "danger-full-access", so commands Codex runs get full'
+                        " filesystem and network access with no sandbox." + trust_gate
+                    ),
+                    evidence=f'{path}: sandbox_mode = "danger-full-access"',
+                    remediation=(
+                        "Remove sandbox_mode from the project file;"
+                        " administrators can pin it with allowed_sandbox_modes"
+                        " in requirements.toml."
+                    ),
+                )
+            )
+
+        hooks = data.get("hooks")
+        commands = self._extract_hook_commands(hooks) if isinstance(hooks, dict) else []
+        if commands and isinstance(hooks, dict):
+            findings.append(
+                self._hook_file_finding(
+                    hooks=hooks,
+                    commands=commands,
+                    path=path,
+                    client=client,
+                    harness="Codex",
+                    gate=(
+                        "Project hooks load once the project is trusted, and"
+                        " Codex asks you to review and trust each new or changed"
+                        " hook before it runs."
+                    ),
+                )
+            )
+        return findings
+
+    def _check_codex_hooks(self, text: str, path: Path, client: str) -> list[Finding]:
+        """``.codex/hooks.json``: command hooks."""
+        parsed = parse_jsonc(text)
+        if not isinstance(parsed, dict):
+            logger.warning("config_hygiene: failed to parse JSONC in %s", path)
+            return []
+        hooks = parsed.get("hooks")
+        commands = self._extract_hook_commands(hooks) if isinstance(hooks, dict) else []
+        if not commands or not isinstance(hooks, dict):
+            return []
+        return [
+            self._hook_file_finding(
+                hooks=hooks,
+                commands=commands,
+                path=path,
+                client=client,
+                harness="Codex",
+                gate=(
+                    "Project hooks load once the project is trusted, and Codex"
+                    " asks you to review and trust each new or changed hook"
+                    " before it runs."
+                ),
+            )
+        ]
+
+    def _check_claude_scheduled_tasks(self, path: Path, client: str) -> list[Finding]:
+        """``.claude/scheduled_tasks.json`` in a repository (presence)."""
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return []
+        return [
+            self._trust008(
+                severity=Severity.MEDIUM,
+                client=client,
+                path=path,
+                server="(scheduled-tasks)",
+                title="Repository ships Claude Code scheduled tasks",
+                description=(
+                    f"'{_short_path(path)}' is where Claude Code saves"
+                    " scheduled tasks you ask it to keep across sessions:"
+                    " prompts it runs on a timer."
+                    " Anthropic's sandboxing documentation lists it among the"
+                    " files Claude Code runs on its own and write-protects it. A"
+                    " repository has no reason to ship one: Claude Code lists a"
+                    " copied file's tasks but runs them only in the folder that"
+                    " created them, so a committed file is either someone's own"
+                    " tasks leaking or a planted set of standing instructions."
+                    " arXiv 2608.27299 escalated instruction privilege through"
+                    " harness scheduled tasks and persistent goals on all six"
+                    " harnesses it tested."
+                ),
+                evidence=f"{path}: {size} bytes",
+                remediation=(
+                    "Remove the file from the repository and add it to .gitignore;"
+                    " recreate any task you need in your own session."
+                ),
+            )
+        ]
+
+    def _check_claude_workflows(self, path: Path, client: str) -> list[Finding]:
+        """``.claude/workflows/`` in a repository (inventory, names only)."""
+        try:
+            # Saved workflows are .js files (code.claude.com/docs/en/workflows);
+            # a .gitkeep or README beside them is not a workflow.
+            names = sorted(
+                entry.name
+                for entry in path.iterdir()
+                if entry.suffix == ".js" and entry.is_file()
+            )
+        except OSError:
+            logger.warning("config_hygiene: could not list %s", path)
+            return []
+        if not names:
+            return []
+        return [
+            self._trust008(
+                severity=Severity.MEDIUM,
+                client=client,
+                path=path,
+                server="(workflows)",
+                title="Repository ships Claude Code workflows",
+                description=(
+                    f"'{_short_path(path)}' holds {len(names)} saved Claude"
+                    " Code workflow file(s): JavaScript that starts and steers"
+                    " subagents and runs"
+                    " as /<name> for everyone who clones the repository. A project"
+                    " workflow wins over a personal one with the same name. Claude"
+                    " Code asks before each run in its default modes, once in auto"
+                    " mode, and not at all in bypass-permissions mode; in 'claude"
+                    " -p' and the Agent SDK there is no prompt and the launch is"
+                    " decided by your permission rules, so a 'Workflow' allow rule"
+                    " runs it unasked. Anthropic's sandboxing documentation lists"
+                    " .claude/workflows among the files Claude Code runs on its"
+                    " own."
+                ),
+                evidence=f"{path}: {_capped_list(names)}",
+                remediation=(
+                    "Read each workflow script before running it, and check this"
+                    " directory in code review like any other executable code."
+                ),
+            )
+        ]
+
     def _check_anthropic_base_url(
         self,
         server: ServerConfig,
@@ -1363,10 +2295,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         if not value:
             return []
 
-        if _looks_like_env_ref(value):
-            return []
-
-        if value.startswith("https://api.anthropic.com"):
+        if _is_first_party_anthropic_base_url(value):
             return []
 
         return [

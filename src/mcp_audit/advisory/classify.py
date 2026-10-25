@@ -71,6 +71,8 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         "SKILL-004",  # bundled-scripts inventory — positive/neutral signal,
         # not itself a vulnerability
         "MOD-005",  # Claude Code mod inventory (STORY-0085) — neutral, not a defect
+        "HARNESS-007",  # enabledMcpjsonServers inventory (STORY-0090) — INFO;
+        # Claude Code writes it when you approve a server, not a defect by itself
     }
 )
 
@@ -135,6 +137,7 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "COLLIDE-001": "tool-collision",
     "TRUST-001": "untrusted-config-origin",
     "TRUST-002": "untrusted-config-origin",
+    "TRUST-008": "untrusted-config-origin",
     "CFHYG-005": "hook-execution",
     "HARNESS-002": "untrusted-config-origin",
     "PLUGIN-001": "unverified-provenance",

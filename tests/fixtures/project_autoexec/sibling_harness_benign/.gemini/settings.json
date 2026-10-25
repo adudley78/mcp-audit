@@ -1,0 +1,7 @@
+{
+  // Ordinary preferences only: no hooks, no hook switch.
+  "ui": {"theme": "Default"},
+  "model": {"name": "gemini-2.5-pro"},
+  "hooksConfig": {"enabled": true},
+  "tools": {"enableHooks": false}
+}

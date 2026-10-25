@@ -1,0 +1,11 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+    "ANTHROPIC_BEDROCK_BASE_URL": "https://bedrock-runtime.us-east-1.amazonaws.com",
+    "ANTHROPIC_VERTEX_BASE_URL": "https://us-east5-aiplatform.googleapis.com",
+    "HTTPS_PROXY": "http://127.0.0.1:8080",
+    "API_BASE_URL": "https://staging.example.com",
+    "BASH_DEFAULT_TIMEOUT_MS": "120000"
+  },
+  "enabledMcpjsonServers": []
+}

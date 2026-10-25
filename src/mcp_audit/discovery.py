@@ -579,10 +579,62 @@ _PROJECT_CONFIG_SPECS: list[tuple[str, str, str]] = [
 # SessionStart hook (already covered by CFHYG-005/HOOK-001/002) AND a
 # `.vscode/tasks.json` task with `"runOn": "folderOpen"` — the second file
 # was previously invisible to mcp-audit.
+#
+# TRUST-008 (STORY-0090) adds other harnesses' repo-planted auto-run files,
+# each confirmed from the vendor's own docs (see docs/agent-execution-surface.md):
+#   Gemini CLI   — .gemini/settings.json (`hooks`, `tools.enableHooks`) and
+#                  .gemini/.env (loaded into the CLI's environment unless the
+#                  folder is marked untrusted; headless mode trusted every
+#                  workspace before 0.39.1).
+#                  Miasma (2026-06) planted a SessionStart hook here.
+#   Codex        — .codex/config.toml (`notify`, `approval_policy`,
+#                  `sandbox_mode`, inline `[hooks]`) and .codex/hooks.json;
+#                  loaded when the project is trusted.
+#   Claude Code  — .claude/scheduled_tasks.json and the .claude/workflows/
+#                  directory, which Anthropic's sandboxing doc lists as
+#                  "files Claude Code runs on its own".
 _PROJECT_AUTOEXEC_SPECS: list[tuple[str, str]] = [
     (".vscode/tasks.json", "vscode-tasks"),
     (".vscode/settings.json", "vscode-settings"),
+    (".gemini/settings.json", "gemini-settings"),
+    (".gemini/.env", "gemini-env"),
+    (".codex/config.toml", "codex-config"),
+    (".codex/hooks.json", "codex-hooks"),
+    (".claude/scheduled_tasks.json", "claude-scheduled-tasks"),
+    (".claude/workflows", "claude-workflows"),
 ]
+
+#: Autoexec kinds whose candidate path is a directory, not a file.
+_AUTOEXEC_DIR_KINDS: frozenset[str] = frozenset({"claude-workflows"})
+
+#: Client label attached to findings for each autoexec kind.
+_AUTOEXEC_KIND_CLIENT: dict[str, str] = {
+    "vscode-tasks": "vscode",
+    "vscode-settings": "vscode",
+    "gemini-settings": "gemini-cli",
+    "gemini-env": "gemini-cli",
+    "codex-config": "codex",
+    "codex-hooks": "codex",
+    "claude-scheduled-tasks": "claude-code",
+    "claude-workflows": "claude-code",
+}
+
+#: TRUST-008's kinds: auto-run files of harnesses other than VS Code.  The
+#: ``--project`` walk skips them directly under ``$HOME`` (user config).  Every
+#: autoexec kind, TRUST-003's VS Code files included, is also read at the root
+#: of the working directory by a default scan (:func:`discover_cwd_autoexec_files`),
+#: so ``scan``/``check`` run from a checkout (the GitHub Action's default) see
+#: them.
+SIBLING_HARNESS_AUTOEXEC_KINDS: frozenset[str] = frozenset(
+    {
+        "gemini-settings",
+        "gemini-env",
+        "codex-config",
+        "codex-hooks",
+        "claude-scheduled-tasks",
+        "claude-workflows",
+    }
+)
 
 
 # Directory names to skip while walking the project tree.
@@ -715,6 +767,86 @@ class DiscoveredAutoexecFile:
     is_symlink: bool = False
     symlink_root: Path | None = None
 
+    @property
+    def client(self) -> str:
+        """Client label for findings about this file (``"vscode"`` by default)."""
+        return _AUTOEXEC_KIND_CLIENT.get(self.kind, "vscode")
+
+
+def _is_user_level_harness_dir(dirpath: Path) -> bool:
+    """True when *dirpath* is the home directory itself.
+
+    ``~/.gemini/``, ``~/.codex/`` and ``~/.claude/`` are each harness's
+    user-level config directory, not a repository's, so a TRUST-008 kind found
+    directly under ``$HOME`` (a scan run from the home directory) is the
+    user's own setting and is skipped.
+    """
+    try:
+        return dirpath.resolve() == _home().resolve()
+    except (OSError, RuntimeError):
+        return False
+
+
+def _autoexec_candidate(
+    dirpath: Path, rel_path: str, kind: str, root: Path, *, at_home: bool
+) -> DiscoveredAutoexecFile | None:
+    """Return the autoexec candidate *rel_path* under *dirpath*, if present.
+
+    *at_home* is :func:`_is_user_level_harness_dir` for *dirpath*, computed
+    once per directory by the caller.
+    """
+    if at_home and kind in SIBLING_HARNESS_AUTOEXEC_KINDS:
+        return None
+    candidate = dirpath / rel_path
+    # A symlinked *parent* (``.gemini -> /elsewhere/.gemini``) puts the file
+    # outside the reviewed tree just as a symlinked file does, so any link on
+    # the way down makes this a TRUST-002 candidate, not the repo's own file.
+    parent = dirpath
+    via_link = False
+    for part in Path(rel_path).parts[:-1]:
+        parent = parent / part
+        if parent.is_symlink():
+            via_link = True
+            break
+    if candidate.is_symlink() or (via_link and candidate.exists()):
+        return DiscoveredAutoexecFile(
+            kind=kind, path=candidate, is_symlink=True, symlink_root=root
+        )
+    if candidate.is_file() or (kind in _AUTOEXEC_DIR_KINDS and candidate.is_dir()):
+        return DiscoveredAutoexecFile(kind=kind, path=candidate)
+    return None
+
+
+def discover_cwd_autoexec_files(
+    cwd: Path | None = None,
+) -> list[DiscoveredAutoexecFile]:
+    """Find auto-run files (TRUST-003, TRUST-008) at the working directory's root.
+
+    The default-scan counterpart of :func:`discover_project_autoexec_files`:
+    no tree walk, only *cwd* itself, for every kind in
+    :data:`_PROJECT_AUTOEXEC_SPECS`, mirroring how a default scan already
+    reads ``.claude/settings.json`` at the cwd root (STORY-0082).  Nothing is
+    found when *cwd* is the home directory: ``~/.gemini``, ``~/.codex`` and
+    ``~/.claude`` are user-level config there, and a scan run from ``$HOME``
+    is not a scan of a repository.
+
+    Args:
+        cwd: Directory to check.  Defaults to :func:`Path.cwd`.
+
+    Returns:
+        Discovered files, symlinked candidates included with
+        ``is_symlink=True`` and ``symlink_root=cwd`` (TRUST-002 shape).
+    """
+    root = cwd if cwd is not None else Path.cwd()
+    if _is_user_level_harness_dir(root):
+        return []
+    found: list[DiscoveredAutoexecFile] = []
+    for rel_path, kind in _PROJECT_AUTOEXEC_SPECS:
+        candidate = _autoexec_candidate(root, rel_path, kind, root, at_home=False)
+        if candidate is not None:
+            found.append(candidate)
+    return found
+
 
 def discover_project_autoexec_files(
     root: Path, skip_findings: list[Finding] | None = None
@@ -724,7 +856,11 @@ def discover_project_autoexec_files(
     Mirrors :func:`discover_project_configs`'s walk rules (skip-dir list,
     depth cap, no symlinked directories) but targets ``.vscode/tasks.json``
     and ``.vscode/settings.json`` — files with no MCP root key that can still
-    auto-run a command when a developer opens the folder (TRUST-003).
+    auto-run a command when a developer opens the folder (TRUST-003) — and
+    the other harnesses' auto-run files in :data:`SIBLING_HARNESS_AUTOEXEC_KINDS`
+    (TRUST-008; ``.claude/workflows`` is a directory candidate).  A TRUST-008
+    kind directly under the home directory is the user's own config and is
+    skipped.
 
     A candidate that is itself a symlink is *included*
     (``is_symlink=True``, ``symlink_root=root``) rather than skipped — the
@@ -747,20 +883,13 @@ def discover_project_autoexec_files(
         if depth > _WALK_MAX_DEPTH:
             return
 
+        at_home = _is_user_level_harness_dir(dirpath)
         for rel_path, kind in _PROJECT_AUTOEXEC_SPECS:
-            candidate = dirpath / rel_path
-            if candidate.is_symlink():
-                discovered.append(
-                    DiscoveredAutoexecFile(
-                        kind=kind,
-                        path=candidate,
-                        is_symlink=True,
-                        symlink_root=root,
-                    )
-                )
-                continue
-            if candidate.is_file():
-                discovered.append(DiscoveredAutoexecFile(kind=kind, path=candidate))
+            candidate = _autoexec_candidate(
+                dirpath, rel_path, kind, root, at_home=at_home
+            )
+            if candidate is not None:
+                discovered.append(candidate)
 
         try:
             children = sorted(dirpath.iterdir())

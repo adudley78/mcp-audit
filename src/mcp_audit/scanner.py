@@ -24,6 +24,7 @@ from mcp_audit.discovery import (
     build_info_symlink_finding,
     build_project_symlink_finding,
     discover_configs,
+    discover_cwd_autoexec_files,
 )
 from mcp_audit.models import (
     Finding,
@@ -338,6 +339,52 @@ def _run_static_pipeline(
     return result
 
 
+def _cwd_autoexec_findings() -> list[Finding]:
+    """TRUST-003 / TRUST-008 (and TRUST-002) for auto-run files at the cwd root.
+
+    A default scan (no explicit path) already reads ``.claude/settings.json``
+    at the working directory's root (STORY-0082); this reads the VS Code,
+    Gemini CLI, Codex and Claude Code auto-run files beside it, so ``scan``,
+    ``check`` and the GitHub Action see a commit that plants one.  Root only,
+    no walk: ``scan --project`` walks the tree.  Skipped when the cwd is the
+    home directory.  A symlinked candidate gets TRUST-002 instead, as under
+    ``--project``.
+    """
+    cwd = Path.cwd()
+    hygiene = ConfigHygieneAnalyzer()
+    findings: list[Finding] = []
+    for autoexec_file in discover_cwd_autoexec_files(cwd):
+        if autoexec_file.is_symlink and autoexec_file.symlink_root is not None:
+            findings.append(
+                build_project_symlink_finding(
+                    autoexec_file.path, autoexec_file.client, autoexec_file.symlink_root
+                )
+            )
+            continue
+        try:
+            findings.extend(
+                hygiene.analyze_autoexec_file(
+                    kind=autoexec_file.kind,
+                    config_path=autoexec_file.path,
+                    client=autoexec_file.client,
+                    project_root=cwd,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            findings.append(
+                _analyzer_crash_finding(
+                    "config_hygiene",
+                    ServerConfig(
+                        name=autoexec_file.path.name,
+                        client=autoexec_file.client,
+                        config_path=autoexec_file.path,
+                    ),
+                    exc,
+                )
+            )
+    return findings
+
+
 def _discover_and_parse(
     extra_paths: list[Path] | None,
     result: ScanResult,
@@ -361,6 +408,11 @@ def _discover_and_parse(
     ``claude-code-plugin`` and the PLUGIN-001/002 pin checks are appended to
     ``result.findings`` here, so every ``run_scan`` consumer (``scan``,
     ``check``, ``dashboard`` …) sees them and the score counts them.
+
+    With no *extra_paths*, the VS Code, Gemini CLI, Codex and Claude Code
+    auto-run files at the working directory's root are checked too (TRUST-003,
+    TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), and are scored
+    like the rest.
     """
     configs = discover_configs(
         extra_paths=extra_paths,
@@ -382,6 +434,9 @@ def _discover_and_parse(
             _plugin_mods.analyze_mods(_plugin_mods.discover_mods(installed))
         )
         result.findings.extend(_plugin_mods.analyze_plugin_dirs_setting())
+
+    if not extra_paths:
+        result.findings.extend(_cwd_autoexec_findings())
 
     all_servers: list[ServerConfig] = []
     for config in configs:

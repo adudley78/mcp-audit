@@ -36,6 +36,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `build_runtime_server_config`, so any change to either fails CI until recall, the
   clean-tool flag rate and the committed-fragment replay are re-measured. Recall is a
   release-time measurement: MCPTox is fetched by hand, never in CI, and never committed.
+- **Gemini CLI, Codex and Claude Code files a repository can plant to run commands
+  are now flagged (TRUST-008)** (STORY-0090). `.gemini/settings.json` hooks and
+  `.codex/config.toml` / `.codex/hooks.json` hooks, a Codex `notify` command,
+  `approval_policy = "never"` and `sandbox_mode = "danger-full-access"` are HIGH
+  (CRITICAL when the command reaches the network). A `.gemini/.env` file is MEDIUM,
+  HIGH when it points the Gemini API at another host; a value in it that matches
+  one of CRED-001's secret patterns is reported as CRED-001 by variable name, never
+  by value. Claude Code's
+  `.claude/scheduled_tasks.json` and `.claude/workflows/` are MEDIUM. `scan
+  --project` walks the repository for them, and a plain `scan` or `check` reads them
+  at the root of the folder it runs in, so the GitHub Action sees a commit that adds
+  one. The Miasma worm planted the Gemini hook in at least 123 repositories.
+- **Project settings that send API traffic elsewhere are flagged (CFHYG-007, HIGH)**
+  (STORY-0090). When a repository's `.claude/settings.json` or `settings.local.json`
+  sets `ANTHROPIC_BASE_URL`, another provider endpoint or `HTTPS_PROXY` in its `env`
+  block to a host that isn't the provider's own, every developer who trusts the
+  folder sends their API key there (CVE-2026-21852). Your own `~/.claude` settings
+  and loopback hosts are not flagged. CFHYG-006, which reads a server's `env`, is
+  unchanged.
+- **`enabledMcpjsonServers` is listed (HARNESS-007, INFO)**, beside HARNESS-002: the
+  project MCP servers a settings file approves by name.
+- **`docs/agent-execution-surface.md`:** every repository file mcp-audit reads that a
+  harness runs or obeys, per harness, with the vendor source for each.
 
 ### Changed
 
@@ -43,6 +66,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   release-notes template said the 22-server benchmark had no poisoning false positives.
   That is still true, but those fixtures are config entries with no tool descriptions;
   each now points to the measured numbers above.
+- **TRUST-003 now also runs in a plain scan of the current directory** (STORY-0090).
+  A plain `scan` or `check` run in a repository now reads its root
+  `.vscode/tasks.json` and `.vscode/settings.json`, so a folder-open task like the one
+  the Keyv and Miasma worms planted is named without `--project`. What TRUST-003
+  means and how severe it is are unchanged; `scan --project` still walks the whole
+  tree and doesn't report the same file twice, and a scan run from your home folder
+  skips this check. A `.vscode/` directory that is a symlink is now reported as
+  TRUST-002 (a link out of the repository) instead of its files being read as the
+  repository's own.
+- **`check` no longer says "No MCP config files found" and exits 0 when the scan has
+  findings.** A folder with no MCP config can still carry a planted auto-run file;
+  its findings now reach the verdict and the exit code.
 
 ## [0.21.1] - 2026-10-25
 

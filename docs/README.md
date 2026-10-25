@@ -15,6 +15,7 @@
 | [supply-chain.md](supply-chain.md) | Supply chain attestation, hash verification, contribution guide |
 | [dependency-reachability.md](dependency-reachability.md) | Why Dependabot findings in transitives are unused, and which call-site changes invalidate those dismissals |
 | [severity-framework.md](severity-framework.md) | CVSS base scores and OWASP Agentic Top 10 mappings for every finding ID; decision tree for calibrating new findings |
+| [agent-execution-surface.md](agent-execution-surface.md) | Every repository file mcp-audit reads that a coding-agent harness runs or obeys (Gemini CLI, Codex, Claude Code, VS Code), with the finding and vendor source for each |
 | [registry.md](registry.md) | Known-server registry reference, contributing entries |
 | [registry-contributions.md](registry-contributions.md) | How to submit new registry entries |
 | [research/2026-10-top100-npm/](research/2026-10-top100-npm/README.md) | Scan of the 100 most-downloaded MCP servers on npm (2026-10-22): corpus, aggregate numbers, scripts |
