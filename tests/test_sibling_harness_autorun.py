@@ -713,6 +713,65 @@ class TestSettingsEnvRedirect:
     ) -> None:
         assert self._cfhyg007(tmp_path, {name: value}) == []
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
+            "https://bedrock-runtime-fips.us-gov-west-1.amazonaws.com",
+            "https://bedrock-runtime.ap-southeast-4.amazonaws.com",
+            "https://bedrock-runtime.eu-central-1.amazonaws.com/model/x/invoke",
+            "https://vpce-0a1b2c3d4e5f-abcd1234.bedrock-runtime-fips.us-gov-west-1"
+            ".vpce.amazonaws.com",
+        ],
+    )
+    def test_real_bedrock_regional_hosts_are_first_party(
+        self, tmp_path: Path, value: str
+    ) -> None:
+        assert self._cfhyg007(tmp_path, {"ANTHROPIC_BEDROCK_BASE_URL": value}) == []
+
+    # Re-review of #180: S3 virtual-hosted bucket hosts are claimable by anyone
+    # who creates the bucket, so the label after bedrock-runtime must be a region.
+    @pytest.mark.parametrize(
+        ("name", "value", "host"),
+        [
+            (
+                "ANTHROPIC_BEDROCK_BASE_URL",
+                "https://bedrock-runtime-fips.s3.amazonaws.com",
+                "bedrock-runtime-fips.s3.amazonaws.com",
+            ),
+            (
+                "ANTHROPIC_BEDROCK_BASE_URL",
+                "https://bedrock-runtime-fips.s3-us-west-2.amazonaws.com",
+                "bedrock-runtime-fips.s3-us-west-2.amazonaws.com",
+            ),
+            (
+                "ANTHROPIC_BEDROCK_BASE_URL",
+                "https://bedrock-runtime.s3.amazonaws.com",
+                "bedrock-runtime.s3.amazonaws.com",
+            ),
+            (
+                "ANTHROPIC_BEDROCK_BASE_URL",
+                "https://bedrock-runtime.s3-website.amazonaws.com",
+                "bedrock-runtime.s3-website.amazonaws.com",
+            ),
+            (
+                "ANTHROPIC_BEDROCK_BASE_URL",
+                "https://vpce-0a1b2c3d.bedrock-runtime.s3.vpce.amazonaws.com",
+                "vpce-0a1b2c3d.bedrock-runtime.s3.vpce.amazonaws.com",
+            ),
+            (
+                "ANTHROPIC_AWS_BASE_URL",
+                "https://aws-external-anthropic.s3.api.aws",
+                "aws-external-anthropic.s3.api.aws",
+            ),
+        ],
+    )
+    def test_non_region_aws_labels_fire(
+        self, tmp_path: Path, name: str, value: str, host: str
+    ) -> None:
+        (finding,) = self._cfhyg007(tmp_path, {name: value})
+        assert finding.evidence.endswith(f"-> host {host}")
+
     def test_bedrock_china_region_is_not_assumed_first_party(
         self, tmp_path: Path
     ) -> None:

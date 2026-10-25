@@ -386,20 +386,27 @@ _VERTEX_HOST_RE = re.compile(
     r"^(?:[a-z0-9-]+-)?aiplatform\.googleapis\.com$"
     r"|^aiplatform\.[a-z0-9-]+\.rep\.googleapis\.com$"
 )
+# An AWS region name as it appears in a service endpoint host: two letters,
+# one or more words, a number (``us-east-1``, ``us-gov-west-1``, ``ap-southeast-4``).
+_AWS_REGION = r"[a-z]{2}(?:-[a-z]+)+-\d+"
 _REDIRECT_ENV_FIRST_PARTY: dict[str, re.Pattern[str] | None] = {
     "ANTHROPIC_BASE_URL": re.compile(rf"^{re.escape(_ANTHROPIC_API_HOST)}$"),
     # bedrock-runtime(-fips).<region>.amazonaws.com and interface VPC endpoints
     # vpce-<id>.bedrock-runtime.<region>.vpce.amazonaws.com (AWS Bedrock user
-    # guide, "Use interface VPC endpoints").
+    # guide, "Use interface VPC endpoints").  The middle label must be a region
+    # (``us-east-1``, ``us-gov-west-1``): a looser label would accept S3
+    # virtual-hosted bucket hosts such as ``bedrock-runtime-fips.s3.amazonaws.com``,
+    # which anyone can claim by creating that bucket.
     "ANTHROPIC_BEDROCK_BASE_URL": re.compile(
-        r"^bedrock-runtime(?:-fips)?\.[a-z0-9-]+\.amazonaws\.com$"
-        r"|^vpce-[a-z0-9-]+\.bedrock-runtime(?:-fips)?\.[a-z0-9-]+\.vpce\.amazonaws\.com$"
+        rf"^bedrock-runtime(?:-fips)?\.{_AWS_REGION}\.amazonaws\.com$"
+        rf"|^vpce-[a-z0-9-]+\.bedrock-runtime(?:-fips)?\.{_AWS_REGION}"
+        r"\.vpce\.amazonaws\.com$"
     ),
     "ANTHROPIC_BEDROCK_MANTLE_BASE_URL": None,
     "ANTHROPIC_VERTEX_BASE_URL": _VERTEX_HOST_RE,
     "ANTHROPIC_FOUNDRY_BASE_URL": re.compile(r"^[a-z0-9-]+\.services\.ai\.azure\.com$"),
     "ANTHROPIC_AWS_BASE_URL": re.compile(
-        r"^aws-external-anthropic\.[a-z0-9-]+\.api\.aws$"
+        rf"^aws-external-anthropic\.{_AWS_REGION}\.api\.aws$"
     ),
     "OPENAI_BASE_URL": re.compile(r"^api\.openai\.com$"),
     "GOOGLE_GEMINI_BASE_URL": re.compile(r"^generativelanguage\.googleapis\.com$"),
@@ -1834,8 +1841,9 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             client: Client label for the findings.
 
         Returns:
-            TRUST-008 findings, plus CRED-001 for literal secrets in
-            ``.gemini/.env`` (key names only, never values).
+            TRUST-008 findings, plus CRED-001 for a ``.gemini/.env`` value
+            matching one of CRED-001's secret patterns (key names only, never
+            values).
         """
         if kind == "claude-workflows":
             return self._check_claude_workflows(path, client)

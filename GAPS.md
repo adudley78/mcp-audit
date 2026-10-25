@@ -137,8 +137,12 @@ walk). Known boundaries:
   `*_BASE_URL` names (usually application settings) are not checked. Loopback
   hosts are not reported. First-party hosts are the documented defaults only:
   Bedrock's `bedrock-runtime[-fips].<region>.amazonaws.com` and interface VPC
-  endpoints; Bedrock in AWS China regions (`amazonaws.com.cn`) is not documented
-  and is reported. A URL is read both the way Node does (backslashes as `/` for
+  endpoints, where `<region>` must have a region's shape (`us-east-1`,
+  `us-gov-west-1`), so a claimable S3 bucket host such as
+  `bedrock-runtime-fips.s3.amazonaws.com` is reported; Bedrock in AWS China regions
+  (`amazonaws.com.cn`) is not documented and is reported. Foundry's
+  `<resource>.services.ai.azure.com` accepts any resource name, including one an
+  attacker created in their own Azure subscription. A URL is read both the way Node does (backslashes as `/` for
   http(s), any run of slashes skipped) and literally; a value is reported if
   either reading leaves first-party hosts, if it carries user info before `@`,
   or if it has no parsable host. Node's IDNA mapping and numeric IPv4 forms
