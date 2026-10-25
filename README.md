@@ -240,13 +240,17 @@ The badge shows **registry verification status** (confirmed maintainer link) and
 endorsement. See [docs/badge.md](docs/badge.md) for the full specification: what the
 badge asserts, what it does not assert, and how badge data updates.
 
-**Your package not listed?** The badge shows `unknown` (grey) until your entry is
-added to the registry. Add it in ~5 minutes:
+**Your package not listed?** Badges exist only for packages in the registry.
+`--badge` prints the snippet for any name, but for an unlisted package the badge
+URL returns 404 and Shields.io renders `custom badge: resource not found` until
+your entry is added. Add it in ~5 minutes:
 
 1. Run `mcp-audit vet @your-scope/your-server` to see what users see today.
 2. [Open a registry submission issue](https://github.com/adudley78/mcp-audit/issues/new?template=registry-submission.yml)
    or edit `registry/known-servers.json` and open a PR.
-3. Once merged, your badge turns green (`verified · 0 known CVEs`).
+3. Once the entry is merged and mcp-audit.dev is next deployed, the badge appears:
+   blue (`listed · 0 known CVEs`) for a new entry, green (`verified · 0 known CVEs`)
+   once a reviewer has confirmed the maintainer link.
 
 See [docs/registry-contributions.md](docs/registry-contributions.md) for the entry
 format and verification standard.
@@ -450,10 +454,10 @@ MCP servers can update their tool definitions at any time. A server can publish 
 
 ```bash
 mcp-audit pin   # Record current state as trusted
-mcp-audit diff  # Show what has changed since last pin
+mcp-audit scan  # Flags RUGPULL-001 for any entry changed since the pin
 ```
 
-Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All other persistent state (baselines, registry cache, policy, rules, license) uses the platform user-config directory: `~/Library/Application Support/mcp-audit/` on macOS, `~/.config/mcp-audit/` on Linux, `%APPDATA%\mcp-audit\` on Windows.
+Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/state_<hash>.json` (files from the old `~/.mcp-audit/` location are copied over once). All persistent state (rug-pull state, baselines, registry cache, policy, rules, registration) uses the platform user-config directory: `~/Library/Application Support/mcp-audit/` on macOS, `~/.config/mcp-audit/` on Linux, `%LOCALAPPDATA%\mcp-audit\mcp-audit\` on Windows.
 
 ## CI/CD usage
 
@@ -559,11 +563,7 @@ Every command is available to every user — no tier, no license required.
 
 ## IDE Integration
 
-Install the [mcp-audit VS Code extension](https://github.com/mcp-audit/mcp-audit-vscode) to get inline diagnostics directly in your editor — the same findings `mcp-audit scan` reports, shown as red/yellow squiggles the moment you open or save an MCP config file.
-
-```
-ext install mcp-audit.mcp-audit-vscode
-```
+Install the [mcp-audit extension](https://open-vsx.org/extension/mcp-audit/mcp-audit-vscode) (`mcp-audit.mcp-audit-vscode`, published on Open VSX) to get inline diagnostics directly in your editor — the same findings `mcp-audit scan` reports, shown as red/yellow squiggles the moment you open or save an MCP config file. In Cursor, VSCodium, or another editor that uses Open VSX, search for `mcp-audit` in the Extensions view. In VS Code, download the `.vsix` from the Open VSX page and run `Extensions: Install from VSIX…`. Source: [mcp-audit/mcp-audit-vscode](https://github.com/mcp-audit/mcp-audit-vscode).
 
 - Red/yellow squiggles on offending server keys in `claude_desktop_config.json`, `mcp.json`, and all other supported MCP config files
 - Hover cards with finding title, description, evidence, and remediation
@@ -571,7 +571,7 @@ ext install mcp-audit.mcp-audit-vscode
 - Command palette: `mcp-audit: Scan current file`, `mcp-audit: Scan workspace`, `mcp-audit: Fix current file`
 - Works in both VS Code and Cursor (Cursor is a VS Code fork — no changes needed)
 
-The extension requires the `mcp-audit` binary to be installed (`pip install mcp-audit`). It shells out to the binary — no detection logic is reimplemented in TypeScript. See [`docs/ide-extension.md`](docs/ide-extension.md) for full setup and configuration details.
+The extension requires the `mcp-audit` command to be installed (`pip install mcp-audit-scanner`, or a binary from the [Releases page](https://github.com/adudley78/mcp-audit/releases)). It shells out to the binary — no detection logic is reimplemented in TypeScript. See [`docs/ide-extension.md`](docs/ide-extension.md) for full setup and configuration details.
 
 ## GitHub Action
 
@@ -603,11 +603,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run mcp-audit
-        uses: adudley78/mcp-audit@main
+        uses: adudley78/mcp-audit@v0.21.1
         with:
           severity-threshold: high
           upload-sarif: 'true'
 ```
+
+This example and the pre-commit one below pin the current release. Each release PR updates both pins: `scripts/update_test_count.py` rewrites them, and CI fails when either one is behind `pyproject.toml`.
 
 The `permissions: security-events: write` block is required for SARIF upload on public repositories. Without it the upload step will fail silently.
 
@@ -616,16 +618,19 @@ The `permissions: security-events: write` block is required for SARIF upload on 
 | Input | Default | Description |
 |-------|---------|-------------|
 | `severity-threshold` | `high` | Fail the build if findings at or above this level exist (`critical`, `high`, `medium`, `low`, `info`) |
-| `format` | `sarif` | Output format (`sarif`, `json`, `terminal`) |
-| `config-paths` | _(auto-discover)_ | Single MCP config file path to scan |
-| `baseline` | _(none)_ | Baseline name for drift detection |
+| `config-paths` | _(auto-discover)_ | Space-separated MCP config files or directories to scan |
+| `sarif-output` | `mcp-audit.sarif` | Where to write the SARIF file (empty string skips SARIF) |
 | `upload-sarif` | `true` | Upload SARIF results to the GitHub Security tab |
+| `baseline-name` | _(none)_ | Saved baseline to compare against for drift detection |
+| `fail-on-findings` | `true` | Set to `false` to report without failing the step |
+
+The full input list (`mode`, `check-vulns`, `verify-signatures`, `run-sast`, `lock-verify` and more) is in [`docs/github-action.md`](docs/github-action.md#inputs).
 
 ### Action outputs
 
 | Output | Description |
 |--------|-------------|
-| `finding-count` | Total number of findings |
+| `findings-count` | Number of findings at or above `severity-threshold` |
 | `grade` | Letter grade (A–F) |
 | `sarif-path` | Path to generated SARIF file |
 
@@ -655,12 +660,12 @@ already run. Each integration has a dedicated guide:
 
 ### Minimal setup
 
-Add this to your `.pre-commit-config.yaml` (replace `rev` with the [latest release tag](https://github.com/adudley78/mcp-audit/releases)):
+Add this to your `.pre-commit-config.yaml` (`rev` is the current release; `pre-commit autoupdate` moves it to the [latest release tag](https://github.com/adudley78/mcp-audit/releases) later):
 
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.1.0  # Replace with the latest release tag
+    rev: v0.21.1
     hooks:
       - id: mcp-audit
 ```

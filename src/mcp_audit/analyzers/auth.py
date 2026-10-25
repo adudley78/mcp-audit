@@ -12,7 +12,8 @@ AUTH-001 — Remote server without authentication
 
     Research basis: arXiv 2605.22333 measured 40.55% of 7,973 live remote MCP
     servers as requiring no authentication; Censys counted 12,520 internet-exposed
-    MCP services, the majority unauthenticated.  CWE-306 / OWASP MCP06.
+    MCP services and reports that many run without authentication.  CWE-306 /
+    OWASP MCP06.
 
 AUTH-002 — OAuth-configured server without audience binding
     Fires when a server config carries OAuth-related settings but lacks an
@@ -383,7 +384,8 @@ class AuthAnalyzer(BaseAnalyzer):
                 "The server is internet-routable. A measurement study"
                 " (arXiv 2605.22333) found 40.55% of 7,973 live remote MCP"
                 " servers require no authentication; Censys counted 12,520"
-                " internet-exposed MCP services, the majority unauthenticated."
+                " internet-exposed MCP services and reports that many run"
+                " without authentication."
             )
 
         return Finding(

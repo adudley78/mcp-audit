@@ -9,8 +9,6 @@ static config file.
 **Requires the optional `mcp` extra:**
 
 ```bash
-pip install 'mcp-audit[mcp]'
-# or
 pip install 'mcp-audit-scanner[mcp]'
 ```
 
@@ -138,7 +136,7 @@ a bearer token through your identity provider and pass it via `--connect-token`.
 
 ## Troubleshooting
 
-**`MCP SDK not installed`** — Run `pip install 'mcp-audit[mcp]'`. The standalone
+**`MCP SDK not installed`** — Run `pip install 'mcp-audit-scanner[mcp]'`. The standalone
 binary does not include the SDK; switch to a pip/uv install with the `[mcp]` extra.
 
 **`MCP SDK is not bundled in the standalone binary`** — Same cause, different

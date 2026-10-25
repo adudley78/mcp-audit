@@ -253,9 +253,130 @@ def test_check_mode_exits_nonzero_on_drift(
         json.dumps({"entry_count": 1, "entries": [{"name": "test-server"}]}),
         encoding="utf-8",
     )
+    # _collect_release_version (STORY-0102) also reads ROOT/pyproject.toml.
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nversion = "0.21.1"\n', encoding="utf-8"
+    )
 
     # Point module ROOT at tmp_path; count helpers use real repo dirs (correct values)
     m.ROOT = tmp_path
     exit_code = m._apply(check_only=True)
 
     assert exit_code == 1, "Expected exit code 1 when docs are stale"
+
+
+# ---------------------------------------------------------------------------
+# Release pin (STORY-0102): docs examples name the version pyproject.toml ships
+# ---------------------------------------------------------------------------
+
+_PIN_FILES = (
+    "README.md",
+    "docs/pre-commit.md",
+    "docs/docs-usage.md",
+    "examples/pre-commit/basic.yaml",
+    "examples/pre-commit/strict.yaml",
+)
+
+
+def _fresh_module() -> object:
+    """Load a private copy of the script so ROOT can be repointed safely."""
+    spec = _ilu.spec_from_file_location("utc_pins", _SCRIPT)
+    assert spec and spec.loader
+    m = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(m)  # type: ignore[union-attr]
+    return m
+
+
+def _stub_counts(m: object, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stub every count collector so _apply() only exercises the pins."""
+    monkeypatch.setattr(m, "_collect_test_count", lambda: 1)
+    monkeypatch.setattr(m, "_collect_sast_counts", lambda: (2, 1, 1))
+    monkeypatch.setattr(m, "_collect_community_rule_count", lambda: 2)
+    monkeypatch.setattr(m, "_collect_community_max_id", lambda: 1)
+    monkeypatch.setattr(m, "_collect_real_community_rule_count", lambda: 1)
+    monkeypatch.setattr(m, "_collect_registry_entry_count", lambda: 1)
+    monkeypatch.setattr(m, "_collect_analyzer_count", lambda: 1)
+
+
+def test_release_version_is_pyproject_project_version() -> None:
+    """The pin source is [project].version, the field release_gate.py tags."""
+    import tomllib
+
+    data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert _mod._collect_release_version() == data["project"]["version"]
+
+
+@pytest.mark.parametrize("version", ["0.22.0.dev1", "0.22", "", None])
+def test_release_version_rejects_non_release_versions(
+    tmp_path: Path, version: str | None
+) -> None:
+    """A version no release tag can match must fail loudly, not be written."""
+    body = "[project]\n" + (f'version = "{version}"\n' if version is not None else "")
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(body, encoding="utf-8")
+    with pytest.raises(SystemExit, match="not an X.Y.Z release version"):
+        _mod._collect_release_version(pyproject)
+
+
+def test_every_pin_pattern_matches_its_real_file() -> None:
+    """Each pinned example must still exist in the shape the script rewrites.
+
+    _apply() only WARNs when a pattern stops matching, so a reshaped example
+    would otherwise drop out of --check silently and go stale again.
+    """
+    pin_rows = [row for row in _mod._SUBSTITUTIONS if "{release_tag}" in row[2]]
+    assert {rel for rel, _, _ in pin_rows} == set(_PIN_FILES)
+    for rel, pattern, _ in pin_rows:
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        assert re.search(pattern, text), f"pin pattern {pattern!r} misses {rel}"
+
+
+def test_readme_examples_are_pinned_to_the_current_release() -> None:
+    """README never tells users to run the action from ``@main`` or a dead tag."""
+    tag = f"v{_mod._collect_release_version()}"
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "adudley78/mcp-audit@main" not in readme
+    assert f"uses: adudley78/mcp-audit@{tag}" in readme
+    assert re.search(
+        rf"repo: https://github\.com/adudley78/mcp-audit\n\s+rev: {re.escape(tag)}\b",
+        readme,
+    )
+
+
+def test_check_flags_stale_pins_and_rewrite_fixes_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A version bump makes --check fail until the same PR rewrites the pins."""
+    m = _fresh_module()
+    _stub_counts(m, monkeypatch)
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nversion = "0.22.0"\n', encoding="utf-8"
+    )
+    pre_commit = (
+        "repos:\n"
+        "  - repo: https://github.com/adudley78/mcp-audit\n"
+        "    rev: v0.21.1  # current release\n"
+        "    hooks:\n"
+        "      - id: mcp-audit\n"
+    )
+    other_repo = "  - repo: https://github.com/someone/else\n    rev: v0.21.1\n"
+    (tmp_path / "README.md").write_text(
+        "        uses: adudley78/mcp-audit@main\n" + pre_commit + other_repo,
+        encoding="utf-8",
+    )
+    for rel in _PIN_FILES[1:]:
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(pre_commit, encoding="utf-8")
+    monkeypatch.setattr(m, "ROOT", tmp_path)
+
+    assert m._apply(check_only=True) == 1
+    assert "@main" in (tmp_path / "README.md").read_text(encoding="utf-8")
+
+    assert m._apply(check_only=False) == 0
+    readme = (tmp_path / "README.md").read_text(encoding="utf-8")
+    assert "uses: adudley78/mcp-audit@v0.22.0" in readme
+    assert "    rev: v0.22.0  # current release\n" in readme
+    assert other_repo in readme, "a different repo's rev must not be touched"
+    for rel in _PIN_FILES[1:]:
+        assert "rev: v0.22.0" in (tmp_path / rel).read_text(encoding="utf-8")
+    assert m._apply(check_only=True) == 0

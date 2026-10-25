@@ -50,7 +50,7 @@ uv sync --all-extras
 Or if installed globally:
 
 ```bash
-pip install mcp-audit
+pip install mcp-audit-scanner
 ```
 
 ## Run the demo

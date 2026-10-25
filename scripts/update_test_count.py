@@ -18,6 +18,12 @@ Canonical sources of truth:
 - Registry entry count: ``entry_count`` field in ``registry/known-servers.json``
 - Analyzer count:   concrete ``BaseAnalyzer`` subclasses in ``src/mcp_audit/analyzers/``
   (i.e. ``class XxxAnalyzer(BaseAnalyzer)`` in any file except ``base.py``)
+- Release pin:      ``[project].version`` in ``pyproject.toml``, written as
+  ``v<version>`` into the README GitHub Action example and every pre-commit
+  ``rev:`` for this repo in README.md, docs/ and examples/pre-commit/. A
+  release PR bumps the version, so CI's ``--check`` fails until the same PR
+  updates the pins; the examples can never point at a tag older than the
+  last release (or, as ``rev: v0.1.0`` once did, at a tag that never existed)
 
 Usage
 -----
@@ -40,6 +46,7 @@ import json
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -56,10 +63,16 @@ ROOT = Path(__file__).resolve().parent.parent
 #   community:     {community_count}  {community_max_id:03d}
 #   registry:      {registry_count}
 #   analyzers:     {analyzer_count}
+#   release pin:   {release_tag}  (``v`` + pyproject version)
 #
 # str.format() silently ignores unused keys, so every entry receives the full
 # set of kwargs — only the relevant ones are substituted.
 # ---------------------------------------------------------------------------
+_PRE_COMMIT_REV_PATTERN = (
+    r"(repo: https://github\.com/adudley78/mcp-audit[ \t]*\n[ \t]+rev: )"
+    r"v\d+\.\d+\.\d+(?![\w.])"
+)
+
 _SUBSTITUTIONS: list[tuple[str, str, str]] = [
     # --- test count ---
     ("CLAUDE.md", r"\b\d{3,6} tests passing\b", "{count} tests passing"),
@@ -131,6 +144,30 @@ _SUBSTITUTIONS: list[tuple[str, str, str]] = [
         "CLAUDE.md",
         r"has \d+ analyzers\b",
         "has {analyzer_count} analyzers",
+    ),
+    # --- release pin — README GitHub Action example. ``@main`` is matched
+    # too so an unpinned example is rewritten to the release, not skipped.
+    (
+        "README.md",
+        r"uses: adudley78/mcp-audit@(?:main|v\d+\.\d+\.\d+)(?![\w.])",
+        "uses: adudley78/mcp-audit@{release_tag}",
+    ),
+    # --- release pin — pre-commit ``rev:`` directly under this repo's
+    # ``repo:`` line (README.md, docs, examples). Group 1 keeps the
+    # ``repo:`` line and indentation as written.
+    *(
+        (
+            rel,
+            _PRE_COMMIT_REV_PATTERN,
+            "\\g<1>{release_tag}",
+        )
+        for rel in (
+            "README.md",
+            "docs/pre-commit.md",
+            "docs/docs-usage.md",
+            "examples/pre-commit/basic.yaml",
+            "examples/pre-commit/strict.yaml",
+        )
     ),
 ]
 
@@ -301,6 +338,26 @@ def _collect_analyzer_count(analyzers_dir: Path | None = None) -> int:
     return count
 
 
+def _collect_release_version(pyproject_path: Path | None = None) -> str:
+    """Return ``[project].version`` from ``pyproject.toml``.
+
+    This is the version a release PR bumps and ``release_gate.py`` tags, so
+    it is the one tag every pinned example in the docs should name. Fails
+    loudly on a missing or non-``X.Y.Z`` version rather than writing a pin
+    no tag will ever match.
+    """
+    if pyproject_path is None:
+        pyproject_path = ROOT / "pyproject.toml"
+    data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    version = data.get("project", {}).get("version")
+    if not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        raise SystemExit(
+            f"Error: {pyproject_path} [project].version={version!r} is not an "
+            "X.Y.Z release version; cannot pin the docs examples to it."
+        )
+    return version
+
+
 # ---------------------------------------------------------------------------
 # Core apply loop
 # ---------------------------------------------------------------------------
@@ -316,6 +373,7 @@ def _apply(*, check_only: bool) -> int:
     real_community_count = _collect_real_community_rule_count()
     registry_count = _collect_registry_entry_count()
     analyzer_count = _collect_analyzer_count()
+    release_tag = f"v{_collect_release_version()}"
 
     print(f"Detected {test_count} tests ({test_formatted} formatted).")
     print(f"Detected {sast_total} SAST rules ({sast_py} Python, {sast_ts} TypeScript).")
@@ -325,6 +383,7 @@ def _apply(*, check_only: bool) -> int:
     )
     print(f"Detected {registry_count} registry entries.")
     print(f"Detected {analyzer_count} concrete analyzers.")
+    print(f"Detected release {release_tag} (pinned in docs examples).")
 
     fmt_kwargs = {
         "count": test_count,
@@ -337,6 +396,7 @@ def _apply(*, check_only: bool) -> int:
         "real_community_count": real_community_count,
         "registry_count": registry_count,
         "analyzer_count": analyzer_count,
+        "release_tag": release_tag,
     }
 
     drift_found = False

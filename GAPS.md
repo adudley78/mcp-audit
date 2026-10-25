@@ -575,7 +575,7 @@ Self-audit conducted 2026-04-12. Criticals and highs were patched in commit `18b
 
 **V-11: Resolved (2026-04-23).** `yarn dlx` detection added to both `TransportAnalyzer` and `SupplyChainAnalyzer`. `pipx` added to `_RUNTIME_FETCH_COMMANDS`. PyPI typosquatting for `uvx`/`pipx` packages requires a separate known-packages list for PyPI — tracked as a future supply-chain coverage gap.
 
-**V-12: Resolved.** `httpx` moved from `dependencies` to the `mcp` optional group (`pip install 'mcp-audit[mcp]'`). It is not installed in the default distribution and carries no transitive attack surface for users who don't need live server connections.
+**V-12: Resolved.** `httpx` moved from `dependencies` to the `mcp` optional group (`pip install 'mcp-audit-scanner[mcp]'`). It is not installed in the default distribution and carries no transitive attack surface for users who don't need live server connections.
 
 ### Low
 
@@ -631,9 +631,9 @@ for a concrete example and further rationale.
 
 ## GitHub Action
 
-**Action uses `pip install` rather than the PyInstaller binary.** The `action.yml` composite action installs mcp-audit via `pip install mcp-audit` on the CI runner. This requires a Python environment on the runner (satisfied by all GitHub-hosted `ubuntu-latest`, `macos-latest`, and `windows-latest` runners), adds approximately 20–30 seconds to each CI job, and pulls transitive dependencies. A future optimization would ship the binary via a separate `setup-mcp-audit` action that downloads the prebuilt binary from GitHub Releases (same pattern as `setup-go` or `setup-node`), reducing install time to under 5 seconds.
+~~**Action uses `pip install` rather than the PyInstaller binary.**~~ **Resolved.** `action.yml` delegates install to `./setup-action`, which downloads the prebuilt binary for the runner's OS and architecture from GitHub Releases and caches it by version, OS and architecture; no Python setup or `pip install` step remains (pinned by `tests/test_action_yaml.py`).
 
-**Action not tested on self-hosted runners or non-standard Python environments.** GitHub-hosted runners provide Python 3.x in the default PATH. Self-hosted runners with non-standard Python installations (e.g., Conda environments, pyenv without global Python, Alpine Linux with `python3` missing) may fail at the `pip install` step. The action does not attempt to set up Python explicitly; users on non-standard runners should add an `actions/setup-python@v5` step before the action.
+**Action not tested on self-hosted runners.** Self-hosted runners need outbound HTTPS to `github.com` for the binary download, the `gh` CLI when `version` is `latest` (the default), `bash` on every OS, plus `curl` (Linux/macOS) or PowerShell 7 `pwsh` (Windows), and one of the four OS/architecture pairs a release binary exists for (Linux/X64, macOS/X64, macOS/ARM64, Windows/X64); `setup-action` fails with an "Unsupported runner" error on anything else, for example Linux/ARM64. The prebuilt Linux binary is built on a glibc-based Ubuntu runner and is not tested on musl-based images such as Alpine.
 
 **Action not tested on Windows runners.** The action's shell scripts use bash syntax (`set +e`, `ARGS="..."`, heredocs). GitHub-hosted Windows runners default to PowerShell. The action sets `shell: bash` on all steps to use the Git Bash environment that Windows runners include, but this path has not been validated end-to-end. File paths with backslashes may cause issues in `--path` arguments.
 
@@ -830,7 +830,7 @@ The Semgrep SAST rule pack (`semgrep-rules/`) has the following known limitation
 
 **Semgrep is not bundled in the mcp-audit binary:**
 - `mcp-audit scan --sast` and `mcp-audit sast` require `pip install semgrep` separately. The rule files are bundled; the semgrep engine is not. This matches how other SAST tools (bandit, eslint, etc.) work in the ecosystem.
-- Rule file discovery works correctly in all installation modes: PyInstaller binary, `pip install mcp-audit` wheel, and editable dev installs. The resolution uses `mcp_audit._paths.resolve_bundled_resource()` with an `importlib.resources` step so that pip-installed wheels find `mcp_audit/semgrep-rules/` without requiring a source checkout.
+- Rule file discovery works correctly in all installation modes: PyInstaller binary, `pip install mcp-audit-scanner` wheel, and editable dev installs. The resolution uses `mcp_audit._paths.resolve_bundled_resource()` with an `importlib.resources` step so that pip-installed wheels find `mcp_audit/semgrep-rules/` without requiring a source checkout.
 
 **SSRF guards that only block IP literals (`mcp-ssrf-ip-literal-only-guard`, `mcp-ts-ssrf-ip-literal-only-guard`, STORY-0081):**
 - Both rules can't tell which way a guard's return value points. `except ValueError: return False` is fail-open in `is_blocked()` but fail-closed in `is_safe()`. The rules exclude a handler that raises or throws and report the rest; a fail-closed guard that returns needs `nosemgrep`.

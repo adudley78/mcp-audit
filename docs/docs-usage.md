@@ -25,7 +25,7 @@ sudo mv mcp-audit /usr/local/bin/
 **From PyPI (Python 3.11+ required):**
 
 ```bash
-pip install mcp-audit
+pip install mcp-audit-scanner
 ```
 
 **From source (for contributors):**
@@ -409,7 +409,7 @@ Add mcp-audit to your pre-commit pipeline to catch MCP config issues before they
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.1.0
+    rev: v0.21.1
     hooks:
       - id: mcp-audit
 ```

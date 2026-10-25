@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 from datetime import UTC, datetime
 from pathlib import Path
@@ -252,3 +253,85 @@ def test_docs_privacy_md_exists() -> None:
     assert privacy_doc.exists(), (
         "docs/privacy.md is missing — it must document what registration sends"
     )
+
+
+# ── docs/privacy.md matches the code (STORY-0102) ─────────────────────────────
+
+_PRIVACY_DOC = Path(__file__).parent.parent / "docs" / "privacy.md"
+
+
+def _doc_table_fields(heading: str) -> set[str]:
+    """Return the backticked first-column names of the table under *heading*."""
+    text = _PRIVACY_DOC.read_text(encoding="utf-8")
+    section = text.split(heading, 1)[1].split("\n### ", 1)[0]
+    return {
+        m.group(1)
+        for line in section.splitlines()
+        if (m := re.match(r"^\|\s*`([a-z_]+)`\s*\|", line))
+    }
+
+
+def test_privacy_doc_names_the_endpoint_the_code_posts_to() -> None:
+    """The page once named register.mcp-audit.dev while the code posted elsewhere."""
+    text = _PRIVACY_DOC.read_text(encoding="utf-8")
+    assert reg_client._REGISTER_ENDPOINT in text
+    assert "register.mcp-audit.dev" not in text
+    assert f"after {reg_client._TIMEOUT_SECONDS} seconds" in text
+
+
+def test_privacy_doc_post_table_matches_post_payload_model() -> None:
+    """Every field the doc lists is sent, and every field sent is listed."""
+    documented = _doc_table_fields("### What the initial registration POST sends")
+    assert documented == set(RegistrationPostPayload.model_fields)
+
+
+def test_privacy_doc_ping_table_matches_ping_payload_model() -> None:
+    documented = _doc_table_fields("### Subsequent pings")
+    assert documented == set(RegistrationPingPayload.model_fields)
+
+
+def test_post_sends_only_the_headers_the_doc_names(
+    sample_config: RegistrationConfig,
+) -> None:
+    """The doc names Content-Type and User-Agent; nothing else is added."""
+    captured: list[dict[str, str]] = []
+
+    def fake_urlopen(req, timeout):  # type: ignore[no-untyped-def]
+        captured.append(dict(req.header_items()))
+        mock_resp = MagicMock()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_resp.status = 200
+        return mock_resp
+
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        reg_client.post_registration(sample_config, grade="?")
+
+    from mcp_audit import __version__
+
+    assert captured == [
+        {"Content-type": "application/json", "User-agent": f"mcp-audit/{__version__}"}
+    ]
+    text = _PRIVACY_DOC.read_text(encoding="utf-8")
+    assert "`Content-Type: application/json`" in text
+    assert "`User-Agent: mcp-audit/<version>`" in text
+
+
+def test_register_flow_posts_placeholder_grade(tmp_config_dir: Path) -> None:
+    """The doc says the initial POST's grade is always "?": no scan runs first."""
+    from typer.testing import CliRunner
+
+    from mcp_audit.cli import app
+
+    with (
+        patch.object(reg_manager, "_DEFAULT_CONFIG_DIR", tmp_config_dir),
+        patch.object(reg_client, "post_registration", return_value=True) as post,
+    ):
+        result = CliRunner().invoke(
+            app, ["register"], input="Sarah\nACME\nsarah@acme.com\nn\n"
+        )
+
+    assert result.exit_code == 0, result.output
+    post.assert_called_once()
+    assert post.call_args.kwargs["grade"] == "?"
+    assert '| `grade` | `"?"` |' in _PRIVACY_DOC.read_text(encoding="utf-8")

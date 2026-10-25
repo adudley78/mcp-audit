@@ -18,7 +18,7 @@ elif command -v uv >/dev/null 2>&1 && uv run mcp-audit --help >/dev/null 2>&1; t
     MCP_AUDIT="uv run mcp-audit"
 else
     echo "Error: mcp-audit not found."
-    echo "  Install globally: pip install mcp-audit"
+    echo "  Install globally: pip install mcp-audit-scanner"
     echo "  Dev mode:         uv sync --all-extras  (then re-run this script)"
     exit 1
 fi

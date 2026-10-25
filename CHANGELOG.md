@@ -81,6 +81,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   its findings now reach the verdict and the exit code.
 - **HARNESS-005 now recognises environment runners and PowerShell code-running commands.** An allow rule such as `Bash(devbox run *)`, `Bash(docker exec app *)`, `Bash(uv run:*)`, `Bash(poetry run:*)`, `Bash(pnpm exec:*)` or `PowerShell(iex *)` approves any command, the same as `Bash(npx *)`, and is now reported. If you see a new HARNESS-005 for a rule like `Bash(uv run:*)` that you added so Claude can run your tests: Anthropic's docs say these runners "execute their arguments as a command", so the rule also approves `uv run rm -rf .`; write one rule per command instead, such as `Bash(uv run pytest *)`. A rule that names the inner command, such as `Bash(devbox run npm test)` (Anthropic's recommended form), is not reported. Meaning and severity (MEDIUM) are unchanged.
 
+### Fixed
+
+- **The privacy page now names the address registration actually sends to.**
+  `docs/privacy.md` said `https://register.mcp-audit.dev/ping`; the code posts to a
+  Pipedream webhook (`https://eo4jvaanlkuohuc.m.pipedream.net`) that emails the
+  author and logs to a Google Sheet. The page now says so, states that nothing is
+  sent unless you run `mcp-audit register`, and corrects four smaller details: the
+  first POST's `grade` is always `"?"`, the request carries a `User-Agent` header,
+  only `check` (never `scan`) pings, and the Windows file path is
+  `%LOCALAPPDATA%\mcp-audit\mcp-audit\registration.json`. Tests now fail if the
+  page and the code disagree on the address or the fields sent.
+- **Research citations corrected.** The Censys post is dated May 27, 2026, not June,
+  and says *many* exposed MCP deployments run without authentication, not most;
+  the AUTH-001 finding text, COMM-031, `PROVENANCE.md` and the severity framework
+  now say that. (The v0.12.0 entry below still carries the old wording.) The arXiv
+  2605.22333 paper's real title is "A First Measurement Study on Authentication
+  Security in Real-World Remote MCP Servers".
+- **Install instructions use the right PyPI name.** Several docs said
+  `pip install mcp-audit`, which is not this project's package; they now say
+  `pip install mcp-audit-scanner`. The VS Code extension is installed from Open VSX
+  (the docs pointed at a Microsoft Marketplace listing that does not exist).
+- **The README describes the badge for an unlisted package correctly.** There is
+  no grey `unknown` badge: an unlisted package's badge URL returns 404. The badge
+  doc's colour table now matches the live badges (`listed`, `verified`, fixed and
+  unfixed CVE counts).
+- **README and docs examples pin the current release.** The GitHub Action example
+  used `@main`, and the pre-commit examples used `rev: v0.1.0`, a tag that never
+  existed. Both now name `v0.21.1`, and `scripts/update_test_count.py --check` fails
+  a release PR until it updates them. The README's Action input and output table
+  listed inputs that do not exist (`format`, `baseline`) and misspelled the
+  `findings-count` output; it now matches `action.yml`.
+- **The four CodeQL action references are pinned to a commit SHA** (v4.39.1), like
+  every other action this repo uses, and a test now fails on any tag-pinned
+  third-party action.
+- **`docs/owasp-mapping.json` no longer states a hand-typed count** ("103 static
+  finding IDs" while it held 127). Completeness is what CI already checks.
+
 ## [0.21.1] - 2026-10-25
 
 ### Security

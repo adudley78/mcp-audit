@@ -14,18 +14,21 @@ already know from ESLint and Pyright.
    not bundle it):
 
    ```bash
-   pip install mcp-audit
+   pip install mcp-audit-scanner
    # or download a standalone binary from the Releases page
    ```
 
-2. **Install the VS Code extension** from the Marketplace:
+2. **Install the extension.** It is published on
+   [Open VSX](https://open-vsx.org/extension/mcp-audit/mcp-audit-vscode) as
+   `mcp-audit.mcp-audit-vscode`. It is not on the Microsoft VS Code
+   Marketplace.
 
-   ```
-   ext install mcp-audit.mcp-audit-vscode
-   ```
-
-   Or via the command palette: `Extensions: Install from VSIX…` for a
-   locally-built `.vsix` file.
+   - **Cursor, VSCodium and other editors that use Open VSX:** search for
+     `mcp-audit` in the Extensions view, or run
+     `ext install mcp-audit.mcp-audit-vscode` from Quick Open.
+   - **VS Code:** download the `.vsix` from the
+     [Open VSX page](https://open-vsx.org/extension/mcp-audit/mcp-audit-vscode),
+     then run `Extensions: Install from VSIX…` from the command palette.
 
 3. Open any MCP config file — diagnostics appear automatically.
 
@@ -33,9 +36,9 @@ already know from ESLint and Pyright.
 
 ## Cursor
 
-Cursor is a VS Code fork. The extension works without modification — install
-from the VS Code Marketplace or via `Extensions: Install from VSIX…` in Cursor.
-The Cursor Marketplace submission is tracked separately (see STORY-0042).
+Cursor is a VS Code fork. The extension works without modification. Cursor
+installs third-party extensions from Open VSX, so search for `mcp-audit` in its
+Extensions view, or install the `.vsix` with `Extensions: Install from VSIX…`.
 
 ---
 

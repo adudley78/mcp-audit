@@ -259,8 +259,9 @@ audience/resource binding per RFC 8707 (AUTH-002).
   servers and found 40.55% require no authentication. Also tested 119
   OAuth-enabled servers and found every one had at least one flaw (325 total;
   dynamic-client-registration flaws in 96.6%).
-- **Censys** — Internet-scanning report counting 12,520 internet-exposed MCP
-  services, the majority unauthenticated.
+- **Censys** — "MCP Servers on the Internet" (May 27, 2026) counted 12,520
+  internet-exposed MCP services and reports that many deployments operate
+  without authentication (it gives no percentage).
 - **RFC 8707** — Resource Indicators for OAuth 2.0. Absence of a concrete
   audience/resource binding creates token cross-resource replay risk.
 

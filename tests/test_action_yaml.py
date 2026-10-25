@@ -5,8 +5,10 @@ outputs, composite runs block), input/output schema stability, and a handful
 of correctness invariants for the shell steps:
 
     - `--format sarif` is used instead of a non-existent `--sarif` flag.
-    - `github/codeql-action/upload-sarif@v4` is used (v3 / Node 20 deprecated
-      2026-06-02).
+    - `github/codeql-action/upload-sarif` is SHA-pinned to a v4 release (v3 /
+      Node 20 deprecated 2026-06-02).
+    - every third-party action ref in action.yml, setup-action/ and .github/
+      is pinned to a full commit SHA with a version comment (STORY-0102).
     - `baseline compare` is invoked with a positional argument, not `--name`.
     - setup-action/action.yml has the required structure and expected I/O.
 """
@@ -130,17 +132,22 @@ class TestActionYamlSecurity:
                 )
 
     def test_upload_sarif_uses_v4(self) -> None:
-        """SARIF upload must use `codeql-action/upload-sarif@v4`.
+        """SARIF upload must be a SHA-pinned `codeql-action/upload-sarif` v4.
 
-        v3 (Node 20) is deprecated as of 2026-06-02.
+        v3 (Node 20) is deprecated as of 2026-06-02. The ref is a commit SHA
+        (a tag can be moved after review); the comment names the v4 release.
         """
         content = ACTION_YAML.read_text()
-        assert "upload-sarif@v4" in content, (
-            "SARIF upload step must use github/codeql-action/upload-sarif@v4. "
-            "v3 (Node 20) is deprecated as of 2026-06-02."
+        assert re.search(
+            r"uses: github/codeql-action/upload-sarif@[0-9a-f]{40} # v4\.\d+\.\d+\b",
+            content,
+        ), (
+            "SARIF upload step must use github/codeql-action/upload-sarif pinned "
+            "to a v4 commit SHA (`@<sha> # v4.x.y`). v3 (Node 20) is deprecated "
+            "as of 2026-06-02."
         )
         assert "upload-sarif@v3" not in content, (
-            "upload-sarif@v3 found — replace with @v4."
+            "upload-sarif@v3 found — replace with a v4 commit SHA."
         )
 
     def test_baseline_compare_uses_positional_arg(self) -> None:
@@ -305,3 +312,73 @@ class TestSetupActionYaml:
         assert ".exe" in content, (
             "setup-action must handle .exe extension for Windows binary"
         )
+
+
+# ---------------------------------------------------------------------------
+# Every third-party action ref is SHA-pinned (STORY-0102)
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).parent.parent
+_USES_RE = re.compile(r"^\s*(?:-\s+)?uses:\s*(\S+)(.*)$")
+_SHA_PIN_RE = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
+_VERSION_COMMENT_RE = re.compile(r"^\s+#\s*v\d+(?:\.\d+)*\b")
+
+
+def _action_files() -> list[Path]:
+    """Every file GitHub reads `uses:` refs from: workflows and composites."""
+    files = sorted((_REPO_ROOT / ".github").rglob("*.yml"))
+    files += sorted((_REPO_ROOT / ".github").rglob("*.yaml"))
+    return [ACTION_YAML, SETUP_ACTION_YAML, *files]
+
+
+def _uses_refs() -> list[tuple[Path, int, str, str]]:
+    """Return (file, line, ref, trailing text) for each non-comment `uses:`."""
+    refs: list[tuple[Path, int, str, str]] = []
+    for path in _action_files():
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            match = _USES_RE.match(line)
+            if match:
+                refs.append((path, lineno, match.group(1), match.group(2)))
+    return refs
+
+
+def test_action_ref_scan_sees_the_codeql_refs() -> None:
+    """Guard the scanner itself: it must find the four codeql-action refs."""
+    codeql = [r for r in _uses_refs() if r[2].startswith("github/codeql-action/")]
+    names = sorted(r[2].split("@")[0] for r in codeql)
+    assert names == [
+        "github/codeql-action/analyze",
+        "github/codeql-action/autobuild",
+        "github/codeql-action/init",
+        "github/codeql-action/upload-sarif",
+    ]
+
+
+def test_every_third_party_action_ref_is_sha_pinned() -> None:
+    """A tag can be moved after review; a 40-hex commit SHA cannot.
+
+    Local refs (`./...`) are this repo's own code at the same commit. The
+    trailing `# vX.Y.Z` comment is what Dependabot reads and updates.
+    """
+    bad = []
+    for path, lineno, ref, rest in _uses_refs():
+        if ref.startswith("./"):
+            continue
+        rel = path.relative_to(_REPO_ROOT)
+        if not _SHA_PIN_RE.match(ref):
+            bad.append(f"{rel}:{lineno}: {ref} is not pinned to a commit SHA")
+        elif not _VERSION_COMMENT_RE.match(rest):
+            bad.append(f"{rel}:{lineno}: {ref} has no `# vX.Y.Z` comment")
+    assert not bad, "\n".join(bad)
+
+
+def test_codeql_action_refs_share_one_sha() -> None:
+    """init/autobuild/analyze/upload-sarif are one release; one bump moves all."""
+    shas = {
+        r[2].split("@")[1]
+        for r in _uses_refs()
+        if r[2].startswith("github/codeql-action/")
+    }
+    assert len(shas) == 1, f"codeql-action SHA drift: {shas}"
