@@ -88,6 +88,14 @@ plausible-looking repo exists. Any one of the following counts:
   declares — for example, a merged PR whose head branch lives in that repo
   rather than a fork.
 - The publishing account itself comments on the submission issue.
+- The official [MCP Registry](https://registry.modelcontextprotocol.io/) lists
+  the server under an `io.github.<submitter>/…` name whose package entry is
+  this exact package, and the package names that server back: an
+  `mcp-name: <server name>` line in the PyPI README, or `mcpName` in the npm
+  `package.json`. Publishing under an `io.github.<user>` name requires
+  signing in to GitHub as that user, and the registry only accepts the
+  package when it carries the matching name, so the submitter's GitHub
+  account and the package each point at the other.
 
 `verified: true` entries will not be added without a public source repository.
 

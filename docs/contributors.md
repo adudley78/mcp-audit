@@ -51,6 +51,7 @@ is not a bounty, and it is not equivalent to contributing a detection rule.
 | Zachary Roth ([@zacharyr0th](https://github.com/zacharyr0th)) | `docpull` | PyPI | 2026-08-18 |
 | [@kantorcodes](https://github.com/kantorcodes) | `hol-guard` | PyPI | 2026-10-06 |
 | [@uditgoenka](https://github.com/uditgoenka) | `@autoposting.ai/cli` | npm | 2026-10-06 |
+| [@activeing123](https://github.com/activeing123) | `mcptoon` | PyPI | 2026-10-25 |
 
 See [docs/registry-contributions.md](registry-contributions.md) to list a server.
 
