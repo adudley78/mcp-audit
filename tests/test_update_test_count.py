@@ -269,13 +269,21 @@ def test_check_mode_exits_nonzero_on_drift(
 # Release pin (STORY-0102): docs examples name the version pyproject.toml ships
 # ---------------------------------------------------------------------------
 
-_PIN_FILES = (
+_PRE_COMMIT_PIN_FILES = (
     "README.md",
     "docs/pre-commit.md",
     "docs/docs-usage.md",
     "examples/pre-commit/basic.yaml",
     "examples/pre-commit/strict.yaml",
 )
+_ACTION_PIN_DOCS = (
+    "docs/github-action.md",
+    "docs/diff.md",
+    "docs/fix.md",
+    "docs/snyk-integration.md",
+    "docs/governance.md",
+)
+_PIN_FILES = (*_PRE_COMMIT_PIN_FILES, *_ACTION_PIN_DOCS)
 
 
 def _fresh_module() -> object:
@@ -364,9 +372,18 @@ def test_check_flags_stale_pins_and_rewrite_fixes_them(
         "        uses: adudley78/mcp-audit@main\n" + pre_commit + other_repo,
         encoding="utf-8",
     )
-    for rel in _PIN_FILES[1:]:
+    for rel in _PRE_COMMIT_PIN_FILES[1:]:
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / rel).write_text(pre_commit, encoding="utf-8")
+    sha_pin = "- uses: adudley78/mcp-audit@" + "32b648a3" * 5 + " # v0.10.0\n"
+    action_doc = (
+        "- uses: adudley78/mcp-audit@main\n"
+        "- uses: adudley78/mcp-audit@v0.3.3  # comment kept\n"
+        "- uses: adudley78/mcp-audit/setup-action@v0.10.0\n" + sha_pin
+    )
+    for rel in _ACTION_PIN_DOCS:
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(action_doc, encoding="utf-8")
     monkeypatch.setattr(m, "ROOT", tmp_path)
 
     assert m._apply(check_only=True) == 1
@@ -377,6 +394,12 @@ def test_check_flags_stale_pins_and_rewrite_fixes_them(
     assert "uses: adudley78/mcp-audit@v0.22.0" in readme
     assert "    rev: v0.22.0  # current release\n" in readme
     assert other_repo in readme, "a different repo's rev must not be touched"
-    for rel in _PIN_FILES[1:]:
+    for rel in _PRE_COMMIT_PIN_FILES[1:]:
         assert "rev: v0.22.0" in (tmp_path / rel).read_text(encoding="utf-8")
+    for rel in _ACTION_PIN_DOCS:
+        assert (tmp_path / rel).read_text(encoding="utf-8") == (
+            "- uses: adudley78/mcp-audit@v0.22.0\n"
+            "- uses: adudley78/mcp-audit@v0.22.0  # comment kept\n"
+            "- uses: adudley78/mcp-audit/setup-action@v0.22.0\n" + sha_pin
+        ), f"{rel}: tags and @main move; a SHA pin is left alone"
     assert m._apply(check_only=True) == 0

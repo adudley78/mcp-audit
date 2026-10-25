@@ -81,6 +81,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   its findings now reach the verdict and the exit code.
 - **HARNESS-005 now recognises environment runners and PowerShell code-running commands.** An allow rule such as `Bash(devbox run *)`, `Bash(docker exec app *)`, `Bash(uv run:*)`, `Bash(poetry run:*)`, `Bash(pnpm exec:*)` or `PowerShell(iex *)` approves any command, the same as `Bash(npx *)`, and is now reported. If you see a new HARNESS-005 for a rule like `Bash(uv run:*)` that you added so Claude can run your tests: Anthropic's docs say these runners "execute their arguments as a command", so the rule also approves `uv run rm -rf .`; write one rule per command instead, such as `Bash(uv run pytest *)`. A rule that names the inner command, such as `Bash(devbox run npm test)` (Anthropic's recommended form), is not reported. Meaning and severity (MEDIUM) are unchanged.
 
+- **`mcp-audit register` says what registering actually does.** The prompt
+  promised a weekly digest and "early access to new rule packs before public
+  release"; nothing in mcp-audit is held back from unregistered users. It now
+  says registering shares your contact details so you can be contacted about
+  project updates, offers the optional low-grade follow-up, lists what is sent
+  (once, then version and grade on each `check`), and says how to remove it.
+
 ### Fixed
 
 - **The privacy page now names the address registration actually sends to.**
@@ -90,8 +97,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sent unless you run `mcp-audit register`, and corrects four smaller details: the
   first POST's `grade` is always `"?"`, the request carries a `User-Agent` header,
   only `check` (never `scan`) pings, and the Windows file path is
-  `%LOCALAPPDATA%\mcp-audit\mcp-audit\registration.json`. Tests now fail if the
-  page and the code disagree on the address or the fields sent.
+  `%LOCALAPPDATA%\mcp-audit\mcp-audit\registration.json`. The page now states
+  only what the code does; the list of intended uses and the "not sold or
+  shared" promise are gone. Tests now fail if the page and the code disagree on
+  the address or the fields sent. ADR-0002 keeps its original endpoint decision
+  with a dated note naming the address the code uses.
 - **Research citations corrected.** The Censys post is dated May 27, 2026, not June,
   and says *many* exposed MCP deployments run without authentication, not most;
   the AUTH-001 finding text, COMM-031, `PROVENANCE.md` and the severity framework
@@ -107,9 +117,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   doc's colour table now matches the live badges (`listed`, `verified`, fixed and
   unfixed CVE counts).
 - **README and docs examples pin the current release.** The GitHub Action example
-  used `@main`, and the pre-commit examples used `rev: v0.1.0`, a tag that never
-  existed. Both now name `v0.21.1`, and `scripts/update_test_count.py --check` fails
-  a release PR until it updates them. The README's Action input and output table
+  used `@main`, the pre-commit examples used `rev: v0.1.0` (a tag that never
+  existed), and the Action, diff, fix, Snyk and governance docs pinned releases
+  from `v0.3.3` to `v0.17.0` or `@main`. All now name `v0.21.1`, and
+  `scripts/update_test_count.py --check` fails a release PR until it updates them. The README's Action input and output table
   listed inputs that do not exist (`format`, `baseline`) and misspelled the
   `findings-count` output; it now matches `action.yml`.
 - **The four CodeQL action references are pinned to a commit SHA** (v4.39.1), like

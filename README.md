@@ -718,7 +718,7 @@ This tool is in early development. See [GAPS.md](GAPS.md) for known detection ga
 
 mcp-audit **does not collect telemetry**.  Every scan runs entirely on your machine.
 
-If you'd like to receive new community detection rule notifications and optionally allow a follow-up when your grade is below C, you can opt in:
+If you'd like to be contacted about project updates (such as new detection rules), and optionally get a follow-up when your grade is C or below, you can opt in. Every feature works the same whether or not you register.
 
 ```bash
 mcp-audit register
@@ -726,15 +726,15 @@ mcp-audit register
 
 What registration does **not** collect: config data, server names, tool descriptions, credentials, file paths, or any scan output.
 
-What registration sends (one time only): your name, org, email, mcp-audit version, and grade.
-Subsequent scan pings send only version and grade — no PII.
+What registration sends (one time only): your name, org, email, follow-up choice, and mcp-audit version.
+After that, each `mcp-audit check` sends only the version and grade — no PII. `mcp-audit scan` never pings.
 
 ```bash
 mcp-audit register --status   # check current registration
 mcp-audit register --clear    # remove registration and stop pings
 ```
 
-See [docs/privacy.md](docs/privacy.md) for the complete plain-English privacy policy.
+See [docs/privacy.md](docs/privacy.md) for the exact address, fields and headers sent.
 
 ---
 

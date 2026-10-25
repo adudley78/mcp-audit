@@ -360,6 +360,44 @@ class TestRegisterInteractiveCommand:
         assert result.exit_code == 0
         assert "registered" in result.output.lower()
 
+    def test_prompt_states_what_registering_does(self, tmp_path: Path) -> None:
+        """The prompt offers contact for project updates, never gated extras.
+
+        It once promised "Early access to new rule packs before public
+        release", which contradicts the no-gating rule (STORY-0102).
+        """
+        from mcp_audit.cli.register import REGISTER_PROMPT_LINES
+
+        with (
+            patch(
+                "mcp_audit.cli.register._reg_manager.load_registration",
+                return_value=None,
+            ),
+            patch("mcp_audit.registration.manager._DEFAULT_CONFIG_DIR", tmp_path),
+            patch(
+                "mcp_audit.cli.register._reg_client.post_registration",
+                return_value=True,
+            ),
+        ):
+            result = runner.invoke(app, ["register"], input="A\nB\na@b.io\nn\n")
+
+        assert result.exit_code == 0
+        assert REGISTER_PROMPT_LINES == (
+            "Registering shares your contact details with the mcp-audit maintainer so",
+            "you can be contacted about project updates, such as new detection rules.",
+            "You can also ask for a follow-up if your scan grade is C or below.",
+            "Every feature works the same whether or not you register.",
+            "",
+            "It sends your name, org, email, follow-up choice, and mcp-audit version,",
+            "once. Then each `mcp-audit check` sends the version and grade only.",
+            "Remove it any time with `mcp-audit register --clear`.",
+        )
+        for line in REGISTER_PROMPT_LINES:
+            assert line in result.output
+        lowered = result.output.lower()
+        for promise in ("early access", "weekly digest", "before public release"):
+            assert promise not in lowered
+
     def test_interactive_network_failure_still_saves_file(self, tmp_path: Path) -> None:
         """POST fails but local file is saved; a dim message is shown."""
         user_input = "Carol\nStartup\ncarol@startup.io\ny\n"

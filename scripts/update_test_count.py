@@ -19,8 +19,10 @@ Canonical sources of truth:
 - Analyzer count:   concrete ``BaseAnalyzer`` subclasses in ``src/mcp_audit/analyzers/``
   (i.e. ``class XxxAnalyzer(BaseAnalyzer)`` in any file except ``base.py``)
 - Release pin:      ``[project].version`` in ``pyproject.toml``, written as
-  ``v<version>`` into the README GitHub Action example and every pre-commit
-  ``rev:`` for this repo in README.md, docs/ and examples/pre-commit/. A
+  ``v<version>`` into the README GitHub Action example, every
+  ``adudley78/mcp-audit[/setup-action]@`` ref in the Action docs, and every
+  pre-commit ``rev:`` for this repo in README.md, docs/ and
+  examples/pre-commit/. A
   release PR bumps the version, so CI's ``--check`` fails until the same PR
   updates the pins; the examples can never point at a tag older than the
   last release (or, as ``rev: v0.1.0`` once did, at a tag that never existed)
@@ -71,6 +73,20 @@ ROOT = Path(__file__).resolve().parent.parent
 _PRE_COMMIT_REV_PATTERN = (
     r"(repo: https://github\.com/adudley78/mcp-audit[ \t]*\n[ \t]+rev: )"
     r"v\d+\.\d+\.\d+(?![\w.])"
+)
+
+# Action refs in the docs: ``@main`` or ``@vX.Y.Z``, with or without the
+# ``/setup-action`` sub-path (group 1 keeps it). SHA pins (``@<40 hex>``) are
+# deliberately not matched: they cannot be resolved offline.
+_ACTION_REF_PATTERN = (
+    r"adudley78/mcp-audit(/setup-action)?@(?:main|v\d+\.\d+\.\d+)(?![\w.])"
+)
+_ACTION_REF_DOCS = (
+    "docs/github-action.md",
+    "docs/diff.md",
+    "docs/fix.md",
+    "docs/snyk-integration.md",
+    "docs/governance.md",
 )
 
 _SUBSTITUTIONS: list[tuple[str, str, str]] = [
@@ -168,6 +184,11 @@ _SUBSTITUTIONS: list[tuple[str, str, str]] = [
             "examples/pre-commit/basic.yaml",
             "examples/pre-commit/strict.yaml",
         )
+    ),
+    # --- release pin — Action refs in the Action/integration docs.
+    *(
+        (rel, _ACTION_REF_PATTERN, "adudley78/mcp-audit\\g<1>@{release_tag}")
+        for rel in _ACTION_REF_DOCS
     ),
 ]
 

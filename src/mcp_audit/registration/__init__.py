@@ -1,8 +1,9 @@
 """Opt-in registration package for mcp-audit.
 
-Users who choose to register receive new community rule notifications and
-may opt in to a follow-up when their scan grade falls below C.  Registration
-is entirely voluntary; an unregistered user experiences no behaviour change.
+Users who choose to register share contact details so they can be contacted
+about project updates, and may opt in to a follow-up when their scan grade is
+C or below.  Registration is entirely voluntary; an unregistered user
+experiences no behaviour change (every feature works without it).
 
 Privacy invariants (non-negotiable):
 - No config data, server names, tool names, credentials, or file paths ever

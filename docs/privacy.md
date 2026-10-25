@@ -36,14 +36,14 @@ That address is the `_REGISTER_ENDPOINT` constant in `src/mcp_audit/registration
 
 The request body is JSON with exactly these fields:
 
-| Field | Example | Why |
+| Field | Example | Where the value comes from |
 |---|---|---|
-| `name` | `"Sarah Chen"` | So we can address you by name |
-| `org` | `"IBM Security"` | So we know who's using mcp-audit |
-| `email` | `"sarah.chen@ibm.com"` | To send you new-rule notifications |
-| `version` | `"0.21.1"` | To know which release you're on |
+| `name` | `"Sarah Chen"` | Your answer to the name prompt (may be blank) |
+| `org` | `"IBM Security"` | Your answer to the org prompt (may be blank) |
+| `email` | `"sarah.chen@ibm.com"` | Your answer to the email prompt |
+| `version` | `"0.21.1"` | The installed mcp-audit version |
 | `grade` | `"?"` | Always `"?"` in this POST: the registration flow runs no scan of its own, so there is no grade to send |
-| `follow_up_requested` | `true` | Your explicit preference |
+| `follow_up_requested` | `true` | Your answer to the follow-up prompt |
 
 **Nothing else is in the body.** The payload is defined in `src/mcp_audit/registration/models.py` as `RegistrationPostPayload`, and you can audit it directly.  Like any HTTPS request, it also carries two standard headers (`Content-Type: application/json` and `User-Agent: mcp-audit/<version>`), and the receiving service can see the IP address the request comes from.
 
@@ -69,13 +69,7 @@ After you register, every completed `mcp-audit check` run sends a brief ping to 
 
 ### Where the data goes
 
-The webhook is run by the project author (Adam Dudley, <https://github.com/adudley78>).  The comment next to `_REGISTER_ENDPOINT` in `client.py` records what it does with a request: it sends an email notification and appends the record to a Google Sheets log.  So Pipedream and Google process the data on the author's behalf.  It is used solely to:
-
-- Send new community rule notifications.
-- Identify Fortune 500 / consulting firm users who may want to give design-partner feedback.
-- Follow up (only if you opted in) when your scan grade is C or below.
-
-It is **not** sold, shared with anyone beyond those two services, or used for advertising.
+Both requests go to the `_REGISTER_ENDPOINT` address above and nowhere else.  The code comment beside that constant in `src/mcp_audit/registration/client.py` describes the webhook as routing each request to an email notification and a Google Sheets log.  mcp-audit itself keeps no copy beyond the local `registration.json` described next.
 
 ### Local storage
 

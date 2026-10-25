@@ -48,7 +48,7 @@ with one result per finding. Every result includes:
 mcp-audit scan --format sarif -o mcp-audit.sarif
 
 # Or use the GitHub Action (uploads automatically)
-uses: adudley78/mcp-audit@v0.10.0
+uses: adudley78/mcp-audit@v0.21.1
 with:
   sarif-output: mcp-audit.sarif
   upload-sarif: 'true'
@@ -140,7 +140,7 @@ It runs:
 
 1. `snyk/actions/node@master` — Snyk Code SAST on the repository source,
    saves SARIF to `snyk.sarif`.
-2. `adudley78/mcp-audit@v0.10.0` — mcp-audit config scan, saves SARIF to
+2. `adudley78/mcp-audit` — mcp-audit config scan, saves SARIF to
    `mcp-audit.sarif`.
 3. Two `upload-sarif` steps — uploads both SARIF files to GitHub Code Scanning
    with separate `category` labels.
