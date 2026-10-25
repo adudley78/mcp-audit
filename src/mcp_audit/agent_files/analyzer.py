@@ -60,6 +60,15 @@ POISON-041 (HIGH) / POISON-042 (LOW) — documented exception
     comment is common and legitimate in Markdown and must stay silent
     unless its content actually matches an existing pattern.
 
+Subagent definitions (STORY-0094)
+---------------------------------
+A ``.claude/agents/**/*.md`` body is the subagent's system prompt, so it gets
+the skill/command rules above (the memory subset would miss exfiltration
+instructions such as reading ``~/.ssh``), without the SKILL-002 length check.
+Its frontmatter findings, AGENT-001..004 plus HOOK-001/002 on its hooks, come
+from :meth:`ConfigHygieneAnalyzer.analyze_agent_definition`, shared with the
+scan pipeline; see :mod:`mcp_audit.agent_files.subagents`.
+
 Pattern import policy
 ---------------------
 Detection patterns are **imported** from :mod:`mcp_audit.analyzers.poisoning`
@@ -206,12 +215,18 @@ def _skill_finding(
 # ── Skill/instruction analyzers ───────────────────────────────────────────────
 
 
-def _analyze_skill(af: AgentFile) -> list[Finding]:
+def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     """Analyze one skill / command / instruction file.
 
     Returns SKILL-001, SKILL-002, and/or SKILL-003 findings.
     Deduplicates by (finding_id, poison_pattern_id) so the same pattern
     cannot produce two findings on the same file.
+
+    Args:
+        af: The file to analyze.
+        check_length: Apply the SKILL-002 oversized-file check. ``False`` for
+            subagent definitions: the body is the subagent's whole system
+            prompt, where length is expected rather than a signal.
     """
     findings: list[Finding] = []
     text = af.body
@@ -230,7 +245,7 @@ def _analyze_skill(af: AgentFile) -> list[Finding]:
         # Length pattern: only fire when the full body is long enough — use
         # the len() check instead of running the DOTALL regex for speed.
         if pat.id == _LENGTH_PATTERN_ID:
-            if len(text) >= _SKILL_OVERSIZED_THRESHOLD:
+            if check_length and len(text) >= _SKILL_OVERSIZED_THRESHOLD:
                 _emit(
                     "SKILL-002",
                     pat.id,
@@ -518,14 +533,38 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
-def analyze_agent_files(files: list[AgentFile]) -> list[Finding]:
+def _analyze_agent_definition(af: AgentFile) -> list[Finding]:
+    """AGENT-001..004 and HOOK-001/002 for one subagent definition file.
+
+    Delegates to the one implementation the scan pipeline also uses
+    (:meth:`ConfigHygieneAnalyzer.analyze_agent_definition`).
+    """
+    from mcp_audit.analyzers.config_hygiene import (  # noqa: PLC0415
+        ConfigHygieneAnalyzer,
+    )
+
+    return ConfigHygieneAnalyzer().analyze_agent_definition(
+        af.frontmatter, af.path, af.client, af.scope
+    )
+
+
+def analyze_agent_files(
+    files: list[AgentFile], include_definitions: bool = True
+) -> list[Finding]:
     """Analyze a list of agent files for security issues.
 
     Dispatches each file to the appropriate analyzer based on its surface type.
+    A subagent definition's body (its system prompt) gets the same
+    instruction-file rules as a command or skill (SKILL-001/002/003,
+    POISON-041/042) except the length check; its frontmatter gets
+    AGENT-001..004 and HOOK-001/002 when *include_definitions* is set.
 
     Args:
         files: Agent files returned by :func:`~mcp_audit.agent_files.discovery
             .discover_agent_files`.
+        include_definitions: Produce the subagent frontmatter findings.
+            ``scan --include-agent-files`` passes ``False`` because the scan's
+            own discovery already produced them for the same files.
 
     Returns:
         List of :class:`~mcp_audit.models.Finding` objects.  Empty when no
@@ -533,7 +572,11 @@ def analyze_agent_files(files: list[AgentFile]) -> list[Finding]:
     """
     findings: list[Finding] = []
     for af in files:
-        if _is_skill_surface(af):
+        if af.surface == AgentFileSurface.CLAUDE_AGENT:
+            findings.extend(_analyze_skill(af, check_length=False))
+            if include_definitions:
+                findings.extend(_analyze_agent_definition(af))
+        elif _is_skill_surface(af):
             findings.extend(_analyze_skill(af))
             if af.surface == AgentFileSurface.CLAUDE_SKILL:
                 script_finding = _check_skill_scripts(af)

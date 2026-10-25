@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from mcp_audit.discovery import DiscoveredConfig
+from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, DiscoveredConfig
 from mcp_audit.models import ServerConfig, TransportType
 
 
@@ -39,6 +39,9 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
     Raises:
         ValueError: If the config file cannot be parsed.
     """
+    if config.client_name == AGENT_DEFINITION_CLIENT:
+        return _parse_agent_definition(config)
+
     try:
         raw_text = config.path.read_text(encoding="utf-8")
     except OSError as e:
@@ -67,6 +70,49 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
     if servers_dict is None or not isinstance(servers_dict, dict):
         return []
 
+    return _servers_from_dict(servers_dict, config)
+
+
+def _parse_agent_definition(config: DiscoveredConfig) -> list[ServerConfig]:
+    """Parse a Claude Code subagent definition (STORY-0094).
+
+    ``config.raw`` becomes the frontmatter mapping (JSON-compatible), so the
+    config-level checks at pipeline step 0 read it like a settings file; the
+    servers are the inline ``mcpServers`` entries, coerced to the string
+    types a JSON config would carry. Frontmatter that could be read only in
+    part is recorded in ``config.parse_warnings`` rather than raised, so the
+    keys that did parse are still checked.
+
+    Raises:
+        ValueError: If the file cannot be read.
+    """
+    from mcp_audit.agent_files.subagents import (  # noqa: PLC0415
+        inline_mcp_servers,
+        normalize_server_entry,
+        read_agent_definition,
+    )
+
+    try:
+        parsed = read_agent_definition(config.path)
+    except OSError as e:
+        raise ValueError(f"Cannot read {config.path}: {e}") from e
+    config.raw = parsed.data
+    config.parse_warnings = [
+        f"Subagent definition {config.path}: {problem}. Claude Code's own parser"
+        " may still load it; review that part of the frontmatter by hand."
+        for problem in parsed.problems
+    ]
+    servers_dict = {
+        name: normalize_server_entry(spec)
+        for name, spec in inline_mcp_servers(parsed.data).items()
+    }
+    return _servers_from_dict(servers_dict, config)
+
+
+def _servers_from_dict(
+    servers_dict: dict, config: DiscoveredConfig
+) -> list[ServerConfig]:
+    """Build :class:`ServerConfig` objects from a ``{name: entry}`` mapping."""
     servers: list[ServerConfig] = []
     for name, server_data in servers_dict.items():
         if not isinstance(server_data, dict):

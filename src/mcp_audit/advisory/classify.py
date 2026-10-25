@@ -73,6 +73,10 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         "MOD-005",  # Claude Code mod inventory (STORY-0085) — neutral, not a defect
         "HARNESS-007",  # enabledMcpjsonServers inventory (STORY-0090) — INFO;
         # Claude Code writes it when you approve a server, not a defect by itself
+        "AGENT-002",  # disallowedTools specifier removes the whole tool — the
+        # subagent ends up with less access than intended, not more
+        "AGENT-004",  # inline subagent MCP server inventory (STORY-0094); the
+        # server's own findings carry any vulnerability
     }
 )
 
@@ -145,6 +149,8 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "MOD-002": "toxic-flow",
     "MOD-003": "tool-poisoning",
     "MOD-006": "untrusted-config-origin",
+    "AGENT-001": "excessive-scope",
+    "AGENT-003": "hook-execution",
 }
 
 # Prefix → class, applied when no exact ID match exists. Longest prefix wins.
@@ -156,6 +162,7 @@ _CLASS_BY_PREFIX: Final[dict[str, str]] = {
     "MOD-": "hook-execution",
     "HARNESS-": "excessive-scope",
     "PERM-": "excessive-scope",
+    "AGENT-": "excessive-scope",
     "SC-": "typosquat",
     "CFHYG-": "config-hygiene",
     "TOXIC-": "toxic-flow",

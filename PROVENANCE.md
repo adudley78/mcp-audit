@@ -624,6 +624,36 @@ quoted in the finding text and in `docs/permission-rules.md`:
   which quote the `{"version": 2, "plugins": {"<id>": [records]}}` structure.
 - Original implementation; no code was copied.
 
+## Claude Code subagent definitions (AGENT-001..004, agent_files/subagents.py — STORY-0094)
+
+- **Claude Code sub-agents documentation** — https://code.claude.com/docs/en/sub-agents
+  (read 2026-10-25): where definitions live (`.claude/agents/`, `~/.claude/agents/`,
+  both recursive; plugin `agents/` ignore `permissionMode`, `hooks`, `mcpServers`), the
+  frontmatter fields, the `permissionMode` inheritance rules and "The `bypassPermissions`
+  exception requires Claude Code v2.1.267 or later" (AGENT-001), "An entry with a
+  specifier, such as `Bash(git push *)`, still removes the whole tool" (AGENT-002),
+  "Before v2.1.218, frontmatter hooks could run from folders you hadn't trusted"
+  (AGENT-003), the `mcpServers` list schema ("Inline definitions use the same schema as
+  `.mcp.json` server entries") and its trust note (AGENT-004).
+- **Claude Code permissions documentation** — https://code.claude.com/docs/en/permissions
+  (read 2026-10-25): `dontAsk` "Auto-denies every call that would otherwise prompt" (why it
+  does not fire AGENT-001); the "What runs before you trust a folder" table (subagent
+  frontmatter hooks and inline `mcpServers` from the repository are not used until the
+  folder is trusted); and server names with `__` or a trailing `_`, which `mcp__<server>`
+  rules read as a different server (AGENT-004 LOW).
+- **Claude Code CHANGELOG** — https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md
+  (read 2026-10-25, head 2.1.310): 2.1.153 "Fixed subagent (Agent tool) frontmatter MCP
+  servers ignoring `--strict-mcp-config`, `--bare` … and managed-settings MCP server
+  allow/deny policies"; 2.1.218 "Fixed agent frontmatter hooks running from untrusted
+  folders"; 2.1.238 "inline MCP servers in project or `--add-dir` agent files, now require
+  that folder's trust dialog"; 2.1.69 skill descriptions with colons loading (why
+  frontmatter that strict YAML rejects is re-read key by key). The 2.1.267 subagent
+  bypass change has no CHANGELOG line; the sub-agents doc is the source for it.
+- **EPIC-0007 research scan**, A12 "Subagent definitions as a first-class config surface"
+  and harness-permissions notes Q6 (Marcus, 2026-10-25), which also record that the
+  `--strict-mcp-config` gap applies to `--agents`/SDK definitions, not agent files.
+- Original implementation; no code was copied. Test fixtures were written for this repo.
+
 
 ## SAST: SSRF guards that only block IP literals (STORY-0081)
 

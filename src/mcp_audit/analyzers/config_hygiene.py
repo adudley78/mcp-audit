@@ -46,6 +46,7 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import unquote, urlsplit
 
+from mcp_audit.agent_files.subagents import analyze_agent_definition
 from mcp_audit.analyzers import permissions as _permissions
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS, CredentialsAnalyzer
@@ -53,6 +54,7 @@ from mcp_audit.analyzers.poisoning import normalize_for_detection
 from mcp_audit.discovery import (
     SIBLING_HARNESS_AUTOEXEC_KINDS as _SIBLING_HARNESS_CHECKS,
 )
+from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 logger = logging.getLogger(__name__)
@@ -1213,6 +1215,11 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         Returns:
             List of config-level findings.  Empty when no issues are detected.
         """
+        if client == AGENT_DEFINITION_CLIENT:
+            return self.analyze_agent_definition(
+                raw, config_path, client, agent_definition_scope(config_path)
+            )
+
         findings: list[Finding] = []
         if not self._is_claude_code_config(config_path):
             return findings
@@ -1269,6 +1276,41 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
 
         # HOOK-001/002: inspect individual hook commands for risky patterns
         findings.extend(self._check_hook_commands(hooks, config_path, client))
+        return findings
+
+    def analyze_agent_definition(
+        self,
+        raw: dict,
+        config_path: Path,
+        client: str,
+        scope: str,
+    ) -> list[Finding]:
+        """AGENT-001..004 plus HOOK-001/002 for one subagent definition (STORY-0094).
+
+        The single place both entry points combine the two: pipeline step 0
+        (via :meth:`analyze_config`, client ``claude-code-agent``) and the
+        agent-file scanner (``agent-files scan``). A subagent's frontmatter
+        ``hooks`` use the settings-file schema, so its commands go through the
+        same HOOK-001/002 checks; AGENT-003 replaces CFHYG-005 for this file
+        type (CFHYG-005 never fires on an agent file).
+
+        Args:
+            raw: JSON-compatible frontmatter mapping.
+            config_path: The agent definition file.
+            client: Client name for the findings.
+            scope: ``"project"`` or ``"user"``.
+
+        Returns:
+            Findings with ``finding_path`` set to *config_path*.
+        """
+        if not isinstance(raw, dict) or not raw:
+            return []
+        findings = analyze_agent_definition(raw, config_path, scope, client)
+        hooks = raw.get("hooks")
+        if isinstance(hooks, dict):
+            findings.extend(self._check_hook_commands(hooks, config_path, client))
+        for finding in findings:
+            finding.finding_path = str(config_path)
         return findings
 
     # ── Harness posture (STORY-0079) ──────────────────────────────────────────

@@ -202,6 +202,22 @@ _HINTS: dict[str, str] = {
         "Remove the mcp__<server> allow rule until the server's findings are fixed,"
         " or allow only tools you have checked."
     ),
+    "AGENT-001": (
+        "Remove permissionMode from the subagent file so it inherits your session's"
+        " mode; keep Claude Code at 2.1.267+."
+    ),
+    "AGENT-002": (
+        "Put the specifier rule in permissions.deny instead; disallowedTools"
+        " removes the whole tool."
+    ),
+    "AGENT-003": (
+        "Read the subagent's hook commands before trusting the folder; remove"
+        " any you did not add."
+    ),
+    "AGENT-004": (
+        "Review the subagent's inline MCP server like a .mcp.json entry; write"
+        " rules for it as mcp__<full-name>__*."
+    ),
     "CFHYG-006": (
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
         " — a third-party base URL receives every API call and its secrets."

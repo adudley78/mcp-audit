@@ -16,6 +16,9 @@ class AgentFileSurface(StrEnum):
     CLAUDE_SKILL = "claude-code-skills"
     # Claude Code memory / project-context files (CLAUDE.md tiers)
     CLAUDE_MEMORY = "claude-memory"
+    # Claude Code subagent definitions (~/.claude/agents/**/*.md,
+    # .claude/agents/**/*.md); frontmatter is a config surface (STORY-0094)
+    CLAUDE_AGENT = "claude-code-agents"
     # Cursor AI rules (.cursor/rules/*.mdc, ~/.cursor/rules/*.mdc)
     CURSOR_RULE = "cursor-rule"
     # GitHub Copilot workspace instruction file (.github/copilot-instructions.md)

@@ -431,12 +431,23 @@ def _discover_and_parse(
     auto-run files at the working directory's root are checked too (TRUST-003,
     TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), and are scored
     like the rest.
+
+    Without *extra_paths*, Claude Code subagent definitions
+    (``~/.claude/agents/``, ``<cwd>/.claude/agents/``) are discovered too, as
+    client ``claude-code-agent`` (STORY-0094): their inline servers join
+    ``result.servers`` and their frontmatter is checked at pipeline step 0
+    (AGENT-001..004, HOOK-001/002). TRUST-002/004/005 for symlinks under the
+    agents directories and any partly-unreadable frontmatter (``errors``) are
+    recorded here.
     """
+    discovery_findings: list[Finding] = []
     configs = discover_configs(
         extra_paths=extra_paths,
         skip_auto_discovery=bool(extra_paths),
         include_plugins=include_plugins,
+        skip_findings=discovery_findings,
     )
+    result.findings.extend(discovery_findings)
     result.clients_scanned = len({c.client_name for c in configs})
 
     if include_plugins and not extra_paths:
@@ -474,6 +485,7 @@ def _discover_and_parse(
             all_servers.extend(servers)
         except ValueError as e:
             result.errors.append(str(e))
+        result.errors.extend(config.parse_warnings)
 
     result.servers_found = len(all_servers)
     result.servers = all_servers

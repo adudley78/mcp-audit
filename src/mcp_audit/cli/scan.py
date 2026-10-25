@@ -44,7 +44,9 @@ from mcp_audit.baselines.manager import BaselineManager
 from mcp_audit.cli import app, console
 from mcp_audit.cli._helpers import _write_output
 from mcp_audit.discovery import (
+    AGENT_DEFINITION_CLIENT,
     build_project_symlink_finding,
+    discover_project_agent_configs,
     discover_project_autoexec_files,
     discover_project_configs,
 )
@@ -645,7 +647,18 @@ def _apply_agent_files(
     af_list = _af_discovery.discover_agent_files(
         project_root=project_root, skip_findings=af_skip_findings
     )
-    af_findings = _af_analyzer.analyze_agent_files(af_list) + af_skip_findings
+    # Subagent definitions' frontmatter checks (AGENT-001..004, HOOK-001/002)
+    # already come from default discovery (user-global and cwd) and from
+    # --project, so only their body text is scanned here (STORY-0094). A
+    # symlink default discovery already reported is not reported twice.
+    already = {
+        (f.id, f.finding_path)
+        for f in result.findings
+        if f.id in ("TRUST-002", "TRUST-004", "TRUST-005")
+    }
+    af_findings = _af_analyzer.analyze_agent_files(
+        af_list, include_definitions=False
+    ) + [f for f in af_skip_findings if (f.id, f.finding_path) not in already]
     result.findings.extend(af_findings)
     con.print(
         f"[dim]Agent files: {len(af_list)} file(s) scanned, "
@@ -1014,8 +1027,23 @@ def _apply_project_scan(
                 )
             )
 
+    # Subagent definitions (STORY-0094): their frontmatter is checked at step 0
+    # of the pipeline below (AGENT-001..004, HOOK-001/002) and their inline
+    # servers get TRUST-001 like any project-scoped server. Kept out of
+    # discover_project_configs() so `mcp-audit lock` never records them.
+    # A symlinked agent file reports TRUST-002 through skip_findings.
+    project_configs += discover_project_agent_configs(
+        project_dir, skip_findings=skip_findings
+    )
+
     # ── TRUST-005: symlinked directories not traversed by either walk above ──
-    seen_skip: set[tuple[str, str | None]] = set()
+    # Seeded with what earlier stages (default discovery, --include-agent-files)
+    # already reported, so a symlink under an agents directory is named once.
+    seen_skip: set[tuple[str, str | None]] = {
+        (f.id, f.finding_path)
+        for f in result.findings
+        if f.id in ("TRUST-002", "TRUST-004", "TRUST-005")
+    }
     for finding in skip_findings:
         key = (finding.id, finding.finding_path)
         if key in seen_skip:
@@ -1036,6 +1064,7 @@ def _apply_project_scan(
             project_servers.extend(parse_config(config))
         except ValueError as e:
             result.errors.append(str(e))
+        result.errors.extend(w for w in config.parse_warnings if w not in result.errors)
 
     con.print(
         f"[dim]Project scan: {len(project_configs)} config file(s),"
@@ -1046,6 +1075,26 @@ def _apply_project_scan(
     # Logic is deliberately dumb — origin (is_project_scoped) is the only
     # criterion.  Content-based analysis runs separately below.
     for server in project_servers:
+        if server.client == AGENT_DEFINITION_CLIENT:
+            # Same origin-based finding; the launch moment differs (STORY-0094).
+            spawn = (
+                f"Server '{server.name}' is declared inline in"
+                f" '{server.config_path.name}', a project subagent definition"
+                " that is likely committed to version control."
+                " Once a developer trusts this repository in Claude Code, this"
+                " MCP server starts with their full OS privileges whenever"
+                " Claude delegates to that subagent."
+            )
+        else:
+            spawn = (
+                f"Server '{server.name}' is defined in"
+                f" '{server.config_path.name}', a project-level config file"
+                " that is likely committed to version control."
+                " When a developer opens this repository in an AI editor"
+                " and clicks 'Trust this folder', this MCP server spawns"
+                " automatically with their full OS privileges before any"
+                " project code runs."
+            )
         result.findings.append(
             Finding(
                 id="TRUST-001",
@@ -1055,14 +1104,7 @@ def _apply_project_scan(
                 server=server.name,
                 title="MCP server defined in project-level config (TrustFall risk)",
                 description=(
-                    f"Server '{server.name}' is defined in"
-                    f" '{server.config_path.name}', a project-level config file"
-                    " that is likely committed to version control."
-                    " When a developer opens this repository in an AI editor"
-                    " and clicks 'Trust this folder', this MCP server spawns"
-                    " automatically with their full OS privileges before any"
-                    " project code runs."
-                    " A supply-chain attacker, malicious contributor, or"
+                    spawn + " A supply-chain attacker, malicious contributor, or"
                     " typosquatted package can backdoor every developer who"
                     " trusts the repo (Adversa TrustFall, May 2026;"
                     " corroborated by CVE-2026-30615)."
@@ -1423,8 +1465,9 @@ def scan(
         False,
         "--include-agent-files",
         help=(
-            "Also scan agent instruction and memory files (skills, Cursor rules,"
-            " Copilot instructions, CLAUDE.md tiers) for security issues."
+            "Also scan agent instruction and memory files (skills, subagent"
+            " prompts, Cursor rules, Copilot instructions, CLAUDE.md tiers) for"
+            " security issues."
         ),
     ),
     no_plugins: bool = typer.Option(  # noqa: B008

@@ -1200,6 +1200,54 @@
       "notes": "Inventory: fires when a Claude Code settings file has a non-empty enabledMcpjsonServers list, which approves project .mcp.json servers with those names without a prompt once the folder is trusted. Severity INFO (Claude Code writes this key to .claude/settings.local.json when you approve a server); listed beside HARNESS-002, which approves every server. Excluded from advisories. CWE-862. Analyzer: config_hygiene (STORY-0090)."
     },
     {
+      "finding_id": "AGENT-001",
+      "finding_title": "Subagent asks for a looser permission mode",
+      "owasp_codes": [
+        "MCP02",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Insufficient Authentication and Authorization"
+      ],
+      "notes": "Claude Code subagent frontmatter (STORY-0094). permissionMode: bypassPermissions (MEDIUM in a project agent, LOW in ~/.claude/agents; HIGH on Claude Code before 2.1.267, where a subagent could gain bypass from a default-mode session), or acceptEdits/auto in a project agent (MEDIUM). dontAsk is stricter than default and never fires. Source: code.claude.com/docs/en/sub-agents."
+    },
+    {
+      "finding_id": "AGENT-002",
+      "finding_title": "disallowedTools specifier removes the whole tool",
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "INFO. A disallowedTools entry with a (…) specifier removes the whole tool from the subagent (sub-agents doc). Not an advisory."
+    },
+    {
+      "finding_id": "AGENT-003",
+      "finding_title": "Subagent defines hooks that run shell commands",
+      "owasp_codes": [
+        "MCP05",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Insufficient Authentication and Authorization"
+      ],
+      "notes": "Project agent MEDIUM (runs after folder trust since Claude Code 2.1.218; HIGH before, when hooks ran from untrusted folders); user agent INFO. Each hook command also goes through HOOK-001/002."
+    },
+    {
+      "finding_id": "AGENT-004",
+      "finding_title": "Subagent declares its own MCP server",
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ],
+      "notes": "INFO per inline mcpServers entry, which joins discovery as client claude-code-agent; LOW when the name contains '__' or ends in '_', which mcp__ permission rules misread (permissions doc). Not an advisory."
+    },
+    {
       "finding_id": "PLUGIN-001",
       "finding_title": "Installed plugin does not match its marketplace pin",
       "owasp_codes": [

@@ -99,7 +99,8 @@ src/mcp_audit/
 │   ├── __init__.py    # Package marker; offline-only invariant docs
 │   ├── models.py      # AgentFile dataclass, AgentFileSurface StrEnum
 │   ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions)
-│   └── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked), plus scan_concealed_channels/build_concealment_finding for POISON-041/042. NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+│   ├── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked), plus scan_concealed_channels/build_concealment_finding for POISON-041/042. NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+│   └── subagents.py   # Claude Code subagent definitions (STORY-0094): hardened frontmatter parse (1 MiB read, 256 KiB block, no aliases, per-key fallback), inline_mcp_servers(), analyze_agent_definition() AGENT-001..004; files join default discovery as client "claude-code-agent" (discover_configs(include_agents=True); never with --path; lock opts out; auto-verify skips; rug-pull state key excludes), step 0 via ConfigHygieneAnalyzer.analyze_agent_definition (+HOOK-001/002)
 ├── plugins/           # Claude Code plugin inventory + integrity (PLUGIN-001/002); offline, reads ~/.claude/plugins records only
 │   ├── models.py      # InstalledPlugin dataclass; GIT_SOURCE_TYPES; pinned_sha / source_type
 │   ├── discovery.py   # discover_installed_plugins(), plugin_agent_files(), plugin_mcp_config_paths(); plugin MCP servers join default auto-discovery (discover_configs(include_plugins=True) is the default; never with an explicit --path; lock opts out; excluded from the rug-pull state key) as client "claude-code-plugin"
@@ -469,6 +470,13 @@ Measurement scripts (dev tooling, not in the package):
   `agent_files/`, because they inspect the parsed `hooks` section of a Claude config
   file; they are distinct IDs from CFHYG-005 (which fires on mere presence of a
   `hooks` section) and the conditions do not overlap.
+  **Subagent definitions** (`.claude/agents/**/*.md`, STORY-0094) are the exception
+  to "not part of the pipeline": their frontmatter is a config surface, so the files
+  are `DiscoveredConfig`s (client `claude-code-agent`), `parse_config()` reads their
+  inline `mcpServers`, and AGENT-001..004 + HOOK-001/002 run at step 0 in the default
+  `scan`/`check` and `scan --project` (`discover_project_agent_configs`, kept out of
+  `discover_project_configs` so `lock` never sees them). Only their body text follows
+  the skills opt-in (`--include-agent-files`, which passes `include_definitions=False`).
 
 ## Critical implementation details
 

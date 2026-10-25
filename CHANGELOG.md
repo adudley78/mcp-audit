@@ -60,6 +60,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   project MCP servers a settings file approves by name.
 - **`docs/agent-execution-surface.md`:** every repository file mcp-audit reads that a
   harness runs or obeys, per harness, with the vendor source for each.
+- **Claude Code subagent definitions are scanned** (`.claude/agents/**/*.md`,
+  `~/.claude/agents/**/*.md`), in the default `scan`, `check` and `scan --project`.
+  `AGENT-001` flags a subagent that asks for `bypassPermissions` (MEDIUM in a repo,
+  LOW in your own folder; HIGH on Claude Code before 2.1.267) or, in a repo, for
+  `acceptEdits`/`auto` (MEDIUM). `AGENT-002` (INFO) says when a `disallowedTools`
+  entry like `Bash(git push *)` removes the whole tool. `AGENT-003` flags subagent
+  hooks (MEDIUM in a repo) and runs each command through HOOK-001/002. `AGENT-004`
+  lists each MCP server a subagent declares for itself (LOW when its name confuses
+  `mcp__` permission rules). Those servers now get every server check and show up in
+  `shadow`, `discover` and the attack graph as client `claude-code-agent`; like plugin
+  servers they stay out of `mcp-lock.json`, so existing locks keep verifying.
+  `--include-agent-files` also scans each subagent's prompt with the skill rules.
 
 ### Changed
 

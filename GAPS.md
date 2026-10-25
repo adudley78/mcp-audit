@@ -1056,6 +1056,54 @@ entry. Until confirmed, only workspace/project-tree paths are discovered.
 
 ---
 
+### `.claude/agents/` — Claude Code subagent definitions (AGENT-001..004, STORY-0094)
+
+**Status: implemented, with these known limits.**
+
+- **Installed Claude Code version is not read.** AGENT-001 (`bypassPermissions`,
+  fixed in 2.1.267) and AGENT-003 (frontmatter hooks, trust-gated since 2.1.218)
+  use the severity that holds on current versions and state the older-version
+  HIGH case in their text. Reading the installed version without running the
+  binary is the epic's "harness version-floor table", queued separately.
+- **Default scan reads only the cwd's `.claude/agents/`**, not the
+  `.claude/agents/` directories between the cwd and the repository root that
+  Claude Code also loads. `scan --project <root>` walks them all.
+- **Not read:** plugin `agents/` directories (Claude Code ignores
+  `permissionMode`, `hooks` and `mcpServers` there, so only body text would be
+  in play), managed-settings agents, and agents passed with `--agents` or the
+  SDK `agents` option (not files). Agent files under `CLAUDE_CONFIG_DIR` are not
+  read either; user-level agents resolve under `$HOME`, like skills.
+- **Frontmatter parsing is not Claude Code's parser.** PyYAML (YAML 1.1) is used
+  with a per-key fallback for blocks strict YAML rejects. Where the two
+  disagree, a security-relevant key mcp-audit cannot read is listed in the
+  scan's `errors`; other keys may be read differently. Duplicate keys take the
+  last value (PyYAML); Claude Code's resolution is undocumented. Values are
+  matched exactly as documented (`bypassPermissions`, not `BypassPermissions`).
+  YAML aliases are refused. The frontmatter is capped at 256 KiB and the file
+  read at 1 MiB; a larger frontmatter is reported, not parsed.
+- **A file with frontmatter is treated as a definition** even without the
+  required `name`/`description`, which Claude Code would refuse to load, so a
+  half-written file can still produce findings.
+- **`mcpServers` must be the documented list form.** A mapping in its place is
+  ignored (no servers, no finding).
+- **Duplicate inline server names** across agent files share one rug-pull key
+  (`claude-code-agent/<name>`); the last file in path order is tracked, as with
+  any duplicate client/name pair. Shadow likewise lists the name once.
+- **Inline servers are never locked.** Like plugin servers they are left out of
+  `mcp-lock.json` and skipped by scan's automatic lock check, so a lock does not
+  cover them; their per-server findings and TRUST-001 (`--project`) do.
+- **Body text is scanned only where skills are** (`--include-agent-files`,
+  `agent-files scan`), with the skill rule set minus the length check. SKILL-003
+  (external URL, MEDIUM) fires on a subagent prompt that links to documentation,
+  as it does for skills and Cursor rules.
+- **`dontAsk` is not flagged**: it auto-denies anything that would prompt, so it
+  is stricter than `default` (permissions doc).
+- **Not covered:** `tools: Agent(...)` type lists, which Claude Code ignores in a
+  subagent definition (they apply only to `claude --agent`); `disallowedTools`
+  `mcp__<server>` entries that were silently ignored before Claude Code 2.1.178.
+
+---
+
 ## Concealment channel detection (POISON-041/042, STORY-0068)
 
 Design doc: `humans/decisions/2026-09-09-poison-041-design.md` (marcus repo).

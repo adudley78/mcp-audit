@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from mcp_audit.discovery import AGENT_DEFINITION_CLIENT
 from mcp_audit.lock.discovery import find_lock_for
 from mcp_audit.lock.verifier import verify as verify_lock
 from mcp_audit.models import Finding, LockStatus, ServerConfig
@@ -43,9 +44,16 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
         ``status.present`` is ``False`` and *findings* is empty — the
         contract this story requires: a project with no ``mcp-lock.json``
         anywhere sees no behavior change at all.
+
+    Servers declared inline in a Claude Code subagent definition (client
+    ``claude-code-agent``, STORY-0094) are skipped: ``mcp-audit lock`` never
+    records them, so verifying them would turn every existing lock in a repo
+    with a ``.claude/agents/`` server into a LOCK-002 failure.
     """
     groups: dict[Path, list[ServerConfig]] = {}
     for server in servers:
+        if server.client == AGENT_DEFINITION_CLIENT:
+            continue
         lock_path = find_lock_for(server.config_path)
         if lock_path is None:
             continue
