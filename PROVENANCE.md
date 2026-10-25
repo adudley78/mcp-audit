@@ -564,7 +564,10 @@ quoted in the finding text and in `docs/permission-rules.md`:
   commands that run sandboxed … In plan mode, the rule isn't skipped"; PERM-005: the
   sandbox honours a bare `*` in a `WebFetch(domain:...)` rule.
 - **Claude Code settings reference** (https://code.claude.com/docs/en/settings-reference)
-  — defaults: `sandbox.enabled` false, `sandbox.autoAllowBashIfSandboxed` true.
+  — defaults: `sandbox.enabled` false, `sandbox.autoAllowBashIfSandboxed` true; and
+  `permissions.defaultMode`: "`auto` and `bypassPermissions` don't take effect from
+  project or local settings … Before v2.1.257, `bypassPermissions` took effect from any
+  file" (why PERM-004 counts a mode only in user settings).
 - **Claude Code permission modes doc** (https://code.claude.com/docs/en/permission-modes)
   — "Tools matched by an explicit ask rule" are among the "Actions no mode
   auto-approves", which is why queue item Q-018 (ask rules under auto/bypass mode) was

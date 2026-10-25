@@ -1509,7 +1509,7 @@
         "Command Injection and Execution",
         "Insufficient Authentication and Authorization"
       ],
-      "notes": "Fires when a Bash deny or ask rule names a network or delete command (curl, wget, ssh, rsync, rm, dd, git push, ...) and the same file does not set sandbox.enabled true; names the documented forms it misses (/usr/bin/curl, sh -c '...', git -C . push). MEDIUM when the file's mode (bypassPermissions, auto) or allow rules (Bash, Bash(sh -c *), Bash(* --version)) run those forms without a prompt, INFO otherwise. CWE-184. Source: code.claude.com/docs/en/permissions (What a Bash rule doesn't match). Analyzer: config_hygiene (STORY-0092)."
+      "notes": "Fires when a Bash deny or ask rule names a network or delete command (curl, wget, ssh, rsync, rm, dd, git push, ...) and the same file does not set sandbox.enabled true; names the documented forms it misses (/usr/bin/curl, sh -c '...', git -C . push). MEDIUM when the file's allow rules (Bash, Bash(sh -c *), Bash(env *), Bash(* --version), Bash(/usr/bin/*)) or, in user settings only, its defaultMode (bypassPermissions, auto) run those forms without a prompt, INFO otherwise. CWE-184. Source: code.claude.com/docs/en/permissions (What a Bash rule doesn't match). Analyzer: config_hygiene (STORY-0092)."
     },
     {
       "finding_id": "PERM-005",
@@ -1548,7 +1548,7 @@
         "Privilege Escalation via Scope Creep",
         "Insufficient Authentication and Authorization"
       ],
-      "notes": "Fires when a whole-server allow rule (mcp__<server> or mcp__<server>__*) matches, by the server's whole normalized name as in Claude Code 2.1.299, a Claude Code MCP server with a HIGH or CRITICAL poisoning, supply-chain, toxic-flow (that server alone), rug-pull or attestation finding in the same scan. HIGH. CWE-862. Source: Claude Code CHANGELOG 2.1.299, code.claude.com/docs/en/permissions (MCP), code.claude.com/docs/en/mcp. Post-pass in scanner._run_static_pipeline step 5b (STORY-0092)."
+      "notes": "Fires when a whole-server allow rule (mcp__<server> or mcp__<server>__*) matches, by the server's whole normalized name as in Claude Code 2.1.299, a Claude Code MCP server with a HIGH or CRITICAL poisoning, rug-pull or supply-chain finding in the same scan (SC-004 only when the configured version is known to be affected; toxic-flow findings do not count). Under scan --project the default and project scans are paired too. HIGH. CWE-862. Source: Claude Code CHANGELOG 2.1.299, code.claude.com/docs/en/permissions (MCP), code.claude.com/docs/en/mcp. Post-pass in scanner._run_static_pipeline step 5b and cli/scan._apply_project_scan (STORY-0092)."
     }
   ],
   "dynamic_patterns": [

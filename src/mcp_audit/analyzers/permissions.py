@@ -829,31 +829,66 @@ def _not_a_boundary(rule: PermissionRule) -> _Hit | None:
     )
 
 
+def _approves_any_shell_form(rule: PermissionRule) -> bool:
+    """True for a Bash allow rule that approves ``sh -c '<anything>'`` or a full path.
+
+    Bare ``Bash``/``Bash(*)``; a rule that starts with ``*`` (the doc's
+    ``Bash(* --version)`` matches ``bash -c 'echo hi' --version``); an absolute
+    directory followed by a wildcard (``Bash(/usr/bin/*)``); or a shell or
+    launcher followed only by options and a wildcard (``Bash(sh -c *)``,
+    ``Bash(bash:*)``, ``Bash(env *)``, ``Bash(sudo -E *)``).  A launcher rule
+    narrowed to a script or a command (``Bash(bash scripts/test.sh *)``,
+    ``Bash(sudo systemctl status *)``) and a relative directory
+    (``Bash(./scripts/*)``) do not count.
+    """
+    if rule.tool != "Bash":
+        return False
+    spec = "*" if rule.specifier is None else rule.specifier.strip()
+    if not spec:
+        return False
+    if spec.startswith("*"):
+        return True
+    inner, wildcard = _strip_trailing_wildcard(spec)
+    words = inner.split()
+    if not words:
+        return True
+    if not wildcard:
+        return False
+    if len(words) == 1 and words[0].startswith("/") and words[0].endswith("/"):
+        return True
+    return _program(words[0]) in _SHELL_LAUNCHERS and all(
+        word.startswith("-") for word in words[1:]
+    )
+
+
 def _bypass_forms_run_unprompted(settings: ClaudeSettings) -> str | None:
-    """What in this file runs a rule's other forms without a prompt, if anything."""
+    """What in this file runs a rule's other forms without a prompt, if anything.
+
+    ``defaultMode`` counts only in user settings.  Settings reference,
+    ``permissions.defaultMode``: "``auto`` and ``bypassPermissions`` don't take
+    effect from project or local settings, so set them in
+    ``~/.claude/settings.json`` instead. Before v2.1.257, ``bypassPermissions``
+    took effect from any file."  The installed version is not read, so a
+    project or local file's mode is not counted (GAPS.md).
+    """
     mode = settings.default_mode
-    if mode == "bypassPermissions":
-        return "permissions.defaultMode is 'bypassPermissions', so those forms run"
-    if mode == "auto":
-        return (
-            "permissions.defaultMode is 'auto', so those forms go to the auto-mode"
-            " classifier, not to you"
-        )
+    if settings.scope == "user":
+        if mode == "bypassPermissions":
+            return (
+                "permissions.defaultMode is 'bypassPermissions', so those forms run"
+                " without a prompt"
+            )
+        if mode == "auto":
+            return (
+                "permissions.defaultMode is 'auto', so the auto-mode classifier, not"
+                " you, decides whether those forms run"
+            )
     for rule in settings.rules_in("allow"):
-        if rule.tool != "Bash":
-            continue
-        spec = "*" if rule.specifier is None else rule.specifier.strip()
-        if not spec:
-            continue
-        inner, wildcard = _strip_trailing_wildcard(spec)
-        words = inner.split()
-        if (
-            not words
-            or spec.startswith("*")
-            or (wildcard and words[0].endswith("/"))
-            or (wildcard and _program(words[0]) in _SHELL_LAUNCHERS)
-        ):
-            return f"allow {rule.text!r} approves those forms, so they run"
+        if _approves_any_shell_form(rule):
+            return (
+                f"allow {rule.text!r} approves those forms, so they run without a"
+                " prompt"
+            )
     return None
 
 
@@ -868,7 +903,7 @@ def _check_perm_004(
     runs = _bypass_forms_run_unprompted(settings)
     if runs is not None:
         severity = Severity.MEDIUM
-        summary = f"{_PERM_004_BASIS} Here {runs} without a prompt."
+        summary = f"{_PERM_004_BASIS} Here {runs}."
     else:
         severity = Severity.INFO
         summary = (
@@ -1047,19 +1082,24 @@ def analyze_permission_rules(
 _CLAUDE_CODE_CLIENTS: frozenset[str] = frozenset(
     {"claude-code", "claude-code-project", "claude-code-plugin"}
 )
-#: Analyzers whose findings judge the server itself: poisoned metadata, a
-#: typosquatted or vulnerable package, a dangerous capability pair inside the
-#: one server, a definition that changed since it was approved, a failed
-#: integrity check.  Findings about how the config file is stored
-#: (config_hygiene: CFHYG-001 fires on any 0644 file), secrets in it
-#: (credentials), the transport, auth, or launch hygiene (community rules:
-#: COMM-013 fires on every ``npx -y`` server, the documented install form) say
-#: nothing about whether the server's tools are safe to run unprompted, and
-#: would make PERM-007 fire on almost every allow rule.  TRUST-001 (origin
-#: only) and SCAN-ERR (a crash) come from other analyzers and are not counted.
+#: Analyzers whose findings indict the server itself: poisoned metadata
+#: (poisoning), a definition that changed since it was approved (rug_pull), or
+#: a typosquatted, unknown or vulnerable package (supply_chain).  Not counted,
+#: because they would make PERM-007 fire on ordinary configs without saying
+#: the server's tools are unsafe to run unprompted: how the config file is
+#: stored (config_hygiene; CFHYG-001 fires on any 0644 file), secrets in it
+#: (credentials), transport, auth, launch hygiene (community rules; COMM-013
+#: fires on every ``npx -y`` server, the documented install form), and
+#: toxic_flow, whose single-server TOXIC-*/INTEG-* describe capability
+#: combinations many legitimate servers have and already carry their own
+#: severity.  Attestation findings are added after the pipeline
+#: (``--verify-hashes``/``--verify-signatures``), so PERM-007 cannot see them.
 _SERVER_RISK_ANALYZERS: frozenset[str] = frozenset(
-    {"poisoning", "supply_chain", "toxic_flow", "rug_pull", "attestation"}
+    {"poisoning", "rug_pull", "supply_chain"}
 )
+#: SC-004 text for an unpinned launch (``supply_chain._emit_known_cve_findings``):
+#: the configured version is not known to be affected, so it does not count.
+_SC004_VERSION_UNKNOWN = "cannot tell offline whether the installed release"
 _HIGH_PLUS: frozenset[Severity] = frozenset({Severity.HIGH, Severity.CRITICAL})
 #: MCP doc: in an MCP tool name "any character outside A-Z, a-z, 0-9, _, and -
 #: is replaced with _".
@@ -1195,18 +1235,26 @@ def _reaches(settings: ClaudeSettings, server: ServerConfig) -> bool:
     return _same_dir(project, root) or _same_dir(project, Path.home())
 
 
+def _indicts_server(finding: Finding) -> bool:
+    """A HIGH or CRITICAL finding that says the server itself is not safe."""
+    if finding.severity not in _HIGH_PLUS:
+        return False
+    if finding.analyzer not in _SERVER_RISK_ANALYZERS:
+        return False
+    # SC-004 counts only when the configured version is known to be affected.
+    return not (
+        finding.id == "SC-004" and _SC004_VERSION_UNKNOWN in finding.description
+    )
+
+
 def _flagged_servers(
     servers: list[ServerConfig], findings: list[Finding]
 ) -> dict[str, list[tuple[ServerConfig, list[Finding]]]]:
     """Claude Code servers with HIGH or CRITICAL findings, by normalized name.
 
-    Only findings from :data:`_SERVER_RISK_ANALYZERS` count.
+    Only findings that indict the server count (:func:`_indicts_server`).
     """
-    serious = [
-        f
-        for f in findings
-        if f.severity in _HIGH_PLUS and f.analyzer in _SERVER_RISK_ANALYZERS
-    ]
+    serious = [f for f in findings if _indicts_server(f)]
     if not serious:
         return {}
     flagged: dict[str, list[tuple[ServerConfig, list[Finding]]]] = {}
@@ -1279,10 +1327,11 @@ def analyze_flagged_server_allows(
     """PERM-007 — whole-server MCP allow rules on servers with HIGH+ findings.
 
     Runs after every other analyzer (:func:`mcp_audit.scanner._run_static_pipeline`
-    step 5b), because "has HIGH or CRITICAL findings" is known only then.  A
-    server counts when a HIGH or CRITICAL finding from an analyzer that judges
-    the server itself (:data:`_SERVER_RISK_ANALYZERS`) names it alone: same
-    name, client and config file.  A cross-server pair (``"a + b"``) does not.
+    step 5b, and again across scopes after ``scan --project``), because "has
+    HIGH or CRITICAL findings" is known only then.  A server counts when a HIGH
+    or CRITICAL poisoning, rug-pull or supply-chain finding names it (same
+    name, client and config file); an SC-004 counts only when the configured
+    version is known to be affected.
 
     Args:
         configs: Discovered config files; Claude Code settings files among

@@ -849,12 +849,75 @@ def _autoexec_finding_key(finding: Finding) -> tuple[str, str, str, str]:
     return (finding.id, path, finding.title, finding.evidence)
 
 
+def _perm007_key(finding: Finding) -> tuple[str, str]:
+    """(settings file, server) identity of a PERM-007 finding, path resolved."""
+    path = finding.finding_path or ""
+    try:
+        return str(Path(path).resolve()), finding.server
+    except OSError:
+        return path, finding.server
+
+
+def _cross_scope_flagged_allows(
+    result: ScanResult,
+    project_configs: list,
+    project_servers: list,
+    extra_paths: list[Path] | None,
+) -> list[Finding]:
+    """PERM-007 for a settings file in one scan and a server in the other.
+
+    The default scan pairs its own settings files (``~/.claude/settings.json``,
+    the cwd's ``.claude/settings*.json``) with its own servers, and the
+    project pipeline does the same for the repository.  A user-settings allow
+    on a repository's server, or a repository allow on a user-scope server,
+    is seen only here.  The default scan's settings files are found again the
+    way it found them (same *extra_paths*, no plugins) and read with
+    ``parse_config``.  A pair already reported (same settings file and server
+    name, so ``scan --project .`` adds nothing) is skipped.
+    """
+    from mcp_audit.analyzers.permissions import (  # noqa: PLC0415
+        analyze_flagged_server_allows,
+        is_claude_code_settings_file,
+    )
+    from mcp_audit.config_parser import parse_config  # noqa: PLC0415
+
+    default_settings = []
+    for config in _cli.discover_configs(
+        extra_paths=extra_paths,
+        skip_auto_discovery=bool(extra_paths),
+        include_plugins=False,
+    ):
+        if not is_claude_code_settings_file(config.path):
+            continue
+        try:
+            parse_config(config)  # fills config.raw, as the default scan did
+        except ValueError:
+            continue
+        default_settings.append(config)
+
+    findings = list(result.findings)
+    cross = [
+        *analyze_flagged_server_allows(default_settings, project_servers, findings),
+        *analyze_flagged_server_allows(project_configs, result.servers, findings),
+    ]
+    seen = {_perm007_key(f) for f in findings if f.id == "PERM-007"}
+    out: list[Finding] = []
+    for finding in cross:
+        key = _perm007_key(finding)
+        if key not in seen:
+            seen.add(key)
+            out.append(finding)
+    return out
+
+
 def _apply_project_scan(
     result: ScanResult,
     project_dir: Path,
     analyzers: list | None,
     extra_rules_dirs: list[Path] | None,
     con: Console,
+    *,
+    extra_paths: list[Path] | None = None,
 ) -> ScanResult:
     """Discover project-level MCP configs, emit TRUST-001, and run full pipeline.
 
@@ -889,7 +952,13 @@ def _apply_project_scan(
     are deduplicated by ``(id, finding_path)`` before appending. See
     ``humans/decisions/2026-09-08-trust-002-symlink-sites.md`` (marcus repo).
 
-    Findings from steps 0–3 are appended to *result.findings* so they flow
+    4. PERM-007 across scopes (STORY-0092): an allow rule in one scan's
+       Claude Code settings on a flagged server from the other scan (for
+       example a user-settings ``mcp__gh__*`` and a repository's typosquatted
+       ``gh``); see :func:`_cross_scope_flagged_allows`.  *extra_paths* is the
+       default scan's ``--path``, so its settings files are found the same way.
+
+    Findings from steps 0–4 are appended to *result.findings* so they flow
     through all output formatters (terminal, JSON, SARIF, HTML dashboard).
     The main scan score is *not* recomputed — project findings are appended
     post-score, consistent with ``_apply_governance``, ``_apply_baseline_drift``,
@@ -1041,6 +1110,14 @@ def _apply_project_scan(
     # Merge pipeline findings only — score and registry_stats stay with
     # the main result.
     result.findings.extend(pipeline_result.findings)
+
+    # ── PERM-007 across the default and project scans (STORY-0092) ─────────
+    if any(isinstance(a, ConfigHygieneAnalyzer) for a in effective_analyzers):
+        result.findings.extend(
+            _cross_scope_flagged_allows(
+                result, project_configs, project_servers, extra_paths
+            )
+        )
 
     return result
 
@@ -1530,7 +1607,12 @@ def scan(
 
     if resolved_project is not None:
         result = _apply_project_scan(
-            result, resolved_project, analyzers, extra_rules_dirs or None, console
+            result,
+            resolved_project,
+            analyzers,
+            extra_rules_dirs or None,
+            console,
+            extra_paths=extra_paths,
         )
 
     result = _apply_lock_verification(

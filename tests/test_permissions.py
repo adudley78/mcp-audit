@@ -400,13 +400,12 @@ class TestPerm004:
     @pytest.mark.parametrize(
         "extra",
         [
-            {"defaultMode": "bypassPermissions"},
-            {"defaultMode": "auto"},
             {"allow": ["Bash"]},
             {"allow": ["Bash(*)"]},
             {"allow": ["Bash(sh -c *)"]},
             {"allow": ["Bash(bash:*)"]},
             {"allow": ["Bash(env *)"]},
+            {"allow": ["Bash(sudo -E *)"]},
             {"allow": ["Bash(* --version)"]},
             {"allow": ["Bash(/usr/bin/*)"]},
         ],
@@ -417,7 +416,56 @@ class TestPerm004:
         raw = {"permissions": {"deny": ["Bash(rm -rf *)"], **extra}}
         out = [f for f in _perm(raw, project_settings) if f.id == "PERM-004"]
         assert _ids(out) == [("PERM-004", Severity.MEDIUM)]
-        assert "without a prompt" in out[0].description
+        assert "approves those forms, so they run without a prompt" in (
+            out[0].description
+        )
+
+    @pytest.mark.parametrize(
+        ("mode", "phrase"),
+        [
+            ("bypassPermissions", "so those forms run without a prompt"),
+            ("auto", "the auto-mode classifier, not you, decides"),
+        ],
+    )
+    def test_user_settings_mode_counts(
+        self, user_settings: Path, mode: str, phrase: str
+    ) -> None:
+        raw = {"permissions": {"deny": ["Bash(rm -rf *)"], "defaultMode": mode}}
+        out = [f for f in _perm(raw, user_settings) if f.id == "PERM-004"]
+        assert _ids(out) == [("PERM-004", Severity.MEDIUM)]
+        assert phrase in out[0].description
+
+    @pytest.mark.parametrize("mode", ["bypassPermissions", "auto"])
+    @pytest.mark.parametrize("name", ["settings.json", "settings.local.json"])
+    def test_project_or_local_mode_does_not_count(
+        self, project_settings: Path, mode: str, name: str
+    ) -> None:
+        """Settings reference: auto and bypassPermissions "don't take effect from
+        project or local settings"."""
+        path = project_settings.with_name(name)
+        raw = {"permissions": {"deny": ["Bash(rm -rf *)"], "defaultMode": mode}}
+        out = [f for f in _perm(raw, path) if f.id == "PERM-004"]
+        assert _ids(out) == [("PERM-004", Severity.INFO)]
+
+    @pytest.mark.parametrize(
+        "allow",
+        [
+            "Bash(./scripts/*)",
+            "Bash(bin/*)",
+            "Bash(./node_modules/.bin/*)",
+            "Bash(bash scripts/test.sh *)",
+            "Bash(sh ./gradlew *)",
+            "Bash(sudo systemctl status *)",
+            "Bash(env NODE_ENV=test npm test *)",
+            "Bash(sh -c)",
+        ],
+    )
+    def test_narrow_allows_do_not_approve_bypass_forms(
+        self, project_settings: Path, allow: str
+    ) -> None:
+        raw = {"permissions": {"deny": ["Bash(curl *)"], "allow": [allow]}}
+        out = [f for f in _perm(raw, project_settings) if f.id == "PERM-004"]
+        assert _ids(out) == [("PERM-004", Severity.INFO)]
 
     @pytest.mark.parametrize(
         "extra",
@@ -839,10 +887,13 @@ class TestPerm007:
     @pytest.mark.parametrize(
         ("analyzer", "fid", "fires"),
         [
-            ("supply_chain", "SC-004", True),
+            ("supply_chain", "SC-001", True),
+            ("supply_chain", "SC-004", True),  # pinned: text names the version
             ("poisoning", "POISON-010", True),
-            ("toxic_flow", "TOXIC-001", True),
             ("rug_pull", "RUGPULL-001", True),
+            ("toxic_flow", "TOXIC-001", False),  # a capability mix, own severity
+            ("toxic_flow", "INTEG-001", False),
+            ("attestation", "ATTEST-001", False),  # added after the pipeline
             ("config_hygiene", "CFHYG-001", False),  # file mode, any 0644 file
             ("credentials", "CRED-001", False),
             ("rules", "COMM-013", False),  # every `npx -y` server
@@ -864,6 +915,36 @@ class TestPerm007:
             severity=Severity.HIGH,
         )
         assert bool(out) is fires
+
+    def test_sc004_counts_only_for_a_known_affected_version(self, repo: Path) -> None:
+        """Real SC-004 output: unpinned says the version can't be told offline."""
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            SupplyChainAnalyzer,
+        )
+
+        analyzer = SupplyChainAnalyzer()
+        settings = _config(
+            repo / ".claude" / "settings.json", _rules(allow=["mcp__azure__*"])
+        )
+        for args, fires in (
+            (["-y", "@azure/mcp", "server", "start"], False),
+            (["-y", "@azure/mcp@0.0.1", "server", "start"], True),
+        ):
+            server = ServerConfig(
+                name="azure",
+                client="claude-code-project",
+                config_path=repo / ".mcp.json",
+                command="npx",
+                args=args,
+            )
+            found = [
+                f.model_copy(update={"finding_path": str(server.config_path)})
+                for f in analyzer.analyze(server)
+            ]
+            sc004 = [f for f in found if f.id == "SC-004"]
+            assert sc004 and sc004[0].severity is Severity.HIGH, args
+            out = perms.analyze_flagged_server_allows([settings], [server], found)
+            assert bool(out) is fires, args
 
     @pytest.mark.parametrize("severity", [Severity.MEDIUM, Severity.LOW, Severity.INFO])
     def test_below_high_does_not_count(self, repo: Path, severity: Severity) -> None:
@@ -1175,3 +1256,89 @@ class TestEdgeCases:
         assert _ids(out) == [("PERM-001", Severity.HIGH)]
         assert "(+4980 more)" in out[0].evidence
         assert len(out[0].description) < 10_000  # rule lists are capped everywhere
+
+
+class TestPerm007AcrossScopes:
+    """`scan --project`: a settings file from one scan, a server from the other."""
+
+    _TYPOSQUAT = {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-githb"],
+    }
+
+    def _run(self, home: Path, cwd: Path, project: Path, monkeypatch) -> list[dict]:
+        from mcp_audit.discovery import ClientSpec  # noqa: PLC0415
+
+        monkeypatch.setattr(Path, "home", lambda: home)
+        monkeypatch.chdir(cwd)
+        spec = ClientSpec(
+            name="claude-code",
+            root_key="mcpServers",
+            config_paths=[home / ".claude.json", home / ".claude" / "settings.json"],
+        )
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[spec]):
+            result = runner.invoke(
+                app, ["scan", "--project", str(project), "--format", "json"]
+            )
+        return [
+            f for f in _json_out(result.output)["findings"] if f["id"] == "PERM-007"
+        ]
+
+    def test_user_settings_allow_on_a_repo_server(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home, repo, cwd = tmp_path / "home", tmp_path / "repo", tmp_path / "cwd"
+        _write(home / ".claude" / "settings.json", _rules(allow=["mcp__gh__*"]))
+        _write(repo / ".mcp.json", {"mcpServers": {"gh": self._TYPOSQUAT}})
+        cwd.mkdir()
+        out = self._run(home, cwd, repo, monkeypatch)
+        assert [(f["server"], f["finding_path"]) for f in out] == [
+            ("gh", str(home / ".claude" / "settings.json"))
+        ]
+        assert "SC-001" in out[0]["description"]
+
+    def test_repo_settings_allow_on_a_user_scope_server(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home, repo, cwd = tmp_path / "home", tmp_path / "repo", tmp_path / "cwd"
+        _write(home / ".claude.json", {"mcpServers": {"gh": self._TYPOSQUAT}})
+        _write(repo / ".claude" / "settings.json", _rules(allow=["mcp__gh"]))
+        cwd.mkdir()
+        out = self._run(home, cwd, repo, monkeypatch)
+        assert [f["finding_path"] for f in out] == [
+            str((repo / ".claude" / "settings.json").resolve())
+        ]
+
+    def test_project_dot_adds_no_cross_scope_duplicate(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home, repo = tmp_path / "home", tmp_path / "repo"
+        (home / ".claude").mkdir(parents=True)
+        _write(repo / ".mcp.json", {"mcpServers": {"gh": self._TYPOSQUAT}})
+        _write(repo / ".claude" / "settings.json", _rules(allow=["mcp__gh__*"]))
+        out = self._run(home, repo, repo, monkeypatch)
+        # One from the default scan of the cwd and one from the project
+        # pipeline (the existing `scan --project .` overlap); none added here.
+        assert len(out) == 2
+
+    def test_needs_the_config_hygiene_analyzer(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.cli.scan import _apply_project_scan  # noqa: PLC0415
+
+        home, repo = tmp_path / "home", tmp_path / "repo"
+        _write(home / ".claude" / "settings.json", _rules(allow=["mcp__gh__*"]))
+        _write(repo / ".mcp.json", {"mcpServers": {"gh": self._TYPOSQUAT}})
+        monkeypatch.setattr(Path, "home", lambda: home)
+        analyzers = [
+            a
+            for a in get_default_analyzers()
+            if not isinstance(a, ConfigHygieneAnalyzer)
+        ]
+        from rich.console import Console  # noqa: PLC0415
+
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            out = _apply_project_scan(
+                ScanResult(), repo.resolve(), analyzers, None, Console(quiet=True)
+            )
+        assert not [f for f in out.findings if f.id == "PERM-007"]

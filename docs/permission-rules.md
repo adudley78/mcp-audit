@@ -27,10 +27,10 @@ for 2.1.299. Read on 2026-10-25.
 | PERM-001 | HIGH in `deny`, MEDIUM in `ask`, INFO in `allow` | A rule Claude Code skips or never matches: a rule on a tool's primary content field (`Bash(command:rm *)`, `Read(file_path:…)`, `WebFetch(url:…)`, …); an `mcp__` rule with parentheses; a path rule for `Write`, `NotebookEdit`, `Glob` or `MultiEdit`; `:*` in the middle of a pattern (`Bash(git:* push)`); an unanchored allow glob (`*`, `B*`, `mcp__*`) | `Bash(rm *)`, `Read(./path)`, `WebFetch(domain:host)`; the `mcp__` name with no parentheses; `Edit(path)` / `Read(path)`; `Bash(git push *)`; named tools or `mcp__<server>__*` |
 | PERM-002 | MEDIUM in `deny`/`ask`, INFO in `allow` | A `Read(/…)` or `Edit(/…)` rule with one leading slash that names a filesystem-root path (`/Users/…`, `/home/…`, `/etc/…`, `/c/Users/…`). One slash anchors at the settings source: the project root for project and local settings, `~/.claude` for user settings. Skipped when that anchored directory exists | `Read(//Users/…)` |
 | PERM-003 | LOW | An allow rule whose trailing `*` has no space before it and extends the program name: `Bash(ls*)` also matches `lsof`. A rule HARNESS-005 already reports is not repeated | `Bash(ls *)` |
-| PERM-004 | MEDIUM, or INFO | A Bash `deny` or `ask` rule on a network or delete command (`curl`, `wget`, `ssh`, `rsync`, `rm`, `dd`, `git push`, …) while this file doesn't set `sandbox.enabled: true`. It doesn't stop `/usr/bin/curl …` or `sh -c 'curl …'` (for `git push`: `git -C . push`, `git -c push.default=current push`, `git 'push'`). MEDIUM when this file also runs those forms without a prompt (`defaultMode` `bypassPermissions` or `auto`, or an allow rule such as `Bash`, `Bash(sh -c *)`, `Bash(* --version)`); INFO when they would still prompt | `sandbox.enabled: true` with a network allowlist, or a PreToolUse hook |
+| PERM-004 | MEDIUM, or INFO | A Bash `deny` or `ask` rule on a network or delete command (`curl`, `wget`, `ssh`, `rsync`, `rm`, `dd`, `git push`, …) while this file doesn't set `sandbox.enabled: true`. It doesn't stop `/usr/bin/curl …` or `sh -c 'curl …'` (for `git push`: `git -C . push`, `git -c push.default=current push`, `git 'push'`). MEDIUM when this file also runs those forms without a prompt: an allow rule that approves any shell form (`Bash`, `Bash(*)`, `Bash(sh -c *)`, `Bash(bash:*)`, `Bash(env *)`, `Bash(sudo -E *)`, `Bash(* --version)`, `Bash(/usr/bin/*)`), or, in user settings only, `defaultMode` `bypassPermissions` or `auto` (the settings reference: those modes "don't take effect from project or local settings" since 2.1.257). INFO when they would still prompt, including narrow allows such as `Bash(./scripts/*)` or `Bash(bash scripts/test.sh *)` | `sandbox.enabled: true` with a network allowlist, or a PreToolUse hook |
 | PERM-005 | HIGH with `sandbox.enabled: true` in the file, LOW otherwise | `WebFetch(domain:*)` in `allow`: "Claude fetches without prompting you, and sandboxed commands can reach any host" | A bare `WebFetch` allow rule, or `WebFetch(domain:<host>)` per host |
 | PERM-006 | MEDIUM | A bare `Bash` or `Bash(*)` `ask` rule in a file that turns the sandbox on and leaves `autoAllowBashIfSandboxed` at its default (`true`), outside plan mode. "A bare `Bash` ask rule, or the equivalent `Bash(*)` form, is skipped for commands that run sandboxed" | `sandbox.autoAllowBashIfSandboxed: false`, or content-scoped ask rules such as `Bash(git push *)` |
-| PERM-007 | HIGH | A whole-server allow rule (`mcp__<server>` or `mcp__<server>__*`) for a Claude Code MCP server that has a HIGH or CRITICAL finding from the poisoning, supply-chain, toxic-flow (that server alone), rug-pull or attestation checks in the same scan. The server is matched by its whole normalized name, as Claude Code 2.1.299 does | Remove the rule until the findings are fixed, or allow only the tools you checked (`mcp__<server>__<tool>`) |
+| PERM-007 | HIGH | A whole-server allow rule (`mcp__<server>` or `mcp__<server>__*`) for a Claude Code MCP server that the same scan indicts with a HIGH or CRITICAL poisoning, rug-pull or supply-chain finding (an SC-004 CVE finding counts only when the configured version is known to be affected). The server is matched by its whole normalized name, as Claude Code 2.1.299 does. Under `scan --project`, a user-settings rule and a repository's server (and the reverse) are paired too | Remove the rule until the findings are fixed, or allow only the tools you checked (`mcp__<server>__<tool>`) |
 
 Findings are grouped: one finding per check and severity in each settings file,
 listing every rule it covers (up to 20, then "+N more"). PERM-007 is one finding
@@ -76,7 +76,11 @@ around the program." The table that follows names `/usr/bin/curl`,
 `sh -c 'curl …'`, `/bin/rm`, `bash -c 'rm …'`, `git -C . push`,
 `git -c push.default=current push` and `git 'push'`. "Your other rules and the
 permission mode decide the commands in the last column", which is why the
-severity depends on whether this file would run those forms unprompted. "For
+severity depends on whether this file would run those forms unprompted. A
+`defaultMode` counts only in user settings: the settings reference says "`auto`
+and `bypassPermissions` don't take effect from project or local settings, so
+set them in `~/.claude/settings.json` instead. Before v2.1.257,
+`bypassPermissions` took effect from any file." "For
 filesystem and network enforcement that doesn't depend on the command text,
 use sandboxing."
 
@@ -100,7 +104,9 @@ allow rules, because Claude Code reads both as rules for a server named
 `reports`". Names are normalized the way Claude Code builds tool names: "any
 character outside `A-Z`, `a-z`, `0-9`, `_`, and `-` is replaced with `_`", and
 a plugin's server is `plugin_<plugin-name>_<server-name>` (MCP doc). PERM-007
-runs after every other analyzer, because it needs their findings.
+runs after every other analyzer, because it needs their findings, and under
+`scan --project` once more across the default and project scans, so a
+`~/.claude/settings.json` rule meets a repository's `.mcp.json` server.
 
 ## What is deliberately not reported
 
@@ -116,11 +122,17 @@ runs after every other analyzer, because it needs their findings.
   next to `Bash(python *)`.
 - **Label-vs-canonical tool names** (`Stop Task` vs `TaskStop`): Anthropic
   publishes no canonical tool list to check against.
-- **Findings that don't judge the server** do not make PERM-007 fire:
+- **Findings that don't indict the server** do not make PERM-007 fire:
   config-file permissions (CFHYG-001 fires on any world-readable file),
   credentials stored in the config, transport, authentication, community rules
-  (COMM-013 fires on every `npx -y` server, the documented install form), and a
-  cross-server toxic pair.
+  (COMM-013 fires on every `npx -y` server, the documented install form),
+  toxic-flow findings (TOXIC-*/INTEG-* describe capability combinations many
+  legitimate servers have, and already carry their own severity), an SC-004 on
+  an unpinned launch (the scan can't tell offline whether the installed release
+  is affected), and hash or signature findings, which are added after the scan
+  pipeline. On a 34-server fixture of commonly configured servers with every
+  server allow-listed, this took PERM-007 from 6 findings to 0; a typosquatted
+  server is still reported.
 
 ## Environment runners in HARNESS-005
 
