@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "last_updated": "2026-10-25",
-  "entry_count": 54,
+  "entry_count": 55,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -2377,6 +2377,29 @@
           "fixed_in": "0.1.16"
         }
       ]
+    },
+    {
+      "name": "mcptoon",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/activeing123/mcptoon",
+      "maintainer": "activeing123",
+      "verified": true,
+      "last_verified": "2026-10-25",
+      "known_versions": [],
+      "tags": [
+        "community",
+        "proxy",
+        "dev-tools"
+      ],
+      "capabilities": [
+        "file_read",
+        "network_out"
+      ],
+      "first_published": "2026-08-11",
+      "weekly_downloads": 1158,
+      "publisher_history": null,
+      "attestation_expected": false
     }
   ]
 }

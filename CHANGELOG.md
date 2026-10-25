@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Verified registry entry for `mcptoon`** (PyPI, [#171](https://github.com/adudley78/mcp-audit/issues/171),
+  submitted by [@activeing123](https://github.com/activeing123)), an MCP gateway that
+  proxies the user's configured servers. Capabilities `file_read` and `network_out`,
+  read from the `mcptoon serve` code at 0.8.29 rather than the submission form:
+  `shell_exec` is deliberately not recorded, because the gateway only starts the stdio
+  servers already in the user's config and no MCP tool runs an agent-chosen command.
+  The maintainer is credited in `docs/contributors.md`.
+- **`docs/registry-contributions.md`: a fourth accepted verification method.** An
+  official MCP Registry `io.github.<submitter>/…` name whose package entry is this
+  package, with the package naming the server back (`mcp-name` in a PyPI README,
+  `mcpName` in an npm `package.json`).
+
 ## [0.21.1] - 2026-10-25
 
 ### Security
