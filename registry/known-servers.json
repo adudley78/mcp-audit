@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-10-13",
+  "last_updated": "2026-10-25",
   "entry_count": 54,
   "entries": [
     {
@@ -328,7 +328,11 @@
         "CVE-2025-66414",
         "CVE-2026-0621",
         "CVE-2026-104850",
-        "CVE-2026-25536"
+        "CVE-2026-25536",
+        "CVE-2026-111767",
+        "CVE-2026-111768",
+        "CVE-2026-111769",
+        "CVE-2026-111771"
       ],
       "known_vulns": [
         {
@@ -354,6 +358,30 @@
           "cvss": null,
           "description": "@modelcontextprotocol/sdk has cross-client data leak via shared server/transport instance reuse",
           "fixed_in": "1.26.0"
+        },
+        {
+          "cve": "CVE-2026-111767",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: Experimental tasks were not tied to the session that created them",
+          "fixed_in": "1.32.0"
+        },
+        {
+          "cve": "CVE-2026-111768",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: One HTTP request within the default size limit could exhaust server memory during validation",
+          "fixed_in": "1.32.0"
+        },
+        {
+          "cve": "CVE-2026-111769",
+          "cvss": null,
+          "description": "MCP TypeScript client SDK: HTTP client transports and OAuth requests followed cross-origin redirects and re-sent custom headers and request bodies",
+          "fixed_in": "1.32.0"
+        },
+        {
+          "cve": "CVE-2026-111771",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: Server bearer authentication accepted tokens issued for another service",
+          "fixed_in": "1.32.0"
         }
       ]
     },
@@ -412,7 +440,8 @@
         "CVE-2025-66416",
         "CVE-2026-52869",
         "CVE-2026-52870",
-        "CVE-2026-59950"
+        "CVE-2026-59950",
+        "CVE-2026-59951"
       ],
       "known_vulns": [
         {
@@ -450,6 +479,12 @@
           "cvss": null,
           "description": "MCP Python SDK: WebSocket server transport does not support Host/Origin validation",
           "fixed_in": "1.28.1"
+        },
+        {
+          "cve": "CVE-2026-59951",
+          "cvss": null,
+          "description": "MCP Python SDK: Unbounded Session Accumulation in StreamableHTTP Transport Enables Resource Exhaustion",
+          "fixed_in": "2.2.0"
         }
       ]
     },
