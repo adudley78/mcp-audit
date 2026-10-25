@@ -1,0 +1,174 @@
+{
+ "@apify/actors-mcp-server": [
+  "credential-gated",
+  "APIFY_TOKEN"
+ ],
+ "@brave/brave-search-mcp-server": [
+  "credential-gated",
+  "BRAVE_API_KEY"
+ ],
+ "@brightdata/mcp": [
+  "credential-gated",
+  "API_TOKEN"
+ ],
+ "@browserstack/mcp-server": [
+  "credential-gated",
+  "BROWSERSTACK_USERNAME"
+ ],
+ "@currents/mcp": [
+  "credential-gated",
+  "CURRENTS_API_KEY"
+ ],
+ "@gongrzhe/server-gmail-autoauth-mcp": [
+  "credential-gated",
+  "Gmail OAuth credentials file"
+ ],
+ "@hasna/conversations": [
+  "cli-wrapper-unresolved",
+  "CLI; MCP mode not found"
+ ],
+ "@hasna/domains": [
+  "cli-wrapper-unresolved",
+  "CLI; MCP mode not found"
+ ],
+ "@hasna/files": [
+  "cli-wrapper-unresolved",
+  "CLI; MCP mode not found"
+ ],
+ "@hasna/mementos": [
+  "cli-wrapper-unresolved",
+  "CLI; MCP mode not found"
+ ],
+ "@hasna/projects": [
+  "cli-wrapper-unresolved",
+  "CLI; MCP mode not found"
+ ],
+ "@hasna/todos": [
+  "cli-wrapper-unresolved",
+  "CLI; MCP mode not found"
+ ],
+ "@hubspot/mcp-server": [
+  "credential-gated",
+  "PRIVATE_APP_ACCESS_TOKEN"
+ ],
+ "@inkeep/open-knowledge": [
+  "needs-project-setup",
+  "needs `ok init` in cwd"
+ ],
+ "@larksuiteoapi/lark-mcp": [
+  "cli-wrapper-unresolved",
+  "mcp subcommand exits (needs app credentials)"
+ ],
+ "@launchdarkly/mcp-server": [
+  "credential-gated",
+  "API key (mcp start exits without one)"
+ ],
+ "@pandacss/mcp": [
+  "needs-project-setup",
+  "needs panda.config in cwd"
+ ],
+ "@paperclipai/mcp-server": [
+  "credential-gated",
+  "PAPERCLIP_API_URL"
+ ],
+ "@salesforce/mcp": [
+  "cli-wrapper-unresolved",
+  "sf-mcp-server exits (needs org/args)"
+ ],
+ "@serdnaley/metabase-mcp": [
+  "credential-gated",
+  "Metabase config"
+ ],
+ "@stripe/mcp": [
+  "credential-gated",
+  "STRIPE_SECRET_KEY"
+ ],
+ "@supabase/mcp-server-supabase": [
+  "credential-gated",
+  "SUPABASE_ACCESS_TOKEN"
+ ],
+ "@tacticlaunch/mcp-linear": [
+  "credential-gated",
+  "LINEAR_API_TOKEN"
+ ],
+ "@taiga-ai/mcp-server": [
+  "credential-gated",
+  "TAIGA_API_KEY"
+ ],
+ "@transcend-io/mcp-server-admin": [
+  "credential-gated",
+  "TRANSCEND_API_KEY"
+ ],
+ "@transcend-io/mcp-server-assessment": [
+  "credential-gated",
+  "TRANSCEND_API_KEY"
+ ],
+ "@transcend-io/mcp-server-consent": [
+  "credential-gated",
+  "TRANSCEND_API_KEY"
+ ],
+ "@transcend-io/mcp-server-discovery": [
+  "credential-gated",
+  "TRANSCEND_API_KEY"
+ ],
+ "@transcend-io/mcp-server-dsr": [
+  "credential-gated",
+  "TRANSCEND_API_KEY"
+ ],
+ "@transcend-io/mcp-server-preferences": [
+  "credential-gated",
+  "TRANSCEND_API_KEY"
+ ],
+ "@vantasdk/vanta-mcp-server": [
+  "credential-gated",
+  "VANTA_ENV_FILE"
+ ],
+ "@winor30/mcp-server-datadog": [
+  "credential-gated",
+  "DATADOG_API_KEY + DATADOG_APP_KEY"
+ ],
+ "@xeroapi/xero-mcp-server": [
+  "credential-gated",
+  "Xero env vars"
+ ],
+ "@zencoderai/slack-mcp-server": [
+  "credential-gated",
+  "SLACK_BOT_TOKEN + SLACK_TEAM_ID"
+ ],
+ "@zereight/mcp-gitlab": [
+  "credential-gated",
+  "GITLAB_PERSONAL_ACCESS_TOKEN"
+ ],
+ "blume": [
+  "no-handshake",
+  "no handshake in 60s"
+ ],
+ "creem": [
+  "credential-gated",
+  "API key (mcp start exits without one)"
+ ],
+ "figma-developer-mcp": [
+  "cli-wrapper-unresolved",
+  "--stdio mode exits (needs FIGMA_API_KEY)"
+ ],
+ "nx-mcp": [
+  "cli-wrapper-unresolved",
+  "answers initialize, then exits (needs an Nx workspace)"
+ ],
+ "openrod": [
+  "no-handshake",
+  "needs NVIDIA OpenShell installed; no handshake"
+ ],
+ "ruvector": [
+  "cli-wrapper-unresolved",
+  "mcp subcommand exits"
+ ],
+ "slack-mcp-server": [
+  "credential-gated",
+  "SLACK_MCP_XOXP_TOKEN / XOXB"
+ ],
+ "yahoo-finance2": [
+  "cli-wrapper-unresolved",
+  "CLI; MCP mode not found"
+ ]
+}

@@ -1,0 +1,1155 @@
+{
+ "corpus": {
+  "n": 100,
+  "weekly_downloads_total": 6733776,
+  "top": "chrome-devtools-mcp",
+  "top_weekly": 1737496,
+  "cutoff_weekly": 10890,
+  "attested": 66,
+  "attested_weekly": 5311156,
+  "zero_major": 47,
+  "prerelease": [
+   "agentdb@3.0.0-alpha.20",
+   "@azure/mcp@4.0.0-beta.2",
+   "@productbrain/mcp@0.0.1-beta.11923"
+  ],
+  "deprecated": 0,
+  "scoped": 73,
+  "official": [
+   "@modelcontextprotocol/server-filesystem",
+   "@modelcontextprotocol/server-pdf",
+   "@modelcontextprotocol/server-everything",
+   "@modelcontextprotocol/server-sequential-thinking",
+   "@modelcontextprotocol/server-memory"
+  ],
+  "in_registry": [
+   "@azure/mcp",
+   "@modelcontextprotocol/server-everything",
+   "@modelcontextprotocol/server-filesystem",
+   "@modelcontextprotocol/server-memory",
+   "@modelcontextprotocol/server-sequential-thinking",
+   "@notionhq/notion-mcp-server",
+   "@shopify/dev-mcp",
+   "@supabase/mcp-server-supabase",
+   "@upstash/context7-mcp",
+   "exa-mcp-server",
+   "firecrawl-mcp",
+   "tavily-mcp"
+  ],
+  "latest_older_than_6mo": [
+   [
+    "scryfall-mcp-server",
+    "2025-02-26"
+   ],
+   [
+    "@google-cloud/gcloud-mcp",
+    "2026-01-05"
+   ],
+   [
+    "@google-cloud/observability-mcp",
+    "2026-02-11"
+   ],
+   [
+    "@serdnaley/metabase-mcp",
+    "2026-04-16"
+   ],
+   [
+    "@hubspot/mcp-server",
+    "2025-06-18"
+   ],
+   [
+    "@zencoderai/slack-mcp-server",
+    "2025-07-16"
+   ],
+   [
+    "@ericthered926/duckduckgo-mcp-server",
+    "2025-12-18"
+   ],
+   [
+    "@larksuiteoapi/lark-mcp",
+    "2025-08-06"
+   ],
+   [
+    "@vantasdk/vanta-mcp-server",
+    "2026-02-25"
+   ],
+   [
+    "@gongrzhe/server-gmail-autoauth-mcp",
+    "2025-08-06"
+   ],
+   [
+    "@stripe/mcp",
+    "2026-03-24"
+   ]
+  ],
+  "unattested": [
+   "@upstash/context7-mcp",
+   "agentdb",
+   "ruvector",
+   "@azure-devops/mcp",
+   "agentation-mcp",
+   "@azure/mcp",
+   "@sentry/mcp-server",
+   "@aikidosec/mcp",
+   "scryfall-mcp-server",
+   "@google-cloud/gcloud-mcp",
+   "@google-cloud/observability-mcp",
+   "@shopify/dev-mcp",
+   "@letoribo/mcp-graphql-enhanced",
+   "@hasna/todos",
+   "@google-cloud/storage-mcp",
+   "@productbrain/mcp",
+   "slack-mcp-server",
+   "@hubspot/mcp-server",
+   "@ericthered926/duckduckgo-mcp-server",
+   "@larksuiteoapi/lark-mcp",
+   "@hasna/conversations",
+   "tidewave",
+   "@hasna/domains",
+   "@salesforce/mcp",
+   "@hasna/projects",
+   "opencode-mcp",
+   "@taiga-ai/mcp-server",
+   "@smartbear/mcp",
+   "@brave/brave-search-mcp-server",
+   "@xeroapi/xero-mcp-server",
+   "@hasna/mementos",
+   "tavily-mcp",
+   "@gongrzhe/server-gmail-autoauth-mcp",
+   "@hasna/files"
+  ]
+ },
+ "connect": {
+  "attempted": 100,
+  "connected": 60,
+  "connected_default_invocation": 44,
+  "connected_adjusted_invocation": 16,
+  "failed": 40,
+  "failure_classes": {
+   "credential-gated": 25,
+   "cli-wrapper-unresolved": 11,
+   "needs-project-setup": 2,
+   "no-handshake": 2
+  },
+  "failed_detail": {
+   "@apify/actors-mcp-server": [
+    "credential-gated",
+    "APIFY_TOKEN"
+   ],
+   "@brave/brave-search-mcp-server": [
+    "credential-gated",
+    "BRAVE_API_KEY"
+   ],
+   "@brightdata/mcp": [
+    "credential-gated",
+    "API_TOKEN"
+   ],
+   "@browserstack/mcp-server": [
+    "credential-gated",
+    "BROWSERSTACK_USERNAME"
+   ],
+   "@currents/mcp": [
+    "credential-gated",
+    "CURRENTS_API_KEY"
+   ],
+   "@gongrzhe/server-gmail-autoauth-mcp": [
+    "credential-gated",
+    "Gmail OAuth credentials file"
+   ],
+   "@hasna/conversations": [
+    "cli-wrapper-unresolved",
+    "CLI; MCP mode not found"
+   ],
+   "@hasna/domains": [
+    "cli-wrapper-unresolved",
+    "CLI; MCP mode not found"
+   ],
+   "@hasna/files": [
+    "cli-wrapper-unresolved",
+    "CLI; MCP mode not found"
+   ],
+   "@hasna/mementos": [
+    "cli-wrapper-unresolved",
+    "CLI; MCP mode not found"
+   ],
+   "@hasna/projects": [
+    "cli-wrapper-unresolved",
+    "CLI; MCP mode not found"
+   ],
+   "@hasna/todos": [
+    "cli-wrapper-unresolved",
+    "CLI; MCP mode not found"
+   ],
+   "@hubspot/mcp-server": [
+    "credential-gated",
+    "PRIVATE_APP_ACCESS_TOKEN"
+   ],
+   "@inkeep/open-knowledge": [
+    "needs-project-setup",
+    "needs `ok init` in cwd"
+   ],
+   "@larksuiteoapi/lark-mcp": [
+    "cli-wrapper-unresolved",
+    "mcp subcommand exits (needs app credentials)"
+   ],
+   "@pandacss/mcp": [
+    "needs-project-setup",
+    "needs panda.config in cwd"
+   ],
+   "@paperclipai/mcp-server": [
+    "credential-gated",
+    "PAPERCLIP_API_URL"
+   ],
+   "@salesforce/mcp": [
+    "cli-wrapper-unresolved",
+    "sf-mcp-server exits (needs org/args)"
+   ],
+   "@serdnaley/metabase-mcp": [
+    "credential-gated",
+    "Metabase config"
+   ],
+   "@stripe/mcp": [
+    "credential-gated",
+    "STRIPE_SECRET_KEY"
+   ],
+   "@supabase/mcp-server-supabase": [
+    "credential-gated",
+    "SUPABASE_ACCESS_TOKEN"
+   ],
+   "@tacticlaunch/mcp-linear": [
+    "credential-gated",
+    "LINEAR_API_TOKEN"
+   ],
+   "@taiga-ai/mcp-server": [
+    "credential-gated",
+    "TAIGA_API_KEY"
+   ],
+   "@transcend-io/mcp-server-admin": [
+    "credential-gated",
+    "TRANSCEND_API_KEY"
+   ],
+   "@transcend-io/mcp-server-assessment": [
+    "credential-gated",
+    "TRANSCEND_API_KEY"
+   ],
+   "@transcend-io/mcp-server-consent": [
+    "credential-gated",
+    "TRANSCEND_API_KEY"
+   ],
+   "@transcend-io/mcp-server-discovery": [
+    "credential-gated",
+    "TRANSCEND_API_KEY"
+   ],
+   "@transcend-io/mcp-server-dsr": [
+    "credential-gated",
+    "TRANSCEND_API_KEY"
+   ],
+   "@transcend-io/mcp-server-preferences": [
+    "credential-gated",
+    "TRANSCEND_API_KEY"
+   ],
+   "@vantasdk/vanta-mcp-server": [
+    "credential-gated",
+    "VANTA_ENV_FILE"
+   ],
+   "@winor30/mcp-server-datadog": [
+    "credential-gated",
+    "DATADOG_API_KEY + DATADOG_APP_KEY"
+   ],
+   "@xeroapi/xero-mcp-server": [
+    "credential-gated",
+    "Xero env vars"
+   ],
+   "@zencoderai/slack-mcp-server": [
+    "credential-gated",
+    "SLACK_BOT_TOKEN + SLACK_TEAM_ID"
+   ],
+   "@zereight/mcp-gitlab": [
+    "credential-gated",
+    "GITLAB_PERSONAL_ACCESS_TOKEN"
+   ],
+   "blume": [
+    "no-handshake",
+    "no handshake in 60s"
+   ],
+   "figma-developer-mcp": [
+    "cli-wrapper-unresolved",
+    "--stdio mode exits (needs FIGMA_API_KEY)"
+   ],
+   "nx-mcp": [
+    "cli-wrapper-unresolved",
+    "answers initialize, then exits (needs an Nx workspace)"
+   ],
+   "openrod": [
+    "no-handshake",
+    "needs NVIDIA OpenShell installed; no handshake"
+   ],
+   "slack-mcp-server": [
+    "credential-gated",
+    "SLACK_MCP_XOXP_TOKEN / XOXB"
+   ],
+   "yahoo-finance2": [
+    "cli-wrapper-unresolved",
+    "CLI; MCP mode not found"
+   ]
+  },
+  "credential_gated": [
+   "@apify/actors-mcp-server",
+   "@brave/brave-search-mcp-server",
+   "@brightdata/mcp",
+   "@browserstack/mcp-server",
+   "@currents/mcp",
+   "@gongrzhe/server-gmail-autoauth-mcp",
+   "@hubspot/mcp-server",
+   "@paperclipai/mcp-server",
+   "@serdnaley/metabase-mcp",
+   "@stripe/mcp",
+   "@supabase/mcp-server-supabase",
+   "@tacticlaunch/mcp-linear",
+   "@taiga-ai/mcp-server",
+   "@transcend-io/mcp-server-admin",
+   "@transcend-io/mcp-server-assessment",
+   "@transcend-io/mcp-server-consent",
+   "@transcend-io/mcp-server-discovery",
+   "@transcend-io/mcp-server-dsr",
+   "@transcend-io/mcp-server-preferences",
+   "@vantasdk/vanta-mcp-server",
+   "@winor30/mcp-server-datadog",
+   "@xeroapi/xero-mcp-server",
+   "@zencoderai/slack-mcp-server",
+   "@zereight/mcp-gitlab",
+   "slack-mcp-server"
+  ]
+ },
+ "tools": {
+  "total": 1611,
+  "per_server_median": 12.0,
+  "per_server_mean": 26.9,
+  "top10": [
+   [
+    309,
+    "@smartbear/mcp"
+   ],
+   [
+    200,
+    "@softeria/ms-365-mcp-server"
+   ],
+   [
+    105,
+    "ruvector"
+   ],
+   [
+    87,
+    "opencode-mcp"
+   ],
+   [
+    79,
+    "creem"
+   ],
+   [
+    77,
+    "@swmansion/argent"
+   ],
+   [
+    70,
+    "@azure/mcp"
+   ],
+   [
+    44,
+    "@azure-devops/mcp"
+   ],
+   [
+    42,
+    "@cloudbase/cloudbase-mcp"
+   ],
+   [
+    41,
+    "comfyui-mcp"
+   ]
+  ],
+  "ge50": 7,
+  "ge20": 19,
+  "le5": 19,
+  "desc_chars_total": 1247778,
+  "desc_median": 233,
+  "desc_ge2000": 136,
+  "desc_ge2000_servers": [
+   "@cloudbase/cloudbase-mcp",
+   "@drawio/mcp",
+   "@modelcontextprotocol/server-pdf",
+   "@modelcontextprotocol/server-sequential-thinking",
+   "@productbrain/mcp",
+   "@sap-ux/fiori-mcp-server",
+   "@shopify/dev-mcp",
+   "@smartbear/mcp",
+   "@swmansion/argent",
+   "@upstash/context7-mcp",
+   "@wonderwhy-er/desktop-commander",
+   "comfyui-mcp",
+   "creem",
+   "firecrawl-mcp",
+   "gitnexus",
+   "next-devtools-mcp"
+  ],
+  "desc_empty": 0,
+  "def_json_bytes_total": 4420940,
+  "largest_by_bytes": [
+   [
+    "@smartbear/mcp",
+    1167940
+   ],
+   [
+    "@softeria/ms-365-mcp-server",
+    1138950
+   ],
+   [
+    "@cloudbase/cloudbase-mcp",
+    282854
+   ],
+   [
+    "comfyui-mcp",
+    223245
+   ],
+   [
+    "@swmansion/argent",
+    175613
+   ],
+   [
+    "xcodebuildmcp",
+    118630
+   ],
+   [
+    "opencode-mcp",
+    90485
+   ],
+   [
+    "firecrawl-mcp",
+    89164
+   ]
+  ],
+  "with_annotations": 1097,
+  "servers_with_annotations": 36,
+  "annotation_keys": {
+   "readOnlyHint": 1008,
+   "destructiveHint": 921,
+   "openWorldHint": 944,
+   "idempotentHint": 587,
+   "title": 735,
+   "category": 74,
+   "conditions": 1
+  },
+  "readonly_true": 563,
+  "destructive_true": 277,
+  "with_output_schema": 293,
+  "with_title": 723,
+  "distinct_names": 1587,
+  "shared_names": [
+   [
+    "list_pages",
+    3
+   ],
+   [
+    "search",
+    3
+   ],
+   [
+    "read_file",
+    2
+   ],
+   [
+    "read_multiple_files",
+    2
+   ],
+   [
+    "write_file",
+    2
+   ],
+   [
+    "create_directory",
+    2
+   ],
+   [
+    "list_directory",
+    2
+   ],
+   [
+    "move_file",
+    2
+   ],
+   [
+    "get_file_info",
+    2
+   ],
+   [
+    "search_nodes",
+    2
+   ],
+   [
+    "context",
+    2
+   ],
+   [
+    "explain",
+    2
+   ],
+   [
+    "group_list",
+    2
+   ],
+   [
+    "workspace",
+    2
+   ],
+   [
+    "feedback",
+    2
+   ],
+   [
+    "role",
+    2
+   ],
+   [
+    "search_docs",
+    2
+   ],
+   [
+    "screenshot",
+    2
+   ],
+   [
+    "list_buckets",
+    2
+   ],
+   [
+    "validate",
+    2
+   ],
+   [
+    "execute",
+    2
+   ],
+   [
+    "multi-execute",
+    2
+   ]
+  ],
+  "longest": [
+   [
+    40325,
+    "@smartbear/mcp",
+    "qmetry_update_test_case"
+   ],
+   [
+    28851,
+    "@smartbear/mcp",
+    "qmetry_create_test_case"
+   ],
+   [
+    24999,
+    "@smartbear/mcp",
+    "qmetry_fetch_test_case_runs_by_test_suite_run"
+   ],
+   [
+    16595,
+    "@smartbear/mcp",
+    "qmetry_create_defect_or_issue"
+   ],
+   [
+    15445,
+    "gitnexus",
+    "impact"
+   ],
+   [
+    14231,
+    "@smartbear/mcp",
+    "qmetry_create_test_suite"
+   ],
+   [
+    14033,
+    "@smartbear/mcp",
+    "qmetry_fetch_test_case_executions"
+   ],
+   [
+    13295,
+    "@smartbear/mcp",
+    "qmetry_import_automation_test_results"
+   ]
+  ]
+ },
+ "collisions": {
+  "count": 22,
+  "by_severity": {
+   "MEDIUM": 9,
+   "HIGH": 13
+  },
+  "items": [
+   [
+    "Tool name collision: 'context' claimed by multiple servers",
+    "MEDIUM",
+    "Tool 'context' claimed by: 'gitnexus', '@productbrain/mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'create_directory' claimed by multiple servers",
+    "HIGH",
+    "Tool 'create_directory' claimed by: '@modelcontextprotocol/server-filesystem', '@wonderwhy-er/desktop-commander' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'execute' claimed by multiple servers",
+    "MEDIUM",
+    "Tool 'execute' claimed by: 'hostinger-api-mcp', '@hostinger/mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'explain' claimed by multiple servers",
+    "MEDIUM",
+    "Tool 'explain' claimed by: 'gitnexus', 'mongodb-mcp-server' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'feedback' claimed by multiple servers",
+    "HIGH",
+    "Tool 'feedback' claimed by: '@productbrain/mcp', '@shopify/dev-mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'get_file_info' claimed by multiple servers",
+    "HIGH",
+    "Tool 'get_file_info' claimed by: '@modelcontextprotocol/server-filesystem', '@wonderwhy-er/desktop-commander' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'group_list' claimed by multiple servers",
+    "HIGH",
+    "Tool 'group_list' claimed by: 'gitnexus', '@azure/mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'list_buckets' claimed by multiple servers",
+    "MEDIUM",
+    "Tool 'list_buckets' claimed by: '@google-cloud/storage-mcp', '@google-cloud/observability-mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'list_directory' claimed by multiple servers",
+    "HIGH",
+    "Tool 'list_directory' claimed by: '@modelcontextprotocol/server-filesystem', '@wonderwhy-er/desktop-commander' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'list_pages' claimed by multiple servers",
+    "MEDIUM",
+    "Tool 'list_pages' claimed by: '@next-ai-drawio/mcp-server', 'chrome-devtools-mcp', '@drawio/mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'move_file' claimed by multiple servers",
+    "HIGH",
+    "Tool 'move_file' claimed by: '@modelcontextprotocol/server-filesystem', '@wonderwhy-er/desktop-commander' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'multi-execute' claimed by multiple servers",
+    "MEDIUM",
+    "Tool 'multi-execute' claimed by: 'hostinger-api-mcp', '@hostinger/mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'read_file' claimed by multiple servers",
+    "HIGH",
+    "Tool 'read_file' claimed by: '@modelcontextprotocol/server-filesystem', '@wonderwhy-er/desktop-commander' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'read_multiple_files' claimed by multiple servers",
+    "HIGH",
+    "Tool 'read_multiple_files' claimed by: '@modelcontextprotocol/server-filesystem', '@wonderwhy-er/desktop-commander' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'role' claimed by multiple servers",
+    "HIGH",
+    "Tool 'role' claimed by: '@productbrain/mcp', '@azure/mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'screenshot' claimed by multiple servers",
+    "MEDIUM",
+    "Tool 'screenshot' claimed by: '@swmansion/argent', 'xcodebuildmcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'search' claimed by multiple servers",
+    "HIGH",
+    "Tool 'search' claimed by: '@azure/mcp', 'hostinger-api-mcp', '@hostinger/mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'search_docs' claimed by multiple servers",
+    "MEDIUM",
+    "Tool 'search_docs' claimed by: '@sap-ux/fiori-mcp-server', '@cap-js/mcp-server' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'search_nodes' claimed by multiple servers",
+    "HIGH",
+    "Tool 'search_nodes' claimed by: 'n8n-mcp', '@modelcontextprotocol/server-memory' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'validate' claimed by multiple servers",
+    "HIGH",
+    "Tool 'validate' claimed by: '@shopify/dev-mcp', '@kubb/mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'workspace' claimed by multiple servers",
+    "MEDIUM",
+    "Tool 'workspace' claimed by: '@productbrain/mcp', 'comfyui-mcp' (detected via --connect live enumeration)"
+   ],
+   [
+    "Tool name collision: 'write_file' claimed by multiple servers",
+    "HIGH",
+    "Tool 'write_file' claimed by: '@modelcontextprotocol/server-filesystem', '@wonderwhy-er/desktop-commander' (detected via --connect live enumeration)"
+   ]
+  ]
+ },
+ "poisoning": {
+  "total": 661,
+  "by_id": {
+   "POISON-050": 139,
+   "POISON-030": 30,
+   "POISON-012": 2,
+   "POISON-060": 488,
+   "POISON-020": 2
+  },
+  "by_id_sev": {
+   "POISON-050": "LOW",
+   "POISON-030": "MEDIUM",
+   "POISON-012": "HIGH",
+   "POISON-060": "HIGH",
+   "POISON-020": "HIGH"
+  },
+  "by_package": 12,
+  "p060_packages": 488,
+  "p060_evidence_sample": [
+   "Matched: \uff08",
+   "Matched: \uff0c",
+   "Matched: \uff1a",
+   "Matched: \uff1b"
+  ],
+  "p030_evidence": {
+   "After calling this": 3,
+   "Instead use": 1,
+   "first call": 22,
+   "First call": 3,
+   "instead of call": 1
+  },
+  "p012_p020": [
+   [
+    "POISON-012",
+    "Matched: Override default"
+   ],
+   [
+    "POISON-012",
+    "Matched: Override default"
+   ],
+   [
+    "POISON-020",
+    "Matched: Base64 encode"
+   ],
+   [
+    "POISON-020",
+    "Matched: Base64 encode"
+   ]
+  ],
+  "p050_servers": 17
+ },
+ "static": {
+  "findings": 714,
+  "score": 7,
+  "grade": "F",
+  "by_id": {
+   "TRANSPORT-003": 96,
+   "CFHYG-001": 100,
+   "CFHYG-002": 100,
+   "SC-004": 2,
+   "SC-003": 1,
+   "TOXIC-004": 2,
+   "INTEG-001": 2,
+   "TOXIC-001": 4,
+   "TOXIC-002": 2,
+   "TOXIC-006": 2,
+   "TOXIC-007": 4,
+   "TOXIC-005": 2,
+   "COMM-004": 97,
+   "COMM-010": 100,
+   "COMM-013": 100,
+   "COMM-033": 100
+  },
+  "sc": 3,
+  "toxic": {
+   "TOXIC-004": 2,
+   "INTEG-001": 2,
+   "TOXIC-001": 4,
+   "TOXIC-002": 2,
+   "TOXIC-006": 2,
+   "TOXIC-007": 4,
+   "TOXIC-005": 2
+  }
+ },
+ "vulns": {
+  "depsdev_resolved": 83,
+  "depsdev_404": [
+   "@aikidosec/mcp",
+   "@azure-devops/mcp",
+   "@browserstack/mcp-server",
+   "@hostinger/mcp",
+   "@inkeep/open-knowledge",
+   "@kubb/mcp",
+   "@mastra/mcp-docs-server",
+   "@pandacss/mcp",
+   "@productbrain/mcp",
+   "@softeria/ms-365-mcp-server",
+   "@swmansion/argent",
+   "@taiga-ai/mcp-server",
+   "@wonderwhy-er/desktop-commander",
+   "chrome-devtools-mcp",
+   "firecrawl-mcp",
+   "hostinger-api-mcp",
+   "n8n-mcp"
+  ],
+  "graph_nodes_median": 127,
+  "graph_nodes_max": 1009,
+  "servers_depending_on_sdk": 66,
+  "sdk_versions": {
+   "1.32.1": 50,
+   "1.30.0": 4,
+   "1.29.0": 3,
+   "1.26.0": 2,
+   "1.31.0": 2,
+   "1.25.2": 1,
+   "1.0.1": 1,
+   "1.15.1": 1,
+   "1.21.2": 1,
+   "0.4.0": 1
+  },
+  "advisory_rows": 210,
+  "distinct_advisories": 92,
+  "advisories_by_sev": {
+   "HIGH": 41,
+   "MODERATE": 41,
+   "LOW": 10
+  },
+  "servers_affected": 27,
+  "servers_by_worst": {
+   "HIGH": 26,
+   "MODERATE": 1
+  },
+  "servers_affected_list": 27,
+  "sdk_rows": 77,
+  "sdk_servers": 16,
+  "sdk_by_adv": {
+   "GHSA-22jm-h49p-29qw": 12,
+   "GHSA-345p-7cg4-v4c7": 3,
+   "GHSA-46jr-4wx8-v453": 14,
+   "GHSA-6prh-2h8m-c8cw": 16,
+   "GHSA-6qxp-vccf-f47h": 12,
+   "GHSA-rvq5-wwqv-78pq": 14,
+   "GHSA-w48q-cv73-mx4w": 4,
+   "GHSA-8r9q-7v3j-jr4g": 2
+  },
+  "sdk_affected_versions": {
+   "1.25.2": 6,
+   "1.30.0": 20,
+   "1.29.0": 15,
+   "1.0.1": 2,
+   "1.26.0": 10,
+   "1.15.1": 7,
+   "1.31.0": 8,
+   "1.21.2": 7,
+   "0.4.0": 2
+  },
+  "key_advisories": {
+   "GHSA-46jr-4wx8-v453": {
+    "published": "2026-10-20",
+    "summary": "MCP TypeScript SDK: One HTTP request within the default size limit could exhaust server memory during validation",
+    "sev": "HIGH",
+    "aliases": [
+     "CVE-2026-111768"
+    ],
+    "ranges": [
+     [
+      "@modelcontextprotocol/sdk",
+      [
+       {
+        "introduced": "1.3.0"
+       },
+       {
+        "fixed": "1.32.0"
+       }
+      ]
+     ],
+     [
+      "@modelcontextprotocol/server",
+      [
+       {
+        "introduced": "2.0.0"
+       },
+       {
+        "fixed": "2.3.0"
+       }
+      ]
+     ]
+    ]
+   },
+   "GHSA-22jm-h49p-29qw": {
+    "published": "2026-10-20",
+    "summary": "MCP TypeScript SDK: Experimental tasks were not tied to the session that created them",
+    "sev": "HIGH",
+    "aliases": [
+     "CVE-2026-111767"
+    ],
+    "ranges": [
+     [
+      "@modelcontextprotocol/sdk",
+      [
+       {
+        "introduced": "1.24.0"
+       },
+       {
+        "fixed": "1.32.0"
+       }
+      ]
+     ]
+    ]
+   },
+   "GHSA-6qxp-vccf-f47h": {
+    "published": "2026-10-06",
+    "summary": "MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server",
+    "sev": "HIGH",
+    "aliases": [
+     "CVE-2026-104850"
+    ],
+    "ranges": [
+     [
+      "@modelcontextprotocol/sdk",
+      [
+       {
+        "introduced": "1.12.0"
+       },
+       {
+        "fixed": "1.31.0"
+       }
+      ]
+     ],
+     [
+      "@modelcontextprotocol/client",
+      [
+       {
+        "introduced": "2.0.0"
+       },
+       {
+        "fixed": "2.2.0"
+       }
+      ]
+     ]
+    ]
+   },
+   "GHSA-w48q-cv73-mx4w": {
+    "published": "2025-12-02",
+    "summary": "Model Context Protocol (MCP) TypeScript SDK does not enable DNS rebinding protection by default",
+    "sev": "HIGH",
+    "aliases": [
+     "CVE-2025-66414"
+    ],
+    "ranges": [
+     [
+      "@modelcontextprotocol/sdk",
+      [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "1.24.0"
+       }
+      ]
+     ]
+    ]
+   },
+   "GHSA-345p-7cg4-v4c7": {
+    "published": "2026-02-04",
+    "summary": "@modelcontextprotocol/sdk has cross-client data leak via shared server/transport instance reuse",
+    "sev": "HIGH",
+    "aliases": [
+     "CVE-2026-25536"
+    ],
+    "ranges": [
+     [
+      "@modelcontextprotocol/sdk",
+      [
+       {
+        "introduced": "1.10.0"
+       },
+       {
+        "fixed": "1.26.0"
+       }
+      ]
+     ]
+    ]
+   },
+   "GHSA-8r9q-7v3j-jr4g": {
+    "published": "2026-01-05",
+    "summary": "Anthropic's MCP TypeScript SDK has a ReDoS vulnerability",
+    "sev": "HIGH",
+    "aliases": [
+     "CVE-2026-0621"
+    ],
+    "ranges": [
+     [
+      "@modelcontextprotocol/sdk",
+      [
+       {
+        "introduced": "1.3.0"
+       },
+       {
+        "fixed": "1.25.2"
+       }
+      ]
+     ]
+    ]
+   },
+   "GHSA-rvq5-wwqv-78pq": {
+    "published": "2026-10-20",
+    "summary": "MCP TypeScript SDK: Server bearer authentication accepted tokens issued for another service",
+    "sev": "MODERATE",
+    "aliases": [
+     "CVE-2026-111771"
+    ],
+    "ranges": [
+     [
+      "@modelcontextprotocol/sdk",
+      [
+       {
+        "introduced": "1.6.0"
+       },
+       {
+        "fixed": "1.32.0"
+       }
+      ]
+     ],
+     [
+      "@modelcontextprotocol/server",
+      [
+       {
+        "introduced": "2.0.0"
+       },
+       {
+        "fixed": "2.3.0"
+       }
+      ]
+     ],
+     [
+      "@modelcontextprotocol/express",
+      [
+       {
+        "introduced": "2.0.0"
+       },
+       {
+        "fixed": "2.0.2"
+       }
+      ]
+     ]
+    ]
+   },
+   "GHSA-6prh-2h8m-c8cw": {
+    "published": "2026-10-20",
+    "summary": "MCP TypeScript client SDK: HTTP client transports and OAuth requests followed cross-origin redirects and re-sent custom headers and request bodies",
+    "sev": "MODERATE",
+    "aliases": [
+     "CVE-2026-111769"
+    ],
+    "ranges": [
+     [
+      "@modelcontextprotocol/sdk",
+      [
+       {
+        "introduced": "0"
+       },
+       {
+        "fixed": "1.32.0"
+       }
+      ]
+     ],
+     [
+      "@modelcontextprotocol/client",
+      [
+       {
+        "introduced": "2.0.0"
+       },
+       {
+        "fixed": "2.3.0"
+       }
+      ]
+     ]
+    ]
+   }
+  },
+  "servers_hit_by": {
+   "GHSA-46jr-4wx8-v453": 16,
+   "GHSA-22jm-h49p-29qw": 12,
+   "GHSA-6qxp-vccf-f47h": 13,
+   "GHSA-w48q-cv73-mx4w": 4
+  },
+  "affected_packages_top": [
+   [
+    "@modelcontextprotocol/sdk",
+    77
+   ],
+   [
+    "@opentelemetry/core",
+    24
+   ],
+   [
+    "undici",
+    23
+   ],
+   [
+    "nodemailer",
+    14
+   ],
+   [
+    "toml",
+    10
+   ],
+   [
+    "@modelcontextprotocol/server",
+    9
+   ],
+   [
+    "adm-zip",
+    8
+   ],
+   [
+    "react-router",
+    5
+   ],
+   [
+    "basic-ftp",
+    4
+   ],
+   [
+    "postcss",
+    4
+   ],
+   [
+    "protobufjs",
+    4
+   ],
+   [
+    "braces",
+    3
+   ]
+  ],
+  "non_sdk_high": {
+   "basic-ftp": 4,
+   "path-to-regexp": 1,
+   "@opentelemetry/propagator-jaeger": 1,
+   "pacote": 1,
+   "sigstore": 1,
+   "braces": 3,
+   "react-router": 2,
+   "toml": 10,
+   "extract-zip": 2,
+   "undici": 5,
+   "adm-zip": 5,
+   "postcss": 2,
+   "protobufjs": 1,
+   "nodemailer": 4,
+   "jsondiffpatch": 1,
+   "@fastify/busboy": 1
+  }
+ },
+ "_published": "Aggregate copy for docs/research/2026-10-top100-npm. Lists that tied a named server to a dependency advisory, a SAST hit or a scanner verdict were replaced with their counts; every number is unchanged."
+}

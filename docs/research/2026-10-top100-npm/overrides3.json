@@ -1,0 +1,3 @@
+{"creem": {"args": ["start", "--transport", "stdio"]},
+ "@launchdarkly/mcp-server": {"args": ["start", "--transport", "stdio"]},
+ "ruvector": {"args": ["mcp", "start"]}}

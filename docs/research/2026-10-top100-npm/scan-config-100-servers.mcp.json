@@ -1,0 +1,704 @@
+{
+ "mcpServers": {
+  "chrome-devtools-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "chrome-devtools-mcp@1.12.0"
+   ]
+  },
+  "upstash__context7-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@upstash/context7-mcp@4.4.4"
+   ]
+  },
+  "modelcontextprotocol__server-filesystem": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@modelcontextprotocol/server-filesystem@2.0.0"
+   ]
+  },
+  "modelcontextprotocol__server-pdf": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@modelcontextprotocol/server-pdf@2.0.3"
+   ]
+  },
+  "wonderwhy-er__desktop-commander": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@wonderwhy-er/desktop-commander@0.3.1"
+   ]
+  },
+  "modelcontextprotocol__server-everything": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@modelcontextprotocol/server-everything@2.0.0"
+   ]
+  },
+  "modelcontextprotocol__server-sequential-thinking": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@modelcontextprotocol/server-sequential-thinking@2.0.0"
+   ]
+  },
+  "modelcontextprotocol__server-memory": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@modelcontextprotocol/server-memory@2.0.0"
+   ]
+  },
+  "yahoo-finance2": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "yahoo-finance2@4.0.5"
+   ]
+  },
+  "pandacss__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@pandacss/mcp@2.4.0"
+   ]
+  },
+  "zereight__mcp-gitlab": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@zereight/mcp-gitlab@2.3.6"
+   ]
+  },
+  "firecrawl-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "firecrawl-mcp@3.34.0"
+   ]
+  },
+  "hostinger-api-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "hostinger-api-mcp@3.7.1"
+   ]
+  },
+  "swmansion__argent": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@swmansion/argent@0.30.1"
+   ]
+  },
+  "mongodb-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "mongodb-mcp-server@3.1.0"
+   ]
+  },
+  "notionhq__notion-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@notionhq/notion-mcp-server@2.5.2"
+   ]
+  },
+  "blume": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "blume@2.2.4"
+   ]
+  },
+  "agentdb": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "agentdb@3.0.0-alpha.20"
+   ]
+  },
+  "ruvector": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "ruvector@0.3.3"
+   ]
+  },
+  "next-devtools-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "next-devtools-mcp@0.4.0"
+   ]
+  },
+  "azure-devops__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@azure-devops/mcp@2.11.0"
+   ]
+  },
+  "supabase__mcp-server-supabase": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@supabase/mcp-server-supabase@0.14.0"
+   ]
+  },
+  "agentation-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "agentation-mcp@1.3.2"
+   ]
+  },
+  "azure__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@azure/mcp@4.0.0-beta.2"
+   ]
+  },
+  "sentry__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@sentry/mcp-server@0.42.0"
+   ]
+  },
+  "figma-developer-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "figma-developer-mcp@0.13.2"
+   ]
+  },
+  "n8n-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "n8n-mcp@2.96.1"
+   ]
+  },
+  "sap-ux__fiori-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@sap-ux/fiori-mcp-server@1.15.14"
+   ]
+  },
+  "hostinger__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@hostinger/mcp@3.7.1"
+   ]
+  },
+  "ui5__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@ui5/mcp-server@0.3.2"
+   ]
+  },
+  "currents__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@currents/mcp@2.7.0"
+   ]
+  },
+  "aikidosec__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@aikidosec/mcp@1.0.33"
+   ]
+  },
+  "scryfall-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "scryfall-mcp-server@0.1.1"
+   ]
+  },
+  "xcodebuildmcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "xcodebuildmcp@2.7.0"
+   ]
+  },
+  "softeria__ms-365-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@softeria/ms-365-mcp-server@0.171.0"
+   ]
+  },
+  "kubb__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@kubb/mcp@5.12.4"
+   ]
+  },
+  "cap-js__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@cap-js/mcp-server@0.0.8"
+   ]
+  },
+  "google-cloud__gcloud-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@google-cloud/gcloud-mcp@0.5.3"
+   ]
+  },
+  "elgato__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@elgato/mcp-server@0.1.8"
+   ]
+  },
+  "google-cloud__observability-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@google-cloud/observability-mcp@0.2.3"
+   ]
+  },
+  "creem": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "creem@1.13.0"
+   ]
+  },
+  "shopify__dev-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@shopify/dev-mcp@1.17.0"
+   ]
+  },
+  "nx-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "nx-mcp@0.25.0"
+   ]
+  },
+  "mastra__mcp-docs-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@mastra/mcp-docs-server@1.3.9"
+   ]
+  },
+  "letoribo__mcp-graphql-enhanced": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@letoribo/mcp-graphql-enhanced@4.15.4"
+   ]
+  },
+  "gitnexus": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "gitnexus@1.6.12"
+   ]
+  },
+  "launchdarkly__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@launchdarkly/mcp-server@0.7.1"
+   ]
+  },
+  "next-ai-drawio__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@next-ai-drawio/mcp-server@0.4.6"
+   ]
+  },
+  "drawio__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@drawio/mcp@1.10.0"
+   ]
+  },
+  "netlify__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@netlify/mcp@1.20.0"
+   ]
+  },
+  "hasna__todos": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@hasna/todos@0.17.4"
+   ]
+  },
+  "google-cloud__storage-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@google-cloud/storage-mcp@0.6.0"
+   ]
+  },
+  "productbrain__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@productbrain/mcp@0.0.1-beta.11923"
+   ]
+  },
+  "serdnaley__metabase-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@serdnaley/metabase-mcp@0.2.0"
+   ]
+  },
+  "slack-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "slack-mcp-server@1.3.0"
+   ]
+  },
+  "hubspot__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@hubspot/mcp-server@0.4.0"
+   ]
+  },
+  "bytebase__dbhub": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@bytebase/dbhub@1.5.0"
+   ]
+  },
+  "winor30__mcp-server-datadog": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@winor30/mcp-server-datadog@1.8.0"
+   ]
+  },
+  "zencoderai__slack-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@zencoderai/slack-mcp-server@0.0.1"
+   ]
+  },
+  "tacticlaunch__mcp-linear": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@tacticlaunch/mcp-linear@1.4.5"
+   ]
+  },
+  "comfyui-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "comfyui-mcp@0.52.206"
+   ]
+  },
+  "ericthered926__duckduckgo-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@ericthered926/duckduckgo-mcp-server@0.6.0"
+   ]
+  },
+  "larksuiteoapi__lark-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@larksuiteoapi/lark-mcp@0.5.1"
+   ]
+  },
+  "hasna__conversations": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@hasna/conversations@0.10.0"
+   ]
+  },
+  "tidewave": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "tidewave@0.9.0"
+   ]
+  },
+  "apify__actors-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@apify/actors-mcp-server@0.19.3"
+   ]
+  },
+  "vantasdk__vanta-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@vantasdk/vanta-mcp-server@1.2.0"
+   ]
+  },
+  "automattic__mcp-wordpress-remote": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@automattic/mcp-wordpress-remote@0.5.4"
+   ]
+  },
+  "endfield-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "endfield-mcp@0.4.0"
+   ]
+  },
+  "paperclipai__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@paperclipai/mcp-server@2026.1012.0"
+   ]
+  },
+  "hasna__domains": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@hasna/domains@0.3.3"
+   ]
+  },
+  "inkeep__open-knowledge": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@inkeep/open-knowledge@0.88.1"
+   ]
+  },
+  "browserstack__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@browserstack/mcp-server@2.2.5"
+   ]
+  },
+  "salesforce__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@salesforce/mcp@0.30.15"
+   ]
+  },
+  "hasna__projects": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@hasna/projects@1.3.1"
+   ]
+  },
+  "argocd-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "argocd-mcp@0.9.0"
+   ]
+  },
+  "opencode-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "opencode-mcp@3.0.0"
+   ]
+  },
+  "discourse__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@discourse/mcp@0.3.1"
+   ]
+  },
+  "taiga-ai__mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@taiga-ai/mcp-server@0.34.0"
+   ]
+  },
+  "exa-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "exa-mcp-server@3.4.2"
+   ]
+  },
+  "smartbear__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@smartbear/mcp@0.42.0"
+   ]
+  },
+  "brave__brave-search-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@brave/brave-search-mcp-server@2.1.4"
+   ]
+  },
+  "openrod": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "openrod@0.2.1"
+   ]
+  },
+  "xeroapi__xero-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@xeroapi/xero-mcp-server@0.0.17"
+   ]
+  },
+  "hasna__mementos": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@hasna/mementos@0.17.10"
+   ]
+  },
+  "tavily-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "tavily-mcp@0.2.22"
+   ]
+  },
+  "brightdata__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@brightdata/mcp@4.1.0"
+   ]
+  },
+  "cloudbase__cloudbase-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@cloudbase/cloudbase-mcp@2.36.1"
+   ]
+  },
+  "gongrzhe__server-gmail-autoauth-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@gongrzhe/server-gmail-autoauth-mcp@1.1.11"
+   ]
+  },
+  "stripe__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@stripe/mcp@0.3.3"
+   ]
+  },
+  "metamask__device-mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@metamask/device-mcp@0.5.0"
+   ]
+  },
+  "eslint__mcp": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@eslint/mcp@0.3.15"
+   ]
+  },
+  "dataforseo-mcp-server": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "dataforseo-mcp-server@3.1.3"
+   ]
+  },
+  "hasna__files": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@hasna/files@0.5.2"
+   ]
+  },
+  "transcend-io__mcp-server-discovery": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@transcend-io/mcp-server-discovery@1.0.16"
+   ]
+  },
+  "transcend-io__mcp-server-preferences": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@transcend-io/mcp-server-preferences@0.7.20"
+   ]
+  },
+  "transcend-io__mcp-server-assessment": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@transcend-io/mcp-server-assessment@2.1.13"
+   ]
+  },
+  "transcend-io__mcp-server-admin": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@transcend-io/mcp-server-admin@1.1.3"
+   ]
+  },
+  "transcend-io__mcp-server-dsr": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@transcend-io/mcp-server-dsr@2.0.13"
+   ]
+  },
+  "transcend-io__mcp-server-consent": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "@transcend-io/mcp-server-consent@1.3.1"
+   ]
+  }
+ }
+}
