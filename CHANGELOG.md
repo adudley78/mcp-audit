@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Permission rules that don't do what they say (PERM-001..007).** The scan you already run (`check`, `scan`, `scan --project`, the GitHub Action) now reads every Claude Code settings file for rules Anthropic documents as ignored, misanchored or not a security boundary, and names each rule, the form that gets past it, and what to write instead. PERM-001: a rule Claude Code skips or never matches, such as `Bash(command:rm *)`, an `mcp__` rule with parentheses, `Write(path)`, `Bash(git:* push)` or an `mcp__*` allow (HIGH in `deny`, MEDIUM in `ask`, INFO in `allow`). PERM-002: `Read(/Users/…)` with one slash, which points inside the project, not at `/` (MEDIUM). PERM-003: `Bash(ls*)`, which also allows `lsof` (LOW). PERM-004: a deny on `curl`, `rm` or `git push` with no sandbox, which `/usr/bin/curl` or `sh -c` gets past (MEDIUM when the same file runs those forms without asking, INFO otherwise). PERM-005: `WebFetch(domain:*)`, which opens the sandbox to every host (HIGH with the sandbox on, LOW otherwise). PERM-006: a bare `Bash` ask rule that the sandbox's auto-allow skips (MEDIUM). PERM-007: an `mcp__<server>` allow rule on a server with high-severity findings, matched by the whole server name as Claude Code 2.1.299 does (HIGH). See `docs/permission-rules.md`.
 - **Verified registry entry for `mcptoon`** (PyPI, [#171](https://github.com/adudley78/mcp-audit/issues/171),
   submitted by [@activeing123](https://github.com/activeing123)), an MCP gateway that
   proxies the user's configured servers. Capabilities `file_read` and `network_out`,
@@ -78,6 +79,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`check` no longer says "No MCP config files found" and exits 0 when the scan has
   findings.** A folder with no MCP config can still carry a planted auto-run file;
   its findings now reach the verdict and the exit code.
+- **HARNESS-005 now recognises environment runners and PowerShell code-running commands.** An allow rule such as `Bash(devbox run *)`, `Bash(docker exec app *)`, `Bash(uv run *)` or `PowerShell(iex *)` approves any command, the same as `Bash(npx *)`, and is now reported. A rule that names the inner command, such as `Bash(devbox run npm test)` (Anthropic's recommended form), is not. Meaning and severity (MEDIUM) are unchanged.
 
 ## [0.21.1] - 2026-10-25
 

@@ -180,6 +180,28 @@ _HINTS: dict[str, str] = {
     "HARNESS-006": (
         "Add deny rules for rm -rf / rm -r or a PreToolUse hook that blocks deletes."
     ),
+    "PERM-001": (
+        "Rewrite the rule in a form Claude Code applies, e.g. Bash(rm *) instead of"
+        " Bash(command:rm *); see docs/permission-rules.md."
+    ),
+    "PERM-002": "Use two slashes for an absolute path, e.g. Read(//Users/you/...).",
+    "PERM-003": "Put a space before the *, e.g. Bash(ls *) instead of Bash(ls*).",
+    "PERM-004": (
+        "Turn on the sandbox (sandbox.enabled: true) or add a PreToolUse hook;"
+        " the deny rule alone misses /usr/bin/curl and sh -c forms."
+    ),
+    "PERM-005": (
+        "Replace WebFetch(domain:*) with a bare WebFetch rule or named hosts so"
+        " the sandbox allowlist stays in force."
+    ),
+    "PERM-006": (
+        "Set sandbox.autoAllowBashIfSandboxed to false, or use content-scoped ask"
+        " rules such as Bash(git push *)."
+    ),
+    "PERM-007": (
+        "Remove the mcp__<server> allow rule until the server's findings are fixed,"
+        " or allow only tools you have checked."
+    ),
     "CFHYG-006": (
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
         " — a third-party base URL receives every API call and its secrets."

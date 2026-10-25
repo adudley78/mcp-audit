@@ -535,6 +535,60 @@ matters. `docs/agent-execution-surface.md` is the per-harness table.
   `description`, `inputSchema`, `outputSchema`, `annotations`; **RFC 8785** for the canonical
   JSON that is hashed (`advisory/canonical.py`, shared with the advisory feed).
 
+## Permission rules that don't do what they say (PERM-001..007, analyzers/permissions.py — STORY-0092)
+
+Every rule semantic comes from Anthropic's documentation, read 2026-10-25, and is
+quoted in the finding text and in `docs/permission-rules.md`:
+
+- **Claude Code permissions doc** (https://code.claude.com/docs/en/permissions) —
+  PERM-001: "You can't match a tool's primary content field this way … Claude Code
+  ignores it and emits a startup warning"; "When Claude Code loads a settings file, it
+  skips any `mcp__` rule that has parentheses"; "If you write a path rule for `Write`,
+  `NotebookEdit`, `Glob`, or legacy `MultiEdit`, Claude Code accepts the rule but never
+  matches a read or edit against it"; "The `:*` form is only recognized at the end of a
+  pattern"; "An unanchored allow glob such as `"*"`, `"B*"`, or `"mcp__*"` is skipped
+  and doesn't auto-approve anything". PERM-002: "A pattern like `/Users/alice/file`
+  isn't an absolute path. The single leading slash anchors at the settings source, not
+  the filesystem root" and the "Where a pattern anchors" table. PERM-003: "The space
+  before a trailing `*` is part of the rule … `Bash(ls*)` has no space, so it matches
+  `lsof` too." PERM-004: "a deny or ask rule covers the invocation Claude usually
+  produces and isn't a security boundary around the program", the `/usr/bin/curl`,
+  `sh -c`, `/bin/rm`, `git -C . push` table, and "Your other rules and the permission
+  mode decide the commands in the last column". PERM-005: the "Allow or deny every
+  fetch" table. PERM-007 and the HARNESS-005 runner forms: the MCP section (`mcp__`
+  rules, names with `__`, normalized names) and "Wrappers" ("Development environment
+  runners such as `direnv exec`, `devbox run`, `mise exec`, `npx`, and `docker exec`
+  are not in the list").
+- **Claude Code sandboxing doc** (https://code.claude.com/docs/en/sandboxing) —
+  PERM-006: "A bare `Bash` ask rule, or the equivalent `Bash(*)` form, is skipped for
+  commands that run sandboxed … In plan mode, the rule isn't skipped"; PERM-005: the
+  sandbox honours a bare `*` in a `WebFetch(domain:...)` rule.
+- **Claude Code settings reference** (https://code.claude.com/docs/en/settings-reference)
+  — defaults: `sandbox.enabled` false, `sandbox.autoAllowBashIfSandboxed` true.
+- **Claude Code permission modes doc** (https://code.claude.com/docs/en/permission-modes)
+  — "Tools matched by an explicit ask rule" are among the "Actions no mode
+  auto-approves", which is why queue item Q-018 (ask rules under auto/bypass mode) was
+  not built as a finding.
+- **Claude Code MCP doc** (https://code.claude.com/docs/en/mcp) — tool names replace
+  "any character outside `A-Z`, `a-z`, `0-9`, `_`, and `-`" with `_`; plugin servers are
+  `mcp__plugin_<plugin-name>_<server-name>__<tool-name>`.
+- **Claude Code CHANGELOG 2.1.299**
+  (https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md) —
+  "Changed MCP allow rules to reach only the server they name: `mcp__a` no longer allows
+  a server named `a__b` or `a_`; write `mcp__<server>__*` with the server's whole
+  normalized name" (PERM-007 matching; Q-019).
+- **Why it matters** — UpGuard, "YOLO Mode: Hidden Risks in Claude Code Permissions"
+  (https://www.upguard.com/blog/yolo-mode-hidden-risks-in-claude-code-permissions,
+  2026-01-16): of 18,470 committed `.claude/settings.local.json` files, 1.1% carried
+  any deny rule; NCC Group, "An Introduction to AI Coding Agent Security" v2.0
+  (https://www.nccgroup.com/media/jtepwx1t/nccgroup_codingagentswhitepaper.pdf):
+  permission-prompt bypass history through `find`, `sed`, `rg`, `echo`, `cd`. Research
+  scan 2026-10-25 §A2 and ledger PAIN-008/PAIN-016 (Marcus).
+- All seven checks and the HARNESS-005 additions are original implementations; no code
+  or fixtures were copied. Anthropic's example settings files
+  (github.com/anthropics/claude-code/tree/main/examples/settings) were used only to
+  measure precision locally and are not committed.
+
 ## Claude Code mods (MOD-001..006, plugins/mods.py — STORY-0085)
 
 - **Claude Code mods documentation** — code.claude.com/docs/en/plugins/mods/overview,

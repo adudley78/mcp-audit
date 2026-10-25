@@ -152,7 +152,7 @@ Keys and semantics follow code.claude.com/docs/en/permissions.
 | HARNESS-002 | HIGH | `enableAllProjectMcpServers` is `true` (every server in a repo's `.mcp.json` approved without a prompt) |
 | HARNESS-003 | MEDIUM | `skipDangerousModePermissionPrompt` is `true` |
 | HARNESS-004 | HIGH | `permissions.allow` contains bare `Bash`, `Bash(*)`, `PowerShell` or `PowerShell(*)` |
-| HARNESS-005 | MEDIUM | `permissions.allow` approves every argument to a command that can write, run code or reach the network: an interpreter or shell, `curl`/`wget`/`ssh`/…, `gh`/`aws`/`gcloud`/`az`/`kubectl`/`docker`/`terraform`, a package runner or manager, `rm`, `find`, `xargs`, `env`, `sudo`, bare `git`; plus `git push`, `npm publish` and `gh api` even when narrowed (STORY-0087) |
+| HARNESS-005 | MEDIUM | `permissions.allow` approves every argument to a command that can write, run code or reach the network: an interpreter or shell, `curl`/`wget`/`ssh`/…, `gh`/`aws`/`gcloud`/`az`/`kubectl`/`docker`/`terraform`, a package runner or manager, `rm`, `find`, `xargs`, `env`, `sudo`, bare `git`; plus `git push`, `npm publish` and `gh api` even when narrowed (STORY-0087); an environment runner left open (`devbox run *`, `docker exec <container> *`, `uv run *`, …) and PowerShell `Invoke-Expression`/`iex`, `Start-Process`, `Invoke-WebRequest` (STORY-0092) |
 | HARNESS-006 | MEDIUM | Approval is off in this file (as HARNESS-001 or HARNESS-003) and the same file has no `permissions.deny` rule for recursive deletes (`rm -r`/`-rf`, `Remove-Item -Recurse`, `rd /s`, `rmdir /s`) and no PreToolUse hook matching shell commands (STORY-0087) |
 
 HARNESS-005 and HARNESS-006 ask what replaced the approval prompt. People who turn
@@ -167,6 +167,11 @@ From STORY-0082 on, a scan run inside a repository also reads that repository's
 `.claude/settings.json` and `.claude/settings.local.json` (client
 `claude-code-project`), so the GitHub Action's default run fails a pull request
 that switches approval off. An explicit `--path` still scans only what it names.
+
+The same files are also linted for rules that don't do what they say
+(PERM-001..007: ignored rule forms, misanchored paths, deny rules that aren't a
+boundary without the sandbox, `mcp__` allow rules on flagged servers); see
+[permission-rules.md](permission-rules.md).
 
 ---
 

@@ -26,6 +26,11 @@ Claude Code settings that switch human approval off.  Basis: HarnessSecurity-Ben
 (arXiv 2610.07639) measured attack success on coding agents rising from 29.2% to
 95.6% with auto-approve on, and found about half of their security mechanisms
 opt-in.  Keys and semantics follow code.claude.com/docs/en/permissions.
+
+**Permission rules that don't do what they say (PERM-001..007)** were added in
+STORY-0092 (2026-10-25) and live in :mod:`mcp_audit.analyzers.permissions`:
+``analyze_config`` runs PERM-001..006 on the same files as HARNESS-*, and the
+scanner runs PERM-007 after every per-server analyzer.
 """
 
 from __future__ import annotations
@@ -41,6 +46,7 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import unquote, urlsplit
 
+from mcp_audit.analyzers import permissions as _permissions
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS, CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import normalize_for_detection
@@ -623,11 +629,70 @@ _BROAD_COMMANDS: frozenset[str] = frozenset(
         "sudo",
         "git",
         "cat",
+        # PowerShell cmdlets (and their aliases) that run a string as code,
+        # start any program, or reach the network.  PowerShell rules "use the
+        # same shape as Bash rules" and "Common aliases are canonicalized before
+        # matching" (code.claude.com/docs/en/permissions); STORY-0092.
+        "invoke-expression",
+        "iex",
+        "invoke-command",
+        "icm",
+        "start-process",
+        "saps",
+        "invoke-webrequest",
+        "iwr",
+        "invoke-restmethod",
+        "irm",
     }
 )
 # Two-word commands that are broad on their own even when narrowed.
 _BROAD_SUBCOMMANDS: frozenset[tuple[str, str]] = frozenset(
     {("git", "push"), ("npm", "publish"), ("gh", "api")}
+)
+# Environment runners: the subcommand runs whatever follows it as a command, so
+# a rule that ends right after it approves everything (STORY-0092).
+# code.claude.com/docs/en/permissions, "Wrappers": "Development environment
+# runners such as `direnv exec`, `devbox run`, `mise exec`, `npx`, and `docker
+# exec` are not in the list. Because these tools execute their arguments as a
+# command, a rule like `Bash(devbox run *)` matches whatever comes after `run`,
+# including `devbox run rm -rf .`."  Unlike _BROAD_SUBCOMMANDS, a rule narrowed
+# to one inner command (`Bash(devbox run npm test)`, the doc's own fix) is not
+# broad unless that inner command is.
+_RUNNER_SUBCOMMANDS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("devbox", "run"),
+        ("mise", "exec"),
+        ("mise", "x"),
+        ("direnv", "exec"),
+        ("docker", "exec"),
+        ("docker", "run"),
+        ("podman", "exec"),
+        ("podman", "run"),
+        ("kubectl", "exec"),
+        ("nix", "run"),
+        ("npm", "exec"),
+        ("pnpm", "dlx"),
+        ("pnpm", "exec"),
+        ("yarn", "dlx"),
+        ("yarn", "exec"),
+        ("bun", "x"),
+        ("pipx", "run"),
+        ("uv", "run"),
+        ("poetry", "run"),
+        ("pdm", "run"),
+    }
+)
+# Runners whose first argument is a container, image, pod or directory, not
+# the command (`docker exec <container> <cmd>`, `direnv exec <dir> <cmd>`).
+_RUNNERS_WITH_TARGET: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("docker", "exec"),
+        ("docker", "run"),
+        ("podman", "exec"),
+        ("podman", "run"),
+        ("kubectl", "exec"),
+        ("direnv", "exec"),
+    }
 )
 _RULE_RE = re.compile(r"^(Bash|PowerShell)\((.+)\)$")
 _RECURSIVE_DELETE_RE = re.compile(
@@ -649,9 +714,11 @@ def _is_broad_allow_rule(rule: object) -> bool:
     if m is None:
         return False
     inner = m.group(2).strip()
+    wildcard = False
     for suffix in (":*", " *", "*"):
         if inner.endswith(suffix):
             inner = inner[: -len(suffix)].strip()
+            wildcard = True
             break
     words = inner.split()
     if not words:
@@ -659,7 +726,35 @@ def _is_broad_allow_rule(rule: object) -> bool:
     first = words[0].rsplit("/", 1)[-1].lower()
     if len(words) == 1:
         return first in _BROAD_COMMANDS
-    return (first, words[1].lower()) in _BROAD_SUBCOMMANDS
+    if (first, words[1].lower()) in _BROAD_SUBCOMMANDS:
+        return True
+    return wildcard and _runner_runs_anything(first, words[1:])
+
+
+def _runner_runs_anything(program: str, rest: list[str]) -> bool:
+    """True when a wildcard rule ``<program> <rest…> *`` leaves a runner open.
+
+    *rest* starts with the runner's subcommand.  After it come options, then
+    (for :data:`_RUNNERS_WITH_TARGET`) a container, image, pod or directory,
+    then the command; ``--`` starts the command explicitly.  The rule is broad
+    when no command follows, or when the command is itself broad.
+    """
+    pair = (program, rest[0].lower())
+    if pair not in _RUNNER_SUBCOMMANDS:
+        return False
+    after = rest[1:]
+    if "--" in after:
+        tail = after[after.index("--") + 1 :]
+    else:
+        tail = [word for word in after if not word.startswith("-")]
+        if pair in _RUNNERS_WITH_TARGET and tail:
+            tail = tail[1:]
+    if not tail:
+        return True
+    inner = tail[0].rsplit("/", 1)[-1].lower()
+    if len(tail) == 1:
+        return inner in _BROAD_COMMANDS
+    return (inner, tail[1].lower()) in _BROAD_SUBCOMMANDS
 
 
 def _guards_recursive_delete(perms: dict, hooks: object) -> bool:
@@ -959,11 +1054,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         - ``.claude/settings.json`` (project-level)
         - ``.claude/settings.local.json`` (project-level)
         """
-        if config_path.name == ".claude.json":
-            return True
-        if config_path.name in ("settings.json", "settings.local.json"):
-            return config_path.parent.name == ".claude"
-        return False
+        return _permissions.is_claude_code_settings_file(config_path)
 
     @staticmethod
     def _extract_hook_commands(hooks: dict) -> list[str]:
@@ -1111,6 +1202,8 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         - **CFHYG-007**: a project-scoped ``.claude/settings*.json`` whose
           top-level ``env`` block points an API endpoint or proxy variable at a
           non-first-party host (the CVE-2026-21852 shape).
+        - **PERM-001..006**: permission rules that don't do what they say
+          (:mod:`mcp_audit.analyzers.permissions`, STORY-0092).
 
         Args:
             raw: The parsed JSON dict for the config file.
@@ -1123,6 +1216,17 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         findings: list[Finding] = []
         if not self._is_claude_code_config(config_path):
             return findings
+
+        # PERM-001..006 (STORY-0092): rules that don't do what they say.
+        findings.extend(
+            _permissions.analyze_permission_rules(
+                raw,
+                config_path,
+                client,
+                analyzer=self.name,
+                is_broad_allow_rule=_is_broad_allow_rule,
+            )
+        )
 
         findings.extend(self._check_harness_posture(raw, config_path, client))
         findings.extend(self._check_settings_env_redirect(raw, config_path, client))
@@ -1386,7 +1490,8 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                         " approves every argument to a command whose arguments alone"
                         " can write files, run code or reach the network (an"
                         " interpreter, a network tool, a cloud or GitHub CLI, a"
-                        " package runner, rm, or git push), so it carries much of"
+                        " package or environment runner, a PowerShell cmdlet that"
+                        " runs code, rm, or git push), so it carries much of"
                         " HARNESS-004's risk for that command."
                     ),
                     evidence=(
@@ -1395,7 +1500,10 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     remediation=(
                         "Narrow each rule to the subcommands you need, such as"
                         " 'Bash(gh pr view:*)' instead of 'Bash(gh:*)', and add deny"
-                        " rules for the writes you never want approved."
+                        " rules for the writes you never want approved. For an"
+                        " environment runner (devbox run, docker exec, uv run, …),"
+                        " name the inner command too, one rule per command, such as"
+                        " 'Bash(devbox run npm test)'."
                     ),
                     cwe="CWE-862",
                     owasp=["MCP02", "MCP05"],
