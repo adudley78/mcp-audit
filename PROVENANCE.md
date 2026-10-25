@@ -446,6 +446,78 @@ The **new** patterns specific to the agent-file surface are:
   products/mcp-audit/discovery/briefs/2026-10-12-signal-sweep.md (Marcus).
 - All six checks are original implementations; no code was copied.
 
+## Other harnesses' auto-run files and settings that redirect API traffic (TRUST-008, CFHYG-007, HARNESS-007 — STORY-0090)
+
+Every key, file and behaviour below was confirmed from the vendor's own
+documentation on 2026-10-25; incidents and research are cited for why each
+matters. `docs/agent-execution-surface.md` is the per-harness table.
+
+- **Gemini CLI** — hooks live in `hooks.<Event>[].hooks[]` with `type: "command"`
+  in project `.gemini/settings.json`, which Gemini CLI fingerprints and warns about
+  before running a new or changed hook
+  ([hooks](https://geminicli.com/docs/hooks/)); `tools.enableHooks` existed with
+  default `false` in 0.18–0.22 and default `true` in 0.24–0.26, replaced by
+  `hooksConfig.enabled` (`docs/get-started/configuration.md` at tags v0.18.0–v0.26.0
+  and `docs/reference/configuration.md` on `main`, github.com/google-gemini/gemini-cli);
+  `.gemini/.env` is preferred over `.env` when the folder is trusted
+  (`packages/cli/src/config/settings.ts::findEnvFile`) and its variables "are never
+  excluded" ([configuration reference](https://geminicli.com/docs/reference/configuration/));
+  untrusted folders load neither (`docs/cli/trusted-folders.md`);
+  `GOOGLE_GEMINI_BASE_URL` / `GOOGLE_VERTEX_BASE_URL` override the API endpoints.
+- **Codex** — `.codex/config.toml` loads only for trusted projects; `notify`,
+  `approval_policy` (`on-request | never | granular`), `sandbox_mode`
+  (`read-only | workspace-write | danger-full-access`), inline `[hooks]`, and
+  `<repo>/.codex/hooks.json`; current Codex ignores `notify` (and base-URL and
+  provider keys) in a project-local config with a startup warning
+  ([config reference](https://learn.chatgpt.com/docs/config-file/config-reference),
+  [advanced config](https://learn.chatgpt.com/docs/config-file/config-advanced),
+  [hooks](https://learn.chatgpt.com/docs/hooks); `developers.openai.com/codex/*`
+  redirects there).
+- **Claude Code** — `.claude/scheduled_tasks.json` (saved scheduled tasks; copied
+  files list but do not run) ([scheduled tasks](https://code.claude.com/docs/en/scheduled-tasks));
+  `.claude/workflows/` (saved workflow scripts "shared with everyone who clones the
+  repo"; prompts per run by permission mode)
+  ([workflows](https://code.claude.com/docs/en/workflows)); both listed as "files
+  Claude Code runs on its own" and write-protected
+  ([sandboxing](https://code.claude.com/docs/en/sandboxing)); the settings `env` block,
+  applied from project settings after workspace trust and at startup in `-p` mode,
+  and the variables project settings cannot set
+  ([settings reference `env`](https://code.claude.com/docs/en/settings-reference#env));
+  `enabledMcpjsonServers` ignored in the shared project file until the folder is
+  trusted ([settings reference](https://code.claude.com/docs/en/settings-reference));
+  the `ANTHROPIC_*_BASE_URL` endpoint variables, `HTTP_PROXY`, `HTTPS_PROXY` and each
+  provider's default host ([env vars](https://code.claude.com/docs/en/env-vars),
+  [Bedrock](https://code.claude.com/docs/en/amazon-bedrock),
+  [Agent Platform](https://code.claude.com/docs/en/google-vertex-ai),
+  [Foundry](https://code.claude.com/docs/en/microsoft-foundry),
+  [Claude Platform on AWS](https://code.claude.com/docs/en/claude-platform-on-aws)).
+  `OPENAI_BASE_URL` from the [openai-python README](https://github.com/openai/openai-python).
+  Bedrock's FIPS and interface-VPC-endpoint host shapes
+  (`bedrock-runtime-fips`, `vpce-<id>.bedrock-runtime.<region>.vpce.amazonaws.com`) from
+  the [AWS Bedrock user guide](https://docs.aws.amazon.com/bedrock/latest/userguide/vpc-interface-endpoints.html).
+  URLs are read the way the WHATWG URL Standard (Node) reads them, with `\` as a path
+  separator for special schemes and leading slashes skipped
+  ([URL Standard](https://url.spec.whatwg.org/)), as well as literally.
+- **Incidents and research** — Miasma worm: `.gemini/settings.json` identical to the
+  planted `.claude/settings.json` SessionStart hook, ≥123 repositories
+  ([SafeDep](https://safedep.io/miasma-worm-ai-coding-agent-config-injection/));
+  CVE-2026-21852: `ANTHROPIC_BASE_URL` in a repository's `.claude/settings.json` sent
+  the API key before the trust dialog, fixed 2025-12-28
+  ([Check Point Research](https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/));
+  Codex project `notify` ran outside the sandbox, closed informational 2026-02-24, and
+  Gemini `tools.enableHooks` + `hooks.SessionStart` ran on the host
+  ([Cymulate](https://cymulate.com/blog/the-race-to-ship-ai-tools-left-security-behind/));
+  GHSA-wpqr-6v78-jr5g (CVSS 10.0): headless Gemini CLI trusted the workspace and
+  loaded `.gemini/` environment files from a pull request, fixed in 0.39.1 /
+  run-gemini-cli 0.1.22 ([advisory](https://github.com/google-github-actions/run-gemini-cli/security/advisories/GHSA-wpqr-6v78-jr5g));
+  instruction privilege escalation through harness scheduled tasks and persistent
+  goals on six harnesses ([arXiv 2608.27299](https://arxiv.org/abs/2608.27299));
+  one agent writing another's security config, including Codex
+  `approval_policy = "never"` / `sandbox_mode = "danger-full-access"`
+  ([Origin, 2026-03-23](https://www.originhq.com/research/escaping-the-sandbox-confused-deputies),
+  via the 2026-10-25 research scan; not re-fetched).
+- All checks are original implementations; fixtures are synthetic. No code was copied.
+
 ## Tool-definition digests in mcp-lock.json (LOCK-006..009, lock/tool_digests.py — STORY-0086)
 
 - **Invariant Labs** — tool poisoning and the MCP "rug pull" (see Rug-pull detection above), and

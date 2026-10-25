@@ -222,6 +222,8 @@ the two exploitation pre-conditions that malware relied on.
 | HARNESS-005 | MEDIUM   | ASI02, ASI05 | MCP02, MCP05 | `permissions.allow` approves every argument to a command that can write, run code or reach the network (interpreters, network tools, cloud/GitHub CLIs, package runners, `rm`, `find`, `xargs`, `env`, `sudo`, bare `git`; `git push`, `npm publish`, `gh api` even when narrowed). CWE-862 (STORY-0087) |
 | HARNESS-006 | MEDIUM   | ASI02, ASI05 | MCP02, MCP05 | Approval off in the file (bypassPermissions or skipDangerousModePermissionPrompt) with no deny rule for recursive deletes and no PreToolUse hook on shell commands in the same file. CWE-862 (STORY-0087) |
 | CFHYG-006   | MEDIUM   | ASI06 | MCP01, MCP08 | `ANTHROPIC_BASE_URL` overrides the Anthropic API endpoint. All API traffic (including the API key) is routed to the configured domain. CVE-2026-21852. CWE-441. CVSS: 7.5 |
+| CFHYG-007   | HIGH     | ASI06 | MCP01, MCP08 | The top-level `env` block of a project `.claude/settings.json` / `settings.local.json` (never `~/.claude/`) points an API endpoint or proxy variable at a host that is not the provider's own: `ANTHROPIC_BASE_URL` (exact host `api.anthropic.com`), the other documented `ANTHROPIC_*_BASE_URL` provider endpoints, `OPENAI_BASE_URL`, `GOOGLE_GEMINI_BASE_URL`, `GOOGLE_VERTEX_BASE_URL`, `HTTP_PROXY`, `HTTPS_PROXY`. HIGH, not CFHYG-006's MEDIUM, because the file reaches everyone who clones the repository and Claude Code applies it after workspace trust and at startup in `claude -p`. Loopback hosts are exempt. The URL is read as Node reads it (backslash as `/`) and literally, and reported if either reading leaves first-party hosts, if it has user info before `@`, or if no host parses. One finding per variable; CVE-2026-21852 (Check Point) on the `ANTHROPIC_BASE_URL` one. CWE-441 (STORY-0090) |
+| HARNESS-007 | INFO     | ASI03, ASI04 | MCP09, MCP07 | Inventory: a non-empty `enabledMcpjsonServers` approves the named project `.mcp.json` servers without a prompt once the folder is trusted. INFO because Claude Code writes the key itself when you approve a server; see HARNESS-002 for approve-all. Not an advisory. CWE-862 (STORY-0090) |
 
 **Windows note:** CFHYG-001 and CFHYG-002 are skipped on Windows because POSIX
 `st_mode` bits do not map to Windows ACL semantics. Windows ACL checking
@@ -295,9 +297,10 @@ separately via the full analyzer pipeline.
 |------------|----------|----------------------|------------------|-----------|
 | TRUST-001  | HIGH     | ASI07 | MCP09 | MCP server defined in project-level config. Auto-spawns with developer's full OS privileges on "Trust this folder". Supply-chain attacker or malicious contributor can silently backdoor all developers who trust the repo. Adversa TrustFall (May 2026); CVE-2026-30615 config-tamper channel. CWE-829. CVSS: 7.8 |
 | TRUST-002  | HIGH / MEDIUM / INFO | ASI07 | MCP09, MCP05 | A discovered config candidate (project-scoped, or cwd-scoped in a default scan) is itself a symlink. HIGH when the resolved target falls outside the scanned root (GhostApproval — the reviewed/committed path is a decoy); MEDIUM when it resolves inside; INFO when the link is broken. The candidate is still parsed normally — coverage is restored, not traded away, for what used to be a silent skip. CWE-61. |
-| TRUST-003  | HIGH (CRITICAL on network) | ASI04, ASI09 | MCP05, MCP09 | Repo-planted IDE auto-execution file: a `.vscode/tasks.json` task with `runOptions.runOn: folderOpen`, or a command-bearing `.vscode/settings.json` key (terminal profile/env/shellArgs, `*Path` interpreter setting) pointing at a shell command, URL, or absolute path outside the project root. Same "trust this folder → arbitrary command runs" shape as TRUST-001, but for a non-MCP auto-execution surface. Anchor incidents: Keyv npm worm and Shai-Hulud "V.A.P.E" (2026) both planted this file alongside a `.claude/settings.json` SessionStart hook. CWE-829. CVSS: 7.8 (HIGH) / 9.1 (CRITICAL, network-reaching) |
+| TRUST-003  | HIGH (CRITICAL on network) | ASI04, ASI09 | MCP05, MCP09 | Repo-planted IDE auto-execution file: a `.vscode/tasks.json` task with `runOptions.runOn: folderOpen`, or a command-bearing `.vscode/settings.json` key (terminal profile/env/shellArgs, `*Path` interpreter setting) pointing at a shell command, URL, or absolute path outside the project root. Same "trust this folder → arbitrary command runs" shape as TRUST-001, but for a non-MCP auto-execution surface. Anchor incidents: Keyv npm worm and Shai-Hulud "V.A.P.E" (2026) both planted this file alongside a `.claude/settings.json` SessionStart hook. Read under `--project` and, since STORY-0090, at the cwd root of a default `scan`/`check` (same meaning and severity). CWE-829. CVSS: 7.8 (HIGH) / 9.1 (CRITICAL, network-reaching) |
 | TRUST-004  | INFO     | ASI07 | MCP09 | A user-global known-client config or an explicit `--path` candidate is itself a symlink. Always INFO — this is exactly how dotfile managers (GNU Stow, chezmoi, yadm, dotbot) manage `~/.claude.json`, `~/.cursor/mcp.json`, etc.; a rule that fires on every correctly-configured machine gets switched off wholesale. CWE-61. |
 | TRUST-005  | LOW      | ASI07 | MCP09 | A symlinked directory was encountered during a project/agent-files tree walk and was not traversed (loop/blow-up protection, unchanged). Makes a previously-silent refusal visible. CWE-61. |
+| TRUST-008  | HIGH / MEDIUM (CRITICAL on network) | ASI04, ASI09 | MCP05, MCP09 | Repo-planted auto-run file of another coding-agent harness. HIGH: `.gemini/settings.json` command hooks; `.codex/config.toml` `notify`, `approval_policy = "never"`, `sandbox_mode = "danger-full-access"` or inline `[hooks]` (one finding per key); `.codex/hooks.json` command hooks; `.gemini/.env` that redirects an API endpoint or proxy. MEDIUM: `.gemini/.env` otherwise (a value matching one of CRED-001's secret patterns also raises CRED-001, by name only), Gemini `tools.enableHooks` with no hooks, `.claude/scheduled_tasks.json`, a non-empty `.claude/workflows/`, and any of these files over 2 MiB (reported unread). CRITICAL when a hook or `notify` command reaches the network (HOOK-001's regex). Anchor incidents: Miasma worm (2026), GHSA-wpqr-6v78-jr5g (CVSS 10.0), Cymulate (2026). CWE-829 (STORY-0090) |
 
 **Supported project-level config paths** (discovered by `discover_project_configs()`):
 
@@ -319,7 +322,19 @@ above under `--project`: `.vscode/tasks.json` and `.vscode/settings.json`
 carry no `mcpServers`/`servers` root key and are never parsed into a
 `ServerConfig` — they are read and analyzed directly by
 `ConfigHygieneAnalyzer.analyze_autoexec_file()` (see
-`discovery.py::discover_project_autoexec_files()`).
+`discovery.py::discover_project_autoexec_files()`). Since STORY-0090 a
+default `scan`/`check` also reads them at the root of the working directory
+(`discovery.py::discover_cwd_autoexec_files()`), skipped when that is the home
+directory; `--project` does not repeat a finding the cwd pass already made.
+
+**TRUST-008** extends that surface to Gemini CLI (`.gemini/settings.json`,
+`.gemini/.env`), Codex (`.codex/config.toml`, `.codex/hooks.json`) and Claude
+Code's persistence files (`.claude/scheduled_tasks.json`, `.claude/workflows/`),
+analyzed by the same `analyze_autoexec_file()`. Like TRUST-003, they are also
+read at the root of the working directory by a default `scan`/`check`, so the
+GitHub Action's default run sees them; the same paths directly under `$HOME` are
+each harness's user config and are skipped. Per-harness sources:
+`docs/agent-execution-surface.md`.
 
 **TRUST-002 / TRUST-004 / TRUST-005** (symlink handling) apply uniformly
 across every discovery site — the default (non-`--project`) scan, the

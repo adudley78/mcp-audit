@@ -500,6 +500,19 @@
       ]
     },
     {
+      "finding_id": "CFHYG-007",
+      "finding_title": "Project settings env redirects API traffic",
+      "owasp_codes": [
+        "MCP01",
+        "MCP08"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Lack of Audit and Telemetry"
+      ],
+      "notes": "Fires when the top-level env block of a project-scoped .claude/settings.json or .claude/settings.local.json (never ~/.claude/) sets an API endpoint or proxy variable to a host that is not the provider's own: ANTHROPIC_BASE_URL (first-party host api.anthropic.com, CFHYG-006's own test plus an exact-host check), ANTHROPIC_BEDROCK_BASE_URL, ANTHROPIC_BEDROCK_MANTLE_BASE_URL, ANTHROPIC_VERTEX_BASE_URL, ANTHROPIC_FOUNDRY_BASE_URL, ANTHROPIC_AWS_BASE_URL and any other ANTHROPIC_*BASE_URL, OPENAI_BASE_URL, GOOGLE_GEMINI_BASE_URL, GOOGLE_VERTEX_BASE_URL, HTTP_PROXY, HTTPS_PROXY. Each value is read both as Node's WHATWG parser reads it (backslashes as path separators, extra slashes skipped) and literally; it is reported when either reading leaves the first-party hosts, when it carries user info before '@', or when it has no parsable host. Loopback hosts, empty values and wholly-reference values are not reported. One finding per variable; the evidence names the host only, never userinfo, path or query. CVE-2026-21852 (Check Point Research) is attached to the ANTHROPIC_BASE_URL finding only. Severity HIGH. CWE-441. CFHYG-006 (a server's env) is unchanged. Analyzer: config_hygiene (STORY-0090)."
+    },
+    {
       "finding_id": "ATTEST-010",
       "finding_title": "Sigstore provenance verified (valid match)",
       "owasp_codes": [],
@@ -936,7 +949,7 @@
         "Command Injection and Execution",
         "Shadow MCP Servers"
       ],
-      "notes": "Fires under `scan --project` for a `.vscode/tasks.json` task with `runOptions.runOn: folderOpen` (or the legacy `version: 0.1.0` schema's top-level `runOn`), or a command-bearing `.vscode/settings.json` key (terminal profile/env/shellArgs, or a `*Path` interpreter setting) whose value is a shell command, URL, or absolute path outside the project root. HIGH by default; CRITICAL when the command reaches the network (`_HOOK_NETWORK_RE`). Anchor incidents: Keyv npm worm and Shai-Hulud \"V.A.P.E\" (2026), both of which planted this file alongside a `.claude/settings.json` SessionStart hook (CFHYG-005/HOOK-001/002). CWE-829."
+      "notes": "Fires under `scan --project` (tree walk) and, since STORY-0090, at the cwd root of a default scan/check (skipped when the cwd is the home directory), for a `.vscode/tasks.json` task with `runOptions.runOn: folderOpen` (or the legacy `version: 0.1.0` schema's top-level `runOn`), or a command-bearing `.vscode/settings.json` key (terminal profile/env/shellArgs, or a `*Path` interpreter setting) whose value is a shell command, URL, or absolute path outside the project root. HIGH by default; CRITICAL when the command reaches the network (`_HOOK_NETWORK_RE`). Anchor incidents: Keyv npm worm and Shai-Hulud \"V.A.P.E\" (2026), both of which planted this file alongside a `.claude/settings.json` SessionStart hook (CFHYG-005/HOOK-001/002). CWE-829."
     },
     {
       "finding_id": "TRUST-002",
@@ -972,6 +985,19 @@
         "Shadow MCP Servers"
       ],
       "notes": "Fires when discovery (the --project config/autoexec walk, or the agent-files project-tree and skills walk) encounters a symlinked directory. mcp-audit never follows a symlinked directory (loop/blow-up protection, unchanged); this finding makes that refusal visible instead of silent. Always LOW — a coverage note, not an accusation. CWE-61."
+    },
+    {
+      "finding_id": "TRUST-008",
+      "finding_title": "Repo-planted auto-run file of another coding-agent harness",
+      "owasp_codes": [
+        "MCP05",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Shadow MCP Servers"
+      ],
+      "notes": "Fires for Gemini CLI, Codex and Claude Code files a repository can plant that the harness runs or obeys: .gemini/settings.json command hooks (HIGH) or tools.enableHooks alone (MEDIUM); .gemini/.env (MEDIUM, HIGH when it redirects an API endpoint or proxy; a value matching one of CRED-001's secret patterns also produces CRED-001, names only); .codex/config.toml notify, approval_policy = \"never\", sandbox_mode = \"danger-full-access\" or inline [hooks] (HIGH each); .codex/hooks.json command hooks (HIGH); .claude/scheduled_tasks.json and a non-empty .claude/workflows/ directory (MEDIUM). Any hook or notify command that reaches the network (HOOK-001's regex) is CRITICAL. A file over 2 MiB is reported MEDIUM unread. Read under scan --project (tree walk) and at the cwd root in a default scan; the same paths directly under $HOME are user config and skipped. Anchor incidents: Miasma worm (2026, .gemini/settings.json SessionStart hook), GHSA-wpqr-6v78-jr5g (Gemini CLI .gemini/.env in CI, CVSS 10.0), Cymulate 2026 (Codex notify). CWE-829. Analyzer: config_hygiene (STORY-0090)."
     },
     {
       "finding_id": "COMM-033",
@@ -1159,6 +1185,19 @@
         "Command Injection and Execution"
       ],
       "notes": "Fires when a Claude Code settings file turns approval off (bypassPermissions or skipDangerousModePermissionPrompt) and the same file has no permissions.deny rule for recursive deletes and no PreToolUse hook matching shell commands. Severity MEDIUM. CWE-862. Analyzer: config_hygiene (STORY-0087)."
+    },
+    {
+      "finding_id": "HARNESS-007",
+      "finding_title": "Named .mcp.json servers are approved without a prompt",
+      "owasp_codes": [
+        "MCP09",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers",
+        "Insufficient Authentication and Authorization"
+      ],
+      "notes": "Inventory: fires when a Claude Code settings file has a non-empty enabledMcpjsonServers list, which approves project .mcp.json servers with those names without a prompt once the folder is trusted. Severity INFO (Claude Code writes this key to .claude/settings.local.json when you approve a server); listed beside HARNESS-002, which approves every server. Excluded from advisories. CWE-862. Analyzer: config_hygiene (STORY-0090)."
     },
     {
       "finding_id": "PLUGIN-001",

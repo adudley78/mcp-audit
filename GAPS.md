@@ -77,7 +77,8 @@ runs on those servers too.
 
 **Repo-planted IDE auto-execution files (TRUST-003, v0.16.0).** `scan
 --project` now also flags `.vscode/tasks.json` tasks with `runOn: folderOpen`
-and command-bearing `.vscode/settings.json` keys — the persistence mechanism
+and command-bearing `.vscode/settings.json` keys (and, since STORY-0090, a
+plain `scan`/`check` reads both at the root of the working directory) — the persistence mechanism
 used by the Keyv npm worm and Shai-Hulud "V.A.P.E" (2026; see
 `docs/severity-framework.md`). Known boundary, not covered:
 
@@ -92,6 +93,81 @@ used by the Keyv npm worm and Shai-Hulud "V.A.P.E" (2026; see
   `tasks.json`-equivalent auto-run-on-open mechanism separate from VS Code's
   (which Cursor forks); if Cursor ships one, it needs the same treatment as
   `.vscode/tasks.json`.
+
+**Other harnesses' auto-run files (TRUST-008) and settings that redirect API
+traffic (CFHYG-007, HARNESS-007), STORY-0090.** Read under `scan --project`
+(tree walk) and at the cwd root in a default `scan`/`check` (root only, no
+walk). Known boundaries:
+
+- **The default scan reads the cwd root only.** TRUST-003 and TRUST-008 files in
+  subdirectories (a monorepo package's `.vscode/`, `.codex/`) are found by
+  `scan --project`, not by a plain `scan`/`check`, and a scan run from the home
+  directory skips the cwd-root check.
+- **Version-dependent semantics are reported, not resolved.** mcp-audit does not
+  read installed harness versions. Codex `notify` in a project config is reported
+  HIGH although current Codex documentation says it is ignored there (older
+  releases ran it outside the sandbox); Gemini `tools.enableHooks` alone is
+  MEDIUM because it only mattered in 0.18–0.22, when hooks were off by default.
+- **A hooks file that also switches hooks off** (`hooksConfig.enabled: false`,
+  `tools.enableHooks: false`) still reports its hooks at HIGH; settings-layer
+  precedence is not modelled.
+- **Codex hooks:** only `command` handlers are read (`commandWindows` overrides
+  and MCP-tool handlers are not). `[sandbox_workspace_write] network_access`,
+  `notice.hide_full_access_warning`, profiles and `requirements.toml` are not
+  checked. `.codex/rules` and Gemini `.gemini/policies/` are not read.
+- **`.gemini/.env`** is reported whether or not it is committed (mcp-audit does
+  not read git's index), so a developer's own gitignored file holding a key
+  produces TRUST-008 MEDIUM and CRED-001. Only `KEY=value` lines are parsed;
+  multi-line quoted values are not.
+- **CRED-001 in `.gemini/.env` only catches the existing `SECRET_PATTERNS`.**
+  Google API keys (the `AIza…` shape, and the newer `AQ.` keys) and OpenAI
+  project keys (`sk-proj-…`) are not matched: neither format is stated in Google's
+  or OpenAI's own documentation (checked 2026-10-25: Google Cloud API-key and
+  Sensitive Data Protection docs, Firebase API-key docs; OpenAI's platform docs),
+  only in third-party scanners and forum posts, so no pattern was added. Such a
+  key still appears by name in TRUST-008's variable list.
+- **`.claude/scheduled_tasks.json` and `.claude/workflows/`** are reported on
+  presence; their contents (task prompts, workflow scripts) are not scanned for
+  poisoning, and only top-level `.js` files in `workflows/` are listed. Codex
+  "persistent goals" and goose recipes are not read.
+- **CFHYG-007's variable list is closed:** the documented `ANTHROPIC_*BASE_URL`
+  endpoint variables, `OPENAI_BASE_URL`, `GOOGLE_GEMINI_BASE_URL`,
+  `GOOGLE_VERTEX_BASE_URL`, `HTTP_PROXY`, `HTTPS_PROXY`. `ALL_PROXY` and lowercase
+  proxy names are not documented by Claude Code and are not checked; other
+  `*_BASE_URL` names (usually application settings) are not checked. Loopback
+  hosts are not reported. First-party hosts are the documented defaults only:
+  Bedrock's `bedrock-runtime[-fips].<region>.amazonaws.com` and interface VPC
+  endpoints, where `<region>` must have a region's shape (`us-east-1`,
+  `us-gov-west-1`), so a claimable S3 bucket host such as
+  `bedrock-runtime-fips.s3.amazonaws.com` is reported; Bedrock in AWS China regions
+  (`amazonaws.com.cn`) is not documented and is reported. Foundry's
+  `<resource>.services.ai.azure.com` accepts any resource name, including one an
+  attacker created in their own Azure subscription. A URL is read both the way Node does (backslashes as `/` for
+  http(s), any run of slashes skipped) and literally; a value is reported if
+  either reading leaves first-party hosts, if it carries user info before `@`,
+  or if it has no parsable host. Node's IDNA mapping and numeric IPv4 forms
+  (`127.1`, `2130706433`) are not modelled; those values are reported rather
+  than exempted. A corporate gateway or proxy committed to project
+  settings is reported HIGH by design: the recommendation is managed or user
+  settings, where a cloned repository cannot change it.
+- **CFHYG-006 keeps its prefix test.** A server `env` with
+  `ANTHROPIC_BASE_URL=https://api.anthropic.com.example.net` passes CFHYG-006
+  (unchanged behaviour); CFHYG-007 adds an exact-host check for the settings
+  `env` block only.
+- **Duplicates under `scan --project .`:** TRUST-008 found by both the cwd check
+  and the walk is reported once; CFHYG-007 and HARNESS-007, like HARNESS-001..006,
+  appear once per discovery label (`claude-code-project` and `claude-code`).
+- **Files over 2 MiB** are reported MEDIUM without being read.
+- **Symlinked directories:** an auto-run file reached through a symlinked
+  `.gemini/`, `.codex/`, `.claude/` or `.vscode/` is reported as TRUST-002 and not
+  analysed, like a symlinked file. MCP config candidates (`.claude/settings.json`
+  under a symlinked `.claude/`) are still read through the link, as before, so
+  CFHYG-007 can report a settings file that lives outside the repository.
+- **Cross-harness writes are not HOOK-002.** HOOK-002's path list (a Claude Code
+  hook that writes an agent config file) does not yet include
+  `.gemini/settings.json`, `.codex/config.toml` or `.codex/hooks.json`; the
+  planted file itself is TRUST-008, but the hook that writes it is only
+  CFHYG-005/HOOK-001.
 
 **Symlinked config/agent-file candidates (TRUST-002/TRUST-004/TRUST-005,
 2026-09-08/STORY-0065).** All nine discovery sites that used to silently
@@ -381,7 +457,7 @@ tests.
 
 **Plugins: Claude Code only, and PLUGIN-001 compares against today's pin (STORY-0080).** Codex, Copilot and Gemini CLI plugin stores are not read. PLUGIN-001 compares the recorded version with the marketplace's *current* pin. It does not hash plugin files, so it cannot see a Plugin4Shell-style swap that the agent recorded at the requested commit (the agents reported the pinned commit after a swap); a mismatch usually means a plugin not updated since the pin moved. The finding is MEDIUM. The check is skipped for `git-subdir` sources, for plugins whose `plugin.json` or marketplace entry sets `version`, and for recorded versions of `unknown`. The agent's own version (Plugin4Shell is fixed in Claude Code 2.1.179) is not read, because mcp-audit does not execute the agent. Plugin hooks (`hooks/hooks.json`), agents and MCP bundles (`.mcpb`/`.dxt`) are not scanned; `plugin.json` `mcpServers` given as a path is skipped. Plugin MCP servers are analyzed together with the rest of the scan, but `plugins scan` keeps only the findings attributed to `claude-code-plugin`. Plugin config paths are left out of the rug-pull state key (they contain the plugin version), so a plugin update does not reset anyone's rug-pull history; a plugin server that is renamed by an update is seen as a new server.
 
-**HARNESS-001..006 evaluate each settings file alone (STORY-0079, STORY-0087).** HARNESS-006 only sees a delete guard in the same file: bypass mode in project settings with the guard hook in `~/.claude/settings.json` still fires, and any PreToolUse hook matching shell commands counts as a guard because the hook's script isn't read. HARNESS-005's command list is a fixed set; a rule for an unlisted powerful command is not flagged. Claude Code merges user, project, local and managed settings with precedence; mcp-audit checks what each file asks for, not the effective setting. The only in-file interaction honoured is `disableBypassPermissionsMode: "disable"` suppressing HARNESS-001/003 in the same file, so a managed-settings lock elsewhere does not suppress a finding. Managed settings themselves are not discovered. Other harnesses' equivalent switches (Codex CLI `approval_policy`/`sandbox_mode` in `config.toml`, Gemini CLI per-server `trust`, Cline `autoApprove`, VS Code `chat.tools.autoApprove`) are not checked, because mcp-audit does not discover those settings files today.
+**HARNESS-001..006 evaluate each settings file alone (STORY-0079, STORY-0087).** HARNESS-006 only sees a delete guard in the same file: bypass mode in project settings with the guard hook in `~/.claude/settings.json` still fires, and any PreToolUse hook matching shell commands counts as a guard because the hook's script isn't read. HARNESS-005's command list is a fixed set; a rule for an unlisted powerful command is not flagged. Claude Code merges user, project, local and managed settings with precedence; mcp-audit checks what each file asks for, not the effective setting. The only in-file interaction honoured is `disableBypassPermissionsMode: "disable"` suppressing HARNESS-001/003 in the same file, so a managed-settings lock elsewhere does not suppress a finding. Managed settings themselves are not discovered. Other harnesses' equivalent switches are checked only where a repository plants them: a project `.codex/config.toml`'s `approval_policy`/`sandbox_mode` is TRUST-008 (STORY-0090), but the user-level `~/.codex/config.toml`, Gemini CLI per-server `trust`, Cline `autoApprove` and VS Code `chat.tools.autoApprove` are not checked, because mcp-audit does not discover those settings files today.
 
 **SC-005 (deprecated packages, STORY-0073) has no registry-level maintenance-status field.** `mcp-lock.json`'s `package.deprecated` and `SC-005` are populated from the live npm registry response at `lock` resolution time only; `registry/known-servers.json` itself carries no independent "maintained/deprecated" flag an offline scan could check, so eleven of the fifteen `@modelcontextprotocol/server-*` entries currently ship in the registry with no indication their npm `latest` is deprecated — see backlog item for a future registry-wide audit. **PyPI "yanked" releases are not covered at all**: PyPI's JSON API exposes `yanked`/`yanked_reason` only per-release inside `releases`, not on the `info` object `resolve_latest_version_info()` reads for the latest version, so `deprecated` is always `null` for PyPI packages today.
 
