@@ -319,9 +319,7 @@ class TestSetupActionYaml:
 # ---------------------------------------------------------------------------
 
 _REPO_ROOT = Path(__file__).parent.parent
-_USES_RE = re.compile(r"^\s*(?:-\s+)?uses:\s*(\S+)(.*)$")
 _SHA_PIN_RE = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
-_VERSION_COMMENT_RE = re.compile(r"^\s+#\s*v\d+(?:\.\d+)*\b")
 
 
 def _action_files() -> list[Path]:
@@ -331,23 +329,67 @@ def _action_files() -> list[Path]:
     return [ACTION_YAML, SETUP_ACTION_YAML, *files]
 
 
-def _uses_refs() -> list[tuple[Path, int, str, str]]:
-    """Return (file, line, ref, trailing text) for each non-comment `uses:`."""
-    refs: list[tuple[Path, int, str, str]] = []
+def _walk_uses(node: object) -> list[str]:
+    """Every string value of a `uses` key anywhere in a parsed YAML document.
+
+    Parsing (rather than matching lines) also sees flow-style steps such as
+    `- { uses: owner/repo@v1 }` and reusable-workflow `jobs.<id>.uses`.
+    """
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "uses" and isinstance(value, str):
+                found.append(value)
+            else:
+                found.extend(_walk_uses(value))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_walk_uses(item))
+    return found
+
+
+def _uses_refs() -> list[tuple[Path, str]]:
+    """Return (file, ref) for every `uses:` in every action/workflow file."""
+    refs: list[tuple[Path, str]] = []
     for path in _action_files():
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if line.lstrip().startswith("#"):
-                continue
-            match = _USES_RE.match(line)
-            if match:
-                refs.append((path, lineno, match.group(1), match.group(2)))
+        for doc in yaml.safe_load_all(path.read_text(encoding="utf-8")):
+            refs.extend((path, ref) for ref in _walk_uses(doc))
     return refs
+
+
+def _has_version_comment(path: Path, ref: str) -> bool:
+    """True when the line carrying *ref* ends with a `# vX[.Y.Z]` comment."""
+    pattern = re.compile(
+        rf"uses:\s*['\"]?{re.escape(ref)}['\"]?[\s,}}]*#\s*v\d+(?:\.\d+)*\b"
+    )
+    return any(
+        pattern.search(line) and not line.lstrip().startswith("#")
+        for line in path.read_text(encoding="utf-8").splitlines()
+    )
+
+
+def test_uses_walker_sees_flow_style_and_reusable_workflow_refs() -> None:
+    """Guard the walker: block, flow-style and `jobs.<id>.uses` refs all count."""
+    doc = yaml.safe_load(
+        "jobs:\n"
+        "  a:\n"
+        "    steps:\n"
+        "      - uses: one/block@v1\n"
+        "      - { uses: two/flow@v2, with: { x: 1 } }\n"
+        "  b:\n"
+        "    uses: three/reusable/.github/workflows/w.yml@v3\n"
+    )
+    assert sorted(_walk_uses(doc)) == [
+        "one/block@v1",
+        "three/reusable/.github/workflows/w.yml@v3",
+        "two/flow@v2",
+    ]
 
 
 def test_action_ref_scan_sees_the_codeql_refs() -> None:
     """Guard the scanner itself: it must find the four codeql-action refs."""
-    codeql = [r for r in _uses_refs() if r[2].startswith("github/codeql-action/")]
-    names = sorted(r[2].split("@")[0] for r in codeql)
+    codeql = [r for r in _uses_refs() if r[1].startswith("github/codeql-action/")]
+    names = sorted(r[1].split("@")[0] for r in codeql)
     assert names == [
         "github/codeql-action/analyze",
         "github/codeql-action/autobuild",
@@ -363,22 +405,22 @@ def test_every_third_party_action_ref_is_sha_pinned() -> None:
     trailing `# vX.Y.Z` comment is what Dependabot reads and updates.
     """
     bad = []
-    for path, lineno, ref, rest in _uses_refs():
+    for path, ref in _uses_refs():
         if ref.startswith("./"):
             continue
         rel = path.relative_to(_REPO_ROOT)
         if not _SHA_PIN_RE.match(ref):
-            bad.append(f"{rel}:{lineno}: {ref} is not pinned to a commit SHA")
-        elif not _VERSION_COMMENT_RE.match(rest):
-            bad.append(f"{rel}:{lineno}: {ref} has no `# vX.Y.Z` comment")
+            bad.append(f"{rel}: {ref} is not pinned to a commit SHA")
+        elif not _has_version_comment(path, ref):
+            bad.append(f"{rel}: {ref} has no `# vX.Y.Z` comment")
     assert not bad, "\n".join(bad)
 
 
 def test_codeql_action_refs_share_one_sha() -> None:
     """init/autobuild/analyze/upload-sarif are one release; one bump moves all."""
     shas = {
-        r[2].split("@")[1]
-        for r in _uses_refs()
-        if r[2].startswith("github/codeql-action/")
+        ref.split("@")[1]
+        for _, ref in _uses_refs()
+        if ref.startswith("github/codeql-action/")
     }
     assert len(shas) == 1, f"codeql-action SHA drift: {shas}"

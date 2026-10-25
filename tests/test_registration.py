@@ -290,31 +290,93 @@ def test_privacy_doc_ping_table_matches_ping_payload_model() -> None:
     assert documented == set(RegistrationPingPayload.model_fields)
 
 
-def test_post_sends_only_the_headers_the_doc_names(
-    sample_config: RegistrationConfig,
+def test_wire_request_matches_what_the_doc_says_is_sent(
+    sample_config: RegistrationConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The doc names Content-Type and User-Agent; nothing else is added."""
-    captured: list[dict[str, str]] = []
+    """Capture the real request on a local server: headers and body as sent.
 
-    def fake_urlopen(req, timeout):  # type: ignore[no-untyped-def]
-        captured.append(dict(req.header_items()))
-        mock_resp = MagicMock()
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = MagicMock(return_value=False)
-        mock_resp.status = 200
-        return mock_resp
+    mcp-audit sets two headers; Python's HTTP library adds four protocol
+    headers. The doc must name all six, and the body must be exactly the
+    RegistrationPostPayload fields. The HTTPS connection is redirected to a
+    plain local socket so nothing leaves the machine; everything above the
+    socket (urllib's handlers, http.client) runs for real.
+    """
+    import http.client
+    import http.server
+    import threading
+    import urllib.parse
+    import urllib.request
 
-    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
-        reg_client.post_registration(sample_config, grade="?")
+    captured: list[tuple[str, list[tuple[str, str]], bytes]] = []
+
+    class _Capture(http.server.BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802 - http.server naming
+            body = self.rfile.read(int(self.headers["Content-Length"]))
+            captured.append((self.path, list(self.headers.items()), body))
+            self.send_response(200)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args: object) -> None:
+            return
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), _Capture)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.handle_request, daemon=True)
+    thread.start()
+
+    class _ToLocalPlainSocket(http.client.HTTPConnection):
+        def __init__(self, host: str, *args: object, context: object = None, **kw):
+            super().__init__("127.0.0.1", port, *args, **kw)
+
+    for var in (
+        "HTTPS_PROXY",
+        "https_proxy",
+        "HTTP_PROXY",
+        "http_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("NO_PROXY", "*")
+    monkeypatch.setattr(urllib.request, "_opener", None)
+    monkeypatch.setattr(http.client, "HTTPSConnection", _ToLocalPlainSocket)
+
+    try:
+        assert reg_client.post_registration(sample_config, grade="?") is True
+    finally:
+        thread.join(timeout=10)
+        server.server_close()
 
     from mcp_audit import __version__
 
-    assert captured == [
-        {"Content-type": "application/json", "User-agent": f"mcp-audit/{__version__}"}
-    ]
+    assert len(captured) == 1
+    path, headers, body = captured[0]
+    endpoint = urllib.parse.urlsplit(reg_client._REGISTER_ENDPOINT)
+    assert path == (endpoint.path or "/")
+    sent = {name.lower(): value for name, value in headers}
+    assert sent == {
+        # set by mcp-audit
+        "content-type": "application/json",
+        "user-agent": f"mcp-audit/{__version__}",
+        # added by Python's HTTP library
+        "host": endpoint.netloc,
+        "content-length": str(len(body)),
+        "connection": "close",
+        "accept-encoding": "identity",
+    }
+    assert set(json.loads(body)) == set(RegistrationPostPayload.model_fields)
+
     text = _PRIVACY_DOC.read_text(encoding="utf-8")
-    assert "`Content-Type: application/json`" in text
-    assert "`User-Agent: mcp-audit/<version>`" in text
+    for named in (
+        "`Content-Type: application/json`",
+        "`User-Agent: mcp-audit/<version>`",
+        "`Host`",
+        "`Content-Length`",
+        "`Connection: close`",
+        "`Accept-Encoding: identity`",
+    ):
+        assert named in text, f"docs/privacy.md does not name {named}"
 
 
 def test_register_flow_posts_placeholder_grade(tmp_config_dir: Path) -> None:

@@ -95,8 +95,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Pipedream webhook (`https://eo4jvaanlkuohuc.m.pipedream.net`) that emails the
   author and logs to a Google Sheet. The page now says so, states that nothing is
   sent unless you run `mcp-audit register`, and corrects four smaller details: the
-  first POST's `grade` is always `"?"`, the request carries a `User-Agent` header,
-  only `check` (never `scan`) pings, and the Windows file path is
+  first POST's `grade` is always `"?"`, the request carries six headers (two set by
+  mcp-audit, four added by Python's HTTP library, none identifying you), only
+  `check` (never `scan`) pings, and the Windows file path is
   `%LOCALAPPDATA%\mcp-audit\mcp-audit\registration.json`. The page now states
   only what the code does; the list of intended uses and the "not sold or
   shared" promise are gone. Tests now fail if the page and the code disagree on
@@ -108,6 +109,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   now say that. (The v0.12.0 entry below still carries the old wording.) The arXiv
   2605.22333 paper's real title is "A First Measurement Study on Authentication
   Security in Real-World Remote MCP Servers".
+- **The privacy and telemetry pages list every command that uses the network.**
+  They said nothing leaves your machine unless you opt in, but `fix` (even in its
+  dry run), `sbom` and `lock` look up package versions on npm, PyPI or deps.dev by
+  default; each takes `--offline`. The pages, and the README's "offline" bullet,
+  now name them alongside `update-registry`, `verify`, `vet --online`,
+  `push-nucleus`, `register` and Sigstore signing.
 - **Install instructions use the right PyPI name.** Several docs said
   `pip install mcp-audit`, which is not this project's package; they now say
   `pip install mcp-audit-scanner`. The VS Code extension is installed from Open VSX
@@ -118,11 +125,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   unfixed CVE counts).
 - **README and docs examples pin the current release.** The GitHub Action example
   used `@main`, the pre-commit examples used `rev: v0.1.0` (a tag that never
-  existed), and the Action, diff, fix, Snyk and governance docs pinned releases
-  from `v0.3.3` to `v0.17.0` or `@main`. All now name `v0.21.1`, and
-  `scripts/update_test_count.py --check` fails a release PR until it updates them. The README's Action input and output table
+  existed), and the Action, diff, fix, Snyk, governance and usage docs pinned
+  releases from `v0.3.3` to `v0.17.0` or `@main`. All now name `v0.21.1`; the
+  examples that promise a reproducible run also set the action's `version` input,
+  which otherwise downloads the latest binary. `scripts/update_test_count.py
+  --check` fails a release PR until it updates every pin. The usage guide's Action
+  examples used inputs that never existed (`output-file`, `sast`) and said findings
+  never fail the build; they now use `sarif-output` and `run-sast` and describe
+  `fail-on-findings` correctly. The README's Action input and output table
   listed inputs that do not exist (`format`, `baseline`) and misspelled the
   `findings-count` output; it now matches `action.yml`.
+- **GAPS.md lists what a self-hosted runner needs**, including `python3`: without
+  it the Action still scans and fails on findings, but reports `findings-count` 0,
+  `grade` unknown and an empty `sarif-path`, and skips merging `LOCK-*` results.
+- **The README describes rug-pull detection correctly:** a changed entry is
+  flagged once, relative to the last pin or scan, not on every scan after a pin.
 - **The four CodeQL action references are pinned to a commit SHA** (v4.39.1), like
   every other action this repo uses, and a test now fails on any tag-pinned
   third-party action.

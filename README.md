@@ -94,7 +94,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus Security FlexConnect, self-contained HTML dashboard
 - **Continuous monitoring** — `mcp-audit watch` monitors config files in real-time and re-scans on any change
 - **Fleet deployment** — machine-tagged output with `--asset-prefix` for enterprise-wide aggregation
-- **Fully offline by default** — no data leaves your machine
+- **Offline scans** — `scan` and `check` make no network calls unless you pass a network flag; `fix`, `sbom` and `lock` look up package versions online unless you pass `--offline` ([full list](docs/privacy.md#commands-that-use-the-network))
 
 ## Enterprise vulnerability management
 
@@ -450,11 +450,11 @@ The dashboard works against your real MCP environment — whatever `mcp-audit sc
 
 MCP servers can update their tool definitions at any time. A server can publish clean, trusted descriptions during initial review and silently swap them for malicious ones after developers have granted access.
 
-`mcp-audit pin` records SHA-256 hashes of every tracked server's configuration as a trusted baseline. Subsequent `mcp-audit scan` runs compare against that baseline and flag any change as RUGPULL-001 (HIGH). That covers the configuration entry, not what the server's tools say. To record and check the tool definitions themselves, use `mcp-audit lock --connect` and `mcp-audit lock --verify --connect` ([docs/lock.md](docs/lock.md#tool-definitions---connect)).
+`mcp-audit pin` records SHA-256 hashes of every tracked server's configuration as a trusted baseline. Each later `mcp-audit scan` compares every entry with the state recorded by the last pin or scan, flags a changed entry as RUGPULL-001 (HIGH) once, and then records the new state. That covers the configuration entry, not what the server's tools say. To record and check the tool definitions themselves, use `mcp-audit lock --connect` and `mcp-audit lock --verify --connect` ([docs/lock.md](docs/lock.md#tool-definitions---connect)).
 
 ```bash
 mcp-audit pin   # Record current state as trusted
-mcp-audit scan  # Flags RUGPULL-001 for any entry changed since the pin
+mcp-audit scan  # Flags RUGPULL-001 once per entry changed since the last pin or scan
 ```
 
 Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/state_<hash>.json` (files from the old `~/.mcp-audit/` location are copied over once). All persistent state (rug-pull state, baselines, registry cache, policy, rules, registration) uses the platform user-config directory: `~/Library/Application Support/mcp-audit/` on macOS, `~/.config/mcp-audit/` on Linux, `%LOCALAPPDATA%\mcp-audit\mcp-audit\` on Windows.
@@ -605,11 +605,12 @@ jobs:
       - name: Run mcp-audit
         uses: adudley78/mcp-audit@v0.21.1
         with:
+          version: v0.21.1
           severity-threshold: high
           upload-sarif: 'true'
 ```
 
-This example and the pre-commit one below pin the current release. Each release PR updates both pins: `scripts/update_test_count.py` rewrites them, and CI fails when either one is behind `pyproject.toml`.
+This example and the pre-commit one below pin the current release. The `uses:` tag fixes the action's own steps and `version` fixes the mcp-audit binary it downloads (it defaults to `latest`). Each release PR updates these pins: `scripts/update_test_count.py` rewrites them, and CI fails when any is behind `pyproject.toml`.
 
 The `permissions: security-events: write` block is required for SARIF upload on public repositories. Without it the upload step will fail silently.
 
@@ -623,6 +624,7 @@ The `permissions: security-events: write` block is required for SARIF upload on 
 | `upload-sarif` | `true` | Upload SARIF results to the GitHub Security tab |
 | `baseline-name` | _(none)_ | Saved baseline to compare against for drift detection |
 | `fail-on-findings` | `true` | Set to `false` to report without failing the step |
+| `version` | `latest` | mcp-audit release tag to download; pin it, as the example above does, for reproducible runs |
 
 The full input list (`mode`, `check-vulns`, `verify-signatures`, `run-sast`, `lock-verify` and more) is in [`docs/github-action.md`](docs/github-action.md#inputs).
 
@@ -726,7 +728,7 @@ mcp-audit register
 
 What registration does **not** collect: config data, server names, tool descriptions, credentials, file paths, or any scan output.
 
-What registration sends (one time only): your name, org, email, follow-up choice, and mcp-audit version.
+What registration sends (one time only): your name, org, email, follow-up choice, and mcp-audit version, plus a placeholder grade of `"?"`.
 After that, each `mcp-audit check` sends only the version and grade — no PII. `mcp-audit scan` never pings.
 
 ```bash

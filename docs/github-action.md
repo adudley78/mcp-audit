@@ -25,14 +25,14 @@ scanning (e.g. install once in a shared job and run in multiple matrix legs).
 
 After this step `mcp-audit` is on `PATH` for every subsequent step in the job.
 
-### Inputs
+### `setup-mcp-audit` inputs
 
 | Input | Default | Description |
 |---|---|---|
 | `version` | `latest` | Release tag to install (`latest` resolves the current release via the GitHub API). |
 | `github-token` | `${{ github.token }}` | Token for the Releases API call. Defaults to the workflow token; supply a PAT on rate-limited runners. |
 
-### Outputs
+### `setup-mcp-audit` outputs
 
 | Output | Description |
 |---|---|
@@ -255,9 +255,13 @@ output files.
 
 ```yaml
 - uses: adudley78/mcp-audit@v0.21.1
+  with:
+    version: v0.21.1
 ```
 
-Pin to a full version tag for fully reproducible CI runs. See the
+Pin both for fully reproducible CI runs: the `uses:` tag fixes the action's
+own steps, and the `version` input fixes the mcp-audit binary it downloads
+(it defaults to `latest`). See the
 [Version pinning](#version-pinning) section above for the `@v1`
 floating-tag convention that will become available once `v1.0.0` ships.
 

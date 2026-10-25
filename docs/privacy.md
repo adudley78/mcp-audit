@@ -1,7 +1,7 @@
 # Privacy Policy — mcp-audit
 
 **Short version:** mcp-audit collects no data by default.
-Every scan runs entirely on your machine.  Nothing is sent anywhere unless you opt in: by registering (below), or by using a flag or command whose job is to reach the network.
+A plain scan runs entirely on your machine and sends nothing anywhere.  Registration (below) is opt-in.  A few commands do use the network, listed under [Commands that use the network](#commands-that-use-the-network); three of them (`fix`, `sbom` and `lock`) look up package versions online by default unless you pass `--offline`.
 
 ---
 
@@ -9,7 +9,23 @@ Every scan runs entirely on your machine.  Nothing is sent anywhere unless you o
 
 - **No telemetry.** mcp-audit never phones home, sends usage statistics, or contacts any remote server during a normal scan.
 - **No crash reports.** Errors are written to your terminal only.
-- **Fully offline.** A plain `mcp-audit scan` makes zero network connections.  Network-touching flags (`--verify-hashes`, `--verify-signatures`, `--check-vulns`, `--connect`) are explicitly opt-in.  Commands whose job is to fetch or send something (for example `update-registry`, `vet --online`, `push-nucleus` and `register`) use the network only when you run them.
+- **Offline scans.** A plain `mcp-audit scan` makes zero network connections, and so does `mcp-audit check` for a user who has not registered.  The scan flags that touch the network (`--verify-hashes`, `--verify-signatures`, `--check-vulns`, `--connect`) are explicitly opt-in.
+
+### Commands that use the network
+
+| Command | What it contacts | When |
+|---|---|---|
+| `update-registry` | GitHub (`raw.githubusercontent.com`) for the latest registry file | Whenever you run it |
+| `verify` | npm or PyPI, to download the package tarball it hashes | Whenever you run it |
+| `vet --online` | `mcp-audit.dev`, for the published verdict | Only with `--online` |
+| `push-nucleus` | The Nucleus instance you name with `--url` | Whenever you run it |
+| `register`, and `check` once registered | The registration endpoint (see below) | Only after you opt in |
+| `snapshot --sign`, `advise --sign --keyless` | Sigstore (a Fulcio certificate and the Rekor log) | Only with those flags; signing with a key is offline |
+| `fix` | npm or PyPI, to look up the latest version to pin (also in its default dry run) | By default; `--offline` skips it |
+| `sbom` | deps.dev, for transitive dependencies (and npm/PyPI to resolve a version range) | By default; `--offline` skips it |
+| `lock` (writing `mcp-lock.json`) | npm or PyPI, to resolve floating versions, and npm to download tarballs it hashes | By default; `--offline` skips it |
+
+The package-registry lookups send package names and versions taken from your config, never the config itself.
 
 ---
 
@@ -45,7 +61,7 @@ The request body is JSON with exactly these fields:
 | `grade` | `"?"` | Always `"?"` in this POST: the registration flow runs no scan of its own, so there is no grade to send |
 | `follow_up_requested` | `true` | Your answer to the follow-up prompt |
 
-**Nothing else is in the body.** The payload is defined in `src/mcp_audit/registration/models.py` as `RegistrationPostPayload`, and you can audit it directly.  Like any HTTPS request, it also carries two standard headers (`Content-Type: application/json` and `User-Agent: mcp-audit/<version>`), and the receiving service can see the IP address the request comes from.
+**Nothing else is in the body.** The payload is defined in `src/mcp_audit/registration/models.py` as `RegistrationPostPayload`, and you can audit it directly.  The request carries six headers. mcp-audit sets two: `Content-Type: application/json` and `User-Agent: mcp-audit/<version>`. Python's HTTP library adds four standard protocol headers: `Host`, `Content-Length`, `Connection: close` and `Accept-Encoding: identity`. None of them identifies you. Like any HTTPS request, the receiving service can also see the IP address the request comes from.
 
 ### What the initial registration POST does NOT send
 
@@ -65,7 +81,7 @@ After you register, every completed `mcp-audit check` run sends a brief ping to 
 | `grade` | `"B"` |
 | `registered` | `true` |
 
-**No PII is ever included in a ping.** Name, org, and email are deliberately excluded.  The ping carries no identifier that links it to your registration; the receiving service sees only the same two headers and your IP address.  The ping payload is defined as `RegistrationPingPayload` in `src/mcp_audit/registration/models.py`.
+**No PII is ever included in a ping.** Name, org, and email are deliberately excluded.  The ping carries no identifier that links it to your registration; the receiving service sees the same six headers and your IP address.  The ping payload is defined as `RegistrationPingPayload` in `src/mcp_audit/registration/models.py`.
 
 ### Where the data goes
 

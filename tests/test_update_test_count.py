@@ -269,21 +269,24 @@ def test_check_mode_exits_nonzero_on_drift(
 # Release pin (STORY-0102): docs examples name the version pyproject.toml ships
 # ---------------------------------------------------------------------------
 
-_PRE_COMMIT_PIN_FILES = (
-    "README.md",
-    "docs/pre-commit.md",
-    "docs/docs-usage.md",
-    "examples/pre-commit/basic.yaml",
-    "examples/pre-commit/strict.yaml",
-)
-_ACTION_PIN_DOCS = (
-    "docs/github-action.md",
-    "docs/diff.md",
-    "docs/fix.md",
-    "docs/snyk-integration.md",
-    "docs/governance.md",
-)
-_PIN_FILES = (*_PRE_COMMIT_PIN_FILES, *_ACTION_PIN_DOCS)
+_PRE_COMMIT_PIN_FILES = _mod._PRE_COMMIT_PIN_FILES
+_ACTION_PIN_DOCS = _mod._ACTION_REF_DOCS
+_VERSION_INPUT_DOCS = _mod._VERSION_INPUT_DOCS
+_PIP_PIN_DOCS = _mod._PIP_PIN_DOCS
+
+# What each pin pattern must match, counted independently of the pattern:
+# every occurrence of the thing being pinned. A reshaped example (an extra
+# blank line under ``repo:``, a quoted ``version: 'v0.21.1'``, a ``uses:``
+# with a different spacing) then fails here instead of silently dropping out
+# of --check, which only WARNs on a pattern that matches nothing.
+_PIN_ANCHORS = {
+    _mod._PRE_COMMIT_REV_PATTERN: (
+        r"(?m)^[ \t-]*repo: https://github\.com/adudley78/mcp-audit[ \t]*$"
+    ),
+    _mod._ACTION_REF_PATTERN: r"uses:\s*adudley78/mcp-audit[/@]",
+    _mod._VERSION_INPUT_PATTERN: r"(?m)^[ \t]+version:\s*['\"]?v\d",
+    _mod._PIP_PIN_PATTERN: r"mcp-audit-scanner==",
+}
 
 
 def _fresh_module() -> object:
@@ -326,17 +329,47 @@ def test_release_version_rejects_non_release_versions(
         _mod._collect_release_version(pyproject)
 
 
-def test_every_pin_pattern_matches_its_real_file() -> None:
-    """Each pinned example must still exist in the shape the script rewrites.
+def _pin_rows() -> list[tuple[str, str, str]]:
+    return [row for row in _mod._SUBSTITUTIONS if "{release_" in row[2]]
 
-    _apply() only WARNs when a pattern stops matching, so a reshaped example
-    would otherwise drop out of --check silently and go stale again.
-    """
-    pin_rows = [row for row in _mod._SUBSTITUTIONS if "{release_tag}" in row[2]]
-    assert {rel for rel, _, _ in pin_rows} == set(_PIN_FILES)
-    for rel, pattern, _ in pin_rows:
-        text = (ROOT / rel).read_text(encoding="utf-8")
-        assert re.search(pattern, text), f"pin pattern {pattern!r} misses {rel}"
+
+def test_pin_rows_cover_exactly_the_pinned_files() -> None:
+    by_pattern: dict[str, set[str]] = {}
+    for rel, pattern, _ in _pin_rows():
+        by_pattern.setdefault(pattern, set()).add(rel)
+    assert by_pattern == {
+        _mod._PRE_COMMIT_REV_PATTERN: set(_PRE_COMMIT_PIN_FILES),
+        _mod._ACTION_REF_PATTERN: set(_ACTION_PIN_DOCS),
+        _mod._VERSION_INPUT_PATTERN: set(_VERSION_INPUT_DOCS),
+        _mod._PIP_PIN_PATTERN: set(_PIP_PIN_DOCS),
+    }
+
+
+_PATTERN_NAMES = {
+    _mod._PRE_COMMIT_REV_PATTERN: "pre-commit-rev",
+    _mod._ACTION_REF_PATTERN: "action-uses",
+    _mod._VERSION_INPUT_PATTERN: "version-input",
+    _mod._PIP_PIN_PATTERN: "pip-pin",
+}
+
+
+@pytest.mark.parametrize(
+    ("rel", "pattern"),
+    [
+        pytest.param(rel, pattern, id=f"{_PATTERN_NAMES[pattern]}:{rel}")
+        for rel, pattern, _ in _pin_rows()
+    ],
+)
+def test_every_pinned_example_is_matched(rel: str, pattern: str) -> None:
+    """Each pin row matches every occurrence of what it pins, and at least one."""
+    text = (ROOT / rel).read_text(encoding="utf-8")
+    matched = len(re.findall(pattern, text))
+    expected = len(re.findall(_PIN_ANCHORS[pattern], text))
+    assert expected > 0, f"{rel} no longer contains anything this row pins"
+    assert matched == expected, (
+        f"{rel}: pattern matched {matched} of {expected} pinned examples; "
+        "an example has a shape the script would not rewrite"
+    )
 
 
 def test_readme_examples_are_pinned_to_the_current_release() -> None:
@@ -381,9 +414,20 @@ def test_check_flags_stale_pins_and_rewrite_fixes_them(
         "- uses: adudley78/mcp-audit@v0.3.3  # comment kept\n"
         "- uses: adudley78/mcp-audit/setup-action@v0.10.0\n" + sha_pin
     )
-    for rel in _ACTION_PIN_DOCS:
-        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
-        (tmp_path / rel).write_text(action_doc, encoding="utf-8")
+    prose = "Lock verification was added in `adudley78/mcp-audit@v0.17.0`.\n"
+    version_input = "      - uses: x/y@v1\n        with:\n          version: v0.21.1\n"
+    pip_pin = "pip install mcp-audit-scanner==0.21.1\n"
+    assert _ACTION_PIN_DOCS[0] == _VERSION_INPUT_DOCS[0] == "README.md"
+    for rel in _ACTION_PIN_DOCS[1:]:
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        before = path.read_text(encoding="utf-8") if path.exists() else ""
+        path.write_text(action_doc + prose + before, encoding="utf-8")
+    for rel in _VERSION_INPUT_DOCS[1:]:
+        path = tmp_path / rel
+        path.write_text(path.read_text(encoding="utf-8") + version_input, "utf-8")
+    for rel in _PIP_PIN_DOCS:
+        (tmp_path / rel).write_text(pip_pin, encoding="utf-8")
     monkeypatch.setattr(m, "ROOT", tmp_path)
 
     assert m._apply(check_only=True) == 1
@@ -396,10 +440,17 @@ def test_check_flags_stale_pins_and_rewrite_fixes_them(
     assert other_repo in readme, "a different repo's rev must not be touched"
     for rel in _PRE_COMMIT_PIN_FILES[1:]:
         assert "rev: v0.22.0" in (tmp_path / rel).read_text(encoding="utf-8")
-    for rel in _ACTION_PIN_DOCS:
-        assert (tmp_path / rel).read_text(encoding="utf-8") == (
+    for rel in _ACTION_PIN_DOCS[1:]:
+        text = (tmp_path / rel).read_text(encoding="utf-8")
+        assert prose in text, f"{rel}: prose citing an old release was rewritten"
+        if rel in _VERSION_INPUT_DOCS:
+            assert text.endswith("          version: v0.22.0\n"), rel
+        assert text.startswith(
             "- uses: adudley78/mcp-audit@v0.22.0\n"
             "- uses: adudley78/mcp-audit@v0.22.0  # comment kept\n"
             "- uses: adudley78/mcp-audit/setup-action@v0.22.0\n" + sha_pin
         ), f"{rel}: tags and @main move; a SHA pin is left alone"
+    for rel in _PIP_PIN_DOCS:
+        text = (tmp_path / rel).read_text(encoding="utf-8")
+        assert text == "pip install mcp-audit-scanner==0.22.0\n"
     assert m._apply(check_only=True) == 0

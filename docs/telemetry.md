@@ -6,8 +6,15 @@ crash reports.
 ## What this means
 
 - Every scan runs entirely on your machine.
-- No data is sent to mcp-audit servers, Anthropic, or any third party.
-- No identifiers (machine ID, email) are transmitted.
+- mcp-audit sends no usage data, analytics or crash reports anywhere.
+- No identifiers (machine ID, email) are transmitted, with one opt-in
+  exception: `mcp-audit register` sends the name, org and email you type.
+  See [privacy.md](privacy.md) for exactly what is sent and where.
+- A few commands look things up online (package versions, the registry
+  file); `fix`, `sbom` and `lock` do so by default unless you pass
+  `--offline`. Those requests carry package names and versions, not your
+  config. The full list is in
+  [privacy.md](privacy.md#commands-that-use-the-network).
 - `mcp-audit watch` continuous monitoring also runs fully locally.
 - The HTML dashboard is a self-contained file — no beacons, no fonts loaded
   from external CDNs, no JavaScript that phones home.

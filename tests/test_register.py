@@ -388,9 +388,10 @@ class TestRegisterInteractiveCommand:
             "You can also ask for a follow-up if your scan grade is C or below.",
             "Every feature works the same whether or not you register.",
             "",
-            "It sends your name, org, email, follow-up choice, and mcp-audit version,",
-            "once. Then each `mcp-audit check` sends the version and grade only.",
-            "Remove it any time with `mcp-audit register --clear`.",
+            "It sends your name, org, email, follow-up choice and mcp-audit",
+            'version, with a placeholder grade of "?", once. After that, each',
+            "`mcp-audit check` sends the version and grade only. Remove it any",
+            "time with `mcp-audit register --clear`.",
         )
         for line in REGISTER_PROMPT_LINES:
             assert line in result.output
