@@ -30,7 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   an attack. `scripts/bench_poisoning.py` (dev tooling, not part of the package) takes
   the measurement; `docs/research/poisoning-benchmark/` holds the labels and the results.
   `tests/test_bench_poisoning.py` fails when the patterns change until both numbers are
-  re-measured, and CI re-fetches MCPTox (never committed) and fails if recall drops.
+  re-measured. Recall is a release-time measurement: MCPTox is fetched by hand, never in
+  CI, and never committed.
 
 ### Changed
 

@@ -240,7 +240,7 @@ Build and distribution scripts at project root:
 - `scripts/install.sh` — curl-based end-user installer for GitHub Releases
 
 Measurement scripts (dev tooling, not in the package):
-- `scripts/bench_poisoning.py` — POISON-* precision (offline: top-100 npm corpus + `docs/research/poisoning-benchmark/top100-labels.json`) and recall (MCPTox, fetched at run time, never committed); pinned in `docs/research/poisoning-benchmark/results.json`, enforced by `tests/test_bench_poisoning.py` (patterns fingerprint, committed-fragment replay) and the `ci.yml` "Poisoning recall on MCPTox" step; see `docs/poisoning.md`. After any POISON-* pattern change, re-run `precision --write` and `recall --write` and update the numbers in `docs/poisoning.md`, `GAPS.md` and `README.md` (STORY-0088)
+- `scripts/bench_poisoning.py` — POISON-* precision (offline: top-100 npm corpus + `docs/research/poisoning-benchmark/top100-labels.json`) and recall (MCPTox, fetched at run time, never committed); pinned in `docs/research/poisoning-benchmark/results.json`, enforced by `tests/test_bench_poisoning.py` (patterns fingerprint, committed-fragment replay); recall is manual and release-time, never fetched in CI; see `docs/poisoning.md`. After any POISON-* pattern change, and before any release that changes them, re-run `precision --write` and `recall --write` and update the numbers in `docs/poisoning.md`, `GAPS.md` and `README.md` (STORY-0088)
 
 ## Key conventions
 

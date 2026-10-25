@@ -10,8 +10,9 @@ until the benchmark is re-run and the docs are updated.
 
 MCPTox is never committed (no stated licence), so recall parsing and scoring
 are tested on small records written here in MCPTox's shape. The real recall
-measurement runs in CI (``ci.yml``, "Poisoning recall on MCPTox") and locally
-when ``MCP_AUDIT_MCPTOX_DIR`` points at a downloaded copy.
+measurement is manual and release-time (``bench_poisoning.py recall``); it also
+runs here when ``MCP_AUDIT_MCPTOX_DIR`` points at a downloaded copy. CI never
+fetches it: the patterns fingerprint test forces a re-measurement instead.
 """
 
 from __future__ import annotations
@@ -517,24 +518,24 @@ class TestRecallCli:
         argv = ["recall", "--check", "--results", str(results)]
         assert bench.main([*argv, "--source", str(self._source(tmp_path))]) == 1
 
-    def test_unavailable_is_skipped_only_when_asked(
+    def test_unavailable_dataset_is_an_error(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         results = self._results(tmp_path, bench.measure_recall(_dataset()))
         argv = ["recall", "--check", "--results", str(results)]
-        missing = ["--source", str(tmp_path / "absent")]
-        assert bench.main([*argv, *missing]) == 2
-        assert bench.main([*argv, *missing, "--skip-if-unavailable"]) == 0
-        assert "recall not measured" in capsys.readouterr().err
+        assert bench.main([*argv, "--source", str(tmp_path / "absent")]) == 2
+        assert "not a directory" in capsys.readouterr().err
 
-    def test_changed_dataset_is_skipped_before_parsing(self, tmp_path: Path) -> None:
-        """A host that answers with an error page reads as unavailable."""
+    def test_changed_dataset_is_refused_before_parsing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A host that answers with an error page is not the pinned dataset."""
         results = self._results(tmp_path, bench.measure_recall(_dataset()))
         src = self._source(tmp_path)
         (src / "response_all.json").write_bytes(b'{"error":"not_connected"}')
         argv = ["recall", "--check", "--results", str(results), "--source", str(src)]
-        assert bench.main([*argv, "--skip-if-unavailable"]) == 0
         assert bench.main(argv) == 2
+        assert "pinned SHA-256" in capsys.readouterr().err
 
     def test_write_records_section(self, tmp_path: Path) -> None:
         results = tmp_path / "out" / "results.json"
@@ -546,21 +547,6 @@ class TestRecallCli:
 
 
 class TestCommittedResults:
-    def test_ci_runs_the_recall_check(self) -> None:
-        """Recall can only regress-check in CI, where MCPTox is fetched."""
-        import yaml
-
-        ci = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text())
-        runs = [
-            str(step.get("run", ""))
-            for job in ci["jobs"].values()
-            for step in job.get("steps", [])
-        ]
-        assert any(
-            "scripts/bench_poisoning.py recall --check --skip-if-unavailable" in r
-            for r in runs
-        )
-
     def test_dataset_is_not_committed(self) -> None:
         research = ROOT / "docs" / "research"
         found = [p for n in bench.MCPTOX_FILES for p in research.rglob(n)]
@@ -580,7 +566,7 @@ class TestCommittedResults:
     not os.environ.get("MCP_AUDIT_MCPTOX_DIR"),
     reason=(
         "set MCP_AUDIT_MCPTOX_DIR to a directory holding MCPTox's response_all.json "
-        "and pure_tool.json to measure recall locally (CI measures it in ci.yml)"
+        "and pure_tool.json to measure recall locally (release-time, not CI)"
     ),
 )
 def test_local_mcptox_matches_pinned_results() -> None:

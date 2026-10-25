@@ -70,7 +70,7 @@ The full tool definitions (about 6 MB) are not committed, and neither is which s
 ## How the numbers stay true
 
 - `tests/test_bench_poisoning.py` (offline, every CI leg) recomputes the top-100 precision and the fragment replay and compares them with `results.json`. It also compares a fingerprint of the POISON-* patterns with the one recorded for both measurements, so a pattern change fails CI until both are re-measured and this page is updated.
-- The ubuntu "all optional extras" CI job runs `python scripts/bench_poisoning.py recall --check --skip-if-unavailable` on every push. It fetches MCPTox, checks the hashes and fails if fewer cases are detected or more clean tools are flagged than `results.json` records. If the host is unreachable, or its files no longer match the pinned hashes, it warns instead.
+- Recall is a manual, release-time measurement; CI never fetches MCPTox. **Re-run it before any release that changes POISON-* patterns.** `recall --check` fetches MCPTox, refuses files that no longer match the pinned SHA-256, and exits 1 if fewer cases are detected or more clean tools are flagged than `results.json` records.
 - To re-measure after changing a pattern:
 
 ```

@@ -30,14 +30,14 @@ fires. Two measurements, both written to
 ``--check`` compares a fresh measurement with ``results.json`` and exits 1
 only on a regression: fewer poisoned cases detected, or more clean tools
 flagged. Improvements are reported, not failed. ``--write`` records the fresh
-measurement. ``--skip-if-unavailable`` turns "dataset unreachable" and
-"dataset changed upstream" into a warning and exit 0, so an outage of the
-anonymized host cannot block an unrelated pull request.
+measurement. ``recall`` is a manual, release-time measurement and never runs
+in CI: run it before any release that changes POISON-* patterns (the offline
+fingerprint test in ``tests/test_bench_poisoning.py`` fails until you do).
 
 Usage::
 
     python scripts/bench_poisoning.py precision --check
-    python scripts/bench_poisoning.py recall --check --skip-if-unavailable
+    python scripts/bench_poisoning.py recall --check
     python scripts/bench_poisoning.py recall --source ~/data/mcptox --write
 """
 
@@ -47,7 +47,6 @@ import argparse
 import hashlib
 import http.client
 import json
-import os
 import re
 import sys
 import urllib.error
@@ -682,13 +681,6 @@ def _write_section(path: Path, key: str, section: dict[str, Any]) -> None:
     )
 
 
-def _warn(message: str) -> None:
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::warning title=Poisoning benchmark not checked::{message}")
-    else:
-        print(f"warning: {message}", file=sys.stderr)
-
-
 def _print_recall(section: dict[str, Any]) -> None:
     bench = section["benchmark_cases"]
     print(f"MCPTox {section['files']}")
@@ -754,21 +746,15 @@ def run_precision(args: argparse.Namespace) -> int:
 def run_recall(args: argparse.Namespace) -> int:
     """``recall`` subcommand."""
     pinned = (_read_json(args.results).get("mcptox") or {}) if args.check else {}
-    try:
-        files = load_mcptox(args.source)
-        # Hash before parsing: a host that answers with an error page must
-        # read as "unavailable", not as a malformed dataset.
-        if args.check and file_digests(files) != (pinned.get("files") or {}):
-            raise DatasetUnavailableError(
-                "MCPTox files differ from the pinned SHA-256 values "
-                f"(got {file_digests(files)})"
-            )
-        section = measure_recall(files)
-    except DatasetUnavailableError as exc:
-        if args.skip_if_unavailable:
-            _warn(f"recall not measured: {exc}")
-            return 0
-        raise
+    files = load_mcptox(args.source)
+    # Hash before parsing: a host that answers with an error page must read
+    # as "not the pinned dataset", not as a malformed one.
+    if args.check and file_digests(files) != (pinned.get("files") or {}):
+        raise DatasetUnavailableError(
+            "MCPTox files differ from the pinned SHA-256 values "
+            f"(got {file_digests(files)})"
+        )
+    section = measure_recall(files)
     _print_recall(section)
     status = 0
     if args.check:
@@ -790,7 +776,6 @@ def main(argv: list[str] | None = None) -> int:
     sub.choices["precision"].add_argument("--summary", type=Path, default=SUMMARY_PATH)
     sub.choices["precision"].add_argument("--labels", type=Path, default=LABELS_PATH)
     sub.choices["recall"].add_argument("--source", default=MCPTOX_DEFAULT_SOURCE)
-    sub.choices["recall"].add_argument("--skip-if-unavailable", action="store_true")
     args = parser.parse_args(argv)
     try:
         return run_precision(args) if args.command == "precision" else run_recall(args)

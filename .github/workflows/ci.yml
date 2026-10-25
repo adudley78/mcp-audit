@@ -111,16 +111,6 @@ jobs:
         # A PR that adds a new finding ID without updating the mapping will fail here.
         run: python scripts/validate_owasp_mapping.py
 
-      - name: Poisoning recall on MCPTox
-        # STORY-0088. Fetches MCPTox (arXiv 2508.14925) from the authors'
-        # anonymized repository at run time; the dataset is never committed.
-        # Fails only when POISON-* recall drops, or more of MCPTox's clean
-        # tools are flagged, than docs/research/poisoning-benchmark/results.json
-        # records. An unreachable host, or files that no longer match the pinned
-        # SHA-256, is a warning, not a failure. The precision side needs no
-        # network and runs in pytest (tests/test_bench_poisoning.py).
-        run: python scripts/bench_poisoning.py recall --check --skip-if-unavailable
-
   wheel-check:
     name: Wheel metadata
     runs-on: ubuntu-latest
