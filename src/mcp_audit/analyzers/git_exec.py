@@ -45,7 +45,7 @@ import os
 import re
 import shlex
 import stat as stat_module
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -609,28 +609,16 @@ _EDITORS = frozenset({
     "code", "code-insiders", "codium", "cursor", "subl", "mate", "micro", "hx",
     "kak", "gedit", "kate", "notepad", "notepad++", "zed",
 })
-# Text converters people point diff.<driver>.textconv at.  They read the file
-# git hands them and print text; none runs code from its input, as long as the
-# options in _CONVERTER_RISKY_OPTIONS are absent and no argument names a file
-# inside the repository.  Interpreters (python, node, bun, …) are deliberately
-# not here: they run whatever file git routes to them.
+# Text converters people point diff.<driver>.textconv at.  Each one is INFO only
+# when every argument it is given is on its allowlist in _ARG_SPECS below.
+# Interpreters (python, node, bun, …) are deliberately not here: they run
+# whatever file git routes to them.  ansible-vault is not here either: `view`
+# reads vault_password_file from an ansible.cfg in the working directory, which
+# is the repository root, and that setting can name a script.
 _CONVERTERS = frozenset({
     "exiftool", "docx2txt", "pdftotext", "pandoc", "odt2txt", "strings",
-    "hexdump", "xxd", "cat", "sops", "gpg", "gpg2", "ansible-vault", "age", "unzip",
+    "hexdump", "xxd", "cat", "sops", "gpg", "gpg2", "age", "unzip",
 })
-# Options that make a converter load code or a config that can run code.
-_CONVERTER_RISKY_OPTIONS: dict[str, tuple[str, ...]] = {
-    "pandoc": ("--filter", "-F", "--lua-filter", "-L", "--defaults", "-d",
-               "--data-dir"),
-    "exiftool": ("-config", "-@", "-if", "-p", "-api", "-userparam"),
-    "sops": ("exec-env", "exec-file"),
-    "ansible-vault": ("--vault-password-file", "--vault-pass-file", "--vault-id",
-                      "--new-vault-password-file", "--new-vault-id"),
-    "gpg": ("--options", "--homedir", "--photo-viewer", "--exec-path",
-            "--load-extension"),
-    "gpg2": ("--options", "--homedir", "--photo-viewer", "--exec-path",
-             "--load-extension"),
-}
 _SIGNERS = frozenset({
     "gpg", "gpg2", "gpgsm", "gitsign", "ssh-keygen", "smimesign", "op-ssh-sign",
 })
@@ -647,7 +635,6 @@ class _Rule:
     runs: str
     kind: str = "command"  # command | bool-or-command | bang | ssh | credential
     known: frozenset[str] = frozenset()
-    known_args: str = "any"  # "any" | "flags" | "converter"
     python_modules: frozenset[str] = frozenset()
 
 
@@ -661,8 +648,9 @@ _L = Severity.LOW
 # helper, submodule update).  LOW: only on an explicit, unusual invocation.
 # ``known`` lists the tools whose installers write these keys into a repo's own
 # config (git lfs install --local, git-crypt unlock, nbstripout --install,
-# husky, gitsign); a known tool run from outside the tree is reported once, as
-# INFO inventory, not as a finding to fail CI on.
+# husky, gitsign); a known tool run from outside the tree, with only the
+# arguments its allowlist in _ARG_SPECS accepts, is reported once, as INFO
+# inventory, not as a finding to fail CI on.
 # fmt: off
 _RULES: tuple[_Rule, ...] = (
     # label, section, name, subsection, tier, when it runs, …
@@ -675,7 +663,7 @@ _RULES: tuple[_Rule, ...] = (
           known=frozenset({"git-nbdiffdriver", "difft"})),
     _Rule("diff.<driver>.textconv", "diff", "textconv", "any", _H, _RUNS_ATTR_DIFF,
           known=frozenset({"git-crypt", "nbstripout"}) | _CONVERTERS,
-          known_args="converter", python_modules=frozenset({"nbstripout"})),
+          python_modules=frozenset({"nbstripout"})),
     # `cat` is what nbstripout --install writes as its smudge filter.
     _Rule("filter.<driver>.clean", "filter", "clean", "any", _H, _RUNS_CLEAN,
           known=frozenset({"git-lfs", "git-crypt", "git-annex", "nbstripout", "cat"}),
@@ -688,14 +676,14 @@ _RULES: tuple[_Rule, ...] = (
     _Rule("credential.helper", "credential", "helper", "either", _H, _RUNS_CREDENTIAL,
           kind="credential"),
     _Rule("core.editor", "core", "editor", "none", _M, _RUNS_EDITOR,
-          known=_EDITORS, known_args="flags"),
+          known=_EDITORS),
     _Rule("sequence.editor", "sequence", "editor", "none", _M, _RUNS_SEQUENCE_EDITOR,
-          known=_EDITORS, known_args="flags"),
+          known=_EDITORS),
     _Rule("core.askPass", "core", "askpass", "none", _M, _RUNS_ASKPASS),
     _Rule("gpg.program", "gpg", "program", "none", _M, _RUNS_GPG,
-          known=_SIGNERS, known_args="flags"),
+          known=_SIGNERS),
     _Rule("gpg.<format>.program", "gpg", "program", "any", _M, _RUNS_GPG,
-          known=_SIGNERS, known_args="flags"),
+          known=_SIGNERS),
     _Rule("merge.<driver>.driver", "merge", "driver", "any", _M, _RUNS_MERGE,
           known=frozenset({"true", "git-nbmergedriver", "git-lfs"})),
     _Rule("submodule.<name>.update", "submodule", "update", "any", _M, _RUNS_SUBMODULE,
@@ -705,9 +693,9 @@ _RULES: tuple[_Rule, ...] = (
     _Rule("remote.<name>.receivepack", "remote", "receivepack", "any", _M,
           _RUNS_REMOTE_PACK, known=frozenset({"git-receive-pack"})),
     _Rule("core.pager", "core", "pager", "none", _L, _RUNS_PAGER,
-          known=_PAGERS, known_args="flags"),
+          known=_PAGERS),
     _Rule("pager.<command>", "pager", "*", "none", _L, _RUNS_PAGER,
-          kind="bool-or-command", known=_PAGERS, known_args="flags"),
+          kind="bool-or-command", known=_PAGERS),
     _Rule("alias.<name>", "alias", "*", "none", _L, _RUNS_ALIAS, kind="bang"),
     _Rule("core.gitProxy", "core", "gitproxy", "none", _L, _RUNS_GITPROXY),
 )
@@ -736,7 +724,6 @@ def _match_rule(entry: GitConfigEntry) -> _Rule | None:
 
 
 _SHELL_META_RE = re.compile(r"[;&|<>`\r\n]|\$\(")
-_FLAG_RE = re.compile(r"^--?[A-Za-z][A-Za-z0-9-]*(=[A-Za-z0-9._/:@%+~-]*)?$")
 _PYTHON_RE = re.compile(r"^python(w)?(\d+(\.\d+)*)?$")
 _BOOL_WORDS = frozenset({"true", "false", "yes", "no", "on", "off", ""})
 _INT_RE = re.compile(r"^[+-]?\d+[kmg]?$", re.IGNORECASE)
@@ -895,32 +882,285 @@ def _classify_command(cmd: str, rule: _Rule, ctx: _Ctx) -> _Verdict:
             tool, args = module, args[2:]
     if tool is None:
         return _UNKNOWN
-    if rule.known_args == "flags" and not all(
-        a == "" or _FLAG_RE.match(a) for a in args
-    ):
-        return _UNKNOWN
-    if rule.known_args == "converter" and not _converter_args_ok(tool, args, ctx):
+    unsafe = _first_unsafe_arg(tool, args, ctx)
+    if unsafe is not None:
         return _Verdict(
             "unknown",
             None,
-            f"`{tool}` is given an option or a file inside the repository that can"
-            " make it load code",
+            f"the program is {tool}, but `{unsafe}` is not one of the arguments"
+            f" mcp-audit knows to be safe for it (an option outside its allowlist,"
+            " or a value naming a file in the repository), so the repository can"
+            " steer what it loads or writes",
         )
     return _locate_known(prog, tool, ctx)
 
 
-def _arg_is_risky(tool: str, arg: str) -> bool:
-    for opt in _CONVERTER_RISKY_OPTIONS.get(tool, ()):
-        if arg == opt or arg.startswith(f"{opt}="):
-            return True
-        if len(opt) == 2 and opt.startswith("-") and arg.startswith(opt):
-            return True  # attached short option, e.g. -Lfilter.lua
-    return False
+# ── Known-tool argument allowlists ──────────────────────────────────────────
+# A known tool drops below its key's severity only when every argument it is
+# given is on that tool's list: an exact option, an option whose value passes a
+# fixed check (given as the next argument, as `--opt=value`, or attached as
+# `-Xvalue`), a fixed subcommand word, or one of git's placeholders.  Anything
+# else keeps the full severity, and so does any value that names an existing
+# entry in the repository.  This is an allowlist on purpose: a deny-list of
+# options that load code missed `pandoc -f reader.lua` (a Lua reader),
+# ExifTool's `-IF` and `-if2` (its option names ignore case and take a number),
+# and an attached `pandoc -o<path>`.
+
+_PLACEHOLDERS = frozenset({"-", "%f", "%O", "%A", "%B", "%L", "%P"})
+
+_ValueCheck = Callable[[str, _Ctx], bool]
 
 
-def _arg_points_in_tree(arg: str, ctx: _Ctx) -> bool:
-    value = arg.split("=", 1)[1] if arg.startswith("-") and "=" in arg else arg
-    if not value or (value.startswith("-") and "=" not in arg):
+def _one_of(*values: str) -> _ValueCheck:
+    allowed = frozenset(values)
+    return lambda value, _ctx: value in allowed
+
+
+def _matching(pattern: str) -> _ValueCheck:
+    compiled = re.compile(pattern)
+    return lambda value, _ctx: compiled.fullmatch(value) is not None
+
+
+_NUMBER = _matching(r"\d{1,4}")
+_NAME = _matching(r"[A-Za-z0-9_][A-Za-z0-9_ .+()-]*")
+
+
+def _path_outside_tree(value: str, ctx: _Ctx) -> bool:
+    """A file argument the repository does not supply (age's ``-i`` identity)."""
+    if not value or value.startswith("-"):
+        return False
+    return not _in_tree(_expand_path(value, ctx.repo_root), ctx.scan_root)
+
+
+def _alternate_editor(value: str, _ctx: _Ctx) -> bool:
+    """emacsclient ``-a``: empty (start a daemon) or another known editor."""
+    return value == "" or (value in _EDITORS and value != "emacsclient")
+
+
+# fmt: off
+# pandoc's built-in reader and writer names.  A format outside these (a path,
+# or anything ending in .lua) is a custom Lua reader or writer, which runs code.
+_PANDOC_READERS = frozenset({
+    "asciidoc", "biblatex", "bibtex", "bits", "commonmark", "commonmark_x",
+    "creole", "csljson", "csv", "djot", "docbook", "docx", "dokuwiki",
+    "endnotexml", "epub", "fb2", "gfm", "haddock", "html", "ipynb", "jats",
+    "jira", "json", "latex", "man", "markdown", "markdown_github",
+    "markdown_mmd", "markdown_phpextra", "markdown_strict", "mdoc",
+    "mediawiki", "muse", "native", "odt", "opml", "org", "pod", "pptx", "ris",
+    "rst", "rtf", "t2t", "textile", "tikiwiki", "tsv", "twiki", "typst",
+    "vimwiki", "xlsx", "xml",
+})
+_PANDOC_WRITERS = frozenset({
+    "ansi", "asciidoc", "asciidoc_legacy", "asciidoctor", "beamer", "biblatex",
+    "bibtex", "chunkedhtml", "commonmark", "commonmark_x", "context",
+    "csljson", "djot", "docbook", "docbook4", "docbook5", "docx", "dokuwiki",
+    "dzslides", "epub", "epub2", "epub3", "fb2", "gfm", "haddock", "html",
+    "html4", "html5", "icml", "ipynb", "jats", "jats_archiving",
+    "jats_articleauthoring", "jats_publishing", "jira", "json", "latex", "man",
+    "markdown", "markdown_github", "markdown_mmd", "markdown_phpextra",
+    "markdown_strict", "markua", "mediawiki", "ms", "muse", "native", "odt",
+    "opendocument", "opml", "org", "plain", "pptx", "revealjs", "rst", "rtf",
+    "s5", "slideous", "slidy", "tei", "texinfo", "textile", "typst", "xml",
+    "xwiki", "zimwiki",
+})
+# fmt: on
+_PANDOC_FORMAT_RE = re.compile(r"(?P<name>[a-z0-9_]+)(?:[+-][a-z0-9_]+)*")
+
+
+def _pandoc_format(names: frozenset[str]) -> _ValueCheck:
+    """A built-in format name, optionally with ``+ext``/``-ext`` extensions."""
+
+    def check(value: str, _ctx: _Ctx) -> bool:
+        match = _PANDOC_FORMAT_RE.fullmatch(value)
+        return match is not None and match.group("name") in names
+
+    return check
+
+
+@dataclass(frozen=True)
+class _ArgSpec:
+    """The arguments a known tool may be given and still count as known."""
+
+    flags: frozenset[str] = frozenset()
+    valued: Mapping[str, _ValueCheck] = field(default_factory=dict)
+    words: frozenset[str] = frozenset()  # fixed subcommands, e.g. `sops decrypt`
+    patterns: tuple[re.Pattern[str], ...] = ()  # e.g. exiftool -g1, less -FRX
+
+
+def _spec(
+    flags: str = "",
+    words: str = "",
+    patterns: tuple[str, ...] = (),
+    valued: Mapping[str, _ValueCheck] | None = None,
+) -> _ArgSpec:
+    return _ArgSpec(
+        flags=frozenset(flags.split()),
+        valued=dict(valued or {}),
+        words=frozenset(words.split()),
+        patterns=tuple(re.compile(p) for p in patterns),
+    )
+
+
+_NO_ARGS = _ArgSpec()
+_PANDOC_IN = _pandoc_format(_PANDOC_READERS)
+_PANDOC_OUT = _pandoc_format(_PANDOC_WRITERS)
+_PAGING = _one_of("always", "never", "auto")
+_VI = _spec("-f --nofork --clean -n -N --noplugin")
+_VSCODE = _spec("--wait -w --new-window -n --reuse-window -r")
+_GPG = _spec("-d --decrypt -q --quiet --batch --no-tty")
+
+# Tools absent from this table take no arguments at all (true, cat, docx2txt,
+# odt2txt, rs-git-fsmonitor, git-upload-pack, gitsign, micro, …).
+# fmt: off
+_ARG_SPECS: dict[str, _ArgSpec] = {
+    # ── text converters (diff.<driver>.textconv, and cat as a filter) ──
+    "pandoc": _spec(
+        "-s --standalone -q --quiet --strip-comments --reference-links"
+        " --preserve-tabs --sandbox --ascii --no-highlight",
+        valued={
+            "-f": _PANDOC_IN, "--from": _PANDOC_IN,
+            "-r": _PANDOC_IN, "--read": _PANDOC_IN,
+            "-t": _PANDOC_OUT, "--to": _PANDOC_OUT,
+            "-w": _PANDOC_OUT, "--write": _PANDOC_OUT,
+            "--wrap": _one_of("auto", "none", "preserve"),
+            "--columns": _NUMBER, "--tab-stop": _NUMBER,
+            "--eol": _one_of("crlf", "lf", "native"),
+            "--track-changes": _one_of("accept", "reject", "all"),
+            "--markdown-headings": _one_of("atx", "setext"),
+            "--shift-heading-level-by": _matching(r"-?\d"),
+        },
+    ),
+    # Read-only display options only.  Each letter here is harmless whichever
+    # case ExifTool reads it in; multi-letter options (-if, -config, -api, …)
+    # are never accepted, so their case-insensitive spellings are not either.
+    "exiftool": _spec(
+        "-a -u -U -n -e -E -q -m -l -L -j -t -T -h -H -D -f -b -X -S",
+        patterns=(r"-[gGsv]\d?(:\d)*",),
+        valued={
+            "-x": _matching(r"[A-Za-z0-9_:*?-]+"),
+            "-d": _matching(r"[A-Za-z0-9%:._ /-]+"),
+        },
+    ),
+    "gpg": _GPG,
+    "gpg2": _GPG,
+    "sops": _spec(
+        "-d --decrypt",
+        words="decrypt",
+        valued={
+            "--input-type": _one_of("json", "yaml", "dotenv", "ini", "binary"),
+            "--output-type": _one_of("json", "yaml", "dotenv", "ini", "binary"),
+        },
+    ),
+    "age": _spec(
+        "-d --decrypt",
+        valued={"-i": _path_outside_tree, "--identity": _path_outside_tree},
+    ),
+    "pdftotext": _spec(
+        "-layout -raw -nopgbrk -q",
+        valued={
+            "-enc": _one_of("UTF-8", "Latin1", "ASCII7"),
+            "-f": _NUMBER, "-l": _NUMBER,
+        },
+    ),
+    "strings": _spec("-a --all", valued={"-n": _NUMBER}),
+    "hexdump": _spec("-C --canonical -v -b -c -d -o -x"),
+    "xxd": _spec("-p -ps -u -b -e -i", valued={"-c": _NUMBER, "-g": _NUMBER}),
+    "unzip": _spec("-p -c -a -aa -l -v -q -qq"),
+    # ── installer-written forms ──
+    "git-lfs": _spec(
+        "-- --skip",
+        words="clean smudge filter-process merge-driver",
+        valued={
+            "--ancestor": _one_of("%O"), "--current": _one_of("%A"),
+            "--other": _one_of("%B"), "--output": _one_of("%A"),
+            "--marker-size": _matching(r"%L|\d{1,3}"),
+        },
+    ),
+    "git-crypt": _spec(
+        words="clean smudge diff",
+        valued={"--key-name": _matching(r"[A-Za-z0-9_.-]+")},
+    ),
+    "git-annex": _spec("-- --clean", words="smudge filter-process"),
+    "nbstripout": _spec("-t --textconv"),
+    "git-nbdiffdriver": _spec(words="diff"),
+    "git-nbmergedriver": _spec(words="merge"),
+    "difft": _spec(
+        "--skip-unchanged --ignore-comments",
+        valued={
+            "--display": _one_of(
+                "side-by-side", "side-by-side-show-both", "inline", "json"
+            ),
+            "--color": _PAGING, "--background": _one_of("dark", "light"),
+            "--syntax-highlight": _one_of("on", "off"),
+            "--tab-width": _NUMBER, "--width": _NUMBER, "--context": _NUMBER,
+        },
+    ),
+    # ── editors ──
+    "vi": _VI, "vim": _VI, "nvim": _VI, "gvim": _VI, "mvim": _VI,
+    "nano": _spec("-w --nowrap -R --restricted"),
+    "pico": _spec("-w"),
+    "emacs": _spec("-nw --no-window-system -q --no-init-file -Q --quick"),
+    "emacsclient": _spec(
+        "-t --tty -nw -c --create-frame -q --quiet -u --suppress-output",
+        valued={"-a": _alternate_editor, "--alternate-editor": _alternate_editor},
+    ),
+    "code": _VSCODE, "code-insiders": _VSCODE, "codium": _VSCODE,
+    "cursor": _VSCODE,
+    "zed": _spec("--wait -w --new -n"),
+    "subl": _spec("-w --wait -n --new-window"),
+    "mate": _spec("-w --wait"),
+    "gedit": _spec("-s --standalone -w --wait"),
+    "kate": _spec("-b --block -n --new"),
+    "notepad++": _spec("-multiInst -notabbar -nosession -noPlugin"),
+    # ── pagers ──
+    # less: bundles of display letters only.  The letters that take a value
+    # (-o/-O log file, -k lesskey file, -T tags file, -P prompt, …) are absent.
+    "less": _spec(
+        "--RAW-CONTROL-CHARS --raw-control-chars --quit-if-one-screen --no-init"
+        " --chop-long-lines --mouse --ignore-case --IGNORE-CASE --LONG-PROMPT"
+        " --squeeze-blank-lines --quit-at-eof --QUIT-AT-EOF --tilde",
+        patterns=(r"-\+?[FRXSKriIMmNnsJwWeEcCdGgqQaAuUL~]+",),
+        valued={"-x": _NUMBER, "--tabs": _NUMBER},
+    ),
+    "delta": _spec(
+        "--dark --light --side-by-side -s --line-numbers -n --navigate"
+        " --hyperlinks --color-only --no-gitconfig",
+        valued={
+            "--paging": _PAGING,
+            "--features": _matching(r"[A-Za-z0-9_ -]+"),
+            "--syntax-theme": _NAME,
+            "--width": _matching(r"\d{1,4}|variable"),
+            "--tabs": _NUMBER,
+        },
+    ),
+    "bat": _spec(
+        "-p --plain -pp -n --number",
+        valued={
+            "--paging": _PAGING, "--color": _PAGING,
+            "--style": _matching(r"[a-z,-]+"), "--theme": _NAME,
+            "--tabs": _NUMBER, "--wrap": _one_of("auto", "never", "character"),
+        },
+    ),
+    "moar": _spec(
+        "-no-linenumbers --no-linenumbers -quit-if-one-screen"
+        " --quit-if-one-screen -wrap --wrap",
+        valued={"-style": _NAME, "--style": _NAME},
+    ),
+}
+# fmt: on
+
+
+def _names_repo_entry(value: str, ctx: _Ctx) -> bool:
+    """True when an argument value names something inside the repository.
+
+    A value that looks like a path counts when it resolves inside the scanned
+    tree; a bare word counts when an entry of that name exists at the
+    repository root, where git runs these programs.
+    """
+    if not value or value in _PLACEHOLDERS:
+        return False
+    candidate = _expand_path(value, ctx.repo_root)
+    if candidate is None:
         return False
     pathlike = (
         value.startswith((".", "~"))
@@ -928,12 +1168,51 @@ def _arg_points_in_tree(arg: str, ctx: _Ctx) -> bool:
         or "\\" in value
         or _looks_absolute(value)
     )
-    return pathlike and _in_tree(_expand_path(value, ctx.repo_root), ctx.scan_root)
+    if pathlike:
+        return _in_tree(candidate, ctx.scan_root)
+    try:
+        return os.path.lexists(candidate)
+    except (OSError, ValueError):
+        return False
 
 
-def _converter_args_ok(tool: str, args: list[str], ctx: _Ctx) -> bool:
-    """No code-loading option and no argument naming a file inside the repo."""
-    return not any(_arg_is_risky(tool, a) or _arg_points_in_tree(a, ctx) for a in args)
+def _split_option(arg: str, spec: _ArgSpec) -> tuple[_ValueCheck, str] | None:
+    """``--opt=value`` / ``-long=value`` / attached ``-Xvalue`` → (check, value)."""
+    if "=" in arg and arg.startswith("-"):
+        name, value = arg.split("=", 1)
+        if (name.startswith("--") or len(name) > 2) and name in spec.valued:
+            return spec.valued[name], value
+    if len(arg) > 2 and arg[0] == "-" and arg[1] != "-" and arg[:2] in spec.valued:
+        return spec.valued[arg[:2]], arg[2:]
+    return None
+
+
+def _first_unsafe_arg(tool: str, args: list[str], ctx: _Ctx) -> str | None:
+    """The first argument outside *tool*'s allowlist, or ``None`` if all pass."""
+    spec = _ARG_SPECS.get(tool, _NO_ARGS)
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        i += 1
+        if arg in _PLACEHOLDERS or arg in spec.words or arg in spec.flags:
+            continue
+        if any(p.fullmatch(arg) for p in spec.patterns):
+            continue
+        if arg in spec.valued:
+            if i >= len(args):
+                return arg
+            check, value = spec.valued[arg], args[i]
+            shown = f"{arg} {value}"
+            i += 1
+        else:
+            split = _split_option(arg, spec)
+            if split is None:
+                return arg
+            check, value = split
+            shown = arg
+        if not check(value, ctx) or _names_repo_entry(value, ctx):
+            return shown
+    return None
 
 
 _SSH_PROGRAMS = frozenset({"ssh", "plink", "tortoiseplink"})

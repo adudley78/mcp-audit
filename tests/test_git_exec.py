@@ -1177,9 +1177,17 @@ class TestTextconvConverters:
             "sops decrypt",
             "gpg -d --quiet",
             "gpg2 --decrypt",
-            "ansible-vault view",
             "age -d",
             "unzip -c -a",
+            "exiftool -a -u -g1 -s3 -x File:*",
+            "pandoc -f markdown+smart -t plain --wrap=none",
+            "pandoc -tplain -s",
+            "sops -d --input-type yaml",
+            "gpg --no-tty --batch -d -q",
+            "age -d -i ~/.config/age/key.txt",
+            "hexdump -v -C",
+            "xxd -c 32",
+            "strings -n 8",
         ],
     )
     def test_converter_is_info(self, tmp_path: Path, cmd: str) -> None:
@@ -1198,6 +1206,7 @@ class TestTextconvConverters:
             "exiftool -config x.config",
             "exiftool -if 1",
             "sops exec-env",
+            "ansible-vault view",
             "ansible-vault view --vault-password-file .vault_pass",
             "gpg --homedir .gnupg -d",
             "pdftotext ./scripts/evil",
@@ -1206,6 +1215,159 @@ class TestTextconvConverters:
     def test_code_loading_forms_stay_high(self, tmp_path: Path, cmd: str) -> None:
         hits = _hits(tmp_path, f'[diff "x"]\n\ttextconv = {cmd}\n')
         assert [h.severity for h in hits] == [Severity.HIGH]
+
+
+class TestConverterAllowlist:
+    """Round 2: a converter is INFO only when every argument is on its allowlist."""
+
+    @pytest.mark.parametrize(
+        ("cmd", "repo_files"),
+        [
+            # A Lua reader or writer is a script pandoc runs (os.execute).
+            ("pandoc -f reader.lua -t plain", ("reader.lua",)),
+            ("pandoc --from=reader.lua -t plain", ("reader.lua",)),
+            ("pandoc -freader.lua -t plain", ("reader.lua",)),
+            ("pandoc -r reader.lua", ()),
+            ("pandoc -t writer.lua", ()),
+            ("pandoc --to=./w.lua", ()),
+            ("pandoc -w writer.lua", ()),
+            # Attached -o writes the output wherever it names.
+            ("pandoc -t plain -o.git/hooks/post-index-change", ()),
+            ("pandoc -t plain --output=x", ()),
+            ("pandoc -Lf.lua -t plain", ()),
+            ("pandoc --template=./t.tex -t plain", ()),
+            ("pandoc --lua-f=f.lua", ()),  # an abbreviated long option
+            # ExifTool reads option names case-insensitively, with a number.
+            ("exiftool -if2 system(1)", ()),
+            ("exiftool -IF system(1)", ()),
+            ("exiftool -If 1", ()),
+            ("exiftool -CONFIG cfg", ()),
+            ("exiftool -p $Comment", ()),
+            ("exiftool -Comment=x", ()),
+            ("gpg --homedir=.gnupg -d", ()),
+            ("gpg --home .gnupg -d", ()),
+            ("age -d -i key.txt", ("key.txt",)),
+            ("age -d -i ./keys/k", ()),
+            ("sops exec-file x y", ()),
+            ("cat ./notes.txt", ()),
+            ("cat notes.txt", ("notes.txt",)),
+            ("strings @args", ()),
+            ("unzip -c -a -d out", ()),
+        ],
+    )
+    def test_bypass_is_high(
+        self, tmp_path: Path, cmd: str, repo_files: tuple[str, ...]
+    ) -> None:
+        config = _cfg(tmp_path, f'[diff "x"]\n\ttextconv = {cmd}\n')
+        for name in repo_files:
+            target = tmp_path / "repo" / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("x\n")
+        hits = check_git_config(config)
+        assert [h.severity for h in hits] == [Severity.HIGH]
+        assert "not one of the arguments" in hits[0].note
+
+    def test_ansible_vault_reads_repo_ansible_cfg(self, tmp_path: Path) -> None:
+        # `view` reads vault_password_file from ./ansible.cfg (the repo root),
+        # and that setting can name a script, so ansible-vault is never known.
+        config = _cfg(tmp_path, '[diff "v"]\n\ttextconv = ansible-vault view\n')
+        (tmp_path / "repo" / "ansible.cfg").write_text(
+            "[defaults]\nvault_password_file = ./pw.sh\n"
+        )
+        assert [h.severity for h in check_git_config(config)] == [Severity.HIGH]
+
+    def test_value_naming_a_repo_entry_is_high(self, tmp_path: Path) -> None:
+        # A built-in format name that is also a file at the repo root.
+        config = _cfg(tmp_path, '[diff "x"]\n\ttextconv = pandoc -t plain\n')
+        (tmp_path / "repo" / "plain").write_text("x\n")
+        assert [h.severity for h in check_git_config(config)] == [Severity.HIGH]
+
+    def test_cat_smudge_with_an_argument_is_high(self, tmp_path: Path) -> None:
+        hits = _hits(tmp_path, '[filter "nb"]\n\tsmudge = cat ./x\n')
+        assert _sev(hits, "filter.nb.smudge") == Severity.HIGH
+
+    @pytest.mark.parametrize(
+        ("text", "key", "severity"),
+        [
+            # git-lfs merge-driver --program runs a command.
+            (
+                '[merge "lfs"]\n\tdriver = git-lfs merge-driver --program "id"'
+                " --ancestor %O --current %A --other %B\n",
+                "merge.lfs.driver",
+                Severity.MEDIUM,
+            ),
+            # emacsclient runs its alternate editor when no server is up.
+            ("[core]\n\teditor = emacsclient -ash\n", "core.editor", Severity.MEDIUM),
+            (
+                "[core]\n\teditor = emacsclient --alternate-editor=sh\n",
+                "core.editor",
+                Severity.MEDIUM,
+            ),
+            ("[core]\n\teditor = emacs --load=x.el\n", "core.editor", Severity.MEDIUM),
+            # bat and delta pipe the text they page into --pager.
+            ("[core]\n\tpager = bat --pager=sh\n", "core.pager", Severity.LOW),
+            ("[core]\n\tpager = delta --pager=sh\n", "core.pager", Severity.LOW),
+            # less -o writes everything it pages to a file.
+            ("[core]\n\tpager = less -o.git/hooks/x\n", "core.pager", Severity.LOW),
+            ("[core]\n\tpager = less -k keys\n", "core.pager", Severity.LOW),
+            (
+                '[filter "lfs"]\n\tsmudge = git-lfs smudge evil\n',
+                "filter.lfs.smudge",
+                Severity.HIGH,
+            ),
+            (
+                "[diff]\n\texternal = difft --override=x\n",
+                "diff.external",
+                Severity.HIGH,
+            ),
+        ],
+    )
+    def test_other_known_tools_are_allowlisted_too(
+        self, tmp_path: Path, text: str, key: str, severity: Severity
+    ) -> None:
+        assert _sev(_hits(tmp_path, text), key) == severity
+
+    @pytest.mark.parametrize(
+        ("text", "key"),
+        [
+            (
+                '[merge "lfs"]\n\tdriver = git-lfs merge-driver --ancestor %O'
+                " --current %A --other %B --marker-size %L --output %A\n",
+                "merge.lfs.driver",
+            ),
+            (
+                '[merge "jupyternotebook"]\n\tdriver = git-nbmergedriver merge'
+                " %O %A %B %L %P\n",
+                "merge.jupyternotebook.driver",
+            ),
+            (
+                '[filter "annex"]\n\tsmudge = git-annex smudge -- %f\n',
+                "filter.annex.smudge",
+            ),
+            (
+                '[filter "annex"]\n\tclean = git-annex smudge --clean -- %f\n',
+                "filter.annex.clean",
+            ),
+            (
+                '[filter "lfs"]\n\tsmudge = git-lfs smudge --skip -- %f\n',
+                "filter.lfs.smudge",
+            ),
+            (
+                '[diff "gc"]\n\ttextconv = \\"git-crypt\\" diff --key-name=work\n',
+                "diff.gc.textconv",
+            ),
+            ("[core]\n\tpager = delta --side-by-side --paging=never\n", "core.pager"),
+            ("[core]\n\tpager = less -+F -RX\n", "core.pager"),
+            ("[core]\n\tpager = bat --style=plain --paging=always\n", "core.pager"),
+            ("[core]\n\teditor = subl -n -w\n", "core.editor"),
+            ("[core]\n\teditor = vim -f\n", "core.editor"),
+            ("[core]\n\teditor = emacsclient -c -a emacs\n", "core.editor"),
+        ],
+    )
+    def test_documented_forms_stay_info(
+        self, tmp_path: Path, text: str, key: str
+    ) -> None:
+        assert _sev(_hits(tmp_path, text), key) == Severity.INFO
 
 
 class TestDependencyCacheBareRepos:

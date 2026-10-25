@@ -387,10 +387,19 @@ scanner never runs git.
   `filter.nbstripout.required true` and `diff.ipynb.textconv '<path> -t'`, so
   `cat` is a known clean/smudge program. The text converters treated as known
   `textconv` programs (exiftool, docx2txt, pdftotext, pandoc, odt2txt, strings,
-  hexdump, xxd, cat, sops, gpg, ansible-vault, age, unzip) were chosen because
-  they read the file git hands them and print text; the options listed in
-  `_CONVERTER_RISKY_OPTIONS` are the ones their own documentation describes as
-  loading filters, config, scripts or password programs. The dependency-cache
+  hexdump, xxd, cat, sops, gpg, age, unzip) were chosen because they read the
+  file git hands them and print text. After the second review the deny-list of
+  code-loading options was replaced by per-tool allowlists (`_ARG_SPECS`),
+  written from each tool's own option reference: pandoc's built-in reader and
+  writer names (`pandoc --list-input-formats` / `--list-output-formats`, and
+  the MANUAL's custom Lua readers and writers, given as a `.lua` path to `-f`
+  or `-t`), ExifTool (the reviewer confirmed it reads `-IF` and `-if2` as
+  `-if`, which evaluates Perl), gpg, sops, age, less (`-o`/`-O` log file,
+  `-k` lesskey), git-lfs `merge-driver` (its `--program` option runs a
+  command), emacsclient (`-a` names the editor to run when no server is
+  up). ansible-vault was removed because `ansible-vault view` reads
+  `vault_password_file` from an `ansible.cfg` in the working directory
+  (Ansible's configuration-file search order). The dependency-cache
   layouts (SwiftPM `.build/repositories/`, Bundler `cache/bundler/git/`, Cargo
   `.cargo/git/db/`, Go `pkg/mod/cache/vcs/`) are where those tools keep bare
   clones of git dependencies. Git's discovery rules (an invalid `.git`

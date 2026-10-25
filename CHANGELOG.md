@@ -71,7 +71,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   LOW), includes from outside the repository, nested bare repositories git
   would use (HIGH), and a `post-index-change` hook, which `git status` runs
   (HIGH). The standard installs of Git LFS, git-crypt, nbstripout, common
-  diff text converters (exiftool, pdftotext, sops, …), husky, an unmodified
+  diff text converters with display options only (exiftool, pdftotext, sops,
+  …; each tool's arguments are checked against an allowlist), husky, an unmodified
   copy of git's own Watchman hook sample, a plain `ssh -i key` and
   actions/checkout's own settings stay out of HIGH; a tool run from a Python
   environment inside the repository is MEDIUM. Secrets in config values are

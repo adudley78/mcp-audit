@@ -209,9 +209,20 @@ git configuration and hooks are read (never run) in a default `scan`/`check`
   `bun <file>`, and bun executes any `.js`/`.ts` file `.gitattributes` routes to
   that driver; text converters
   (`exiftool`, `pdftotext`, `pandoc`, `sops decrypt`, `unzip -c`, …) are INFO
-  unless given an option that loads code (`pandoc --lua-filter`,
-  `exiftool -config`, `sops exec-env`, `ansible-vault --vault-password-file`,
-  `gpg --homedir`, …) or a file inside the repository.
+  only when every argument is on that converter's allowlist of display options.
+- **Known-tool argument allowlists can be too narrow.** A known tool given an
+  option that is harmless but not on its list (`_ARG_SPECS` in
+  `analyzers/git_exec.py`) keeps the key's full severity, for example
+  `pandoc --toc`, `less -P<prompt>` or a `textconv` with a less common display
+  flag. That is the deliberate trade: an over-report names the key and can be
+  baselined, and every deny-list tried missed a way to load code (ExifTool's
+  case-insensitive `-IF`/`-if2`, a pandoc Lua reader via `-f reader.lua`,
+  attached `pandoc -o<path>`). A value that happens to equal the name of a file
+  at the repository root (`pandoc -t plain` in a repo with a file called
+  `plain`) is also treated as in-tree. ansible-vault is never known (its
+  `view` reads an `ansible.cfg` from the repository root). The tools' own
+  config files outside the repository (`~/.ExifTool_config`, `~/.gnupg`,
+  pandoc's user data directory) are the user's, and are not read.
 - **Legitimate shapes that still fire:** Watchman's fsmonitor integration
   when the hook is not an exact copy of a sample git shipped (an unmodified
   copy of any of the five versions git shipped from v2.16 to v2.56, matched

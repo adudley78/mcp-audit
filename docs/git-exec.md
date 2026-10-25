@@ -65,8 +65,9 @@ switches an earlier command off, and mcp-audit does the same.
 | INFO | `core.hooksPath` inside the repository | husky and similar tools set this; the hooks are ordinary repo files |
 
 **Tools that write these settings for you are not alarms.** When the command is
-one of these tools' own forms and the program lives outside the repository,
-mcp-audit lists it once per file as INFO inventory:
+one of these tools' own forms, every argument is on that tool's allowlist, and
+the program lives outside the repository, mcp-audit lists it once per file as
+INFO inventory:
 
 - Git LFS (`git-lfs clean -- %f`, `git-lfs filter-process`; what
   `git lfs install --local` and actions/checkout's `lfs: true` write), git-crypt,
@@ -75,13 +76,18 @@ mcp-audit lists it once per file as INFO inventory:
   difftastic, rs-git-fsmonitor. The `git lfs …` spelling is not accepted: when
   git-lfs is not installed, git runs `alias.lfs` instead;
 - text converters as `diff.<driver>.textconv`: exiftool, docx2txt, pdftotext,
-  pandoc, odt2txt, strings, hexdump, xxd, cat, sops, gpg, ansible-vault, age,
-  unzip. They stay HIGH when given an option that loads code
-  (`pandoc --lua-filter`/`--filter`/`--defaults`, `exiftool -config`/`-if`,
-  `sops exec-env`, `ansible-vault --vault-password-file`, `gpg --homedir`, …) or
-  a file inside the repository. Interpreters stay HIGH: `diff.lockb.textconv =
-  bun` (how `bun.lockb` was diffed before Bun 1.2) runs any `.js` file
-  `.gitattributes` sends it;
+  pandoc, odt2txt, strings, hexdump, xxd, cat, sops, gpg, age, unzip, with
+  display options only: for example `pandoc -t plain` with a built-in format
+  name (never a `.lua` reader or writer), `exiftool -a -u -g1`, `gpg -d -q
+  --batch`, `sops decrypt`, `age -d -i ~/key` (an identity outside the
+  repository), `hexdump -C`, `unzip -c -a`. Any other option, including
+  `pandoc -o`/`--lua-filter`/`--template`/`--defaults`, ExifTool's `-if`,
+  `-config` and `-p` in any letter case, and `gpg --homedir`, keeps the full
+  severity. ansible-vault is never known: `ansible-vault view` reads
+  `vault_password_file` from an `ansible.cfg` at the repository root, which can
+  name a script. Interpreters stay HIGH: `diff.lockb.textconv = bun` (how
+  `bun.lockb` was diffed before Bun 1.2) runs any `.js` file `.gitattributes`
+  sends it;
 - Watchman's setup, `core.fsmonitor = .git/hooks/query-watchman`, when that
   file is an unmodified copy of the `fsmonitor-watchman.sample` git itself ships
   (matched by SHA-256 against every version from git 2.16 to 2.56). An edited
@@ -91,7 +97,21 @@ mcp-audit lists it once per file as INFO inventory:
   any `ProxyCommand`, `LocalCommand`, `-F` config inside the repo or other
   option keeps it HIGH;
 - `!gh auth git-credential` (GitHub CLI), gitsign and other signers, common
-  editors and pagers with plain flags, `merge.<driver>.driver = true`.
+  editors and pagers with their usual flags (`code --wait`, `vim -f`,
+  `emacsclient -t -a ''`, `less -FRX`, `delta --side-by-side`), and
+  `merge.<driver>.driver = true`.
+
+**The arguments are an allowlist, not a deny-list.** Each known tool has a
+fixed list of the options it may be given (`_ARG_SPECS` in
+`analyzers/git_exec.py`): exact options, options whose value passes a fixed
+check (whether written as the next argument, `--opt=value` or attached
+`-Xvalue`), fixed subcommand words, and git's `%f`/`%O`/`%A`/`%B` placeholders.
+Anything else keeps the key's full severity, and so does any value that names
+an existing file or directory in the repository. A deny-list of "options that
+load code" was tried first and missed `pandoc -f reader.lua`, `exiftool -IF`,
+`exiftool -if2` and `pandoc -o.git/hooks/post-index-change`; the same rule now
+also stops `git-lfs merge-driver --program`, `emacsclient -a sh` and
+`bat --pager=sh`.
 
 A known tool loses that status if the command contains shell syntax (`|`,
 `&&`, `$(…)`, backticks, or a `;` inside quotes: unquoted, git reads `;` as the
