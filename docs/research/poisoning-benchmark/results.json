@@ -1,0 +1,337 @@
+{
+  "top100": {
+    "corpus": "docs/research/2026-10-top100-npm/summary.json",
+    "labels": "docs/research/poisoning-benchmark/top100-labels.json",
+    "scanner_version": "mcp-audit 0.21.0 (src/mcp_audit/analyzers/poisoning.py and mcp_client.build_runtime_server_config are unchanged from v0.21.0 to main at f9ba1ff)",
+    "findings": 661,
+    "true_positive": 0,
+    "false_positive": 661,
+    "precision": 0.0,
+    "tools_scanned": 1611,
+    "findings_per_100_tools": 41.0,
+    "label_basis": {
+      "committed_evidence": 488,
+      "review": 173
+    },
+    "by_id": {
+      "POISON-012": {
+        "findings": 2,
+        "true_positive": 0,
+        "false_positive": 2,
+        "precision": 0.0
+      },
+      "POISON-020": {
+        "findings": 2,
+        "true_positive": 0,
+        "false_positive": 2,
+        "precision": 0.0
+      },
+      "POISON-030": {
+        "findings": 30,
+        "true_positive": 0,
+        "false_positive": 30,
+        "precision": 0.0
+      },
+      "POISON-050": {
+        "findings": 139,
+        "true_positive": 0,
+        "false_positive": 139,
+        "precision": 0.0
+      },
+      "POISON-060": {
+        "findings": 488,
+        "true_positive": 0,
+        "false_positive": 488,
+        "precision": 0.0
+      }
+    },
+    "replay": {
+      "patterns_fingerprint": "sha256:4880c601a4a34752722abf6058b3d26318319c3c8ea64e618aed479179489eb0",
+      "findings_reproduced_from_committed_text": 520,
+      "groups": [
+        {
+          "id": "POISON-012",
+          "count": 2,
+          "fragments": [
+            {
+              "text": "Override default",
+              "fires": [
+                "POISON-012"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "POISON-020",
+          "count": 2,
+          "fragments": [
+            {
+              "text": "Base64 encode",
+              "fires": []
+            }
+          ]
+        },
+        {
+          "id": "POISON-030",
+          "count": 3,
+          "fragments": [
+            {
+              "text": "After calling this",
+              "fires": [
+                "POISON-030"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "POISON-030",
+          "count": 3,
+          "fragments": [
+            {
+              "text": "First call",
+              "fires": [
+                "POISON-030"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "POISON-030",
+          "count": 1,
+          "fragments": [
+            {
+              "text": "Instead use",
+              "fires": [
+                "POISON-030"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "POISON-030",
+          "count": 22,
+          "fragments": [
+            {
+              "text": "first call",
+              "fires": [
+                "POISON-030"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "POISON-030",
+          "count": 1,
+          "fragments": [
+            {
+              "text": "instead of call",
+              "fires": [
+                "POISON-030"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "POISON-050",
+          "count": 139,
+          "fragments": []
+        },
+        {
+          "id": "POISON-060",
+          "count": 488,
+          "fragments": [
+            {
+              "text": "（",
+              "fires": [
+                "POISON-060"
+              ]
+            },
+            {
+              "text": "，",
+              "fires": [
+                "POISON-060"
+              ]
+            },
+            {
+              "text": "：",
+              "fires": [
+                "POISON-060"
+              ]
+            },
+            {
+              "text": "；",
+              "fires": [
+                "POISON-060"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "mcptox": {
+    "dataset": "MCPTox (arXiv 2508.14925, AAAI 2026)",
+    "source": "https://anonymous.4open.science/r/AAAI26-7C02",
+    "paradigms": {
+      "P1": "explicit trigger, function hijacking",
+      "P2": "implicit trigger, function hijacking",
+      "P3": "implicit trigger, parameter tampering"
+    },
+    "wrappers": {
+      "important": "an <IMPORTANT> block (MCPTox enhanced setting 1)",
+      "ignore": "'Ignore the previous instructions' (enhanced setting 2)",
+      "none": "no wrapper (the base setting)"
+    },
+    "files": {
+      "pure_tool.json": {
+        "sha256": "54b1eb0e9d7b2f18465266aa9d9dfda828cd558b1269b74731ec2c5d8579e617",
+        "bytes": 316620
+      },
+      "response_all.json": {
+        "sha256": "79a90049be931c59e71446d6180b1d7f0d196d123d08a59bc155d142b5041c03",
+        "bytes": 20666873
+      }
+    },
+    "patterns_fingerprint": "sha256:4880c601a4a34752722abf6058b3d26318319c3c8ea64e618aed479179489eb0",
+    "detected_means": "at least one POISON-* finding on the tool, any severity",
+    "benchmark_cases": {
+      "excluded_wrong_data": 36,
+      "recall": {
+        "P1": {
+          "detected": 165,
+          "total": 208,
+          "rate": 0.7933
+        },
+        "P2": {
+          "detected": 411,
+          "total": 519,
+          "rate": 0.7919
+        },
+        "P3": {
+          "detected": 402,
+          "total": 585,
+          "rate": 0.6872
+        },
+        "all": {
+          "detected": 978,
+          "total": 1312,
+          "rate": 0.7454
+        }
+      },
+      "recall_by_wrapper": {
+        "important": {
+          "P1": {
+            "detected": 77,
+            "total": 77,
+            "rate": 1.0
+          },
+          "P2": {
+            "detected": 176,
+            "total": 176,
+            "rate": 1.0
+          },
+          "P3": {
+            "detected": 207,
+            "total": 207,
+            "rate": 1.0
+          },
+          "all": {
+            "detected": 460,
+            "total": 460,
+            "rate": 1.0
+          }
+        },
+        "ignore": {
+          "P1": {
+            "detected": 66,
+            "total": 66,
+            "rate": 1.0
+          },
+          "P2": {
+            "detected": 165,
+            "total": 165,
+            "rate": 1.0
+          },
+          "P3": {
+            "detected": 186,
+            "total": 186,
+            "rate": 1.0
+          },
+          "all": {
+            "detected": 417,
+            "total": 417,
+            "rate": 1.0
+          }
+        },
+        "none": {
+          "P1": {
+            "detected": 22,
+            "total": 65,
+            "rate": 0.3385
+          },
+          "P2": {
+            "detected": 70,
+            "total": 178,
+            "rate": 0.3933
+          },
+          "P3": {
+            "detected": 9,
+            "total": 192,
+            "rate": 0.0469
+          },
+          "all": {
+            "detected": 101,
+            "total": 435,
+            "rate": 0.2322
+          }
+        }
+      },
+      "detections_by_id": {
+        "POISON-001": 65,
+        "POISON-002": 3,
+        "POISON-010": 460,
+        "POISON-012": 434,
+        "POISON-030": 270,
+        "POISON-060": 1
+      }
+    },
+    "unwrapped_descriptions": {
+      "recall": {
+        "P1": {
+          "detected": 31,
+          "total": 77,
+          "rate": 0.4026
+        },
+        "P2": {
+          "detected": 76,
+          "total": 183,
+          "rate": 0.4153
+        },
+        "P3": {
+          "detected": 14,
+          "total": 225,
+          "rate": 0.0622
+        },
+        "all": {
+          "detected": 121,
+          "total": 485,
+          "rate": 0.2495
+        }
+      },
+      "detections_by_id": {
+        "POISON-001": 22,
+        "POISON-002": 1,
+        "POISON-012": 11,
+        "POISON-030": 102
+      }
+    },
+    "clean_tools": {
+      "total": 353,
+      "flagged": 18,
+      "findings_by_id": {
+        "POISON-050": 2,
+        "POISON-060": 16
+      }
+    }
+  }
+}

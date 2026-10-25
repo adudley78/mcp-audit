@@ -62,3 +62,5 @@ The scan's job was to measure the servers, and it also measured mcp-audit. Found
 - **`--check-vulns`** reports every dependency advisory as INFO with no summary, HIGH advisories included.
 
 The ecosystem numbers in `summary.json` were computed from the raw data, not from the scanner's verdicts where those were wrong.
+
+The 661 poisoning findings are labelled and scored as mcp-audit's precision benchmark in `docs/research/poisoning-benchmark/`; method and results in [`docs/poisoning.md`](../../poisoning.md).

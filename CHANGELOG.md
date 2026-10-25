@@ -21,6 +21,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   official MCP Registry `io.github.<submitter>/…` name whose package entry is this
   package, with the package naming the server back (`mcp-name` in a PyPI README,
   `mcpName` in an npm `package.json`).
+- **Measured poisoning-detection recall and precision** (STORY-0088, new
+  [`docs/poisoning.md`](docs/poisoning.md)). On MCPTox (arXiv 2508.14925), the POISON-*
+  checks flag 74.5% of the 1,312 poisoned tool descriptions, all of the ones wrapped in
+  `<IMPORTANT>` or "Ignore the previous instructions", and 23.2% of the ones without a
+  wrapper (4.7% for parameter tampering). They flag 18 of MCPTox's 353 real tools. On the
+  live tools of the 100 most-downloaded npm MCP servers, none of their 661 findings was
+  an attack. `scripts/bench_poisoning.py` (dev tooling, not part of the package) takes
+  the measurement; `docs/research/poisoning-benchmark/` holds the labels and the results.
+  `tests/test_bench_poisoning.py` fails when the patterns change until both numbers are
+  re-measured, and CI re-fetches MCPTox (never committed) and fails if recall drops.
+
+### Changed
+
+- **The "zero false positives" claim now says what it covers.** README, GAPS.md and the
+  release-notes template said the 22-server benchmark had no poisoning false positives.
+  That is still true, but those fixtures are config entries with no tool descriptions;
+  each now points to the measured numbers above.
 
 ## [0.21.1] - 2026-10-25
 
