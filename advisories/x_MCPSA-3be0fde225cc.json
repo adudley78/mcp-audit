@@ -38,8 +38,8 @@
   ],
   "details": "Server uses npx which downloads packages at runtime Evidence: Command: npx -y mcp-audit-fixture-github-server@1.0.0 Remediation: Install packages locally and reference the installed binary instead Detected by mcp-audit rule TRANSPORT-003 (transport analyzer, severity MEDIUM).",
   "id": "x_MCPSA-3be0fde225cc",
-  "modified": "2026-10-18T16:58:43Z",
-  "published": "2026-10-18T16:58:43Z",
+  "modified": "2026-10-25T17:16:50Z",
+  "published": "2026-10-25T17:16:50Z",
   "references": [
     {
       "type": "WEB",

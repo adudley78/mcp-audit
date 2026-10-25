@@ -36,8 +36,8 @@
   ],
   "details": "Server 'filesystem' uses stdio transport and is not in the known-server registry — verify the binary is trusted Evidence: rule:COMM-004; matched: stdio Remediation: Review the rule 'COMM-004' (Unrecognized stdio server binary) and the server configuration for 'filesystem'. Detected by mcp-audit rule COMM-004 (rules analyzer, severity LOW).",
   "id": "x_MCPSA-c4d98262a4dc",
-  "modified": "2026-10-18T16:58:43Z",
-  "published": "2026-10-18T16:58:43Z",
+  "modified": "2026-10-25T17:16:50Z",
+  "published": "2026-10-25T17:16:50Z",
   "references": [
     {
       "type": "WEB",
