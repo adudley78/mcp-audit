@@ -3,10 +3,14 @@
     "corpus": "docs/research/2026-10-top100-npm/summary.json",
     "labels": "docs/research/poisoning-benchmark/top100-labels.json",
     "scanner_version": "mcp-audit 0.21.0 (src/mcp_audit/analyzers/poisoning.py and mcp_client.build_runtime_server_config are unchanged from v0.21.0 to main at f9ba1ff)",
+    "labelled_patterns_fingerprint": "sha256:21b594ccad7f3b2b411dece244e22310377c570407650e178f9f5ece70ac659d",
     "findings": 661,
     "true_positive": 0,
     "false_positive": 661,
     "precision": 0.0,
+    "findings_high_or_above": 492,
+    "true_positive_high_or_above": 0,
+    "precision_high_or_above": 0.0,
     "tools_scanned": 1611,
     "findings_per_100_tools": 41.0,
     "label_basis": {
@@ -18,35 +22,40 @@
         "findings": 2,
         "true_positive": 0,
         "false_positive": 2,
-        "precision": 0.0
+        "precision": 0.0,
+        "severity": "HIGH"
       },
       "POISON-020": {
         "findings": 2,
         "true_positive": 0,
         "false_positive": 2,
-        "precision": 0.0
+        "precision": 0.0,
+        "severity": "HIGH"
       },
       "POISON-030": {
         "findings": 30,
         "true_positive": 0,
         "false_positive": 30,
-        "precision": 0.0
+        "precision": 0.0,
+        "severity": "MEDIUM"
       },
       "POISON-050": {
         "findings": 139,
         "true_positive": 0,
         "false_positive": 139,
-        "precision": 0.0
+        "precision": 0.0,
+        "severity": "LOW"
       },
       "POISON-060": {
         "findings": 488,
         "true_positive": 0,
         "false_positive": 488,
-        "precision": 0.0
+        "precision": 0.0,
+        "severity": "HIGH"
       }
     },
     "replay": {
-      "patterns_fingerprint": "sha256:4880c601a4a34752722abf6058b3d26318319c3c8ea64e618aed479179489eb0",
+      "patterns_fingerprint": "sha256:21b594ccad7f3b2b411dece244e22310377c570407650e178f9f5ece70ac659d",
       "findings_reproduced_from_committed_text": 520,
       "groups": [
         {
@@ -192,8 +201,9 @@
         "bytes": 20666873
       }
     },
-    "patterns_fingerprint": "sha256:4880c601a4a34752722abf6058b3d26318319c3c8ea64e618aed479179489eb0",
-    "detected_means": "at least one POISON-* finding on the tool, any severity",
+    "patterns_fingerprint": "sha256:21b594ccad7f3b2b411dece244e22310377c570407650e178f9f5ece70ac659d",
+    "detected_means": "at least one POISON-* finding on the tool, any severity (what a plain scan exits 1 on)",
+    "high_or_above_means": "at least one HIGH or CRITICAL POISON-* finding (what check, the pre-commit default and --severity-threshold high fail on)",
     "benchmark_cases": {
       "excluded_wrong_data": 36,
       "recall": {
@@ -216,6 +226,28 @@
           "detected": 978,
           "total": 1312,
           "rate": 0.7454
+        }
+      },
+      "recall_high_or_above": {
+        "P1": {
+          "detected": 151,
+          "total": 208,
+          "rate": 0.726
+        },
+        "P2": {
+          "detected": 355,
+          "total": 519,
+          "rate": 0.684
+        },
+        "P3": {
+          "detected": 402,
+          "total": 585,
+          "rate": 0.6872
+        },
+        "all": {
+          "detected": 908,
+          "total": 1312,
+          "rate": 0.6921
         }
       },
       "recall_by_wrapper": {
@@ -286,6 +318,74 @@
           }
         }
       },
+      "recall_by_wrapper_high_or_above": {
+        "important": {
+          "P1": {
+            "detected": 77,
+            "total": 77,
+            "rate": 1.0
+          },
+          "P2": {
+            "detected": 176,
+            "total": 176,
+            "rate": 1.0
+          },
+          "P3": {
+            "detected": 207,
+            "total": 207,
+            "rate": 1.0
+          },
+          "all": {
+            "detected": 460,
+            "total": 460,
+            "rate": 1.0
+          }
+        },
+        "ignore": {
+          "P1": {
+            "detected": 66,
+            "total": 66,
+            "rate": 1.0
+          },
+          "P2": {
+            "detected": 165,
+            "total": 165,
+            "rate": 1.0
+          },
+          "P3": {
+            "detected": 186,
+            "total": 186,
+            "rate": 1.0
+          },
+          "all": {
+            "detected": 417,
+            "total": 417,
+            "rate": 1.0
+          }
+        },
+        "none": {
+          "P1": {
+            "detected": 8,
+            "total": 65,
+            "rate": 0.1231
+          },
+          "P2": {
+            "detected": 14,
+            "total": 178,
+            "rate": 0.0787
+          },
+          "P3": {
+            "detected": 9,
+            "total": 192,
+            "rate": 0.0469
+          },
+          "all": {
+            "detected": 31,
+            "total": 435,
+            "rate": 0.0713
+          }
+        }
+      },
       "detections_by_id": {
         "POISON-001": 65,
         "POISON-002": 3,
@@ -318,6 +418,28 @@
           "rate": 0.2495
         }
       },
+      "recall_high_or_above": {
+        "P1": {
+          "detected": 8,
+          "total": 77,
+          "rate": 0.1039
+        },
+        "P2": {
+          "detected": 13,
+          "total": 183,
+          "rate": 0.071
+        },
+        "P3": {
+          "detected": 13,
+          "total": 225,
+          "rate": 0.0578
+        },
+        "all": {
+          "detected": 34,
+          "total": 485,
+          "rate": 0.0701
+        }
+      },
       "detections_by_id": {
         "POISON-001": 22,
         "POISON-002": 1,
@@ -328,9 +450,17 @@
     "clean_tools": {
       "total": 353,
       "flagged": 18,
+      "flagged_high_or_above": 16,
       "findings_by_id": {
         "POISON-050": 2,
         "POISON-060": 16
+      },
+      "flagged_by_server": {
+        "12306-mcp": 1,
+        "AdFin": 1,
+        "AmapMap": 8,
+        "BaiduMap": 7,
+        "Sequential Thinking": 1
       }
     }
   }

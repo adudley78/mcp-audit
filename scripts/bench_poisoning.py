@@ -13,9 +13,14 @@ fires. Two measurements, both written to
     (``docs/research/2026-10-top100-npm/summary.json``, mcp-audit 0.21.0) and
     the hand labels in ``docs/research/poisoning-benchmark/top100-labels.json``.
     Every finding in the corpus must be covered by a label, or the run fails.
-    It also replays every evidence fragment the corpus publishes through the
-    current analyzer, so a pattern change that fires on known-benign text
-    shows up.
+    This is a fixed measurement of the code that produced those findings
+    (``labelled_patterns_fingerprint``); re-measuring it needs a fresh
+    enumeration of the corpus, which runs third-party servers and so never
+    happens here or in CI. When the current code differs, the run prints a
+    STALE line. What does re-run is the replay of every committed evidence
+    fragment through the current analyzer, plus (under ``recall``) MCPTox's
+    clean-tool flag rate: those are the precision checks a later change is
+    gated on.
 
 ``recall``
     Needs MCPTox (arXiv 2508.14925, AAAI 2026): ``response_all.json`` (1,348
@@ -27,12 +32,19 @@ fires. Two measurements, both written to
     never written anywhere. The dataset has no stated licence, so it is never
     committed; ``results.json`` records each file's SHA-256 instead.
 
+Recall and the clean-tool flag rate are reported twice: for any POISON-*
+finding (what a plain ``scan`` exits 1 on, its default threshold being INFO)
+and for HIGH or CRITICAL only (what ``check``, the pre-commit default and
+``--severity-threshold high`` fail on).
+
 ``--check`` compares a fresh measurement with ``results.json`` and exits 1
 only on a regression: fewer poisoned cases detected, or more clean tools
 flagged. Improvements are reported, not failed. ``--write`` records the fresh
-measurement. ``recall`` is a manual, release-time measurement and never runs
-in CI: run it before any release that changes POISON-* patterns (the offline
-fingerprint test in ``tests/test_bench_poisoning.py`` fails until you do).
+measurement, and never after a regression. ``recall`` is a manual,
+release-time measurement and never runs in CI: run it before any release that
+changes ``analyzers/poisoning.py`` or ``build_runtime_server_config`` (the
+offline fingerprint test in ``tests/test_bench_poisoning.py`` fails until you
+do).
 
 Usage::
 
@@ -46,6 +58,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import http.client
+import inspect
 import json
 import re
 import sys
@@ -83,6 +96,8 @@ PARADIGM_NAMES: dict[str, str] = {
 # The two "enhanced settings" of MCPTox §4.4, detected the way the authors'
 # own analysis notebook classifies them (substring tests).
 WRAPPERS: tuple[str, ...] = ("important", "ignore", "none")
+# What `check`, the pre-commit default and `--severity-threshold high` fail on.
+HIGH_OR_ABOVE: frozenset[str] = frozenset({"HIGH", "CRITICAL"})
 
 _TOOL_HEADER = re.compile(
     r"\s*Tool:\s*(?P<name>[^\n]*)\n\s*Description:\s*(?P<rest>.*)", re.S
@@ -111,14 +126,22 @@ class ToolDef:
 # ── shared plumbing ───────────────────────────────────────────────────────────
 
 
-def patterns_fingerprint() -> str:
-    """Return a SHA-256 over everything that decides whether a POISON-* pattern matches.
+def _source(obj: Any) -> str:
+    """Return *obj*'s source with line endings normalized (CRLF checkouts)."""
+    return inspect.getsource(obj).replace("\r\n", "\n")
 
-    Covers each pattern's ID, regex, flags, severity, scope and co-occurrence
-    terms, plus the normalization tables. A measurement taken under a
-    different fingerprint describes different code.
+
+def fingerprint_payload() -> dict[str, Any]:
+    """Return everything the detection-code fingerprint covers.
+
+    The whole source of ``analyzers/poisoning.py`` (patterns, normalization,
+    concealment channels, the analyzer itself) and of
+    ``mcp_client.build_runtime_server_config`` (which decides what text of a
+    live tool reaches the analyzer), plus the pattern table as loaded.
     """
-    payload = {
+    return {
+        "poisoning_module_source": _source(_poisoning),
+        "build_runtime_server_config_source": _source(build_runtime_server_config),
         "patterns": [
             [
                 p.id,
@@ -135,12 +158,21 @@ def patterns_fingerprint() -> str:
         "obfuscation_ids": sorted(_poisoning._OBFUSCATION_PATTERN_IDS),
         "cooccurrence_window": _poisoning._COOCCURRENCE_WINDOW,
     }
-    blob = json.dumps(payload, ensure_ascii=True, sort_keys=True).encode()
-    return "sha256:" + hashlib.sha256(blob).hexdigest()
 
 
-def poison_ids(tool: ToolDef) -> list[str]:
-    """Return the sorted POISON-* IDs the ``scan --connect`` path reports for *tool*."""
+def patterns_fingerprint() -> str:
+    """Return a SHA-256 over the POISON-* detection code (:func:`fingerprint_payload`).
+
+    Any change to ``analyzers/poisoning.py`` or ``build_runtime_server_config``
+    changes it. A measurement taken under a different fingerprint describes
+    different code.
+    """
+    blob = json.dumps(fingerprint_payload(), ensure_ascii=True, sort_keys=True)
+    return "sha256:" + hashlib.sha256(blob.encode()).hexdigest()
+
+
+def poison_findings(tool: ToolDef) -> list[tuple[str, str]]:
+    """Return sorted ``(id, severity)`` POISON-* findings ``scan --connect`` reports."""
     server = ServerConfig(
         name="bench",
         client="bench",
@@ -161,7 +193,20 @@ def poison_ids(tool: ToolDef) -> list[str]:
     if runtime is None:
         return []
     findings = _poisoning.PoisoningAnalyzer().analyze(runtime)
-    return sorted({f.id for f in findings if f.id.startswith("POISON-")})
+    return sorted(
+        {(f.id, str(f.severity)) for f in findings if f.id.startswith("POISON-")}
+    )
+
+
+def poison_ids(tool: ToolDef) -> list[str]:
+    """Return the sorted POISON-* IDs the ``scan --connect`` path reports for *tool*."""
+    return sorted({fid for fid, _ in poison_findings(tool)})
+
+
+def _detected(findings: list[tuple[str, str]], high_only: bool) -> bool:
+    if high_only:
+        return any(sev in HIGH_OR_ABOVE for _, sev in findings)
+    return bool(findings)
 
 
 def _rate(hit: int, total: int) -> float | None:
@@ -278,14 +323,14 @@ def benchmark_cases(
     return cases, excluded
 
 
-def clean_tools(response_all: dict[str, Any]) -> list[ToolDef]:
-    """Return the 45 servers' real tool definitions (MCPTox's benign side).
+def clean_tools(response_all: dict[str, Any]) -> list[tuple[str, ToolDef]]:
+    """Return ``[(server, tool)]`` for the 45 servers' real tools (the benign side).
 
     Taken from each server's ``clean_system_promot`` and limited to the names
     in its ``tool_names`` (353 tools, the paper's count); one server's prompt
     lists tools beyond its ``tool_names``.
     """
-    tools: list[ToolDef] = []
+    tools: list[tuple[str, ToolDef]] = []
     for sname, server in _servers(response_all).items():
         wanted = set(server.get("tool_names") or [])
         prompt = unescape_newlines(str(server.get("clean_system_promot") or ""))
@@ -294,7 +339,7 @@ def clean_tools(response_all: dict[str, Any]) -> list[ToolDef]:
             tool = parse_tool_block(block) if block.startswith("Tool: ") else None
             if tool is not None and tool.name in wanted and tool.name not in found:
                 found.add(tool.name)
-                tools.append(tool)
+                tools.append((sname, tool))
         if found != wanted:
             missing = sorted(wanted - found)
             raise BenchError(f"server {sname!r}: clean tools not found: {missing}")
@@ -315,13 +360,15 @@ def unwrapped_descriptions(pure_tool: list[Any]) -> list[tuple[str, ToolDef]]:
     return out
 
 
-def _recall_table(rows: list[tuple[str, list[str]]]) -> dict[str, Any]:
-    """Turn ``[(paradigm, fired_ids)]`` into per-paradigm and overall cells."""
+def _recall_table(
+    rows: list[tuple[str, list[tuple[str, str]]]], *, high_only: bool = False
+) -> dict[str, Any]:
+    """Turn ``[(paradigm, findings)]`` into per-paradigm and overall cells."""
     table: dict[str, Any] = {}
     for code in ("P1", "P2", "P3"):
-        sub = [ids for p, ids in rows if p == code]
-        table[code] = _cell(sum(1 for ids in sub if ids), len(sub))
-    table["all"] = _cell(sum(1 for _, ids in rows if ids), len(rows))
+        sub = [f for p, f in rows if p == code]
+        table[code] = _cell(sum(_detected(f, high_only) for f in sub), len(sub))
+    table["all"] = _cell(sum(_detected(f, high_only) for _, f in rows), len(rows))
     return table
 
 
@@ -342,18 +389,25 @@ def measure_recall(files: dict[str, bytes]) -> dict[str, Any]:
         raise BenchError(f"MCPTox files unreadable: {exc}") from exc
 
     cases, excluded = benchmark_cases(response_all)
-    case_rows = [(p, w, poison_ids(t)) for p, w, t in cases]
-    by_wrapper = {
-        w: _recall_table([(p, ids) for p, ww, ids in case_rows if ww == w])
-        for w in WRAPPERS
-    }
-    detections = Counter(i for _, _, ids in case_rows for i in ids)
+    case_rows = [(p, w, poison_findings(t)) for p, w, t in cases]
+    all_rows = [(p, f) for p, _, f in case_rows]
 
-    pure_rows = [(p, poison_ids(t)) for p, t in unwrapped_descriptions(pure_tool)]
-    pure_detections = Counter(i for _, ids in pure_rows for i in ids)
+    def by_wrapper(high_only: bool) -> dict[str, Any]:
+        return {
+            w: _recall_table(
+                [(p, f) for p, ww, f in case_rows if ww == w], high_only=high_only
+            )
+            for w in WRAPPERS
+        }
 
-    benign = [poison_ids(t) for t in clean_tools(response_all)]
-    benign_ids = Counter(i for ids in benign for i in ids)
+    detections = Counter(i for _, f in all_rows for i in {fid for fid, _ in f})
+
+    pure_rows = [(p, poison_findings(t)) for p, t in unwrapped_descriptions(pure_tool)]
+    pure_detections = Counter(i for _, f in pure_rows for i in {fid for fid, _ in f})
+
+    benign = [(srv, poison_findings(t)) for srv, t in clean_tools(response_all)]
+    benign_ids = Counter(i for _, f in benign for i in {fid for fid, _ in f})
+    flagged_servers = Counter(srv for srv, f in benign if f)
 
     return {
         "dataset": "MCPTox (arXiv 2508.14925, AAAI 2026)",
@@ -366,21 +420,33 @@ def measure_recall(files: dict[str, bytes]) -> dict[str, Any]:
         },
         "files": file_digests(files),
         "patterns_fingerprint": patterns_fingerprint(),
-        "detected_means": "at least one POISON-* finding on the tool, any severity",
+        "detected_means": (
+            "at least one POISON-* finding on the tool, any severity (what a plain "
+            "scan exits 1 on)"
+        ),
+        "high_or_above_means": (
+            "at least one HIGH or CRITICAL POISON-* finding (what check, the "
+            "pre-commit default and --severity-threshold high fail on)"
+        ),
         "benchmark_cases": {
             "excluded_wrong_data": excluded,
-            "recall": _recall_table([(p, ids) for p, _, ids in case_rows]),
-            "recall_by_wrapper": by_wrapper,
+            "recall": _recall_table(all_rows),
+            "recall_high_or_above": _recall_table(all_rows, high_only=True),
+            "recall_by_wrapper": by_wrapper(False),
+            "recall_by_wrapper_high_or_above": by_wrapper(True),
             "detections_by_id": dict(sorted(detections.items())),
         },
         "unwrapped_descriptions": {
             "recall": _recall_table(pure_rows),
+            "recall_high_or_above": _recall_table(pure_rows, high_only=True),
             "detections_by_id": dict(sorted(pure_detections.items())),
         },
         "clean_tools": {
             "total": len(benign),
-            "flagged": sum(1 for ids in benign if ids),
+            "flagged": sum(_detected(f, False) for _, f in benign),
+            "flagged_high_or_above": sum(_detected(f, True) for _, f in benign),
             "findings_by_id": dict(sorted(benign_ids.items())),
+            "flagged_by_server": dict(sorted(flagged_servers.items())),
         },
     }
 
@@ -388,14 +454,33 @@ def measure_recall(files: dict[str, bytes]) -> dict[str, Any]:
 # ── fetching ─────────────────────────────────────────────────────────────────
 
 
+class HttpsOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only when it stays on ``https://``."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        """Refuse a redirect to any non-https URL; otherwise defer to urllib."""
+        if not newurl.startswith("https://"):
+            raise BenchError(f"refusing redirect to non-https URL: {newurl}")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _fetch(url: str) -> bytes:
     """GET an ``https://`` URL into memory, capped at :data:`MAX_DOWNLOAD_BYTES`."""
     if not url.startswith("https://"):
         raise BenchError(f"refusing non-https URL: {url}")
     req = urllib.request.Request(url, headers={"User-Agent": "mcp-audit-bench"})  # noqa: S310
+    opener = urllib.request.build_opener(HttpsOnlyRedirectHandler)
     try:
-        # nosec B310: scheme checked above; dev-only fetch of a public dataset.
-        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_SECONDS) as resp:  # noqa: S310  # nosec B310
+        # nosec B310: https-only, redirects included; dev-only public dataset.
+        with opener.open(req, timeout=FETCH_TIMEOUT_SECONDS) as resp:  # nosec B310
             data = resp.read(MAX_DOWNLOAD_BYTES + 1)
     except (urllib.error.URLError, http.client.HTTPException, OSError) as exc:
         raise DatasetUnavailableError(f"{url}: {exc}") from exc
@@ -470,6 +555,33 @@ def poison_060_characters(summary: dict[str, Any]) -> list[str]:
     return [_strip_matched(s) for s in sample]
 
 
+_LABEL_VALUES = ("true_positive", "false_positive")
+
+
+def _validate_labels(labels: Any) -> list[dict[str, Any]]:
+    """Return the label entries, or raise :class:`BenchError` naming what is wrong."""
+    if not isinstance(labels, dict) or not isinstance(labels.get("labels"), list):
+        raise BenchError("labels file has no 'labels' list")
+    fp = labels.get("labelled_patterns_fingerprint")
+    if not isinstance(fp, str) or not fp.startswith("sha256:"):
+        raise BenchError("labels file has no 'labelled_patterns_fingerprint'")
+    entries: list[dict[str, Any]] = labels["labels"]
+    for i, lab in enumerate(entries):
+        if not isinstance(lab, dict):
+            raise BenchError(f"label {i} is not an object")
+        absent = [k for k in ("id", "label", "basis") if not lab.get(k)]
+        if absent:
+            raise BenchError(f"label {i} ({lab.get('id')!r}) is missing {absent}")
+        if lab["label"] not in _LABEL_VALUES:
+            raise BenchError(
+                f"label {i} ({lab['id']}): label must be true_positive or "
+                "false_positive"
+            )
+        if not isinstance(lab.get("evidence", []), list):
+            raise BenchError(f"label {i} ({lab['id']}): evidence must be a list")
+    return entries
+
+
 def measure_precision(
     summary: dict[str, Any], labels: dict[str, Any]
 ) -> dict[str, Any]:
@@ -479,8 +591,9 @@ def measure_precision(
     by exactly one label.
     """
     groups = corpus_groups(summary)
+    entries = _validate_labels(labels)
     covered: dict[tuple[str, str], dict[str, Any]] = {}
-    for lab in labels.get("labels") or []:
+    for lab in entries:
         fid = str(lab["id"])
         evidence = [str(e) for e in lab.get("evidence") or []]
         # POISON-060's per-character counts were not published and POISON-050
@@ -506,7 +619,7 @@ def measure_precision(
         raise BenchError(
             f"labels do not match the corpus: missing={missing} extra={extra}"
         )
-    for lab in labels.get("labels") or []:
+    for lab in entries:
         n = sum(groups[k] for k, v in covered.items() if v is lab)
         if "count" in lab and int(lab["count"]) != n:
             raise BenchError(
@@ -517,8 +630,6 @@ def measure_precision(
     per_id: dict[str, dict[str, Any]] = {}
     for (fid, ev), n in sorted(groups.items()):
         label = covered[(fid, ev)]["label"]
-        if label not in ("true_positive", "false_positive"):
-            raise BenchError(f"{fid}: label must be true_positive or false_positive")
         cell = per_id.setdefault(
             fid, {"findings": 0, "true_positive": 0, "false_positive": 0}
         )
@@ -532,14 +643,24 @@ def measure_precision(
     for (fid, ev), n in groups.items():
         basis[covered[(fid, ev)]["basis"]] += n
     tools_total = int((summary.get("tools") or {}).get("total") or 0)
+    severity = dict((summary.get("poisoning") or {}).get("by_id_sev") or {})
+    for fid, cell in per_id.items():
+        cell["severity"] = severity.get(fid)
+    high = [c for c in per_id.values() if c["severity"] in HIGH_OR_ABOVE]
+    high_total = sum(c["findings"] for c in high)
+    high_tp = sum(c["true_positive"] for c in high)
     return {
         "corpus": "docs/research/2026-10-top100-npm/summary.json",
         "labels": "docs/research/poisoning-benchmark/top100-labels.json",
         "scanner_version": labels.get("scanner_version"),
+        "labelled_patterns_fingerprint": labels["labelled_patterns_fingerprint"],
         "findings": total,
         "true_positive": tp,
         "false_positive": total - tp,
         "precision": _rate(tp, total),
+        "findings_high_or_above": high_total,
+        "true_positive_high_or_above": high_tp,
+        "precision_high_or_above": _rate(high_tp, high_total),
         "tools_scanned": tools_total,
         "findings_per_100_tools": round(total * 100 / tools_total, 1)
         if tools_total
@@ -583,15 +704,15 @@ def _cells(section: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Flatten every recall cell in an ``mcptox`` section to ``{path: cell}``."""
     out: dict[str, dict[str, Any]] = {}
     bench = section.get("benchmark_cases") or {}
-    for code, cell in (bench.get("recall") or {}).items():
-        out[f"benchmark_cases/{code}"] = cell
-    for wrapper, table in (bench.get("recall_by_wrapper") or {}).items():
-        for code, cell in table.items():
-            out[f"benchmark_cases/{wrapper}/{code}"] = cell
-    for code, cell in (
-        (section.get("unwrapped_descriptions") or {}).get("recall") or {}
-    ).items():
-        out[f"unwrapped_descriptions/{code}"] = cell
+    pure = section.get("unwrapped_descriptions") or {}
+    for suffix in ("", "_high_or_above"):
+        for code, cell in (bench.get("recall" + suffix) or {}).items():
+            out[f"benchmark_cases{suffix}/{code}"] = cell
+        for wrapper, table in (bench.get("recall_by_wrapper" + suffix) or {}).items():
+            for code, cell in table.items():
+                out[f"benchmark_cases{suffix}/{wrapper}/{code}"] = cell
+        for code, cell in (pure.get("recall" + suffix) or {}).items():
+            out[f"unwrapped_descriptions{suffix}/{code}"] = cell
     return out
 
 
@@ -618,12 +739,13 @@ def compare_recall(
             regressions.append(f"{path}: detected {a['detected']} -> {b['detected']}")
         elif b["detected"] > a["detected"]:
             improvements.append(f"{path}: detected {a['detected']} -> {b['detected']}")
-    fa = (pinned.get("clean_tools") or {}).get("flagged", 0)
-    fb = (fresh.get("clean_tools") or {}).get("flagged", 0)
-    if fb > fa:
-        regressions.append(f"clean_tools: flagged {fa} -> {fb}")
-    elif fb < fa:
-        improvements.append(f"clean_tools: flagged {fa} -> {fb}")
+    for key in ("flagged", "flagged_high_or_above"):
+        fa = (pinned.get("clean_tools") or {}).get(key, 0)
+        fb = (fresh.get("clean_tools") or {}).get(key, 0)
+        if fb > fa:
+            regressions.append(f"clean_tools: {key} {fa} -> {fb}")
+        elif fb < fa:
+            improvements.append(f"clean_tools: {key} {fa} -> {fb}")
     return regressions, improvements
 
 
@@ -683,37 +805,61 @@ def _write_section(path: Path, key: str, section: dict[str, Any]) -> None:
 
 def _print_recall(section: dict[str, Any]) -> None:
     bench = section["benchmark_cases"]
-    print(f"MCPTox {section['files']}")
     print(f"benchmark cases (excluded wrong_data: {bench['excluded_wrong_data']})")
+    for suffix, label in (("", "any severity"), ("_high_or_above", "HIGH or above")):
+        print(f"  recall, {label}:  all | important | ignore | none")
+        for code in ("P1", "P2", "P3", "all"):
+            cells = [bench["recall" + suffix][code]] + [
+                bench["recall_by_wrapper" + suffix][w][code] for w in WRAPPERS
+            ]
+            shown = "  ".join(f"{c['detected']}/{c['total']} {_pct(c)}" for c in cells)
+            print(f"    {code:<3} {shown}")
+    pure = section["unwrapped_descriptions"]
     for code in ("P1", "P2", "P3", "all"):
-        cells = [bench["recall"][code]] + [
-            bench["recall_by_wrapper"][w][code] for w in WRAPPERS
-        ]
-        shown = "  ".join(f"{c['detected']}/{c['total']} {_pct(c)}" for c in cells)
-        print(f"  {code:<3} all | important | ignore | none:  {shown}")
-    pure = section["unwrapped_descriptions"]["recall"]
-    for code in ("P1", "P2", "P3", "all"):
-        c = pure[code]
-        print(f"  unwrapped {code:<3} {c['detected']}/{c['total']} {_pct(c)}")
+        a, h = pure["recall"][code], pure["recall_high_or_above"][code]
+        print(
+            f"  unwrapped {code:<3} {a['detected']}/{a['total']} {_pct(a)}"
+            f"   HIGH+ {h['detected']}/{h['total']} {_pct(h)}"
+        )
     clean = section["clean_tools"]
     print(
-        f"clean tools flagged: {clean['flagged']}/{clean['total']} "
+        "clean-tool flag rate (the precision check that re-runs after a change): "
+        f"{clean['flagged']}/{clean['total']} any severity, "
+        f"{clean['flagged_high_or_above']}/{clean['total']} HIGH+ "
         f"{clean['findings_by_id']}"
     )
 
 
 def _print_precision(section: dict[str, Any]) -> None:
     print(
-        f"top-100 npm: {section['true_positive']}/{section['findings']} real "
+        f"top-100 npm (fixed measurement, {section['scanner_version']}): "
+        f"{section['true_positive']}/{section['findings']} real "
         f"(precision {_pct(section)}), basis {section['label_basis']}"
     )
+    print(
+        f"  HIGH or above: {section['true_positive_high_or_above']}/"
+        f"{section['findings_high_or_above']} real"
+    )
     for fid, cell in section["by_id"].items():
-        print(f"  {fid}: {cell['true_positive']}/{cell['findings']}")
+        print(
+            f"  {fid} ({cell['severity']}): {cell['true_positive']}/{cell['findings']}"
+        )
     replay = section["replay"]
     print(
-        "  reproduced from committed text: "
-        f"{replay['findings_reproduced_from_committed_text']}"
+        "committed-fragment replay with the current code (re-runs after a change): "
+        f"{replay['findings_reproduced_from_committed_text']} of "
+        f"{section['findings']} findings reproduce"
     )
+    if section["labelled_patterns_fingerprint"] != replay["patterns_fingerprint"]:
+        print(
+            "STALE: the top-100 labels describe different POISON-* code "
+            f"(labelled {section['labelled_patterns_fingerprint']}, current "
+            f"{replay['patterns_fingerprint']}). The 0-of-661 precision is a "
+            "fixed measurement of the old code; re-measuring it needs a fresh "
+            "enumeration of the corpus (runs third-party servers, never in CI). "
+            "The precision checks that do re-run: this replay and the MCPTox "
+            "clean-tool flag rate (`recall --check`)."
+        )
 
 
 def _finish(regressions: list[str], improvements: list[str], what: str) -> int:
@@ -729,6 +875,13 @@ def _finish(regressions: list[str], improvements: list[str], what: str) -> int:
     return 1 if regressions else 0
 
 
+def _write_unless_regressed(status: int, path: Path, key: str, data: Any) -> None:
+    if status:
+        print(f"not writing {path}: --check found a regression", file=sys.stderr)
+        return
+    _write_section(path, key, data)
+
+
 def run_precision(args: argparse.Namespace) -> int:
     """``precision`` subcommand."""
     section = measure_precision(_read_json(args.summary), _read_json(args.labels))
@@ -739,28 +892,40 @@ def run_precision(args: argparse.Namespace) -> int:
         pinned = (_read_json(args.results).get("top100")) or {}
         status = _finish(*compare_precision(pinned, section), "precision")
     if args.write:
-        _write_section(args.results, "top100", section)
+        _write_unless_regressed(status, args.results, "top100", section)
     return status
 
 
 def run_recall(args: argparse.Namespace) -> int:
     """``recall`` subcommand."""
-    pinned = (_read_json(args.results).get("mcptox") or {}) if args.check else {}
+    results = _read_json(args.results) if args.results.exists() else {}
+    pinned = results.get("mcptox") or {}
+    if args.check and not pinned:
+        raise BenchError(f"{args.results}: no 'mcptox' section to check against")
     files = load_mcptox(args.source)
-    # Hash before parsing: a host that answers with an error page must read
-    # as "not the pinned dataset", not as a malformed one.
-    if args.check and file_digests(files) != (pinned.get("files") or {}):
-        raise DatasetUnavailableError(
-            "MCPTox files differ from the pinned SHA-256 values "
-            f"(got {file_digests(files)})"
+    # Hash before parsing, always: a host that answers with an error page must
+    # read as "not the pinned dataset", not as a malformed one.
+    digests = file_digests(files)
+    for name, d in digests.items():
+        print(f"{name}: sha256 {d['sha256']} ({d['bytes']} bytes)")
+    if pinned:
+        same = digests == (pinned.get("files") or {})
+        print(
+            "hashes match the pinned results"
+            if same
+            else f"hashes DIFFER from {args.results} (pinned {pinned.get('files')})"
         )
+        if args.check and not same:
+            raise DatasetUnavailableError(
+                "MCPTox files differ from the pinned SHA-256 values"
+            )
     section = measure_recall(files)
     _print_recall(section)
     status = 0
     if args.check:
         status = _finish(*compare_recall(pinned, section), "recall")
     if args.write:
-        _write_section(args.results, "mcptox", section)
+        _write_unless_regressed(status, args.results, "mcptox", section)
     return status
 
 

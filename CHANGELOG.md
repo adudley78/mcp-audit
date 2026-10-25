@@ -23,15 +23,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `mcpName` in an npm `package.json`).
 - **Measured poisoning-detection recall and precision** (STORY-0088, new
   [`docs/poisoning.md`](docs/poisoning.md)). On MCPTox (arXiv 2508.14925), the POISON-*
-  checks flag 74.5% of the 1,312 poisoned tool descriptions, all of the ones wrapped in
+  checks flag 74.5% of the 1,312 poisoned tool descriptions (69.2% at HIGH or above, the
+  threshold `check` and the pre-commit default fail on), all of the ones carrying
   `<IMPORTANT>` or "Ignore the previous instructions", and 23.2% of the ones without a
-  wrapper (4.7% for parameter tampering). They flag 18 of MCPTox's 353 real tools. On the
-  live tools of the 100 most-downloaded npm MCP servers, none of their 661 findings was
-  an attack. `scripts/bench_poisoning.py` (dev tooling, not part of the package) takes
-  the measurement; `docs/research/poisoning-benchmark/` holds the labels and the results.
-  `tests/test_bench_poisoning.py` fails when the patterns change until both numbers are
-  re-measured. Recall is a release-time measurement: MCPTox is fetched by hand, never in
-  CI, and never committed.
+  wrapper (7.1% at HIGH or above; 4.7% for parameter tampering). They flag 18 of
+  MCPTox's 353 real tools (16 at HIGH). On the live tools of the 100 most-downloaded npm
+  MCP servers, none of their 661 findings was an attack; that is a fixed measurement of
+  the 0.21.x code, since re-measuring it means re-running those servers.
+  `scripts/bench_poisoning.py` (dev tooling, not part of the package) takes the
+  measurement; `docs/research/poisoning-benchmark/` holds the labels and the results.
+  `tests/test_bench_poisoning.py` fingerprints `analyzers/poisoning.py` and
+  `build_runtime_server_config`, so any change to either fails CI until recall, the
+  clean-tool flag rate and the committed-fragment replay are re-measured. Recall is a
+  release-time measurement: MCPTox is fetched by hand, never in CI, and never committed.
 
 ### Changed
 

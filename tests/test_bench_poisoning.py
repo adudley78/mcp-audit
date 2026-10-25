@@ -4,9 +4,11 @@ STORY-0088. Offline. The precision side runs on committed data: the published
 top-100 npm scan (``docs/research/2026-10-top100-npm/summary.json``) and its
 hand labels. Its result, and what the current analyzer does with every
 evidence fragment that corpus publishes, are pinned in
-``docs/research/poisoning-benchmark/results.json``; a pattern change that
-fires on known-benign corpus text, or changes what fires at all, fails here
-until the benchmark is re-run and the docs are updated.
+``docs/research/poisoning-benchmark/results.json``. A fingerprint of the whole
+source of ``analyzers/poisoning.py`` and ``build_runtime_server_config`` is
+pinned with both measurements, so any change to either fails here until the
+benchmark is re-run and the docs are updated; so does a pattern that fires on
+known-benign corpus text it did not fire on before.
 
 MCPTox is never committed (no stated licence), so recall parsing and scoring
 are tested on small records written here in MCPTox's shape. The real recall
@@ -51,6 +53,7 @@ def _no_network(monkeypatch: pytest.MonkeyPatch) -> None:
         raise AssertionError("bench_poisoning tests must not touch the network")
 
     monkeypatch.setattr(urllib.request, "urlopen", _refuse)
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", _refuse)
 
 
 # ── top-100 precision on committed data ──────────────────────────────────────
@@ -79,6 +82,9 @@ class TestTop100Precision:
             "POISON-060": 488,
         }
         assert fresh["findings_per_100_tools"] == 41.0
+        # What `check` fails on: POISON-060, -012 and -020 are HIGH.
+        assert fresh["findings_high_or_above"] == 492
+        assert fresh["true_positive_high_or_above"] == 0
 
     def test_replay_of_committed_evidence_is_pinned(self) -> None:
         """The current analyzer, run on every committed fragment, matches the pin.
@@ -100,13 +106,83 @@ class TestTop100Precision:
         assert replay["findings_reproduced_from_committed_text"] == 520
 
     def test_results_match_the_current_patterns(self) -> None:
-        """Both pinned measurements were taken with today's POISON-* patterns."""
+        """Both pinned measurements were taken with today's POISON-* detection code.
+
+        Any change to ``analyzers/poisoning.py`` or ``build_runtime_server_config``
+        changes the fingerprint and fails here until both are re-measured.
+        """
         current = bench.patterns_fingerprint()
         assert RESULTS["top100"]["replay"]["patterns_fingerprint"] == current, RERUN
         assert RESULTS["mcptox"]["patterns_fingerprint"] == current, RERUN
 
-    def test_check_passes_on_committed_data(self) -> None:
-        assert bench.main(["precision", "--check"]) == 0
+    def test_labelled_fingerprint_is_recorded(self) -> None:
+        """The labels name the code they describe, and results.json carries it.
+
+        It is deliberately not compared with today's fingerprint: the labels are
+        a fixed measurement of the 0.21.x code, and a later pattern change makes
+        them STALE (printed), not wrong.
+        """
+        labelled = LABELS["labelled_patterns_fingerprint"]
+        assert labelled.startswith("sha256:") and len(labelled) == 71
+        assert RESULTS["top100"]["labelled_patterns_fingerprint"] == labelled
+
+    def test_stale_labels_are_reported(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setattr(bench, "patterns_fingerprint", lambda: "sha256:changed")
+        bench.main(["precision"])
+        out = capsys.readouterr().out
+        assert "STALE" in out
+        assert "MCPTox clean-tool flag rate" in out
+
+    def test_stale_line_tracks_the_fingerprint(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        bench.main(["precision"])
+        stale = LABELS["labelled_patterns_fingerprint"] != bench.patterns_fingerprint()
+        assert ("STALE" in capsys.readouterr().out) == stale
+
+
+class TestFingerprint:
+    """The fingerprint covers the whole detection path, not just the pattern table."""
+
+    def test_covers_the_poisoning_module_and_runtime_config(self) -> None:
+        payload = bench.fingerprint_payload()
+        assert "def scan_concealed_channels" in payload["poisoning_module_source"]
+        assert "class PoisoningAnalyzer" in payload["poisoning_module_source"]
+        source = payload["build_runtime_server_config_source"]
+        assert source.startswith("def build_runtime_server_config")
+        assert '"inputSchema"' in source
+
+    @pytest.mark.parametrize(
+        "target", ["poisoning_module", "build_runtime_server_config"]
+    )
+    def test_source_change_changes_fingerprint(
+        self, monkeypatch: pytest.MonkeyPatch, target: str
+    ) -> None:
+        before = bench.patterns_fingerprint()
+        real = bench._source
+        changed = (
+            bench._poisoning
+            if target == "poisoning_module"
+            else bench.build_runtime_server_config
+        )
+        monkeypatch.setattr(
+            bench,
+            "_source",
+            lambda obj: real(obj) + "\n# edited" if obj is changed else real(obj),
+        )
+        assert bench.patterns_fingerprint() != before
+
+    def test_line_endings_do_not_change_fingerprint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        before = bench.patterns_fingerprint()
+        real = bench.inspect.getsource
+        monkeypatch.setattr(
+            bench.inspect, "getsource", lambda obj: real(obj).replace("\n", "\r\n")
+        )
+        assert bench.patterns_fingerprint() == before
 
 
 class TestLabelCoverage:
@@ -145,6 +221,27 @@ class TestLabelCoverage:
         labels["labels"][0]["label"] = "maybe"
         with pytest.raises(bench.BenchError, match="true_positive or false_positive"):
             bench.measure_precision(SUMMARY, labels)
+
+    @pytest.mark.parametrize("key", ["basis", "label", "id"])
+    def test_label_missing_a_field_is_exit_2(
+        self, key: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        labels = self._labels()
+        del labels["labels"][1][key]
+        path = tmp_path / "labels.json"
+        path.write_text(json.dumps(labels), encoding="utf-8")
+        assert bench.main(["precision", "--labels", str(path)]) == 2
+        assert f"missing ['{key}']" in capsys.readouterr().err
+
+    def test_labels_without_fingerprint_refused(self) -> None:
+        labels = self._labels()
+        del labels["labelled_patterns_fingerprint"]
+        with pytest.raises(bench.BenchError, match="labelled_patterns_fingerprint"):
+            bench.measure_precision(SUMMARY, labels)
+
+    def test_labels_not_a_list_refused(self) -> None:
+        with pytest.raises(bench.BenchError, match="'labels' list"):
+            bench.measure_precision(SUMMARY, {"labels": {}})
 
     def test_true_positive_label_moves_precision(self) -> None:
         labels = self._labels()
@@ -195,6 +292,23 @@ class TestComparePrecision:
         fresh["precision"] = 0.5
         regressions, _ = bench.compare_precision(self._section(), fresh)
         assert regressions
+
+    def test_check_write_does_not_write_after_a_regression(
+        self, tmp_path: Path
+    ) -> None:
+        pinned = self._section()
+        p030 = next(
+            g
+            for g in pinned["replay"]["groups"]
+            if g["id"] == "POISON-030" and g["fragments"][0]["text"] == "first call"
+        )
+        p030["fragments"][0]["fires"] = []
+        results = tmp_path / "results.json"
+        before = json.dumps({"top100": pinned})
+        results.write_text(before, encoding="utf-8")
+        argv = ["precision", "--check", "--write", "--results", str(results)]
+        assert bench.main(argv) == 1
+        assert results.read_text(encoding="utf-8") == before
 
 
 # ── MCPTox: parsing and scoring on records written here ──────────────────────
@@ -340,8 +454,12 @@ class TestMcptoxParsing:
 
     def test_clean_tools_limited_to_tool_names(self) -> None:
         data = json.loads(_dataset()["response_all.json"])
-        names = [t.name for t in bench.clean_tools(data)]
-        assert names == ["add_note", "list_notes", "route"]
+        names = [(srv, t.name) for srv, t in bench.clean_tools(data)]
+        assert names == [
+            ("Notes", "add_note"),
+            ("Notes", "list_notes"),
+            ("Maps", "route"),
+        ]
 
     def test_missing_clean_tool_refused(self) -> None:
         data = json.loads(_dataset()["response_all.json"])
@@ -378,16 +496,27 @@ class TestMcptoxScoring:
             "rate": 0.0,
         }
         assert bench_cases["detections_by_id"] == {"POISON-010": 1, "POISON-012": 1}
+        # Both wrapped cases are caught at HIGH; the P3 case is not caught at all.
+        assert bench_cases["recall_high_or_above"]["all"]["detected"] == 2
+        assert bench_cases["recall_by_wrapper_high_or_above"]["none"]["P3"] == {
+            "detected": 0,
+            "total": 1,
+            "rate": 0.0,
+        }
         pure = section["unwrapped_descriptions"]
         assert pure["recall"]["P2"]["detected"] == 1  # "first call" → POISON-030
+        # POISON-030 is MEDIUM: detected, but not at HIGH or above.
+        assert pure["recall_high_or_above"]["P2"]["detected"] == 0
         assert pure["recall"]["P3"]["detected"] == 0
         assert pure["recall"]["P1"] == {"detected": 0, "total": 0, "rate": None}
-        # Full-width CJK punctuation in a real tool's description is flagged:
-        # the same false-positive class as 488 of the top-100 findings.
+        # Full-width CJK punctuation in a real tool's description is flagged, at
+        # HIGH: the same false-positive class as 488 of the top-100 findings.
         assert section["clean_tools"] == {
             "total": 3,
             "flagged": 1,
+            "flagged_high_or_above": 1,
             "findings_by_id": {"POISON-060": 1},
+            "flagged_by_server": {"Maps": 1},
         }
         assert section["files"] == bench.file_digests(files)
         assert section["patterns_fingerprint"] == bench.patterns_fingerprint()
@@ -424,6 +553,18 @@ class TestCompareRecall:
         fresh["clean_tools"]["flagged"] += 1
         regressions, _ = bench.compare_recall(pinned, fresh)
         assert regressions == ["clean_tools: flagged 1 -> 2"]
+
+    def test_fewer_high_detections_is_a_regression(self) -> None:
+        pinned, fresh = self._sections()
+        fresh["benchmark_cases"]["recall_high_or_above"]["all"]["detected"] -= 1
+        regressions, _ = bench.compare_recall(pinned, fresh)
+        assert regressions == ["benchmark_cases_high_or_above/all: detected 2 -> 1"]
+
+    def test_more_clean_tools_flagged_high_is_a_regression(self) -> None:
+        pinned, fresh = self._sections()
+        fresh["clean_tools"]["flagged_high_or_above"] += 1
+        regressions, _ = bench.compare_recall(pinned, fresh)
+        assert regressions == ["clean_tools: flagged_high_or_above 1 -> 2"]
 
     def test_changed_case_set_is_a_regression(self) -> None:
         pinned, fresh = self._sections()
@@ -468,6 +609,22 @@ class TestLoading:
         with pytest.raises(bench.BenchError, match="non-https"):
             bench.load_mcptox("http://example.invalid/")
 
+    def test_redirect_to_http_refused(self) -> None:
+        handler = bench.HttpsOnlyRedirectHandler()
+        req = urllib.request.Request("https://example.invalid/a")
+        with pytest.raises(bench.BenchError, match="non-https"):
+            handler.redirect_request(
+                req, None, 302, "Found", {}, "http://evil.invalid/"
+            )
+
+    def test_redirect_to_https_followed(self) -> None:
+        handler = bench.HttpsOnlyRedirectHandler()
+        req = urllib.request.Request("https://example.invalid/a")
+        new = handler.redirect_request(
+            req, None, 302, "Found", {}, "https://mirror.invalid/b"
+        )
+        assert new is not None and new.full_url == "https://mirror.invalid/b"
+
     def test_fetch_is_capped(self, monkeypatch: pytest.MonkeyPatch) -> None:
         class _Resp:
             def __enter__(self) -> _Resp:
@@ -480,7 +637,9 @@ class TestLoading:
                 return b"x" * n
 
         monkeypatch.setattr(bench, "MAX_DOWNLOAD_BYTES", 8)
-        monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: _Resp())
+        monkeypatch.setattr(
+            urllib.request.OpenerDirector, "open", lambda *_a, **_k: _Resp()
+        )
         with pytest.raises(bench.BenchError, match="larger than"):
             bench.load_mcptox("https://example.invalid/data/")
 
@@ -488,7 +647,7 @@ class TestLoading:
         def _fail(*_a: Any, **_k: Any) -> None:
             raise OSError("connection refused")
 
-        monkeypatch.setattr(urllib.request, "urlopen", _fail)
+        monkeypatch.setattr(urllib.request.OpenerDirector, "open", _fail)
         with pytest.raises(bench.DatasetUnavailableError, match="refused"):
             bench.load_mcptox("https://example.invalid/data")
 
@@ -537,6 +696,38 @@ class TestRecallCli:
         assert bench.main(argv) == 2
         assert "pinned SHA-256" in capsys.readouterr().err
 
+    def test_check_write_does_not_write_after_a_regression(
+        self, tmp_path: Path
+    ) -> None:
+        pinned = bench.measure_recall(_dataset())
+        pinned["benchmark_cases"]["recall"]["all"]["detected"] += 1
+        results = self._results(tmp_path, pinned)
+        before = results.read_text(encoding="utf-8")
+        argv = ["recall", "--check", "--write", "--results", str(results)]
+        assert bench.main([*argv, "--source", str(self._source(tmp_path))]) == 1
+        assert results.read_text(encoding="utf-8") == before
+
+    def test_hashes_compared_without_check(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        pinned = bench.measure_recall(_dataset())
+        pinned["files"]["pure_tool.json"]["sha256"] = "0" * 64
+        results = self._results(tmp_path, pinned)
+        argv = ["recall", "--results", str(results)]
+        assert bench.main([*argv, "--source", str(self._source(tmp_path))]) == 0
+        out = capsys.readouterr().out
+        assert (
+            "sha256 " + bench.file_digests(_dataset())["pure_tool.json"]["sha256"]
+            in out
+        )
+        assert "hashes DIFFER" in out
+
+    def test_check_without_pinned_section_is_exit_2(self, tmp_path: Path) -> None:
+        results = tmp_path / "results.json"
+        results.write_text("{}", encoding="utf-8")
+        argv = ["recall", "--check", "--results", str(results)]
+        assert bench.main([*argv, "--source", str(self._source(tmp_path))]) == 2
+
     def test_write_records_section(self, tmp_path: Path) -> None:
         results = tmp_path / "out" / "results.json"
         src = self._source(tmp_path)
@@ -557,8 +748,10 @@ class TestCommittedResults:
         m = RESULTS["mcptox"]
         assert m["benchmark_cases"]["excluded_wrong_data"] == 36
         assert m["benchmark_cases"]["recall"]["all"]["total"] == 1312
+        assert m["benchmark_cases"]["recall_high_or_above"]["all"]["total"] == 1312
         assert m["unwrapped_descriptions"]["recall"]["all"]["total"] == 485
         assert m["clean_tools"]["total"] == 353
+        assert "flagged_high_or_above" in m["clean_tools"]
         assert set(m["files"]) == set(bench.MCPTOX_FILES)
 
 
