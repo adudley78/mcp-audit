@@ -206,6 +206,18 @@ _HINTS: dict[str, str] = {
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
         " — a third-party base URL receives every API call and its secrets."
     ),
+    # CI workflows (STORY-0091)
+    "WORKFLOW-001": (
+        "Allow only the commands this CI agent needs, make its job read-only,"
+        " and do writes in a separate job."
+    ),
+    "WORKFLOW-002": (
+        "Replace the CI agent's deny list with an allowlist of the commands it needs."
+    ),
+    "WORKFLOW-003": (
+        "Use run-gemini-cli 0.1.22+ with Gemini CLI 0.39.1+, and don't trust a"
+        " workspace that holds pull request code."
+    ),
     # Baseline drift
     "DRIFT": (
         "Review this change. If intentional,"

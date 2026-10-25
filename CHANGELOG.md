@@ -11,6 +11,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **Permission rules that don't do what they say (PERM-001..007).** The scan you already run (`check`, `scan`, `scan --project`, the GitHub Action) now reads every Claude Code settings file for rules Anthropic documents as ignored, misanchored or not a security boundary, and names each rule, the form that gets past it, and what to write instead. PERM-001: a rule Claude Code skips or never matches, such as `Bash(command:rm *)`, an `mcp__` rule with parentheses, `Write(path)`, `Bash(git:* push)` or an `mcp__*` allow (HIGH in `deny`, MEDIUM in `ask`, INFO in `allow`). PERM-002: `Read(/Users/…)` with one slash, which points inside the project, not at `/` (MEDIUM in `deny`/`ask`, INFO in `allow`). PERM-003: `Bash(ls*)`, which also allows `lsof` (LOW). PERM-004: a deny on `curl`, `rm` or `git push` with no sandbox, which `/usr/bin/curl` or `sh -c` gets past (MEDIUM when the same file runs those forms without asking, through an allow such as `Bash(sh -c *)` or a bypass/auto mode in user settings; INFO otherwise). PERM-005: `WebFetch(domain:*)`, which opens the sandbox to every host (HIGH with the sandbox on, LOW otherwise). PERM-006: a bare `Bash` ask rule that the sandbox's auto-allow skips (MEDIUM). PERM-007: an `mcp__<server>` allow rule on a server the scan found poisoned, typosquatted, changed since approval, or pinned to a vulnerable version, matched by the whole server name as Claude Code 2.1.299 does, including a `~/.claude/settings.json` rule on a repository's server under `scan --project` (HIGH). See `docs/permission-rules.md`.
+- **AI agents in GitHub Actions workflows: WORKFLOW-001..003 (STORY-0091).** A
+  plain `scan` or `check` run inside a repository, which is what the GitHub
+  Action does, now reads its `.github/workflows/` files, and `scan --project`
+  reads them for the project and any nested repository. WORKFLOW-001 (HIGH): a
+  Claude Code, Claude Code Security Review or Gemini CLI step runs on an issue,
+  comment or `pull_request_target` event, gets a secret, has write permission
+  (or no `permissions:` block), and can run any command. WORKFLOW-002 (MEDIUM):
+  the same, limited only by a deny list. WORKFLOW-003 (HIGH): a Gemini CLI step
+  on such an event uses a version below the CVSS 10.0 fix, or trusts a
+  workspace that holds pull-request code. Based on "Comment and Control" (ACM
+  CCS 2026), where all three vendors' agents leaked their own secrets. Files
+  are parsed as data and never run; an explicit `--path` scans only what it
+  names. See `docs/ci-workflows.md`.
+
 - **Verified registry entry for `mcptoon`** (PyPI, [#171](https://github.com/adudley78/mcp-audit/issues/171),
   submitted by [@activeing123](https://github.com/activeing123)), an MCP gateway that
   proxies the user's configured servers. Capabilities `file_read` and `network_out`,

@@ -1549,6 +1549,45 @@
         "Insufficient Authentication and Authorization"
       ],
       "notes": "Fires when a whole-server allow rule (mcp__<server> or mcp__<server>__*) matches, by the server's whole normalized name as in Claude Code 2.1.299, a Claude Code MCP server with a HIGH or CRITICAL poisoning, rug-pull or supply-chain finding in the same scan (SC-004 only when the configured version is known to be affected; toxic-flow findings do not count). Under scan --project the default and project scans are paired too. HIGH. CWE-862. Source: Claude Code CHANGELOG 2.1.299, code.claude.com/docs/en/permissions (MCP), code.claude.com/docs/en/mcp. Post-pass in scanner._run_static_pipeline step 5b and cli/scan._apply_project_scan (STORY-0092)."
+    },
+    {
+      "finding_id": "WORKFLOW-001",
+      "finding_title": "CI agent runs on text a stranger can write, with secrets, write access and unrestricted tools",
+      "owasp_codes": [
+        "MCP06",
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion",
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "GitHub Actions workflow step using anthropics/claude-code-action, anthropics/claude-code-security-review or google-github-actions/run-gemini-cli, on issues / issue_comment / pull_request_target / pull_request_review(_comment) / discussion(_comment), with a secret or github.token passed through with:/env:, a write permission or no permissions: key, and tools open to any or a broad shell command. Severity HIGH. CWE-1427. Analyzer: ci_workflow (STORY-0091). Comment and Control, ACM CCS 2026."
+    },
+    {
+      "finding_id": "WORKFLOW-002",
+      "finding_title": "CI agent's only tool restriction is a blocklist",
+      "owasp_codes": [
+        "MCP06",
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion",
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "As WORKFLOW-001, but a deny list (--disallowedTools, disallowed_tools, permissions.deny, Gemini tools.exclude) is the only tool limit. Severity MEDIUM. CWE-184. Analyzer: ci_workflow (STORY-0091)."
+    },
+    {
+      "finding_id": "WORKFLOW-003",
+      "finding_title": "Gemini CLI step exposed to the CVSS 10.0 workspace-trust flaw (GHSA-wpqr-6v78-jr5g)",
+      "owasp_codes": [
+        "MCP05",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "run-gemini-cli step on an event a stranger can write, pinned below action 0.1.22 or Gemini CLI 0.39.1 / 0.40.0-preview.3, or setting GEMINI_CLI_TRUST_WORKSPACE / GEMINI_TRUST_WORKSPACE after checking out pull-request code. Severity HIGH. CWE-1395 / CWE-829. Analyzer: ci_workflow (STORY-0091)."
     }
   ],
   "dynamic_patterns": [

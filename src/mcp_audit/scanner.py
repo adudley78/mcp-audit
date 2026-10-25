@@ -431,6 +431,10 @@ def _discover_and_parse(
     auto-run files at the working directory's root are checked too (TRUST-003,
     TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), and are scored
     like the rest.
+
+    With no *extra_paths*, the working directory's
+    ``.github/workflows/*.y{a,}ml`` files are read the same way and their
+    WORKFLOW-001..003 findings appended (STORY-0091).
     """
     configs = discover_configs(
         extra_paths=extra_paths,
@@ -455,6 +459,14 @@ def _discover_and_parse(
 
     if not extra_paths:
         result.findings.extend(_cwd_autoexec_findings())
+
+        # GitHub Actions workflows of the repository the scan runs in
+        # (STORY-0091): the GitHub Action's default run is a scan from the
+        # checkout, so a workflow that hands an agent secrets on an issue or
+        # comment trigger fails CI.  Read-only YAML; an explicit path skips it.
+        from mcp_audit.ci_workflows import scan_workflows  # noqa: PLC0415
+
+        result.findings.extend(scan_workflows(Path.cwd()))
 
     all_servers: list[ServerConfig] = []
     for config in configs:
