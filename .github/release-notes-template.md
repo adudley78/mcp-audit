@@ -104,10 +104,10 @@ changelog section above.
 ### Validated against
 
 - 6 real-world exploit fixtures (Invariant Labs SSH exfiltration, CrowdStrike `add_numbers`, XML injection, cloud credential theft, behavioral override)
-- 22-server false-positive benchmark — 0% poisoning FP rate on legitimate servers
+- 22-server false-positive benchmark — 0% poisoning FP rate on legitimate server config entries (measured recall and precision on tool descriptions: [`docs/poisoning.md`](docs/poisoning.md))
 - CVSS + OWASP MCP Top 10 severity mappings on every finding ID
 
-**3,818 tests · Apache 2.0 · macOS · Linux · Windows**
+**3,890 tests · Apache 2.0 · macOS · Linux · Windows**
 
 ---
 

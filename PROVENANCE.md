@@ -512,3 +512,32 @@ The **new** patterns specific to the agent-file surface are:
 - **OWASP Server-Side Request Forgery Prevention Cheat Sheet** (already cited
   above): resolve, then validate every resolved address.
 - Original implementation; no code was copied.
+
+## Poisoning benchmark (scripts/bench_poisoning.py — STORY-0088)
+
+Measures the existing POISON-* patterns; adds or changes none. Results:
+`docs/poisoning.md`, `docs/research/poisoning-benchmark/results.json`.
+
+- **MCPTox: A Benchmark for Tool Poisoning Attack on Real-World MCP Servers**
+  (AAAI 2026, [arXiv 2508.14925](https://arxiv.org/html/2508.14925v1)). The recall
+  corpus: 1,312 valid poisoned test cases over 45 real servers and 353 tools, three
+  paradigms (P1 explicit trigger function hijacking, P2 implicit trigger function
+  hijacking, P3 implicit trigger parameter tampering) and two keyword "enhanced
+  settings". Data from the authors' anonymized repository
+  (https://anonymous.4open.science/r/AAAI26-7C02), read at run time and never
+  committed, because it states no licence; `results.json` records the files' SHA-256.
+  The wrapper split follows the substring tests in the repository's own
+  `analysis.ipynb`.
+- **Machine Learning-Based Detection of MCP Attacks** (Mattsson, Nyberg, Borg,
+  Britto, [arXiv 2604.10534](https://arxiv.org/html/2604.10534v1)). Cisco MCP
+  Scanner YARA rules at 20.8% recall on MCPTox-derived descriptions; quoted for
+  comparison only.
+- **Rethinking MCP Security: A Large-Scale Study of Runtime MCP Servers and Security
+  Scanner Reliability** ([arXiv 2607.11086](https://arxiv.org/html/2607.11086v1)).
+  45.5% mean precision and 15.7% average pairwise agreement across eight scanners on
+  37,288 MCPZoo servers; quoted for comparison only.
+- **The 2026-10-22 top-100 npm scan** (`docs/research/2026-10-top100-npm/`). The
+  precision corpus; its findings are labelled in
+  `docs/research/poisoning-benchmark/top100-labels.json`.
+- The MCPTox-shaped records in `tests/test_bench_poisoning.py` were written for the
+  test; no dataset text was copied. Original implementation; no code was copied.

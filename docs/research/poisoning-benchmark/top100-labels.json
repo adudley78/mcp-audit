@@ -1,0 +1,108 @@
+{
+  "_about": "Hand labels for every POISON-* finding in the published top-100 npm scan (docs/research/2026-10-top100-npm/summary.json). scripts/bench_poisoning.py precision refuses to run unless these labels cover every finding exactly once. Method: docs/poisoning.md#how-the-top-100-findings-were-labelled.",
+  "corpus": "docs/research/2026-10-top100-npm/summary.json",
+  "scanner_version": "mcp-audit 0.21.0 (src/mcp_audit/analyzers/poisoning.py and mcp_client.build_runtime_server_config are unchanged from v0.21.0 to main at f9ba1ff)",
+  "labelled_patterns_fingerprint": "sha256:21b594ccad7f3b2b411dece244e22310377c570407650e178f9f5ece70ac659d",
+  "labelled_patterns_fingerprint_note": "scripts/bench_poisoning.py patterns_fingerprint() of the code that produced the 661 findings: analyzers/poisoning.py and build_runtime_server_config as of v0.21.0, byte-identical to main at f9ba1ff. The labels are a fixed measurement of that code; when the current code differs, `precision` prints STALE.",
+  "label_definitions": {
+    "true_positive": "The text the finding points at is an attempt to make the agent do something the user did not ask for, or to hide content from the user.",
+    "false_positive": "The text is ordinary documentation of the tool or its parameters."
+  },
+  "basis_definitions": {
+    "committed_evidence": "The label follows from the evidence string committed in summary.json (for POISON-060, the first matched character of each field), backed by the review for anything later in the field.",
+    "review": "The label comes from the review done with the 2026-10-22 scan, which had the full live tool definitions (about 6 MB, not committed; scripts/enumerate.py in the top-100 directory regenerates them). Its README: 'None of the poisoning findings in this corpus was a real attack.' On 2026-10-25 the published npm source of 54 of the 60 connected servers was read (never run; the other six are over 60 MB) for each matched phrase; every occurrence found was ordinary documentation of a parameter, a workflow step or the code itself."
+  },
+  "labels": [
+    {
+      "id": "POISON-060",
+      "evidence": [
+        "（",
+        "，",
+        "：",
+        "；"
+      ],
+      "count": 488,
+      "label": "false_positive",
+      "basis": "committed_evidence",
+      "why": "POISON-060 reports the first matching character in each text field. Across the corpus that first character was always one of U+FF08, U+FF0C, U+FF1A or U+FF1B: the full-width parenthesis, comma, colon and semicolon of Chinese text. They are punctuation, not letters, so they cannot disguise an English word, and after normalization they become ( , : ; on which no literal pattern fires. A disguised letter later in the same field cannot be ruled out from committed data; the 2026-10-22 review of the full text found none."
+    },
+    {
+      "id": "POISON-050",
+      "evidence": [],
+      "count": 139,
+      "label": "false_positive",
+      "basis": "review",
+      "why": "A description of 2,000 characters or more. Length is the whole signal; the long descriptions are API reference text (the longest is a 40,325-character test-management tool), and the review found no instructions in them."
+    },
+    {
+      "id": "POISON-030",
+      "evidence": [
+        "first call"
+      ],
+      "count": 22,
+      "label": "false_positive",
+      "basis": "review",
+      "why": "Workflow documentation of the shape \"first call X to resolve the ID\" between a server's own tools."
+    },
+    {
+      "id": "POISON-030",
+      "evidence": [
+        "First call"
+      ],
+      "count": 3,
+      "label": "false_positive",
+      "basis": "review",
+      "why": "Same as above, sentence-initial."
+    },
+    {
+      "id": "POISON-030",
+      "evidence": [
+        "After calling this"
+      ],
+      "count": 3,
+      "label": "false_positive",
+      "basis": "review",
+      "why": "Next-step documentation, e.g. \"After calling this tool, use <other tool> to run it\"."
+    },
+    {
+      "id": "POISON-030",
+      "evidence": [
+        "Instead use"
+      ],
+      "count": 1,
+      "label": "false_positive",
+      "basis": "review",
+      "why": "A pointer to the right tool for a different task."
+    },
+    {
+      "id": "POISON-030",
+      "evidence": [
+        "instead of call"
+      ],
+      "count": 1,
+      "label": "false_positive",
+      "basis": "review",
+      "why": "Usage guidance (\"instead of calling ...\")."
+    },
+    {
+      "id": "POISON-012",
+      "evidence": [
+        "Override default"
+      ],
+      "count": 2,
+      "label": "false_positive",
+      "basis": "review",
+      "why": "Parameter documentation of the shape \"Override default <setting>\" (for example a hostname or a result limit)."
+    },
+    {
+      "id": "POISON-020",
+      "evidence": [
+        "Base64 encode"
+      ],
+      "count": 2,
+      "label": "false_positive",
+      "basis": "review",
+      "why": "Data-format documentation (\"Base64 encoded file content or file path\"); the nearby word that satisfied the co-occurrence gate is part of the same format description."
+    }
+  ]
+}
