@@ -8,8 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-10-25
+
 ### Security
 
+- **`setuptools` 84.0.0 → 84.2.1 in the lockfile** (GHSA-xmj3-9gf7-h52w, fixed in 84.1.0). Build-time only; it is not in the runtime install. `pillow` 12.3.0 → 13.0.0 and `certifi` 2026.2.25 → 2026.10.19 arrived through Dependabot (#173). `pip-audit` (PyPI and OSV databases) on every package in the refreshed lock reports no known vulnerabilities.
 - **Registry: five advisories added from OSV**, found by the weekly `registry-advisory-sync.yml` check (its first run, 2026-10-19, failed on the first one; the other four were published 2026-10-20). `@modelcontextprotocol/sdk`: CVE-2026-111767, CVE-2026-111768, CVE-2026-111769, CVE-2026-111771 (all fixed in 1.32.0). `mcp` (PyPI): CVE-2026-59951, unbounded StreamableHTTP session accumulation. Its `fixed_in` is 2.2.0, the highest fixed version across OSV's ranges, so a config pinned to the 1.x fix (1.30.0) is still reported; that is the sync script's documented conservative rule. `vet` and SC-004 now report all five. Written with `scripts/sync_registry_advisories.py --write`; nothing removed or rewritten.
 - **Refreshed vulnerable dependencies in the lockfile, which is what the standalone binaries are built from.** `mcp` 1.27.0 → 1.30.0 (CVE-2026-59951, CVE-2026-52870, CVE-2026-52869, CVE-2026-59950), `starlette` 1.0.1 → 1.8.0 (CVE-2026-48817, -48818, -54282, -54283), `python-multipart` 0.0.28 → 0.0.32 (CVE-2026-53538, -53539, -53540), `pydantic-settings` 2.13.1 → 2.16.0 (CVE-2026-58203), `pyasn1` 0.6.3 → 0.6.4 (CVE-2026-59884, -59885, -59886), `pillow` 12.2.0 → 12.3.0 (13 advisories) and, build-time only, `setuptools` 82.0.1 → 84.0.0 (CVE-2026-59890). The `mcp`, `starlette`, `python-multipart` and `pydantic-settings` advisories are in server-side code; mcp-audit uses only the MCP client, for `--connect`. `pyasn1` parses certificates for `--verify-signatures`. `pillow` arrives through `reportlab` for PDF reports. A fresh `pip install` already resolves current versions. `pip-audit` on the refreshed lock reports no known vulnerabilities.
 
