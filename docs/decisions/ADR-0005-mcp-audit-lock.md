@@ -543,7 +543,7 @@ adoption paths, without a second ADR — the story's own scope note says this ad
   Explanatory, never reproducible: tags and deprecation flags have no queryable history, so no
   recorded context is a coordinate anyone can return to.
   Worked case, from Prachet Poddar's `RESOLVER-NOTES.md`
-  ([mcp-supply-chain-study v3.15](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.15/RESOLVER-NOTES.md)):
+  ([mcp-supply-chain-study v3.16.1](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/RESOLVER-NOTES.md)):
   run on the same day by the same resolver, `@types/node` resolves to 26.4.1 against the registry
   rebuilt as of 2026-09-07 and to 22.20.3 against the live registry. Today's `latest` tag points at a
   22.20.x published after the cutoff, so the rebuild cannot apply the tag preference and falls back to

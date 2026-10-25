@@ -34,7 +34,7 @@ own documentation.
 
 | Contributor | Contribution | Cited in | Since |
 |---|---|---|---|
-| Prachet Poddar ([@prachetpoddar](https://github.com/prachetpoddar)) | Independent measurement of 250 npm MCP servers: the deps.dev-versus-install divergence bound (measured before his resolver was corrected), the 184-of-250 registry-drift result, and npm resolver behaviour. Author of the install-tree (`trees`) layer of `mcp-lock.json` and of format proposals adopted or queued in ADR-0005. | [supply-chain.md](supply-chain.md), [lock.md](lock.md), [ADR-0005](decisions/ADR-0005-mcp-audit-lock.md), [GAPS.md](../GAPS.md) | 2026-09-07 ([#88](https://github.com/adudley78/mcp-audit/issues/88)) |
+| Prachet Poddar ([@prachetpoddar](https://github.com/prachetpoddar)) | Independent measurement of 250 npm MCP servers: the deps.dev-versus-install divergence bound (recomputed against his corrected resolver in v3.16), the 184-of-250 registry-drift result, and npm resolver behaviour. Author of the install-tree (`trees`) layer of `mcp-lock.json` and of format proposals adopted or queued in ADR-0005. | [supply-chain.md](supply-chain.md), [lock.md](lock.md), [ADR-0005](decisions/ADR-0005-mcp-audit-lock.md), [GAPS.md](../GAPS.md) | 2026-09-07 ([#88](https://github.com/adudley78/mcp-audit/issues/88)) |
 
 ---
 

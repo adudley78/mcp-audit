@@ -144,8 +144,8 @@ checksums, and verifies these — and, once `lock --connect` has populated it, t
 (see [Tool definitions](#tool-definitions---connect)). `trees` is a **reserved, foreign** section:
 
 - `trees` is reserved for [Prachet Poddar](https://github.com/prachetpoddar)'s independent
-  install-tree generator ([`code/mcp_lock.py`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.15/code/mcp_lock.py),
-  specified in [`spec/mcp-lock-spec.md`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.15/spec/mcp-lock-spec.md),
+  install-tree generator ([`code/mcp_lock.py`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/code/mcp_lock.py),
+  specified in [`spec/mcp-lock-spec.md`](https://github.com/prachetpoddar/mcp-supply-chain-study/blob/v3.16.1/spec/mcp-lock-spec.md),
   both in his `mcp-supply-chain-study` repository), which materializes the full transitive install tree (the equivalent of
   `package-lock.json`'s dependency graph). **mcp-audit never populates `trees`** — it has no
   package-manager execution capability and does not attempt to build one. `mcp-audit lock` always
