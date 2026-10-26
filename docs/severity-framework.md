@@ -369,6 +369,22 @@ the full nine-site design and the evasion/escape harm split it is built on.
 
 ---
 
+### CI workflow analyzer (`ci_workflows/`, finding IDs `WORKFLOW-001..003`)
+
+Reads `.github/workflows/*.y{a,}ml` in the working directory (default scan) or
+under `--project` (and nested repository roots), and checks each step that
+uses `anthropics/claude-code-action`, `anthropics/claude-code-security-review`
+or `google-github-actions/run-gemini-cli`. Trigger, secret, permission and
+tool rules are in [ci-workflows.md](ci-workflows.md). STORY-0091.
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| WORKFLOW-001 | HIGH   | ASI01, ASI06 | MCP06, MCP01 | Agent step on an event a stranger can write (`issues`, `issue_comment`, `pull_request_target`, `pull_request_review*`, `discussion*`), with a secret passed to it, a write permission (or no `permissions:` key), and tools open to any or a broad shell command. Published exploit with secret exfiltration through a comment or a push on all three vendors ("Comment and Control", ACM CCS 2026); decision tree step 1 would give CRITICAL, held at HIGH because the attacker still has to get text in front of the agent and the file cannot show the repository's default token setting. CWE-1427 |
+| WORKFLOW-002 | MEDIUM | ASI01, ASI06 | MCP06, MCP01 | As WORKFLOW-001 but a deny list is the only tool limit. The paper's own vendor fix (`Bash(ps:*)`) was bypassed with `cat /proc/*/environ`; context-dependent, so MEDIUM. CWE-184 |
+| WORKFLOW-003 | HIGH   | ASI04, ASI10 | MCP05, MCP04 | `run-gemini-cli` on such an event pinned below 0.1.22 / Gemini CLI below 0.39.1 (GHSA-wpqr-6v78-jr5g, CVSS 10.0), or workspace trust set after checking out pull-request code. CWE-1395 (version) / CWE-829 (trust) |
+
+---
+
 ### Collision analyzer (`analyzers/collision.py`, finding ID `COLLIDE-001`)
 
 `COLLIDE-001` fires when live `tools/list` enumeration (via `--connect`)

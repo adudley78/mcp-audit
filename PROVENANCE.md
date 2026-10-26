@@ -722,3 +722,70 @@ Measures the existing POISON-* patterns; adds or changes none. Results:
   `docs/research/poisoning-benchmark/top100-labels.json`.
 - The MCPTox-shaped records in `tests/test_bench_poisoning.py` were written for the
   test; no dataset text was copied. Original implementation; no code was copied.
+
+## AI agents in CI workflows (WORKFLOW-001..003, ci_workflows/ — STORY-0091)
+
+- **"Comment and Control"** — Aonan Guan with Zhengyu Liu and Gavin Zhong (Johns
+  Hopkins), write-up 2026-04-15; paper "Comment and Control: Hijacking Agentic
+  Workflows via Context-Grounded Evolution" (Fendley, Liu, Guan, Zhong, Cao),
+  accepted at ACM CCS 2026
+  (https://oddguan.com/blog/comment-and-control-prompt-injection-credential-theft-claude-code-gemini-cli-github-copilot/).
+  Claude Code Security Review ran the Claude CLI with no `--allowed-tools` /
+  `--disallowed-tools`, and a PR title put `ps auxeww` output in a PR comment;
+  the Gemini CLI action posted `GEMINI_API_KEY` as an issue comment; the Copilot
+  agent pushed base64 `ps auxeww` output in a commit. Anthropic's fix added
+  `--disallowed-tools 'Bash(ps:*)'` (commit 25e460e); the authors note
+  `cat /proc/*/environ` gives the same result and recommend an allowlist and
+  least-privilege secrets. Source for the trigger × secret × write × tools shape
+  (WORKFLOW-001) and for treating a deny list as weaker (WORKFLOW-002).
+- **anthropics/claude-code-action** — `action.yml` (inputs `claude_args`,
+  `settings`, `allowed_non_write_users`, `github_token`; no tool input),
+  `docs/configuration.md` ("Claude does **not** have access to execute arbitrary
+  Bash commands by default"; `--allowedTools` adds tools), `docs/security.md`
+  (write-access check on issue, PR, comment and review events;
+  `allowed_non_write_users`; `pull_request_target` runs with the base
+  repository's secrets), `docs/migration-guide.md` (`allowed_tools` /
+  `disallowed_tools` → `claude_args: --allowedTools` / `--disallowedTools`).
+  Read 2026-10-25.
+- **anthropics/claude-code-security-review** README — inputs (none limits
+  tools) and "This action is not hardened against prompt injection attacks and
+  should only be used to review trusted PRs". Read 2026-10-25.
+- **Claude Code CLI reference** (https://code.claude.com/docs/en/cli-reference)
+  — `--allowedTools`/`--allowed-tools`, `--disallowedTools`/`--disallowed-tools`,
+  `--dangerously-skip-permissions` (equivalent to `--permission-mode
+  bypassPermissions`). Read 2026-10-25.
+- **google-github-actions/run-gemini-cli** — `action.yml` (runs `gemini --yolo
+  --prompt ...`; writes the `settings` input to `.gemini/settings.json`), the
+  example workflows `issue-triage/gemini-triage.yml` and
+  `pr-review/gemini-review.yml` (`workflow_call`, `"tools": {"core": []}`,
+  `GEMINI_CLI_TRUST_WORKSPACE: 'true'` on a default checkout, `GITHUB_TOKEN: ''`
+  for untrusted input), and advisory **GHSA-wpqr-6v78-jr5g** (2026-04-24, CVSS
+  10.0; affected `@google/gemini-cli` < 0.39.1 and < 0.40.0-preview.3,
+  `run-gemini-cli` < 0.1.22; headless runs trusted the workspace and loaded
+  `.gemini/` configuration and environment variables, and `--yolo` ignored the
+  tool allowlist), https://github.com/google-github-actions/run-gemini-cli/security/advisories/GHSA-wpqr-6v78-jr5g.
+  Read 2026-10-25.
+- **The Hacker News, 2026-04** (https://thehackernews.com/2026/04/google-fixes-cvss-10-gemini-cli-ci-rce.html)
+  — Google's guidance quoted as `GEMINI_TRUST_WORKSPACE: 'true'` for trusted
+  inputs; Pillar Security (Dan Lisichkin) on `--yolo` and allowlists. The
+  variable name differs from the one Gemini CLI documents, so both are read.
+- **Gemini CLI configuration reference** (https://geminicli.com/docs/reference/configuration)
+  — `tools.core` ("Restrict the set of built-in tools with an allowlist"),
+  `tools.exclude`, `tools.allowed`, `security.disableYoloMode`,
+  `GEMINI_CLI_TRUST_WORKSPACE`. Read 2026-10-25.
+- **GitHub Docs** — "Events that trigger workflows" (which events run on the
+  default branch; secrets are not passed for fork pull requests on
+  `pull_request`, `pull_request_review`, `pull_request_review_comment`;
+  `pull_request_target` warning) and "Workflow syntax" (`permissions`: unspecified
+  scopes become `none`, job-level overrides workflow-level, an absent key uses
+  the repository default),
+  https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows.
+  "Customize the agent environment" for Copilot (`copilot-setup-steps.yml` only
+  prepares the runner).
+- **Straiker, Black Hat USA 2026 talks** (https://www.straiker.ai/blog/black-hat-usa-2026-ai-security-talks)
+  — Roblox: a hidden instruction in a GitHub issue got Claude Code to upload
+  credentials to a public repository. Corroborating incident; not fetched for
+  this story.
+- Brief: products/mcp-audit/discovery/briefs/2026-10-25-research-scan.md §A3
+  (Marcus). Original implementation; no code or fixtures were copied from any of
+  these projects.

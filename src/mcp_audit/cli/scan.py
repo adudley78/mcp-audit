@@ -944,6 +944,9 @@ def _apply_project_scan(
        for any that auto-run a command. These files are never parsed into
        ``ServerConfig`` objects. Findings the default scan's cwd-root pass
        already produced for the same file are not repeated.
+       Then read the GitHub Actions workflows of *project_dir* and of nested
+       repository roots under it and emit WORKFLOW-001..003 for AI agent
+       steps (STORY-0091).
     1. Walk *project_dir* for known project-level config file patterns.
     2. Emit TRUST-001 (HIGH) for every MCP server found — fires on *origin*
        (project-scoped), not content.
@@ -1015,6 +1018,31 @@ def _apply_project_scan(
         result.findings.extend(
             f for f in new_findings if _autoexec_finding_key(f) not in already_reported
         )
+
+    # ── WORKFLOW-001..003: AI agent steps in GitHub Actions workflows ───────
+    # The default scan already read <cwd>/.github/workflows; when cwd is the
+    # project root the same findings would arrive twice, so keep one copy.
+    from mcp_audit.ci_workflows import scan_workflows  # noqa: PLC0415
+
+    seen_workflow = {
+        (f.id, f.finding_path, f.server, f.tool)
+        for f in result.findings
+        if f.id.startswith("WORKFLOW-")
+    }
+    workflow_errors: list[str] = []
+    try:
+        workflow_findings = scan_workflows(
+            project_dir, walk=True, errors=workflow_errors
+        )
+    except Exception as exc:  # noqa: BLE001 — never fail the scan over CI files
+        workflow_errors.append(f"ci_workflows: workflow scan failed: {exc}")
+        workflow_findings = []
+    result.errors.extend(e for e in workflow_errors if e not in result.errors)
+    for finding in workflow_findings:
+        key = (finding.id, finding.finding_path, finding.server, finding.tool)
+        if key not in seen_workflow:
+            seen_workflow.add(key)
+            result.findings.append(finding)
 
     project_configs = discover_project_configs(project_dir, skip_findings=skip_findings)
 
