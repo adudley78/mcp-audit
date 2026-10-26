@@ -326,8 +326,11 @@ def test_wire_request_matches_what_the_doc_says_is_sent(
     thread.start()
 
     class _ToLocalPlainSocket(http.client.HTTPConnection):
-        def __init__(self, host: str, *args: object, context: object = None, **kw):
-            super().__init__("127.0.0.1", port, *args, **kw)
+        # urllib calls this as HTTPSConnection(host, timeout=..., context=...)
+        # and, on Python 3.11, check_hostname=...; keep the timeout and drop
+        # the TLS-only arguments a plain connection does not take.
+        def __init__(self, host: str, timeout: object = None, **_tls: object):
+            super().__init__("127.0.0.1", port, timeout=timeout)
 
     for var in (
         "HTTPS_PROXY",
