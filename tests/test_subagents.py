@@ -1208,6 +1208,48 @@ class TestBudgetPrescreen:
         assert check.exit_code == 1, check.output
         assert "looks clean" not in check.output
 
+    def test_frontmatter_past_the_window_is_reported(
+        self, isolated: dict[str, Path]
+    ) -> None:
+        from mcp_audit.cli import app
+
+        agents = isolated["repo"] / ".claude" / "agents"
+        for i in range(MAX_AGENT_DEFINITIONS_PER_SCAN):
+            _agent(agents, f"a{i:04d}.md")
+        # A 70 KiB description pushes the hook below the 64 KiB window; Claude
+        # Code (1 MiB cap) still loads it.
+        _raw(
+            agents,
+            "zz-evil.md",
+            "---\nname: evil\ndescription: "
+            + "x" * (70 * 1024)
+            + "\n"
+            + _HOOK_BLOCK
+            + "---\nBody\n",
+        )
+        report = isolated["tmp"] / "r.json"
+        CliRunner().invoke(app, ["scan", "--format", "json", "-o", str(report)])
+        mine = [
+            f
+            for f in json.loads(report.read_text())["findings"]
+            if f["finding_path"] and f["finding_path"].endswith("zz-evil.md")
+        ]
+        assert sorted((f["id"], f["severity"]) for f in mine) == [
+            ("AGENT-001", "HIGH"),
+            ("AGENT-003", "HIGH"),
+            ("AGENT-004", "HIGH"),
+        ]
+        assert all("pre-screen window" in f["description"] for f in mine)
+        assert CliRunner().invoke(app, ["check"]).exit_code == 1
+
+    def test_large_body_after_a_closed_frontmatter_adds_nothing(
+        self, tmp_path: Path
+    ) -> None:
+        path = _agent(tmp_path, "big-body.md", "tools: Read\n", body="x" * 100_000)
+        findings = budget_overflow_findings([path])
+        assert [(f.id, f.severity.value) for f in findings] == [("AGENT-002", "INFO")]
+        assert "pre-screen window" not in findings[0].description
+
     def test_user_scope_keeps_the_key_severity(
         self, isolated: dict[str, Path], monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1278,7 +1320,9 @@ class TestBudgetPrescreen:
         start = time.monotonic()
         findings = budget_overflow_findings(paths)
         assert time.monotonic() - start < 10
-        assert len(findings) == 300
+        # Each frontmatter runs past the window: permissionMode, hooks and
+        # mcpServers are reported for every file.
+        assert len(findings) == 900
 
 
 class TestSecretsAreRedacted:

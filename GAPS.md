@@ -1106,7 +1106,10 @@ entry. Until confirmed, only workspace/project-tree paths are discovered.
   a "present but unreadable" finding with the reason "per-scan limit reached"
   (HIGH for `permissionMode`, `hooks` and `mcpServers` in a project directory,
   which a repository can reach by padding its agents directory; the key's own
-  severity in `~/.claude/agents/`). Their values are not checked: a hook's
+  severity in `~/.claude/agents/`). A frontmatter that runs past the 64 KiB
+  window with no closing `---` line in it is reported for `permissionMode`,
+  `hooks` and `mcpServers` whether or not they were seen (reason "frontmatter
+  runs past the pre-screen window"). Their values are not checked: a hook's
   command or a server's launch line past the budget gets no HOOK-001/002 or
   per-server check. Past 5,000 one aggregate AGENT-003 (HIGH in a project,
   INFO in `~/.claude/agents/`) counts the definitions not read at all. The

@@ -256,7 +256,9 @@ Claude Code has no such limit, so the next 5,000 are pre-screened (first
 unreadable" finding with the reason "per-scan limit reached": HIGH for
 `permissionMode`, `hooks` and `mcpServers` in a project directory, where a
 repository could pad its agents directory to push a definition past the
-limit, and the key's usual severity in `~/.claude/agents/`. Past that, one
+limit, and the key's usual severity in `~/.claude/agents/`. A frontmatter
+that runs past the 64 KiB window is reported for `permissionMode`, `hooks` and
+`mcpServers` whether or not they were seen. Past that, one
 AGENT-003 counts the definitions not read at all (HIGH in a project). A
 `.md` file without frontmatter (a README) is not a definition. Credential-shaped
 text in any finding (a token in a hook command or a `disallowedTools` entry)

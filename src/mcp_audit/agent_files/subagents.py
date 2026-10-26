@@ -628,23 +628,32 @@ def select_agent_definitions(
     return chosen
 
 
-def _prescreen_keys(path: Path) -> list[str] | None:
+def _prescreen_keys(path: Path) -> tuple[list[str], bool] | None:
     """Security keys named in the frontmatter within the first 64 KiB of *path*.
 
     Returns ``None`` when the file does not open with ``---`` (not a
-    definition). The block runs to the first ``---`` line, which never ends
-    before Claude Code's own split, or to the end of the 64 KiB read.
+    definition), else ``(keys, runs_past_window)``. The block runs to the
+    first ``---`` line, which never ends before Claude Code's own split, or
+    to the end of the 64 KiB read; ``runs_past_window`` is ``True`` when the
+    file is longer than that and no closing ``---`` line falls inside it, so
+    keys further down were not seen.
 
     Raises:
         OSError: When the file cannot be read.
     """
     with path.open("rb") as fh:
-        raw = fh.read(BUDGET_PRESCREEN_BYTES)
-    text = raw.decode("utf-8", errors="replace").removeprefix("\ufeff")
+        raw = fh.read(BUDGET_PRESCREEN_BYTES + 1)
+    longer = len(raw) > BUDGET_PRESCREEN_BYTES
+    text = (
+        raw[:BUDGET_PRESCREEN_BYTES]
+        .decode("utf-8", errors="replace")
+        .removeprefix("\ufeff")
+    )
     if not text.startswith("---"):
         return None
     block = _split_lines(text)
-    return _security_keys_named_in(text[3:] if block is None else block)
+    keys = _security_keys_named_in(text[3:] if block is None else block)
+    return keys, block is None and longer
 
 
 def budget_overflow_findings(
@@ -654,7 +663,9 @@ def budget_overflow_findings(
 
     The first :data:`MAX_PRESCREENED_DEFINITIONS` are pre-screened: each
     security key a file's frontmatter names becomes a "present but unreadable
-    by mcp-audit" finding with the reason "per-scan limit reached". In a
+    by mcp-audit" finding with the reason "per-scan limit reached". A file
+    whose frontmatter runs past the 64 KiB window gets those findings for
+    ``permissionMode``, ``hooks`` and ``mcpServers`` too, seen or not. In a
     project definition, ``permissionMode``, ``hooks`` and ``mcpServers`` are
     HIGH, because a repository can pad its agents directory to push a
     malicious definition past the budget; elsewhere the key's scope severity
@@ -670,9 +681,14 @@ def budget_overflow_findings(
     findings: list[Finding] = []
     screened = 0
     unchecked: list[tuple[Path, str]] = []
+    window = f"{BUDGET_PRESCREEN_BYTES // 1024} KiB"
     reason = (
-        "per-scan limit reached; only the first"
-        f" {BUDGET_PRESCREEN_BYTES // 1024} KiB was pre-screened for security keys"
+        f"per-scan limit reached; only the first {window} was pre-screened"
+        " for security keys"
+    )
+    past_window = (
+        f"per-scan limit reached; the frontmatter runs past the {window}"
+        " pre-screen window, so keys further down were not seen"
     )
     for path in paths:
         if screened >= MAX_PRESCREENED_DEFINITIONS:
@@ -682,13 +698,18 @@ def budget_overflow_findings(
             if path.stat().st_size > MAX_AGENT_FILE_BYTES:
                 say(_too_large(path))
                 continue
-            keys = _prescreen_keys(path)
+            screen = _prescreen_keys(path)
         except OSError as exc:
             say(f"Could not read subagent definition {path}: {exc}")
             continue
-        if keys is None:
+        if screen is None:
             continue
         screened += 1
+        keys, runs_past_window = screen
+        if runs_past_window:
+            # Keys below the window are unseen: assume the ones that can run
+            # something or loosen prompts are there.
+            keys = sorted(set(keys) | _HIGH_WHEN_UNREAD_PAST_BUDGET)
         if not keys:
             continue
         scope = agent_definition_scope(path)
@@ -699,7 +720,7 @@ def budget_overflow_findings(
                 path,
                 scope,
                 AGENT_DEFINITION_CLIENT,
-                reason,
+                past_window if runs_past_window else reason,
                 floor_high=_HIGH_WHEN_UNREAD_PAST_BUDGET if high else frozenset(),
             )
         )
