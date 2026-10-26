@@ -36,6 +36,10 @@ Two servers in VS Code format (`"servers"` root key):
 
 Expected findings: transport (unencrypted SSE), credential exposure (Anthropic
 key, database URL with password), toxic flow TOXIC-005 (database + network).
+The `database` server also gets SC-007 (MEDIUM) and SC-008 (CRITICAL): it launches
+`npx -y mcp-server-postgres`, an unscoped twin of `@modelcontextprotocol/server-postgres`
+that OSV has listed as malicious since June 2026 (MAL-2026-5481), so the demo now
+shows a real known-bad package, not a constructed one.
 
 ## Setup
 
@@ -64,7 +68,7 @@ The script runs eight commands in sequence:
 | Step | Command | Expected result |
 |------|---------|-----------------|
 | 1 | `discover` | Lists 3 config files, 8 servers |
-| 2 | `scan` (terminal) | 34 findings across all 7 analyzers (first scan adds rug-pull INFO; subsequent scans drop to ~26 after baselines are set) |
+| 2 | `scan` (terminal) | 70 findings on a first scan (rug-pull records 8 first-scan INFO findings); 62 once rug-pull state exists |
 | 3 | `pin` | Records baseline hashes for all 8 servers |
 | 4 | `diff` | Reports no changes (nothing changed since pin) |
 | 5 | `scan --format json` | Writes `output/results.json` |
@@ -125,12 +129,16 @@ drop rug-pull to 0 once baselines are established.
 |----------|-------------|-----------------|
 | Poisoning | POISON-001, 010, 012, 030 | 4 |
 | Credentials | CRED-001 | 3 |
-| Transport | TRANSPORT-001, 003 | 4 |
-| Supply chain | SC-001 | 1 |
-| Rug-pull | RUGPULL-002 (INFO, first scan only) | 8 |
-| Community rules | COMM-004, COMM-010 | 10 |
-| Toxic flow | TOXIC-001, 004, 005, 006, 007 | 12 |
+| Transport | TRANSPORT-001, 003 | 5 |
+| Supply chain | SC-001, SC-004, SC-007, SC-008 | 4 |
+| Auth | AUTH-001 | 1 |
+| Config hygiene | CFHYG-001 (8, one per server, because a fresh checkout leaves the files world-readable), CFHYG-003 (3) | 11 |
+| Rug-pull | RUGPULL-000 (INFO, first scan only) | 8 |
+| Community rules | COMM-004, 010, 013, 022, 024, 031, 034 | 20 |
+| Toxic flow | TOXIC-001, 004, 005, 006, 007, INTEG-001 | 14 |
 
-**Total on first scan: 34 findings across all demo configs** (drops to ~26 on
-subsequent runs once rug-pull baselines are established; cross-config toxic-flow
-pairs add extra findings when all configs are scanned together vs. individually — notably the two TOXIC-005 database+network pairs that only appear in a full 3-config scan).
+**Total on first scan: 70 findings across all demo configs** (62 on subsequent
+runs once rug-pull baselines are established; counted 2026-10-26). Cross-config
+toxic-flow pairs add extra findings when all configs are scanned together vs.
+individually — notably the two TOXIC-005 database+network pairs that only appear
+in a full 3-config scan.

@@ -61,14 +61,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`docs/agent-execution-surface.md`:** every repository file mcp-audit reads that a
   harness runs or obeys, per harness, with the vendor source for each.
 
-- **`SC-007` (HIGH): unscoped twins of known packages** (STORY-0097). A server launched
+- **`SC-007` (MEDIUM): unscoped twins of known packages** (STORY-0097). A server launched
   as `npx -y mcp-server-github` gets installs meant for `@modelcontextprotocol/server-github`,
   and edit distance can't see it because the names differ by a scope. `scan`, `check` and
   `vet` now flag a package, not itself in the registry, whose name is a registry entry's
   name without its scope (`server-github`, `mcp-server-supabase`), its `mcp-server-<name>`
   spelling (`mcp-server-github`, `mcp-server-notion`), or the same `mcp-server-<name>` in
   the other registry (`npx mcp-server-git`, whose real package is on PyPI). In June 2026
-  OSV listed ten such npm names as malicious (MAL-2026-5476 to MAL-2026-5485). SC-007
+  OSV listed ten such npm names as malicious (MAL-2026-5476 to MAL-2026-5485); those
+  are CRITICAL under SC-008, and SC-007 is MEDIUM because some twin names belong to
+  small community packages, so the finding asks you to confirm the publisher. SC-007
   replaces SC-001..003 for the same server, and fires on none of the 100 most-downloaded
   npm MCP servers.
 - **`SC-008` (CRITICAL / MEDIUM): packages OSV lists as malicious, matched offline**

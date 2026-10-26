@@ -298,7 +298,7 @@ class TestSupplyChainAnalyzer:
         server = _make_server(command="npx", args=["-y", "mcp-server-git"])
         findings = analyzer.analyze(server)
         assert [f.id for f in findings] == ["SC-007"]
-        assert findings[0].severity == Severity.HIGH
+        assert findings[0].severity == Severity.MEDIUM
         assert "rule=same-name" in findings[0].evidence
         assert "uvx mcp-server-git" in findings[0].remediation
         # Precedence: the distance-1 neighbour is not reported as well.
@@ -1549,12 +1549,16 @@ class TestSc007UnscopedTwin:
         official: str,
     ) -> None:
         out = no_malicious_analyzer.analyze(_srv(command, args))
-        assert _ids(out) == [("SC-007", "HIGH")]
+        assert _ids(out) == [("SC-007", "MEDIUM")]
         f = out[0]
         assert f.cwe == "CWE-829"
         assert f.owasp_mcp_top_10 == ["MCP04"]
         assert f"twin of: {official!r}" in f.evidence
         assert official in f.description
+        assert "This unscoped name mirrors the" in f.description
+        assert "Confirm who publishes" in f.remediation
+        assert "allowlist it in your governance policy" in f.remediation
+        assert "SC-007 still reports the name" in f.remediation
         assert official in f.remediation
         assert f.finding_path == "/x.json"
 
@@ -1610,7 +1614,7 @@ class TestSc007Precedence:
         """`uvx mcp-server-github` is 3 edits from PyPI mcp-server-git (SC-003)
         but is the PyPI spelling of the official npm github server."""
         out = no_malicious_analyzer.analyze(_srv("uvx", ["mcp-server-github"]))
-        assert _ids(out) == [("SC-007", "HIGH")]
+        assert _ids(out) == [("SC-007", "MEDIUM")]
 
     def test_distance_one_neighbour_is_suppressed(self, tmp_path: Path) -> None:
         import json
@@ -1647,7 +1651,7 @@ class TestSc007Precedence:
         an = SupplyChainAnalyzer(registry=reg, malicious=KnownMaliciousPackages())
         # Distance 1 from the unscoped entry, and the twin of the scoped one.
         out = an.analyze(_srv("npx", ["mcp-server-widget"]))
-        assert _ids(out) == [("SC-007", "HIGH")]
+        assert _ids(out) == [("SC-007", "MEDIUM")]
         # A non-twin near-name still gets SC-001.
         assert _ids(an.analyze(_srv("npx", ["mcp-server-widgetz"]))) == [
             ("SC-001", "CRITICAL")
@@ -1661,17 +1665,17 @@ class TestSc008KnownMalicious:
             (
                 "npx",
                 ["-y", "mcp-server-github"],
-                [("SC-007", "HIGH"), ("SC-008", "CRITICAL")],
+                [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")],
             ),
             (
                 "npx",
                 ["-y", "mcp-server-github@0.0.2"],
-                [("SC-007", "HIGH"), ("SC-008", "CRITICAL")],
+                [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")],
             ),
             (
                 "npx",
                 ["-y", "mcp-server-git"],
-                [("SC-007", "HIGH"), ("SC-008", "CRITICAL")],
+                [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")],
             ),
             ("npx", ["-y", "postmark-mcp"], [("SC-008", "CRITICAL")]),
             ("npx", ["-y", "postmark-mcp@1.0.16"], [("SC-008", "CRITICAL")]),
@@ -1729,7 +1733,7 @@ class TestSc008KnownMalicious:
         )
         assert an.malicious.load_error
         assert _ids(an.analyze(_srv("npx", ["-y", "mcp-server-github"]))) == [
-            ("SC-007", "HIGH")
+            ("SC-007", "MEDIUM")
         ]
 
     def test_analyzer_built_without_init_still_works(self) -> None:
@@ -1926,4 +1930,4 @@ class TestScanLevelBehaviour:
         out = SupplyChainAnalyzer(offline_registry=True).analyze(
             _srv(db["command"], db["args"])
         )
-        assert _ids(out) == [("SC-007", "HIGH"), ("SC-008", "CRITICAL")]
+        assert _ids(out) == [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")]

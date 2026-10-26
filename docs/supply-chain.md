@@ -476,6 +476,7 @@ This means `mcp_server_filesystem`, `mcp-server-filesystem`, and
 | `SC-001` | CRITICAL | 1 | One character away from a known-good package |
 | `SC-002` | HIGH | 2 | Two edits away — classic transposition typosquat |
 | `SC-003` | MEDIUM | 3 | Three edits away |
+| `SC-007` | MEDIUM | — | Unscoped twin of a registry entry (see below); replaces SC-001..003 |
 
 **Short-name guard:** Package names ≤ 5 characters use a tighter threshold of 1
 (not 3) to suppress false positives — short names are inherently close to many
@@ -598,7 +599,7 @@ mirrors them into `registry/known-malicious.json` for SC-008, below.
 
 ## SC-007: Unscoped twins
 
-`SC-007` (HIGH, `CWE-829`, OWASP MCP04, STORY-0097) fires when a configured
+`SC-007` (MEDIUM, `CWE-829`, OWASP MCP04, STORY-0097) fires when a configured
 package copies a known package's name without its scope. Edit distance cannot
 see this: `mcp-server-github` is many edits from
 `@modelcontextprotocol/server-github`, because the difference is a scope and a
@@ -649,7 +650,10 @@ community Google Maps server. On PyPI, 5 of the npm-derived keys exist: three
 (`mcp-server-notion`, `mcp-server-redis`; 85 and 179 downloads a month). So an
 SC-007 hit is usually a squat or a takedown, and sometimes a small community
 package that took the official server's name; the finding asks you to check
-which. SC-007 fires on none of the 100 most-downloaded npm MCP servers
+which. That mix is why SC-007 is MEDIUM: the twins OSV lists as malicious are
+already CRITICAL under SC-008. If you meant the community package, record it in
+your governance policy's `approved_servers` allowlist ([governance.md](governance.md));
+that records the decision, and SC-007 keeps reporting the name. SC-007 fires on none of the 100 most-downloaded npm MCP servers
 (`docs/research/2026-10-top100-npm/`; pinned by
 `tests/test_supply_chain.py::TestScanLevelBehaviour`).
 

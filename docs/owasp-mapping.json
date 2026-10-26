@@ -312,7 +312,7 @@
       "owasp_names": [
         "Software Supply Chain Attacks"
       ],
-      "notes": "Fires when a configured package that is not in the registry (for its own ecosystem) has a name derived from a registry entry: the name part of @scope/server-<x> or @scope/mcp-server-<x>; the mcp-server-<x> spelling of @scope/server-<x> or @scope/<x>-mcp-server; or, across npm and PyPI, the same mcp-server-<x> name. Names are folded per PEP 503 first. Takes precedence over SC-001..003 for the same server. HIGH. Offline (STORY-0097)."
+      "notes": "Fires when a configured package that is not in the registry (for its own ecosystem) has a name derived from a registry entry: the name part of @scope/server-<x> or @scope/mcp-server-<x>; the mcp-server-<x> spelling of @scope/server-<x> or @scope/<x>-mcp-server; or, across npm and PyPI, the same mcp-server-<x> name. Names are folded per PEP 503 first. Takes precedence over SC-001..003 for the same server. MEDIUM. Offline (STORY-0097)."
     },
     {
       "finding_id": "SC-008",

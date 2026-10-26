@@ -8,7 +8,7 @@ Ref: "Typosquatting in Package Managers" — Vu et al., NDSS 2021
 
 STORY-0097 adds two checks edit distance cannot make:
 
-* ``SC-007`` (HIGH) — an unscoped twin: the configured name copies a known
+* ``SC-007`` (MEDIUM) — an unscoped twin: the configured name copies a known
   package's name without its scope (``mcp-server-github`` for
   ``@modelcontextprotocol/server-github``).  See :mod:`mcp_audit.registry.twins`.
   It takes precedence over ``SC-001``..``SC-003`` for the same server: the
@@ -570,12 +570,18 @@ def build_twin_finding(
         twins: Non-empty output of :meth:`TwinIndex.find`, best first.
 
     Returns:
-        One SC-007 (HIGH) :class:`~mcp_audit.models.Finding`.
+        One SC-007 (MEDIUM) :class:`~mcp_audit.models.Finding`.
+
+    MEDIUM, not HIGH (coordinator decision, 2026-10-26): measured on
+    2026-10-25, 6 of the 21 twin names published on npm and 2 of the 5 on
+    PyPI were small live community packages, and SC-008 already reports the
+    OSV-listed malicious twins at CRITICAL.
     """
     primary, others = twins[0], twins[1:]
     eco = _ECOSYSTEM_LABEL[ecosystem]
     official = primary.entry
     verified = "verified" if official.verified else "unverified"
+    kind = "scoped package" if official.name.startswith("@") else "PyPI package"
     also = (
         " It is also " + "; and ".join(t.explain() for t in others) + "."
         if others
@@ -583,15 +589,16 @@ def build_twin_finding(
     )
     article = "an" if eco == "npm" else "a"
     description = (
-        f"Package {package!r} is not in the mcp-audit registry as {article} {eco} "
-        f"package, but its name is {primary.explain()}. That package is "
-        f"maintained by {official.maintainer} ({verified} in the registry)."
-        f"{also} A name that copies a known "
-        "package's name without its scope receives installs meant for the "
-        "original: in June 2026 OSV listed ten unscoped npm names of this "
-        "shape as malicious, among them mcp-server-github (MAL-2026-5479), a "
-        "twin of @modelcontextprotocol/server-github. Edit-distance checks miss "
-        "it because the two names differ by a scope, not by a few letters."
+        f"This unscoped name mirrors the {kind} {official.name!r}, which the "
+        f"mcp-audit registry lists (maintainer: {official.maintainer}, "
+        f"{verified}): {package!r} is {primary.explain()}, and it is not in the "
+        f"registry as {article} {eco} package.{also} Confirm the publisher. Some "
+        "names of this shape are squats that receive installs meant for the "
+        "original (in June 2026 OSV listed ten unscoped npm names like this as "
+        "malicious, among them mcp-server-github, MAL-2026-5479; SC-008 reports "
+        "any name OSV lists). Others are small community packages that took the "
+        "known package's name. Edit-distance checks miss this because the two "
+        "names differ by a scope or a naming convention, not by a few letters."
     )
     if primary.rule == "same-name":
         fix = (
@@ -612,7 +619,7 @@ def build_twin_finding(
     )
     return Finding(
         id="SC-007",
-        severity=Severity.HIGH,
+        severity=Severity.MEDIUM,
         analyzer="supply_chain",
         client=server.client,
         server=server.name,
@@ -626,8 +633,11 @@ def build_twin_finding(
             f"{others_note}"
         ),
         remediation=(
-            f"{fix} Otherwise check who publishes {package!r} on {eco} and "
-            "where its source lives before trusting it."
+            f"Confirm who publishes {package!r} on {eco} and where its source "
+            f"lives. {fix} If you intended the community package, allowlist it "
+            "in your governance policy (`approved_servers`, see "
+            "docs/governance.md) to record that choice; SC-007 still reports "
+            "the name."
         ),
         cwe="CWE-829",
         owasp_mcp_top_10=["MCP04"],
