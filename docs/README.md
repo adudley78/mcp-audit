@@ -4,6 +4,7 @@
 |------|-------------|
 | [docs-usage.md](docs-usage.md) | Getting started, all CLI commands and flags, common workflows |
 | [github-action.md](github-action.md) | GitHub Action setup, example workflows, exit code behaviour |
+| [ci-workflows.md](ci-workflows.md) | WORKFLOW-001..003: AI agent steps in your GitHub Actions workflows that read stranger-written text with secrets and write access |
 | [building-binaries.md](building-binaries.md) | How the shipped PyInstaller binary is built (one composite, CI and release); per-release CycloneDX SBOMs |
 | [scoring.md](scoring.md) | Scan score methodology, grade thresholds, score/filter interaction |
 | [telemetry.md](telemetry.md) | Privacy policy: what mcp-audit does and does not collect |

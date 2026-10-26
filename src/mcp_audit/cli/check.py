@@ -208,7 +208,8 @@ def check(
     # ── No configs found ──────────────────────────────────────────────────────
     # Only when nothing at all was found: a repository with no MCP config can
     # still carry findings (TRUST-008 auto-run files at the cwd root, STORY-0090;
-    # plugin mods), and those must reach the verdict and the exit code.
+    # CI workflows, STORY-0091; plugin mods), and those must reach the verdict
+    # and the exit code.
     if (
         result.clients_scanned == 0
         and result.servers_found == 0

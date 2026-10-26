@@ -470,6 +470,10 @@ def _discover_and_parse(
     (AGENT-001..004, HOOK-001/002). TRUST-002/004/005 for symlinks under the
     agents directories and any partly-unreadable frontmatter (``errors``) are
     recorded here.
+
+    With no *extra_paths*, the working directory's
+    ``.github/workflows/*.y{a,}ml`` files are read the same way and their
+    WORKFLOW-001..003 findings appended (STORY-0091).
     """
     discovery_findings: list[Finding] = []
     configs = discover_configs(
@@ -498,6 +502,17 @@ def _discover_and_parse(
 
     if not extra_paths:
         result.findings.extend(_cwd_autoexec_findings())
+
+        # GitHub Actions workflows of the repository the scan runs in
+        # (STORY-0091): the GitHub Action's default run is a scan from the
+        # checkout, so a workflow that hands an agent secrets on an issue or
+        # comment trigger fails CI.  Read-only YAML; an explicit path skips it.
+        from mcp_audit.ci_workflows import scan_workflows  # noqa: PLC0415
+
+        try:
+            result.findings.extend(scan_workflows(Path.cwd(), errors=result.errors))
+        except Exception as exc:  # noqa: BLE001 — never fail the scan over CI files
+            result.errors.append(f"ci_workflows: workflow scan failed: {exc}")
 
     all_servers: list[ServerConfig] = []
     for config in configs:

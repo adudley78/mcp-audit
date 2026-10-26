@@ -12,6 +12,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Sandbox settings a repository can loosen (SANDBOX-001..005).** The scan you already run (`check`, `scan`, `scan --project`, the GitHub Action) now reads the `sandbox` block of every Claude Code settings file it already reads. SANDBOX-001: a repository's settings turn on a key Anthropic says weakens the sandbox (`enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`, `network.allowAllUnixSockets`, `network.allowLocalBinding`) or the shared file switches it off with `enabled: false` (HIGH); `failIfUnavailable: false` or a proxy port that takes filtering away from Claude Code (MEDIUM). SANDBOX-002: `excludedCommands` takes a shell, interpreter, wrapper (`env *`, `timeout 30 *`, `nohup *`), package runner or container runtime out of the sandbox with any arguments (`python *`, `npx *`, `docker *`, `docker compose *`): MEDIUM while Claude Code still asks you before each one runs, HIGH when nothing asks (an allow rule in the same file covers it, or your own settings start sessions in `bypassPermissions` or `auto` mode); `allowUnixSockets` opening the Docker socket is HIGH. SANDBOX-003: `allowedDomains` lets sandboxed commands reach a host anyone can publish to, such as `github.com`, a paste site or a webhook receiver (MEDIUM). If your own `~/.claude/settings.json` sets `network.strictAllowlist: true`, Claude Code ignores a repository's hosts and proxy ports, and those findings drop to INFO and say why. SANDBOX-004: a sandbox key Claude Code ignores in that file, such as `strictAllowlist` or `allowManagedDomainsOnly` in a repository, so a lock you think you have isn't there (INFO). SANDBOX-005: a `.claude/settings.local.json` inside a git repository that no ignore file covers, so your personal approvals get committed (MEDIUM), and home-directory paths with a username in a settings file headed for git (LOW). "A repository's settings" means its shared `.claude/settings.json`, and its `.claude/settings.local.json` only when git carries it: your own local file, which Claude Code keeps out of git, is not reported. To decide, mcp-audit reads `.gitignore`, `.git/info/exclude` and your global git excludes file, and never runs git; when it can't read them, it says so in the scan's errors and reports a local file at MEDIUM at most. See `docs/permission-rules.md`.
 - **Permission rules that don't do what they say (PERM-001..007).** The scan you already run (`check`, `scan`, `scan --project`, the GitHub Action) now reads every Claude Code settings file for rules Anthropic documents as ignored, misanchored or not a security boundary, and names each rule, the form that gets past it, and what to write instead. PERM-001: a rule Claude Code skips or never matches, such as `Bash(command:rm *)`, an `mcp__` rule with parentheses, `Write(path)`, `Bash(git:* push)` or an `mcp__*` allow (HIGH in `deny`, MEDIUM in `ask`, INFO in `allow`). PERM-002: `Read(/Users/…)` with one slash, which points inside the project, not at `/` (MEDIUM in `deny`/`ask`, INFO in `allow`). PERM-003: `Bash(ls*)`, which also allows `lsof` (LOW). PERM-004: a deny on `curl`, `rm` or `git push` with no sandbox, which `/usr/bin/curl` or `sh -c` gets past (MEDIUM when the same file runs those forms without asking, through an allow such as `Bash(sh -c *)` or a bypass/auto mode in user settings; INFO otherwise). PERM-005: `WebFetch(domain:*)`, which opens the sandbox to every host (HIGH with the sandbox on, LOW otherwise). PERM-006: a bare `Bash` ask rule that the sandbox's auto-allow skips (MEDIUM). PERM-007: an `mcp__<server>` allow rule on a server the scan found poisoned, typosquatted, changed since approval, or pinned to a vulnerable version, matched by the whole server name as Claude Code 2.1.299 does, including a `~/.claude/settings.json` rule on a repository's server under `scan --project` (HIGH). See `docs/permission-rules.md`.
+- **AI agents in GitHub Actions workflows: WORKFLOW-001..003 (STORY-0091).** A
+  plain `scan` or `check` run inside a repository, which is what the GitHub
+  Action does, now reads its `.github/workflows/` files, and `scan --project`
+  reads them for the project and any nested repository. WORKFLOW-001 (HIGH): a
+  Claude Code, Claude Code Security Review or Gemini CLI step runs on an issue,
+  comment or `pull_request_target` event, gets a secret, has write permission
+  (or no `permissions:` block), and can run any command. WORKFLOW-002 (MEDIUM):
+  the same, limited only by a deny list. WORKFLOW-003 (HIGH): a Gemini CLI step
+  on such an event uses a version below the CVSS 10.0 fix, or trusts a
+  workspace that holds pull-request code. Based on "Comment and Control" (ACM
+  CCS 2026), where all three vendors' agents leaked their own secrets. Files
+  are parsed as data and never run; a symlinked `.github` is not followed;
+  workflow files that cannot be read, files over 256 KiB, and anything past
+  4 MiB in one scan are skipped and listed in the scan's errors; an explicit
+  `--path` scans only what it names.
+  See `docs/ci-workflows.md`.
 - **Verified registry entry for `mcptoon`** (PyPI, [#171](https://github.com/adudley78/mcp-audit/issues/171),
   submitted by [@activeing123](https://github.com/activeing123)), an MCP gateway that
   proxies the user's configured servers. Capabilities `file_read` and `network_out`,
@@ -139,8 +155,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   TRUST-002 (a link out of the repository) instead of its files being read as the
   repository's own.
 - **`check` no longer says "No MCP config files found" and exits 0 when the scan has
-  findings.** A folder with no MCP config can still carry a planted auto-run file;
-  its findings now reach the verdict and the exit code.
+  findings** (STORY-0090, STORY-0091). A folder with no MCP config can still carry a
+  planted auto-run file or a risky CI workflow; its findings now reach the verdict and
+  the exit code. The same applies to a machine with no MCP config whose installed
+  Claude Code plugins or mods have findings (PLUGIN-*, MOD-*): `check` used to exit 0
+  there and now reports them, and exits 1 when one is HIGH or the grade drops below B.
 - **`scan --project` now shows errors from its project pass** (STORY-0093). Errors that a
   step of the repository's own analysis reported (for example an ignore file the SANDBOX
   checks could not read) were dropped; they now appear in the scan's errors, once each.
