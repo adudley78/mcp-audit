@@ -220,13 +220,18 @@ def agent_definition_scope(path: Path) -> str:
 
 
 def _agent_definition_configs(
-    paths: list[Path], *, is_project_scoped: bool, errors: list[str] | None = None
+    paths: list[Path],
+    *,
+    is_project_scoped: bool,
+    errors: list[str] | None = None,
+    findings: list[Finding] | None = None,
 ) -> list[DiscoveredConfig]:
     """Wrap subagent definition files as configs, within the per-scan budgets.
 
     Keeps files that open with frontmatter and are at most 1 MiB (Claude Code
     skips larger ones), up to the per-scan file and byte budgets; every skip
-    other than "no frontmatter" goes to *errors* (see
+    other than "no frontmatter" goes to *errors*, and the files past the
+    budget are pre-screened for security keys into *findings* (see
     :func:`~mcp_audit.agent_files.subagents.select_agent_definitions`).
     A symlinked definition is reported by the agent-file resolver itself
     (TRUST-002/TRUST-004 into ``skip_findings``), so ``is_symlink`` stays
@@ -243,7 +248,7 @@ def _agent_definition_configs(
             path=path,
             is_project_scoped=is_project_scoped,
         )
-        for path in select_agent_definitions(paths, errors)
+        for path in select_agent_definitions(paths, errors, findings)
     ]
 
 
@@ -678,7 +683,10 @@ def _discover_agent_definition_configs(
                 keys.add(key)
                 skip_findings.append(finding)
     return _agent_definition_configs(
-        user_paths + cwd_paths, is_project_scoped=False, errors=errors
+        user_paths + cwd_paths,
+        is_project_scoped=False,
+        errors=errors,
+        findings=skip_findings,
     )
 
 
@@ -697,7 +705,8 @@ def discover_project_agent_configs(
 
     Args:
         root: Resolved absolute path of the repository root to walk.
-        skip_findings: Optional list to receive TRUST-002/TRUST-005 findings.
+        skip_findings: Optional list to receive TRUST-002/TRUST-005 findings,
+            and the AGENT findings for definitions past the per-scan budget.
         errors: Optional list to receive filesystem errors and budget notes;
             a filesystem error never stops the scan.
 
@@ -715,7 +724,9 @@ def discover_project_agent_configs(
         if errors is not None:
             errors.append(f"Could not read subagent definitions under {root}: {exc}")
         return []
-    return _agent_definition_configs(paths, is_project_scoped=True, errors=errors)
+    return _agent_definition_configs(
+        paths, is_project_scoped=True, errors=errors, findings=skip_findings
+    )
 
 
 # ── Project-level config discovery (for --project flag) ───────────────────────

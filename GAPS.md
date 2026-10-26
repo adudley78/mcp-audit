@@ -1096,8 +1096,22 @@ entry. Until confirmed, only workspace/project-tree paths are discovered.
   skips them) and reported in the scan's `errors`. A frontmatter nested deeper
   than 256 levels, or with more than 20,000 YAML nodes or 100,000 values after
   aliases are resolved, is not read; any security key it names is reported as
-  unreadable. A scan reads at most 500 definitions or 16 MiB of them; the rest
-  are listed in `errors`.
+  unreadable. The nesting count is estimated from indentation before parsing,
+  so a block scalar indented 129 spaces or more (ASCII art in a description,
+  say) also reads as too deep, and any security key in that frontmatter is
+  reported as unreadable; the estimate errs toward reporting.
+- **Per-scan budget.** A scan reads at most 500 definitions or 16 MiB of them in
+  full. Claude Code has no such limit, so the next 5,000 are pre-screened: the
+  first 64 KiB of each is read and every security key its frontmatter names is
+  a "present but unreadable" finding with the reason "per-scan limit reached"
+  (HIGH for `permissionMode`, `hooks` and `mcpServers` in a project directory,
+  which a repository can reach by padding its agents directory; the key's own
+  severity in `~/.claude/agents/`). Their values are not checked: a hook's
+  command or a server's launch line past the budget gets no HOOK-001/002 or
+  per-server check. Past 5,000 one aggregate AGENT-003 (HIGH in a project,
+  INFO in `~/.claude/agents/`) counts the definitions not read at all. The
+  pre-screen costs about 3 ms per file at worst (measured), so the ceiling
+  bounds it at roughly 15 to 20 seconds.
 - **Symlinks.** A symlinked agent file is read and reported as
   TRUST-002/TRUST-004, like every other agent file. A symlinked directory under
   `.claude/agents/` is not followed (TRUST-005 names it under `--project`), as

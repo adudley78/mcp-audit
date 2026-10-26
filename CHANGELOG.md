@@ -75,7 +75,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `lock_status.not_covered` field, printed as a WARN line by `scan` and `check`, and
   raises AGENT-004 to MEDIUM. The frontmatter is read the way Claude Code reads it, and
   a security key that is repeated, or that mcp-audit cannot read, is a finding at that
-  key's severity. Secrets in finding text are redacted.
+  key's severity. Definitions past the per-scan budget (500) are still pre-screened,
+  so padding an agents directory cannot hide one. Secrets in finding text are
+  redacted.
   `--include-agent-files` also scans each subagent's prompt with the skill rules.
 
 ### Changed

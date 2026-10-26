@@ -1234,7 +1234,7 @@
         "Command Injection and Execution",
         "Insufficient Authentication and Authorization"
       ],
-      "notes": "Project agent MEDIUM (runs after folder trust since Claude Code 2.1.218; HIGH before, when hooks ran from untrusted folders); user agent INFO. Each hook command also goes through HOOK-001/002. Also reports the key when it is repeated in the frontmatter or present but unreadable by mcp-audit."
+      "notes": "Project agent MEDIUM (runs after folder trust since Claude Code 2.1.218; HIGH before, when hooks ran from untrusted folders); user agent INFO. Each hook command also goes through HOOK-001/002. Also reports the key when it is repeated in the frontmatter or present but unreadable by mcp-audit. Also the aggregate finding for subagent definitions past the per-scan pre-screen ceiling."
     },
     {
       "finding_id": "AGENT-004",

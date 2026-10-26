@@ -59,6 +59,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -66,7 +67,7 @@ from typing import Any
 import yaml
 
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
-from mcp_audit.discovery import AGENT_DEFINITION_CLIENT
+from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.models import Finding, Severity
 
 # ── Limits ────────────────────────────────────────────────────────────────────
@@ -89,6 +90,23 @@ MAX_EXPANDED_VALUES: int = 100_000
 #: Per-scan (per discovery pass) budgets for subagent definitions.
 MAX_AGENT_DEFINITIONS_PER_SCAN: int = 500
 MAX_AGENT_BYTES_PER_SCAN: int = 16 * 1024 * 1024
+
+#: A definition past the per-scan budget is still pre-screened: the first
+#: 64 KiB is read and every security key its frontmatter names is reported as
+#: unread. Claude Code has no count limit, so padding a directory with dummy
+#: definitions must not hide one.
+BUDGET_PRESCREEN_BYTES: int = 64 * 1024
+
+#: At most this many definitions past the budget are pre-screened; the rest
+#: are counted in one aggregate finding.
+MAX_PRESCREENED_DEFINITIONS: int = 5_000
+
+#: Keys whose unread value, in a project definition past the budget, is
+#: reported HIGH: read, each can produce a HIGH or CRITICAL finding (HOOK-001,
+#: TRUST-001, per-server checks), and the budget is reachable by an attacker.
+_HIGH_WHEN_UNREAD_PAST_BUDGET: frozenset[str] = frozenset(
+    {"permissionMode", "hooks", "mcpServers"}
+)
 
 #: Deepest value kept after construction.
 _MAX_VALUE_DEPTH: int = 64
@@ -558,14 +576,18 @@ def has_frontmatter(path: Path) -> bool:
 
 
 def select_agent_definitions(
-    paths: list[Path], errors: list[str] | None = None
+    paths: list[Path],
+    errors: list[str] | None = None,
+    findings: list[Finding] | None = None,
 ) -> list[Path]:
     """Keep the candidates that are definitions, within the per-scan budgets.
 
     Drops files without frontmatter and files over 1 MiB (Claude Code skips
     them); stops after :data:`MAX_AGENT_DEFINITIONS_PER_SCAN` files or
-    :data:`MAX_AGENT_BYTES_PER_SCAN` bytes. Every skip except "no frontmatter"
-    is reported in *errors*. Never raises.
+    :data:`MAX_AGENT_BYTES_PER_SCAN` bytes. When *findings* is given, the
+    files past the budget are pre-screened (see :func:`budget_overflow_findings`)
+    and the results appended to it. Every skip except "no frontmatter" is
+    reported in *errors*. Never raises.
     """
     chosen: list[Path] = []
     total = 0
@@ -585,15 +607,141 @@ def select_agent_definitions(
             len(chosen) >= MAX_AGENT_DEFINITIONS_PER_SCAN
             or total + size > MAX_AGENT_BYTES_PER_SCAN
         ):
-            report(
-                f"Stopped reading subagent definitions after {len(chosen)} files"
-                f" ({total:,} bytes), the per-scan budget;"
-                f" {len(paths) - index} more candidate(s) were not checked."
-            )
+            rest = paths[index:]
+            if findings is None:
+                report(
+                    f"Stopped reading subagent definitions after {len(chosen)}"
+                    f" files ({total:,} bytes), the per-scan budget;"
+                    f" {len(rest)} more candidate(s) were not checked."
+                )
+            else:
+                report(
+                    f"Stopped reading subagent definitions in full after"
+                    f" {len(chosen)} files ({total:,} bytes), the per-scan"
+                    f" budget; {len(rest)} more candidate(s) were only"
+                    " pre-screened for security keys (see the AGENT findings)."
+                )
+                findings.extend(budget_overflow_findings(rest, report))
             break
         chosen.append(path)
         total += size
     return chosen
+
+
+def _prescreen_keys(path: Path) -> list[str] | None:
+    """Security keys named in the frontmatter within the first 64 KiB of *path*.
+
+    Returns ``None`` when the file does not open with ``---`` (not a
+    definition). The block runs to the first ``---`` line, which never ends
+    before Claude Code's own split, or to the end of the 64 KiB read.
+
+    Raises:
+        OSError: When the file cannot be read.
+    """
+    with path.open("rb") as fh:
+        raw = fh.read(BUDGET_PRESCREEN_BYTES)
+    text = raw.decode("utf-8", errors="replace").removeprefix("\ufeff")
+    if not text.startswith("---"):
+        return None
+    block = _split_lines(text)
+    return _security_keys_named_in(text[3:] if block is None else block)
+
+
+def budget_overflow_findings(
+    paths: list[Path], report: Callable[[str], None] | None = None
+) -> list[Finding]:
+    """Findings for subagent definition candidates past the per-scan budget.
+
+    The first :data:`MAX_PRESCREENED_DEFINITIONS` are pre-screened: each
+    security key a file's frontmatter names becomes a "present but unreadable
+    by mcp-audit" finding with the reason "per-scan limit reached". In a
+    project definition, ``permissionMode``, ``hooks`` and ``mcpServers`` are
+    HIGH, because a repository can pad its agents directory to push a
+    malicious definition past the budget; elsewhere the key's scope severity
+    applies. Candidates past that ceiling are counted in one aggregate
+    AGENT-003 finding (HIGH if any is in a project, else INFO). Reads at most
+    64 KiB per file, with a linear scan; never raises.
+
+    Args:
+        paths: Candidates the budget skipped, in discovery order.
+        report: Optional callable receiving one message per unreadable file.
+    """
+    say = report if report is not None else (lambda _msg: None)
+    findings: list[Finding] = []
+    screened = 0
+    unchecked: list[tuple[Path, str]] = []
+    reason = (
+        "per-scan limit reached; only the first"
+        f" {BUDGET_PRESCREEN_BYTES // 1024} KiB was pre-screened for security keys"
+    )
+    for path in paths:
+        if screened >= MAX_PRESCREENED_DEFINITIONS:
+            unchecked.append((path, agent_definition_scope(path)))
+            continue
+        try:
+            if path.stat().st_size > MAX_AGENT_FILE_BYTES:
+                say(_too_large(path))
+                continue
+            keys = _prescreen_keys(path)
+        except OSError as exc:
+            say(f"Could not read subagent definition {path}: {exc}")
+            continue
+        if keys is None:
+            continue
+        screened += 1
+        if not keys:
+            continue
+        scope = agent_definition_scope(path)
+        high = scope == "project"
+        findings.extend(
+            _unreadable_key_findings(
+                keys,
+                path,
+                scope,
+                AGENT_DEFINITION_CLIENT,
+                reason,
+                floor_high=_HIGH_WHEN_UNREAD_PAST_BUDGET if high else frozenset(),
+            )
+        )
+    if unchecked:
+        findings.append(_unchecked_definitions_finding(unchecked))
+    return finalize_findings(findings)
+
+
+def _unchecked_definitions_finding(unchecked: list[tuple[Path, str]]) -> Finding:
+    """One AGENT-003 finding for candidates past the pre-screen ceiling."""
+    first = unchecked[0][0]
+    in_project = any(scope == "project" for _path, scope in unchecked)
+    count = len(unchecked)
+    description = (
+        f"{count:,} subagent definition candidate(s) were not read: a scan reads"
+        f" {MAX_AGENT_DEFINITIONS_PER_SCAN} definitions in full and pre-screens"
+        f" {MAX_PRESCREENED_DEFINITIONS:,} more for security keys, then stops."
+        " Claude Code has no such limit, so any hooks, permission modes or MCP"
+        " servers in them were not checked."
+    )
+    if in_project:
+        description += (
+            " A repository with this many subagent definitions is unusual:"
+            " padding an agents directory with dummy definitions is a way to"
+            " push a malicious one past a scanner's limit."
+        )
+    return _finding(
+        finding_id="AGENT-003",
+        severity=Severity.HIGH if in_project else Severity.INFO,
+        path=first,
+        server="subagent definitions",
+        client=AGENT_DEFINITION_CLIENT,
+        title="Subagent definitions not checked (per-scan limit reached)",
+        description=description,
+        evidence=f"{count:,} unchecked, starting with {first}",
+        remediation=(
+            f"Review the definitions under {first.parent} by hand and delete"
+            " the ones you do not use."
+        ),
+        owasp=["MCP05", "MCP07"],
+        cwe="CWE-78",
+    )
 
 
 # ── Field helpers ─────────────────────────────────────────────────────────────
@@ -1088,12 +1236,36 @@ def _check_repeated_and_unreadable(
             )
         )
     reason = definition.unreadable_reason or "it could not be parsed"
-    for key in definition.unreadable_keys:
+    findings.extend(
+        _unreadable_key_findings(
+            definition.unreadable_keys, path, scope, client, reason
+        )
+    )
+    return findings
+
+
+def _unreadable_key_findings(
+    keys: list[str],
+    path: Path,
+    scope: str,
+    client: str,
+    reason: str,
+    floor_high: frozenset[str] = frozenset(),
+) -> list[Finding]:
+    """One "present but unreadable by mcp-audit" finding per security key.
+
+    Severity is the key's scope severity, or HIGH for a key in *floor_high*.
+    """
+    findings: list[Finding] = []
+    for key in keys:
         finding_id, owasp, cwe = _KEY_FINDING[key]
+        severity = (
+            Severity.HIGH if key in floor_high else _key_severity(key, scope, path)
+        )
         findings.append(
             _finding(
                 finding_id=finding_id,
-                severity=_key_severity(key, scope, path),
+                severity=severity,
                 path=path,
                 server=path.name,
                 client=client,
@@ -1180,7 +1352,10 @@ __all__ = [
     "MAX_YAML_NODES",
     "SECURITY_KEYS",
     "AgentFrontmatter",
+    "BUDGET_PRESCREEN_BYTES",
+    "MAX_PRESCREENED_DEFINITIONS",
     "agent_mcp_servers",
+    "budget_overflow_findings",
     "analyze_agent_definition",
     "finalize_findings",
     "has_frontmatter",

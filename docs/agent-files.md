@@ -250,7 +250,14 @@ scalars stay strings (`=`, dates). Aliases are resolved under a 100,000-value
 budget; more than 20,000 YAML nodes, nesting deeper than 256 levels, or YAML
 that still does not parse makes the frontmatter unreadable, and every security
 key it names becomes a "present but unreadable" finding. A scan reads at most
-500 definitions and 16 MiB per discovery pass and reports when it stops. A
+500 definitions and 16 MiB per discovery pass in full and says so in `errors`;
+Claude Code has no such limit, so the next 5,000 are pre-screened (first
+64 KiB) and every security key their frontmatter names is a "present but
+unreadable" finding with the reason "per-scan limit reached": HIGH for
+`permissionMode`, `hooks` and `mcpServers` in a project directory, where a
+repository could pad its agents directory to push a definition past the
+limit, and the key's usual severity in `~/.claude/agents/`. Past that, one
+AGENT-003 counts the definitions not read at all (HIGH in a project). A
 `.md` file without frontmatter (a README) is not a definition. Credential-shaped
 text in any finding (a token in a hook command or a `disallowedTools` entry)
 is replaced with `[REDACTED]`.

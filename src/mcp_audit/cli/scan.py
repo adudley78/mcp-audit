@@ -1031,21 +1031,28 @@ def _apply_project_scan(
     # of the pipeline below (AGENT-001..004, HOOK-001/002) and their inline
     # servers get TRUST-001 like any project-scoped server. Kept out of
     # discover_project_configs() so `mcp-audit lock` never records them.
-    # A symlinked agent file reports TRUST-002 through skip_findings.
+    # A symlinked agent file reports TRUST-002 through skip_findings, and the
+    # definitions past the per-scan budget their pre-screen AGENT findings.
+    # The default scan may already have read the cwd's agents directory, so
+    # an error it already recorded (e.g. a file over 1 MiB) is not repeated.
+    agent_errors: list[str] = []
     project_configs += discover_project_agent_configs(
-        project_dir, skip_findings=skip_findings, errors=result.errors
+        project_dir, skip_findings=skip_findings, errors=agent_errors
+    )
+    result.errors.extend(
+        e for e in dict.fromkeys(agent_errors) if e not in result.errors
     )
 
     # ── TRUST-005: symlinked directories not traversed by either walk above ──
     # Seeded with what earlier stages (default discovery, --include-agent-files)
     # already reported, so a symlink under an agents directory is named once.
-    seen_skip: set[tuple[str, str | None]] = {
-        (f.id, f.finding_path)
+    seen_skip: set[tuple[str | None, ...]] = {
+        _skip_finding_key(f)
         for f in result.findings
-        if f.id in ("TRUST-002", "TRUST-004", "TRUST-005")
+        if f.id in ("TRUST-002", "TRUST-004", "TRUST-005") or f.id.startswith("AGENT-")
     }
     for finding in skip_findings:
-        key = (finding.id, finding.finding_path)
+        key = _skip_finding_key(finding)
         if key in seen_skip:
             continue
         seen_skip.add(key)
@@ -1162,6 +1169,18 @@ def _apply_project_scan(
         )
 
     return result
+
+
+def _skip_finding_key(finding: Finding) -> tuple[str | None, ...]:
+    """Dedupe key for discovery-time findings merged by ``_apply_project_scan``.
+
+    A TRUST-002/004/005 is one per path. The AGENT findings for subagent
+    definitions past the per-scan budget can be several per path (one per
+    security key), so the title is part of their key.
+    """
+    if finding.id.startswith("AGENT-"):
+        return (finding.id, finding.finding_path, finding.title)
+    return (finding.id, finding.finding_path)
 
 
 def _apply_lock_verification(
