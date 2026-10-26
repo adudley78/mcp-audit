@@ -304,6 +304,28 @@
       "notes": "Fires when `mcp-audit lock` (or `lock --verify --resolve`) resolves an unpinned spec to a version the package registry itself marks deprecated (npm's `deprecated` field on dist-tags.latest; PyPI is not covered — see GAPS.md). Network check, opt-in via the same resolution these commands already perform; never fires on a plain offline `scan`, `vet` (without `--online`), or `scan --check-vulns` (STORY-0074, deferred). Severity MEDIUM."
     },
     {
+      "finding_id": "SC-007",
+      "finding_title": "Unscoped twin of a known package",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when a configured package that is not in the registry (for its own ecosystem) has a name derived from a registry entry: the name part of @scope/server-<x> or @scope/mcp-server-<x>; the mcp-server-<x> spelling of @scope/server-<x> or @scope/<x>-mcp-server; or, across npm and PyPI, the same mcp-server-<x> name. Names are folded per PEP 503 first. Takes precedence over SC-001..003 for the same server. MEDIUM. Offline (STORY-0097)."
+    },
+    {
+      "finding_id": "SC-008",
+      "finding_title": "Package listed as malicious in OSV (MAL-* record)",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Exact-name match, per ecosystem, against registry/known-malicious.json, a bundled mirror of OSV MAL-* records for npm/PyPI packages whose name contains 'mcp' or that the registry lists. CRITICAL when the launch installs a listed release (pinned to one, or OSV marks every release / every release from a version on); MEDIUM when only past releases are listed and the launch is unpinned. Offline (STORY-0097)."
+    },
+    {
       "finding_id": "RUGPULL-000",
       "finding_title": "First scan — baseline recorded for server",
       "owasp_codes": [],

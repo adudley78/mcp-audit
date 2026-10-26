@@ -80,8 +80,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   redacted.
   `--include-agent-files` also scans each subagent's prompt with the skill rules.
 
+- **`SC-007` (MEDIUM): unscoped twins of known packages** (STORY-0097). A server launched
+  as `npx -y mcp-server-github` gets installs meant for `@modelcontextprotocol/server-github`,
+  and edit distance can't see it because the names differ by a scope. `scan`, `check` and
+  `vet` now flag a package, not itself in the registry, whose name is a registry entry's
+  name without its scope (`server-github`, `mcp-server-supabase`), its `mcp-server-<name>`
+  spelling (`mcp-server-github`, `mcp-server-notion`), or the same `mcp-server-<name>` in
+  the other registry (`npx mcp-server-git`, whose real package is on PyPI). In June 2026
+  OSV listed ten such npm names as malicious (MAL-2026-5476 to MAL-2026-5485); those
+  are CRITICAL under SC-008, and SC-007 is MEDIUM because some twin names belong to
+  small community packages, so the finding asks you to confirm the publisher. SC-007
+  replaces SC-001..003 for the same server, and fires on none of the 100 most-downloaded
+  npm MCP servers.
+- **`SC-008` (CRITICAL / MEDIUM): packages OSV lists as malicious, matched offline**
+  (STORY-0097). A new bundled file, `registry/known-malicious.json`, mirrors OSV's `MAL-*`
+  records for npm and PyPI packages whose name contains `mcp` or that the registry lists
+  (217 records). A plain `scan`, `check` or `vet` matches the exact package name with no
+  network call; before, only `scan --check-vulns` could. CRITICAL when the launch installs
+  a listed release, MEDIUM when only past releases are listed and the launch is unpinned.
+  MAL-2026-5479 (`mcp-server-github`) and its nine siblings carry a note with two facts:
+  they share one beacon host, and three of them named `theinfosecguy/npx-canary` as their
+  repository. They are reported as OSV states them. `vet` gains `typosquat_basis`, `malicious` and `other_ecosystem_malicious`
+  in its JSON, and warns when the other registry's package of the same name is malicious
+  (`vet mcp-server-git`).
+- **`scripts/sync_registry_advisories.py` keeps `known-malicious.json` current** from
+  OSV's bulk export; the weekly registry-advisory check now also fails when that file
+  has drifted.
+
 ### Changed
 
+- **Supply-chain evidence no longer quotes credentials.** SC-001..003 and the new SC-007
+  quote the launch command with URL passwords (`postgresql://user:pass@…`, including
+  passwords that contain `@` or spaces) and known token formats replaced by `[REDACTED]`,
+  capped at 300 characters.
+- **Supply-chain checks recognise every spelling of the launcher.** `/usr/local/bin/npx`,
+  an nvm path, `npx.cmd`, `C:\Program Files\nodejs\npx.cmd`, `uvx.exe`, `python3.exe` and
+  `cmd /c npx …` (the form Claude Desktop documents on Windows) used to skip SC-001..004
+  entirely; they now get the same checks as a plain `npx`/`uvx`, with unchanged meaning
+  and severity. The demo count and the false-positive benchmark don't change (they use
+  plain launchers).
+- **A scan reports when the known-malicious data can't be read** (`known-malicious data: …`
+  in the scan's errors) instead of silently matching nothing.
+- **The demo config now shows SC-007 and SC-008.** `demo/configs/vscode_mcp.json`
+  launches `npx -y mcp-server-postgres`, which OSV has listed as malicious
+  (MAL-2026-5481) since June 2026.
 - **The "zero false positives" claim now says what it covers.** README, GAPS.md and the
   release-notes template said the 22-server benchmark had no poisoning false positives.
   That is still true, but those fixtures are config entries with no tool descriptions;

@@ -203,6 +203,30 @@ Investigate a red run with `python scripts/audit_registry.py`. Clear a false
 `attestation_expected` with `python scripts/audit_registry.py --stamp`. Remove
 a `MISSING` entry; do not stamp it.
 
+## Known-malicious packages (`registry/known-malicious.json`)
+
+A second bundled data file, added by STORY-0097, sits next to the registry. It
+is a mirror of OSV's malicious-package (`MAL-*`) records for npm and PyPI
+packages whose name contains `mcp` or that `known-servers.json` lists, and it
+drives `SC-008` and the `malicious` block of `mcp-audit vet` (see
+[docs/supply-chain.md](supply-chain.md#sc-008-known-malicious-packages)).
+It is a separate file, not new `known-servers.json` fields, because most of the
+packages it names are not (and never will be) registry entries, and the
+registry schema stays unchanged.
+
+Each entry keeps OSV's `id`, `ecosystem`, `name`, `aliases`, `summary`,
+`published`, `versions` and `ranges` as OSV states them, plus an optional
+mcp-audit `note`. `scripts/sync_registry_advisories.py --write` regenerates it;
+do not edit it by hand. It ships in the wheel and in every PyInstaller binary
+(`sys._MEIPASS/registry/known-malicious.json`). `mcp-audit update-registry`
+does not refresh it; it updates with each release. If the file can't be read,
+the scan still runs and says so in its errors (`known-malicious data: …`).
+
+The same release added `SC-007`, which reads only `known-servers.json`: an
+unscoped name derived from a registry entry (`mcp-server-github` from
+`@modelcontextprotocol/server-github`) is reported as a twin. See
+`src/mcp_audit/registry/twins.py`.
+
 ## Implementation Notes
 
 - `src/mcp_audit/registry/loader.py` — `KnownServerRegistry` class,

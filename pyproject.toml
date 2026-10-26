@@ -112,6 +112,8 @@ packages = ["src/mcp_audit"]
 # importlib.resources can locate it at mcp_audit/registry/known-servers.json.
 "registry/known-servers.json" = "mcp_audit/registry/known-servers.json"
 "registry/known-extension-vulns.json" = "mcp_audit/registry/known-extension-vulns.json"
+# OSV MAL-* records matched offline by SC-008 and `vet` (STORY-0097).
+"registry/known-malicious.json" = "mcp_audit/registry/known-malicious.json"
 # Bundle the community rules inside the installed package so that
 # importlib.resources can locate them at mcp_audit/rules/community/.
 "rules/community" = "mcp_audit/rules/community"

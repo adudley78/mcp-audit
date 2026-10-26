@@ -16,6 +16,7 @@ from mcp_audit.analyzers.supply_chain import (  # noqa: I001
 from mcp_audit.models import ServerConfig, Severity, TransportType
 from mcp_audit.registry import loader as _loader_module
 from mcp_audit.registry.loader import normalize_pypi_name
+from mcp_audit.registry.malicious import KnownMaliciousPackages
 
 # ── Levenshtein unit tests ─────────────────────────────────────────────────────
 
@@ -246,9 +247,13 @@ class TestSupplyChainAnalyzer:
         ecosystem-blind ``is_known()``/``get()`` pair matched this pypi entry
         for an npx-launched server and silently suppressed all findings (the
         package was treated as "known"). The npm-scoped path must not do
-        this — it falls through to typosquat detection and correctly flags
-        the unrelated npm entry "mcp-server-get" as a distance-1 candidate
-        instead.
+        this — it falls through to the name checks instead.
+
+        STORY-0097 changed which name check answers: the npm name is now
+        reported as SC-007, the same-name twin of the PyPI package (the
+        MAL-2026-5478 shape), and SC-007 takes precedence over the distance-1
+        SC-001 against the unrelated npm entry "mcp-server-get".  An empty
+        known-malicious index keeps SC-008 out of this registry-only test.
         """
         import json
         import tempfile
@@ -286,14 +291,18 @@ class TestSupplyChainAnalyzer:
             json.dump(payload, fh)
             tmp = fh.name
         registry = KnownServerRegistry(path=Path(tmp))
-        analyzer = SupplyChainAnalyzer(registry=registry)
+        analyzer = SupplyChainAnalyzer(
+            registry=registry, malicious=KnownMaliciousPackages()
+        )
 
         server = _make_server(command="npx", args=["-y", "mcp-server-git"])
         findings = analyzer.analyze(server)
-        assert len(findings) == 1
-        assert findings[0].severity == Severity.CRITICAL
-        assert findings[0].id == "SC-001"
-        assert "mcp-server-get" in findings[0].remediation
+        assert [f.id for f in findings] == ["SC-007"]
+        assert findings[0].severity == Severity.MEDIUM
+        assert "rule=same-name" in findings[0].evidence
+        assert "uvx mcp-server-git" in findings[0].remediation
+        # Precedence: the distance-1 neighbour is not reported as well.
+        assert "mcp-server-get" not in findings[0].description
 
     def test_bunx_triggers_check(self) -> None:
         typo = "@modelcontextprotocol/server-filesyste"
@@ -1480,3 +1489,640 @@ class TestBundledRegistryAdvisories:
         ]
         at_fix = an.analyze(_srv("npx", ["-y", "@toolbox-sdk/server@1.5.0"]))
         assert [f for f in at_fix if f.id == "SC-004"] == []
+
+
+# ── STORY-0097: SC-007 unscoped twins and SC-008 known-malicious packages ─────
+
+
+def _ids(findings: list) -> list[tuple[str, str]]:
+    return [(f.id, f.severity.value) for f in findings if f.id in _NAME_IDS]
+
+
+_NAME_IDS = {"SC-001", "SC-002", "SC-003", "SC-004", "SC-007", "SC-008"}
+
+
+@pytest.fixture(scope="module")
+def bundled_analyzer() -> SupplyChainAnalyzer:
+    """The shipped registry and known-malicious data, user cache skipped."""
+    return SupplyChainAnalyzer(offline_registry=True)
+
+
+@pytest.fixture(scope="module")
+def no_malicious_analyzer() -> SupplyChainAnalyzer:
+    """Shipped registry, empty known-malicious index: SC-007 in isolation."""
+    return SupplyChainAnalyzer(
+        offline_registry=True, malicious=KnownMaliciousPackages()
+    )
+
+
+class TestSc007UnscopedTwin:
+    @pytest.mark.parametrize(
+        ("command", "args", "official"),
+        [
+            ("npx", ["-y", "mcp-server-github"], "@modelcontextprotocol/server-github"),
+            ("npx", ["-y", "server-github"], "@modelcontextprotocol/server-github"),
+            ("npx", ["-y", "mcp-server-supabase"], "@supabase/mcp-server-supabase"),
+            ("npx", ["-y", "mcp-server-notion"], "@notionhq/notion-mcp-server"),
+            ("npx", ["-y", "mcp-server-git"], "mcp-server-git"),
+            ("npx", ["-y", "mcp_server_github"], "@modelcontextprotocol/server-github"),
+            (
+                "npx",
+                ["-y", "mcp-server-github@0.0.2"],
+                "@modelcontextprotocol/server-github",
+            ),
+            ("bunx", ["mcp-server-redis"], "@modelcontextprotocol/server-redis"),
+            ("yarn", ["dlx", "mcp-server-slack"], "@modelcontextprotocol/server-slack"),
+            ("uvx", ["mcp-server-memory"], "@modelcontextprotocol/server-memory"),
+            ("uvx", ["mcp_server_github"], "@modelcontextprotocol/server-github"),
+            (
+                "python3",
+                ["-m", "mcp_server_memory"],
+                "@modelcontextprotocol/server-memory",
+            ),
+        ],
+    )
+    def test_fires_medium(
+        self,
+        no_malicious_analyzer: SupplyChainAnalyzer,
+        command: str,
+        args: list[str],
+        official: str,
+    ) -> None:
+        out = no_malicious_analyzer.analyze(_srv(command, args))
+        assert _ids(out) == [("SC-007", "MEDIUM")]
+        f = out[0]
+        assert f.cwe == "CWE-829"
+        assert f.owasp_mcp_top_10 == ["MCP04"]
+        assert f"twin of: {official!r}" in f.evidence
+        assert official in f.description
+        assert "This unscoped name mirrors the" in f.description
+        assert "Confirm who publishes" in f.remediation
+        assert "allowlist it in your governance policy" in f.remediation
+        assert "SC-007 still reports the name" in f.remediation
+        assert official in f.remediation
+        assert f.finding_path == str(Path("/x.json"))
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            ("npx", ["-y", "@modelcontextprotocol/server-github"]),
+            ("npx", ["-y", "@evil/server-github"]),
+            ("npx", ["-y", "notion-mcp-server"]),
+            ("npx", ["-y", "context7-mcp"]),
+            ("npx", ["-y", "mcp"]),
+            ("npx", ["-y", "server"]),
+            ("npx", ["-y", "mcp-server-kubernetes"]),
+            ("uvx", ["mcp-server-qdrant"]),
+            ("node", ["mcp-server-github"]),
+            ("npx", ["-y", "./mcp-server-github"]),
+        ],
+    )
+    def test_silent(
+        self, no_malicious_analyzer: SupplyChainAnalyzer, command: str, args: list[str]
+    ) -> None:
+        out = no_malicious_analyzer.analyze(_srv(command, args))
+        assert [f for f in out if f.id == "SC-007"] == []
+
+    def test_official_pypi_launch_keeps_its_cve_finding_only(
+        self, no_malicious_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        out = no_malicious_analyzer.analyze(_srv("uvx", ["mcp-server-git"]))
+        assert [f.id for f in out] == ["SC-004"]
+
+    def test_cross_ecosystem_remediation_names_the_right_launcher(
+        self, no_malicious_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        npm = no_malicious_analyzer.analyze(_srv("npx", ["-y", "mcp-server-fetch"]))[0]
+        assert "`uvx mcp-server-fetch`" in npm.remediation
+        pypi = no_malicious_analyzer.analyze(_srv("uvx", ["mcp-server-memory"]))[0]
+        assert "`npx -y @modelcontextprotocol/server-memory`" in pypi.remediation
+
+    def test_second_twin_is_named_too(
+        self, no_malicious_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        f = no_malicious_analyzer.analyze(_srv("npx", ["-y", "mcp-server-postgres"]))[0]
+        assert "also twin of: 'mcp-server-postgres'" in f.evidence
+        assert "the name of the PyPI package 'mcp-server-postgres'" in f.description
+
+
+class TestSc007Precedence:
+    """SC-007 and SC-001..003 never both fire for one server."""
+
+    def test_real_registry_pypi_launch_no_longer_gets_sc003(
+        self, no_malicious_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        """`uvx mcp-server-github` is 3 edits from PyPI mcp-server-git (SC-003)
+        but is the PyPI spelling of the official npm github server."""
+        out = no_malicious_analyzer.analyze(_srv("uvx", ["mcp-server-github"]))
+        assert _ids(out) == [("SC-007", "MEDIUM")]
+
+    def test_distance_one_neighbour_is_suppressed(self, tmp_path: Path) -> None:
+        import json
+
+        from mcp_audit.registry.loader import KnownServerRegistry
+
+        def entry(name: str) -> dict:
+            return {
+                "name": name,
+                "source": "npm",
+                "repo": None,
+                "maintainer": "m",
+                "verified": True,
+                "last_verified": "2026-10-25",
+                "known_versions": [],
+                "tags": [],
+            }
+
+        path = tmp_path / "r.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "last_updated": "2026-10-25",
+                    "entries": [
+                        entry("@acme/server-widget"),
+                        entry("mcp-server-widgets"),
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        reg = KnownServerRegistry(path=path)
+        an = SupplyChainAnalyzer(registry=reg, malicious=KnownMaliciousPackages())
+        # Distance 1 from the unscoped entry, and the twin of the scoped one.
+        out = an.analyze(_srv("npx", ["mcp-server-widget"]))
+        assert _ids(out) == [("SC-007", "MEDIUM")]
+        # A non-twin near-name still gets SC-001.
+        assert _ids(an.analyze(_srv("npx", ["mcp-server-widgetz"]))) == [
+            ("SC-001", "CRITICAL")
+        ]
+
+
+class TestSc008KnownMalicious:
+    @pytest.mark.parametrize(
+        ("command", "args", "expected"),
+        [
+            (
+                "npx",
+                ["-y", "mcp-server-github"],
+                [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")],
+            ),
+            (
+                "npx",
+                ["-y", "mcp-server-github@0.0.2"],
+                [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")],
+            ),
+            (
+                "npx",
+                ["-y", "mcp-server-git"],
+                [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")],
+            ),
+            ("npx", ["-y", "postmark-mcp"], [("SC-008", "CRITICAL")]),
+            ("npx", ["-y", "postmark-mcp@1.0.16"], [("SC-008", "CRITICAL")]),
+            ("npx", ["-y", "postmark-mcp@1.0.15"], []),
+            ("npx", ["-y", "mcp-use@1.4.2"], [("SC-008", "CRITICAL")]),
+            ("npx", ["-y", "mcp-use"], [("SC-008", "MEDIUM")]),
+            ("npx", ["-y", "mcp-use@1.4.4"], []),
+            ("npx", ["-y", "@browserbasehq/mcp@2.1.1"], [("SC-008", "CRITICAL")]),
+            ("npx", ["-y", "@browserbasehq/mcp@3.0.0"], []),
+            ("npx", ["-y", "@browserbasehq/mcp"], [("SC-008", "MEDIUM")]),
+            ("uvx", ["timemcp==0.1.0"], [("SC-008", "CRITICAL")]),
+            ("uvx", ["timemcp"], [("SC-008", "MEDIUM")]),
+            ("npx", ["-y", "timemcp"], []),  # the PyPI record never matches npm
+            ("uvx", ["mcp-server-git"], [("SC-004", "MEDIUM")]),  # npm record ≠ PyPI
+        ],
+    )
+    def test_bundled_records(
+        self,
+        bundled_analyzer: SupplyChainAnalyzer,
+        command: str,
+        args: list[str],
+        expected: list[tuple[str, str]],
+    ) -> None:
+        assert _ids(bundled_analyzer.analyze(_srv(command, args))) == expected
+
+    def test_finding_text(self, bundled_analyzer: SupplyChainAnalyzer) -> None:
+        out = bundled_analyzer.analyze(_srv("npx", ["-y", "mcp-server-github"]))
+        f = next(x for x in out if x.id == "SC-008")
+        assert f.title == "Known malicious package: mcp-server-github (MAL-2026-5479)"
+        assert f.cwe == "CWE-506"
+        assert f.owasp_mcp_top_10 == ["MCP04"]
+        assert "GHSA-95pj-hrh5-27gq" in f.description
+        assert "every release" in f.description
+        assert "npx-canary" in f.description  # the canary note
+        assert "https://osv.dev/vulnerability/MAL-2026-5479" in f.remediation
+        assert "'@modelcontextprotocol/server-github'" in f.remediation
+
+    def test_curated_exception_is_explained(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        out = bundled_analyzer.analyze(_srv("npx", ["-y", "@browserbasehq/mcp"]))
+        f = next(x for x in out if x.id == "SC-008")
+        assert "release(s) 2.1.1" in f.description
+        assert "explicit version list is used" in f.description
+
+    def test_open_range_names_its_start(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        f = bundled_analyzer.analyze(_srv("npx", ["-y", "postmark-mcp"]))[0]
+        assert "every release from 1.0.16 on" in f.description
+
+    def test_unreadable_data_leaves_name_checks_working(self, tmp_path: Path) -> None:
+        an = SupplyChainAnalyzer(
+            offline_registry=True, malicious_path=tmp_path / "missing.json"
+        )
+        assert an.malicious.load_error
+        assert _ids(an.analyze(_srv("npx", ["-y", "mcp-server-github"]))) == [
+            ("SC-007", "MEDIUM")
+        ]
+
+    def test_analyzer_built_without_init_still_works(self) -> None:
+        an = SupplyChainAnalyzer.__new__(SupplyChainAnalyzer)
+        an._registry = SupplyChainAnalyzer(offline_registry=True).registry
+        assert ("SC-008", "CRITICAL") in _ids(
+            an.analyze(_srv("npx", ["-y", "mcp-server-github"]))
+        )
+
+
+class TestSupplyChainEvidenceRedaction:
+    SECRET = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
+
+    def test_url_userinfo_and_tokens_are_redacted(
+        self, no_malicious_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        out = no_malicious_analyzer.analyze(
+            _srv(
+                "npx",
+                ["mcp-server-postgres", "postgresql://admin:hunter2@db/x", self.SECRET],
+            )
+        )
+        f = out[0]
+        assert f.id == "SC-007"
+        for field in (f.evidence, f.description, f.remediation, f.title):
+            assert "hunter2" not in field
+            assert self.SECRET not in field
+        assert "postgresql://[REDACTED]@db/x" in f.evidence
+
+    def test_sc001_evidence_is_redacted_too(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        out = bundled_analyzer.analyze(
+            _srv("npx", ["-y", "@modelcontextprotocol/server-filesytem", self.SECRET])
+        )
+        f = next(x for x in out if x.id == "SC-001")
+        assert self.SECRET not in f.evidence
+
+    def test_redaction_is_linear(self) -> None:
+        import time
+
+        from mcp_audit.analyzers.supply_chain import redact_command
+
+        start = time.monotonic()
+        text = redact_command(
+            "npx", ["a" * 300_000, "x://" * 100_000, "://" + "b" * 300_000]
+        )
+        assert time.monotonic() - start < 2.0
+        assert len(text) <= 301
+
+    def test_redaction_cap_happens_after_redacting(self) -> None:
+        from mcp_audit.analyzers.supply_chain import redact_command
+
+        text = redact_command("npx", ["x" * 280, self.SECRET])
+        assert "ghp_" not in text
+
+
+class TestScanOutputsCarryNoSecrets:
+    """SC-007/SC-008 in terminal, JSON and SARIF output of a real scan.
+
+    Only this story's findings are checked: other analyzers quote the launch
+    command too (TRANSPORT-003 quotes it unredacted, a pre-existing gap noted
+    in the STORY-0097 report), and JSON output lists the servers' raw args.
+    """
+
+    SECRET_PW = "s3cr3t-pa55"  # noqa: S105 — synthetic test value
+
+    def _scan(self, tmp_path: Path, fmt: str) -> str:
+        import json
+        from unittest.mock import patch
+
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        cfg = tmp_path / "mcp.json"
+        cfg.write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "db": {
+                            "command": "npx",
+                            "args": [
+                                "-y",
+                                "mcp-server-postgres",
+                                f"postgresql://admin:{self.SECRET_PW}@db/x",
+                            ],
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            r = CliRunner().invoke(app, ["scan", "--path", str(cfg), "--format", fmt])
+        return r.output
+
+    def test_terminal(self, tmp_path: Path) -> None:
+        out = self._scan(tmp_path, "terminal")
+        blocks = [b for b in out.split("\n\n") if "supply_chain" in b]
+        assert any("Unscoped twin of a known package" in b for b in blocks)
+        assert any("Known malicious package" in b for b in blocks)
+        for block in blocks:
+            assert self.SECRET_PW not in block
+        assert "postgresql://[REDACTED]@db/x" in out.replace("\n", "")
+
+    def test_json(self, tmp_path: Path) -> None:
+        import json
+
+        out = self._scan(tmp_path, "json")
+        doc = json.loads(out[out.find("{") :])
+        ours = [f for f in doc["findings"] if f["id"] in ("SC-007", "SC-008")]
+        assert {f["id"] for f in ours} == {"SC-007", "SC-008"}
+        assert self.SECRET_PW not in json.dumps(ours)
+
+    def test_sarif(self, tmp_path: Path) -> None:
+        import json
+
+        out = self._scan(tmp_path, "sarif")
+        doc = json.loads(out[out.find("{") :])
+        run = doc["runs"][0]
+        ours = [r for r in run["results"] if r["ruleId"] in ("SC-007", "SC-008")]
+        assert {r["ruleId"] for r in ours} == {"SC-007", "SC-008"}
+        rules = [
+            r for r in run["tool"]["driver"]["rules"] if r["id"] in ("SC-007", "SC-008")
+        ]
+        assert self.SECRET_PW not in json.dumps(ours) + json.dumps(rules)
+
+
+class TestScanLevelBehaviour:
+    def test_load_error_is_reported_in_scan_errors(self, tmp_path: Path) -> None:
+        import json
+        from unittest.mock import patch
+
+        from mcp_audit.scanner import run_scan
+
+        cfg = tmp_path / "mcp.json"
+        cfg.write_text(
+            json.dumps({"mcpServers": {"x": {"command": "npx", "args": ["-y", "a"]}}}),
+            encoding="utf-8",
+        )
+        broken = SupplyChainAnalyzer(
+            offline_registry=True, malicious_path=tmp_path / "missing.json"
+        )
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            result = run_scan(extra_paths=[cfg], analyzers=[broken], skip_rug_pull=True)
+        assert any(e.startswith("known-malicious data:") for e in result.errors)
+
+    def test_clean_scan_reports_no_data_error(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        from mcp_audit.scanner import run_scan
+
+        cfg = tmp_path / "mcp.json"
+        cfg.write_text('{"mcpServers": {}}', encoding="utf-8")
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            result = run_scan(extra_paths=[cfg], skip_rug_pull=True)
+        assert not any("known-malicious" in e for e in result.errors)
+
+    def test_top100_corpus_has_no_sc007_or_sc008(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        """False-positive benchmark: the 100 most-downloaded npm MCP servers
+        (docs/research/2026-10-top100-npm), each pinned as scanned."""
+        import json
+
+        cfg = json.loads(
+            (
+                Path(__file__).resolve().parent.parent
+                / "docs/research/2026-10-top100-npm/scan-config-100-servers.mcp.json"
+            ).read_text(encoding="utf-8")
+        )
+        servers = cfg.get("mcpServers", cfg)
+        assert len(servers) == 100
+        hits = [
+            (name, f.id)
+            for name, s in servers.items()
+            for f in bundled_analyzer.analyze(_srv(s["command"], s["args"]))
+            if f.id in ("SC-007", "SC-008")
+        ]
+        assert hits == []
+
+    def test_demo_config_flags_its_malicious_postgres_server(self) -> None:
+        """demo/configs/vscode_mcp.json launches `npx -y mcp-server-postgres`,
+        which OSV has listed as malicious (MAL-2026-5481) since June 2026."""
+        import json
+
+        demo = json.loads(
+            (
+                Path(__file__).resolve().parent.parent / "demo/configs/vscode_mcp.json"
+            ).read_text(encoding="utf-8")
+        )
+        db = demo["servers"]["database"]
+        out = SupplyChainAnalyzer(offline_registry=True).analyze(
+            _srv(db["command"], db["args"])
+        )
+        assert _ids(out) == [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")]
+
+
+class TestLauncherSpellings:
+    """Every spelling of the launcher reaches SC-007/SC-008 (STORY-0097 review)."""
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            ("/usr/local/bin/npx", ["-y", "mcp-server-github"]),
+            (
+                "/home/u/.nvm/versions/node/v22.11.0/bin/npx",
+                ["-y", "mcp-server-github"],
+            ),
+            ("npx.cmd", ["-y", "mcp-server-github"]),
+            ("NPX.CMD", ["-y", "mcp-server-github"]),
+            ("C:\\Program Files\\nodejs\\npx.cmd", ["-y", "mcp-server-github"]),
+            ("cmd", ["/c", "npx", "-y", "mcp-server-github"]),
+            ("cmd.exe", ["/C", "npx", "-y", "mcp-server-github"]),
+            ("CMD", ["/d", "/s", "/c", "npx", "-y", "mcp-server-github"]),
+            (
+                "cmd",
+                ["/k", "C:\\Program Files\\nodejs\\npx.cmd", "-y", "mcp-server-github"],
+            ),
+            ("cmd", ["/c", "npx -y mcp-server-github"]),
+            ("cmd", ["/c", "cmd", "/c", "npx", "-y", "mcp-server-github"]),
+            ("yarn.cmd", ["dlx", "mcp-server-github"]),
+        ],
+    )
+    def test_npm_forms_get_sc007_and_sc008(
+        self, bundled_analyzer: SupplyChainAnalyzer, command: str, args: list[str]
+    ) -> None:
+        out = bundled_analyzer.analyze(_srv(command, args))
+        assert _ids(out) == [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")]
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            ("/usr/local/bin/npx", ["-y", "postmark-mcp@1.0.15"]),
+            ("cmd", ["/c", "npx", "-y", "postmark-mcp@1.0.15"]),
+            ("npx.cmd", ["-y", "postmark-mcp@1.0.15"]),
+        ],
+    )
+    def test_pin_is_read_through_the_wrapper(
+        self, bundled_analyzer: SupplyChainAnalyzer, command: str, args: list[str]
+    ) -> None:
+        """_pinned_version uses the same normaliser: an unaffected pin is silent."""
+        assert _ids(bundled_analyzer.analyze(_srv(command, args))) == []
+        unpinned = [a.replace("@1.0.15", "") for a in args]
+        assert _ids(bundled_analyzer.analyze(_srv(command, unpinned))) == [
+            ("SC-008", "CRITICAL")
+        ]
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            ("/opt/homebrew/bin/uvx", ["mcp-server-memory"]),
+            ("C:\\Users\\u\\.local\\bin\\uvx.exe", ["mcp-server-memory"]),
+            ("cmd", ["/c", "uvx", "mcp-server-memory"]),
+            ("pipx.exe", ["run", "mcp-server-memory"]),
+            ("python3.exe", ["-m", "mcp_server_memory"]),
+            ("C:\\Python312\\python.exe", ["-m", "mcp_server_memory"]),
+        ],
+    )
+    def test_pypi_forms_get_sc007(
+        self, bundled_analyzer: SupplyChainAnalyzer, command: str, args: list[str]
+    ) -> None:
+        out = bundled_analyzer.analyze(_srv(command, args))
+        assert _ids(out) == [("SC-007", "MEDIUM")]
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            ("C:\\tools\\uvx.exe", ["timemcp==0.1.0"]),
+            ("cmd", ["/c", "uvx", "timemcp==0.1.0"]),
+        ],
+    )
+    def test_pypi_forms_get_sc008(
+        self, bundled_analyzer: SupplyChainAnalyzer, command: str, args: list[str]
+    ) -> None:
+        out = bundled_analyzer.analyze(_srv(command, args))
+        assert _ids(out) == [("SC-008", "CRITICAL")]
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            ("cmd", ["/c"]),  # nothing to run
+            ("cmd", ["/x", "npx", "-y", "mcp-server-github"]),  # no /c or /k
+            ("cmd", ["npx", "-y", "mcp-server-github"]),
+            ("/usr/bin/node", ["mcp-server-github"]),
+            ("npx-wrapper", ["-y", "mcp-server-github"]),
+            ("", ["-y", "mcp-server-github"]),
+        ],
+    )
+    def test_non_launchers_stay_silent(
+        self, bundled_analyzer: SupplyChainAnalyzer, command: str, args: list[str]
+    ) -> None:
+        assert _ids(bundled_analyzer.analyze(_srv(command, args))) == []
+
+    def test_existing_ids_gain_the_spellings_without_changing_meaning(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        typo = ["-y", "@modelcontextprotocol/server-filesytem"]
+        plain = _ids(bundled_analyzer.analyze(_srv("npx", typo)))
+        wrapped = _ids(bundled_analyzer.analyze(_srv("cmd", ["/c", "npx", *typo])))
+        assert plain == wrapped == [("SC-001", "CRITICAL")]
+
+    def test_normalize_launch_is_bounded(self) -> None:
+        import time
+
+        from mcp_audit.analyzers.supply_chain import normalize_launch
+
+        start = time.monotonic()
+        launcher, rest = normalize_launch("cmd", ["/c", "cmd"] * 50_000 + ["npx"])
+        assert launcher == "cmd"  # unwrapping stops after a few levels
+        assert time.monotonic() - start < 2.0
+
+
+class TestUserinfoRedaction:
+    """Passwords containing '@' or spaces are redacted whole (STORY-0097 review)."""
+
+    @pytest.mark.parametrize(
+        ("arg", "expected"),
+        [
+            ("postgresql://admin:p@ssw0rd@db/x", "postgresql://[REDACTED]@db/x"),
+            ("postgresql://admin:Sup3r S3cret@db/x", "postgresql://[REDACTED]@db/x"),
+            (
+                "postgresql://admin:pw@db:5432?ssl=@x",
+                "postgresql://[REDACTED]@db:5432?ssl=@x",
+            ),
+            ("redis://:only-pass@cache#frag@x", "redis://[REDACTED]@cache#frag@x"),
+            ("https://example.com/a@b", "https://example.com/a@b"),
+            ("postgresql://db/x", "postgresql://db/x"),
+        ],
+    )
+    def test_cases(self, arg: str, expected: str) -> None:
+        from mcp_audit.analyzers.supply_chain import redact_command
+
+        assert redact_command("npx", ["mcp-server-postgres", arg]) == (
+            f"npx mcp-server-postgres {expected}"
+        )
+
+    @pytest.mark.parametrize("pw", ["p@ssw0rd", "Sup3r S3cret"])
+    def test_sc007_evidence(
+        self, no_malicious_analyzer: SupplyChainAnalyzer, pw: str
+    ) -> None:
+        out = no_malicious_analyzer.analyze(
+            _srv("npx", ["mcp-server-postgres", f"postgresql://admin:{pw}@db/x"])
+        )
+        f = out[0]
+        assert f.id == "SC-007"
+        for fragment in (pw, pw.split("@")[-1], pw.split(" ")[-1]):
+            assert fragment not in f.evidence
+
+    def test_urls_do_not_join_across_arguments(self) -> None:
+        from mcp_audit.analyzers.supply_chain import redact_command
+
+        text = redact_command("npx", ["x://host", "user@example.com"])
+        assert text == "npx x://host user@example.com"
+
+
+class TestSc008Wording:
+    def test_medium_title_does_not_call_the_package_malware(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        out = bundled_analyzer.analyze(_srv("npx", ["-y", "mcp-use"]))
+        f = next(x for x in out if x.id == "SC-008")
+        assert f.severity == Severity.MEDIUM
+        assert f.title == "Malicious releases listed in OSV: mcp-use (MAL-2025-190923)"
+        assert "Remove this server" not in f.remediation
+
+    def test_latest_tag_is_unpinned(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        out = bundled_analyzer.analyze(
+            _srv("npx", ["-y", "@postman/postman-mcp-server@latest"])
+        )
+        f = next(x for x in out if x.id == "SC-008")
+        assert f.severity == Severity.MEDIUM
+        assert f.title.startswith("Malicious releases listed in OSV:")
+
+    def test_critical_keeps_its_title(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        out = bundled_analyzer.analyze(_srv("npx", ["-y", "mcp-use@1.4.2"]))
+        f = next(x for x in out if x.id == "SC-008")
+        assert f.title == "Known malicious package: mcp-use (MAL-2025-190923)"
+
+    def test_check_hint_is_neutral(self) -> None:
+        from mcp_audit.output.check import _HINTS
+
+        assert _HINTS["SC-008"] == (
+            "OSV lists malicious releases of this package; follow the finding: "
+            "remove it, or pin a release the record does not list."
+        )
+        assert "SC-007" in _HINTS
