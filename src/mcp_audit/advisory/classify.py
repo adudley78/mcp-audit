@@ -120,6 +120,9 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "TRANSPORT-003": "unpinned-dependency",
     "TRANSPORT-004": "network-exposure",
     "SC-004": "known-vulnerability",
+    # An OSV MAL-* record is a published advisory against the package
+    # (STORY-0097); SC-007 keeps the SC- prefix's "typosquat" class.
+    "SC-008": "known-vulnerability",
     "COMM-003": "sandbox-disabled",
     "COMM-010": "unpinned-dependency",
     "COMM-012": "network-exposure",

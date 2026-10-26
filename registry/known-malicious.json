@@ -1,0 +1,3884 @@
+{
+  "schema_version": "1.0",
+  "description": "OSV malicious-package (MAL-*) records for npm and PyPI packages whose name contains 'mcp' or that registry/known-servers.json lists. Matched offline by exact name (SC-008, mcp-audit vet). Written by scripts/sync_registry_advisories.py --write; do not edit by hand.",
+  "source": "https://osv.dev (OpenSSF malicious-packages, via OSV's bulk export)",
+  "last_updated": "2026-10-25",
+  "entry_count": 217,
+  "entries": [
+    {
+      "id": "MAL-2026-2669",
+      "ecosystem": "PyPI",
+      "name": "ant-mcp-proxy-for-test",
+      "aliases": [],
+      "summary": "Malicious code in ant-mcp-proxy-for-test (PyPI)",
+      "published": "2026-04-14T21:19:11Z",
+      "versions": [
+        "0.10.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4811",
+      "ecosystem": "PyPI",
+      "name": "docontrol-mcp",
+      "aliases": [],
+      "summary": "Malicious code in docontrol-mcp (PyPI)",
+      "published": "2026-05-26T12:50:38Z",
+      "versions": [
+        "999.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2023-3106",
+      "ecosystem": "PyPI",
+      "name": "esqmcpaypallgtb",
+      "aliases": [],
+      "summary": "Malicious code in esqmcpaypallgtb (PyPI)",
+      "published": "2023-02-25T23:30:07Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-3107",
+      "ecosystem": "PyPI",
+      "name": "esqmcpepgrand",
+      "aliases": [],
+      "summary": "Malicious code in esqmcpepgrand (PyPI)",
+      "published": "2023-02-25T23:30:14Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-3108",
+      "ecosystem": "PyPI",
+      "name": "esqmcpullram",
+      "aliases": [],
+      "summary": "Malicious code in esqmcpullram (PyPI)",
+      "published": "2023-02-25T23:06:09Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-3109",
+      "ecosystem": "PyPI",
+      "name": "esqmcpypaypal",
+      "aliases": [],
+      "summary": "Malicious code in esqmcpypaypal (PyPI)",
+      "published": "2023-02-25T23:15:02Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-3295",
+      "ecosystem": "PyPI",
+      "name": "esqpymcpy",
+      "aliases": [],
+      "summary": "Malicious code in esqpymcpy (PyPI)",
+      "published": "2023-02-26T20:15:11Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-6007",
+      "ecosystem": "PyPI",
+      "name": "groq-mcp",
+      "aliases": [],
+      "summary": "Malicious code in groq-mcp (PyPI)",
+      "published": "2025-07-18T12:26:01Z",
+      "versions": [
+        "0.0.1",
+        "9.9.9"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5317",
+      "ecosystem": "PyPI",
+      "name": "instructor-mcp",
+      "aliases": [
+        "PYSEC-2026-1069"
+      ],
+      "summary": "Malicious code in instructor-mcp (PyPI)",
+      "published": "2026-06-06T06:13:57Z",
+      "versions": [
+        "1.15.2",
+        "1.15.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5318",
+      "ecosystem": "PyPI",
+      "name": "langchain-core-mcp",
+      "aliases": [
+        "PYSEC-2026-1070"
+      ],
+      "summary": "Malicious code in langchain-core-mcp (PyPI)",
+      "published": "2026-06-06T06:13:57Z",
+      "versions": [
+        "1.4.2",
+        "1.4.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-2315",
+      "ecosystem": "PyPI",
+      "name": "latinum-wallet-mcp",
+      "aliases": [],
+      "summary": "Malicious code in latinum-wallet-mcp (PyPI)",
+      "published": "2026-03-31T20:37:05Z",
+      "versions": [
+        "0.0.32",
+        "0.0.33",
+        "0.0.34",
+        "0.0.35",
+        "0.0.36"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2023-3972",
+      "ecosystem": "PyPI",
+      "name": "libedmcpong",
+      "aliases": [],
+      "summary": "Malicious code in libedmcpong (PyPI)",
+      "published": "2023-02-27T02:42:17Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-3985",
+      "ecosystem": "PyPI",
+      "name": "libencoderandomcpu",
+      "aliases": [],
+      "summary": "Malicious code in libencoderandomcpu (PyPI)",
+      "published": "2023-02-25T23:30:16Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-4233",
+      "ecosystem": "PyPI",
+      "name": "libmcpep",
+      "aliases": [],
+      "summary": "Malicious code in libmcpep (PyPI)",
+      "published": "2023-02-25T16:51:11Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-4234",
+      "ecosystem": "PyPI",
+      "name": "libmcpingstudy",
+      "aliases": [],
+      "summary": "Malicious code in libmcpingstudy (PyPI)",
+      "published": "2023-02-26T20:18:21Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-4235",
+      "ecosystem": "PyPI",
+      "name": "libmcpipver",
+      "aliases": [],
+      "summary": "Malicious code in libmcpipver (PyPI)",
+      "published": "2023-02-25T23:33:14Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-4236",
+      "ecosystem": "PyPI",
+      "name": "libmcpongvm",
+      "aliases": [],
+      "summary": "Malicious code in libmcpongvm (PyPI)",
+      "published": "2023-02-25T23:33:02Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-4237",
+      "ecosystem": "PyPI",
+      "name": "libmcpywcontrol",
+      "aliases": [],
+      "summary": "Malicious code in libmcpywcontrol (PyPI)",
+      "published": "2023-02-26T20:21:19Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-4430",
+      "ecosystem": "PyPI",
+      "name": "libramcpuhacked",
+      "aliases": [],
+      "summary": "Malicious code in libramcpuhacked (PyPI)",
+      "published": "2023-02-27T15:33:17Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-16250",
+      "ecosystem": "PyPI",
+      "name": "marketing-mcp",
+      "aliases": [],
+      "summary": "Malicious code in marketing-mcp (PyPI)",
+      "published": "2026-09-17T12:43:45Z",
+      "versions": [
+        "0.1.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-603",
+      "ecosystem": "PyPI",
+      "name": "mcp-pdftool-plus",
+      "aliases": [],
+      "summary": "Malicious code in mcp-pdftool-plus (PyPI)",
+      "published": "2026-01-29T13:25:53Z",
+      "versions": [
+        "0.1.3",
+        "0.1.4",
+        "0.1.5"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191788",
+      "ecosystem": "PyPI",
+      "name": "mcp-runcmd-server",
+      "aliases": [],
+      "summary": "Malicious code in mcp-runcmd-server (PyPI)",
+      "published": "2025-10-13T07:46:53Z",
+      "versions": [
+        "1.0",
+        "2.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191647",
+      "ecosystem": "PyPI",
+      "name": "mcp-runcommand-server",
+      "aliases": [],
+      "summary": "Malicious code in mcp-runcommand-server (PyPI)",
+      "published": "2025-10-10T10:05:00Z",
+      "versions": [
+        "1.0.5",
+        "1.0.7",
+        "1.0.8",
+        "1.0.9",
+        "1.0.10",
+        "1.0.11",
+        "1.0.12",
+        "1.0.13"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191648",
+      "ecosystem": "PyPI",
+      "name": "mcp-runcommand-server2",
+      "aliases": [],
+      "summary": "Malicious code in mcp-runcommand-server2 (PyPI)",
+      "published": "2025-10-10T10:05:56Z",
+      "versions": [
+        "1.0.6"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-11198",
+      "ecosystem": "PyPI",
+      "name": "mcp-search-server",
+      "aliases": [],
+      "summary": "Malicious code in mcp-search-server (PyPI)",
+      "published": "2026-07-30T17:30:32Z",
+      "versions": [
+        "1.0.0",
+        "2.0.0",
+        "2.0.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-1990",
+      "ecosystem": "PyPI",
+      "name": "mcp-transport-proto",
+      "aliases": [],
+      "summary": "Malicious code in mcp-transport-proto (PyPI)",
+      "published": "2026-03-20T10:31:20Z",
+      "versions": [
+        "9.9.9"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191789",
+      "ecosystem": "PyPI",
+      "name": "mcp-weather-full",
+      "aliases": [],
+      "summary": "Malicious code in mcp-weather-full (PyPI)",
+      "published": "2025-11-06T08:46:54Z",
+      "versions": [
+        "0.8.0",
+        "0.8.1",
+        "0.8.2",
+        "0.8.3",
+        "0.8.4",
+        "0.8.5",
+        "0.8.6",
+        "0.8.7",
+        "0.8.8",
+        "0.8.9",
+        "0.9.0",
+        "0.9.1",
+        "0.9.2",
+        "0.9.3",
+        "0.9.4",
+        "0.9.5",
+        "0.9.6",
+        "1.0.0",
+        "1.0.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-4223",
+      "ecosystem": "PyPI",
+      "name": "mcp-xyz",
+      "aliases": [],
+      "summary": "Malicious code in mcp-xyz (PyPI)",
+      "published": "2024-07-26T16:53:30Z",
+      "versions": [
+        "0.1.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2023-4741",
+      "ecosystem": "PyPI",
+      "name": "mcpep",
+      "aliases": [],
+      "summary": "Malicious code in mcpep (PyPI)",
+      "published": "2023-02-24T16:45:02Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-4742",
+      "ecosystem": "PyPI",
+      "name": "mcpip",
+      "aliases": [],
+      "summary": "Malicious code in mcpip (PyPI)",
+      "published": "2023-02-24T16:39:16Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-4743",
+      "ecosystem": "PyPI",
+      "name": "mcpost",
+      "aliases": [],
+      "summary": "Malicious code in mcpost (PyPI)",
+      "published": "2023-02-23T23:45:14Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-6384",
+      "ecosystem": "PyPI",
+      "name": "mcpsever",
+      "aliases": [],
+      "summary": "Malicious code in mcpsever (PyPI)",
+      "published": "2026-06-24T06:39:18Z",
+      "versions": [
+        "0.0.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2023-4744",
+      "ecosystem": "PyPI",
+      "name": "mcpyw",
+      "aliases": [],
+      "summary": "Malicious code in mcpyw (PyPI)",
+      "published": "2023-02-23T19:00:17Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5320",
+      "ecosystem": "PyPI",
+      "name": "openai-mcp",
+      "aliases": [
+        "PYSEC-2026-1072"
+      ],
+      "summary": "Malicious code in openai-mcp (PyPI)",
+      "published": "2026-06-08T10:18:12Z",
+      "versions": [
+        "2.41.1",
+        "2.41.2"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2023-5048",
+      "ecosystem": "PyPI",
+      "name": "py-cpumcpyw",
+      "aliases": [],
+      "summary": "Malicious code in py-cpumcpyw (PyPI)",
+      "published": "2023-02-25T23:33:20Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-5213",
+      "ecosystem": "PyPI",
+      "name": "py-infomcpy",
+      "aliases": [],
+      "summary": "Malicious code in py-infomcpy (PyPI)",
+      "published": "2023-02-26T20:18:13Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-5339",
+      "ecosystem": "PyPI",
+      "name": "py-mcpushmask",
+      "aliases": [],
+      "summary": "Malicious code in py-mcpushmask (PyPI)",
+      "published": "2023-02-25T23:00:14Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-5340",
+      "ecosystem": "PyPI",
+      "name": "py-mcpyw",
+      "aliases": [],
+      "summary": "Malicious code in py-mcpyw (PyPI)",
+      "published": "2023-02-25T17:06:05Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-5414",
+      "ecosystem": "PyPI",
+      "name": "py-pepmcpaypal",
+      "aliases": [],
+      "summary": "Malicious code in py-pepmcpaypal (PyPI)",
+      "published": "2023-02-26T20:15:22Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-5568",
+      "ecosystem": "PyPI",
+      "name": "py-randomcpu",
+      "aliases": [],
+      "summary": "Malicious code in py-randomcpu (PyPI)",
+      "published": "2023-02-25T22:57:13Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-5710",
+      "ecosystem": "PyPI",
+      "name": "py-ultramcpyw",
+      "aliases": [],
+      "summary": "Malicious code in py-ultramcpyw (PyPI)",
+      "published": "2023-02-26T20:15:22Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-5840",
+      "ecosystem": "PyPI",
+      "name": "ramcpu",
+      "aliases": [],
+      "summary": "Malicious code in ramcpu (PyPI)",
+      "published": "2023-02-24T16:48:05Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5325",
+      "ecosystem": "PyPI",
+      "name": "ray-mcp-server",
+      "aliases": [
+        "PYSEC-2026-1074"
+      ],
+      "summary": "Malicious code in ray-mcp-server (PyPI)",
+      "published": "2026-06-06T06:13:57Z",
+      "versions": [
+        "0.2.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2023-5958",
+      "ecosystem": "PyPI",
+      "name": "selfccmcpush",
+      "aliases": [],
+      "summary": "Malicious code in selfccmcpush (PyPI)",
+      "published": "2023-02-25T23:06:14Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-6154",
+      "ecosystem": "PyPI",
+      "name": "selfhackedmcpong",
+      "aliases": [],
+      "summary": "Malicious code in selfhackedmcpong (PyPI)",
+      "published": "2023-02-25T23:03:18Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-6167",
+      "ecosystem": "PyPI",
+      "name": "selfhttpmcpush",
+      "aliases": [],
+      "summary": "Malicious code in selfhttpmcpush (PyPI)",
+      "published": "2023-03-09T00:39:07Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-6326",
+      "ecosystem": "PyPI",
+      "name": "selfmcpipcpu",
+      "aliases": [],
+      "summary": "Malicious code in selfmcpipcpu (PyPI)",
+      "published": "2023-02-26T20:18:11Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-6327",
+      "ecosystem": "PyPI",
+      "name": "selfmcproofvisa",
+      "aliases": [],
+      "summary": "Malicious code in selfmcproofvisa (PyPI)",
+      "published": "2023-02-25T23:30:23Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-3471",
+      "ecosystem": "PyPI",
+      "name": "story-mcp-hub",
+      "aliases": [],
+      "summary": "Malicious code in story-mcp-hub (PyPI)",
+      "published": "2024-07-26T16:53:30Z",
+      "versions": [
+        "9999.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2024-6122",
+      "ecosystem": "PyPI",
+      "name": "testpackage1mcpe",
+      "aliases": [],
+      "summary": "Malicious code in testpackage1mcpe (PyPI)",
+      "published": "2024-06-25T13:43:28Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5326",
+      "ecosystem": "PyPI",
+      "name": "tiktoken-mcp",
+      "aliases": [
+        "PYSEC-2026-1075"
+      ],
+      "summary": "Malicious code in tiktoken-mcp (PyPI)",
+      "published": "2026-06-08T10:16:53Z",
+      "versions": [
+        "0.13.1",
+        "0.13.2"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3132",
+      "ecosystem": "PyPI",
+      "name": "timemcp",
+      "aliases": [],
+      "summary": "Malicious code in timemcp (PyPI)",
+      "published": "2026-04-28T18:21:56Z",
+      "versions": [
+        "0.1.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3142",
+      "ecosystem": "PyPI",
+      "name": "timemcp-client",
+      "aliases": [],
+      "summary": "Malicious code in timemcp-client (PyPI)",
+      "published": "2026-04-29T05:32:51Z",
+      "versions": [
+        "0.1.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3134",
+      "ecosystem": "PyPI",
+      "name": "timemcp-py",
+      "aliases": [],
+      "summary": "Malicious code in timemcp-py (PyPI)",
+      "published": "2026-04-28T20:04:58Z",
+      "versions": [
+        "0.1.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3143",
+      "ecosystem": "PyPI",
+      "name": "timemcp-utils",
+      "aliases": [],
+      "summary": "Malicious code in timemcp-utils (PyPI)",
+      "published": "2026-04-29T05:37:02Z",
+      "versions": [
+        "0.1.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3144",
+      "ecosystem": "PyPI",
+      "name": "timemcp190825790125120985125",
+      "aliases": [],
+      "summary": "Malicious code in timemcp190825790125120985125 (PyPI)",
+      "published": "2026-04-29T05:35:44Z",
+      "versions": [
+        "0.1.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3238",
+      "ecosystem": "PyPI",
+      "name": "timemcplib",
+      "aliases": [],
+      "summary": "Malicious code in timemcplib (PyPI)",
+      "published": "2026-05-02T22:45:32Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3231",
+      "ecosystem": "PyPI",
+      "name": "timermcp",
+      "aliases": [],
+      "summary": "Malicious code in timermcp (PyPI)",
+      "published": "2026-05-02T03:14:57Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3239",
+      "ecosystem": "PyPI",
+      "name": "timermcplib",
+      "aliases": [],
+      "summary": "Malicious code in timermcplib (PyPI)",
+      "published": "2026-05-02T23:20:30Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3226",
+      "ecosystem": "PyPI",
+      "name": "timesmcp",
+      "aliases": [],
+      "summary": "Malicious code in timesmcp (PyPI)",
+      "published": "2026-05-02T00:51:25Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3240",
+      "ecosystem": "PyPI",
+      "name": "timesmcplib",
+      "aliases": [],
+      "summary": "Malicious code in timesmcplib (PyPI)",
+      "published": "2026-05-03T03:09:30Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3227",
+      "ecosystem": "PyPI",
+      "name": "timingmcp",
+      "aliases": [],
+      "summary": "Malicious code in timingmcp (PyPI)",
+      "published": "2026-05-02T00:52:47Z",
+      "versions": [
+        "0.1.5"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2023-6989",
+      "ecosystem": "PyPI",
+      "name": "tpcvmcpy",
+      "aliases": [],
+      "summary": "Malicious code in tpcvmcpy (PyPI)",
+      "published": "2023-02-27T02:39:08Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-7243",
+      "ecosystem": "PyPI",
+      "name": "tpmaskmcpush",
+      "aliases": [],
+      "summary": "Malicious code in tpmaskmcpush (PyPI)",
+      "published": "2023-02-26T20:21:12Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-7263",
+      "ecosystem": "PyPI",
+      "name": "tpmcpongpaypal",
+      "aliases": [],
+      "summary": "Malicious code in tpmcpongpaypal (PyPI)",
+      "published": "2023-03-09T00:39:09Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-7572",
+      "ecosystem": "PyPI",
+      "name": "tpreramcpu",
+      "aliases": [],
+      "summary": "Malicious code in tpreramcpu (PyPI)",
+      "published": "2023-02-25T23:33:14Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2023-7732",
+      "ecosystem": "PyPI",
+      "name": "tpvmcpustudy",
+      "aliases": [],
+      "summary": "Malicious code in tpvmcpustudy (PyPI)",
+      "published": "2023-02-27T02:36:01Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-4774",
+      "ecosystem": "PyPI",
+      "name": "vulndify-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in vulndify-mcp-server (PyPI)",
+      "published": "2026-05-22T03:25:07Z",
+      "versions": [
+        "0.3.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191924",
+      "ecosystem": "PyPI",
+      "name": "wayspiritmcp-enconly",
+      "aliases": [],
+      "summary": "Malicious code in wayspiritmcp-enconly (PyPI)",
+      "published": "2025-11-05T21:21:44Z",
+      "versions": [
+        "0.1.0",
+        "0.1.1",
+        "0.1.2",
+        "0.1.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191925",
+      "ecosystem": "PyPI",
+      "name": "wayspiritmcp-ppa",
+      "aliases": [],
+      "summary": "Malicious code in wayspiritmcp-ppa (PyPI)",
+      "published": "2025-11-05T21:24:19Z",
+      "versions": [
+        "0.1.0",
+        "0.1.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191926",
+      "ecosystem": "PyPI",
+      "name": "wayspiritmcp-tpa",
+      "aliases": [],
+      "summary": "Malicious code in wayspiritmcp-tpa (PyPI)",
+      "published": "2025-11-05T21:25:33Z",
+      "versions": [
+        "0.1.0",
+        "0.1.1",
+        "0.1.2",
+        "0.1.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191927",
+      "ecosystem": "PyPI",
+      "name": "wayspiritmcp-weather",
+      "aliases": [],
+      "summary": "Malicious code in wayspiritmcp-weather (PyPI)",
+      "published": "2025-11-05T21:16:52Z",
+      "versions": [
+        "0.1.0",
+        "0.1.1",
+        "0.1.2",
+        "0.1.3",
+        "0.1.4",
+        "0.1.5",
+        "0.1.6",
+        "0.1.7",
+        "0.1.8",
+        "0.1.9",
+        "0.1.10",
+        "0.1.11",
+        "0.2.1",
+        "0.2.2",
+        "0.2.3",
+        "0.2.4",
+        "0.2.5",
+        "0.2.6",
+        "0.2.7",
+        "0.2.8",
+        "0.2.9",
+        "0.3.0",
+        "0.3.1",
+        "0.3.2",
+        "0.3.3",
+        "0.3.4",
+        "0.4.0",
+        "0.4.1",
+        "0.4.2",
+        "0.4.3",
+        "0.4.4",
+        "0.4.5",
+        "0.4.6",
+        "0.5.0",
+        "0.5.1",
+        "0.6.0",
+        "0.6.1",
+        "0.6.2",
+        "0.6.3",
+        "0.7.0",
+        "0.7.1",
+        "0.7.2",
+        "0.7.3",
+        "0.7.4",
+        "0.7.5",
+        "0.7.6",
+        "0.7.7",
+        "0.7.8",
+        "0.7.9",
+        "0.7.10",
+        "0.7.11",
+        "0.7.12",
+        "0.7.13",
+        "0.7.14",
+        "0.7.15",
+        "0.8.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4775",
+      "ecosystem": "PyPI",
+      "name": "wdt-erpmcp",
+      "aliases": [],
+      "summary": "Malicious code in wdt-erpmcp (PyPI)",
+      "published": "2026-05-21T06:46:46Z",
+      "versions": [
+        "0.1.5",
+        "0.1.6",
+        "0.1.7"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4068",
+      "ecosystem": "npm",
+      "name": "@antv/mcp-server-antv",
+      "aliases": [],
+      "summary": "Malicious code in @antv/mcp-server-antv (npm)",
+      "published": "2026-05-19T00:00:00Z",
+      "versions": [
+        "0.2.8",
+        "0.3.8"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4069",
+      "ecosystem": "npm",
+      "name": "@antv/mcp-server-chart",
+      "aliases": [
+        "GHSA-qgmj-c898-99rq"
+      ],
+      "summary": "Malicious code in @antv/mcp-server-chart (npm)",
+      "published": "2026-05-19T00:00:00Z",
+      "versions": [
+        "0.10.10",
+        "0.11.10"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191195",
+      "ecosystem": "npm",
+      "name": "@browserbasehq/mcp",
+      "aliases": [
+        "GHSA-j9hg-hmwf-9qx7"
+      ],
+      "summary": "Malicious code in @browserbasehq/mcp (npm)",
+      "published": "2025-11-25T00:08:13Z",
+      "versions": [
+        "2.1.1"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-191196",
+      "ecosystem": "npm",
+      "name": "@browserbasehq/mcp-server-browserbase",
+      "aliases": [],
+      "summary": "Malicious code in @browserbasehq/mcp-server-browserbase (npm)",
+      "published": "2025-11-25T00:16:49Z",
+      "versions": [
+        "2.4.2"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4938",
+      "ecosystem": "npm",
+      "name": "@cloudplatform-single-spa/ml-ai-agents-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in @cloudplatform-single-spa/ml-ai-agents-mcp-server (npm)",
+      "published": "2026-05-28T00:00:00Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-12314",
+      "ecosystem": "npm",
+      "name": "@copilot-mcp/apex",
+      "aliases": [],
+      "summary": "Malicious code in @copilot-mcp/apex (npm)",
+      "published": "2026-08-05T12:27:30Z",
+      "versions": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2",
+        "1.0.3",
+        "1.0.4",
+        "1.0.5",
+        "1.0.6",
+        "1.0.7",
+        "1.0.8",
+        "1.0.16",
+        "1.0.17",
+        "1.0.21",
+        "1.0.22"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4382",
+      "ecosystem": "npm",
+      "name": "@djessicatony/folk-mcp-canary",
+      "aliases": [],
+      "summary": "Malicious code in @djessicatony/folk-mcp-canary (npm)",
+      "published": "2026-05-21T00:52:43Z",
+      "versions": [
+        "0.0.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-14315",
+      "ecosystem": "npm",
+      "name": "@httttt/mcp-demo",
+      "aliases": [
+        "GHSA-phcp-xhhf-xcvq"
+      ],
+      "summary": "Malicious code in @httttt/mcp-demo (npm)",
+      "published": "2026-08-20T03:33:06Z",
+      "versions": [
+        "1.0.0",
+        "1.1.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-16422",
+      "ecosystem": "npm",
+      "name": "@httttt/mcp-npx-fetch-1",
+      "aliases": [
+        "GHSA-q6m6-3rfx-7f62"
+      ],
+      "summary": "Malicious code in @httttt/mcp-npx-fetch-1 (npm)",
+      "published": "2026-09-23T00:24:09Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-1930",
+      "ecosystem": "npm",
+      "name": "@iflow-mcp/watercrawl-watercrawl-mcp",
+      "aliases": [
+        "GHSA-rg84-r52h-2rgw"
+      ],
+      "summary": "Malicious code in @iflow-mcp/watercrawl-watercrawl-mcp (npm)",
+      "published": "2026-03-19T16:41:12Z",
+      "versions": [
+        "1.3.0",
+        "1.3.1",
+        "1.3.2",
+        "1.3.3",
+        "1.3.4"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-6139",
+      "ecosystem": "npm",
+      "name": "@jaswanthlanka/mcp-proxy",
+      "aliases": [
+        "GHSA-cm3w-fxm2-349q"
+      ],
+      "summary": "Malicious code in @jaswanthlanka/mcp-proxy (npm)",
+      "published": "2025-07-22T02:16:05Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-13938",
+      "ecosystem": "npm",
+      "name": "@kolbo/mcp",
+      "aliases": [],
+      "summary": "Malicious code in @kolbo/mcp (npm)",
+      "published": "2026-08-13T17:22:05Z",
+      "versions": [
+        "1.57.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-47838",
+      "ecosystem": "npm",
+      "name": "@lanyer640/mcp-runcommand-server",
+      "aliases": [
+        "GHSA-xmqc-rm22-fxq6"
+      ],
+      "summary": "Malicious code in @lanyer640/mcp-runcommand-server (npm)",
+      "published": "2025-09-29T14:33:26Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "1.0.6"
+            }
+          ]
+        },
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5955",
+      "ecosystem": "npm",
+      "name": "@mastra/mcp",
+      "aliases": [
+        "GHSA-wfr8-6x4q-hpr3"
+      ],
+      "summary": "Malicious code in @mastra/mcp (npm)",
+      "published": "2026-06-17T03:11:25Z",
+      "versions": [
+        "1.10.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5956",
+      "ecosystem": "npm",
+      "name": "@mastra/mcp-docs-server",
+      "aliases": [
+        "GHSA-wxp6-9hmr-928g"
+      ],
+      "summary": "Malicious code in @mastra/mcp-docs-server (npm)",
+      "published": "2026-06-17T03:12:51Z",
+      "versions": [
+        "1.1.47"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-6027",
+      "ecosystem": "npm",
+      "name": "@mastra/mcp-registry-registry",
+      "aliases": [
+        "GHSA-5w62-p653-57mf"
+      ],
+      "summary": "Malicious code in @mastra/mcp-registry-registry (npm)",
+      "published": "2026-06-17T05:06:28Z",
+      "versions": [
+        "1.0.2"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-190867",
+      "ecosystem": "npm",
+      "name": "@mcp-use/cli",
+      "aliases": [],
+      "summary": "Malicious code in @mcp-use/cli (npm)",
+      "published": "2025-11-24T16:31:47Z",
+      "versions": [
+        "2.2.6",
+        "2.2.7"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-190868",
+      "ecosystem": "npm",
+      "name": "@mcp-use/inspector",
+      "aliases": [],
+      "summary": "Malicious code in @mcp-use/inspector (npm)",
+      "published": "2025-11-24T16:31:47Z",
+      "versions": [
+        "0.6.2",
+        "0.6.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-190869",
+      "ecosystem": "npm",
+      "name": "@mcp-use/mcp-use",
+      "aliases": [],
+      "summary": "Malicious code in @mcp-use/mcp-use (npm)",
+      "published": "2025-11-24T16:31:47Z",
+      "versions": [
+        "1.0.1",
+        "1.0.2"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-11713",
+      "ecosystem": "npm",
+      "name": "@or-sdk/mcp-tools",
+      "aliases": [
+        "GHSA-hvf5-94cq-qgc6"
+      ],
+      "summary": "Malicious code in @or-sdk/mcp-tools (npm)",
+      "published": "2026-08-04T15:19:50Z",
+      "versions": [
+        "0.5.2",
+        "0.5.3",
+        "0.5.4"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-190902",
+      "ecosystem": "npm",
+      "name": "@postman/mcp-ui-client",
+      "aliases": [],
+      "summary": "Malicious code in @postman/mcp-ui-client (npm)",
+      "published": "2025-11-24T16:31:47Z",
+      "versions": [
+        "5.5.1",
+        "5.5.2",
+        "5.5.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-190908",
+      "ecosystem": "npm",
+      "name": "@postman/postman-mcp-cli",
+      "aliases": [],
+      "summary": "Malicious code in @postman/postman-mcp-cli (npm)",
+      "published": "2025-11-24T16:31:47Z",
+      "versions": [
+        "1.0.3",
+        "1.0.4",
+        "1.0.5"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-190909",
+      "ecosystem": "npm",
+      "name": "@postman/postman-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in @postman/postman-mcp-server (npm)",
+      "published": "2025-11-24T16:31:47Z",
+      "versions": [
+        "2.4.10",
+        "2.4.11",
+        "2.4.12"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5129",
+      "ecosystem": "npm",
+      "name": "@redhat-cloud-services/hcc-feo-mcp",
+      "aliases": [
+        "GHSA-vgm5-jmvr-cjgf"
+      ],
+      "summary": "Malicious code in @redhat-cloud-services/hcc-feo-mcp (npm)",
+      "published": "2026-06-01T00:00:00Z",
+      "versions": [
+        "0.3.1",
+        "0.3.2",
+        "0.3.4"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5139",
+      "ecosystem": "npm",
+      "name": "@redhat-cloud-services/hcc-kessel-mcp",
+      "aliases": [
+        "GHSA-xh7j-7gfw-g434"
+      ],
+      "summary": "Malicious code in @redhat-cloud-services/hcc-kessel-mcp (npm)",
+      "published": "2026-06-01T00:00:00Z",
+      "versions": [
+        "0.3.1",
+        "0.3.2",
+        "0.3.4"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5140",
+      "ecosystem": "npm",
+      "name": "@redhat-cloud-services/hcc-pf-mcp",
+      "aliases": [
+        "GHSA-gw27-332x-rf3r"
+      ],
+      "summary": "Malicious code in @redhat-cloud-services/hcc-pf-mcp (npm)",
+      "published": "2026-06-01T00:00:00Z",
+      "versions": [
+        "0.6.1",
+        "0.6.2",
+        "0.6.4"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191051",
+      "ecosystem": "npm",
+      "name": "@relyt/claude-context-mcp",
+      "aliases": [
+        "GHSA-r4xp-273q-hmxr"
+      ],
+      "summary": "Malicious code in @relyt/claude-context-mcp (npm)",
+      "published": "2025-11-24T22:59:03Z",
+      "versions": [
+        "0.1.1"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-191052",
+      "ecosystem": "npm",
+      "name": "@relyt/mcp-server-relytone",
+      "aliases": [
+        "GHSA-9jcv-5hcv-f23r"
+      ],
+      "summary": "Malicious code in @relyt/mcp-server-relytone (npm)",
+      "published": "2025-11-24T22:59:36Z",
+      "versions": [
+        "0.0.3"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-17825",
+      "ecosystem": "npm",
+      "name": "@revizahoshii/hoshino-mcp-server",
+      "aliases": [
+        "GHSA-xjwm-grrq-qm27"
+      ],
+      "summary": "Malicious code in @revizahoshii/hoshino-mcp-server (npm)",
+      "published": "2026-10-12T15:49:38Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-191053",
+      "ecosystem": "npm",
+      "name": "@seezo/sdr-mcp-server",
+      "aliases": [
+        "GHSA-3c5g-45xx-w65c"
+      ],
+      "summary": "Malicious code in @seezo/sdr-mcp-server (npm)",
+      "published": "2025-11-24T23:00:07Z",
+      "versions": [
+        "0.0.5"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-11829",
+      "ecosystem": "npm",
+      "name": "@servicetitan/anvil2-mcp",
+      "aliases": [
+        "GHSA-936x-86fr-fp2f"
+      ],
+      "summary": "Malicious code in @servicetitan/anvil2-mcp (npm)",
+      "published": "2026-08-04T13:26:18Z",
+      "versions": [
+        "0.0.9",
+        "0.0.10",
+        "0.0.11",
+        "0.0.12",
+        "0.0.13",
+        "0.0.14",
+        "0.0.15"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3448",
+      "ecosystem": "npm",
+      "name": "@squawk/mcp",
+      "aliases": [
+        "GHSA-vcpv-j6jh-qcc2"
+      ],
+      "summary": "Malicious code in @squawk/mcp (npm)",
+      "published": "2026-05-12T00:21:14Z",
+      "versions": [
+        "0.9.1",
+        "0.9.2",
+        "0.9.3",
+        "0.9.4",
+        "0.9.5"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-1642",
+      "ecosystem": "npm",
+      "name": "@upstashed/context7-mcp",
+      "aliases": [],
+      "summary": "Malicious code in @upstashed/context7-mcp (npm)",
+      "published": "2026-03-18T12:34:59Z",
+      "versions": [
+        "1.0.2"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-10525",
+      "ecosystem": "npm",
+      "name": "@vite-mcp/vite-type",
+      "aliases": [
+        "GHSA-mqf9-3wx8-45cj"
+      ],
+      "summary": "Malicious code in @vite-mcp/vite-type (npm)",
+      "published": "2026-07-14T03:33:51Z",
+      "versions": [
+        "6.44.1"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-16061",
+      "ecosystem": "npm",
+      "name": "@yongot/canary-mcp-isolation",
+      "aliases": [],
+      "summary": "Malicious code in @yongot/canary-mcp-isolation (npm)",
+      "published": "2026-09-09T01:42:00Z",
+      "versions": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-16062",
+      "ecosystem": "npm",
+      "name": "@yongot/canary-mcp-test",
+      "aliases": [],
+      "summary": "Malicious code in @yongot/canary-mcp-test (npm)",
+      "published": "2026-09-09T01:40:56Z",
+      "versions": [
+        "1.0.0",
+        "2.0.0",
+        "3.0.0",
+        "4.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-190918",
+      "ecosystem": "npm",
+      "name": "@zapier/mcp-integration",
+      "aliases": [],
+      "summary": "Malicious code in @zapier/mcp-integration (npm)",
+      "published": "2025-11-24T16:31:47Z",
+      "versions": [
+        "3.0.1",
+        "3.0.2",
+        "3.0.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-13399",
+      "ecosystem": "npm",
+      "name": "agenthub-multiagent-mcp",
+      "aliases": [],
+      "summary": "Malicious code in agenthub-multiagent-mcp (npm)",
+      "published": "2026-08-06T12:30:47Z",
+      "versions": [
+        "1.57.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-41939",
+      "ecosystem": "npm",
+      "name": "amazon-seller-analytics-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in amazon-seller-analytics-mcp-server (npm)",
+      "published": "2025-08-28T14:52:39Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "10.0.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-41940",
+      "ecosystem": "npm",
+      "name": "amazon-vendor-analytics-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in amazon-vendor-analytics-mcp-server (npm)",
+      "published": "2025-08-28T14:52:34Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "10.0.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-15093",
+      "ecosystem": "npm",
+      "name": "auth0-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in auth0-mcp-server (npm)",
+      "published": "2025-08-14T18:52:04Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5223",
+      "ecosystem": "npm",
+      "name": "autotel-mcp",
+      "aliases": [
+        "GHSA-3wmg-66hp-xhv9"
+      ],
+      "summary": "Malicious code in autotel-mcp (npm)",
+      "published": "2026-06-05T00:53:43Z",
+      "versions": [
+        "0.1.14",
+        "2.0.1",
+        "3.0.1",
+        "4.0.1",
+        "5.0.1",
+        "6.0.1",
+        "7.0.1",
+        "8.0.1",
+        "9.0.1",
+        "10.0.1",
+        "11.0.1",
+        "13.0.1",
+        "14.0.1",
+        "15.0.2",
+        "16.0.1",
+        "17.0.2",
+        "18.0.1",
+        "19.0.1",
+        "20.0.1",
+        "21.1.1",
+        "22.0.1",
+        "23.0.1",
+        "24.0.1",
+        "25.0.1",
+        "26.0.2",
+        "27.0.1",
+        "28.0.3",
+        "29.0.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5224",
+      "ecosystem": "npm",
+      "name": "autotel-mcp-instrumentation",
+      "aliases": [
+        "GHSA-7cv4-gfx4-2c3v"
+      ],
+      "summary": "Malicious code in autotel-mcp-instrumentation (npm)",
+      "published": "2026-06-05T00:53:43Z",
+      "versions": [
+        "29.0.2",
+        "30.0.5",
+        "31.0.1",
+        "32.0.1",
+        "33.0.2",
+        "34.0.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4498",
+      "ecosystem": "npm",
+      "name": "bitrix24-tasks-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in bitrix24-tasks-mcp-server (npm)",
+      "published": "2026-05-20T11:18:50Z",
+      "versions": [
+        "1.1.0",
+        "1.2.0",
+        "1.4.0",
+        "1.5.0",
+        "1.5.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5182",
+      "ecosystem": "npm",
+      "name": "brave-search-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in brave-search-mcp-server (npm)",
+      "published": "2026-06-03T08:50:44Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4500",
+      "ecosystem": "npm",
+      "name": "bricks-builder-mcp",
+      "aliases": [],
+      "summary": "Malicious code in bricks-builder-mcp (npm)",
+      "published": "2026-05-20T08:20:22Z",
+      "versions": [
+        "3.6.1",
+        "3.10.0",
+        "3.11.2",
+        "3.12.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-14228",
+      "ecosystem": "npm",
+      "name": "broadcast-graphics-mcp",
+      "aliases": [],
+      "summary": "Malicious code in broadcast-graphics-mcp (npm)",
+      "published": "2026-08-19T03:41:11Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-11458",
+      "ecosystem": "npm",
+      "name": "chaos-mcp",
+      "aliases": [
+        "GHSA-8whv-6hc5-4wpr"
+      ],
+      "summary": "Malicious code in chaos-mcp (npm)",
+      "published": "2026-07-31T21:59:58Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-14230",
+      "ecosystem": "npm",
+      "name": "chrome-enterprise-premium-mcp",
+      "aliases": [],
+      "summary": "Malicious code in chrome-enterprise-premium-mcp (npm)",
+      "published": "2026-08-19T03:41:30Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-2974",
+      "ecosystem": "npm",
+      "name": "claudcode-mcp",
+      "aliases": [
+        "GHSA-5v3x-g9r5-vvhg"
+      ],
+      "summary": "Malicious code in claudcode-mcp (npm)",
+      "published": "2026-04-22T01:32:09Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-10693",
+      "ecosystem": "npm",
+      "name": "claude-token-tracker-mcp",
+      "aliases": [
+        "GHSA-w56m-5ch4-5xjw"
+      ],
+      "summary": "Malicious code in claude-token-tracker-mcp (npm)",
+      "published": "2026-06-16T12:53:21Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-3588",
+      "ecosystem": "npm",
+      "name": "cmux-agent-mcp",
+      "aliases": [
+        "GHSA-gx6p-62rj-cg4m"
+      ],
+      "summary": "Malicious code in cmux-agent-mcp (npm)",
+      "published": "2026-05-12T03:37:28Z",
+      "versions": [
+        "0.1.3",
+        "0.1.4",
+        "0.1.5",
+        "0.1.6",
+        "0.1.7",
+        "0.1.8"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-12354",
+      "ecosystem": "npm",
+      "name": "code-analyzer-mcp",
+      "aliases": [],
+      "summary": "Malicious code in code-analyzer-mcp (npm)",
+      "published": "2026-08-05T12:38:16Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-14233",
+      "ecosystem": "npm",
+      "name": "code-assist-mcp",
+      "aliases": [],
+      "summary": "Malicious code in code-assist-mcp (npm)",
+      "published": "2026-08-19T03:42:04Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5397",
+      "ecosystem": "npm",
+      "name": "create-docs-mcp",
+      "aliases": [],
+      "summary": "Malicious code in create-docs-mcp (npm)",
+      "published": "2026-06-09T16:04:42Z",
+      "versions": [
+        "9999.99.99"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-190922",
+      "ecosystem": "npm",
+      "name": "create-mcp-use-app",
+      "aliases": [],
+      "summary": "Malicious code in create-mcp-use-app (npm)",
+      "published": "2025-11-24T16:31:47Z",
+      "versions": [
+        "0.5.3",
+        "0.5.4"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-6294",
+      "ecosystem": "npm",
+      "name": "cue-mcp",
+      "aliases": [],
+      "summary": "Malicious code in cue-mcp (npm)",
+      "published": "2026-06-23T14:10:26Z",
+      "versions": [
+        "9999.99.99"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-18077",
+      "ecosystem": "npm",
+      "name": "dawn-mcpqz-l4gbq-aurora-project",
+      "aliases": [],
+      "summary": "Malicious code in dawn-mcpqz-l4gbq-aurora-project (npm)",
+      "published": "2025-08-14T18:52:04Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-48558",
+      "ecosystem": "npm",
+      "name": "demo-mercadopago-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in demo-mercadopago-mcp-server (npm)",
+      "published": "2025-10-23T13:00:45Z",
+      "versions": [
+        "99.0.0",
+        "99.0.1",
+        "99.0.2",
+        "99.0.3",
+        "99.0.4",
+        "99.0.5"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-13502",
+      "ecosystem": "npm",
+      "name": "devplatform-react-mcp",
+      "aliases": [],
+      "summary": "Malicious code in devplatform-react-mcp (npm)",
+      "published": "2026-08-07T12:12:04Z",
+      "versions": [
+        "35.5.6"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-192746",
+      "ecosystem": "npm",
+      "name": "excluder-mcp",
+      "aliases": [
+        "GHSA-gg9p-qcrr-r7fv"
+      ],
+      "summary": "Malicious code in excluder-mcp (npm)",
+      "published": "2025-12-23T18:19:20Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-192747",
+      "ecosystem": "npm",
+      "name": "excluder-mcp-package",
+      "aliases": [
+        "GHSA-h43q-7r78-rf73"
+      ],
+      "summary": "Malicious code in excluder-mcp-package (npm)",
+      "published": "2025-12-23T18:19:20Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5255",
+      "ecosystem": "npm",
+      "name": "executable-stories-mcp",
+      "aliases": [],
+      "summary": "Malicious code in executable-stories-mcp (npm)",
+      "published": "2026-06-05T00:53:43Z",
+      "versions": [
+        "0.3.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4312",
+      "ecosystem": "npm",
+      "name": "explorhub-mcp-server",
+      "aliases": [
+        "GHSA-2qjx-pmc9-2jrj"
+      ],
+      "summary": "Malicious code in explorhub-mcp-server (npm)",
+      "published": "2026-05-25T08:20:34Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-12789",
+      "ecosystem": "npm",
+      "name": "fa-mcp-sdk",
+      "aliases": [],
+      "summary": "Malicious code in fa-mcp-sdk (npm)",
+      "published": "2026-08-05T13:56:26Z",
+      "versions": [
+        "0.12.72"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-16032",
+      "ecosystem": "npm",
+      "name": "feishu-docx-mcp",
+      "aliases": [
+        "GHSA-q5c6-p5q5-g3px"
+      ],
+      "summary": "Malicious code in feishu-docx-mcp (npm)",
+      "published": "2026-09-07T13:51:36Z",
+      "versions": [
+        "0.3.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-5813",
+      "ecosystem": "npm",
+      "name": "glean-mcp-server",
+      "aliases": [
+        "GHSA-94vh-73p7-p3wc"
+      ],
+      "summary": "Malicious code in glean-mcp-server (npm)",
+      "published": "2025-07-05T13:50:21Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "1.0.0"
+            }
+          ]
+        },
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-11464",
+      "ecosystem": "npm",
+      "name": "gtm-mcp-auth",
+      "aliases": [
+        "GHSA-4ch5-wcxv-58j5"
+      ],
+      "summary": "Malicious code in gtm-mcp-auth (npm)",
+      "published": "2026-07-31T21:59:48Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-1178",
+      "ecosystem": "npm",
+      "name": "hiagentevilmcp",
+      "aliases": [
+        "GHSA-9264-q4hp-q57g"
+      ],
+      "summary": "Malicious code in hiagentevilmcp (npm)",
+      "published": "2026-03-03T05:11:36Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-11466",
+      "ecosystem": "npm",
+      "name": "hit-mcp",
+      "aliases": [
+        "GHSA-fmvj-j52v-97x4"
+      ],
+      "summary": "Malicious code in hit-mcp (npm)",
+      "published": "2026-07-31T22:00:13Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-14297",
+      "ecosystem": "npm",
+      "name": "homekit-mcp",
+      "aliases": [],
+      "summary": "Malicious code in homekit-mcp (npm)",
+      "published": "2026-08-19T08:53:41Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2022-3683",
+      "ecosystem": "npm",
+      "name": "hrdebjywvtkmcpga",
+      "aliases": [
+        "GHSA-vxm4-w459-68hm"
+      ],
+      "summary": "Malicious code in hrdebjywvtkmcpga (npm)",
+      "published": "2022-07-11T20:24:31Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-191107",
+      "ecosystem": "npm",
+      "name": "ids-enterprise-mcp-server",
+      "aliases": [
+        "GHSA-jj4q-9hf2-5rfx"
+      ],
+      "summary": "Malicious code in ids-enterprise-mcp-server (npm)",
+      "published": "2025-11-24T22:59:02Z",
+      "versions": [
+        "0.0.2"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-11469",
+      "ecosystem": "npm",
+      "name": "iwomm-mcp",
+      "aliases": [
+        "GHSA-8cvf-hpjg-mf2j"
+      ],
+      "summary": "Malicious code in iwomm-mcp (npm)",
+      "published": "2026-07-31T22:00:08Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-11470",
+      "ecosystem": "npm",
+      "name": "kip-mcp-http",
+      "aliases": [
+        "GHSA-993p-762h-628r"
+      ],
+      "summary": "Malicious code in kip-mcp-http (npm)",
+      "published": "2026-07-31T21:53:47Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-190848",
+      "ecosystem": "npm",
+      "name": "lite-serper-mcp-server",
+      "aliases": [
+        "GHSA-w7vj-jqhx-2jr7"
+      ],
+      "summary": "Malicious code in lite-serper-mcp-server (npm)",
+      "published": "2025-11-24T14:55:17Z",
+      "versions": [
+        "0.2.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-14413",
+      "ecosystem": "npm",
+      "name": "livemcp",
+      "aliases": [
+        "GHSA-rxwc-v5gg-9hhw"
+      ],
+      "summary": "Malicious code in livemcp (npm)",
+      "published": "2026-08-24T14:52:24Z",
+      "versions": [
+        "1.2.1",
+        "1.3.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-11471",
+      "ecosystem": "npm",
+      "name": "maximumsats-mcp",
+      "aliases": [
+        "GHSA-mr5v-ffrr-c4h3"
+      ],
+      "summary": "Malicious code in maximumsats-mcp (npm)",
+      "published": "2026-07-31T21:55:27Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-12401",
+      "ecosystem": "npm",
+      "name": "mcp-audit-sync-internal",
+      "aliases": [],
+      "summary": "Malicious code in mcp-audit-sync-internal (npm)",
+      "published": "2026-08-05T12:33:32Z",
+      "versions": [
+        "99.9.9"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-47098",
+      "ecosystem": "npm",
+      "name": "mcp-chat-client",
+      "aliases": [
+        "GHSA-r7jv-6f7p-rr8q"
+      ],
+      "summary": "Malicious code in mcp-chat-client (npm)",
+      "published": "2025-09-09T16:32:01Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        },
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "1.0.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-7318",
+      "ecosystem": "npm",
+      "name": "mcp-ci-runner-poc",
+      "aliases": [
+        "GHSA-fw9m-r33c-qgj2"
+      ],
+      "summary": "Malicious code in mcp-ci-runner-poc (npm)",
+      "published": "2026-07-07T12:58:50Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-15869",
+      "ecosystem": "npm",
+      "name": "mcp-consultasdeveiculos-client",
+      "aliases": [],
+      "summary": "Malicious code in mcp-consultasdeveiculos-client (npm)",
+      "published": "2026-09-04T01:32:21Z",
+      "versions": [
+        "0.0.2",
+        "0.1.0",
+        "0.1.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4296",
+      "ecosystem": "npm",
+      "name": "mcp-dashboards-shared",
+      "aliases": [
+        "GHSA-h2q9-x96j-55m7"
+      ],
+      "summary": "Malicious code in mcp-dashboards-shared (npm)",
+      "published": "2026-05-25T07:12:03Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-14295",
+      "ecosystem": "npm",
+      "name": "mcp-dev-toolkit",
+      "aliases": [],
+      "summary": "Malicious code in mcp-dev-toolkit (npm)",
+      "published": "2026-08-19T08:16:01Z",
+      "versions": [
+        "1.5.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-4146",
+      "ecosystem": "npm",
+      "name": "mcp-echarts",
+      "aliases": [],
+      "summary": "Malicious code in mcp-echarts (npm)",
+      "published": "2026-05-19T00:00:00Z",
+      "versions": [
+        "0.8.1",
+        "0.9.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-47326",
+      "ecosystem": "npm",
+      "name": "mcp-knowledge-base",
+      "aliases": [
+        "GHSA-f8qw-968c-jxpq"
+      ],
+      "summary": "Malicious code in mcp-knowledge-base (npm)",
+      "published": "2025-09-16T04:57:01Z",
+      "versions": [
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-47327",
+      "ecosystem": "npm",
+      "name": "mcp-knowledge-graph",
+      "aliases": [
+        "GHSA-qq74-6323-3h57"
+      ],
+      "summary": "Malicious code in mcp-knowledge-graph (npm)",
+      "published": "2025-09-16T17:05:44Z",
+      "versions": [
+        "1.2.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-47076",
+      "ecosystem": "npm",
+      "name": "mcp-lumin",
+      "aliases": [
+        "GHSA-h4r4-cm9c-4mcc"
+      ],
+      "summary": "Malicious code in mcp-lumin (npm)",
+      "published": "2025-09-11T03:55:13Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-26053",
+      "ecosystem": "npm",
+      "name": "mcp-menu",
+      "aliases": [],
+      "summary": "Malicious code in mcp-menu (npm)",
+      "published": "2025-08-14T18:52:04Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-4147",
+      "ecosystem": "npm",
+      "name": "mcp-mermaid",
+      "aliases": [],
+      "summary": "Malicious code in mcp-mermaid (npm)",
+      "published": "2026-05-19T00:00:00Z",
+      "versions": [
+        "0.5.1",
+        "0.6.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-10210",
+      "ecosystem": "npm",
+      "name": "mcp-notes-server-poc-praetorian",
+      "aliases": [
+        "GHSA-rfhm-2wfr-r9p2"
+      ],
+      "summary": "Malicious code in mcp-notes-server-poc-praetorian (npm)",
+      "published": "2026-07-12T20:55:56Z",
+      "versions": [
+        "0.1.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-26054",
+      "ecosystem": "npm",
+      "name": "mcp-opencage-server",
+      "aliases": [],
+      "summary": "Malicious code in mcp-opencage-server (npm)",
+      "published": "2025-08-14T18:52:04Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-191465",
+      "ecosystem": "npm",
+      "name": "mcp-polymarket",
+      "aliases": [
+        "GHSA-f8cg-j5h4-4v2j"
+      ],
+      "summary": "Malicious code in mcp-polymarket (npm)",
+      "published": "2025-11-25T09:42:26Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-14414",
+      "ecosystem": "npm",
+      "name": "mcp-real-chrome",
+      "aliases": [
+        "GHSA-vqm6-238c-g856"
+      ],
+      "summary": "Malicious code in mcp-real-chrome (npm)",
+      "published": "2026-08-24T14:52:24Z",
+      "versions": [
+        "1.1.0",
+        "1.1.1",
+        "1.2.0",
+        "1.2.1"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-11472",
+      "ecosystem": "npm",
+      "name": "mcp-server-boilerplate",
+      "aliases": [
+        "GHSA-694g-9jgf-5566"
+      ],
+      "summary": "Malicious code in mcp-server-boilerplate (npm)",
+      "published": "2026-07-31T22:00:08Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-46986",
+      "ecosystem": "npm",
+      "name": "mcp-server-everything",
+      "aliases": [
+        "GHSA-6j44-frpv-rvv9"
+      ],
+      "summary": "Malicious code in mcp-server-everything (npm)",
+      "published": "2025-09-09T11:10:38Z",
+      "versions": [
+        "2.0.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5476",
+      "ecosystem": "npm",
+      "name": "mcp-server-fetch",
+      "aliases": [
+        "GHSA-rh9p-4pg3-8628"
+      ],
+      "summary": "Malicious code in mcp-server-fetch (npm)",
+      "published": "2026-06-09T20:34:54Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2026-5477",
+      "ecosystem": "npm",
+      "name": "mcp-server-figma",
+      "aliases": [
+        "GHSA-8j33-qh42-vjc6"
+      ],
+      "summary": "Malicious code in mcp-server-figma (npm)",
+      "published": "2026-06-09T20:34:25Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2025-47929",
+      "ecosystem": "npm",
+      "name": "mcp-server-fixthis",
+      "aliases": [
+        "GHSA-p45p-rjrm-xmh3",
+        "SNYK-JS-MCPSERVERFIXTHIS-13350849"
+      ],
+      "summary": "Malicious code in mcp-server-fixthis (npm)",
+      "published": "2025-10-07T00:24:42Z",
+      "versions": [
+        "0.1.0",
+        "0.1.1",
+        "0.1.2",
+        "0.2.0",
+        "0.2.1",
+        "0.2.2",
+        "0.2.3",
+        "0.2.4",
+        "0.2.5",
+        "0.2.6",
+        "0.2.7",
+        "0.3.0",
+        "0.3.1"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5478",
+      "ecosystem": "npm",
+      "name": "mcp-server-git",
+      "aliases": [
+        "GHSA-prf3-6rx4-9h5f"
+      ],
+      "summary": "Malicious code in mcp-server-git (npm)",
+      "published": "2026-06-09T20:34:59Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2026-5479",
+      "ecosystem": "npm",
+      "name": "mcp-server-github",
+      "aliases": [
+        "GHSA-95pj-hrh5-27gq"
+      ],
+      "summary": "Malicious code in mcp-server-github (npm)",
+      "published": "2026-06-09T20:33:49Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2026-5480",
+      "ecosystem": "npm",
+      "name": "mcp-server-notion",
+      "aliases": [
+        "GHSA-56wr-9mvj-77pf",
+        "GHSA-mx42-9xv4-vm87",
+        "SNYK-JS-MCPSERVERNOTION-19161387"
+      ],
+      "summary": "Malicious code in mcp-server-notion (npm)",
+      "published": "2026-06-09T20:34:01Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2026-6922",
+      "ecosystem": "npm",
+      "name": "mcp-server-pg",
+      "aliases": [
+        "GHSA-cfv7-74pc-vmff"
+      ],
+      "summary": "Malicious code in mcp-server-pg (npm)",
+      "published": "2026-07-07T13:59:38Z",
+      "versions": [
+        "0.1.0",
+        "0.1.1",
+        "0.1.2",
+        "0.1.3",
+        "0.2.0",
+        "0.2.1",
+        "0.3.0",
+        "0.3.1",
+        "0.4.0",
+        "0.5.0",
+        "0.6.0",
+        "0.7.0",
+        "0.8.0",
+        "0.9.0",
+        "1.0.0",
+        "1.0.1",
+        "1.1.0",
+        "1.1.1",
+        "1.2.0",
+        "1.2.1",
+        "1.2.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5481",
+      "ecosystem": "npm",
+      "name": "mcp-server-postgres",
+      "aliases": [
+        "GHSA-vm2g-qj5x-x234"
+      ],
+      "summary": "Malicious code in mcp-server-postgres (npm)",
+      "published": "2026-06-09T20:34:49Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2026-5482",
+      "ecosystem": "npm",
+      "name": "mcp-server-redis",
+      "aliases": [
+        "GHSA-wrqr-prmr-6x32"
+      ],
+      "summary": "Malicious code in mcp-server-redis (npm)",
+      "published": "2026-06-09T20:34:45Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2026-5483",
+      "ecosystem": "npm",
+      "name": "mcp-server-sentry",
+      "aliases": [
+        "GHSA-m5mm-f722-7vcq"
+      ],
+      "summary": "Malicious code in mcp-server-sentry (npm)",
+      "published": "2026-06-09T20:33:56Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2026-5484",
+      "ecosystem": "npm",
+      "name": "mcp-server-sequential-thinking",
+      "aliases": [
+        "GHSA-hrmj-jj6j-m2m2",
+        "GHSA-w69h-vf37-j4w6"
+      ],
+      "summary": "Malicious code in mcp-server-sequential-thinking (npm)",
+      "published": "2026-06-09T20:34:37Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2026-5485",
+      "ecosystem": "npm",
+      "name": "mcp-server-supabase",
+      "aliases": [
+        "GHSA-m633-5vq7-98qx"
+      ],
+      "summary": "Malicious code in mcp-server-supabase (npm)",
+      "published": "2026-06-09T20:33:36Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ],
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+    },
+    {
+      "id": "MAL-2026-2328",
+      "ecosystem": "npm",
+      "name": "mcp-server-todo",
+      "aliases": [
+        "GHSA-hppm-xxp9-54h7"
+      ],
+      "summary": "Malicious code in mcp-server-todo (npm)",
+      "published": "2026-04-01T11:23:23Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-190923",
+      "ecosystem": "npm",
+      "name": "mcp-use",
+      "aliases": [],
+      "summary": "Malicious code in mcp-use (npm)",
+      "published": "2025-11-24T16:31:47Z",
+      "versions": [
+        "1.4.2",
+        "1.4.3"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-13880",
+      "ecosystem": "npm",
+      "name": "mcp-util-helpers",
+      "aliases": [],
+      "summary": "Malicious code in mcp-util-helpers (npm)",
+      "published": "2026-08-12T12:39:48Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-26055",
+      "ecosystem": "npm",
+      "name": "mcproject",
+      "aliases": [],
+      "summary": "Malicious code in mcproject (npm)",
+      "published": "2025-08-14T18:52:04Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-26056",
+      "ecosystem": "npm",
+      "name": "mcptest-win32-x64",
+      "aliases": [],
+      "summary": "Malicious code in mcptest-win32-x64 (npm)",
+      "published": "2025-08-14T18:52:04Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-26057",
+      "ecosystem": "npm",
+      "name": "mcpx",
+      "aliases": [],
+      "summary": "Malicious code in mcpx (npm)",
+      "published": "2025-08-14T18:52:04Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-10013",
+      "ecosystem": "npm",
+      "name": "n8n-nodes-mcputils",
+      "aliases": [
+        "GHSA-rxc8-p2w2-g5jg"
+      ],
+      "summary": "Malicious code in n8n-nodes-mcputils (npm)",
+      "published": "2026-07-09T11:54:08Z",
+      "versions": [
+        "0.1.5"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-3589",
+      "ecosystem": "npm",
+      "name": "nextmove-mcp",
+      "aliases": [
+        "GHSA-fhg4-3pg2-pvgx"
+      ],
+      "summary": "Malicious code in nextmove-mcp (npm)",
+      "published": "2026-05-12T03:40:23Z",
+      "versions": [
+        "0.1.3",
+        "0.1.4",
+        "0.1.5",
+        "0.1.6",
+        "0.1.7"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-3280",
+      "ecosystem": "npm",
+      "name": "pi-exa-mcp",
+      "aliases": [
+        "GHSA-fpc5-w8c8-3mhv"
+      ],
+      "summary": "Malicious code in pi-exa-mcp (npm)",
+      "published": "2026-05-04T01:43:31Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-11475",
+      "ecosystem": "npm",
+      "name": "pm-claude-skills-mcp",
+      "aliases": [
+        "GHSA-87v2-285p-xhrr"
+      ],
+      "summary": "Malicious code in pm-claude-skills-mcp (npm)",
+      "published": "2026-07-31T21:53:27Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-10481",
+      "ecosystem": "npm",
+      "name": "polymarket-mcp-v2",
+      "aliases": [],
+      "summary": "Malicious code in polymarket-mcp-v2 (npm)",
+      "published": "2026-07-11T00:00:00Z",
+      "versions": [
+        "2.1.6"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-47604",
+      "ecosystem": "npm",
+      "name": "postmark-mcp",
+      "aliases": [],
+      "summary": "Malicious code in postmark-mcp (npm)",
+      "published": "2025-09-26T04:14:45Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "1.0.16"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-10541",
+      "ecosystem": "npm",
+      "name": "proxy-seller-mcp",
+      "aliases": [],
+      "summary": "Malicious code in proxy-seller-mcp (npm)",
+      "published": "2026-07-14T03:47:41Z",
+      "versions": [
+        "0.1.7"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-49383",
+      "ecosystem": "npm",
+      "name": "rce-poc-test-honor-mcp",
+      "aliases": [
+        "GHSA-9c65-qg9h-c3gr",
+        "SNYK-JS-RCEPOCTESTHONORMCP-13848828"
+      ],
+      "summary": "Malicious code in rce-poc-test-honor-mcp (npm)",
+      "published": "2025-11-07T04:05:52Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-11477",
+      "ecosystem": "npm",
+      "name": "refbase-mcp",
+      "aliases": [
+        "GHSA-5xcj-w4qg-g78g"
+      ],
+      "summary": "Malicious code in refbase-mcp (npm)",
+      "published": "2026-07-31T22:00:13Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-49378",
+      "ecosystem": "npm",
+      "name": "revenuecat-mcp-extension",
+      "aliases": [],
+      "summary": "Malicious code in revenuecat-mcp-extension (npm)",
+      "published": "2025-11-06T19:00:45Z",
+      "versions": [
+        "1.999.9"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-11480",
+      "ecosystem": "npm",
+      "name": "routerbase-mcp",
+      "aliases": [
+        "GHSA-rxc6-q384-2wrx"
+      ],
+      "summary": "Malicious code in routerbase-mcp (npm)",
+      "published": "2026-07-31T21:53:22Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-5286",
+      "ecosystem": "npm",
+      "name": "rush-mcp-example-plugin",
+      "aliases": [
+        "GHSA-h53p-7hxf-2rjc"
+      ],
+      "summary": "Malicious code in rush-mcp-example-plugin (npm)",
+      "published": "2025-06-26T15:48:26Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-11481",
+      "ecosystem": "npm",
+      "name": "sap-mcp-config",
+      "aliases": [
+        "GHSA-4j2q-gh4v-v729"
+      ],
+      "summary": "Malicious code in sap-mcp-config (npm)",
+      "published": "2026-07-31T21:55:17Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-11482",
+      "ecosystem": "npm",
+      "name": "sap-mcp-facilitator",
+      "aliases": [
+        "GHSA-fvh4-59gv-h4qp"
+      ],
+      "summary": "Malicious code in sap-mcp-facilitator (npm)",
+      "published": "2026-07-31T21:55:32Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-5402",
+      "ecosystem": "npm",
+      "name": "screenpipe-mcp-http",
+      "aliases": [],
+      "summary": "Malicious code in screenpipe-mcp-http (npm)",
+      "published": "2026-06-09T16:05:14Z",
+      "versions": [
+        "9999.99.99"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-15390",
+      "ecosystem": "npm",
+      "name": "secure-test-browser-mcpdx7d2",
+      "aliases": [
+        "GHSA-qh5v-mcr9-3294"
+      ],
+      "summary": "Malicious code in secure-test-browser-mcpdx7d2 (npm)",
+      "published": "2026-08-28T15:35:08Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-10747",
+      "ecosystem": "npm",
+      "name": "sensorium-mcp",
+      "aliases": [],
+      "summary": "Malicious code in sensorium-mcp (npm)",
+      "published": "2026-07-16T18:41:49Z",
+      "versions": [
+        "3.0.95"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-48761",
+      "ecosystem": "npm",
+      "name": "shiprocket-mcp",
+      "aliases": [
+        "GHSA-qq2g-4w88-354g"
+      ],
+      "summary": "Malicious code in shiprocket-mcp (npm)",
+      "published": "2025-10-21T15:42:17Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-10161",
+      "ecosystem": "npm",
+      "name": "sidecar-mcp",
+      "aliases": [
+        "GHSA-6fg7-6wv2-gx3j"
+      ],
+      "summary": "Malicious code in sidecar-mcp (npm)",
+      "published": "2026-07-10T16:25:41Z",
+      "versions": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2",
+        "1.0.3",
+        "1.0.4"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-11486",
+      "ecosystem": "npm",
+      "name": "smart-npv-mcp",
+      "aliases": [
+        "GHSA-972c-x84x-rm4f"
+      ],
+      "summary": "Malicious code in smart-npv-mcp (npm)",
+      "published": "2026-07-31T21:53:22Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-191527",
+      "ecosystem": "npm",
+      "name": "solana-dev-mcp",
+      "aliases": [],
+      "summary": "Malicious code in solana-dev-mcp (npm)",
+      "published": "2025-12-01T16:16:28Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5853",
+      "ecosystem": "npm",
+      "name": "sp-api-dev-assistant-mcp-server",
+      "aliases": [
+        "GHSA-hgm9-w4fm-65m9"
+      ],
+      "summary": "Malicious code in sp-api-dev-assistant-mcp-server (npm)",
+      "published": "2026-06-16T00:05:25Z",
+      "versions": [
+        "99.9.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-5403",
+      "ecosystem": "npm",
+      "name": "t-invest-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in t-invest-mcp-server (npm)",
+      "published": "2026-06-09T16:04:28Z",
+      "versions": [
+        "9999.99.99"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-16409",
+      "ecosystem": "npm",
+      "name": "ubiquiti-agents-link-mcp",
+      "aliases": [
+        "GHSA-rqpx-hw2h-g3hc"
+      ],
+      "summary": "Malicious code in ubiquiti-agents-link-mcp (npm)",
+      "published": "2026-09-22T19:50:54Z",
+      "versions": [
+        "0.0.1",
+        "0.0.2",
+        "0.2.0",
+        "0.2.1"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-192601",
+      "ecosystem": "npm",
+      "name": "vscode-azure-mcp-server",
+      "aliases": [
+        "GHSA-g3xg-r65r-rjp9"
+      ],
+      "summary": "Malicious code in vscode-azure-mcp-server (npm)",
+      "published": "2025-12-16T17:02:46Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-42116",
+      "ecosystem": "npm",
+      "name": "wealthsimple-mcp-server",
+      "aliases": [],
+      "summary": "Malicious code in wealthsimple-mcp-server (npm)",
+      "published": "2025-08-29T18:55:03Z",
+      "versions": [
+        "99.0.0"
+      ],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2025-190943",
+      "ecosystem": "npm",
+      "name": "web-scraper-mcp",
+      "aliases": [
+        "GHSA-92qg-p459-45jx"
+      ],
+      "summary": "Malicious code in web-scraper-mcp (npm)",
+      "published": "2025-11-24T20:59:27Z",
+      "versions": [
+        "1.1.4"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2026-13988",
+      "ecosystem": "npm",
+      "name": "xrblocks-mcp",
+      "aliases": [],
+      "summary": "Malicious code in xrblocks-mcp (npm)",
+      "published": "2026-08-13T20:55:55Z",
+      "versions": [
+        "6.3.1"
+      ],
+      "ranges": []
+    },
+    {
+      "id": "MAL-2025-4635",
+      "ecosystem": "npm",
+      "name": "yaml-mcp-wrapper",
+      "aliases": [
+        "GHSA-pchh-j24j-3v4c"
+      ],
+      "summary": "Malicious code in yaml-mcp-wrapper (npm)",
+      "published": "2025-06-02T01:03:53Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MAL-2026-6270",
+      "ecosystem": "npm",
+      "name": "zomato-mcp",
+      "aliases": [],
+      "summary": "Malicious code in zomato-mcp (npm)",
+      "published": "2026-06-22T17:42:29Z",
+      "versions": [
+        "1.0.0"
+      ],
+      "ranges": []
+    }
+  ]
+}

@@ -70,7 +70,7 @@ For reference, the existing MCP security tools we studied during design (but did
 
 ### Supply chain (analyzers/supply_chain.py)
 
-The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 83 known-legitimate MCP servers.  It also emits `SC-004` (HIGH) when an exact-match registry entry carries `known_vulnerabilities` CVE IDs — an offline advisory check requiring no network access.
+The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 83 known-legitimate MCP servers.  It also emits `SC-004` (HIGH) when an exact-match registry entry carries `known_vulnerabilities` CVE IDs — an offline advisory check requiring no network access — `SC-007` for an unscoped twin of a registry entry, and `SC-008` for an exact-name OSV `MAL-*` record (STORY-0097, below).
 
 **Research sources:**
 
@@ -78,6 +78,16 @@ The supply chain analyzer detects typosquatted npm package names by computing Le
 - **WorkOS** — Analysis of MCP supply chain risks via runtime package fetching (npx/uvx). ([Blog post](https://workos.com/blog/mcp-supply-chain-security))
 - **OWASP Agentic Skills Top 10** — Documents real-world supply chain attacks on agent tool registries, including the ClawHub registry poisoning incident.
 - **NVD / GitHub Security Advisories** — Source for all `known_vulnerabilities` CVE entries in `registry/known-servers.json`. Each entry was confirmed against the official NVD record or GitHub GHSA before seeding. CVEs confirmed and seeded for v0.12.0: CVE-2026-23744 (`@mcpjam/inspector`), CVE-2026-0755 (`gemini-mcp-tool`), CVE-2025-59528 (`flowise`), CVE-2026-26118 (`@azure/mcp`), CVE-2026-33032 (`nginx-ui`). CVE-2026-32211 was not seeded — NVD CPE is `azure_web_apps` (hosted service; no pinnable package version).
+
+**SC-007 unscoped twins and SC-008 known-malicious packages (STORY-0097, 2026-10-25):**
+
+- **o3.security, "mcp-server-github" malware analysis** ([o3.security](https://o3.security/malware/npm/mcp-server-github)) and the OSV record it summarises, **MAL-2026-5479 / GHSA-95pj-hrh5-27gq** ([OSV](https://osv.dev/vulnerability/MAL-2026-5479), [GitHub](https://github.com/advisories/GHSA-95pj-hrh5-27gq)) — an unscoped npm name intercepting installs meant for `@modelcontextprotocol/server-github`, with an install-time beacon. The basis for SC-007: edit distance cannot see a scope difference.
+- **OSV MAL-2026-5476 to MAL-2026-5485 and MAL-2025-46986** (read from OSV's npm bulk export on 2026-10-25) — the full family of unscoped twins (`mcp-server-fetch`, `-figma`, `-git`, `-github`, `-notion`, `-postgres`, `-redis`, `-sentry`, `-sequential-thinking`, `-supabase`, `-everything`). The SC-007 naming rules (name part of `server-<x>`/`mcp-server-<x>`, the `mcp-server-<x>` spelling of `server-<x>`/`<x>-mcp-server`, and the same `mcp-server-<x>` name across npm and PyPI) are the shapes this family and the registry's own entries show; each rule was then measured against live npm and PyPI on 2026-10-25 (`docs/supply-chain.md`). Rules not seen in the data (e.g. `mcp-server-<x>` → `server-<x>`, every name was absent on npm) were not adopted.
+- **`registry-audit-2026-08-18.md` §3a and §3b** (this repository) — three of the same npm packages named `theinfosecguy/npx-canary` as their repository and described themselves as a bug-bounty research canary (the source of the note attached to MAL-2026-5476..5485), and one account's `0.0.1` stubs under vendor names (three of which are SC-007 twins today).
+- **Panguard, "npm MCP security findings"** ([panguard.ai](https://panguard.ai/blog/npm-mcp-security-findings)) — SANDWORM_MODE, a 19-package typosquat cluster of MCP-adjacent npm packages harvesting SSH keys at install; context for exact-name matching of known-bad names.
+- **OpenSSF malicious-packages** ([GitHub](https://github.com/ossf/malicious-packages)) via **OSV's data dumps** ([OSV docs](https://google.github.io/osv.dev/data/): per-ecosystem `all.zip` in `gs://osv-vulnerabilities`, "including withdrawn records") — the source of `registry/known-malicious.json`. `scripts/sync_registry_advisories.py` keeps non-withdrawn `MAL-*` records whose package name contains `mcp` or that the registry lists.
+- **OSV schema, "Evaluation"** ([ossf.github.io/osv-schema](https://ossf.github.io/osv-schema/)) — the range semantics `registry/malicious.py` implements (`introduced` / `fixed` / `last_affected` walked in version order, plus the explicit `versions` list). The one deliberate deviation (a blanket all-versions range is ignored for a registry-listed package when the record also lists explicit versions) is documented in that module and in `docs/supply-chain.md`, with `MAL-2025-191195` (`@browserbasehq/mcp`) as the measured case.
+- **PEP 503** ([peps.python.org](https://peps.python.org/pep-0503/)) — the name folding SC-007 applies to both ecosystems' names before comparing.
 
 ### Rug-pull detection (analyzers/rug_pull.py)
 
