@@ -40,13 +40,16 @@ mcp-audit vet @scope/name --strict
 | Code | Condition |
 |------|-----------|
 | 0 | Package known, every recorded CVE has a fix (or none recorded), no typosquat; or unknown without `--strict` |
-| 1 | A recorded CVE has no fix, typosquat suspicion, or unknown + `--strict` |
+| 1 | A recorded CVE has no fix, typosquat suspicion (edit distance or an unscoped twin), OSV lists the latest release as malicious, or unknown + `--strict` |
+| 2 | Invalid/empty package name, bad `--ecosystem` flag, registry not found |
 
 `vet` takes no version, so it answers for the latest release. A CVE with a
 recorded fix is listed with its fixed version but does not fail `vet`
 (STORY-0083, 2026-10-13); before that, any recorded CVE did, which made `vet` fail
-for every package with a fixed past.
-| 2 | Invalid/empty package name, bad `--ecosystem` flag, registry not found |
+for every package with a fixed past. The same rule applies to malicious
+releases (STORY-0097): an OSV record that covers every release, or every release
+from some version on, exits 1; a record that lists only specific past releases
+is shown and exits 0.
 
 ---
 
@@ -116,6 +119,45 @@ Exit code: **0** (a CVE with no recorded fix exits 1)
 ```
 Exit code: **1**
 
+## Output: unscoped twin
+
+An unlisted name that copies a known package's name without its scope (the
+`SC-007` rule in `scan`, see [supply-chain.md](supply-chain.md#sc-007-unscoped-twins))
+is a typosquat suspicion too, explained by the relation instead of an edit
+distance:
+
+```
+╭─ Possible unscoped twin — vet exit 1 ────────────────────────╮
+│ Queried:  server-github                                      │
+│ Twin of:  @modelcontextprotocol/server-github                │
+│           (maintainer: Anthropic, verified: True)            │
+│ Relation: the queried name is the name of                    │
+│ '@modelcontextprotocol/server-github' without its scope      │
+╰──────────────────────────────────────────────────────────────╯
+```
+Exit code: **1**
+
+## Output: listed as malicious in OSV
+
+`vet` checks the bundled OSV `MAL-*` mirror (`registry/known-malicious.json`,
+the `SC-008` data) for the exact name, offline:
+
+```
+╭─ Listed as malicious in OSV — vet exit 1 ────────────────────╮
+│ MAL-2025-47604 — Malicious code in postmark-mcp (npm)        │
+│   every release from 1.0.16 on marked malicious              │
+│   https://osv.dev/vulnerability/MAL-2025-47604               │
+╰──────────────────────────────────────────────────────────────╯
+```
+Exit code: **1**. A record that lists only past releases
+(`vet @browserbasehq/mcp`: release 2.1.1) is shown in a yellow panel and exits 0.
+
+Without `--ecosystem`, `vet` also warns when the *other* registry's package of
+the same name is malicious. `vet mcp-server-git` answers for Anthropic's PyPI
+server (exit 0) and warns that the npm package `mcp-server-git` is
+`MAL-2026-5478`; `vet mcp-server-git --ecosystem npm` answers for the npm one
+(exit 1).
+
 ## Output: unknown package
 
 ```
@@ -165,6 +207,9 @@ Exit code: **0** (1 with `--strict`)
     "attestation_expected": true
   },
   "typosquat_of": null,
+  "typosquat_basis": null,
+  "malicious": [],
+  "other_ecosystem_malicious": [],
   "tags": ["official", "filesystem", "local"],
   "links": {
     "repo": "https://github.com/modelcontextprotocol/servers",
@@ -172,6 +217,14 @@ Exit code: **0** (1 with `--strict`)
   }
 }
 ```
+
+Fields added by STORY-0097 (the schema allows additional properties):
+
+| Field | Meaning |
+|---|---|
+| `typosquat_basis` | `"edit-distance"` or `"unscoped-twin"` when `typosquat_of` is set, else `null` |
+| `malicious` | OSV `MAL-*` records for this package in this ecosystem: `id`, `ecosystem`, `aliases`, `summary`, `versions`, `ranges` (OSV events), `latest_affected`, `blanket_range_ignored`, `link`, `note` |
+| `other_ecosystem_malicious` | The same, for the other registry's package of this name (only without `--ecosystem`); never changes the exit code |
 
 ---
 
@@ -218,7 +271,8 @@ STORY-0074.
 | ≤ 5 chars | 1 |
 | > 5 chars | 3 |
 
-A match exits 1 and shows a "did you mean?" panel.
+A match exits 1 and shows a "did you mean?" panel. An unscoped twin is checked
+first and, when it matches, replaces the edit-distance result, as in `scan`.
 
 ---
 

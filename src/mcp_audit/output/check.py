@@ -53,6 +53,14 @@ _HINTS: dict[str, str] = {
     "SC-001": "Run `mcp-audit fix --apply` to replace with the verified package name.",
     "SC-002": "Run `mcp-audit fix --apply` to replace with the verified package name.",
     "SC-003": "Verify this package name against the official MCP registry before use.",
+    "SC-007": (
+        "This name copies a known package without its scope. Switch the launch "
+        "command to the package named in the finding, or confirm the publisher."
+    ),
+    "SC-008": (
+        "OSV lists malicious releases of this package; follow the finding: "
+        "remove it, or pin a release the record does not list."
+    ),
     # Poisoning / prompt injection
     "POISON-001": (
         "Remove or sanitise the suspicious instruction from the tool description."
