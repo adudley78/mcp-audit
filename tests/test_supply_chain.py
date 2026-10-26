@@ -1560,7 +1560,7 @@ class TestSc007UnscopedTwin:
         assert "allowlist it in your governance policy" in f.remediation
         assert "SC-007 still reports the name" in f.remediation
         assert official in f.remediation
-        assert f.finding_path == "/x.json"
+        assert f.finding_path == str(Path("/x.json"))
 
     @pytest.mark.parametrize(
         ("command", "args"),
