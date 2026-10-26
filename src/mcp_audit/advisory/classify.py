@@ -145,6 +145,9 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "TRUST-001": "untrusted-config-origin",
     "TRUST-002": "untrusted-config-origin",
     "TRUST-008": "untrusted-config-origin",
+    # An instruction-file import from outside the repository or from an
+    # ignored file (STORY-0098); MEM-004 keeps the MEM- prefix's class.
+    "MEM-003": "untrusted-config-origin",
     "CFHYG-005": "hook-execution",
     "HARNESS-002": "untrusted-config-origin",
     "PLUGIN-001": "unverified-provenance",

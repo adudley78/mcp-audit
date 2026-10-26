@@ -27,6 +27,26 @@ Confirmed file surfaces (2026-06-14; skills added 2026-09-08):
   :mod:`mcp_audit.agent_files.subagents`); the body is the subagent's system
   prompt and gets the same instruction-file rules as commands and skills.
 
+**Claude Code — more memory and rules** (added 2026-10-25, STORY-0098)
+  - ``CLAUDE.local.md``          (project root; "loads alongside CLAUDE.md
+    and is treated the same way")
+  - ``~/.claude/rules/**/*.md``, ``.claude/rules/**/*.md`` (rules; "All
+    ``.md`` files are discovered recursively")
+  Every Claude Code memory file, and the ``AGENTS.md`` files below, have
+  their ``@path`` imports followed (see :mod:`mcp_audit.agent_files.imports`).
+
+**AGENTS.md** (added 2026-10-25, STORY-0098)
+  - ``AGENTS.md`` in any directory (agents.md: Codex, Cursor, Copilot,
+    Gemini CLI and others; Claude Code 2.1.277+ when there is no CLAUDE.md)
+  - ``.claude/AGENTS.md`` (Claude Code)
+  - ``AGENTS.override.md`` in any directory, ``~/.codex/AGENTS.md`` and
+    ``~/.codex/AGENTS.override.md`` (Codex)
+
+**OpenClaw workspace** (added 2026-10-25, STORY-0098)
+  - ``~/.openclaw/workspace/{AGENTS,SOUL,USER,MEMORY,HEARTBEAT}.md``
+  - ``SOUL.md``, ``USER.md``, ``MEMORY.md``, ``HEARTBEAT.md`` in any
+    project directory (a workspace kept in a repository)
+
 **Cursor — rules / instruction files**
   - ``~/.cursor/rules/*.mdc``    (user-global)
   - ``.cursor/rules/*.mdc``      (project-level)
@@ -64,6 +84,12 @@ from pathlib import Path
 
 import yaml
 
+from mcp_audit.agent_files.imports import (
+    READ_CAP_BYTES,
+    ReadBudget,
+    follow_references,
+    read_text_capped,
+)
 from mcp_audit.agent_files.models import AgentFile, AgentFileSurface
 from mcp_audit.agent_files.subagents import parse_agent_frontmatter, read_agent_text
 from mcp_audit.discovery import (
@@ -97,6 +123,11 @@ _WALK_SKIP_DIRS: frozenset[str] = frozenset(
 
 _WALK_MAX_DEPTH: int = 8
 
+#: Agent files read per discovery call, and their total bytes.  Reaching
+#: either is reported through ``errors``; files past it are not read.
+DISCOVERY_MAX_FILES: int = 5000
+DISCOVERY_MAX_BYTES: int = 128 * 1024 * 1024
+
 
 @dataclass(frozen=True)
 class AgentInstructionPathPattern:
@@ -116,6 +147,8 @@ class AgentInstructionPathPattern:
     surface: AgentFileSurface
     client: str
     scope: str  # "user" | "project"
+    #: Claude Code expands ``@path`` imports in files at this location.
+    follows_imports: bool = False
 
 
 # The single source of truth for every agent-instruction-file location this
@@ -140,7 +173,11 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
         "user",
     ),
     AgentInstructionPathPattern(
-        ".claude/CLAUDE.md", AgentFileSurface.CLAUDE_MEMORY, "claude-code", "user"
+        ".claude/CLAUDE.md",
+        AgentFileSurface.CLAUDE_MEMORY,
+        "claude-code",
+        "user",
+        follows_imports=True,
     ),
     AgentInstructionPathPattern(
         ".cursor/rules/*.mdc", AgentFileSurface.CURSOR_RULE, "cursor", "user"
@@ -149,6 +186,50 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
         ".claude/agents/**/*.md",
         AgentFileSurface.CLAUDE_AGENT,
         AGENT_DEFINITION_CLIENT,
+        "user",
+    ),
+    # STORY-0098: more files the agent reads as instructions.
+    AgentInstructionPathPattern(
+        ".claude/rules/**/*.md",
+        AgentFileSurface.CLAUDE_RULE,
+        "claude-code",
+        "user",
+        follows_imports=True,
+    ),
+    AgentInstructionPathPattern(
+        ".codex/AGENTS.md", AgentFileSurface.AGENTS_MD, "codex", "user"
+    ),
+    AgentInstructionPathPattern(
+        ".codex/AGENTS.override.md", AgentFileSurface.AGENTS_MD, "codex", "user"
+    ),
+    AgentInstructionPathPattern(
+        ".openclaw/workspace/AGENTS.md",
+        AgentFileSurface.OPENCLAW_WORKSPACE,
+        "openclaw",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".openclaw/workspace/SOUL.md",
+        AgentFileSurface.OPENCLAW_WORKSPACE,
+        "openclaw",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".openclaw/workspace/USER.md",
+        AgentFileSurface.OPENCLAW_WORKSPACE,
+        "openclaw",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".openclaw/workspace/MEMORY.md",
+        AgentFileSurface.OPENCLAW_WORKSPACE,
+        "openclaw",
+        "user",
+    ),
+    AgentInstructionPathPattern(
+        ".openclaw/workspace/HEARTBEAT.md",
+        AgentFileSurface.HEARTBEAT,
+        "openclaw",
         "user",
     ),
     # ── Project-level (checked at every directory during the tree walk) ────────
@@ -165,10 +246,18 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
         "project",
     ),
     AgentInstructionPathPattern(
-        ".claude/CLAUDE.md", AgentFileSurface.CLAUDE_MEMORY, "claude-code", "project"
+        ".claude/CLAUDE.md",
+        AgentFileSurface.CLAUDE_MEMORY,
+        "claude-code",
+        "project",
+        follows_imports=True,
     ),
     AgentInstructionPathPattern(
-        "CLAUDE.md", AgentFileSurface.CLAUDE_MEMORY, "claude-code", "project"
+        "CLAUDE.md",
+        AgentFileSurface.CLAUDE_MEMORY,
+        "claude-code",
+        "project",
+        follows_imports=True,
     ),
     AgentInstructionPathPattern(
         ".cursor/rules/*.mdc", AgentFileSurface.CURSOR_RULE, "cursor", "project"
@@ -197,7 +286,83 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
         AGENT_DEFINITION_CLIENT,
         "project",
     ),
+    # STORY-0098: more files the agent reads as instructions.
+    AgentInstructionPathPattern(
+        "CLAUDE.local.md",
+        AgentFileSurface.CLAUDE_MEMORY,
+        "claude-code",
+        "project",
+        follows_imports=True,
+    ),
+    AgentInstructionPathPattern(
+        ".claude/rules/**/*.md",
+        AgentFileSurface.CLAUDE_RULE,
+        "claude-code",
+        "project",
+        follows_imports=True,
+    ),
+    AgentInstructionPathPattern(
+        "AGENTS.md",
+        AgentFileSurface.AGENTS_MD,
+        "agents-md",
+        "project",
+        follows_imports=True,
+    ),
+    AgentInstructionPathPattern(
+        ".claude/AGENTS.md",
+        AgentFileSurface.AGENTS_MD,
+        "claude-code",
+        "project",
+        follows_imports=True,
+    ),
+    AgentInstructionPathPattern(
+        "AGENTS.override.md", AgentFileSurface.AGENTS_MD, "codex", "project"
+    ),
+    AgentInstructionPathPattern(
+        "SOUL.md", AgentFileSurface.OPENCLAW_WORKSPACE, "openclaw", "project"
+    ),
+    AgentInstructionPathPattern(
+        "USER.md", AgentFileSurface.OPENCLAW_WORKSPACE, "openclaw", "project"
+    ),
+    AgentInstructionPathPattern(
+        "MEMORY.md", AgentFileSurface.OPENCLAW_WORKSPACE, "openclaw", "project"
+    ),
+    AgentInstructionPathPattern(
+        "HEARTBEAT.md", AgentFileSurface.HEARTBEAT, "openclaw", "project"
+    ),
 )
+
+
+def _is_symlink(path: Path) -> bool:
+    """``Path.is_symlink`` that treats an unreadable path as not a link."""
+    try:
+        return path.is_symlink()
+    except OSError:
+        return False
+
+
+def _is_dir(path: Path) -> bool:
+    """``Path.is_dir`` that treats an unreadable path as not a directory."""
+    try:
+        return path.is_dir()
+    except OSError:
+        return False
+
+
+def _is_file(path: Path) -> bool:
+    """``Path.is_file`` that treats an unreadable path as not a file."""
+    try:
+        return path.is_file()
+    except OSError:
+        return False
+
+
+def _glob(directory: Path, pattern: str) -> list[Path]:
+    """Sorted ``Path.glob`` that returns nothing for an unreadable directory."""
+    try:
+        return sorted(directory.glob(pattern))
+    except OSError:
+        return []
 
 
 def _record_symlinked_match(
@@ -258,13 +423,13 @@ def _resolve_relative_pattern(
         current = base
         for segment in pre_segments:
             current = current / segment
-            if current.is_symlink():
+            if _is_symlink(current):
                 if skip_findings is not None:
                     skip_findings.append(
                         build_untraversed_symlink_dir_finding(current, "agent-files")
                     )
                 return []
-            if not current.is_dir():
+            if not _is_dir(current):
                 return []
 
         matches: list[Path] = []
@@ -272,24 +437,24 @@ def _resolve_relative_pattern(
         def _walk_recursive(d: Path, depth: int) -> None:
             if depth > _WALK_MAX_DEPTH:
                 return
-            for p in sorted(d.glob(final_pattern)):
-                if not p.is_file():
+            for p in _glob(d, final_pattern):
+                if not _is_file(p):
                     continue
                 matches.append(p)
-                if p.is_symlink():
+                if _is_symlink(p):
                     _record_symlinked_match(p, root, skip_findings)
             try:
                 children = sorted(d.iterdir())
-            except (PermissionError, OSError):
+            except OSError:
                 return
             for child in children:
-                if child.is_symlink():
-                    if child.is_dir() and skip_findings is not None:
+                if _is_symlink(child):
+                    if _is_dir(child) and skip_findings is not None:
                         skip_findings.append(
                             build_untraversed_symlink_dir_finding(child, "agent-files")
                         )
                     continue
-                if not child.is_dir():
+                if not _is_dir(child):
                     continue
                 if child.name in _WALK_SKIP_DIRS:
                     continue
@@ -301,21 +466,21 @@ def _resolve_relative_pattern(
     current = base
     for segment in segments[:-1]:
         current = current / segment
-        if current.is_symlink():
+        if _is_symlink(current):
             if skip_findings is not None:
                 skip_findings.append(
                     build_untraversed_symlink_dir_finding(current, "agent-files")
                 )
             return []
-        if not current.is_dir():
+        if not _is_dir(current):
             return []
     final_pattern = segments[-1]
     matches = []
-    for p in sorted(current.glob(final_pattern)):
-        if not p.is_file():
+    for p in _glob(current, final_pattern):
+        if not _is_file(p):
             continue
         matches.append(p)
-        if p.is_symlink():
+        if _is_symlink(p):
             _record_symlinked_match(p, root, skip_findings)
     return matches
 
@@ -355,15 +520,36 @@ def _read_agent_file(
     surface: AgentFileSurface,
     client: str,
     scope: str,
+    budget: ReadBudget | None = None,
+    errors: list[str] | None = None,
 ) -> AgentFile | None:
     """Read and parse a single agent file.  Returns ``None`` on any I/O error.
 
     A subagent definition is read with Claude Code's 1 MiB cap (a larger file
     returns ``None``, as Claude Code skips it) and parsed by
     :func:`~mcp_audit.agent_files.subagents.parse_agent_frontmatter`; one
-    without frontmatter is not a definition and returns ``None``.
+    without frontmatter is not a definition and returns ``None``.  Every
+    other file is read up to :data:`~mcp_audit.agent_files.imports.READ_CAP_BYTES`
+    (4 MiB, the size above which Claude Code skips a memory file); a longer
+    file is scanned on its first part and marked ``truncated``.  With a
+    *budget*, a file past it is not read; both cases are noted in *errors*.
     """
     definition: dict | None = None
+    truncated = False
+    if budget is not None:
+        try:
+            size = path.stat().st_size
+        except OSError as exc:
+            logger.debug("agent_files: cannot stat %s: %s", path, exc)
+            return None
+        if not budget.take(min(size, READ_CAP_BYTES)):
+            if errors is not None and not budget.noted:
+                budget.noted = True
+                errors.append(
+                    f"agent files: stopped after {budget.max_files} files /"
+                    f" {budget.max_bytes} bytes; later files were not read"
+                )
+            return None
     try:
         if surface == AgentFileSurface.CLAUDE_AGENT:
             text = read_agent_text(path)
@@ -372,10 +558,17 @@ def _read_agent_file(
                 return None
             raw = text
         else:
-            raw = path.read_text(encoding="utf-8", errors="replace")
+            raw, truncated = read_text_capped(path)
     except OSError as exc:
         logger.debug("agent_files: cannot read %s: %s", path, exc)
+        if errors is not None:
+            errors.append(f"agent files: cannot read {path}: {exc}")
         return None
+    if truncated and errors is not None:
+        errors.append(
+            f"agent files: {path} is over {READ_CAP_BYTES} bytes; only the first"
+            " part was scanned"
+        )
 
     if surface == AgentFileSurface.CLAUDE_AGENT:
         parsed = parse_agent_frontmatter(raw)
@@ -393,14 +586,33 @@ def _read_agent_file(
         body=body,
         frontmatter=fm,
         definition=definition,
+        truncated=truncated,
     )
 
 
 # ── User-global discovery ─────────────────────────────────────────────────────
 
 
+def _read_from_pattern(
+    match: Path,
+    pattern: AgentInstructionPathPattern,
+    scope: str,
+    budget: ReadBudget | None,
+    errors: list[str] | None,
+) -> AgentFile | None:
+    af = _read_agent_file(
+        match, pattern.surface, pattern.client, scope, budget=budget, errors=errors
+    )
+    if af is not None:
+        af.follows_imports = pattern.follows_imports
+    return af
+
+
 def _discover_user_global(
     skip_findings: list[Finding] | None = None,
+    *,
+    budget: ReadBudget | None = None,
+    errors: list[str] | None = None,
 ) -> list[AgentFile]:
     """Discover agent files at user-global (non-project) paths.
 
@@ -417,7 +629,7 @@ def _discover_user_global(
         for match in _resolve_relative_pattern(
             home, pattern.relative_glob, root=None, skip_findings=skip_findings
         ):
-            af = _read_agent_file(match, pattern.surface, pattern.client, "user")
+            af = _read_from_pattern(match, pattern, "user", budget, errors)
             if af is not None:
                 results.append(af)
 
@@ -428,7 +640,11 @@ def _discover_user_global(
 
 
 def _discover_project_tree(
-    root: Path, skip_findings: list[Finding] | None = None
+    root: Path,
+    skip_findings: list[Finding] | None = None,
+    *,
+    budget: ReadBudget | None = None,
+    errors: list[str] | None = None,
 ) -> list[AgentFile]:
     """Walk a project root directory and collect agent instruction files.
 
@@ -440,6 +656,8 @@ def _discover_project_tree(
         root: Resolved absolute path to the repository root.
         skip_findings: Optional list to append TRUST-002/TRUST-005 findings
             to; threaded through to :func:`_resolve_relative_pattern`.
+        budget: Optional shared read budget.
+        errors: Optional list that receives read problems and budget stops.
 
     Returns:
         List of :class:`AgentFile` objects with ``scope="project"``.
@@ -456,7 +674,7 @@ def _discover_project_tree(
             for match in _resolve_relative_pattern(
                 dirpath, pattern.relative_glob, root=root, skip_findings=skip_findings
             ):
-                af = _read_agent_file(match, pattern.surface, pattern.client, "project")
+                af = _read_from_pattern(match, pattern, "project", budget, errors)
                 if af is not None:
                     results.append(af)
 
@@ -567,18 +785,42 @@ def project_agent_definition_paths(
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
+def _dedupe_findings(raw: list[Finding], out: list[Finding] | None) -> None:
+    if out is None:
+        return
+    seen: set[tuple[str, str | None]] = set()
+    for finding in raw:
+        key = (finding.id, finding.finding_path)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(finding)
+
+
+def _resolved_key(path: Path) -> str:
+    try:
+        return str(path.resolve())
+    except (OSError, RuntimeError):
+        return str(path)
+
+
 def discover_agent_files(
     project_root: Path | None = None,
     include_user_global: bool = True,
     skip_findings: list[Finding] | None = None,
+    *,
+    follow_imports: bool = True,
+    include_references: bool = True,
+    errors: list[str] | None = None,
 ) -> list[AgentFile]:
     """Discover agent instruction and memory files.
 
     Args:
         project_root: When supplied, walk this directory tree for project-level
             files (``.claude/commands/``, ``.claude/skills/``, ``.cursor/rules/``,
-            ``.github/`` subtrees, ``CLAUDE.md`` tiers).  When ``None``, only
-            user-global paths are searched.
+            ``.github/`` subtrees, ``CLAUDE.md`` tiers, ``AGENTS.md``,
+            OpenClaw workspace files).  When ``None``, only user-global paths
+            are searched.
         include_user_global: When ``False``, skip user-global paths (useful
             when the caller only wants project-scoped results).
         skip_findings: Optional list to append TRUST-002/TRUST-004/TRUST-005
@@ -589,6 +831,13 @@ def discover_agent_files(
             each report the same symlinked path once.  When ``None``, no
             findings are collected (symlinked candidates are still scanned;
             only the reporting is skipped).
+        follow_imports: Follow ``@path`` imports and prose references out of
+            memory-surface files (STORY-0098); reached files are returned
+            with ``imported_from`` set and each file's ``edges`` filled in.
+        include_references: With *follow_imports*, also follow "read X"
+            prose references (not only ``@path`` imports).
+        errors: Optional list that receives read problems and budget stops
+            (never silent).
 
     Returns:
         Deduplicated list of :class:`AgentFile` objects sorted by path.
@@ -597,31 +846,119 @@ def discover_agent_files(
     """
     results: list[AgentFile] = []
     seen: set[str] = set()
+    budget = ReadBudget(max_files=DISCOVERY_MAX_FILES, max_bytes=DISCOVERY_MAX_BYTES)
 
     def _add(af: AgentFile) -> None:
-        key = str(af.path.resolve())
+        key = _resolved_key(af.path)
         if key not in seen:
             seen.add(key)
             results.append(af)
 
     raw_skip: list[Finding] = []
+    resolved: Path | None = None
 
     if include_user_global:
-        for af in _discover_user_global(skip_findings=raw_skip):
+        for af in _discover_user_global(
+            skip_findings=raw_skip, budget=budget, errors=errors
+        ):
             _add(af)
 
     if project_root is not None:
         resolved = project_root.resolve()
-        for af in _discover_project_tree(resolved, skip_findings=raw_skip):
+        for af in _discover_project_tree(
+            resolved, skip_findings=raw_skip, budget=budget, errors=errors
+        ):
             _add(af)
 
-    if skip_findings is not None:
-        seen_findings: set[tuple[str, str | None]] = set()
-        for finding in raw_skip:
-            key = (finding.id, finding.finding_path)
-            if key in seen_findings:
-                continue
-            seen_findings.add(key)
-            skip_findings.append(finding)
+    if follow_imports:
+        for af in follow_references(
+            list(results),
+            project_root=resolved,
+            include_references=include_references,
+            skip_findings=raw_skip,
+            notes=errors,
+        ):
+            _add(af)
 
+    _dedupe_findings(raw_skip, skip_findings)
     return sorted(results, key=lambda af: str(af.path))
+
+
+def discover_root_agent_files(
+    root: Path,
+    skip_findings: list[Finding] | None = None,
+    errors: list[str] | None = None,
+) -> list[AgentFile]:
+    """Instruction files at the top of *root* only, with their imports.
+
+    The default ``scan``/``check`` pass (STORY-0098): no tree walk, only the
+    project patterns whose files Claude Code expands ``@path`` imports in, and
+    ``HEARTBEAT.md``.  A symlinked candidate is reported through
+    *skip_findings* (TRUST-002) and not read as the repository's own.
+    Imports are followed; prose references are not (they never produce a
+    finding on this path).
+
+    Args:
+        root: The working directory (resolved).
+        skip_findings: Receives TRUST-002/TRUST-005 for links on the way.
+        errors: Receives read problems and budget stops.
+
+    Returns:
+        The root files followed by the files their imports reached.
+    """
+    root = root.resolve()
+    budget = ReadBudget(max_files=DISCOVERY_MAX_FILES, max_bytes=DISCOVERY_MAX_BYTES)
+    files: list[AgentFile] = []
+    seen: set[str] = set()
+    for pattern in AGENT_INSTRUCTION_PATTERNS:
+        if pattern.scope != "project":
+            continue
+        if not (
+            pattern.follows_imports or pattern.surface == AgentFileSurface.HEARTBEAT
+        ):
+            continue
+        for match in _resolve_relative_pattern(
+            root, pattern.relative_glob, root=root, skip_findings=skip_findings
+        ):
+            if _is_symlink(match):
+                continue
+            key = _resolved_key(match)
+            if key in seen:
+                continue
+            seen.add(key)
+            af = _read_from_pattern(match, pattern, "project", budget, errors)
+            if af is not None:
+                files.append(af)
+    files.extend(
+        follow_references(
+            list(files),
+            project_root=root,
+            include_references=False,
+            skip_findings=skip_findings,
+            notes=errors,
+        )
+    )
+    return files
+
+
+def discover_user_heartbeat_files(
+    skip_findings: list[Finding] | None = None,
+    errors: list[str] | None = None,
+) -> list[AgentFile]:
+    """The user's own heartbeat files (``~/.openclaw/workspace/HEARTBEAT.md``).
+
+    Read in every default scan for MEM-004; a symlinked file is read through
+    the link and reported as TRUST-004 (the dotfile-manager shape), like every
+    other user-global agent file.
+    """
+    files: list[AgentFile] = []
+    for pattern in AGENT_INSTRUCTION_PATTERNS:
+        if pattern.scope != "user" or pattern.surface != AgentFileSurface.HEARTBEAT:
+            continue
+        for match in _resolve_relative_pattern(
+            Path.home(), pattern.relative_glob, root=None, skip_findings=skip_findings
+        ):
+            af = _read_from_pattern(match, pattern, "user", None, errors)
+            if af is not None:
+                files.append(af)
+    return files

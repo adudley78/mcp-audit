@@ -642,28 +642,65 @@ def _apply_agent_files(
     """
     from mcp_audit.agent_files import analyzer as _af_analyzer  # noqa: PLC0415
     from mcp_audit.agent_files import discovery as _af_discovery  # noqa: PLC0415
+    from mcp_audit.agent_files import reach as _af_reach  # noqa: PLC0415
 
     af_skip_findings: list[Finding] = []
     af_list = _af_discovery.discover_agent_files(
-        project_root=project_root, skip_findings=af_skip_findings
+        project_root=project_root, skip_findings=af_skip_findings, errors=result.errors
     )
     # Subagent definitions' frontmatter checks (AGENT-001..004, HOOK-001/002)
     # already come from default discovery (user-global and cwd) and from
     # --project, so only their body text is scanned here (STORY-0094). A
-    # symlink default discovery already reported is not reported twice.
-    already = {
+    # symlink default discovery already reported is not reported twice, nor
+    # is a MEM-003/MEM-004 the default scan's cwd pass already reported
+    # (STORY-0098).
+    already_links = {
         (f.id, f.finding_path)
         for f in result.findings
         if f.id in ("TRUST-002", "TRUST-004", "TRUST-005")
     }
-    af_findings = _af_analyzer.analyze_agent_files(
-        af_list, include_definitions=False
-    ) + [f for f in af_skip_findings if (f.id, f.finding_path) not in already]
+    already = {_af_reach.finding_key(f) for f in result.findings}
+    new_links = [
+        f for f in af_skip_findings if (f.id, f.finding_path) not in already_links
+    ]
+    candidates = (
+        _af_analyzer.analyze_agent_files(af_list, include_definitions=False) + new_links
+    )
+    af_findings = [f for f in candidates if _af_reach.finding_key(f) not in already]
     result.findings.extend(af_findings)
     con.print(
         f"[dim]Agent files: {len(af_list)} file(s) scanned, "
         f"{len(af_findings)} issue(s) found[/dim]"
     )
+    return result
+
+
+def _apply_project_instruction_reach(
+    result: ScanResult, project_dir: Path, con: Console
+) -> ScanResult:
+    """MEM-003 / MEM-004 across the ``--project`` tree (STORY-0098).
+
+    Called when ``--project`` is supplied.  Walks *project_dir* for the
+    instruction files Claude Code expands ``@path`` imports in and for
+    ``HEARTBEAT.md`` files, follows the imports, and appends MEM-003 (an
+    import that leaves the folder or is ``.gitignore``'d), MEM-004 (heartbeat
+    output suppression) and TRUST-002 HIGH (a symlink on the way that leaves
+    the folder).  Findings already reported by the default scan's cwd pass or
+    by ``--include-agent-files`` are not repeated.  Problems go to
+    ``result.errors``; never raises.  Appended post-score, like the rest of
+    the ``--project`` findings.
+    """
+    from mcp_audit.agent_files import reach as _af_reach  # noqa: PLC0415
+
+    already = {_af_reach.finding_key(f) for f in result.findings}
+    new = [
+        f
+        for f in _af_reach.project_scan_findings(project_dir, result.errors)
+        if _af_reach.finding_key(f) not in already
+    ]
+    result.findings.extend(new)
+    if new:
+        con.print(f"[dim]Instruction files: {len(new)} import/heartbeat issue(s)[/dim]")
     return result
 
 
@@ -1682,6 +1719,9 @@ def scan(
             console,
             extra_paths=extra_paths,
         )
+
+    if resolved_project is not None:
+        result = _apply_project_instruction_reach(result, resolved_project, console)
 
     result = _apply_lock_verification(
         result,
