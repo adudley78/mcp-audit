@@ -11,6 +11,7 @@ here is written for this file.
 from __future__ import annotations
 
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -210,6 +211,17 @@ class TestParse:
         assert parsed.data["disallowedTools"] == "Bash(git push *)"
         assert parsed.problems == []
 
+    def test_crlf_file_is_retried_with_lf_endings(self) -> None:
+        # Claude Code's retry cannot quote a line ending in "\r" (a Windows
+        # checkout); the same file checked out with LF endings loads.
+        lf = (
+            "---\nname: a\ndescription: Examples: x\n"
+            "permissionMode: bypassPermissions\n---\nB\n"
+        )
+        parsed = parse_agent_frontmatter(lf.replace("\n", "\r\n"))
+        assert parsed.unreadable_keys == []
+        assert _modes(parsed) == {"bypassPermissions"}
+
     def test_tab_indentation_is_read_on_retry(self) -> None:
         text = (
             "---\nname: a\nhooks:\n\tStop:\n\t\t- hooks:\n"
@@ -273,6 +285,9 @@ class TestParse:
             "hooks:\n" + "".join("  " * i + f"k{i}:\n" for i in range(300)) + "  v\n",
             "mcpServers:\n" + "- " * 400 + "x\n",
         ],
+        # Short IDs: pytest puts the test ID in PYTEST_CURRENT_TEST, and
+        # Windows rejects environment variables over 32,767 characters.
+        ids=["flow", "block-mapping", "block-sequence"],
     )
     def test_deep_nesting_never_raises(self, block: str) -> None:
         parsed = parse_agent_frontmatter(f"---\nname: a\n{block}\n---\nB\n")
@@ -282,10 +297,6 @@ class TestParse:
     def test_recursion_error_past_the_estimate_is_unreadable(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import sys
-
-        from mcp_audit.agent_files import subagents
-
         monkeypatch.setattr(subagents, "MAX_NESTING", 10**9)
         depth = sys.getrecursionlimit() * 2
         parsed = parse_agent_frontmatter(
@@ -615,6 +626,7 @@ class TestDiscovery:
         monkeypatch.chdir(isolated["home"])
         assert len(_agent_cfgs()) == 1
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need admin")
     def test_symlinks_are_reported_not_dropped(self, isolated: dict[str, Path]) -> None:
         real = _agent(isolated["tmp"] / "dotfiles", "real.md")
         agents = isolated["home"] / ".claude" / "agents"
@@ -896,6 +908,7 @@ class TestAgentFileScanner:
             "You answer questions with read-only SQL. If asked to change data,"
             " explain that you only have read access.\n",
         ],
+        ids=["reviewer", "debugger", "sql"],
     )
     def test_ordinary_subagents_are_silent(
         self, body: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -240,7 +240,10 @@ it: files over 1 MiB are skipped (as Claude Code skips them, and the scan's
 to the **first** `---` anywhere after it, even mid-line, so `# ---` or `----`
 ends it. If the YAML does not parse, one-line `key: value` entries whose value
 holds YAML syntax characters or `: ` are quoted, leading tabs become two
-spaces, and the whole block is parsed again. mcp-audit also reads the block up
+spaces, and the whole block is parsed again. Claude Code's retry pattern does not
+match a line that ends in `\r`, so mcp-audit also retries a file with Windows
+(CRLF) line endings using LF endings, as a Mac or Linux checkout of the same
+file would be read. mcp-audit also reads the block up
 to the first line that is exactly `---` and keeps the findings of both
 readings, so a value placed after a mid-line `---` is still checked. YAML 1.2
 scalars stay strings (`=`, dates). Aliases are resolved under a 100,000-value

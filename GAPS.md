@@ -1076,8 +1076,10 @@ entry. Until confirmed, only workspace/project-tree paths are discovered.
 - **Frontmatter parsing is not Claude Code's parser.** Claude Code (2.1.310)
   parses with Bun's YAML 1.2 parser and, on a parse error, quotes one-line
   values that contain YAML indicator characters or `: `, turns leading tabs
-  into spaces and re-parses the block. mcp-audit does the same split, retry
-  and tab handling with PyYAML (YAML 1.1 syntax, with the YAML 1.1 `=` and
+  into spaces and re-parses the block (its retry pattern does not match a line ending in `\r`;
+  mcp-audit also retries a CRLF file with LF endings, as another platform's
+  checkout would read it). mcp-audit does the same split, retry and tab
+  handling with PyYAML (YAML 1.1 syntax, with the YAML 1.1 `=` and
   timestamp resolvers turned off so those stay strings, as in 1.2), and also
   reads the block up to the first `---` line; findings from every reading are
   kept. The two parsers can still disagree on unusual YAML: a security key

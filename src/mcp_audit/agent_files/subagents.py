@@ -313,15 +313,23 @@ def _read_block(text: str, budget: _Budget) -> _Block:
     except _LimitError as exc:
         return _Block(None, error=str(exc))
     except yaml.YAMLError as first:
-        retry = _tabs_to_spaces(_quote_lossy_values(text, budget))
-        if retry == text:
-            return _Block(None, error=_yaml_reason(first))
-        try:
-            value, repeats = _load(retry, budget)
-        except _LimitError as exc:
-            return _Block(None, error=str(exc))
-        except yaml.YAMLError as exc:
-            return _Block(None, error=_yaml_reason(exc))
+        error = _yaml_reason(first)
+        # Claude Code's retry pattern does not match a line ending in "\r", so
+        # a file checked out with CRLF endings (Windows) is not rescued, while
+        # the same committed file checked out with LF endings is. Try both.
+        for source in dict.fromkeys((text, text.replace("\r\n", "\n"))):
+            retry = _tabs_to_spaces(_quote_lossy_values(source, budget))
+            if retry == text:
+                continue
+            try:
+                value, repeats = _load(retry, budget)
+                break
+            except _LimitError as exc:
+                return _Block(None, error=str(exc))
+            except yaml.YAMLError as exc:
+                error = _yaml_reason(exc)
+        else:
+            return _Block(None, error=error)
     if value is None:
         return _Block({})
     if not isinstance(value, dict):
