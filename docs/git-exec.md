@@ -152,13 +152,9 @@ git folder, not a hidden one. Its config is still checked.
 
 ## Files this adds to the agent execution surface
 
-| File | Read by | Runs code because | Source |
-|---|---|---|---|
-| `.git/config` (and in-tree includes) | git, run by every coding agent at startup | command-valued keys above | [git-config](https://git-scm.com/docs/git-config); GitSpawn |
-| `.git/config.worktree`, `.git/worktrees/*/config.worktree` | git, with `extensions.worktreeConfig` | same keys, per worktree | [gitrepository-layout](https://git-scm.com/docs/gitrepository-layout) |
-| `.git` file (`gitdir:`) | git | redirects git to another config | gitrepository-layout |
-| `.git/hooks/*` | git | hooks run on git actions; `post-index-change` on `git status` | [githooks](https://git-scm.com/docs/githooks); CVE-2026-26268 |
-| a nested bare repository (`HEAD`, `objects/`, `refs/`) | git, run inside it | its `config` | git-config `safe.bareRepository` |
+The git files and directories this reads are listed with the other
+repository files agents run or obey, with sources, in
+[`docs/agent-execution-surface.md`](agent-execution-surface.md#git-every-harness).
 
 Known limits (attributes not evaluated, `includeIf` conditions not evaluated,
 skipped folders, what is not covered) are in [GAPS.md](../GAPS.md).
