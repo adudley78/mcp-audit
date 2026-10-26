@@ -18,21 +18,21 @@ scanning (e.g. install once in a shared job and run in multiple matrix legs).
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: adudley78/mcp-audit/setup-action@v0.10.0
+- uses: adudley78/mcp-audit/setup-action@v0.21.1
   with:
     version: 'latest'   # or a specific tag: 'v0.10.0'
 ```
 
 After this step `mcp-audit` is on `PATH` for every subsequent step in the job.
 
-### Inputs
+### `setup-mcp-audit` inputs
 
 | Input | Default | Description |
 |---|---|---|
 | `version` | `latest` | Release tag to install (`latest` resolves the current release via the GitHub API). |
 | `github-token` | `${{ github.token }}` | Token for the Releases API call. Defaults to the workflow token; supply a PAT on rate-limited runners. |
 
-### Outputs
+### `setup-mcp-audit` outputs
 
 | Output | Description |
 |---|---|
@@ -80,7 +80,7 @@ jobs:
       security-events: write   # required for SARIF upload
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/mcp-audit@v0.3.3
+      - uses: adudley78/mcp-audit@v0.21.1
 ```
 
 Findings appear in **Security → Code scanning alerts** within ~2 minutes.
@@ -103,7 +103,8 @@ pull request. With mcp-audit v0.19.0 or earlier, set
 
 ### Version pinning
 
-Until `v1.0.0` ships, pin to a specific release tag (e.g. `@v0.3.0`).
+Until `v1.0.0` ships, pin to a specific release tag, as every example on this page does
+(each release PR moves them to the new tag).
 Once the first `v1.x` release is published, you will be able to pin to
 `@v1` and automatically track the latest `1.x` minor/patch release — the
 standard GitHub Marketplace major-version convention. The `latest`
@@ -113,7 +114,7 @@ break reproducibility on release day.
 ## Full example
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.3
+- uses: adudley78/mcp-audit@v0.21.1
   with:
     config-paths: 'path/to/claude_desktop_config.json path/to/cursor_config.json'
     severity-threshold: high
@@ -155,7 +156,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # full history so git refs resolve
-      - uses: adudley78/mcp-audit@v0.8.0
+      - uses: adudley78/mcp-audit@v0.21.1
         with:
           mode: diff
           severity-threshold: medium
@@ -186,7 +187,7 @@ See `examples/github-actions/diff-mode.yml` for the full reference workflow and
 ### Verifying `mcp-lock.json` in CI
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.17.0
+- uses: adudley78/mcp-audit@v0.21.1  # lock-verify needs v0.17.0 or later
   with:
     lock-verify: 'true'
     lock-resolve: 'true'   # optional: also catch a republished package version
@@ -222,7 +223,7 @@ Use outputs in downstream steps:
 ```yaml
 - name: Run mcp-audit
   id: mcp
-  uses: adudley78/mcp-audit@v0.3.3
+  uses: adudley78/mcp-audit@v0.21.1
 
 - name: Print results
   run: |
@@ -245,7 +246,7 @@ output files.
 ## Disabling SARIF upload
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.3
+- uses: adudley78/mcp-audit@v0.21.1
   with:
     upload-sarif: 'false'
 ```
@@ -253,10 +254,14 @@ output files.
 ## Pinning to a specific version
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.3
+- uses: adudley78/mcp-audit@v0.21.1
+  with:
+    version: v0.21.1
 ```
 
-Pin to a full version tag for fully reproducible CI runs. See the
+Pin both for fully reproducible CI runs: the `uses:` tag fixes the action's
+own steps, and the `version` input fixes the mcp-audit binary it downloads
+(it defaults to `latest`). See the
 [Version pinning](#version-pinning) section above for the `@v1`
 floating-tag convention that will become available once `v1.0.0` ships.
 
@@ -269,7 +274,7 @@ blocking any build. Tighten the threshold once you've worked through the
 existing findings.
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.3
+- uses: adudley78/mcp-audit@v0.21.1
   with:
     severity-threshold: info
     fail-on-findings: 'false'
@@ -283,7 +288,7 @@ Suitable for security-conscious teams or new projects with no existing
 findings.
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.3
+- uses: adudley78/mcp-audit@v0.21.1
   with:
     severity-threshold: medium
     fail-on-findings: 'true'
@@ -309,7 +314,7 @@ install step is required — the dependency is only pulled in when you
 opt in.
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.3.3
+- uses: adudley78/mcp-audit@v0.21.1
   with:
     run-sast: 'true'
     sast-path: src/

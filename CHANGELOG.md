@@ -81,6 +81,71 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   its findings now reach the verdict and the exit code.
 - **HARNESS-005 now recognises environment runners and PowerShell code-running commands.** An allow rule such as `Bash(devbox run *)`, `Bash(docker exec app *)`, `Bash(uv run:*)`, `Bash(poetry run:*)`, `Bash(pnpm exec:*)` or `PowerShell(iex *)` approves any command, the same as `Bash(npx *)`, and is now reported. If you see a new HARNESS-005 for a rule like `Bash(uv run:*)` that you added so Claude can run your tests: Anthropic's docs say these runners "execute their arguments as a command", so the rule also approves `uv run rm -rf .`; write one rule per command instead, such as `Bash(uv run pytest *)`. A rule that names the inner command, such as `Bash(devbox run npm test)` (Anthropic's recommended form), is not reported. Meaning and severity (MEDIUM) are unchanged.
 
+- **`mcp-audit register` says what registering actually does.** The prompt
+  promised a weekly digest and "early access to new rule packs before public
+  release"; nothing in mcp-audit is held back from unregistered users. It now
+  says registering shares your contact details so you can be contacted about
+  project updates, offers the optional low-grade follow-up, lists what is sent
+  (once, then version and grade on each `check`), and says how to remove it.
+
+### Fixed
+
+- **The privacy page now names the address registration actually sends to.**
+  `docs/privacy.md` said `https://register.mcp-audit.dev/ping`; the code posts to a
+  Pipedream webhook (`https://eo4jvaanlkuohuc.m.pipedream.net`) that emails the
+  author and logs to a Google Sheet. The page now says so, states that nothing is
+  sent unless you run `mcp-audit register`, and corrects four smaller details: the
+  first POST's `grade` is always `"?"`, the request carries six headers (two set by
+  mcp-audit, four added by Python's HTTP library, none identifying you), only
+  `check` (never `scan`) pings, and the Windows file path is
+  `%LOCALAPPDATA%\mcp-audit\mcp-audit\registration.json`. The page now states
+  only what the code does; the list of intended uses and the "not sold or
+  shared" promise are gone. Tests now fail if the page and the code disagree on
+  the address or the fields sent. ADR-0002 keeps its original endpoint decision
+  with a dated note naming the address the code uses.
+- **Research citations corrected.** The Censys post is dated May 27, 2026, not June,
+  and says *many* exposed MCP deployments run without authentication, not most;
+  the AUTH-001 finding text, COMM-031, `PROVENANCE.md` and the severity framework
+  now say that. (The v0.12.0 entry below still carries the old wording.) The arXiv
+  2605.22333 paper's real title is "A First Measurement Study on Authentication
+  Security in Real-World Remote MCP Servers".
+- **The privacy and telemetry pages list every command that uses the network.**
+  They said nothing leaves your machine unless you opt in, but `fix` (even in its
+  dry run), `sbom` and `lock` look up package versions on npm, PyPI or deps.dev by
+  default; each takes `--offline`. The pages, and the README's "offline" bullet,
+  now name them alongside `update-registry`, `verify`, `vet --online`,
+  `push-nucleus`, `register` and Sigstore signing.
+- **Install instructions use the right PyPI name.** Several docs said
+  `pip install mcp-audit`, which is not this project's package; they now say
+  `pip install mcp-audit-scanner`. The VS Code extension is installed from Open VSX
+  (the docs pointed at a Microsoft Marketplace listing that does not exist).
+- **The README describes the badge for an unlisted package correctly.** There is
+  no grey `unknown` badge: an unlisted package's badge URL returns 404. The badge
+  doc's colour table now matches the live badges (`listed`, `verified`, fixed and
+  unfixed CVE counts).
+- **README and docs examples pin the current release.** The GitHub Action example
+  used `@main`, the pre-commit examples used `rev: v0.1.0` (a tag that never
+  existed), and the Action, diff, fix, Snyk, governance and usage docs pinned
+  releases from `v0.3.3` to `v0.17.0` or `@main`. All now name `v0.21.1`; the
+  examples that promise a reproducible run also set the action's `version` input,
+  which otherwise downloads the latest binary. `scripts/update_test_count.py
+  --check` fails a release PR until it updates every pin. The usage guide's Action
+  examples used inputs that never existed (`output-file`, `sast`) and said findings
+  never fail the build; they now use `sarif-output` and `run-sast` and describe
+  `fail-on-findings` correctly. The README's Action input and output table
+  listed inputs that do not exist (`format`, `baseline`) and misspelled the
+  `findings-count` output; it now matches `action.yml`.
+- **GAPS.md lists what a self-hosted runner needs**, including `python3`: without
+  it the Action still scans and fails on findings, but reports `findings-count` 0,
+  `grade` unknown and an empty `sarif-path`, and skips merging `LOCK-*` results.
+- **The README describes rug-pull detection correctly:** a changed entry is
+  flagged once, relative to the last pin or scan, not on every scan after a pin.
+- **The four CodeQL action references are pinned to a commit SHA** (v4.39.1), like
+  every other action this repo uses, and a test now fails on any tag-pinned
+  third-party action.
+- **`docs/owasp-mapping.json` no longer states a hand-typed count** ("103 static
+  finding IDs" while it held 127). Completeness is what CI already checks.
+
 ## [0.21.1] - 2026-10-25
 
 ### Security

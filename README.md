@@ -94,7 +94,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus Security FlexConnect, self-contained HTML dashboard
 - **Continuous monitoring** — `mcp-audit watch` monitors config files in real-time and re-scans on any change
 - **Fleet deployment** — machine-tagged output with `--asset-prefix` for enterprise-wide aggregation
-- **Fully offline by default** — no data leaves your machine
+- **Offline scans** — `scan` and `check` make no network calls unless you pass a network flag; `fix`, `sbom` and `lock` look up package versions online unless you pass `--offline` ([full list](docs/privacy.md#commands-that-use-the-network))
 
 ## Enterprise vulnerability management
 
@@ -240,13 +240,17 @@ The badge shows **registry verification status** (confirmed maintainer link) and
 endorsement. See [docs/badge.md](docs/badge.md) for the full specification: what the
 badge asserts, what it does not assert, and how badge data updates.
 
-**Your package not listed?** The badge shows `unknown` (grey) until your entry is
-added to the registry. Add it in ~5 minutes:
+**Your package not listed?** Badges exist only for packages in the registry.
+`--badge` prints the snippet for any name, but for an unlisted package the badge
+URL returns 404 and Shields.io renders `custom badge: resource not found` until
+your entry is added. Add it in ~5 minutes:
 
 1. Run `mcp-audit vet @your-scope/your-server` to see what users see today.
 2. [Open a registry submission issue](https://github.com/adudley78/mcp-audit/issues/new?template=registry-submission.yml)
    or edit `registry/known-servers.json` and open a PR.
-3. Once merged, your badge turns green (`verified · 0 known CVEs`).
+3. Once the entry is merged and mcp-audit.dev is next deployed, the badge appears:
+   blue (`listed · 0 known CVEs`) for a new entry, green (`verified · 0 known CVEs`)
+   once a reviewer has confirmed the maintainer link.
 
 See [docs/registry-contributions.md](docs/registry-contributions.md) for the entry
 format and verification standard.
@@ -446,14 +450,14 @@ The dashboard works against your real MCP environment — whatever `mcp-audit sc
 
 MCP servers can update their tool definitions at any time. A server can publish clean, trusted descriptions during initial review and silently swap them for malicious ones after developers have granted access.
 
-`mcp-audit pin` records SHA-256 hashes of every tracked server's configuration as a trusted baseline. Subsequent `mcp-audit scan` runs compare against that baseline and flag any change as RUGPULL-001 (HIGH). That covers the configuration entry, not what the server's tools say. To record and check the tool definitions themselves, use `mcp-audit lock --connect` and `mcp-audit lock --verify --connect` ([docs/lock.md](docs/lock.md#tool-definitions---connect)).
+`mcp-audit pin` records SHA-256 hashes of every tracked server's configuration as a trusted baseline. Each later `mcp-audit scan` compares every entry with the state recorded by the last pin or scan, flags a changed entry as RUGPULL-001 (HIGH) once, and then records the new state. That covers the configuration entry, not what the server's tools say. To record and check the tool definitions themselves, use `mcp-audit lock --connect` and `mcp-audit lock --verify --connect` ([docs/lock.md](docs/lock.md#tool-definitions---connect)).
 
 ```bash
 mcp-audit pin   # Record current state as trusted
-mcp-audit diff  # Show what has changed since last pin
+mcp-audit scan  # Flags RUGPULL-001 once per entry changed since the last pin or scan
 ```
 
-Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All other persistent state (baselines, registry cache, policy, rules, license) uses the platform user-config directory: `~/Library/Application Support/mcp-audit/` on macOS, `~/.config/mcp-audit/` on Linux, `%APPDATA%\mcp-audit\` on Windows.
+Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/state_<hash>.json` (files from the old `~/.mcp-audit/` location are copied over once). All persistent state (rug-pull state, baselines, registry cache, policy, rules, registration) uses the platform user-config directory: `~/Library/Application Support/mcp-audit/` on macOS, `~/.config/mcp-audit/` on Linux, `%LOCALAPPDATA%\mcp-audit\mcp-audit\` on Windows.
 
 ## CI/CD usage
 
@@ -477,7 +481,7 @@ Rug-pull state is stored per-config-set at `~/.mcp-audit/state_<hash>.json`. All
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-4,300 tests validate detection accuracy and guard against regressions.
+4,335 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -559,11 +563,7 @@ Every command is available to every user — no tier, no license required.
 
 ## IDE Integration
 
-Install the [mcp-audit VS Code extension](https://github.com/mcp-audit/mcp-audit-vscode) to get inline diagnostics directly in your editor — the same findings `mcp-audit scan` reports, shown as red/yellow squiggles the moment you open or save an MCP config file.
-
-```
-ext install mcp-audit.mcp-audit-vscode
-```
+Install the [mcp-audit extension](https://open-vsx.org/extension/mcp-audit/mcp-audit-vscode) (`mcp-audit.mcp-audit-vscode`, published on Open VSX) to get inline diagnostics directly in your editor — the same findings `mcp-audit scan` reports, shown as red/yellow squiggles the moment you open or save an MCP config file. In Cursor, VSCodium, or another editor that uses Open VSX, search for `mcp-audit` in the Extensions view. In VS Code, download the `.vsix` from the Open VSX page and run `Extensions: Install from VSIX…`. Source: [mcp-audit/mcp-audit-vscode](https://github.com/mcp-audit/mcp-audit-vscode).
 
 - Red/yellow squiggles on offending server keys in `claude_desktop_config.json`, `mcp.json`, and all other supported MCP config files
 - Hover cards with finding title, description, evidence, and remediation
@@ -571,7 +571,7 @@ ext install mcp-audit.mcp-audit-vscode
 - Command palette: `mcp-audit: Scan current file`, `mcp-audit: Scan workspace`, `mcp-audit: Fix current file`
 - Works in both VS Code and Cursor (Cursor is a VS Code fork — no changes needed)
 
-The extension requires the `mcp-audit` binary to be installed (`pip install mcp-audit`). It shells out to the binary — no detection logic is reimplemented in TypeScript. See [`docs/ide-extension.md`](docs/ide-extension.md) for full setup and configuration details.
+The extension requires the `mcp-audit` command to be installed (`pip install mcp-audit-scanner`, or a binary from the [Releases page](https://github.com/adudley78/mcp-audit/releases)). It shells out to the binary — no detection logic is reimplemented in TypeScript. See [`docs/ide-extension.md`](docs/ide-extension.md) for full setup and configuration details.
 
 ## GitHub Action
 
@@ -603,11 +603,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run mcp-audit
-        uses: adudley78/mcp-audit@main
+        uses: adudley78/mcp-audit@v0.21.1
         with:
+          version: v0.21.1
           severity-threshold: high
           upload-sarif: 'true'
 ```
+
+This example and the pre-commit one below pin the current release. The `uses:` tag fixes the action's own steps and `version` fixes the mcp-audit binary it downloads (it defaults to `latest`). Each release PR updates these pins: `scripts/update_test_count.py` rewrites them, and CI fails when any is behind `pyproject.toml`.
 
 The `permissions: security-events: write` block is required for SARIF upload on public repositories. Without it the upload step will fail silently.
 
@@ -616,16 +619,20 @@ The `permissions: security-events: write` block is required for SARIF upload on 
 | Input | Default | Description |
 |-------|---------|-------------|
 | `severity-threshold` | `high` | Fail the build if findings at or above this level exist (`critical`, `high`, `medium`, `low`, `info`) |
-| `format` | `sarif` | Output format (`sarif`, `json`, `terminal`) |
-| `config-paths` | _(auto-discover)_ | Single MCP config file path to scan |
-| `baseline` | _(none)_ | Baseline name for drift detection |
+| `config-paths` | _(auto-discover)_ | Space-separated MCP config files or directories to scan |
+| `sarif-output` | `mcp-audit.sarif` | Where to write the SARIF file (empty string skips SARIF) |
 | `upload-sarif` | `true` | Upload SARIF results to the GitHub Security tab |
+| `baseline-name` | _(none)_ | Saved baseline to compare against for drift detection |
+| `fail-on-findings` | `true` | Set to `false` to report without failing the step |
+| `version` | `latest` | mcp-audit release tag to download; pin it, as the example above does, for reproducible runs |
+
+The full input list (`mode`, `check-vulns`, `verify-signatures`, `run-sast`, `lock-verify` and more) is in [`docs/github-action.md`](docs/github-action.md#inputs).
 
 ### Action outputs
 
 | Output | Description |
 |--------|-------------|
-| `finding-count` | Total number of findings |
+| `findings-count` | Number of findings at or above `severity-threshold` |
 | `grade` | Letter grade (A–F) |
 | `sarif-path` | Path to generated SARIF file |
 
@@ -655,12 +662,12 @@ already run. Each integration has a dedicated guide:
 
 ### Minimal setup
 
-Add this to your `.pre-commit-config.yaml` (replace `rev` with the [latest release tag](https://github.com/adudley78/mcp-audit/releases)):
+Add this to your `.pre-commit-config.yaml` (`rev` is the current release; `pre-commit autoupdate` moves it to the [latest release tag](https://github.com/adudley78/mcp-audit/releases) later):
 
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.1.0  # Replace with the latest release tag
+    rev: v0.21.1
     hooks:
       - id: mcp-audit
 ```
@@ -700,7 +707,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 4,300 tests
+uv run pytest                        # Run all 4,335 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
@@ -713,7 +720,7 @@ This tool is in early development. See [GAPS.md](GAPS.md) for known detection ga
 
 mcp-audit **does not collect telemetry**.  Every scan runs entirely on your machine.
 
-If you'd like to receive new community detection rule notifications and optionally allow a follow-up when your grade is below C, you can opt in:
+If you'd like to be contacted about project updates (such as new detection rules), and optionally get a follow-up when your grade is C or below, you can opt in. Every feature works the same whether or not you register.
 
 ```bash
 mcp-audit register
@@ -721,15 +728,15 @@ mcp-audit register
 
 What registration does **not** collect: config data, server names, tool descriptions, credentials, file paths, or any scan output.
 
-What registration sends (one time only): your name, org, email, mcp-audit version, and grade.
-Subsequent scan pings send only version and grade — no PII.
+What registration sends (one time only): your name, org, email, follow-up choice, and mcp-audit version, plus a placeholder grade of `"?"`.
+After that, each `mcp-audit check` sends only the version and grade — no PII. `mcp-audit scan` never pings.
 
 ```bash
 mcp-audit register --status   # check current registration
 mcp-audit register --clear    # remove registration and stop pings
 ```
 
-See [docs/privacy.md](docs/privacy.md) for the complete plain-English privacy policy.
+See [docs/privacy.md](docs/privacy.md) for the exact address, fields and headers sent.
 
 ---
 

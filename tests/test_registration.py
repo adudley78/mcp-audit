@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 from datetime import UTC, datetime
 from pathlib import Path
@@ -252,3 +253,150 @@ def test_docs_privacy_md_exists() -> None:
     assert privacy_doc.exists(), (
         "docs/privacy.md is missing — it must document what registration sends"
     )
+
+
+# ── docs/privacy.md matches the code (STORY-0102) ─────────────────────────────
+
+_PRIVACY_DOC = Path(__file__).parent.parent / "docs" / "privacy.md"
+
+
+def _doc_table_fields(heading: str) -> set[str]:
+    """Return the backticked first-column names of the table under *heading*."""
+    text = _PRIVACY_DOC.read_text(encoding="utf-8")
+    section = text.split(heading, 1)[1].split("\n### ", 1)[0]
+    return {
+        m.group(1)
+        for line in section.splitlines()
+        if (m := re.match(r"^\|\s*`([a-z_]+)`\s*\|", line))
+    }
+
+
+def test_privacy_doc_names_the_endpoint_the_code_posts_to() -> None:
+    """The page once named register.mcp-audit.dev while the code posted elsewhere."""
+    text = _PRIVACY_DOC.read_text(encoding="utf-8")
+    assert reg_client._REGISTER_ENDPOINT in text
+    assert "register.mcp-audit.dev" not in text
+    assert f"after {reg_client._TIMEOUT_SECONDS} seconds" in text
+
+
+def test_privacy_doc_post_table_matches_post_payload_model() -> None:
+    """Every field the doc lists is sent, and every field sent is listed."""
+    documented = _doc_table_fields("### What the initial registration POST sends")
+    assert documented == set(RegistrationPostPayload.model_fields)
+
+
+def test_privacy_doc_ping_table_matches_ping_payload_model() -> None:
+    documented = _doc_table_fields("### Subsequent pings")
+    assert documented == set(RegistrationPingPayload.model_fields)
+
+
+def test_wire_request_matches_what_the_doc_says_is_sent(
+    sample_config: RegistrationConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Capture the real request on a local server: headers and body as sent.
+
+    mcp-audit sets two headers; Python's HTTP library adds four protocol
+    headers. The doc must name all six, and the body must be exactly the
+    RegistrationPostPayload fields. The HTTPS connection is redirected to a
+    plain local socket so nothing leaves the machine; everything above the
+    socket (urllib's handlers, http.client) runs for real.
+    """
+    import http.client
+    import http.server
+    import threading
+    import urllib.parse
+    import urllib.request
+
+    captured: list[tuple[str, list[tuple[str, str]], bytes]] = []
+
+    class _Capture(http.server.BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802 - http.server naming
+            body = self.rfile.read(int(self.headers["Content-Length"]))
+            captured.append((self.path, list(self.headers.items()), body))
+            self.send_response(200)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args: object) -> None:
+            return
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), _Capture)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.handle_request, daemon=True)
+    thread.start()
+
+    class _ToLocalPlainSocket(http.client.HTTPConnection):
+        # urllib calls this as HTTPSConnection(host, timeout=..., context=...)
+        # and, on Python 3.11, check_hostname=...; keep the timeout and drop
+        # the TLS-only arguments a plain connection does not take.
+        def __init__(self, host: str, timeout: object = None, **_tls: object):
+            super().__init__("127.0.0.1", port, timeout=timeout)
+
+    for var in (
+        "HTTPS_PROXY",
+        "https_proxy",
+        "HTTP_PROXY",
+        "http_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("NO_PROXY", "*")
+    monkeypatch.setattr(urllib.request, "_opener", None)
+    monkeypatch.setattr(http.client, "HTTPSConnection", _ToLocalPlainSocket)
+
+    try:
+        assert reg_client.post_registration(sample_config, grade="?") is True
+    finally:
+        thread.join(timeout=10)
+        server.server_close()
+
+    from mcp_audit import __version__
+
+    assert len(captured) == 1
+    path, headers, body = captured[0]
+    endpoint = urllib.parse.urlsplit(reg_client._REGISTER_ENDPOINT)
+    assert path == (endpoint.path or "/")
+    sent = {name.lower(): value for name, value in headers}
+    assert sent == {
+        # set by mcp-audit
+        "content-type": "application/json",
+        "user-agent": f"mcp-audit/{__version__}",
+        # added by Python's HTTP library
+        "host": endpoint.netloc,
+        "content-length": str(len(body)),
+        "connection": "close",
+        "accept-encoding": "identity",
+    }
+    assert set(json.loads(body)) == set(RegistrationPostPayload.model_fields)
+
+    text = _PRIVACY_DOC.read_text(encoding="utf-8")
+    for named in (
+        "`Content-Type: application/json`",
+        "`User-Agent: mcp-audit/<version>`",
+        "`Host`",
+        "`Content-Length`",
+        "`Connection: close`",
+        "`Accept-Encoding: identity`",
+    ):
+        assert named in text, f"docs/privacy.md does not name {named}"
+
+
+def test_register_flow_posts_placeholder_grade(tmp_config_dir: Path) -> None:
+    """The doc says the initial POST's grade is always "?": no scan runs first."""
+    from typer.testing import CliRunner
+
+    from mcp_audit.cli import app
+
+    with (
+        patch.object(reg_manager, "_DEFAULT_CONFIG_DIR", tmp_config_dir),
+        patch.object(reg_client, "post_registration", return_value=True) as post,
+    ):
+        result = CliRunner().invoke(
+            app, ["register"], input="Sarah\nACME\nsarah@acme.com\nn\n"
+        )
+
+    assert result.exit_code == 0, result.output
+    post.assert_called_once()
+    assert post.call_args.kwargs["grade"] == "?"
+    assert '| `grade` | `"?"` |' in _PRIVACY_DOC.read_text(encoding="utf-8")

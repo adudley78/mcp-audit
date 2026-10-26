@@ -2,10 +2,10 @@
 # Fires whenever a JSON file is staged; fails the commit if any HIGH or
 # CRITICAL findings are detected in your MCP server configurations.
 #
-# Replace `rev` with the latest release tag from:
-# https://github.com/adudley78/mcp-audit/releases
+# `rev` is pinned to the current release and updated by each release PR.
+# Later releases: https://github.com/adudley78/mcp-audit/releases
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.1.0  # Replace with the latest release tag
+    rev: v0.21.1  # current release; `pre-commit autoupdate` moves it forward
     hooks:
       - id: mcp-audit

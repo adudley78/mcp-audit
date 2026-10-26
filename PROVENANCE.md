@@ -115,16 +115,21 @@ binding) were added in v0.12.0 based on the following published research.
 
 **Research sources:**
 
-- **arXiv 2605.22333** — "Security Analysis of Remote MCP Server Deployments"
-  (2026). Largest published measurement study of live remote MCP servers:
-  scanned 7,973 servers and found 40.55% require no authentication. Also
+- **arXiv 2605.22333** — Zhou et al., "A First Measurement Study on
+  Authentication Security in Real-World Remote MCP Servers" (May 2026,
+  <https://arxiv.org/abs/2605.22333>). Measurement study of live remote MCP
+  servers: identified 7,973 servers and found 40.55% expose tools without
+  authentication. Also
   evaluated 119 OAuth-enabled MCP servers and found every one had at least one
   flaw (325 total); dynamic-client-registration (DCR) vulnerabilities affected
   96.6% of the OAuth-enabled sample. Both AUTH-001 and AUTH-002 cite this study
   directly in their finding descriptions.
-- **Censys** — Internet-scanning report (June 2026) counting 12,520
-  internet-exposed MCP services, the majority unauthenticated. Cited in the
-  AUTH-001 description to quantify internet exposure.
+- **Censys** — "MCP Servers on the Internet" (published May 27, 2026; data
+  as of April 28, 2026; <https://censys.com/blog/mcp-servers-on-the-internet/>).
+  Counted 12,520 internet-accessible MCP services across 8,758 IP addresses.
+  The post gives no unauthenticated percentage: it says the protocol does not
+  enforce authentication and that many deployments operate without it. Cited
+  in the AUTH-001 description to quantify internet exposure.
 - **RFC 8707** — "Resource Indicators for OAuth 2.0" (IETF, 2020). Defines the
   `resource` parameter and audience binding requirements that AUTH-002 checks
   for. The missing-audience attack (token cross-resource replay) is documented

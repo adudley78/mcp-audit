@@ -25,7 +25,7 @@ sudo mv mcp-audit /usr/local/bin/
 **From PyPI (Python 3.11+ required):**
 
 ```bash
-pip install mcp-audit
+pip install mcp-audit-scanner
 ```
 
 **From source (for contributors):**
@@ -322,27 +322,25 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/mcp-audit@v0.3.3
+      - uses: adudley78/mcp-audit@v0.21.1
         with:
-          severity-threshold: HIGH
-          output-file: mcp-audit.sarif
+          version: v0.21.1
+          severity-threshold: high
+          sarif-output: mcp-audit.sarif
 ```
 
-**With SAST analysis:**
+**With SAST analysis** (the action installs Semgrep itself, with `pipx`, when `run-sast` is `'true'`):
 
 ```yaml
-      - uses: actions/setup-python@v5
+      - uses: adudley78/mcp-audit@v0.21.1
         with:
-          python-version: '3.11'
-      - run: pip install semgrep
-      - uses: adudley78/mcp-audit@v0.3.3
-        with:
-          sast: 'true'
+          version: v0.21.1
+          run-sast: 'true'
           sast-path: './src'
-          output-file: mcp-audit.sarif
+          sarif-output: mcp-audit.sarif
 ```
 
-**Exit code behavior:** Finding MCP security issues exits with code `1`. The action is wired so that exit code `1` does *not* fail your CI job — only exit code `2` (a tool error) fails the build. This lets you upload SARIF and track findings without blocking merges.
+**Exit code behavior:** a finding at or above `severity-threshold` makes the scan exit `1`, and with the default `fail-on-findings: 'true'` that fails the step. Set `fail-on-findings: 'false'` to upload SARIF and track findings without blocking merges. Exit code `2` (a tool error) always fails the step. See [github-action.md](github-action.md#inputs) for every input.
 
 ---
 
@@ -409,7 +407,7 @@ Add mcp-audit to your pre-commit pipeline to catch MCP config issues before they
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.1.0
+    rev: v0.21.1
     hooks:
       - id: mcp-audit
 ```

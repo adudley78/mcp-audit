@@ -146,6 +146,27 @@ def test_unmapped_array_empty() -> None:
     assert mapping["unmapped"] == [], f"'unmapped' is not empty: {mapping['unmapped']}"
 
 
+def test_coverage_notes_carry_no_hand_typed_count() -> None:
+    """coverage_notes said "All 103 static finding IDs" while mappings held 127.
+
+    Completeness is what validate_owasp_mapping.py checks in CI; a count typed
+    into prose goes stale with the next finding ID (STORY-0102). Any number
+    stated next to "finding IDs" or "patterns" must equal the real one.
+    """
+    mapping = _load_mapping()
+    notes = mapping.get("coverage_notes", "")
+    real = {
+        "static": len(mapping["mappings"]),
+        "dynamic": len(mapping["dynamic_patterns"]),
+    }
+    for number, kind in re.findall(r"\b(\d+)\s+(static|dynamic)\b", notes):
+        assert int(number) == real[kind], (
+            f"coverage_notes says {number} {kind} but the file has {real[kind]}; "
+            "drop the number rather than retyping it"
+        )
+    assert "Most recently added" not in notes
+
+
 def test_all_finding_ids_mapped() -> None:
     """Every static finding ID found in src/ must have an entry in mappings."""
     mapping = _load_mapping()

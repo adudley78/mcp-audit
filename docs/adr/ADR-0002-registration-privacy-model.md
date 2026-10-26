@@ -70,3 +70,17 @@ STORY-0046 adds an opt-in registration flow.  Three questions arose during desig
 - `tests/test_registration.py` enforces the privacy invariants (ping payload contains no PII, HTTP URLs rejected) as automated regression guards.
 - The dual-payload design (`RegistrationPostPayload` vs. `RegistrationPingPayload`) is a permanent constraint — any future change that merges them or adds PII to the ping payload requires a new ADR and a `docs/privacy.md` update.
 - The endpoint infrastructure (domain, TLS cert, Worker code, KV store) is Adam's responsibility and is out of scope for the mcp-audit codebase.
+
+---
+
+## Superseded in practice (2026-10-25, STORY-0102)
+
+This record is kept as written. Decision 3's endpoint was never used: the
+shipped code posts to `https://eo4jvaanlkuohuc.m.pipedream.net`, a Pipedream
+webhook (`_REGISTER_ENDPOINT` in `src/mcp_audit/registration/client.py`, whose
+comment says it routes to an email notification and a Google Sheets log and
+that the constant moves to `register.mcp-audit.dev` "when that domain is
+live"). `docs/privacy.md` names the address the code uses, and
+`tests/test_registration.py` fails if the two disagree. The rest of this ADR
+(opt-in only, PII in the first POST only, 5-second timeout, silent failure)
+still describes the code.
