@@ -70,7 +70,7 @@ For reference, the existing MCP security tools we studied during design (but did
 
 ### Supply chain (analyzers/supply_chain.py)
 
-The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 83 known-legitimate MCP servers.  It also emits `SC-004` (HIGH) when an exact-match registry entry carries `known_vulnerabilities` CVE IDs — an offline advisory check requiring no network access.
+The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 83 known-legitimate MCP servers.  It also emits `SC-004` (HIGH) when an exact-match registry entry carries `known_vulnerabilities` CVE IDs — an offline advisory check requiring no network access — `SC-007` for an unscoped twin of a registry entry, and `SC-008` for an exact-name OSV `MAL-*` record (STORY-0097, below).
 
 **Research sources:**
 
@@ -78,6 +78,16 @@ The supply chain analyzer detects typosquatted npm package names by computing Le
 - **WorkOS** — Analysis of MCP supply chain risks via runtime package fetching (npx/uvx). ([Blog post](https://workos.com/blog/mcp-supply-chain-security))
 - **OWASP Agentic Skills Top 10** — Documents real-world supply chain attacks on agent tool registries, including the ClawHub registry poisoning incident.
 - **NVD / GitHub Security Advisories** — Source for all `known_vulnerabilities` CVE entries in `registry/known-servers.json`. Each entry was confirmed against the official NVD record or GitHub GHSA before seeding. CVEs confirmed and seeded for v0.12.0: CVE-2026-23744 (`@mcpjam/inspector`), CVE-2026-0755 (`gemini-mcp-tool`), CVE-2025-59528 (`flowise`), CVE-2026-26118 (`@azure/mcp`), CVE-2026-33032 (`nginx-ui`). CVE-2026-32211 was not seeded — NVD CPE is `azure_web_apps` (hosted service; no pinnable package version).
+
+**SC-007 unscoped twins and SC-008 known-malicious packages (STORY-0097, 2026-10-25):**
+
+- **o3.security, "mcp-server-github" malware analysis** ([o3.security](https://o3.security/malware/npm/mcp-server-github)) and the OSV record it summarises, **MAL-2026-5479 / GHSA-95pj-hrh5-27gq** ([OSV](https://osv.dev/vulnerability/MAL-2026-5479), [GitHub](https://github.com/advisories/GHSA-95pj-hrh5-27gq)) — an unscoped npm name intercepting installs meant for `@modelcontextprotocol/server-github`, with an install-time beacon. The basis for SC-007: edit distance cannot see a scope difference.
+- **OSV MAL-2026-5476 to MAL-2026-5485 and MAL-2025-46986** (read from OSV's npm bulk export on 2026-10-25) — the full family of unscoped twins (`mcp-server-fetch`, `-figma`, `-git`, `-github`, `-notion`, `-postgres`, `-redis`, `-sentry`, `-sequential-thinking`, `-supabase`, `-everything`). The SC-007 naming rules (name part of `server-<x>`/`mcp-server-<x>`, the `mcp-server-<x>` spelling of `server-<x>`/`<x>-mcp-server`, and the same `mcp-server-<x>` name across npm and PyPI) are the shapes this family and the registry's own entries show; each rule was then measured against live npm and PyPI on 2026-10-25 (`docs/supply-chain.md`). Rules not seen in the data (e.g. `mcp-server-<x>` → `server-<x>`, every name was absent on npm) were not adopted.
+- **`registry-audit-2026-08-18.md` §3a and §3b** (this repository) — three of the same npm packages named `theinfosecguy/npx-canary` as their repository (the source of the note attached to MAL-2026-5476..5485, which states only that and the shared beacon host), and one account's `0.0.1` stubs under vendor names (three of which are SC-007 twins today).
+- **Panguard, "npm MCP security findings"** ([panguard.ai](https://panguard.ai/blog/npm-mcp-security-findings)) — SANDWORM_MODE, a 19-package typosquat cluster of MCP-adjacent npm packages harvesting SSH keys at install; context for exact-name matching of known-bad names.
+- **OpenSSF malicious-packages** ([GitHub](https://github.com/ossf/malicious-packages)) via **OSV's data dumps** ([OSV docs](https://google.github.io/osv.dev/data/): per-ecosystem `all.zip` in `gs://osv-vulnerabilities`, "including withdrawn records") — the source of `registry/known-malicious.json`. `scripts/sync_registry_advisories.py` keeps non-withdrawn `MAL-*` records whose package name contains `mcp` or that the registry lists.
+- **OSV schema, "Evaluation"** ([ossf.github.io/osv-schema](https://ossf.github.io/osv-schema/)) — the range semantics `registry/malicious.py` implements (`introduced` / `fixed` / `last_affected` walked in version order, plus the explicit `versions` list). The one deliberate deviation (a blanket all-versions range is ignored for a registry-listed package when the record also lists explicit versions) is documented in that module and in `docs/supply-chain.md`, with `MAL-2025-191195` (`@browserbasehq/mcp`) as the measured case.
+- **PEP 503** ([peps.python.org](https://peps.python.org/pep-0503/)) — the name folding SC-007 applies to both ecosystems' names before comparing.
 
 ### Rug-pull detection (analyzers/rug_pull.py)
 
@@ -719,6 +729,43 @@ in `docs/permission-rules.md`:
 - **`installed_plugins.json` shape** — anthropics/claude-code issues #45997 and #17032,
   which quote the `{"version": 2, "plugins": {"<id>": [records]}}` structure.
 - Original implementation; no code was copied.
+
+## Claude Code subagent definitions (AGENT-001..004, agent_files/subagents.py — STORY-0094)
+
+- **Claude Code sub-agents documentation** — https://code.claude.com/docs/en/sub-agents
+  (read 2026-10-25): where definitions live (`.claude/agents/`, `~/.claude/agents/`,
+  both recursive; plugin `agents/` ignore `permissionMode`, `hooks`, `mcpServers`), the
+  frontmatter fields, the `permissionMode` inheritance rules and "The `bypassPermissions`
+  exception requires Claude Code v2.1.267 or later" (AGENT-001), "An entry with a
+  specifier, such as `Bash(git push *)`, still removes the whole tool" (AGENT-002),
+  "Before v2.1.218, frontmatter hooks could run from folders you hadn't trusted"
+  (AGENT-003), the `mcpServers` list schema ("Inline definitions use the same schema as
+  `.mcp.json` server entries") and its trust note (AGENT-004).
+- **Claude Code permissions documentation** — https://code.claude.com/docs/en/permissions
+  (read 2026-10-25): `dontAsk` "Auto-denies every call that would otherwise prompt" (why it
+  does not fire AGENT-001); the "What runs before you trust a folder" table (subagent
+  frontmatter hooks and inline `mcpServers` from the repository are not used until the
+  folder is trusted); and server names with `__` or a trailing `_`, which `mcp__<server>`
+  rules read as a different server (AGENT-004 LOW).
+- **Claude Code CHANGELOG** — https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md
+  (read 2026-10-25, head 2.1.310): 2.1.153 "Fixed subagent (Agent tool) frontmatter MCP
+  servers ignoring `--strict-mcp-config`, `--bare` … and managed-settings MCP server
+  allow/deny policies"; 2.1.218 "Fixed agent frontmatter hooks running from untrusted
+  folders"; 2.1.238 "inline MCP servers in project or `--add-dir` agent files, now require
+  that folder's trust dialog"; 2.1.69 skill descriptions with colons loading. The 2.1.267
+  subagent bypass change has no CHANGELOG line; the sub-agents doc is the source for it.
+- **How Claude Code 2.1.310 loads an agent file**, from the independent reviewer's
+  behavioural notes on PR #184 (a description of the shipped loader, not code): files
+  over 1 MiB are skipped; a leading BOM is stripped; the frontmatter is the text between
+  the first `---` and the next `---` anywhere after it; on a YAML error, one-line
+  `key: value` lines whose value holds a YAML indicator character or `: ` are quoted,
+  leading tabs become spaces, and the whole block is parsed again; each `mcpServers` item
+  must be a one-key mapping (or a string naming another server) and every item is
+  started. `agent_files/subagents.py` reimplements that behaviour in Python with PyYAML.
+- **EPIC-0007 research scan**, A12 "Subagent definitions as a first-class config surface"
+  and harness-permissions notes Q6 (Marcus, 2026-10-25), which also record that the
+  `--strict-mcp-config` gap applies to `--agents`/SDK definitions, not agent files.
+- Original implementation; no code was copied. Test fixtures were written for this repo.
 
 
 ## SAST: SSRF guards that only block IP literals (STORY-0081)

@@ -88,7 +88,7 @@ src/mcp_audit/
 │   ├── poisoning.py    # Tool description poisoning detection (regex-based); PATTERNS list reused by agent_files; also owns POISON-041/042 concealment-channel extract/decode/rescan (scan_concealed_channels, build_concealment_finding), shared with agent_files
 │   ├── credentials.py  # Secret/API key exposure in configs (SECRET_PATTERNS)
 │   ├── transport.py    # Transport security (TLS, localhost binding, etc.)
-│   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed)
+│   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed); SC-007 unscoped twins (takes precedence over SC-001..003) and SC-008 OSV MAL-* exact-name matches (STORY-0097); redact_command() for evidence
 │   ├── config_hygiene.py # Config-file filesystem hygiene (CFHYG-001..007; CFHYG-007 = project settings `env` redirecting API traffic, STORY-0090); hook-command checks HOOK-001/002 and harness posture HARNESS-001..007 (STORY-0079, STORY-0087, STORY-0090) via analyze_config; repo-planted auto-run files TRUST-003 (VS Code) and TRUST-008 (Gemini CLI, Codex, Claude Code scheduled tasks/workflows, STORY-0090) via analyze_autoexec_file
 │   ├── rug_pull.py     # Config-entry change detection via hashing (command, args, env key names, raw entry; not live tool definitions)
 │   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection
@@ -101,7 +101,8 @@ src/mcp_audit/
 │   ├── __init__.py    # Package marker; offline-only invariant docs
 │   ├── models.py      # AgentFile dataclass, AgentFileSurface StrEnum
 │   ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions)
-│   └── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked), plus scan_concealed_channels/build_concealment_finding for POISON-041/042. NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+│   ├── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked), plus scan_concealed_channels/build_concealment_finding for POISON-041/042. NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+│   └── subagents.py   # Claude Code subagent definitions (STORY-0094): frontmatter read the way Claude Code's loader reads it (1 MiB file cap, split at the first `---` anywhere, quote-and-retry on a YAML error) plus the `---`-line reading, findings from both; repeated/unreadable security keys are findings; node/nesting/alias budgets; agent_mcp_servers() (one server per item, repeats `name#2`), analyze_agent_definition() AGENT-001..004; files join default discovery as client "claude-code-agent" (discover_configs(include_agents=True); never with --path; lock opts out; auto-verify skips them and lists project ones under a lock root in `lock_status.not_covered`; rug-pull state key excludes), step 0 via ConfigHygieneAnalyzer.analyze_agent_definition (+HOOK-001/002)
 ├── plugins/           # Claude Code plugin inventory + integrity (PLUGIN-001/002); offline, reads ~/.claude/plugins records only
 │   ├── models.py      # InstalledPlugin dataclass; GIT_SOURCE_TYPES; pinned_sha / source_type
 │   ├── discovery.py   # discover_installed_plugins(), plugin_agent_files(), plugin_mcp_config_paths(); plugin MCP servers join default auto-discovery (discover_configs(include_plugins=True) is the default; never with an explicit --path; lock opts out; excluded from the rug-pull state key) as client "claude-code-plugin"
@@ -134,7 +135,9 @@ src/mcp_audit/
 │   └── manager.py     # BaselineManager, Baseline, BaselineServer, DriftFinding, DriftType; save/load/compare
 ├── registry/
 │   ├── __init__.py    # Package marker
-│   └── loader.py      # KnownServerRegistry, RegistryEntry, load_registry(); Levenshtein helper
+│   ├── loader.py      # KnownServerRegistry, RegistryEntry, load_registry(); Levenshtein helper
+│   ├── twins.py       # TwinIndex: unscoped-twin keys derived from registry entries (SC-007, STORY-0097); pure, no I/O
+│   └── malicious.py   # load_known_malicious(), assess(): registry/known-malicious.json (OSV MAL-*) for SC-008 and vet; tolerant loader with size/entry caps, load_error surfaced in ScanResult.errors
 ├── rules/
 │   ├── __init__.py    # Package marker
 │   └── engine.py      # PolicyRule, RuleMatch, MatchCondition, RuleEngine; load_rules_from_file/dir; load_bundled_community_rules
@@ -223,6 +226,7 @@ Standalone rule pack at repo root:
 
 Data files at project root:
 - `registry/known-servers.json` — curated dataset of 55 known-legitimate MCP servers; queried by the supply chain analyzer for typosquatting detection and by the toxic flow analyzer for authoritative capability tags (`RegistryEntry.capabilities`); ships in both the pip wheel and PyInstaller binary
+- `registry/known-malicious.json` — mirror of OSV `MAL-*` records for npm/PyPI packages whose name contains `mcp` or that the registry lists (STORY-0097); written only by `scripts/sync_registry_advisories.py --write` (bulk export; a mirror, so withdrawn records are removed); matched offline by exact name for SC-008 and `vet`; ships in the wheel and all four specs; `update-registry` does not refresh it. Kept out of `known-servers.json` so the registry schema is unchanged
 - `rules/community/` — 37 bundled community rules total: 36 real detection rules (`COMM-001` through `COMM-034`; `COMM-032` is intentionally reserved/unissued — see `PROVENANCE.md`) plus `STDIO-001`/`STDIO-002a`/`STDIO-002b` (launch-command trust boundary, STORY-0067; `STDIO-001` ships `enabled: false` — see `GAPS.md`) plus `TEMPLATE.yml` itself, which loads as the always-inert `COMM-000` (contribution template — `tests/test_rules.py` guarantees it never fires on a real config); `BOUNTY.md` (bounty program terms) ships alongside but is not a rule file. All ship in both pip wheel and PyInstaller binary and are available to every user with no gating — but "available to" is not "runs for": 35 of the 36 real rules run by default, and `STDIO-001` does not run for anyone (`enabled: false`, no governance-policy toggle exists to turn it on — see `GAPS.md`); see `docs/writing-rules.md` and `docs/contributing-rules.md`
 
 GitHub Action at project root:
@@ -471,6 +475,13 @@ Measurement scripts (dev tooling, not in the package):
   `agent_files/`, because they inspect the parsed `hooks` section of a Claude config
   file; they are distinct IDs from CFHYG-005 (which fires on mere presence of a
   `hooks` section) and the conditions do not overlap.
+  **Subagent definitions** (`.claude/agents/**/*.md`, STORY-0094) are the exception
+  to "not part of the pipeline": their frontmatter is a config surface, so the files
+  are `DiscoveredConfig`s (client `claude-code-agent`), `parse_config()` reads their
+  inline `mcpServers`, and AGENT-001..004 + HOOK-001/002 run at step 0 in the default
+  `scan`/`check` and `scan --project` (`discover_project_agent_configs`, kept out of
+  `discover_project_configs` so `lock` never sees them). Only their body text follows
+  the skills opt-in (`--include-agent-files`, which passes `include_definitions=False`).
 
 ## Critical implementation details
 
@@ -705,8 +716,8 @@ What's built:
 - Live MCP server connection via --connect (optional, MCP SDK)
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
-- Demo environment producing 68 findings on a first scan of all demo configs (60 once rug-pull state exists; counted 2026-10-13 for v0.20.0 and unchanged in v0.21.0, after the registry gained each package's advisory history) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 4626 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- Demo environment producing 70 findings on a first scan of all demo configs (62 once rug-pull state exists; counted 2026-10-26 for STORY-0097, which added SC-007 + SC-008 on the demo's `npx -y mcp-server-postgres` — OSV MAL-2026-5481 since June 2026; it was 68/60 from v0.20.0 to v0.21.1) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
+- 5087 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 28 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
@@ -893,4 +904,4 @@ import os
 root = os.path.dirname(os.path.abspath(SPECPATH))
 ```
 
-All four specs include identical `datas` (5 entries: `mcp_audit/data`, both registry JSONs, `rules/community/`, `semgrep-rules/`) and the same full `hiddenimports` list. The only difference between specs is the `name=` field in the `EXE` block.
+All four specs include identical `datas` (7 entries: `mcp_audit/data`, the three registry JSONs — `known-servers.json`, `known-extension-vulns.json`, `known-malicious.json` — `rules/community/`, `semgrep-rules/`, and the vendored OSV schema; `tests/test_pyinstaller_specs.py` pins the registry files) and the same full `hiddenimports` list. The only difference between specs is the `name=` field in the `EXE` block.

@@ -376,6 +376,14 @@ def _run_static_pipeline(
 
     # ── 7. Registry metadata ──────────────────────────────────────────────────
     result.registry_stats = _extract_registry_stats(analyzers)
+    # A known-malicious file that could not be read leaves SC-008 blind; say
+    # so instead of passing silently (STORY-0097).
+    for analyzer in analyzers:
+        if isinstance(analyzer, SupplyChainAnalyzer):
+            load_error = analyzer.malicious.load_error
+            if load_error:
+                result.errors.append(f"known-malicious data: {load_error}")
+            break
 
     return result
 
@@ -454,12 +462,24 @@ def _discover_and_parse(
     auto-run files at the working directory's root are checked too (TRUST-003,
     TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), and are scored
     like the rest.
+
+    Without *extra_paths*, Claude Code subagent definitions
+    (``~/.claude/agents/``, ``<cwd>/.claude/agents/``) are discovered too, as
+    client ``claude-code-agent`` (STORY-0094): their inline servers join
+    ``result.servers`` and their frontmatter is checked at pipeline step 0
+    (AGENT-001..004, HOOK-001/002). TRUST-002/004/005 for symlinks under the
+    agents directories and any partly-unreadable frontmatter (``errors``) are
+    recorded here.
     """
+    discovery_findings: list[Finding] = []
     configs = discover_configs(
         extra_paths=extra_paths,
         skip_auto_discovery=bool(extra_paths),
         include_plugins=include_plugins,
+        skip_findings=discovery_findings,
+        errors=result.errors,
     )
+    result.findings.extend(discovery_findings)
     result.clients_scanned = len({c.client_name for c in configs})
 
     if include_plugins and not extra_paths:
@@ -497,6 +517,7 @@ def _discover_and_parse(
             all_servers.extend(servers)
         except ValueError as e:
             result.errors.append(str(e))
+        result.errors.extend(config.parse_warnings)
 
     result.servers_found = len(all_servers)
     result.servers = all_servers

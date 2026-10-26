@@ -41,6 +41,8 @@ instruction file you load into your agent on every session.  Published attacks
 | Workspace instructions | GitHub Copilot | `.github/copilot-instructions.md` |
 | Scoped instructions | GitHub Copilot | `.github/instructions/*.instructions.md` |
 | Prompt templates | GitHub Copilot | `.github/prompts/*.prompt.md` |
+| User subagents | Claude Code | `~/.claude/agents/**/*.md` (files with frontmatter) |
+| Project subagents | Claude Code | `.claude/agents/**/*.md` (project, files with frontmatter) |
 
 Hook analysis covers `~/.claude.json`, `.claude/settings.json`, and
 `.claude/settings.local.json` (all Claude Code config files that can contain
@@ -173,6 +175,95 @@ The same files are also linted for rules that don't do what they say
 boundary without the sandbox, `mcp__` allow rules on flagged servers); see
 [permission-rules.md](permission-rules.md).
 
+### AGENT-001..004: subagent definitions as a config surface (STORY-0094)
+
+A Claude Code subagent definition is a Markdown file under `.claude/agents/`
+(project) or `~/.claude/agents/` (user), read recursively, whose YAML
+frontmatter changes what the subagent may do. Semantics come from
+[Anthropic's sub-agents doc](https://code.claude.com/docs/en/sub-agents), the
+[permissions doc](https://code.claude.com/docs/en/permissions) and the Claude
+Code CHANGELOG, read 2026-10-25.
+
+| ID | Severity | Fires when |
+|---|---|---|
+| AGENT-001 | MEDIUM (project) / LOW (user) | `permissionMode: bypassPermissions`. Since Claude Code 2.1.267 a subagent runs in bypass mode only when your main session already does; before that it skipped every prompt even from a default-mode session (HIGH). |
+| AGENT-001 | MEDIUM | `permissionMode: acceptEdits` or `auto` in a **project** subagent: from a default or dontAsk session, Claude Code runs that subagent with fewer prompts than you chose. |
+| AGENT-002 | INFO | `disallowedTools` has an entry with a `(…)` specifier such as `Bash(git push *)`, which removes the whole tool, not only the matching calls. Put the specifier in `permissions.deny` instead. |
+| AGENT-003 | MEDIUM (project) / INFO (user) | Frontmatter `hooks:`. Since 2.1.218 a project subagent's hooks run only once the folder holding the file is trusted (HIGH before, when they ran from untrusted folders). Each hook command also goes through HOOK-001/002. |
+| AGENT-004 | INFO / LOW / MEDIUM | One per inline `mcpServers` item (a repeated name is kept as `fs`, `fs#2`…, since Claude Code starts every item). LOW when the server name contains `__` or ends in `_`, which `mcp__<server>` permission rules read as a different server. MEDIUM for a project subagent's server when the repository has an `mcp-lock.json`: the lock does not cover it. |
+
+The same IDs also report two things about the frontmatter itself, at the
+severity the key would get in that scope (`permissionMode` → AGENT-001,
+`tools`/`disallowedTools` → AGENT-002, `hooks` → AGENT-003, `mcpServers` →
+AGENT-004): a security key that appears more than once ("Subagent frontmatter
+repeats '…'"; every value is checked), and a security key that is present but
+unreadable by mcp-audit ("Claude Code may load it").
+
+**Not flagged:** `permissionMode: dontAsk` auto-denies anything that would
+prompt, so it is stricter than `default` despite its name; `plan`, `default`
+and `manual` loosen nothing; `acceptEdits`/`auto` in your own
+`~/.claude/agents/` file is the documented feature working as you set it.
+
+**Where these run.** Subagent definitions are part of default discovery, like
+Claude Code plugins: a plain `mcp-audit scan` or `mcp-audit check` reads
+`~/.claude/agents/` and the current directory's `.claude/agents/`, and
+`scan --project <dir>` walks every `.claude/agents/` under `<dir>`.
+AGENT-001..004 and HOOK-001/002 come from that discovery, so the GitHub
+Action's default run sees them with no new input. An explicit `--path` scans
+only what it names. The **body** of each definition (the subagent's system
+prompt) gets the same rules as commands and skills (SKILL-001/002/003,
+POISON-041/042), without the SKILL-002 length check, wherever skills are
+scanned: `scan --include-agent-files` and `mcp-audit agent-files scan`.
+
+**Inline servers are servers.** Each inline `mcpServers` entry joins
+discovery as client `claude-code-agent`, so it gets every per-server check,
+appears in `mcp-audit shadow`, `discover`, the attack graph and `killchain`,
+and gets TRUST-001 under `scan --project`. Like plugin servers they are never
+written to `mcp-lock.json` and never verified against it, and agent files do
+not change the rug-pull state key, so an existing lock keeps verifying. A
+project subagent server under a lock root is listed in `lock_status.not_covered`,
+`scan` and `check` print a `WARN` line for it, and its AGENT-004 is MEDIUM.
+String entries (`- github`) name a server configured elsewhere and add nothing;
+a mapping item with more than one key is ignored, as Claude Code ignores it.
+
+**Version notes.** mcp-audit never runs Claude Code, so it cannot see which
+version you have. Each version-dependent finding uses the severity that holds
+on current Claude Code and says what changes on older versions. The boundaries
+quoted: 2.1.267 (subagent `bypassPermissions` no longer escalates), 2.1.218
+(frontmatter hooks need folder trust), 2.1.153 (inline servers honour
+`--strict-mcp-config`, `--bare` and managed MCP policy), 2.1.238 (a project
+agent file's inline servers need folder trust).
+
+**Parsing.** The frontmatter is read the way Claude Code 2.1.310's loader reads
+it: files over 1 MiB are skipped (as Claude Code skips them, and the scan's
+`errors` say so); a BOM is dropped; the frontmatter runs from the opening `---`
+to the **first** `---` anywhere after it, even mid-line, so `# ---` or `----`
+ends it. If the YAML does not parse, one-line `key: value` entries whose value
+holds YAML syntax characters or `: ` are quoted, leading tabs become two
+spaces, and the whole block is parsed again. Claude Code's retry pattern does not
+match a line that ends in `\r`, so mcp-audit also retries a file with Windows
+(CRLF) line endings using LF endings, as a Mac or Linux checkout of the same
+file would be read. mcp-audit also reads the block up
+to the first line that is exactly `---` and keeps the findings of both
+readings, so a value placed after a mid-line `---` is still checked. YAML 1.2
+scalars stay strings (`=`, dates). Aliases are resolved under a 100,000-value
+budget; more than 20,000 YAML nodes, nesting deeper than 256 levels, or YAML
+that still does not parse makes the frontmatter unreadable, and every security
+key it names becomes a "present but unreadable" finding. A scan reads at most
+500 definitions and 16 MiB per discovery pass in full and says so in `errors`;
+Claude Code has no such limit, so the next 5,000 are pre-screened (first
+64 KiB) and every security key their frontmatter names is a "present but
+unreadable" finding with the reason "per-scan limit reached": HIGH for
+`permissionMode`, `hooks` and `mcpServers` in a project directory, where a
+repository could pad its agents directory to push a definition past the
+limit, and the key's usual severity in `~/.claude/agents/`. A frontmatter
+that runs past the 64 KiB window is reported for `permissionMode`, `hooks` and
+`mcpServers` whether or not they were seen. Past that, one
+AGENT-003 counts the definitions not read at all (HIGH in a project). A
+`.md` file without frontmatter (a README) is not a definition. Credential-shaped
+text in any finding (a token in a hook command or a `disallowedTools` entry)
+is replaced with `[REDACTED]`.
+
 ---
 
 ## Usage
@@ -218,6 +309,11 @@ mcp-audit scan --project /path/to/repo --include-agent-files
   legitimately reference external URLs will trigger SKILL-003.  Use the
   `--severity-threshold medium` flag to suppress if the FP rate is too high
   for your workflow.
+- **Subagents**: plugin `agents/` directories are not read (Claude Code
+  ignores `permissionMode`, `hooks` and `mcpServers` there); a default scan
+  reads only the current directory's `.claude/agents/`, not the ones between
+  it and the repository root (use `--project`); agents passed with `--agents`
+  or the SDK are not files and are not seen. See `GAPS.md`.
 - **SKILL-004** lists a skill's bundled `scripts/` filenames only — it never
   reads script contents and never executes them. A malicious script that a
   skill's prose merely *references* by name (without the file being present)

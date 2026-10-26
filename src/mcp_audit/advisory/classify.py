@@ -75,6 +75,10 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # Claude Code writes it when you approve a server, not a defect by itself
         "SANDBOX-004",  # sandbox keys Claude Code ignores in this file
         # (STORY-0093) — INFO dead-config note, not a vulnerability
+        "AGENT-002",  # disallowedTools specifier removes the whole tool — the
+        # subagent ends up with less access than intended, not more
+        "AGENT-004",  # inline subagent MCP server inventory (STORY-0094); the
+        # server's own findings carry any vulnerability
     }
 )
 
@@ -122,6 +126,9 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "TRANSPORT-003": "unpinned-dependency",
     "TRANSPORT-004": "network-exposure",
     "SC-004": "known-vulnerability",
+    # An OSV MAL-* record is a published advisory against the package
+    # (STORY-0097); SC-007 keeps the SC- prefix's "typosquat" class.
+    "SC-008": "known-vulnerability",
     "COMM-003": "sandbox-disabled",
     "COMM-010": "unpinned-dependency",
     "COMM-012": "network-exposure",
@@ -148,6 +155,8 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "MOD-003": "tool-poisoning",
     "MOD-006": "untrusted-config-origin",
     "SANDBOX-005": "config-hygiene",
+    "AGENT-001": "excessive-scope",
+    "AGENT-003": "hook-execution",
 }
 
 # Prefix → class, applied when no exact ID match exists. Longest prefix wins.
@@ -160,6 +169,7 @@ _CLASS_BY_PREFIX: Final[dict[str, str]] = {
     "HARNESS-": "excessive-scope",
     "PERM-": "excessive-scope",
     "SANDBOX-": "sandbox-disabled",
+    "AGENT-": "excessive-scope",
     "SC-": "typosquat",
     "CFHYG-": "config-hygiene",
     "TOXIC-": "toxic-flow",

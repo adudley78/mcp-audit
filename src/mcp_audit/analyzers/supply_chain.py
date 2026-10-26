@@ -5,16 +5,32 @@ are the dominant typosquatting technique for scoped npm packages, and the same
 technique applies to Python packages installed via uvx / pipx / pip.
 Ref: "Typosquatting in Package Managers" — Vu et al., NDSS 2021
   https://www.ndss-symposium.org/ndss-paper/detecting-node-js-package-name-squatting/
+
+STORY-0097 adds two checks edit distance cannot make:
+
+* ``SC-007`` (MEDIUM) — an unscoped twin: the configured name copies a known
+  package's name without its scope (``mcp-server-github`` for
+  ``@modelcontextprotocol/server-github``).  See :mod:`mcp_audit.registry.twins`.
+  It takes precedence over ``SC-001``..``SC-003`` for the same server: the
+  exact relationship explains the name better than whichever registry entry
+  happens to be a few edits away, so a server never gets both.
+* ``SC-008`` (CRITICAL / MEDIUM) — the exact package is an OSV ``MAL-*``
+  record in the bundled ``registry/known-malicious.json``.  See
+  :mod:`mcp_audit.registry.malicious`.  It answers a different question (what
+  OSV knows about this package, not what its name resembles), so it is
+  reported alongside any name finding rather than replacing it.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Literal
 
 from packaging.version import InvalidVersion, Version
 
 from mcp_audit.analyzers.base import BaseAnalyzer
+from mcp_audit.analyzers.credentials import SECRET_PATTERNS
 from mcp_audit.models import Finding, ServerConfig, Severity
 from mcp_audit.registry.loader import (
     KnownServerRegistry,
@@ -23,6 +39,13 @@ from mcp_audit.registry.loader import (
     load_registry,
     normalize_pypi_name,
 )
+from mcp_audit.registry.malicious import (
+    KnownMaliciousPackages,
+    MaliciousMatch,
+    assess,
+    load_known_malicious,
+)
+from mcp_audit.registry.twins import Twin, TwinIndex
 
 # Commands that download and execute npm packages at runtime.
 _NPX_LIKE: frozenset[str] = frozenset({"npx", "bunx", "pnpx"})
@@ -56,8 +79,79 @@ def _is_python_interpreter(command: str | None) -> bool:
     """
     if not command:
         return False
-    base = command.rsplit("/", 1)[-1].rsplit("\\", 1)[-1].lower()
-    return bool(_PY_INTERPRETER_RE.match(base))
+    return bool(_PY_INTERPRETER_RE.match(_launcher_basename(command)))
+
+
+# Windows launch wrappers that npm, uv and pip install next to the real binary.
+_LAUNCHER_SUFFIXES: tuple[str, ...] = (".cmd", ".exe", ".bat", ".ps1")
+# ``cmd /c <command> …`` (or ``/k``) runs the next argument as the command.
+_CMD_RUN_FLAGS: frozenset[str] = frozenset({"/c", "/k"})
+# Bound on nested ``cmd /c cmd /c …`` unwrapping.
+_MAX_CMD_UNWRAP = 3
+
+
+def _launcher_basename(command: str) -> str:
+    """Return a launcher's bare, lowercase name: path, case and Windows suffix removed.
+
+    ``/usr/local/bin/npx``, ``C:\\Program Files\\nodejs\\npx.cmd`` and
+    ``NPX.CMD`` all become ``npx``.  Both ``/`` and ``\\`` count as separators
+    whatever the host OS, because a config written on Windows is scanned on
+    Linux too.
+    """
+    base = command.strip().rsplit("/", 1)[-1].rsplit("\\", 1)[-1].lower()
+    for suffix in _LAUNCHER_SUFFIXES:
+        if base.endswith(suffix) and len(base) > len(suffix):
+            return base[: -len(suffix)]
+    return base
+
+
+def normalize_launch(
+    command: str | None, args: list[str] | None
+) -> tuple[str, list[str]]:
+    """Return ``(launcher, args)`` the way the OS will actually run the server.
+
+    The supply-chain checks gate on the launcher name (``npx``, ``uvx``,
+    ``python3`` …).  Before STORY-0097's review, only the bare spelling
+    matched, so ``/usr/local/bin/npx``, an nvm path, ``npx.cmd`` or
+    ``cmd /c npx -y <pkg>`` (the form Claude Desktop documents on Windows)
+    skipped every SC-00x check.  This one normaliser is shared by
+    :meth:`SupplyChainAnalyzer.analyze`, :func:`_pinned_version` and
+    :func:`extract_pypi_package`:
+
+    * the launcher is reduced by :func:`_launcher_basename`;
+    * ``cmd``/``cmd.exe`` followed by ``/c`` or ``/k`` (any case, after any
+      other ``/x`` switches such as ``/d /s``) is unwrapped so the next
+      argument is the launcher.  A single argument holding the whole command
+      line (``cmd /c "npx -y pkg"``) is split on whitespace.
+
+    Args:
+        command: The server's ``command``.
+        args: The server's ``args``.
+
+    Returns:
+        The normalised launcher name and the arguments that follow it.
+        Anything unrecognised comes back with only the basename rules applied.
+    """
+    launcher = _launcher_basename(command or "")
+    rest = list(args or [])
+    for _ in range(_MAX_CMD_UNWRAP):
+        if launcher != "cmd":
+            break
+        i = 0
+        while (
+            i < len(rest)
+            and rest[i].startswith("/")
+            and rest[i].lower() not in _CMD_RUN_FLAGS
+        ):
+            i += 1
+        if i >= len(rest) - 1 or rest[i].lower() not in _CMD_RUN_FLAGS:
+            break
+        target, rest = rest[i + 1], rest[i + 2 :]
+        if not rest and any(ch.isspace() for ch in target.strip()):
+            tokens = target.split()
+            target, rest = tokens[0], tokens[1:]
+        launcher = _launcher_basename(target)
+    return launcher, rest
 
 
 # uvx/pipx flags whose *next* token is a value rather than a package name.
@@ -162,6 +256,7 @@ def extract_pypi_package(command: str, args: list[str]) -> str | None:
     Returns:
         Normalised package name, or ``None`` if no package-like token is found.
     """
+    command, args = normalize_launch(command, args)
     if _is_python_interpreter(command):
         try:
             m_idx = args.index("-m")
@@ -241,8 +336,7 @@ def _pinned_version(server: ServerConfig) -> str | None:
     Returns:
         The pinned version string, or ``None`` when the version is not pinned.
     """
-    command = server.command or ""
-    args = list(server.args or [])
+    command, args = normalize_launch(server.command, server.args)
 
     if command == "yarn" and args[:1] == ["dlx"]:
         command, args = "npx", args[1:]
@@ -470,6 +564,303 @@ def _emit_known_cve_findings(
     ]
 
 
+_ECOSYSTEM_LABEL: dict[str, str] = {"npm": "npm", "pypi": "PyPI"}
+
+_REDACTED = "[REDACTED]"
+# An authority (userinfo@host:port) ends at the first of these after "://".
+_AUTHORITY_END = frozenset("/?#")
+# Longest launch command quoted in evidence; the rest is elided.
+_MAX_EVIDENCE_COMMAND = 300
+
+
+def _redact_userinfo(text: str) -> str:
+    """Replace the userinfo of every ``scheme://user:pass@host`` with ``[REDACTED]``.
+
+    The authority runs from ``://`` to the first ``/``, ``?`` or ``#``; the
+    userinfo is everything before the *last* ``@`` in it, so a password that
+    contains ``@`` or a space (``admin:p@ss w0rd@db``) is redacted whole.
+    Called once per argument, so a URL never spans two arguments.  A
+    hand-written scan rather than a regex: each character is visited a
+    bounded number of times, so it stays linear on any input.
+    SECRET_PATTERNS' database-URL rule does not cover ``postgresql://``, the
+    scheme ``@modelcontextprotocol/server-postgres`` documents.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while True:
+        j = text.find("://", i)
+        if j < 0:
+            out.append(text[i:])
+            return "".join(out)
+        k = j + 3
+        end = k
+        while end < n and text[end] not in _AUTHORITY_END:
+            end += 1
+        at = text.rfind("@", k, end)
+        out.append(text[i:k])
+        if at >= k:
+            out.append(_REDACTED)
+            i = at
+        else:
+            i = k
+
+
+def redact_command(command: str | None, args: list[str]) -> str:
+    """Return ``command args[:4]`` for evidence, with secrets redacted.
+
+    Launch arguments can carry credentials (a connection string, a token
+    flag).  Each argument has its URL userinfo replaced with ``[REDACTED]``
+    (:func:`_redact_userinfo`), then every SECRET_PATTERNS match in the
+    joined string is replaced too, and the result is capped at 300
+    characters (after redacting, so a cut can't expose a secret's prefix).
+
+    Args:
+        command: The server's ``command``.
+        args: The server's ``args``.
+
+    Returns:
+        A redacted, length-capped command string.
+    """
+    parts = [_redact_userinfo(command or "")]
+    parts.extend(_redact_userinfo(arg) for arg in args[:4])
+    text = " ".join(part for part in parts if part)
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        text = pattern.sub(_REDACTED, text)
+    if len(text) > _MAX_EVIDENCE_COMMAND:
+        text = text[:_MAX_EVIDENCE_COMMAND] + "…"
+    return text
+
+
+def build_twin_finding(
+    server: ServerConfig,
+    package: str,
+    ecosystem: Literal["npm", "pypi"],
+    twins: list[Twin],
+) -> Finding:
+    """Return the SC-007 finding for a configured unscoped twin.
+
+    Args:
+        server: The MCP server configuration that launches *package*.
+        package: The configured package name (no version suffix).
+        ecosystem: ``"npm"`` or ``"pypi"`` — where the launch installs from.
+        twins: Non-empty output of :meth:`TwinIndex.find`, best first.
+
+    Returns:
+        One SC-007 (MEDIUM) :class:`~mcp_audit.models.Finding`.
+
+    MEDIUM, not HIGH (coordinator decision, 2026-10-26): measured on
+    2026-10-25, 6 of the 21 twin names published on npm and 2 of the 5 on
+    PyPI were small live community packages, and SC-008 already reports the
+    OSV-listed malicious twins at CRITICAL.
+    """
+    primary, others = twins[0], twins[1:]
+    eco = _ECOSYSTEM_LABEL[ecosystem]
+    official = primary.entry
+    verified = "verified" if official.verified else "unverified"
+    kind = "scoped package" if official.name.startswith("@") else "PyPI package"
+    also = (
+        " It is also " + "; and ".join(t.explain() for t in others) + "."
+        if others
+        else ""
+    )
+    article = "an" if eco == "npm" else "a"
+    description = (
+        f"This unscoped name mirrors the {kind} {official.name!r}, which the "
+        f"mcp-audit registry lists (maintainer: {official.maintainer}, "
+        f"{verified}): {package!r} is {primary.explain()}, and it is not in the "
+        f"registry as {article} {eco} package.{also} Confirm the publisher. Some "
+        "names of this shape are squats that receive installs meant for the "
+        "original (in June 2026 OSV listed ten unscoped npm names like this as "
+        "malicious, among them mcp-server-github, MAL-2026-5479; SC-008 reports "
+        "any name OSV lists). Others are small community packages that took the "
+        "known package's name. Edit-distance checks miss this because the two "
+        "names differ by a scope or a naming convention, not by a few letters."
+    )
+    if primary.rule == "same-name":
+        fix = (
+            f"If you meant the PyPI package {official.name!r}, launch it with "
+            f"uvx (for example `uvx {official.name}`)."
+        )
+    elif primary.other_ecosystem:
+        fix = (
+            f"If you meant the npm package {official.name!r}, launch it with "
+            f"npx (for example `npx -y {official.name}`)."
+        )
+    else:
+        fix = f"If you meant {official.name!r}, change the launch command to use it."
+    others_note = (
+        " | also twin of: " + ", ".join(repr(t.entry.name) for t in others)
+        if others
+        else ""
+    )
+    return Finding(
+        id="SC-007",
+        severity=Severity.MEDIUM,
+        analyzer="supply_chain",
+        client=server.client,
+        server=server.name,
+        title=f"Unscoped twin of a known package: {package!r}",
+        description=description,
+        evidence=(
+            f"command: {redact_command(server.command, server.args)} | "
+            f"twin of: {official.name!r} (rule={primary.rule}, "
+            f"ecosystem={official.package_ecosystem}, "
+            f"maintainer={official.maintainer}, verified={official.verified})"
+            f"{others_note}"
+        ),
+        remediation=(
+            f"Confirm who publishes {package!r} on {eco} and where its source "
+            f"lives. {fix} If you intended the community package, allowlist it "
+            "in your governance policy (`approved_servers`, see "
+            "docs/governance.md) to record that choice; SC-007 still reports "
+            "the name."
+        ),
+        cwe="CWE-829",
+        owasp_mcp_top_10=["MCP04"],
+        finding_path=str(server.config_path),
+    )
+
+
+def _affected_phrase(match: MaliciousMatch) -> str:
+    """Describe which releases a match covers, in plain words."""
+    record = match.record
+    starts = [
+        dict(events).get("introduced")
+        for events in record.ranges
+        if not any(kind in ("fixed", "last_affected") for kind, _ in events)
+    ]
+    if match.latest_affected:
+        if "0" in starts or not starts or starts[0] is None:
+            return "every release"
+        return f"every release from {starts[0]} on"
+    if record.versions:
+        listed = ", ".join(record.versions[:6])
+        if len(record.versions) > 6:
+            listed += f" and {len(record.versions) - 6} more"
+        return f"release(s) {listed}"
+    return "some releases"
+
+
+def build_malicious_finding(
+    server: ServerConfig,
+    package: str,
+    ecosystem: Literal["npm", "pypi"],
+    matches: list[MaliciousMatch],
+    twins: list[Twin] | None = None,
+) -> Finding:
+    """Return the SC-008 finding for a package OSV lists as malicious.
+
+    Severity is CRITICAL when the launch installs a listed release: it pins
+    one, or OSV marks every release (or every release from some version on)
+    so an unpinned launch gets one.  It is MEDIUM when only past releases are
+    listed and the launch is unpinned: the registry normally removes a
+    malicious release, but npx and uvx can reuse a cached copy (the same
+    reasoning as SC-004's unpinned MEDIUM).
+
+    Args:
+        server: The MCP server configuration that launches *package*.
+        package: The configured package name (no version suffix).
+        ecosystem: ``"npm"`` or ``"pypi"``.
+        matches: Non-empty list of :func:`~mcp_audit.registry.malicious.assess`
+            results for this package.
+        twins: SC-007 twins of *package*, used only to name the package the
+            user probably meant.
+
+    Returns:
+        One SC-008 :class:`~mcp_audit.models.Finding`.
+    """
+    eco = _ECOSYSTEM_LABEL[ecosystem]
+    ids = [m.record.id for m in matches]
+    id_list = ", ".join(ids)
+    critical = any(m.affects_this_launch for m in matches)
+    pinned = matches[0].pinned
+    first = matches[0].record
+
+    if pinned is not None:
+        launch = f" The config pins version {pinned}, which the record covers."
+    elif critical:
+        latest = next(m for m in matches if m.latest_affected)
+        launch = (
+            f" OSV marks {_affected_phrase(latest)} as affected, so whatever an "
+            "unpinned launch installs is covered."
+        )
+    else:
+        launch = (
+            f" OSV lists {_affected_phrase(matches[0])}. The config does not pin a "
+            "version, so mcp-audit cannot tell offline which release this launch "
+            "installs. A registry normally removes a malicious release, but npx "
+            "and uvx can reuse a cached copy."
+        )
+    curated_note = ""
+    if any(m.blanket_range_ignored for m in matches):
+        curated_note = (
+            " The record also carries a range covering every version; mcp-audit's "
+            "registry lists this package as legitimate, so the record's explicit "
+            "version list is used instead."
+        )
+    notes = []
+    for m in matches:
+        if m.record.note and m.record.note not in notes:
+            notes.append(m.record.note)
+    note_text = "".join(f" Note: {n}" for n in notes)
+    aliases = sorted({a for m in matches for a in m.record.aliases})
+
+    description = (
+        f"OSV lists the {eco} package {package!r} as malicious ({id_list}"
+        + (f"; aliases {', '.join(aliases)}" if aliases else "")
+        + ")"
+        + (f": {first.summary!r}." if first.summary else ".")
+        + launch
+        + curated_note
+        + note_text
+    )
+    meant = ""
+    if twins:
+        meant = f" If you meant {twins[0].entry.name!r}, launch that instead."
+    if critical:
+        remediation = (
+            f"Remove this server from the config and do not install {package!r}."
+            f"{meant} If the package was installed or run on this machine, follow "
+            f"the advisory at {first.link}."
+        )
+        severity = Severity.CRITICAL
+    else:
+        remediation = (
+            f"Pin {package!r} to a release the record does not list, so the scan "
+            "can confirm it, and clear any cached copy of the listed releases "
+            f"(advisory: {first.link})."
+        )
+        severity = Severity.MEDIUM
+
+    evidence = f"package: {package} | ecosystem: {eco} | osv: {id_list}"
+    if aliases:
+        evidence += f" | aliases: {', '.join(aliases)}"
+    if pinned is not None:
+        evidence += f" | pinned: {pinned}"
+    return Finding(
+        id="SC-008",
+        severity=severity,
+        analyzer="supply_chain",
+        client=server.client,
+        server=server.name,
+        # The MEDIUM case is a package with malicious *past* releases (often a
+        # real package whose release was compromised), so it must not read as
+        # "this package is malware".
+        title=(
+            f"Known malicious package: {package} ({id_list})"
+            if critical
+            else f"Malicious releases listed in OSV: {package} ({id_list})"
+        ),
+        description=description,
+        evidence=evidence,
+        remediation=remediation,
+        cwe="CWE-506",
+        owasp_mcp_top_10=["MCP04"],
+        finding_path=str(server.config_path),
+    )
+
+
 def build_deprecated_package_finding(
     *,
     client: str,
@@ -546,6 +937,10 @@ class SupplyChainAnalyzer(BaseAnalyzer):
     Supported package managers:
     - npm ecosystem: ``npx``, ``bunx``, ``pnpx``, ``yarn dlx``
     - Python ecosystem: ``uvx``, ``pipx``, ``python -m``
+
+    Name findings, at most one per server: SC-004 for an exact registry
+    match with CVEs, else SC-007 for an unscoped twin, else SC-001..003 by
+    edit distance.  SC-008 (known malicious, OSV ``MAL-*``) is added on top.
     """
 
     def __init__(
@@ -553,6 +948,8 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         registry: KnownServerRegistry | None = None,
         registry_path: Path | None = None,
         offline_registry: bool = False,
+        malicious: KnownMaliciousPackages | None = None,
+        malicious_path: Path | None = None,
     ) -> None:
         """Initialise the analyzer with an optional pre-loaded registry.
 
@@ -565,16 +962,45 @@ class SupplyChainAnalyzer(BaseAnalyzer):
             offline_registry: When ``True``, skip the user-local cache and load
                 from the bundled registry only.  Ignored when *registry* or
                 *registry_path* is supplied.
+            malicious: Pre-built known-malicious index (tests).  When ``None``
+                the bundled ``known-malicious.json`` is loaded.
+            malicious_path: Path to a custom ``known-malicious.json``.
+                Ignored when *malicious* is supplied.
         """
         if registry is not None:
             self._registry = registry
         else:
             self._registry = load_registry(registry_path, offline=offline_registry)
+        self._twins: TwinIndex | None = None
+        self._malicious: KnownMaliciousPackages | None = malicious
+        self._malicious_path = malicious_path
 
     @property
     def registry(self) -> KnownServerRegistry:
         """The registry instance used by this analyzer."""
         return self._registry
+
+    @property
+    def malicious(self) -> KnownMaliciousPackages:
+        """The known-malicious index used by this analyzer (SC-008).
+
+        Loaded on first use (the bundled file unless a path or index was
+        given), so an analyzer built without ``__init__`` still works.
+        """
+        malicious = getattr(self, "_malicious", None)
+        if malicious is None:
+            malicious = load_known_malicious(getattr(self, "_malicious_path", None))
+            self._malicious = malicious
+        return malicious
+
+    @property
+    def twins(self) -> TwinIndex:
+        """The unscoped-twin index built from :attr:`registry` (SC-007)."""
+        twins = getattr(self, "_twins", None)
+        if twins is None:
+            twins = TwinIndex(self._registry)
+            self._twins = twins
+        return twins
 
     @property
     def name(self) -> str:
@@ -598,19 +1024,27 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         Returns:
             List of :class:`~mcp_audit.models.Finding` objects (empty if clean).
         """
+        # Any spelling of the launcher: a path, a Windows .cmd/.exe wrapper,
+        # or `cmd /c <launcher> …` (STORY-0097 review).
+        launcher, launch_args = normalize_launch(server.command, server.args)
+
         # Python ecosystem: uvx, pipx, python -m (any interpreter spelling)
-        if server.command in _PYPI_LIKE or _is_python_interpreter(server.command):
-            return self._check_pypi_typosquatting(server)
+        if launcher in _PYPI_LIKE or _is_python_interpreter(launcher):
+            findings = self._check_pypi_typosquatting(server)
+            package = extract_pypi_package(launcher, launch_args)
+            if package is not None:
+                findings.extend(self._check_known_malicious(server, "pypi", package))
+            return findings
 
         # npm ecosystem: npx / bunx / pnpx / yarn dlx
         # ``yarn dlx <pkg>`` is semantically identical to ``npx <pkg>`` for
         # typosquatting purposes; normalise it before the command gate.
-        if server.command == "yarn":
-            if not server.args or server.args[0] != "dlx":
+        if launcher == "yarn":
+            if not launch_args or launch_args[0] != "dlx":
                 return []
-            effective_args = server.args[1:]
-        elif server.command in _NPX_LIKE:
-            effective_args = server.args
+            effective_args = launch_args[1:]
+        elif launcher in _NPX_LIKE:
+            effective_args = launch_args
         else:
             return []
 
@@ -620,12 +1054,64 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         # A pinned spec (``@scope/pkg@1.2.3``) must match its registry entry
         # by name; before STORY-0078 a pin silently skipped every check here.
         package = strip_npm_version_suffix(spec)
+        findings = self._check_npm_name(server, package)
+        findings.extend(self._check_known_malicious(server, "npm", package))
+        return findings
 
+    def _check_known_malicious(
+        self,
+        server: ServerConfig,
+        ecosystem: Literal["npm", "pypi"],
+        package: str,
+    ) -> list[Finding]:
+        """Return SC-008 when *package* is an OSV ``MAL-*`` record (exact name).
+
+        Args:
+            server: The MCP server configuration to analyse.
+            ecosystem: ``"npm"`` or ``"pypi"`` — where the launch installs from.
+            package: The configured package name, version suffix stripped.
+
+        Returns:
+            A list with at most one SC-008 finding.
+        """
+        records = self.malicious.lookup(ecosystem, package)
+        if not records:
+            return []
+        curated = (
+            self._registry.is_known_npm(package)
+            if ecosystem == "npm"
+            else self._registry.is_known_pypi(package)
+        )
+        pinned = _pinned_version(server)
+        matches = [
+            m
+            for m in (assess(r, pinned, curated=curated) for r in records)
+            if m is not None
+        ]
+        if not matches:
+            return []
+        twins = self.twins.find(package, ecosystem)
+        return [build_malicious_finding(server, package, ecosystem, matches, twins)]
+
+    def _check_npm_name(self, server: ServerConfig, package: str) -> list[Finding]:
+        """Run the npm name checks: SC-004, then SC-007, then SC-001..003.
+
+        Args:
+            server: The MCP server configuration to analyse.
+            package: The configured npm package name, version suffix stripped.
+
+        Returns:
+            At most one name finding.
+        """
         if self._registry.is_known_npm(package):
             entry = self._registry.get_npm(package)
             if entry and (entry.known_vulnerabilities or entry.known_vulns):
                 return _emit_known_cve_findings(server, entry)
             return []
+
+        twins = self.twins.find(package, "npm")
+        if twins:
+            return [build_twin_finding(server, package, "npm", twins)]
 
         # Short names (≤5 chars) are too close to almost any other short name
         # at distance 3, producing high FP rates. Use a tighter threshold of 1
@@ -671,7 +1157,7 @@ class SupplyChainAnalyzer(BaseAnalyzer):
                     " supply-chain attack."
                 ),
                 evidence=(
-                    f"command: {server.command} {' '.join(server.args[:4])} | "
+                    f"command: {redact_command(server.command, server.args)} | "
                     f"closest: {closest_entry.name!r} (maintainer="
                     f"{closest_entry.maintainer},"
                     f" verified={closest_entry.verified})"
@@ -710,6 +1196,10 @@ class SupplyChainAnalyzer(BaseAnalyzer):
                 return _emit_known_cve_findings(server, entry)
             return []
 
+        twins = self.twins.find(package, "pypi")
+        if twins:
+            return [build_twin_finding(server, package, "pypi", twins)]
+
         typo_threshold = 1 if len(package) <= 5 else 3
         closest_entry = self._registry.find_closest_pypi(
             package, threshold=typo_threshold
@@ -746,7 +1236,7 @@ class SupplyChainAnalyzer(BaseAnalyzer):
                     " supply-chain attack targeting Python MCP packages."
                 ),
                 evidence=(
-                    f"command: {server.command} {' '.join(server.args[:4])} | "
+                    f"command: {redact_command(server.command, server.args)} | "
                     f"closest: {closest_entry.name!r} (maintainer="
                     f"{closest_entry.maintainer},"
                     f" verified={closest_entry.verified})"

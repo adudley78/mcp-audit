@@ -16,6 +16,9 @@ class AgentFileSurface(StrEnum):
     CLAUDE_SKILL = "claude-code-skills"
     # Claude Code memory / project-context files (CLAUDE.md tiers)
     CLAUDE_MEMORY = "claude-memory"
+    # Claude Code subagent definitions (~/.claude/agents/**/*.md,
+    # .claude/agents/**/*.md); frontmatter is a config surface (STORY-0094)
+    CLAUDE_AGENT = "claude-code-agents"
     # Cursor AI rules (.cursor/rules/*.mdc, ~/.cursor/rules/*.mdc)
     CURSOR_RULE = "cursor-rule"
     # GitHub Copilot workspace instruction file (.github/copilot-instructions.md)
@@ -40,6 +43,9 @@ class AgentFile:
             ``.instructions.md`` / ``.prompt.md`` files).  Equal to
             ``raw_content`` for plain Markdown files without frontmatter.
         frontmatter: Parsed YAML frontmatter dict (empty for files without it).
+        definition: For a subagent definition only, the full record from
+            :meth:`~mcp_audit.agent_files.subagents.AgentFrontmatter.to_record`
+            (every reading, repeated and unreadable security keys).
     """
 
     path: Path
@@ -49,6 +55,7 @@ class AgentFile:
     raw_content: str
     body: str
     frontmatter: dict = field(default_factory=dict)
+    definition: dict | None = None
 
     @property
     def display_name(self) -> str:

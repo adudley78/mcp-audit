@@ -53,6 +53,14 @@ _HINTS: dict[str, str] = {
     "SC-001": "Run `mcp-audit fix --apply` to replace with the verified package name.",
     "SC-002": "Run `mcp-audit fix --apply` to replace with the verified package name.",
     "SC-003": "Verify this package name against the official MCP registry before use.",
+    "SC-007": (
+        "This name copies a known package without its scope. Switch the launch "
+        "command to the package named in the finding, or confirm the publisher."
+    ),
+    "SC-008": (
+        "OSV lists malicious releases of this package; follow the finding: "
+        "remove it, or pin a release the record does not list."
+    ),
     # Poisoning / prompt injection
     "POISON-001": (
         "Remove or sanitise the suspicious instruction from the tool description."
@@ -221,6 +229,22 @@ _HINTS: dict[str, str] = {
     "SANDBOX-005": (
         "Add .claude/settings.local.json to .gitignore (git rm --cached it if"
         " committed) and use ~/ instead of home paths with a username."
+    ),
+    "AGENT-001": (
+        "Remove permissionMode from the subagent file so it inherits your session's"
+        " mode; keep Claude Code at 2.1.267+."
+    ),
+    "AGENT-002": (
+        "Put the specifier rule in permissions.deny instead; disallowedTools"
+        " removes the whole tool."
+    ),
+    "AGENT-003": (
+        "Read the subagent's hook commands before trusting the folder; remove"
+        " any you did not add."
+    ),
+    "AGENT-004": (
+        "Review the subagent's inline MCP server like a .mcp.json entry; write"
+        " rules for it as mcp__<full-name>__*."
     ),
     "CFHYG-006": (
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
@@ -497,6 +521,11 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
         console.print(
             "  [yellow]WARN:[/yellow] config(s) outside the lock root "
             "were skipped (no LOCK findings)."
+        )
+    if status.not_covered:
+        console.print(
+            f"  [yellow]WARN:[/yellow] {len(status.not_covered)} subagent MCP"
+            " server(s) not covered by mcp-lock.json (AGENT-004)."
         )
 
 
