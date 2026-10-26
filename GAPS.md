@@ -1073,25 +1073,50 @@ entry. Until confirmed, only workspace/project-tree paths are discovered.
   in play), managed-settings agents, and agents passed with `--agents` or the
   SDK `agents` option (not files). Agent files under `CLAUDE_CONFIG_DIR` are not
   read either; user-level agents resolve under `$HOME`, like skills.
-- **Frontmatter parsing is not Claude Code's parser.** PyYAML (YAML 1.1) is used
-  with a per-key fallback for blocks strict YAML rejects. Where the two
-  disagree, a security-relevant key mcp-audit cannot read is listed in the
-  scan's `errors`; other keys may be read differently. Duplicate keys take the
-  last value (PyYAML); Claude Code's resolution is undocumented. Values are
+- **Frontmatter parsing is not Claude Code's parser.** Claude Code (2.1.310)
+  parses with Bun's YAML 1.2 parser and, on a parse error, quotes one-line
+  values that contain YAML indicator characters or `: `, turns leading tabs
+  into spaces and re-parses the block. mcp-audit does the same split, retry
+  and tab handling with PyYAML (YAML 1.1 syntax, with the YAML 1.1 `=` and
+  timestamp resolvers turned off so those stay strings, as in 1.2), and also
+  reads the block up to the first `---` line; findings from every reading are
+  kept. The two parsers can still disagree on unusual YAML: a security key
+  mcp-audit cannot read in any reading is a finding at that key's scope
+  severity ("present but unreadable by mcp-audit; Claude Code may load it"),
+  but a key PyYAML reads differently from Bun is not detected. Values are
   matched exactly as documented (`bypassPermissions`, not `BypassPermissions`).
-  YAML aliases are refused. The frontmatter is capped at 256 KiB and the file
-  read at 1 MiB; a larger frontmatter is reported, not parsed.
+- **Repeated keys.** A security key repeated at the top level is a finding and
+  every value is checked. A repeat nested inside a value (two `command:` keys
+  in one hook, two names in one `mcpServers` item) takes PyYAML's last value
+  only; which one Claude Code keeps is undocumented. YAML merge keys (`<<:`)
+  are not expanded the way YAML 1.1 does; they are read as an ordinary key.
+- **Size and nesting budgets.** Files over 1 MiB are skipped (as Claude Code
+  skips them) and reported in the scan's `errors`. A frontmatter nested deeper
+  than 256 levels, or with more than 20,000 YAML nodes or 100,000 values after
+  aliases are resolved, is not read; any security key it names is reported as
+  unreadable. A scan reads at most 500 definitions or 16 MiB of them; the rest
+  are listed in `errors`.
+- **Symlinks.** A symlinked agent file is read and reported as
+  TRUST-002/TRUST-004, like every other agent file. A symlinked directory under
+  `.claude/agents/` is not followed (TRUST-005 names it under `--project`), as
+  elsewhere in discovery; Claude Code may follow it, so agents behind it are
+  not scanned.
 - **A file with frontmatter is treated as a definition** even without the
   required `name`/`description`, which Claude Code would refuse to load, so a
   half-written file can still produce findings.
-- **`mcpServers` must be the documented list form.** A mapping in its place is
-  ignored (no servers, no finding).
-- **Duplicate inline server names** across agent files share one rug-pull key
+- **`mcpServers` items must be one-key mappings or strings**, as in Claude
+  Code. A mapping in place of the list, or a multi-key item, is ignored. A
+  string item names a server defined elsewhere and is not reported. A name
+  repeated within one file is kept as `name#2`, `name#3`, because Claude Code
+  starts every item.
+- **Duplicate inline server names across agent files** share one rug-pull key
   (`claude-code-agent/<name>`); the last file in path order is tracked, as with
   any duplicate client/name pair. Shadow likewise lists the name once.
 - **Inline servers are never locked.** Like plugin servers they are left out of
-  `mcp-lock.json` and skipped by scan's automatic lock check, so a lock does not
-  cover them; their per-server findings and TRUST-001 (`--project`) do.
+  `mcp-lock.json` and skipped by scan's automatic lock check. A project
+  subagent's server under a lock root is listed in `lock_status.not_covered`,
+  printed as a WARN line, and raises AGENT-004 to MEDIUM; the lock still does
+  not verify it. User-level subagents are not checked against any lock.
 - **Body text is scanned only where skills are** (`--include-agent-files`,
   `agent-files scan`), with the skill rule set minus the length check. SKILL-003
   (external URL, MEDIUM) fires on a subagent prompt that links to documentation,

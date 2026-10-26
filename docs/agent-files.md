@@ -190,7 +190,14 @@ Code CHANGELOG, read 2026-10-25.
 | AGENT-001 | MEDIUM | `permissionMode: acceptEdits` or `auto` in a **project** subagent: from a default or dontAsk session, Claude Code runs that subagent with fewer prompts than you chose. |
 | AGENT-002 | INFO | `disallowedTools` has an entry with a `(…)` specifier such as `Bash(git push *)`, which removes the whole tool, not only the matching calls. Put the specifier in `permissions.deny` instead. |
 | AGENT-003 | MEDIUM (project) / INFO (user) | Frontmatter `hooks:`. Since 2.1.218 a project subagent's hooks run only once the folder holding the file is trusted (HIGH before, when they ran from untrusted folders). Each hook command also goes through HOOK-001/002. |
-| AGENT-004 | INFO / LOW | One per inline `mcpServers` entry. LOW when the server name contains `__` or ends in `_`, which `mcp__<server>` permission rules read as a different server. |
+| AGENT-004 | INFO / LOW / MEDIUM | One per inline `mcpServers` item (a repeated name is kept as `fs`, `fs#2`…, since Claude Code starts every item). LOW when the server name contains `__` or ends in `_`, which `mcp__<server>` permission rules read as a different server. MEDIUM for a project subagent's server when the repository has an `mcp-lock.json`: the lock does not cover it. |
+
+The same IDs also report two things about the frontmatter itself, at the
+severity the key would get in that scope (`permissionMode` → AGENT-001,
+`tools`/`disallowedTools` → AGENT-002, `hooks` → AGENT-003, `mcpServers` →
+AGENT-004): a security key that appears more than once ("Subagent frontmatter
+repeats '…'"; every value is checked), and a security key that is present but
+unreadable by mcp-audit ("Claude Code may load it").
 
 **Not flagged:** `permissionMode: dontAsk` auto-denies anything that would
 prompt, so it is stricter than `default` despite its name; `plan`, `default`
@@ -213,8 +220,11 @@ discovery as client `claude-code-agent`, so it gets every per-server check,
 appears in `mcp-audit shadow`, `discover`, the attack graph and `killchain`,
 and gets TRUST-001 under `scan --project`. Like plugin servers they are never
 written to `mcp-lock.json` and never verified against it, and agent files do
-not change the rug-pull state key, so an existing lock keeps verifying. String
-entries (`- github`) name a server configured elsewhere and add nothing.
+not change the rug-pull state key, so an existing lock keeps verifying. A
+project subagent server under a lock root is listed in `lock_status.not_covered`,
+`scan` and `check` print a `WARN` line for it, and its AGENT-004 is MEDIUM.
+String entries (`- github`) name a server configured elsewhere and add nothing;
+a mapping item with more than one key is ignored, as Claude Code ignores it.
 
 **Version notes.** mcp-audit never runs Claude Code, so it cannot see which
 version you have. Each version-dependent finding uses the severity that holds
@@ -224,13 +234,23 @@ quoted: 2.1.267 (subagent `bypassPermissions` no longer escalates), 2.1.218
 `--strict-mcp-config`, `--bare` and managed MCP policy), 2.1.238 (a project
 agent file's inline servers need folder trust).
 
-**Parsing.** At most 1 MiB of each file is read and the frontmatter is capped
-at 256 KiB. YAML aliases and Python tags are refused. Claude Code accepts
-frontmatter that strict YAML rejects (an unquoted `: ` in a description), so a
-block that fails as a whole is re-read one top-level key at a time; a
-`permissionMode`, `tools`, `disallowedTools`, `hooks` or `mcpServers` value
-that still cannot be read is listed in the scan's `errors` instead of being
-dropped. A `.md` file without frontmatter (a README) is not a definition.
+**Parsing.** The frontmatter is read the way Claude Code 2.1.310's loader reads
+it: files over 1 MiB are skipped (as Claude Code skips them, and the scan's
+`errors` say so); a BOM is dropped; the frontmatter runs from the opening `---`
+to the **first** `---` anywhere after it, even mid-line, so `# ---` or `----`
+ends it. If the YAML does not parse, one-line `key: value` entries whose value
+holds YAML syntax characters or `: ` are quoted, leading tabs become two
+spaces, and the whole block is parsed again. mcp-audit also reads the block up
+to the first line that is exactly `---` and keeps the findings of both
+readings, so a value placed after a mid-line `---` is still checked. YAML 1.2
+scalars stay strings (`=`, dates). Aliases are resolved under a 100,000-value
+budget; more than 20,000 YAML nodes, nesting deeper than 256 levels, or YAML
+that still does not parse makes the frontmatter unreadable, and every security
+key it names becomes a "present but unreadable" finding. A scan reads at most
+500 definitions and 16 MiB per discovery pass and reports when it stops. A
+`.md` file without frontmatter (a README) is not a definition. Credential-shaped
+text in any finding (a token in a hook command or a `disallowedTools` entry)
+is replaced with `[REDACTED]`.
 
 ---
 

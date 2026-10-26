@@ -76,35 +76,43 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
 def _parse_agent_definition(config: DiscoveredConfig) -> list[ServerConfig]:
     """Parse a Claude Code subagent definition (STORY-0094).
 
-    ``config.raw`` becomes the frontmatter mapping (JSON-compatible), so the
-    config-level checks at pipeline step 0 read it like a settings file; the
-    servers are the inline ``mcpServers`` entries, coerced to the string
-    types a JSON config would carry. Frontmatter that could be read only in
-    part is recorded in ``config.parse_warnings`` rather than raised, so the
-    keys that did parse are still checked.
+    ``config.raw`` becomes the definition record
+    (:meth:`~mcp_audit.agent_files.subagents.AgentFrontmatter.to_record`: every
+    reading of the frontmatter plus repeated and unreadable security keys), so
+    the config-level checks at pipeline step 0 see all of it. The servers are
+    one per inline ``mcpServers`` item across all readings (a repeated name is
+    kept as ``name#2``…), coerced to the string types a JSON config would
+    carry. Notes about frontmatter that could not be read go to
+    ``config.parse_warnings`` rather than being raised, so whatever did parse
+    is still checked.
 
     Raises:
         ValueError: If the file cannot be read.
     """
     from mcp_audit.agent_files.subagents import (  # noqa: PLC0415
-        inline_mcp_servers,
+        agent_mcp_servers,
         normalize_server_entry,
         read_agent_definition,
+        redact_secrets,
     )
 
     try:
         parsed = read_agent_definition(config.path)
     except OSError as e:
         raise ValueError(f"Cannot read {config.path}: {e}") from e
-    config.raw = parsed.data
+    config.raw = parsed.to_record()
     config.parse_warnings = [
-        f"Subagent definition {config.path}: {problem}. Claude Code's own parser"
-        " may still load it; review that part of the frontmatter by hand."
+        redact_secrets(
+            problem
+            if problem.startswith("Subagent definition ")
+            else f"Subagent definition {config.path}: {problem}. Claude Code's own"
+            " parser may still load it; review it by hand."
+        )
         for problem in parsed.problems
     ]
     servers_dict = {
-        name: normalize_server_entry(spec)
-        for name, spec in inline_mcp_servers(parsed.data).items()
+        display: normalize_server_entry(spec)
+        for display, _declared, spec in agent_mcp_servers(parsed)
     }
     return _servers_from_dict(servers_dict, config)
 

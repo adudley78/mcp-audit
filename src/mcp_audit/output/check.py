@@ -494,6 +494,11 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
             "  [yellow]WARN:[/yellow] config(s) outside the lock root "
             "were skipped (no LOCK findings)."
         )
+    if status.not_covered:
+        console.print(
+            f"  [yellow]WARN:[/yellow] {len(status.not_covered)} subagent MCP"
+            " server(s) not covered by mcp-lock.json (AGENT-004)."
+        )
 
 
 def _print_registered_as(console: Console, registration: RegistrationConfig) -> None:

@@ -1210,7 +1210,7 @@
         "Privilege Escalation via Scope Creep",
         "Insufficient Authentication and Authorization"
       ],
-      "notes": "Claude Code subagent frontmatter (STORY-0094). permissionMode: bypassPermissions (MEDIUM in a project agent, LOW in ~/.claude/agents; HIGH on Claude Code before 2.1.267, where a subagent could gain bypass from a default-mode session), or acceptEdits/auto in a project agent (MEDIUM). dontAsk is stricter than default and never fires. Source: code.claude.com/docs/en/sub-agents."
+      "notes": "Claude Code subagent frontmatter (STORY-0094). permissionMode: bypassPermissions (MEDIUM in a project agent, LOW in ~/.claude/agents; HIGH on Claude Code before 2.1.267, where a subagent could gain bypass from a default-mode session), or acceptEdits/auto in a project agent (MEDIUM). dontAsk is stricter than default and never fires. Source: code.claude.com/docs/en/sub-agents. Also reports the key when it is repeated in the frontmatter or present but unreadable by mcp-audit."
     },
     {
       "finding_id": "AGENT-002",
@@ -1221,7 +1221,7 @@
       "owasp_names": [
         "Privilege Escalation via Scope Creep"
       ],
-      "notes": "INFO. A disallowedTools entry with a (…) specifier removes the whole tool from the subagent (sub-agents doc). Not an advisory."
+      "notes": "INFO. A disallowedTools entry with a (…) specifier removes the whole tool from the subagent (sub-agents doc). Not an advisory. Also reports the key when it is repeated in the frontmatter or present but unreadable by mcp-audit."
     },
     {
       "finding_id": "AGENT-003",
@@ -1234,7 +1234,7 @@
         "Command Injection and Execution",
         "Insufficient Authentication and Authorization"
       ],
-      "notes": "Project agent MEDIUM (runs after folder trust since Claude Code 2.1.218; HIGH before, when hooks ran from untrusted folders); user agent INFO. Each hook command also goes through HOOK-001/002."
+      "notes": "Project agent MEDIUM (runs after folder trust since Claude Code 2.1.218; HIGH before, when hooks ran from untrusted folders); user agent INFO. Each hook command also goes through HOOK-001/002. Also reports the key when it is repeated in the frontmatter or present but unreadable by mcp-audit."
     },
     {
       "finding_id": "AGENT-004",
@@ -1245,7 +1245,7 @@
       "owasp_names": [
         "Shadow MCP Servers"
       ],
-      "notes": "INFO per inline mcpServers entry, which joins discovery as client claude-code-agent; LOW when the name contains '__' or ends in '_', which mcp__ permission rules misread (permissions doc). Not an advisory."
+      "notes": "One per inline mcpServers item (repeated names kept as name#2), which joins discovery as client claude-code-agent; INFO, LOW when the name contains '__' or ends in '_' (mcp__ rules misread it), MEDIUM for a project subagent server under an mcp-lock.json root (not covered by the lock). Also reports a repeated or unreadable mcpServers key. Not an advisory."
     },
     {
       "finding_id": "PLUGIN-001",

@@ -1033,7 +1033,7 @@ def _apply_project_scan(
     # discover_project_configs() so `mcp-audit lock` never records them.
     # A symlinked agent file reports TRUST-002 through skip_findings.
     project_configs += discover_project_agent_configs(
-        project_dir, skip_findings=skip_findings
+        project_dir, skip_findings=skip_findings, errors=result.errors
     )
 
     # ── TRUST-005: symlinked directories not traversed by either walk above ──
@@ -1213,6 +1213,12 @@ def _apply_lock_verification(
         con.print(
             "[yellow]WARN[/yellow] config(s) outside the lock root were "
             "skipped (no LOCK findings)"
+        )
+    if status.not_covered:
+        con.print(
+            f"[yellow]WARN[/yellow] {len(status.not_covered)} subagent MCP"
+            " server(s) not covered by mcp-lock.json (AGENT-004): "
+            + ", ".join(status.not_covered)
         )
     if lock_findings:
         con.print(

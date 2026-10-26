@@ -358,13 +358,19 @@ def _read_agent_file(
 ) -> AgentFile | None:
     """Read and parse a single agent file.  Returns ``None`` on any I/O error.
 
-    A subagent definition is read with a size cap and the hardened frontmatter
-    parser from :mod:`mcp_audit.agent_files.subagents`; one without
-    frontmatter is not a definition and returns ``None``.
+    A subagent definition is read with Claude Code's 1 MiB cap (a larger file
+    returns ``None``, as Claude Code skips it) and parsed by
+    :func:`~mcp_audit.agent_files.subagents.parse_agent_frontmatter`; one
+    without frontmatter is not a definition and returns ``None``.
     """
+    definition: dict | None = None
     try:
         if surface == AgentFileSurface.CLAUDE_AGENT:
-            raw = read_agent_text(path)
+            text = read_agent_text(path)
+            if text is None:
+                logger.debug("agent_files: %s is over the 1 MiB cap", path)
+                return None
+            raw = text
         else:
             raw = path.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
@@ -375,7 +381,7 @@ def _read_agent_file(
         parsed = parse_agent_frontmatter(raw)
         if not parsed.present:
             return None
-        fm, body = parsed.data, parsed.body
+        fm, body, definition = parsed.data, parsed.body, parsed.to_record()
     else:
         fm, body = _split_frontmatter(raw)
     return AgentFile(
@@ -386,6 +392,7 @@ def _read_agent_file(
         raw_content=raw,
         body=body,
         frontmatter=fm,
+        definition=definition,
     )
 
 
@@ -466,27 +473,32 @@ def _walk_project_dirs(
 
     Depth-capped at :data:`_WALK_MAX_DEPTH`, skips :data:`_WALK_SKIP_DIRS`, and
     never descends into a symlinked directory (TRUST-005 into *skip_findings*).
+    A directory or entry that raises ``OSError`` (``PermissionError`` from
+    pathlib on Python 3.12) is skipped; the rest of the walk continues.
     """
 
     def _walk(dirpath: Path, depth: int) -> None:
         if depth > _WALK_MAX_DEPTH:
             return
-        visit(dirpath)
         try:
+            visit(dirpath)
             children = sorted(dirpath.iterdir())
-        except PermissionError:
+        except OSError as exc:
+            logger.debug("agent_files: skipping %s: %s", dirpath, exc)
             return
 
         for child in children:
-            if child.is_symlink():
-                if child.is_dir() and skip_findings is not None:
-                    skip_findings.append(
-                        build_untraversed_symlink_dir_finding(child, "agent-files")
-                    )
-                continue
-            if not child.is_dir():
-                continue
-            if child.name in _WALK_SKIP_DIRS:
+            try:
+                if child.is_symlink():
+                    if child.is_dir() and skip_findings is not None:
+                        skip_findings.append(
+                            build_untraversed_symlink_dir_finding(child, "agent-files")
+                        )
+                    continue
+                if not child.is_dir() or child.name in _WALK_SKIP_DIRS:
+                    continue
+            except OSError as exc:
+                logger.debug("agent_files: skipping %s: %s", child, exc)
                 continue
             _walk(child, depth + 1)
 

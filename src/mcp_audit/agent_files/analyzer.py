@@ -544,7 +544,10 @@ def _analyze_agent_definition(af: AgentFile) -> list[Finding]:
     )
 
     return ConfigHygieneAnalyzer().analyze_agent_definition(
-        af.frontmatter, af.path, af.client, af.scope
+        af.definition if af.definition is not None else af.frontmatter,
+        af.path,
+        af.client,
+        af.scope,
     )
 
 

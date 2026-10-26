@@ -220,15 +220,21 @@ def agent_definition_scope(path: Path) -> str:
 
 
 def _agent_definition_configs(
-    paths: list[Path], *, is_project_scoped: bool
+    paths: list[Path], *, is_project_scoped: bool, errors: list[str] | None = None
 ) -> list[DiscoveredConfig]:
-    """Wrap subagent definition files that carry frontmatter as configs.
+    """Wrap subagent definition files as configs, within the per-scan budgets.
 
+    Keeps files that open with frontmatter and are at most 1 MiB (Claude Code
+    skips larger ones), up to the per-scan file and byte budgets; every skip
+    other than "no frontmatter" goes to *errors* (see
+    :func:`~mcp_audit.agent_files.subagents.select_agent_definitions`).
     A symlinked definition is reported by the agent-file resolver itself
     (TRUST-002/TRUST-004 into ``skip_findings``), so ``is_symlink`` stays
     ``False`` here and the finding is not emitted twice.
     """
-    from mcp_audit.agent_files.subagents import has_frontmatter  # noqa: PLC0415
+    from mcp_audit.agent_files.subagents import (  # noqa: PLC0415
+        select_agent_definitions,
+    )
 
     return [
         DiscoveredConfig(
@@ -237,9 +243,15 @@ def _agent_definition_configs(
             path=path,
             is_project_scoped=is_project_scoped,
         )
-        for path in paths
-        if has_frontmatter(path)
+        for path in select_agent_definitions(paths, errors)
     ]
+
+
+def _resolved_or_self(path: Path) -> Path:
+    try:
+        return path.resolve()
+    except (OSError, RuntimeError):
+        return path
 
 
 # ── Symlink findings (TRUST-002 / TRUST-004 / TRUST-005) ──────────────────────
@@ -419,6 +431,7 @@ def discover_configs(
     include_plugins: bool = True,
     include_agents: bool = True,
     skip_findings: list[Finding] | None = None,
+    errors: list[str] | None = None,
 ) -> list[DiscoveredConfig]:
     """Find all MCP configuration files on this machine.
 
@@ -447,6 +460,8 @@ def discover_configs(
             symlinked subagent files and untraversed symlinked directories
             under the agents directories (the other candidates here are fixed
             paths and report symlinks through ``is_symlink`` instead).
+        errors: Optional list to receive subagent-discovery filesystem errors
+            and budget notes (a scan's ``result.errors``).
 
     Returns:
         List of discovered configuration files.  A candidate that is itself a
@@ -610,13 +625,14 @@ def discover_configs(
             )
 
     if include_agents and not skip_auto_discovery:
-        discovered.extend(_discover_agent_definition_configs(skip_findings))
+        discovered.extend(_discover_agent_definition_configs(skip_findings, errors))
 
     return discovered
 
 
 def _discover_agent_definition_configs(
     skip_findings: list[Finding] | None,
+    errors: list[str] | None = None,
 ) -> list[DiscoveredConfig]:
     """User-level and cwd subagent definitions for :func:`discover_configs`.
 
@@ -624,6 +640,7 @@ def _discover_agent_definition_configs(
     checks above: only ``<cwd>/.claude/agents/`` is read, not the directories
     between the cwd and the repository root (``scan --project`` walks the
     tree). When the cwd is the home directory, its agents are user-level.
+    A filesystem error is recorded in *errors* and never stops the scan.
     """
     from mcp_audit.agent_files.discovery import (  # noqa: PLC0415
         agent_definition_paths,
@@ -631,14 +648,28 @@ def _discover_agent_definition_configs(
 
     raw_skip: list[Finding] = []
     home = _agent_definitions_home()
-    cwd = Path.cwd()
-    user_paths = agent_definition_paths(home, "user", None, raw_skip)
-    seen = {p.resolve() for p in user_paths}
-    cwd_paths = [
-        p
-        for p in agent_definition_paths(cwd, "project", cwd, raw_skip)
-        if p.resolve() not in seen
-    ]
+
+    def _paths(base: Path, scope: str, root: Path | None) -> list[Path]:
+        try:
+            return agent_definition_paths(base, scope, root, raw_skip)
+        except OSError as exc:
+            if errors is not None:
+                errors.append(
+                    f"Could not read subagent definitions under {base}: {exc}"
+                )
+            return []
+
+    user_paths = _paths(home, "user", None)
+    try:
+        cwd = Path.cwd()
+    except OSError:
+        cwd = None
+    seen = {_resolved_or_self(p) for p in user_paths}
+    cwd_paths = (
+        [p for p in _paths(cwd, "project", cwd) if _resolved_or_self(p) not in seen]
+        if cwd is not None
+        else []
+    )
     if skip_findings is not None:
         keys: set[tuple[str, str | None]] = set()
         for finding in raw_skip:
@@ -647,12 +678,14 @@ def _discover_agent_definition_configs(
                 keys.add(key)
                 skip_findings.append(finding)
     return _agent_definition_configs(
-        user_paths, is_project_scoped=False
-    ) + _agent_definition_configs(cwd_paths, is_project_scoped=False)
+        user_paths + cwd_paths, is_project_scoped=False, errors=errors
+    )
 
 
 def discover_project_agent_configs(
-    root: Path, skip_findings: list[Finding] | None = None
+    root: Path,
+    skip_findings: list[Finding] | None = None,
+    errors: list[str] | None = None,
 ) -> list[DiscoveredConfig]:
     """Walk *root* for subagent definitions (``.claude/agents/**/*.md``).
 
@@ -665,6 +698,8 @@ def discover_project_agent_configs(
     Args:
         root: Resolved absolute path of the repository root to walk.
         skip_findings: Optional list to receive TRUST-002/TRUST-005 findings.
+        errors: Optional list to receive filesystem errors and budget notes;
+            a filesystem error never stops the scan.
 
     Returns:
         Project-scoped :class:`DiscoveredConfig` objects with client
@@ -674,8 +709,13 @@ def discover_project_agent_configs(
         project_agent_definition_paths,
     )
 
-    paths = project_agent_definition_paths(root, skip_findings)
-    return _agent_definition_configs(paths, is_project_scoped=True)
+    try:
+        paths = project_agent_definition_paths(root, skip_findings)
+    except OSError as exc:
+        if errors is not None:
+            errors.append(f"Could not read subagent definitions under {root}: {exc}")
+        return []
+    return _agent_definition_configs(paths, is_project_scoped=True, errors=errors)
 
 
 # ── Project-level config discovery (for --project flag) ───────────────────────

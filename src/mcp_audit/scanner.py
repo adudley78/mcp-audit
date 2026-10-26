@@ -446,6 +446,7 @@ def _discover_and_parse(
         skip_auto_discovery=bool(extra_paths),
         include_plugins=include_plugins,
         skip_findings=discovery_findings,
+        errors=result.errors,
     )
     result.findings.extend(discovery_findings)
     result.clients_scanned = len({c.client_name for c in configs})

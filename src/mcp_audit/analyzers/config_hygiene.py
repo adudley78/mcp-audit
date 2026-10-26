@@ -46,15 +46,19 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import unquote, urlsplit
 
-from mcp_audit.agent_files.subagents import analyze_agent_definition
+from mcp_audit.agent_files.subagents import (
+    AgentFrontmatter,
+    analyze_agent_definition,
+    finalize_findings,
+)
 from mcp_audit.analyzers import permissions as _permissions
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS, CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import normalize_for_detection
+from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.discovery import (
     SIBLING_HARNESS_AUTOEXEC_KINDS as _SIBLING_HARNESS_CHECKS,
 )
-from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 logger = logging.getLogger(__name__)
@@ -1295,20 +1299,29 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         type (CFHYG-005 never fires on an agent file).
 
         Args:
-            raw: JSON-compatible frontmatter mapping.
+            raw: The definition record from ``parse_config`` (every reading of
+                the frontmatter), or one plain frontmatter mapping.
             config_path: The agent definition file.
             client: Client name for the findings.
             scope: ``"project"`` or ``"user"``.
 
         Returns:
-            Findings with ``finding_path`` set to *config_path*.
+            Findings with ``finding_path`` set to *config_path*; hook commands
+            from every reading are checked, and credential-shaped text in any
+            finding is redacted.
         """
-        if not isinstance(raw, dict) or not raw:
-            return []
-        findings = analyze_agent_definition(raw, config_path, scope, client)
-        hooks = raw.get("hooks")
-        if isinstance(hooks, dict):
-            findings.extend(self._check_hook_commands(hooks, config_path, client))
+        definition = AgentFrontmatter.from_record(raw)
+        if definition is None:
+            if not isinstance(raw, dict) or not raw:
+                return []
+            definition = AgentFrontmatter.from_mapping(raw)
+        findings = analyze_agent_definition(definition, config_path, scope, client)
+        hook_findings: list[Finding] = []
+        for reading in definition.readings:
+            hooks = reading.get("hooks")
+            if isinstance(hooks, dict):
+                hook_findings += self._check_hook_commands(hooks, config_path, client)
+        findings += finalize_findings(hook_findings)
         for finding in findings:
             finding.finding_path = str(config_path)
         return findings

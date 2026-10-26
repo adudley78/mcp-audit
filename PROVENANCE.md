@@ -646,9 +646,16 @@ quoted in the finding text and in `docs/permission-rules.md`:
   servers ignoring `--strict-mcp-config`, `--bare` … and managed-settings MCP server
   allow/deny policies"; 2.1.218 "Fixed agent frontmatter hooks running from untrusted
   folders"; 2.1.238 "inline MCP servers in project or `--add-dir` agent files, now require
-  that folder's trust dialog"; 2.1.69 skill descriptions with colons loading (why
-  frontmatter that strict YAML rejects is re-read key by key). The 2.1.267 subagent
-  bypass change has no CHANGELOG line; the sub-agents doc is the source for it.
+  that folder's trust dialog"; 2.1.69 skill descriptions with colons loading. The 2.1.267
+  subagent bypass change has no CHANGELOG line; the sub-agents doc is the source for it.
+- **How Claude Code 2.1.310 loads an agent file**, from the independent reviewer's
+  behavioural notes on PR #184 (a description of the shipped loader, not code): files
+  over 1 MiB are skipped; a leading BOM is stripped; the frontmatter is the text between
+  the first `---` and the next `---` anywhere after it; on a YAML error, one-line
+  `key: value` lines whose value holds a YAML indicator character or `: ` are quoted,
+  leading tabs become spaces, and the whole block is parsed again; each `mcpServers` item
+  must be a one-key mapping (or a string naming another server) and every item is
+  started. `agent_files/subagents.py` reimplements that behaviour in Python with PyYAML.
 - **EPIC-0007 research scan**, A12 "Subagent definitions as a first-class config surface"
   and harness-permissions notes Q6 (Marcus, 2026-10-25), which also record that the
   `--strict-mcp-config` gap applies to `--agents`/SDK definitions, not agent files.

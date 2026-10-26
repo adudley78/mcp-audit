@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mcp_audit.discovery import AGENT_DEFINITION_CLIENT
+from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.lock.discovery import find_lock_for
 from mcp_audit.lock.verifier import verify as verify_lock
 from mcp_audit.models import Finding, LockStatus, ServerConfig
@@ -48,11 +48,26 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
     Servers declared inline in a Claude Code subagent definition (client
     ``claude-code-agent``, STORY-0094) are skipped: ``mcp-audit lock`` never
     records them, so verifying them would turn every existing lock in a repo
-    with a ``.claude/agents/`` server into a LOCK-002 failure.
+    with a ``.claude/agents/`` server into a LOCK-002 failure. A project-scope
+    one under a lock root is listed in ``status.not_covered`` instead (and the
+    status counts as present), so ``check``/``scan`` can say the lock does not
+    cover it.
     """
     groups: dict[Path, list[ServerConfig]] = {}
+    not_covered: list[str] = []
+    not_covered_locks: set[Path] = set()
     for server in servers:
         if server.client == AGENT_DEFINITION_CLIENT:
+            if agent_definition_scope(server.config_path) == "project":
+                try:
+                    agent_lock = find_lock_for(server.config_path)
+                except (OSError, RuntimeError):
+                    agent_lock = None
+                if agent_lock is not None:
+                    not_covered.append(
+                        f"{server.client}/{server.name} ({server.config_path})"
+                    )
+                    not_covered_locks.add(agent_lock)
             continue
         lock_path = find_lock_for(server.config_path)
         if lock_path is None:
@@ -60,6 +75,13 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
         groups.setdefault(lock_path, []).append(server)
 
     if not groups:
+        if not_covered:
+            return [], LockStatus(
+                present=True,
+                verified=True,
+                lock_paths=sorted(str(p) for p in not_covered_locks),
+                not_covered=sorted(not_covered),
+            )
         return [], LockStatus()
 
     all_findings: list[Finding] = []
@@ -83,10 +105,11 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
         verified=verified,
         findings=len(all_findings),
         checked_servers=total_checked,
-        lock_paths=sorted(str(p) for p in groups),
+        lock_paths=sorted(str(p) for p in set(groups) | not_covered_locks),
         unresolved_entries=unresolved,
         unverified_sections=sorted(unverified_sections),
         outside_root=sorted(set(outside_root)),
         tools_recorded=tools_recorded,
+        not_covered=sorted(not_covered),
     )
     return all_findings, status

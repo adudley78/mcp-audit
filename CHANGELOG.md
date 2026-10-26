@@ -70,7 +70,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   lists each MCP server a subagent declares for itself (LOW when its name confuses
   `mcp__` permission rules). Those servers now get every server check and show up in
   `shadow`, `discover` and the attack graph as client `claude-code-agent`; like plugin
-  servers they stay out of `mcp-lock.json`, so existing locks keep verifying.
+  servers they stay out of `mcp-lock.json`, so existing locks keep verifying. A
+  repository subagent's server under a lock is listed in the new
+  `lock_status.not_covered` field, printed as a WARN line by `scan` and `check`, and
+  raises AGENT-004 to MEDIUM. The frontmatter is read the way Claude Code reads it, and
+  a security key that is repeated, or that mcp-audit cannot read, is a finding at that
+  key's severity. Secrets in finding text are redacted.
   `--include-agent-files` also scans each subagent's prompt with the skill rules.
 
 ### Changed
