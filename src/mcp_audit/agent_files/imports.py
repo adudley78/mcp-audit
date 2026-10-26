@@ -125,14 +125,18 @@ class ReadBudget:
 def read_text_capped(path: Path, cap: int = READ_CAP_BYTES) -> tuple[str, bool]:
     """Read at most *cap* bytes of *path* as UTF-8 (errors replaced).
 
-    Returns ``(text, truncated)``.  Raises ``OSError`` like ``open()``.
+    Line endings are normalised to ``\n`` (``\r\n`` and lone ``\r``), as
+    ``Path.read_text`` does in text mode, so CRLF files read the same on
+    every platform.  Returns ``(text, truncated)``.  Raises ``OSError`` like
+    ``open()``.
     """
     with path.open("rb") as fh:
         data = fh.read(cap + 1)
     truncated = len(data) > cap
     if truncated:
         data = data[:cap]
-    return data.decode("utf-8", errors="replace"), truncated
+    text = data.decode("utf-8", errors="replace")
+    return text.replace("\r\n", "\n").replace("\r", "\n"), truncated
 
 
 def _key(path: Path) -> str:

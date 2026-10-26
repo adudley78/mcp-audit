@@ -413,6 +413,12 @@ def test_oversized_import_is_truncated_and_noted(
     assert any("only the first part" in n for n in notes)
 
 
+def test_crlf_is_normalised_like_text_mode(tmp_path: Path) -> None:
+    target = tmp_path / "crlf.md"
+    target.write_bytes(b"one\r\ntwo\rthree\n")
+    assert im.read_text_capped(target) == ("one\ntwo\nthree\n", False)
+
+
 def test_binary_target_is_not_scanned(repo: Path, tmp_path: Path) -> None:
     (repo / "blob.md").write_bytes(b"\x00\x01\x02binary")
     (repo / "CLAUDE.md").write_text("@blob.md")
