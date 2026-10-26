@@ -38,7 +38,6 @@ import hashlib
 import json
 import logging
 import re
-import shlex
 from collections import OrderedDict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -125,7 +124,12 @@ _SECRET_ACCESS_RE = re.compile(
 _SECRETS_WORD_RE = re.compile(r"\bsecrets\b")
 _GITHUB_TOKEN_RE = re.compile(r"\bgithub\s*\.\s*token\b")
 _SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(?:-preview\.(\d+))?$")
-_SHELL_RULE_RE = re.compile(r"^(?:Bash|PowerShell)(?:\(\s*(?::\s*)?\*?\s*\))?$")
+# A rule naming the whole shell: ``Bash``, ``Bash()``, ``Bash(*)``,
+# ``Bash(:*)`` or ``Bash(:)``, with any whitespace inside the parentheses.
+# One quantifier, then a linear whitespace strip: the earlier single regex
+# had adjacent ``\s*`` and went quadratic on ``"Bash(" + spaces + "x"``.
+_SHELL_RULE_RE = re.compile(r"^(?:Bash|PowerShell)(?:\(([^)]*)\))?$")
+_WHOLE_SHELL_INNER: frozenset[str] = frozenset({"", ":", "*", ":*"})
 _GEMINI_SHELL_RE = re.compile(r"^(?:run_shell_command|ShellTool)(?:\((.*)\))?$")
 _UNTRUSTED_REF_RE = re.compile(
     r"github\.event\.pull_request\.head\.(?:sha|ref|repo)"
@@ -393,6 +397,76 @@ class _CliFlags:
     bypass: list[str] = field(default_factory=list)
 
 
+_POSIX_WHITESPACE = " \t\r\n"
+
+
+def _posix_split(text: str) -> list[str]:
+    """Split *text* like ``shlex.split(text, posix=True)``, in linear time.
+
+    ``shlex`` grows each token with ``self.token = self.token + ch``, which
+    copies the token on every character, so one long quoted value in a
+    workflow is quadratic.  Same rules as shlex: whitespace is space, tab,
+    CR and LF; a backslash outside quotes escapes the next character;
+    nothing is escaped inside single quotes; inside double quotes a
+    backslash escapes only ``"`` and ``\\``; ``''`` is an empty token.
+
+    Raises:
+        ValueError: on an unclosed quote or a trailing backslash, as shlex
+            does.
+    """
+    tokens: list[str] = []
+    buf: list[str] = []
+    in_token = False
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in _POSIX_WHITESPACE:
+            if in_token:
+                tokens.append("".join(buf))
+                buf = []
+                in_token = False
+            i += 1
+            continue
+        in_token = True
+        if ch == "\\":
+            if i + 1 >= n:
+                raise ValueError("No escaped character")
+            buf.append(text[i + 1])
+            i += 2
+        elif ch == "'":
+            end = text.find("'", i + 1)
+            if end < 0:
+                raise ValueError("No closing quotation")
+            buf.append(text[i + 1 : end])
+            i = end + 1
+        elif ch == '"':
+            i += 1
+            while True:
+                if i >= n:
+                    raise ValueError("No closing quotation")
+                c = text[i]
+                if c == '"':
+                    i += 1
+                    break
+                if c == "\\":
+                    if i + 1 >= n:
+                        raise ValueError("No escaped character")
+                    nxt = text[i + 1]
+                    if nxt not in '"\\':
+                        buf.append(c)
+                    buf.append(nxt)
+                    i += 2
+                    continue
+                buf.append(c)
+                i += 1
+        else:
+            buf.append(ch)
+            i += 1
+    if in_token:
+        tokens.append("".join(buf))
+    return tokens
+
+
 def _cli_flags(text: str) -> _CliFlags:
     """Read the Claude Code CLI flags in a ``claude_args`` input.
 
@@ -403,7 +477,7 @@ def _cli_flags(text: str) -> _CliFlags:
     """
     flags = _CliFlags()
     try:
-        tokens = shlex.split(text, posix=True)
+        tokens = _posix_split(text)
     except ValueError:
         tokens = text.split()
     current: list[str] | None = None
@@ -448,10 +522,18 @@ def _cli_flags(text: str) -> _CliFlags:
     return flags
 
 
+def _is_whole_shell_rule(rule: str) -> bool:
+    """True for a rule that names the whole shell (``Bash``, ``Bash(*)``, …)."""
+    m = _SHELL_RULE_RE.match(rule)
+    if m is None:
+        return False
+    return "".join((m.group(1) or "").split()) in _WHOLE_SHELL_INNER
+
+
 def _opens_claude_shell(rule: str) -> bool:
     """A Claude Code allow rule that grants every or a broad shell command."""
     rule = rule.strip()
-    return bool(_SHELL_RULE_RE.match(rule)) or _is_broad_allow_rule(rule)
+    return _is_whole_shell_rule(rule) or _is_broad_allow_rule(rule)
 
 
 def _opens_gemini_shell(entry: str) -> bool:
@@ -640,16 +722,19 @@ def _parse(data: bytes) -> dict | None:
     return result
 
 
-def _load(file: WorkflowFile) -> dict | None:
+def _load(file: WorkflowFile, errors: list[str] | None = None) -> dict | None:
     """Parsed workflow mapping, or ``None`` when unreadable or not a mapping.
 
-    The size cap is checked again here, after discovery.  The result is
-    shared through the cache, so callers must not mutate it.
+    The size cap is checked again here, after discovery.  A file that cannot
+    be opened is reported in *errors*.  The result is shared through the
+    cache, so callers must not mutate it.
     """
     try:
         with file.path.open("rb") as fh:
             data = fh.read(_discovery.MAX_WORKFLOW_BYTES + 1)
-    except OSError:
+    except OSError as exc:
+        if errors is not None:
+            errors.append(_discovery.unreadable_message(file.path, exc))
         return None
     if len(data) > _discovery.MAX_WORKFLOW_BYTES:
         return None
@@ -1133,7 +1218,9 @@ def _analyze_step(ctx: _StepContext) -> list[Finding]:
     return findings
 
 
-def analyze_workflow_files(files: Iterable[WorkflowFile]) -> list[Finding]:
+def analyze_workflow_files(
+    files: Iterable[WorkflowFile], *, errors: list[str] | None = None
+) -> list[Finding]:
     """Return WORKFLOW-001..003 findings for *files*.
 
     Files that cannot be read or parsed are skipped.  Findings come out in
@@ -1143,13 +1230,15 @@ def analyze_workflow_files(files: Iterable[WorkflowFile]) -> list[Finding]:
     Args:
         files: Workflow files from
             :func:`~mcp_audit.ci_workflows.discovery.discover_workflow_files`.
+        errors: Optional list that receives one message per file that
+            cannot be opened.
 
     Returns:
         One finding per (ID, agent step) at most.
     """
     workflows: list[_Workflow] = []
     for file in files:
-        doc = _load(file)
+        doc = _load(file, errors)
         if doc is None:
             continue
         workflows.append(

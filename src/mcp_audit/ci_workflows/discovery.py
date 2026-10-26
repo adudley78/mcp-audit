@@ -18,13 +18,15 @@ elsewhere look like the repository's own workflow.
 Every filesystem probe catches ``OSError``: an unreadable directory skips
 that directory, it never stops the scan.  Work is bounded per file
 (:data:`MAX_WORKFLOW_BYTES`) and per call (:data:`MAX_TOTAL_BYTES`,
-:data:`MAX_WORKFLOW_FILES`); anything skipped for size is reported through
-the optional *skipped* list so the scan can say so.
+:data:`MAX_WORKFLOW_FILES`).  A workflow directory or file that cannot be
+read, and anything skipped for size, is reported through the optional
+*skipped* list so the scan can say what it did not check.
 """
 
 from __future__ import annotations
 
 import logging
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,6 +44,12 @@ MAX_WORKFLOW_BYTES: int = 256 * 1024
 MAX_TOTAL_BYTES: int = 4 * 1024 * 1024
 # Upper bound on files accepted by one discovery call.
 MAX_WORKFLOW_FILES: int = 2000
+
+
+def unreadable_message(path: Path, exc: OSError) -> str:
+    """The scan-error line for a workflow directory or file that cannot be read."""
+    reason = exc.strerror or exc.__class__.__name__
+    return f"ci_workflows: skipped {path}: cannot read it ({reason})"
 
 
 @dataclass(frozen=True)
@@ -111,18 +119,32 @@ def _workflow_files_in(
     *scan_root*.
     """
     wf_dir = repo_root / _WORKFLOWS_REL
+    # stat() rather than is_dir(): from Python 3.13 is_dir() returns False on
+    # EACCES, which would hide an unreadable .github instead of reporting it.
     try:
-        if not wf_dir.is_dir():
-            return []
+        st = wf_dir.stat()
+    except (FileNotFoundError, NotADirectoryError):
+        return []
+    except OSError as exc:
+        budget.note(unreadable_message(wf_dir, exc))
+        return []
+    except ValueError:
+        return []
+    if not stat.S_ISDIR(st.st_mode):
+        return []
+    try:
         resolved_dir = wf_dir.resolve()
         if resolved_dir != repo_root.resolve() / _WORKFLOWS_REL:
             logger.debug("ci_workflows: %s is reached through a symlink", wf_dir)
             return []
         resolved_dir.relative_to(scan_root)
         entries = sorted(wf_dir.iterdir())
-    except (OSError, ValueError, RuntimeError):
-        # OSError: unreadable; ValueError: outside the scanned root;
-        # RuntimeError: symlink loop on older Pythons.
+    except OSError as exc:
+        budget.note(unreadable_message(wf_dir, exc))
+        return []
+    except (ValueError, RuntimeError):
+        # ValueError: outside the scanned root; RuntimeError: symlink loop on
+        # older Pythons.
         return []
     found: list[WorkflowFile] = []
     for entry in entries:
@@ -131,11 +153,17 @@ def _workflow_files_in(
         try:
             target = entry.resolve()
             target.relative_to(scan_root)
-            if not target.is_file():
-                continue
-            size = target.stat().st_size
-        except (OSError, ValueError, RuntimeError):
+            target_st = target.stat()
+        except FileNotFoundError:
+            continue  # a broken link
+        except OSError as exc:
+            budget.note(unreadable_message(entry, exc))
             continue
+        except (ValueError, RuntimeError):
+            continue
+        if not stat.S_ISREG(target_st.st_mode):
+            continue
+        size = target_st.st_size
         if not budget.admit(entry, size):
             continue
         found.append(WorkflowFile(path=entry, repo_root=repo_root))
@@ -160,8 +188,9 @@ def discover_workflow_files(
             ``--project`` (which lets the caller de-duplicate them).
         walk: Also descend into *root* (``scan --project``) and read the
             workflows of every nested directory that holds a ``.git`` entry.
-        skipped: Optional list that receives one message per file skipped
-            for size, and one when the per-call budget runs out.
+        skipped: Optional list that receives one message per workflow
+            directory or file that cannot be read or is skipped for size,
+            and one when the per-call budget runs out.
 
     Returns:
         :class:`WorkflowFile` objects in walk order.  Empty when there are

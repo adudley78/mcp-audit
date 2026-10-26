@@ -23,8 +23,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   workspace that holds pull-request code. Based on "Comment and Control" (ACM
   CCS 2026), where all three vendors' agents leaked their own secrets. Files
   are parsed as data and never run; a symlinked `.github` is not followed;
-  files over 256 KiB, and anything past 4 MiB in one scan, are skipped and
-  listed in the scan's errors; an explicit `--path` scans only what it names.
+  workflow files that cannot be read, files over 256 KiB, and anything past
+  4 MiB in one scan are skipped and listed in the scan's errors; an explicit
+  `--path` scans only what it names.
   See `docs/ci-workflows.md`.
 - **Verified registry entry for `mcptoon`** (PyPI, [#171](https://github.com/adudley78/mcp-audit/issues/171),
   submitted by [@activeing123](https://github.com/activeing123)), an MCP gateway that

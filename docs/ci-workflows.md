@@ -25,8 +25,9 @@ Only the top level of `.github/workflows/` is read, as GitHub does. When the
 working directory is also the `--project` directory, each finding is reported
 once. A `.github` or `.github/workflows` that is a symlink is not read, and
 every file must resolve inside the scanned directory, so a link cannot pass
-another directory's workflows off as the repository's own. An unreadable
-directory is skipped without stopping the scan.
+another directory's workflows off as the repository's own. A workflow
+directory or file that cannot be read is skipped without stopping the scan,
+and listed under the scan's errors.
 
 Files over 256 KiB are skipped, and one scan reads at most 4 MiB of workflow
 files (about 4–5 seconds of parsing for real workflows; files built to parse

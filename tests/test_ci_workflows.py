@@ -1124,11 +1124,23 @@ class TestUnreadablePaths:
     """PermissionError from a filesystem probe skips that path, never the scan."""
 
     @staticmethod
-    def _deny(monkeypatch: pytest.MonkeyPatch, method: str, part: str) -> None:
+    def _deny(
+        monkeypatch: pytest.MonkeyPatch,
+        method: str,
+        part: str,
+        *,
+        inside_only: bool = False,
+    ) -> None:
+        """Make ``Path.<method>`` raise EACCES for paths through *part*.
+
+        With *inside_only*, *part* itself stays reachable and only paths
+        below it fail, which is what a mode-000 directory looks like: its
+        own ``lstat`` needs only the parent's search permission.
+        """
         real = getattr(Path, method)
 
         def guarded(self: Path, *args: object, **kwargs: object) -> object:
-            if part in self.parts:
+            if part in self.parts and not (inside_only and self.name == part):
                 raise PermissionError(13, "Permission denied", str(self))
             return real(self, *args, **kwargs)
 
@@ -1171,9 +1183,13 @@ class TestUnreadablePaths:
         _vulnerable_repo(tmp_path)
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr("mcp_audit.discovery._get_client_specs", lambda: [])
-        self._deny(monkeypatch, "is_dir", ".github")
+        self._deny(monkeypatch, "stat", ".github", inside_only=True)
         result = run_scan(skip_rug_pull=True, include_plugins=False)
         assert not [f for f in result.findings if f.id.startswith("WORKFLOW-")]
+        wf_dir = tmp_path.resolve() / ".github" / "workflows"
+        assert result.errors == [
+            f"ci_workflows: skipped {wf_dir}: cannot read it (Permission denied)"
+        ]
 
     def test_unexpected_failure_lands_in_result_errors(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1199,9 +1215,71 @@ class TestUnreadablePaths:
             "mcp_audit.scanner.derive_state_path",
             lambda _configs: tmp_path / "rug-pull-state.json",
         )
-        self._deny(monkeypatch, "is_dir", ".github")
+        self._deny(monkeypatch, "stat", ".github", inside_only=True)
         r = runner.invoke(app, ["scan", "--no-plugins", "--format", "json"])
         assert r.exit_code == 0, r.output
+
+    def test_unopenable_workflow_file_is_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = _vulnerable_repo(tmp_path)
+        self._deny(monkeypatch, "open", path.name)
+        errors: list[str] = []
+        assert scan_workflows(tmp_path, errors=errors) == []
+        resolved = tmp_path.resolve() / ".github" / "workflows" / path.name
+        assert errors == [
+            f"ci_workflows: skipped {resolved}: cannot read it (Permission denied)"
+        ]
+
+    def test_unstattable_workflow_file_is_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = _vulnerable_repo(tmp_path)
+        self._deny(monkeypatch, "stat", path.name)
+        errors: list[str] = []
+        assert scan_workflows(tmp_path, errors=errors) == []
+        assert len(errors) == 1
+        assert errors[0].endswith(f"{path.name}: cannot read it (Permission denied)")
+
+    def test_missing_workflows_dir_and_broken_link_are_not_errors(
+        self, tmp_path: Path
+    ) -> None:
+        errors: list[str] = []
+        assert scan_workflows(tmp_path, errors=errors) == []
+        wf_dir = tmp_path / ".github" / "workflows"
+        wf_dir.mkdir(parents=True)
+        try:
+            (wf_dir / "gone.yml").symlink_to(tmp_path / "missing.yml")
+        except OSError:
+            pytest.skip("cannot create symlinks here")
+        assert scan_workflows(tmp_path, errors=errors) == []
+        assert errors == []
+
+    def test_project_scan_reports_an_unreadable_dir_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """cwd is the project: the default pass and the walk report it once.
+
+        Only the listing of ``workflows`` fails here.  A real mode-000
+        directory also makes ``discovery._autoexec_candidate``'s
+        ``is_symlink()`` probes raise under ``--project`` (pre-existing,
+        outside this package), so this models the part this package owns.
+        """
+        _vulnerable_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("mcp_audit.discovery._get_client_specs", lambda: [])
+        monkeypatch.setattr(
+            "mcp_audit.scanner.derive_state_path",
+            lambda _configs: tmp_path / "rug-pull-state.json",
+        )
+        self._deny(monkeypatch, "iterdir", "workflows")
+        r = runner.invoke(
+            app,
+            ["scan", "--project", str(tmp_path), "--format", "json", "--no-plugins"],
+        )
+        data = json.loads(r.output[r.output.index("{") :])
+        assert sum("cannot read it" in e for e in data["errors"]) == 1
+        assert not [f for f in data["findings"] if f["id"].startswith("WORKFLOW-")]
 
 
 class TestLinearTime:
@@ -1256,6 +1334,132 @@ class TestLinearTime:
         start = time.perf_counter()
         assert _ids(tmp_path) == ["WORKFLOW-001"]
         assert time.perf_counter() - start < 5.0
+
+    def test_hostile_shell_rule_is_linear(self) -> None:
+        import time
+
+        from mcp_audit.ci_workflows.analyzer import _opens_claude_shell
+
+        rule = "Bash(" + " " * 250_000 + "x"
+        start = time.perf_counter()
+        assert _opens_claude_shell(rule) is False
+        assert _opens_claude_shell(rule + ")") is False
+        assert time.perf_counter() - start < 2.0
+
+    def test_hostile_allow_rule_in_a_workflow_is_linear(self, tmp_path: Path) -> None:
+        import time
+
+        spaces = " " * 250_000
+        body = (
+            "on: issues\npermissions: write-all\njobs:\n  j:\n    runs-on: x\n"
+            "    steps:\n      - uses: anthropics/claude-code-action@v1\n"
+            "        with:\n          anthropic_api_key: ${{ secrets.K }}\n"
+            f"          allowed_tools: 'Bash({spaces}x),Bash'\n"
+        )
+        assert len(body) < wf_discovery.MAX_WORKFLOW_BYTES
+        _write(tmp_path, "big.yml", body)
+        start = time.perf_counter()
+        assert _ids(tmp_path) == ["WORKFLOW-001"]
+        assert time.perf_counter() - start < 5.0
+
+    def test_long_quoted_claude_args_is_linear(self) -> None:
+        import time
+
+        from mcp_audit.ci_workflows.analyzer import _cli_flags
+
+        # 600k: shlex (quadratic) needs several seconds here, this ~0.05 s.
+        rule = "Bash(" + " " * 600_000 + "x)"
+        start = time.perf_counter()
+        flags = _cli_flags(f'--allowedTools "{rule}" Read')
+        assert time.perf_counter() - start < 2.0
+        assert flags.allowed == [rule, "Read"]
+
+    def test_posix_split_matches_shlex(self) -> None:
+        import itertools
+        import shlex
+
+        from mcp_audit.ci_workflows.analyzer import _posix_split
+
+        def outcome(split: object, text: str) -> tuple[str, object]:
+            try:
+                return ("ok", split(text))  # type: ignore[operator]
+            except ValueError:
+                return ("error", None)
+
+        def reference(text: str) -> list[str]:
+            return shlex.split(text, posix=True)
+
+        table = [
+            "",
+            "   ",
+            "--allowedTools Bash Read",
+            '--allowedTools "Bash(git log:*)" Read,Edit',
+            "--allowedTools 'Bash(gh issue view:*)'",
+            "a''b '' \"\"",
+            'say "a \\" b \\\\ \\x"',
+            "esc\\ aped \\\" \\'",
+            "tab\tnl\ncr\rff\fvt\x0bnbsp\u00a0",
+            "# not a comment",
+            '"unclosed',
+            "'unclosed",
+            "trailing\\",
+            '"trailing\\',
+            'mid"dle quo"ted',
+        ]
+        # Every string of up to four characters over these, exhaustively.
+        alphabet = [" ", "\t", "\n", "\\", "'", '"', "a", ",", "\f", "#", "("]
+        for length in range(5):
+            table += ["".join(p) for p in itertools.product(alphabet, repeat=length)]
+        for text in table:
+            assert outcome(_posix_split, text) == outcome(reference, text), repr(text)
+
+    def test_shell_rule_matcher_keeps_the_old_regex_semantics(self) -> None:
+        import re
+
+        from mcp_audit.ci_workflows.analyzer import _is_whole_shell_rule
+
+        old = re.compile(r"^(?:Bash|PowerShell)(?:\(\s*(?::\s*)?\*?\s*\))?$")
+        whole_shell = [
+            "Bash",
+            "PowerShell",
+            "Bash()",
+            "Bash(*)",
+            "Bash(:*)",
+            "Bash(:)",
+            "Bash( : * )",
+            "Bash(\t*\n)",
+            "Bash(\u00a0*)",
+            "Bash(\u3000:\u2003*)",
+            "PowerShell(:*)",
+            "PowerShell( )",
+        ]
+        not_whole_shell = [
+            "",
+            "bash",
+            "Bash(*:)",
+            "Bash(**)",
+            "Bash(::*)",
+            "Bash(: :)",
+            "Bash(x)",
+            "Bash(git log:*)",
+            "Bash(gh issue view:*)",
+            "Bash(cat:*)",
+            "Bash(*",
+            "Bash)",
+            "Bash())",
+            "Bash(*)x",
+            "xBash",
+            "Read",
+            "WebFetch(domain:*)",
+            "PowerShell(Get-ChildItem:*)",
+            "mcp__github__*",
+        ]
+        for rule in whole_shell:
+            assert _is_whole_shell_rule(rule), rule
+            assert old.match(rule), rule
+        for rule in not_whole_shell:
+            assert not _is_whole_shell_rule(rule), rule
+            assert not old.match(rule), rule
 
 
 class TestBudget:
