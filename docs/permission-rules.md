@@ -1,4 +1,4 @@
-# Permission rules that don't do what they say (PERM-001..007)
+# Permission rules that don't do what they say (PERM-001..007) and sandbox settings a repository can loosen (SANDBOX-001..005)
 
 Claude Code's permission rules (`permissions.allow`, `permissions.ask`,
 `permissions.deny` in `settings.json`) have a grammar with sharp edges. Anthropic
@@ -153,12 +153,148 @@ string as code, start any program, or reach the network (`Invoke-Expression`/
 `iex`, `Invoke-Command`/`icm`, `Start-Process`/`saps`,
 `Invoke-WebRequest`/`iwr`, `Invoke-RestMethod`/`irm`) are in the same table.
 
+## Sandbox settings a repository can loosen (SANDBOX-001..005)
+
+Claude Code's Bash sandbox is configured by the `sandbox` block of any settings
+file, and Claude Code merges that block across user, project and local settings.
+Anthropic's sandboxing doc says a repository's settings can turn on keys that
+weaken it, and that some keys a repository can't set at all. mcp-audit reads the
+same settings files as PERM-* and reports both, plus a local settings file that
+is headed for git. Read on 2026-10-26:
+[sandboxing](https://code.claude.com/docs/en/sandboxing),
+[settings reference](https://code.claude.com/docs/en/settings-reference) (the
+settings index gives each key's scope: `Any file`, `User or managed`, `Managed`),
+[settings](https://code.claude.com/docs/en/settings) and
+[permissions](https://code.claude.com/docs/en/permissions).
+
+"Repository settings" means `.claude/settings.json` and
+`.claude/settings.local.json` outside your home directory, the sandboxing doc's
+"a repository's `.claude/settings.json` and `.claude/settings.local.json`". Your
+own `~/.claude/settings.json` is your choice and gets only SANDBOX-004.
+
+| ID | Severity | Fires when | Write instead |
+|---|---|---|---|
+| SANDBOX-001 | HIGH | A repository file sets `enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`, `network.allowAllUnixSockets` or `network.allowLocalBinding` to `true`, or the shared `.claude/settings.json` sets `enabled: false` | Remove them; a machine that needs one sets it in `~/.claude/settings.json` |
+| SANDBOX-001 | MEDIUM | The shared `.claude/settings.json` sets `failIfUnavailable: false`, or a repository file sets `network.httpProxyPort` or `network.socksProxyPort` | Remove them; a proxy port belongs in managed or user settings |
+| SANDBOX-002 | HIGH | A repository file's `excludedCommands` leaves a shell or interpreter (`python *`, `bash -c *`, `node *`), a package or environment runner (`npx *`, `uv run *`, `pnpm dlx *`), or a container runtime (`docker *`, `docker compose *`, `docker run *`, `podman *`) open with a trailing wildcard, or starts with `*`; or `network.allowUnixSockets` lists `docker.sock`, `podman.sock` or `containerd.sock` | Keep the tool sandboxed and grant one path (`filesystem.allowWrite`) or host (`network.allowedDomains`); put the narrowest exclusion in your own settings |
+| SANDBOX-003 | MEDIUM | A repository file's `network.allowedDomains` admits a code host (`github.com`, `gitlab.com`, `bitbucket.org`), a paste site (`pastebin.com`, `paste.ee`, `hastebin.com`, `dpaste.com`, `dpaste.org`, `rentry.co`, `termbin.com`), a webhook receiver (`discord.com`, `discordapp.com`, `hooks.slack.com`, `webhook.site`), a subdomain of one, or `*` | The narrow hosts a tool needs (`registry.npmjs.org`); `deniedDomains` for upload hosts |
+| SANDBOX-004 | INFO | A key this file can't set, with a value that would act: in project and local files the "User or managed" keys (`allowAppleEvents`, `allowNestedUserNamespaces: true`, `filesystem.disabled`, `network.strictAllowlist`, `network.tlsTerminate`, `ripgrep`, `credentials.allowPlaintextInject`/`awsPairs`/`sigv4`, credential `mask` entries) and the "Managed" keys (`bwrapPath`, `socatPath`, `filesystem.allowManagedReadPathsOnly`, `network.allowManagedDomainsOnly`); in user settings the Managed keys | Move the key to managed or user settings, or delete it |
+| SANDBOX-005 | MEDIUM | `.claude/settings.local.json` inside a git work tree that no ignore file covers | Add it to `.gitignore`; `git rm --cached` it if it is already committed |
+| SANDBOX-005 | LOW | A project or local settings file headed for git contains home-directory paths naming a person (`/Users/<name>`, `/home/<name>`, `C:\Users\<name>`, `/c/Users/<name>`) | `~/…` paths, or keep machine-specific entries in an ignored file |
+
+**SANDBOX-001.** "Unless managed settings set them, a developer's user settings
+or `--settings` can turn on the following keys. A repository's
+`.claude/settings.json` can too, unless the sandbox is admin-required. Each one
+weakens the sandbox" (`enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`,
+`network.allowAllUnixSockets`, `network.allowLocalBinding`). What each does, from
+the settings reference: the nested sandbox "exposes process information that a
+fresh mount would hide" (Linux and WSL2); the weaker network isolation opens "a
+potential data exfiltration path through the trust service" (macOS); every Unix
+socket, including on WSL2 the interop socket that launches Windows binaries; and
+on macOS, any port on localhost, where "A localhost service that doesn't require
+authentication, such as a debugger, can then act for the command outside the
+sandbox" (no effect on Linux and WSL2). The admin-required table lists `enabled`
+and `failIfUnavailable` ("`false`, when the developer's `~/.claude/settings.json`
+sets `true`") and the proxy ports among "the settings that loosen it"; for a port,
+"Your proxy takes over filtering, and Claude Code stops applying its domain lists
+and network prompts to traffic sent there". `enabled` and `failIfUnavailable`
+are checked in the shared file only: Claude Code's own `/sandbox` panel writes
+`enabled` to `.claude/settings.local.json`, so a `false` there is usually your own
+choice. While managed settings or `--settings` make the sandbox admin-required
+(Claude Code 2.1.285 or later), Claude Code ignores these keys in a repository's
+files; the scan can't see managed settings, so the finding says so.
+
+**SANDBOX-002.** "An excluded command runs with your full access. A broad entry
+such as `docker *` covers everything that tool can do. If you write a pattern
+that covers an interpreter, a script inside your working directory, or a tool
+that acts on a file there, as `docker compose` does with its compose file, Claude
+can write that file and then run it outside the sandbox." And: "allowing access
+to `/var/run/docker.sock` effectively grants access to the host system through
+the Docker socket" (`allowUnixSockets` applies on macOS only). Entries use
+`Bash(...)` rule syntax, where "a pattern with no wildcard is an exact match", so
+only entries whose arguments are left open are reported: `python *` is,
+`python scripts/load_orders.py *` (the doc's own narrowed example) and
+`uv run pytest *` are not. `sudo`, `eval` and `xargs` entries are not reported:
+calls starting with them stay sandboxed. An excluded command still goes through
+the permission flow ("Bash command (unsandboxed)" prompt), except in
+`bypassPermissions` mode or when an allow rule covers it.
+
+**SANDBOX-003.** "Allowing broad domains such as `github.com` can create paths
+for data exfiltration. Because the proxy makes its allow decision from the
+client-supplied hostname without inspecting TLS, code running inside the sandbox
+can potentially use domain fronting", and "a project can add domains to your user
+list unless a repository lock applies". The other hosts come from MITRE ATT&CK
+[T1567.001](https://attack.mitre.org/techniques/T1567/001/) (code repository,
+"https://api.github.com"), [T1567.003](https://attack.mitre.org/techniques/T1567/003/)
+(text storage sites, "pastebin[.]com") and
+[T1567.004](https://attack.mitre.org/techniques/T1567/004/) (webhooks, "Discord,
+Slack, and webhook.site"). `*` is reported as every host: `WebFetch(domain:…)`
+allow rules feed the same allowlist, and the sandbox honours "a bare `*`" there.
+`github.example.com` (Anthropic's HIPAA example) is not a match.
+
+**SANDBOX-004.** The settings reference gives these keys the scope "User or
+managed" or "Managed", and says, for example, "Claude Code ignores a `true` in a
+project's `.claude/settings.json` or `.claude/settings.local.json`"
+(`allowNestedUserNamespaces`), "A repository can't turn it on or off"
+(`strictAllowlist`), "Claude Code reads it only from managed settings so that a
+user, project, or local file can't point the sandbox at a different binary"
+(`bwrapPath`), and "Claude Code honors `mask` entries, `allowPlaintextInject`,
+`awsPairs`, and `sigv4` only from user settings, managed settings, and the
+`--settings` flag." A key at its default (`false`, empty) is not reported. The
+finding names the keys that look like locks, because those are the ones whose
+author believes something holds. Anthropic's HIPAA example, which is meant for
+managed settings, gets this INFO when committed as project settings.
+
+**SANDBOX-005.** The settings doc: Claude Code "keeps it out of git when it
+creates the file; if you create it by hand, add it to `.gitignore` yourself", and
+it does so by adding `**/.claude/settings.local.json` to "your global git excludes
+file ... `core.excludesFile` when your global git config sets it to an absolute
+or `~`-prefixed path; otherwise it's `$XDG_CONFIG_HOME/git/ignore`, or
+`~/.config/git/ignore`". The permissions doc: "When the file is tracked in git, or
+`.claude` is a symlink, Claude Code treats it as repository-supplied instead and
+holds its rules until you trust the folder." mcp-audit never runs `git` (a
+checkout can carry `core.fsmonitor`, STORY-0089). It finds the nearest `.git`
+entry at or above the project, then reads, in git's order of precedence, the
+global excludes file, `.git/info/exclude`, and every `.gitignore` from the
+work-tree root down to `.claude/`, and applies gitignore(5) matching (negation,
+directory-only patterns, anchoring, `**`, and "It is not possible to re-include a
+file if a parent directory of that file is excluded"). A `.gitignore` that is a
+symlink is skipped, as git does since 2.32. If an ignore file can't be read
+(permissions, larger than 1 MiB, or the scan's 512-file / 8 MiB budget), the file
+is skipped and the reason goes to the scan's errors, without absolute paths.
+Placeholder and shared-account names (`/Users/you`, `/home/runner`,
+`C:\Users\Public`, `$USER`) are not counted as a person. UpGuard collected 18,470
+committed `.claude/settings.local.json` files from public GitHub and found 8,341
+permission entries containing usernames
+([UpGuard](https://www.upguard.com/blog/yolo-mode-hidden-risks-in-claude-code-permissions)).
+
+**Precision.** Anthropic's four example settings files (`settings-strict`,
+`-lax`, `-bash-sandbox`, `-hipaa`), checked as project, local and user settings,
+produce nothing above INFO (the HIPAA file's two managed-only locks give
+SANDBOX-004 INFO). Across those files plus every settings-shaped JSON block in
+the sandboxing, settings, settings-reference, permissions and permission-modes
+pages (283 configs, 58 with a `sandbox` block), every finding above INFO is a doc
+snippet that demonstrates exactly one loosening key (`excludedCommands:
+["docker *"]`, `allowedDomains: ["github.com"]`, `allowLocalBinding: true`, a
+proxy port), which is what the check is for when the file is a repository's. As
+user settings the same configs give five SANDBOX-004 INFO notes and nothing else.
+
+**Not reported** (see `GAPS.md`): `filesystem.allowWrite` entries that reach
+shell startup files or `$PATH` directories (the doc's "Filesystem permission
+escalation" warning), `ignoreViolations`, `allowMachLookup`, a repository's
+`autoAllowBashIfSandboxed: true` or `allowUnsandboxedCommands: true` (the second
+overrode a user's `false` before 2.1.285), content hosts added through
+`WebFetch(domain:…)` allow rules, and managed-only keys outside the `sandbox`
+block.
+
 ## Limits
 
-See `GAPS.md`, "PERM-001..007 read rules, not the effective policy". In short:
-each settings file is checked on its own (Claude Code's merge of user, project,
-local and managed settings is not modelled), the installed Claude Code version
-is not read, and managed settings are not discovered.
+See `GAPS.md`, "PERM-001..007 read rules, not the effective policy" and
+"SANDBOX-001..005". In short: each settings file is checked on its own (Claude
+Code's merge of user, project, local and managed settings is not modelled), the
+installed Claude Code version is not read, and managed settings are not
+discovered, so a sandbox that managed settings make admin-required is not seen.
+SANDBOX-005 decides ignore state from ignore files, not from `.git/index`.
 
 ## For tools that build on this
 

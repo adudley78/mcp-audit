@@ -16,6 +16,7 @@ from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.permissions import analyze_flagged_server_allows
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import RugPullAnalyzer, derive_state_path
+from mcp_audit.analyzers.sandbox import analyze_settings_git_exposure
 from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
 from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
@@ -216,6 +217,13 @@ def _run_static_pipeline(
        :meth:`~mcp_audit.analyzers.base.BaseAnalyzer.analyze_config` —
        calls every analyzer once per config file, independent of server count.
        Analyzers that have nothing to check return ``[]`` (the default).
+    0b. SANDBOX-005 (STORY-0093):
+       :func:`~mcp_audit.analyzers.sandbox.analyze_settings_git_exposure`
+       over the Claude Code settings files in ``configs``: a local settings
+       file in a git work tree that no ignore file covers, and home-directory
+       paths in a settings file headed for git.  It reads ignore files, so
+       its read failures go to ``result.errors``.  Runs only when a
+       :class:`ConfigHygieneAnalyzer` is in ``analyzers``.
     1. Per-server analyzers (``analyzer.analyze(server)`` for each pair).
     2. :meth:`~mcp_audit.analyzers.rug_pull.RugPullAnalyzer.analyze_all`
        (skipped when ``skip_rug_pull`` is ``True``).
@@ -280,6 +288,17 @@ def _run_static_pipeline(
                 result.findings.extend(config_findings)
             except Exception:  # noqa: BLE001, S110
                 pass  # parse errors already captured by _discover_and_parse
+
+    # ── 0b. Settings files headed for git (SANDBOX-005, STORY-0093) ───────────
+    # Reads ignore files (never runs git), so unlike step 0 its failures are
+    # reported in result.errors rather than swallowed.
+    if any(isinstance(a, ConfigHygieneAnalyzer) for a in analyzers):
+        try:
+            git_findings, git_errors = analyze_settings_git_exposure(configs)
+            result.findings.extend(git_findings)
+            result.errors.extend(git_errors)
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"sandbox error: {type(e).__name__}")
 
     # ── 1. Per-server static analysis ─────────────────────────────────────────
     for server in all_servers:

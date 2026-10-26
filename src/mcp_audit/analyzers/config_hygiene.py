@@ -31,6 +31,11 @@ opt-in.  Keys and semantics follow code.claude.com/docs/en/permissions.
 STORY-0092 (2026-10-25) and live in :mod:`mcp_audit.analyzers.permissions`:
 ``analyze_config`` runs PERM-001..006 on the same files as HARNESS-*, and the
 scanner runs PERM-007 after every per-server analyzer.
+
+**Sandbox settings a repository can loosen (SANDBOX-001..005)** were added in
+STORY-0093 (2026-10-26) and live in :mod:`mcp_audit.analyzers.sandbox`:
+``analyze_config`` runs SANDBOX-001..004 on the same files, and the scanner runs
+SANDBOX-005 (settings files headed for git) as pipeline step 0b.
 """
 
 from __future__ import annotations
@@ -47,6 +52,7 @@ from typing import NamedTuple
 from urllib.parse import unquote, urlsplit
 
 from mcp_audit.analyzers import permissions as _permissions
+from mcp_audit.analyzers import sandbox as _sandbox
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS, CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import normalize_for_detection
@@ -1204,6 +1210,9 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
           non-first-party host (the CVE-2026-21852 shape).
         - **PERM-001..006**: permission rules that don't do what they say
           (:mod:`mcp_audit.analyzers.permissions`, STORY-0092).
+        - **SANDBOX-001..004**: sandbox keys a repository settings file uses
+          to loosen the Bash sandbox, and keys this file can't set
+          (:mod:`mcp_audit.analyzers.sandbox`, STORY-0093).
 
         Args:
             raw: The parsed JSON dict for the config file.
@@ -1225,6 +1234,15 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                 client,
                 analyzer=self.name,
                 is_broad_allow_rule=_is_broad_allow_rule,
+            )
+        )
+
+        # SANDBOX-001..004 (STORY-0093): sandbox keys a repository loosens, or
+        # that this file can't set.  SANDBOX-005 reads ignore files, so it runs
+        # in scanner._run_static_pipeline step 0b instead.
+        findings.extend(
+            _sandbox.analyze_sandbox_settings(
+                raw, config_path, client, analyzer=self.name
             )
         )
 

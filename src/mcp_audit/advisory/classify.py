@@ -73,6 +73,8 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         "MOD-005",  # Claude Code mod inventory (STORY-0085) — neutral, not a defect
         "HARNESS-007",  # enabledMcpjsonServers inventory (STORY-0090) — INFO;
         # Claude Code writes it when you approve a server, not a defect by itself
+        "SANDBOX-004",  # sandbox keys Claude Code ignores in this file
+        # (STORY-0093) — INFO dead-config note, not a vulnerability
     }
 )
 
@@ -145,6 +147,7 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "MOD-002": "toxic-flow",
     "MOD-003": "tool-poisoning",
     "MOD-006": "untrusted-config-origin",
+    "SANDBOX-005": "config-hygiene",
 }
 
 # Prefix → class, applied when no exact ID match exists. Longest prefix wins.
@@ -156,6 +159,7 @@ _CLASS_BY_PREFIX: Final[dict[str, str]] = {
     "MOD-": "hook-execution",
     "HARNESS-": "excessive-scope",
     "PERM-": "excessive-scope",
+    "SANDBOX-": "sandbox-disabled",
     "SC-": "typosquat",
     "CFHYG-": "config-hygiene",
     "TOXIC-": "toxic-flow",
