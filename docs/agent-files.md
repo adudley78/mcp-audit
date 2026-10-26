@@ -48,6 +48,13 @@ Hook analysis covers `~/.claude.json`, `.claude/settings.json`, and
 `.claude/settings.local.json` (all Claude Code config files that can contain
 a `hooks` section).
 
+A skill is more than its `SKILL.md`. Every other file in each skill folder
+(scripts, reference files, archives, `bin/`, `.git/`, and the plugin
+components of a skill folder that holds `.claude-plugin/plugin.json`) is read
+in the default `scan` and `check` and reported as SKILL-005..008; with
+`--include-agent-files` the `SKILL.md` rules below also run on the skill's
+other prose files. See [skill-packages.md](skill-packages.md).
+
 ---
 
 ## Finding IDs

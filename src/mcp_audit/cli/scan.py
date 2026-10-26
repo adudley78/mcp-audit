@@ -652,7 +652,8 @@ def _apply_agent_files(
     # Subagent definitions' frontmatter checks (AGENT-001..004, HOOK-001/002)
     # already come from default discovery (user-global and cwd) and from
     # --project, so only their body text is scanned here (STORY-0094). A
-    # symlink default discovery already reported is not reported twice.
+    # symlink default discovery or the skill pass (STORY-0095) already
+    # reported is not reported twice.
     already = {
         (f.id, f.finding_path)
         for f in result.findings
@@ -661,12 +662,38 @@ def _apply_agent_files(
     af_findings = _af_analyzer.analyze_agent_files(
         af_list, include_definitions=False
     ) + [f for f in af_skip_findings if (f.id, f.finding_path) not in already]
+    af_findings += _skill_bundled_code(result, af_findings, project_root)
     result.findings.extend(af_findings)
     con.print(
         f"[dim]Agent files: {len(af_list)} file(s) scanned, "
         f"{len(af_findings)} issue(s) found[/dim]"
     )
     return result
+
+
+def _skill_bundled_code(
+    result: ScanResult, new_findings: list[Finding], project_root: Path | None
+) -> list[Finding]:
+    """SKILL-008 that only the agent-file rules can trigger (STORY-0095).
+
+    ``--include-agent-files`` adds SKILL-001 and sidecar findings the default
+    scan's skill pass could not see; a skill that bundles code and now has one
+    of those gets SKILL-008, unless it already has it.
+    """
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
+    packages = skill_package.default_skill_packages(errors=result.errors)
+    if project_root is not None:
+        packages += skill_package.project_skill_packages(
+            project_root, errors=result.errors
+        )
+    try:
+        return skill_package.bundled_code_findings(
+            packages, result.findings + new_findings
+        )
+    except Exception as exc:  # noqa: BLE001 — never crash the scan
+        result.errors.append(f"skill package: SKILL-008: {exc}")
+        return []
 
 
 def _apply_plugin_agent_files(result: ScanResult, con: Console) -> ScanResult:
@@ -690,8 +717,16 @@ def _apply_plugin_agent_files(result: ScanResult, con: Console) -> ScanResult:
     plugins = _plugin_discovery.discover_installed_plugins()
     if not plugins:
         return result
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
     files = _plugin_discovery.plugin_agent_files(plugins)
     findings = _af_analyzer.analyze_agent_files(files)
+    # Every file in each plugin skill, not only its SKILL.md (STORY-0095).
+    findings += skill_package.analyze_skill_packages(
+        skill_package.packages_for_agent_files(files),
+        prior=result.findings + findings,
+        errors=result.errors,
+    )
     result.findings.extend(findings)
     con.print(
         f"[dim]Plugin agent files: {len(files)} skill/command file(s) from"
@@ -925,6 +960,52 @@ def _cross_scope_flagged_allows(
     return out
 
 
+def _apply_project_skills(
+    result: ScanResult,
+    project_dir: Path,
+    skip_findings: list[Finding],
+    project_configs: list,
+) -> list:
+    """Skill packages under every ``.claude/skills`` in *project_dir*.
+
+    Called from :func:`_apply_project_scan`.  Appends SKILL-005..008 (and the
+    routed CRED-*/HOOK-*/TRUST-* findings) to *result*, TRUST-005 for
+    symlinked directories to *skip_findings*, and filesystem errors to
+    ``result.errors``.  Findings the default scan already produced for the
+    same files (``scan --project .``) are not repeated.
+
+    Returns:
+        ``DiscoveredConfig`` entries (client ``claude-code-plugin``) for the
+        MCP servers skills-directory plugins in the repository load, minus
+        files *project_configs* (the ``--project`` walk) already holds.
+    """
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
+    packages = skill_package.project_skill_packages(
+        project_dir, errors=result.errors, findings=skip_findings
+    )
+    result.findings.extend(
+        skill_package.analyze_skill_packages(
+            packages, prior=result.findings, errors=result.errors
+        )
+    )
+    known: set[str] = set()
+    for config in project_configs:
+        with contextlib.suppress(OSError, RuntimeError):
+            known.add(str(config.path.resolve()))
+    out = []
+    for config in skill_package.skills_dir_plugin_mcp_configs(packages):
+        # The --project walk already reads every .mcp.json in the tree,
+        # including a plugin's; only its inline plugin.json servers are new.
+        try:
+            if str(config.path.resolve()) in known:
+                continue
+        except (OSError, RuntimeError):
+            continue
+        out.append(config)
+    return out
+
+
 def _apply_project_scan(
     result: ScanResult,
     project_dir: Path,
@@ -1073,6 +1154,15 @@ def _apply_project_scan(
             result.findings.append(finding)
 
     project_configs = discover_project_configs(project_dir, skip_findings=skip_findings)
+
+    # ── SKILL-005..008: skill packages in the repository (STORY-0095) ───────
+    # Every file in each .claude/skills/<skill>/ is read.  A skills-directory
+    # plugin's MCP servers (.claude/skills/<name>/.mcp.json) get TRUST-001 and
+    # the pipeline below, but stay out of discover_project_configs() so
+    # `mcp-audit lock` never records them.
+    project_configs += _apply_project_skills(
+        result, project_dir, skip_findings, project_configs
+    )
 
     # ── TRUST-002: a discovered MCP config candidate that is itself a symlink ─
     for config in project_configs:

@@ -278,6 +278,19 @@ HIGH. Each key's basis is quoted in
 | SANDBOX-004 | INFO     | ASI04 | MCP02 | A key Claude Code ignores in this file (User-or-managed keys in a project/local file; Managed keys in any non-managed file), set to a value that would act. Dead config: a lock listed here (`strictAllowlist`, `allowManagedDomainsOnly`, a credential `mask` entry) protects nothing; a loosening key loosens nothing. Not an advisory. CWE-693 |
 | SANDBOX-005 | MEDIUM / LOW | ASI06, ASI03 | MCP10, MCP02 | MEDIUM: `.claude/settings.local.json` inside a git work tree that no ignore file covers, so personal approvals reach everyone who clones and Claude Code then treats the file as repository-supplied. LOW: home-directory paths naming a person in a project or local file headed for git (privacy and portability). Read from ignore files; git is never run. CWE-538 |
 
+### Skill packages (`agent_files/skill_package.py`, SKILL-005..008, STORY-0095)
+
+Every file in a Claude Code skill directory, not only `SKILL.md`. Runs in the
+default `scan`/`check` (user and cwd skills) and `scan --project` (every
+`.claude/skills` in the tree). Details and sources: [skill-packages.md](skill-packages.md).
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| SKILL-005  | HIGH / LOW / INFO | ASI10, ASI07 | MCP04, MCP05 | An install step in any file of the skill. HIGH for the concealed shapes the 2026 campaigns used (TLS checks off, decoded download, plaintext or raw-IP host, decode-then-execute, `marshal.loads`, password-protected archive, executed DNS TXT record, scheduler/login-item write, reverse shell, public-IP URL). LOW for a plain `curl … \| sh` over https from an unlisted host, INFO for a known vendor installer or a Dockerfile `RUN` line: 9 of 1,110 benign skills pipe an installer into a shell, so the plain shape is not MEDIUM. CWE-494 |
+| SKILL-006  | HIGH / MEDIUM / LOW | ASI10, ASI03 | MCP09, MCP04, MCP05, MCP02, MCP01, MCP07 | What the skill ships into Claude Code. A skills-directory plugin's MCP server (HIGH, it starts with the user's privileges), hooks, monitors, language servers (MEDIUM) and `bin/` programs on the PATH (MEDIUM; HIGH when one shadows `git`, `curl`, `python` …); `SKILL.md` frontmatter hooks (MEDIUM, registered for the rest of the session). Carried configs Claude Code does not load from a skill folder: `.mcp.json` MEDIUM, settings/hooks LOW. A `defaultEnabled: false` plugin is one tier lower. Text starting a harness with prompts off, or pointing `ANTHROPIC_BASE_URL` and siblings at a non-vendor host: HIGH (CVE-2026-21852 shape). CWE-829 / CWE-269 / CWE-441 |
+| SKILL-007  | MEDIUM / LOW | ASI10, ASI08 | MCP04, MCP03 | Content no text scanner can read: unrecognised or compiled binaries, `.pyc` without source, a password-protected ZIP, bytes that contradict the extension, a long base64/hex blob in text, an over-cap text file, a skill over its read budget, and any non-text file in `.git/` outside git's own layout (SkillCloak). LOW for plain archives and skipped dependency folders. CWE-506 |
+| SKILL-008  | HIGH     | ASI10, ASI03 | MCP04, MCP05 | The skill bundles executable code and has another MEDIUM-or-higher finding (SKILL-002/003/004 and symlink notes excluded). A conjunctive bump, not a change to the other finding's severity; bundled scripts raised vulnerability odds 2.12× (arXiv 2601.10338). CWE-506 |
+
 ### Auth analyzer (`analyzers/auth.py`)
 
 The auth analyzer checks remote MCP server configurations for the presence of

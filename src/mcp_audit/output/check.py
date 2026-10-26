@@ -271,6 +271,23 @@ _HINTS: dict[str, str] = {
         "Use run-gemini-cli 0.1.22+ with Gemini CLI 0.39.1+, and don't trust a"
         " workspace that holds pull request code."
     ),
+    # Skill packages (STORY-0095)
+    "SKILL-005": (
+        "Read the install command this skill tells the agent to run; remove the"
+        " skill if you cannot vouch for what it downloads or decodes."
+    ),
+    "SKILL-006": (
+        "Review what this skill adds to Claude Code (servers, hooks, programs,"
+        " settings) and remove anything you did not ask for."
+    ),
+    "SKILL-007": (
+        "Find out what this file in the skill is; a skill should ship only"
+        " content you can read."
+    ),
+    "SKILL-008": (
+        "Resolve the other findings on this skill, then read the code it"
+        " bundles before using it."
+    ),
     # Baseline drift
     "DRIFT": (
         "Review this change. If intentional,"
@@ -318,13 +335,19 @@ _HINTS: dict[str, str] = {
 }
 
 
+#: Clients whose configs ``fix`` never edits.
+_NOT_FIXED_CLIENTS = frozenset({"claude-code-skill"})
+
+
 def _is_auto_fixable(finding: Finding) -> bool:
     """True when ``mcp-audit fix`` can remediate *finding* in place.
 
     ``fix`` edits MCP JSON config files only, so an auto-fixable ID found in
-    another file (a CRED-001 in ``.gemini/.env``, STORY-0090) is not.
+    another file (a CRED-001 in ``.gemini/.env``, STORY-0090) is not, nor one
+    in an MCP config a skill carries but Claude Code does not load
+    (client ``claude-code-skill``, STORY-0095), which ``fix`` never selects.
     """
-    if finding.id not in _AUTO_FIXABLE:
+    if finding.id not in _AUTO_FIXABLE or finding.client in _NOT_FIXED_CLIENTS:
         return False
     path = finding.finding_path or ""
     return not path or path.lower().endswith(".json")

@@ -1153,11 +1153,81 @@ Cursor/Copilot instruction files, plus a new inventory-only finding,
 `SKILL-004` (INFO), that lists (never opens) the filenames in a skill's own
 `scripts/` subdirectory when one exists.
 
-**Known boundary:** a bundled script's *contents* are never read or
-executed by mcp-audit — `SKILL-004` is a filename inventory, not a
-content-based detection. A malicious script referenced only by a skill's
-prose (not present as a literal file) is still caught by the existing
-SKILL-001/002/003 patterns on the `SKILL.md` body itself, not by SKILL-004.
+**Known boundary:** `SKILL-004` is a filename inventory, not a
+content-based detection. Since STORY-0095 the contents of every file in a
+skill folder, scripts included, are read (never executed) for SKILL-005..008;
+see "Skill packages (STORY-0095)" below.
+
+---
+
+### Skill packages (STORY-0095)
+
+SKILL-005..008 read every file in a skill folder (`docs/skill-packages.md`).
+Known limits, each measured or stated, not guessed:
+
+- **A plain `curl … | sh` is LOW, not MEDIUM.** On 1,128 ordinary skills
+  (2026-10-25), 9 lines pipe a third-party installer into a shell (LOW) and 12
+  more are vendor installers, Dockerfile lines or advice against the shape
+  (INFO). Raising the plain shape would put a MEDIUM on ordinary skills, so a
+  plain pipe from an unlisted host stays LOW; only the concealed shapes (TLS
+  off, decoded, plaintext, raw IP, decode-then-execute) are HIGH. A malicious
+  skill that pipes an ordinary-looking https installer is LOW.
+- **The vendor-installer list is a list.** A compromised vendor-hosted script
+  is INFO. The list (`install_steps.VENDOR_INSTALLERS`) needs maintenance as
+  installers move.
+- **Archives are not unpacked**, and 7-Zip/RAR encryption is not checked (ZIP
+  encryption is). Archives are reported as SKILL-007 LOW.
+- **Git objects are not parsed.** Files in `.git/` outside git's own layout are
+  SKILL-007 MEDIUM, but a payload committed as a real blob (loose or packed)
+  and extracted with `git show` at run time is not seen, and `git show … | sh`
+  is not an install-step shape.
+- **Dependency folders** (`node_modules`, `.venv`, `venv`, `site-packages`,
+  `bower_components`) are not walked; each is reported as SKILL-007 LOW.
+- **Symlinked skill folders are not read.** Claude Code reads `SKILL.md`
+  through a symlinked skill folder in any skills location
+  ([Skills](https://code.claude.com/docs/en/skills), "Symlinked folders").
+  mcp-audit keeps the project-wide rule of never traversing a symlinked
+  directory and reports it as TRUST-005 (LOW), so a repository can put a skill
+  outside `.claude/skills` and link to it, and its files are not checked as a
+  skill. Following links whose target stays inside the scanned repository is a
+  candidate follow-up.
+- **`allowed-tools` grants and `` !`cmd` `` lines are not checked.** A
+  frontmatter `allowed-tools` grant pre-approves tools for the skill's turn;
+  `` !`cmd` `` (dynamic context injection) runs when the skill loads. Neither is
+  tiered specially; an install-step shape on such a line is still SKILL-005.
+- **Steering without a command is not detected** ("Do not use npx paperclipai",
+  "always install from this fork").
+- **Long logical lines are matched in 16 KiB windows** with 512 characters of
+  overlap; a fetch and its sink more than 512 characters apart across a window
+  edge are missed. A text file over 1 MiB is read to the cap and reported
+  (SKILL-007 MEDIUM).
+- **A skills-directory plugin's MCP config listed by path** in
+  `plugin.json` (`"mcpServers": "./servers.json"`) is reported (SKILL-006) but
+  does not join discovery; `.mcp.json` at the plugin root and inline
+  `mcpServers` do.
+- **Carried MCP configs** (a `.mcp.json` in a skill that is not a plugin) go
+  through the poisoning, credential, transport, config-hygiene and auth
+  analyzers but not supply chain or toxic flow, because they never join
+  discovery.
+- **Nested project plugins are reported.** Claude Code loads skills-directory
+  plugins only from the primary working directory's `.claude/skills`; `scan
+  --project` reports plugins under every `.claude/skills` in the tree, as it
+  does for nested `.mcp.json` files.
+- **Context is not judged.** A skill that switches permission prompts off
+  inside a dev container it builds (trailofbits `devcontainer-setup`, the one
+  benign MEDIUM+ in the corpus) gets the same SKILL-006 HIGH as one that does it
+  on the host.
+- **Harness flags are matched case-sensitively** (`claude`, `codex`, `gemini`,
+  `qwen`), so prose naming "Gemini CLI" does not fire; an invocation written
+  `Claude --dangerously-skip-permissions` is not matched.
+- **Cost.** About 0.5 s per MiB of ordinary text and up to about 1.5 s per MiB of
+  text written to defeat the per-file pattern gates. Budgets (8 MiB per skill,
+  32 MiB per scan, 1 MiB of frontmatter YAML per scan) bound each pass over a
+  hostile repository to about a minute (`scan --project` makes two passes:
+  the working directory's skills and the tree's); anything past a budget is
+  reported.
+- **The opt-in sidecar pass drops filesystem errors.** The default pass over
+  the same skills records them in `errors`.
 
 ---
 

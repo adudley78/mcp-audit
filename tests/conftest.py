@@ -84,6 +84,12 @@ def _isolate_claude_plugins(
         "mcp_audit.discovery._agent_definitions_home",
         lambda: tmp_path_factory.getbasetemp() / "no-claude-agents-home",
     )
+    # Skill packages (STORY-0095) are read from ~/.claude/skills in every
+    # default scan.  Point that at nothing; tests that need skills patch it.
+    monkeypatch.setattr(
+        "mcp_audit.agent_files.skill_package._skills_home",
+        lambda: tmp_path_factory.getbasetemp() / "no-skills-home",
+    )
 
 
 @pytest.fixture(autouse=True)

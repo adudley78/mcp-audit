@@ -17,6 +17,14 @@ from mcp_audit.lock.discovery import find_lock_for
 from mcp_audit.lock.verifier import verify as verify_lock
 from mcp_audit.models import Finding, LockStatus, ServerConfig
 
+#: Clients ``mcp-audit lock`` never records (it discovers with
+#: ``include_plugins=False``), so verifying them could only report every one
+#: as unrecorded (LOCK-002) and fail locks that predate their discovery.
+#: ``claude-code-plugin`` includes skills-directory plugin servers, which can
+#: sit inside a locked repository (``.claude/skills/<name>/.mcp.json``,
+#: STORY-0095).
+_NOT_LOCKED_CLIENTS = frozenset({"claude-code-plugin"})
+
 _DRIFT_IDS = frozenset(
     {"LOCK-001", "LOCK-002", "LOCK-004", "LOCK-005", "LOCK-006", "LOCK-007", "LOCK-008"}
 )
@@ -52,22 +60,34 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
     one under a lock root is listed in ``status.not_covered`` instead (and the
     status counts as present), so ``check``/``scan`` can say the lock does not
     cover it.
+
+    Plugin servers (client ``claude-code-plugin``) are skipped the same way:
+    the lock never records them.  A repository's skills-directory plugin
+    (``.claude/skills/<name>``, ``is_project_scoped``, STORY-0095) under a lock
+    root is listed in ``status.not_covered``; installed plugins and the user's
+    own skills-directory plugins stay silent.
     """
     groups: dict[Path, list[ServerConfig]] = {}
     not_covered: list[str] = []
     not_covered_locks: set[Path] = set()
+
+    def note_not_covered(server: ServerConfig) -> None:
+        try:
+            lock = find_lock_for(server.config_path)
+        except (OSError, RuntimeError):
+            lock = None
+        if lock is not None:
+            not_covered.append(f"{server.client}/{server.name} ({server.config_path})")
+            not_covered_locks.add(lock)
+
     for server in servers:
+        if server.client in _NOT_LOCKED_CLIENTS:
+            if server.is_project_scoped:
+                note_not_covered(server)
+            continue
         if server.client == AGENT_DEFINITION_CLIENT:
             if agent_definition_scope(server.config_path) == "project":
-                try:
-                    agent_lock = find_lock_for(server.config_path)
-                except (OSError, RuntimeError):
-                    agent_lock = None
-                if agent_lock is not None:
-                    not_covered.append(
-                        f"{server.client}/{server.name} ({server.config_path})"
-                    )
-                    not_covered_locks.add(agent_lock)
+                note_not_covered(server)
             continue
         lock_path = find_lock_for(server.config_path)
         if lock_path is None:

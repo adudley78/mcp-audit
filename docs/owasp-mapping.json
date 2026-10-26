@@ -1127,6 +1127,66 @@
       "notes": "Fires once per discovered Claude Code SKILL.md whose own directory contains a scripts/ subdirectory with at least one file. Inventory-only: lists bundled script filenames, never contents, and never executes or reads them. Always INFO. Analyzer: agent_files."
     },
     {
+      "finding_id": "SKILL-005",
+      "finding_title": "Skill contains an install step that runs remote or hidden code",
+      "owasp_codes": [
+        "MCP04",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks",
+        "Command Injection and Execution"
+      ],
+      "notes": "STORY-0095. Fires on any text file in a Claude Code skill directory (sidecars, scripts, .git/ and build/ included), not only SKILL.md. HIGH: a remote fetch that is executed while switching off TLS checks, decoding the download, using plaintext or a raw IP host; a TLS-off fetch; decode-then-execute (base64 -d | sh, eval of decoded text, PowerShell -EncodedCommand, exec(b64decode(...)), eval(atob(...))); marshal.loads; password-protected archive extraction; an executed DNS TXT record; cron/launchd/systemd/Windows scheduled-task or Run-key writes; reverse-shell shapes; a URL with a public IP host. LOW: a plain https curl | sh or download-then-run from an unlisted host. INFO: a known vendor installer or a Dockerfile RUN line. Sources: Zenity Labs (Paperclip), Snyk ToxicSkills, 0DIN, arXiv 2602.06547. CWE-494. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-006",
+      "finding_title": "Skill ships something Claude Code runs, or tells the agent to drop its guardrails",
+      "owasp_codes": [
+        "MCP01",
+        "MCP02",
+        "MCP04",
+        "MCP05",
+        "MCP07",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Privilege Escalation via Scope Creep",
+        "Software Supply Chain Attacks",
+        "Command Injection and Execution",
+        "Insufficient Authentication and Authorization",
+        "Shadow MCP Servers"
+      ],
+      "notes": "STORY-0095. A skills-directory plugin (.claude-plugin/plugin.json directly under a skills directory, loaded as <name>@skills-dir) that ships MCP servers (HIGH; MCP09/MCP04), hooks (MEDIUM; MCP05/MCP07, commands also routed through HOOK-001/002), monitors or language servers (MEDIUM; MCP05) or bin/ programs on the agent's PATH (MEDIUM, HIGH when a name shadows a common command; MCP05/MCP04). SKILL.md frontmatter hooks (MEDIUM). A carried .mcp.json (MEDIUM, servers routed through CRED/TRANSPORT/AUTH/CFHYG/POISON) or settings/hooks file (LOW) Claude Code does not load from inside a skill. Text that starts a harness with permission prompts off (HIGH; MCP02/MCP05) or points ANTHROPIC_BASE_URL and siblings at a non-vendor host (HIGH; MCP01/MCP05, CVE-2026-21852). Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-007",
+      "finding_title": "Skill contains content that cannot be inspected",
+      "owasp_codes": [
+        "MCP03",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "STORY-0095. MEDIUM: an unrecognised binary, a compiled program, a .pyc without source, a password-protected ZIP, bytes that do not match the extension, a long base64/hex blob in a text file, a text file over the 1 MiB read cap, a skill over its read budget, or any non-text file inside .git/ that is not part of git's layout (the SkillCloak shape, arXiv 2607.02357). LOW: plain archives and dependency folders (node_modules, .venv) that are not walked. Nothing is unpacked or executed. CWE-506. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-008",
+      "finding_title": "Skill bundles code and has another finding",
+      "owasp_codes": [
+        "MCP04",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks",
+        "Command Injection and Execution"
+      ],
+      "notes": "STORY-0095. Conjunctive bump: HIGH when a skill bundles executable code (scripts/, a code extension, a shebang or a compiled file) and another MEDIUM-or-higher finding (other than SKILL-002/003/004 or a symlink note) lands in the same skill. The other findings keep their own severity. Basis: bundled scripts raised vulnerability odds 2.12x (arXiv 2601.10338). CWE-506. Analyzer: agent_files."
+    },
+    {
       "finding_id": "HOOK-001",
       "finding_title": "Hook command contains network-egress instruction",
       "owasp_codes": [

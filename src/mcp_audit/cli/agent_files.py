@@ -135,6 +135,7 @@ def agent_files_scan(
     skip_findings: list = []
     files = discover_agent_files(project_root=project_root, skip_findings=skip_findings)
     findings = analyze_agent_files(files) + skip_findings
+    findings += _skill_package_findings(project_root, findings)
 
     if output_format == "json":
         typer.echo(_json.dumps([f.model_dump() for f in findings], indent=2))
@@ -188,3 +189,34 @@ def agent_files_scan(
         f"\n[bold]{len(findings)} finding(s)[/bold] across {len(files)} agent file(s)"
     )
     raise typer.Exit(1)  # noqa: B904
+
+
+def _skill_package_findings(project_root: Path | None, prior: list) -> list:
+    """SKILL-005..008 for every user skill (and the project's, if given).
+
+    The agent-file rules above read each ``SKILL.md`` and its prose sidecars;
+    this reads every other file in each skill directory (STORY-0095).
+    Filesystem problems are printed, never raised.
+    """
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
+    errors: list[str] = []
+    trust: list = []
+    packages = skill_package.default_skill_packages(
+        cwd=project_root, errors=errors, findings=trust
+    )
+    if project_root is not None:
+        roots = {str(p.root) for p in packages}
+        packages += [
+            p
+            for p in skill_package.project_skill_packages(
+                project_root, errors=errors, findings=trust
+            )
+            if str(p.root) not in roots
+        ]
+    seen = {(f.id, f.finding_path) for f in prior}
+    out = [f for f in trust if (f.id, f.finding_path) not in seen]
+    out += skill_package.analyze_skill_packages(packages, prior + out, errors)
+    for error in errors[:20]:
+        console.print(f"[yellow]Warning:[/yellow] {error}")
+    return out

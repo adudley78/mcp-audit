@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from platformdirs import user_config_dir
 
+from mcp_audit.agent_files import skill_package as _skill_package
 from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.auth import AuthAnalyzer
@@ -466,6 +467,10 @@ def _discover_and_parse(
     and hooks that run commands (TRUST-006/TRUST-007, STORY-0089; see
     :func:`mcp_audit.analyzers.git_exec.scan_cwd_repository`).  Both are scored
     like the rest.
+    So are the skills under ``~/.claude/skills`` and ``<cwd>/.claude/skills``:
+    every file in each skill directory is read (SKILL-005..008, STORY-0095;
+    see :func:`mcp_audit.agent_files.skill_package.scan_default_skills`), and
+    filesystem problems there go to ``result.errors``.
 
     Without *extra_paths*, Claude Code subagent definitions
     (``~/.claude/agents/``, ``<cwd>/.claude/agents/``) are discovered too, as
@@ -516,6 +521,10 @@ def _discover_and_parse(
 
     if not extra_paths:
         result.findings.extend(_cwd_autoexec_findings())
+        # Skill packages (STORY-0095): every file in each user and cwd skill.
+        result.findings.extend(
+            _skill_package.scan_default_skills(result.errors, prior=result.findings)
+        )
 
         # GitHub Actions workflows of the repository the scan runs in
         # (STORY-0091): the GitHub Action's default run is a scan from the
