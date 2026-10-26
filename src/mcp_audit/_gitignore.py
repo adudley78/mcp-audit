@@ -34,14 +34,15 @@ Not modelled (documented in GAPS.md): whether the file is already *tracked*
 (a tracked file stays in git even when an ignore file matches it; that needs
 ``.git/index``), ``core.ignoreCase`` (matching is case-sensitive),
 ``core.excludesFile`` set in the repository's own or the system config,
-``include``/``includeIf`` in git config, ``GIT_CONFIG_GLOBAL``, and
+``includeIf`` and nested includes in git config (a plain ``[include] path``
+is followed one level), ``GIT_CONFIG_GLOBAL``, and
 ``info/exclude`` of a worktree or submodule whose ``.git`` is a file.
 """
 
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -55,6 +56,11 @@ MAX_FILES = 512
 MAX_PATTERN_CHARS = 4096
 #: Levels :func:`find_work_tree_root` climbs before giving up.
 MAX_ROOT_LEVELS = 64
+#: Wildcard and path-cell steps one reader may spend matching patterns.  A
+#: real repository needs thousands; hitting this is reported, not silent.
+MAX_MATCH_STEPS = 5_000_000
+#: ``[include] path`` entries followed per global git config file (one level).
+MAX_INCLUDES = 16
 
 
 # ── Pattern parsing ───────────────────────────────────────────────────────────
@@ -185,13 +191,50 @@ def _tokenize(segment: str) -> tuple[_Token, ...] | None:
     return tuple(tokens)
 
 
-def _wild(tokens: tuple[_Token, ...], text: str) -> bool:
-    """Match one segment: greedy with one backtrack point, O(tokens x text)."""
+class MatchBudgetExceededError(Exception):
+    """A :class:`MatchMeter` ran out of steps."""
+
+
+@dataclass
+class MatchMeter:
+    """Counts matching work so one scan's pattern matching stays bounded.
+
+    Attributes:
+        limit: Steps allowed before :class:`MatchBudgetExceededError`.
+        steps: Steps spent so far.
+    """
+
+    limit: int = MAX_MATCH_STEPS
+    steps: int = 0
+
+    def charge(self, steps: int) -> None:
+        """Add *steps*; raise :class:`MatchBudgetExceededError` past the limit."""
+        self.steps += steps
+        if self.steps > self.limit:
+            raise MatchBudgetExceededError
+
+
+def _wild(
+    tokens: tuple[_Token, ...], text: str, meter: MatchMeter | None = None
+) -> bool:
+    """Match one segment: greedy with one backtrack point, O(tokens x text).
+
+    The work done is charged to *meter* when one is given.
+    """
+    counter = [0]
+    matched = _wild_steps(tokens, text, counter)
+    if meter is not None:
+        meter.charge(counter[0] + 1)
+    return matched
+
+
+def _wild_steps(tokens: tuple[_Token, ...], text: str, counter: list[int]) -> bool:
     p = i = 0
     star_p = -1
     star_i = 0
     n = len(tokens)
     while i < len(text):
+        counter[0] += 1
         if p < n and tokens[p] is _STAR:
             star_p, star_i = p, i
             p += 1
@@ -238,8 +281,10 @@ class IgnorePattern:
             matched against the whole path relative to its file's directory;
             otherwise against the last path segment at any depth.
         segments: For an anchored pattern, one token tuple per segment, with
-            a globstar marker for a whole ``**`` segment; for an unanchored
-            pattern, a single token tuple.
+            a globstar marker for a whole ``**`` segment (consecutive ones
+            collapsed); for an unanchored pattern, a single token tuple.
+        min_parts: The fewest path parts the pattern can match, so a long
+            pattern is rejected against a short path without any matching.
     """
 
     text: str
@@ -247,20 +292,37 @@ class IgnorePattern:
     dir_only: bool
     anchored: bool
     segments: tuple[_Segment, ...]
+    min_parts: int = 1
 
-    def matches(self, rel_parts: Sequence[str], is_dir: bool) -> bool:
-        """True when this pattern matches *rel_parts* (a path below its directory)."""
+    def matches(
+        self, rel_parts: Sequence[str], is_dir: bool, meter: MatchMeter | None = None
+    ) -> bool:
+        """True when this pattern matches *rel_parts* (a path below its directory).
+
+        Raises:
+            MatchBudgetExceededError: *meter* ran out of steps.
+        """
         if not rel_parts or (self.dir_only and not is_dir):
             return False
+        if self.anchored and self.min_parts > len(rel_parts):
+            return False
+        if meter is not None:
+            meter.charge(1)
         if not self.anchored:
             only = self.segments[0]
-            return isinstance(only, tuple) and _wild(only, rel_parts[-1])
-        return _match_segments(self.segments, rel_parts)
+            return isinstance(only, tuple) and _wild(only, rel_parts[-1], meter)
+        return _match_segments(self.segments, rel_parts, meter)
 
 
-def _match_segments(segments: tuple[_Segment, ...], parts: Sequence[str]) -> bool:
+def _match_segments(
+    segments: tuple[_Segment, ...],
+    parts: Sequence[str],
+    meter: MatchMeter | None = None,
+) -> bool:
     """Anchored match with ``**`` segments: dynamic programming, O(pattern x path)."""
     n, m = len(segments), len(parts)
+    if meter is not None:
+        meter.charge(n * (m + 1))
     # ok[j]: segments[i:] matches parts[j:], built from i = n down to 0.
     ok = [False] * (m + 1)
     ok[m] = True
@@ -275,7 +337,7 @@ def _match_segments(segments: tuple[_Segment, ...], parts: Sequence[str]) -> boo
                 else:
                     new[j] = ok[j] or (j < m and new[j + 1])
             else:
-                new[j] = j < m and ok[j + 1] and _wild(seg, parts[j])
+                new[j] = j < m and ok[j + 1] and _wild(seg, parts[j], meter)
         ok = new
     return ok[0]
 
@@ -298,12 +360,16 @@ def _strip_trailing_spaces(line: str) -> str:
 def parse_ignore_text(text: str) -> list[IgnorePattern]:
     """Parse the contents of a ``.gitignore``-format file.
 
-    Blank lines and ``#`` comments are skipped, a trailing carriage return is
-    dropped, and a line longer than :data:`MAX_PATTERN_CHARS` is skipped.  A
-    malformed pattern (an unclosed ``[``, a trailing ``\\``) is dropped: git's
-    wildmatch never matches it either.
+    Blank lines and ``#`` comments are skipped, a UTF-8 byte-order mark and a
+    trailing carriage return are dropped, and a line longer than
+    :data:`MAX_PATTERN_CHARS` is skipped.  Patterns git never matches are
+    dropped: a malformed one (an unclosed ``[``, a trailing ``\\``), one with
+    an empty segment (``a//b``), and one ending in ``//``.  A whole segment of
+    two or more ``*`` is a ``**``, and consecutive ``**`` segments collapse.
     """
     patterns: list[IgnorePattern] = []
+    if text.startswith("\ufeff"):
+        text = text[1:]
     for raw_line in text.split("\n"):
         line = raw_line[:-1] if raw_line.endswith("\r") else raw_line
         line = _strip_trailing_spaces(line)
@@ -315,24 +381,17 @@ def parse_ignore_text(text: str) -> list[IgnorePattern]:
             body = body[1:]
         dir_only = body.endswith("/")
         if dir_only:
-            body = body.rstrip("/")
+            body = body[:-1]
+            if body.endswith("/"):
+                continue  # "a//": git keeps "a/", which matches no path
         if not body:
             continue
         anchored = "/" in body
         if body.startswith("/"):
             body = body[1:]
-        parsed: list[_Segment | None] = (
-            [
-                _GLOBSTAR if seg == "**" else _tokenize(seg)
-                for seg in body.split("/")
-                if seg != ""
-            ]
-            if anchored
-            else [_tokenize(body)]  # an unanchored "**" is just "*"
-        )
-        if not parsed or any(seg is None for seg in parsed):
+        segments = _parse_segments(body) if anchored else _unanchored(body)
+        if segments is None:
             continue
-        segments = tuple(seg for seg in parsed if seg is not None)
         patterns.append(
             IgnorePattern(
                 text=line,
@@ -340,9 +399,38 @@ def parse_ignore_text(text: str) -> list[IgnorePattern]:
                 dir_only=dir_only,
                 anchored=anchored,
                 segments=segments,
+                min_parts=_min_parts(segments) if anchored else 1,
             )
         )
     return patterns
+
+
+def _unanchored(body: str) -> tuple[_Segment, ...] | None:
+    tokens = _tokenize(body)  # an unanchored "**" is just "*"
+    return None if tokens is None else (tokens,)
+
+
+def _parse_segments(body: str) -> tuple[_Segment, ...] | None:
+    """Segments of an anchored pattern, or ``None`` if git would never match it."""
+    segments: list[_Segment] = []
+    for raw in body.split("/"):
+        if raw == "":
+            return None  # "a//b": a path never has an empty segment
+        if len(raw) >= 2 and set(raw) == {"*"}:
+            if not (segments and isinstance(segments[-1], _Globstar)):
+                segments.append(_GLOBSTAR)
+            continue
+        tokens = _tokenize(raw)
+        if tokens is None:
+            return None
+        segments.append(tokens)
+    return tuple(segments) or None
+
+
+def _min_parts(segments: tuple[_Segment, ...]) -> int:
+    """Fewest path parts *segments* can match (a trailing ``**`` needs one)."""
+    fixed = sum(1 for seg in segments if not isinstance(seg, _Globstar))
+    return fixed + (1 if isinstance(segments[-1], _Globstar) else 0)
 
 
 # ── Deciding ──────────────────────────────────────────────────────────────────
@@ -366,7 +454,10 @@ class IgnoreSource:
 
 
 def _decide(
-    path: tuple[str, ...], is_dir: bool, sources: Sequence[IgnoreSource]
+    path: tuple[str, ...],
+    is_dir: bool,
+    sources: Sequence[IgnoreSource],
+    meter: MatchMeter | None = None,
 ) -> bool:
     """Last matching pattern across *sources* (lowest precedence first) decides."""
     ignored = False
@@ -377,12 +468,16 @@ def _decide(
             continue
         rel = path[depth:]
         for pattern in source.patterns:
-            if pattern.matches(rel, is_dir):
+            if pattern.matches(rel, is_dir, meter):
                 ignored = not pattern.negated
     return ignored
 
 
-def is_ignored(rel_parts: Sequence[str], sources: Sequence[IgnoreSource]) -> bool:
+def is_ignored(
+    rel_parts: Sequence[str],
+    sources: Sequence[IgnoreSource],
+    meter: MatchMeter | None = None,
+) -> bool:
     """True when the *file* at *rel_parts* (relative to the work-tree root) is ignored.
 
     Each parent directory is decided first: "It is not possible to re-include
@@ -391,12 +486,16 @@ def is_ignored(rel_parts: Sequence[str], sources: Sequence[IgnoreSource]) -> boo
     Args:
         rel_parts: The file's path parts below the work-tree root.
         sources: Ignore sources ordered lowest precedence first.
+        meter: Charged with the matching work, when given.
+
+    Raises:
+        MatchBudgetExceededError: *meter* ran out of steps.
     """
     parts = tuple(rel_parts)
     for k in range(1, len(parts)):
-        if _decide(parts[:k], True, sources):
+        if _decide(parts[:k], True, sources, meter):
             return True
-    return _decide(parts, False, sources)
+    return _decide(parts, False, sources, meter)
 
 
 def find_work_tree_root(start: Path) -> Path | None:
@@ -457,31 +556,43 @@ def _strip_config_value(raw: str) -> str:
     return "".join(out).strip()
 
 
-def excludes_file_setting(text: str) -> str | None:
+def excludes_file_setting(
+    text: str, include: Callable[[str], str | None] | None = None
+) -> str | None:
     """The last ``core.excludesFile`` value in git config *text*, if any.
 
     Only plain ``[core]`` sections are read (section and key names are
-    case-insensitive in git); ``include`` directives are not followed.
+    case-insensitive in git).  With *include*, a plain ``[include] path = …``
+    is followed one level: *include* returns the target's text, which is read
+    at that point as git does, without following its own includes.
+    ``includeIf`` is not followed.
     """
     value: str | None = None
-    in_core = False
+    section = ""
     for raw_line in text.splitlines():
         line = raw_line.strip()
         if line.startswith("["):
             end = line.find("]")
             if end < 0:
-                in_core = False
+                section = ""
                 continue
-            header = line[1:end].strip()
-            in_core = header.lower() == "core"
+            section = line[1:end].strip().lower()
             line = line[end + 1 :].strip()
             if not line:
                 continue
-        if not in_core or not line or line[0] in "#;":
+        if not line or line[0] in "#;":
             continue
         name, sep, rest = line.partition("=")
-        if sep and name.strip().lower() == "excludesfile":
+        key = name.strip().lower()
+        if not sep:
+            continue
+        if section == "core" and key == "excludesfile":
             value = _strip_config_value(rest)
+        elif section == "include" and key == "path" and include is not None:
+            included = include(_strip_config_value(rest))
+            nested = excludes_file_setting(included) if included else None
+            if nested is not None:
+                value = nested
     return value
 
 
@@ -511,6 +622,7 @@ class IgnoreFileReader:
     _bytes: int = 0
     _files: int = 0
     _global: tuple[IgnoreSource, ...] | None = None
+    _meter: MatchMeter = field(default_factory=MatchMeter)
 
     def _home(self) -> Path:
         return self.home if self.home is not None else Path.home()
@@ -578,7 +690,7 @@ class IgnoreFileReader:
         ):
             text = self._read(config, label)
             if text:
-                found = excludes_file_setting(text)
+                found = excludes_file_setting(text, self._includer(config.parent))
                 if found is not None:
                     setting = found
         if setting is None or setting == "":
@@ -588,6 +700,31 @@ class IgnoreFileReader:
         if Path(setting).is_absolute():
             return Path(setting)
         return None
+
+    def _includer(self, base: Path) -> Callable[[str], str | None]:
+        """Read an ``[include] path`` target for :func:`excludes_file_setting`.
+
+        Relative paths resolve against the including file's directory and
+        ``~/`` against the home directory, as git does.  At most
+        :data:`MAX_INCLUDES` targets are read per file; each is size-capped
+        and counted against the budget.
+        """
+        remaining = [MAX_INCLUDES]
+        home = self._home()
+
+        def read(value: str) -> str | None:
+            if remaining[0] <= 0 or not value:
+                return None
+            remaining[0] -= 1
+            if value.startswith("~/"):
+                target = home / value[2:]
+            elif Path(value).is_absolute():
+                target = Path(value)
+            else:
+                target = base / value
+            return self._read(target, _home_label(target, home))
+
+        return read
 
     def _global_sources(self) -> tuple[IgnoreSource, ...]:
         if self._global is None:
@@ -650,6 +787,15 @@ class IgnoreFileReader:
         """True when the file at *rel_parts* under work-tree *root* is ignored.
 
         Raises:
-            IgnoreStateUnknownError: an ignore source could not be read.
+            IgnoreStateUnknownError: an ignore source could not be read, or
+                the matching budget (:data:`MAX_MATCH_STEPS`) is spent.
         """
-        return is_ignored(rel_parts, self.sources(root, rel_parts))
+        sources = self.sources(root, rel_parts)
+        try:
+            return is_ignored(rel_parts, sources, self._meter)
+        except MatchBudgetExceededError as exc:
+            self._error(
+                f"ignore-pattern matching budget reached ({self._meter.limit:,}"
+                " steps); this and later files were not checked"
+            )
+            raise IgnoreStateUnknownError("matching budget") from exc

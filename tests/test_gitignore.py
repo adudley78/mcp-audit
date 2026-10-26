@@ -1,9 +1,10 @@
 """Tests for _gitignore.py: deciding git-ignore state by reading files only.
 
 Expected answers follow gitignore(5); the matcher was also compared with
-``git ls-files --others --ignored --exclude-standard`` on 1,050 pattern
-combinations during development (STORY-0093) with no disagreement.  Nothing
-here runs git.
+``git ls-files --others --ignored --exclude-standard`` on 1,350 pattern
+combinations during development (STORY-0093), including byte-order marks,
+``***`` segments and empty segments, with no disagreement.  Nothing here runs
+git.
 """
 
 from __future__ import annotations
@@ -49,6 +50,12 @@ class TestPatterns:
             "settings.local.json   ",  # trailing spaces are dropped
             "settings.local.json\r",  # CRLF file
             "a**b\nsettings.local.json",
+            "\ufeffsettings.local.json",  # UTF-8 byte-order mark
+            "\ufeff.claude/",
+            ".claude/***",  # a whole segment of *** is **
+            "***/settings.local.json",
+            "**/**/**/settings.local.json",  # consecutive ** collapse
+            "/**/.claude/**/**",
         ],
     )
     def test_ignores_root_local_file(self, text: str) -> None:
@@ -70,6 +77,11 @@ class TestPatterns:
             "settings.local.json\\",
             "[[:nope:]]ettings.local.json",
             ".claude/**/x",
+            ".claude//settings.local.json",  # an empty segment matches nothing
+            "/.claude//settings.local.json",
+            "**//settings.local.json",
+            ".claude//",
+            "\ufeff# settings.local.json",  # still a comment after the BOM
         ],
     )
     def test_does_not_ignore_root_local_file(self, text: str) -> None:
@@ -107,6 +119,32 @@ class TestPatterns:
         assert _ignored(LOCAL, (((".claude",), "*")))
         assert not _ignored((".claude",), (((".claude",), "*")))
 
+    def test_triple_star_inside_a_segment_is_a_wildcard(self) -> None:
+        assert _ignored(LOCAL, ((), ".cl***e/settings.local.json"))
+        assert not _ignored(("sub",) + LOCAL, ((), "/***x/.claude/settings.local.json"))
+
+    def test_anchored_long_patterns_are_rejected_by_length(self) -> None:
+        line = "/" + "/".join(["a"] * 2000)
+        [pattern] = gi.parse_ignore_text(line)
+        assert pattern.min_parts == 2000
+        meter = gi.MatchMeter()
+        assert not pattern.matches(LOCAL, False, meter)
+        assert meter.steps == 0  # rejected before any segment is compared
+        [globbed] = gi.parse_ignore_text("/a/**/**/b/**")
+        assert globbed.min_parts == 3
+
+    def test_long_anchored_lines_against_deep_paths_stay_bounded(self) -> None:
+        start = time.perf_counter()
+        line = "/" + "/".join(["a"] * 2000)
+        text = "\n".join([line] * 250)
+        deep = tuple(["a"] * 1999) + ("settings.local.json",)
+        meter = gi.MatchMeter(limit=200_000)
+        sources = [gi.IgnoreSource((), tuple(gi.parse_ignore_text(text)), "t")]
+        with pytest.raises(gi.MatchBudgetExceededError):
+            for _ in range(1000):
+                gi.is_ignored(deep, sources, meter)
+        assert time.perf_counter() - start < 5
+
     def test_pathological_wildcards_run_in_linear_time(self) -> None:
         start = time.perf_counter()
         text = "*a" * 40 + "b\n" + "\n".join(f"x{i}*y*z" for i in range(20_000))
@@ -132,6 +170,34 @@ class TestGitConfig:
     )
     def test_excludes_file_setting(self, text: str, expected: str | None) -> None:
         assert gi.excludes_file_setting(text) == expected
+
+    def test_plain_include_is_followed_one_level(self) -> None:
+        files = {
+            "~/.gitconfig.local": (
+                "[core]\nexcludesFile = ~/inc\n[include]\npath = deeper"
+            ),
+            "deeper": "[core]\nexcludesFile = ~/too-deep\n",
+        }
+        asked: list[str] = []
+
+        def include(value: str) -> str | None:
+            asked.append(value)
+            return files.get(value)
+
+        text = "[core]\nexcludesFile = ~/main\n[include]\n\tpath = ~/.gitconfig.local\n"
+        assert gi.excludes_file_setting(text, include) == "~/inc"
+        assert asked == ["~/.gitconfig.local"]  # the nested include is not read
+        # A later core.excludesFile in the including file wins, as in git.
+        assert gi.excludes_file_setting(
+            text + "[core]\nexcludesFile = ~/last\n", include
+        ) == ("~/last")
+
+    def test_include_if_is_not_followed(self) -> None:
+        text = '[includeIf "gitdir:~/work/"]\npath = ~/.gitconfig.work\n'
+        assert (
+            gi.excludes_file_setting(text, lambda _v: "[core]\nexcludesFile = x")
+            is None
+        )
 
 
 @pytest.fixture
@@ -277,6 +343,40 @@ class TestReader:
         with pytest.raises(gi.IgnoreStateUnknownError):
             reader.is_ignored(root, LOCAL)
         assert "budget reached" in reader.errors[0]
+
+    def test_core_excludes_file_from_an_included_file(
+        self, tmp_path: Path, home: Path
+    ) -> None:
+        root = _repo(tmp_path)
+        (home / ".gitconfig").write_text("[include]\n\tpath = .gitconfig.local\n")
+        (home / ".gitconfig.local").write_text("[core]\nexcludesFile = ~/.gi_inc\n")
+        (home / ".gi_inc").write_text("**/.claude/settings.local.json\n")
+        reader = gi.IgnoreFileReader(home=home)
+        assert reader.is_ignored(root, LOCAL)
+        assert reader.global_label == "~/.gi_inc"
+
+    def test_include_targets_are_capped(self, tmp_path: Path, home: Path) -> None:
+        root = _repo(tmp_path)
+        lines = "".join(f"[include]\npath = inc{i}\n" for i in range(50))
+        (home / ".gitconfig").write_text(lines)
+        for i in range(50):
+            (home / f"inc{i}").write_text(f"[core]\nexcludesFile = ~/gi{i}\n")
+        reader = gi.IgnoreFileReader(home=home)
+        reader.is_ignored(root, LOCAL)
+        assert reader.global_label == f"~/gi{gi.MAX_INCLUDES - 1}"
+
+    def test_matching_budget_makes_the_state_unknown(
+        self, tmp_path: Path, home: Path
+    ) -> None:
+        root = _repo(tmp_path)
+        (root / ".gitignore").write_text("\n".join(f"x{i}*" for i in range(100)))
+        reader = gi.IgnoreFileReader(home=home, _meter=gi.MatchMeter(limit=50))
+        with pytest.raises(gi.IgnoreStateUnknownError):
+            reader.is_ignored(root, LOCAL)
+        assert reader.errors == [
+            "ignore-pattern matching budget reached (50 steps); this and later"
+            " files were not checked"
+        ]
 
     def test_files_are_read_once(
         self, tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch

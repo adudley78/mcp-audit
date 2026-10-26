@@ -1,16 +1,18 @@
 """Tests for analyzers/sandbox.py: SANDBOX-001..005 (STORY-0093).
 
-SANDBOX-001..004 are exercised through ``ConfigHygieneAnalyzer.analyze_config``
-(the path a scan uses), SANDBOX-005 through ``analyze_settings_git_exposure``,
-the scanner's step 0b and the CLI.  Each check has firing cases from
-Anthropic's documentation, near misses that must stay silent, and the scope
-rules (which file Claude Code reads a key from) it rests on.
+SANDBOX-001..004 are exercised through ``analyze_sandbox_settings`` with an
+explicit origin, and all five through ``analyze_sandbox_files`` (pipeline step
+0b), the scanner and the CLI.  Each check has firing cases from Anthropic's
+documentation, near misses that must stay silent, and the scope rules (which
+file Claude Code reads a key from, and when a local file is the repository's)
+it rests on.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -32,9 +34,21 @@ TOKEN = "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"  # noqa: S105 - synthetic
 # ── Helpers and fixtures ──────────────────────────────────────────────────────
 
 
-def _sandbox(raw: object, path: Path) -> list[Finding]:
-    findings = ConfigHygieneAnalyzer().analyze_config(raw, path, "claude-code")
-    return [f for f in findings if f.id.startswith("SANDBOX-")]
+LOCAL_IN_GIT = sb.ORIGIN_LOCAL_TRACKED
+
+
+def _sandbox(
+    raw: object,
+    path: Path,
+    origin: str | None = None,
+    user: sb.UserSettingsLocks | None = None,
+) -> list[Finding]:
+    context = None
+    if origin is not None or user is not None:
+        context = sb.SandboxContext(
+            origin or sb.ORIGIN_PROJECT, user or sb.UserSettingsLocks()
+        )
+    return sb.analyze_sandbox_settings(raw, path, "claude-code", context=context)
 
 
 def _ids(findings: list[Finding]) -> list[tuple[str, Severity]]:
@@ -57,6 +71,7 @@ def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     path.mkdir()
     monkeypatch.setattr(Path, "home", lambda: path)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
     return path
 
 
@@ -95,8 +110,8 @@ class TestSandbox001:
     def test_weakening_key_from_a_repository_file_is_high(
         self, key: str, block: dict, which: str, project: Path, local: Path
     ) -> None:
-        path = project if which == "project" else local
-        out = _sandbox({"sandbox": block}, path)
+        path, origin = (project, None) if which == "project" else (local, LOCAL_IN_GIT)
+        out = _sandbox({"sandbox": block}, path, origin)
         assert _ids(out) == [("SANDBOX-001", Severity.HIGH)]
         assert f"sandbox.{key} = true" in out[0].evidence
         assert "Each one weakens the sandbox" in out[0].description
@@ -117,7 +132,7 @@ class TestSandbox001:
         assert _ids(out) == [("SANDBOX-001", Severity.HIGH)]
         assert "even when your ~/.claude/settings.json" in out[0].description
         # Claude Code's /sandbox panel writes `enabled` to the local file.
-        assert _sandbox(_box(enabled=False), local) == []
+        assert _sandbox(_box(enabled=False), local, LOCAL_IN_GIT) == []
         assert _sandbox(_box(enabled=True), project) == []
 
     def test_fail_if_unavailable_false_is_medium_in_project_only(
@@ -126,14 +141,33 @@ class TestSandbox001:
         assert _ids(_sandbox(_box(failIfUnavailable=False), project)) == [
             ("SANDBOX-001", Severity.MEDIUM)
         ]
-        assert _sandbox(_box(failIfUnavailable=False), local) == []
+        assert _sandbox(_box(failIfUnavailable=False), local, LOCAL_IN_GIT) == []
         assert _sandbox(_box(failIfUnavailable=True), project) == []
 
     @pytest.mark.parametrize("key", ["httpProxyPort", "socksProxyPort"])
     def test_proxy_port_is_medium(self, key: str, project: Path) -> None:
         out = _sandbox(_box(network={key: 8080}), project)
         assert _ids(out) == [("SANDBOX-001", Severity.MEDIUM)]
-        assert "stops applying its domain lists" in out[0].description
+        text = out[0].description
+        assert "stops applying its domain lists" in text
+        assert "Locks that apply without an admin-required sandbox" in text
+        assert "network.deniedDomains" in text
+
+    @pytest.mark.parametrize("key", ["httpProxyPort", "socksProxyPort"])
+    def test_proxy_port_is_info_under_the_users_strict_allowlist(
+        self, key: str, project: Path
+    ) -> None:
+        locks = sb.UserSettingsLocks(strict_allowlist=True)
+        raw = _box(enableWeakerNestedSandbox=True, network={key: 8080})
+        out = _sandbox(raw, project, user=locks)
+        assert _ids(out) == [
+            ("SANDBOX-001", Severity.HIGH),
+            ("SANDBOX-001", Severity.INFO),
+        ]
+        assert "network.strictAllowlist: true" in out[1].description
+        assert "ignores this repository entry" in out[1].description
+        # strictAllowlist does not lock the weakening booleans.
+        assert "enableWeakerNestedSandbox" in out[0].evidence
 
     @pytest.mark.parametrize("port", [None, True, 0, 70000, "8080", 80.5])
     def test_invalid_or_null_ports_are_silent(
@@ -156,6 +190,13 @@ class TestSandbox001:
             ("SANDBOX-001", Severity.MEDIUM),
         ]
         assert out[0].evidence.count("sandbox.") == 4
+
+    def test_admin_required_note_is_not_attached_to_strict_allowlist_locks(
+        self, project: Path
+    ) -> None:
+        out = _sandbox(_box(enableWeakerNestedSandbox=True), project)
+        assert "admin-required" in out[0].description
+        assert "strictAllowlist" not in out[0].description
 
     def test_user_settings_are_the_users_own_choice(self, user: Path) -> None:
         raw = _box(
@@ -211,13 +252,107 @@ class TestSandbox002:
             "docker-compose *",
             "*",
             "* --version",
+            # wrappers that run whatever follows them
+            "env *",
+            "env -i *",
+            "env FOO=1 *",
+            "timeout 30 *",
+            "timeout 5m *",
+            "timeout *",
+            "time *",
+            "nohup *",
+            "nice *",
+            "nice -n 10 *",
+            "stdbuf -oL *",
+            "command *",
+            "builtin *",
+            "noglob *",
+            "watch *",
+            "setsid *",
+            "ionice -c 3 *",
+            "flock /tmp/lock *",
+            "/usr/bin/env *",
         ],
     )
-    def test_code_running_exclusions_fire(self, entry: str, project: Path) -> None:
+    def test_code_running_exclusions_are_medium_while_a_prompt_guards_them(
+        self, entry: str, project: Path
+    ) -> None:
         out = _sandbox(_box(excludedCommands=[entry]), project)
+        assert _ids(out) == [("SANDBOX-002", Severity.MEDIUM)]
+        text = out[0].description
+        assert "An excluded command runs with your full access" in text
+        assert "prompt still guards it" in text
+        assert "Bash command (unsandboxed)" in text
+
+    @pytest.mark.parametrize(
+        ("allow", "entry"),
+        [
+            ("Bash(docker *)", "docker compose *"),
+            ("Bash(docker compose up)", "docker compose *"),
+            ("Bash(docker:*)", "docker *"),
+            ("Bash(python scripts/x.py)", "python *"),
+            ("Bash(timeout 30 make)", "timeout 30 *"),
+            ("Bash", "bash *"),
+            ("Bash(*)", "node *"),
+            ("Bash(* --help)", "npx *"),
+            ("Bash(npm test)", "*"),
+            ("Bash(docker * up)", "docker compose *"),
+        ],
+    )
+    def test_an_allow_rule_in_the_same_file_makes_it_high(
+        self, allow: str, entry: str, project: Path
+    ) -> None:
+        raw = {"permissions": {"allow": [allow]}, **_box(excludedCommands=[entry])}
+        out = _sandbox(raw, project)
         assert _ids(out) == [("SANDBOX-002", Severity.HIGH)]
-        assert "An excluded command runs with your full access" in out[0].description
-        assert "Bash command (unsandboxed)" in out[0].description
+        assert f"allow {allow!r} in this file approves it" in out[0].description
+
+    @pytest.mark.parametrize(
+        ("allow", "entry"),
+        [
+            ("Bash(npm test *)", "python *"),
+            ("Bash(docker ps)", "docker compose *"),
+            ("Bash(docker)", "docker compose *"),
+            ("Bash(dock* compose up)", "docker compose *"),
+            ("Read(./src/**)", "bash *"),
+            ("WebFetch(domain:example.com)", "npx *"),
+        ],
+    )
+    def test_an_unrelated_allow_rule_leaves_it_medium(
+        self, allow: str, entry: str, project: Path
+    ) -> None:
+        raw = {"permissions": {"allow": [allow]}, **_box(excludedCommands=[entry])}
+        assert _ids(_sandbox(raw, project)) == [("SANDBOX-002", Severity.MEDIUM)]
+
+    @pytest.mark.parametrize(
+        ("mode", "severity", "text"),
+        [
+            ("bypassPermissions", Severity.HIGH, "bypassPermissions mode"),
+            ("auto", Severity.HIGH, "the classifier, not you"),
+            ("dontAsk", Severity.MEDIUM, "prompt still guards it"),
+            ("acceptEdits", Severity.MEDIUM, "prompt still guards it"),
+            (None, Severity.MEDIUM, "prompt still guards it"),
+        ],
+    )
+    def test_the_users_default_mode_decides_whether_anything_prompts(
+        self, mode: str | None, severity: Severity, text: str, project: Path
+    ) -> None:
+        locks = sb.UserSettingsLocks(default_mode=mode)
+        out = _sandbox(_box(excludedCommands=["python *"]), project, user=locks)
+        assert _ids(out) == [("SANDBOX-002", severity)]
+        assert text in out[0].description
+
+    @pytest.mark.parametrize("mode", ["bypassPermissions", "auto"])
+    def test_a_repository_default_mode_does_not_raise_it(
+        self, mode: str, project: Path
+    ) -> None:
+        # Settings reference: "auto and bypassPermissions don't take effect from
+        # project or local settings".
+        raw = {
+            "permissions": {"defaultMode": mode},
+            **_box(excludedCommands=["python *"]),
+        }
+        assert _ids(_sandbox(raw, project)) == [("SANDBOX-002", Severity.MEDIUM)]
 
     @pytest.mark.parametrize(
         "entry",
@@ -238,6 +373,14 @@ class TestSandbox002:
             "direnv exec . npm test *",
             "bun run build *",
             "sudo *",  # calls starting with sudo stay sandboxed
+            "xargs *",  # ... and with xargs
+            "eval *",
+            "command -v *",  # the query form looks a command up
+            "timeout 30 npm test *",
+            "env FOO=1 npm test *",
+            "nice make *",
+            "flock /tmp/lock make *",
+            "nohup",  # exact match, no arguments
             "",
             None,
             3,
@@ -270,14 +413,18 @@ class TestSandbox002:
         raw = _box(excludedCommands="docker *", network={"allowUnixSockets": "x"})
         assert _sandbox(raw, project) == []
 
-    def test_entries_are_listed_in_one_finding(self, project: Path) -> None:
+    def test_entries_are_grouped_by_severity(self, project: Path) -> None:
         raw = _box(
             excludedCommands=["docker *", "bash *", "npm ci"],
             network={"allowUnixSockets": ["/var/run/docker.sock"]},
         )
         out = _sandbox(raw, project)
-        assert len(out) == 1
-        assert out[0].evidence.count("contains") == 3
+        assert _ids(out) == [
+            ("SANDBOX-002", Severity.HIGH),
+            ("SANDBOX-002", Severity.MEDIUM),
+        ]
+        assert out[0].evidence.count("contains") == 1
+        assert out[1].evidence.count("contains") == 2
 
 
 # ── SANDBOX-003 ───────────────────────────────────────────────────────────────
@@ -328,6 +475,30 @@ class TestSandbox003:
     def test_user_settings_are_silent(self, user: Path) -> None:
         assert _sandbox(_box(network={"allowedDomains": ["github.com"]}), user) == []
 
+    def test_notes_name_the_locks_that_apply_without_admin_required(
+        self, project: Path
+    ) -> None:
+        out = _sandbox(_box(network={"allowedDomains": ["github.com"]}), project)
+        text = out[0].description
+        assert "Locks that apply without an admin-required sandbox" in text
+        assert "network.strictAllowlist" in text
+        assert "admin-required" in text
+
+    def test_info_under_the_users_strict_allowlist(self, project: Path) -> None:
+        locks = sb.UserSettingsLocks(strict_allowlist=True)
+        raw = _box(network={"allowedDomains": ["github.com", "pastebin.com"]})
+        out = _sandbox(raw, project, user=locks)
+        assert _ids(out) == [("SANDBOX-003", Severity.INFO)]
+        assert "network.strictAllowlist: true" in out[0].description
+        assert out[0].evidence.count("contains") == 2
+
+    def test_remediation_example_hosts_are_not_flagged(self) -> None:
+        hosts = re.findall(
+            r"[a-z0-9.-]+\.(?:org|com|io|net)", sb._SANDBOX_003.remediation
+        )
+        assert hosts
+        assert [h for h in hosts if sb.content_host(h)] == []
+
 
 # ── SANDBOX-004 ───────────────────────────────────────────────────────────────
 
@@ -363,9 +534,10 @@ class TestSandbox004:
         self, block: dict, key: str, which: str, project: Path, local: Path
     ) -> None:
         path = project if which == "project" else local
-        out = _sandbox({"sandbox": block}, path)
-        assert _ids(out) == [("SANDBOX-004", Severity.INFO)]
-        assert f"sandbox.{key}" in out[0].evidence
+        for origin in (None, LOCAL_IN_GIT, sb.ORIGIN_OWN):
+            out = _sandbox({"sandbox": block}, path, origin)
+            assert _ids(out) == [("SANDBOX-004", Severity.INFO)]
+            assert f"sandbox.{key}" in out[0].evidence
 
     def test_locks_are_named_as_giving_no_protection(self, project: Path) -> None:
         raw = _box(
@@ -487,8 +659,14 @@ class TestWholeFile:
         self, raw: dict, which: str, project: Path, local: Path, user: Path
     ) -> None:
         path = {"project": project, "local": local, "user": user}[which]
-        for finding in _sandbox(raw, path):
+        origin = LOCAL_IN_GIT if which == "local" else None
+        for finding in _sandbox(raw, path, origin):
             assert finding.severity == Severity.INFO, finding.id
+
+    def test_analyze_config_no_longer_runs_sandbox_checks(self, project: Path) -> None:
+        raw = _box(enableWeakerNestedSandbox=True, excludedCommands=["bash *"])
+        out = ConfigHygieneAnalyzer().analyze_config(raw, project, "claude-code")
+        assert not [f for f in out if f.id.startswith("SANDBOX-")]
 
     @pytest.mark.parametrize("raw", [{}, [], "x", {"sandbox": None}, {"sandbox": []}])
     def test_malformed_input_is_silent(self, raw: object, project: Path) -> None:
@@ -517,7 +695,7 @@ class TestWholeFile:
         )
         out = _sandbox(raw, project)
         assert _ids(out) == [
-            ("SANDBOX-002", Severity.HIGH),
+            ("SANDBOX-002", Severity.MEDIUM),
             ("SANDBOX-004", Severity.INFO),
         ]
         for finding in out:
@@ -564,7 +742,304 @@ def repo(tmp_path: Path, home: Path) -> Path:
 
 
 def _exposure(*configs: DiscoveredConfig) -> tuple[list[Finding], list[str]]:
-    return sb.analyze_settings_git_exposure(configs)
+    return sb.analyze_sandbox_files(configs)
+
+
+UNKNOWN_SUMMARY = (
+    "SANDBOX checks: git state unknown for 1 settings file(s): no SANDBOX-005"
+    " for them, and SANDBOX-001..003 on a local file at MEDIUM at most"
+)
+LOUD = {
+    "permissions": {"allow": ["Bash(python *)"]},
+    "sandbox": {
+        "enableWeakerNestedSandbox": True,
+        "excludedCommands": ["python *"],
+        "network": {"allowedDomains": ["github.com"]},
+    },
+}
+
+
+class TestLocalFileOrigin:
+    """A local settings file is the repository's only when git carries it."""
+
+    def test_ignored_local_file_reports_nothing_medium_or_above(
+        self, repo: Path
+    ) -> None:
+        (repo / ".gitignore").write_text(".claude/settings.local.json\n")
+        path = _write(repo / ".claude" / "settings.local.json", LOUD)
+        findings, errors = _exposure(_config(path, LOUD))
+        assert findings == [] and errors == []
+
+    def test_globally_ignored_local_file_is_the_users_own(
+        self, repo: Path, home: Path
+    ) -> None:
+        # Claude Code writes this line to the global excludes file itself.
+        (home / ".config" / "git").mkdir(parents=True)
+        (home / ".config" / "git" / "ignore").write_text(
+            "**/.claude/settings.local.json\n"
+        )
+        path = _write(repo / ".claude" / "settings.local.json", LOUD)
+        assert _exposure(_config(path, LOUD)) == ([], [])
+
+    def test_unignored_local_file_is_the_repositorys(self, repo: Path) -> None:
+        path = _write(repo / ".claude" / "settings.local.json", LOUD)
+        findings, errors = _exposure(_config(path, LOUD))
+        assert _ids(findings) == [
+            ("SANDBOX-001", Severity.HIGH),
+            ("SANDBOX-002", Severity.HIGH),
+            ("SANDBOX-003", Severity.MEDIUM),
+            ("SANDBOX-005", Severity.MEDIUM),
+        ]
+        assert errors == []
+        assert "no ignore file covers" in findings[0].description
+        assert "treats it as repository-supplied" in findings[0].description
+
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX symlinks")
+    def test_symlinked_claude_directory_is_the_repositorys(
+        self, tmp_path: Path, home: Path
+    ) -> None:
+        root = tmp_path / "repo2"
+        (root / ".git").mkdir(parents=True)
+        (root / ".gitignore").write_text(".claude/\n")  # ignored, yet linked
+        real = tmp_path / "outside" / ".claude"
+        _write(real / "settings.local.json", LOUD)
+        (root / ".claude").symlink_to(real, target_is_directory=True)
+        findings, errors = _exposure(
+            _config(root / ".claude" / "settings.local.json", LOUD)
+        )
+        assert ("SANDBOX-001", Severity.HIGH) in _ids(findings)
+        assert "SANDBOX-005" not in {f.id for f in findings}
+        assert "a symlink" in findings[0].description
+        assert errors == []
+
+    def test_unknown_git_state_is_reported_at_medium(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = _write(repo / ".claude" / "settings.local.json", LOUD)
+        (repo / ".gitignore").write_text("x\n")
+        real_open = Path.open
+
+        def deny(self: Path, *args: object, **kwargs: object):  # noqa: ANN202
+            if self.name == ".gitignore":
+                raise PermissionError(13, "Permission denied")
+            return real_open(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", deny)
+        findings, errors = _exposure(_config(path, LOUD))
+        assert _ids(findings) == [
+            ("SANDBOX-001", Severity.MEDIUM),
+            ("SANDBOX-002", Severity.MEDIUM),
+            ("SANDBOX-003", Severity.MEDIUM),
+        ]
+        assert "could not read (see the scan's errors)" in findings[0].description
+        assert "MEDIUM at most because that is unknown" in findings[0].description
+        assert errors == [
+            "SANDBOX checks: could not read repo/.gitignore: Permission denied",
+            UNKNOWN_SUMMARY,
+        ]
+
+    def test_local_file_outside_a_work_tree_is_the_users_own(
+        self, tmp_path: Path, home: Path
+    ) -> None:
+        path = _write(tmp_path / "plain" / ".claude" / "settings.local.json", LOUD)
+        if sb.find_work_tree_root(path.parent.parent) is not None:
+            pytest.skip("the test directory itself sits in a git work tree")
+        assert _exposure(_config(path, LOUD)) == ([], [])
+
+    def test_shared_project_file_is_the_repositorys_even_if_ignored(
+        self, repo: Path
+    ) -> None:
+        (repo / ".gitignore").write_text(".claude/\n")
+        path = _write(repo / ".claude" / "settings.json", LOUD)
+        findings, _ = _exposure(_config(path, LOUD))
+        assert ("SANDBOX-001", Severity.HIGH) in _ids(findings)
+
+
+class TestUserSettingsLocks:
+    def _user_file(self, home: Path, data: object) -> Path:
+        return _write(home / ".claude" / "settings.json", data)
+
+    def test_strict_allowlist_in_user_settings_downgrades_hosts_and_ports(
+        self, repo: Path, home: Path
+    ) -> None:
+        self._user_file(home, {"sandbox": {"network": {"strictAllowlist": True}}})
+        raw = _box(network={"allowedDomains": ["github.com"], "httpProxyPort": 8080})
+        path = _write(repo / ".claude" / "settings.json", raw)
+        findings, errors = _exposure(_config(path, raw))
+        assert _ids(findings) == [
+            ("SANDBOX-001", Severity.INFO),
+            ("SANDBOX-003", Severity.INFO),
+        ]
+        assert errors == []
+        for finding in findings:
+            assert "network.strictAllowlist: true" in finding.description
+
+    def test_strict_allowlist_must_be_a_json_true(self, repo: Path, home: Path) -> None:
+        self._user_file(home, {"sandbox": {"network": {"strictAllowlist": "true"}}})
+        raw = _box(network={"allowedDomains": ["github.com"]})
+        path = _write(repo / ".claude" / "settings.json", raw)
+        assert _ids(_exposure(_config(path, raw))[0]) == [
+            ("SANDBOX-003", Severity.MEDIUM)
+        ]
+
+    def test_user_default_mode_bypass_makes_exclusions_high(
+        self, repo: Path, home: Path
+    ) -> None:
+        self._user_file(home, {"permissions": {"defaultMode": "bypassPermissions"}})
+        raw = _box(excludedCommands=["bash *"])
+        path = _write(repo / ".claude" / "settings.json", raw)
+        assert _ids(_exposure(_config(path, raw))[0]) == [
+            ("SANDBOX-002", Severity.HIGH)
+        ]
+
+    def test_claude_config_dir_is_honoured(
+        self, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        conf = tmp_path / "conf"
+        _write(
+            conf / "settings.json", {"sandbox": {"network": {"strictAllowlist": True}}}
+        )
+        monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(conf))
+        raw = _box(network={"allowedDomains": ["github.com"]})
+        path = _write(repo / ".claude" / "settings.json", raw)
+        assert _ids(_exposure(_config(path, raw))[0]) == [
+            ("SANDBOX-003", Severity.INFO)
+        ]
+
+    @pytest.mark.parametrize("content", [b"{not json", b"[]", b"\xff\xfe"])
+    def test_broken_user_settings_lock_nothing_and_are_not_errors(
+        self, content: bytes, repo: Path, home: Path
+    ) -> None:
+        (home / ".claude").mkdir()
+        (home / ".claude" / "settings.json").write_bytes(content)
+        raw = _box(network={"allowedDomains": ["github.com"]})
+        path = _write(repo / ".claude" / "settings.json", raw)
+        findings, errors = _exposure(_config(path, raw))
+        assert _ids(findings) == [("SANDBOX-003", Severity.MEDIUM)]
+        assert errors == []
+
+    def test_unreadable_user_settings_are_an_error(
+        self, repo: Path, home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        user_file = self._user_file(home, {})
+        real_open = Path.open
+
+        def deny(self: Path, *args: object, **kwargs: object):  # noqa: ANN202
+            if self == user_file:
+                raise PermissionError(13, "Permission denied")
+            return real_open(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", deny)
+        path = _write(repo / ".claude" / "settings.json", {})
+        _findings, errors = _exposure(_config(path, {}))
+        assert errors == [
+            "SANDBOX checks: could not read ~/.claude/settings.json: Permission"
+            " denied; SANDBOX-002/003 severities assume it sets nothing"
+        ]
+
+    def test_oversized_user_settings_are_not_read(
+        self, repo: Path, home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sb, "_USER_SETTINGS_MAX_BYTES", 10)
+        self._user_file(home, {"sandbox": {"network": {"strictAllowlist": True}}})
+        _findings, errors = _exposure()
+        assert errors and "larger than 4 MiB" in errors[0]
+
+
+class TestCrashIsolation:
+    def test_a_crash_on_one_file_keeps_the_others(
+        self, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        raw = _box(enableWeakerNestedSandbox=True)
+        bad = _write(repo / "bad" / ".claude" / "settings.json", raw)
+        good = _write(repo / ".claude" / "settings.json", raw)
+        real = sb.analyze_sandbox_settings
+
+        def flaky(raw_: object, path: Path, *args: object, **kwargs: object):  # noqa: ANN202
+            if "bad" in path.parts:
+                raise RuntimeError(f"boom {path}")
+            return real(raw_, path, *args, **kwargs)
+
+        monkeypatch.setattr(sb, "analyze_sandbox_settings", flaky)
+        findings, errors = _exposure(_config(bad, raw), _config(good, raw))
+        assert [f.finding_path for f in findings] == [str(good)]
+        assert errors == [
+            "SANDBOX checks: failed for '.claude/settings.json': RuntimeError"
+        ]
+        assert str(repo) not in errors[0]
+
+    def test_pipeline_keeps_every_other_check_when_sandbox_crashes(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        raw = {
+            "permissions": {"defaultMode": "bypassPermissions", "allow": ["Bash"]},
+            **_box(enableWeakerNestedSandbox=True),
+        }
+        path = _write(repo / ".claude" / "settings.json", raw)
+
+        def explode(*_a: object, **_k: object) -> None:
+            raise RuntimeError("check crashed")
+
+        monkeypatch.setattr(sb, "_check_sandbox_001", explode)
+        result = _run_static_pipeline(
+            ScanResult(),
+            [],
+            [_config(path, raw)],
+            get_default_analyzers(),
+            skip_rug_pull=True,
+        )
+        ids = {f.id for f in result.findings}
+        assert "HARNESS-001" in ids and not {i for i in ids if i.startswith("SANDBOX")}
+        assert result.errors == [
+            "SANDBOX checks: failed for '.claude/settings.json': RuntimeError"
+        ]
+
+
+class TestManySettingsFiles:
+    def test_long_ignore_lines_and_many_files_stay_fast(self, repo: Path) -> None:
+        line = "/" + "/".join(["a"] * 2000)
+        lines = (1024 * 1024) // (len(line) + 1)
+        (repo / ".gitignore").write_text("\n".join([line] * lines) + "\n")
+        assert (repo / ".gitignore").stat().st_size <= 1024 * 1024
+        configs = [
+            _config(_write(repo / f"p{i}" / ".claude" / "settings.local.json", {}))
+            for i in range(300)
+        ]
+        start = time.perf_counter()
+        findings, errors = _exposure(*configs)
+        assert time.perf_counter() - start < 10
+        assert errors == []
+        assert len(findings) == 300
+        assert {f.id for f in findings} == {"SANDBOX-005"}
+
+    def test_matching_budget_is_shared_and_reported(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            sb, "IgnoreFileReader", lambda home=None: _small_budget_reader(home)
+        )
+        (repo / ".gitignore").write_text("\n".join(f"x{i}*" for i in range(200)))
+        configs = [
+            _config(
+                _write(repo / f"p{i}" / ".claude" / "settings.local.json", LOUD), LOUD
+            )
+            for i in range(3)
+        ]
+        start = time.perf_counter()
+        findings, errors = _exposure(*configs)
+        assert time.perf_counter() - start < 5
+        assert "SANDBOX-005" not in {f.id for f in findings}
+        assert max(f.severity for f in findings) == Severity.MEDIUM
+        assert errors[0].startswith(
+            "SANDBOX checks: ignore-pattern matching budget reached"
+        )
+        assert errors[-1].startswith("SANDBOX checks: git state unknown for 3")
+
+
+def _small_budget_reader(home: Path | None) -> object:
+    from mcp_audit import _gitignore as gi  # noqa: PLC0415
+
+    return gi.IgnoreFileReader(home=home, _meter=gi.MatchMeter(limit=100))
 
 
 class TestSandbox005Local:
@@ -688,9 +1163,10 @@ class TestSandbox005Errors:
         findings, errors = _exposure(_config(path))
         assert findings == []
         assert errors == [
-            "SANDBOX-005 skipped: could not read repo/.gitignore: Permission denied"
+            "SANDBOX checks: could not read repo/.gitignore: Permission denied",
+            UNKNOWN_SUMMARY,
         ]
-        assert str(repo) not in errors[0]  # never an absolute path (--path exit 2)
+        assert str(repo) not in " ".join(errors)  # never an absolute path (exit 2)
 
     def test_permission_error_on_is_symlink_is_contained(
         self, repo: Path, monkeypatch: pytest.MonkeyPatch
@@ -724,11 +1200,11 @@ class TestSandbox005Errors:
         def explode(*_a: object, **_k: object) -> None:
             raise RuntimeError(f"bad {path}")
 
-        monkeypatch.setattr("mcp_audit.scanner.analyze_settings_git_exposure", explode)
+        monkeypatch.setattr("mcp_audit.scanner.analyze_sandbox_files", explode)
         result = _run_static_pipeline(
             ScanResult(), [], [config], get_default_analyzers(), skip_rug_pull=True
         )
-        assert "sandbox error: RuntimeError" in result.errors
+        assert "SANDBOX checks failed: RuntimeError" in result.errors
         assert "HARNESS-001" in {f.id for f in result.findings}
         assert not any(str(path) in e for e in result.errors)
 
@@ -765,6 +1241,7 @@ class TestUsernamePaths:
             "/Users/you/x",
             "/home/runner/work/x",
             "/home/codespace/x",
+            "/home/linuxbrew/.linuxbrew/bin/brew",  # Homebrew on Linux
             "C:\\Users\\Public\\x",
             "/Users/Shared/x",
             "/Users/$USER/x",
@@ -796,6 +1273,12 @@ class TestUsernamePaths:
         (_where, path, _user) = sb.username_paths(raw)[0]
         assert TOKEN not in path
 
+    def test_a_secret_in_the_username_position_is_masked(self) -> None:
+        raw = {"permissions": {"allow": [f"Bash(cat /home/{TOKEN}/notes.txt)"]}}
+        [(_where, path, user)] = sb.username_paths(raw)
+        assert user == "***"
+        assert path == "/home/***/notes.txt"
+
     def test_pathological_input_is_fast(self) -> None:
         start = time.perf_counter()
         raw = {"a": ["/" * 200_000, "/home/" * 20_000, "C:" + "\\" * 100_000]}
@@ -808,7 +1291,7 @@ class TestUsernamePaths:
         raw["z"] = "/Users/zed/x"
         findings, errors = _exposure(_config(path, raw))
         assert errors == [
-            "SANDBOX-005 skipped: 'repo/.claude/settings.json' was searched for"
+            "SANDBOX checks: 'repo/.claude/settings.json' was searched for"
             " home-directory paths only up to 20000 strings, 16 KiB per string and"
             " depth 64"
         ]
@@ -861,16 +1344,29 @@ class TestCli:
         (root / ".git").mkdir(parents=True)
         _write(
             root / ".claude" / "settings.json",
-            _box(
-                enableWeakerNestedSandbox=True,
-                excludedCommands=["docker *", f"npx --registry=https://u:{TOKEN}@r *"],
-                network={"allowedDomains": ["github.com"]},
-                allowAppleEvents=True,
-            ),
+            {
+                "permissions": {"allow": ["Bash(docker *)"]},
+                **_box(
+                    enableWeakerNestedSandbox=True,
+                    excludedCommands=[
+                        "docker *",
+                        f"npx --registry=https://u:{TOKEN}@r *",
+                    ],
+                    network={"allowedDomains": ["github.com"]},
+                    allowAppleEvents=True,
+                ),
+            },
         )
         _write(
             root / ".claude" / "settings.local.json",
-            {"permissions": {"allow": [f"Bash(/home/ann/{TOKEN}/x *)"]}},
+            {
+                "permissions": {
+                    "allow": [
+                        f"Bash(/home/ann/{TOKEN}/x *)",
+                        f"Bash(cat /home/{TOKEN}/notes.txt)",
+                    ]
+                }
+            },
         )
 
     def test_default_scan_from_the_checkout(
@@ -885,6 +1381,7 @@ class TestCli:
         assert {
             ("SANDBOX-001", "HIGH"),
             ("SANDBOX-002", "HIGH"),
+            ("SANDBOX-002", "MEDIUM"),
             ("SANDBOX-003", "MEDIUM"),
             ("SANDBOX-004", "INFO"),
             ("SANDBOX-005", "MEDIUM"),
@@ -924,7 +1421,10 @@ class TestCli:
         shown = "Repository settings" if fmt == "terminal" else "SANDBOX-002"
         assert shown in result.output
         assert "--registry=https://***@r" in result.output or fmt == "terminal"
+        assert "SANDBOX-005" in result.output or fmt == "terminal"
+        assert "home directory (***, ann)" in result.output or fmt == "terminal"
         assert TOKEN not in result.output
+        assert TOKEN[:12] not in result.output
 
     def test_unreadable_gitignore_under_an_explicit_path_is_not_exit_2(
         self, tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch
@@ -944,7 +1444,7 @@ class TestCli:
         result = runner.invoke(app, ["scan", "--path", str(path), "--format", "json"])
         assert result.exit_code != 2, result.output
         out = _json_out(result.output)
-        assert any("SANDBOX-005 skipped" in e for e in out["errors"])
+        assert any("SANDBOX checks: could not read" in e for e in out["errors"])
 
     def test_project_pipeline_errors_reach_the_output(
         self, tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch
@@ -969,7 +1469,7 @@ class TestCli:
         errors = _json_out(result.output)["errors"]
         assert (
             errors.count(
-                "SANDBOX-005 skipped: could not read repo/.gitignore: Permission denied"
+                "SANDBOX checks: could not read repo/.gitignore: Permission denied"
             )
             == 1
         )

@@ -14,17 +14,20 @@ quoted in the finding:
   index gives each key a scope: ``Any file``, ``User or managed`` or
   ``Managed``
 - code.claude.com/docs/en/settings ("settings doc") for local settings and git
+- code.claude.com/docs/en/permissions ("permissions doc") for when a local
+  settings file counts as the repository's
 
 Checks:
 
-- **SANDBOX-001** (HIGH/MEDIUM): a repository settings file turns on a key
-  that weakens the sandbox, turns the sandbox off, or points it at a proxy.
-- **SANDBOX-002** (HIGH): it takes a shell, interpreter, package runner,
-  container runtime or every command out of the sandbox
-  (``excludedCommands``), or opens the Docker or Podman socket
-  (``allowUnixSockets``).
-- **SANDBOX-003** (MEDIUM): it adds a host anyone can publish to (a code host,
-  a paste site, a webhook receiver) or every host to ``allowedDomains``.
+- **SANDBOX-001** (HIGH/MEDIUM, INFO for a proxy port under the user's
+  ``strictAllowlist``): a repository settings file turns on a key that weakens
+  the sandbox, turns the sandbox off, or points it at a proxy.
+- **SANDBOX-002** (MEDIUM, HIGH when nothing prompts): it takes a shell,
+  interpreter, wrapper, package runner, container runtime or every command
+  out of the sandbox (``excludedCommands``); HIGH for opening the Docker or
+  Podman socket (``allowUnixSockets``).
+- **SANDBOX-003** (MEDIUM, INFO under the user's ``strictAllowlist``): it adds
+  a host anyone can publish to, or every host, to ``allowedDomains``.
 - **SANDBOX-004** (INFO): a key Claude Code ignores in this file ("dead
   config"), such as ``strictAllowlist`` or ``allowManagedDomainsOnly`` in a
   repository.
@@ -32,23 +35,31 @@ Checks:
   work tree that no ignore file covers, and home-directory paths with a
   username in a settings file headed for git.
 
-SANDBOX-001..004 are pure functions of a settings file already parsed by the
-scan (:func:`analyze_sandbox_settings`, called from
-:meth:`~mcp_audit.analyzers.config_hygiene.ConfigHygieneAnalyzer.analyze_config`
-beside PERM-001..006).  SANDBOX-005 reads ignore files
-(:mod:`mcp_audit._gitignore`), so it runs as step 0b of
-:func:`mcp_audit.scanner._run_static_pipeline`, where read failures go to
-``result.errors`` (:func:`analyze_settings_git_exposure`).  Nothing is
-executed; ``git`` is never run.
+All of them run in step 0b of :func:`mcp_audit.scanner._run_static_pipeline`
+(:func:`analyze_sandbox_files`), not in ``analyze_config``: deciding whether a
+local settings file is the repository's needs git's ignore files
+(:mod:`mcp_audit._gitignore`), and SANDBOX-002/003's severity needs the user's
+own ``~/.claude/settings.json``.  Each settings file is checked inside its own
+``try``, and read failures and crashes go to ``result.errors``, so nothing
+here can drop another check.  :func:`analyze_sandbox_settings` is the pure
+per-file part.  Nothing is executed; ``git`` is never run.
 
-"Repository settings" means project (``.claude/settings.json``) and local
-(``.claude/settings.local.json``) files outside the configuration home: the
-sandboxing doc's own phrase is "a repository's ``.claude/settings.json`` and
-``.claude/settings.local.json``".  The user's ``~/.claude/settings.json`` and
-``~/.claude/settings.local.json`` are the user's own choice and get only
-SANDBOX-004.  Each file is evaluated on its own; the merge across files and
-managed settings (which can make the sandbox admin-required and so ignore a
-repository's loosening keys) is not modelled (GAPS.md).
+Which files a repository controls:
+
+- ``.claude/settings.json`` outside the home directory: always (it is the
+  shared, committed file).
+- ``.claude/settings.local.json``: the permissions doc calls it "normally your
+  own file" and says "When the file is tracked in git, or ``.claude`` is a
+  symlink, Claude Code treats it as repository-supplied".  It gets
+  SANDBOX-001..003 when ``.claude`` is a symlink or no ignore file covers it
+  (it is tracked, or will be), at MEDIUM at most when its ignore state can't
+  be read, and not at all when git ignores it or it is outside a work tree.
+- ``~/.claude/settings.json`` and ``~/.claude/settings.local.json``: the
+  user's own; SANDBOX-004 only.
+
+Each file is evaluated on its own, plus the two user-settings keys above;
+managed settings and ``--settings`` (which can make the sandbox admin-required
+or lock the allowlist) are not seen (GAPS.md).
 """
 
 from __future__ import annotations
@@ -57,7 +68,7 @@ import json
 import os
 import re
 from collections.abc import Callable, Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
@@ -75,8 +86,10 @@ from mcp_audit.analyzers.permissions import (
 )
 from mcp_audit.models import Finding, Severity
 
-#: Analyzer label: emitted through config hygiene's per-file pass, like PERM-*.
+#: Analyzer label: the same family as PERM-* and HARNESS-*.
 ANALYZER_NAME = "config_hygiene"
+#: Start of every message this module adds to ``result.errors``.
+ERROR_PREFIX = "SANDBOX checks: "
 
 #: Items quoted in one finding before "(+N more)".
 _LIST_CAP = 20
@@ -85,13 +98,43 @@ _QUOTE_CHARS = 120
 #: Text masked before a value is cut to :data:`_QUOTE_CHARS`.  Masking runs on
 #: this much so a secret that starts inside the quoted part is masked whole.
 _MASK_WINDOW = 64 * 1024
+#: Largest user settings file read for ``strictAllowlist``/``defaultMode``.
+_USER_SETTINGS_MAX_BYTES = 4 * 1024 * 1024
 
-_ADMIN_REQUIRED_NOTE = (
-    " Claude Code ignores these in a repository's files only while managed"
-    " settings or --settings make the sandbox admin-required"
-    " (allowUnsandboxedCommands false or allowManagedDomainsOnly true; Claude"
-    " Code 2.1.285 or later), which this scan can't see."
+_REPO_SUPPLIED_QUOTE = (
+    'the permissions doc: "When the file is tracked in git, or .claude is a'
+    " symlink, Claude Code treats it as repository-supplied instead and holds"
+    ' its rules until you trust the folder."'
 )
+
+#: Sandboxing doc, "Repository settings under an admin-required sandbox".
+_ADMIN_REQUIRED_NOTE = (
+    "Claude Code ignores these in a repository's files only while managed"
+    " settings or --settings make the sandbox admin-required"
+    " (allowUnsandboxedCommands false in managed settings or --settings, or"
+    " allowManagedDomainsOnly true in managed settings; Claude Code 2.1.285 or"
+    " later)."
+)
+#: Sandboxing doc, "Locks that apply without an admin-required sandbox":
+#: network.strictAllowlist in managed settings, --settings or user settings
+#: makes Claude Code ignore a repository's "proxy ports, allowedDomains, and
+#: WebFetch(domain:...) allow rules"; network.deniedDomains or a
+#: WebFetch(domain:...) deny rule in managed settings or --settings makes it
+#: ignore "httpProxyPort and socksProxyPort".  "Requires Claude Code v2.1.285
+#: or later."
+_STRICT_ALLOWLIST_NOTE = (
+    "It also ignores a repository's allowedDomains, proxy ports and"
+    " WebFetch(domain:...) allow rules while managed settings, --settings or"
+    ' your user settings set network.strictAllowlist (sandboxing doc, "Locks'
+    ' that apply without an admin-required sandbox"; 2.1.285 or later).'
+)
+_DENIED_DOMAINS_NOTE = (
+    "It ignores a repository's proxy ports while managed settings or"
+    " --settings set network.deniedDomains or a WebFetch(domain:...) deny rule"
+    " (same section)."
+)
+_PORT_NOTES = (_ADMIN_REQUIRED_NOTE, _STRICT_ALLOWLIST_NOTE, _DENIED_DOMAINS_NOTE)
+_DOMAIN_NOTES = (_ADMIN_REQUIRED_NOTE, _STRICT_ALLOWLIST_NOTE)
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -145,11 +188,78 @@ def _in_configuration_home(path: Path) -> bool:
         return False
 
 
-def is_repository_settings(settings: ClaudeSettings) -> bool:
-    """True for project or local settings outside the configuration home."""
-    return settings.scope in ("project", "local") and not _in_configuration_home(
-        settings.path
-    )
+# ── Context: which file this is, and what the user's own settings lock ───────
+
+
+@dataclass(frozen=True)
+class UserSettingsLocks:
+    """What the user's ``~/.claude/settings.json`` sets that changes a severity.
+
+    Attributes:
+        strict_allowlist: ``sandbox.network.strictAllowlist`` is ``true``:
+            Claude Code then ignores a repository's ``allowedDomains`` and
+            proxy ports (2.1.285+), so SANDBOX-003 and proxy-port hits drop
+            to INFO.
+        default_mode: ``permissions.defaultMode``, when a string:
+            ``bypassPermissions`` or ``auto`` there raise SANDBOX-002.
+    """
+
+    strict_allowlist: bool = False
+    default_mode: str | None = None
+
+
+#: Where a settings file's sandbox keys come from, for SANDBOX-001..003.
+ORIGIN_PROJECT = "project"  # shared .claude/settings.json in a repository
+ORIGIN_LOCAL_TRACKED = "local-in-git"  # local file no ignore file covers
+ORIGIN_LOCAL_SYMLINK = "local-symlink"  # local file whose .claude is a link
+ORIGIN_LOCAL_UNKNOWN = "local-unknown"  # local file, ignore state unreadable
+ORIGIN_OWN = "own"  # the user's own file: SANDBOX-004 only
+
+
+@dataclass(frozen=True)
+class SandboxContext:
+    """What :func:`analyze_sandbox_settings` needs beyond the file itself.
+
+    Attributes:
+        origin: One of the ``ORIGIN_*`` values.
+        user: Locks from the user's own settings file.
+    """
+
+    origin: str = ORIGIN_OWN
+    user: UserSettingsLocks = field(default_factory=UserSettingsLocks)
+
+
+_ORIGIN_TEXT: dict[str, tuple[str, str]] = {
+    ORIGIN_PROJECT: (
+        "committed project settings (.claude/settings.json), which reach"
+        " everyone who clones the repository",
+        "A cloned repository chooses these for everyone who opens it.",
+    ),
+    ORIGIN_LOCAL_TRACKED: (
+        "local project settings (.claude/settings.local.json) that no ignore"
+        " file covers, so git tracks it or will",
+        f"A tracked local file is the repository's: {_REPO_SUPPLIED_QUOTE}",
+    ),
+    ORIGIN_LOCAL_SYMLINK: (
+        "local project settings (.claude/settings.local.json) in a .claude"
+        " directory that is a symlink",
+        f"So Claude Code treats it as the repository's: {_REPO_SUPPLIED_QUOTE}",
+    ),
+    ORIGIN_LOCAL_UNKNOWN: (
+        "local project settings (.claude/settings.local.json) whose git state"
+        " mcp-audit could not read (see the scan's errors)",
+        "If git tracks it, it is the repository's ("
+        + _REPO_SUPPLIED_QUOTE
+        + "); reported at MEDIUM at most because that is unknown.",
+    ),
+}
+
+
+def _default_context(settings: ClaudeSettings) -> SandboxContext:
+    """A shared project file is the repository's; without context, nothing else is."""
+    if settings.scope == "project" and not _in_configuration_home(settings.path):
+        return SandboxContext(ORIGIN_PROJECT)
+    return SandboxContext(ORIGIN_OWN)
 
 
 @dataclass(frozen=True)
@@ -158,6 +268,7 @@ class _Hit:
 
     where: str  # e.g. "sandbox.excludedCommands contains 'python *'"
     why: str
+    notes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -173,12 +284,17 @@ def _build(
     check: _Check,
     severity: Severity,
     settings: ClaudeSettings,
+    where_text: str,
     client: str,
     analyzer: str,
     summary: str,
     hits: list[_Hit],
 ) -> Finding:
     """One finding per check and severity in one settings file."""
+    notes: list[str] = []
+    for hit in hits:
+        notes.extend(note for note in hit.notes if note not in notes)
+    tail = " ".join([summary, *notes]).strip()
     return Finding(
         id=check.finding_id,
         severity=severity,
@@ -187,9 +303,9 @@ def _build(
         server="(config-level)",
         title=check.title,
         description=(
-            f"In {settings.scope_label}: "
+            f"In {where_text}: "
             + _capped([f"{hit.where}: {hit.why}" for hit in hits])
-            + f". {summary}"
+            + f". {tail}"
         ),
         evidence=f"{settings.path}: " + _capped([hit.where for hit in hits]),
         remediation=check.remediation,
@@ -206,6 +322,13 @@ _SEVERITY_ORDER: tuple[Severity, ...] = (
     Severity.LOW,
     Severity.INFO,
 )
+_RANK = {sev: rank for rank, sev in enumerate(reversed(_SEVERITY_ORDER))}
+
+
+def _cap(severity: Severity, ceiling: Severity | None) -> Severity:
+    if ceiling is not None and _RANK[severity] > _RANK[ceiling]:
+        return ceiling
+    return severity
 
 
 def _grouped(
@@ -216,6 +339,38 @@ def _grouped(
         groups.setdefault(severity, []).append(hit)
     return [(sev, groups[sev]) for sev in _SEVERITY_ORDER if sev in groups]
 
+
+def _findings(
+    check: _Check,
+    graded: list[tuple[Severity, _Hit]],
+    settings: ClaudeSettings,
+    context: SandboxContext,
+    client: str,
+    analyzer: str,
+    basis: str,
+) -> list[Finding]:
+    where_text, origin_tail = _ORIGIN_TEXT[context.origin]
+    ceiling = Severity.MEDIUM if context.origin == ORIGIN_LOCAL_UNKNOWN else None
+    capped = [(_cap(sev, ceiling), hit) for sev, hit in graded]
+    return [
+        _build(
+            check,
+            severity,
+            settings,
+            where_text,
+            client,
+            analyzer,
+            f"{basis} {origin_tail}",
+            hits,
+        )
+        for severity, hits in _grouped(capped)
+    ]
+
+
+_STRICT_ALLOWLIST_HIT = (
+    "; your ~/.claude/settings.json sets network.strictAllowlist: true, so"
+    " Claude Code 2.1.285 or later ignores this repository entry"
+)
 
 # ── SANDBOX-001: keys that weaken or switch off the sandbox ──────────────────
 
@@ -247,6 +402,7 @@ class _Loosening:
     severity: Severity
     effect: str
     project_only: bool = False
+    is_port: bool = False
 
 
 #: Sandboxing doc, "Keep developers from widening the policy": "Unless managed
@@ -314,6 +470,7 @@ _LOOSENING_KEYS: tuple[_Loosening, ...] = (
         'sandboxed HTTP traffic goes to this local port: "Your proxy takes over'
         " filtering, and Claude Code stops applying its domain lists and network"
         ' prompts to traffic sent there"',
+        is_port=True,
     ),
     _Loosening(
         "network.socksProxyPort",
@@ -322,6 +479,7 @@ _LOOSENING_KEYS: tuple[_Loosening, ...] = (
         'sandboxed SOCKS traffic goes to this local port: "Your proxy takes'
         " over filtering, and Claude Code stops applying its domain lists and"
         ' network prompts to traffic sent there"',
+        is_port=True,
     ),
 )
 
@@ -342,12 +500,12 @@ _SANDBOX_001 = _Check(
 _SANDBOX_001_BASIS = (
     "Sandboxing doc: \"A repository's .claude/settings.json can too [turn these"
     " keys on], unless the sandbox is admin-required. Each one weakens the"
-    ' sandbox." A cloned repository chooses these for everyone who opens it.'
+    ' sandbox."'
 )
 
 
 def _check_sandbox_001(
-    settings: ClaudeSettings, client: str, analyzer: str
+    settings: ClaudeSettings, context: SandboxContext, client: str, analyzer: str
 ) -> list[Finding]:
     graded: list[tuple[Severity, _Hit]] = []
     for item in _LOOSENING_KEYS:
@@ -356,25 +514,22 @@ def _check_sandbox_001(
             # so a false there is usually the user's own choice.
             continue
         present, value = _get(settings.sandbox, item.key)
-        if present and item.applies(value):
+        if not (present and item.applies(value)):
+            continue
+        where = f"sandbox.{item.key} = {_quote(value)}"
+        if item.is_port and context.user.strict_allowlist:
             graded.append(
-                (
-                    item.severity,
-                    _Hit(f"sandbox.{item.key} = {_quote(value)}", item.effect),
-                )
+                (Severity.INFO, _Hit(where, item.effect + _STRICT_ALLOWLIST_HIT))
             )
-    return [
-        _build(
-            _SANDBOX_001,
-            severity,
-            settings,
-            client,
-            analyzer,
-            _SANDBOX_001_BASIS + _ADMIN_REQUIRED_NOTE,
-            hits,
-        )
-        for severity, hits in _grouped(graded)
-    ]
+        elif item.is_port:
+            graded.append((item.severity, _Hit(where, item.effect, _PORT_NOTES)))
+        else:
+            graded.append(
+                (item.severity, _Hit(where, item.effect, (_ADMIN_REQUIRED_NOTE,)))
+            )
+    return _findings(
+        _SANDBOX_001, graded, settings, context, client, analyzer, _SANDBOX_001_BASIS
+    )
 
 
 # ── SANDBOX-002: commands taken out of the sandbox; container sockets ────────
@@ -388,6 +543,24 @@ _SHELLS_AND_INTERPRETERS: frozenset[str] = frozenset(
     }
 )  # fmt: skip
 _PYTHON_RE = re.compile(r"^(?:python|pypy)(?:\d+(?:\.\d+)*)?$")
+#: Wrappers that run the command after them.  Permissions doc, "Wrappers":
+#: "The stripped wrappers are timeout, time, nice, nohup, and stdbuf, plus the
+#: shell builtins command and builtin, and zsh's noglob. Each runs its argument
+#: as the actual command"; "Exec wrappers: such as watch, setsid, ionice, and
+#: flock".  ``env`` runs the program it names.  Excluded-command entries are
+#: matched against "the text of the call" (sandboxing doc), so ``timeout 30 *``
+#: covers ``timeout 30 bash -c '...'``.  ``xargs`` is not here: the settings
+#: reference says "Claude Code keeps a Bash call sandboxed" when it is "A
+#: command starting with sudo, eval, or xargs".
+_WRAPPERS: frozenset[str] = frozenset(
+    {
+        "env", "timeout", "time", "nice", "nohup", "stdbuf", "command",
+        "builtin", "noglob", "watch", "setsid", "ionice", "flock",
+    }
+)  # fmt: skip
+#: Wrapper arguments that are not the command: a duration, a number, an
+#: environment assignment.
+_WRAPPER_ARG_RE = re.compile(r"^(?:\d+(?:\.\d+)?[smhd]?|[A-Za-z_][A-Za-z0-9_]*=.*)$")
 #: Package runners that execute whatever package or command follows them.
 _PACKAGE_RUNNERS: frozenset[str] = frozenset({"npx", "bunx", "pnpx", "uvx"})
 #: ``<program> <subcommand>`` pairs that run whatever follows (permissions doc,
@@ -423,18 +596,28 @@ def _options_only(words: list[str]) -> bool:
     return all(word.startswith("-") for word in words)
 
 
+def _pattern_words(pattern: str) -> tuple[list[str], bool]:
+    """Words of a ``Bash(...)``-syntax pattern and whether it ends in a wildcard."""
+    text = pattern.strip()
+    for suffix in (":*", " *", "*"):
+        if text.endswith(suffix):
+            return text[: -len(suffix)].split(), True
+    return text.split(), False
+
+
 def runs_anything_outside_sandbox(entry: object) -> str | None:
     """Why an ``excludedCommands`` entry takes code-running commands out, if it does.
 
     Entries use ``Bash(...)`` rule syntax ("a pattern with no wildcard is an
     exact match"), so only an entry whose arguments are left open by a
     trailing wildcard is reported: ``python *``, ``bash -c *``, ``npx *``,
-    ``uv run *``, ``docker *``, ``docker compose *``, ``docker run *``, or a
-    leading ``*`` (any program in front of the rest).  An entry narrowed to a
-    script or subcommand (``python scripts/load.py *``, ``uv run pytest *``,
-    ``docker ps``) is not.  ``sudo``, ``eval`` and ``xargs`` entries are not
-    reported: the settings reference says calls starting with them stay
-    sandboxed.
+    ``uv run *``, ``env *``, ``timeout 30 *``, ``docker *``,
+    ``docker compose *``, ``docker run *``, or a leading ``*`` (any program in
+    front of the rest).  An entry narrowed to a script or subcommand
+    (``python scripts/load.py *``, ``uv run pytest *``, ``docker ps``) is not.
+    ``sudo``, ``eval`` and ``xargs`` entries are not reported: the settings
+    reference says Claude Code keeps "A command starting with sudo, eval, or
+    xargs" sandboxed.
 
     Returns:
         A short reason, or ``None``.
@@ -449,21 +632,24 @@ def runs_anything_outside_sandbox(entry: object) -> str | None:
     if text.startswith("*"):
         # Permissions doc: Bash(* --version) matches bash -c 'echo hi' --version.
         return "a leading * matches any program in front of the rest"
-    wildcard = False
-    for suffix in (":*", " *", "*"):
-        if text.endswith(suffix):
-            text = text[: -len(suffix)].strip()
-            wildcard = True
-            break
+    words, wildcard = _pattern_words(text)
     if not wildcard:
         return None
-    words = text.split()
     if not words:
         return "matches every command"
     program, rest = _program(words[0]), words[1:]
-    interpreter = program in _SHELLS_AND_INTERPRETERS or _PYTHON_RE.match(program)
+    interpreter = program in _SHELLS_AND_INTERPRETERS or bool(_PYTHON_RE.match(program))
     if interpreter and _options_only(rest):
         return "a shell or interpreter with any arguments"
+    if program in _WRAPPERS:
+        if program == "command" and any(w in ("-v", "-V") for w in rest):
+            return None  # the query form: "looks up a command rather than running one"
+        positional = [w for w in rest if not w.startswith("-")]
+        if program == "flock":  # flock <lockfile> <command>
+            positional = positional[1:]
+        if all(_WRAPPER_ARG_RE.match(w) for w in positional):
+            return "a wrapper that runs whatever command follows it"
+        return None
     if program in _PACKAGE_RUNNERS and _options_only(rest):
         return "a package runner with any package"
     if rest and (program, rest[0].lower()) in _RUNNER_SUBCOMMANDS:
@@ -485,6 +671,43 @@ def runs_anything_outside_sandbox(entry: object) -> str | None:
     return None
 
 
+def allow_rule_overlapping(entry: str, settings: ClaudeSettings) -> str | None:
+    """A Bash allow rule in *settings* that approves some command *entry* excludes.
+
+    Sandboxing doc: "commands your allow rules cover run without a prompt",
+    so such a command runs outside the sandbox and unprompted.  Patterns are
+    compared word by word: a wildcard allow rule whose words start the
+    excluded pattern's (``Bash(docker *)`` for ``docker compose *``), or an
+    allow rule that starts with the excluded pattern's words
+    (``Bash(docker compose up)``), overlaps.  A ``*`` word in the allow rule
+    matches any word (``Bash(docker * up)``); other wildcards inside a word
+    are compared literally.  A bare ``Bash``, ``Bash(*)`` or leading-``*``
+    rule overlaps everything.
+    """
+    excluded_words, _ = _pattern_words(entry)
+    every_command = entry.strip().startswith("*")
+    for rule in settings.rules_in("allow"):
+        if rule.tool != "Bash":
+            continue
+        spec = "*" if rule.specifier is None else rule.specifier.strip()
+        if every_command or not spec or spec.startswith("*"):
+            return rule.text
+        allow_words, allow_wild = _pattern_words(spec)
+        if not allow_words:
+            return rule.text
+        shared = min(len(allow_words), len(excluded_words))
+        if any(
+            a not in ("*", e)
+            for a, e in zip(allow_words[:shared], excluded_words[:shared], strict=True)
+        ):
+            continue
+        if allow_wild and len(allow_words) <= len(excluded_words):
+            return rule.text
+        if len(excluded_words) <= len(allow_words):
+            return rule.text
+    return None
+
+
 def _socket_name(entry: object) -> str | None:
     if not isinstance(entry, str):
         return None
@@ -500,8 +723,8 @@ _SANDBOX_002 = _Check(
         " sandboxed and give it the one directory or host it needs with"
         " sandbox.filesystem.allowWrite or sandbox.network.allowedDomains; if a"
         " tool must run unsandboxed, list the narrowest pattern (one script or"
-        " subcommand) in your own ~/.claude/settings.json. Don't open the Docker"
-        " or Podman socket to sandboxed commands."
+        " subcommand) in your own ~/.claude/settings.json, and don't also allow"
+        " it. Don't open the Docker or Podman socket to sandboxed commands."
     ),
     cwe="CWE-250",
     owasp=("MCP05", "MCP02"),
@@ -512,51 +735,97 @@ _SANDBOX_002_BASIS = (
     " pattern that covers an interpreter, a script inside your working"
     " directory, or a tool that acts on a file there, as docker compose does"
     " with its compose file, Claude can write that file and then run it outside"
-    ' the sandbox"; and "allowing access to /var/run/docker.sock effectively'
-    ' grants access to the host system through the Docker socket". An excluded'
-    ' command still goes through the permission flow: a "Bash command'
-    ' (unsandboxed)" prompt appears unless an allow rule covers it, and in'
-    " bypassPermissions mode it runs without one. allowUnixSockets applies on"
-    " macOS only."
+    ' the sandbox"; "An excluded command goes through the regular permission'
+    ' flow": commands an allow rule covers "run without a prompt", "In auto'
+    ' mode, the classifier reviews other excluded commands", and "In'
+    " bypassPermissions mode, an excluded command runs without a prompt unless"
+    ' an ask rule matches it"; otherwise a "Bash command (unsandboxed)" prompt'
+    ' appears. And "allowing access to /var/run/docker.sock effectively grants'
+    ' access to the host system through the Docker socket" (allowUnixSockets'
+    " applies on macOS only)."
 )
 
 
+def _exclusion_severity(
+    entry: str, settings: ClaudeSettings, user: UserSettingsLocks
+) -> tuple[Severity, str]:
+    """MEDIUM while a prompt still guards the excluded command; HIGH when none does.
+
+    A project or local file's own ``defaultMode`` is not counted: the settings
+    reference says "auto and bypassPermissions don't take effect from project
+    or local settings".  ``dontAsk`` does not raise it: in that mode "Claude
+    Code auto-denies every tool call that would otherwise prompt you"
+    (permission-modes doc).
+    """
+    allow = allow_rule_overlapping(entry, settings)
+    if allow is not None:
+        return (
+            Severity.HIGH,
+            f"; allow {allow!r} in this file approves it, so it runs outside the"
+            " sandbox with no prompt",
+        )
+    if user.default_mode == "bypassPermissions":
+        return (
+            Severity.HIGH,
+            "; your ~/.claude/settings.json starts sessions in bypassPermissions"
+            " mode, where it runs with no prompt",
+        )
+    if user.default_mode == "auto":
+        return (
+            Severity.HIGH,
+            "; your ~/.claude/settings.json starts sessions in auto mode, where"
+            " the classifier, not you, decides whether it runs",
+        )
+    return (
+        Severity.MEDIUM,
+        '; a "Bash command (unsandboxed)" prompt still guards it in Manual and'
+        " acceptEdits modes",
+    )
+
+
 def _check_sandbox_002(
-    settings: ClaudeSettings, client: str, analyzer: str
+    settings: ClaudeSettings, context: SandboxContext, client: str, analyzer: str
 ) -> list[Finding]:
-    hits: list[_Hit] = []
+    graded: list[tuple[Severity, _Hit]] = []
+    notes = (_ADMIN_REQUIRED_NOTE,)
     present, excluded = _get(settings.sandbox, "excludedCommands")
     if present and isinstance(excluded, list):
         for entry in excluded:
             reason = runs_anything_outside_sandbox(entry)
-            if reason:
-                hits.append(
-                    _Hit(f"sandbox.excludedCommands contains {_quote(entry)}", reason)
+            if not reason or not isinstance(entry, str):
+                continue
+            severity, why = _exclusion_severity(entry, settings, context.user)
+            graded.append(
+                (
+                    severity,
+                    _Hit(
+                        f"sandbox.excludedCommands contains {_quote(entry)}",
+                        reason + why,
+                        notes,
+                    ),
                 )
+            )
     present, sockets = _get(settings.sandbox, "network.allowUnixSockets")
     if present and isinstance(sockets, list):
         for entry in sockets:
             name = _socket_name(entry)
             if name:
-                hits.append(
-                    _Hit(
-                        f"sandbox.network.allowUnixSockets contains {_quote(entry)}",
-                        f"the {name} socket controls the container daemon on the host",
+                graded.append(
+                    (
+                        Severity.HIGH,
+                        _Hit(
+                            "sandbox.network.allowUnixSockets contains"
+                            f" {_quote(entry)}",
+                            f"the {name} socket controls the container daemon on the"
+                            " host, and in the sandbox's default auto-allow mode a"
+                            " sandboxed command runs without a prompt",
+                            notes,
+                        ),
                     )
                 )
-    if not hits:
-        return []
-    return [
-        _build(
-            _SANDBOX_002,
-            Severity.HIGH,
-            settings,
-            client,
-            analyzer,
-            _SANDBOX_002_BASIS + _ADMIN_REQUIRED_NOTE,
-            hits,
-        )
-    ]
+    return _findings(
+        _SANDBOX_002, graded, settings, context, client, analyzer, _SANDBOX_002_BASIS
+    )
 
 
 # ── SANDBOX-003: hosts anyone can publish to in allowedDomains ───────────────
@@ -619,10 +888,11 @@ _SANDBOX_003 = _Check(
     ),
     remediation=(
         "Remove these hosts from the repository's sandbox.network.allowedDomains"
-        " and allow the narrow hosts a tool actually needs (for example"
-        " registry.npmjs.org, or api.github.com only where a command must call"
-        " it). Add sandbox.network.deniedDomains for upload hosts you never want"
-        " reached, such as uploads.github.com."
+        " and allow only the hosts a tool actually needs (for example"
+        " registry.npmjs.org or pypi.org). Add sandbox.network.deniedDomains for"
+        " upload hosts you never want reached. To stop any repository from"
+        " widening the allowlist, set sandbox.network.strictAllowlist: true in"
+        " your ~/.claude/settings.json."
     ),
     cwe="CWE-183",
     owasp=("MCP02", "MCP10"),
@@ -639,29 +909,24 @@ _SANDBOX_003_BASIS = (
 
 
 def _check_sandbox_003(
-    settings: ClaudeSettings, client: str, analyzer: str
+    settings: ClaudeSettings, context: SandboxContext, client: str, analyzer: str
 ) -> list[Finding]:
     present, domains = _get(settings.sandbox, "network.allowedDomains")
     if not present or not isinstance(domains, list):
         return []
-    hits = [
-        _Hit(f"sandbox.network.allowedDomains contains {_quote(entry)}", kind)
-        for entry in domains
-        if (kind := content_host(entry))
-    ]
-    if not hits:
-        return []
-    return [
-        _build(
-            _SANDBOX_003,
-            Severity.MEDIUM,
-            settings,
-            client,
-            analyzer,
-            _SANDBOX_003_BASIS + _ADMIN_REQUIRED_NOTE,
-            hits,
-        )
-    ]
+    graded: list[tuple[Severity, _Hit]] = []
+    for entry in domains:
+        kind = content_host(entry)
+        if not kind:
+            continue
+        where = f"sandbox.network.allowedDomains contains {_quote(entry)}"
+        if context.user.strict_allowlist:
+            graded.append((Severity.INFO, _Hit(where, kind + _STRICT_ALLOWLIST_HIT)))
+        else:
+            graded.append((Severity.MEDIUM, _Hit(where, kind, _DOMAIN_NOTES)))
+    return _findings(
+        _SANDBOX_003, graded, settings, context, client, analyzer, _SANDBOX_003_BASIS
+    )
 
 
 # ── SANDBOX-004: keys Claude Code ignores in this file ───────────────────────
@@ -868,11 +1133,20 @@ def _check_sandbox_004(
             " repository can't loosen the sandbox through them."
         )
     return [
-        _build(_SANDBOX_004, Severity.INFO, settings, client, analyzer, summary, hits)
+        _build(
+            _SANDBOX_004,
+            Severity.INFO,
+            settings,
+            settings.scope_label,
+            client,
+            analyzer,
+            summary,
+            hits,
+        )
     ]
 
 
-# ── SANDBOX-001..004 entry point ──────────────────────────────────────────────
+# ── SANDBOX-001..004 for one file ─────────────────────────────────────────────
 
 
 def analyze_sandbox_settings(
@@ -881,8 +1155,9 @@ def analyze_sandbox_settings(
     client: str,
     *,
     analyzer: str = ANALYZER_NAME,
+    context: SandboxContext | None = None,
 ) -> list[Finding]:
-    """SANDBOX-001..004 for one Claude Code settings file.
+    """SANDBOX-001..004 for one Claude Code settings file.  Pure: reads nothing.
 
     Args:
         raw: Parsed JSON of the file.
@@ -890,30 +1165,167 @@ def analyze_sandbox_settings(
             file yields nothing.
         client: Client name to attach to findings.
         analyzer: Analyzer label for findings.
+        context: Where the file's keys come from and what the user's settings
+            lock (:func:`analyze_sandbox_files` works this out).  Without it,
+            a shared project ``.claude/settings.json`` is the repository's and
+            any other file is the user's own (SANDBOX-004 only).
 
     Returns:
-        Findings ordered by ID, most severe first within an ID.  SANDBOX-001..003
-        only for repository settings (:func:`is_repository_settings`).
+        Findings ordered by ID, most severe first within an ID.
     """
     if not is_claude_code_settings_file(config_path):
         return []
     settings = load_claude_settings(raw, config_path)
     if settings is None or not settings.sandbox:
         return []
+    context = context if context is not None else _default_context(settings)
     findings: list[Finding] = []
-    if is_repository_settings(settings):
-        findings.extend(_check_sandbox_001(settings, client, analyzer))
-        findings.extend(_check_sandbox_002(settings, client, analyzer))
-        findings.extend(_check_sandbox_003(settings, client, analyzer))
+    if context.origin != ORIGIN_OWN:
+        findings.extend(_check_sandbox_001(settings, context, client, analyzer))
+        findings.extend(_check_sandbox_002(settings, context, client, analyzer))
+        findings.extend(_check_sandbox_003(settings, context, client, analyzer))
     findings.extend(_check_sandbox_004(settings, client, analyzer))
     return findings
+
+
+# ── The user's own settings ───────────────────────────────────────────────────
+
+
+def user_settings_path(home: Path | None = None) -> tuple[Path, str]:
+    """``(path, label)`` of the user settings file.
+
+    The settings doc: with ``CLAUDE_CONFIG_DIR`` set, "Claude Code then stores
+    your settings ... there instead" of ``~/.claude``.  An explicit *home*
+    (tests) ignores the variable.
+    """
+    config_dir = os.environ.get("CLAUDE_CONFIG_DIR") if home is None else None
+    if config_dir:
+        return Path(config_dir) / "settings.json", "$CLAUDE_CONFIG_DIR/settings.json"
+    base = home if home is not None else Path.home()
+    return base / ".claude" / "settings.json", "~/.claude/settings.json"
+
+
+def read_user_settings_locks(
+    home: Path | None = None,
+) -> tuple[UserSettingsLocks, str | None]:
+    """Read ``strictAllowlist`` and ``defaultMode`` from the user's settings file.
+
+    Returns:
+        The locks, and an error message (no absolute path) when the file
+        exists but can't be read.  A file that is not valid JSON gives no
+        locks and no error: the settings doc says Claude Code "skips the broken
+        file", so it locks nothing either.
+    """
+    path, label = user_settings_path(home)
+    try:
+        if not path.is_file():
+            return UserSettingsLocks(), None
+        with path.open("rb") as handle:
+            data = handle.read(_USER_SETTINGS_MAX_BYTES + 1)
+    except OSError as exc:
+        return UserSettingsLocks(), (
+            f"could not read {label}: {exc.strerror or type(exc).__name__};"
+            " SANDBOX-002/003 severities assume it sets nothing"
+        )
+    if len(data) > _USER_SETTINGS_MAX_BYTES:
+        return UserSettingsLocks(), (
+            f"{label} is larger than 4 MiB and was not read; SANDBOX-002/003"
+            " severities assume it sets nothing"
+        )
+    try:
+        raw = json.loads(data.decode("utf-8", errors="replace"))
+    except (ValueError, RecursionError):
+        return UserSettingsLocks(), None
+    if not isinstance(raw, dict):
+        return UserSettingsLocks(), None
+    _present, strict = _get(raw, "sandbox.network.strictAllowlist")
+    _present, mode = _get(raw, "permissions.defaultMode")
+    return (
+        UserSettingsLocks(
+            strict_allowlist=strict is True,
+            default_mode=mode if isinstance(mode, str) else None,
+        ),
+        None,
+    )
+
+
+# ── Git state of a settings file ──────────────────────────────────────────────
+
+_GIT_NO_REPO = "no-repo"
+_GIT_IGNORED = "ignored"
+_GIT_TRACKED = "unignored"
+_GIT_CLAUDE_LINK = "claude-symlink"
+_GIT_UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class _GitState:
+    kind: str
+    root: Path | None = None
+    parts: tuple[str, ...] | None = None
+
+
+def _relative_parts(path: Path, root: Path) -> tuple[str, ...] | None:
+    try:
+        return path.relative_to(root).parts
+    except ValueError:
+        return None
+
+
+def _git_state(path: Path, reader: IgnoreFileReader) -> _GitState:
+    """Whether git would carry *path*, from ignore files only; never runs git.
+
+    Errors are recorded on *reader* (no absolute paths) and give ``unknown``.
+    """
+    label = f"{path.parent.name}/{path.name}"
+    try:
+        if path.parent.is_symlink():
+            return _GitState(_GIT_CLAUDE_LINK)
+    except OSError as exc:
+        reader.errors.append(
+            f"could not check {label}: {exc.strerror or type(exc).__name__}"
+        )
+        return _GitState(_GIT_UNKNOWN)
+    root = find_work_tree_root(path.parent.parent)
+    if root is None:
+        return _GitState(_GIT_NO_REPO)
+    parts = _relative_parts(path, root)
+    if parts is None:
+        return _GitState(_GIT_UNKNOWN)
+    rel = "/".join((root.name, *parts))
+    try:
+        current = root
+        for part in parts[:-1]:
+            current = current / part
+            if current.is_symlink():
+                reader.errors.append(
+                    f"'{rel}' is reached through a symlinked directory; whether"
+                    " git tracks it is unknown"
+                )
+                return _GitState(_GIT_UNKNOWN, root, parts)
+        ignored = reader.is_ignored(root, parts)
+    except IgnoreStateUnknownError:
+        return _GitState(_GIT_UNKNOWN, root, parts)
+    except OSError as exc:
+        reader.errors.append(
+            f"could not check '{rel}': {exc.strerror or type(exc).__name__}"
+        )
+        return _GitState(_GIT_UNKNOWN, root, parts)
+    return _GitState(_GIT_IGNORED if ignored else _GIT_TRACKED, root, parts)
+
+
+_LOCAL_ORIGIN: dict[str, str] = {
+    _GIT_CLAUDE_LINK: ORIGIN_LOCAL_SYMLINK,
+    _GIT_TRACKED: ORIGIN_LOCAL_TRACKED,
+    _GIT_UNKNOWN: ORIGIN_LOCAL_UNKNOWN,
+}
 
 
 # ── SANDBOX-005: settings headed for git ──────────────────────────────────────
 
 
-class GitExposureSource(Protocol):
-    """What SANDBOX-005 needs from a discovered config (``DiscoveredConfig`` fits)."""
+class SettingsFileSource(Protocol):
+    """What step 0b needs from a discovered config (``DiscoveredConfig`` fits)."""
 
     path: Path
     raw: dict
@@ -932,7 +1344,7 @@ _USER_PATH_RE = re.compile(
 )
 _PATH_END_RE = re.compile(r"[\s\"'`<>|;,()]")
 #: Placeholder and shared-account names that identify no person (docs
-#: placeholders, OS shared folders, CI and dev-container accounts).
+#: placeholders, OS shared folders, CI, dev-container and Homebrew accounts).
 _NOT_A_PERSON: frozenset[str] = frozenset(
     {
         "you", "your", "yourname", "your-name", "your_name", "yourusername",
@@ -940,7 +1352,7 @@ _NOT_A_PERSON: frozenset[str] = frozenset(
         "user_name", "name", "me", "myself", "someone", "example", "shared",
         "public", "default", "default user", "all users", "guest", "runner",
         "ubuntu", "ec2-user", "vagrant", "node", "codespace", "vscode", "coder",
-        "gitpod", "jovyan", "admin", "administrator", "root",
+        "gitpod", "jovyan", "admin", "administrator", "root", "linuxbrew",
     }
 )  # fmt: skip
 #: Strings and characters examined per settings file.
@@ -1011,9 +1423,10 @@ def username_paths(raw: object) -> list[tuple[str, str, str]]:
     """``(json location, path, username)`` for each home path naming a person.
 
     Placeholders (``/Users/you``), shared folders (``C:\\Users\\Public``) and
-    CI or container accounts (``/home/runner``) are left out.  The path is
-    cut at the first space, quote or shell separator, capped, and masked with
-    SECRET_PATTERNS, so a secret on the same line is never quoted.  Only the
+    CI, container or Homebrew accounts (``/home/runner``,
+    ``/home/linuxbrew``) are left out.  The path is cut at the first space,
+    quote or shell separator, capped, and masked with SECRET_PATTERNS, and so
+    is the username, so a secret on the same line is never quoted.  Only the
     first 20,000 strings, 16 KiB of each, at a depth up to 64 are searched.
     """
     return _username_paths(raw, _Budget())
@@ -1029,7 +1442,9 @@ def _username_paths(raw: object, budget: _Budget) -> list[tuple[str, str, str]]:
             tail = text[match.start() : match.start() + 4 * _QUOTE_CHARS]
             end = _PATH_END_RE.search(tail)
             path = tail[: end.start()] if end else tail
-            found.append((where, _mask(path)[:_QUOTE_CHARS], user))
+            found.append(
+                (where, _mask(path)[:_QUOTE_CHARS], _mask(user)[:_QUOTE_CHARS])
+            )
     return found
 
 
@@ -1068,7 +1483,7 @@ def _headed_for_git_note(root: Path, reader: IgnoreFileReader) -> str:
 
 
 def _local_settings_finding(
-    config: GitExposureSource, root: Path, reader: IgnoreFileReader, analyzer: str
+    config: SettingsFileSource, root: Path, reader: IgnoreFileReader, analyzer: str
 ) -> Finding:
     settings = load_claude_settings(config.raw, config.path)
     held = ""
@@ -1097,11 +1512,9 @@ def _local_settings_finding(
             + _headed_for_git_note(root, reader)
             + held
             + " Committed, it reaches everyone who clones the repository, and"
-            " Claude Code then treats it as the repository's: \"When the file is"
-            " tracked in git, or .claude is a symlink, Claude Code treats it as"
-            " repository-supplied instead and holds its rules until you trust"
-            ' the folder." UpGuard collected 18,470 of these files from public'
-            " GitHub repositories."
+            f" Claude Code then treats it as the repository's: {_REPO_SUPPLIED_QUOTE}"
+            " UpGuard collected 18,470 of these files from public GitHub"
+            " repositories."
         ),
         evidence=(
             f"{config.path}: in git work tree {root}; not matched by any ignore"
@@ -1115,7 +1528,7 @@ def _local_settings_finding(
 
 
 def _username_paths_finding(
-    config: GitExposureSource,
+    config: SettingsFileSource,
     root: Path,
     reader: IgnoreFileReader,
     paths: list[tuple[str, str, str]],
@@ -1148,104 +1561,116 @@ def _username_paths_finding(
     )
 
 
-def _relative_parts(path: Path, root: Path) -> tuple[str, ...] | None:
-    try:
-        return path.relative_to(root).parts
-    except ValueError:
-        return None
+# ── Step 0b: every settings file in the scan ──────────────────────────────────
 
 
-def _linked_component(root: Path, parts: tuple[str, ...]) -> bool:
-    """True when any directory or the file between *root* and the file is a symlink.
+def _one_settings_file(
+    config: SettingsFileSource,
+    path: Path,
+    reader: IgnoreFileReader,
+    user: UserSettingsLocks,
+    analyzer: str,
+    unknown: list[str],
+) -> list[Finding]:
+    scope = settings_scope(path)
+    state: _GitState | None = None
+    if scope in ("project", "local") and not _in_configuration_home(path):
+        state = _git_state(path, reader)
+        if state.kind == _GIT_UNKNOWN:
+            unknown.append(scope)
+    if state is None:
+        origin = ORIGIN_OWN
+    elif scope == "project":
+        origin = ORIGIN_PROJECT
+    else:
+        origin = _LOCAL_ORIGIN.get(state.kind, ORIGIN_OWN)
+    findings = analyze_sandbox_settings(
+        config.raw,
+        config.path,
+        config.client_name,
+        analyzer=analyzer,
+        context=SandboxContext(origin, user),
+    )
+    linked_file = getattr(config, "is_symlink", False) or path.is_symlink()
+    if state is None or state.kind != _GIT_TRACKED or linked_file:
+        return findings
+    root = state.root
+    if root is None or state.parts is None:
+        return findings
+    if scope == "local":
+        findings.append(_local_settings_finding(config, root, reader, analyzer))
+    budget = _Budget()
+    paths = _username_paths(config.raw, budget)
+    if budget.truncated:
+        reader.errors.append(
+            f"'{root.name}/{'/'.join(state.parts)}' was searched for home-directory"
+            f" paths only up to {_MAX_STRINGS} strings, {_MAX_STRING_CHARS // 1024}"
+            f" KiB per string and depth {_MAX_DEPTH}"
+        )
+    if paths:
+        findings.append(_username_paths_finding(config, root, reader, paths, analyzer))
+    return findings
 
-    Git records a symlink as a link, not as the files behind it, so a
-    settings file reached through one isn't in the work tree at that path.
-    """
-    current = root
-    for part in parts:
-        current = current / part
-        if current.is_symlink():
-            return True
-    return False
 
-
-def analyze_settings_git_exposure(
-    configs: Iterable[GitExposureSource],
+def analyze_sandbox_files(
+    configs: Iterable[SettingsFileSource],
     *,
     analyzer: str = ANALYZER_NAME,
     home: Path | None = None,
 ) -> tuple[list[Finding], list[str]]:
-    """SANDBOX-005 over the scan's Claude Code settings files.
+    """SANDBOX-001..005 over the scan's Claude Code settings files (step 0b).
 
-    For each project or local settings file outside the configuration home
-    that sits in a git work tree (a ``.git`` entry at or above the project
-    directory) and that no ignore file covers:
+    For each settings file: works out whether it is the repository's
+    (:class:`SandboxContext`), runs :func:`analyze_sandbox_settings`, and,
+    for a project or local file that sits in a git work tree and that no
+    ignore file covers, SANDBOX-005 (MEDIUM for a local file; LOW for
+    home-directory paths naming a person).  The user's
+    ``~/.claude/settings.json`` is read once for ``strictAllowlist`` and
+    ``defaultMode``.
 
-    - MEDIUM for a ``.claude/settings.local.json``;
-    - LOW when the file contains home-directory paths naming a person.
-
-    A settings file that is a symlink, or is reached through a symlinked
-    directory, is skipped (TRUST-002/TRUST-004 report the link).  A file
-    whose ignore state can't be known (an ignore file unreadable or over the
-    size cap, or the read budget spent) is skipped, and the reason is
-    returned as an error.
+    Each file is checked in its own ``try``: a crash on one file is recorded
+    and the others still run.  A settings file that is a symlink, or reached
+    through a symlinked ``.claude`` directory, gets no SANDBOX-005.  When a
+    file's git state can't be read, the errors say so and what it changed:
+    no SANDBOX-005 for it, and a local file's SANDBOX-001..003 at MEDIUM at
+    most.
 
     Args:
         configs: The scan's discovered configs (``DiscoveredConfig`` objects).
         analyzer: Analyzer label for findings.
-        home: Home directory for the global git config (tests); defaults to
-            ``Path.home()``.
+        home: Home directory for the user settings and global git config
+            (tests); defaults to ``Path.home()``.
 
     Returns:
         ``(findings, errors)``; error messages carry no absolute paths.
     """
     reader = IgnoreFileReader(home=home)
+    errors: list[str] = []
+    user, user_error = read_user_settings_locks(home)
+    if user_error:
+        errors.append(f"{ERROR_PREFIX}{user_error}")
     findings: list[Finding] = []
+    unknown: list[str] = []
     seen: set[str] = set()
     for config in configs:
-        if getattr(config, "is_symlink", False):
-            continue
         path = Path(os.path.abspath(config.path))
-        if not is_claude_code_settings_file(path):
-            continue
-        scope = settings_scope(path)
-        if scope not in ("project", "local") or _in_configuration_home(path):
-            continue
-        if str(path) in seen:
+        if not is_claude_code_settings_file(path) or str(path) in seen:
             continue
         seen.add(str(path))
-        root = find_work_tree_root(path.parent.parent)
-        if root is None:
-            continue
-        parts = _relative_parts(path, root)
-        if parts is None:
-            continue
         try:
-            if _linked_component(root, parts):
-                continue
-            if reader.is_ignored(root, parts):
-                continue
-        except IgnoreStateUnknownError:
-            continue
-        except OSError as exc:
-            reader.errors.append(
-                f"could not check '{'/'.join(parts)}' in '{root.name}':"
-                f" {exc.strerror or type(exc).__name__}"
+            findings.extend(
+                _one_settings_file(config, path, reader, user, analyzer, unknown)
             )
-            continue
-        if scope == "local":
-            findings.append(_local_settings_finding(config, root, reader, analyzer))
-        budget = _Budget()
-        paths = _username_paths(config.raw, budget)
-        if budget.truncated:
-            reader.errors.append(
-                f"'{root.name}/{'/'.join(parts)}' was searched for home-directory"
-                f" paths only up to {_MAX_STRINGS} strings, {_MAX_STRING_CHARS // 1024}"
-                f" KiB per string and depth {_MAX_DEPTH}"
+        except Exception as exc:  # noqa: BLE001 - one file must not stop the rest
+            errors.append(
+                f"{ERROR_PREFIX}failed for '{path.parent.name}/{path.name}':"
+                f" {type(exc).__name__}"
             )
-        if paths:
-            findings.append(
-                _username_paths_finding(config, root, reader, paths, analyzer)
-            )
-    errors = [f"SANDBOX-005 skipped: {message}" for message in reader.errors]
+    errors.extend(f"{ERROR_PREFIX}{message}" for message in reader.errors)
+    if unknown:
+        errors.append(
+            f"{ERROR_PREFIX}git state unknown for {len(unknown)} settings file(s):"
+            " no SANDBOX-005 for them, and SANDBOX-001..003 on a local file at"
+            " MEDIUM at most"
+        )
     return findings, errors

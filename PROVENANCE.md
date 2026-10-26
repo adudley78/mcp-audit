@@ -618,8 +618,20 @@ in `docs/permission-rules.md`:
   tool can do. If you write a pattern that covers an interpreter …, as `docker compose`
   does with its compose file, Claude can write that file and then run it outside the
   sandbox"; Security limitations: "allowing access to `/var/run/docker.sock` effectively
-  grants access to the host system through the Docker socket". SANDBOX-003: "Allowing
-  broad domains such as `github.com` can create paths for data exfiltration." SANDBOX-004:
+  grants access to the host system through the Docker socket". SANDBOX-002's severity:
+  "An excluded command goes through the regular permission flow" — "commands your allow
+  rules cover run without a prompt", "In auto mode, the classifier reviews other
+  excluded commands", "In `bypassPermissions` mode, an excluded command runs without a
+  prompt unless an ask rule matches it", otherwise a prompt titled "Bash command
+  (unsandboxed)"; entries are matched because "Claude Code matches the text of the
+  call". SANDBOX-003: "Allowing broad domains such as `github.com` can create paths for
+  data exfiltration." "Locks that apply without an admin-required sandbox":
+  `network.strictAllowlist` in "Managed settings, `--settings`, user settings" makes
+  Claude Code ignore a repository's "proxy ports, `allowedDomains`, and
+  `WebFetch(domain:...)` allow rules"; `network.deniedDomains` or a
+  `WebFetch(domain:...)` deny rule in "Managed settings, `--settings`" makes it ignore
+  "`httpProxyPort` and `socksProxyPort`" (the INFO downgrade and the finding notes).
+  SANDBOX-004:
   `allowAppleEvents` "is only honored from user, managed, or CLI settings. Project
   settings cannot enable it"; `strictAllowlist` "Setting it in a repository's
   `.claude/settings.json` or `.claude/settings.local.json` has no effect."
@@ -627,9 +639,19 @@ in `docs/permission-rules.md`:
   — the settings index's Scope column (`Any file`, `User or managed`, `Managed`) for
   every `sandbox.*` key (SANDBOX-004's table), each key's effect (SANDBOX-001's
   descriptions), the `excludedCommands` entry ("a pattern with no wildcard is an exact
-  match"; calls starting with `sudo`, `eval` or `xargs` stay sandboxed), and "Claude
-  Code honors `mask` entries, `allowPlaintextInject`, `awsPairs`, and `sigv4` only from
-  user settings, managed settings, and the `--settings` flag."
+  match"; "Claude Code keeps a Bash call sandboxed when it has one of these shapes",
+  including "A command starting with `sudo`, `eval`, or `xargs`"), `permissions.defaultMode`
+  ("`auto` and `bypassPermissions` don't take effect from project or local settings"),
+  and "Claude Code honors `mask` entries, `allowPlaintextInject`, `awsPairs`, and `sigv4`
+  only from user settings, managed settings, and the `--settings` flag." **Permission
+  modes doc** (https://code.claude.com/docs/en/permission-modes): in `dontAsk` mode
+  "Claude Code auto-denies every tool call that would otherwise prompt you" (why
+  `dontAsk` does not raise SANDBOX-002). **Permissions doc**, Wrappers: "The stripped
+  wrappers are `timeout`, `time`, `nice`, `nohup`, and `stdbuf`, plus the shell
+  builtins `command` and `builtin`, and zsh's `noglob`. Each runs its argument as the
+  actual command"; "Exec wrappers: such as `watch`, `setsid`, `ionice`, and `flock`";
+  "the query form `command -v`, which looks up a command rather than running one"
+  (SANDBOX-002's wrapper list).
 - **Claude Code settings doc** (https://code.claude.com/docs/en/settings) — SANDBOX-005:
   the local file "Claude Code keeps it out of git when it creates the file; if you
   create it by hand, add it to `.gitignore` yourself", written to the global excludes
@@ -637,16 +659,23 @@ in `docs/permission-rules.md`:
   `$XDG_CONFIG_HOME/git/ignore` or `~/.config/git/ignore`). **Permissions doc**
   (https://code.claude.com/docs/en/permissions): "When the file is tracked in git, or
   `.claude` is a symlink, Claude Code treats it as repository-supplied instead and holds
-  its rules until you trust the folder"; the configuration-home exception (why
-  `~/.claude/settings.local.json` is skipped).
+  its rules until you trust the folder" (why SANDBOX-001..003 run on a local file only
+  when git carries it or `.claude` is a symlink); the configuration-home exception (why
+  `~/.claude/settings.local.json` is skipped). The settings doc's `CLAUDE_CONFIG_DIR`:
+  "Claude Code then stores your settings, session history, and plugins there instead"
+  (where the user settings file is read from).
 - **gitignore(5)** (https://git-scm.com/docs/gitignore) — pattern semantics, order of
   precedence, "It is not possible to re-include a file if a parent directory of that
   file is excluded"; **Git 2.32 release notes**
   (https://www.kernel.org/pub/software/scm/git/docs/RelNotes/2.32.0.adoc): "`.gitignore`
-  … files that are symbolic links are ignored." `_gitignore.py` is an original
-  matcher (linear-time wildcards); during development it agreed with
-  `git ls-files --others --ignored --exclude-standard` on 1,050 pattern combinations
-  (4,200 path checks). Git is never run by mcp-audit.
+  … files that are symbolic links are ignored." **git-config(1)**
+  (https://git-scm.com/docs/git-config, "Includes"): a plain `[include] path` is read
+  where it appears, relative paths against the including file's directory (followed
+  one level). `_gitignore.py` is an original matcher (linear-time wildcards, bounded
+  matching); during development it agreed with
+  `git ls-files --others --ignored --exclude-standard` on 1,350 pattern combinations,
+  including byte-order marks, `***` segments and empty segments. Git is never run by
+  mcp-audit.
 - **MITRE ATT&CK** — T1567.001 Exfiltration to Code Repository
   (https://attack.mitre.org/techniques/T1567/001/), T1567.003 Exfiltration to Text
   Storage Sites (https://attack.mitre.org/techniques/T1567/003/), T1567.004
