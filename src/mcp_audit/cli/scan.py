@@ -682,10 +682,12 @@ def _skill_bundled_code(
     """
     from mcp_audit.agent_files import skill_package  # noqa: PLC0415
 
-    packages = skill_package.default_skill_packages(errors=result.errors)
+    # The skill passes before this one already recorded these walks' errors.
+    seen_errors: list[str] = []
+    packages = skill_package.default_skill_packages(errors=seen_errors)
     if project_root is not None:
         packages += skill_package.project_skill_packages(
-            project_root, errors=result.errors
+            project_root, errors=seen_errors
         )
     try:
         return skill_package.bundled_code_findings(
