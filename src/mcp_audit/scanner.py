@@ -537,7 +537,10 @@ async def run_scan_async(
     enumerate its live tool/resource/prompt definitions, and run the
     :class:`~mcp_audit.analyzers.poisoning.PoisoningAnalyzer` against the
     runtime data *before* the pipeline runs.  This surfaces poisoned tool
-    descriptions that look clean in static config files.
+    descriptions that look clean in static config files.  Across the
+    enumerated servers it then runs COLLIDE-001 (tool-name collisions) and
+    DELEG-001..003 (descriptions that steer the agent to another server's
+    tools, :mod:`mcp_audit.analyzers.delegation`).
 
     Requires the ``mcp`` optional dependency when *connect* is ``True``::
 
@@ -647,6 +650,22 @@ async def run_scan_async(
                 )
             except Exception as e:  # noqa: BLE001
                 result.errors.append(f"collision error: {e}")
+
+        # ── Cross-tool delegation (DELEG-001..003, STORY-0100) ───────────────
+        # Reads the same enumerations: descriptions that steer the agent to
+        # another server's tools or rewrite their arguments.  Text only; the
+        # lock's `tools` section holds digests, so this needs --connect.
+        if connect_pairs:
+            from mcp_audit.analyzers.delegation import (  # noqa: PLC0415
+                detect_delegation,
+            )
+
+            try:
+                result.findings.extend(
+                    detect_delegation(connect_pairs, errors=result.errors)
+                )
+            except Exception as e:  # noqa: BLE001
+                result.errors.append(f"delegation error: {e}")
 
     return _run_static_pipeline(
         result=result,

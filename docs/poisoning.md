@@ -2,7 +2,7 @@
 
 mcp-audit's `POISON-*` checks are regular expressions run over the text an AI agent reads about a tool: its name, its description and the strings inside its input schema. They run on MCP config files, on live tool definitions with `scan --connect`, and (through the same `PATTERNS` list) on agent instruction files. The pattern list and severities are in [severity-framework.md](severity-framework.md); where each pattern comes from is in [PROVENANCE.md](../PROVENANCE.md).
 
-This page reports how often those checks are right. Every measured number on it is recorded in `docs/research/poisoning-benchmark/results.json`, written by `scripts/bench_poisoning.py` (STORY-0088, measured 2026-10-25). Counts that describe the datasets themselves (cases per paradigm, wrapper positions) come from the dataset files, and figures from other papers are cited where they appear.
+This page reports how often those checks are right, and (in [Cross-tool delegation](#cross-tool-delegation-deleg-001003)) how the DELEG-* checks that run beside them under `--connect` were measured before they shipped. Every measured number on it is recorded in `docs/research/poisoning-benchmark/results.json`, written by `scripts/bench_poisoning.py` (STORY-0088, measured 2026-10-25). Counts that describe the datasets themselves (cases per paradigm, wrapper positions) come from the dataset files, and figures from other papers are cited where they appear.
 
 ## The numbers
 
@@ -92,3 +92,94 @@ MCP_AUDIT_MCPTOX_DIR=DIR uv run pytest tests/test_bench_poisoning.py    # local 
 - **A larger benign set.** MCPZoo's 16,356 runnable servers ([arXiv 2512.15144](https://arxiv.org/abs/2512.15144)) would be a better clean background; no download was found.
 - **Non-English poisoning.** Every MCPTox case is in English.
 - **The grade.** `check` also fails on a letter grade of C or lower, so its exit code is not decided by HIGH findings alone; the HIGH-or-above column counts findings, not grades.
+
+## Cross-tool delegation (DELEG-001..003)
+
+STORY-0100 added three structural checks that run beside POISON-* under `scan --connect`, over the same live tool definitions. They look for the shape MCPTox found works: "the poisoned tool itself is never executed" (§3.1); its description tells the agent to do something with a *different*, legitimate tool. Each rule is in [severity-framework.md](severity-framework.md); the code is `src/mcp_audit/analyzers/delegation.py`.
+
+- **DELEG-001** (MEDIUM): the text names a tool that a different connected server exposes.
+- **DELEG-002** (MEDIUM): a trigger ("before using …", "whenever …", "when the user …") plus an order to do something (read, write, delete, send, execute) that the tool's own name and input schema do not offer.
+- **DELEG-003** (HIGH): an order to rewrite the arguments of another server's tool, or of every call.
+
+They need `--connect`: a description exists only in a live `tools/list`, and `mcp-lock.json` keeps digests of tool definitions, never their text. A plain `scan`, `check` and the GitHub Action never connect and never report them.
+
+### The gate, and what shipped
+
+EPIC-0007 decided the gate before anything was built: DELEG-* ships at the severities above only if, on this harness, it lifts MCPTox's implicit-trigger recall (P2 and P3) over POISON-* and flags no more than 5 of MCPTox's 353 clean real tools; otherwise INFO, or parked with its numbers.
+
+| Gate test | Result |
+|---|---|
+| Implicit-trigger recall lift, poisoned tool on its own server | +283 of 1,104 cases (73.6% → 99.3%) |
+| Implicit-trigger recall lift, poisoned tool among the target server's tools | +32 of 1,104 cases (73.6% → 76.5%) |
+| MCPTox clean tools flagged (all 45 servers in one session, and each alone) | **1 of 353** (DELEG-002, MEDIUM; none at HIGH) |
+| Decision | **passed**: DELEG-001 MEDIUM, DELEG-002 MEDIUM, DELEG-003 HIGH |
+
+The one flagged clean tool is a Prisma account-status tool whose description tells the agent to have the user run a login command and re-run the tool.
+
+### Two session models
+
+MCPTox's attacker "can register a malicious MCP server" (§2.2), and the agent "is connected to both a trusted MCP server and a malicious one" (§3.4); its prompts, though, list the poisoned tool among the target server's own tools. mcp-audit knows which server each tool came from, and the checks use that: DELEG-001 needs a tool of a *different* server, and DELEG-002 skips a sentence that names only its own server's tools. So the harness measures both layouts. The first is the threat model; the second shows what the checks do when that boundary is not there.
+
+**Poisoned tool on its own server** (the case's target server and an attacker server in one session). Recall: share of poisoned descriptions flagged. "Both" is POISON-* or DELEG-*.
+
+| Paradigm | Cases | POISON-* | DELEG-* | Both | POISON-* HIGH+ | Both HIGH+ | DELEG-001 / 002 / 003 |
+|---|---|---|---|---|---|---|---|
+| P1 explicit trigger | 208 | 79.3% | 100.0% | 100.0% | 72.6% | 72.6% | 207 / 93 / 2 |
+| P2 implicit trigger, function hijacking | 519 | 79.2% | 100.0% | 100.0% | 68.4% | 70.7% | 507 / 454 / 30 |
+| P3 implicit trigger, parameter tampering | 585 | 68.7% | 95.9% | 98.6% | 68.7% | 92.3% | 528 / 435 / 445 |
+| Implicit (P2+P3) | 1,104 | 73.6% | 97.8% | 99.3% | 68.6% | 82.2% | 1,035 / 889 / 475 |
+| All 1,312 cases | 1,312 | 74.5% | 98.2% | 99.4% | 69.2% | 80.6% | 1,242 / 982 / 477 |
+
+The same layout on the cases with no keyword wrapper, which are the realistic ones (MCPTox measured that the wrappers add only 2.0–2.6% attack success):
+
+| Paradigm | Cases | POISON-* | DELEG-* | Both | POISON-* HIGH+ | Both HIGH+ |
+|---|---|---|---|---|---|---|
+| P1 | 65 | 33.8% | 100.0% | 100.0% | 12.3% | 12.3% |
+| P2 | 178 | 39.3% | 100.0% | 100.0% | 7.9% | 14.6% |
+| P3 | 192 | 4.7% | 95.8% | 95.8% | 4.7% | 76.6% |
+| Implicit (P2+P3) | 370 | 21.4% | 97.8% | 97.8% | 6.2% | 46.8% |
+| All unwrapped | 435 | 23.2% | 98.2% | 98.2% | 7.1% | 41.6% |
+| `pure_tool.json`, all | 485 | 24.9% | 98.4% | 98.4% | 7.0% | 42.7% |
+
+At HIGH or above (what `check` and the pre-commit default fail on), only DELEG-003 counts, so the gain there is in parameter tampering: 4.7% → 76.6% of unwrapped P3 cases.
+
+**Poisoned tool among the target server's tools** (MCPTox's prompt layout): DELEG-001 cannot fire and DELEG-002 is mostly skipped, by design.
+
+| Set | Cases | POISON-* | DELEG-* | Both | Both HIGH+ |
+|---|---|---|---|---|---|
+| All cases, implicit (P2+P3) | 1,104 | 73.6% | 11.6% | 76.5% | 69.8% |
+| Unwrapped, implicit (P2+P3) | 370 | 21.4% | 11.1% | 30.0% | 10.0% |
+| Unwrapped, P3 | 192 | 4.7% | 16.7% | 18.8% | 12.0% |
+| `pure_tool.json`, all | 485 | 24.9% | 10.7% | 33.2% | 11.3% |
+
+### A benign check outside MCPTox
+
+MCPTox's 353 clean tools have short descriptions with little workflow text, so on 2026-10-26 the detector was also run, by hand, over 855 real tool descriptions read as string literals from the published npm source of 38 servers in the top-100 corpus (read, never run; not committed), all 38 servers in one session: **4 flagged (0.5%), all DELEG-002 (MEDIUM)**; no DELEG-001 and no DELEG-003. All four are descriptions that give ordered setup steps for the tool's own product (a restart after an install, a filter value to always pass); server names are left out for the reason the corpus README gives.
+
+### How the design got there
+
+The first version was written from MCPTox's paper before any clean tool was read, and passed the gate on its first measurement: 4 of 353 clean tools flagged, with recall in the own-server layout within 0.2 points of the tables above. On the first 640 of the real descriptions it flagged 36 (DELEG-002 31, DELEG-001 6). Those 36 and the 4 MCPTox clean tools led to six refinements, each tied to the threat model rather than to a particular string:
+
+1. **A server documenting its own workflow** ("Before using icon shapes, call `<its library tool>` first"; tool names elided, as above): DELEG-002 skips a sentence that names only the describing server's own tools.
+2. **Guidance about calling this tool** ("Use this when …", "This tool must be called before …"): not delegation.
+3. **Coincidental names**: an enum value (`action:"<name>"`) or a plain English word in quotes (a field value, a parameter name) that happens to be another server's tool name. A value after `key=`/`key:`/`key: "…"` is not a reference; a plain-word name needs tool context.
+4. **Weak directive markers**: a description's own imperative summary ("Set or reset a site setting after a fresh check"), "then", "first", "important", "critical".
+5. **Purpose words**: check, verify, validate, inspect, show and scan left the read class; in these sentences they give the reason for a step, not the step.
+6. **Distance**: a directive must sit within 25 words of its trigger (one MCPTox clean tool packs a whole parameter list into one "sentence").
+
+After these, the 640 gave 4 and MCPTox's clean tools 1; recall in the own-server layout did not move, and recall in the same-server layout fell (implicit cases with both: 94.5% → 76.5%) because of rule 1. Both sets were then in-sample. The last 215 descriptions (3 servers) were set aside, unread, until the design was frozen: **0 flagged**. Later changes found by tests (a prose colon "Note: read_file …" was being read as a value; Claude Code's `mcp__<server>__<tool>` form was not recognised; "the" counted as tool context; evidence redaction now reads a bounded window) were re-measured and changed none of the numbers above.
+
+### What this measurement does not cover
+
+- Paraphrased references ("the file-reading tool"), zero-width or homoglyph-broken names (POISON-040/060 flag those characters), and non-English descriptions.
+- MCP-ITP's optimized implicit poisoning (arXiv 2601.07395): no dataset was published.
+- Resource and prompt descriptions, `outputSchema`, annotations, and schema `enum`/`default`/`examples` strings.
+- Servers that fail to enumerate: their tool names are not in the session.
+
+To re-measure (any change to `analyzers/delegation.py` or `analyzers/poisoning.py` fails `tests/test_delegation.py` until you do):
+
+```
+uv run python scripts/bench_poisoning.py delegation --source DIR --check   # compare
+uv run python scripts/bench_poisoning.py delegation --source DIR --write   # record
+MCP_AUDIT_MCPTOX_DIR=DIR uv run pytest tests/test_bench_poisoning.py       # local check
+```
