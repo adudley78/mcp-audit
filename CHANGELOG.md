@@ -60,6 +60,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   project MCP servers a settings file approves by name.
 - **`docs/agent-execution-surface.md`:** every repository file mcp-audit reads that a
   harness runs or obeys, per harness, with the vendor source for each.
+- **TRUST-006 / TRUST-007 — git configuration that runs code.** A repository
+  that arrives as files with its `.git` folder intact (a zip, a shared drive)
+  can make git run a program the moment an agent runs `git status` in the
+  background, before any trust prompt (GitSpawn, 2026). `scan`, `check` and
+  `scan --project` now read the repository's own git config and hooks — never
+  running git — and flag keys that run a command (`core.fsmonitor`,
+  `core.sshCommand`, `diff.external`, diff and filter drivers, `!` credential
+  helpers: HIGH; editor, signing, merge-driver and similar keys: MEDIUM or
+  LOW), includes from outside the repository, nested bare repositories git
+  would use (HIGH), and a `post-index-change` hook, which `git status` runs
+  (HIGH). The standard installs of Git LFS, git-crypt, nbstripout, common
+  diff text converters (exiftool, pdftotext, sops, …), husky, an unmodified
+  copy of git's own Watchman hook sample, a plain `ssh -i key` and
+  actions/checkout's own settings stay out of HIGH; a tool run from a Python
+  environment inside the repository is MEDIUM. Secrets in config values are
+  redacted from findings. See `docs/git-exec.md`.
 
 ### Changed
 
@@ -77,8 +93,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   TRUST-002 (a link out of the repository) instead of its files being read as the
   repository's own.
 - **`check` no longer says "No MCP config files found" and exits 0 when the scan has
-  findings.** A folder with no MCP config can still carry a planted auto-run file;
-  its findings now reach the verdict and the exit code.
+  findings.** A folder with no MCP config can still carry a planted auto-run file or
+  a git config that runs a command (on a CI runner with no MCP clients, for
+  example); those findings now reach the verdict and the exit code.
 - **HARNESS-005 now recognises environment runners and PowerShell code-running commands.** An allow rule such as `Bash(devbox run *)`, `Bash(docker exec app *)`, `Bash(uv run:*)`, `Bash(poetry run:*)`, `Bash(pnpm exec:*)` or `PowerShell(iex *)` approves any command, the same as `Bash(npx *)`, and is now reported. If you see a new HARNESS-005 for a rule like `Bash(uv run:*)` that you added so Claude can run your tests: Anthropic's docs say these runners "execute their arguments as a command", so the rule also approves `uv run rm -rf .`; write one rule per command instead, such as `Bash(uv run pytest *)`. A rule that names the inner command, such as `Bash(devbox run npm test)` (Anthropic's recommended form), is not reported. Meaning and severity (MEDIUM) are unchanged.
 
 - **`mcp-audit register` says what registering actually does.** The prompt

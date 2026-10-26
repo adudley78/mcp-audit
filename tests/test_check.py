@@ -458,6 +458,21 @@ class TestCheckCommand:
         assert r.exit_code == 0
         assert "No MCP config files found" in r.output
 
+    def test_findings_without_mcp_configs_are_not_swallowed(self) -> None:
+        # STORY-0089: a repo's git config can carry HIGH findings on a machine
+        # with no MCP clients at all (a CI runner); check must still report.
+        result = _findings_result(
+            [_make_finding(finding_id="TRUST-006", severity=Severity.HIGH)],
+            numeric=90,
+            grade="A",
+        )
+        result.clients_scanned = 0
+        result.servers_found = 0
+        with self._patch_run_scan(result):
+            r = runner.invoke(app, ["check"])
+        assert r.exit_code == 1
+        assert "No MCP config files found" not in r.output
+
     def test_verbose_flag_uses_full_output(self) -> None:
         findings = [_make_finding(finding_id="CRED-001", severity=Severity.HIGH)]
         result = _findings_result(findings, numeric=55, grade="C")

@@ -169,6 +169,90 @@ walk). Known boundaries:
   planted file itself is TRUST-008, but the hook that writes it is only
   CFHYG-005/HOOK-001.
 
+**Git can run code (TRUST-006/TRUST-007, STORY-0089).** The repository's own
+git configuration and hooks are read (never run) in a default `scan`/`check`
+(the repository enclosing the current directory) and under `--project` (every
+`.git` entry and nested bare repository the walk passes). Known boundaries:
+
+- **Default scan checks only the enclosing repository.** Nested bare
+  repositories and nested `.git` directories are found only by
+  `scan --project`; the current-directory check does not walk the tree (the
+  current directory may be `$HOME`).
+- **The walk's skip list and depth cap apply.** A bare repository inside
+  `node_modules/`, `build/`, `dist/`, `venv/`/`.venv/` or deeper than 8 levels
+  is not found.
+- **Attributes are not evaluated.** `filter.<driver>.*`, `diff.<driver>.*` and
+  `merge.<driver>.driver` only run for files whose `.gitattributes`,
+  `.git/info/attributes`, `core.attributesFile` or `attr.tree` select that
+  driver; the finding fires on the key alone, which over-reports a driver
+  nothing selects.
+- **`includeIf` conditions are not evaluated** (every include is treated as
+  active), and an include that resolves outside the scanned tree is reported
+  (MEDIUM) but not read. Global and system git config (`~/.gitconfig`,
+  `/etc/gitconfig`), `GIT_CONFIG_*` and `-c` overrides are the user's own and
+  are not read.
+- **The known-tool list assumes the tool on `PATH` is the real one.** A bare
+  `git-lfs`, `git-crypt`, `nbstripout`, `cat`, `ssh`, `gh`, `gitsign`, text
+  converter, editor or pager command run from outside the tree is INFO; a
+  `PATH` that contains `.` or a repository directory (or old tool bugs like
+  git-lfs CVE-2020-27955 on Windows) defeats that. Only the `git-lfs …` form is
+  known: `git lfs …` is HIGH, because without git-lfs installed git runs
+  `alias.lfs`, which the same config can define. A program path inside the
+  tree is judged where it sits, not where a symlink points (a repository's
+  `.venv/bin/python` symlink runs the repository's own `site-packages`): inside
+  a Python environment with a `pyvenv.cfg` or `conda-meta/` it is MEDIUM,
+  anywhere else in the tree it is the full severity. `python -m X` is the full
+  severity when the repo root holds anything named `X` or `X.*` (`X.py`,
+  `X.pyc`, `X/`, an extension module).
+- **`bun` as a textconv is a deliberate HIGH.** `diff.lockb.textconv = bun`
+  (how `bun.lockb` was diffed before Bun 1.2's text lockfile) runs
+  `bun <file>`, and bun executes any `.js`/`.ts` file `.gitattributes` routes to
+  that driver; text converters
+  (`exiftool`, `pdftotext`, `pandoc`, `sops decrypt`, `unzip -c`, …) are INFO
+  unless given an option that loads code (`pandoc --lua-filter`,
+  `exiftool -config`, `sops exec-env`, `ansible-vault --vault-password-file`,
+  `gpg --homedir`, …) or a file inside the repository.
+- **Legitimate shapes that still fire:** Watchman's fsmonitor integration
+  when the hook is not an exact copy of a sample git shipped (an unmodified
+  copy of any of the five versions git shipped from v2.16 to v2.56, matched
+  by SHA-256, is INFO; a sample from a later git is HIGH until its digest is
+  added, and `tests/test_git_exec.py` skips with the digest to add when a
+  machine's git ships one; an edited or distro-patched copy stays HIGH,
+  because a matching header proves nothing); VFS for Git's
+  `post-index-change` hook (HIGH); transcrypt's `$(git rev-parse …)` filter
+  commands (HIGH, shell substitution); the Android `repo` tool's
+  `.repo/projects/*.git` directories under `--project` (TRUST-007). Each names
+  the key or path, so it can be baselined.
+- **Expected bare repositories are inventory.** Under `--project`, a bare
+  repository in a test/fixture directory or a package manager's dependency
+  cache (SwiftPM `.build/repositories/`, Bundler `cache/bundler/git/`, Cargo
+  `.cargo/git/db/`, Go `pkg/mod/cache/vcs/`) is INFO when its config runs
+  nothing and it has no `post-index-change` hook; otherwise HIGH. Other
+  package managers' caches are not recognised.
+- **Not covered:** `ext::` remote URLs with `protocol.ext.allow`,
+  `url.<base>.insteadOf` rewrites, `http.proxy` (traffic redirection, not
+  execution), `difftool`/`mergetool` `.cmd`, `trailer.<token>.cmd`, and
+  `uploadpack.packObjectsHook` (git honours it only in protected config).
+  Manifold withheld the second Claude Code key (the `ultrareview` path, "a
+  different git setting of the same kind"); it is covered only if it is one of
+  the keys in `analyzers/git_exec.py::_RULES`.
+- **A config git itself rejects is still read.** Git refuses the whole file at
+  its first syntax error, so its keys are inert for git; the finding keeps its
+  severity and says so, because other git implementations may read it.
+- **Reads are capped and budgeted.** 1 MiB per config file; per repository
+  (its config, every include, and its worktree configs together) 4 MiB, 20,000
+  entries and 256 followed includes. Anything past a cap is reported as a
+  MEDIUM "too large to inspect fully", never silently dropped. Hooks and
+  worktrees listings stop at 512 entries; include depth is git's own 10. An
+  unexpected error in the git check is recorded in the scan's errors and the
+  rest of the scan still runs.
+- **Repository discovery follows git's rules**, including the quirks: a
+  `.git` directory that is not a valid git directory is skipped and the search
+  continues upward (so a decoy cannot hide the real repository); a malformed
+  `.git` file, or one pointing at something that is not a git directory, ends
+  the search with no findings, because git itself stops there and runs
+  nothing.
+
 **Symlinked config/agent-file candidates (TRUST-002/TRUST-004/TRUST-005,
 2026-09-08/STORY-0065).** All nine discovery sites that used to silently
 `continue` past a symlinked candidate (six in `discovery.py`, three in

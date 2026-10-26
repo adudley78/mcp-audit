@@ -137,6 +137,8 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "COLLIDE-001": "tool-collision",
     "TRUST-001": "untrusted-config-origin",
     "TRUST-002": "untrusted-config-origin",
+    "TRUST-006": "hook-execution",  # git config runs a command (STORY-0089)
+    "TRUST-007": "untrusted-config-origin",  # embedded bare repo / git hooks
     "TRUST-008": "untrusted-config-origin",
     "CFHYG-005": "hook-execution",
     "HARNESS-002": "untrusted-config-origin",

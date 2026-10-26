@@ -987,6 +987,28 @@
       "notes": "Fires when discovery (the --project config/autoexec walk, or the agent-files project-tree and skills walk) encounters a symlinked directory. mcp-audit never follows a symlinked directory (loop/blow-up protection, unchanged); this finding makes that refusal visible instead of silent. Always LOW — a coverage note, not an accusation. CWE-61."
     },
     {
+      "finding_id": "TRUST-006",
+      "finding_title": "Git config runs a command",
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ],
+      "notes": "Fires on the repository's own git configuration (.git/config, in-tree include.path/includeIf targets, config.worktree files when extensions.worktreeConfig is on, the config of a .git file's gitdir: target and of nested bare repositories) for keys git runs as a program. HIGH when git runs it unprompted during commands agents run in the background (core.fsmonitor command, core.sshCommand, diff.external, diff.<driver>.command/textconv, filter.<driver>.clean/smudge/process, a !-prefixed credential.helper) — the GitSpawn shape (Manifold Security, 2026-09: seven agents, eight flaws). MEDIUM for keys that run on a git action an agent may take (core.editor, sequence.editor, core.askPass, gpg.program, merge drivers, !submodule update, remote uploadpack/receivepack), for an include outside the scanned tree (not read), core.hooksPath outside the repo, and an oversize config. LOW for pager, ! aliases, core.gitProxy. INFO for core.hooksPath inside the repo (husky) and for recognised tools' own command forms run from outside the tree (git-lfs in its git-lfs form only, git-crypt, nbstripout incl. smudge = cat, non-executing textconv converters without code-loading options, an unmodified copy of git's fsmonitor-watchman.sample matched by SHA-256, plain ssh -i, gh auth git-credential), folded into one inventory finding per file; interpreters (bun, node) stay HIGH; an in-tree program is judged where it sits (MEDIUM only inside a pyvenv.cfg/conda-meta environment). Reads are budgeted (1 MiB per file; 4 MiB, 20,000 entries, 256 includes per repository; past that, MEDIUM). Values are redacted through SECRET_PATTERNS. actions/checkout's git-credentials-<uuid>.config includeIf entries are silent. Never runs git. CWE-829."
+    },
+    {
+      "finding_id": "TRUST-007",
+      "finding_title": "Git repository shape runs repo-controlled code",
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ],
+      "notes": "HIGH for a nested bare git repository (a directory not named .git holding objects/, refs/ and a valid HEAD — git's own is_git_directory test), the embedded-bare-repository attack git documents under safe.bareRepository; INFO when it sits under a test/fixture directory or a package manager's dependency cache (SwiftPM .build/repositories, Bundler cache/bundler/git, Cargo .cargo/git/db, Go pkg/mod/cache/vcs), its config runs nothing and it has no post-index-change hook. Not fired for a bare directory a .git file points at (the bare-repo-plus-worktrees layout). HIGH for an executable post-index-change hook, which git status / git diff run while writing the refreshed index (verified with git 2.43). INFO inventory of other executable hooks named as githooks(5) lists them in the git directory (CVE-2026-26268 is the hooks variant). Never runs git; never reads objects/. CWE-829."
+    },
+    {
       "finding_id": "TRUST-008",
       "finding_title": "Repo-planted auto-run file of another coding-agent harness",
       "owasp_codes": [

@@ -319,6 +319,96 @@ project-file paths were verified against official 2026 documentation from
 Anthropic (Claude Code), Cursor, and Microsoft (VS Code / GitHub Copilot).
 See `src/mcp_audit/discovery.py` for inline references and coverage notes.
 
+## Git can run code (analyzers/git_exec.py — TRUST-006/007, STORY-0089)
+
+The git-config reader, the command-key table and the repository-shape checks
+are original implementations written from git's own documentation and the
+disclosures below. No code or fixtures were copied from any of them, and the
+scanner never runs git.
+
+- **GitSpawn — Manifold Security (2026-09)**, via
+  [The Hacker News](https://thehackernews.com/2026/09/malicious-git-configs-can-make-claude.html)
+  and the researchers' own post,
+  [manifold.security/blog/ai-coding-agents-git-hijack](https://www.manifold.security/blog/ai-coding-agents-git-hijack):
+  coding agents run `git status --porcelain=2 --branch` / `git diff --name-only HEAD`
+  at startup; git honours `core.fsmonitor` from the repository's own
+  `.git/config`, so a repository that arrives as files with `.git` intact
+  (zip, shared drive, sync folder; a plain clone does not carry it) runs the
+  command before the trust prompt and outside the sandbox. Seven agents, eight
+  flaws (goose CVE-2026-72718, Codex CLI CVE-2026-19592, Claude Code fixed
+  2.1.196 with a second, withheld key still live on 2.1.252, Hermes, Qwen
+  Code, Grok Build, Cursor CLI). The write-up names only `core.fsmonitor` and
+  says "several git settings are command execution sinks"; it does not
+  describe nested bare repositories, `gitdir:` files or worktree configs. The
+  other keys in `_RULES` come from git's documentation below.
+- **CVE-2026-26268 (Cursor < 2.5)**,
+  [GHSA-8pcm-8jpx-hv8r](https://github.com/cursor/cursor/security/advisories/GHSA-8pcm-8jpx-hv8r):
+  an agent could write `.git` settings including hooks, which git then ran
+  outside the sandbox — the basis for the `.git/hooks` inventory.
+- **CVE-2026-55607 (Claude Code < 2.1.163)**,
+  [GHSA-7835-87q9-rgvv](https://github.com/anthropics/claude-code/security/advisories/GHSA-7835-87q9-rgvv):
+  worktrees named `.git` and fsmonitor execution during worktree operations.
+- **Anthropic, Claude Code sandboxing documentation**,
+  [code.claude.com/docs/en/sandboxing](https://code.claude.com/docs/en/sandboxing)
+  ("Protected paths"): the vendor write-protects `.git/config`, `.git/hooks`,
+  and the files that would turn a directory into a bare repository (`HEAD`,
+  `objects`, `refs`) — a vendor-published list of the same surfaces.
+- **git documentation**: [git-config](https://git-scm.com/docs/git-config)
+  (syntax rules the reader follows; `include`/`includeIf`; `core.fsmonitor`
+  boolean-or-command; `core.hooksPath`; `core.sshCommand`; `diff.external`;
+  `diff.<driver>.textconv`; `filter.<driver>.clean`/`smudge`;
+  `credential.helper` "if preceded by !, shell commands"; `safe.bareRepository`,
+  which describes "attacks that involve cloning a repository that contains a
+  bare repository"); [githooks](https://git-scm.com/docs/githooks)
+  (`post-index-change`, executable-bit rule);
+  [gitrepository-layout](https://git-scm.com/docs/gitrepository-layout)
+  (`commondir`, `config.worktree`, `worktrees/<id>/`). The parser follows
+  `get_base_var`, `get_extended_base_var`, `get_value` and `parse_value` in
+  git's `config.c`, and was checked line-for-line against git 2.43's own
+  reader on 30 crafted inputs during the build (only difference: git 2.43
+  turns an unquoted tab inside a value into a space; current git documentation
+  says internal whitespace is kept, which is what the reader does).
+- **Build-time measurements (git 2.43, scratch repositories):**
+  `git status --porcelain=2 --branch` and `git diff --name-only HEAD` ran a
+  `post-index-change` hook in a checkout with touched files (the reason that
+  hook is HIGH); `.git/worktrees/<id>/config` is ignored and
+  `config.worktree` is read only with `extensions.worktreeConfig = true`.
+- **Watchman sample digests:** SHA-256 of `templates/hooks--fsmonitor-watchman.sample`
+  (`templates/hooks/fsmonitor-watchman.sample` from 2.48) at every git release
+  tag v2.16.0–v2.56.0, fetched from `raw.githubusercontent.com/git/git/<tag>/…`
+  at build time: five distinct versions (2.16–2.24, 2.25, 2.26–2.36,
+  2.37–2.53, 2.54–2.56). Only the digests are stored; git's sample (GPL-2.0)
+  is not copied into this repository. Installed copies matched: Ubuntu git
+  2.43 (2.37–2.53 digest), and the CI runners' git 2.55 (ubuntu-latest) and
+  Homebrew git 2.56 (macos-latest) (2.54–2.56 digest).
+- **False-positive sources added after review of PR #181:** nbstripout's
+  installer ([`_nbstripout.py`](https://github.com/kynan/nbstripout/blob/master/nbstripout/_nbstripout.py),
+  `install()`) writes `filter.nbstripout.clean`, `filter.nbstripout.smudge cat`,
+  `filter.nbstripout.required true` and `diff.ipynb.textconv '<path> -t'`, so
+  `cat` is a known clean/smudge program. The text converters treated as known
+  `textconv` programs (exiftool, docx2txt, pdftotext, pandoc, odt2txt, strings,
+  hexdump, xxd, cat, sops, gpg, ansible-vault, age, unzip) were chosen because
+  they read the file git hands them and print text; the options listed in
+  `_CONVERTER_RISKY_OPTIONS` are the ones their own documentation describes as
+  loading filters, config, scripts or password programs. The dependency-cache
+  layouts (SwiftPM `.build/repositories/`, Bundler `cache/bundler/git/`, Cargo
+  `.cargo/git/db/`, Go `pkg/mod/cache/vcs/`) are where those tools keep bare
+  clones of git dependencies. Git's discovery rules (an invalid `.git`
+  directory is skipped, a malformed `.git` file is an error) follow
+  `setup.c::setup_git_directory_gently_1` and `is_git_directory`.
+- **False-positive sources read at build time:** actions/checkout
+  [`src/git-auth-helper.ts`](https://github.com/actions/checkout/blob/main/src/git-auth-helper.ts)
+  (v6+ writes `includeIf.gitdir:<path>.path` entries pointing at
+  `$RUNNER_TEMP/git-credentials-<uuid>.config`, and `core.sshCommand` with
+  `-i`/`-o UserKnownHostsFile=` when given an SSH key); husky
+  [`index.js`](https://github.com/typicode/husky/blob/main/index.js) (sets
+  `core.hooksPath` to `.husky/_` and writes 14 hook stubs, none of them
+  `post-index-change`); `git lfs install --local` (filter.lfs clean/smudge/process);
+  git-crypt, nbstripout and nbdime install forms.
+- **Research scan** `discovery/briefs/2026-10-25-research-scan.md` (marcus
+  repo) §A1 and the incidents table in `research_notes/incidents_and_talks.md`
+  rows 5–6.
+
 ## Tool-name collision detection (analyzers/collision.py — COLLIDE-001)
 
 The `COLLIDE-001` finding and its detection logic in

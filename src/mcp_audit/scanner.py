@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from platformdirs import user_config_dir
 
+from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.base import BaseAnalyzer
@@ -429,7 +430,10 @@ def _discover_and_parse(
 
     With no *extra_paths*, the VS Code, Gemini CLI, Codex and Claude Code
     auto-run files at the working directory's root are checked too (TRUST-003,
-    TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), and are scored
+    TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), and so is the
+    repository git would use from the current directory, for git configuration
+    and hooks that run commands (TRUST-006/TRUST-007, STORY-0089; see
+    :func:`mcp_audit.analyzers.git_exec.scan_cwd_repository`).  Both are scored
     like the rest.
     """
     configs = discover_configs(
@@ -438,6 +442,16 @@ def _discover_and_parse(
         include_plugins=include_plugins,
     )
     result.clients_scanned = len({c.client_name for c in configs})
+
+    if not extra_paths:
+        # Git can run code (STORY-0089, TRUST-006/007): the repository git
+        # would use from here — a repo checkout is the GitHub Action's default
+        # working directory.  Reads config files and lists hooks; never runs git.
+        # A failure here is reported, never fatal: the rest of the scan must run.
+        try:
+            result.findings.extend(_git_exec.scan_cwd_repository())
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"git config check error: {type(e).__name__}: {e}")
 
     if include_plugins and not extra_paths:
         from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415
