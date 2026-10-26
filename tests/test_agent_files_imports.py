@@ -137,6 +137,16 @@ def test_import_limit() -> None:
         "@\\" * 200_000,
         ("`x " * 50_000) + "\n\n" + ("``y " * 50_000),
     ],
+    # Short ids: pytest puts the id in PYTEST_CURRENT_TEST, and Windows caps an
+    # environment variable at 32,767 characters.
+    ids=[
+        "backticks",
+        "spaced-backticks",
+        "comment-openers",
+        "long-path",
+        "escapes",
+        "mixed-runs",
+    ],
 )
 def test_pathological_import_inputs_are_linear(text: str) -> None:
     start = time.monotonic()
