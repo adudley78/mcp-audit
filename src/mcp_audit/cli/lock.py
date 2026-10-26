@@ -75,8 +75,12 @@ def _discover_lock_servers(
     if include_user:
         # Plugin-shipped servers are pinned by their marketplace sha and
         # checked by PLUGIN-001, and their cache paths are machine-specific,
-        # so they never belong in a committed lock.
-        for config in _cli.discover_configs(include_plugins=False):
+        # so they never belong in a committed lock. Inline subagent servers
+        # (STORY-0094) stay out too, so locks written before they were
+        # discovered keep verifying (scan's auto-verify skips them as well).
+        for config in _cli.discover_configs(
+            include_plugins=False, include_agents=False
+        ):
             try:
                 servers.extend(_cli.parse_config(config))
             except ValueError as exc:

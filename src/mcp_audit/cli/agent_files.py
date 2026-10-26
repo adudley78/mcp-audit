@@ -19,7 +19,7 @@ def agent_files_discover(
         "--project",
         help=(
             "Walk this directory tree for project-level agent files"
-            " (.claude/commands/, .cursor/rules/, .github/ subtrees)."
+            " (.claude/commands/, .claude/agents/, .cursor/rules/, .github/ subtrees)."
         ),
         exists=False,
     ),
@@ -105,7 +105,7 @@ def agent_files_scan(
         "--project",
         help=(
             "Walk this directory tree for project-level agent files"
-            " (.claude/commands/, .cursor/rules/, .github/ subtrees)."
+            " (.claude/commands/, .claude/agents/, .cursor/rules/, .github/ subtrees)."
         ),
         exists=False,
     ),
