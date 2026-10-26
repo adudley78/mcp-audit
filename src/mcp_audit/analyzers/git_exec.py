@@ -598,6 +598,22 @@ _RUNS_MERGE = (
 _RUNS_ALIAS = "when someone runs `git <alias>`"
 _RUNS_SUBMODULE = "on `git submodule update`"
 _RUNS_GITPROXY = "on fetches over the `git://` protocol"
+_RUNS_LFS_EXTENSION = (
+    "when git-lfs cleans or smudges a file: on `git add`, on `git status` after a"
+    " tracked LFS file changes, and on checkout (once the LFS filter is set up,"
+    " here or in your own git config)"
+)
+_RUNS_LFS_TRANSFER = (
+    "when git-lfs transfers objects with that agent: on `git fetch`, `git pull`,"
+    " `git checkout` and `git push` (`lfs.standalonetransferagent` makes it the"
+    " agent for every transfer)"
+)
+# The program that runs a key's value, when it is not git itself.
+_RUNNER_BY_SECTION = {"lfs": "git-lfs", "delta": "delta"}
+_RUNS_DELTA_PAGER = (
+    "when git output is paged through delta (delta set as the pager here or in"
+    " your own git config), on a terminal"
+)
 _RUNS_REMOTE_PACK = (
     "on `git fetch` / `git push` to that remote over a local path or SSH"
 )
@@ -636,6 +652,7 @@ class _Rule:
     kind: str = "command"  # command | bool-or-command | bang | ssh | credential
     known: frozenset[str] = frozenset()
     python_modules: frozenset[str] = frozenset()
+    subsection_prefix: str = ""  # e.g. "extension." for lfs.extension.<name>.*
 
 
 _H = Severity.HIGH
@@ -698,6 +715,20 @@ _RULES: tuple[_Rule, ...] = (
           kind="bool-or-command", known=_PAGERS),
     _Rule("alias.<name>", "alias", "*", "none", _L, _RUNS_ALIAS, kind="bang"),
     _Rule("core.gitProxy", "core", "gitproxy", "none", _L, _RUNS_GITPROXY),
+    # Tools that read programs from their own section of this config (git-lfs
+    # config docs; delta: "most delta options can be given in a git config
+    # file").  .lfsconfig cannot set these keys; .git/config can.
+    _Rule("lfs.extension.<name>.clean", "lfs", "clean", "any", _H,
+          _RUNS_LFS_EXTENSION, subsection_prefix="extension."),
+    _Rule("lfs.extension.<name>.smudge", "lfs", "smudge", "any", _H,
+          _RUNS_LFS_EXTENSION, subsection_prefix="extension."),
+    _Rule("lfs.customtransfer.<name>.path", "lfs", "path", "any", _M,
+          _RUNS_LFS_TRANSFER, subsection_prefix="customtransfer."),
+    # `args` is expanded by the shell, so it can run a command of its own.
+    _Rule("lfs.customtransfer.<name>.args", "lfs", "args", "any", _M,
+          _RUNS_LFS_TRANSFER, subsection_prefix="customtransfer."),
+    _Rule("delta.pager", "delta", "pager", "either", _L, _RUNS_DELTA_PAGER,
+          known=_PAGERS),
 )
 # fmt: on
 
@@ -719,8 +750,53 @@ def _match_rule(entry: GitConfigEntry) -> _Rule | None:
             continue
         if rule.subsection == "any" and sub is None:
             continue
+        if rule.subsection_prefix and not (sub or "").lower().startswith(
+            rule.subsection_prefix
+        ):
+            continue
         return rule
     return None
+
+
+def _tool_reading_program_key(entry: GitConfigEntry) -> str | None:
+    """The known tool that runs the program *entry* names from its own section.
+
+    git-lfs runs ``lfs.extension.<name>.clean``/``smudge`` and
+    ``lfs.customtransfer.<name>.path`` (with ``args``, expanded by the shell);
+    delta runs ``delta.pager`` (or a delta feature's ``pager``).  When the
+    repository's config sets one, that tool is no longer a fixed program.
+    """
+    sub = (entry.subsection or "").lower()
+    if entry.section == "lfs" and (
+        (sub.startswith("extension.") and entry.name in ("clean", "smudge"))
+        or (sub.startswith("customtransfer.") and entry.name in ("path", "args"))
+    ):
+        return "git-lfs"
+    if entry.section == "delta" and entry.name == "pager":
+        return "delta"
+    return None
+
+
+def _tools_with_program_keys(view: _ConfigView, ctx: _Ctx) -> dict[str, str]:
+    """Known tool -> the key in *view* that makes it run another program.
+
+    A key whose own value is a known tool's safe form (``delta.pager = less
+    -R``) does not count.
+    """
+    last: dict[str, GitConfigEntry] = {}
+    for loaded in view.entries:
+        last[loaded.entry.var] = loaded.entry
+    found: dict[str, str] = {}
+    for var, entry in last.items():
+        value = (entry.value or "").strip()
+        tool = _tool_reading_program_key(entry) if value else None
+        if tool is None or tool in found:
+            continue
+        rule = _match_rule(entry)
+        if rule is not None and _classify_command(value, rule, ctx).status == "known":
+            continue
+        found[tool] = var
+    return found
 
 
 _SHELL_META_RE = re.compile(r"[;&|<>`\r\n]|\$\(")
@@ -748,6 +824,9 @@ def _program_basename(prog: str) -> str:
 class _Ctx:
     repo_root: Path  # where git runs commands from (worktree, or $GIT_DIR if bare)
     scan_root: Path  # boundary of repo-controlled files
+    # Known tool -> a key in the same config that makes it run another program
+    # (see _tool_reading_program_key); such a tool loses its known status.
+    program_keys: Mapping[str, str] = field(default_factory=dict)
 
 
 def _lexically_within(path: Path, root: Path) -> bool:
@@ -882,6 +961,15 @@ def _classify_command(cmd: str, rule: _Rule, ctx: _Ctx) -> _Verdict:
             tool, args = module, args[2:]
     if tool is None:
         return _UNKNOWN
+    own_key = ctx.program_keys.get(tool)
+    if own_key is not None and not (tool == "delta" and "--no-gitconfig" in args):
+        return _Verdict(
+            "unknown",
+            None,
+            f"the program is {tool}, but this git config also sets `{own_key}`,"
+            f" which tells {tool} to run another program, so the repository"
+            f" decides what {tool} runs",
+        )
     unsafe = _first_unsafe_arg(tool, args, ctx)
     if unsafe is not None:
         return _Verdict(
@@ -1525,6 +1613,7 @@ def _hooks_path_hit(loaded: _Loaded, ctx: _Ctx) -> GitExecHit | None:
 
 def _evaluate(view: _ConfigView, ctx: _Ctx) -> list[GitExecHit]:
     hits: list[GitExecHit] = []
+    ctx = replace(ctx, program_keys=_tools_with_program_keys(view, ctx))
     for loaded, rule in _effective(view):
         hit = _evaluate_rule(loaded, rule, ctx)
         if hit is not None:
@@ -1777,8 +1866,9 @@ def _hit_finding(hit: GitExecHit) -> Finding:
         shown = hit.rule if "<" not in hit.rule else hit.key
         title = f"Git config runs a command: {shown}"
         delivery = _DELIVERY if hit.severity == Severity.HIGH else ""
+        runner = _RUNNER_BY_SECTION.get(hit.key.split(".", 1)[0], "git")
         description = (
-            f"'{hit.path}' sets `{hit.key}` ({hit.rule}), which git runs as a"
+            f"'{hit.path}' sets `{hit.key}` ({hit.rule}), which {runner} runs as a"
             f" program {hit.runs}.{delivery}{note}"
         )
         remediation = _remediation(hit.key)

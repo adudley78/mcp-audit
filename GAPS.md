@@ -210,6 +210,18 @@ git configuration and hooks are read (never run) in a default `scan`/`check`
   that driver; text converters
   (`exiftool`, `pdftotext`, `pandoc`, `sops decrypt`, `unzip -c`, …) are INFO
   only when every argument is on that converter's allowlist of display options.
+- **Known tools' own config is read for git-lfs and delta only.** git-lfs's
+  `lfs.extension.<name>.clean`/`smudge` and `lfs.customtransfer.<name>.path`/`args`,
+  and delta's `pager` (in `[delta]` or a `[delta "<feature>"]` section, whether
+  or not that feature is enabled), are reported and take away the tool's INFO
+  status. Not covered: `lfs.standalonetransferagent` on its own (it names an
+  agent, not a program; the agent's `path` is what is reported); delta's
+  `diff-args` (used only when delta compares two files itself); git's
+  `interactive.diffFilter` (delta's documented `git add -p` setup, run only on
+  interactive add); git-annex's own `annex.*` settings, which can name programs,
+  so a `git-annex` filter stays INFO whatever the `annex.*` section says; and
+  config files tools read outside git config (`~/.ExifTool_config`, pandoc's
+  data directory, `~/.gnupg`), which are the user's.
 - **Known-tool argument allowlists can be too narrow.** A known tool given an
   option that is harmless but not on its list (`_ARG_SPECS` in
   `analyzers/git_exec.py`) keeps the key's full severity, for example

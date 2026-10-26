@@ -84,6 +84,10 @@ def _hits(tmp_path: Path, text: str) -> list[git_exec.GitExecHit]:
     return check_git_config(config)
 
 
+def _sev_note(hits: list[git_exec.GitExecHit], key: str) -> str:
+    return next(h.note for h in hits if h.key == key)
+
+
 def _sev(hits: list[git_exec.GitExecHit], key: str) -> Severity | None:
     found = [h.severity for h in hits if h.key == key]
     return found[-1] if found else None
@@ -1368,6 +1372,88 @@ class TestConverterAllowlist:
         self, tmp_path: Path, text: str, key: str
     ) -> None:
         assert _sev(_hits(tmp_path, text), key) == Severity.INFO
+
+
+class TestToolsReadingTheirOwnConfig:
+    """Round 3: git-lfs and delta run programs named in their own config section."""
+
+    _LFS_FILTERS = (
+        '[filter "lfs"]\n\tclean = git-lfs clean -- %f\n'
+        "\tsmudge = git-lfs smudge -- %f\n\tprocess = git-lfs filter-process\n"
+        "\trequired = true\n"
+    )
+
+    def test_lfs_extension_is_high_and_lfs_filters_lose_known(
+        self, tmp_path: Path
+    ) -> None:
+        # The reviewer's lfsext fixture: git-lfs 3.4.1 ran the extension on
+        # `git add` and on `git status --porcelain=2 --branch`.
+        text = self._LFS_FILTERS + (
+            '[lfs "extension.foo"]\n\tclean = /opt/ext.sh %f\n'
+            "\tsmudge = /opt/ext.sh %f\n\tpriority = 0\n"
+        )
+        hits = _hits(tmp_path, text)
+        assert {h.key: h.severity for h in hits} == {
+            "filter.lfs.clean": Severity.HIGH,
+            "filter.lfs.smudge": Severity.HIGH,
+            "filter.lfs.process": Severity.HIGH,
+            "lfs.extension.foo.clean": Severity.HIGH,
+            "lfs.extension.foo.smudge": Severity.HIGH,
+        }
+        assert "lfs.extension.foo.clean" in _sev_note(hits, "filter.lfs.clean")
+
+    def test_lfs_extension_alone_is_high(self, tmp_path: Path) -> None:
+        # The LFS filter may come from the user's own git config.
+        hits = _hits(tmp_path, '[lfs "extension.x"]\n\tclean = ./x %f\n')
+        assert _sev(hits, "lfs.extension.x.clean") == Severity.HIGH
+
+    def test_lfs_custom_transfer_is_medium(self, tmp_path: Path) -> None:
+        text = self._LFS_FILTERS + (
+            '[lfs "customtransfer.mine"]\n\tpath = lfs-folderstore\n'
+            "\targs = --verbose\n[lfs]\n\tstandalonetransferagent = mine\n"
+        )
+        hits = _hits(tmp_path, text)
+        assert _sev(hits, "lfs.customtransfer.mine.path") == Severity.MEDIUM
+        assert _sev(hits, "lfs.customtransfer.mine.args") == Severity.MEDIUM
+        assert _sev(hits, "filter.lfs.smudge") == Severity.HIGH
+        assert _sev(hits, "lfs.standalonetransferagent") is None
+
+    def test_other_lfs_keys_leave_git_lfs_known(self, tmp_path: Path) -> None:
+        text = self._LFS_FILTERS + (
+            "[lfs]\n\trepositoryformatversion = 0\n\turl = https://lfs.example.com\n"
+            '[lfs "extension.foo"]\n\tpriority = 0\n'
+        )
+        hits = _hits(tmp_path, text)
+        assert {h.severity for h in hits} == {Severity.INFO}
+
+    @pytest.mark.parametrize(
+        "delta_section",
+        ["[delta]\n\tpager = sh\n", '[delta "f"]\n\tpager = ./p\n'],
+    )
+    def test_delta_pager_makes_delta_unknown(
+        self, tmp_path: Path, delta_section: str
+    ) -> None:
+        hits = _hits(tmp_path, "[core]\n\tpager = delta\n" + delta_section)
+        assert _sev(hits, "core.pager") == Severity.LOW
+        assert {h.severity for h in hits} == {Severity.LOW}
+
+    def test_delta_pager_alone_is_low(self, tmp_path: Path) -> None:
+        # Applies when the user's own config pages through delta.
+        hits = _hits(tmp_path, "[delta]\n\tpager = sh\n")
+        assert _sev(hits, "delta.pager") == Severity.LOW
+
+    def test_delta_pager_with_known_pager_keeps_delta_known(
+        self, tmp_path: Path
+    ) -> None:
+        text = "[core]\n\tpager = delta\n[delta]\n\tpager = less -R\n"
+        hits = _hits(tmp_path, text)
+        assert {h.severity for h in hits} == {Severity.INFO}
+
+    def test_delta_no_gitconfig_ignores_delta_section(self, tmp_path: Path) -> None:
+        text = "[core]\n\tpager = delta --no-gitconfig\n[delta]\n\tpager = sh\n"
+        hits = _hits(tmp_path, text)
+        assert _sev(hits, "core.pager") == Severity.INFO
+        assert _sev(hits, "delta.pager") == Severity.LOW
 
 
 class TestDependencyCacheBareRepos:

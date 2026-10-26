@@ -399,7 +399,20 @@ scanner never runs git.
   command), emacsclient (`-a` names the editor to run when no server is
   up). ansible-vault was removed because `ansible-vault view` reads
   `vault_password_file` from an `ansible.cfg` in the working directory
-  (Ansible's configuration-file search order). The dependency-cache
+  (Ansible's configuration-file search order).
+- **Tools that run programs from their own git-config section (round 3 of
+  the PR #181 review):** git-lfs's
+  [`git-lfs-config`](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-config.adoc)
+  documents `lfs.extension.<name>.clean` ("the command which runs when files are
+  added to the index") and `smudge`, `lfs.customtransfer.<name>.path` ("the
+  process you wish to invoke") and `args` ("expanded by the shell"),
+  `lfs.standalonetransferagent`, and the restricted key set of `.lfsconfig`.
+  The reviewer confirmed with git-lfs 3.4.1 that an extension's `clean` runs on
+  `git add` and on `git status --porcelain=2 --branch` after a tracked file is
+  touched. delta's [manual](https://dyn.manpages.debian.org/trixie/git-delta/delta.1.en.html)
+  says it reads settings from a `[delta]` git config section ("most delta
+  options can be given in a git config file"), including `--pager`, and that
+  `--no-gitconfig` turns that off. The dependency-cache
   layouts (SwiftPM `.build/repositories/`, Bundler `cache/bundler/git/`, Cargo
   `.cargo/git/db/`, Go `pkg/mod/cache/vcs/`) are where those tools keep bare
   clones of git dependencies. Git's discovery rules (an invalid `.git`

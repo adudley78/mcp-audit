@@ -58,10 +58,13 @@ switches an earlier command off, and mcp-audit does the same.
 | HIGH | `diff.external`, `diff.<driver>.command`, `diff.<driver>.textconv` | `git diff`, `git log -p`, `git show` |
 | HIGH | `filter.<driver>.clean` / `smudge` / `process` | add, status, checkout, pull |
 | HIGH | `credential.helper` starting with `!`, or naming a program inside the repository (also `credential.<url>.helper`) | whenever git needs a password or token |
+| HIGH | `lfs.extension.<name>.clean` / `smudge` (run by git-lfs) | `git add`, `git status` after a tracked LFS file changes, checkout |
 | MEDIUM | `core.editor`, `sequence.editor`, `core.askPass`, `gpg.program`, `gpg.<format>.program`, `merge.<driver>.driver`, `submodule.<name>.update = !…`, `remote.<name>.uploadpack` / `receivepack` | on a git action an agent may take: commit, rebase, signing, merge, submodule update, push |
 | MEDIUM | `include.path` / `includeIf.*.path` to a file outside the scanned folder | that file is not read, so whatever it sets is unknown |
 | MEDIUM | `core.hooksPath` outside the repository | hooks come from a folder this scan did not look at |
+| MEDIUM | `lfs.customtransfer.<name>.path` / `args` (run by git-lfs; `args` is expanded by the shell) | fetch, pull, checkout and push, when git-lfs transfers with that agent |
 | LOW | `core.pager`, `pager.<command>`, `alias.<name> = !…`, `core.gitProxy` | only on a terminal, or when someone types the alias |
+| LOW | `delta.pager` (also a delta feature's `pager`) | when git output is paged through delta, on a terminal |
 | INFO | `core.hooksPath` inside the repository | husky and similar tools set this; the hooks are ordinary repo files |
 
 **Tools that write these settings for you are not alarms.** When the command is
@@ -100,6 +103,16 @@ INFO inventory:
   editors and pagers with their usual flags (`code --wait`, `vim -f`,
   `emacsclient -t -a ''`, `less -FRX`, `delta --side-by-side`), and
   `merge.<driver>.driver = true`.
+
+**A tool configured in the same file to run something else is not known.**
+git-lfs runs programs named in its own section of the git config
+(`lfs.extension.<name>.clean`/`smudge`, `lfs.customtransfer.<name>.path`), and
+delta runs `delta.pager`. When the repository's config sets one of these, git-lfs
+or delta is no longer a fixed program, so `filter.lfs.*` or `core.pager = delta`
+keeps the key's full severity. A `delta.pager` that is itself a known pager form
+(`less -R`) does not count, and `delta --no-gitconfig` ignores the `[delta]`
+section. `.lfsconfig` cannot set these keys (git-lfs reads only a fixed set of
+keys from it), so it is not read.
 
 **The arguments are an allowlist, not a deny-list.** Each known tool has a
 fixed list of the options it may be given (`_ARG_SPECS` in

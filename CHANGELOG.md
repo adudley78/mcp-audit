@@ -70,7 +70,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   helpers: HIGH; editor, signing, merge-driver and similar keys: MEDIUM or
   LOW), includes from outside the repository, nested bare repositories git
   would use (HIGH), and a `post-index-change` hook, which `git status` runs
-  (HIGH). The standard installs of Git LFS, git-crypt, nbstripout, common
+  (HIGH), plus the programs git-lfs and delta read from their own sections of
+  the same config (`lfs.extension.<name>.clean`/`smudge`: HIGH;
+  `lfs.customtransfer.<name>.path`/`args`: MEDIUM; `delta.pager`: LOW). The
+  standard installs of Git LFS, git-crypt, nbstripout, common
   diff text converters with display options only (exiftool, pdftotext, sops,
   …; each tool's arguments are checked against an allowlist), husky, an unmodified
   copy of git's own Watchman hook sample, a plain `ssh -i key` and
