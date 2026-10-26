@@ -14,18 +14,18 @@ The badge surface shows exactly two facts, both sourced directly from the
 
 | Field | What it shows |
 |-------|---------------|
-| **Verification status** | `verified` — the maintainer link between package name and source repo has been confirmed by a registry reviewer. `unverified` — a community entry; the package is listed but the maintainer link is not confirmed. `unknown` — the package is not in the registry at all. |
-| **Known CVE count** | The number of CVEs recorded in the registry for this specific package (e.g. `0 known CVEs`, `2 known CVEs`). Only CVEs explicitly added to the registry entry are counted. |
+| **Registry status** | `verified` — a registry reviewer has confirmed the maintainer link between package name and source repo. `listed` — the package is in the registry but the maintainer link is not confirmed (most entries start here). A package that is not in the registry at all has no badge: its badge URL returns 404 (see [below](#your-package-is-not-in-the-registry)). |
+| **Recorded CVEs** | The CVEs recorded in the registry entry for this package, split into fixed (a fixed-in version is recorded) and unfixed. Only CVEs explicitly added to the registry entry are counted. |
 
-**Badge colours:**
+**What the badge says** (checked against the live badge files on 2026-10-25):
 
-| Status | Colour |
-|--------|--------|
-| `verified · 0 known CVEs` | Green |
-| `verified · N known CVEs` (N > 0) | Red |
-| `unverified · 0 known CVEs` | Yellow |
-| `unverified · N known CVEs` (N > 0) | Red |
-| `unknown` | Grey |
+| Badge message | Colour | When |
+|--------|--------|------|
+| `N unfixed CVEs` | Red | At least one recorded CVE has no fixed-in version |
+| `N fixed CVEs` | Yellow | CVEs are recorded and every one has a fixed-in version |
+| `verified · 0 known CVEs` | Green | Verified entry, no recorded CVEs |
+| `listed · 0 known CVEs` | Blue | Listed (not verified) entry, no recorded CVEs |
+| _(no badge)_ | — | Not in the registry: the badge URL returns 404 and Shields.io shows `custom badge: resource not found` |
 
 ---
 
@@ -40,7 +40,8 @@ claim about:
   your actual deployment.
 - **A security grade or endorsement.** `verified` means the maintainer link was
   confirmed — it does not mean the server is safe, well-audited, or recommended. A
-  verified package with known CVEs will show a red badge.
+  verified package with recorded CVEs shows the CVE message (yellow or red), not
+  `verified`.
 - **Freedom from undiscovered vulnerabilities.** The registry only records CVEs that
   have been explicitly added. A `0 known CVEs` badge does not mean zero CVEs exist —
   only that none have been added to the registry for this package.
@@ -67,9 +68,9 @@ Paste this Markdown into your README.
 
 ### Option 2 — Copy from mcp-audit.dev
 
-Visit `https://mcp-audit.dev/<eco>/<slug>` (e.g.
-`https://mcp-audit.dev/npm/at-modelcontextprotocol-server-filesystem`) and copy the
-badge snippet from the package page.
+Visit `https://mcp-audit.dev/servers/<eco>/<slug>/` (e.g.
+`https://mcp-audit.dev/servers/npm/at-modelcontextprotocol-server-filesystem/`) and
+copy the badge snippet from the package page.
 
 ### URL structure
 
@@ -92,16 +93,11 @@ https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/{eco}/{slug}.
 Badge data is **registry-driven**: the badge JSON served by `mcp-audit.dev` is
 generated from `registry/known-servers.json` at the mcp-audit GitHub repository.
 
-Update triggers:
-
-1. **Registry PR merged** — when a PR adds, updates, or removes an entry from
-   `registry/known-servers.json`, the CI pipeline regenerates the badge JSON files
-   for all affected packages and deploys them to `mcp-audit.dev`. There is no
-   scheduled refresh — updates are event-driven.
-2. **CVE added to a registry entry** — when a maintainer adds a CVE to
-   `known_vulns` or `known_vulnerabilities` in an existing registry entry, the badge
-   regenerates and turns red on the next Shields.io cache expiry (typically 1–5
-   minutes after deployment).
+mcp-audit.dev is rebuilt from the registry and deployed by the maintainer; there is
+no scheduled refresh and no automatic deploy on merge. A registry change (a new
+entry, a verification, or a CVE added to `known_vulns` / `known_vulnerabilities`)
+reaches the badge on the next site deployment, and Shields.io picks it up when its
+cache expires.
 
 **Local freshness** — `mcp-audit vet --badge` reads the registry from your local
 cache. Run `mcp-audit update-registry` to pull the latest registry before generating
@@ -112,13 +108,16 @@ from `mcp-audit.dev`.
 
 ## Your package is not in the registry?
 
-If your package shows `unknown`, it has not been added to the registry yet. Add it
-in about 5 minutes:
+`mcp-audit vet --badge` prints a snippet for any package name, but mcp-audit.dev
+only publishes badge files for registry entries. For a package that is not listed,
+the badge URL returns 404 and Shields.io renders `custom badge: resource not found`.
+Add your package in about 5 minutes:
 
 1. [Open a registry submission issue](https://github.com/adudley78/mcp-audit/issues/new?template=registry-submission.yml)
    — or edit `registry/known-servers.json` directly and open a PR.
-2. Once merged, your badge will turn from grey (`unknown`) to green (`verified · 0 known CVEs`)
-   on the next `mcp-audit.dev` deployment.
+2. Once merged, the badge appears on the next `mcp-audit.dev` deployment: blue
+   `listed · 0 known CVEs` for a new entry, or green `verified · 0 known CVEs` when
+   a reviewer has confirmed the maintainer link (assuming no recorded CVEs).
 
 See [docs/registry-contributions.md](registry-contributions.md) for the full entry
 format, required fields, and the verification standard.

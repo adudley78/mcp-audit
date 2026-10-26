@@ -58,8 +58,8 @@ _HINTS: dict[str, str] = {
         "command to the package named in the finding, or confirm the publisher."
     ),
     "SC-008": (
-        "OSV lists this package as malicious. Remove the server; if it ran here, "
-        "follow the linked advisory."
+        "OSV lists malicious releases of this package; follow the finding: "
+        "remove it, or pin a release the record does not list."
     ),
     # Poisoning / prompt injection
     "POISON-001": (

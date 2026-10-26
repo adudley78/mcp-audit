@@ -37,7 +37,8 @@ class RegistrationConfig(BaseModel):
 class RegistrationPingPayload(BaseModel):
     """Payload for the anonymous post-scan ping (no PII).
 
-    Sent after every ``check`` / ``scan`` run when the user is registered.
+    Sent after every completed ``check`` run when the user is registered
+    (``scan`` never pings).
     Deliberately omits name, org, and email to keep pings PII-free.
     """
 

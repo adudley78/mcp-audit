@@ -1643,5 +1643,5 @@
     }
   ],
   "unmapped": [],
-  "coverage_notes": "All 103 static finding IDs are mapped. 5 dynamic ID patterns are documented. Finding IDs with empty owasp_codes are informational signals (RUGPULL-000, RUGPULL-003, ATTEST-010, ATTEST-015, BL-001, COMM-000 template) or policy-defined (GOV-*) with no fixed OWASP category. Most recently added: POISON-041/042 (concealment channels — Unicode TAG-character decode / HTML-comment extraction, then rescan; fires with analyzer=poisoning from both the config and agent-file surfaces), STDIO-001/002a/002b (launch-command trust boundary; STDIO-001 ships disabled), CRED-003 (literal secret in an authentication header), TRUST-002/004/005 (symlinked config/agent-file candidates), SKILL-004 (skill bundled-scripts inventory), TRUST-003 (repo-planted IDE auto-execution). See docs/severity-framework.md for the full rationale table."
+  "coverage_notes": "Every static finding ID in the source is listed in 'mappings' and every dynamic ID pattern in 'dynamic_patterns'; scripts/validate_owasp_mapping.py enforces both in CI, so this note carries no hand-typed count. Finding IDs with empty owasp_codes are informational signals or policy-defined (GOV-*) and have no fixed OWASP category. See docs/severity-framework.md for the full rationale table."
 }

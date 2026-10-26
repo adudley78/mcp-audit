@@ -79,8 +79,79 @@ def _is_python_interpreter(command: str | None) -> bool:
     """
     if not command:
         return False
-    base = command.rsplit("/", 1)[-1].rsplit("\\", 1)[-1].lower()
-    return bool(_PY_INTERPRETER_RE.match(base))
+    return bool(_PY_INTERPRETER_RE.match(_launcher_basename(command)))
+
+
+# Windows launch wrappers that npm, uv and pip install next to the real binary.
+_LAUNCHER_SUFFIXES: tuple[str, ...] = (".cmd", ".exe", ".bat", ".ps1")
+# ``cmd /c <command> …`` (or ``/k``) runs the next argument as the command.
+_CMD_RUN_FLAGS: frozenset[str] = frozenset({"/c", "/k"})
+# Bound on nested ``cmd /c cmd /c …`` unwrapping.
+_MAX_CMD_UNWRAP = 3
+
+
+def _launcher_basename(command: str) -> str:
+    """Return a launcher's bare, lowercase name: path, case and Windows suffix removed.
+
+    ``/usr/local/bin/npx``, ``C:\\Program Files\\nodejs\\npx.cmd`` and
+    ``NPX.CMD`` all become ``npx``.  Both ``/`` and ``\\`` count as separators
+    whatever the host OS, because a config written on Windows is scanned on
+    Linux too.
+    """
+    base = command.strip().rsplit("/", 1)[-1].rsplit("\\", 1)[-1].lower()
+    for suffix in _LAUNCHER_SUFFIXES:
+        if base.endswith(suffix) and len(base) > len(suffix):
+            return base[: -len(suffix)]
+    return base
+
+
+def normalize_launch(
+    command: str | None, args: list[str] | None
+) -> tuple[str, list[str]]:
+    """Return ``(launcher, args)`` the way the OS will actually run the server.
+
+    The supply-chain checks gate on the launcher name (``npx``, ``uvx``,
+    ``python3`` …).  Before STORY-0097's review, only the bare spelling
+    matched, so ``/usr/local/bin/npx``, an nvm path, ``npx.cmd`` or
+    ``cmd /c npx -y <pkg>`` (the form Claude Desktop documents on Windows)
+    skipped every SC-00x check.  This one normaliser is shared by
+    :meth:`SupplyChainAnalyzer.analyze`, :func:`_pinned_version` and
+    :func:`extract_pypi_package`:
+
+    * the launcher is reduced by :func:`_launcher_basename`;
+    * ``cmd``/``cmd.exe`` followed by ``/c`` or ``/k`` (any case, after any
+      other ``/x`` switches such as ``/d /s``) is unwrapped so the next
+      argument is the launcher.  A single argument holding the whole command
+      line (``cmd /c "npx -y pkg"``) is split on whitespace.
+
+    Args:
+        command: The server's ``command``.
+        args: The server's ``args``.
+
+    Returns:
+        The normalised launcher name and the arguments that follow it.
+        Anything unrecognised comes back with only the basename rules applied.
+    """
+    launcher = _launcher_basename(command or "")
+    rest = list(args or [])
+    for _ in range(_MAX_CMD_UNWRAP):
+        if launcher != "cmd":
+            break
+        i = 0
+        while (
+            i < len(rest)
+            and rest[i].startswith("/")
+            and rest[i].lower() not in _CMD_RUN_FLAGS
+        ):
+            i += 1
+        if i >= len(rest) - 1 or rest[i].lower() not in _CMD_RUN_FLAGS:
+            break
+        target, rest = rest[i + 1], rest[i + 2 :]
+        if not rest and any(ch.isspace() for ch in target.strip()):
+            tokens = target.split()
+            target, rest = tokens[0], tokens[1:]
+        launcher = _launcher_basename(target)
+    return launcher, rest
 
 
 # uvx/pipx flags whose *next* token is a value rather than a package name.
@@ -185,6 +256,7 @@ def extract_pypi_package(command: str, args: list[str]) -> str | None:
     Returns:
         Normalised package name, or ``None`` if no package-like token is found.
     """
+    command, args = normalize_launch(command, args)
     if _is_python_interpreter(command):
         try:
             m_idx = args.index("-m")
@@ -264,8 +336,7 @@ def _pinned_version(server: ServerConfig) -> str | None:
     Returns:
         The pinned version string, or ``None`` when the version is not pinned.
     """
-    command = server.command or ""
-    args = list(server.args or [])
+    command, args = normalize_launch(server.command, server.args)
 
     if command == "yarn" and args[:1] == ["dlx"]:
         command, args = "npx", args[1:]
@@ -496,19 +567,23 @@ def _emit_known_cve_findings(
 _ECOSYSTEM_LABEL: dict[str, str] = {"npm": "npm", "pypi": "PyPI"}
 
 _REDACTED = "[REDACTED]"
-_USERINFO_STOP = frozenset("/@?# \t\r\n")
+# An authority (userinfo@host:port) ends at the first of these after "://".
+_AUTHORITY_END = frozenset("/?#")
 # Longest launch command quoted in evidence; the rest is elided.
 _MAX_EVIDENCE_COMMAND = 300
 
 
 def _redact_userinfo(text: str) -> str:
-    """Replace ``scheme://user:pass@`` credentials with ``[REDACTED]@``.
+    """Replace the userinfo of every ``scheme://user:pass@host`` with ``[REDACTED]``.
 
-    A hand-written scan rather than a regex, so it stays linear on any input
-    (a ``[a-z]+://`` regex retried at every position is quadratic on a long
-    alphanumeric argument).  SECRET_PATTERNS' database-URL rule does not cover
-    ``postgresql://``, the scheme ``@modelcontextprotocol/server-postgres``
-    documents.
+    The authority runs from ``://`` to the first ``/``, ``?`` or ``#``; the
+    userinfo is everything before the *last* ``@`` in it, so a password that
+    contains ``@`` or a space (``admin:p@ss w0rd@db``) is redacted whole.
+    Called once per argument, so a URL never spans two arguments.  A
+    hand-written scan rather than a regex: each character is visited a
+    bounded number of times, so it stays linear on any input.
+    SECRET_PATTERNS' database-URL rule does not cover ``postgresql://``, the
+    scheme ``@modelcontextprotocol/server-postgres`` documents.
     """
     out: list[str] = []
     i = 0
@@ -519,15 +594,15 @@ def _redact_userinfo(text: str) -> str:
             out.append(text[i:])
             return "".join(out)
         k = j + 3
-        m = k
-        while m < n and text[m] not in _USERINFO_STOP:
-            m += 1
-        if m < n and text[m] == "@" and m > k:
-            out.append(text[i:k])
-            out.append(_REDACTED + "@")
-            i = m + 1
+        end = k
+        while end < n and text[end] not in _AUTHORITY_END:
+            end += 1
+        at = text.rfind("@", k, end)
+        out.append(text[i:k])
+        if at >= k:
+            out.append(_REDACTED)
+            i = at
         else:
-            out.append(text[i:k])
             i = k
 
 
@@ -535,8 +610,10 @@ def redact_command(command: str | None, args: list[str]) -> str:
     """Return ``command args[:4]`` for evidence, with secrets redacted.
 
     Launch arguments can carry credentials (a connection string, a token
-    flag).  Userinfo in any URL and every SECRET_PATTERNS match are replaced
-    with ``[REDACTED]``, and the result is capped at 300 characters.
+    flag).  Each argument has its URL userinfo replaced with ``[REDACTED]``
+    (:func:`_redact_userinfo`), then every SECRET_PATTERNS match in the
+    joined string is replaced too, and the result is capped at 300
+    characters (after redacting, so a cut can't expose a secret's prefix).
 
     Args:
         command: The server's ``command``.
@@ -545,11 +622,11 @@ def redact_command(command: str | None, args: list[str]) -> str:
     Returns:
         A redacted, length-capped command string.
     """
-    text = _redact_userinfo(f"{command or ''} {' '.join(args[:4])}".strip())
+    parts = [_redact_userinfo(command or "")]
+    parts.extend(_redact_userinfo(arg) for arg in args[:4])
+    text = " ".join(part for part in parts if part)
     for _label, pattern, _provider in SECRET_PATTERNS:
         text = pattern.sub(_REDACTED, text)
-    # Cap after redacting, so a secret cut at the boundary can't slip past a
-    # pattern that needs its full length to match.
     if len(text) > _MAX_EVIDENCE_COMMAND:
         text = text[:_MAX_EVIDENCE_COMMAND] + "…"
     return text
@@ -767,7 +844,14 @@ def build_malicious_finding(
         analyzer="supply_chain",
         client=server.client,
         server=server.name,
-        title=f"Known malicious package: {package} ({id_list})",
+        # The MEDIUM case is a package with malicious *past* releases (often a
+        # real package whose release was compromised), so it must not read as
+        # "this package is malware".
+        title=(
+            f"Known malicious package: {package} ({id_list})"
+            if critical
+            else f"Malicious releases listed in OSV: {package} ({id_list})"
+        ),
         description=description,
         evidence=evidence,
         remediation=remediation,
@@ -940,10 +1024,14 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         Returns:
             List of :class:`~mcp_audit.models.Finding` objects (empty if clean).
         """
+        # Any spelling of the launcher: a path, a Windows .cmd/.exe wrapper,
+        # or `cmd /c <launcher> …` (STORY-0097 review).
+        launcher, launch_args = normalize_launch(server.command, server.args)
+
         # Python ecosystem: uvx, pipx, python -m (any interpreter spelling)
-        if server.command in _PYPI_LIKE or _is_python_interpreter(server.command):
+        if launcher in _PYPI_LIKE or _is_python_interpreter(launcher):
             findings = self._check_pypi_typosquatting(server)
-            package = extract_pypi_package(server.command or "", server.args)
+            package = extract_pypi_package(launcher, launch_args)
             if package is not None:
                 findings.extend(self._check_known_malicious(server, "pypi", package))
             return findings
@@ -951,12 +1039,12 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         # npm ecosystem: npx / bunx / pnpx / yarn dlx
         # ``yarn dlx <pkg>`` is semantically identical to ``npx <pkg>`` for
         # typosquatting purposes; normalise it before the command gate.
-        if server.command == "yarn":
-            if not server.args or server.args[0] != "dlx":
+        if launcher == "yarn":
+            if not launch_args or launch_args[0] != "dlx":
                 return []
-            effective_args = server.args[1:]
-        elif server.command in _NPX_LIKE:
-            effective_args = server.args
+            effective_args = launch_args[1:]
+        elif launcher in _NPX_LIKE:
+            effective_args = launch_args
         else:
             return []
 

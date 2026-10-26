@@ -860,3 +860,62 @@ class TestBuildVerdictStory0097Fields:
         reg = _make_registry([_VERIFIED_ENTRY])
         v = build_verdict("x", "npm", None, _VERIFIED_ENTRY, reg)
         assert v["typosquat_basis"] == "edit-distance"
+
+
+class TestVetOnlineKeepsTheLocalMaliciousCheck:
+    """`vet --online` must not hide a bundled OSV MAL-* record (STORY-0097 review)."""
+
+    @staticmethod
+    def _clean_online(name: str) -> dict:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "generated_at": "2026-10-26T00:00:00+00:00",
+            "package": {"ecosystem": "npm", "name": name},
+            "registry": {"listed": False, "verified": False},
+            "known_vulnerabilities": [],
+            "capabilities": [],
+            "attestation": {},
+            "typosquat_of": None,
+            "tags": [],
+            "links": {"repo": None, "verdict_page": "https://mcp-audit.dev/..."},
+        }
+
+    def _run(self, name: str, *extra: str) -> object:
+        with (
+            patch("mcp_audit.cli.vet.load_registry", return_value=_bundled_registry()),
+            patch(
+                "mcp_audit.cli.vet._fetch_online_verdict",
+                return_value=self._clean_online(name),
+            ),
+        ):
+            return runner.invoke(app, ["vet", name, "--online", *extra])
+
+    def test_json_carries_the_local_record_and_exits_1(self) -> None:
+        result = self._run("mcp-server-github", "--format", "json")
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert [m["id"] for m in data["malicious"]] == ["MAL-2026-5479"]
+
+    def test_terminal_shows_the_panel(self) -> None:
+        result = self._run("postmark-mcp")
+        assert result.exit_code == 1
+        assert "MAL-2025-47604" in unwrapped(result.output)
+
+    def test_clean_package_is_untouched(self) -> None:
+        result = self._run("totallyunknownpkgxyz", "--format", "json")
+        assert result.exit_code == 0
+        assert "malicious" not in json.loads(result.output)
+
+    def test_online_items_are_not_duplicated(self) -> None:
+        from mcp_audit.cli.vet import _with_local_malicious
+
+        online = self._clean_online("mcp-server-github")
+        online["malicious"] = [{"id": "MAL-2026-5479", "latest_affected": True}]
+        merged = _with_local_malicious(
+            online, "mcp-server-github", "npm", _bundled_registry()
+        )
+        assert [m["id"] for m in merged["malicious"]] == ["MAL-2026-5479"]
+
+    def test_help_documents_the_malicious_exit(self) -> None:
+        result = runner.invoke(app, ["vet", "--help"])
+        assert "malicious" in unwrapped(result.output)

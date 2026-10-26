@@ -162,7 +162,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install mcp-audit
-        run: pip install mcp-audit
+        run: pip install mcp-audit-scanner
 
       - name: Scan and save JSON
         run: |
@@ -188,7 +188,7 @@ jobs:
           merge-multiple: true
 
       - name: Install mcp-audit
-        run: pip install mcp-audit
+        run: pip install mcp-audit-scanner
 
       - name: Merge fleet report
         run: |

@@ -5,8 +5,8 @@ enforced at the code level:
 
 * :func:`post_registration` — called once at registration time; sends name,
   org, email, version, grade, and follow_up_requested.
-* :func:`post_ping` — called on subsequent ``check`` / ``scan`` runs; sends
-  only version, grade, and registered=True.  **No PII is ever included.**
+* :func:`post_ping` — called on subsequent ``check`` runs (never ``scan``);
+  sends only version, grade, and registered=True.  **No PII is ever included.**
 
 Both methods fail silently on network errors so the scan always completes.
 """
@@ -28,7 +28,8 @@ from mcp_audit.registration.models import (
 logger = logging.getLogger(__name__)
 
 # Pipedream webhook — routes to email notification + Google Sheets log;
-# update to register.mcp-audit.dev when that domain is live
+# update to register.mcp-audit.dev when that domain is live.  docs/privacy.md
+# names this exact URL; tests/test_registration.py fails if the two differ.
 _REGISTER_ENDPOINT = "https://eo4jvaanlkuohuc.m.pipedream.net"
 
 _TIMEOUT_SECONDS = 5

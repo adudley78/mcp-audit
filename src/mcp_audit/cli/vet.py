@@ -205,6 +205,40 @@ def _malicious_matches(
     ]
 
 
+def _with_local_malicious(
+    verdict: dict[str, Any],
+    name: str,
+    ecosystem: str,
+    registry: KnownServerRegistry,
+) -> dict[str, Any]:
+    """Return *verdict* with the bundled known-malicious matches merged in.
+
+    Used for ``--online`` verdicts, which may predate a record or come from a
+    site version without the ``malicious`` field.  Items already present
+    (same ``id``) are kept as the online verdict gives them.
+
+    Args:
+        verdict: The online verdict document.
+        name: The queried package name.
+        ecosystem: ``"npm"`` or ``"pypi"``.
+        registry: Loaded registry (for the curated-package exception).
+
+    Returns:
+        A copy of *verdict* whose ``malicious`` list includes local matches.
+    """
+    local = [
+        malicious_item(m)
+        for m in _malicious_matches(name, ecosystem, registry, load_known_malicious())
+    ]
+    if not local:
+        return verdict
+    merged = dict(verdict)
+    existing = [m for m in merged.get("malicious") or [] if isinstance(m, dict)]
+    seen = {m.get("id") for m in existing}
+    merged["malicious"] = existing + [m for m in local if m["id"] not in seen]
+    return merged
+
+
 # ── Online fetch + cache ───────────────────────────────────────────────────────
 
 
@@ -732,7 +766,9 @@ def vet(
 
     Exit codes:
     - 0: known, every recorded CVE fixed, no typosquat (or unknown without --strict)
-    - 1: a recorded CVE has no fix, typosquat suspicion, or unknown + --strict
+    - 1: a recorded CVE has no fix, typosquat suspicion (edit distance or an
+      unscoped twin), OSV lists the latest release as malicious (checked
+      against the bundled data, with or without --online), or unknown + --strict
     - 2: invalid/empty package name or unrecoverable error
 
     Examples::
@@ -789,6 +825,12 @@ def vet(
                 "using bundled registry.[/dim]"
             )
         else:
+            # The bundled OSV MAL-* data is always checked, also when the
+            # verdict came from mcp-audit.dev (STORY-0097 review): an online
+            # verdict must never hide a record the offline one would report.
+            online_verdict = _with_local_malicious(
+                online_verdict, pkg_name, eco, registry
+            )
             # Emit and exit.  We have no typosquat_entry for online verdicts
             # (the server computed it), so pass None.
             if format_flag == "json":

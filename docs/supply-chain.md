@@ -478,6 +478,14 @@ This means `mcp_server_filesystem`, `mcp-server-filesystem`, and
 | `SC-003` | MEDIUM | 3 | Three edits away |
 | `SC-007` | MEDIUM | — | Unscoped twin of a registry entry (see below); replaces SC-001..003 |
 
+**Any spelling of the launcher.** Every supply-chain check (SC-001..008) first
+reduces the launcher to its bare name: the path is dropped (either `/` or `\`),
+case is ignored, a Windows `.cmd`/`.exe`/`.bat`/`.ps1` wrapper is stripped, and
+`cmd /c` or `cmd /k` (after switches such as `/d /s`) is unwrapped so the next
+argument is the launcher. `C:\Program Files\nodejs\npx.cmd -y pkg` and
+`cmd /c npx -y pkg` are checked exactly like `npx -y pkg`. `pnpm dlx`, `npm exec`
+and `uv run --with` are not recognised (see GAPS.md).
+
 **Short-name guard:** Package names ≤ 5 characters use a tighter threshold of 1
 (not 3) to suppress false positives — short names are inherently close to many
 other short names.
@@ -681,7 +689,11 @@ were reachable only with `scan --check-vulns`.
 
 The MEDIUM row follows SC-004's reasoning: the registry normally removes a
 malicious release, but npx and uvx can reuse a cached copy. A version that won't
-parse counts as covered.
+parse counts as covered. The two severities read differently on purpose: CRITICAL
+is titled `Known malicious package: <name> (<IDs>)` and says to remove the server;
+MEDIUM is titled `Malicious releases listed in OSV: <name> (<IDs>)` and says to pin
+a release the record does not list, because it is often a real package that had one
+release compromised (`mcp-use` 1.4.2/1.4.3, `@postman/postman-mcp-server`).
 
 **One deliberate difference from OSV's range semantics.** For a package the
 registry lists, a range covering every version (`introduced: "0"` and nothing
@@ -697,15 +709,13 @@ SC-001..003, because it answers a different question (what OSV knows about this
 exact package, not what its name resembles). `npx -y mcp-server-github` gives
 both.
 
-**MAL-2026-5479 is probably a researcher's canary.** All ten records
-`MAL-2026-5476` to `MAL-2026-5485` report the same beacon host,
-`npx-canary-log.vulnerable-live.workers.dev`. Three of those npm packages, read
-on 2026-08-18, named `theinfosecguy/npx-canary` as their repository and described
-themselves as a security research canary for an authorized bug bounty project
-(`registry-audit-2026-08-18.md` §3a). mcp-audit could not confirm this from the
-project itself (its GitHub page did not load on 2026-10-25). OSV classifies the
-packages as malicious, and SC-008 reports them as OSV states it, with this note
-in each record's `note` field.
+**The MAL-2026-5476..5485 note.** All ten records report the same beacon host,
+`npx-canary-log.vulnerable-live.workers.dev`, and three of those npm packages,
+read on 2026-08-18, named `theinfosecguy/npx-canary` as their repository
+(`registry-audit-2026-08-18.md` §3a). Those two facts are what each record's
+`note` field says; the note draws no conclusion about who published them or
+why. OSV classifies the packages as malicious, and SC-008 reports them as OSV
+states it.
 
 **Measured on 2026-10-25:** 217 records (144 npm, 73 PyPI). On the 100
 most-downloaded npm MCP servers, pinned as published, SC-008 fires on none;

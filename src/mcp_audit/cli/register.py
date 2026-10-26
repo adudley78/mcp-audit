@@ -11,6 +11,22 @@ from mcp_audit.registration import client as _reg_client
 from mcp_audit.registration import manager as _reg_manager
 from mcp_audit.registration.models import RegistrationConfig
 
+# What registering does, stated as the code does it. Every user gets every
+# feature with or without registering (no gating), so the prompt offers
+# contact for project updates only — never early access or anything withheld
+# from unregistered users. Pinned by tests/test_register.py.
+REGISTER_PROMPT_LINES: tuple[str, ...] = (
+    "Registering shares your contact details with the mcp-audit maintainer so",
+    "you can be contacted about project updates, such as new detection rules.",
+    "You can also ask for a follow-up if your scan grade is C or below.",
+    "Every feature works the same whether or not you register.",
+    "",
+    "It sends your name, org, email, follow-up choice and mcp-audit",
+    'version, with a placeholder grade of "?", once. After that, each',
+    "`mcp-audit check` sends the version and grade only. Remove it any",
+    "time with `mcp-audit register --clear`.",
+)
+
 
 def _truncate_email(email: str) -> str:
     """Return a privacy-safe truncated form: ``sa***@ibm.com``."""
@@ -35,10 +51,12 @@ def register(
         help="Show current registration state without modifying anything.",
     ),
 ) -> None:
-    """Opt-in registration: get new rule notifications and follow-up support.
+    """Opt-in registration: share contact details for mcp-audit project updates.
 
-    Registration is optional and collects only what you provide (name, org,
-    email).  No config data, server names, or credentials are ever sent.
+    Registration is optional and changes nothing about how mcp-audit works.
+    It sends only what you type (name, org, email) plus the mcp-audit
+    version; after that, each ``check`` sends the version and grade only.
+    No config data, server names, or credentials are ever sent.
 
     Run with no flags to start the interactive registration flow.
     Use ``--status`` to check current registration.
@@ -74,7 +92,7 @@ def _handle_status(console: Console) -> None:
     if config is None:
         console.print("[dim]Not registered.[/dim]")
         console.print(
-            "Run [bold]mcp-audit register[/bold] to opt in to new rule notifications."
+            "Run [bold]mcp-audit register[/bold] to opt in to project updates."
         )
         return
 
@@ -115,14 +133,8 @@ def _handle_register(console: Console) -> None:
         " Registration is [bold]optional[/bold]."
     )
     console.print()
-    console.print("If you register, you'll get:")
-    console.print("  - A weekly digest of new community detection rules")
-    console.print("  - Early access to new rule packs before public release")
-    console.print("  - (Optional) A follow-up if your scan grade is C or below")
-    console.print()
-    console.print(
-        "Your registration sends: name, org, email, mcp-audit version, and grade only."
-    )
+    for line in REGISTER_PROMPT_LINES:
+        console.print(line)
     console.print("[dim]No config data. No server names. No credentials. Ever.[/dim]")
     console.print()
 
@@ -171,7 +183,10 @@ def _handle_register(console: Console) -> None:
     path = save_registration(config)
 
     console.print()
-    console.print("[green]Registered.[/green] You'll hear from us when new rules drop.")
+    console.print(
+        "[green]Registered.[/green] Run [bold]mcp-audit register --clear[/bold]"
+        " to remove it at any time."
+    )
     console.print(f"[dim]Registration stored at {path}[/dim]")
     console.print()
 

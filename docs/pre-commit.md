@@ -29,12 +29,12 @@ brew install pre-commit
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.1.0  # Replace with the latest release tag
+    rev: v0.21.1
     hooks:
       - id: mcp-audit
 ```
 
-Replace `v0.1.0` with the latest release tag from [https://github.com/adudley78/mcp-audit/releases](https://github.com/adudley78/mcp-audit/releases).
+`rev` must be an existing release tag. The examples on this page show the current release (each release PR updates them); `pre-commit autoupdate` moves your copy to the latest tag from [https://github.com/adudley78/mcp-audit/releases](https://github.com/adudley78/mcp-audit/releases).
 
 **3. Install the hooks into your local repo:**
 
@@ -51,7 +51,7 @@ The default hook args run `scan --severity-threshold high`, blocking only on HIG
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.1.0
+    rev: v0.21.1
     hooks:
       - id: mcp-audit
         args: [scan, --severity-threshold, medium]
@@ -107,7 +107,7 @@ If you've adopted [`mcp-audit lock`](lock.md), a second hook enforces it:
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.17.0
+    rev: v0.21.1  # mcp-audit-lock-verify needs v0.17.0 or later
     hooks:
       - id: mcp-audit
       - id: mcp-audit-lock-verify

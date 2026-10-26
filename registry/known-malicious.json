@@ -2928,7 +2928,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2026-5477",
@@ -2953,7 +2953,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2025-47929",
@@ -3014,7 +3014,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2026-5479",
@@ -3039,7 +3039,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2026-5480",
@@ -3066,7 +3066,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2026-6922",
@@ -3134,7 +3134,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2026-5482",
@@ -3159,7 +3159,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2026-5483",
@@ -3184,7 +3184,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2026-5484",
@@ -3210,7 +3210,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2026-5485",
@@ -3235,7 +3235,7 @@
           ]
         }
       ],
-      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository and described themselves as a security research canary for an authorized bug bounty project (registry-audit-2026-08-18.md in the mcp-audit repository). That points to a researcher's canary rather than a criminal campaign; mcp-audit reports the record as OSV states it."
+      "note": "All ten records MAL-2026-5476 to MAL-2026-5485 report the same install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. Three of these npm packages (mcp-server-notion, mcp-server-redis, mcp-server-supabase), read on npm on 2026-08-18, named theinfosecguy/npx-canary as their repository (registry-audit-2026-08-18.md in the mcp-audit repository)."
     },
     {
       "id": "MAL-2026-2328",

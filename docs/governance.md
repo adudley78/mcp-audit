@@ -314,7 +314,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/mcp-audit@main
+      - uses: adudley78/mcp-audit@v0.21.1
         with:
           severity-threshold: high
           # policy auto-discovered from repo root

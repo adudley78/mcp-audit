@@ -83,7 +83,7 @@ The supply chain analyzer detects typosquatted npm package names by computing Le
 
 - **o3.security, "mcp-server-github" malware analysis** ([o3.security](https://o3.security/malware/npm/mcp-server-github)) and the OSV record it summarises, **MAL-2026-5479 / GHSA-95pj-hrh5-27gq** ([OSV](https://osv.dev/vulnerability/MAL-2026-5479), [GitHub](https://github.com/advisories/GHSA-95pj-hrh5-27gq)) — an unscoped npm name intercepting installs meant for `@modelcontextprotocol/server-github`, with an install-time beacon. The basis for SC-007: edit distance cannot see a scope difference.
 - **OSV MAL-2026-5476 to MAL-2026-5485 and MAL-2025-46986** (read from OSV's npm bulk export on 2026-10-25) — the full family of unscoped twins (`mcp-server-fetch`, `-figma`, `-git`, `-github`, `-notion`, `-postgres`, `-redis`, `-sentry`, `-sequential-thinking`, `-supabase`, `-everything`). The SC-007 naming rules (name part of `server-<x>`/`mcp-server-<x>`, the `mcp-server-<x>` spelling of `server-<x>`/`<x>-mcp-server`, and the same `mcp-server-<x>` name across npm and PyPI) are the shapes this family and the registry's own entries show; each rule was then measured against live npm and PyPI on 2026-10-25 (`docs/supply-chain.md`). Rules not seen in the data (e.g. `mcp-server-<x>` → `server-<x>`, every name was absent on npm) were not adopted.
-- **`registry-audit-2026-08-18.md` §3a and §3b** (this repository) — three of the same npm packages named `theinfosecguy/npx-canary` as their repository and described themselves as a bug-bounty research canary (the source of the note attached to MAL-2026-5476..5485), and one account's `0.0.1` stubs under vendor names (three of which are SC-007 twins today).
+- **`registry-audit-2026-08-18.md` §3a and §3b** (this repository) — three of the same npm packages named `theinfosecguy/npx-canary` as their repository (the source of the note attached to MAL-2026-5476..5485, which states only that and the shared beacon host), and one account's `0.0.1` stubs under vendor names (three of which are SC-007 twins today).
 - **Panguard, "npm MCP security findings"** ([panguard.ai](https://panguard.ai/blog/npm-mcp-security-findings)) — SANDWORM_MODE, a 19-package typosquat cluster of MCP-adjacent npm packages harvesting SSH keys at install; context for exact-name matching of known-bad names.
 - **OpenSSF malicious-packages** ([GitHub](https://github.com/ossf/malicious-packages)) via **OSV's data dumps** ([OSV docs](https://google.github.io/osv.dev/data/): per-ecosystem `all.zip` in `gs://osv-vulnerabilities`, "including withdrawn records") — the source of `registry/known-malicious.json`. `scripts/sync_registry_advisories.py` keeps non-withdrawn `MAL-*` records whose package name contains `mcp` or that the registry lists.
 - **OSV schema, "Evaluation"** ([ossf.github.io/osv-schema](https://ossf.github.io/osv-schema/)) — the range semantics `registry/malicious.py` implements (`introduced` / `fixed` / `last_affected` walked in version order, plus the explicit `versions` list). The one deliberate deviation (a blanket all-versions range is ignored for a registry-listed package when the record also lists explicit versions) is documented in that module and in `docs/supply-chain.md`, with `MAL-2025-191195` (`@browserbasehq/mcp`) as the measured case.
@@ -125,16 +125,21 @@ binding) were added in v0.12.0 based on the following published research.
 
 **Research sources:**
 
-- **arXiv 2605.22333** — "Security Analysis of Remote MCP Server Deployments"
-  (2026). Largest published measurement study of live remote MCP servers:
-  scanned 7,973 servers and found 40.55% require no authentication. Also
+- **arXiv 2605.22333** — Zhou et al., "A First Measurement Study on
+  Authentication Security in Real-World Remote MCP Servers" (May 2026,
+  <https://arxiv.org/abs/2605.22333>). Measurement study of live remote MCP
+  servers: identified 7,973 servers and found 40.55% expose tools without
+  authentication. Also
   evaluated 119 OAuth-enabled MCP servers and found every one had at least one
   flaw (325 total); dynamic-client-registration (DCR) vulnerabilities affected
   96.6% of the OAuth-enabled sample. Both AUTH-001 and AUTH-002 cite this study
   directly in their finding descriptions.
-- **Censys** — Internet-scanning report (June 2026) counting 12,520
-  internet-exposed MCP services, the majority unauthenticated. Cited in the
-  AUTH-001 description to quantify internet exposure.
+- **Censys** — "MCP Servers on the Internet" (published May 27, 2026; data
+  as of April 28, 2026; <https://censys.com/blog/mcp-servers-on-the-internet/>).
+  Counted 12,520 internet-accessible MCP services across 8,758 IP addresses.
+  The post gives no unauthenticated percentage: it says the protocol does not
+  enforce authentication and that many deployments operate without it. Cited
+  in the AUTH-001 description to quantify internet exposure.
 - **RFC 8707** — "Resource Indicators for OAuth 2.0" (IETF, 2020). Defines the
   `resource` parameter and audience binding requirements that AUTH-002 checks
   for. The missing-audience attack (token cross-resource replay) is documented

@@ -97,9 +97,9 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
         configs: Discovered config files for the current scan.
 
     Returns:
-        A path like ``~/.mcp-audit/state_a1b2c3d4.json``.  Falls back to
-        :data:`DEFAULT_STATE_PATH` when *configs* is empty so that there is
-        always a valid path to write to.
+        A path like ``<user-config-dir>/mcp-audit/state/state_a1b2c3d4.json``.
+        Falls back to :data:`DEFAULT_STATE_PATH` when *configs* is empty so
+        that there is always a valid path to write to.
 
     Configs from Claude Code plugins (client ``claude-code-plugin``) are left
     out of the key.  Their paths contain the plugin version, so including them

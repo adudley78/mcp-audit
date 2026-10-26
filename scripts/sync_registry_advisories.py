@@ -98,11 +98,8 @@ _CANARY_NOTE = (
     "install-time beacon host, npx-canary-log.vulnerable-live.workers.dev. "
     "Three of these npm packages (mcp-server-notion, mcp-server-redis, "
     "mcp-server-supabase), read on npm on 2026-08-18, named "
-    "theinfosecguy/npx-canary as their repository and described themselves "
-    "as a security research canary for an authorized bug bounty project "
-    "(registry-audit-2026-08-18.md in the mcp-audit repository). That points "
-    "to a researcher's canary rather than a criminal campaign; mcp-audit "
-    "reports the record as OSV states it."
+    "theinfosecguy/npx-canary as their repository "
+    "(registry-audit-2026-08-18.md in the mcp-audit repository)."
 )
 NOTES: dict[str, str] = {f"MAL-2026-{n}": _CANARY_NOTE for n in range(5476, 5486)}
 

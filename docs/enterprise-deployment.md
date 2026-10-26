@@ -75,19 +75,21 @@ curl -sSL https://github.com/adudley78/mcp-audit/releases/latest/download/mcp-au
 
 No Python installation required. The binary bundles the Python runtime and all dependencies.
 
-### Option B — Python package (when published to PyPI)
+### Option B — Python package (PyPI)
+
+The PyPI package is `mcp-audit-scanner`; the command it installs is `mcp-audit`.
 
 ```bash
-pip install mcp-audit
+pip install mcp-audit-scanner
 ```
 
 Pin to a specific version in production:
 
 ```bash
-pip install mcp-audit==0.1.0
+pip install mcp-audit-scanner==0.21.1
 ```
 
-### Option C — Source install (current method for internal alpha)
+### Option C — Source install
 
 ```bash
 git clone https://github.com/adudley78/mcp-audit.git /opt/mcp-audit
@@ -419,7 +421,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install mcp-audit
-        run: pip install mcp-audit
+        run: pip install mcp-audit-scanner
 
       - name: Scan MCP configs
         run: |

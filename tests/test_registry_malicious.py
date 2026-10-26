@@ -80,8 +80,11 @@ class TestBundledFile:
         assert rec.summary == "Malicious code in mcp-server-github (npm)"
         assert rec.versions == ("0.0.1", "0.0.2")
         assert rec.ranges == ((("introduced", "0"),),)
-        assert rec.note and "npx-canary" in rec.note
-        assert "OSV states it" in rec.note
+        assert rec.note and "theinfosecguy/npx-canary" in rec.note
+        assert "npx-canary-log.vulnerable-live.workers.dev" in rec.note
+        # Facts only: no conclusion about who published it or why.
+        for inference in ("criminal", "researcher", "bug bounty", "points to"):
+            assert inference not in rec.note
 
     def test_frozen_binary_layout_resolves(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

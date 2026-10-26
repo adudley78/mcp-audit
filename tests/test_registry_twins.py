@@ -231,3 +231,28 @@ class TestSyntheticRegistry:
             assert bundled.find(name, "npm") == []
             assert bundled.find(name, "pypi") == []
         assert time.monotonic() - start < 2.0
+
+
+class TestKnownLegitimateNamesAreNeverTwins:
+    """Guard: real, unregistered packages that merely look official.
+
+    `mcp-server-time` and `mcp-server-sqlite` are Anthropic's own PyPI
+    reference servers (not in the registry); PyPI `mcp-server-docker`,
+    `notion-mcp-server` and `slack-mcp-server` are community servers.  None
+    shares a registry entry's twin key, and a registry change that made one a
+    twin would need a deliberate decision, not a silent new MEDIUM.
+    """
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "mcp-server-time",
+            "mcp-server-sqlite",
+            "mcp-server-docker",
+            "notion-mcp-server",
+            "slack-mcp-server",
+        ],
+    )
+    @pytest.mark.parametrize("ecosystem", ["npm", "pypi"])
+    def test_not_a_twin(self, bundled: TwinIndex, name: str, ecosystem: str) -> None:
+        assert bundled.find(name, ecosystem) == []  # type: ignore[arg-type]
