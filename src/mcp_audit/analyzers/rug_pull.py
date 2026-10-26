@@ -29,7 +29,7 @@ from platformdirs import user_config_dir
 from rich.console import Console
 
 from mcp_audit.analyzers.base import BaseAnalyzer
-from mcp_audit.discovery import DiscoveredConfig
+from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, DiscoveredConfig
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 _STATE_DIR: Path = Path(user_config_dir("mcp-audit")) / "state"
@@ -106,9 +106,18 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
     would move every server's rug-pull history to a fresh state file on each
     plugin update.  Their servers are still tracked in whichever file the rest
     of the scan uses.
+
+    Subagent definitions (client ``claude-code-agent``, STORY-0094) are left
+    out for a related reason: every agent file is a discovered config whether
+    or not it declares a server, so adding or deleting one would otherwise move
+    the whole scan's rug-pull history to a new state file.
     """
     _migrate_legacy_state()
-    configs = [c for c in configs if c.client_name != "claude-code-plugin"]
+    configs = [
+        c
+        for c in configs
+        if c.client_name not in ("claude-code-plugin", AGENT_DEFINITION_CLIENT)
+    ]
     if not configs:
         return DEFAULT_STATE_PATH
     paths_str = "\n".join(sorted(str(c.path) for c in configs))
