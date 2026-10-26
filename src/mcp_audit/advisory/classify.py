@@ -155,6 +155,7 @@ _CLASS_BY_PREFIX: Final[dict[str, str]] = {
     "HOOK-": "hook-execution",
     "MOD-": "hook-execution",
     "HARNESS-": "excessive-scope",
+    "PERM-": "excessive-scope",
     "SC-": "typosquat",
     "CFHYG-": "config-hygiene",
     "TOXIC-": "toxic-flow",

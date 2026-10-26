@@ -13,6 +13,7 @@ from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.config_hygiene import ConfigHygieneAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
+from mcp_audit.analyzers.permissions import analyze_flagged_server_allows
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import RugPullAnalyzer, derive_state_path
 from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
@@ -225,6 +226,13 @@ def _run_static_pipeline(
        over the toxic-flow findings produced above.
     5. Policy-as-code rule engine (bundled community rules always;
        ``extra_rules_dirs`` additionally when provided).
+    5b. PERM-007 (STORY-0092):
+       :func:`~mcp_audit.analyzers.permissions.analyze_flagged_server_allows`
+       over the Claude Code settings files in ``configs``, against every
+       finding from steps 1–5, so an ``mcp__<server>`` allow rule on a server
+       with HIGH or CRITICAL findings is reported and scored.  It runs only
+       when a :class:`ConfigHygieneAnalyzer` is in ``analyzers``, like the
+       PERM-001..006 and HARNESS-* checks it sits beside.
     6. :func:`~mcp_audit.scoring.calculate_score` over the final finding list.
     7. ``result.registry_stats`` attached from the SupplyChainAnalyzer.
 
@@ -325,6 +333,16 @@ def _run_static_pipeline(
         )
     except Exception as e:  # noqa: BLE001
         result.errors.append(f"rules_engine error: {e}")
+
+    # ── 5b. Allow rules on servers with HIGH+ findings (PERM-007) ─────────────
+    # Needs every finding above, so it cannot run in step 0 with PERM-001..006.
+    if any(isinstance(a, ConfigHygieneAnalyzer) for a in analyzers):
+        try:
+            result.findings.extend(
+                analyze_flagged_server_allows(configs, all_servers, result.findings)
+            )
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"permissions error: {e}")
 
     # ── 6. Scoring ────────────────────────────────────────────────────────────
     result.score = calculate_score(

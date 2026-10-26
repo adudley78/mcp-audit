@@ -219,7 +219,7 @@ the two exploitation pre-conditions that malware relied on.
 | HARNESS-002 | HIGH     | ASI03, ASI04 | MCP09, MCP07 | `enableAllProjectMcpServers: true` — every server in a repository's `.mcp.json` approved without a prompt. CWE-862 |
 | HARNESS-003 | MEDIUM   | ASI02, ASI03 | MCP02, MCP07 | `skipDangerousModePermissionPrompt: true` — no confirmation before bypass mode. CWE-862 |
 | HARNESS-004 | HIGH     | ASI02, ASI05 | MCP02, MCP05 | `permissions.allow` contains bare `Bash`/`Bash(*)` (or PowerShell) — every shell command pre-approved. CWE-862 |
-| HARNESS-005 | MEDIUM   | ASI02, ASI05 | MCP02, MCP05 | `permissions.allow` approves every argument to a command that can write, run code or reach the network (interpreters, network tools, cloud/GitHub CLIs, package runners, `rm`, `find`, `xargs`, `env`, `sudo`, bare `git`; `git push`, `npm publish`, `gh api` even when narrowed). CWE-862 (STORY-0087) |
+| HARNESS-005 | MEDIUM   | ASI02, ASI05 | MCP02, MCP05 | `permissions.allow` approves every argument to a command that can write, run code or reach the network (interpreters, network tools, cloud/GitHub CLIs, package runners, `rm`, `find`, `xargs`, `env`, `sudo`, bare `git`; `git push`, `npm publish`, `gh api` even when narrowed). CWE-862 (STORY-0087). STORY-0092 added open environment runners (`devbox run *`, `docker exec <c> *`, `uv run *`, …) and PowerShell code-running and network cmdlets; same meaning and severity |
 | HARNESS-006 | MEDIUM   | ASI02, ASI05 | MCP02, MCP05 | Approval off in the file (bypassPermissions or skipDangerousModePermissionPrompt) with no deny rule for recursive deletes and no PreToolUse hook on shell commands in the same file. CWE-862 (STORY-0087) |
 | CFHYG-006   | MEDIUM   | ASI06 | MCP01, MCP08 | `ANTHROPIC_BASE_URL` overrides the Anthropic API endpoint. All API traffic (including the API key) is routed to the configured domain. CVE-2026-21852. CWE-441. CVSS: 7.5 |
 | CFHYG-007   | HIGH     | ASI06 | MCP01, MCP08 | The top-level `env` block of a project `.claude/settings.json` / `settings.local.json` (never `~/.claude/`) points an API endpoint or proxy variable at a host that is not the provider's own: `ANTHROPIC_BASE_URL` (exact host `api.anthropic.com`), the other documented `ANTHROPIC_*_BASE_URL` provider endpoints, `OPENAI_BASE_URL`, `GOOGLE_GEMINI_BASE_URL`, `GOOGLE_VERTEX_BASE_URL`, `HTTP_PROXY`, `HTTPS_PROXY`. HIGH, not CFHYG-006's MEDIUM, because the file reaches everyone who clones the repository and Claude Code applies it after workspace trust and at startup in `claude -p`. Loopback hosts are exempt. The URL is read as Node reads it (backslash as `/`) and literally, and reported if either reading leaves first-party hosts, if it has user info before `@`, or if no host parses. One finding per variable; CVE-2026-21852 (Check Point) on the `ANTHROPIC_BASE_URL` one. CWE-441 (STORY-0090) |
@@ -230,6 +230,23 @@ the two exploitation pre-conditions that malware relied on.
 (`pywin32` / `icacls`) is planned but not yet implemented.
 
 ---
+
+### Permission rules (`analyzers/permissions.py`, PERM-001..007, STORY-0092)
+
+Claude Code permission rules that the vendor documents as ignored, misanchored or
+not a security boundary. Emitted by config hygiene (`analyzer="config_hygiene"`);
+PERM-007 runs as pipeline step 5b. Each rule's basis is quoted in
+[permission-rules.md](permission-rules.md).
+
+| Finding ID  | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|-------------|----------|----------------------|------------------|-----------|
+| PERM-001    | HIGH / MEDIUM / INFO | ASI03, ASI09 | MCP07, MCP02 | A rule Claude Code skips at load or never matches (content-field parameter rule, `mcp__` rule with parentheses, `Write`/`Glob`/`NotebookEdit`/`MultiEdit` path rule, mid-pattern `:*`, unanchored allow glob). HIGH in `deny`: the author believes a block holds that doesn't exist. MEDIUM in `ask`. INFO in `allow`: it approves nothing, so it fails safe. CWE-693 |
+| PERM-002    | MEDIUM / INFO | ASI06, ASI03 | MCP07, MCP10 | `Read(/…)`/`Edit(/…)` with one slash names a root path but anchors at the settings source, and the anchored directory doesn't exist. MEDIUM in `deny`/`ask` (the path the author meant is unguarded), INFO in `allow`. CWE-706 |
+| PERM-003    | LOW      | ASI03, ASI07 | MCP02, MCP05 | Allow rule `Bash(ls*)` with no space before `*` also approves every program whose name starts the same way (`lsof`). Hygiene; legitimate intent is usually narrower. CWE-187 |
+| PERM-004    | MEDIUM / INFO | ASI04, ASI07 | MCP05, MCP07 | Bash `deny`/`ask` on a network or delete command with no `sandbox.enabled: true` in the file; the documented other forms (`/usr/bin/curl`, `sh -c '…'`, `git -C . push`) get past it. MEDIUM when the same file runs those forms unprompted (an allow approving any shell form, or a user-settings `defaultMode` of bypass/auto; project and local files can't set those modes), so no human sees the bypass; INFO when they still prompt. CWE-184 |
+| PERM-005    | HIGH / LOW | ASI04, ASI06 | MCP02, MCP10 | `WebFetch(domain:*)` allow: unprompted fetches anywhere and, with the sandbox on, sandboxed commands can reach any host (the sandbox's network boundary is gone). HIGH when this file enables the sandbox, LOW otherwise (a bare `WebFetch` allow has the same fetch effect without touching the sandbox). CWE-862 |
+| PERM-006    | MEDIUM   | ASI03, ASI04 | MCP07, MCP05 | Bare `Bash`/`Bash(*)` ask rule with the sandbox on and `autoAllowBashIfSandboxed` at its default: skipped for every sandboxed command, so commands the author meant to review run unreviewed inside the sandbox. CWE-693 |
+| PERM-007    | HIGH     | ASI03, ASI10 | MCP02, MCP07 | Whole-server `mcp__<server>[__*]` allow on a Claude Code server with a HIGH/CRITICAL poisoning, rug-pull or supply-chain finding (SC-004 only for a known-affected configured version): that server's tools run without a prompt. Matched by whole normalized name (Claude Code 2.1.299); paired across the default and project scans under `--project`. CWE-862 |
 
 ### Auth analyzer (`analyzers/auth.py`)
 

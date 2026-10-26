@@ -1171,7 +1171,7 @@
         "Privilege Escalation via Scope Creep",
         "Command Injection and Execution"
       ],
-      "notes": "Fires when permissions.allow in a Claude Code settings file approves every argument to a command whose arguments alone can write files, run code or reach the network (interpreters, network tools, cloud/GitHub CLIs, package runners, rm, find, xargs, env, sudo, bare git), or git push / npm publish / gh api even when narrowed. Severity MEDIUM. CWE-862. Analyzer: config_hygiene (STORY-0087)."
+      "notes": "Fires when permissions.allow in a Claude Code settings file approves every argument to a command whose arguments alone can write files, run code or reach the network (interpreters, network tools, cloud/GitHub CLIs, package runners, rm, find, xargs, env, sudo, bare git), or git push / npm publish / gh api even when narrowed; environment runners left open (devbox run, mise exec, direnv exec, docker/podman exec|run, kubectl exec, nix run, npm exec, pnpm dlx|exec, yarn dlx|exec, bun x, pipx run, uv run, poetry run, pdm run) and PowerShell Invoke-Expression/iex, Invoke-Command, Start-Process, Invoke-WebRequest, Invoke-RestMethod were added in STORY-0092 with the same meaning. Severity MEDIUM. CWE-862. Analyzer: config_hygiene (STORY-0087)."
     },
     {
       "finding_id": "HARNESS-006",
@@ -1458,6 +1458,97 @@
         "Software Supply Chain Attacks"
       ],
       "notes": "mcp-audit lock --verify --connect. A tool in the lock record is no longer listed. LOW; does not fail the exit code on its own, like LOCK-003."
+    },
+    {
+      "finding_id": "PERM-001",
+      "finding_title": "Permission rules that Claude Code ignores or never matches",
+      "owasp_codes": [
+        "MCP07",
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Insufficient Authentication and Authorization",
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "Fires when a Claude Code settings file has a permission rule Claude Code skips at load or never matches: a rule on a tool's primary content field (Bash(command:...), Read(file_path:...), WebFetch(url:...)), an mcp__ rule with parentheses, a Write/NotebookEdit/Glob/MultiEdit path rule, ':*' mid-pattern (Bash(git:* push)), or an unanchored allow glob ('*', 'mcp__*'). HIGH in deny, MEDIUM in ask, INFO in allow. CWE-693. Source: code.claude.com/docs/en/permissions. Analyzer: config_hygiene via analyzers/permissions.py (STORY-0092)."
+    },
+    {
+      "finding_id": "PERM-002",
+      "finding_title": "Path rules with one leading slash point inside the project, not at /",
+      "owasp_codes": [
+        "MCP07",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Insufficient Authentication and Authorization",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "Fires when a Read(/...) or Edit(/...) rule names a filesystem-root path with one leading slash, which anchors at the settings source (project root, or ~/.claude for user settings), and that anchored directory does not exist. MEDIUM in deny/ask, INFO in allow. CWE-706. Source: code.claude.com/docs/en/permissions (Where a pattern anchors). Analyzer: config_hygiene (STORY-0092)."
+    },
+    {
+      "finding_id": "PERM-003",
+      "finding_title": "Allow rules whose trailing * also matches other programs",
+      "owasp_codes": [
+        "MCP02",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Command Injection and Execution"
+      ],
+      "notes": "Fires when an allow rule's trailing * has no space before it and extends the program name (Bash(ls*) matches lsof), unless HARNESS-005 already reports the rule. LOW. CWE-187. Source: code.claude.com/docs/en/permissions (Wildcard patterns). Analyzer: config_hygiene (STORY-0092)."
+    },
+    {
+      "finding_id": "PERM-004",
+      "finding_title": "Deny or ask rules on network or delete commands are not a boundary without the sandbox",
+      "owasp_codes": [
+        "MCP05",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Insufficient Authentication and Authorization"
+      ],
+      "notes": "Fires when a Bash deny or ask rule names a network or delete command (curl, wget, ssh, rsync, rm, dd, git push, ...) and the same file does not set sandbox.enabled true; names the documented forms it misses (/usr/bin/curl, sh -c '...', git -C . push). MEDIUM when the file's allow rules (Bash, Bash(sh -c *), Bash(env *), Bash(* --version), Bash(/usr/bin/*)) or, in user settings only, its defaultMode (bypassPermissions, auto) run those forms without a prompt, INFO otherwise. CWE-184. Source: code.claude.com/docs/en/permissions (What a Bash rule doesn't match). Analyzer: config_hygiene (STORY-0092)."
+    },
+    {
+      "finding_id": "PERM-005",
+      "finding_title": "WebFetch(domain:*) allow opens the sandbox to every host",
+      "owasp_codes": [
+        "MCP02",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "Fires when permissions.allow contains WebFetch(domain:*), which lets Claude fetch any URL without a prompt and lets sandboxed commands reach any host. HIGH when the same file sets sandbox.enabled true, LOW otherwise. A bare WebFetch allow is not reported. CWE-862. Source: code.claude.com/docs/en/permissions (Allow or deny every fetch), code.claude.com/docs/en/sandboxing. Analyzer: config_hygiene (STORY-0092)."
+    },
+    {
+      "finding_id": "PERM-006",
+      "finding_title": "A bare Bash ask rule is skipped for sandboxed commands",
+      "owasp_codes": [
+        "MCP07",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Insufficient Authentication and Authorization",
+        "Command Injection and Execution"
+      ],
+      "notes": "Fires when permissions.ask contains bare Bash or Bash(*) in a file that sets sandbox.enabled true and leaves sandbox.autoAllowBashIfSandboxed at its default (true), outside plan mode: Claude Code skips that ask rule for sandboxed commands. MEDIUM. CWE-693. Source: code.claude.com/docs/en/sandboxing (Auto-allow mode), settings-reference. Ask rules under auto or bypassPermissions mode are not reported (they still prompt). Analyzer: config_hygiene (STORY-0092)."
+    },
+    {
+      "finding_id": "PERM-007",
+      "finding_title": "Allow rule pre-approves every tool of a server with high-severity findings",
+      "owasp_codes": [
+        "MCP02",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Insufficient Authentication and Authorization"
+      ],
+      "notes": "Fires when a whole-server allow rule (mcp__<server> or mcp__<server>__*) matches, by the server's whole normalized name as in Claude Code 2.1.299, a Claude Code MCP server with a HIGH or CRITICAL poisoning, rug-pull or supply-chain finding in the same scan (SC-004 only when the configured version is known to be affected; toxic-flow findings do not count). Under scan --project the default and project scans are paired too. HIGH. CWE-862. Source: Claude Code CHANGELOG 2.1.299, code.claude.com/docs/en/permissions (MCP), code.claude.com/docs/en/mcp. Post-pass in scanner._run_static_pipeline step 5b and cli/scan._apply_project_scan (STORY-0092)."
     }
   ],
   "dynamic_patterns": [
