@@ -423,6 +423,15 @@ def test_oversized_import_is_truncated_and_noted(
     assert any("only the first part" in n for n in notes)
 
 
+def test_windows_trailing_dots_and_spaces_are_dropped() -> None:
+    # Win32 opens "style.md." as "style.md"; name the target the same way.
+    got = im._win32_name(Path("docs") / "style.md.", windows=True)
+    assert got == Path("docs") / "style.md"
+    assert im._win32_name(Path("a ") / "b. .", windows=True) == Path("a") / "b"
+    assert im._win32_name(Path("..") / "x.md", windows=True) == Path("..") / "x.md"
+    assert im._win32_name(Path("style.md."), windows=False) == Path("style.md.")
+
+
 def test_crlf_is_normalised_like_text_mode(tmp_path: Path) -> None:
     target = tmp_path / "crlf.md"
     target.write_bytes(b"one\r\ntwo\rthree\n")

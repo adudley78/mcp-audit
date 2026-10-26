@@ -478,6 +478,22 @@ def extract_references(
 # ── Resolution ────────────────────────────────────────────────────────────────
 
 
+def _win32_name(path: Path, windows: bool = os.name == "nt") -> Path:
+    """Drop trailing dots and spaces from each component on Windows.
+
+    Win32 strips them when it opens a file, so ``@docs/style.md.`` opens
+    ``docs\\style.md`` there; naming the target the same way keeps
+    deduplication and reporting consistent across platforms.
+    """
+    if not windows:
+        return path
+    parts = []
+    for part in path.parts:
+        trimmed = part.rstrip(". ")
+        parts.append(part if part in (".", "..") or not trimmed else trimmed)
+    return Path(*parts) if parts else path
+
+
 def _resolve_import_path(raw: str, importing: Path, home: Path) -> Path:
     if raw.startswith("~/"):
         target = home / raw[2:]
@@ -485,7 +501,7 @@ def _resolve_import_path(raw: str, importing: Path, home: Path) -> Path:
         target = Path(raw)
     else:
         target = importing.parent / raw
-    return Path(os.path.normpath(str(target)))
+    return _win32_name(Path(os.path.normpath(str(target))))
 
 
 def _first_symlink(root: Path, target: Path) -> Path | None | bool:
@@ -565,7 +581,7 @@ def _resolve_reference(
 ) -> list[_Resolved]:
     """Resolve a reference against the file's directory, then the root."""
     for base in (importing.parent, root):
-        target = Path(os.path.normpath(str(base / cand.raw)))
+        target = _win32_name(Path(os.path.normpath(str(base / cand.raw))))
         if not _within(target, root):
             continue
         if cand.is_dir:
