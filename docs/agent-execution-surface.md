@@ -66,6 +66,18 @@ trust the project ([advanced config](https://learn.chatgpt.com/docs/config-file/
 The Keyv and Miasma worms (2026) both planted a folder-open `.vscode/tasks.json`
 next to a `.claude/settings.json` SessionStart hook.
 
+## GitHub Actions
+
+These run on GitHub's runners rather than on your machine, but with the
+repository's secrets, and the text the agent reads can come from anyone.
+Under `--project` only the project root and nested repository roots (a `.git`
+entry) are read, because GitHub runs only a repository's root workflows.
+
+| File | What runs or applies | Finding | Scan path | Source |
+|---|---|---|---|---|
+| `.github/workflows/*.yml`, `*.yaml` | A step using `anthropics/claude-code-action`, `anthropics/claude-code-security-review` or `google-github-actions/run-gemini-cli` on an issue, comment, review, discussion or `pull_request_target` event, with a secret, a writable token and tools open to any command. | WORKFLOW-001 HIGH; WORKFLOW-002 MEDIUM when a deny list is the only limit | both | ["Comment and Control"](https://oddguan.com/blog/comment-and-control-prompt-injection-credential-theft-claude-code-gemini-cli-github-copilot/); see `docs/ci-workflows.md` |
+| same | A run-gemini-cli step below action 0.1.22 / Gemini CLI 0.39.1, or trusting a workspace that holds pull-request code. | WORKFLOW-003 HIGH | both | [GHSA-wpqr-6v78-jr5g](https://github.com/google-github-actions/run-gemini-cli/security/advisories/GHSA-wpqr-6v78-jr5g) |
+
 ## Not read
 
 Known gaps are listed in `GAPS.md` ("Other harnesses' auto-run files" and

@@ -1046,6 +1046,502 @@ class TestWiring:
         assert _ids(tmp_path) == []
 
 
+# ── Review fixes (PR #183) ───────────────────────────────────────────────────
+
+
+def _symlink_or_skip(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=target.is_dir())
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks not available")
+
+
+class TestSymlinkedWorkflowDirectories:
+    """A link must not make another directory's workflows look like the repo's."""
+
+    @staticmethod
+    def _outside(tmp_path: Path) -> Path:
+        outside = tmp_path / "outside"
+        _write(outside, "evil.yml", _claude(with_extra=_OPEN_BASH))
+        return outside
+
+    @pytest.mark.parametrize("walk", [False, True])
+    def test_symlinked_dot_github_outside_root_is_not_read(
+        self, tmp_path: Path, walk: bool
+    ) -> None:
+        outside = self._outside(tmp_path)
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _symlink_or_skip(repo / ".github", outside / ".github")
+        assert discover_workflow_files(repo, walk=walk) == []
+        assert _ids(repo, walk=walk) == []
+
+    def test_symlinked_workflows_dir_is_not_read(self, tmp_path: Path) -> None:
+        outside = self._outside(tmp_path)
+        repo = tmp_path / "repo"
+        (repo / ".github").mkdir(parents=True)
+        _symlink_or_skip(
+            repo / ".github" / "workflows", outside / ".github" / "workflows"
+        )
+        assert _ids(repo) == []
+
+    def test_symlinked_dot_github_inside_root_is_not_read_either(
+        self, tmp_path: Path
+    ) -> None:
+        repo = tmp_path / "repo"
+        _write(repo / "ci", "agent.yml", _claude(with_extra=_OPEN_BASH))
+        _symlink_or_skip(repo / ".github", repo / "ci" / ".github")
+        assert _ids(repo) == []
+
+    def test_nested_repo_with_symlinked_dot_github_is_not_read(
+        self, tmp_path: Path
+    ) -> None:
+        outside = self._outside(tmp_path)
+        project = tmp_path / "project"
+        nested = project / "service"
+        (nested / ".git").mkdir(parents=True)
+        _symlink_or_skip(nested / ".github", outside / ".github")
+        assert _ids(project, walk=True) == []
+
+    def test_real_directory_next_to_a_symlinked_one_is_still_read(
+        self, tmp_path: Path
+    ) -> None:
+        outside = self._outside(tmp_path)
+        project = tmp_path / "project"
+        linked = project / "linked"
+        (linked / ".git").mkdir(parents=True)
+        _symlink_or_skip(linked / ".github", outside / ".github")
+        real = project / "real"
+        (real / ".git").mkdir(parents=True)
+        _write(real, "agent.yml", _claude(with_extra=_OPEN_BASH))
+        findings = scan_workflows(project, walk=True)
+        assert [Path(f.finding_path).parent.parent.parent.name for f in findings] == [
+            "real"
+        ]
+
+
+class TestUnreadablePaths:
+    """PermissionError from a filesystem probe skips that path, never the scan."""
+
+    @staticmethod
+    def _deny(monkeypatch: pytest.MonkeyPatch, method: str, part: str) -> None:
+        real = getattr(Path, method)
+
+        def guarded(self: Path, *args: object, **kwargs: object) -> object:
+            if part in self.parts:
+                raise PermissionError(13, "Permission denied", str(self))
+            return real(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, method, guarded)
+
+    @pytest.mark.parametrize(
+        ("method", "part"),
+        [
+            ("is_dir", "workflows"),
+            ("resolve", "workflows"),
+            ("iterdir", "workflows"),
+            ("stat", "agent.yml"),
+            ("exists", ".git"),
+            ("is_symlink", "service"),
+            ("iterdir", "service"),
+        ],
+    )
+    def test_denied_probe_does_not_raise(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, method: str, part: str
+    ) -> None:
+        nested = tmp_path / "service"
+        (nested / ".git").mkdir(parents=True)
+        _write(nested, "agent.yml", _claude(with_extra=_OPEN_BASH))
+        _write(tmp_path, "agent.yml", _claude(with_extra=_OPEN_BASH))
+        self._deny(monkeypatch, method, part)
+        scan_workflows(tmp_path)
+        scan_workflows(tmp_path, walk=True)
+
+    def test_denied_root_does_not_raise(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._deny(monkeypatch, "resolve", tmp_path.name)
+        assert discover_workflow_files(tmp_path) == []
+
+    def test_default_scan_survives_an_unreadable_dot_github(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.scanner import run_scan
+
+        _vulnerable_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("mcp_audit.discovery._get_client_specs", lambda: [])
+        self._deny(monkeypatch, "is_dir", ".github")
+        result = run_scan(skip_rug_pull=True, include_plugins=False)
+        assert not [f for f in result.findings if f.id.startswith("WORKFLOW-")]
+
+    def test_unexpected_failure_lands_in_result_errors(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.scanner import run_scan
+
+        def boom(*_args: object, **_kwargs: object) -> list:
+            raise RuntimeError("disk on fire")
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("mcp_audit.discovery._get_client_specs", lambda: [])
+        monkeypatch.setattr("mcp_audit.ci_workflows.scan_workflows", boom)
+        result = run_scan(skip_rug_pull=True, include_plugins=False)
+        assert result.errors == ["ci_workflows: workflow scan failed: disk on fire"]
+
+    def test_scan_cli_exits_zero_when_dot_github_is_unreadable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _vulnerable_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("mcp_audit.discovery._get_client_specs", lambda: [])
+        monkeypatch.setattr(
+            "mcp_audit.scanner.derive_state_path",
+            lambda _configs: tmp_path / "rug-pull-state.json",
+        )
+        self._deny(monkeypatch, "is_dir", ".github")
+        r = runner.invoke(app, ["scan", "--no-plugins", "--format", "json"])
+        assert r.exit_code == 0, r.output
+
+
+class TestLinearTime:
+    """Untrusted text must not make expression extraction quadratic."""
+
+    def test_unclosed_expressions_are_linear(self) -> None:
+        import time
+
+        from mcp_audit.ci_workflows.analyzer import _parse_settings_json
+
+        text = "${{" * 100_000
+        start = time.perf_counter()
+        assert _secret_refs([text]) == set()
+        assert _parse_settings_json(text) is None
+        assert time.perf_counter() - start < 2.0
+
+    def test_expression_extraction_matches_the_lazy_regex(self) -> None:
+        import re
+
+        from mcp_audit.ci_workflows.analyzer import (
+            _expressions,
+            _replace_expressions,
+        )
+
+        lazy = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
+        samples = [
+            "a ${{ secrets.A }} b ${{ github.token }}",
+            "${{ x }}}} ${{ y",
+            "${{\nmulti\nline }} tail",
+            "no expressions",
+            "${{ a ${{ b }} c }}",
+        ]
+        for text in samples:
+            assert list(_expressions(text)) == lazy.findall(text)
+            assert _replace_expressions(text, "0") == lazy.sub("0", text)
+
+    def test_near_cap_hostile_workflow_still_fires_quickly(
+        self, tmp_path: Path
+    ) -> None:
+        import time
+
+        val = "${{" * 27_000
+        body = (
+            "on: issues\npermissions: write-all\njobs:\n  j:\n    runs-on: x\n"
+            "    steps:\n      - uses: anthropics/claude-code-action@v1\n"
+            "        with:\n          anthropic_api_key: ${{ secrets.K }}\n"
+            f"          prompt: '{val}'\n          settings: '{val}'\n"
+            f"          claude_args: '--dangerously-skip-permissions {val}'\n"
+        )
+        assert len(body) < wf_discovery.MAX_WORKFLOW_BYTES
+        _write(tmp_path, "big.yml", body)
+        start = time.perf_counter()
+        assert _ids(tmp_path) == ["WORKFLOW-001"]
+        assert time.perf_counter() - start < 5.0
+
+
+class TestBudget:
+    def test_defaults(self) -> None:
+        assert wf_discovery.MAX_WORKFLOW_BYTES == 256 * 1024
+        assert wf_discovery.MAX_TOTAL_BYTES == 4 * 1024 * 1024
+
+    def test_oversized_file_is_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = _write(tmp_path, "big.yml", _claude(with_extra=_OPEN_BASH))
+        monkeypatch.setattr(wf_discovery, "MAX_WORKFLOW_BYTES", 64)
+        errors: list[str] = []
+        assert scan_workflows(tmp_path, errors=errors) == []
+        assert len(errors) == 1
+        assert str(path.resolve()) in errors[0]
+        assert "workflow file limit" in errors[0]
+
+    def test_total_budget_stops_reading_and_says_so(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for name in ("a.yml", "b.yml", "c.yml"):
+            _write(tmp_path, name, _claude(with_extra=_OPEN_BASH))
+        one = (tmp_path / ".github/workflows/a.yml").stat().st_size
+        monkeypatch.setattr(wf_discovery, "MAX_TOTAL_BYTES", one * 2)
+        errors: list[str] = []
+        findings = scan_workflows(tmp_path, errors=errors)
+        assert [Path(f.finding_path).name for f in findings] == ["a.yml", "b.yml"]
+        assert len(errors) == 1
+        assert "budget for one scan is used up" in errors[0]
+        assert "c.yml" in errors[0]
+
+    def test_default_scan_puts_skips_in_result_errors(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.scanner import run_scan
+
+        _vulnerable_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("mcp_audit.discovery._get_client_specs", lambda: [])
+        monkeypatch.setattr(wf_discovery, "MAX_WORKFLOW_BYTES", 64)
+        result = run_scan(skip_rug_pull=True, include_plugins=False)
+        assert any("workflow file limit" in e for e in result.errors)
+
+    def test_project_scan_reports_a_skip_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _vulnerable_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("mcp_audit.discovery._get_client_specs", lambda: [])
+        monkeypatch.setattr(
+            "mcp_audit.scanner.derive_state_path",
+            lambda _configs: tmp_path / "rug-pull-state.json",
+        )
+        monkeypatch.setattr(wf_discovery, "MAX_WORKFLOW_BYTES", 64)
+        r = runner.invoke(
+            app,
+            ["scan", "--project", str(tmp_path), "--format", "json", "--no-plugins"],
+        )
+        data = json.loads(r.output[r.output.index("{") :])
+        assert sum("workflow file limit" in e for e in data["errors"]) == 1
+
+
+class TestPerCallerPaths:
+    _AGENT = _CALLEE
+
+    def test_mixed_callers_without_one_full_path_stay_silent(
+        self, tmp_path: Path
+    ) -> None:
+        """A comment trigger with a read-only token and a nightly writable one."""
+        _write(tmp_path, "agent.yml", self._AGENT)
+        _write(
+            tmp_path,
+            "comment.yml",
+            """
+            on: issue_comment
+            jobs:
+              call:
+                permissions: {contents: read, issues: read}
+                uses: ./.github/workflows/agent.yml
+                secrets: inherit
+            """,
+        )
+        _write(
+            tmp_path,
+            "nightly.yml",
+            """
+            on:
+              schedule: [{cron: "0 0 * * *"}]
+            jobs:
+              call:
+                permissions: {contents: write}
+                uses: ./.github/workflows/agent.yml
+                secrets: inherit
+            """,
+        )
+        assert _ids(tmp_path) == []
+
+    def test_the_caller_with_both_is_the_one_named(self, tmp_path: Path) -> None:
+        _write(tmp_path, "agent.yml", self._AGENT)
+        _write(
+            tmp_path,
+            "nightly.yml",
+            """
+            on: schedule
+            jobs:
+              call:
+                permissions: {contents: write}
+                uses: ./.github/workflows/agent.yml
+            """,
+        )
+        _write(
+            tmp_path,
+            "triage.yml",
+            """
+            on: issues
+            jobs:
+              call:
+                permissions: {issues: write}
+                uses: ./.github/workflows/agent.yml
+            """,
+        )
+        (finding,) = scan_workflows(tmp_path)
+        assert "from .github/workflows/triage.yml)" in finding.description
+        assert "nightly" not in finding.description
+        assert "issues: write" in finding.description
+
+    def test_chain_names_every_hop(self, tmp_path: Path) -> None:
+        _write(tmp_path, "agent.yml", self._AGENT)
+        _write(
+            tmp_path,
+            "middle.yml",
+            """
+            on: workflow_call
+            jobs:
+              call:
+                uses: ./.github/workflows/agent.yml
+            """,
+        )
+        _write(
+            tmp_path,
+            "outer.yml",
+            """
+            on: issues
+            jobs:
+              call:
+                uses: ./.github/workflows/middle.yml
+            """,
+        )
+        (finding,) = scan_workflows(tmp_path)
+        assert (
+            "from .github/workflows/outer.yml → .github/workflows/middle.yml)"
+            in finding.description
+        )
+
+    def test_ceiling_applies_through_the_chain(self, tmp_path: Path) -> None:
+        _write(tmp_path, "agent.yml", self._AGENT)
+        _write(
+            tmp_path,
+            "middle.yml",
+            """
+            on: workflow_call
+            jobs:
+              call:
+                permissions: {contents: write}
+                uses: ./.github/workflows/agent.yml
+            """,
+        )
+        _write(
+            tmp_path,
+            "outer.yml",
+            """
+            on: issues
+            jobs:
+              call:
+                permissions: {contents: read}
+                uses: ./.github/workflows/middle.yml
+            """,
+        )
+        assert _ids(tmp_path) == []
+
+    def test_call_cycle_terminates(self, tmp_path: Path) -> None:
+        for me, other in (("a", "b"), ("b", "a")):
+            _write(
+                tmp_path,
+                f"{me}.yml",
+                f"""
+                on: [workflow_call, issues]
+                jobs:
+                  call:
+                    uses: ./.github/workflows/{other}.yml
+                """,
+            )
+        assert _ids(tmp_path) == []
+
+
+class TestReviewNotes:
+    def test_default_claude_action_names_who_can_start_it(self, tmp_path: Path) -> None:
+        _write(tmp_path, "w.yml", _claude(with_extra=_OPEN_BASH))
+        (finding,) = scan_workflows(tmp_path)
+        assert "starts only for users with write access" in finding.description
+
+    def test_other_actions_carry_no_write_access_note(self, tmp_path: Path) -> None:
+        _write(tmp_path, "g.yml", _gemini())
+        (finding,) = scan_workflows(tmp_path)
+        assert "write access" not in finding.description
+
+    def test_same_size_same_mtime_edit_is_re_read(self, tmp_path: Path) -> None:
+        """The parse cache is keyed on content, so no stat trick serves a stale doc."""
+        path = _write(tmp_path, "w.yml", _claude(with_extra=_OPEN_BASH))
+        assert _ids(tmp_path) == ["WORKFLOW-001"]
+        st = path.stat()
+        text = path.read_text(encoding="utf-8")
+        edited = text.replace(": write", ": reads")  # both scopes, same length
+        assert len(edited) == len(text)
+        with path.open("r+", encoding="utf-8") as fh:
+            fh.write(edited)
+        os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns))
+        assert path.stat().st_size == st.st_size
+        assert _ids(tmp_path) == []
+
+
+class TestSnapshotAffects:
+    """Non-MCP findings must not attach to a same-named MCP server."""
+
+    @staticmethod
+    def _result(findings: list) -> object:
+        from mcp_audit.models import ScanResult, ServerConfig, TransportType
+
+        server = ServerConfig(
+            name="claude",
+            client="claude-desktop",
+            config_path=Path("config.json"),
+            transport=TransportType.STDIO,
+            command="npx",
+            args=["claude-mcp"],
+        )
+        return ScanResult(servers=[server], findings=findings)
+
+    @staticmethod
+    def _finding(fid: str, analyzer: str, client: str, server: str) -> object:
+        from mcp_audit.models import Finding
+
+        return Finding(
+            id=fid,
+            severity=Severity.HIGH,
+            analyzer=analyzer,
+            client=client,
+            server=server,
+            title="t",
+            description="d",
+            evidence="e",
+            remediation="r",
+        )
+
+    def test_workflow_finding_gets_its_own_ref(self) -> None:
+        from mcp_audit.output.snapshot import format_cyclonedx_aibom
+
+        wf = self._finding("WORKFLOW-001", "ci_workflow", "github-actions", "claude")
+        lock = self._finding("LOCK-001", "lock", "", "claude")
+        own = self._finding("CRED-001", "credentials", "claude-desktop", "claude")
+        doc = format_cyclonedx_aibom(self._result([wf, lock, own]), host_id="h")
+        refs = {v["id"]: v["affects"][0]["ref"] for v in doc["vulnerabilities"]}
+        assert refs == {
+            "WORKFLOW-001": "github-actions:claude",
+            "LOCK-001": "mcp-server-claude",
+            "CRED-001": "mcp-server-claude",
+        }
+        (component,) = [
+            c for c in doc["components"] if c["bom-ref"] == "mcp-server-claude"
+        ]
+        ids = next(
+            p["value"]
+            for p in component["properties"]
+            if p["name"] == "mcp-audit:finding_ids"
+        )
+        assert ids.split(",") == ["LOCK-001", "CRED-001"]
+
+    def test_unmatched_workflow_finding_keeps_the_legacy_ref(self) -> None:
+        from mcp_audit.output.snapshot import format_cyclonedx_aibom
+
+        wf = self._finding("WORKFLOW-001", "ci_workflow", "github-actions", "triage")
+        doc = format_cyclonedx_aibom(self._result([wf]), host_id="h")
+        assert doc["vulnerabilities"][0]["affects"][0]["ref"] == "mcp-server-triage"
+
+
 # ── This repository ──────────────────────────────────────────────────────────
 
 

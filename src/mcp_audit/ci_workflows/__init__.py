@@ -33,11 +33,15 @@ __all__ = [
 ]
 
 
-def scan_workflows(root: Path, *, walk: bool = False) -> list[Finding]:
+def scan_workflows(
+    root: Path, *, walk: bool = False, errors: list[str] | None = None
+) -> list[Finding]:
     """Discover and analyze the GitHub Actions workflows under *root*.
 
-    Never raises for file content: unreadable, oversized or malformed files are
-    skipped (GitHub would not run a workflow it cannot parse either).
+    Unreadable directories and malformed files are skipped (GitHub would not
+    run a workflow it cannot parse either).  Files skipped for size or for
+    the per-scan budget are reported in *errors*, so a scan says what it did
+    not check.
 
     Args:
         root: Directory to look in.  Resolved before use.
@@ -45,8 +49,12 @@ def scan_workflows(root: Path, *, walk: bool = False) -> list[Finding]:
             ``<root>/.github/workflows``.  When ``True`` (``scan --project``),
             also walk *root* for nested repository roots (see
             :func:`discover_workflow_files`).
+        errors: Optional list (normally ``ScanResult.errors``) that receives
+            one message per skipped file.
 
     Returns:
         WORKFLOW-001..003 findings in file, job and step order.
     """
-    return analyze_workflow_files(discover_workflow_files(root, walk=walk))
+    return analyze_workflow_files(
+        discover_workflow_files(root, walk=walk, skipped=errors)
+    )

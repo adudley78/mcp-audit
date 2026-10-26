@@ -1016,7 +1016,16 @@ def _apply_project_scan(
         for f in result.findings
         if f.id.startswith("WORKFLOW-")
     }
-    for finding in scan_workflows(project_dir, walk=True):
+    workflow_errors: list[str] = []
+    try:
+        workflow_findings = scan_workflows(
+            project_dir, walk=True, errors=workflow_errors
+        )
+    except Exception as exc:  # noqa: BLE001 — never fail the scan over CI files
+        workflow_errors.append(f"ci_workflows: workflow scan failed: {exc}")
+        workflow_findings = []
+    result.errors.extend(e for e in workflow_errors if e not in result.errors)
+    for finding in workflow_findings:
         key = (finding.id, finding.finding_path, finding.server, finding.tool)
         if key not in seen_workflow:
             seen_workflow.add(key)

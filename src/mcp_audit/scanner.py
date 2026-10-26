@@ -466,7 +466,10 @@ def _discover_and_parse(
         # comment trigger fails CI.  Read-only YAML; an explicit path skips it.
         from mcp_audit.ci_workflows import scan_workflows  # noqa: PLC0415
 
-        result.findings.extend(scan_workflows(Path.cwd()))
+        try:
+            result.findings.extend(scan_workflows(Path.cwd(), errors=result.errors))
+        except Exception as exc:  # noqa: BLE001 — never fail the scan over CI files
+            result.errors.append(f"ci_workflows: workflow scan failed: {exc}")
 
     all_servers: list[ServerConfig] = []
     for config in configs:

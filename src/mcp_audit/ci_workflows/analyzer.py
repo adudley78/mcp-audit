@@ -34,14 +34,14 @@ Parsing uses ``yaml.safe_load`` only.  Nothing is executed.
 
 from __future__ import annotations
 
-import functools
+import hashlib
 import json
 import logging
 import re
 import shlex
+from collections import OrderedDict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import yaml
 
@@ -119,7 +119,6 @@ _GEMINI_CLI_PREVIEW_FIXED: int = 3
 # release note name GEMINI_TRUST_WORKSPACE.  Both are read.
 _TRUST_VARS: tuple[str, ...] = ("GEMINI_CLI_TRUST_WORKSPACE", "GEMINI_TRUST_WORKSPACE")
 
-_EXPR_RE = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
 _SECRET_ACCESS_RE = re.compile(
     r"\bsecrets\s*(?:\.\s*([A-Za-z_][A-Za-z0-9_-]*)|\[\s*['\"]([^'\"]+)['\"]\s*\])"
 )
@@ -199,11 +198,49 @@ def _semver(text: str) -> tuple[int, int, int, int | None] | None:
     return int(m.group(1)), int(m.group(2)), int(m.group(3)), pre
 
 
+def _expression_spans(text: str) -> Iterable[tuple[int, int]]:
+    """Yield ``(start, end)`` of each ``${{ ... }}`` in *text*, in one pass.
+
+    Equivalent to the non-greedy ``\\$\\{\\{(.*?)\\}\\}`` but linear: a regex
+    with a lazy dot over a string of unclosed ``${{`` backtracks
+    quadratically (``"${{" * 40000`` took 20 s).  Stops at the first
+    ``${{`` with no closing ``}}``.
+    """
+    pos = 0
+    while True:
+        start = text.find("${{", pos)
+        if start < 0:
+            return
+        end = text.find("}}", start + 3)
+        if end < 0:
+            return
+        yield start, end + 2
+        pos = end + 2
+
+
+def _expressions(text: str) -> Iterable[str]:
+    """The bodies of the ``${{ ... }}`` expressions in *text*."""
+    for start, end in _expression_spans(text):
+        yield text[start + 3 : end - 2]
+
+
+def _replace_expressions(text: str, replacement: str) -> str:
+    """*text* with every ``${{ ... }}`` replaced by *replacement*."""
+    parts: list[str] = []
+    pos = 0
+    for start, end in _expression_spans(text):
+        parts.append(text[pos:start])
+        parts.append(replacement)
+        pos = end
+    parts.append(text[pos:])
+    return "".join(parts)
+
+
 def _secret_refs(texts: Iterable[str]) -> set[str]:
     """Names of the secrets referenced inside ``${{ }}`` expressions."""
     names: set[str] = set()
     for text in texts:
-        for expr in _EXPR_RE.findall(text):
+        for expr in _expressions(text):
             if _GITHUB_TOKEN_RE.search(expr):
                 names.add("github.token")
             accessed = False
@@ -248,7 +285,7 @@ def _parse_settings_json(value: object) -> dict | None:
     text = _as_text(value).strip()
     if not text:
         return None
-    for candidate in (text, _EXPR_RE.sub("0", text)):
+    for candidate in (text, _replace_expressions(text, "0")):
         try:
             parsed = json.loads(candidate)
         except (ValueError, RecursionError):
@@ -552,46 +589,74 @@ _POSTURE_BY_ACTION = {
 # ── Workflow model ────────────────────────────────────────────────────────────
 
 
+@dataclass(frozen=True)
+class _Invocation:
+    """One way a workflow runs: the triggers that start it, and the ceiling
+    on its token set by the calling jobs (``None`` when it starts directly).
+    ``via`` names the calling files, outermost first."""
+
+    triggers: frozenset[str]
+    ceiling: Permissions | None = None
+    via: tuple[str, ...] = ()
+
+
 @dataclass
 class _Workflow:
     file: WorkflowFile
     doc: dict
     own_triggers: frozenset[str]
-    triggers: set[str] = field(default_factory=set)
-    callers: list[tuple[str, Permissions]] = field(default_factory=list)
+    invocations: list[_Invocation] = field(default_factory=list)
 
 
-@functools.lru_cache(maxsize=512)
-def _parse_cached(path: str, stat_key: tuple[int, int, int]) -> dict | None:
-    """Read and ``safe_load`` one file; memoised on path + (mtime, size, inode).
+# Bounds on reusable-workflow resolution.  GitHub allows at most ten levels of
+# nested workflows; the invocation cap keeps a fan-out of callers linear.
+_MAX_CALL_DEPTH = 10
+_MAX_INVOCATIONS = 32
 
-    A long-running process (``watch``, a test session) scans the same
-    checkout many times; the stat key re-reads a file as soon as it changes.
-    """
+
+# Parsed documents keyed by the SHA-256 of the file's bytes.  A long-running
+# process (``watch``, a test session) scans the same checkout many times; a
+# content key can never serve a stale parse, which a stat key can when an
+# edit keeps the size and lands in the same timestamp tick.
+_PARSE_CACHE: OrderedDict[str, dict | None] = OrderedDict()
+_PARSE_CACHE_MAX = 512
+
+
+def _parse(data: bytes) -> dict | None:
+    """``safe_load`` *data*; ``None`` when it is not a UTF-8 YAML mapping."""
+    key = hashlib.sha256(data).hexdigest()
+    if key in _PARSE_CACHE:
+        _PARSE_CACHE.move_to_end(key)
+        return _PARSE_CACHE[key]
+    doc: object = None
     try:
-        text = Path(path).read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return None
-    try:
-        doc = yaml.safe_load(text)
+        doc = yaml.safe_load(data.decode("utf-8"))
     except (yaml.YAMLError, RecursionError, ValueError):
-        logger.debug("ci_workflows: could not parse %s", path)
-        return None
-    return doc if isinstance(doc, dict) else None
+        doc = None
+    result = doc if isinstance(doc, dict) else None
+    _PARSE_CACHE[key] = result
+    if len(_PARSE_CACHE) > _PARSE_CACHE_MAX:
+        _PARSE_CACHE.popitem(last=False)
+    return result
 
 
 def _load(file: WorkflowFile) -> dict | None:
     """Parsed workflow mapping, or ``None`` when unreadable or not a mapping.
 
-    The result is shared through the memo, so callers must not mutate it.
+    The size cap is checked again here, after discovery.  The result is
+    shared through the cache, so callers must not mutate it.
     """
     try:
-        st = file.path.stat()
+        with file.path.open("rb") as fh:
+            data = fh.read(_discovery.MAX_WORKFLOW_BYTES + 1)
     except OSError:
         return None
-    if st.st_size > _discovery.MAX_WORKFLOW_BYTES:
+    if len(data) > _discovery.MAX_WORKFLOW_BYTES:
         return None
-    return _parse_cached(str(file.path), (st.st_mtime_ns, st.st_size, st.st_ino))
+    doc = _parse(data)
+    if doc is None:
+        logger.debug("ci_workflows: could not parse %s", file.path)
+    return doc
 
 
 def parse_triggers(doc: dict) -> frozenset[str]:
@@ -615,19 +680,20 @@ def _jobs(doc: dict) -> dict:
     return jobs if isinstance(jobs, dict) else {}
 
 
-def _link_reusable_workflows(workflows: list[_Workflow]) -> None:
-    """Give ``workflow_call`` workflows the triggers of their local callers.
+def _resolve_invocations(workflows: list[_Workflow]) -> None:
+    """Work out every way each workflow runs.
 
-    A job ``uses: ./.github/workflows/<file>`` in the same repository makes
-    the called file run on the caller's triggers, with a token capped at the
-    calling job's permissions.  Followed to a fixpoint, so a chain of calls
-    keeps the outermost triggers.  Callers in other repositories are not
-    visible to a file scan.
+    A workflow's own triggers (other than ``workflow_call``) are one
+    invocation with no ceiling.  A job ``uses: ./.github/workflows/<file>``
+    in the same repository runs the called file once per invocation of the
+    caller, with the caller's triggers and a token capped at the calling
+    job's permissions, which are themselves capped by that invocation's
+    ceiling.  Each path is kept separately, so a step is reported only when
+    one caller path has both a stranger-writable trigger and a writable
+    token.  Callers in other repositories are not visible to a file scan.
     """
     by_rel = {(w.file.repo_root, w.file.rel_path): w for w in workflows}
-    for w in workflows:
-        w.triggers = set(w.own_triggers)
-    edges: list[tuple[_Workflow, _Workflow]] = []
+    calls_into: dict[int, list[tuple[_Workflow, dict]]] = {}
     for caller in workflows:
         for job in _jobs(caller.doc).values():
             if not isinstance(job, dict):
@@ -639,30 +705,50 @@ def _link_reusable_workflows(workflows: list[_Workflow]) -> None:
             callee = by_rel.get((caller.file.repo_root, target_rel))
             if callee is None or "workflow_call" not in callee.own_triggers:
                 continue
-            edges.append((caller, callee))
-            callee.callers.append(
-                (caller.file.rel_path, _declared_permissions(job, caller.doc))
-            )
-    for _ in range(len(workflows)):
-        changed = False
-        for caller, callee in edges:
-            before = len(callee.triggers)
-            callee.triggers |= caller.triggers
-            changed = changed or len(callee.triggers) != before
-        if not changed:
-            break
+            calls_into.setdefault(id(callee), []).append((caller, job))
+
+    memo: dict[int, list[_Invocation]] = {}
+
+    def _of(w: _Workflow, depth: int) -> list[_Invocation]:
+        if id(w) in memo:
+            return memo[id(w)]
+        memo[id(w)] = []  # breaks call cycles, which GitHub rejects anyway
+        found: list[_Invocation] = []
+        direct = w.own_triggers - {"workflow_call"}
+        if direct:
+            found.append(_Invocation(frozenset(direct)))
+        if "workflow_call" in w.own_triggers and depth < _MAX_CALL_DEPTH:
+            for caller, job in calls_into.get(id(w), []):
+                job_perms = _declared_permissions(job, caller.doc)
+                for inv in _of(caller, depth + 1):
+                    ceiling = (
+                        job_perms
+                        if inv.ceiling is None
+                        else _cap(job_perms, inv.ceiling)
+                    )
+                    found.append(
+                        _Invocation(
+                            inv.triggers, ceiling, inv.via + (caller.file.rel_path,)
+                        )
+                    )
+        unique: list[_Invocation] = []
+        seen: set[tuple[frozenset[str], Permissions | None]] = set()
+        for inv in found:
+            key = (inv.triggers, inv.ceiling)
+            if key not in seen and len(unique) < _MAX_INVOCATIONS:
+                seen.add(key)
+                unique.append(inv)
+        memo[id(w)] = unique
+        return unique
+
+    for w in workflows:
+        w.invocations = _of(w, 0)
 
 
-def _effective_permissions(w: _Workflow, job: dict) -> Permissions:
-    """Declared permissions, capped by (or inherited from) local callers."""
+def _effective_permissions(job: dict, w: _Workflow, inv: _Invocation) -> Permissions:
+    """The job's declared permissions, capped by the invocation's ceiling."""
     own = _declared_permissions(job, w.doc)
-    if not w.callers or w.own_triggers - {"workflow_call"}:
-        return own
-    capped = [_cap(own, caller_perms) for _, caller_perms in w.callers]
-    for perms in capped:
-        if perms.can_write:
-            return perms
-    return capped[0]
+    return own if inv.ceiling is None else _cap(own, inv.ceiling)
 
 
 # ── Findings ──────────────────────────────────────────────────────────────────
@@ -681,6 +767,7 @@ class _StepContext:
     triggers: tuple[str, ...]
     secrets: tuple[str, ...]
     permissions: Permissions
+    via: tuple[str, ...] = ()
 
     @property
     def step_label(self) -> str:
@@ -699,9 +786,8 @@ class _StepContext:
     @property
     def where(self) -> str:
         via = ""
-        if self.workflow.callers and "workflow_call" in self.workflow.own_triggers:
-            callers = sorted({rel for rel, _ in self.workflow.callers})
-            via = " (called through workflow_call from " + ", ".join(callers) + ")"
+        if self.via:
+            via = " (called through workflow_call from " + " → ".join(self.via) + ")"
         return f"Job '{self.job_id}' in {self.workflow.file.rel_path}{via}"
 
     def trigger_text(self) -> str:
@@ -753,11 +839,16 @@ def _evidence(ctx: _StepContext, tools: str) -> str:
 
 
 def _non_write_users_note(ctx: _StepContext) -> str:
+    """Who can start a claude-code-action step (its docs/security.md)."""
     if ctx.action != CLAUDE_CODE_ACTION:
         return ""
     value = _as_text(ctx.with_.get("allowed_non_write_users")).strip()
     if not value:
-        return ""
+        return (
+            " By default this action starts only for users with write access;"
+            " the risk is the text others wrote (an issue body, earlier"
+            " comments, a pull request) that those users point it at."
+        )
     return (
         f" allowed_non_write_users is set ({value}), so people without write"
         " access can start this agent directly."
@@ -950,41 +1041,80 @@ def _workflow_003(ctx: _StepContext) -> Finding | None:
     )
 
 
-def _step_contexts(w: _Workflow) -> Iterable[_StepContext]:
-    triggers = tuple(sorted(w.triggers & ATTACKER_TRIGGERS))
-    if not triggers:
-        return
-    wf_env = w.doc.get("env")
+@dataclass(frozen=True)
+class _AgentStep:
+    job_id: str
+    job: dict
+    step: dict
+    index: int
+    action: str
+    ref: str
+    with_: dict
+    secrets: tuple[str, ...]
+
+
+def _agent_steps(w: _Workflow) -> list[_AgentStep]:
+    """The workflow's agent steps, with the secret names that reach each.
+
+    Workflow- and job-level ``env:`` are read once, not once per step.
+    """
+    wf_secrets = _secret_refs(_scalar_texts(w.doc.get("env")))
+    found: list[_AgentStep] = []
     for job_id, job in _jobs(w.doc).items():
         if not isinstance(job, dict) or not isinstance(job.get("steps"), list):
             continue
-        perms = _effective_permissions(w, job)
+        job_secrets: set[str] | None = None
         for index, step in enumerate(job["steps"]):
             if not isinstance(step, dict):
                 continue
             parsed = _parse_uses(step.get("uses"))
             if parsed is None or parsed[0] not in AGENT_ACTIONS:
                 continue
+            if job_secrets is None:
+                job_secrets = wf_secrets | _secret_refs(_scalar_texts(job.get("env")))
             with_ = step.get("with")
             with_ = with_ if isinstance(with_, dict) else {}
-            texts = (
-                _scalar_texts(with_)
-                + _scalar_texts(step.get("env"))
-                + _scalar_texts(job.get("env"))
-                + _scalar_texts(wf_env)
+            step_secrets = _secret_refs(
+                _scalar_texts(with_) + _scalar_texts(step.get("env"))
             )
+            found.append(
+                _AgentStep(
+                    job_id=str(job_id),
+                    job=job,
+                    step=step,
+                    index=index,
+                    action=parsed[0],
+                    ref=parsed[1],
+                    with_=with_,
+                    secrets=tuple(sorted(job_secrets | step_secrets)),
+                )
+            )
+    return found
+
+
+def _step_contexts(w: _Workflow) -> Iterable[_StepContext]:
+    """One context per (stranger-triggered invocation, agent step)."""
+    steps = _agent_steps(w)
+    if not steps:
+        return
+    for inv in w.invocations:
+        triggers = tuple(sorted(inv.triggers & ATTACKER_TRIGGERS))
+        if not triggers:
+            continue
+        for st in steps:
             yield _StepContext(
                 workflow=w,
-                job_id=str(job_id),
-                job=job,
-                step=step,
-                index=index,
-                action=parsed[0],
-                ref=parsed[1],
-                with_=with_,
+                job_id=st.job_id,
+                job=st.job,
+                step=st.step,
+                index=st.index,
+                action=st.action,
+                ref=st.ref,
+                with_=st.with_,
                 triggers=triggers,
-                secrets=tuple(sorted(_secret_refs(texts))),
-                permissions=perms,
+                secrets=st.secrets,
+                permissions=_effective_permissions(st.job, w, inv),
+                via=inv.via,
             )
 
 
@@ -1026,15 +1156,25 @@ def analyze_workflow_files(files: Iterable[WorkflowFile]) -> list[Finding]:
             _Workflow(file=file, doc=doc, own_triggers=parse_triggers(doc))
         )
     try:
-        _link_reusable_workflows(workflows)
+        _resolve_invocations(workflows)
     except Exception:  # noqa: BLE001 — odd content must not stop the scan
         logger.debug("ci_workflows: could not link reusable workflows", exc_info=True)
+        for w in workflows:
+            direct = w.own_triggers - {"workflow_call"}
+            w.invocations = [_Invocation(frozenset(direct))] if direct else []
 
     findings: list[Finding] = []
     for w in workflows:
+        # Each (ID, job, step) is reported once: for the first invocation
+        # (direct triggers first, then callers) that makes it fire.
+        seen: set[tuple[str, str, int]] = set()
         try:
             for ctx in _step_contexts(w):
-                findings.extend(_analyze_step(ctx))
+                for finding in _analyze_step(ctx):
+                    key = (finding.id, ctx.job_id, ctx.index)
+                    if key not in seen:
+                        seen.add(key)
+                        findings.append(finding)
         except Exception:  # noqa: BLE001 — one odd file must not stop the scan
             logger.debug("ci_workflows: skipped %s", w.file.path, exc_info=True)
     return findings

@@ -23,7 +23,15 @@ before the first malicious comment arrives. It parses the files with
 
 Only the top level of `.github/workflows/` is read, as GitHub does. When the
 working directory is also the `--project` directory, each finding is reported
-once.
+once. A `.github` or `.github/workflows` that is a symlink is not read, and
+every file must resolve inside the scanned directory, so a link cannot pass
+another directory's workflows off as the repository's own. An unreadable
+directory is skipped without stopping the scan.
+
+Files over 256 KiB are skipped, and one scan reads at most 4 MiB of workflow
+files (about 4–5 seconds of parsing for real workflows; files built to parse
+slowly were measured at about 45 seconds for the full 4 MiB). Each file skipped this way is listed
+under the scan's errors, so a clean result never hides what was not read.
 
 ## What it checks
 
@@ -40,13 +48,19 @@ Then four facts from the file:
 
 1. **Trigger.** The workflow runs on `issues`, `issue_comment`,
    `pull_request_target`, `pull_request_review`, `pull_request_review_comment`,
-   `discussion` or `discussion_comment`: events whose text a stranger can write
-   and that run with the repository's secrets. Plain `pull_request` is not on
-   the list, because GitHub gives pull requests from forks no secrets and a
-   read-only token. A workflow that only has `workflow_call` takes the triggers
-   of the workflows in the same repository that call it with
-   `uses: ./.github/workflows/<file>`, and its token is capped at the calling
-   job's permissions.
+   `discussion` or `discussion_comment`: events whose text a stranger can write.
+   Issue, comment, discussion and `pull_request_target` runs get the
+   repository's secrets for anyone's input. The two review events get them
+   only for pull requests from a branch of the repository itself; for a pull
+   request from a fork GitHub withholds secrets and gives a read-only token,
+   but anyone can still comment on a branch pull request. Plain
+   `pull_request` is not on the list, because fork pull requests get no
+   secrets and a read-only token. A workflow that only has `workflow_call`
+   runs once for each workflow in the same repository that calls it with
+   `uses: ./.github/workflows/<file>`, with that caller's triggers and a token
+   capped at the calling job's permissions. Each caller path is checked on
+   its own: a step is reported only when one path has both a trigger from this
+   list and a writable token.
 2. **Secret.** `${{ secrets.NAME }}` or `${{ github.token }}` reaches the step
    through its `with:` or `env:`, the job's `env:`, or the workflow's `env:`.
    `GITHUB_TOKEN` counts.
@@ -125,8 +139,10 @@ Not reported: Google's triage pattern, where the agent job has an empty
 See `GAPS.md`, "CI workflow agents". In short: other agent actions and GitHub
 Agentic Workflows (`.github/workflows/*.md`) are not read; an `if:` that limits
 who can start a job is not taken into account; callers in other repositories
-and `workflow_run` chains are not followed; a secret that reaches the agent
-through a file or an earlier step's output is not seen.
+and `workflow_run` chains are not followed; an agent on `schedule` or
+`workflow_run` that reads issues or a fork's CI output is not reported; a
+secret that reaches the agent through a file or an earlier step's output is
+not seen.
 
 ## Sources
 

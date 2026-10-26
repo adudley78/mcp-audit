@@ -22,9 +22,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   on such an event uses a version below the CVSS 10.0 fix, or trusts a
   workspace that holds pull-request code. Based on "Comment and Control" (ACM
   CCS 2026), where all three vendors' agents leaked their own secrets. Files
-  are parsed as data and never run; an explicit `--path` scans only what it
-  names. See `docs/ci-workflows.md`.
-
+  are parsed as data and never run; a symlinked `.github` is not followed;
+  files over 256 KiB, and anything past 4 MiB in one scan, are skipped and
+  listed in the scan's errors; an explicit `--path` scans only what it names.
+  See `docs/ci-workflows.md`.
 - **Verified registry entry for `mcptoon`** (PyPI, [#171](https://github.com/adudley78/mcp-audit/issues/171),
   submitted by [@activeing123](https://github.com/activeing123)), an MCP gateway that
   proxies the user's configured servers. Capabilities `file_read` and `network_out`,
@@ -91,8 +92,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   TRUST-002 (a link out of the repository) instead of its files being read as the
   repository's own.
 - **`check` no longer says "No MCP config files found" and exits 0 when the scan has
-  findings.** A folder with no MCP config can still carry a planted auto-run file;
-  its findings now reach the verdict and the exit code.
+  findings** (STORY-0090, STORY-0091). A folder with no MCP config can still carry a
+  planted auto-run file or a risky CI workflow; its findings now reach the verdict and
+  the exit code. The same applies to a machine with no MCP config whose installed
+  Claude Code plugins or mods have findings (PLUGIN-*, MOD-*): `check` used to exit 0
+  there and now reports them, and exits 1 when one is HIGH or the grade drops below B.
 - **HARNESS-005 now recognises environment runners and PowerShell code-running commands.** An allow rule such as `Bash(devbox run *)`, `Bash(docker exec app *)`, `Bash(uv run:*)`, `Bash(poetry run:*)`, `Bash(pnpm exec:*)` or `PowerShell(iex *)` approves any command, the same as `Bash(npx *)`, and is now reported. If you see a new HARNESS-005 for a rule like `Bash(uv run:*)` that you added so Claude can run your tests: Anthropic's docs say these runners "execute their arguments as a command", so the rule also approves `uv run rm -rf .`; write one rule per command instead, such as `Bash(uv run pytest *)`. A rule that names the inner command, such as `Bash(devbox run npm test)` (Anthropic's recommended form), is not reported. Meaning and severity (MEDIUM) are unchanged.
 
 - **`mcp-audit register` says what registering actually does.** The prompt
