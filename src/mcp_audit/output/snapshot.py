@@ -22,7 +22,7 @@ from typing import Any
 
 from mcp_audit import __version__
 from mcp_audit._redact import redact_finding_path
-from mcp_audit.models import ScanResult
+from mcp_audit.models import Finding, ScanResult
 
 # ── CycloneDX helpers ──────────────────────────────────────────────────────────
 
@@ -121,6 +121,35 @@ def _owasp_categories_from_result(result: ScanResult) -> str:
     return ",".join(sorted(codes))
 
 
+# Analyzers whose findings are about something other than an MCP server, so
+# their ``server`` field is a job, plugin, extension, file or source path.
+_NON_SERVER_ANALYZERS: frozenset[str] = frozenset(
+    {"ci_workflow", "plugins", "extensions", "agent_files", "sast"}
+)
+
+
+def _affects_ref(
+    finding: Finding,
+    bom_ref_map: dict[tuple[str, str], str],
+    component_refs: set[str],
+) -> str:
+    """The ``affects`` ref for *finding*.
+
+    An exact (client, server) match wins.  Otherwise the historical
+    ``mcp-server-<server>`` ref is kept (LOCK and other findings carry an
+    empty or different client but still name their server), except for a
+    finding from a non-server surface whose name would collide with a real
+    MCP server component: that one gets its own ``<client>:<server>`` ref.
+    """
+    exact = bom_ref_map.get((finding.client, finding.server))
+    if exact is not None:
+        return exact
+    legacy = f"mcp-server-{finding.server}"
+    if legacy in component_refs and finding.analyzer in _NON_SERVER_ANALYZERS:
+        return f"{finding.client}:{finding.server}"
+    return legacy
+
+
 def format_cyclonedx_aibom(
     result: ScanResult,
     host_id: str,
@@ -140,15 +169,25 @@ def format_cyclonedx_aibom(
         A :class:`dict` ready for ``json.dumps``.
     """
     now = _cyclonedx_timestamp(result.timestamp)
-    bom_ref_map: dict[str, str] = {}  # server_name → bom-ref
+    # (client, server_name) → bom-ref.  Keyed on the client too, so a finding
+    # about something that is not an MCP server (a CI job, a plugin) never
+    # attaches to an MCP server that happens to share its name.
+    bom_ref_map: dict[tuple[str, str], str] = {}
+    component_refs: set[str] = set()
 
     # ── Components ────────────────────────────────────────────────────────────
     components: list[dict[str, Any]] = []
     for server in result.servers:
         ref = f"mcp-server-{server.name}"
-        bom_ref_map[server.name] = ref
+        bom_ref_map[(server.client, server.name)] = ref
+        component_refs.add(ref)
         capability_tags = _extract_capability_tags(server.name, result)
-        server_findings = [f.id for f in result.findings if f.server == server.name]
+        server_findings = [
+            f.id
+            for f in result.findings
+            if f.server == server.name
+            and (f.client == server.client or f.analyzer not in _NON_SERVER_ANALYZERS)
+        ]
         cmd_display = server.command or ""
         if server.args:
             cmd_display = " ".join([cmd_display] + server.args[:4])
@@ -208,7 +247,7 @@ def format_cyclonedx_aibom(
         remediation = redact_finding_path(finding.remediation, fp)
         evidence = redact_finding_path(finding.evidence, fp)
 
-        affects_ref = bom_ref_map.get(finding.server, f"mcp-server-{finding.server}")
+        affects_ref = _affects_ref(finding, bom_ref_map, component_refs)
         vuln_props: list[dict[str, str]] = [
             {
                 "name": "mcp-audit:analyzer",

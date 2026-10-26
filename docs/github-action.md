@@ -101,6 +101,15 @@ the HARNESS findings in committed settings are HIGH, so the default
 pull request. With mcp-audit v0.19.0 or earlier, set
 `config-paths: .claude/settings.json .mcp.json` to get the same result.
 
+### Catch agent workflows that hand out secrets
+
+The same default run reads the repository's own `.github/workflows/`. A
+workflow that runs Claude Code or Gemini CLI on an issue, comment or
+`pull_request_target` event, with secrets and write permission, and lets the
+agent run any command, is WORKFLOW-001 (HIGH), so it fails the check like the
+HARNESS findings do. See [ci-workflows.md](ci-workflows.md). Setting `config-paths`
+turns this off, because an explicit path scans only what it names.
+
 ### Version pinning
 
 Until `v1.0.0` ships, pin to a specific release tag, as every example on this page does
