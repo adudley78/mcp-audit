@@ -41,3 +41,32 @@ def test_optional_extras_are_excluded_from_every_spec() -> None:
         text = spec.read_text(encoding="utf-8")
         for name in _EXCLUDED_EXTRAS:
             assert f"'{name}'" in text, f"{spec.name} does not exclude {name!r}"
+
+
+# STORY-0097: SC-008 and `vet` read registry/known-malicious.json offline, so
+# every distribution must carry it.  A missing file would not crash a scan
+# (the loader reports it in ScanResult.errors), it would leave SC-008 blind.
+_BUNDLED_REGISTRY_FILES = (
+    "registry/known-servers.json",
+    "registry/known-extension-vulns.json",
+    "registry/known-malicious.json",
+)
+
+
+def test_every_spec_bundles_the_registry_data_files() -> None:
+    for spec in _SPECS:
+        text = spec.read_text(encoding="utf-8")
+        for rel in _BUNDLED_REGISTRY_FILES:
+            assert f"(os.path.join(root, '{rel}'), 'registry')" in text, (
+                f"{spec.name} does not bundle {rel}"
+            )
+
+
+def test_wheel_force_includes_the_registry_data_files() -> None:
+    import tomllib
+
+    pyproject = tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    force = pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
+    for rel in _BUNDLED_REGISTRY_FILES:
+        assert force.get(rel) == f"mcp_audit/{rel}", rel
+        assert (_ROOT / rel).is_file(), rel

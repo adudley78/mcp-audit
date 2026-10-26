@@ -476,10 +476,25 @@ This means `mcp_server_filesystem`, `mcp-server-filesystem`, and
 | `SC-001` | CRITICAL | 1 | One character away from a known-good package |
 | `SC-002` | HIGH | 2 | Two edits away — classic transposition typosquat |
 | `SC-003` | MEDIUM | 3 | Three edits away |
+| `SC-007` | MEDIUM | — | Unscoped twin of a registry entry (see below); replaces SC-001..003 |
+
+**Any spelling of the launcher.** Every supply-chain check (SC-001..008) first
+reduces the launcher to its bare name: the path is dropped (either `/` or `\`),
+case is ignored, a Windows `.cmd`/`.exe`/`.bat`/`.ps1` wrapper is stripped, and
+`cmd /c` or `cmd /k` (after switches such as `/d /s`) is unwrapped so the next
+argument is the launcher. `C:\Program Files\nodejs\npx.cmd -y pkg` and
+`cmd /c npx -y pkg` are checked exactly like `npx -y pkg`. `pnpm dlx`, `npm exec`
+and `uv run --with` are not recognised (see GAPS.md).
 
 **Short-name guard:** Package names ≤ 5 characters use a tighter threshold of 1
 (not 3) to suppress false positives — short names are inherently close to many
 other short names.
+
+**Unscoped twins come first.** When a name is an unscoped twin of a registry
+entry (`SC-007`, below), that finding replaces SC-001..003 for the server: a
+server never gets both. Example from the shipped registry: `uvx mcp-server-github`
+is 3 edits from PyPI `mcp-server-git` (SC-003), but it is the PyPI spelling of
+`@modelcontextprotocol/server-github`, and SC-007 says so.
 
 ### Registry entries
 
@@ -583,9 +598,144 @@ python scripts/sync_registry_advisories.py --write   # merge into registry/known
 ```
 
 What it can't see: unreviewed GitHub advisories carry no package data, so OSV
-does not map them until GitHub reviews them; NVD-only CVEs; and `MAL-*`
-malicious-release records, which it skips on purpose because a malicious release
-is a different finding class from a CVE.
+does not map them until GitHub reviews them; and NVD-only CVEs. `MAL-*`
+malicious-package records are not merged into `known-servers.json` (a malicious
+release is a different finding class from a CVE); since STORY-0097 the same run
+mirrors them into `registry/known-malicious.json` for SC-008, below.
+
+---
+
+## SC-007: Unscoped twins
+
+`SC-007` (MEDIUM, `CWE-829`, OWASP MCP04, STORY-0097) fires when a configured
+package copies a known package's name without its scope. Edit distance cannot
+see this: `mcp-server-github` is many edits from
+`@modelcontextprotocol/server-github`, because the difference is a scope and a
+naming convention, not a few letters.
+
+**Why it matters.** In June 2026 OSV published ten records for unscoped npm
+names of exactly this shape (`MAL-2026-5476` to `MAL-2026-5485`): `mcp-server-github`,
+`-git`, `-fetch`, `-figma`, `-notion`, `-postgres`, `-redis`, `-sentry`,
+`-sequential-thinking` and `-supabase`. Each `postinstall` sent the host name,
+working directory and platform to a Cloudflare Worker
+([o3 on MAL-2026-5479](https://o3.security/malware/npm/mcp-server-github)).
+`mcp-server-everything` (`MAL-2025-46986`) is an earlier one.
+
+**What counts as a twin.** The rules are derived from the registry's own entries
+and from the naming the 2026 squats actually used:
+
+| Rule | Registry entry | Twin | Seen in the wild |
+|---|---|---|---|
+| name part, for `server-<x>` / `mcp-server-<x>` | `@modelcontextprotocol/server-github` | `server-github` | npm holds `server-github` as a `0.0.1-security` placeholder |
+| | `@supabase/mcp-server-supabase` | `mcp-server-supabase` | `MAL-2026-5485` |
+| `mcp-server-<x>` spelling of `server-<x>` / `<x>-mcp-server` | `@modelcontextprotocol/server-github` | `mcp-server-github` | `MAL-2026-5479` |
+| | `@notionhq/notion-mcp-server` | `mcp-server-notion` | `MAL-2026-5480` |
+| same `mcp-server-<x>` name, other registry | PyPI `mcp-server-git` | npm `mcp-server-git` | `MAL-2026-5478` |
+| | npm `@modelcontextprotocol/server-memory` | PyPI `mcp-server-memory` | a 0.0.1 placeholder with ~450 installs a month |
+
+Names are folded the PEP 503 way first (lowercase; runs of `-`, `_`, `.` become
+`-`), so `mcp_server_github` is the same twin as `mcp-server-github` in npm and
+in PyPI, even though npm itself treats the two as different packages. The
+configured package must not itself be in the registry for its own ecosystem, so
+`uvx mcp-server-git` (Anthropic's PyPI server) is never a twin.
+
+**What is deliberately not a twin.** The plain name part of any other scoped
+package: `@notionhq/notion-mcp-server` → `notion-mcp-server` (an unrelated
+community server with about 2,500 weekly downloads), `@upstash/context7-mcp` →
+`context7-mcp`, and generic name parts such as `@azure/mcp` → `mcp`,
+`@autoposting.ai/cli` → `cli` or `@toolbox-sdk/server` → `server`. Scoped
+lookalikes (`@evil/server-github`) are left to SC-001..003.
+
+**Measured on 2026-10-25.** The shipped registry yields 37 twin keys. On npm,
+21 of them have been published: 12 have since been taken down (10 are now
+`0.0.1-security` placeholders, 2 are unpublished), 3 are `0.0.1` stubs from one
+account (`mcp-server-cloudflare`, `-neon`, `-qdrant`; the account behind the
+"squat farm" in `registry-audit-2026-08-18.md`), and 6 are small packages with 7
+to 158 weekly downloads: four with no repository (two reuse the official
+package's description), one fork of the official servers repository, and one
+community Google Maps server. On PyPI, 5 of the npm-derived keys exist: three
+`0.0.1` placeholders registered by Amazon, and two small community servers
+(`mcp-server-notion`, `mcp-server-redis`; 85 and 179 downloads a month). So an
+SC-007 hit is usually a squat or a takedown, and sometimes a small community
+package that took the official server's name; the finding asks you to check
+which. That mix is why SC-007 is MEDIUM: the twins OSV lists as malicious are
+already CRITICAL under SC-008. If you meant the community package, record it in
+your governance policy's `approved_servers` allowlist ([governance.md](governance.md));
+that records the decision, and SC-007 keeps reporting the name. SC-007 fires on none of the 100 most-downloaded npm MCP servers
+(`docs/research/2026-10-top100-npm/`; pinned by
+`tests/test_supply_chain.py::TestScanLevelBehaviour`).
+
+`vet` runs the same check: an unscoped twin exits 1 with a "Possible unscoped
+twin" panel and `"typosquat_basis": "unscoped-twin"` in `--format json`.
+
+---
+
+## SC-008: Known malicious packages
+
+`SC-008` (CRITICAL or MEDIUM, `CWE-506`, OWASP MCP04, STORY-0097) fires when the
+configured package is an OSV `MAL-*` record: OpenSSF's malicious-packages data,
+which OSV serves under `MAL-` IDs. The match is by exact name in one ecosystem
+(npm names lowercased, PyPI names PEP 503-normalised), against
+`registry/known-malicious.json`, which ships in the wheel and the binaries. A
+plain `scan`, `check` or `vet` makes no network call. Before this, these records
+were reachable only with `scan --check-vulns`.
+
+| Launch | What OSV lists | Severity |
+|---|---|---|
+| Pins a listed version | any | CRITICAL |
+| Unpinned | every release, or every release from a version on | CRITICAL |
+| Unpinned | only specific past releases | MEDIUM |
+| Pins a version the record does not cover | — | no finding |
+
+The MEDIUM row follows SC-004's reasoning: the registry normally removes a
+malicious release, but npx and uvx can reuse a cached copy. A version that won't
+parse counts as covered. The two severities read differently on purpose: CRITICAL
+is titled `Known malicious package: <name> (<IDs>)` and says to remove the server;
+MEDIUM is titled `Malicious releases listed in OSV: <name> (<IDs>)` and says to pin
+a release the record does not list, because it is often a real package that had one
+release compromised (`mcp-use` 1.4.2/1.4.3, `@postman/postman-mcp-server`).
+
+**One deliberate difference from OSV's range semantics.** For a package the
+registry lists, a range covering every version (`introduced: "0"` and nothing
+else) is ignored when the record also lists explicit versions. GitHub's malware
+advisories use that blanket range even for one compromised release of a real
+package: `MAL-2025-191195` lists `@browserbasehq/mcp` `2.1.1` beside a blanket
+range, while npm still serves the clean `3.0.0`. The finding says when this
+happened.
+
+npm and PyPI records never cross: npm `mcp-server-git` (`MAL-2026-5478`) does not
+fire for `uvx mcp-server-git`. SC-008 is reported alongside SC-007 or
+SC-001..003, because it answers a different question (what OSV knows about this
+exact package, not what its name resembles). `npx -y mcp-server-github` gives
+both.
+
+**The MAL-2026-5476..5485 note.** All ten records report the same beacon host,
+`npx-canary-log.vulnerable-live.workers.dev`, and three of those npm packages,
+read on 2026-08-18, named `theinfosecguy/npx-canary` as their repository
+(`registry-audit-2026-08-18.md` §3a). Those two facts are what each record's
+`note` field says; the note draws no conclusion about who published them or
+why. OSV classifies the packages as malicious, and SC-008 reports them as OSV
+states it.
+
+**Measured on 2026-10-25:** 217 records (144 npm, 73 PyPI). On the 100
+most-downloaded npm MCP servers, pinned as published, SC-008 fires on none;
+launched unpinned, it fires MEDIUM on one (`@mastra/mcp-docs-server`, whose
+release 1.1.47 is `MAL-2026-5956`).
+
+**Keeping it current.** `scripts/sync_registry_advisories.py` reads OSV's bulk
+export for npm and PyPI (about 260 MB, read once per run) and keeps every `MAL-`
+record that is not withdrawn and names a package whose name contains `mcp` or
+that the registry lists. The substring test is deliberate: a match is by exact
+name, so an extra record can never cause a false positive. The file is a mirror,
+not additive: a record OSV withdraws is removed. The weekly
+`registry-advisory-sync.yml` check fails when the file has drifted; `--write`
+updates it.
+
+`vet` reports the same records: a record covering the latest release exits 1;
+past releases only are listed and exit 0. Without `--ecosystem`, `vet` also warns
+when the other registry's package of the same name is malicious
+(`vet mcp-server-git` answers for Anthropic's PyPI server and warns that npm
+`mcp-server-git` is `MAL-2026-5478`).
 
 ---
 

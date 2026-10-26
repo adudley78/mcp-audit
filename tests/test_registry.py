@@ -717,6 +717,7 @@ class TestSupplyChainAnalyzerUsesRegistry:
 
     def test_analyzer_calls_find_closest_when_unknown(self) -> None:
         mock_reg = MagicMock(spec=KnownServerRegistry)
+        mock_reg.entries = []  # read by the SC-007 twin index (STORY-0097)
         mock_reg.is_known_npm.return_value = False
         mock_reg.find_closest_npm.return_value = None
 
@@ -739,6 +740,7 @@ class TestSupplyChainAnalyzerUsesRegistry:
             tags=["official"],
         )
         mock_reg = MagicMock(spec=KnownServerRegistry)
+        mock_reg.entries = []  # read by the SC-007 twin index (STORY-0097)
         mock_reg.is_known_npm.return_value = False
         mock_reg.find_closest_npm.return_value = mock_entry
 
