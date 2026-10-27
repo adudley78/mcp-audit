@@ -567,7 +567,7 @@ class _Walk:
         self.budget.bytes_left -= len(data)
         return data
 
-    def run(self) -> _Inventory:
+    def inventory(self) -> _Inventory:
         root = self.pkg.root
         if not self.boundary or not _inside(root, self.boundary):
             self.errors.append(
@@ -796,7 +796,7 @@ class _Walk:
 def _walk_package(
     pkg: SkillPackage, budget: ScanBudget, errors: list[str]
 ) -> _Inventory:
-    return _Walk(pkg, budget, errors).run()
+    return _Walk(pkg, budget, errors).inventory()
 
 
 # ── Finding builders ──────────────────────────────────────────────────────────
