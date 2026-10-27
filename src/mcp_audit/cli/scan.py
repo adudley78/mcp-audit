@@ -659,9 +659,17 @@ def _apply_agent_files(
         for f in result.findings
         if f.id in ("TRUST-002", "TRUST-004", "TRUST-005")
     }
-    af_findings = _af_analyzer.analyze_agent_files(
-        af_list, include_definitions=False
-    ) + [f for f in af_skip_findings if (f.id, f.finding_path) not in already]
+    followed_findings, followed_links = _followed_skill_agent_files(
+        result, project_root
+    )
+    # A symlinked skill folder the skill pass followed (decision 2026-10-26) is
+    # read, so the agent-file walk's TRUST-005 for it would be untrue.
+    already |= {("TRUST-005", link) for link in followed_links}
+    af_findings = (
+        _af_analyzer.analyze_agent_files(af_list, include_definitions=False)
+        + followed_findings
+        + [f for f in af_skip_findings if (f.id, f.finding_path) not in already]
+    )
     af_findings += _skill_bundled_code(result, af_findings, project_root)
     result.findings.extend(af_findings)
     con.print(
@@ -669,6 +677,42 @@ def _apply_agent_files(
         f"{len(af_findings)} issue(s) found[/dim]"
     )
     return result
+
+
+def _followed_skill_agent_files(
+    result: ScanResult, project_root: Path | None
+) -> tuple[list[Finding], set[str]]:
+    """Agent-file rules for skills reached through a followed symlink.
+
+    The agent-file walk does not follow symlinked directories; the skill pass
+    follows one directly under a skills directory (decision 2026-10-26).  This
+    runs SKILL-001..004 and the sidecar pass on those skills' ``SKILL.md``.
+
+    Returns:
+        ``(findings, links)``: the findings, and the followed link paths.
+    """
+    from mcp_audit.agent_files import analyzer as _af_analyzer  # noqa: PLC0415
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
+    # The skill passes before this one already recorded these walks' errors
+    # and symlink findings.
+    seen_errors: list[str] = []
+    seen_findings: list[Finding] = []
+    packages = skill_package.default_skill_packages(
+        errors=seen_errors, findings=seen_findings
+    )
+    if project_root is not None:
+        packages += skill_package.project_skill_packages(
+            project_root, errors=seen_errors, findings=seen_findings
+        )
+    followed = [p for p in packages if p.link is not None]
+    try:
+        files = skill_package.followed_agent_files(followed, result.errors)
+        findings = _af_analyzer.analyze_agent_files(files)
+    except Exception as exc:  # noqa: BLE001 — never crash the scan
+        result.errors.append(f"skill package: followed skills: {exc}")
+        findings = []
+    return findings, {str(p.link) for p in followed}
 
 
 def _skill_bundled_code(
@@ -1388,9 +1432,9 @@ def _apply_lock_verification(
         )
     if status.not_covered:
         con.print(
-            f"[yellow]WARN[/yellow] {len(status.not_covered)} subagent MCP"
-            " server(s) not covered by mcp-lock.json (AGENT-004): "
-            + ", ".join(status.not_covered)
+            f"[yellow]WARN[/yellow] {len(status.not_covered)} MCP server(s) from"
+            " subagent definitions or skill folders not covered by mcp-lock.json"
+            " (AGENT-004, SKILL-006): " + ", ".join(status.not_covered)
         )
     if lock_findings:
         con.print(

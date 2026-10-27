@@ -36,8 +36,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   through the per-server analyzers without joining discovery, and shipped hook commands
   through HOOK-001/002. With `--include-agent-files` the `SKILL.md` instruction checks
   also run on a skill's other prose files, where the Paperclip campaign hid its
-  payload. On 1,128 public skills, 1 produces anything at MEDIUM or above. See
-  [`docs/skill-packages.md`](docs/skill-packages.md).
+  payload. Skills installed as symlinks (the skills CLI's default,
+  `.claude/skills/<name>` → `.agents/skills/<name>`) are read at their target and
+  noted as TRUST-004 (INFO); a repository link that leaves the repository is
+  TRUST-002 HIGH and not read. On 1,128 public skills, 1 produces anything at
+  MEDIUM or above. See [`docs/skill-packages.md`](docs/skill-packages.md).
 - **Permission rules that don't do what they say (PERM-001..007).** The scan you already run (`check`, `scan`, `scan --project`, the GitHub Action) now reads every Claude Code settings file for rules Anthropic documents as ignored, misanchored or not a security boundary, and names each rule, the form that gets past it, and what to write instead. PERM-001: a rule Claude Code skips or never matches, such as `Bash(command:rm *)`, an `mcp__` rule with parentheses, `Write(path)`, `Bash(git:* push)` or an `mcp__*` allow (HIGH in `deny`, MEDIUM in `ask`, INFO in `allow`). PERM-002: `Read(/Users/…)` with one slash, which points inside the project, not at `/` (MEDIUM in `deny`/`ask`, INFO in `allow`). PERM-003: `Bash(ls*)`, which also allows `lsof` (LOW). PERM-004: a deny on `curl`, `rm` or `git push` with no sandbox, which `/usr/bin/curl` or `sh -c` gets past (MEDIUM when the same file runs those forms without asking, through an allow such as `Bash(sh -c *)` or a bypass/auto mode in user settings; INFO otherwise). PERM-005: `WebFetch(domain:*)`, which opens the sandbox to every host (HIGH with the sandbox on, LOW otherwise). PERM-006: a bare `Bash` ask rule that the sandbox's auto-allow skips (MEDIUM). PERM-007: an `mcp__<server>` allow rule on a server the scan found poisoned, typosquatted, changed since approval, or pinned to a vulnerable version, matched by the whole server name as Claude Code 2.1.299 does, including a `~/.claude/settings.json` rule on a repository's server under `scan --project` (HIGH). See `docs/permission-rules.md`.
 - **AI agents in GitHub Actions workflows: WORKFLOW-001..003 (STORY-0091).** A
   plain `scan` or `check` run inside a repository, which is what the GitHub
@@ -173,9 +176,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **Lock auto-verify skips plugin servers** (client `claude-code-plugin`), which
-  `mcp-audit lock` never records, so the MCP server of a skills-directory plugin
-  inside a locked repository is not reported as LOCK-002 (STORY-0095).
+- **Lock auto-verify no longer verifies plugin servers** (client
+  `claude-code-plugin`), which `mcp-audit lock` never records. A repository's
+  skills-directory plugin server under a lock root is listed as not covered by
+  the lock (the WARN line subagent servers get), never as LOCK-002; installed
+  plugins stay silent (STORY-0095).
 - **Supply-chain evidence no longer quotes credentials.** SC-001..003 and the new SC-007
   quote the launch command with URL passwords (`postgresql://user:pass@…`, including
   passwords that contain `@` or spaces) and known token formats replaced by `[REDACTED]`,

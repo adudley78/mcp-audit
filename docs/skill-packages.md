@@ -53,12 +53,23 @@ configuration still produces the same 70 findings.
 Budgets: 8 MiB and 20,000 entries per skill, 32 MiB and 200,000 entries per
 scan. A budget that runs out is reported (SKILL-007 MEDIUM), never silent.
 
-Symlinks: nothing below a skills directory is followed. A symlinked
-directory is reported as TRUST-005 and not entered; a symlinked file as
-TRUST-002 (repository) or TRUST-004 (your own `~/.claude`) and not read.
-Every read is checked to resolve inside the scan root and opened without
-following links. Your own `~/.claude` or `~/.claude/skills` may be a link
-(dotfile managers do this) and is followed; a repository's may not be.
+Symlinked skill folders: Claude Code reads a skill through a symlinked folder,
+and the skills CLI (skills.sh) installs every skill that way by default
+(`.claude/skills/<name>` → `.agents/skills/<name>`). So a symlink directly
+under a skills directory that points at a skill is followed and the skill is
+read at its target, reported as TRUST-004 (INFO, link and target, credentials
+redacted). In a repository the target must be inside the repository; a link
+that leaves it is TRUST-002 HIGH and is not read. A link to the skills
+directory itself or one of its ancestors (a loop), or to a folder that holds
+no skill, is TRUST-005 and not entered. Budgets apply to followed skills like
+any other. (Decision 2026-10-26, "Follow a symlinked skill folder one level".)
+
+Other symlinks: nothing else below a skills directory is followed. Inside a
+skill, a symlinked directory is TRUST-005 and not entered; a symlinked file is
+TRUST-002 (repository) or TRUST-004 (your own `~/.claude`) and not read. Every
+read is checked to resolve inside the scan root and opened without following
+links. Your own `~/.claude` or `~/.claude/skills` may be a link (dotfile
+managers do this) and is followed; a repository's may not be.
 
 Errors: a file or folder that cannot be read becomes a line in the scan's
 `errors`, never a crash.
@@ -115,9 +126,15 @@ your own `~/.claude/skills/` has neither check.
 The plugin's MCP servers also join discovery as client `claude-code-plugin`,
 the same client as marketplace plugin servers, so the per-server checks
 (credentials, transport, supply chain, toxic flow) run on them and they get
-the same exclusions: `mcp-audit lock` leaves them out, the rug-pull state key
-ignores them, and lock auto-verify skips them. Under `scan --project` they get
-TRUST-001 like any other repository server.
+the same treatment by the lock: `mcp-audit lock` leaves them out and lock
+auto-verify never reports them as LOCK-002. A repository's skills-directory
+plugin server under a lock root is listed in `lock_status.not_covered`, with a
+WARN line in `scan` and `check` (as subagent servers are, STORY-0094), so a
+verified lock never reads as covering it; installed plugins and your own
+skills-directory plugins stay silent. A repository's plugin stays in the
+rug-pull state key (an installed plugin's versioned path does not), so one
+repository's servers never show up as removed in another's scan. Under
+`scan --project` they get TRUST-001 like any other repository server.
 
 **Frontmatter hooks.** `hooks` in `SKILL.md` frontmatter are registered when
 the skill is first invoked and kept for the rest of the session, including in
@@ -204,8 +221,9 @@ corpus (29 MiB of text) took 13 seconds, about 12 ms per skill.
 
 See `GAPS.md`, "Skill packages (STORY-0095)". In short: archives are not
 unpacked and git objects are not parsed; dependency folders are not walked;
-a symlinked skill folder under your own `~/.claude/skills` is reported
-(TRUST-005) but not read, although Claude Code follows it; `allowed-tools`
+symlinked skill folders are followed only one level (a link nested deeper,
+or one to a folder holding several skills, is TRUST-005 and not read);
+`allowed-tools`
 grants in frontmatter and `` !`cmd` `` injections are not checked; and
 instructions that steer the agent without a command ("always use the
 `fastinstall` package") are not detected.

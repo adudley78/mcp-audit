@@ -63,10 +63,15 @@ Invariants
 * Nothing is executed, imported, unpacked or decompressed.  Files are read as
   bytes, under a per-file cap, a per-skill budget and a per-scan budget; a
   budget that runs out is reported (SKILL-007), never silent.
-* No symlink is followed below a scan root.  A symlinked directory becomes
-  TRUST-005; a symlinked file TRUST-002 (project scope) or TRUST-004 (user
-  scope); neither is read.  Every read is checked to resolve under the scan
-  root and opened with ``O_NOFOLLOW``.  The user's ``~/.claude`` and
+* One symlink shape is followed: a link directly under a skills directory
+  that points at a skill (decision 2026-10-26; the skills CLI installs skills
+  this way).  It is read at its target and reported as TRUST-004 (INFO); in a
+  repository the target must stay inside it (otherwise TRUST-002 HIGH, not
+  read); a link to the skills directory or an ancestor is TRUST-005.  No other
+  symlink is followed: a symlinked directory becomes TRUST-005; a symlinked
+  file TRUST-002 (project scope) or TRUST-004 (user scope); neither is read.
+  Every read is checked to resolve under the scan root and opened with
+  ``O_NOFOLLOW``.  The user's ``~/.claude`` and
   ``~/.claude/skills`` may themselves be links (dotfile managers), as default
   discovery already allows for ``~/.claude/settings.json``; a repository's
   may not.
@@ -229,12 +234,16 @@ class SkillPackage:
         is_plugin: The directory sits directly under a skills directory and
             holds ``.claude-plugin/plugin.json``, so Claude Code loads it as
             the plugin ``<name>@skills-dir`` (docs: plugins/loading).
+        link: For a skill reached through a symlink directly under a skills
+            directory, that link; *root* is then the resolved target
+            (decision 2026-10-26, "Follow a symlinked skill folder one level").
     """
 
     root: Path
     scope: str
     scan_root: Path
     is_plugin: bool = False
+    link: Path | None = None
 
     @property
     def name(self) -> str:
@@ -1832,6 +1841,81 @@ def _untraversed(path: Path) -> Finding:
     return build_untraversed_symlink_dir_finding(path, "agent-files")
 
 
+def _is_plugin_dir(path: Path) -> bool:
+    return (
+        _is_real_dir(path)
+        and _is_real_dir(path / ".claude-plugin")
+        and _is_real_file(path / ".claude-plugin" / "plugin.json")
+    )
+
+
+def _followed_link_finding(link: Path, target: str) -> Finding:
+    """TRUST-004 (INFO): a skill folder read through its symlink."""
+    return Finding(
+        id="TRUST-004",
+        severity=Severity.INFO,
+        analyzer="discovery",
+        client="agent-files",
+        server=link.name,
+        title="Skill folder is a symlink",
+        description=redact(
+            f"'{link}' is a symlink to '{target}'. Claude Code reads a skill"
+            " through a symlinked folder (the skills CLI installs skills this way"
+            " by default), so mcp-audit read the skill at its target. Links"
+            " inside the skill are not followed."
+        ),
+        evidence=redact(f"Visible path: {link} | Resolved target: {target}"),
+        remediation=(
+            "No action required if you installed the skill this way. Otherwise,"
+            " check what the link points to."
+        ),
+        finding_path=str(link),
+        owasp_mcp_top_10=["MCP09"],
+        cwe="CWE-61",
+    )
+
+
+def _follow_skill_link(
+    link: Path,
+    skills_root: Path,
+    scope: str,
+    scan_root: Path,
+    findings: list[Finding],
+) -> SkillPackage | None:
+    """The skill a symlink directly under a skills directory points at, or ``None``.
+
+    Decision 2026-10-26 ("Follow a symlinked skill folder one level", amending
+    site 8 of the 2026-09-08 symlink decision).  User scope: followed whatever
+    the target.  Project scope: followed only when the target resolves inside
+    *scan_root* (the repository); a target outside it is TRUST-002 HIGH and is
+    not read.  A target that is the skills directory or one of its ancestors
+    (a loop), or that holds no skill, is TRUST-005 as before.  A followed
+    skill is reported as TRUST-004 (INFO) and walked like any other, so no
+    link inside it is followed and every budget applies.
+    """
+    from mcp_audit.discovery import build_project_symlink_finding  # noqa: PLC0415
+
+    target = _realpath(link)
+    if not target or not _is_real_dir(Path(target)):
+        return None  # broken or not a directory: nothing Claude Code can load
+    skills_real = _realpath(skills_root)
+    base = target.rstrip(os.sep) or os.sep
+    if skills_real == base or skills_real.startswith(base.rstrip(os.sep) + os.sep):
+        findings.append(_untraversed(link))
+        return None
+    if scope == "project" and not _inside(Path(target), _realpath(scan_root)):
+        findings.append(build_project_symlink_finding(link, "agent-files", scan_root))
+        return None
+    root = Path(target)
+    is_plugin = _is_plugin_dir(root)
+    if not (is_plugin or _has_skill_md(root)):
+        findings.append(_untraversed(link))
+        return None
+    findings.append(_followed_link_finding(link, target))
+    boundary = scan_root if scope == "project" else root
+    return SkillPackage(root, scope, boundary, is_plugin, link=link)
+
+
 def _packages_under(
     skills_root: Path,
     scope: str,
@@ -1841,17 +1925,14 @@ def _packages_under(
 ) -> list[SkillPackage]:
     """Every skill and skills-directory plugin under *skills_root*.
 
-    A symlinked directory is never entered; one that points at a directory is
-    reported as TRUST-005.
+    A symlink directly under *skills_root* that points at a skill is followed
+    one level (:func:`_follow_skill_link`).  Any other symlinked directory is
+    never entered; one that points at a directory is reported as TRUST-005.
     """
     plugin_roots: set[str] = set()
     for entry in _scandir(skills_root, errors):
         path = Path(entry.path)
-        if (
-            _is_real_dir(path)
-            and _is_real_dir(path / ".claude-plugin")
-            and _is_real_file(path / ".claude-plugin" / "plugin.json")
-        ):
+        if _is_plugin_dir(path):
             plugin_roots.add(str(path))
     found: list[SkillPackage] = []
     stack: list[tuple[Path, int]] = [(skills_root, 0)]
@@ -1871,7 +1952,13 @@ def _packages_under(
             path = Path(entry.path)
             try:
                 if entry.is_symlink():
-                    if _is_real_dir(Path(_realpath(path) or path)):
+                    if depth == 0:
+                        followed = _follow_skill_link(
+                            path, skills_root, scope, scan_root, findings
+                        )
+                        if followed is not None:
+                            found.append(followed)
+                    elif _is_real_dir(Path(_realpath(path) or path)):
                         findings.append(_untraversed(path))
                     continue
                 if not entry.is_dir(follow_symlinks=False):
@@ -1880,7 +1967,11 @@ def _packages_under(
                 continue
             if entry.name not in _DISCOVERY_SKIP_DIRS:
                 stack.append((path, depth + 1))
-    return sorted(found, key=lambda p: str(p.root))
+    # Claude Code loads a skill once even when several entries point at it.
+    unique: dict[str, SkillPackage] = {}
+    for pkg in sorted(found, key=lambda p: (p.link is not None, str(p.root))):
+        unique.setdefault(_realpath(pkg.root) or str(pkg.root), pkg)
+    return sorted(unique.values(), key=lambda p: str(p.root))
 
 
 def _repo_skills_dir(base: Path, findings: list[Finding]) -> Path | None:
@@ -2000,6 +2091,47 @@ def packages_for_agent_files(files: list[AgentFile]) -> list[SkillPackage]:
         seen.add(str(root))
         scope = af.scope if af.scope in {"user", "project", "plugin"} else "plugin"
         out.append(SkillPackage(root, scope, _skills_ancestor(root)))
+    return out
+
+
+def followed_agent_files(
+    packages: list[SkillPackage], errors: list[str] | None = None
+) -> list[AgentFile]:
+    """``SKILL.md`` of each skill reached through a followed symlink.
+
+    The agent-file walk never follows a symlinked directory, so these skills'
+    ``SKILL.md`` files are read here for the opt-in agent-file rules
+    (SKILL-001..004 and the sidecar pass), under the same boundary and cap as
+    the package walk.  Frontmatter over ``_FRONTMATTER_CAP`` is not parsed.
+    """
+    from mcp_audit.agent_files.discovery import _split_frontmatter  # noqa: PLC0415
+
+    errs: list[str] = errors if errors is not None else []
+    out: list[AgentFile] = []
+    for pkg in packages:
+        skill_md = pkg.root / "SKILL.md"
+        if pkg.link is None or not _is_real_file(skill_md):
+            continue
+        raw = _read_bytes(skill_md, FILE_TEXT_CAP, _realpath(pkg.scan_root), errs)
+        text = decode_text(raw)
+        if text is None:
+            continue
+        end = text.find("\n---", 3) if text.startswith("---") else -1
+        if 0 <= end <= _FRONTMATTER_CAP:
+            frontmatter, body = _split_frontmatter(text)
+        else:
+            frontmatter, body = {}, text
+        out.append(
+            AgentFile(
+                path=skill_md,
+                surface=AgentFileSurface.CLAUDE_SKILL,
+                client="claude-code",
+                scope=pkg.scope,
+                raw_content=text,
+                body=body,
+                frontmatter=frontmatter,
+            )
+        )
     return out
 
 

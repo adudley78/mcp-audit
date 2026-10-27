@@ -1183,14 +1183,15 @@ Known limits, each measured or stated, not guessed:
   is not an install-step shape.
 - **Dependency folders** (`node_modules`, `.venv`, `venv`, `site-packages`,
   `bower_components`) are not walked; each is reported as SKILL-007 LOW.
-- **Symlinked skill folders are not read.** Claude Code reads `SKILL.md`
-  through a symlinked skill folder in any skills location
-  ([Skills](https://code.claude.com/docs/en/skills), "Symlinked folders").
-  mcp-audit keeps the project-wide rule of never traversing a symlinked
-  directory and reports it as TRUST-005 (LOW), so a repository can put a skill
-  outside `.claude/skills` and link to it, and its files are not checked as a
-  skill. Following links whose target stays inside the scanned repository is a
-  candidate follow-up.
+- **Symlinked skill folders are followed one level only** (decision
+  2026-10-26, Marcus `humans/decisions/2026-10-26-follow-symlinked-skill-folders.md`).
+  A symlink directly under a skills directory that points at a skill is read
+  at its target (TRUST-004 INFO), which covers the skills CLI's default
+  install (`.claude/skills/<name>` → `.agents/skills/<name>`); a repository's
+  link whose target is outside the repository is TRUST-002 HIGH and not read.
+  Every other symlinked directory (one nested deeper, one inside a skill, a
+  link to a folder that holds several skills) is still not traversed
+  (TRUST-005), although Claude Code may load what it points at.
 - **`allowed-tools` grants and `` !`cmd` `` lines are not checked.** A
   frontmatter `allowed-tools` grant pre-approves tools for the skill's turn;
   `` !`cmd` `` (dynamic context injection) runs when the skill loads. Neither is

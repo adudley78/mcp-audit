@@ -342,6 +342,19 @@ unchanged) but now emits `TRUST-005` (LOW) naming it instead of the entire
 subtree vanishing with no explanation. See
 `humans/decisions/2026-09-08-trust-002-symlink-sites.md` (marcus repo).
 
+**Exception: a symlinked skill folder** (decision 2026-10-26, marcus repo
+`humans/decisions/2026-10-26-follow-symlinked-skill-folders.md`). A symlink
+directly under `~/.claude/skills/` or `.claude/skills/` that points at a skill
+is followed one level, because Claude Code reads skills that way and the skills
+CLI installs them that way by default. The skill is read at its target and the
+link is reported as `TRUST-004` (INFO); `SKILL-001..004`, the sidecar pass and
+`SKILL-005..008` all run on it, and no `TRUST-005` is reported for that link.
+In a repository the target must stay inside the repository: a link that leaves
+it is `TRUST-002` HIGH and is not read. A link to the skills directory itself
+or one of its ancestors, or to a folder with no skill in it, is still
+`TRUST-005`. Nothing inside a followed skill is followed. See
+[skill-packages.md](skill-packages.md).
+
 ---
 
 ## References
