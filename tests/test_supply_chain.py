@@ -2173,6 +2173,9 @@ class TestWindowsCommandLineSplit:
             "p " + 'a\\"' * 700_000,
             "p " + "x " * 1_000_000,
         ],
+        # Short ids: pytest puts the test id in PYTEST_CURRENT_TEST, and Windows
+        # refuses an environment variable over 32,767 characters.
+        ids=["quotes", "backslashes", "escaped-quotes", "many-args"],
     )
     def test_split_is_linear_and_capped(self, line: str) -> None:
         import time
