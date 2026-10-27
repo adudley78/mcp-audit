@@ -1187,6 +1187,11 @@ def _apply_project_scan(
     # Merge pipeline findings only — score and registry_stats stay with
     # the main result.
     result.findings.extend(pipeline_result.findings)
+    # Errors a pipeline step reports (SANDBOX-005's unreadable ignore files,
+    # PERM-007, the rules engine) would otherwise be lost (STORY-0093).
+    for error in pipeline_result.errors:
+        if error not in result.errors:
+            result.errors.append(error)
 
     # ── PERM-007 across the default and project scans (STORY-0092) ─────────
     if any(isinstance(a, ConfigHygieneAnalyzer) for a in effective_analyzers):

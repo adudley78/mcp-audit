@@ -16,6 +16,7 @@ from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.permissions import analyze_flagged_server_allows
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import RugPullAnalyzer, derive_state_path
+from mcp_audit.analyzers.sandbox import analyze_sandbox_files
 from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
 from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
@@ -216,6 +217,16 @@ def _run_static_pipeline(
        :meth:`~mcp_audit.analyzers.base.BaseAnalyzer.analyze_config` —
        calls every analyzer once per config file, independent of server count.
        Analyzers that have nothing to check return ``[]`` (the default).
+    0b. SANDBOX-001..005 (STORY-0093):
+       :func:`~mcp_audit.analyzers.sandbox.analyze_sandbox_files` over the
+       Claude Code settings files in ``configs``: sandbox keys a repository's
+       settings loosen, keys a file can't set, a local settings file in a git
+       work tree that no ignore file covers, and home-directory paths in a
+       settings file headed for git.  It reads ignore files and the user's
+       ``~/.claude/settings.json`` (never runs git); each file is checked on
+       its own, and read failures and per-file crashes go to
+       ``result.errors``.  Runs only when a :class:`ConfigHygieneAnalyzer` is
+       in ``analyzers``.
     1. Per-server analyzers (``analyzer.analyze(server)`` for each pair).
     2. :meth:`~mcp_audit.analyzers.rug_pull.RugPullAnalyzer.analyze_all`
        (skipped when ``skip_rug_pull`` is ``True``).
@@ -280,6 +291,18 @@ def _run_static_pipeline(
                 result.findings.extend(config_findings)
             except Exception:  # noqa: BLE001, S110
                 pass  # parse errors already captured by _discover_and_parse
+
+    # ── 0b. Sandbox settings (SANDBOX-001..005, STORY-0093) ───────────────────
+    # Reads ignore files and the user's settings (never runs git), so unlike
+    # step 0 its failures are reported in result.errors rather than swallowed.
+    # analyze_sandbox_files isolates each file; this try is the last guard.
+    if any(isinstance(a, ConfigHygieneAnalyzer) for a in analyzers):
+        try:
+            sandbox_findings, sandbox_errors = analyze_sandbox_files(configs)
+            result.findings.extend(sandbox_findings)
+            result.errors.extend(sandbox_errors)
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"SANDBOX checks failed: {type(e).__name__}")
 
     # ── 1. Per-server static analysis ─────────────────────────────────────────
     for server in all_servers:

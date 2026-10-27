@@ -15,7 +15,7 @@
 | [extensions.md](extensions.md) | IDE extension scanner overview, supported clients, analysis layers |
 | [supply-chain.md](supply-chain.md) | Supply chain attestation, hash verification, contribution guide |
 | [dependency-reachability.md](dependency-reachability.md) | Why Dependabot findings in transitives are unused, and which call-site changes invalidate those dismissals |
-| [permission-rules.md](permission-rules.md) | Claude Code permission rules that don't do what they say (PERM-001..007): each rule, the vendor-documented reason, the bypass and the fix |
+| [permission-rules.md](permission-rules.md) | Claude Code permission rules that don't do what they say (PERM-001..007) and sandbox settings a repository can loosen (SANDBOX-001..005): each rule or key, the vendor-documented reason, the bypass and the fix |
 | [severity-framework.md](severity-framework.md) | CVSS base scores and OWASP Agentic Top 10 mappings for every finding ID; decision tree for calibrating new findings |
 | [agent-execution-surface.md](agent-execution-surface.md) | Every repository file mcp-audit reads that a coding-agent harness runs or obeys (Gemini CLI, Codex, Claude Code, VS Code), with the finding and vendor source for each |
 | [registry.md](registry.md) | Known-server registry reference, contributing entries |

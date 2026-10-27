@@ -1660,6 +1660,69 @@
       "notes": "Fires when a whole-server allow rule (mcp__<server> or mcp__<server>__*) matches, by the server's whole normalized name as in Claude Code 2.1.299, a Claude Code MCP server with a HIGH or CRITICAL poisoning, rug-pull or supply-chain finding in the same scan (SC-004 only when the configured version is known to be affected; toxic-flow findings do not count). Under scan --project the default and project scans are paired too. HIGH. CWE-862. Source: Claude Code CHANGELOG 2.1.299, code.claude.com/docs/en/permissions (MCP), code.claude.com/docs/en/mcp. Post-pass in scanner._run_static_pipeline step 5b and cli/scan._apply_project_scan (STORY-0092)."
     },
     {
+      "finding_id": "SANDBOX-001",
+      "finding_title": "Repository settings weaken or switch off the Bash sandbox",
+      "owasp_codes": [
+        "MCP02",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Command Injection and Execution"
+      ],
+      "notes": "Fires when a repository's shared .claude/settings.json (outside the home directory), or a .claude/settings.local.json that git carries (no ignore file covers it, or .claude is a symlink), sets sandbox.enableWeakerNestedSandbox, sandbox.enableWeakerNetworkIsolation, sandbox.network.allowAllUnixSockets or sandbox.network.allowLocalBinding to true, or (shared project file only) sandbox.enabled to false: HIGH. sandbox.failIfUnavailable false (shared project file only) or a sandbox.network.httpProxyPort / socksProxyPort: MEDIUM; a proxy port is INFO while the user's own settings set sandbox.network.strictAllowlist true. A local file whose ignore files can't be read: MEDIUM at most. User settings and a local file git ignores are not reported. CWE-693. Source: code.claude.com/docs/en/sandboxing (Keep developers from widening the policy; Repository settings under an admin-required sandbox; Locks that apply without an admin-required sandbox; Custom proxy configuration), settings-reference, permissions. Analyzer: config_hygiene, pipeline step 0b (STORY-0093)."
+    },
+    {
+      "finding_id": "SANDBOX-002",
+      "finding_title": "Repository settings take code-running commands out of the sandbox",
+      "owasp_codes": [
+        "MCP05",
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "Fires when a repository settings file's sandbox.excludedCommands has an entry that leaves a shell or interpreter, a wrapper that runs what follows it (env, timeout, time, nice, nohup, stdbuf, command, builtin, noglob, watch, setsid, ionice, flock), a package or environment runner, or a container runtime (docker/podman/nerdctl, run/exec/create/container/compose) open with a trailing wildcard, or starts with * (every command): MEDIUM while a 'Bash command (unsandboxed)' prompt still guards it; HIGH when an allow rule in the same file covers the entry or the user's own settings set permissions.defaultMode to bypassPermissions or auto. HIGH when sandbox.network.allowUnixSockets lists docker.sock, podman.sock or containerd.sock. Narrowed entries (python scripts/x.py *, docker ps, timeout 30 npm test *) and sudo/eval/xargs (which stay sandboxed) are not reported. CWE-250. Source: code.claude.com/docs/en/sandboxing (Run commands outside the sandbox with excludedCommands; Security limitations), settings-reference (sandbox.excludedCommands, permissions.defaultMode), permissions (Wrappers), permission-modes. Analyzer: config_hygiene, pipeline step 0b (STORY-0093)."
+    },
+    {
+      "finding_id": "SANDBOX-003",
+      "finding_title": "Repository settings let sandboxed commands reach hosts anyone can publish to",
+      "owasp_codes": [
+        "MCP02",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "Fires when a repository settings file's sandbox.network.allowedDomains admits a code host (github.com, gitlab.com, bitbucket.org; MITRE ATT&CK T1567.001), a paste site (pastebin.com and others; T1567.003), a webhook receiver (discord.com, hooks.slack.com, webhook.site; T1567.004), a subdomain of one, or a bare *. MEDIUM; INFO while the user's own settings set sandbox.network.strictAllowlist true (Claude Code then ignores a repository's allowedDomains, 2.1.285 or later). CWE-183. Source: code.claude.com/docs/en/sandboxing (Security limitations: 'Allowing broad domains such as github.com can create paths for data exfiltration'; Locks that apply without an admin-required sandbox), settings-reference (sandbox.network). Analyzer: config_hygiene, pipeline step 0b (STORY-0093)."
+    },
+    {
+      "finding_id": "SANDBOX-004",
+      "finding_title": "Sandbox keys this settings file can't set (ignored by Claude Code)",
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "INFO dead-config note: a sandbox key Claude Code does not read from this file, set to a value that would do something. In project and local settings: the 'User or managed' keys (allowAppleEvents, allowNestedUserNamespaces true, filesystem.disabled, network.strictAllowlist, network.tlsTerminate, ripgrep, credentials.allowPlaintextInject/awsPairs/sigv4, credentials mask entries) and the 'Managed' keys (bwrapPath, socatPath, filesystem.allowManagedReadPathsOnly, network.allowManagedDomainsOnly); in user settings: the Managed keys only. Names the keys that look like locks. CWE-693. Source: code.claude.com/docs/en/settings-reference (settings index Scope column, per-key scope lines), sandboxing. Not published as an advisory. Analyzer: config_hygiene, pipeline step 0b (STORY-0093)."
+    },
+    {
+      "finding_id": "SANDBOX-005",
+      "finding_title": "Local Claude Code settings are not ignored by git",
+      "owasp_codes": [
+        "MCP10",
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Context Injection and Over-sharing",
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "MEDIUM: a .claude/settings.local.json inside a git work tree (a .git entry at or above the project) that no ignore file covers (the .gitignore files from the work-tree root down, .git/info/exclude, and the global excludes file named by core.excludesFile or $XDG_CONFIG_HOME/git/ignore, where Claude Code itself writes **/.claude/settings.local.json). LOW: a project or local settings file headed for git that contains home-directory paths naming a person (/Users/<name>, /home/<name>, C:\\Users\\<name>). Ignore files are read, git is never run. CWE-538. Source: code.claude.com/docs/en/settings (Keep personal settings out of a repository), permissions (When your local settings file needs trust); UpGuard (18,470 committed settings.local.json; 8,341 username-bearing entries). Pipeline step 0b (STORY-0093)."
+    },
+    {
       "finding_id": "WORKFLOW-001",
       "finding_title": "CI agent runs on text a stranger can write, with secrets, write access and unrestricted tools",
       "owasp_codes": [
