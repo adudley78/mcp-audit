@@ -279,6 +279,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   third-party action.
 - **`docs/owasp-mapping.json` no longer states a hand-typed count** ("103 static
   finding IDs" while it held 127). Completeness is what CI already checks.
+- **`scan --format json`, `sarif` and `nucleus` (and `--json`) print only the
+  document on stdout (STORY-0103).** With an `mcp-lock.json` present, the
+  `Lock: verified` line and the lock `WARN` lines came first, so the output
+  did not parse; so did the `--project`, `--include-agent-files` and
+  `--include-extensions` summaries. Every such line, and every error, now goes
+  to stderr in those formats; terminal output is unchanged. `check --json`
+  sends a failed registration ping's message to stderr, and with no MCP config
+  found it still writes the JSON document. `lock --verify --format json|sarif`
+  does the same, and its SARIF is no longer broken across lines at 80 columns
+  when piped.
+- **`vet --online` no longer crashes on a malicious-package entry without a
+  link.** An entry from mcp-audit.dev that lacks `link` or `id`, or is not an
+  object, is shown without it instead of stopping with an error.
+- **A Windows `cmd /c` command line with a quoted path is checked.** When the
+  whole line is one argument, such as `"C:\Program Files\nodejs\npx.cmd" -y
+  pkg`, it was split at spaces, so the launcher was never recognised and no
+  supply-chain check ran. It is now split the way Windows programs split a
+  command line (double quotes group, backslashes are literal except before a
+  quote).
+- **The privacy page and README name every network use.** The README said
+  `check` makes no network calls without a flag; after `mcp-audit register`,
+  each `check` sends a short ping with the grade. The privacy page's table now
+  lists `lock --verify --resolve` (npm or PyPI) and `lock --connect` (starts or
+  contacts each configured server), both opt-in.
+- **TRUST-006: a git-lfs custom transfer agent that runs on every transfer is
+  HIGH.** `lfs.customtransfer.<name>.path`/`args` in a repository's git config
+  was MEDIUM even when `lfs.standalonetransferagent` (or
+  `lfs.<url>.standalonetransferagent`) names that agent. git-lfs then runs it on
+  every fetch, pull, checkout and push that moves LFS objects, without asking
+  the server, the same exposure as `core.sshCommand`, which is HIGH. It is HIGH
+  in that case and stays MEDIUM otherwise (it then runs only if the LFS server
+  picks it).
+- **SANDBOX finding text names the user settings file Claude Code reads.** With
+  `CLAUDE_CONFIG_DIR` set, the notes about `strictAllowlist` and `defaultMode`
+  said "your ~/.claude/settings.json"; they now name that file (as `~/…` when it
+  is under your home directory, otherwise `$CLAUDE_CONFIG_DIR/settings.json`).
+
+### Security
+
+- **The HTML dashboard, the fleet report and the PDF report show scan text as
+  text (STORY-0103).** The dashboard and `merge --format html` put server
+  names, finding titles, attack-path hops, client and analyzer names and
+  machine names into the page as HTML, so a server name in a repository's
+  `.mcp.json`, or a tool name a live server chose (a COLLIDE-001 title), could
+  add markup or script to the report you open. Every such string is now
+  escaped, and the "Recommended action" entries no longer use an inline
+  `onclick` built from the server name. The embedded scan data already escaped
+  `<`, `>` and `&`; a server named after a page marker (`__D3_JS__`) no longer
+  breaks the page. The PDF report (`--report pdf`) passed finding titles and
+  server names to reportlab's markup parser: a `<` stopped the report with an
+  error, and a link or image tag was honoured. They are now escaped too.
 
 ## [0.21.1] - 2026-10-25
 

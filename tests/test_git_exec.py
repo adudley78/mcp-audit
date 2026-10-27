@@ -88,6 +88,10 @@ def _sev_note(hits: list[git_exec.GitExecHit], key: str) -> str:
     return next(h.note for h in hits if h.key == key)
 
 
+def _sev_note_runs(hits: list[git_exec.GitExecHit], key: str) -> str:
+    return next(h.runs for h in hits if h.key == key)
+
+
 def _sev(hits: list[git_exec.GitExecHit], key: str) -> Severity | None:
     found = [h.severity for h in hits if h.key == key]
     return found[-1] if found else None
@@ -1408,15 +1412,65 @@ class TestToolsReadingTheirOwnConfig:
         assert _sev(hits, "lfs.extension.x.clean") == Severity.HIGH
 
     def test_lfs_custom_transfer_is_medium(self, tmp_path: Path) -> None:
+        """Without a standalone agent it runs only if the LFS server picks it."""
         text = self._LFS_FILTERS + (
             '[lfs "customtransfer.mine"]\n\tpath = lfs-folderstore\n'
-            "\targs = --verbose\n[lfs]\n\tstandalonetransferagent = mine\n"
+            "\targs = --verbose\n"
         )
         hits = _hits(tmp_path, text)
         assert _sev(hits, "lfs.customtransfer.mine.path") == Severity.MEDIUM
         assert _sev(hits, "lfs.customtransfer.mine.args") == Severity.MEDIUM
+        assert "if the LFS server picks it" in _sev_note_runs(
+            hits, "lfs.customtransfer.mine.path"
+        )
         assert _sev(hits, "filter.lfs.smudge") == Severity.HIGH
+
+    @pytest.mark.parametrize(
+        "selector",
+        [
+            "[lfs]\n\tstandalonetransferagent = mine\n",
+            "[lfs]\n\tstandalonetransferagent = MINE\n",  # names compare without case
+            '[lfs "https://lfs.example.com/repo"]\n\tstandalonetransferagent = mine\n',
+            # last value wins: the earlier "other" is replaced
+            "[lfs]\n\tstandalonetransferagent = other\n"
+            "[lfs]\n\tstandalonetransferagent = mine\n",
+        ],
+    )
+    def test_lfs_custom_transfer_named_standalone_is_high(
+        self, selector: str, tmp_path: Path
+    ) -> None:
+        """git-lfs then runs it on every LFS transfer, without asking the server
+        (STORY-0103), the exposure core.sshCommand has."""
+        text = self._LFS_FILTERS + (
+            '[lfs "customtransfer.mine"]\n\tpath = lfs-folderstore\n'
+            "\targs = --verbose\n" + selector
+        )
+        hits = _hits(tmp_path, text)
+        assert _sev(hits, "lfs.customtransfer.mine.path") == Severity.HIGH
+        assert _sev(hits, "lfs.customtransfer.mine.args") == Severity.HIGH
+        assert "without asking the server" in _sev_note_runs(
+            hits, "lfs.customtransfer.mine.path"
+        )
         assert _sev(hits, "lfs.standalonetransferagent") is None
+
+    @pytest.mark.parametrize(
+        "selector",
+        [
+            "[lfs]\n\tstandalonetransferagent = other\n",
+            "[lfs]\n\tstandalonetransferagent = mine\n"
+            "[lfs]\n\tstandalonetransferagent = other\n",  # replaced later
+            "[lfs]\n\tstandalonetransferagent =\n",
+            '[lfs "customtransfer.other"]\n\tpath = x\n',
+        ],
+    )
+    def test_standalone_naming_another_agent_leaves_it_medium(
+        self, selector: str, tmp_path: Path
+    ) -> None:
+        text = self._LFS_FILTERS + (
+            '[lfs "customtransfer.mine"]\n\tpath = lfs-folderstore\n' + selector
+        )
+        hits = _hits(tmp_path, text)
+        assert _sev(hits, "lfs.customtransfer.mine.path") == Severity.MEDIUM
 
     def test_other_lfs_keys_leave_git_lfs_known(self, tmp_path: Path) -> None:
         text = self._LFS_FILTERS + (

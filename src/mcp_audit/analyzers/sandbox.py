@@ -202,10 +202,15 @@ class UserSettingsLocks:
             to INFO.
         default_mode: ``permissions.defaultMode``, when a string:
             ``bypassPermissions`` or ``auto`` there raise SANDBOX-002.
+        label: The file these came from, as finding text names it:
+            ``~/.claude/settings.json``, or the ``CLAUDE_CONFIG_DIR`` file
+            (``~/…`` under the home directory, else
+            ``$CLAUDE_CONFIG_DIR/settings.json``); never an absolute path.
     """
 
     strict_allowlist: bool = False
     default_mode: str | None = None
+    label: str = "~/.claude/settings.json"
 
 
 #: Where a settings file's sandbox keys come from, for SANDBOX-001..003.
@@ -367,10 +372,13 @@ def _findings(
     ]
 
 
-_STRICT_ALLOWLIST_HIT = (
-    "; your ~/.claude/settings.json sets network.strictAllowlist: true, so"
-    " Claude Code 2.1.285 or later ignores this repository entry"
-)
+def _strict_allowlist_hit(user: UserSettingsLocks) -> str:
+    """The note for an entry the user's ``strictAllowlist`` makes Claude Code ignore."""
+    return (
+        f"; your {user.label} sets network.strictAllowlist: true, so"
+        " Claude Code 2.1.285 or later ignores this repository entry"
+    )
+
 
 # ── SANDBOX-001: keys that weaken or switch off the sandbox ──────────────────
 
@@ -519,7 +527,10 @@ def _check_sandbox_001(
         where = f"sandbox.{item.key} = {_quote(value)}"
         if item.is_port and context.user.strict_allowlist:
             graded.append(
-                (Severity.INFO, _Hit(where, item.effect + _STRICT_ALLOWLIST_HIT))
+                (
+                    Severity.INFO,
+                    _Hit(where, item.effect + _strict_allowlist_hit(context.user)),
+                )
             )
         elif item.is_port:
             graded.append((item.severity, _Hit(where, item.effect, _PORT_NOTES)))
@@ -767,13 +778,13 @@ def _exclusion_severity(
     if user.default_mode == "bypassPermissions":
         return (
             Severity.HIGH,
-            "; your ~/.claude/settings.json starts sessions in bypassPermissions"
+            f"; your {user.label} starts sessions in bypassPermissions"
             " mode, where it runs with no prompt",
         )
     if user.default_mode == "auto":
         return (
             Severity.HIGH,
-            "; your ~/.claude/settings.json starts sessions in auto mode, where"
+            f"; your {user.label} starts sessions in auto mode, where"
             " the classifier, not you, decides whether it runs",
         )
     return (
@@ -921,7 +932,8 @@ def _check_sandbox_003(
             continue
         where = f"sandbox.network.allowedDomains contains {_quote(entry)}"
         if context.user.strict_allowlist:
-            graded.append((Severity.INFO, _Hit(where, kind + _STRICT_ALLOWLIST_HIT)))
+            hit = _Hit(where, kind + _strict_allowlist_hit(context.user))
+            graded.append((Severity.INFO, hit))
         else:
             graded.append((Severity.MEDIUM, _Hit(where, kind, _DOMAIN_NOTES)))
     return _findings(
@@ -1196,11 +1208,18 @@ def user_settings_path(home: Path | None = None) -> tuple[Path, str]:
 
     The settings doc: with ``CLAUDE_CONFIG_DIR`` set, "Claude Code then stores
     your settings ... there instead" of ``~/.claude``.  An explicit *home*
-    (tests) ignores the variable.
+    (tests) ignores the variable.  The label names that file without an
+    absolute path: ``~/…`` when it is under the home directory, otherwise
+    ``$CLAUDE_CONFIG_DIR/settings.json``.
     """
     config_dir = os.environ.get("CLAUDE_CONFIG_DIR") if home is None else None
     if config_dir:
-        return Path(config_dir) / "settings.json", "$CLAUDE_CONFIG_DIR/settings.json"
+        path = Path(config_dir) / "settings.json"
+        try:
+            relative = Path(os.path.abspath(path)).relative_to(Path.home())
+        except (ValueError, RuntimeError):
+            return path, "$CLAUDE_CONFIG_DIR/settings.json"
+        return path, "~/" + relative.as_posix()
     base = home if home is not None else Path.home()
     return base / ".claude" / "settings.json", "~/.claude/settings.json"
 
@@ -1219,31 +1238,32 @@ def read_user_settings_locks(
     path, label = user_settings_path(home)
     try:
         if not path.is_file():
-            return UserSettingsLocks(), None
+            return UserSettingsLocks(label=label), None
         with path.open("rb") as handle:
             data = handle.read(_USER_SETTINGS_MAX_BYTES + 1)
     except OSError as exc:
-        return UserSettingsLocks(), (
+        return UserSettingsLocks(label=label), (
             f"could not read {label}: {exc.strerror or type(exc).__name__};"
             " SANDBOX-002/003 severities assume it sets nothing"
         )
     if len(data) > _USER_SETTINGS_MAX_BYTES:
-        return UserSettingsLocks(), (
+        return UserSettingsLocks(label=label), (
             f"{label} is larger than 4 MiB and was not read; SANDBOX-002/003"
             " severities assume it sets nothing"
         )
     try:
         raw = json.loads(data.decode("utf-8", errors="replace"))
     except (ValueError, RecursionError):
-        return UserSettingsLocks(), None
+        return UserSettingsLocks(label=label), None
     if not isinstance(raw, dict):
-        return UserSettingsLocks(), None
+        return UserSettingsLocks(label=label), None
     _present, strict = _get(raw, "sandbox.network.strictAllowlist")
     _present, mode = _get(raw, "permissions.defaultMode")
     return (
         UserSettingsLocks(
             strict_allowlist=strict is True,
             default_mode=mode if isinstance(mode, str) else None,
+            label=label,
         ),
         None,
     )

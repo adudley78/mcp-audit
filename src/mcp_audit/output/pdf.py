@@ -16,6 +16,7 @@ re-run the scan, export JSON, and reproduce the hash independently.
 from __future__ import annotations
 
 import hashlib
+import html
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -76,6 +77,16 @@ _SEVERITY_ORDER: list[Severity] = [
 # Import lazily to avoid a circular-module dependency at PDF formatter import
 # time (check.py imports models, models has no dep on output, so it is safe,
 # but keeping the import local makes the dependency explicit).
+def _text(value: str) -> str:
+    """Escape *value* for a reportlab ``Paragraph``, which parses markup.
+
+    Finding titles and server names come from scanned configs (a cloned
+    repository can name a server anything).  Unescaped, a ``<`` stops the
+    report with a parse error, and ``<a href>``/``<img src>`` are honoured.
+    """
+    return html.escape(value, quote=False)
+
+
 def _get_remediation_hint(finding: Finding) -> str:
     """Return a short plain-English remediation hint for *finding*."""
     from mcp_audit.output.check import _remediation_hint  # noqa: PLC0415
@@ -375,7 +386,7 @@ class PdfReportFormatter:
 
         items = [
             Paragraph("MCP Security Compliance Report", title_style),
-            Paragraph(f"Organisation: {self._org_name}", subtitle_style),
+            Paragraph(f"Organisation: {_text(self._org_name)}", subtitle_style),
             Paragraph(f"Scan timestamp: {now}", subtitle_style),
             Paragraph(f"mcp-audit version: {self._version}", subtitle_style),
         ]
@@ -624,7 +635,7 @@ class PdfReportFormatter:
             sev_id_para = Paragraph(
                 f"<font color='{sev_color_hex}' fontName='Helvetica-Bold'>"
                 f"{sev.value}</font><br/>"
-                f"<font color='#6b7280' fontSize='6.5'>{finding.id}</font>",
+                f"<font color='#6b7280' fontSize='6.5'>{_text(finding.id)}</font>",
                 sev_id_style,
             )
             owasp_text = _owasp_label(finding)
@@ -632,10 +643,10 @@ class PdfReportFormatter:
 
             row = [
                 sev_id_para,
-                Paragraph(finding.title, cell_style),
-                Paragraph(finding.server or "—", cell_style),
-                Paragraph(owasp_text, cell_style),
-                Paragraph(hint, cell_style),
+                Paragraph(_text(finding.title), cell_style),
+                Paragraph(_text(finding.server or "—"), cell_style),
+                Paragraph(_text(owasp_text), cell_style),
+                Paragraph(_text(hint), cell_style),
             ]
             table_data.append(row)
 

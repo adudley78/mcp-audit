@@ -605,8 +605,13 @@ _RUNS_LFS_EXTENSION = (
 )
 _RUNS_LFS_TRANSFER = (
     "when git-lfs transfers objects with that agent: on `git fetch`, `git pull`,"
-    " `git checkout` and `git push` (`lfs.standalonetransferagent` makes it the"
-    " agent for every transfer)"
+    " `git checkout` and `git push`, if the LFS server picks it"
+    " (`lfs.standalonetransferagent` would make it the agent for every transfer)"
+)
+_RUNS_LFS_STANDALONE = (
+    "on every `git fetch`, `git pull`, `git checkout` and `git push` that moves"
+    " LFS objects: `lfs.standalonetransferagent` names this agent, so git-lfs"
+    " runs it without asking the server"
 )
 # The program that runs a key's value, when it is not git itself.
 _RUNNER_BY_SECTION = {"lfs": "git-lfs", "delta": "delta"}
@@ -827,6 +832,9 @@ class _Ctx:
     # Known tool -> a key in the same config that makes it run another program
     # (see _tool_reading_program_key); such a tool loses its known status.
     program_keys: Mapping[str, str] = field(default_factory=dict)
+    # Lower-cased custom transfer names an lfs standalonetransferagent selects
+    # (see _standalone_transfer_agents).
+    standalone_agents: frozenset[str] = frozenset()
 
 
 def _lexically_within(path: Path, root: Path) -> bool:
@@ -1540,6 +1548,42 @@ def _is_watchman_sample(cmd: str, ctx: _Ctx) -> bool:
     return not digests.isdisjoint(_WATCHMAN_SAMPLE_SHA256)
 
 
+def _standalone_transfer_agents(view: _ConfigView) -> frozenset[str]:
+    """Custom transfer names a ``standalonetransferagent`` key selects, lower-cased.
+
+    git-lfs docs: ``lfs.standalonetransferagent`` "Allows the specified custom
+    transfer agent to be used directly for transferring files, without asking
+    the server".  git-lfs reads it per endpoint
+    (``lfs.<url>.standalonetransferagent``, falling back to the plain key;
+    tq/manifest.go ``findStandaloneTransfer``).  Which URL applies
+    depends on the remote, which config alone does not settle, so every such
+    key counts, last value per key as in git, and names compare without case
+    (the stricter reading).
+    """
+    last: dict[str, str] = {}
+    for loaded in view.entries:
+        entry = loaded.entry
+        if entry.section == "lfs" and entry.name == "standalonetransferagent":
+            last[entry.var] = (entry.value or "").strip().lower()
+    return frozenset(name for name in last.values() if name)
+
+
+def _tier_and_runs(
+    entry: GitConfigEntry, rule: _Rule, ctx: _Ctx
+) -> tuple[Severity, str]:
+    """The rule's severity and "when it runs", raised for a standalone LFS agent.
+
+    A custom transfer agent normally runs only when the LFS server picks it
+    (MEDIUM).  Named as the standalone agent, it runs on every LFS transfer of
+    a fetch, pull, checkout or push, the exposure ``core.sshCommand`` has (HIGH).
+    """
+    prefix = "customtransfer."
+    sub = (entry.subsection or "").lower()
+    if rule.subsection_prefix == prefix and sub[len(prefix) :] in ctx.standalone_agents:
+        return Severity.HIGH, _RUNS_LFS_STANDALONE
+    return rule.tier, rule.runs
+
+
 def _evaluate_rule(loaded: _Loaded, rule: _Rule, ctx: _Ctx) -> GitExecHit | None:
     value = loaded.entry.value
     if rule.kind == "bool-or-command":
@@ -1568,12 +1612,13 @@ def _evaluate_rule(loaded: _Loaded, rule: _Rule, ctx: _Ctx) -> GitExecHit | None
     else:
         verdict = _classify_command(command, rule, ctx)
 
+    tier, runs = _tier_and_runs(loaded.entry, rule, ctx)
     if verdict.status == "known":
-        return _hit(loaded, Severity.INFO, rule.label, rule.runs, tool=verdict.tool)
+        return _hit(loaded, Severity.INFO, rule.label, runs, tool=verdict.tool)
     if verdict.status == "known-in-venv":
-        severity = Severity.MEDIUM if rule.tier == Severity.HIGH else rule.tier
-        return _hit(loaded, severity, rule.label, rule.runs, note=verdict.note)
-    return _hit(loaded, rule.tier, rule.label, rule.runs, note=verdict.note)
+        severity = Severity.MEDIUM if tier == Severity.HIGH else tier
+        return _hit(loaded, severity, rule.label, runs, note=verdict.note)
+    return _hit(loaded, tier, rule.label, runs, note=verdict.note)
 
 
 def _hooks_path_hit(loaded: _Loaded, ctx: _Ctx) -> GitExecHit | None:
@@ -1613,7 +1658,11 @@ def _hooks_path_hit(loaded: _Loaded, ctx: _Ctx) -> GitExecHit | None:
 
 def _evaluate(view: _ConfigView, ctx: _Ctx) -> list[GitExecHit]:
     hits: list[GitExecHit] = []
-    ctx = replace(ctx, program_keys=_tools_with_program_keys(view, ctx))
+    ctx = replace(
+        ctx,
+        program_keys=_tools_with_program_keys(view, ctx),
+        standalone_agents=_standalone_transfer_agents(view),
+    )
     for loaded, rule in _effective(view):
         hit = _evaluate_rule(loaded, rule, ctx)
         if hit is not None:
