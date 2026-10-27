@@ -906,6 +906,83 @@ class TestUserSettingsLocks:
             ("SANDBOX-003", Severity.INFO)
         ]
 
+    @pytest.mark.parametrize("inside_home", [True, False])
+    def test_notes_name_the_claude_config_dir_file(
+        self,
+        inside_home: bool,
+        repo: Path,
+        home: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """With CLAUDE_CONFIG_DIR set, the notes name that file, not
+        ~/.claude/settings.json, and never its absolute path (STORY-0103)."""
+        conf = (home / ".config" / "claude") if inside_home else tmp_path / "conf"
+        _write(
+            conf / "settings.json",
+            {
+                "sandbox": {"network": {"strictAllowlist": True}},
+                "permissions": {"defaultMode": "bypassPermissions"},
+            },
+        )
+        monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(conf))
+        raw = _box(
+            network={"allowedDomains": ["github.com"], "httpProxyPort": 8080},
+            excludedCommands=["bash *"],
+        )
+        path = _write(repo / ".claude" / "settings.json", raw)
+        findings, errors = _exposure(_config(path, raw))
+        assert errors == []
+        label = (
+            "~/.config/claude/settings.json"
+            if inside_home
+            else "$CLAUDE_CONFIG_DIR/settings.json"
+        )
+        texts = [f.description for f in findings]
+        assert (
+            sum(f"your {label} sets network.strictAllowlist" in t for t in texts) == 2
+        )
+        assert any(
+            f"your {label} starts sessions in bypassPermissions" in t for t in texts
+        )
+        for text in texts:
+            assert "your ~/.claude/settings.json" not in text
+            assert str(conf) not in text
+
+    def test_default_location_keeps_its_name(self, repo: Path, home: Path) -> None:
+        self._user_file(home, {"permissions": {"defaultMode": "auto"}})
+        raw = _box(excludedCommands=["bash *"])
+        path = _write(repo / ".claude" / "settings.json", raw)
+        [finding] = _exposure(_config(path, raw))[0]
+        assert "your ~/.claude/settings.json starts sessions in auto mode" in (
+            finding.description
+        )
+
+    def test_unreadable_claude_config_dir_file_error_names_it(
+        self,
+        repo: Path,
+        home: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        conf = tmp_path / "conf"
+        user_file = _write(conf / "settings.json", {})
+        monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(conf))
+        real_open = Path.open
+
+        def deny(self: Path, *args: object, **kwargs: object):  # noqa: ANN202
+            if self == user_file:
+                raise PermissionError(13, "Permission denied")
+            return real_open(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", deny)
+        path = _write(repo / ".claude" / "settings.json", {})
+        _findings, errors = _exposure(_config(path, {}))
+        assert errors == [
+            "SANDBOX checks: could not read $CLAUDE_CONFIG_DIR/settings.json:"
+            " Permission denied; SANDBOX-002/003 severities assume it sets nothing"
+        ]
+
     @pytest.mark.parametrize("content", [b"{not json", b"[]", b"\xff\xfe"])
     def test_broken_user_settings_lock_nothing_and_are_not_errors(
         self, content: bytes, repo: Path, home: Path

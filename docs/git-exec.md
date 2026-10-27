@@ -59,10 +59,11 @@ switches an earlier command off, and mcp-audit does the same.
 | HIGH | `filter.<driver>.clean` / `smudge` / `process` | add, status, checkout, pull |
 | HIGH | `credential.helper` starting with `!`, or naming a program inside the repository (also `credential.<url>.helper`) | whenever git needs a password or token |
 | HIGH | `lfs.extension.<name>.clean` / `smudge` (run by git-lfs) | `git add`, `git status` after a tracked LFS file changes, checkout |
+| HIGH | `lfs.customtransfer.<name>.path` / `args` when `lfs.standalonetransferagent` (or `lfs.<url>.standalonetransferagent`, any URL) names `<name>` | every fetch, pull, checkout and push that moves LFS objects: git-lfs uses a standalone agent "without asking the server how the transfers should be made" ([git-lfs-config](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-config.adoc)) |
 | MEDIUM | `core.editor`, `sequence.editor`, `core.askPass`, `gpg.program`, `gpg.<format>.program`, `merge.<driver>.driver`, `submodule.<name>.update = !…`, `remote.<name>.uploadpack` / `receivepack` | on a git action an agent may take: commit, rebase, signing, merge, submodule update, push |
 | MEDIUM | `include.path` / `includeIf.*.path` to a file outside the scanned folder | that file is not read, so whatever it sets is unknown |
 | MEDIUM | `core.hooksPath` outside the repository | hooks come from a folder this scan did not look at |
-| MEDIUM | `lfs.customtransfer.<name>.path` / `args` (run by git-lfs; `args` is expanded by the shell) | fetch, pull, checkout and push, when git-lfs transfers with that agent |
+| MEDIUM | `lfs.customtransfer.<name>.path` / `args` (run by git-lfs; `args` is expanded by the shell), not named as the standalone agent | fetch, pull, checkout and push, when the LFS server picks that agent ("Only if the server accepts as a transfer it supports will this custom transfer process be invoked") |
 | LOW | `core.pager`, `pager.<command>`, `alias.<name> = !…`, `core.gitProxy` | only on a terminal, or when someone types the alias |
 | LOW | `delta.pager` (also a delta feature's `pager`) | when git output is paged through delta, on a terminal |
 | INFO | `core.hooksPath` inside the repository | husky and similar tools set this; the hooks are ordinary repo files |

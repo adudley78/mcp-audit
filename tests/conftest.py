@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 
 import pytest
+from typer.testing import CliRunner
 
 # ── Deterministic terminal width for the whole test session ────────────────────
 #
@@ -107,6 +108,20 @@ def _isolate_cwd_git_repository(monkeypatch: pytest.MonkeyPatch) -> None:
 def pro_enabled() -> None:  # type: ignore[return]
     """Historical no-op fixture — all features are available to all users."""
     yield  # type: ignore[misc]
+
+
+def split_runner() -> CliRunner:
+    """A ``CliRunner`` whose ``result.stdout`` holds stdout only.
+
+    Click 8.1 mixes stderr into ``stdout`` unless ``mix_stderr=False``; Click
+    8.2 removed that argument and always keeps the streams apart (``output``
+    is the mix, ``stdout``/``stderr`` are separate). Tests that check what a
+    pipe consumer reads from stdout use this on either version.
+    """
+    try:
+        return CliRunner(mix_stderr=False)  # type: ignore[call-arg]
+    except TypeError:
+        return CliRunner()
 
 
 def unwrapped(text: str) -> str:

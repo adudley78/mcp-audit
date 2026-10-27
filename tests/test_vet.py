@@ -919,3 +919,59 @@ class TestVetOnlineKeepsTheLocalMaliciousCheck:
     def test_help_documents_the_malicious_exit(self) -> None:
         result = runner.invoke(app, ["vet", "--help"])
         assert "malicious" in unwrapped(result.output)
+
+
+class TestVetOnlineMaliciousItemsAreRemoteData:
+    """An --online verdict's ``malicious`` items come from mcp-audit.dev and
+    may lack fields the bundled builder sets (STORY-0103)."""
+
+    @staticmethod
+    def _online(items: list) -> dict:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "package": {"ecosystem": "npm", "name": "totallyunknownpkgxyz"},
+            "registry": {"listed": False, "verified": False},
+            "known_vulnerabilities": [],
+            "typosquat_of": None,
+            "malicious": items,
+        }
+
+    def _run(self, items: list) -> object:
+        with patch(
+            "mcp_audit.cli.vet._fetch_online_verdict",
+            return_value=self._online(items),
+        ):
+            return runner.invoke(app, ["vet", "totallyunknownpkgxyz", "--online"])
+
+    def test_item_without_link_renders(self) -> None:
+        result = self._run([{"id": "MAL-2099-1", "latest_affected": True}])
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 1
+        out = unwrapped(result.output)
+        assert "MAL-2099-1" in out
+        assert "osv.dev" not in out
+
+    def test_item_with_link_still_shows_it(self) -> None:
+        link = "https://osv.dev/vulnerability/MAL-2099-1"
+        result = self._run(
+            [{"id": "MAL-2099-1", "latest_affected": True, "link": link}]
+        )
+        assert result.exit_code == 1
+        assert link in unwrapped(result.output)
+
+    def test_id_is_printed_as_text_not_markup(self) -> None:
+        result = self._run([{"id": "MAL-[bold]x[/bold]", "latest_affected": True}])
+        assert result.exit_code == 1
+        assert "MAL-[bold]x[/bold]" in unwrapped(result.output)
+
+    def test_missing_id_and_odd_fields_do_not_crash(self) -> None:
+        result = self._run(
+            [
+                "not-an-object",
+                {"latest_affected": False, "versions": [1, 2], "ranges": ["x", [1]]},
+            ]
+        )
+        assert result.exit_code == 0
+        out = unwrapped(result.output)
+        assert "(no id)" in out
+        assert "releases listed: 1, 2" in out

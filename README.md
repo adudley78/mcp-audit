@@ -94,7 +94,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus Security FlexConnect, self-contained HTML dashboard
 - **Continuous monitoring** — `mcp-audit watch` monitors config files in real-time and re-scans on any change
 - **Fleet deployment** — machine-tagged output with `--asset-prefix` for enterprise-wide aggregation
-- **Offline scans** — `scan` and `check` make no network calls unless you pass a network flag; `fix`, `sbom` and `lock` look up package versions online unless you pass `--offline` ([full list](docs/privacy.md#commands-that-use-the-network))
+- **Offline scans** — `scan` makes no network calls unless you pass a network flag, and neither does `check` for a user who has not registered (after `mcp-audit register`, each `check` run sends a short ping with the grade); `fix`, `sbom` and `lock` look up package versions online unless you pass `--offline` ([full list](docs/privacy.md#commands-that-use-the-network))
 
 ## Enterprise vulnerability management
 
@@ -481,7 +481,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-5,547 tests validate detection accuracy and guard against regressions.
+5,625 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -707,7 +707,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 5,547 tests
+uv run pytest                        # Run all 5,625 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
