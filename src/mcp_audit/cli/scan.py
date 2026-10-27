@@ -22,6 +22,7 @@ from rich.rule import Rule
 
 from mcp_audit import cli as _cli
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
+from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
@@ -49,6 +50,7 @@ from mcp_audit.discovery import (
     discover_project_agent_configs,
     discover_project_autoexec_files,
     discover_project_configs,
+    discover_project_git_surfaces,
 )
 from mcp_audit.extensions import analyzer as _extensions_analyzer
 from mcp_audit.extensions import discovery as _extensions_discovery
@@ -969,6 +971,12 @@ def _apply_project_scan(
        Then read the GitHub Actions workflows of *project_dir* and of nested
        repository roots under it and emit WORKFLOW-001..003 for AI agent
        steps (STORY-0091).
+    0b. Walk *project_dir* for git surfaces (each ``.git`` entry and any
+       nested bare repository) and emit TRUST-006/TRUST-007 for git
+       configuration and hooks that make git run a command (STORY-0089).
+       Only config files are read and hooks listed; git is never run.
+       Findings already produced by the default scan's current-directory
+       check (same ID, path and evidence) are not added twice.
     1. Walk *project_dir* for known project-level config file patterns.
     2. Emit TRUST-001 (HIGH) for every MCP server found — fires on *origin*
        (project-scoped), not content.
@@ -1040,6 +1048,26 @@ def _apply_project_scan(
         result.findings.extend(
             f for f in new_findings if _autoexec_finding_key(f) not in already_reported
         )
+
+    # ── TRUST-006/007: git configuration that runs commands (STORY-0089) ────
+    seen_git = {
+        (f.id, f.finding_path, f.evidence)
+        for f in result.findings
+        if f.id in _git_exec.GIT_FINDING_IDS
+    }
+    try:
+        git_findings = _git_exec.scan_git_surfaces(
+            discover_project_git_surfaces(project_dir, skip_findings=skip_findings),
+            scan_root=project_dir,
+        )
+    except Exception as e:  # noqa: BLE001 — reported, never fatal
+        git_findings = []
+        result.errors.append(f"git config check error: {type(e).__name__}: {e}")
+    for finding in git_findings:
+        git_key = (finding.id, finding.finding_path, finding.evidence)
+        if git_key not in seen_git:
+            seen_git.add(git_key)
+            result.findings.append(finding)
 
     # ── WORKFLOW-001..003: AI agent steps in GitHub Actions workflows ───────
     # The default scan already read <cwd>/.github/workflows; when cwd is the
