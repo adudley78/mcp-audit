@@ -255,6 +255,29 @@ PERM-007 runs as pipeline step 5b. Each rule's basis is quoted in
 | PERM-006    | MEDIUM   | ASI03, ASI04 | MCP07, MCP05 | Bare `Bash`/`Bash(*)` ask rule with the sandbox on and `autoAllowBashIfSandboxed` at its default: skipped for every sandboxed command, so commands the author meant to review run unreviewed inside the sandbox. CWE-693 |
 | PERM-007    | HIGH     | ASI03, ASI10 | MCP02, MCP07 | Whole-server `mcp__<server>[__*]` allow on a Claude Code server with a HIGH/CRITICAL poisoning, rug-pull or supply-chain finding (SC-004 only for a known-affected configured version): that server's tools run without a prompt. Matched by whole normalized name (Claude Code 2.1.299); paired across the default and project scans under `--project`. CWE-862 |
 
+### Sandbox settings (`analyzers/sandbox.py`, SANDBOX-001..005, STORY-0093)
+
+Claude Code `sandbox` keys that a repository's settings file uses to loosen the
+Bash sandbox, keys a file can't set, and local settings headed for git. Emitted
+with `analyzer="config_hygiene"` from pipeline step 0b (gated on the config
+hygiene analyzer). "Repository settings" are a shared `.claude/settings.json`
+outside the home directory, and a `.claude/settings.local.json` that git carries
+(no ignore file covers it, or `.claude` is a symlink; capped at MEDIUM when its
+ignore files can't be read; a local file git ignores is the user's own). User
+settings get only SANDBOX-004, and two of their keys set severities:
+`network.strictAllowlist: true` drops SANDBOX-003 and proxy ports to INFO, and
+`permissions.defaultMode` `bypassPermissions` or `auto` raises SANDBOX-002 to
+HIGH. Each key's basis is quoted in
+[permission-rules.md](permission-rules.md#sandbox-settings-a-repository-can-loosen-sandbox-001005).
+
+| Finding ID  | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|-------------|----------|----------------------|------------------|-----------|
+| SANDBOX-001 | HIGH / MEDIUM / INFO | ASI04, ASI09 | MCP02, MCP05 | A repository file turns on `enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`, `network.allowAllUnixSockets` or `network.allowLocalBinding` (Anthropic: "Each one weakens the sandbox"), or, in the shared project file, sets `enabled: false` (overrides a user's `true`): HIGH, chosen by the repository for everyone who opens it. `failIfUnavailable: false` (shared project file) or a `httpProxyPort`/`socksProxyPort` (the repository's port takes over filtering and Claude Code's domain lists stop applying): MEDIUM, because the harm depends on what the machine does. A proxy port is INFO while the user's own settings set `network.strictAllowlist: true`, which makes Claude Code ignore it. The booleans are ignored only under an admin-required sandbox, the ports also under `strictAllowlist` or a managed/`--settings` `deniedDomains`; managed settings can't be seen. A local file whose git state is unknown: MEDIUM at most. CWE-693 |
+| SANDBOX-002 | HIGH / MEDIUM | ASI04, ASI03 | MCP05, MCP02 | A repository file's `excludedCommands` leaves a shell, interpreter, wrapper (`env *`, `timeout 30 *`, `nohup *`, `nice *`), package/environment runner or container runtime open with a wildcard (`python *`, `npx *`, `docker *`, `docker compose *`), or every command (`*`). The command runs "with your full access", and Claude can write the file it runs. MEDIUM while a "Bash command (unsandboxed)" prompt still guards it; HIGH when nothing asks: an allow rule in the same file covers it, or the user's own settings start sessions in `bypassPermissions` or `auto` (a repository's own `defaultMode` of those "don't take effect"; `dontAsk` denies). HIGH: `allowUnixSockets` lists the Docker/Podman/containerd socket. CWE-250 |
+| SANDBOX-003 | MEDIUM / INFO | ASI04, ASI06 | MCP02, MCP10 | A repository file adds a host anyone can publish to (code host, paste site, webhook receiver; MITRE T1567.001/.003/.004) or `*` to `network.allowedDomains`: an exfiltration path out of the sandbox. MEDIUM because the sandbox must be on and data must reach the command first. INFO while the user's own settings set `network.strictAllowlist: true`, which makes Claude Code ignore a repository's `allowedDomains` (2.1.285 or later). CWE-183 |
+| SANDBOX-004 | INFO     | ASI04 | MCP02 | A key Claude Code ignores in this file (User-or-managed keys in a project/local file; Managed keys in any non-managed file), set to a value that would act. Dead config: a lock listed here (`strictAllowlist`, `allowManagedDomainsOnly`, a credential `mask` entry) protects nothing; a loosening key loosens nothing. Not an advisory. CWE-693 |
+| SANDBOX-005 | MEDIUM / LOW | ASI06, ASI03 | MCP10, MCP02 | MEDIUM: `.claude/settings.local.json` inside a git work tree that no ignore file covers, so personal approvals reach everyone who clones and Claude Code then treats the file as repository-supplied. LOW: home-directory paths naming a person in a project or local file headed for git (privacy and portability). Read from ignore files; git is never run. CWE-538 |
+
 ### Auth analyzer (`analyzers/auth.py`)
 
 The auth analyzer checks remote MCP server configurations for the presence of
