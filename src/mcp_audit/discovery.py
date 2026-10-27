@@ -17,6 +17,13 @@ from mcp_audit.models import Finding, Severity
 #: ``tests/test_lock_autoverify.py``.
 _LOCK_FILENAME = "mcp-lock.json"
 
+#: Client name for MCP servers declared inline in a Claude Code subagent
+#: definition (``.claude/agents/**/*.md``, ``~/.claude/agents/**/*.md``;
+#: STORY-0094). Like ``claude-code-plugin``, these servers join default
+#: auto-discovery but are never written to or verified against
+#: ``mcp-lock.json`` and are left out of the rug-pull state key.
+AGENT_DEFINITION_CLIENT = "claude-code-agent"
+
 
 @dataclass
 class ClientSpec:
@@ -177,6 +184,81 @@ class DiscoveredConfig:
     # (TRUST-002 — a project- or cwd-scoped path; severity depends on whether
     # the resolved target falls inside or outside this root).
     symlink_root: Path | None = None
+    # Notes from parse_config() about content it could read only in part (a
+    # subagent definition whose frontmatter has a security-relevant key strict
+    # YAML rejects). Callers that report errors append these to
+    # ScanResult.errors, so partly-read content is never dropped silently.
+    parse_warnings: list[str] = field(default_factory=list)
+
+
+def _agent_definitions_home() -> Path:
+    """Home directory whose ``.claude/agents/`` holds user-level subagents.
+
+    Separate from :func:`_home` only so tests can point user-level subagent
+    discovery at an empty directory without moving every other client path.
+    """
+    return _home()
+
+
+def agent_definition_scope(path: Path) -> str:
+    """Return ``"user"`` for a file under ``~/.claude/agents/``, else ``"project"``.
+
+    Used by config-level checks that receive only a path. The unresolved path
+    is compared first, so a dotfile-managed (symlinked) user agent stays
+    user-scoped.
+    """
+    user_dir = _agent_definitions_home() / ".claude" / "agents"
+    candidates = [path]
+    try:
+        candidates.append(path.resolve())
+        user_dirs = [user_dir, user_dir.resolve()]
+    except OSError:
+        user_dirs = [user_dir]
+    for candidate in candidates:
+        for base in user_dirs:
+            if candidate.is_relative_to(base):
+                return "user"
+    return "project"
+
+
+def _agent_definition_configs(
+    paths: list[Path],
+    *,
+    is_project_scoped: bool,
+    errors: list[str] | None = None,
+    findings: list[Finding] | None = None,
+) -> list[DiscoveredConfig]:
+    """Wrap subagent definition files as configs, within the per-scan budgets.
+
+    Keeps files that open with frontmatter and are at most 1 MiB (Claude Code
+    skips larger ones), up to the per-scan file and byte budgets; every skip
+    other than "no frontmatter" goes to *errors*, and the files past the
+    budget are pre-screened for security keys into *findings* (see
+    :func:`~mcp_audit.agent_files.subagents.select_agent_definitions`).
+    A symlinked definition is reported by the agent-file resolver itself
+    (TRUST-002/TRUST-004 into ``skip_findings``), so ``is_symlink`` stays
+    ``False`` here and the finding is not emitted twice.
+    """
+    from mcp_audit.agent_files.subagents import (  # noqa: PLC0415
+        select_agent_definitions,
+    )
+
+    return [
+        DiscoveredConfig(
+            client_name=AGENT_DEFINITION_CLIENT,
+            root_key="mcpServers",
+            path=path,
+            is_project_scoped=is_project_scoped,
+        )
+        for path in select_agent_definitions(paths, errors, findings)
+    ]
+
+
+def _resolved_or_self(path: Path) -> Path:
+    try:
+        return path.resolve()
+    except (OSError, RuntimeError):
+        return path
 
 
 # ── Symlink findings (TRUST-002 / TRUST-004 / TRUST-005) ──────────────────────
@@ -354,6 +436,9 @@ def discover_configs(
     extra_paths: list[Path] | None = None,
     skip_auto_discovery: bool = False,
     include_plugins: bool = True,
+    include_agents: bool = True,
+    skip_findings: list[Finding] | None = None,
+    errors: list[str] | None = None,
 ) -> list[DiscoveredConfig]:
     """Find all MCP configuration files on this machine.
 
@@ -370,6 +455,20 @@ def discover_configs(
             (STORY-0080).  On by default as part of auto-discovery, so it is
             ignored when *skip_auto_discovery* is ``True``: an explicit config
             path never pulls in plugin servers.  Pass ``False`` to opt out.
+        include_agents: Also return Claude Code subagent definitions
+            (``~/.claude/agents/**/*.md`` and ``<cwd>/.claude/agents/**/*.md``
+            files that open with frontmatter) as client
+            ``claude-code-agent`` (STORY-0094).  Their inline ``mcpServers``
+            become servers; their frontmatter feeds AGENT-001..004 and
+            HOOK-001/002 at pipeline step 0.  Same rules as *include_plugins*:
+            on by default, ignored with *skip_auto_discovery*; ``lock`` passes
+            ``False``.
+        skip_findings: Optional list to receive TRUST-002/004/005 findings for
+            symlinked subagent files and untraversed symlinked directories
+            under the agents directories (the other candidates here are fixed
+            paths and report symlinks through ``is_symlink`` instead).
+        errors: Optional list to receive subagent-discovery filesystem errors
+            and budget notes (a scan's ``result.errors``).
 
     Returns:
         List of discovered configuration files.  A candidate that is itself a
@@ -532,7 +631,104 @@ def discover_configs(
                 )
             )
 
+    if include_agents and not skip_auto_discovery:
+        discovered.extend(_discover_agent_definition_configs(skip_findings, errors))
+
     return discovered
+
+
+def _discover_agent_definition_configs(
+    skip_findings: list[Finding] | None,
+    errors: list[str] | None = None,
+) -> list[DiscoveredConfig]:
+    """User-level and cwd subagent definitions for :func:`discover_configs`.
+
+    The cwd check mirrors the cwd ``.mcp.json`` / ``.claude/settings.json``
+    checks above: only ``<cwd>/.claude/agents/`` is read, not the directories
+    between the cwd and the repository root (``scan --project`` walks the
+    tree). When the cwd is the home directory, its agents are user-level.
+    A filesystem error is recorded in *errors* and never stops the scan.
+    """
+    from mcp_audit.agent_files.discovery import (  # noqa: PLC0415
+        agent_definition_paths,
+    )
+
+    raw_skip: list[Finding] = []
+    home = _agent_definitions_home()
+
+    def _paths(base: Path, scope: str, root: Path | None) -> list[Path]:
+        try:
+            return agent_definition_paths(base, scope, root, raw_skip)
+        except OSError as exc:
+            if errors is not None:
+                errors.append(
+                    f"Could not read subagent definitions under {base}: {exc}"
+                )
+            return []
+
+    user_paths = _paths(home, "user", None)
+    try:
+        cwd = Path.cwd()
+    except OSError:
+        cwd = None
+    seen = {_resolved_or_self(p) for p in user_paths}
+    cwd_paths = (
+        [p for p in _paths(cwd, "project", cwd) if _resolved_or_self(p) not in seen]
+        if cwd is not None
+        else []
+    )
+    if skip_findings is not None:
+        keys: set[tuple[str, str | None]] = set()
+        for finding in raw_skip:
+            key = (finding.id, finding.finding_path)
+            if key not in keys:
+                keys.add(key)
+                skip_findings.append(finding)
+    return _agent_definition_configs(
+        user_paths + cwd_paths,
+        is_project_scoped=False,
+        errors=errors,
+        findings=skip_findings,
+    )
+
+
+def discover_project_agent_configs(
+    root: Path,
+    skip_findings: list[Finding] | None = None,
+    errors: list[str] | None = None,
+) -> list[DiscoveredConfig]:
+    """Walk *root* for subagent definitions (``.claude/agents/**/*.md``).
+
+    The ``scan --project`` counterpart of :func:`discover_project_configs`,
+    kept separate so ``mcp-audit lock`` (which records
+    :func:`discover_project_configs` output) never sees inline subagent
+    servers. Uses the agent-file walk (same depth cap, skip list and symlink
+    rules), restricted to the subagent entries of ``AGENT_INSTRUCTION_PATTERNS``.
+
+    Args:
+        root: Resolved absolute path of the repository root to walk.
+        skip_findings: Optional list to receive TRUST-002/TRUST-005 findings,
+            and the AGENT findings for definitions past the per-scan budget.
+        errors: Optional list to receive filesystem errors and budget notes;
+            a filesystem error never stops the scan.
+
+    Returns:
+        Project-scoped :class:`DiscoveredConfig` objects with client
+        ``claude-code-agent``.
+    """
+    from mcp_audit.agent_files.discovery import (  # noqa: PLC0415
+        project_agent_definition_paths,
+    )
+
+    try:
+        paths = project_agent_definition_paths(root, skip_findings)
+    except OSError as exc:
+        if errors is not None:
+            errors.append(f"Could not read subagent definitions under {root}: {exc}")
+        return []
+    return _agent_definition_configs(
+        paths, is_project_scoped=True, errors=errors, findings=skip_findings
+    )
 
 
 # ── Project-level config discovery (for --project flag) ───────────────────────

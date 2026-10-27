@@ -17,6 +17,7 @@ from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.permissions import analyze_flagged_server_allows
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import RugPullAnalyzer, derive_state_path
+from mcp_audit.analyzers.sandbox import analyze_sandbox_files
 from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
 from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
@@ -217,6 +218,16 @@ def _run_static_pipeline(
        :meth:`~mcp_audit.analyzers.base.BaseAnalyzer.analyze_config` —
        calls every analyzer once per config file, independent of server count.
        Analyzers that have nothing to check return ``[]`` (the default).
+    0b. SANDBOX-001..005 (STORY-0093):
+       :func:`~mcp_audit.analyzers.sandbox.analyze_sandbox_files` over the
+       Claude Code settings files in ``configs``: sandbox keys a repository's
+       settings loosen, keys a file can't set, a local settings file in a git
+       work tree that no ignore file covers, and home-directory paths in a
+       settings file headed for git.  It reads ignore files and the user's
+       ``~/.claude/settings.json`` (never runs git); each file is checked on
+       its own, and read failures and per-file crashes go to
+       ``result.errors``.  Runs only when a :class:`ConfigHygieneAnalyzer` is
+       in ``analyzers``.
     1. Per-server analyzers (``analyzer.analyze(server)`` for each pair).
     2. :meth:`~mcp_audit.analyzers.rug_pull.RugPullAnalyzer.analyze_all`
        (skipped when ``skip_rug_pull`` is ``True``).
@@ -281,6 +292,18 @@ def _run_static_pipeline(
                 result.findings.extend(config_findings)
             except Exception:  # noqa: BLE001, S110
                 pass  # parse errors already captured by _discover_and_parse
+
+    # ── 0b. Sandbox settings (SANDBOX-001..005, STORY-0093) ───────────────────
+    # Reads ignore files and the user's settings (never runs git), so unlike
+    # step 0 its failures are reported in result.errors rather than swallowed.
+    # analyze_sandbox_files isolates each file; this try is the last guard.
+    if any(isinstance(a, ConfigHygieneAnalyzer) for a in analyzers):
+        try:
+            sandbox_findings, sandbox_errors = analyze_sandbox_files(configs)
+            result.findings.extend(sandbox_findings)
+            result.errors.extend(sandbox_errors)
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"SANDBOX checks failed: {type(e).__name__}")
 
     # ── 1. Per-server static analysis ─────────────────────────────────────────
     for server in all_servers:
@@ -354,6 +377,14 @@ def _run_static_pipeline(
 
     # ── 7. Registry metadata ──────────────────────────────────────────────────
     result.registry_stats = _extract_registry_stats(analyzers)
+    # A known-malicious file that could not be read leaves SC-008 blind; say
+    # so instead of passing silently (STORY-0097).
+    for analyzer in analyzers:
+        if isinstance(analyzer, SupplyChainAnalyzer):
+            load_error = analyzer.malicious.load_error
+            if load_error:
+                result.errors.append(f"known-malicious data: {load_error}")
+            break
 
     return result
 
@@ -435,12 +466,28 @@ def _discover_and_parse(
     and hooks that run commands (TRUST-006/TRUST-007, STORY-0089; see
     :func:`mcp_audit.analyzers.git_exec.scan_cwd_repository`).  Both are scored
     like the rest.
+
+    Without *extra_paths*, Claude Code subagent definitions
+    (``~/.claude/agents/``, ``<cwd>/.claude/agents/``) are discovered too, as
+    client ``claude-code-agent`` (STORY-0094): their inline servers join
+    ``result.servers`` and their frontmatter is checked at pipeline step 0
+    (AGENT-001..004, HOOK-001/002). TRUST-002/004/005 for symlinks under the
+    agents directories and any partly-unreadable frontmatter (``errors``) are
+    recorded here.
+
+    With no *extra_paths*, the working directory's
+    ``.github/workflows/*.y{a,}ml`` files are read the same way and their
+    WORKFLOW-001..003 findings appended (STORY-0091).
     """
+    discovery_findings: list[Finding] = []
     configs = discover_configs(
         extra_paths=extra_paths,
         skip_auto_discovery=bool(extra_paths),
         include_plugins=include_plugins,
+        skip_findings=discovery_findings,
+        errors=result.errors,
     )
+    result.findings.extend(discovery_findings)
     result.clients_scanned = len({c.client_name for c in configs})
 
     if not extra_paths:
@@ -470,6 +517,17 @@ def _discover_and_parse(
     if not extra_paths:
         result.findings.extend(_cwd_autoexec_findings())
 
+        # GitHub Actions workflows of the repository the scan runs in
+        # (STORY-0091): the GitHub Action's default run is a scan from the
+        # checkout, so a workflow that hands an agent secrets on an issue or
+        # comment trigger fails CI.  Read-only YAML; an explicit path skips it.
+        from mcp_audit.ci_workflows import scan_workflows  # noqa: PLC0415
+
+        try:
+            result.findings.extend(scan_workflows(Path.cwd(), errors=result.errors))
+        except Exception as exc:  # noqa: BLE001 — never fail the scan over CI files
+            result.errors.append(f"ci_workflows: workflow scan failed: {exc}")
+
     all_servers: list[ServerConfig] = []
     for config in configs:
         if config.is_symlink:
@@ -488,6 +546,7 @@ def _discover_and_parse(
             all_servers.extend(servers)
         except ValueError as e:
             result.errors.append(str(e))
+        result.errors.extend(config.parse_warnings)
 
     result.servers_found = len(all_servers)
     result.servers = all_servers

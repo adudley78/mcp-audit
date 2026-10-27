@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from mcp_audit.registry.loader import KnownServerRegistry, RegistryEntry
+from mcp_audit.registry.malicious import MaliciousMatch
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -157,6 +158,36 @@ def _normalise_vulns(entry: RegistryEntry) -> list[dict[str, Any]]:
     return result
 
 
+def malicious_item(match: MaliciousMatch) -> dict[str, Any]:
+    """Shape one OSV ``MAL-*`` match for the verdict's ``malicious`` list.
+
+    Args:
+        match: An :func:`~mcp_audit.registry.malicious.assess` result.
+
+    Returns:
+        ``{id, ecosystem, aliases, summary, versions, ranges, latest_affected,
+        blanket_range_ignored, link, note}``.  ``ranges`` keeps OSV's events
+        (``[{"introduced": "0"}]`` means every version).  ``latest_affected``
+        is ``True`` when OSV marks every release (or every release from some
+        version on), so the latest release ``vet`` answers for is covered.
+    """
+    record = match.record
+    return {
+        "id": record.id,
+        "ecosystem": record.ecosystem,
+        "aliases": list(record.aliases),
+        "summary": record.summary or None,
+        "versions": list(record.versions),
+        "ranges": [
+            [{kind: value} for kind, value in events] for events in record.ranges
+        ],
+        "latest_affected": match.latest_affected,
+        "blanket_range_ignored": match.blanket_range_ignored,
+        "link": record.link,
+        "note": record.note,
+    }
+
+
 # ── Public builder ────────────────────────────────────────────────────────────
 
 
@@ -166,11 +197,17 @@ def build_verdict(
     entry: RegistryEntry | None,
     typosquat_of: RegistryEntry | None,
     registry: KnownServerRegistry,
+    *,
+    typosquat_basis: str | None = None,
+    malicious: list[dict[str, Any]] | None = None,
+    other_ecosystem_malicious: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a v1 verdict document from registry data.
 
     This is the **only** place that assembles the verdict document shape.
-    All fields conform to ``https://mcp-audit.dev/v1/schema.json``.
+    All fields conform to ``https://mcp-audit.dev/v1/schema.json`` (which
+    allows additional properties; ``typosquat_basis``, ``malicious`` and
+    ``other_ecosystem_malicious`` were added by STORY-0097).
 
     Args:
         name: Package name exactly as supplied by the user.
@@ -182,12 +219,21 @@ def build_verdict(
             ``typosquat_of`` is only meaningful when *entry* is ``None``.
         registry: The loaded :class:`~mcp_audit.registry.loader.KnownServerRegistry`
             instance, used for metadata (``last_updated``, entry count).
+        typosquat_basis: Why *typosquat_of* was chosen: ``"edit-distance"``
+            (SC-001..003 logic) or ``"unscoped-twin"`` (SC-007).  Defaults to
+            ``"edit-distance"`` when *typosquat_of* is set.
+        malicious: :func:`malicious_item` dicts for OSV ``MAL-*`` records on
+            this package in this ecosystem (SC-008 data).
+        other_ecosystem_malicious: The same, for a same-named package in the
+            other registry (``vet mcp-server-git`` answers for the PyPI
+            package; the npm package of that name is ``MAL-2026-5478``).
 
     Returns:
         Verdict ``dict`` ready for JSON serialisation.  Always includes every
         required schema key so callers can treat the document as complete.
     """
     now_iso = datetime.now(tz=UTC).isoformat()
+    basis = None if typosquat_of is None else typosquat_basis or "edit-distance"
 
     if entry is not None:
         registry_block: dict[str, Any] = {
@@ -234,6 +280,9 @@ def build_verdict(
         "capabilities": capabilities,
         "attestation": attestation_block,
         "typosquat_of": typosquat_of.name if typosquat_of is not None else None,
+        "typosquat_basis": basis,
+        "malicious": list(malicious or []),
+        "other_ecosystem_malicious": list(other_ecosystem_malicious or []),
         "tags": tags,
         "links": {
             "repo": repo,

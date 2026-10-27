@@ -45,7 +45,9 @@ from mcp_audit.baselines.manager import BaselineManager
 from mcp_audit.cli import app, console
 from mcp_audit.cli._helpers import _write_output
 from mcp_audit.discovery import (
+    AGENT_DEFINITION_CLIENT,
     build_project_symlink_finding,
+    discover_project_agent_configs,
     discover_project_autoexec_files,
     discover_project_configs,
     discover_project_git_surfaces,
@@ -647,7 +649,18 @@ def _apply_agent_files(
     af_list = _af_discovery.discover_agent_files(
         project_root=project_root, skip_findings=af_skip_findings
     )
-    af_findings = _af_analyzer.analyze_agent_files(af_list) + af_skip_findings
+    # Subagent definitions' frontmatter checks (AGENT-001..004, HOOK-001/002)
+    # already come from default discovery (user-global and cwd) and from
+    # --project, so only their body text is scanned here (STORY-0094). A
+    # symlink default discovery already reported is not reported twice.
+    already = {
+        (f.id, f.finding_path)
+        for f in result.findings
+        if f.id in ("TRUST-002", "TRUST-004", "TRUST-005")
+    }
+    af_findings = _af_analyzer.analyze_agent_files(
+        af_list, include_definitions=False
+    ) + [f for f in af_skip_findings if (f.id, f.finding_path) not in already]
     result.findings.extend(af_findings)
     con.print(
         f"[dim]Agent files: {len(af_list)} file(s) scanned, "
@@ -933,6 +946,9 @@ def _apply_project_scan(
        for any that auto-run a command. These files are never parsed into
        ``ServerConfig`` objects. Findings the default scan's cwd-root pass
        already produced for the same file are not repeated.
+       Then read the GitHub Actions workflows of *project_dir* and of nested
+       repository roots under it and emit WORKFLOW-001..003 for AI agent
+       steps (STORY-0091).
     0b. Walk *project_dir* for git surfaces (each ``.git`` entry and any
        nested bare repository) and emit TRUST-006/TRUST-007 for git
        configuration and hooks that make git run a command (STORY-0089).
@@ -1031,6 +1047,31 @@ def _apply_project_scan(
             seen_git.add(git_key)
             result.findings.append(finding)
 
+    # ── WORKFLOW-001..003: AI agent steps in GitHub Actions workflows ───────
+    # The default scan already read <cwd>/.github/workflows; when cwd is the
+    # project root the same findings would arrive twice, so keep one copy.
+    from mcp_audit.ci_workflows import scan_workflows  # noqa: PLC0415
+
+    seen_workflow = {
+        (f.id, f.finding_path, f.server, f.tool)
+        for f in result.findings
+        if f.id.startswith("WORKFLOW-")
+    }
+    workflow_errors: list[str] = []
+    try:
+        workflow_findings = scan_workflows(
+            project_dir, walk=True, errors=workflow_errors
+        )
+    except Exception as exc:  # noqa: BLE001 — never fail the scan over CI files
+        workflow_errors.append(f"ci_workflows: workflow scan failed: {exc}")
+        workflow_findings = []
+    result.errors.extend(e for e in workflow_errors if e not in result.errors)
+    for finding in workflow_findings:
+        key = (finding.id, finding.finding_path, finding.server, finding.tool)
+        if key not in seen_workflow:
+            seen_workflow.add(key)
+            result.findings.append(finding)
+
     project_configs = discover_project_configs(project_dir, skip_findings=skip_findings)
 
     # ── TRUST-002: a discovered MCP config candidate that is itself a symlink ─
@@ -1042,10 +1083,32 @@ def _apply_project_scan(
                 )
             )
 
+    # Subagent definitions (STORY-0094): their frontmatter is checked at step 0
+    # of the pipeline below (AGENT-001..004, HOOK-001/002) and their inline
+    # servers get TRUST-001 like any project-scoped server. Kept out of
+    # discover_project_configs() so `mcp-audit lock` never records them.
+    # A symlinked agent file reports TRUST-002 through skip_findings, and the
+    # definitions past the per-scan budget their pre-screen AGENT findings.
+    # The default scan may already have read the cwd's agents directory, so
+    # an error it already recorded (e.g. a file over 1 MiB) is not repeated.
+    agent_errors: list[str] = []
+    project_configs += discover_project_agent_configs(
+        project_dir, skip_findings=skip_findings, errors=agent_errors
+    )
+    result.errors.extend(
+        e for e in dict.fromkeys(agent_errors) if e not in result.errors
+    )
+
     # ── TRUST-005: symlinked directories not traversed by either walk above ──
-    seen_skip: set[tuple[str, str | None]] = set()
+    # Seeded with what earlier stages (default discovery, --include-agent-files)
+    # already reported, so a symlink under an agents directory is named once.
+    seen_skip: set[tuple[str | None, ...]] = {
+        _skip_finding_key(f)
+        for f in result.findings
+        if f.id in ("TRUST-002", "TRUST-004", "TRUST-005") or f.id.startswith("AGENT-")
+    }
     for finding in skip_findings:
-        key = (finding.id, finding.finding_path)
+        key = _skip_finding_key(finding)
         if key in seen_skip:
             continue
         seen_skip.add(key)
@@ -1064,6 +1127,7 @@ def _apply_project_scan(
             project_servers.extend(parse_config(config))
         except ValueError as e:
             result.errors.append(str(e))
+        result.errors.extend(w for w in config.parse_warnings if w not in result.errors)
 
     con.print(
         f"[dim]Project scan: {len(project_configs)} config file(s),"
@@ -1074,6 +1138,26 @@ def _apply_project_scan(
     # Logic is deliberately dumb — origin (is_project_scoped) is the only
     # criterion.  Content-based analysis runs separately below.
     for server in project_servers:
+        if server.client == AGENT_DEFINITION_CLIENT:
+            # Same origin-based finding; the launch moment differs (STORY-0094).
+            spawn = (
+                f"Server '{server.name}' is declared inline in"
+                f" '{server.config_path.name}', a project subagent definition"
+                " that is likely committed to version control."
+                " Once a developer trusts this repository in Claude Code, this"
+                " MCP server starts with their full OS privileges whenever"
+                " Claude delegates to that subagent."
+            )
+        else:
+            spawn = (
+                f"Server '{server.name}' is defined in"
+                f" '{server.config_path.name}', a project-level config file"
+                " that is likely committed to version control."
+                " When a developer opens this repository in an AI editor"
+                " and clicks 'Trust this folder', this MCP server spawns"
+                " automatically with their full OS privileges before any"
+                " project code runs."
+            )
         result.findings.append(
             Finding(
                 id="TRUST-001",
@@ -1083,14 +1167,7 @@ def _apply_project_scan(
                 server=server.name,
                 title="MCP server defined in project-level config (TrustFall risk)",
                 description=(
-                    f"Server '{server.name}' is defined in"
-                    f" '{server.config_path.name}', a project-level config file"
-                    " that is likely committed to version control."
-                    " When a developer opens this repository in an AI editor"
-                    " and clicks 'Trust this folder', this MCP server spawns"
-                    " automatically with their full OS privileges before any"
-                    " project code runs."
-                    " A supply-chain attacker, malicious contributor, or"
+                    spawn + " A supply-chain attacker, malicious contributor, or"
                     " typosquatted package can backdoor every developer who"
                     " trusts the repo (Adversa TrustFall, May 2026;"
                     " corroborated by CVE-2026-30615)."
@@ -1138,6 +1215,11 @@ def _apply_project_scan(
     # Merge pipeline findings only — score and registry_stats stay with
     # the main result.
     result.findings.extend(pipeline_result.findings)
+    # Errors a pipeline step reports (SANDBOX-005's unreadable ignore files,
+    # PERM-007, the rules engine) would otherwise be lost (STORY-0093).
+    for error in pipeline_result.errors:
+        if error not in result.errors:
+            result.errors.append(error)
 
     # ── PERM-007 across the default and project scans (STORY-0092) ─────────
     if any(isinstance(a, ConfigHygieneAnalyzer) for a in effective_analyzers):
@@ -1148,6 +1230,18 @@ def _apply_project_scan(
         )
 
     return result
+
+
+def _skip_finding_key(finding: Finding) -> tuple[str | None, ...]:
+    """Dedupe key for discovery-time findings merged by ``_apply_project_scan``.
+
+    A TRUST-002/004/005 is one per path. The AGENT findings for subagent
+    definitions past the per-scan budget can be several per path (one per
+    security key), so the title is part of their key.
+    """
+    if finding.id.startswith("AGENT-"):
+        return (finding.id, finding.finding_path, finding.title)
+    return (finding.id, finding.finding_path)
 
 
 def _apply_lock_verification(
@@ -1199,6 +1293,12 @@ def _apply_lock_verification(
         con.print(
             "[yellow]WARN[/yellow] config(s) outside the lock root were "
             "skipped (no LOCK findings)"
+        )
+    if status.not_covered:
+        con.print(
+            f"[yellow]WARN[/yellow] {len(status.not_covered)} subagent MCP"
+            " server(s) not covered by mcp-lock.json (AGENT-004): "
+            + ", ".join(status.not_covered)
         )
     if lock_findings:
         con.print(
@@ -1451,8 +1551,9 @@ def scan(
         False,
         "--include-agent-files",
         help=(
-            "Also scan agent instruction and memory files (skills, Cursor rules,"
-            " Copilot instructions, CLAUDE.md tiers) for security issues."
+            "Also scan agent instruction and memory files (skills, subagent"
+            " prompts, Cursor rules, Copilot instructions, CLAUDE.md tiers) for"
+            " security issues."
         ),
     ),
     no_plugins: bool = typer.Option(  # noqa: B008

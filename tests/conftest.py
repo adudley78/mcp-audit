@@ -78,6 +78,12 @@ def _isolate_claude_plugins(
         "mcp_audit.plugins.mods.managed_settings_dir",
         lambda: tmp_path_factory.getbasetemp() / "no-managed-settings",
     )
+    # User-level subagent definitions (~/.claude/agents/, STORY-0094) join
+    # default discovery with their inline MCP servers.  Same reason as above.
+    monkeypatch.setattr(
+        "mcp_audit.discovery._agent_definitions_home",
+        lambda: tmp_path_factory.getbasetemp() / "no-claude-agents-home",
+    )
 
 
 @pytest.fixture(autouse=True)

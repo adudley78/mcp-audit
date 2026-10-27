@@ -56,10 +56,23 @@ trust the project ([advanced config](https://learn.chatgpt.com/docs/config-file/
 | `.claude/settings.json`, `.claude/settings.local.json` | `hooks` (run shell commands at lifecycle events) | CFHYG-005, HOOK-001/002 | both | [Hooks](https://code.claude.com/docs/en/hooks) |
 | same | Approval switched off or widened | HARNESS-001..006 | both | [Permissions](https://code.claude.com/docs/en/permissions) |
 | same | `enabledMcpjsonServers`: named `.mcp.json` servers connect without a prompt once the folder is trusted | HARNESS-007 INFO (and HARNESS-002 for `enableAllProjectMcpServers`) | both | [Settings reference](https://code.claude.com/docs/en/settings-reference) |
+| same | `sandbox` block: a key that weakens the Bash sandbox (`enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`, `network.allowAllUnixSockets`, `network.allowLocalBinding`, `enabled: false`), a proxy port, a code-running command taken out of it (`excludedCommands`), the Docker socket (`allowUnixSockets`), or a publish-anywhere host in `allowedDomains`. A repository's files can set these unless managed settings make the sandbox admin-required. | SANDBOX-001 HIGH/MEDIUM, SANDBOX-002 HIGH/MEDIUM, SANDBOX-003 MEDIUM (INFO under the user's `strictAllowlist`); SANDBOX-004 INFO for keys the file can't set. A `settings.local.json` counts only when git carries it | both | [Sandboxing](https://code.claude.com/docs/en/sandboxing), [Settings reference](https://code.claude.com/docs/en/settings-reference) |
+| `.claude/settings.local.json` | One person's approvals and overrides; when tracked in git, Claude Code treats it as repository-supplied. Reported when it sits in a git work tree that no ignore file covers (ignore files are read; git is not run). | SANDBOX-005 MEDIUM (LOW for home paths with a username in any settings file headed for git) | both | [Settings](https://code.claude.com/docs/en/settings), [Permissions](https://code.claude.com/docs/en/permissions) |
 | same | Top-level `env` sets an API endpoint (`ANTHROPIC_*_BASE_URL`, `OPENAI_BASE_URL`, `GOOGLE_*_BASE_URL`) or `HTTP(S)_PROXY` to a host that is not the provider's own. Applied after workspace trust and at startup in `claude -p`. CVE-2026-21852. | CFHYG-007 HIGH | both | [Settings reference: `env`](https://code.claude.com/docs/en/settings-reference#env), [env vars](https://code.claude.com/docs/en/env-vars), [Check Point](https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/) |
 | `.claude/scheduled_tasks.json` | Saved scheduled tasks (prompts run on a timer). Listed by Anthropic among "the files Claude Code runs on its own". | TRUST-008 MEDIUM | both | [Scheduled tasks](https://code.claude.com/docs/en/scheduled-tasks), [Sandboxing](https://code.claude.com/docs/en/sandboxing) |
 | `.claude/workflows/` | Saved workflow scripts (JavaScript that steers subagents), run as `/<name>` by everyone who clones the repository. | TRUST-008 MEDIUM (names listed, contents not read) | both | [Workflows](https://code.claude.com/docs/en/workflows), [Sandboxing](https://code.claude.com/docs/en/sandboxing) |
 | `.mcp.json` and other project MCP configs | MCP servers spawned on trust | TRUST-001 HIGH | `--project` | See `docs/severity-framework.md` |
+| `.claude/agents/**/*.md` (subagent frontmatter) | `hooks` run shell commands while the subagent is active, once the folder holding the file is trusted (since 2.1.218; before, from untrusted folders) | AGENT-003 MEDIUM, plus HOOK-001/002 on each command | both | [Sub-agents](https://code.claude.com/docs/en/sub-agents), [Permissions: what runs before you trust a folder](https://code.claude.com/docs/en/permissions) |
+| same | Inline `mcpServers` entries start when Claude delegates to the subagent, after folder trust (since 2.1.238); never in `mcp-lock.json` | AGENT-004 INFO/LOW (MEDIUM under a lock root), TRUST-001 HIGH under `--project`, and every per-server check as client `claude-code-agent` | both | [Sub-agents](https://code.claude.com/docs/en/sub-agents) |
+| same | `permissionMode: acceptEdits`/`auto` loosens prompts for delegated tasks; `bypassPermissions` escalated before 2.1.267 | AGENT-001 MEDIUM | both | [Sub-agents](https://code.claude.com/docs/en/sub-agents) |
+| `~/.claude/agents/**/*.md` | The same keys in your own (or copied-in) subagents, which run with no trust step | AGENT-001 LOW, AGENT-003 INFO, AGENT-004 INFO/LOW; HOOK-001/002 | default scan | [Sub-agents](https://code.claude.com/docs/en/sub-agents) |
+
+A default scan reads `~/.claude/agents/` and the working directory's
+`.claude/agents/` (not the ones between it and the repository root); `--project`
+walks every `.claude/agents/` under the directory. The frontmatter is read the
+way Claude Code reads it (it ends at the first `---`, even mid-line) and also
+up to the first `---` line; findings from both readings are kept. See
+`docs/agent-files.md`.
 
 ## VS Code
 
@@ -88,6 +101,18 @@ The keys and severities are in [`docs/git-exec.md`](git-exec.md).
 | `.git/hooks/post-index-change` | Run by `git status` when it refreshes the index. | TRUST-007 HIGH | both | [githooks](https://git-scm.com/docs/githooks); CVE-2026-26268 |
 | `.git/hooks/*` (other githooks names), `core.hooksPath` | Run on commit, merge, checkout, push. A `core.hooksPath` inside the repository (husky) is listed; one outside is MEDIUM. | TRUST-007 INFO inventory; TRUST-006 for `core.hooksPath` | both | [githooks](https://git-scm.com/docs/githooks) |
 | A nested bare repository (`HEAD`, `objects/`, `refs/`, not named `.git`) | git run inside it uses its `config` and hooks. INFO in a test fixture or dependency-cache directory when it runs nothing. | TRUST-007 HIGH | `--project` | git-config [`safe.bareRepository`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-safebareRepository) |
+
+## GitHub Actions
+
+These run on GitHub's runners rather than on your machine, but with the
+repository's secrets, and the text the agent reads can come from anyone.
+Under `--project` only the project root and nested repository roots (a `.git`
+entry) are read, because GitHub runs only a repository's root workflows.
+
+| File | What runs or applies | Finding | Scan path | Source |
+|---|---|---|---|---|
+| `.github/workflows/*.yml`, `*.yaml` | A step using `anthropics/claude-code-action`, `anthropics/claude-code-security-review` or `google-github-actions/run-gemini-cli` on an issue, comment, review, discussion or `pull_request_target` event, with a secret, a writable token and tools open to any command. | WORKFLOW-001 HIGH; WORKFLOW-002 MEDIUM when a deny list is the only limit | both | ["Comment and Control"](https://oddguan.com/blog/comment-and-control-prompt-injection-credential-theft-claude-code-gemini-cli-github-copilot/); see `docs/ci-workflows.md` |
+| same | A run-gemini-cli step below action 0.1.22 / Gemini CLI 0.39.1, or trusting a workspace that holds pull-request code. | WORKFLOW-003 HIGH | both | [GHSA-wpqr-6v78-jr5g](https://github.com/google-github-actions/run-gemini-cli/security/advisories/GHSA-wpqr-6v78-jr5g) |
 
 ## Not read
 

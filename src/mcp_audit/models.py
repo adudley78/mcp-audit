@@ -278,6 +278,11 @@ class LockStatus(BaseModel):
     #: root consulted — not described by any lock, so they produce no LOCK
     #: finding in either direction (R61). Named here so the skip is visible.
     outside_root: list[str] = Field(default_factory=list)
+    #: Servers declared inline in a project subagent definition
+    #: (``claude-code-agent``, STORY-0094) that sit under a lock root. The lock
+    #: never records them, so they are skipped rather than failed; named here so
+    #: a ``verified`` lock never reads as covering them.
+    not_covered: list[str] = Field(default_factory=list)
     #: Locked servers with recorded tool definitions (STORY-0086). Automatic
     #: verification never starts servers, so these are never compared here;
     #: the count lets the ``Lock:`` line say so instead of reading as fully

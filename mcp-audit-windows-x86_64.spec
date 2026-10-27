@@ -16,6 +16,7 @@ a = Analysis(
         (os.path.join(root, 'src/mcp_audit/data'), 'mcp_audit/data'),
         (os.path.join(root, 'registry/known-servers.json'), 'registry'),
         (os.path.join(root, 'registry/known-extension-vulns.json'), 'registry'),
+        (os.path.join(root, 'registry/known-malicious.json'), 'registry'),
         (os.path.join(root, 'rules/community'), 'rules/community'),
         (os.path.join(root, 'semgrep-rules'), 'semgrep-rules'),
         (os.path.join(root, 'src/mcp_audit/advisory/osv_schema'),

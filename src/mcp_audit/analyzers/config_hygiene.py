@@ -31,6 +31,13 @@ opt-in.  Keys and semantics follow code.claude.com/docs/en/permissions.
 STORY-0092 (2026-10-25) and live in :mod:`mcp_audit.analyzers.permissions`:
 ``analyze_config`` runs PERM-001..006 on the same files as HARNESS-*, and the
 scanner runs PERM-007 after every per-server analyzer.
+
+**Sandbox settings a repository can loosen (SANDBOX-001..005)** were added in
+STORY-0093 (2026-10-26) and live in :mod:`mcp_audit.analyzers.sandbox`.  They
+are not run from ``analyze_config``: whether a local settings file is the
+repository's depends on git's ignore files and their severity on the user's
+own settings, so the scanner runs all five as pipeline step 0b, on the same
+files, gated on this analyzer.
 """
 
 from __future__ import annotations
@@ -46,10 +53,16 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import unquote, urlsplit
 
+from mcp_audit.agent_files.subagents import (
+    AgentFrontmatter,
+    analyze_agent_definition,
+    finalize_findings,
+)
 from mcp_audit.analyzers import permissions as _permissions
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS, CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import normalize_for_detection
+from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.discovery import (
     SIBLING_HARNESS_AUTOEXEC_KINDS as _SIBLING_HARNESS_CHECKS,
 )
@@ -1205,6 +1218,9 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         - **PERM-001..006**: permission rules that don't do what they say
           (:mod:`mcp_audit.analyzers.permissions`, STORY-0092).
 
+        SANDBOX-001..005 (:mod:`mcp_audit.analyzers.sandbox`, STORY-0093) run
+        on the same files in pipeline step 0b, not here.
+
         Args:
             raw: The parsed JSON dict for the config file.
             config_path: Filesystem path to the config file.
@@ -1213,6 +1229,11 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         Returns:
             List of config-level findings.  Empty when no issues are detected.
         """
+        if client == AGENT_DEFINITION_CLIENT:
+            return self.analyze_agent_definition(
+                raw, config_path, client, agent_definition_scope(config_path)
+            )
+
         findings: list[Finding] = []
         if not self._is_claude_code_config(config_path):
             return findings
@@ -1269,6 +1290,50 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
 
         # HOOK-001/002: inspect individual hook commands for risky patterns
         findings.extend(self._check_hook_commands(hooks, config_path, client))
+        return findings
+
+    def analyze_agent_definition(
+        self,
+        raw: dict,
+        config_path: Path,
+        client: str,
+        scope: str,
+    ) -> list[Finding]:
+        """AGENT-001..004 plus HOOK-001/002 for one subagent definition (STORY-0094).
+
+        The single place both entry points combine the two: pipeline step 0
+        (via :meth:`analyze_config`, client ``claude-code-agent``) and the
+        agent-file scanner (``agent-files scan``). A subagent's frontmatter
+        ``hooks`` use the settings-file schema, so its commands go through the
+        same HOOK-001/002 checks; AGENT-003 replaces CFHYG-005 for this file
+        type (CFHYG-005 never fires on an agent file).
+
+        Args:
+            raw: The definition record from ``parse_config`` (every reading of
+                the frontmatter), or one plain frontmatter mapping.
+            config_path: The agent definition file.
+            client: Client name for the findings.
+            scope: ``"project"`` or ``"user"``.
+
+        Returns:
+            Findings with ``finding_path`` set to *config_path*; hook commands
+            from every reading are checked, and credential-shaped text in any
+            finding is redacted.
+        """
+        definition = AgentFrontmatter.from_record(raw)
+        if definition is None:
+            if not isinstance(raw, dict) or not raw:
+                return []
+            definition = AgentFrontmatter.from_mapping(raw)
+        findings = analyze_agent_definition(definition, config_path, scope, client)
+        hook_findings: list[Finding] = []
+        for reading in definition.readings:
+            hooks = reading.get("hooks")
+            if isinstance(hooks, dict):
+                hook_findings += self._check_hook_commands(hooks, config_path, client)
+        findings += finalize_findings(hook_findings)
+        for finding in findings:
+            finding.finding_path = str(config_path)
         return findings
 
     # ── Harness posture (STORY-0079) ──────────────────────────────────────────

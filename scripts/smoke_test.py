@@ -444,6 +444,8 @@ def step_vet_contract(binary_cmd: list[str]) -> bool:
       - a verified package        → exit 0, "Verified" in output
       - a typosquat candidate     → exit 1, "typosquat" in output
       - a package with an unfixed CVE → exit 1, "CVE-" in output
+      - an OSV MAL-listed package       → exit 1, its MAL ID in output (proves
+        registry/known-malicious.json is bundled; STORY-0097)
       - an unknown package         → exit 0, "unknown" in output
       - an empty package name      → exit 2, clean error (no traceback)
       - `--format json`            → valid JSON document
@@ -470,6 +472,15 @@ def step_vet_contract(binary_cmd: list[str]) -> bool:
     r = run(binary_cmd, "vet", cve_pkg, expect_exit=1)
     if "CVE-" not in r.stdout:
         print("FAIL: vet CVE package did not list a CVE", file=sys.stderr)
+        return False
+
+    r = run(binary_cmd, "vet", "mcp-server-github", expect_exit=1)
+    if "MAL-2026-5479" not in r.stdout:
+        print(
+            "FAIL: vet did not report MAL-2026-5479 — is "
+            "registry/known-malicious.json bundled?",
+            file=sys.stderr,
+        )
         return False
 
     r = run(binary_cmd, "vet", "totallyunknownpkgxyz", expect_exit=0)

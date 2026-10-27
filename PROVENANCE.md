@@ -70,7 +70,7 @@ For reference, the existing MCP security tools we studied during design (but did
 
 ### Supply chain (analyzers/supply_chain.py)
 
-The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 83 known-legitimate MCP servers.  It also emits `SC-004` (HIGH) when an exact-match registry entry carries `known_vulnerabilities` CVE IDs — an offline advisory check requiring no network access.
+The supply chain analyzer detects typosquatted npm package names by computing Levenshtein edit distance between the package name in a config and every name in a curated registry of 83 known-legitimate MCP servers.  It also emits `SC-004` (HIGH) when an exact-match registry entry carries `known_vulnerabilities` CVE IDs — an offline advisory check requiring no network access — `SC-007` for an unscoped twin of a registry entry, and `SC-008` for an exact-name OSV `MAL-*` record (STORY-0097, below).
 
 **Research sources:**
 
@@ -78,6 +78,16 @@ The supply chain analyzer detects typosquatted npm package names by computing Le
 - **WorkOS** — Analysis of MCP supply chain risks via runtime package fetching (npx/uvx). ([Blog post](https://workos.com/blog/mcp-supply-chain-security))
 - **OWASP Agentic Skills Top 10** — Documents real-world supply chain attacks on agent tool registries, including the ClawHub registry poisoning incident.
 - **NVD / GitHub Security Advisories** — Source for all `known_vulnerabilities` CVE entries in `registry/known-servers.json`. Each entry was confirmed against the official NVD record or GitHub GHSA before seeding. CVEs confirmed and seeded for v0.12.0: CVE-2026-23744 (`@mcpjam/inspector`), CVE-2026-0755 (`gemini-mcp-tool`), CVE-2025-59528 (`flowise`), CVE-2026-26118 (`@azure/mcp`), CVE-2026-33032 (`nginx-ui`). CVE-2026-32211 was not seeded — NVD CPE is `azure_web_apps` (hosted service; no pinnable package version).
+
+**SC-007 unscoped twins and SC-008 known-malicious packages (STORY-0097, 2026-10-25):**
+
+- **o3.security, "mcp-server-github" malware analysis** ([o3.security](https://o3.security/malware/npm/mcp-server-github)) and the OSV record it summarises, **MAL-2026-5479 / GHSA-95pj-hrh5-27gq** ([OSV](https://osv.dev/vulnerability/MAL-2026-5479), [GitHub](https://github.com/advisories/GHSA-95pj-hrh5-27gq)) — an unscoped npm name intercepting installs meant for `@modelcontextprotocol/server-github`, with an install-time beacon. The basis for SC-007: edit distance cannot see a scope difference.
+- **OSV MAL-2026-5476 to MAL-2026-5485 and MAL-2025-46986** (read from OSV's npm bulk export on 2026-10-25) — the full family of unscoped twins (`mcp-server-fetch`, `-figma`, `-git`, `-github`, `-notion`, `-postgres`, `-redis`, `-sentry`, `-sequential-thinking`, `-supabase`, `-everything`). The SC-007 naming rules (name part of `server-<x>`/`mcp-server-<x>`, the `mcp-server-<x>` spelling of `server-<x>`/`<x>-mcp-server`, and the same `mcp-server-<x>` name across npm and PyPI) are the shapes this family and the registry's own entries show; each rule was then measured against live npm and PyPI on 2026-10-25 (`docs/supply-chain.md`). Rules not seen in the data (e.g. `mcp-server-<x>` → `server-<x>`, every name was absent on npm) were not adopted.
+- **`registry-audit-2026-08-18.md` §3a and §3b** (this repository) — three of the same npm packages named `theinfosecguy/npx-canary` as their repository (the source of the note attached to MAL-2026-5476..5485, which states only that and the shared beacon host), and one account's `0.0.1` stubs under vendor names (three of which are SC-007 twins today).
+- **Panguard, "npm MCP security findings"** ([panguard.ai](https://panguard.ai/blog/npm-mcp-security-findings)) — SANDWORM_MODE, a 19-package typosquat cluster of MCP-adjacent npm packages harvesting SSH keys at install; context for exact-name matching of known-bad names.
+- **OpenSSF malicious-packages** ([GitHub](https://github.com/ossf/malicious-packages)) via **OSV's data dumps** ([OSV docs](https://google.github.io/osv.dev/data/): per-ecosystem `all.zip` in `gs://osv-vulnerabilities`, "including withdrawn records") — the source of `registry/known-malicious.json`. `scripts/sync_registry_advisories.py` keeps non-withdrawn `MAL-*` records whose package name contains `mcp` or that the registry lists.
+- **OSV schema, "Evaluation"** ([ossf.github.io/osv-schema](https://ossf.github.io/osv-schema/)) — the range semantics `registry/malicious.py` implements (`introduced` / `fixed` / `last_affected` walked in version order, plus the explicit `versions` list). The one deliberate deviation (a blanket all-versions range is ignored for a registry-listed package when the record also lists explicit versions) is documented in that module and in `docs/supply-chain.md`, with `MAL-2025-191195` (`@browserbasehq/mcp`) as the measured case.
+- **PEP 503** ([peps.python.org](https://peps.python.org/pep-0503/)) — the name folding SC-007 applies to both ecosystems' names before comparing.
 
 ### Rug-pull detection (analyzers/rug_pull.py)
 
@@ -709,6 +719,102 @@ quoted in the finding text and in `docs/permission-rules.md`:
   (github.com/anthropics/claude-code/tree/main/examples/settings) were used only to
   measure precision locally and are not committed.
 
+## Sandbox settings a repository can loosen (SANDBOX-001..005, analyzers/sandbox.py — STORY-0093)
+
+Every key name, which settings file Claude Code reads it from, and what it does comes
+from Anthropic's documentation, read 2026-10-26, and is quoted in the finding text and
+in `docs/permission-rules.md`:
+
+- **Claude Code sandboxing doc** (https://code.claude.com/docs/en/sandboxing) —
+  SANDBOX-001: "Unless managed settings set them, a developer's user settings or
+  `--settings` can turn on the following keys. A repository's `.claude/settings.json`
+  can too, unless the sandbox is admin-required. Each one weakens the sandbox"
+  (`enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`,
+  `network.allowAllUnixSockets`, `network.allowLocalBinding`), and the "Repository
+  settings under an admin-required sandbox" table of "the settings that loosen it"
+  (`enabled`/`failIfUnavailable` "`false`, when the developer's
+  `~/.claude/settings.json` sets `true`", the proxy ports), "Requires Claude Code
+  v2.1.285 or later"; Custom proxy configuration: "Once either port applies, your proxy
+  is responsible for filtering everything sent to it." SANDBOX-002: "An excluded command
+  runs with your full access. A broad entry such as `docker *` covers everything that
+  tool can do. If you write a pattern that covers an interpreter …, as `docker compose`
+  does with its compose file, Claude can write that file and then run it outside the
+  sandbox"; Security limitations: "allowing access to `/var/run/docker.sock` effectively
+  grants access to the host system through the Docker socket". SANDBOX-002's severity:
+  "An excluded command goes through the regular permission flow" — "commands your allow
+  rules cover run without a prompt", "In auto mode, the classifier reviews other
+  excluded commands", "In `bypassPermissions` mode, an excluded command runs without a
+  prompt unless an ask rule matches it", otherwise a prompt titled "Bash command
+  (unsandboxed)"; entries are matched because "Claude Code matches the text of the
+  call". SANDBOX-003: "Allowing broad domains such as `github.com` can create paths for
+  data exfiltration." "Locks that apply without an admin-required sandbox":
+  `network.strictAllowlist` in "Managed settings, `--settings`, user settings" makes
+  Claude Code ignore a repository's "proxy ports, `allowedDomains`, and
+  `WebFetch(domain:...)` allow rules"; `network.deniedDomains` or a
+  `WebFetch(domain:...)` deny rule in "Managed settings, `--settings`" makes it ignore
+  "`httpProxyPort` and `socksProxyPort`" (the INFO downgrade and the finding notes).
+  SANDBOX-004:
+  `allowAppleEvents` "is only honored from user, managed, or CLI settings. Project
+  settings cannot enable it"; `strictAllowlist` "Setting it in a repository's
+  `.claude/settings.json` or `.claude/settings.local.json` has no effect."
+- **Claude Code settings reference** (https://code.claude.com/docs/en/settings-reference)
+  — the settings index's Scope column (`Any file`, `User or managed`, `Managed`) for
+  every `sandbox.*` key (SANDBOX-004's table), each key's effect (SANDBOX-001's
+  descriptions), the `excludedCommands` entry ("a pattern with no wildcard is an exact
+  match"; "Claude Code keeps a Bash call sandboxed when it has one of these shapes",
+  including "A command starting with `sudo`, `eval`, or `xargs`"), `permissions.defaultMode`
+  ("`auto` and `bypassPermissions` don't take effect from project or local settings"),
+  and "Claude Code honors `mask` entries, `allowPlaintextInject`, `awsPairs`, and `sigv4`
+  only from user settings, managed settings, and the `--settings` flag." **Permission
+  modes doc** (https://code.claude.com/docs/en/permission-modes): in `dontAsk` mode
+  "Claude Code auto-denies every tool call that would otherwise prompt you" (why
+  `dontAsk` does not raise SANDBOX-002). **Permissions doc**, Wrappers: "The stripped
+  wrappers are `timeout`, `time`, `nice`, `nohup`, and `stdbuf`, plus the shell
+  builtins `command` and `builtin`, and zsh's `noglob`. Each runs its argument as the
+  actual command"; "Exec wrappers: such as `watch`, `setsid`, `ionice`, and `flock`";
+  "the query form `command -v`, which looks up a command rather than running one"
+  (SANDBOX-002's wrapper list).
+- **Claude Code settings doc** (https://code.claude.com/docs/en/settings) — SANDBOX-005:
+  the local file "Claude Code keeps it out of git when it creates the file; if you
+  create it by hand, add it to `.gitignore` yourself", written to the global excludes
+  file (`core.excludesFile` when absolute or `~`-prefixed, else
+  `$XDG_CONFIG_HOME/git/ignore` or `~/.config/git/ignore`). **Permissions doc**
+  (https://code.claude.com/docs/en/permissions): "When the file is tracked in git, or
+  `.claude` is a symlink, Claude Code treats it as repository-supplied instead and holds
+  its rules until you trust the folder" (why SANDBOX-001..003 run on a local file only
+  when git carries it or `.claude` is a symlink); the configuration-home exception (why
+  `~/.claude/settings.local.json` is skipped). The settings doc's `CLAUDE_CONFIG_DIR`:
+  "Claude Code then stores your settings, session history, and plugins there instead"
+  (where the user settings file is read from).
+- **gitignore(5)** (https://git-scm.com/docs/gitignore) — pattern semantics, order of
+  precedence, "It is not possible to re-include a file if a parent directory of that
+  file is excluded"; **Git 2.32 release notes**
+  (https://www.kernel.org/pub/software/scm/git/docs/RelNotes/2.32.0.adoc): "`.gitignore`
+  … files that are symbolic links are ignored." **git-config(1)**
+  (https://git-scm.com/docs/git-config, "Includes"): a plain `[include] path` is read
+  where it appears, relative paths against the including file's directory (followed
+  one level). `_gitignore.py` is an original matcher (linear-time wildcards, bounded
+  matching); during development it agreed with
+  `git ls-files --others --ignored --exclude-standard` on 1,350 pattern combinations,
+  including byte-order marks, `***` segments and empty segments. Git is never run by
+  mcp-audit.
+- **MITRE ATT&CK** — T1567.001 Exfiltration to Code Repository
+  (https://attack.mitre.org/techniques/T1567/001/), T1567.003 Exfiltration to Text
+  Storage Sites (https://attack.mitre.org/techniques/T1567/003/), T1567.004
+  Exfiltration Over Webhook (https://attack.mitre.org/techniques/T1567/004/): the host
+  classes SANDBOX-003 lists beside Anthropic's `github.com`.
+- **Why it matters** — UpGuard
+  (https://www.upguard.com/blog/yolo-mode-hidden-risks-in-claude-code-permissions):
+  18,470 `.claude/settings.local.json` files collected from public GitHub repositories,
+  "8,341 instances of user-specific permissions containing usernames" (SANDBOX-005).
+  Claude Code advisory GHSA-ff64-7w26-62rf / CVE-2026-25725 (fixed 2.1.2): a sandboxed
+  command could create `.claude/settings.json` and inject hooks, the reason a repository's
+  settings are an attack surface for the sandbox itself. Research scan 2026-10-25 §A2;
+  Pillar's "week of sandbox escapes" via CSA is secondary and not relied on.
+- All five checks and the gitignore matcher are original implementations; no code or
+  fixtures were copied. Anthropic's example settings files and the doc pages' JSON
+  blocks were used only to measure precision locally and are not committed.
+
 ## Claude Code mods (MOD-001..006, plugins/mods.py — STORY-0085)
 
 - **Claude Code mods documentation** — code.claude.com/docs/en/plugins/mods/overview,
@@ -735,6 +841,43 @@ quoted in the finding text and in `docs/permission-rules.md`:
 - **`installed_plugins.json` shape** — anthropics/claude-code issues #45997 and #17032,
   which quote the `{"version": 2, "plugins": {"<id>": [records]}}` structure.
 - Original implementation; no code was copied.
+
+## Claude Code subagent definitions (AGENT-001..004, agent_files/subagents.py — STORY-0094)
+
+- **Claude Code sub-agents documentation** — https://code.claude.com/docs/en/sub-agents
+  (read 2026-10-25): where definitions live (`.claude/agents/`, `~/.claude/agents/`,
+  both recursive; plugin `agents/` ignore `permissionMode`, `hooks`, `mcpServers`), the
+  frontmatter fields, the `permissionMode` inheritance rules and "The `bypassPermissions`
+  exception requires Claude Code v2.1.267 or later" (AGENT-001), "An entry with a
+  specifier, such as `Bash(git push *)`, still removes the whole tool" (AGENT-002),
+  "Before v2.1.218, frontmatter hooks could run from folders you hadn't trusted"
+  (AGENT-003), the `mcpServers` list schema ("Inline definitions use the same schema as
+  `.mcp.json` server entries") and its trust note (AGENT-004).
+- **Claude Code permissions documentation** — https://code.claude.com/docs/en/permissions
+  (read 2026-10-25): `dontAsk` "Auto-denies every call that would otherwise prompt" (why it
+  does not fire AGENT-001); the "What runs before you trust a folder" table (subagent
+  frontmatter hooks and inline `mcpServers` from the repository are not used until the
+  folder is trusted); and server names with `__` or a trailing `_`, which `mcp__<server>`
+  rules read as a different server (AGENT-004 LOW).
+- **Claude Code CHANGELOG** — https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md
+  (read 2026-10-25, head 2.1.310): 2.1.153 "Fixed subagent (Agent tool) frontmatter MCP
+  servers ignoring `--strict-mcp-config`, `--bare` … and managed-settings MCP server
+  allow/deny policies"; 2.1.218 "Fixed agent frontmatter hooks running from untrusted
+  folders"; 2.1.238 "inline MCP servers in project or `--add-dir` agent files, now require
+  that folder's trust dialog"; 2.1.69 skill descriptions with colons loading. The 2.1.267
+  subagent bypass change has no CHANGELOG line; the sub-agents doc is the source for it.
+- **How Claude Code 2.1.310 loads an agent file**, from the independent reviewer's
+  behavioural notes on PR #184 (a description of the shipped loader, not code): files
+  over 1 MiB are skipped; a leading BOM is stripped; the frontmatter is the text between
+  the first `---` and the next `---` anywhere after it; on a YAML error, one-line
+  `key: value` lines whose value holds a YAML indicator character or `: ` are quoted,
+  leading tabs become spaces, and the whole block is parsed again; each `mcpServers` item
+  must be a one-key mapping (or a string naming another server) and every item is
+  started. `agent_files/subagents.py` reimplements that behaviour in Python with PyYAML.
+- **EPIC-0007 research scan**, A12 "Subagent definitions as a first-class config surface"
+  and harness-permissions notes Q6 (Marcus, 2026-10-25), which also record that the
+  `--strict-mcp-config` gap applies to `--agents`/SDK definitions, not agent files.
+- Original implementation; no code was copied. Test fixtures were written for this repo.
 
 
 ## SAST: SSRF guards that only block IP literals (STORY-0081)
@@ -787,3 +930,70 @@ Measures the existing POISON-* patterns; adds or changes none. Results:
   `docs/research/poisoning-benchmark/top100-labels.json`.
 - The MCPTox-shaped records in `tests/test_bench_poisoning.py` were written for the
   test; no dataset text was copied. Original implementation; no code was copied.
+
+## AI agents in CI workflows (WORKFLOW-001..003, ci_workflows/ — STORY-0091)
+
+- **"Comment and Control"** — Aonan Guan with Zhengyu Liu and Gavin Zhong (Johns
+  Hopkins), write-up 2026-04-15; paper "Comment and Control: Hijacking Agentic
+  Workflows via Context-Grounded Evolution" (Fendley, Liu, Guan, Zhong, Cao),
+  accepted at ACM CCS 2026
+  (https://oddguan.com/blog/comment-and-control-prompt-injection-credential-theft-claude-code-gemini-cli-github-copilot/).
+  Claude Code Security Review ran the Claude CLI with no `--allowed-tools` /
+  `--disallowed-tools`, and a PR title put `ps auxeww` output in a PR comment;
+  the Gemini CLI action posted `GEMINI_API_KEY` as an issue comment; the Copilot
+  agent pushed base64 `ps auxeww` output in a commit. Anthropic's fix added
+  `--disallowed-tools 'Bash(ps:*)'` (commit 25e460e); the authors note
+  `cat /proc/*/environ` gives the same result and recommend an allowlist and
+  least-privilege secrets. Source for the trigger × secret × write × tools shape
+  (WORKFLOW-001) and for treating a deny list as weaker (WORKFLOW-002).
+- **anthropics/claude-code-action** — `action.yml` (inputs `claude_args`,
+  `settings`, `allowed_non_write_users`, `github_token`; no tool input),
+  `docs/configuration.md` ("Claude does **not** have access to execute arbitrary
+  Bash commands by default"; `--allowedTools` adds tools), `docs/security.md`
+  (write-access check on issue, PR, comment and review events;
+  `allowed_non_write_users`; `pull_request_target` runs with the base
+  repository's secrets), `docs/migration-guide.md` (`allowed_tools` /
+  `disallowed_tools` → `claude_args: --allowedTools` / `--disallowedTools`).
+  Read 2026-10-25.
+- **anthropics/claude-code-security-review** README — inputs (none limits
+  tools) and "This action is not hardened against prompt injection attacks and
+  should only be used to review trusted PRs". Read 2026-10-25.
+- **Claude Code CLI reference** (https://code.claude.com/docs/en/cli-reference)
+  — `--allowedTools`/`--allowed-tools`, `--disallowedTools`/`--disallowed-tools`,
+  `--dangerously-skip-permissions` (equivalent to `--permission-mode
+  bypassPermissions`). Read 2026-10-25.
+- **google-github-actions/run-gemini-cli** — `action.yml` (runs `gemini --yolo
+  --prompt ...`; writes the `settings` input to `.gemini/settings.json`), the
+  example workflows `issue-triage/gemini-triage.yml` and
+  `pr-review/gemini-review.yml` (`workflow_call`, `"tools": {"core": []}`,
+  `GEMINI_CLI_TRUST_WORKSPACE: 'true'` on a default checkout, `GITHUB_TOKEN: ''`
+  for untrusted input), and advisory **GHSA-wpqr-6v78-jr5g** (2026-04-24, CVSS
+  10.0; affected `@google/gemini-cli` < 0.39.1 and < 0.40.0-preview.3,
+  `run-gemini-cli` < 0.1.22; headless runs trusted the workspace and loaded
+  `.gemini/` configuration and environment variables, and `--yolo` ignored the
+  tool allowlist), https://github.com/google-github-actions/run-gemini-cli/security/advisories/GHSA-wpqr-6v78-jr5g.
+  Read 2026-10-25.
+- **The Hacker News, 2026-04** (https://thehackernews.com/2026/04/google-fixes-cvss-10-gemini-cli-ci-rce.html)
+  — Google's guidance quoted as `GEMINI_TRUST_WORKSPACE: 'true'` for trusted
+  inputs; Pillar Security (Dan Lisichkin) on `--yolo` and allowlists. The
+  variable name differs from the one Gemini CLI documents, so both are read.
+- **Gemini CLI configuration reference** (https://geminicli.com/docs/reference/configuration)
+  — `tools.core` ("Restrict the set of built-in tools with an allowlist"),
+  `tools.exclude`, `tools.allowed`, `security.disableYoloMode`,
+  `GEMINI_CLI_TRUST_WORKSPACE`. Read 2026-10-25.
+- **GitHub Docs** — "Events that trigger workflows" (which events run on the
+  default branch; secrets are not passed for fork pull requests on
+  `pull_request`, `pull_request_review`, `pull_request_review_comment`;
+  `pull_request_target` warning) and "Workflow syntax" (`permissions`: unspecified
+  scopes become `none`, job-level overrides workflow-level, an absent key uses
+  the repository default),
+  https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows.
+  "Customize the agent environment" for Copilot (`copilot-setup-steps.yml` only
+  prepares the runner).
+- **Straiker, Black Hat USA 2026 talks** (https://www.straiker.ai/blog/black-hat-usa-2026-ai-security-talks)
+  — Roblox: a hidden instruction in a GitHub issue got Claude Code to upload
+  credentials to a public repository. Corroborating incident; not fetched for
+  this story.
+- Brief: products/mcp-audit/discovery/briefs/2026-10-25-research-scan.md §A3
+  (Marcus). Original implementation; no code or fixtures were copied from any of
+  these projects.

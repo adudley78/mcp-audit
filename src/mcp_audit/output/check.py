@@ -53,6 +53,14 @@ _HINTS: dict[str, str] = {
     "SC-001": "Run `mcp-audit fix --apply` to replace with the verified package name.",
     "SC-002": "Run `mcp-audit fix --apply` to replace with the verified package name.",
     "SC-003": "Verify this package name against the official MCP registry before use.",
+    "SC-007": (
+        "This name copies a known package without its scope. Switch the launch "
+        "command to the package named in the finding, or confirm the publisher."
+    ),
+    "SC-008": (
+        "OSV lists malicious releases of this package; follow the finding: "
+        "remove it, or pin a release the record does not list."
+    ),
     # Poisoning / prompt injection
     "POISON-001": (
         "Remove or sanitise the suspicious instruction from the tool description."
@@ -202,6 +210,42 @@ _HINTS: dict[str, str] = {
         "Remove the mcp__<server> allow rule until the server's findings are fixed,"
         " or allow only tools you have checked."
     ),
+    "SANDBOX-001": (
+        "Remove the sandbox-weakening keys from the repository's .claude settings;"
+        " a machine that needs one sets it in ~/.claude/settings.json."
+    ),
+    "SANDBOX-002": (
+        "Drop the excludedCommands or allowUnixSockets entry from the repository's"
+        " settings; keep the tool sandboxed and grant one path or host instead."
+    ),
+    "SANDBOX-003": (
+        "Remove the code-host, paste or webhook domain from the repository's"
+        " sandbox.network.allowedDomains; allow only the hosts tools need."
+    ),
+    "SANDBOX-004": (
+        "Move the key to managed or user settings, or delete it: Claude Code"
+        " ignores it in this file; see docs/permission-rules.md."
+    ),
+    "SANDBOX-005": (
+        "Add .claude/settings.local.json to .gitignore (git rm --cached it if"
+        " committed) and use ~/ instead of home paths with a username."
+    ),
+    "AGENT-001": (
+        "Remove permissionMode from the subagent file so it inherits your session's"
+        " mode; keep Claude Code at 2.1.267+."
+    ),
+    "AGENT-002": (
+        "Put the specifier rule in permissions.deny instead; disallowedTools"
+        " removes the whole tool."
+    ),
+    "AGENT-003": (
+        "Read the subagent's hook commands before trusting the folder; remove"
+        " any you did not add."
+    ),
+    "AGENT-004": (
+        "Review the subagent's inline MCP server like a .mcp.json entry; write"
+        " rules for it as mcp__<full-name>__*."
+    ),
     "CFHYG-006": (
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
         " — a third-party base URL receives every API call and its secrets."
@@ -214,6 +258,18 @@ _HINTS: dict[str, str] = {
     "TRUST-007": (
         "Remove the embedded bare repo or the post-index-change hook before"
         " opening this folder in an agent; set safe.bareRepository=explicit."
+    ),
+    # CI workflows (STORY-0091)
+    "WORKFLOW-001": (
+        "Allow only the commands this CI agent needs, make its job read-only,"
+        " and do writes in a separate job."
+    ),
+    "WORKFLOW-002": (
+        "Replace the CI agent's deny list with an allowlist of the commands it needs."
+    ),
+    "WORKFLOW-003": (
+        "Use run-gemini-cli 0.1.22+ with Gemini CLI 0.39.1+, and don't trust a"
+        " workspace that holds pull request code."
     ),
     # Baseline drift
     "DRIFT": (
@@ -486,6 +542,11 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
         console.print(
             "  [yellow]WARN:[/yellow] config(s) outside the lock root "
             "were skipped (no LOCK findings)."
+        )
+    if status.not_covered:
+        console.print(
+            f"  [yellow]WARN:[/yellow] {len(status.not_covered)} subagent MCP"
+            " server(s) not covered by mcp-lock.json (AGENT-004)."
         )
 
 

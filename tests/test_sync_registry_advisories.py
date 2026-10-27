@@ -20,6 +20,16 @@ _SPEC.loader.exec_module(sync_mod)
 WORKFLOW = ROOT / ".github" / "workflows" / "registry-advisory-sync.yml"
 
 
+# The real downloader, kept before the autouse stub below replaces it.
+_REAL_FETCH_MALICIOUS = sync_mod.fetch_malicious_export
+
+
+@pytest.fixture(autouse=True)
+def _no_malicious_download(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Never download OSV's bulk export in tests (STORY-0097)."""
+    monkeypatch.setattr(sync_mod, "fetch_malicious_export", lambda eco, keep: [])
+
+
 def _vuln(
     vid: str,
     *,
@@ -273,3 +283,345 @@ class TestWorkflow:
         assert not any("--write" in r for r in runs)
         assert "gh pr" not in text
         assert "git push" not in text
+
+
+# ── Known-malicious mirror (STORY-0097) ───────────────────────────────────────
+
+
+def _mal(
+    vid: str,
+    name: str,
+    eco: str = "npm",
+    *,
+    versions: list[str] | None = None,
+    events: list[dict] | None = None,
+    withdrawn: str | None = None,
+    aliases: list[str] | None = None,
+) -> dict:
+    rec: dict = {
+        "id": vid,
+        "aliases": aliases or [],
+        "summary": f"Malicious code in {name} ({eco})",
+        "published": "2026-06-09T20:33:49Z",
+        "modified": "2026-08-20T15:30:12Z",
+        "affected": [
+            {
+                "package": {"name": name, "ecosystem": eco},
+                "versions": versions or [],
+                "ranges": [{"type": "SEMVER", "events": events}] if events else [],
+            }
+        ],
+    }
+    if withdrawn:
+        rec["withdrawn"] = withdrawn
+    return rec
+
+
+_REGISTRY = {
+    "entries": [
+        {"name": "flowise", "source": "npm"},
+        {"name": "Doc_Pull", "source": "pip", "package_ecosystem": "pypi"},
+    ]
+}
+
+
+class TestPackageSelector:
+    def test_mcp_substring_any_case(self) -> None:
+        keep = sync_mod.package_selector({"entries": []})
+        assert keep("npm", "mcp-server-github")
+        assert keep("npm", "@mcp-use/cli")
+        assert keep("PyPI", "TimeMCP")
+        assert not keep("npm", "left-pad")
+
+    def test_registry_listed_names_without_mcp(self) -> None:
+        keep = sync_mod.package_selector(_REGISTRY)
+        assert keep("npm", "flowise")
+        assert keep("PyPI", "doc-pull")  # PEP 503
+        assert not keep("PyPI", "flowise")  # other ecosystem
+        assert not keep("npm", "doc-pull")
+
+
+class TestMaliciousEntries:
+    def test_shape_as_osv_states_it(self) -> None:
+        keep = sync_mod.package_selector({"entries": []})
+        rec = _mal(
+            "MAL-2026-5479",
+            "mcp-server-github",
+            versions=["0.0.2", "0.0.1"],
+            events=[{"introduced": "0"}],
+            aliases=["GHSA-95pj-hrh5-27gq"],
+        )
+        [entry] = sync_mod.malicious_entries([rec], "npm", keep)
+        assert entry["id"] == "MAL-2026-5479"
+        assert entry["name"] == "mcp-server-github"
+        assert entry["aliases"] == ["GHSA-95pj-hrh5-27gq"]
+        assert entry["summary"] == "Malicious code in mcp-server-github (npm)"
+        assert entry["versions"] == ["0.0.1", "0.0.2"]  # sorted
+        assert entry["ranges"] == [{"type": "SEMVER", "events": [{"introduced": "0"}]}]
+        assert "modified" not in entry  # left out so re-imports don't churn
+        assert "npx-canary" in entry["note"]
+
+    def test_withdrawn_non_mal_other_ecosystem_and_unmatched_are_dropped(self) -> None:
+        keep = sync_mod.package_selector({"entries": []})
+        recs = [
+            _mal("MAL-1", "a-mcp", withdrawn="2026-01-01T00:00:00Z"),
+            _mal("GHSA-xxxx", "b-mcp"),
+            _mal("MAL-2", "c-mcp", eco="PyPI"),
+            _mal("MAL-3", "left-pad"),
+            _mal("MAL-4", "d-mcp"),
+        ]
+        out = sync_mod.malicious_entries(recs, "npm", keep)
+        assert [e["id"] for e in out] == ["MAL-4"]
+
+    def test_git_ranges_are_dropped(self) -> None:
+        keep = sync_mod.package_selector({"entries": []})
+        rec = _mal("MAL-5", "e-mcp", events=[{"introduced": "0"}])
+        rec["affected"][0]["ranges"].append(
+            {"type": "GIT", "events": [{"introduced": "abc"}]}
+        )
+        [entry] = sync_mod.malicious_entries([rec], "npm", keep)
+        assert [r["type"] for r in entry["ranges"]] == ["SEMVER"]
+
+
+class TestSyncMalicious:
+    @staticmethod
+    def _fetch(records: dict[str, list[dict]]):
+        def fetch(ecosystem: str, keep):  # type: ignore[no-untyped-def]
+            return records.get(ecosystem, [])
+
+        return fetch
+
+    def test_diff_added_removed_changed(self) -> None:
+        keep = sync_mod.package_selector({"entries": []})
+        old = sync_mod.malicious_entries(
+            [_mal("MAL-1", "a-mcp", versions=["1.0.0"]), _mal("MAL-2", "b-mcp")],
+            "npm",
+            keep,
+        )
+        fetch = self._fetch(
+            {
+                "npm": [_mal("MAL-1", "a-mcp", versions=["1.0.0", "1.0.1"])],
+                "PyPI": [_mal("MAL-3", "c-mcp", eco="PyPI")],
+            }
+        )
+        diff, entries = sync_mod.sync_malicious({"entries": []}, old, fetch)
+        assert diff == {
+            "added": ["MAL-3 PyPI/c-mcp"],
+            "removed": ["MAL-2 npm/b-mcp"],
+            "changed": ["MAL-1 npm/a-mcp"],
+        }
+        assert [e["id"] for e in entries] == ["MAL-3", "MAL-1"]  # PyPI sorts first
+
+    def test_no_drift_is_an_empty_diff(self) -> None:
+        keep = sync_mod.package_selector({"entries": []})
+        recs = [_mal("MAL-1", "a-mcp")]
+        current = sync_mod.malicious_entries(recs, "npm", keep)
+        diff, _ = sync_mod.sync_malicious(
+            {"entries": []}, current, self._fetch({"npm": recs})
+        )
+        assert diff == {}
+
+
+class TestMaliciousCli:
+    def _registry(self, tmp_path: Path) -> Path:
+        path = tmp_path / "known-servers.json"
+        path.write_text(
+            json.dumps({"schema_version": "1.0", "entries": []}) + "\n",
+            encoding="utf-8",
+        )
+        return path
+
+    def _patch(self, monkeypatch: pytest.MonkeyPatch, records: list[dict]) -> None:
+        monkeypatch.setattr(sync_mod, "query_osv", lambda name, eco: [])
+        monkeypatch.setattr(
+            sync_mod,
+            "fetch_malicious_export",
+            lambda eco, keep: records if eco == "npm" else [],
+        )
+
+    def test_check_reports_drift_and_writes_nothing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        reg = self._registry(tmp_path)
+        self._patch(monkeypatch, [_mal("MAL-1", "a-mcp")])
+        summary = tmp_path / "summary.md"
+        proposed = tmp_path / "proposed-malicious.json"
+        code = sync_mod.main(
+            [
+                "--registry",
+                str(reg),
+                "--summary",
+                str(summary),
+                "--malicious-out",
+                str(proposed),
+            ]
+        )
+        assert code == 1
+        assert not (tmp_path / "known-malicious.json").exists()
+        assert "MAL-1 npm/a-mcp" in summary.read_text(encoding="utf-8")
+        assert json.loads(proposed.read_text(encoding="utf-8"))["entry_count"] == 1
+
+    def test_write_then_check_is_clean_and_loadable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.registry.malicious import load_known_malicious
+
+        reg = self._registry(tmp_path)
+        self._patch(
+            monkeypatch,
+            [_mal("MAL-1", "a-mcp", versions=["1.0.0"], events=[{"introduced": "0"}])],
+        )
+        assert (
+            sync_mod.main(["--registry", str(reg), "--write", "--today", "2026-10-25"])
+            == 0
+        )
+        path = tmp_path / "known-malicious.json"
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        assert doc["last_updated"] == "2026-10-25"
+        assert doc["entry_count"] == 1
+        assert path.read_text(encoding="utf-8").endswith("}\n")
+        # The analyzer's loader reads what the script writes.
+        index = load_known_malicious(path)
+        assert index.load_error is None
+        assert [r.id for r in index.lookup("npm", "a-mcp")] == ["MAL-1"]
+        assert sync_mod.main(["--registry", str(reg)]) == 0
+        # The registry file itself is untouched by a malicious-only change.
+        assert json.loads(reg.read_text(encoding="utf-8")) == {
+            "schema_version": "1.0",
+            "entries": [],
+        }
+
+    def test_export_failure_is_exit_2(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        reg = self._registry(tmp_path)
+        monkeypatch.setattr(sync_mod, "query_osv", lambda name, eco: [])
+
+        def boom(eco: str, keep):  # type: ignore[no-untyped-def]
+            raise RuntimeError("export unreachable")
+
+        monkeypatch.setattr(sync_mod, "fetch_malicious_export", boom)
+        assert sync_mod.main(["--registry", str(reg)]) == 2
+
+    def test_malformed_existing_file_is_exit_2(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        reg = self._registry(tmp_path)
+        (tmp_path / "known-malicious.json").write_text("{bad", encoding="utf-8")
+        self._patch(monkeypatch, [])
+        assert sync_mod.main(["--registry", str(reg)]) == 2
+
+
+class TestFetchMaliciousExport:
+    """The zip-reading path, served from a local fake (no network)."""
+
+    def _serve(self, monkeypatch: pytest.MonkeyPatch, payload: bytes) -> None:
+        import io
+
+        class _Resp(io.BytesIO):
+            def __enter__(self):  # type: ignore[no-untyped-def]
+                return self
+
+            def __exit__(self, *exc: object) -> None:
+                self.close()
+
+        monkeypatch.setattr(
+            sync_mod.urllib.request, "urlopen", lambda url, timeout: _Resp(payload)
+        )
+
+    def _zip(self, members: dict[str, object]) -> bytes:
+        import io
+        import zipfile
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            for name, doc in members.items():
+                zf.writestr(name, doc if isinstance(doc, str) else json.dumps(doc))
+        return buf.getvalue()
+
+    def test_keeps_matching_mal_records_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._serve(
+            monkeypatch,
+            self._zip(
+                {
+                    "MAL-1.json": _mal("MAL-1", "a-mcp"),
+                    "MAL-2.json": _mal("MAL-2", "left-pad"),
+                    "GHSA-x.json": _mal("GHSA-x", "b-mcp"),
+                }
+            ),
+        )
+        keep = sync_mod.package_selector({"entries": []})
+        out = _REAL_FETCH_MALICIOUS("npm", keep)
+        assert [r["id"] for r in out] == ["MAL-1"]
+
+    def test_bad_zip_is_a_runtime_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._serve(monkeypatch, b"not a zip")
+        with pytest.raises(RuntimeError, match="unreadable"):
+            _REAL_FETCH_MALICIOUS("npm", lambda e, n: True)
+
+    def test_bad_member_json_is_a_runtime_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._serve(monkeypatch, self._zip({"MAL-1.json": "{bad"}))
+        with pytest.raises(RuntimeError):
+            _REAL_FETCH_MALICIOUS("npm", lambda e, n: True)
+
+    def test_oversized_download_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._serve(monkeypatch, b"x" * 64)
+        monkeypatch.setattr(sync_mod, "_MAX_EXPORT_BYTES", 10)
+        with pytest.raises(RuntimeError, match="too large"):
+            _REAL_FETCH_MALICIOUS("npm", lambda e, n: True)
+
+    def test_network_error_is_a_runtime_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def down(url: str, timeout: int) -> object:
+            raise sync_mod.urllib.error.URLError("offline")
+
+        monkeypatch.setattr(sync_mod.urllib.request, "urlopen", down)
+        with pytest.raises(RuntimeError, match="download failed"):
+            _REAL_FETCH_MALICIOUS("npm", lambda e, n: True)
+
+
+class TestBundledMaliciousFile:
+    """registry/known-malicious.json is exactly what the script would write."""
+
+    @pytest.fixture(scope="class")
+    def doc(self) -> dict:
+        return json.loads(
+            (ROOT / "registry" / "known-malicious.json").read_text(encoding="utf-8")
+        )
+
+    def test_header_and_count(self, doc: dict) -> None:
+        assert doc["schema_version"] == "1.0"
+        assert doc["entry_count"] == len(doc["entries"]) > 200
+        assert doc["last_updated"]
+
+    def test_every_entry_matches_the_selection_rule(self, doc: dict) -> None:
+        registry = json.loads(
+            (ROOT / "registry" / "known-servers.json").read_text(encoding="utf-8")
+        )
+        keep = sync_mod.package_selector(registry)
+        for e in doc["entries"]:
+            assert e["id"].startswith("MAL-")
+            assert e["ecosystem"] in ("npm", "PyPI")
+            assert keep(e["ecosystem"], e["name"]), e
+            assert "withdrawn" not in e and "modified" not in e
+
+    def test_sorted_and_unique(self, doc: dict) -> None:
+        keys = [sync_mod._entry_key(e) for e in doc["entries"]]
+        assert keys == sorted(keys)
+        assert len(keys) == len(set(keys))
+
+    def test_canary_family_carries_the_note(self, doc: dict) -> None:
+        family = [e for e in doc["entries"] if e["id"] in sync_mod.NOTES]
+        assert len(family) == 10
+        assert all(e["note"] == sync_mod.NOTES[e["id"]] for e in family)
+        assert {e["name"] for e in family} >= {"mcp-server-github", "mcp-server-git"}
+        assert not [
+            e for e in doc["entries"] if "note" in e and e["id"] not in sync_mod.NOTES
+        ]

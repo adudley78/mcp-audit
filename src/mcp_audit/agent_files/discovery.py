@@ -19,6 +19,14 @@ Confirmed file surfaces (2026-06-14; skills added 2026-09-08):
   - ``.claude/CLAUDE.md``        (project-level)
   - ``CLAUDE.md``                (project root)
 
+**Claude Code — subagent definitions** (added 2026-10-25, STORY-0094)
+  - ``~/.claude/agents/**/*.md``  (user-global)
+  - ``.claude/agents/**/*.md``    (project-level)
+  Scanned recursively, as Claude Code does. Only files that open with YAML
+  frontmatter are definitions. The frontmatter is a config surface (see
+  :mod:`mcp_audit.agent_files.subagents`); the body is the subagent's system
+  prompt and gets the same instruction-file rules as commands and skills.
+
 **Cursor — rules / instruction files**
   - ``~/.cursor/rules/*.mdc``    (user-global)
   - ``.cursor/rules/*.mdc``      (project-level)
@@ -50,13 +58,16 @@ See ``humans/decisions/2026-09-08-trust-002-symlink-sites.md`` (marcus repo).
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
 from mcp_audit.agent_files.models import AgentFile, AgentFileSurface
+from mcp_audit.agent_files.subagents import parse_agent_frontmatter, read_agent_text
 from mcp_audit.discovery import (
+    AGENT_DEFINITION_CLIENT,
     build_info_symlink_finding,
     build_project_symlink_finding,
     build_untraversed_symlink_dir_finding,
@@ -134,6 +145,12 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
     AgentInstructionPathPattern(
         ".cursor/rules/*.mdc", AgentFileSurface.CURSOR_RULE, "cursor", "user"
     ),
+    AgentInstructionPathPattern(
+        ".claude/agents/**/*.md",
+        AgentFileSurface.CLAUDE_AGENT,
+        AGENT_DEFINITION_CLIENT,
+        "user",
+    ),
     # ── Project-level (checked at every directory during the tree walk) ────────
     AgentInstructionPathPattern(
         ".claude/commands/*.md",
@@ -172,6 +189,12 @@ AGENT_INSTRUCTION_PATTERNS: tuple[AgentInstructionPathPattern, ...] = (
         ".github/prompts/*.prompt.md",
         AgentFileSurface.COPILOT_PROMPT,
         "copilot",
+        "project",
+    ),
+    AgentInstructionPathPattern(
+        ".claude/agents/**/*.md",
+        AgentFileSurface.CLAUDE_AGENT,
+        AGENT_DEFINITION_CLIENT,
         "project",
     ),
 )
@@ -333,14 +356,34 @@ def _read_agent_file(
     client: str,
     scope: str,
 ) -> AgentFile | None:
-    """Read and parse a single agent file.  Returns ``None`` on any I/O error."""
+    """Read and parse a single agent file.  Returns ``None`` on any I/O error.
+
+    A subagent definition is read with Claude Code's 1 MiB cap (a larger file
+    returns ``None``, as Claude Code skips it) and parsed by
+    :func:`~mcp_audit.agent_files.subagents.parse_agent_frontmatter`; one
+    without frontmatter is not a definition and returns ``None``.
+    """
+    definition: dict | None = None
     try:
-        raw = path.read_text(encoding="utf-8", errors="replace")
+        if surface == AgentFileSurface.CLAUDE_AGENT:
+            text = read_agent_text(path)
+            if text is None:
+                logger.debug("agent_files: %s is over the 1 MiB cap", path)
+                return None
+            raw = text
+        else:
+            raw = path.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
         logger.debug("agent_files: cannot read %s: %s", path, exc)
         return None
 
-    fm, body = _split_frontmatter(raw)
+    if surface == AgentFileSurface.CLAUDE_AGENT:
+        parsed = parse_agent_frontmatter(raw)
+        if not parsed.present:
+            return None
+        fm, body, definition = parsed.data, parsed.body, parsed.to_record()
+    else:
+        fm, body = _split_frontmatter(raw)
     return AgentFile(
         path=path,
         surface=surface,
@@ -349,6 +392,7 @@ def _read_agent_file(
         raw_content=raw,
         body=body,
         frontmatter=fm,
+        definition=definition,
     )
 
 
@@ -402,10 +446,7 @@ def _discover_project_tree(
     """
     results: list[AgentFile] = []
 
-    def _walk(dirpath: Path, depth: int) -> None:
-        if depth > _WALK_MAX_DEPTH:
-            return
-
+    def _visit(dirpath: Path) -> None:
         # Every project-scope pattern is checked at this directory. Driven by
         # the ``scope="project"`` entries in AGENT_INSTRUCTION_PATTERNS rather
         # than a hand-written copy of the same paths.
@@ -419,27 +460,108 @@ def _discover_project_tree(
                 if af is not None:
                     results.append(af)
 
-        # Recurse
+    _walk_project_dirs(root, _visit, skip_findings)
+    return results
+
+
+def _walk_project_dirs(
+    root: Path,
+    visit: Callable[[Path], None],
+    skip_findings: list[Finding] | None,
+) -> None:
+    """Call *visit* on *root* and every directory below it, per the walk rules.
+
+    Depth-capped at :data:`_WALK_MAX_DEPTH`, skips :data:`_WALK_SKIP_DIRS`, and
+    never descends into a symlinked directory (TRUST-005 into *skip_findings*).
+    A directory or entry that raises ``OSError`` (``PermissionError`` from
+    pathlib on Python 3.12) is skipped; the rest of the walk continues.
+    """
+
+    def _walk(dirpath: Path, depth: int) -> None:
+        if depth > _WALK_MAX_DEPTH:
+            return
         try:
+            visit(dirpath)
             children = sorted(dirpath.iterdir())
-        except PermissionError:
+        except OSError as exc:
+            logger.debug("agent_files: skipping %s: %s", dirpath, exc)
             return
 
         for child in children:
-            if child.is_symlink():
-                if child.is_dir() and skip_findings is not None:
-                    skip_findings.append(
-                        build_untraversed_symlink_dir_finding(child, "agent-files")
-                    )
-                continue
-            if not child.is_dir():
-                continue
-            if child.name in _WALK_SKIP_DIRS:
+            try:
+                if child.is_symlink():
+                    if child.is_dir() and skip_findings is not None:
+                        skip_findings.append(
+                            build_untraversed_symlink_dir_finding(child, "agent-files")
+                        )
+                    continue
+                if not child.is_dir() or child.name in _WALK_SKIP_DIRS:
+                    continue
+            except OSError as exc:
+                logger.debug("agent_files: skipping %s: %s", child, exc)
                 continue
             _walk(child, depth + 1)
 
     _walk(root, 0)
-    return results
+
+
+# ── Subagent definition paths (STORY-0094) ────────────────────────────────────
+
+
+def agent_definition_paths(
+    base: Path,
+    scope: str,
+    root: Path | None = None,
+    skip_findings: list[Finding] | None = None,
+) -> list[Path]:
+    """Return subagent definition candidates directly under *base*.
+
+    Resolves the :data:`AGENT_INSTRUCTION_PATTERNS` entries whose surface is
+    :attr:`AgentFileSurface.CLAUDE_AGENT` and whose scope is *scope* — so the
+    pattern table stays the single source of truth for where subagents live.
+    No tree walk: *base* is ``$HOME`` (``scope="user"``) or one directory.
+
+    Args:
+        base: Directory the relative patterns resolve against.
+        scope: ``"user"`` or ``"project"``.
+        root: Boundary for TRUST-002 on a symlinked match (``None`` for user
+            scope, which reports TRUST-004).
+        skip_findings: Optional list to receive TRUST-002/004/005 findings.
+
+    Returns:
+        Sorted candidate ``.md`` paths (frontmatter not yet checked).
+    """
+    paths: list[Path] = []
+    for pattern in AGENT_INSTRUCTION_PATTERNS:
+        if pattern.surface != AgentFileSurface.CLAUDE_AGENT or pattern.scope != scope:
+            continue
+        paths.extend(
+            _resolve_relative_pattern(
+                base, pattern.relative_glob, root=root, skip_findings=skip_findings
+            )
+        )
+    return sorted(set(paths))
+
+
+def project_agent_definition_paths(
+    root: Path, skip_findings: list[Finding] | None = None
+) -> list[Path]:
+    """Return subagent definition candidates anywhere under *root*.
+
+    Same walk as the project-tree agent-file discovery (depth cap, skip list,
+    symlink rules), restricted to the subagent patterns and without reading
+    the files.
+    """
+    resolved = root.resolve()
+    found: list[Path] = []
+
+    def _visit(dirpath: Path) -> None:
+        found.extend(
+            agent_definition_paths(dirpath, "project", resolved, skip_findings)
+        )
+
+    _walk_project_dirs(resolved, _visit, skip_findings)
+    return sorted(set(found))
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
