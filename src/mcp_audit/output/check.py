@@ -250,6 +250,15 @@ _HINTS: dict[str, str] = {
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
         " — a third-party base URL receives every API call and its secrets."
     ),
+    # Git can run code (STORY-0089)
+    "TRUST-006": (
+        "Delete the git config line in a text editor before running git or an"
+        " agent here; run one-off git with -c (e.g. -c core.fsmonitor=false)."
+    ),
+    "TRUST-007": (
+        "Remove the embedded bare repo or the post-index-change hook before"
+        " opening this folder in an agent; set safe.bareRepository=explicit."
+    ),
     # CI workflows (STORY-0091)
     "WORKFLOW-001": (
         "Allow only the commands this CI agent needs, make its job read-only,"
