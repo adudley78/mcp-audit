@@ -15,6 +15,7 @@ Usage (programmatic):
 from __future__ import annotations
 
 import json
+import re
 
 from rich.console import Console
 
@@ -555,13 +556,23 @@ const SEV_ORDER = ['CRITICAL','HIGH','MEDIUM','LOW','INFO'];
 let state = {selPath:null, selServer:null, sevFilter:null, sortCol:'severity', sortAsc:true};
 let svgSel, nodeG, linkG, sim, nodeMap = {};
 
-function sevColor(s){ return C[s] || C.INFO; }
+function sevColor(s){
+  return Object.prototype.hasOwnProperty.call(C, s) ? C[s] : C.INFO;
+}
 function sevFill(s){ return sevColor(s) + C.fillSuffix; }
 function nodeR(caps){ const n=(caps||[]).length; return n<=1?17:n===2?20:22; }
 function trunc(s,n){ return s&&s.length>n?s.slice(0,n)+'…':(s||''); }
+// Every string from the scan is untrusted: a server name comes from a config
+// file a cloned repository can plant, a tool name from a live server. Escape
+// it before it goes into any innerHTML; everything else uses textContent.
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, ch=>(
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
 
 function sevBadge(sev){
-  return `<span class="sev-badge sev-badge-${sev||'INFO'}">${sev||'INFO'}</span>`;
+  const v = esc(sev||'INFO');
+  return `<span class="sev-badge sev-badge-${v}">${v}</span>`;
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────────
@@ -771,12 +782,13 @@ function showTooltip(e, d){
     const sev  = d.max_severity || 'clean';
     const hs   = d.in_hitting_set
       ? '<div class="tt-hs">⚠ In hitting set — removal recommended</div>' : '';
+    const sevCol = d.max_severity ? sevColor(d.max_severity) : 'var(--safe)';
     tt.innerHTML =
-      `<div class="tt-name">${d.label}</div>`+
-      `<div class="tt-row">Client: ${d.client||'—'}</div>`+
-      `<div class="tt-row">Capabilities: ${caps}</div>`+
-      `<div class="tt-row">Findings: ${d.finding_count} · max severity: `+
-      `<span style="color:${d.max_severity?sevColor(d.max_severity):'var(--safe)'}">${sev}</span></div>`+
+      `<div class="tt-name">${esc(d.label)}</div>`+
+      `<div class="tt-row">Client: ${esc(d.client||'—')}</div>`+
+      `<div class="tt-row">Capabilities: ${esc(caps)}</div>`+
+      `<div class="tt-row">Findings: ${esc(d.finding_count)} · max severity: `+
+      `<span style="color:${esc(sevCol)}">${esc(sev)}</span></div>`+
       hs;
   }
   tt.style.display = 'block';
@@ -868,13 +880,13 @@ function initPaths(){
     card.className = 'path-card';
     card.dataset.pid = p.id;
 
-    const chainHtml = p.hops.map(h=>`<span>${h}</span>`)
+    const chainHtml = p.hops.map(h=>`<span>${esc(h)}</span>`)
       .join('<span class="pc-chain-arrow">→</span>');
 
     card.innerHTML =
-      `<div class="pc-head">${sevBadge(p.severity)}<span class="pc-title">${p.title}</span></div>`+
+      `<div class="pc-head">${sevBadge(p.severity)}<span class="pc-title">${esc(p.title)}</span></div>`+
       `<div class="pc-chain">${chainHtml}</div>`+
-      `<div class="pc-desc">${p.description}</div>`;
+      `<div class="pc-desc">${esc(p.description)}</div>`;
 
     card.addEventListener('click', ()=>{
       document.querySelectorAll('.path-card').forEach(el=>el.classList.remove('active'));
@@ -898,17 +910,21 @@ function initPaths(){
   }
 
   const total = D.attack_paths.length;
-  let html = '<div class="hs-header">Recommended action</div>';
+  hsEl.innerHTML = '<div class="hs-header">Recommended action</div>';
   D.hitting_set.forEach(s=>{
     const n = (D.paths_broken_by[s]||[]).length;
-    html +=
-      `<div class="hs-item" onclick="focusServer('${s}')" style="cursor:pointer">`+
+    // A listener, not an inline onclick: HTML entities in an attribute are
+    // decoded before the JavaScript runs, so escaping cannot protect it.
+    const item = document.createElement('div');
+    item.className = 'hs-item';
+    item.style.cursor = 'pointer';
+    item.innerHTML =
       `<span class="hs-x">×</span>`+
-      `<div><div class="hs-name">${s}</div>`+
-      `<div class="hs-sub">Breaks ${n} of ${total} attack path${total!==1?'s':''}</div></div>`+
-      `</div>`;
+      `<div><div class="hs-name">${esc(s)}</div>`+
+      `<div class="hs-sub">Breaks ${esc(n)} of ${esc(total)} attack path${total!==1?'s':''}</div></div>`;
+    item.addEventListener('click', ()=>focusServer(s));
+    hsEl.appendChild(item);
   });
-  hsEl.innerHTML = html;
 }
 
 // ── Findings table ─────────────────────────────────────────────────────────
@@ -930,7 +946,7 @@ function initFindings(){
     btn.className = 'filter-btn';
     btn.style.cssText =
       `border-color:${sevColor(sev)};color:${sevColor(sev)};background:${sevColor(sev)}22`;
-    btn.innerHTML = `${sev} <span style="opacity:.55;font-weight:400">${cnt}</span>`;
+    btn.innerHTML = `${esc(sev)} <span style="opacity:.55;font-weight:400">${esc(cnt)}</span>`;
     btn.addEventListener('click', ()=>setSevFilter(sev, btn));
     grp.appendChild(btn);
   });
@@ -992,13 +1008,14 @@ function renderFindings(){
     const tr = document.createElement('tr');
     const hl = state.selServer&&(f.server===state.selServer||f.server.includes(state.selServer));
     if(hl) tr.className='row-hl';
-    const dot = `<span class="sev-dot" style="background:${sevColor(f.severity)}"></span>`;
-    const sevTxt = `<span style="color:${sevColor(f.severity)}">${f.severity}</span>`;
+    const col = esc(sevColor(f.severity));
+    const dot = `<span class="sev-dot" style="background:${col}"></span>`;
+    const sevTxt = `<span style="color:${col}">${esc(f.severity)}</span>`;
     tr.innerHTML =
       `<td><div class="td-sev">${dot}${sevTxt}</div></td>`+
-      `<td class="td-mono">${f.analyzer}</td>`+
-      `<td class="td-mono" title="${f.server}">${trunc(f.server,28)}</td>`+
-      `<td title="${f.title||''}">${trunc(f.title||'',55)}</td>`;
+      `<td class="td-mono">${esc(f.analyzer)}</td>`+
+      `<td class="td-mono" title="${esc(f.server)}">${esc(trunc(f.server,28))}</td>`+
+      `<td title="${esc(f.title||'')}">${esc(trunc(f.title||'',55))}</td>`;
     tr.addEventListener('click', ()=>{
       if(!f.server.includes(' + ')) focusServer(f.server);
     });
@@ -1065,6 +1082,43 @@ document.addEventListener('DOMContentLoaded', ()=>{
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
+def script_safe_json(data: object) -> str:
+    """Serialise *data* as JSON that is safe inside an inline ``<script>``.
+
+    ``json.dumps`` leaves ``<``, ``>`` and ``&`` alone, so a scanned string
+    holding ``</script>`` or ``<!--`` could end or alter the script element.
+    They become ``\\u003c``, ``\\u003e`` and ``\\u0026``: valid JSON escapes that
+    JavaScript decodes back to the same characters.  Non-ASCII is already
+    escaped by ``json.dumps`` (``ensure_ascii``), U+2028/U+2029 included.
+
+    Args:
+        data: A JSON-serialisable value.
+
+    Returns:
+        The JSON text, with no literal ``<``, ``>`` or ``&``.
+    """
+    blob = json.dumps(data, indent=2)
+    return blob.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+
+
+def fill_template(template: str, values: dict[str, str]) -> str:
+    """Replace every ``__MARKER__`` key of *values* in *template*, in one pass.
+
+    Substituted text is never searched again, so scan data that happens to
+    contain a marker name (a server called ``__D3_JS__``) stays plain data.
+    Two chained ``str.replace`` calls would splice the D3 bundle into it.
+
+    Args:
+        template: The page template.
+        values: Marker to replacement text; used literally.
+
+    Returns:
+        The filled page.
+    """
+    pattern = re.compile("|".join(re.escape(marker) for marker in values))
+    return pattern.sub(lambda m: values[m.group(0)], template)
+
+
 def generate_html(result: ScanResult, console: Console | None = None) -> str:  # noqa: ARG001
     """Generate a self-contained HTML dashboard for *result*.
 
@@ -1083,19 +1137,10 @@ def generate_html(result: ScanResult, console: Console | None = None) -> str:  #
     Returns:
         Complete HTML string ready to write to a ``.html`` file.
     """
-    scan_data = _build_scan_data(result)
-    d3_js = _load_d3()
-    html = _DASHBOARD_HTML
-    _json_blob = json.dumps(scan_data, indent=2)
-    # Escape < > & so that a malicious server description containing </script>
-    # cannot break out of the inline <script> block (json.dumps does not
-    # HTML-escape these characters by default).  \uXXXX escapes are valid JSON
-    # and are decoded transparently by JavaScript.
-    _json_blob = (
-        _json_blob.replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
+    return fill_template(
+        _DASHBOARD_HTML,
+        {
+            "__SCAN_DATA_JSON__": script_safe_json(_build_scan_data(result)),
+            "__D3_JS__": _load_d3(),
+        },
     )
-    html = html.replace("__SCAN_DATA_JSON__", _json_blob)
-    html = html.replace("__D3_JS__", d3_js)
-    return html

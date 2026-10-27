@@ -2048,6 +2048,147 @@ class TestLauncherSpellings:
         assert time.monotonic() - start < 2.0
 
 
+class TestWindowsCommandLineSplit:
+    """``cmd /c`` with a whole command line in one argument is split the way
+    Windows programs split it, not on whitespace (STORY-0103)."""
+
+    # The reviewer's input, as it appears in a JSON config file.
+    _REVIEWER_JSON = r'"\"C:\\Program Files\\nodejs\\npx.cmd\" -y pkg"'
+
+    def test_reviewer_input_from_json(self) -> None:
+        import json
+
+        from mcp_audit.analyzers.supply_chain import normalize_launch
+
+        arg = json.loads(self._REVIEWER_JSON)
+        assert arg == '"C:\\Program Files\\nodejs\\npx.cmd" -y pkg'
+        assert normalize_launch("cmd", ["/c", arg]) == ("npx", ["-y", "pkg"])
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            (
+                "cmd",
+                ["/c", '"C:\\Program Files\\nodejs\\npx.cmd" -y mcp-server-github'],
+            ),
+            (
+                "cmd.exe",
+                [
+                    "/d",
+                    "/s",
+                    "/c",
+                    '"C:\\Program Files\\nodejs\\npx" -y mcp-server-github',
+                ],
+            ),
+            (
+                "cmd",
+                [
+                    "/c",
+                    '"C:\\Program Files\\nodejs\\npx.cmd"',
+                    "-y",
+                    "mcp-server-github",
+                ],
+            ),
+            ("cmd", ["/c", 'npx -y "mcp-server-github"']),
+            ("cmd", ["/c", "npx\t-y\tmcp-server-github"]),
+            ("cmd", ["/c", "  npx -y mcp-server-github  "]),
+            ("cmd", ["/c", 'cmd /c "npx -y mcp-server-github"']),
+        ],
+    )
+    def test_npm_forms_get_sc007_and_sc008(
+        self, bundled_analyzer: SupplyChainAnalyzer, command: str, args: list[str]
+    ) -> None:
+        out = bundled_analyzer.analyze(_srv(command, args))
+        assert _ids(out) == [("SC-007", "MEDIUM"), ("SC-008", "CRITICAL")]
+
+    def test_pypi_form_with_a_quoted_path(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        args = ["/c", '"C:\\Users\\A User\\.local\\bin\\uvx.exe" mcp-server-memory']
+        assert _ids(bundled_analyzer.analyze(_srv("cmd", args))) == [
+            ("SC-007", "MEDIUM")
+        ]
+
+    def test_pin_is_read_through_a_quoted_path(
+        self, bundled_analyzer: SupplyChainAnalyzer
+    ) -> None:
+        npx = '"C:\\Program Files\\nodejs\\npx.cmd"'
+        pinned = ["/c", f"{npx} -y postmark-mcp@1.0.15"]
+        unpinned = ["/c", f"{npx} -y postmark-mcp"]
+        assert _ids(bundled_analyzer.analyze(_srv("cmd", pinned))) == []
+        assert _ids(bundled_analyzer.analyze(_srv("cmd", unpinned))) == [
+            ("SC-008", "CRITICAL")
+        ]
+
+    def test_unquoted_path_with_spaces_followed_by_args_is_one_path(self) -> None:
+        """The launching program quotes such an argument; it is not split."""
+        from mcp_audit.analyzers.supply_chain import normalize_launch
+
+        args = ["/k", "C:\\Program Files\\nodejs\\npx.cmd", "-y", "pkg"]
+        assert normalize_launch("cmd", args) == ("npx", ["-y", "pkg"])
+
+    # learn.microsoft.com "Parsing C command-line arguments" — the examples
+    # table, each line prefixed with a program name.
+    @pytest.mark.parametrize(
+        ("line", "expected"),
+        [
+            ('p "a b c" d e', ["p", "a b c", "d", "e"]),
+            ('p "ab\\"c" "\\\\" d', ["p", 'ab"c', "\\", "d"]),
+            ('p a\\\\\\b d"e f"g h', ["p", "a\\\\\\b", "de fg", "h"]),
+            ('p a\\\\\\"b c d', ["p", 'a\\"b', "c", "d"]),
+            ('p a\\\\\\\\"b c" d e', ["p", "a\\\\b c", "d", "e"]),
+            ('p a"b"" c d', ["p", 'ab" c d']),
+        ],
+    )
+    def test_microsoft_documented_examples(
+        self, line: str, expected: list[str]
+    ) -> None:
+        from mcp_audit.analyzers.supply_chain import split_windows_command_line
+
+        assert split_windows_command_line(line) == expected
+
+    @pytest.mark.parametrize(
+        ("line", "expected"),
+        [
+            ("", []),
+            (" \t ", []),
+            ('"C:\\Program Files\\x\\npx.cmd"', ["C:\\Program Files\\x\\npx.cmd"]),
+            # Backslashes in the program name are literal, even before a quote.
+            ('"C:\\dir\\"npx -y', ["C:\\dir\\npx", "-y"]),
+            ('npx "unterminated arg', ["npx", "unterminated arg"]),
+            ('npx "" pkg', ["npx", "", "pkg"]),
+            ("npx -y pkg   ", ["npx", "-y", "pkg"]),
+        ],
+    )
+    def test_edges(self, line: str, expected: list[str]) -> None:
+        from mcp_audit.analyzers.supply_chain import split_windows_command_line
+
+        assert split_windows_command_line(line) == expected
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            '"' * 2_000_000,
+            "\\" * 2_000_000 + '"',
+            "p " + 'a\\"' * 700_000,
+            "p " + "x " * 1_000_000,
+        ],
+    )
+    def test_split_is_linear_and_capped(self, line: str) -> None:
+        import time
+
+        from mcp_audit.analyzers.supply_chain import (
+            normalize_launch,
+            split_windows_command_line,
+        )
+
+        start = time.monotonic()
+        tokens = split_windows_command_line(line)
+        normalize_launch("cmd", ["/c", line])
+        assert time.monotonic() - start < 2.0
+        assert sum(len(t) for t in tokens) <= 32_767
+
+
 class TestUserinfoRedaction:
     """Passwords containing '@' or spaces are redacted whole (STORY-0097 review)."""
 

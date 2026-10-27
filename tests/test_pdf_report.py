@@ -228,6 +228,50 @@ class TestPdfReportFormatter:
 # ── Integration tests: CLI check --report pdf ─────────────────────────────────
 
 
+class TestPdfScanStringsAreText:
+    """reportlab parses Paragraph markup; scanned strings must stay text
+    (STORY-0103).  A server name with ``<`` used to stop the report."""
+
+    @staticmethod
+    def _hostile() -> ScanResult:
+        result = _findings_result(
+            [
+                _make_finding(
+                    title='Poisoned <a href="https://evil.example/x">click</a>',
+                    server="<i>srv",
+                ),
+                _make_finding(
+                    finding_id="POISON-001",
+                    title="x <img src=x onerror=alert(1)> & y",
+                    server="<b>unclosed",
+                ),
+            ]
+        )
+        return result
+
+    def test_report_generates_and_embeds_no_link(self) -> None:
+        pdf = PdfReportFormatter(self._hostile(), org_name="<b>Org").generate()
+        assert pdf.startswith(b"%PDF")
+        assert b"evil.example" not in pdf  # no /URI link annotation
+        assert b"/URI" not in pdf
+
+    def test_strings_render_literally(self) -> None:
+        formatter = PdfReportFormatter(self._hostile(), org_name="<b>Org & Co")
+        text = _story_text(formatter._build_story())
+        assert 'Poisoned <a href="https://evil.example/x">click</a>' in text
+        assert "x <img src=x onerror=alert(1)> & y" in text
+        assert "<i>srv" in text
+        assert "<b>unclosed" in text
+        assert "Organisation: <b>Org & Co" in text
+
+    def test_cli_report_does_not_fail(self, tmp_path: Path) -> None:
+        out = tmp_path / "r.pdf"
+        with patch("mcp_audit.cli.check.run_scan", return_value=self._hostile()):
+            r = CliRunner().invoke(app, ["check", "--report", "pdf", "-o", str(out)])
+        assert "PDF generation error" not in r.output
+        assert out.read_bytes().startswith(b"%PDF")
+
+
 class TestCheckReportPdfCli:
     def _mock_run_scan(self) -> ScanResult:
         result = _findings_result()

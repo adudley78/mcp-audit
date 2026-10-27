@@ -93,6 +93,51 @@ class TestLockVerify:
         assert result.exit_code == 2
 
 
+class TestLockVerifyMachineReadableStdout:
+    """`lock --verify --format json|sarif` stdout is one JSON document (STORY-0103)."""
+
+    _split = CliRunner(mix_stderr=False)
+
+    def test_sarif_is_not_wrapped(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """console.print hard-wrapped SARIF at 80 columns when piped.
+
+        The suite pins COLUMNS=200, so the console a pipe gets (80 columns) is
+        put back for this test.
+        """
+        from rich.console import Console
+
+        _write_cursor_config(tmp_path)
+        runner.invoke(app, ["lock", str(tmp_path), "--offline"])
+        monkeypatch.setattr("mcp_audit.cli.lock.console", Console(width=80))
+        result = self._split.invoke(
+            app, ["lock", str(tmp_path), "--verify", "--format", "sarif"]
+        )
+        assert result.exit_code == 0, result.stderr
+        doc = json.loads(result.stdout)
+        assert doc["version"] == "2.1.0"
+        assert "sarif-schema-2.1.0.json" in doc["$schema"]
+
+    @pytest.mark.parametrize("fmt", ["json", "sarif"])
+    def test_if_present_skip_message_goes_to_stderr(
+        self, tmp_path: Path, fmt: str
+    ) -> None:
+        result = self._split.invoke(
+            app,
+            ["lock", str(tmp_path), "--verify", "--if-present", "--format", fmt],
+        )
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert "--if-present" in result.stderr
+
+    def test_terminal_if_present_message_stays_on_stdout(self, tmp_path: Path) -> None:
+        result = self._split.invoke(
+            app, ["lock", str(tmp_path), "--verify", "--if-present"]
+        )
+        assert "--if-present" in result.stdout
+
+
 class TestLockVerifyIfPresent:
     """``--if-present`` (STORY-0070) — soft-adoption for Action/pre-commit."""
 
