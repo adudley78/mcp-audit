@@ -153,6 +153,8 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "HARNESS-002": "untrusted-config-origin",
     "PLUGIN-001": "unverified-provenance",
     "PLUGIN-002": "unpinned-dependency",
+    "PLUGIN-003": "unverified-provenance",  # checkout is not the pin (STORY-0096)
+    "PLUGIN-004": "unverified-provenance",  # update channel can't hold the pin
     "MOD-002": "toxic-flow",
     "MOD-003": "tool-poisoning",
     "MOD-006": "untrusted-config-origin",

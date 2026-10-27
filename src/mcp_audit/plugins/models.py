@@ -11,6 +11,7 @@ from pathlib import Path
 GIT_SOURCE_TYPES: frozenset[str] = frozenset({"github", "url", "git-subdir"})
 
 _FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+_OBJECT_ID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,10 @@ class InstalledPlugin:
         entry_version: ``version`` set on the marketplace entry, if any.
         manifest_version: ``version`` in the installed ``plugin.json``, if any.
         record_path: The ``installed_plugins.json`` this came from.
+        git_commit_sha: ``gitCommitSha`` from the install record, lower-cased,
+            when it is a full object id.  Undocumented; observed on Claude Code
+            2.1.311 as the resolved commit of a git-sourced plugin (the pin) and
+            as the marketplace's commit for a relative-path plugin (STORY-0096).
     """
 
     plugin_id: str
@@ -43,6 +48,7 @@ class InstalledPlugin:
     entry_version: str | None
     manifest_version: str | None
     record_path: Path
+    git_commit_sha: str | None = None
 
     @property
     def source_type(self) -> str | None:
@@ -63,3 +69,11 @@ class InstalledPlugin:
         if isinstance(sha, str) and _FULL_SHA_RE.match(sha.strip().lower()):
             return sha.strip().lower()
         return None
+
+
+def normalize_object_id(value: object) -> str | None:
+    """Return *value* lower-cased when it is a full 40- or 64-hex object id."""
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip().lower()
+    return candidate if _OBJECT_ID_RE.match(candidate) else None

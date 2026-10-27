@@ -455,9 +455,11 @@ def _discover_and_parse(
 
     With *include_plugins* (the default) and no *extra_paths*, installed Claude
     Code plugins are part of discovery: their MCP servers arrive as client
-    ``claude-code-plugin`` and the PLUGIN-001/002 pin checks are appended to
-    ``result.findings`` here, so every ``run_scan`` consumer (``scan``,
-    ``check``, ``dashboard`` …) sees them and the score counts them.
+    ``claude-code-plugin`` and the PLUGIN-001/002 pin checks, plus the
+    PLUGIN-003/004 pin-vs-checkout checks and TRUST-006/007 on plugin and
+    marketplace checkouts (STORY-0096), are appended to ``result.findings``
+    here, so every ``run_scan`` consumer (``scan``, ``check``, ``dashboard`` …)
+    sees them and the score counts them.
 
     With no *extra_paths*, the VS Code, Gemini CLI, Codex and Claude Code
     auto-run files at the working directory's root are checked too (TRUST-003,
@@ -507,6 +509,24 @@ def _discover_and_parse(
 
         installed = _plugin_discovery.discover_installed_plugins()
         result.findings.extend(_plugin_analyzer.analyze_plugin_integrity(installed))
+        # Plugin pin vs the actual checkout (STORY-0096, PLUGIN-003/004) and the
+        # checkouts' git config (TRUST-006/007).  Reads HEAD, refs and config as
+        # files; never runs git.  A failure is reported, never fatal.
+        try:
+            from mcp_audit.plugins import checkout as _plugin_checkout  # noqa: PLC0415
+
+            seen = {(f.id, f.finding_path, f.evidence) for f in result.findings}
+            result.findings.extend(
+                f
+                for f in _plugin_checkout.analyze_plugin_pins(
+                    installed, errors=result.errors
+                )
+                if (f.id, f.finding_path, f.evidence) not in seen
+            )
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(
+                f"plugin checkout check error: {type(e).__name__}: {e}"
+            )
         # Mods (STORY-0085): installed plugins, Claude-written dev mods and
         # CLAUDE_CODE_PLUGIN_DIRS, read statically, never executed.
         result.findings.extend(

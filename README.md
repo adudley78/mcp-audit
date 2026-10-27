@@ -84,7 +84,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **SAST rule pack** — 91 Semgrep rules (47 Python, 44 TypeScript) across 6 categories for MCP server source code
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
 - **Agent-file scanner** — scans the other instruction surfaces the AI agent reads: Claude Code custom commands, Cursor rules, GitHub Copilot instruction/prompt files, and CLAUDE.md memory files; also detects network-egress and config-persistence patterns in Claude Code hook commands (CVE-2026-30615); `mcp-audit agent-files scan` or `mcp-audit scan --include-agent-files`
-- **Claude Code plugins** — inventories installed plugins, flags a plugin whose recorded version is not the commit its marketplace currently pins (`PLUGIN-001`, a pin-drift check that compares records and does not hash plugin files) or that follows a branch with no pin (`PLUGIN-002`), and runs the skills and MCP servers plugins ship through the existing checks; audits Claude Code **mods** (plugins that run code inside Claude Code) against Anthropic's own review checklist: a mod that can approve tool calls before the permission prompt (`MOD-001`), read secrets and send data out (`MOD-002`), rewrite what Claude reads (`MOD-003`) or start programs (`MOD-004`), read statically, never run; a default `scan` includes plugin MCP servers, the pin checks and mods (`mcp-audit plugins scan` for the plugin-only view)
+- **Claude Code plugins** — inventories installed plugins, flags a plugin whose recorded version is not the commit its marketplace currently pins (`PLUGIN-001`, a pin-drift check that compares records and does not hash plugin files) or that follows a branch with no pin (`PLUGIN-002`), a plugin checkout whose `HEAD` is not the pinned commit, read from `.git` without running git (`PLUGIN-003`, the Plugin4Shell check), and an update channel that can't hold a pin (`PLUGIN-004`: SHA-named branches, a short `sha`, a host other than github.com), and runs the skills and MCP servers plugins ship through the existing checks; audits Claude Code **mods** (plugins that run code inside Claude Code) against Anthropic's own review checklist: a mod that can approve tool calls before the permission prompt (`MOD-001`), read secrets and send data out (`MOD-002`), rewrite what Claude reads (`MOD-003`) or start programs (`MOD-004`), read statically, never run; a default `scan` includes plugin MCP servers, the pin checks and mods (`mcp-audit plugins scan` for the plugin-only view)
 - **Signed advisory feed** — there is no CVE/OSV/NVD equivalent for MCP servers, so `mcp-audit advise` publishes one: findings become OSV 1.6.0 records with OWASP MCP Top 10 metadata, canonicalized (RFC 8785) and signed with the project minisign key (since 2026-09-07; the record format is still experimental); `mcp-audit feed verify` checks the whole feed; a weekly signed build is published to `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json` — see [`docs/advisory-feed.md`](docs/advisory-feed.md) — alongside the committed unsigned [`examples/feed/`](examples/feed/) fixture
 - **Config hygiene** — `ConfigHygieneAnalyzer` detects missing descriptions, duplicate tool names, and other structural config issues
 - **CVE tagging** — findings carry a `Finding.cve` field so matched CVEs surface in JSON, SARIF, and terminal output
@@ -481,7 +481,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-5,766 tests validate detection accuracy and guard against regressions.
+5,845 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -550,7 +550,7 @@ Every command is available to every user — no tier, no license required.
 | `--sast` | none | Path to MCP server source code to scan with Semgrep SAST rules |
 | `--include-extensions` | off | Also scan installed IDE extensions for security issues |
 | `--include-agent-files` | off | Also scan agent instruction/memory files (skills, CLAUDE.md, Cursor rules, Copilot instructions) |
-| `--no-plugins` | off | Skip installed Claude Code plugins. Without `--path`, a scan includes their MCP servers and pin checks (PLUGIN-001/002); `--include-agent-files` adds the skills and commands they ship |
+| `--no-plugins` | off | Skip installed Claude Code plugins. Without `--path`, a scan includes their MCP servers and pin checks (PLUGIN-001..004); `--include-agent-files` adds the skills and commands they ship |
 
 **`mcp-audit dashboard` flags**
 
@@ -707,7 +707,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 5,766 tests
+uv run pytest                        # Run all 5,845 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
