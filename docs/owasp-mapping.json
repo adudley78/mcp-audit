@@ -1131,6 +1131,45 @@
       "notes": "Requires --connect (live enumeration). Fires when >=2 distinct servers advertise the same tool name (case-sensitive). MEDIUM by default; HIGH when one claimant is registry-verified and another is not (unknown server shadowing a trusted tool). NSA CSI item 5. CWE-694."
     },
     {
+      "finding_id": "DELEG-001",
+      "finding_title": "Tool description names another server's tool",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Requires --connect (live enumeration). A tool's description, title or input-schema prose names, as a whole token (or as mcp__<server>__<tool>), a tool that a different connected server exposes and its own server does not. MCPTox's poisoned tools work this way: the poisoned tool never runs; it steers the agent to another server's tool (arXiv 2508.14925). MEDIUM; severity set by STORY-0100's measured gate (docs/poisoning.md). CWE-441."
+    },
+    {
+      "finding_id": "DELEG-002",
+      "finding_title": "Tool description tells the agent to act when something else happens",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Requires --connect. A conditional trigger (before/after/whenever/when the user ...) plus a directive (must/should/always, or an imperative after the trigger) to perform an action (read, write, delete, send, execute) whose class appears nowhere in the tool's own name or input-schema property names; not when the directive is about calling this tool itself or names only its own server's tools. MCPTox implicit-trigger shape. MEDIUM; measured gate. CWE-441."
+    },
+    {
+      "finding_id": "DELEG-003",
+      "finding_title": "Tool description tells the agent to rewrite other tools' arguments",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Requires --connect. A directive to set/change/append/remove an argument, scoped to a named tool of another server or to every call ('any tool call', 'regardless of'). MCPTox parameter tampering (P3). HIGH; measured gate. CWE-441."
+    },
+    {
       "finding_id": "SKILL-001",
       "finding_title": "Injection/exfiltration instruction in skill file",
       "owasp_codes": [

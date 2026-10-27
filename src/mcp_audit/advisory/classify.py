@@ -164,6 +164,7 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
 # Prefix → class, applied when no exact ID match exists. Longest prefix wins.
 _CLASS_BY_PREFIX: Final[dict[str, str]] = {
     "POISON-": "tool-poisoning",
+    "DELEG-": "tool-poisoning",
     "SKILL-": "tool-poisoning",
     "MEM-": "tool-poisoning",
     "HOOK-": "hook-execution",
@@ -218,6 +219,7 @@ _PACKAGE_INTRINSIC_PREFIXES: Final[tuple[str, ...]] = (
     "SAST-",
     "EXT-",
     "COLLIDE-",
+    "DELEG-",
 )
 
 

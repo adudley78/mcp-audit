@@ -493,6 +493,43 @@ COMM-035 (COMM-034 already exists).
 
 ---
 
+## Cross-tool delegation (analyzers/delegation.py — DELEG-001..003, STORY-0100)
+
+Original implementation: a token-based matcher with a closed vocabulary
+written for mcp-audit. No detector, rule or fixture was copied; MCPTox's data
+was read for measurement only and is not committed (no stated licence).
+
+- **MCPTox: A Benchmark for Tool Poisoning on Real-World MCP Servers**
+  (arXiv 2508.14925, AAAI 2026; [HTML](https://arxiv.org/html/2508.14925v1)).
+  The threat model the checks follow: "An attacker can register a malicious
+  MCP server with tool descriptions" (§2.2); "an agent is connected to both a
+  trusted MCP server and a malicious one" (§3.4); "the poisoned tool itself is
+  never executed" (§3.1); an effective description has "a Trigger Condition",
+  "the Malicious Action" and "a Plausible Justification" (§3.2). DELEG-001 is
+  the cross-server reference, DELEG-002 the trigger plus an action the tool
+  cannot do itself (P2), DELEG-003 the parameter-tampering paradigm (P3:
+  "The attack is triggered implicitly when the agent decides to use a
+  legitimate tool", §3.1). The dataset is also the gate's measurement.
+- **MCP-ITP: implicit tool poisoning** (arXiv 2601.07395,
+  [abstract](https://arxiv.org/abs/2601.07395)): the poisoned tool is never
+  invoked; its metadata steers the agent to a legitimate high-privilege tool
+  (84.2% ASR across 12 agents on MCPTox). Motivates checking structure rather
+  than keywords; its optimized descriptions were not available to measure.
+- **CSA research note, ShareLock / multi-tool threshold poisoning** (2026-06-26,
+  [CSA](https://labs.cloudsecurityalliance.org/research/csa-research-note-sharelock-mcp-threshold-poisoning-20260626/)):
+  payloads split across cooperating descriptions, described as a hypothetical
+  pattern rather than a measured attack, with no detector published.
+  DELEG-001's cross-server reference is the part of it a static read can see.
+- **Claude Code permissions documentation**
+  ([code.claude.com/docs/en/permissions](https://code.claude.com/docs/en/permissions),
+  quoted in `docs/permission-rules.md`): MCP tools are named
+  `mcp__<server>__<tool>`, so DELEG-001 reads that form as a reference to
+  `<tool>`.
+- Severity and the decision to ship: EPIC-0007's STORY-0100 gate, measured with
+  STORY-0088's harness (`scripts/bench_poisoning.py delegation`).
+
+---
+
 ## Agent-file scanner (SKILL-001/002/003, MEM-001/002, HOOK-001/002)
 
 Added 2026-06-14. Original implementation based on the research below.

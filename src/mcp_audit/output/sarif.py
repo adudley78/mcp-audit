@@ -139,6 +139,7 @@ def _build_rule(finding: Finding) -> dict:
     # Derive a subcategory tag from the analyzer name.
     analyzer_tags: dict[str, str] = {
         "poisoning": "tool-poisoning",
+        "delegation": "tool-poisoning",
         "credentials": "credentials",
         "transport": "transport-security",
         "supply_chain": "supply-chain",
