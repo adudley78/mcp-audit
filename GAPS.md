@@ -214,8 +214,12 @@ git configuration and hooks are read (never run) in a default `scan`/`check`
   `lfs.extension.<name>.clean`/`smudge` and `lfs.customtransfer.<name>.path`/`args`,
   and delta's `pager` (in `[delta]` or a `[delta "<feature>"]` section, whether
   or not that feature is enabled), are reported and take away the tool's INFO
-  status. Not covered: `lfs.standalonetransferagent` on its own (it names an
-  agent, not a program; the agent's `path` is what is reported); delta's
+  status. `lfs.standalonetransferagent` is not reported on its own (it names an
+  agent, not a program); it raises the named agent's `path`/`args` from MEDIUM to
+  HIGH (STORY-0103). Any `lfs.<url>.standalonetransferagent` counts, whichever
+  URL it names, because which endpoint a remote resolves to is not known from
+  config alone; a URL key that overrides the plain one for the real endpoint is
+  not modelled. Not covered: delta's
   `diff-args` (used only when delta compares two files itself); git's
   `interactive.diffFilter` (delta's documented `git add -p` setup, run only on
   interactive add); git-annex's own `annex.*` settings, which can name programs,

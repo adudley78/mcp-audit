@@ -273,6 +273,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   each `check` sends a short ping with the grade. The privacy page's table now
   lists `lock --verify --resolve` (npm or PyPI) and `lock --connect` (starts or
   contacts each configured server), both opt-in.
+- **TRUST-006: a git-lfs custom transfer agent that runs on every transfer is
+  HIGH.** `lfs.customtransfer.<name>.path`/`args` in a repository's git config
+  was MEDIUM even when `lfs.standalonetransferagent` (or
+  `lfs.<url>.standalonetransferagent`) names that agent. git-lfs then runs it on
+  every fetch, pull, checkout and push that moves LFS objects, without asking
+  the server, the same exposure as `core.sshCommand`, which is HIGH. It is HIGH
+  in that case and stays MEDIUM otherwise (it then runs only if the LFS server
+  picks it).
 - **SANDBOX finding text names the user settings file Claude Code reads.** With
   `CLAUDE_CONFIG_DIR` set, the notes about `strictAllowlist` and `defaultMode`
   said "your ~/.claude/settings.json"; they now name that file (as `~/…` when it
