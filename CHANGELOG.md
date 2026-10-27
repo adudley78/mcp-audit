@@ -129,8 +129,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that never runs itself but tells the agent "whenever you do X, first call that other
   tool" or "when you use that tool, change this argument". DELEG-001 (MEDIUM): the text
   names a tool another connected server exposes. DELEG-002 (MEDIUM): a trigger ("before",
-  "whenever", "when the user …") plus an order to do something this tool cannot do
-  itself. DELEG-003 (HIGH): an order to rewrite another tool's arguments, or every
+  "whenever", "when the user …") plus an order to do something no tool on its own
+  server can do. DELEG-003 (HIGH): an order to rewrite another tool's arguments, or every
   call's. A plain scan never connects, so it never reports these: the lock file keeps
   only fingerprints of tool definitions, not their text. Measured on MCPTox before
   shipping, as EPIC-0007 required: with the poisoned tool on its own server (MCPTox's
@@ -138,8 +138,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that carry no keyword wrapper and target an implicit trigger, against 21.4% for
   POISON-* alone (parameter tampering: 95.8% against 4.7%), and DELEG-* flags 1 of
   MCPTox's 353 real tools. On 855 real tool descriptions read from the published
-  source of 38 popular npm MCP servers, all in one session, it flagged 4 (all
-  DELEG-002). Numbers per attack paradigm, and what it misses, are in
+  source of 38 popular npm MCP servers, all in one session, it flagged 1
+  (DELEG-002). Those are not independent numbers: MCPTox's clean tools and 640 of
+  the 855 informed the design; of the 215 held out until the design was frozen,
+  it flagged none. Numbers per attack paradigm, and what it misses, are in
   [`docs/poisoning.md`](docs/poisoning.md#cross-tool-delegation-deleg-001003);
   `scripts/bench_poisoning.py delegation` re-takes the measurement, and a test fails
   if the detector changes without it.

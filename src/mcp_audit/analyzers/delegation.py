@@ -24,11 +24,13 @@ input schema):
     A conditional trigger ("before using …", "whenever …", "after …") plus a
     directive ("you must", "always", an imperative) to perform an action whose
     capability class (read, write, delete, send, execute) appears nowhere in
-    the tool's own name or input-schema property names.
+    the names or input-schema property names of the describing server's
+    tools (this one or its siblings).
 ``DELEG-003``
     A directive to rewrite arguments ("modify the 'path' argument to …",
     "always set the recipient to …", "append to prompt …") scoped beyond this
-    tool: to a named tool of another server, or to every call.
+    tool: to a named tool of another server, or to every call (unless the
+    argument is one the describing server's own tools take).
 
 Where it runs: ``scan --connect`` (and ``dashboard --connect``), right after
 COLLIDE-001, over every ``(server, tools/list)`` pair that enumerated. The
@@ -431,10 +433,39 @@ class _Entry:
 
 @dataclass
 class _Budget:
+    """One server's share of the scan budget, and what it could not read."""
+
     remaining: int
     truncated_tools: int = 0
     skipped_tools: int = 0
     schema_capped_tools: int = 0
+
+
+@dataclass
+class _ServerSlot:
+    """A logical server's tools, in enumeration order, before reading."""
+
+    server: ServerConfig
+    identity: tuple
+    tools: list[ToolInfo] = field(default_factory=list)
+    budget: _Budget = field(default_factory=lambda: _Budget(remaining=0))
+    tool_allowance: int = 0
+
+
+def _fair_shares(demands: list[int], capacity: int) -> list[int]:
+    """Split *capacity* across *demands* so no one demand starves the others.
+
+    Water-filling: the smallest demands are met in full, and what is left is
+    divided evenly among the rest. ``sum(result) <= capacity``.
+    """
+    shares = [0] * len(demands)
+    remaining = capacity
+    order = sorted(range(len(demands)), key=lambda i: demands[i])
+    for rank, i in enumerate(order):
+        fair = remaining // (len(order) - rank)
+        shares[i] = min(demands[i], fair)
+        remaining -= shares[i]
+    return shares
 
 
 def server_identity(server: ServerConfig) -> tuple:
@@ -579,9 +610,10 @@ def _schema_strings(
     return prose, props
 
 
-def _read_tool(entry: _Entry, budget: _Budget) -> list[str]:
-    """Fill ``entry.texts`` within the budgets; return its schema property names."""
-    tool = entry.tool
+def _tool_candidates(
+    tool: ToolInfo, budget: _Budget
+) -> tuple[list[tuple[str, str]], list[str]]:
+    """Return ``(texts to read, schema property names)`` for *tool*."""
     candidates: list[tuple[str, str]] = []
     if tool.description:
         candidates.append(("description", tool.description))
@@ -589,7 +621,25 @@ def _read_tool(entry: _Entry, budget: _Budget) -> list[str]:
         candidates.append(("title", tool.title))
     prose, props = _schema_strings(tool.input_schema or {}, budget)
     candidates.extend(prose)
+    return candidates, props
 
+
+def _demand(candidates: list[tuple[str, str]]) -> int:
+    """Characters a tool would use, at most :data:`MAX_TOOL_TEXT_CHARS`."""
+    return min(MAX_TOOL_TEXT_CHARS, sum(len(text) for _, text in candidates))
+
+
+def _read_tool(entry: _Entry, budget: _Budget) -> list[str]:
+    """Fill ``entry.texts`` within the budgets; return its schema property names."""
+    candidates, props = _tool_candidates(entry.tool, budget)
+    _read_candidates(entry, candidates, budget)
+    return props
+
+
+def _read_candidates(
+    entry: _Entry, candidates: list[tuple[str, str]], budget: _Budget
+) -> None:
+    """Fill ``entry.texts`` from *candidates* within the per-tool cap and *budget*."""
     allowance = min(MAX_TOOL_TEXT_CHARS, budget.remaining)
     truncated = False
     for where, text in candidates:
@@ -606,7 +656,6 @@ def _read_tool(entry: _Entry, budget: _Budget) -> list[str]:
         budget.remaining -= len(text)
     if truncated:
         budget.truncated_tools += 1
-    return props
 
 
 # ── Matching ──────────────────────────────────────────────────────────────────
@@ -831,6 +880,49 @@ def _universal_scope(tokens: list[str]) -> bool:
     return False
 
 
+def _arg_key(word: str) -> str:
+    """Normalize an argument name for comparison (case, simple plurals)."""
+    word = word.lower()
+    if word.endswith("ies") and len(word) > 4:
+        return word[:-3] + "y"
+    if word.endswith(("ses", "xes", "zes", "ches", "shes")) and len(word) > 4:
+        return word[:-2]
+    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
+        return word[:-1]
+    return word
+
+
+def _argument_keys(sentence: str) -> set[str]:
+    """Normalized names of the arguments a sentence targets.
+
+    An argument noun ("header", "path"), the word on either side of one
+    ("the Authorization header", "the sessionId parameter"), a quoted name,
+    and any identifier-shaped token (``sessionId``, ``api_key``).
+    """
+    raw = [m.group().rstrip(".-") for m in _NAME_TOKEN.finditer(sentence)]
+    raw = [w for w in raw if w]
+    keys: set[str] = set()
+    for i, word in enumerate(raw):
+        lower = word.lower()
+        if lower in _PARAM_NOUNS:
+            keys.add(_arg_key(lower))
+            for j in (i - 1, i + 1):
+                if 0 <= j < len(raw):
+                    keys.add(_arg_key(raw[j]))
+        elif is_identifier_shaped(word):
+            keys.add(_arg_key(word))
+    for m in _NAME_TOKEN.finditer(sentence):
+        start, end = m.start(), m.end()
+        if (
+            start > 0
+            and end < len(sentence)
+            and sentence[start - 1] in _QUOTES
+            and sentence[end] in _QUOTES
+        ):
+            keys.add(_arg_key(m.group()))
+    return keys
+
+
 def _has_target(sentence: str, tokens: list[str]) -> bool:
     """Whether the sentence names an argument (a noun like "path", or a quote)."""
     if any(t in _PARAM_NOUNS for t in tokens):
@@ -877,15 +969,22 @@ _REMEDIATION = (
 
 def _analyze_entry(
     entry: _Entry,
-    own_props: list[str],
+    server_classes: set[str],
+    server_arg_keys: set[str],
     names: dict[str, set[tuple]],
     servers_by_identity: dict[tuple, ServerConfig],
 ) -> list[Finding]:
-    """Run DELEG-001..003 over one tool's text."""
+    """Run DELEG-001..003 over one tool's text.
+
+    *server_classes* are the capability classes the describing server's tools
+    offer (their names and input-schema property names, this tool's
+    included): an action one of them can do is not delegated to another
+    server. *server_arg_keys* are those tools' argument names
+    (:func:`_arg_key`), so "every call" in a sentence about one of the
+    server's own arguments is not read as reaching other servers' calls.
+    """
     tool_name = _clean_name(entry.tool.name)
-    own = capability_classes(split_words(entry.tool.name))
-    for prop in own_props:
-        own |= capability_classes(split_words(prop))
+    own = server_classes
 
     other: dict[str, tuple[int, str, str, int]] = {}  # name -> first mention
     d002: tuple[str, str, list[tuple[str, str]]] | None = None
@@ -912,7 +1011,13 @@ def _analyze_entry(
                 directed = _directed_classes(tokens, own)
                 if directed:
                     d002 = (where, sentence, directed)
-            if d003 is None and (named_other or _universal_scope(tokens)):
+            if d003 is None and (
+                named_other
+                or (
+                    _universal_scope(tokens)
+                    and not (_argument_keys(sentence) & server_arg_keys)
+                )
+            ):
                 verb = _rewrite_directive(tokens)
                 if verb is not None and _has_target(sentence, tokens):
                     d003 = (where, sentence, verb)
@@ -971,12 +1076,14 @@ def _analyze_entry(
                 description=(
                     f"The text of tool '{tool_name}' states a trigger (before, "
                     "after, whenever another action happens) and directs the "
-                    f"agent to {verbs}, an action this tool's own name and input "
-                    "schema do not offer, so another tool would have to do it. "
+                    f"agent to {verbs}, an action no tool of this server offers "
+                    "by its name or input schema, so another server's tool "
+                    "would have to do it. "
                     "This is the implicit-trigger shape MCPTox measured (P2/P3, "
                     "arXiv 2508.14925). Capability classes are inferred from "
-                    "words in the tool's name and schema property names, so a "
-                    "tool whose name does not say what it does can trip this."
+                    "words in the server's tool names and schema property "
+                    "names, so a server whose tool names do not say what they "
+                    "do can trip this."
                 ),
                 evidence=f"{where}: {redact_evidence(sentence)}",
                 remediation=_REMEDIATION,
@@ -1028,10 +1135,10 @@ def detect_delegation(
     Returns:
         DELEG-* findings, at most one per ID per tool.
     """
-    budget = _Budget(remaining=MAX_TOTAL_TEXT_CHARS)
-    entries: list[tuple[_Entry, list[str]]] = []
     names: dict[str, set[tuple]] = {}
     servers_by_identity: dict[tuple, ServerConfig] = {}
+    slots: dict[tuple, _ServerSlot] = {}
+    overflow: dict[tuple, int] = {}
     seen: set[tuple[tuple, str]] = set()
 
     for server, enumeration in pairs:
@@ -1039,39 +1146,93 @@ def detect_delegation(
             continue
         identity = server_identity(server)
         servers_by_identity.setdefault(identity, server)
+        slot = slots.setdefault(identity, _ServerSlot(server=server, identity=identity))
         for tool in enumeration.tools:
             if (identity, tool.name) in seen:
                 continue
             seen.add((identity, tool.name))
             if _VALID_NAME.fullmatch(tool.name):
                 names.setdefault(tool.name, set()).add(identity)
-            if len(entries) >= MAX_TOOLS or budget.remaining <= 0:
-                budget.skipped_tools += 1
+            if len(slot.tools) >= MAX_TOOLS:
+                overflow[identity] = overflow.get(identity, 0) + 1
                 continue
-            entry = _Entry(server=server, identity=identity, tool=tool)
-            entries.append((entry, _read_tool(entry, budget)))
+            slot.tools.append(tool)
+
+    # Each server gets a fair share of the tool and text budgets, so a server
+    # enumerated first (or one built to exhaust the budget) cannot leave the
+    # others unread.
+    order = list(slots.values())
+    tool_shares = _fair_shares([len(sl.tools) for sl in order], MAX_TOOLS)
+    prepared: list[tuple[_ServerSlot, list[tuple[ToolInfo, list, list[str]]]]] = []
+    for slot, tool_share in zip(order, tool_shares, strict=True):
+        slot.tool_allowance = tool_share
+        rows = []
+        for tool in slot.tools[:tool_share]:
+            candidates, props = _tool_candidates(tool, slot.budget)
+            rows.append((tool, candidates, props))
+        prepared.append((slot, rows))
+    char_shares = _fair_shares(
+        [sum(_demand(c) for _, c, _ in rows) for _, rows in prepared],
+        MAX_TOTAL_TEXT_CHARS,
+    )
+
+    entries: list[tuple[_Entry, set[str], set[str]]] = []
+    for (slot, rows), char_share in zip(prepared, char_shares, strict=True):
+        slot.budget.remaining = char_share
+        slot.budget.skipped_tools = len(slot.tools) - len(rows)
+        slot.budget.skipped_tools += overflow.get(slot.identity, 0)
+        classes: set[str] = set()
+        arg_keys: set[str] = set()
+        for tool in slot.tools:
+            classes |= capability_classes(split_words(tool.name))
+        server_entries: list[_Entry] = []
+        for tool, candidates, props in rows:
+            for prop in props:
+                classes |= capability_classes(split_words(prop))
+                arg_keys.add(_arg_key(prop))
+            if _demand(candidates) == 0:
+                continue  # nothing to read; not a budget miss
+            if slot.budget.remaining <= 0:
+                slot.budget.skipped_tools += 1
+                continue
+            entry = _Entry(server=slot.server, identity=slot.identity, tool=tool)
+            _read_candidates(entry, candidates, slot.budget)
+            server_entries.append(entry)
+        entries.extend((e, classes, arg_keys) for e in server_entries)
 
     findings: list[Finding] = []
-    for entry, props in entries:
-        findings.extend(_analyze_entry(entry, props, names, servers_by_identity))
+    for entry, classes, arg_keys in entries:
+        findings.extend(
+            _analyze_entry(entry, classes, arg_keys, names, servers_by_identity)
+        )
 
     if errors is not None:
-        if budget.skipped_tools:
-            errors.append(
-                f"[delegation] {budget.skipped_tools} tool(s) not checked: the "
-                f"scan reached its budget ({MAX_TOOLS} tools, "
-                f"{MAX_TOTAL_TEXT_CHARS} characters of tool text)"
-            )
-        if budget.truncated_tools:
-            errors.append(
-                f"[delegation] {budget.truncated_tools} tool(s) checked in part: "
-                f"text beyond {MAX_TOOL_TEXT_CHARS} characters per tool (or the "
-                "scan budget) was not read"
-            )
-        if budget.schema_capped_tools:
-            errors.append(
-                f"[delegation] {budget.schema_capped_tools} tool(s) have input "
-                f"schemas larger than {MAX_SCHEMA_NODES} nodes or deeper than "
-                f"{MAX_SCHEMA_DEPTH} levels; the rest was not read"
-            )
+        for slot, _rows in prepared:
+            errors.extend(_budget_errors(slot))
     return findings
+
+
+def _budget_errors(slot: _ServerSlot) -> list[str]:
+    """What *slot*'s server could not have read, for ``result.errors``."""
+    b = slot.budget
+    who = f"[delegation] server '{_clean_name(slot.server.name)}':"
+    out: list[str] = []
+    if b.skipped_tools:
+        out.append(
+            f"{who} {b.skipped_tools} tool(s) not checked: its share of the scan "
+            f"budget ({MAX_TOOLS} tools and {MAX_TOTAL_TEXT_CHARS} characters of "
+            "tool text, divided fairly across servers) was used"
+        )
+    if b.truncated_tools:
+        out.append(
+            f"{who} {b.truncated_tools} tool(s) checked in part: text beyond "
+            f"{MAX_TOOL_TEXT_CHARS} characters per tool (or its share of the "
+            "scan budget) was not read"
+        )
+    if b.schema_capped_tools:
+        out.append(
+            f"{who} {b.schema_capped_tools} tool(s) have input schemas larger "
+            f"than {MAX_SCHEMA_NODES} nodes or deeper than {MAX_SCHEMA_DEPTH} "
+            "levels; the rest was not read"
+        )
+    return out

@@ -255,8 +255,12 @@ gate passed, so the stated severities ship.
   the describing server's own tools (a server documenting its own workflow is
   the commonest benign shape on real servers). MCPTox's prompts list the
   poisoned tool among the target server's tools; in that layout POISON-* plus
-  DELEG-* reach 30.0% of the unwrapped implicit cases, against 21.4% for
-  POISON-* alone. A compromised server that poisons one of its own tools to
+  DELEG-* reach 23.5% of the unwrapped implicit cases, against 21.4% for
+  POISON-* alone. DELEG-002 also counts what the describing server's other
+  tools can do as its own, and DELEG-003's "every call" scope does not apply
+  to an argument the server's own tools take, so a malicious server can mute
+  both by adding decoy tools with those capabilities or argument names
+  (DELEG-001 still fires on the cross-server name). A compromised server that poisons one of its own tools to
   misuse another of its own tools is in this gap; it already controls both.
 - **Exact names only.** "The file-reading tool" instead of `read_file`
   evades DELEG-001; so does a name broken with zero-width characters or
@@ -271,17 +275,19 @@ gate passed, so the stated severities ship.
 - **Tools only.** Resource and prompt descriptions, `outputSchema` and
   annotations are not read; schema `enum`/`default`/`examples` strings are not
   either.
-- **What the measurement can and cannot say.** The 353 MCPTox clean tools and a
-  first set of 640 real tool descriptions (statically read from the published
-  npm source of 35 top-100 corpus servers) both informed the design after the
-  first measurement; only a second set of 215 descriptions from 3 more servers
-  was held out until the design was frozen (0 flagged). That benign check is a
+- **What the measurement can and cannot say.** The 353 MCPTox clean tools (1
+  flagged) and a first set of 640 real tool descriptions (statically read from
+  the published npm source of 35 top-100 corpus servers; 1 flagged) both
+  informed the design; only a second set of 215 descriptions from 3 more
+  servers was held out until the design was frozen (0 flagged). That benign check is a
   one-off by hand (the third-party source is not committed), not a CI test.
   MCP-ITP's optimized implicit poisoning (arXiv 2601.07395) was not measured:
   no dataset was published.
 - **Budgets.** 64 KiB of text per tool, 8 MiB per scan, 20,000 tools, schemas
-  to 5,000 nodes and 64 levels; anything beyond is not read and the scan's
-  errors say so. Evidence is redacted with `SECRET_PATTERNS` over the shown
+  to 5,000 nodes and 64 levels. The scan budget is shared fairly across
+  servers (the smallest demands are met in full, the rest split evenly), so
+  one server cannot use it up for the others; anything beyond a server's
+  share is not read and the scan's errors name the server. Evidence is redacted with `SECRET_PATTERNS` over the shown
   excerpt plus 1,000 characters either side, not the whole field (one of those
   patterns rescans to the end of its input from every start); a secret longer
   than that margin, starting outside it, could show in part.

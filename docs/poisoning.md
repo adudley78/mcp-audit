@@ -98,7 +98,7 @@ MCP_AUDIT_MCPTOX_DIR=DIR uv run pytest tests/test_bench_poisoning.py    # local 
 STORY-0100 added three structural checks that run beside POISON-* under `scan --connect`, over the same live tool definitions. They look for the shape MCPTox found works: "the poisoned tool itself is never executed" (§3.1); its description tells the agent to do something with a *different*, legitimate tool. Each rule is in [severity-framework.md](severity-framework.md); the code is `src/mcp_audit/analyzers/delegation.py`.
 
 - **DELEG-001** (MEDIUM): the text names a tool that a different connected server exposes.
-- **DELEG-002** (MEDIUM): a trigger ("before using …", "whenever …", "when the user …") plus an order to do something (read, write, delete, send, execute) that the tool's own name and input schema do not offer.
+- **DELEG-002** (MEDIUM): a trigger ("before using …", "whenever …", "when the user …") plus an order to do something (read, write, delete, send, execute) that no tool on its own server offers, by name or input schema.
 - **DELEG-003** (HIGH): an order to rewrite the arguments of another server's tool, or of every call.
 
 They need `--connect`: a description exists only in a live `tools/list`, and `mcp-lock.json` keeps digests of tool definitions, never their text. A plain `scan`, `check` and the GitHub Action never connect and never report them.
@@ -110,7 +110,7 @@ EPIC-0007 decided the gate before anything was built: DELEG-* ships at the sever
 | Gate test | Result |
 |---|---|
 | Implicit-trigger recall lift, poisoned tool on its own server | +283 of 1,104 cases (73.6% → 99.3%) |
-| Implicit-trigger recall lift, poisoned tool among the target server's tools | +32 of 1,104 cases (73.6% → 76.5%) |
+| Implicit-trigger recall lift, poisoned tool among the target server's tools | +8 of 1,104 cases (73.6% → 74.4%) |
 | MCPTox clean tools flagged (all 45 servers in one session, and each alone) | **1 of 353** (DELEG-002, MEDIUM; none at HIGH) |
 | Decision | **passed**: DELEG-001 MEDIUM, DELEG-002 MEDIUM, DELEG-003 HIGH |
 
@@ -118,7 +118,7 @@ The one flagged clean tool is a Prisma account-status tool whose description tel
 
 ### Two session models
 
-MCPTox's attacker "can register a malicious MCP server" (§2.2), and the agent "is connected to both a trusted MCP server and a malicious one" (§3.4); its prompts, though, list the poisoned tool among the target server's own tools. mcp-audit knows which server each tool came from, and the checks use that: DELEG-001 needs a tool of a *different* server, and DELEG-002 skips a sentence that names only its own server's tools. So the harness measures both layouts. The first is the threat model; the second shows what the checks do when that boundary is not there.
+MCPTox's attacker "can register a malicious MCP server" (§2.2), and the agent "is connected to both a trusted MCP server and a malicious one" (§3.4); its prompts, though, list the poisoned tool among the target server's own tools. mcp-audit knows which server each tool came from, and the checks use that: DELEG-001 needs a tool of a *different* server; DELEG-002 skips a sentence that names only its own server's tools and counts what the server's other tools can do as its own; DELEG-003's "every call" scope does not apply to an argument the server's own tools take. So the harness measures both layouts. The first is the threat model; the second shows what the checks do when that boundary is not there.
 
 **Poisoned tool on its own server** (the case's target server and an attacker server in one session). Recall: share of poisoned descriptions flagged. "Both" is POISON-* or DELEG-*.
 
@@ -143,22 +143,22 @@ The same layout on the cases with no keyword wrapper, which are the realistic on
 
 At HIGH or above (what `check` and the pre-commit default fail on), only DELEG-003 counts, so the gain there is in parameter tampering: 4.7% → 76.6% of unwrapped P3 cases.
 
-**Poisoned tool among the target server's tools** (MCPTox's prompt layout): DELEG-001 cannot fire and DELEG-002 is mostly skipped, by design.
+**Poisoned tool among the target server's tools** (MCPTox's prompt layout): DELEG-001 cannot fire, and DELEG-002/003 mostly do not, by design: the target tool's capabilities and arguments are the server's own.
 
 | Set | Cases | POISON-* | DELEG-* | Both | Both HIGH+ |
 |---|---|---|---|---|---|
-| All cases, implicit (P2+P3) | 1,104 | 73.6% | 11.6% | 76.5% | 69.8% |
-| Unwrapped, implicit (P2+P3) | 370 | 21.4% | 11.1% | 30.0% | 10.0% |
-| Unwrapped, P3 | 192 | 4.7% | 16.7% | 18.8% | 12.0% |
-| `pure_tool.json`, all | 485 | 24.9% | 10.7% | 33.2% | 11.3% |
+| All cases, implicit (P2+P3) | 1,104 | 73.6% | 2.9% | 74.4% | 68.8% |
+| Unwrapped, implicit (P2+P3) | 370 | 21.4% | 3.0% | 23.5% | 6.8% |
+| Unwrapped, P3 | 192 | 4.7% | 4.7% | 8.3% | 5.7% |
+| `pure_tool.json`, all | 485 | 24.9% | 2.7% | 26.8% | 7.6% |
 
 ### A benign check outside MCPTox
 
-MCPTox's 353 clean tools have short descriptions with little workflow text, so on 2026-10-26 the detector was also run, by hand, over 855 real tool descriptions read as string literals from the published npm source of 38 servers in the top-100 corpus (read, never run; not committed), all 38 servers in one session: **4 flagged (0.5%), all DELEG-002 (MEDIUM)**; no DELEG-001 and no DELEG-003. All four are descriptions that give ordered setup steps for the tool's own product (a restart after an install, a filter value to always pass); server names are left out for the reason the corpus README gives.
+MCPTox's 353 clean tools have short descriptions with little workflow text, so on 2026-10-26 the detector was also run, by hand, over 855 real tool descriptions read as string literals from the published npm source of 38 servers in the top-100 corpus (read, never run; not committed), all 38 servers in one session: **1 flagged, DELEG-002 (MEDIUM)**; no DELEG-001 and no DELEG-003. It is a development tool's description that tells the agent what to do before changing the user's application. These are not independent numbers: MCPTox's clean set and 640 of the 855 descriptions informed the design (below); the other 215, set aside unread until the design was frozen, gave **0 flagged**.
 
 ### How the design got there
 
-The first version was written from MCPTox's paper before any clean tool was read, and passed the gate on its first measurement: 4 of 353 clean tools flagged, with recall in the own-server layout within 0.2 points of the tables above. On the first 640 of the real descriptions it flagged 36 (DELEG-002 31, DELEG-001 6). Those 36 and the 4 MCPTox clean tools led to six refinements, each tied to the threat model rather than to a particular string:
+The first version was written from MCPTox's paper before any clean tool was read. On the first 640 of the real descriptions it flagged 36 (DELEG-002 31, DELEG-001 6). Those 36, and the MCPTox clean tools it flagged, led to six refinements, each tied to the threat model rather than to a particular string:
 
 1. **A server documenting its own workflow** ("Before using icon shapes, call `<its library tool>` first"; tool names elided, as above): DELEG-002 skips a sentence that names only the describing server's own tools.
 2. **Guidance about calling this tool** ("Use this when …", "This tool must be called before …"): not delegation.
@@ -167,7 +167,14 @@ The first version was written from MCPTox's paper before any clean tool was read
 5. **Purpose words**: check, verify, validate, inspect, show and scan left the read class; in these sentences they give the reason for a step, not the step.
 6. **Distance**: a directive must sit within 25 words of its trigger (one MCPTox clean tool packs a whole parameter list into one "sentence").
 
-After these, the 640 gave 4 and MCPTox's clean tools 1; recall in the own-server layout did not move, and recall in the same-server layout fell (implicit cases with both: 94.5% → 76.5%) because of rule 1. Both sets were then in-sample. The last 215 descriptions (3 servers) were set aside, unread, until the design was frozen: **0 flagged**. Later changes found by tests (a prose colon "Note: read_file …" was being read as a value; Claude Code's `mcp__<server>__<tool>` form was not recognised; "the" counted as tool context; evidence redaction now reads a bounded window) were re-measured and changed none of the numbers above.
+After these, the 640 gave 4 and MCPTox's clean tools 1; recall in the own-server layout did not move, and recall in the same-server layout fell because of rule 1. Both sets were then in-sample. The last 215 descriptions (3 servers) were set aside, unread, until the design was frozen: **0 flagged**. Later changes found by tests (a prose colon "Note: read_file …" was being read as a value; Claude Code's `mcp__<server>__<tool>` form was not recognised; "the" counted as tool context; evidence redaction now reads a bounded window) changed no number.
+
+The independent review then added two rules:
+
+7. **What the server's other tools can do is its own.** DELEG-002 compares the directed action with the capabilities of every tool on the describing server, not just its own name and schema, so "Before updating, you should fetch the page first" on a server that has a fetch tool is workflow, not delegation.
+8. **"Every call" about the server's own arguments is not cross-server.** DELEG-003's universal scope ("in every request", "to every tool call") does not apply when the argument it targets is one the server's own tools take ("include an Authorization header in every request" on an HTTP tool with a `headers` argument; "pass the session id to every tool call as the sessionId parameter").
+
+With them, the 855 real descriptions give 1 (was 4) and the 215 held out still give 0; MCPTox's clean tools still give 1; the own-server layout did not move; the same-server layout fell (implicit cases with both: 76.5% → 74.4%), as these rules intend. The numbers on this page are the final ones.
 
 ### What this measurement does not cover
 
