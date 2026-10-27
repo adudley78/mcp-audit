@@ -86,6 +86,23 @@ def _isolate_claude_plugins(
     )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_cwd_git_repository(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the test runner's own git checkout out of default-discovery scans.
+
+    A default scan checks the repository git would use from the current
+    directory (TRUST-006/TRUST-007, STORY-0089), and tests run from this repo's
+    checkout: a contributor's husky ``core.hooksPath``, git-lfs filters or
+    pre-commit hooks, or the ``includeIf`` entries actions/checkout writes on
+    CI, would add findings to any test that runs a default scan.  Tests that
+    exercise the check call ``mcp_audit.analyzers.git_exec`` directly or
+    restore the real function (see ``tests/test_git_exec.py``).
+    """
+    monkeypatch.setattr(
+        "mcp_audit.analyzers.git_exec.scan_cwd_repository", lambda *_a, **_k: []
+    )
+
+
 @pytest.fixture()
 def pro_enabled() -> None:  # type: ignore[return]
     """Historical no-op fixture — all features are available to all users."""

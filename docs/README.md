@@ -13,6 +13,7 @@
 | [writing-rules.md](writing-rules.md) | Policy-as-code YAML rule format, match types, contributing |
 | [sast-rules.md](sast-rules.md) | Semgrep rule catalog, severity rationale, false positive guidance |
 | [extensions.md](extensions.md) | IDE extension scanner overview, supported clients, analysis layers |
+| [git-exec.md](git-exec.md) | Git can run code: the git config keys, hooks and nested bare repositories `scan`, `check` and `scan --project` flag (TRUST-006/007) |
 | [supply-chain.md](supply-chain.md) | Supply chain attestation, hash verification, contribution guide |
 | [dependency-reachability.md](dependency-reachability.md) | Why Dependabot findings in transitives are unused, and which call-site changes invalidate those dismissals |
 | [permission-rules.md](permission-rules.md) | Claude Code permission rules that don't do what they say (PERM-001..007) and sandbox settings a repository can loosen (SANDBOX-001..005): each rule or key, the vendor-documented reason, the bypass and the fix |

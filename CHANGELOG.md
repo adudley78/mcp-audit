@@ -77,6 +77,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   project MCP servers a settings file approves by name.
 - **`docs/agent-execution-surface.md`:** every repository file mcp-audit reads that a
   harness runs or obeys, per harness, with the vendor source for each.
+- **TRUST-006 / TRUST-007 — git configuration that runs code.** A repository
+  that arrives as files with its `.git` folder intact (a zip, a shared drive)
+  can make git run a program the moment an agent runs `git status` in the
+  background, before any trust prompt (GitSpawn, 2026). `scan`, `check` and
+  `scan --project` now read the repository's own git config and hooks — never
+  running git — and flag keys that run a command (`core.fsmonitor`,
+  `core.sshCommand`, `diff.external`, diff and filter drivers, `!` credential
+  helpers: HIGH; editor, signing, merge-driver and similar keys: MEDIUM or
+  LOW), includes from outside the repository, nested bare repositories git
+  would use (HIGH), and a `post-index-change` hook, which `git status` runs
+  (HIGH), plus the programs git-lfs and delta read from their own sections of
+  the same config (`lfs.extension.<name>.clean`/`smudge`: HIGH;
+  `lfs.customtransfer.<name>.path`/`args`: MEDIUM; `delta.pager`: LOW). The
+  standard installs of Git LFS, git-crypt, nbstripout, common
+  diff text converters with display options only (exiftool, pdftotext, sops,
+  …; each tool's arguments are checked against an allowlist), husky, an unmodified
+  copy of git's own Watchman hook sample, a plain `ssh -i key` and
+  actions/checkout's own settings stay out of HIGH; a tool run from a Python
+  environment inside the repository is MEDIUM. Secrets in config values are
+  redacted from findings. See `docs/git-exec.md`.
 - **Claude Code subagent definitions are scanned** (`.claude/agents/**/*.md`,
   `~/.claude/agents/**/*.md`), in the default `scan`, `check` and `scan --project`.
   `AGENT-001` flags a subagent that asks for `bypassPermissions` (MEDIUM in a repo,
@@ -180,8 +200,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   TRUST-002 (a link out of the repository) instead of its files being read as the
   repository's own.
 - **`check` no longer says "No MCP config files found" and exits 0 when the scan has
-  findings** (STORY-0090, STORY-0091). A folder with no MCP config can still carry a
-  planted auto-run file or a risky CI workflow; its findings now reach the verdict and
+  findings** (STORY-0089, STORY-0090, STORY-0091). A folder with no MCP config can still
+  carry a planted auto-run file, a git config that runs a command, or a risky CI workflow; its findings now reach the verdict and
   the exit code. The same applies to a machine with no MCP config whose installed
   Claude Code plugins or mods have findings (PLUGIN-*, MOD-*): `check` used to exit 0
   there and now reports them, and exits 1 when one is HIGH or the grade drops below B.
