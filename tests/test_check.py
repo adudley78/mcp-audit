@@ -21,7 +21,7 @@ from mcp_audit.models import (
     TransportType,
 )
 from mcp_audit.output.check import _remediation_hint, print_check_results
-from tests.conftest import unwrapped
+from tests.conftest import split_runner, unwrapped
 
 runner = CliRunner()
 
@@ -706,7 +706,7 @@ class TestCheckJsonStdoutStaysParseable:
     """`check --json` stdout is one JSON document with a lock present, and a
     registered user's failed ping does not follow it (STORY-0103)."""
 
-    _split = CliRunner(mix_stderr=False)
+    _split = split_runner()
 
     @staticmethod
     def _result_for(server: ServerConfig) -> ScanResult:

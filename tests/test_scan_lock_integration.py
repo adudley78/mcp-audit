@@ -15,7 +15,7 @@ from typer.testing import CliRunner
 from mcp_audit.cli import app
 from mcp_audit.lock.writer import regenerate, write_lock
 from mcp_audit.scanner import run_scan
-from tests.conftest import unwrapped
+from tests.conftest import split_runner, unwrapped
 
 runner = CliRunner()
 
@@ -112,7 +112,7 @@ class TestScanAutoVerifiesLock:
 # ── Machine-readable stdout (STORY-0103) ──────────────────────────────────────
 
 # Separate streams: ``r.stdout`` is only what a pipe consumer would read.
-_split_runner = CliRunner(mix_stderr=False)
+_split_runner = split_runner()
 
 _WARN_STATUS_KW: dict = {
     "outside_root": ["/elsewhere/.mcp.json"],

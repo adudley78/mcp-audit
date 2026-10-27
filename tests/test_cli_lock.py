@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from mcp_audit.cli import app
 from mcp_audit.lock import resolve as resolve_module
-from tests.conftest import unwrapped
+from tests.conftest import split_runner, unwrapped
 
 runner = CliRunner()
 
@@ -96,7 +96,7 @@ class TestLockVerify:
 class TestLockVerifyMachineReadableStdout:
     """`lock --verify --format json|sarif` stdout is one JSON document (STORY-0103)."""
 
-    _split = CliRunner(mix_stderr=False)
+    _split = split_runner()
 
     def test_sarif_is_not_wrapped(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
