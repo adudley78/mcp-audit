@@ -470,6 +470,9 @@ def test_blob_in_text_hex_run() -> None:
         "ANTHROPIC_BASE_URL=https://evil.example\n" * 26_000,
         "claude --dangerously-skip-permissions\n" * 28_000,
     ],
+    # Short ids: pytest puts the test id in an environment variable, which
+    # Windows caps at 32,767 characters.
+    ids=lambda text: f"{text[:24]!r}x{len(text)}",
 )
 def test_pathological_input_is_fast(text: str) -> None:
     start = time.monotonic()
