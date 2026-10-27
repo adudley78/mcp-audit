@@ -449,6 +449,33 @@ declare tool names.
 
 ---
 
+### Cross-tool delegation (`analyzers/delegation.py`, finding IDs `DELEG-001..003`, STORY-0100)
+
+Runs with `--connect`, right after COLLIDE-001, over the tool definitions every
+server returned (description, title, and the `description`/`title` strings of
+the input schema). MCPTox's poisoned tools "never execute": they steer the
+agent to a different, legitimate tool (arXiv 2508.14925 §3.1). These checks
+look for that shape. Severities are the ones STORY-0100's measured gate allows;
+the measurement is in [poisoning.md](poisoning.md#cross-tool-delegation-deleg-001003).
+
+| Finding ID | Severity | OWASP MCP Top 10 | Rationale |
+|------------|----------|------------------|-----------|
+| DELEG-001  | MEDIUM   | MCP03 + MCP06 | The text names a tool that a **different** connected server exposes (and its own server does not): as a whole, case-sensitive token, or as Claude Code's `mcp__<server>__<tool>`. A plain-word name (`search`) counts only quoted and in tool context ("use 'search'", "the `search` tool"); a value after `key=`, `key:` or `key: "…"` does not count. CWE-441. |
+| DELEG-002  | MEDIUM   | MCP03 + MCP06 | A conditional trigger (before / after / whenever / when the user …) plus a directive (must, should, always, or an imperative right after the trigger) to perform an action whose class (read, write, delete, send, execute) appears in none of the describing server's tool names or input-schema property names (this tool's or its siblings'). Not when the directive is about calling this tool itself ("use this when …", "this tool must be called before …"), or when the sentence names only its own server's tools (a server documenting its own workflow). CWE-441. |
+| DELEG-003  | HIGH     | MCP03 + MCP06 | A directive to set, change, append, remove or otherwise rewrite an argument (named by a noun like *path*, *recipient*, *query*, or quoted), scoped to a named tool of another server or to every call ("any tool call", "regardless of …"); the every-call scope does not apply when the targeted argument is one the describing server's own tools take. MCPTox's parameter-tampering paradigm. CWE-441. |
+
+**Gate (decided in EPIC-0007):** ship at these severities only if DELEG-* lifts
+MCPTox's implicit-trigger recall over POISON-* and flags no more than 5 of its
+353 clean real tools; otherwise INFO. Measured 2026-10-26: lifts in both session
+models, 1 of 353 flagged (DELEG-002). `tests/test_delegation.py` fails if the
+shipped severities differ from the gate decision recorded in
+`docs/research/poisoning-benchmark/results.json`, or if the detector changes
+without a re-measure.
+
+**Scope and limitations:** see GAPS.md "Cross-tool delegation".
+
+---
+
 ### Rule engine (`rules/`)
 
 Community rule severities (COMM-001 through COMM-013) are defined in their
