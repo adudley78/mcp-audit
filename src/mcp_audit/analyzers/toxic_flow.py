@@ -68,6 +68,24 @@ class Capability(StrEnum):
     # is complete and the capability is recorded and auditable; wiring is
     # deliberately deferred rather than guessed.
     CLOUD = "cloud"
+    # Publishes content to a shared, human-readable destination on a
+    # third-party service: an issue, pull/merge-request or review comment, a
+    # pushed commit or file, a chat message, a social post, a webhook post
+    # (STORY-0101). A sink, wired into TOXIC_PAIRS (TOXIC-008..011) and
+    # attack_paths.CAPABILITY_FLOWS — not tag-only. It differs from
+    # NETWORK_OUT ("can make outbound requests") in two ways the 2025-2026
+    # incidents turned on: the egress is the platform's own API, which a host
+    # allowlist permits by definition (Comment and Control: Copilot's firewall
+    # allowed github.com and the secrets left as a git push), and the data
+    # lands where other people — the attacker included — can read it with no
+    # attacker infrastructure (a public PR, a public issue comment, a
+    # customer's Jira ticket, a link preview Slack fetches, CVE-2025-34072).
+    # Email stays EMAIL: it already has its own sink capability wired into
+    # TOXIC-002 and CAPABILITY_FLOWS, and its destination is a recipient the
+    # attacker names, not a shared space. A registry entry keeps NETWORK_OUT
+    # beside COMMS_OUT where it already declared it, so no existing TOXIC-*
+    # finding stops firing; see docs/severity-framework.md ("comms_out sinks").
+    COMMS_OUT = "comms_out"
 
 
 @dataclass(frozen=True)
@@ -100,8 +118,14 @@ KNOWN_SERVERS: dict[str, frozenset[Capability]] = {
         {Capability.FILE_READ, Capability.FILE_WRITE}
     ),
     "@modelcontextprotocol/server-fetch": frozenset({Capability.NETWORK_OUT}),
+    # GitHub/GitLab/Slack mirror their registry entries (STORY-0101): the
+    # registry is authoritative when one is injected; this table is the
+    # fallback when none is.
     "@modelcontextprotocol/server-github": frozenset(
-        {Capability.GIT, Capability.NETWORK_OUT}
+        {Capability.GIT, Capability.NETWORK_OUT, Capability.COMMS_OUT}
+    ),
+    "@modelcontextprotocol/server-gitlab": frozenset(
+        {Capability.GIT, Capability.COMMS_OUT}
     ),
     "@modelcontextprotocol/server-git": frozenset(
         {Capability.GIT, Capability.FILE_READ}
@@ -112,7 +136,9 @@ KNOWN_SERVERS: dict[str, frozenset[Capability]] = {
     "@modelcontextprotocol/server-puppeteer": frozenset(
         {Capability.BROWSER, Capability.NETWORK_OUT}
     ),
-    "@modelcontextprotocol/server-slack": frozenset({Capability.NETWORK_OUT}),
+    "@modelcontextprotocol/server-slack": frozenset(
+        {Capability.NETWORK_OUT, Capability.COMMS_OUT}
+    ),
     "@modelcontextprotocol/server-gdrive": frozenset(
         {Capability.FILE_READ, Capability.NETWORK_OUT}
     ),
@@ -206,6 +232,77 @@ KEYWORD_RULES: list[KeywordRule] = [
             "gcloud",
         ),
         capabilities=frozenset({Capability.CLOUD}),
+    ),
+    # COMMS_OUT (STORY-0101). Three kinds of keyword:
+    #   - Code hosts, matched only as a whole token (" github ") or as a
+    #     package-name fragment ("server-github", "github-mcp", "mcp-github").
+    #     A bare "github" substring is deliberately NOT used: a locally built
+    #     server launched from ~/github/<repo>/index.js, or from a
+    #     .../github.com/<org>/<repo> checkout, would otherwise be tagged as a
+    #     posting server and pair with every file server at CRITICAL. The GIT
+    #     rule above still matches the substring, as it always has.
+    #   - Issue trackers and chat, social and webhook platforms, whose names
+    #     are not used for anything else (atlassian, azure-devops, slack,
+    #     discord, telegram, ...). Posting can be switched off in some
+    #     servers (korotovsky's slack-mcp-server ships with its add-message
+    #     tool disabled); a keyword cannot see that. See GAPS.md "comms_out
+    #     (STORY-0101)".
+    #   - Tool names seen with --connect (layer 3): write verbs from the tool
+    #     lists checked at build time — GitHub and GitLab (add_issue_comment,
+    #     create_issue, create_pull_request, create_merge_request,
+    #     push_files), Slack (slack_post_message, slack_reply_to_thread),
+    #     mcp-atlassian (confluence_add_comment, jira_create_issue) and
+    #     cyanheads/git-mcp-server (git_push). Read verbs (get_issue,
+    #     get_pull_request_comments) are not keywords.
+    # Email is NOT here: "send email" stays EMAIL (rule above), which is
+    # already a wired sink (TOXIC-002, CAPABILITY_FLOWS).
+    KeywordRule(
+        keywords=(
+            " github ",
+            "server-github",
+            "github-mcp",
+            "mcp-github",
+            " gitlab ",
+            "server-gitlab",
+            "gitlab-mcp",
+            "mcp-gitlab",
+            " gitea ",
+            "gitea-mcp",
+            "mcp-gitea",
+            " bitbucket ",
+            "bitbucket-mcp",
+            "mcp-bitbucket",
+            "atlassian",
+            "confluence",
+            " jira ",
+            "jira-mcp",
+            "mcp-jira",
+            "azure-devops",
+            "slack",
+            "discord",
+            "telegram",
+            "mattermost",
+            "rocketchat",
+            "msteams",
+            "ms-teams",
+            "teams-mcp",
+            "mcp-teams",
+            "webhook",
+            "twitter",
+            "tweet",
+            "mastodon",
+            "bluesky",
+            "add_issue_comment",
+            "create_issue",
+            "create_pull_request",
+            "create_merge_request",
+            "push_files",
+            "git_push",
+            "post_message",
+            "reply_to_thread",
+            "add_comment",
+        ),
+        capabilities=frozenset({Capability.COMMS_OUT}),
     ),
 ]
 
@@ -337,6 +434,111 @@ TOXIC_PAIRS: list[ToxicPair] = [
         ),
         cwe="CWE-200",
         owasp_mcp_top_10=("MCP10",),
+    ),
+    # ── COMMS_OUT sinks (STORY-0101) ──────────────────────────────────────
+    # The same four sources as TOXIC-001/003/005/006, with a sink that posts
+    # to a shared destination instead of making an arbitrary request. All
+    # four are CRITICAL; the measurement and the reasoning (published,
+    # confirmed attacks through exactly this sink; egress allowlists don't
+    # apply; the attacker reads the result without running anything) are in
+    # docs/severity-framework.md and GAPS.md "comms_out (STORY-0101)".
+    # Registry entries that already declared NETWORK_OUT keep it, so on those
+    # servers a TOXIC-008..011 finding is reported beside its TOXIC-001/003/
+    # 005/006 twin for the same server pair, the way TOXIC-004 and INTEG-001
+    # are reported for one pair; attack_paths keeps the more severe of the
+    # two as the pair's path. GIT + COMMS_OUT was measured and not added (it
+    # fires on every GitHub/GitLab server alone; TOXIC-007 already reports
+    # that shape where the server declares NETWORK_OUT).
+    ToxicPair(
+        source=Capability.FILE_READ,
+        sink=Capability.COMMS_OUT,
+        finding_id="TOXIC-008",
+        severity=Severity.CRITICAL,
+        title="File read + comms posting exfiltration path",
+        description=(
+            "One server can read local files while another can post to a "
+            "shared destination: an issue or pull-request comment, a pushed "
+            "commit or file, a chat message. A prompt injection (often "
+            "arriving through that same platform, in a public issue, a PR "
+            "title or a channel message) can have the agent read a file and "
+            "post it where the attacker can read it. The post goes to the "
+            "platform's own API, so an egress allowlist that permits the "
+            "platform does not stop it."
+        ),
+        remediation=(
+            "Do not load both servers in the same agent session, or narrow "
+            "them: restrict the file server to the directories the task needs "
+            "and scope the posting server's token to the repositories or "
+            "channels it must write to (for GitHub, a fine-grained token "
+            "without access to private repositories)."
+        ),
+        cwe="CWE-200",
+        owasp_mcp_top_10=("MCP05", "MCP10"),
+    ),
+    ToxicPair(
+        source=Capability.SECRETS,
+        sink=Capability.COMMS_OUT,
+        finding_id="TOXIC-009",
+        severity=Severity.CRITICAL,
+        title="Secret access + comms posting exfiltration path",
+        description=(
+            "One server can read a credential store while another can post to "
+            "a shared destination: an issue or pull-request comment, a pushed "
+            "commit, a chat message. Credentials could be posted where the "
+            "attacker can read them, through the platform's own API, which an "
+            "egress allowlist that permits the platform does not stop."
+        ),
+        remediation=(
+            "Isolate secret-accessing servers from any server that can post "
+            "to an issue tracker, code host or chat platform."
+        ),
+        cwe="CWE-522",
+        owasp_mcp_top_10=("MCP01", "MCP10"),
+    ),
+    ToxicPair(
+        source=Capability.DATABASE,
+        sink=Capability.COMMS_OUT,
+        finding_id="TOXIC-010",
+        severity=Severity.CRITICAL,
+        title="Database access + comms posting exfiltration path",
+        description=(
+            "One server can query databases while another can post to a "
+            "shared destination: an issue or pull-request comment, a pushed "
+            "commit, a chat message. Query results could be posted where the "
+            "attacker can read them, through the platform's own API, which an "
+            "egress allowlist that permits the platform does not stop."
+        ),
+        remediation=(
+            "Do not load both servers in the same agent session, or narrow "
+            "them: give the database server a read-only role over the tables "
+            "the task needs and scope the posting server's token to the "
+            "repositories or channels it must write to."
+        ),
+        cwe="CWE-200",
+        owasp_mcp_top_10=("MCP05", "MCP10"),
+    ),
+    ToxicPair(
+        source=Capability.SHELL_EXEC,
+        sink=Capability.COMMS_OUT,
+        finding_id="TOXIC-011",
+        severity=Severity.CRITICAL,
+        title="Shell execution + comms posting exfiltration path",
+        description=(
+            "One server can execute shell commands while another can post to "
+            "a shared destination: an issue or pull-request comment, a pushed "
+            "commit, a chat message. Command output (process environments "
+            "carry credentials) could be posted where the attacker can read "
+            "it, through the platform's own API, which an egress allowlist "
+            "that permits the platform does not stop."
+        ),
+        remediation=(
+            "This is a high-risk combination. Remove one server, or allow the "
+            "shell server only the commands the task needs (an allowlist, not "
+            "a blocklist) and scope the posting server's token to what it must "
+            "write to."
+        ),
+        cwe="CWE-78",
+        owasp_mcp_top_10=("MCP05", "MCP10"),
     ),
 ]
 

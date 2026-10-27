@@ -188,6 +188,46 @@ class TestScoreRisk:
 
         assert risk == RiskLevel.CRITICAL
 
+    def test_file_read_plus_comms_out_returns_critical(self) -> None:
+        """STORY-0101: a self-pair TOXIC-008 (file read + posting) is CRITICAL."""
+        from mcp_audit.analyzers.toxic_flow import Capability
+
+        server = _server(name="atlassian")
+        with patch(
+            "mcp_audit.shadow.risk.tag_server",
+            return_value=frozenset({Capability.FILE_READ, Capability.COMMS_OUT}),
+        ):
+            risk, rationale = score_risk(server, registry=None)
+
+        assert risk == RiskLevel.CRITICAL
+        assert "file-read + comms-out" in rationale
+
+    def test_bundled_registry_mcp_atlassian_is_critical(self) -> None:
+        """mcp-atlassian declares file_read and comms_out (attachment upload
+        from a local path, then a post); it scored HIGH (TOXIC-001) before."""
+        from mcp_audit.registry.loader import KnownServerRegistry
+
+        registry = KnownServerRegistry(
+            path=Path(__file__).resolve().parent.parent
+            / "registry"
+            / "known-servers.json"
+        )
+        server = _server(name="atlassian", args=["mcp-atlassian"])
+        risk, _ = score_risk(server, registry=registry)
+        assert risk == RiskLevel.CRITICAL
+
+    def test_comms_server_alone_with_no_source_is_low(self) -> None:
+        from mcp_audit.analyzers.toxic_flow import Capability
+
+        server = _server(name="slack")
+        with patch(
+            "mcp_audit.shadow.risk.tag_server",
+            return_value=frozenset({Capability.NETWORK_OUT, Capability.COMMS_OUT}),
+        ):
+            risk, _ = score_risk(server, registry=None)
+
+        assert risk == RiskLevel.LOW
+
     def test_no_capabilities_no_registry_returns_unknown(self) -> None:
         # A server with no recognizable keywords and no registry entry.
         server = ServerConfig(

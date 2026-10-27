@@ -463,3 +463,113 @@ class TestUtilities:
         adj = _build_adjacency(servers, server_caps)
         for src, targets in adj.items():
             assert src not in targets
+
+
+# ── STORY-0101: COMMS_OUT in the attack graph ─────────────────────────────────
+
+
+def _gitlab_server(name: str = "gitlab") -> ServerConfig:
+    return _server(name, args=["-y", "@modelcontextprotocol/server-gitlab"])
+
+
+def _github_server(name: str = "github") -> ServerConfig:
+    return _server(name, args=["-y", "@modelcontextprotocol/server-github"])
+
+
+class TestCommsOutInAttackGraph:
+    def test_every_comms_edge_is_backed_by_a_toxic_pair(self) -> None:
+        from mcp_audit.analyzers.toxic_flow import TOXIC_PAIRS  # noqa: PLC0415
+
+        pairs = {(tp.source, tp.sink) for tp in TOXIC_PAIRS}
+        comms_edges = {e for e in CAPABILITY_FLOWS if e[1] == Capability.COMMS_OUT}
+        assert comms_edges == {
+            (Capability.FILE_READ, Capability.COMMS_OUT),
+            (Capability.SECRETS, Capability.COMMS_OUT),
+            (Capability.DATABASE, Capability.COMMS_OUT),
+            (Capability.SHELL_EXEC, Capability.COMMS_OUT),
+        }
+        assert comms_edges <= pairs
+
+    def test_no_git_or_browser_edge_into_comms_out(self) -> None:
+        assert (Capability.GIT, Capability.COMMS_OUT) not in CAPABILITY_FLOWS
+        assert (Capability.BROWSER, Capability.COMMS_OUT) not in CAPABILITY_FLOWS
+
+    def test_path_severity_file_to_comms_is_critical(self) -> None:
+        assert (
+            _path_severity(Capability.FILE_READ, Capability.COMMS_OUT)
+            == Severity.CRITICAL
+        )
+
+    def test_unpaired_source_to_comms_falls_back_to_high(self) -> None:
+        """A graph endpoint pair with no TOXIC pair uses the sink heuristic."""
+        assert _path_severity(Capability.GIT, Capability.COMMS_OUT) == Severity.HIGH
+
+    def test_filesystem_and_gitlab_give_a_critical_comms_path(self) -> None:
+        servers = [_filesystem_server(), _gitlab_server()]
+        findings = ToxicFlowAnalyzer().analyze_all(servers)
+        summary = summarize_attack_paths(servers, findings)
+        path = next(p for p in summary.paths if p.hops == ["filesystem", "gitlab"])
+        assert path.severity == Severity.CRITICAL
+        assert path.sink_capability == "comms_out"
+        assert "comms posting" in path.title
+
+    def test_github_pair_path_takes_the_comms_pair_not_the_network_twin(
+        self,
+    ) -> None:
+        """filesystem + github fires TOXIC-001 (HIGH) and TOXIC-008 (CRITICAL)
+        for the same two servers; the path is the more severe one."""
+        servers = [_filesystem_server(), _github_server()]
+        findings = ToxicFlowAnalyzer().analyze_all(servers)
+        assert {"TOXIC-001", "TOXIC-008"} <= {f.id for f in findings}
+        summary = summarize_attack_paths(servers, findings)
+        paths = [p for p in summary.paths if p.hops == ["filesystem", "github"]]
+        assert len(paths) == 1
+        assert paths[0].severity == Severity.CRITICAL
+        assert paths[0].sink_capability == "comms_out"
+
+    def test_gitlab_alone_has_no_path(self) -> None:
+        summary = summarize_attack_paths([_gitlab_server()], [])
+        assert summary.paths == []
+
+
+class TestCandidateDedupKeepsMostSevere:
+    def test_more_severe_finding_for_same_hops_replaces_earlier(self) -> None:
+        f1 = _toxic_finding("TOXIC-001", "filesystem + github", Severity.HIGH)
+        f2 = _toxic_finding("TOXIC-008", "filesystem + github", Severity.CRITICAL)
+        candidates = _candidates_from_toxic_findings([f1, f2])
+        assert len(candidates) == 1
+        assert candidates[0].sink_cap == Capability.COMMS_OUT
+
+    def test_less_severe_later_finding_does_not_replace(self) -> None:
+        f1 = _toxic_finding("TOXIC-006", "everything", Severity.CRITICAL)
+        f2 = _toxic_finding("TOXIC-001", "everything", Severity.HIGH)
+        candidates = _candidates_from_toxic_findings([f1, f2])
+        assert len(candidates) == 1
+        assert candidates[0].source_cap == Capability.SHELL_EXEC
+
+    def test_tie_keeps_the_first_listed(self) -> None:
+        f1 = _toxic_finding("TOXIC-001", "everything", Severity.HIGH)
+        f2 = _toxic_finding("TOXIC-004", "everything", Severity.HIGH)
+        candidates = _candidates_from_toxic_findings([f1, f2])
+        assert len(candidates) == 1
+        assert candidates[0].sink_cap == Capability.NETWORK_OUT
+
+    def test_position_of_the_replaced_candidate_is_kept(self) -> None:
+        f1 = _toxic_finding("TOXIC-001", "a + b", Severity.HIGH)
+        f2 = _toxic_finding("TOXIC-001", "c + d", Severity.HIGH)
+        f3 = _toxic_finding("TOXIC-008", "a + b", Severity.CRITICAL)
+        candidates = _candidates_from_toxic_findings([f1, f2, f3])
+        assert [c.hops for c in candidates] == [("a", "b"), ("c", "d")]
+        assert candidates[0].sink_cap == Capability.COMMS_OUT
+
+    def test_everything_self_path_is_its_critical_shell_pair(self) -> None:
+        """server-everything fires TOXIC-001 (HIGH) before TOXIC-006
+        (CRITICAL); the self-path now carries the CRITICAL one."""
+        everything = _server(
+            "everything", args=["-y", "@modelcontextprotocol/server-everything"]
+        )
+        findings = ToxicFlowAnalyzer().analyze_all([everything])
+        summary = summarize_attack_paths([everything], findings)
+        self_path = next(p for p in summary.paths if p.hops == ["everything"])
+        assert self_path.severity == Severity.CRITICAL
+        assert self_path.source_capability == "shell_exec"

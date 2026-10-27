@@ -140,6 +140,19 @@ class TestRemediationHint:
             hint = _remediation_hint(_make_finding(finding_id=finding_id)).lower()
             assert any(n in hint for n in nouns), (finding_id, hint)
 
+    def test_comms_pair_hints_name_the_posting_side(self) -> None:
+        """STORY-0101: each TOXIC-008..011 hint names its source and the
+        posting server, not a generic 'review this pair'."""
+        expected = {
+            "TOXIC-008": ("file", "posting"),
+            "TOXIC-009": ("secret", "post"),
+            "TOXIC-010": ("database", "posting"),
+            "TOXIC-011": ("shell", "posting"),
+        }
+        for finding_id, nouns in expected.items():
+            hint = _remediation_hint(_make_finding(finding_id=finding_id)).lower()
+            assert all(n in hint for n in nouns), (finding_id, hint)
+
     def test_unknown_id_falls_back_to_remediation_text(self) -> None:
         f = _make_finding(
             finding_id="UNKWN-999",

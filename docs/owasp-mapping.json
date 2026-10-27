@@ -444,6 +444,58 @@
       "notes": "Source code and commit history exfiltration via network access."
     },
     {
+      "finding_id": "TOXIC-008",
+      "finding_title": "Dangerous capability combination: file read + comms posting",
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-001)."
+    },
+    {
+      "finding_id": "TOXIC-009",
+      "finding_title": "Dangerous capability combination: secrets store + comms posting",
+      "owasp_codes": [
+        "MCP01",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-003)."
+    },
+    {
+      "finding_id": "TOXIC-010",
+      "finding_title": "Dangerous capability combination: database + comms posting",
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-005)."
+    },
+    {
+      "finding_id": "TOXIC-011",
+      "finding_title": "Dangerous capability combination: shell execution + comms posting",
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-006)."
+    },
+    {
       "finding_id": "INTEG-001",
       "finding_title": "Dangerous capability combination: file write + shell execution (plant-then-execute)",
       "owasp_codes": [

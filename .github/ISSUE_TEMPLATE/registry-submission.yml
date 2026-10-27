@@ -65,7 +65,8 @@ body:
         data across sessions (memory), check whichever box below matches
         *how* it persists — local files, a database, or a remote/network
         service — rather than looking for a "memory" option; persistence
-        is a mechanism, not a capability we track separately.
+        is a mechanism, not a capability we track separately. A server that
+        sends email checks "Send or read email", not the shared-service box.
       options:
         - label: "Read files on the user's machine"
         - label: "Write or modify files on the user's machine"
@@ -77,6 +78,7 @@ body:
         - label: "Control a web browser"
         - label: "Access git repositories or version history"
         - label: "Access cloud resources (AWS, GCP, Azure, etc.)"
+        - label: "Post to a shared service: issue or PR comments, git push, chat messages, social posts, webhooks"
 
   - type: textarea
     id: notes

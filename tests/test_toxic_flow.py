@@ -981,3 +981,340 @@ class TestCloudOnlyEntryYieldsNoToxicFlowFindings:
         # with the capability it is mechanically equivalent to (network
         # calls are HTTPS) does not make it participate.
         assert analyzer.analyze_all([server, _fetch()]) == []
+
+
+# ── STORY-0101: COMMS_OUT (posting to a shared service) ──────────────────────
+
+_REPO_REGISTRY = (
+    Path(__file__).resolve().parent.parent / "registry" / "known-servers.json"
+)
+_COMMS_PAIRS = {
+    "TOXIC-008": Capability.FILE_READ,
+    "TOXIC-009": Capability.SECRETS,
+    "TOXIC-010": Capability.DATABASE,
+    "TOXIC-011": Capability.SHELL_EXEC,
+}
+
+
+def _repo_registry() -> KnownServerRegistry:
+    """The registry file in this checkout (never the user-local cache)."""
+    return KnownServerRegistry(path=_REPO_REGISTRY)
+
+
+def _gitlab() -> ServerConfig:
+    """GitLab server — GIT + COMMS_OUT (no NETWORK_OUT)."""
+    return _server("gitlab", args=["-y", "@modelcontextprotocol/server-gitlab"])
+
+
+def _slack() -> ServerConfig:
+    """Slack server — NETWORK_OUT + COMMS_OUT."""
+    return _server("slack", args=["-y", "@modelcontextprotocol/server-slack"])
+
+
+def _ids(findings: list) -> set[str]:
+    return {f.id for f in findings}
+
+
+class TestCommsOutTaggingKnownPackages:
+    def test_github_package_gives_comms_out(self) -> None:
+        caps = tag_server(_github())
+        assert caps == frozenset(
+            {Capability.GIT, Capability.NETWORK_OUT, Capability.COMMS_OUT}
+        )
+
+    def test_gitlab_package_gives_git_and_comms_out_only(self) -> None:
+        assert tag_server(_gitlab()) == frozenset(
+            {Capability.GIT, Capability.COMMS_OUT}
+        )
+
+    def test_slack_package_gives_network_and_comms_out(self) -> None:
+        assert tag_server(_slack()) == frozenset(
+            {Capability.NETWORK_OUT, Capability.COMMS_OUT}
+        )
+
+    @pytest.mark.parametrize(
+        ("package", "expected"),
+        [
+            (
+                "@modelcontextprotocol/server-github",
+                {"git", "network_out", "comms_out"},
+            ),
+            ("@modelcontextprotocol/server-gitlab", {"git", "comms_out"}),
+            ("@modelcontextprotocol/server-slack", {"network_out", "comms_out"}),
+            (
+                "mcp-atlassian",
+                {"file_read", "file_write", "network_out", "comms_out"},
+            ),
+            ("@autoposting.ai/cli", {"network_out", "comms_out"}),
+        ],
+    )
+    def test_bundled_registry_declares_comms_out(
+        self, package: str, expected: set[str]
+    ) -> None:
+        entry = _repo_registry().get(package)
+        assert entry is not None
+        assert set(entry.capabilities or []) == expected
+
+    def test_email_server_in_registry_is_email_not_comms_out(self) -> None:
+        """Email stays EMAIL (an existing wired sink), never COMMS_OUT."""
+        entry = _repo_registry().get("@palisadeemail/mcp")
+        assert entry is not None
+        assert "email" in (entry.capabilities or [])
+        assert "comms_out" not in (entry.capabilities or [])
+
+    def test_known_servers_fallback_matches_registry_for_comms_entries(self) -> None:
+        """The no-registry fallback must not disagree with the registry."""
+        reg = _repo_registry()
+        for package in (
+            "@modelcontextprotocol/server-github",
+            "@modelcontextprotocol/server-gitlab",
+            "@modelcontextprotocol/server-slack",
+        ):
+            entry = reg.get(package)
+            assert entry is not None
+            assert {c.value for c in KNOWN_SERVERS[package]} == set(
+                entry.capabilities or []
+            )
+
+    def test_registry_resolves_comms_out_through_tag_server(self) -> None:
+        caps = tag_server(_gitlab(), registry=_repo_registry())
+        assert caps == frozenset({Capability.GIT, Capability.COMMS_OUT})
+
+
+class TestCommsOutKeywords:
+    @pytest.mark.parametrize(
+        ("name", "command", "args"),
+        [
+            # The official GitHub server, remote, configured by name and URL.
+            ("github", None, []),
+            ("GitHub", None, []),
+            ("gh", "docker", ["run", "-i", "ghcr.io/github/github-mcp-server"]),
+            ("gl", "npx", ["-y", "@zereight/mcp-gitlab@2.0.0"]),
+            ("chat", "npx", ["-y", "slack-mcp-server@1.1.0"]),
+            ("chat", "npx", ["-y", "@zencoderai/slack-mcp-server"]),
+            ("bot", "node", ["discord-mcp/index.js"]),
+            ("tg", "uvx", ["telegram-mcp"]),
+            ("hook", "npx", ["-y", "mcp-webhook"]),
+            ("jira", "uvx", ["mcp-atlassian"]),
+            ("ado", "npx", ["-y", "@azure-devops/mcp", "contoso"]),
+            ("social", "npx", ["-y", "x-twitter-mcp"]),
+            # Pinned version: the registry lookup misses, the keyword still hits.
+            ("gh", "npx", ["-y", "@modelcontextprotocol/server-github@2025.4.8"]),
+        ],
+    )
+    def test_comms_platform_names_imply_comms_out(
+        self, name: str, command: str | None, args: list[str]
+    ) -> None:
+        server = ServerConfig(
+            name=name,
+            client="cursor",
+            config_path=_CFG,
+            command=command,
+            args=args,
+            url="https://example.invalid/mcp" if command is None else None,
+            transport=TransportType.STDIO if command else TransportType.SSE,
+        )
+        assert Capability.COMMS_OUT in tag_server(server)
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            # A locally built server living under a directory named github.
+            ["/Users/dev/github/my-tools/server.js"],
+            ["/home/dev/src/github.com/acme/notes-mcp/dist/index.js"],
+            ["C:\\Users\\dev\\github\\tools\\index.js"],
+            ["/srv/gitlab/runner-helper/index.js"],
+        ],
+    )
+    def test_code_host_in_a_path_does_not_imply_comms_out(
+        self, args: list[str]
+    ) -> None:
+        """A bare 'github' substring is not a comms keyword (FP guard)."""
+        caps = tag_server(_server("local-tools", command="node", args=args))
+        assert Capability.COMMS_OUT not in caps
+
+    def test_github_path_still_implies_git(self) -> None:
+        """The GIT keyword rule is unchanged by the COMMS_OUT rule."""
+        caps = tag_server(
+            _server("local", command="node", args=["/Users/dev/github/x/index.js"])
+        )
+        assert Capability.GIT in caps
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["-y", "@gongrzhe/server-gmail-autoauth-mcp"],
+            ["-y", "smtp-mcp"],
+            ["-y", "mcp-server-git"],
+            ["-y", "@modelcontextprotocol/server-postgres"],
+            ["-y", "@notionhq/notion-mcp-server"],
+        ],
+    )
+    def test_non_comms_servers_are_not_comms_out(self, args: list[str]) -> None:
+        caps = tag_server(_server("srv", args=args))
+        assert Capability.COMMS_OUT not in caps
+
+    def test_email_keywords_stay_email(self) -> None:
+        caps = tag_server(_server("mail", args=["-y", "smtp-mcp"]))
+        assert Capability.EMAIL in caps
+        assert Capability.COMMS_OUT not in caps
+
+    @pytest.mark.parametrize(
+        "tool_name",
+        [
+            "add_issue_comment",
+            "create_pull_request",
+            "push_files",
+            "create_merge_request",
+            "slack_post_message",
+            "slack_reply_to_thread",
+            "confluence_add_comment",
+            "jira_create_issue",
+            "git_push",
+        ],
+    )
+    def test_write_tool_names_imply_comms_out(self, tool_name: str) -> None:
+        server = _server(
+            "enumerated",
+            command="node",
+            args=["server.js"],
+            raw={"tools": [{"name": tool_name, "description": "x"}]},
+        )
+        assert Capability.COMMS_OUT in tag_server(server)
+
+    @pytest.mark.parametrize(
+        "tool_name",
+        ["get_issue", "list_issues", "get_pull_request_comments", "search_code"],
+    )
+    def test_read_tool_names_do_not_imply_comms_out(self, tool_name: str) -> None:
+        server = _server(
+            "enumerated",
+            command="node",
+            args=["server.js"],
+            raw={"tools": [{"name": tool_name, "description": "Read only."}]},
+        )
+        assert Capability.COMMS_OUT not in tag_server(server)
+
+
+class TestCommsOutPairs:
+    """TOXIC-008..011: a data source next to a server that posts somewhere shared."""
+
+    @pytest.mark.parametrize(
+        ("source", "finding_id"),
+        [
+            (_fs, "TOXIC-008"),
+            (_vault_server, "TOXIC-009"),
+            (_postgres, "TOXIC-010"),
+            (_shell_server, "TOXIC-011"),
+        ],
+    )
+    def test_each_source_with_gitlab_fires_its_comms_pair(
+        self, source, finding_id: str
+    ) -> None:
+        findings = ToxicFlowAnalyzer().analyze_all([source(), _gitlab()])
+        hits = [f for f in findings if f.id == finding_id]
+        assert len(hits) == 1
+        f = hits[0]
+        assert f.severity == Severity.CRITICAL
+        assert f.analyzer == "toxic_flow"
+        assert f.server == f"{source().name} + gitlab"
+        assert "'comms_out'" in f.evidence
+        assert f.cwe
+
+    @pytest.mark.parametrize(
+        ("source", "finding_id"),
+        [(_fs, "TOXIC-008"), (_postgres, "TOXIC-010"), (_shell_server, "TOXIC-011")],
+    )
+    def test_reverse_order_still_fires(self, source, finding_id: str) -> None:
+        findings = ToxicFlowAnalyzer().analyze_all([_gitlab(), source()])
+        hit = next(f for f in findings if f.id == finding_id)
+        assert hit.server == f"{source().name} + gitlab"
+
+    def test_gitlab_has_no_network_out_so_no_network_twin(self) -> None:
+        ids = _ids(ToxicFlowAnalyzer().analyze_all([_fs(), _gitlab()]))
+        assert "TOXIC-008" in ids
+        assert "TOXIC-001" not in ids
+
+    def test_github_reports_comms_pair_beside_its_network_twin(self) -> None:
+        """Registry GitHub keeps NETWORK_OUT: both claims are reported."""
+        ids = _ids(
+            ToxicFlowAnalyzer(registry=_repo_registry()).analyze_all([_fs(), _github()])
+        )
+        assert {"TOXIC-001", "TOXIC-008"} <= ids
+
+    def test_secrets_and_slack_fire_toxic009(self) -> None:
+        findings = ToxicFlowAnalyzer().analyze_all([_vault_server(), _slack()])
+        assert "TOXIC-009" in _ids(findings)
+
+    def test_atlassian_alone_is_a_comms_self_pair(self) -> None:
+        """mcp-atlassian reads local files (attachment upload) and posts."""
+        server = _server("atlassian", command="uvx", args=["mcp-atlassian"])
+        findings = ToxicFlowAnalyzer(registry=_repo_registry()).analyze_all([server])
+        hit = next(f for f in findings if f.id == "TOXIC-008")
+        assert hit.server == "atlassian"
+
+    def test_posting_server_alone_without_a_source_fires_nothing_new(self) -> None:
+        for server in (_gitlab(), _slack()):
+            ids = _ids(ToxicFlowAnalyzer().analyze_all([server]))
+            assert not ids & set(_COMMS_PAIRS)
+
+    def test_git_plus_comms_out_is_not_a_pair(self) -> None:
+        """Measured and declined: it would fire on every GitHub/GitLab server
+        alone. GitHub alone still reports only TOXIC-007, as before."""
+        assert not any(
+            tp.source == Capability.GIT and tp.sink == Capability.COMMS_OUT
+            for tp in TOXIC_AND_INTEGRITY_PAIRS
+        )
+        assert ToxicFlowAnalyzer().analyze_all([_gitlab()]) == []
+        github_ids = _ids(ToxicFlowAnalyzer().analyze_all([_github()]))
+        assert github_ids == {"TOXIC-007"}
+
+    def test_fetch_is_not_a_comms_source(self) -> None:
+        ids = _ids(ToxicFlowAnalyzer().analyze_all([_fetch(), _gitlab()]))
+        assert not ids & set(_COMMS_PAIRS)
+
+    def test_email_sink_is_not_a_comms_pair(self) -> None:
+        ids = _ids(ToxicFlowAnalyzer().analyze_all([_fs(), _gmail()]))
+        assert "TOXIC-002" in ids
+        assert not ids & set(_COMMS_PAIRS)
+
+    def test_local_server_under_github_dir_does_not_pair_with_files(self) -> None:
+        """The FP the keyword design guards against, end to end."""
+        local = _server(
+            "my-tools", command="node", args=["/Users/dev/github/tools/index.js"]
+        )
+        ids = _ids(ToxicFlowAnalyzer().analyze_all([_fs(), local]))
+        assert not ids & set(_COMMS_PAIRS)
+
+
+class TestCommsPairsDefinition:
+    def test_four_comms_pairs_defined_with_expected_sources(self) -> None:
+        by_id = {tp.finding_id: tp for tp in TOXIC_PAIRS}
+        for finding_id, source in _COMMS_PAIRS.items():
+            tp = by_id[finding_id]
+            assert tp.source == source
+            assert tp.sink == Capability.COMMS_OUT
+            assert tp.severity == Severity.CRITICAL
+
+    def test_comms_pairs_live_in_toxic_pairs_not_integrity_pairs(self) -> None:
+        assert not any(tp.sink == Capability.COMMS_OUT for tp in INTEGRITY_PAIRS)
+
+    def test_no_comms_pair_ranks_below_its_network_twin(self) -> None:
+        """A post to a shared service is never ranked below a plain fetch."""
+        order = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW]
+        network = {
+            tp.source: tp.severity
+            for tp in TOXIC_PAIRS
+            if tp.sink == Capability.NETWORK_OUT
+        }
+        for tp in TOXIC_PAIRS:
+            if tp.sink != Capability.COMMS_OUT:
+                continue
+            assert tp.source in network
+            assert order.index(tp.severity) <= order.index(network[tp.source])
+
+    def test_comms_out_is_not_dead_and_not_allowlisted(self) -> None:
+        assert Capability.COMMS_OUT not in compute_dead_capabilities()
+        assert not any(
+            t.capability == Capability.COMMS_OUT for t in KNOWN_TAG_ONLY_CAPABILITIES
+        )

@@ -196,6 +196,22 @@ class TestServerAdded:
         high_or_crit = (Severity.HIGH, Severity.CRITICAL)
         assert all(c.severity in high_or_crit for c in cap_changes)
 
+    def test_added_posting_server_creates_comms_pair(self) -> None:
+        """STORY-0101: adding GitLab next to a file server is a TOXIC-008
+        change (CRITICAL), with no TOXIC-001 (GitLab has no network_out)."""
+        gitlab = _server("gitlab", args=["-y", "@modelcontextprotocol/server-gitlab"])
+        base = [_filesystem_server()]
+        head = [_filesystem_server(), gitlab]
+        changes = compare(base, head)
+        pairs = {
+            c.after["toxic_pair"]: c
+            for c in changes
+            if c.entity_type == EntityType.CAPABILITY and c.after
+        }
+        assert "TOXIC-008" in pairs
+        assert pairs["TOXIC-008"].severity == Severity.CRITICAL
+        assert "TOXIC-001" not in pairs
+
 
 # ── comparator: server removed ────────────────────────────────────────────────
 

@@ -327,6 +327,27 @@ class TestUndeclaredCapabilities:
         entries = [{**_entry("no-data"), "capabilities": None}]
         assert mod.find_undeclared_capabilities(entries) == []
 
+    def test_comms_platform_entry_missing_comms_out_is_flagged(self) -> None:
+        # STORY-0101: the reference Slack server declared only network_out.
+        # The comms keyword rule now infers comms_out from "slack", so the
+        # pre-change entry is exactly what this check must catch.
+        entries = [{**_entry("acme-slack-bridge"), "capabilities": ["network_out"]}]
+        hits = mod.find_undeclared_capabilities(entries)
+        assert len(hits) == 1
+        assert hits[0]["missing"] == ["comms_out"]
+
+    def test_live_registry_has_no_capability_findings(self) -> None:
+        # STORY-0101 ran all four offline checks against the shipped file and
+        # fixed what they reported (server-github, server-slack and
+        # mcp-atlassian were under-declared once comms_out existed).
+        entries = json.loads(
+            (ROOT / "registry" / "known-servers.json").read_text(encoding="utf-8")
+        )["entries"]
+        assert mod.find_unknown_capabilities(entries) == []
+        assert mod.find_undeclared_capabilities(entries) == []
+        assert mod.find_entirely_tag_only_entries(entries) == []
+        assert mod.find_dead_capabilities()["unexpected_tag_only"] == []
+
 
 class TestDeadCapabilities:
     """find_dead_capabilities(): tag-only capabilities vs the allowlist."""
