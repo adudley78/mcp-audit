@@ -190,6 +190,17 @@ references are left alone. What a scan file can no longer show:
   config directories.
 - Comparing a scan file with a directory reports a server whose args hold a
   credential as modified, because one side is redacted and the other is not.
+  Don't mix the two input kinds: compare two directories (or git refs), or
+  two scan files.
+- Only user info with a password (`user:pass@`) or a user name that is a known
+  token format (`https://ghp_…@github.com`) is redacted; `git@` in
+  `git+ssh://git@github.com/…` is kept and is not a credential.
+- A secret in a URL's query string (`?api_key=…`) is redacted only when it
+  matches a known token format, and a flag value is recognised only as a
+  separate argument, not inside one command string (`"command": "npx x
+  --token abc"`).
+- `--format pr-comment` and the terminal output quote directory and git-ref
+  inputs' arguments as they are in the config files, unredacted.
 
 ## Severity classification
 

@@ -891,6 +891,20 @@ _AUTHORITY_END = frozenset("/?#")
 _MAX_EVIDENCE_COMMAND = 300
 
 
+def _userinfo_is_secret(userinfo: str) -> bool:
+    """True when a URL's userinfo carries a secret (STORY-0108 review).
+
+    A password is present (``user:pass``, ``:pass``), or the user name alone
+    matches SECRET_PATTERNS (a token used as the user name, as GitHub accepts).
+    A plain user name such as ``git`` in ``git+ssh://git@github.com`` is not a
+    secret: redacting it hid nothing and made ``mcp-audit diff`` report a
+    credential.
+    """
+    if ":" in userinfo:
+        return True
+    return any(pattern.search(userinfo) for _l, pattern, _p in SECRET_PATTERNS)
+
+
 def _redact_userinfo(text: str) -> str:
     """Replace the userinfo of every ``scheme://user:pass@host`` with ``[REDACTED]``.
 
@@ -901,7 +915,10 @@ def _redact_userinfo(text: str) -> str:
     hand-written scan rather than a regex: each character is visited a
     bounded number of times, so it stays linear on any input.
     SECRET_PATTERNS' database-URL rule does not cover ``postgresql://``, the
-    scheme ``@modelcontextprotocol/server-postgres`` documents.
+    scheme ``@modelcontextprotocol/server-postgres`` documents.  Userinfo that
+    is only a user name (``git+ssh://git@github.com``) is kept unless the name
+    itself matches SECRET_PATTERNS (``https://ghp_…@github.com``); see
+    :func:`_userinfo_is_secret`.
     """
     out: list[str] = []
     i = 0
@@ -917,7 +934,7 @@ def _redact_userinfo(text: str) -> str:
             end += 1
         at = text.rfind("@", k, end)
         out.append(text[i:k])
-        if at >= k:
+        if at >= k and _userinfo_is_secret(text[k:at]):
             out.append(_REDACTED)
             i = at
         else:

@@ -461,3 +461,63 @@ def test_diff_survives_an_unparsable_url(tmp_path: Path) -> None:
     assert _extract_external_urls(server) == ["https://[bad-host/mcp"]
     changes = compare([], [server])
     assert any(c.entity_name == "https://[bad-host/mcp" for c in changes)
+
+
+@pytest.mark.parametrize(
+    "arg",
+    [
+        "git+ssh://git@github.com/acme/my-mcp.git",
+        "ssh://deploy@host.example/repo",
+        "https://user@example.com/mcp",
+    ],
+)
+def test_username_only_userinfo_is_kept(arg: str) -> None:
+    """Reviewer #202 round 3: a bare user name is not a secret."""
+    assert redact_args(["--from", arg, "my-mcp"]) == ["--from", arg, "my-mcp"]
+
+
+def test_token_as_username_is_redacted() -> None:
+    assert redact_args([f"https://{_GH_TOKEN}@github.com/acme/x.git"]) == [
+        "https://[REDACTED]@github.com/acme/x.git"
+    ]
+
+
+def test_diff_of_scan_files_with_git_ssh_launch_reports_no_credential(
+    tmp_path: Path,
+) -> None:
+    base = _scan_json_servers(tmp_path, "base", _BASE)
+    head = _scan_json_servers(
+        tmp_path,
+        "head",
+        {
+            **_BASE,
+            "git": {
+                "command": "uvx",
+                "args": [
+                    "--from",
+                    "git+ssh://git@github.com/acme/my-mcp.git",
+                    "my-mcp",
+                ],
+            },
+        },
+    )
+    assert "git+ssh://git@github.com" in head.read_text(encoding="utf-8")
+    assert _diff_credentials(base, head) == []
+
+
+def test_diff_of_scan_files_with_token_userinfo_is_critical(tmp_path: Path) -> None:
+    base = _scan_json_servers(tmp_path, "base", _BASE)
+    head = _scan_json_servers(
+        tmp_path,
+        "head",
+        {
+            **_BASE,
+            "git": {
+                "command": "uvx",
+                "args": ["--from", f"git+https://{_GH_TOKEN}@github.com/a/b.git", "b"],
+            },
+        },
+    )
+    assert _GH_TOKEN not in head.read_text(encoding="utf-8")
+    (cred,) = _diff_credentials(base, head)
+    assert cred.severity.value == "CRITICAL"
