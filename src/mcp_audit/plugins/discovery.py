@@ -44,10 +44,16 @@ def plugins_root(home: Path | None = None) -> Path:
     return (home or Path.home()) / ".claude" / "plugins"
 
 
+_MAX_JSON_BYTES = 2 * 1024 * 1024
+
+
 def _load_json(path: Path) -> Any:
+    """Read a plugin record/manifest; ``None`` when unreadable, huge or too nested."""
     try:
+        if path.stat().st_size > _MAX_JSON_BYTES:
+            return None
         return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):
         return None
 
 

@@ -317,14 +317,17 @@ class _Budget:
 
 
 def _read_json(
-    path: Path, budget: _Budget, errors: list[str]
+    path: Path, budget: _Budget, errors: list[str], *, empty_is_object: bool = False
 ) -> tuple[bool, object | None]:
     """Read *path* as JSON.  Returns ``(exists, parsed-or-None)``.
 
     At most ``MAX_FILE_BYTES + 1`` bytes are read, so a file that grows
     between checks can't exceed the cap.  ``parsed`` is ``None`` for a file
     that exists but can't be read, is over the size cap or the budget, or
-    isn't valid JSON; the reason goes to *errors*.  Never raises.
+    isn't valid JSON; the reason goes to *errors*.  With
+    *empty_is_object* (managed settings files and drop-ins, not
+    ``managed-mcp.json``) a zero-byte file is ``{}`` (Anthropic: "An empty
+    managed settings file counts as {}").  Never raises.
     """
     try:
         if not path.is_file():
@@ -334,6 +337,9 @@ def _read_json(
     except OSError as exc:
         errors.append(f"managed policy: cannot read {path}: {type(exc).__name__}")
         return (True, None)
+    if not data and empty_is_object:
+        # "An empty managed settings file counts as {}" (managed-settings docs).
+        return (True, {})
     if len(data) > MAX_FILE_BYTES:
         errors.append(
             f"managed policy: {path} is over the {MAX_FILE_BYTES}-byte limit; not read"
@@ -519,7 +525,7 @@ def read_managed_policy(
     denied: dict[tuple, PolicyEntry] = {}
     strict: object = None
     for path in candidates:
-        exists, data = _read_json(path, budget, errs)
+        exists, data = _read_json(path, budget, errs, empty_is_object=True)
         if not exists:
             continue
         if not isinstance(data, dict):
