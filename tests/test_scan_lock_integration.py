@@ -201,7 +201,7 @@ class TestLockLinesStayOffMachineReadableStdout:
         doc = json.loads(r.stdout)
         err = unwrapped(r.stderr)
         assert "outside the lock root were skipped" in err
-        assert "not covered by mcp-lock.json (AGENT-004)" in err
+        assert "not covered by mcp-lock.json (AGENT-004, SKILL-006)" in err
         assert "1 entry unresolved" in err
         assert "Lock: verified (1 servers)" in err
         for text in ("WARN", "Lock:"):
@@ -224,7 +224,7 @@ class TestLockLinesStayOffMachineReadableStdout:
             r = _invoke_split(config)
         out = unwrapped(r.stdout)
         assert "outside the lock root were skipped" in out
-        assert "not covered by mcp-lock.json (AGENT-004)" in out
+        assert "not covered by mcp-lock.json (AGENT-004, SKILL-006)" in out
         assert "1 entry unresolved" in out
         assert "Lock: verified (1 servers)" in out
         assert "Lock:" not in r.stderr
