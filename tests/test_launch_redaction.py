@@ -309,8 +309,8 @@ def test_diff_of_two_clean_json_scans_reports_no_credential(tmp_path: Path) -> N
     assert not [c for c in changes if c.entity_type == EntityType.CREDENTIAL]
 
 
-def test_secret_flag_values_are_redacted_everywhere() -> None:
-    """``--password VALUE`` (secret_arg_values, #200) is redacted too."""
+def test_secret_flag_values_are_redacted_in_their_own_position() -> None:
+    """``--password VALUE`` is redacted with the weaker flag marker."""
     from mcp_audit.analyzers.supply_chain import redact_command  # noqa: PLC0415
 
     args = ["-y", "@acme/db-mcp", "--password", "plainPass99", "--api-key=abcd1234"]
@@ -318,13 +318,31 @@ def test_secret_flag_values_are_redacted_everywhere() -> None:
         "-y",
         "@acme/db-mcp",
         "--password",
-        "[REDACTED]",
-        "--api-key=[REDACTED]",
+        "[REDACTED-FLAG]",
+        "--api-key=[REDACTED-FLAG]",
     ]
+    assert redact_args(["--apiKey", "zzzz9999"]) == ["--apiKey", "[REDACTED-FLAG]"]
     text = redact_command("npx", args)
     assert "plainPass99" not in text and "abcd1234" not in text
-    # A short value is left alone so ``--auth on`` doesn't blank every "on".
-    assert redact_args(["--auth", "on", "json"]) == ["--auth", "on", "json"]
+    # A value SECRET_PATTERNS knows keeps the strong marker.
+    assert redact_args(["--token", _GH_TOKEN]) == ["--token", "[REDACTED]"]
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        # Reviewer #202: the value of a flag must never be replaced inside
+        # another argument (``oauth`` inside the issuer URL).
+        ["--auth-type", "oauth", "--issuer", "https://oauth.example.com"],
+        ["--auth-mode", "none", "--keys-dir", "./keys"],
+        ["--api-key-file", "/etc/app/key", "--token-url", "https://x.example/t"],
+        ["--token", "$GITHUB_TOKEN", "--secret", "${SECRET}"],
+        ["--auth", "on", "--monkey", "banana99", "--keystore", "default"],
+        ["--password-file", "C:/secrets/pw.txt"],
+    ],
+)
+def test_benign_flags_are_not_redacted(args: list[str]) -> None:
+    assert redact_args(args) == args
 
 
 def test_community_rule_evidence_uses_the_rule_engine_redaction(
@@ -336,3 +354,110 @@ def test_community_rule_evidence_uses_the_rule_engine_redaction(
     assert comm
     for finding in comm:
         _assert_clean(finding.evidence + finding.description)
+
+
+def _scan_json_servers(tmp_path: Path, name: str, servers: dict) -> Path:
+    cfg = tmp_path / f"{name}-mcp.json"
+    cfg.write_text(json.dumps({"mcpServers": servers}), encoding="utf-8")
+    out = tmp_path / f"{name}-scan.json"
+    out.write_text(
+        run_scan(extra_paths=[cfg], skip_rug_pull=True).model_dump_json(),
+        encoding="utf-8",
+    )
+    return out
+
+
+_BASE = {"base": {"command": "npx", "args": ["-y", "@acme/base-mcp"]}}
+
+
+def _diff_credentials(base: Path, head: Path) -> list:
+    from mcp_audit.diff.comparator import EntityType, compare  # noqa: PLC0415
+    from mcp_audit.diff.loader import load_input  # noqa: PLC0415
+
+    changes = compare(load_input(str(base)), load_input(str(head)))
+    return [c for c in changes if c.entity_type == EntityType.CREDENTIAL]
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        [
+            "-y",
+            "@acme/x-mcp",
+            "--auth-type",
+            "oauth",
+            "--issuer",
+            "https://oauth.example.com",
+        ],
+        ["-y", "@acme/x-mcp", "--auth-mode", "none", "--keys-dir", "./keys"],
+    ],
+)
+def test_diff_of_scan_files_with_benign_flags_reports_no_credential(
+    tmp_path: Path, args: list[str]
+) -> None:
+    """Reviewer #202: no crash, no false credential on benign flag values."""
+    base = _scan_json_servers(tmp_path, "base", _BASE)
+    head = _scan_json_servers(
+        tmp_path, "head", {**_BASE, "new": {"command": "npx", "args": args}}
+    )
+    assert _diff_credentials(base, head) == []
+    r = runner.invoke(app, ["diff", str(base), str(head), "--format", "json"])
+    assert r.exit_code in (0, 1), r.output
+    assert "Traceback" not in r.output
+
+
+def test_diff_of_scan_files_reports_a_secret_flag_value_as_high(
+    tmp_path: Path,
+) -> None:
+    base = _scan_json_servers(tmp_path, "base", _BASE)
+    head = _scan_json_servers(
+        tmp_path,
+        "head",
+        {
+            **_BASE,
+            "new": {
+                "command": "npx",
+                "args": ["-y", "@acme/x-mcp", "--password", "plainPass99"],
+            },
+        },
+    )
+    (cred,) = _diff_credentials(base, head)
+    assert cred.severity.value == "HIGH"
+    assert cred.entity_name == "Possible credential flag value"
+
+
+def test_diff_of_scan_files_reports_a_known_token_flag_as_critical(
+    tmp_path: Path,
+) -> None:
+    base = _scan_json_servers(tmp_path, "base", _BASE)
+    head = _scan_json_servers(
+        tmp_path,
+        "head",
+        {
+            **_BASE,
+            "new": {
+                "command": "npx",
+                "args": ["-y", "@acme/x-mcp", "--token", _GH_TOKEN],
+            },
+        },
+    )
+    (cred,) = _diff_credentials(base, head)
+    assert cred.severity.value == "CRITICAL"
+
+
+def test_diff_survives_an_unparsable_url(tmp_path: Path) -> None:
+    from mcp_audit.diff.comparator import (  # noqa: PLC0415
+        _extract_external_urls,
+        compare,
+    )
+
+    server = ServerConfig(
+        name="x",
+        client="c",
+        config_path=tmp_path / "c.json",
+        command="npx",
+        args=["-y", "@acme/x-mcp", "https://[bad-host/mcp"],
+    )
+    assert _extract_external_urls(server) == ["https://[bad-host/mcp"]
+    changes = compare([], [server])
+    assert any(c.entity_name == "https://[bad-host/mcp" for c in changes)

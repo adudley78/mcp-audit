@@ -171,10 +171,15 @@ mcp-audit diff $GITHUB_BASE_REF $GITHUB_HEAD_REF
 
 **Scan files hold redacted launch arguments (since STORY-0108).** A ScanResult
 JSON replaces a credential in a server's `command`, `args` or `url` (URL user
-info such as a database password, or a known token format) with `[REDACTED]`.
-`diff` counts `[REDACTED]` in those fields as a hardcoded credential, so a
-credential added between two scan files is still reported (CRITICAL). What a
-scan file can no longer show:
+info such as a database password, or a known token format) with `[REDACTED]`,
+and the value of a secret-named flag that matches no known token format
+(`--password VALUE`, `--api-key=VALUE`) with `[REDACTED-FLAG]`. `diff` counts
+`[REDACTED]` in those fields as a hardcoded credential (CRITICAL) and
+`[REDACTED-FLAG]` as a possible one (HIGH, "Possible credential flag value"),
+so a credential added between two scan files is still reported. Flags named
+for a setting rather than a secret (`--auth-type`, `--keys-dir`,
+`--api-key-file`) and values such as `none`, `oauth`, paths, URLs and `$VAR`
+references are left alone. What a scan file can no longer show:
 
 - **Rotation is invisible.** Two different secrets both read `[REDACTED]`, so
   replacing one credential with another is not a change between two scan files.
