@@ -1021,9 +1021,11 @@ def _apply_project_skills(
     same files (``scan --project .``) are not repeated.
 
     Returns:
-        ``DiscoveredConfig`` entries (client ``claude-code-plugin``) for the
-        MCP servers skills-directory plugins in the repository load, minus
-        files *project_configs* (the ``--project`` walk) already holds.
+        *project_configs* with the MCP configs of the repository's
+        skills-directory plugins under their plugin identity (client
+        ``claude-code-plugin``, project-scoped): the ``--project`` walk's copy
+        of a plugin's ``.mcp.json`` is replaced by it, and a plugin's inline
+        ``plugin.json`` servers are added.  Each server is then listed once.
     """
     from mcp_audit.agent_files import skill_package  # noqa: PLC0415
 
@@ -1035,21 +1037,24 @@ def _apply_project_skills(
             packages, prior=result.findings, errors=result.errors
         )
     )
-    known: set[str] = set()
-    for config in project_configs:
-        with contextlib.suppress(OSError, RuntimeError):
-            known.add(str(config.path.resolve()))
-    out = []
+    plugin_configs: dict[str, object] = {}
     for config in skill_package.skills_dir_plugin_mcp_configs(packages):
-        # The --project walk already reads every .mcp.json in the tree,
-        # including a plugin's; only its inline plugin.json servers are new.
-        try:
-            if str(config.path.resolve()) in known:
-                continue
-        except (OSError, RuntimeError):
-            continue
-        out.append(config)
+        resolved = _resolved_str(config.path)
+        if resolved:
+            plugin_configs.setdefault(resolved, config)
+    # The --project walk reads every .mcp.json in the tree, a plugin's too;
+    # that copy is replaced so the server keeps one (plugin) identity.
+    out = [c for c in project_configs if _resolved_str(c.path) not in plugin_configs]
+    out.extend(plugin_configs.values())
     return out
+
+
+def _resolved_str(path: Path) -> str:
+    """``str(path.resolve())``, or ``""`` when it cannot be resolved."""
+    try:
+        return str(path.resolve())
+    except (OSError, RuntimeError):
+        return ""
 
 
 def _apply_project_scan(
@@ -1115,6 +1120,9 @@ def _apply_project_scan(
     post-score, consistent with ``_apply_governance``, ``_apply_baseline_drift``,
     and ``_apply_sast``.
     """
+    from mcp_audit.agent_files.skill_package import (  # noqa: PLC0415
+        SKILLS_DIR_PLUGIN_CLIENT,
+    )
     from mcp_audit.analyzers.config_hygiene import (
         ConfigHygieneAnalyzer,  # noqa: PLC0415
     )
@@ -1203,10 +1211,12 @@ def _apply_project_scan(
 
     # ── SKILL-005..008: skill packages in the repository (STORY-0095) ───────
     # Every file in each .claude/skills/<skill>/ is read.  A skills-directory
-    # plugin's MCP servers (.claude/skills/<name>/.mcp.json) get TRUST-001 and
-    # the pipeline below, but stay out of discover_project_configs() so
-    # `mcp-audit lock` never records them.
-    project_configs += _apply_project_skills(
+    # plugin's MCP servers (.claude/skills/<name>/.mcp.json, and inline
+    # plugin.json servers) are listed once, under client claude-code-plugin,
+    # and get TRUST-001 below.  `mcp-audit lock` records the .mcp.json ones
+    # (its project walk reads every .mcp.json); lock auto-verification checks
+    # them against that entry (lock/auto_verify.py).
+    project_configs = _apply_project_skills(
         result, project_dir, skip_findings, project_configs
     )
 
@@ -1340,10 +1350,35 @@ def _apply_project_scan(
     effective_analyzers = (
         analyzers if analyzers is not None else get_default_analyzers()
     )
+    # A skills-directory plugin's config the default scan already analysed
+    # (`scan --project .` from the repository root: default discovery loads
+    # the cwd's skills-dir plugins) gets TRUST-001 above but is not analysed
+    # a second time.
+    analysed = {
+        _resolved_str(s.config_path)
+        for s in result.servers
+        if s.client == SKILLS_DIR_PLUGIN_CLIENT and s.is_project_scoped
+    } - {""}
+    pipeline_configs = [
+        c
+        for c in project_configs
+        if not (
+            c.client_name == SKILLS_DIR_PLUGIN_CLIENT
+            and _resolved_str(c.path) in analysed
+        )
+    ]
+    pipeline_servers = [
+        s
+        for s in project_servers
+        if not (
+            s.client == SKILLS_DIR_PLUGIN_CLIENT
+            and _resolved_str(s.config_path) in analysed
+        )
+    ]
     pipeline_result = _run_static_pipeline(
         result=_ProjectScanResult(),
-        all_servers=project_servers,
-        configs=project_configs,
+        all_servers=pipeline_servers,
+        configs=pipeline_configs,
         analyzers=effective_analyzers,
         skip_rug_pull=True,
         extra_rules_dirs=extra_rules_dirs,

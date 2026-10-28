@@ -933,7 +933,24 @@ in `docs/permission-rules.md`:
   registered on invocation and kept "for the rest of the session", "including in a `-p`
   run in a folder you haven't trusted". Source for every SKILL-006 component and tier.
 - **Base-URL redirect** — CVE-2026-21852 (Check Point), as already cited for CFHYG-007;
-  the first-party host table is the one each vendor documents for its API.
+  the first-party host table is the one each vendor documents for its API. The
+  setting is also matched where Python sets it (`os.environ[…] = …`,
+  `setdefault`) and where Windows sets it persistently (`setx NAME value`, Microsoft's
+  `setx` command reference).
+- **Independent review of PR #194 (2026-10-27)** listed shapes of the classes above
+  that the first matcher missed, written with other tools; no new attack class was
+  added. How each is read follows the tool's own manual, not a pattern list from
+  another scanner: the bash and POSIX `sh` manuals for option parsing (`-c` and `-s`
+  decide where the script comes from; `-e`, `-x`, `-o pipefail` do not, and `-o`/`-O`
+  take one argument), `env`/`sudo`/`busybox` as wrappers that run the named program,
+  and here-strings (`<<<`); the curl and GNU Wget manuals for a URL written without a
+  scheme (fetched as HTTP); `basenc`, `openssl base64 -d`, `gunzip`/`zcat`/`xz -d` as
+  decoders in the same decode-then-execute class as `base64 -d`; PowerShell's
+  `IEX (New-Object Net.WebClient).DownloadString(…)` download cradle and Perl's
+  `eval decode_base64(…)` as the PowerShell and Perl forms of fetch- or
+  decode-then-execute; Python `exec(urlopen(…).read())` and JavaScript
+  `fetch(…).then(eval)` as the "dynamic execution via exec" class (USENIX Security
+  2026, above); Gemini CLI's `-y`, the documented short form of `--yolo`.
 - **Vendor installers** — the host and path each vendor's own install documentation
   gives for its script (uv/ruff, rustup, Hugging Face CLI, Claude Code, Bun, Deno,
   Docker, nvm, Homebrew, fnm, pnpm, Poetry, Ollama, Google Cloud SDK, pyenv, mise, Volta,

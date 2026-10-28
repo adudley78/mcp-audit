@@ -87,7 +87,7 @@ import json
 import os
 import re
 import stat
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -292,6 +292,15 @@ class _Inventory:
     symlink_findings: list[Finding] = field(default_factory=list)
     uninspected: int = 0
     budget_reason: str = ""
+    #: True when a limit of this skill's own (its byte or entry budget, the
+    #: depth cap) left something unread, not only the scan-wide budget.
+    own_limit: bool = False
+
+    def limit(self, reason: str, scan_wide: bool = False) -> None:
+        """Record why an entry was not read."""
+        self.budget_reason = reason
+        if not scan_wide:
+            self.own_limit = True
 
 
 # ── Guarded filesystem helpers ────────────────────────────────────────────────
@@ -351,17 +360,25 @@ def _read_bytes(path: Path, limit: int, boundary: str, errors: list[str]) -> byt
     them) and checked with ``fstat``, so a link or FIFO swapped in after the
     walk is neither followed nor blocked on.
     """
-    if limit <= 0 or not _inside(path, boundary):
+    if limit <= 0:
+        return b""
+    if not _inside(path, boundary):
+        errors.append(
+            redact(f"skill package: {path} resolves outside {boundary}; not read")
+        )
         return b""
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     flags |= getattr(os, "O_BINARY", 0)
     try:
         fd = os.open(path, flags)
     except OSError as exc:
-        errors.append(f"skill package: cannot open {path}: {exc}")
+        errors.append(redact(f"skill package: cannot open {path}: {exc}"))
         return b""
     try:
         if not stat.S_ISREG(os.fstat(fd).st_mode):
+            errors.append(
+                redact(f"skill package: {path} is not a regular file; not read")
+            )
             return b""
         chunks: list[bytes] = []
         remaining = limit
@@ -373,7 +390,7 @@ def _read_bytes(path: Path, limit: int, boundary: str, errors: list[str]) -> byt
             remaining -= len(chunk)
         return b"".join(chunks)
     except OSError as exc:
-        errors.append(f"skill package: cannot read {path}: {exc}")
+        errors.append(redact(f"skill package: cannot read {path}: {exc}"))
         return b""
     finally:
         os.close(fd)
@@ -398,15 +415,20 @@ def _load_json(path: Path, boundary: str, errors: list[str]) -> object | None:
         return parse_jsonc(text)
 
 
-# ── Git directory layout (names only; nothing in .git is parsed) ──────────────
+# ── Git directory layout ──────────────────────────────────────────────────────
+#
+# Nothing in .git is parsed.  Git's text records (HEAD, config, description,
+# COMMIT_EDITMSG, refs, logs …) are read like any other text, so SKILL-005
+# sees a command hidden in one, and a binary one is foreign.  Git's binary
+# files are checked by their magic bytes only.
 
-_GIT_TOP_FILES = frozenset(
+#: Top-level files git writes as text.
+_GIT_TOP_RECORDS = frozenset(
     {
         "HEAD",
         "config",
         "config.worktree",
         "description",
-        "index",
         "packed-refs",
         "shallow",
         "FETCH_HEAD",
@@ -414,7 +436,6 @@ _GIT_TOP_FILES = frozenset(
         "MERGE_HEAD",
         "MERGE_MSG",
         "MERGE_MODE",
-        "MERGE_RR",
         "AUTO_MERGE",
         "CHERRY_PICK_HEAD",
         "REVERT_HEAD",
@@ -437,6 +458,21 @@ _GIT_TOP_FILES = frozenset(
         "locked",
     }
 )
+#: ``MERGE_RR`` is NUL-separated text that only exists during a conflicted
+#: merge with rerere on; it is not read.
+_GIT_TOP_UNREAD = frozenset({"MERGE_RR"})
+#: Git's binary files and the bytes each starts with.  A loose object is
+#: zlib (checked separately); an empty temporary file is allowed.
+_GIT_INDEX_MAGIC = (b"DIRC",)
+_GIT_PACK_MAGIC: dict[str, tuple[bytes, ...]] = {
+    ".pack": (b"PACK",),
+    ".idx": (b"\xfftOc",),
+    ".rev": (b"RIDX",),
+    ".bitmap": (b"BITM",),
+    ".mtimes": (b"MTME",),
+}
+_GIT_GRAPH_MAGIC = (b"CGPH",)
+_GIT_MIDX_MAGIC = (b"MIDX",)
 #: Git's own small text records; a binary or large file here is foreign.
 _GIT_TEXT_DIRS = frozenset(
     {
@@ -467,41 +503,112 @@ _GIT_PACK_RE = re.compile(
 _GIT_LFS_OBJECT_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
-def _git_file_kind(parts: tuple[str, ...]) -> str:
-    """Classify a file path relative to a ``.git`` directory.
+@dataclass(frozen=True)
+class _GitKind:
+    """How a file inside ``.git`` is treated.
 
-    ``"layout"``: git's own file, not read.  ``"record"``: one of git's text
-    records, foreign only if binary or large.  ``"foreign"``: not git's.
+    ``kind``: ``"layout"`` (git's, not read), ``"record"`` (git's text: read
+    as text, foreign when binary), ``"magic"`` (git's binary: only its first
+    bytes are checked against *magic*, or zlib when *zlib*), ``"foreign"``.
     """
+
+    kind: str
+    magic: tuple[bytes, ...] = ()
+    zlib: bool = False
+    empty_ok: bool = False
+    #: A record git keeps short (a ref, a message); one over
+    #: ``_GIT_TEXT_RECORD_CAP`` is reported as foreign, and still read.
+    small: bool = False
+
+
+_LAYOUT = _GitKind("layout")
+_RECORD = _GitKind("record")
+_SMALL_RECORD = _GitKind("record", small=True)
+_FOREIGN = _GitKind("foreign")
+#: Top-level records that grow with the repository (refs, config, caches).
+_GIT_LARGE_RECORDS = frozenset(
+    {"packed-refs", "shallow", "config", "config.worktree", "gitk.cache", "BISECT_LOG"}
+)
+
+
+def _git_top_kind(name: str) -> _GitKind:
+    if name in _GIT_TOP_RECORDS:
+        return _RECORD if name in _GIT_LARGE_RECORDS else _SMALL_RECORD
+    if name in _GIT_TOP_UNREAD:
+        return _LAYOUT
+    if name == "index" or name.startswith("sharedindex."):
+        return _GitKind("magic", _GIT_INDEX_MAGIC)
+    if name.endswith(".lock"):
+        # A lock is a half-written copy of the file it guards.
+        stem = name[: -len(".lock")]
+        if stem == "index" or stem.startswith("next-index-"):
+            return _GitKind("magic", _GIT_INDEX_MAGIC, empty_ok=True)
+        return _RECORD
+    return _FOREIGN
+
+
+def _git_pack_kind(name: str) -> _GitKind:
+    if not _GIT_PACK_RE.match(name):
+        return _FOREIGN
+    if name.startswith("multi-pack-index"):
+        if name.endswith(".bitmap"):
+            return _GitKind("magic", _GIT_PACK_MAGIC[".bitmap"])
+        if name.endswith(".rev"):
+            return _GitKind("magic", _GIT_PACK_MAGIC[".rev"])
+        return _GitKind("magic", _GIT_MIDX_MAGIC)
+    if name.startswith("tmp_"):
+        kind = name[4:].split("_", 1)[0]
+        return _GitKind("magic", _GIT_PACK_MAGIC[f".{kind}"], empty_ok=True)
+    suffix = name[name.rfind(".") :]
+    if suffix in _GIT_PACK_MAGIC:
+        return _GitKind("magic", _GIT_PACK_MAGIC[suffix])
+    return _RECORD  # .keep and .promisor: empty or a line of text
+
+
+def _git_file_kind(parts: tuple[str, ...]) -> _GitKind:
+    """Classify a file path relative to a ``.git`` directory."""
     head = parts[0]
     if len(parts) == 1:
-        if head in _GIT_TOP_FILES or head.endswith(".lock"):
-            return "layout"
-        return (
-            "layout" if head.startswith(("sharedindex.", "next-index-")) else "foreign"
-        )
+        return _git_top_kind(head)
     if head == "objects":
         rest = parts[1:]
         if len(rest) == 2 and re.fullmatch(r"[0-9a-f]{2}", rest[0]):
-            return "layout" if _GIT_OBJECT_RE.match(rest[1]) else "foreign"
+            if not _GIT_OBJECT_RE.match(rest[1]):
+                return _FOREIGN
+            return _GitKind("magic", zlib=True, empty_ok=rest[1].startswith("tmp_"))
         if rest[0] == "pack" and len(rest) == 2:
-            return "layout" if _GIT_PACK_RE.match(rest[1]) else "foreign"
+            return _git_pack_kind(rest[1])
         if rest[0] == "info" and len(rest) == 2:
-            return (
-                "layout"
-                if rest[1] in {"packs", "alternates", "http-alternates", "commit-graph"}
-                else "foreign"
-            )
+            if rest[1] == "commit-graph":
+                return _GitKind("magic", _GIT_GRAPH_MAGIC)
+            if rest[1] in {"packs", "alternates", "http-alternates"}:
+                return _RECORD
+            return _FOREIGN
         if rest[:2] == ("info", "commit-graphs") and len(rest) == 3:
-            return "layout"
-        return "foreign"
+            if rest[2].endswith(".graph"):
+                return _GitKind("magic", _GIT_GRAPH_MAGIC)
+            return _RECORD  # commit-graph-chain
+        return _FOREIGN
     if head == "lfs":
+        # LFS objects are the repository's own large files, of any type.
         if parts[1] == "objects":
-            return "layout" if _GIT_LFS_OBJECT_RE.match(parts[-1]) else "foreign"
-        return "layout"
+            return _LAYOUT if _GIT_LFS_OBJECT_RE.match(parts[-1]) else _FOREIGN
+        return _LAYOUT
     if head in _GIT_TEXT_DIRS:
-        return "record"
-    return "foreign"
+        return _RECORD
+    return _FOREIGN
+
+
+def _git_magic_ok(kind: _GitKind, head: bytes) -> bool:
+    """True when *head* starts the way git writes a file of *kind*."""
+    if not head:
+        return kind.empty_ok
+    if kind.zlib:
+        # RFC 1950: CMF 0x78 (deflate, 32 KiB window); CMF*256+FLG divisible by 31.
+        return (
+            len(head) >= 2 and head[0] == 0x78 and (head[0] * 256 + head[1]) % 31 == 0
+        )
+    return any(head.startswith(m) for m in kind.magic)
 
 
 # ── Walking one skill ─────────────────────────────────────────────────────────
@@ -530,11 +637,18 @@ class _Walk:
     """State for one walk of one skill directory."""
 
     def __init__(
-        self, pkg: SkillPackage, budget: ScanBudget, errors: list[str]
+        self,
+        pkg: SkillPackage,
+        budget: ScanBudget,
+        errors: list[str],
+        separate: Callable[[Path], bool] | None = None,
     ) -> None:
         self.pkg = pkg
         self.budget = budget
         self.errors = errors
+        #: Whether a nested directory holding SKILL.md is analysed as its own
+        #: package in this pass (then it is not walked as part of this one).
+        self.separate = separate or (lambda _path: False)
         self.inv = _Inventory()
         self.boundary = _realpath(pkg.scan_root)
         self.bytes_left = PACKAGE_BYTE_BUDGET
@@ -543,20 +657,18 @@ class _Walk:
     def _out_of_budget(self, kind: str) -> bool:
         if kind == "entries":
             if self.budget.entries_left <= 0:
-                self.inv.budget_reason = "the scan-wide entry budget"
+                self.inv.limit("the scan-wide entry budget", scan_wide=True)
                 return True
             if self.entries_left <= 0:
-                self.inv.budget_reason = (
-                    f"the {PACKAGE_ENTRY_BUDGET:,}-entry skill budget"
-                )
+                self.inv.limit(f"the {PACKAGE_ENTRY_BUDGET:,}-entry skill budget")
                 return True
             return False
         if self.budget.bytes_left <= 0:
-            self.inv.budget_reason = "the scan-wide read budget"
+            self.inv.limit("the scan-wide read budget", scan_wide=True)
             return True
         if self.bytes_left <= 0:
             mib = PACKAGE_BYTE_BUDGET // (1024 * 1024)
-            self.inv.budget_reason = f"the {mib} MiB skill read budget"
+            self.inv.limit(f"the {mib} MiB skill read budget")
             return True
         return False
 
@@ -628,7 +740,7 @@ class _Walk:
     ) -> None:
         if depth + 1 > _WALK_MAX_DEPTH:
             self.inv.uninspected += 1
-            self.inv.budget_reason = f"the {_WALK_MAX_DEPTH}-level depth cap"
+            self.inv.limit(f"the {_WALK_MAX_DEPTH}-level depth cap")
             return
         if sub_git is not None:
             if len(sub_git) == 1 and name in _GIT_SKIPPED_DIRS:
@@ -644,8 +756,8 @@ class _Walk:
         if name == ".git":
             stack.append((path, depth + 1, parts, ()))
             return
-        if _has_skill_md(path):
-            return  # a nested skill is its own package
+        if _has_skill_md(path) and self.separate(path):
+            return  # analysed as its own package
         stack.append((path, depth + 1, parts, None))
 
     def _visit_file(
@@ -657,7 +769,7 @@ class _Walk:
     ) -> None:
         rel = "/".join(parts)
         git_kind = _git_file_kind(sub_git) if sub_git is not None else None
-        if git_kind == "layout":
+        if git_kind is not None and git_kind.kind == "layout":
             return
         try:
             size = entry.stat(follow_symlinks=False).st_size
@@ -666,6 +778,20 @@ class _Walk:
             return
         if self._out_of_budget("bytes"):
             self.inv.uninspected += 1
+            return
+        if git_kind is not None and git_kind.kind == "magic":
+            head = self._read(path, min(size, 8))
+            if not _git_magic_ok(git_kind, head):
+                label = identify(head, "")[1] if head else "an empty file"
+                self.inv.opaque.append(
+                    _Opaque(
+                        rel,
+                        path,
+                        f"{label} named like a git object, pack or index inside"
+                        f" .git/, but its bytes are not git's ({size:,} bytes)",
+                        Severity.MEDIUM,
+                    )
+                )
             return
         head = self._read(path, min(size, _HEAD_BYTES))
         ext = Path(parts[-1]).suffix.lower()
@@ -676,8 +802,16 @@ class _Walk:
             return
         if text.startswith("version https://git-lfs.github.com/spec/"):
             return  # an LFS pointer standing in for a binary asset
-        if git_kind == "record" and size <= _GIT_TEXT_RECORD_CAP:
-            return
+        if git_kind is not None and git_kind.small and size > _GIT_TEXT_RECORD_CAP:
+            self.inv.opaque.append(
+                _Opaque(
+                    rel,
+                    path,
+                    f"{size:,}-byte text file inside .git/ where git keeps a short"
+                    " record",
+                    Severity.MEDIUM,
+                )
+            )
         if ext in CLAIMED_EXT and not in_git:
             self.inv.opaque.append(
                 _Opaque(
@@ -695,7 +829,11 @@ class _Walk:
                 text = decoded
             if len(more) < min(size, FILE_TEXT_CAP):
                 self.inv.uninspected += 1
-                self.inv.budget_reason = self.inv.budget_reason or "the read budget"
+                if self.budget.bytes_left <= 0:
+                    self.inv.limit("the scan-wide read budget", scan_wide=True)
+                else:
+                    mib = PACKAGE_BYTE_BUDGET // (1024 * 1024)
+                    self.inv.limit(f"the {mib} MiB skill read budget")
         if size > FILE_TEXT_CAP:
             text = text[:FILE_TEXT_CAP]
             self.inv.opaque.append(
@@ -794,9 +932,18 @@ class _Walk:
 
 
 def _walk_package(
-    pkg: SkillPackage, budget: ScanBudget, errors: list[str]
+    pkg: SkillPackage,
+    budget: ScanBudget,
+    errors: list[str],
+    separate: Callable[[Path], bool] | None = None,
 ) -> _Inventory:
-    return _Walk(pkg, budget, errors).inventory()
+    return _Walk(pkg, budget, errors, separate).inventory()
+
+
+def _separately_analysed(roots: Iterable[Path]) -> Callable[[Path], bool]:
+    """A ``separate`` test: is a directory one of *roots* (resolved)?"""
+    real = frozenset(_realpath(r) or str(r) for r in roots)
+    return lambda path: (_realpath(path) or str(path)) in real
 
 
 # ── Finding builders ──────────────────────────────────────────────────────────
@@ -937,6 +1084,13 @@ def _skill_006_text(pkg: SkillPackage, tf: _TextFile) -> list[Finding]:
     return out
 
 
+#: SKILL-007 when the skill itself is past a limit (padding is an evasion).
+_OWN_LIMIT_TITLE = "Skill was not fully inspected"
+#: SKILL-007 when only the scan-wide budget, spent on other skills, ran out.
+#: It says nothing about this skill, so it never qualifies it for SKILL-008.
+SCAN_BUDGET_TITLE = "Skill was not fully inspected: the scan's budget ran out"
+
+
 def _skill_007(pkg: SkillPackage, inv: _Inventory) -> list[Finding]:
     remediation = (
         "Find out what this file is before using the skill. A skill should ship"
@@ -993,7 +1147,7 @@ def _skill_007(pkg: SkillPackage, inv: _Inventory) -> list[Finding]:
                 pkg,
                 "SKILL-007",
                 Severity.MEDIUM,
-                "Skill was not fully inspected",
+                _OWN_LIMIT_TITLE if inv.own_limit else SCAN_BUDGET_TITLE,
                 (
                     f"{inv.uninspected:,} {plural} not read in the skill '{pkg.name}'"
                     f" because the scan reached {inv.budget_reason}. Padding a skill"
@@ -1674,6 +1828,7 @@ def analyze_skill_package(
     pkg: SkillPackage,
     budget: ScanBudget | None = None,
     errors: list[str] | None = None,
+    separate: Callable[[Path], bool] | None = None,
 ) -> list[Finding]:
     """SKILL-005/006/007 and the routed findings for one skill.
 
@@ -1681,6 +1836,11 @@ def analyze_skill_package(
         pkg: The skill to read.
         budget: Scan-wide budget shared across skills; a fresh one if omitted.
         errors: Receives filesystem and parse errors (never raised).
+        separate: True for a nested skill directory that is analysed as its
+            own package in the same pass; it is then not walked as part of
+            *pkg*.  Omitted, every nested directory is walked, so a folder
+            with an empty ``SKILL.md`` that discovery skips (``__pycache__``,
+            ``.tox``, deeper than eight levels) cannot hide files.
 
     Returns:
         Findings with redacted evidence.  SKILL-008 comes from
@@ -1688,7 +1848,7 @@ def analyze_skill_package(
     """
     errs: list[str] = errors if errors is not None else []
     budget = budget if budget is not None else ScanBudget()
-    inv = _walk_package(pkg, budget, errs)
+    inv = _walk_package(pkg, budget, errs, separate)
     boundary = _realpath(pkg.scan_root)
     findings: list[Finding] = list(inv.symlink_findings)
     per_id: dict[str, int] = {}
@@ -1714,10 +1874,11 @@ def analyze_skill_package(
     return findings
 
 
-def _code_files(pkg: SkillPackage) -> list[str]:
+def _code_files(pkg: SkillPackage, packages: list[SkillPackage]) -> list[str]:
     cached = _CODE_FILES.get(str(pkg.root))
     if cached is None:
-        cached = list(_walk_package(pkg, ScanBudget(), []).code_files)
+        separate = _separately_analysed(p.root for p in packages)
+        cached = list(_walk_package(pkg, ScanBudget(), [], separate).code_files)
         _CODE_FILES[str(pkg.root)] = cached
     return cached
 
@@ -1750,6 +1911,8 @@ def bundled_code_findings(
     for f in findings:
         if f.id in _NOT_QUALIFYING or rank(f.severity) < rank(Severity.MEDIUM):
             continue
+        if f.id == "SKILL-007" and f.title == SCAN_BUDGET_TITLE:
+            continue
         owner = _owner(f.finding_path, packages)
         if owner is not None:
             qualifying.setdefault(str(owner.root), set()).add(f.id)
@@ -1758,7 +1921,7 @@ def bundled_code_findings(
         ids = qualifying.get(str(pkg.root))
         if not ids or str(pkg.root) in done:
             continue
-        code = _code_files(pkg)
+        code = _code_files(pkg, packages)
         if not code:
             continue
         done.add(str(pkg.root))
@@ -1804,10 +1967,11 @@ def analyze_skill_packages(
     errs: list[str] = errors if errors is not None else []
     seen = {_key(f) for f in prior}
     budget = ScanBudget()
+    separate = _separately_analysed(p.root for p in packages)
     out: list[Finding] = []
     for pkg in packages:
         try:
-            batch = analyze_skill_package(pkg, budget, errs)
+            batch = analyze_skill_package(pkg, budget, errs, separate)
         except Exception as exc:  # noqa: BLE001 — the default scan must not crash
             errs.append(f"skill package: {pkg.root}: {exc}")
             continue
@@ -2208,6 +2372,34 @@ def _sidecar_boundary(root: Path, scope: str) -> Path:
     return _skills_ancestor(root)
 
 
+def _agent_file_discoverable(root: Path) -> Callable[[Path], bool]:
+    """Whether the agent-file walk finds a nested skill's own ``SKILL.md``.
+
+    Mirrors ``agent_files.discovery``: a skill is found at most eight levels
+    below its ``skills`` directory and never under a skipped directory name,
+    so only such a skill gets its own sidecar pass.
+    """
+    from mcp_audit.agent_files.discovery import (  # noqa: PLC0415
+        _WALK_MAX_DEPTH,
+        _WALK_SKIP_DIRS,
+    )
+
+    skills_dir = _skills_ancestor(root)
+
+    def discoverable(path: Path) -> bool:
+        try:
+            parts = path.relative_to(skills_dir).parts
+        except ValueError:
+            return False
+        return (
+            len(parts) <= _WALK_MAX_DEPTH
+            and not any(part in _WALK_SKIP_DIRS for part in parts)
+            and _is_real_file(path / "SKILL.md")
+        )
+
+    return discoverable
+
+
 def sidecar_findings(af: AgentFile) -> list[Finding]:
     """Apply the ``SKILL.md`` instruction rules to a skill's other prose files.
 
@@ -2225,7 +2417,7 @@ def sidecar_findings(af: AgentFile) -> list[Finding]:
     root = af.path.parent
     pkg = SkillPackage(root, af.scope, _sidecar_boundary(root, af.scope))
     try:
-        inv = _walk_package(pkg, ScanBudget(), [])
+        inv = _walk_package(pkg, ScanBudget(), [], _agent_file_discoverable(root))
     except Exception:  # noqa: BLE001 — opt-in pass; never crash the scan
         return []
     out: list[Finding] = []

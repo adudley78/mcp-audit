@@ -17,10 +17,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   scripts, reference files, archives, `bin/`, `.git/` and `build/`, not only `SKILL.md`.
   Nothing is run, unpacked or decompressed. SKILL-005 is an install step in any file:
   HIGH when the fetch switches TLS checks off, decodes the download, uses plaintext or a
-  raw IP, or when decoded data is executed, Python bytecode is loaded with `marshal`, an
+  raw IP, or when decoded data is executed (piped into a shell, written to a file that
+  a following line runs, passed to `eval`, `sh -c` or a here-string), Python or
+  JavaScript fetches code and evaluates it, Python bytecode is loaded with `marshal`, an
   archive is opened with a password, a DNS TXT record is executed, a scheduled job or
   login item is written, or a reverse shell appears; LOW for a plain `curl … | sh` over
-  https; INFO for a known vendor installer or a Dockerfile line. SKILL-006 is what the
+  https; INFO for a known vendor installer or a Dockerfile line. Shells are read the
+  way they run: `bash -e`, `sudo -u root`, `/usr/bin/env bash`, `busybox sh` and
+  `$SHELL` still run what is piped in. SKILL-006 is what the
   skill ships into Claude Code: a folder with `.claude-plugin/plugin.json` loads as the
   plugin `<name>@skills-dir` with its own MCP servers (HIGH), hooks, monitors, language
   servers and `bin/` programs on the agent's PATH (MEDIUM, HIGH when one shadows `git`
@@ -28,19 +32,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   carries (MEDIUM/LOW); and text that switches permission prompts off or points
   `ANTHROPIC_BASE_URL` at another host (HIGH). SKILL-007 is content nothing can read:
   unknown or compiled binaries, password-protected ZIPs, bytes that contradict the
-  extension, long encoded blobs, foreign files in `.git/`, and anything past the read
-  budgets (MEDIUM; LOW for plain archives and skipped dependency folders). SKILL-008
+  extension, long encoded blobs, foreign files in `.git/` (git's text records are read
+  like any other text, and git's binary files must start with git's format bytes),
+  and anything past the read budgets (MEDIUM; LOW for plain archives and skipped
+  dependency folders). A folder with its own `SKILL.md` is read as its own skill only
+  when skill discovery finds it, so an empty `SKILL.md` cannot hide a folder. SKILL-008
   (HIGH) marks a skill that bundles code and has another MEDIUM-or-higher finding. The
   MCP servers of a skills-directory plugin join discovery as client
-  `claude-code-plugin`, so the per-server checks run on them; carried servers go
+  `claude-code-plugin`, so the per-server checks run on them; in a locked repository
+  `scan` and `check` verify them against the entry `mcp-audit lock` wrote for their
+  `.mcp.json` (drift is LOCK-001) and list one with no entry as not covered, and
+  `scan --project` analyses each of them once; carried servers go
   through the per-server analyzers without joining discovery, and shipped hook commands
   through HOOK-001/002. With `--include-agent-files` the `SKILL.md` instruction checks
   also run on a skill's other prose files, where the Paperclip campaign hid its
   payload. Skills installed as symlinks (the skills CLI's default,
   `.claude/skills/<name>` → `.agents/skills/<name>`) are read at their target and
   noted as TRUST-004 (INFO); a repository link that leaves the repository is
-  TRUST-002 HIGH and not read. On 1,128 public skills, 1 produces anything at
-  MEDIUM or above. See [`docs/skill-packages.md`](docs/skill-packages.md).
+  TRUST-002 HIGH and not read. On 1,129 public skills, 2 produce anything at
+  MEDIUM or above (a dev container that turns permission prompts off, and a security
+  reference quoting an attack command). See
+  [`docs/skill-packages.md`](docs/skill-packages.md).
 - **Permission rules that don't do what they say (PERM-001..007).** The scan you already run (`check`, `scan`, `scan --project`, the GitHub Action) now reads every Claude Code settings file for rules Anthropic documents as ignored, misanchored or not a security boundary, and names each rule, the form that gets past it, and what to write instead. PERM-001: a rule Claude Code skips or never matches, such as `Bash(command:rm *)`, an `mcp__` rule with parentheses, `Write(path)`, `Bash(git:* push)` or an `mcp__*` allow (HIGH in `deny`, MEDIUM in `ask`, INFO in `allow`). PERM-002: `Read(/Users/…)` with one slash, which points inside the project, not at `/` (MEDIUM in `deny`/`ask`, INFO in `allow`). PERM-003: `Bash(ls*)`, which also allows `lsof` (LOW). PERM-004: a deny on `curl`, `rm` or `git push` with no sandbox, which `/usr/bin/curl` or `sh -c` gets past (MEDIUM when the same file runs those forms without asking, through an allow such as `Bash(sh -c *)` or a bypass/auto mode in user settings; INFO otherwise). PERM-005: `WebFetch(domain:*)`, which opens the sandbox to every host (HIGH with the sandbox on, LOW otherwise). PERM-006: a bare `Bash` ask rule that the sandbox's auto-allow skips (MEDIUM). PERM-007: an `mcp__<server>` allow rule on a server the scan found poisoned, typosquatted, changed since approval, or pinned to a vulnerable version, matched by the whole server name as Claude Code 2.1.299 does, including a `~/.claude/settings.json` rule on a repository's server under `scan --project` (HIGH). See `docs/permission-rules.md`.
 - **AI agents in GitHub Actions workflows: WORKFLOW-001..003 (STORY-0091).** A
   plain `scan` or `check` run inside a repository, which is what the GitHub

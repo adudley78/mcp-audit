@@ -14,7 +14,10 @@ from pathlib import Path
 
 from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.lock.discovery import find_lock_for
+from mcp_audit.lock.identity import MatchKey, match_key
+from mcp_audit.lock.verifier import _index_locked_entries
 from mcp_audit.lock.verifier import verify as verify_lock
+from mcp_audit.lock.writer import load_existing
 from mcp_audit.models import Finding, LockStatus, ServerConfig
 
 #: Clients ``mcp-audit lock`` never records (it discovers with
@@ -22,7 +25,9 @@ from mcp_audit.models import Finding, LockStatus, ServerConfig
 #: as unrecorded (LOCK-002) and fail locks that predate their discovery.
 #: ``claude-code-plugin`` includes skills-directory plugin servers, which can
 #: sit inside a locked repository (``.claude/skills/<name>/.mcp.json``,
-#: STORY-0095).
+#: STORY-0095).  ``lock``'s project walk does read that ``.mcp.json`` (as
+#: ``claude-code``), so a repository's such server is verified against the
+#: entry for its config path when the lock has one.
 _NOT_LOCKED_CLIENTS = frozenset({"claude-code-plugin"})
 
 _DRIFT_IDS = frozenset(
@@ -64,12 +69,31 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
     Plugin servers (client ``claude-code-plugin``) are skipped the same way:
     the lock never records them.  A repository's skills-directory plugin
     (``.claude/skills/<name>``, ``is_project_scoped``, STORY-0095) under a lock
-    root is listed in ``status.not_covered``; installed plugins and the user's
-    own skills-directory plugins stay silent.
+    root is the exception: ``lock``'s project walk records its ``.mcp.json``,
+    so when the lock has an entry for the server's (config path, name) it is
+    verified like any other (drift is LOCK-001).  One with no entry (an inline
+    ``plugin.json`` server, or a lock written before the plugin was added) is
+    listed in ``status.not_covered``.  Installed plugins and the user's own
+    skills-directory plugins stay silent.
     """
     groups: dict[Path, list[ServerConfig]] = {}
     not_covered: list[str] = []
     not_covered_locks: set[Path] = set()
+    recorded: dict[Path, set[MatchKey]] = {}
+
+    def lock_records(lock: Path, server: ServerConfig) -> bool:
+        """Whether *lock* has an entry for *server*'s (config path, name)."""
+        if lock not in recorded:
+            doc = load_existing(lock)
+            servers = doc.get("servers") if isinstance(doc, dict) else None
+            try:
+                recorded[lock] = set(
+                    _index_locked_entries(servers if isinstance(servers, dict) else {})
+                )
+            except (AttributeError, TypeError, ValueError):
+                recorded[lock] = set()  # malformed; `lock --verify` reports it
+        match = match_key(server.config_path, lock.parent, server.name)
+        return match is not None and match in recorded[lock]
 
     def note_not_covered(server: ServerConfig) -> None:
         try:
@@ -83,7 +107,14 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
     for server in servers:
         if server.client in _NOT_LOCKED_CLIENTS:
             if server.is_project_scoped:
-                note_not_covered(server)
+                try:
+                    lock = find_lock_for(server.config_path)
+                except (OSError, RuntimeError):
+                    lock = None
+                if lock is not None and lock_records(lock, server):
+                    groups.setdefault(lock, []).append(server)
+                else:
+                    note_not_covered(server)
             continue
         if server.client == AGENT_DEFINITION_CLIENT:
             if agent_definition_scope(server.config_path) == "project":

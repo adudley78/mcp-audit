@@ -23,7 +23,7 @@ import binascii
 import ipaddress
 import math
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
@@ -85,11 +85,15 @@ def redact(text: str) -> str:
 
 
 def snippet(text: str, limit: int = 160) -> str:
-    """One-line, redacted, length-capped copy of *text* for evidence."""
-    one = " ".join(text.split())
+    """One-line, redacted, length-capped copy of *text* for evidence.
+
+    Redaction runs on the whole line before it is cut, so a credential that
+    straddles the cut is never left half-visible.
+    """
+    one = redact(" ".join(text.split()))
     if len(one) > limit:
         one = one[: limit - 1] + "…"
-    return redact(one)
+    return one
 
 
 # ── URLs and hosts (strict reading) ───────────────────────────────────────────
@@ -285,22 +289,40 @@ def logical_lines(text: str) -> list[tuple[int, str]]:
 # ── SKILL-005: install-step shapes ────────────────────────────────────────────
 
 #: Shells read a script from stdin unless given ``-c`` or a script file.
-_SHELLS = frozenset({"sh", "bash", "zsh", "dash", "ksh", "fish"})
+#: ``$SHELL`` is whatever the user's login shell is.
+_SHELLS = frozenset(
+    {"sh", "bash", "zsh", "dash", "ksh", "mksh", "ash", "fish", "$SHELL", "${SHELL}"}
+)
+#: Shell options that take the next word as their argument (``-o pipefail``).
+_SHELL_ARG_LETTERS = frozenset("oO")
+_SHELL_LONG_WITH_ARG = frozenset({"--rcfile", "--init-file"})
 #: Interpreters read a program from stdin unless given inline code or a file.
 _INTERPRETERS = frozenset(
     {"node", "nodejs", "deno", "bun", "perl", "ruby", "php", "pwsh", "powershell"}
 )
 _PYTHON_RE = re.compile(r"^python[0-9.]{0,5}$|^py$")
-#: Flags that make an interpreter run inline code, leaving stdin as data.
+#: Flags that make a (non-shell) interpreter run inline code, leaving stdin as
+#: data.  Shells are read separately: for them ``-e``/``-p``/``-r`` are
+#: ordinary options and only a short-flag cluster containing ``c`` is inline.
 _INLINE_CODE_FLAGS = frozenset(
     {"-c", "-e", "-m", "-p", "-E", "-r", "--eval", "--print", "-command", "-Command"}
 )
-_WRAPPERS = frozenset({"sudo", "env", "nohup", "exec", "time", "command"})
+_WRAPPERS = frozenset(
+    {"sudo", "doas", "env", "nohup", "exec", "time", "command", "nice", "stdbuf"}
+)
+#: Wrapper options that take the next word as their argument.
+_WRAPPER_ARG_FLAGS: dict[str, frozenset[str]] = {
+    "sudo": frozenset({"-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U"}),
+    "doas": frozenset({"-u", "-C"}),
+    "env": frozenset({"-u", "-C", "-S"}),
+    "nice": frozenset({"-n"}),
+}
 _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,40}=")
-_SINK_WORDS = r"sh|bash|zsh|dash|ksh|fish|node|deno|bun|python[0-9.]{0,5}|perl|ruby"
 _SUBST_SINK_RE = re.compile(
-    r"(?:^|[\s`'\"(;&|])(?:(?:ba|z|da|k)?sh|eval|source|python[0-9.]{0,5}|node"
-    r"|perl|ruby)(?:\s{1,5}-[a-z]{1,10}){0,4}\s{0,5}[\"']?(?:\$\(|<\()\s{0,5}$"
+    r"(?:^|[\s`'\"(;&|/])(?:(?:ba|z|da|k|a)?sh|eval|source|python[0-9.]{0,5}|node"
+    r"|perl|ruby)(?:\s{1,5}[-+][a-zA-Z]{1,10}){0,4}\s{0,5}(?:<<<\s{0,5})?[\"']?"
+    r"(?:\$\(|<\(|`)\s{0,5}$"
+    r"|(?:^|[\s;&|(])\.\s{1,5}<\(\s{0,5}$"
     r"|(?i:\b(?:iex|invoke-expression))\s{0,5}\(?\s{0,5}$"
 )
 _FETCH_RE = re.compile(
@@ -312,16 +334,28 @@ _CURL_INSECURE_RE = re.compile(
     r"(?:^|\s)(?:-[a-zA-Z]{0,15}k[a-zA-Z]{0,15}|--insecure|--proxy-insecure)(?=\s|$)"
 )
 _OTHER_INSECURE_RE = re.compile(r"(?i)--no-check-certificate\b|-skipcertificatecheck\b")
+#: A base64 decode, with up to four other options before the decode flag
+#: (``base64 -w 0 -d``, ``base64 --ignore-garbage --decode``).
+_B64_DECODE = (
+    r"\b(?:base64|basenc)(?:\.exe)?(?:\s{1,5}-{1,2}[a-z0-9-]{1,20}(?:\s{1,5}\d{1,4})?)"
+    r"{0,4}?\s{1,5}(?:-[a-ce-z]{0,3}d[a-z]{0,3}|-D|--decode)\b"
+)
 _DECODE_CMD_RE = re.compile(
-    r"(?i)\bbase64(?:\.exe)?\s{1,5}(?:-[a-ce-z]{0,3}d[a-z]{0,3}|-D|--decode)\b"
-    r"|\bxxd\s{1,5}(?:-[a-z]{1,4}\s{1,5}){0,3}-r\b"
-    r"|\bopenssl\s{1,5}(?:enc\s{1,5})?(?:-d\s{1,5})?-?base64\s{1,5}-d\b"
+    r"(?i)" + _B64_DECODE + r"|\bxxd\s{1,5}(?:-[a-z]{1,4}\s{1,5}){0,3}-r\b"
+    r"|\bopenssl\s{1,5}(?:enc|base64)\b[^\n|;&]{0,120}?\s-d\b"
     r"|\bcertutil(?:\.exe)?\s{1,5}-decode\b"
+    r"|\b(?:gunzip|zcat|bunzip2|unxz|xzcat)\b|\b(?:gzip|bzip2|xz)\s{1,5}-[a-z]{0,3}d"
 )
-_EVAL_DECODE_RE = re.compile(
-    r"(?i)(?:\beval\b|\b(?:ba|z|da)?sh\s{1,5}-c\b)[^\n]{0,400}?\bbase64\s{1,5}"
-    r"(?:-[a-ce-z]{0,3}d[a-z]{0,3}|-D|--decode)\b"
+_B64_DECODE_RE = re.compile(r"(?i)" + _B64_DECODE)
+#: A shell that runs decoded text it receives as an argument, a here-string
+#: or a process substitution: ``eval "$(… | base64 -d)"``, ``bash -c "$(…)"``,
+#: ``bash <<< "$(…)"``, ``source <(…)``.  It must end at most
+#: ``_EVAL_DECODE_WINDOW`` characters before the decode (``_eval_decode``).
+_EVAL_SINK_RE = re.compile(
+    r"(?i)\beval\b|\b(?:ba|z|da|k)?sh\b(?:\s{1,5}[-+][a-z]{1,8}){0,3}"
+    r"\s{0,5}(?:-c\b|<<<|<\()|\bsource\s{1,5}<\(|(?:^|\s)\.\s{1,5}<\("
 )
+_EVAL_DECODE_WINDOW = 400
 _PS_ENCODED_RE = re.compile(
     r"(?i)\b(?:powershell|pwsh)(?:\.exe)?\b[^\n]{0,200}?\s-(?:e|ec|en|enc|enco"
     r"|encodedcommand)\s{1,5}[A-Za-z0-9+/=]{20,}"
@@ -331,7 +365,7 @@ _PS_IEX_RE = re.compile(r"(?i)\b(?:iex|invoke-expression)\b")
 _OUTPUT_TARGET_RE = re.compile(
     r"(?i)(?:\s-outfile\s{1,3}|\s-o(?![a-z])\s{0,3}|\s--output(?:=|\s{1,3})"
     r"|\s--output-document(?:=|\s{1,3})|(?<![0-9&])>{1,2}\s{0,3}"
-    r"|\|\s{0,3}tee(?:\s{1,3}-a)?\s{1,3})[\"']?([^\s\"'|;&<>`)]{3,256})"
+    r"|\|\s{0,3}tee(?:\s{1,3}-a)?\s{1,3})[\"']?([^\s\"'|;&<>`)]{1,256})"
 )
 _MARSHAL_RE = re.compile(r"\bmarshal\.loads?\s{0,3}\(")
 _ARCHIVE_PASSWORD_RE = re.compile(
@@ -360,18 +394,37 @@ _PY_DECODE_RE = re.compile(
     r"|\bcodecs\.decode\s{0,3}\([^)\n]{0,200}?['\"](?:rot.?13|hex|base64)['\"]"
 )
 _PY_EXEC_RE = re.compile(r"(?<![\w.])(?:exec|eval|compile)\s{0,3}\(")
+#: An HTTP fetch inside Python or JavaScript code, and code that evaluates a
+#: string; together within three lines they run downloaded code
+#: (``exec(urlopen(u).read())``, ``fetch(u).then(r => r.text()).then(eval)``).
+_CODE_FETCH_RE = re.compile(
+    r"\burlopen\s{0,3}\(|\b(?:requests|httpx)\.(?:get|post|request)\s{0,3}\("
+    r"|(?<![\w.])fetch\s{0,3}\(|\bhttps?\.get\s{0,3}\(|\baxios(?:\.get)?\s{0,3}\("
+)
+_CODE_EXEC_RE = re.compile(
+    r"(?<![\w.])(?:exec|eval)\s{0,3}\(|\(\s{0,3}eval\s{0,3}\)"
+    r"|\bnew\s{1,3}Function\s{0,3}\("
+)
 _JS_DECODE_EXEC_RE = re.compile(
     r"(?<![\w.])eval\s{0,3}\(\s{0,3}(?:atob|Buffer\.from)\s{0,3}\("
     r"|\bnew\s{1,3}Function\s{0,3}\(\s{0,3}(?:atob|Buffer\.from)\s{0,3}\("
     r"|(?<![\w.])Function\s{0,3}\(\s{0,3}atob\s{0,3}\("
+    r"|\beval\s{0,3}\(?\s{0,3}(?:MIME::Base64::)?decode_base64\s{0,3}\("
 )
+#: Files a scheduler or login manager runs.  A write to one is found by
+#: locating the path first and then looking for a writer (``>``, ``tee``,
+#: ``cp`` …) up to 300 characters before it in the same command, so a line of
+#: thousands of ``>`` costs one pass, not 300 steps per ``>``.
+_PERSIST_TARGET_RE = re.compile(
+    r"/etc/cron(?:tab|\.d|\.daily|\.hourly|\.weekly|\.monthly)\b|/var/spool/cron\b"
+    r"|Library/Launch(?:Agents|Daemons)/|/etc/systemd/(?:system|user)/"
+    r"|\.config/systemd/user/|/lib/systemd/system/"
+)
+_PERSIST_WRITER_RE = re.compile(r">{1,2}|\btee\b|\bcp\b|\bmv\b|\binstall\b|\bln\b")
+_PERSIST_WRITE_WINDOW = 300
 _PERSISTENCE_RE = re.compile(
     r"\|\s{0,3}(?:sudo\s{1,5})?crontab\s{1,5}-(?=\s|$|[`'\")])"
     r"|\bcrontab\s{1,5}(?!-)[\w./~$-]{1,200}"
-    r"|(?:>{1,2}|\btee\b|\bcp\b|\bmv\b|\binstall\b|\bln\b)[^\n|;&]{0,300}?"
-    r"(?:/etc/cron(?:tab|\.d|\.daily|\.hourly|\.weekly|\.monthly)\b|/var/spool/cron\b"
-    r"|Library/Launch(?:Agents|Daemons)/|/etc/systemd/(?:system|user)/"
-    r"|\.config/systemd/user/|/lib/systemd/system/)"
     r"|\blaunchctl\s{1,5}(?:load|bootstrap|submit)\b"
     r"|(?i:\bschtasks(?:\.exe)?\s{1,5}/create\b|\bregister-scheduledtask\b)"
     r"|(?i:\breg(?:\.exe)?\s{1,5}add\s{1,5}[\"']?hk(?:cu|lm|ey_current_user"
@@ -428,7 +481,11 @@ _MAX_AFTER = 32
 
 
 def _command_tokens(segment: str) -> list[str]:
-    """Whitespace tokens of *segment* after wrappers (``sudo``, ``env X=y`` …)."""
+    """Whitespace tokens of *segment* after wrappers (``sudo``, ``env X=y`` …).
+
+    Wrappers are matched by program name, so ``/usr/bin/env bash`` and
+    ``sudo -u root bash`` reach ``bash``; ``busybox sh`` is ``sh``.
+    """
     # In Markdown the command ends where its inline-code span does.
     segment = segment.lstrip().lstrip("`").split("`", 1)[0]
     tokens = [t.strip("'\"()") for t in segment.split()[:64]]
@@ -436,10 +493,17 @@ def _command_tokens(segment: str) -> list[str]:
     i = 0
     while i < len(tokens):
         word = tokens[i]
-        if word in _WRAPPERS or _ENV_ASSIGN_RE.match(word):
+        program = _program(word)
+        if program in _WRAPPERS or _ENV_ASSIGN_RE.match(word):
+            takes_arg = _WRAPPER_ARG_FLAGS.get(program, frozenset())
             i += 1
-            while i < len(tokens) and tokens[i].startswith("-"):
-                i += 1
+            while i < len(tokens) and (
+                tokens[i].startswith("-") or _ENV_ASSIGN_RE.match(tokens[i])
+            ):
+                i += 2 if tokens[i] in takes_arg else 1
+            continue
+        if program == "busybox" and i + 1 < len(tokens):
+            i += 1
             continue
         break
     return tokens[i:]
@@ -451,14 +515,76 @@ def _program(word: str) -> str:
     return name[:-4] if name.lower().endswith(".exe") else name
 
 
+def _shell_reads_stdin(args: list[str]) -> bool:
+    """Whether a shell given *args* reads its script from stdin.
+
+    ``-s`` (or ``-``) reads stdin; a short-flag cluster containing ``c`` runs
+    the next word instead; ``-o``/``+o``/``-O``/``+O`` (also inside a cluster
+    such as ``-euo``) take one argument; the first other word is a script
+    file, whose stdin is then data.
+    """
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "-":
+            return True
+        if arg == "--":
+            return i + 1 >= len(args)
+        if arg in _SHELL_LONG_WITH_ARG:
+            i += 2
+            continue
+        if arg.startswith("--"):
+            i += 1
+            continue
+        if len(arg) > 1 and arg[0] in "-+":
+            letters = arg[1:]
+            if arg[0] == "-" and "s" in letters:
+                return True
+            if arg[0] == "-" and "c" in letters:
+                return False
+            i += 2 if _SHELL_ARG_LETTERS & set(letters) else 1
+            continue
+        return False  # a script file: stdin is its data
+    return True
+
+
+def _interpreter_reads_stdin(args: list[str]) -> bool:
+    """Whether ``node``/``python3``/``perl`` … given *args* run their stdin."""
+    for arg in args:
+        if arg == "--":
+            break
+        if arg == "-":
+            return True
+        if arg in _INLINE_CODE_FLAGS:
+            return False
+        if arg.startswith("-"):
+            continue
+        return False  # a script file: stdin is its data
+    return True
+
+
+def _runs_inline_from_args(args: list[str]) -> bool:
+    """``xargs … bash -c``: the piped text becomes the inline program."""
+    for i, arg in enumerate(args):
+        program = _program(arg)
+        if program in _SHELLS:
+            return any(
+                len(a) > 1 and a[0] == "-" and "c" in a[1:] for a in args[i + 1 :]
+            )
+        if program in _INTERPRETERS or _PYTHON_RE.match(program):
+            return any(a in _INLINE_CODE_FLAGS for a in args[i + 1 :])
+    return False
+
+
 def runs_stdin(segment: str) -> bool:
     """True when *segment* executes what is piped into it.
 
-    ``bash``, ``sudo -E bash``, ``bash -s -- --flag``, ``python3 -``, ``node``
-    and PowerShell ``iex`` run their stdin.  ``bash -c '…'``, ``python3 -c
-    '…'``, ``node -e '…'`` and ``python3 script.py`` run something else and
-    read stdin as data, so a ``curl … | python3 -c 'parse json'`` is not an
-    install step.
+    ``bash``, ``sudo -E bash``, ``bash -e``, ``bash -o pipefail``, ``bash -s
+    -- --flag``, ``/usr/bin/env bash``, ``busybox sh``, ``$SHELL``, ``python3
+    -``, ``node`` and PowerShell ``iex`` run their stdin, and ``xargs bash -c``
+    runs it as an argument.  ``bash -c '…'``, ``python3 -c '…'``, ``node -e
+    '…'`` and ``python3 script.py`` run something else and read stdin as data,
+    so a ``curl … | python3 -c 'parse json'`` is not an install step.
     """
     tokens = _command_tokens(segment)
     if not tokens:
@@ -468,37 +594,37 @@ def runs_stdin(segment: str) -> bool:
         return True
     if program == "source":
         return True
-    is_shell = program in _SHELLS
-    if not (is_shell or program in _INTERPRETERS or _PYTHON_RE.match(program)):
-        return False
-    for arg in tokens[1:]:
-        if arg == "--":
-            break
-        if arg == "-":
-            return True
-        if arg in _INLINE_CODE_FLAGS:
-            return False
-        if arg.startswith("-"):
-            short = arg[1:] if not arg.startswith("--") else ""
-            if is_shell and "s" in short:
-                return True
-            if is_shell and "c" in short:
-                return False
-            continue
-        return False  # a script file: stdin is its data
-    return True
+    if program == "xargs":
+        return _runs_inline_from_args(tokens[1:])
+    if program in _SHELLS:
+        return _shell_reads_stdin(tokens[1:])
+    if program in _INTERPRETERS or _PYTHON_RE.match(program):
+        return _interpreter_reads_stdin(tokens[1:])
+    return False
 
 
 def _basename(token: str) -> str:
     return token.replace("\\", "/").rsplit("/", 1)[-1]
 
 
-def _files_run(segment: str) -> frozenset[str]:
-    """Base names of the files *segment* runs or makes executable.
+def _norm_path(token: str) -> str:
+    """``./x.sh`` → ``x.sh``; backslashes as slashes."""
+    path = token.replace("\\", "/")
+    while path.startswith("./"):
+        path = path[2:]
+    return path
 
-    ``./helper`` and ``/tmp/t.sh`` run themselves; ``bash t.sh`` and ``python3
-    t.py`` run their first non-flag argument; ``chmod +x t.sh`` and PowerShell
-    ``Start-Process``/``&`` name the file they act on.
+
+def _run_keys(token: str) -> set[str]:
+    return {"p:" + _norm_path(token), "b:" + _basename(token)}
+
+
+def _files_run(segment: str) -> frozenset[str]:
+    """Keys (``p:<path>``, ``b:<base name>``) of the files *segment* runs.
+
+    ``./helper`` and ``/tmp/t.sh`` run themselves; ``bash t.sh``, ``python3
+    t.py`` and ``. t.sh`` run their first non-flag argument; ``chmod +x t.sh``
+    and PowerShell ``Start-Process``/``&`` name the file they act on.
     """
     tokens = _command_tokens(segment)
     if not tokens:
@@ -506,16 +632,22 @@ def _files_run(segment: str) -> frozenset[str]:
     head = tokens[0]
     out: set[str] = set()
     if "/" in head or "\\" in head:
-        out.add(_basename(head))  # ./helper, /tmp/t.sh
+        out |= _run_keys(head)  # ./helper, /tmp/t.sh
     program = _program(head)
     if program == "&" and len(tokens) > 1:
-        out.add(_basename(tokens[1]))
+        out |= _run_keys(tokens[1])
     elif program == "chmod" or program.lower() == "start-process":
-        out.update(_basename(t) for t in tokens[1:])
-    elif program in _SHELLS or program in _INTERPRETERS or _PYTHON_RE.match(program):
+        for token in tokens[1:]:
+            out |= _run_keys(token)
+    elif (
+        program in _SHELLS
+        or program in _INTERPRETERS
+        or program in {".", "source"}
+        or _PYTHON_RE.match(program)
+    ):
         for token in tokens[1:]:
             if not token.startswith("-"):
-                out.add(_basename(token))
+                out |= _run_keys(token)
                 break
     return frozenset(out)
 
@@ -528,10 +660,24 @@ def _files_run(segment: str) -> frozenset[str]:
 #: literals whenever a pattern changes.
 _GATE_LITERALS: dict[str, tuple[str, ...]] = {
     "fetch": ("curl", "wget", "iwr", "irm", "invoke-", "download"),
-    "decode": ("base64", "xxd", "certutil"),
+    "decode": (
+        "base64",
+        "basenc",
+        "xxd",
+        "openssl",
+        "certutil",
+        "gunzip",
+        "zcat",
+        "bunzip2",
+        "unxz",
+        "xzcat",
+        "gzip",
+        "bzip2",
+        "xz",
+    ),
     "ps_encoded": ("powershell", "pwsh"),
     "ps_b64": ("frombase64string",),
-    "js": ("atob", "buffer.from"),
+    "js": ("atob", "buffer.from", "decode_base64"),
     "marshal": ("marshal",),
     "archive": ("unzip", "7z", "unrar", "setpassword", "pwd"),
     "persistence": (
@@ -546,10 +692,19 @@ _GATE_LITERALS: dict[str, tuple[str, ...]] = {
     "url": ("://",),
     "dns": ("txt",),
     "py_decode": ("decode", "unhexlify", "fromhex", "decompress", "a2b_"),
+    "code_fetch": (
+        "urlopen",
+        "requests.",
+        "httpx.",
+        "fetch",
+        "http.get",
+        "https.get",
+        "axios",
+    ),
 }
 _ALL_GATES = frozenset(_GATE_LITERALS)
 #: Gates used by the window rules rather than the per-line rules.
-_WINDOW_GATES = frozenset({"dns", "py_decode"})
+_WINDOW_GATES = frozenset({"dns", "py_decode", "code_fetch"})
 #: Off only in the parity test.
 _GATING = True
 
@@ -566,6 +721,12 @@ def gates_for(text: str) -> frozenset[str]:
     )
 
 
+#: Non-blank logical lines after a download or decode searched for a run of
+#: the file it wrote (``curl -o /tmp/x`` / ``chmod +x /tmp/x`` / ``/tmp/x``);
+#: at most twice as many lines are looked through to find them.
+_RUN_WINDOW = 3
+
+
 class _Line:
     """One logical line split into shell segments, with per-segment caches.
 
@@ -573,13 +734,25 @@ class _Line:
     line of thousands of segments stays linear.
     """
 
-    def __init__(self, line: str, next_line: str) -> None:
+    def __init__(
+        self, line: str, next_lines: list[str] | Callable[[], list[str]]
+    ) -> None:
         self.text = line
-        self.segments = _split_segments(line)
-        self._next_line = next_line
+        self._segments: list[tuple[str, str]] | None = None
+        #: The following lines, or a function returning them (most lines
+        #: never need them, so they are gathered only on demand).
+        self._next_source = next_lines
         self._runs: dict[int, frozenset[str]] = {}
+        self._targets: dict[tuple[int, bool], list[str]] = {}
         self._stdin: dict[int, bool] = {}
         self._next_runs: list[frozenset[str]] | None = None
+
+    @property
+    def segments(self) -> list[tuple[str, str]]:
+        """``(separator before, segment)`` pairs, split on first use."""
+        if self._segments is None:
+            self._segments = _split_segments(self.text)
+        return self._segments
 
     def pipeline(self, idx: int) -> list[int]:
         """Indexes of the segments joined to *idx* by a single ``|`` (bounded)."""
@@ -601,38 +774,150 @@ class _Line:
             self._runs[j] = _files_run(self.segments[j][1])
         return self._runs[j]
 
-    def after(self, start: int, *, next_line: bool) -> list[frozenset[str]]:
-        """Run sets of up to ``_MAX_AFTER`` segments from *start*, plus next line."""
+    def after(self, start: int) -> list[frozenset[str]]:
+        """Run sets of up to ``_MAX_AFTER`` segments from *start*, then the next
+        ``_RUN_WINDOW`` lines."""
         end = min(start + _MAX_AFTER, len(self.segments))
         runs = [self._files(j) for j in range(start, end)]
-        if next_line:
-            if self._next_runs is None:
-                self._next_runs = [
-                    _files_run(seg)
-                    for _sep, seg in _split_segments(self._next_line)[:_MAX_AFTER]
-                ]
-            runs += self._next_runs
-        return runs
+        if self._next_runs is None:
+            src = self._next_source
+            following = (src() if callable(src) else src)[:_RUN_WINDOW]
+            self._next_runs = [
+                _files_run(seg)
+                for next_line in following
+                for _sep, seg in _split_segments(next_line)[:_MAX_AFTER]
+            ]
+        return runs + self._next_runs
+
+    def _outputs(self, j: int, piped: bool) -> list[str]:
+        """Cached output targets of segment *j* (``| tee`` only when *piped*)."""
+        key = (j, piped)
+        if key not in self._targets:
+            text = ("| " if piped else " ") + self.segments[j][1]
+            self._targets[key] = [t.group(1) for t in _OUTPUT_TARGET_RE.finditer(text)]
+        return self._targets[key]
 
     def stage_runs_target(
-        self, idx: int, pipeline: list[int], *, next_line: bool
+        self, idx: int, pipeline: list[int], extra: tuple[str, ...] = ()
     ) -> bool:
         """True when the stage at *idx* writes a file that a later command runs."""
-        stage = " | ".join(self.segments[j][1] for j in [idx, *pipeline])
-        targets = [t.group(1) for t in _OUTPUT_TARGET_RE.finditer(stage)]
+        targets = list(self._outputs(idx, False))
+        for j in pipeline:
+            targets += self._outputs(j, True)
+        targets += extra
         if not targets:
             return False
         start = (pipeline[-1] if pipeline else idx) + 1
-        after = self.after(start, next_line=next_line)
+        after = self.after(start)
         return any(_target_runs(t, after) for t in targets)
 
 
+#: Paths a command can write to that are not files anything runs.
+_NOT_FILES = frozenset({"-", "/dev/null", "/dev/stdout", "/dev/stderr", "/dev/stdin"})
+
+
 def _target_runs(target: str, runs: list[frozenset[str]]) -> bool:
-    """True when one of the *runs* sets names the file *target* points at."""
-    base = _basename(target)
-    if len(base) < 3 or base in {"null", "tmp", "dev", "stdout", "stderr"}:
+    """True when one of the *runs* sets runs the file *target* names.
+
+    The whole normalised path is compared, however short (``> x`` then ``sh
+    x``); the base name alone counts too when it is at least three characters
+    (``-o /tmp/x.sh`` then ``cd /tmp && sh x.sh``).  ``-``, ``/dev/null``,
+    ``/dev/std*`` and ``/dev/fd/*`` are never files that run.
+    """
+    path = _norm_path(target)
+    if path in _NOT_FILES or path.startswith("/dev/fd/"):
         return False
-    return any(base in names for names in runs)
+    base = _basename(path)
+    by_base = len(base) >= 3 and base not in {"tmp", "null"}
+    return any(
+        ("p:" + path) in names or (by_base and ("b:" + base) in names) for names in runs
+    )
+
+
+#: curl/wget options whose value is the next word (so it is not the URL).
+_FETCH_ARG_FLAGS = frozenset(
+    {
+        "-o",
+        "--output",
+        "-H",
+        "--header",
+        "-d",
+        "--data",
+        "--data-raw",
+        "--data-binary",
+        "-u",
+        "--user",
+        "-A",
+        "--user-agent",
+        "-e",
+        "--referer",
+        "-x",
+        "--proxy",
+        "-K",
+        "--config",
+        "-w",
+        "--write-out",
+        "-D",
+        "--dump-header",
+        "-c",
+        "--cookie-jar",
+        "-b",
+        "--cookie",
+        "-F",
+        "--form",
+        "-T",
+        "--upload-file",
+        "-X",
+        "--request",
+        "-m",
+        "--max-time",
+        "--retry",
+        "-C",
+        "--resolve",
+        "--connect-to",
+        "--output-document",
+        "-P",
+        "--directory-prefix",
+        "-a",
+        "--append-output",
+        "-t",
+        "--tries",
+        "-OutFile",
+        "-Method",
+        "-Headers",
+        "-Body",
+    }
+)
+_WGET_ONLY_ARG_FLAGS = frozenset({"-O", "-o"})
+_BARE_HOST_RE = re.compile(
+    r"(?i)^(?:(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?(?:/\S{0,512})?"
+    r"|[a-z0-9-]{1,63}(?:\.[a-z0-9-]{1,63}){1,10}(?::\d{1,5})?/\S{0,512})$"
+)
+_WGET_RE = re.compile(r"(?i)(?<![\w./-])wget(?:\.exe)?(?![\w-])")
+
+
+def _bare_host_url(seg: str, after: int) -> Url | None:
+    """The URL a fetch reaches when its host is written without a scheme.
+
+    curl and wget default to ``http://`` (``curl 45.33.32.156/x``).  Only the
+    first word that is not an option or an option's value is read, and only a
+    raw IP or a host with a path or port counts.
+    """
+    tokens = seg[after:].split()
+    wget = bool(_WGET_RE.search(seg[:after]))
+    skip = False
+    for token in tokens[:32]:
+        word = token.strip("'\"`()")
+        if skip:
+            skip = False
+            continue
+        if word.startswith("-"):
+            skip = word in _FETCH_ARG_FLAGS or (wget and word in _WGET_ONLY_ARG_FLAGS)
+            continue
+        if _BARE_HOST_RE.match(word):
+            return parse_url("http://" + word)
+        return None
+    return None
 
 
 def _fetch_hits(ln: _Line, dockerfile: bool) -> list[tuple[Severity, str]]:
@@ -650,7 +935,10 @@ def _fetch_hits(ln: _Line, dockerfile: bool) -> list[tuple[Severity, str]]:
         if m is None:
             continue
         first_url = URL_RE.search(seg)
-        url = parse_url(first_url.group(0)) if first_url else None
+        if first_url:
+            url: Url | None = parse_url(first_url.group(0))
+        else:
+            url = _bare_host_url(seg, m.end())
         insecure = bool(
             _CURL_RE.search(seg) and _CURL_INSECURE_RE.search(seg[m.end() :])
         ) or bool(_OTHER_INSECURE_RE.search(seg))
@@ -658,12 +946,18 @@ def _fetch_hits(ln: _Line, dockerfile: bool) -> list[tuple[Severity, str]]:
             insecure = False
 
         pipeline = ln.pipeline(idx)
+        # wget with no -O saves to the URL's last path segment.
+        implicit: tuple[str, ...] = ()
+        if url is not None and _WGET_RE.search(seg) and not re.search(r"\s-O", seg):
+            implicit = (_basename(url.path.rstrip("/")),) if url.path else ()
         how = ""
         if any(ln.runs_stdin(j) for j in pipeline):
             how = "piped into a shell or interpreter"
         elif _SUBST_SINK_RE.search(seg[max(0, m.start() - 120) : m.start()]):
             how = "executed through command substitution"
-        elif ln.stage_runs_target(idx, pipeline, next_line=True):
+        elif _PS_IEX_RE.search(seg[max(0, m.start() - 400) : m.start()]):
+            how = "passed to Invoke-Expression"
+        elif ln.stage_runs_target(idx, pipeline, implicit):
             how = "downloaded to a file that is then run"
 
         if not how:
@@ -706,7 +1000,7 @@ def _decode_exec_hits(
     line = ln.text
     if "decode" in active and _DECODE_CMD_RE.search(line):
         hits.extend(_decode_pipeline_hits(ln))
-    if not hits and "decode" in active and _EVAL_DECODE_RE.search(line):
+    if not hits and "decode" in active and _eval_decode(line):
         hits.append((Severity.HIGH, "base64-decoded text passed to eval or sh -c"))
     if "ps_encoded" in active and _PS_ENCODED_RE.search(line):
         hits.append((Severity.HIGH, "PowerShell runs an encoded command"))
@@ -715,6 +1009,23 @@ def _decode_exec_hits(
     if "js" in active and _JS_DECODE_EXEC_RE.search(line):
         hits.append((Severity.HIGH, "decoded data passed to eval/Function"))
     return hits
+
+
+def _eval_decode(line: str) -> bool:
+    """A base64 decode whose output an ``eval``/``sh -c``/``<<<`` sink runs.
+
+    Decodes are found first (at most 32 per line) and a sink is looked for in
+    the text just before each, so the cost is linear however many ``eval``
+    words a line holds.
+    """
+    for n, decode in enumerate(_B64_DECODE_RE.finditer(line)):
+        if n >= 32:
+            break
+        lo = max(0, decode.start() - _EVAL_DECODE_WINDOW - 64)
+        for sink in _EVAL_SINK_RE.finditer(line, lo, decode.start()):
+            if sink.end() >= decode.start() - _EVAL_DECODE_WINDOW:
+                return True
+    return False
 
 
 def _decode_pipeline_hits(ln: _Line) -> list[tuple[Severity, str]]:
@@ -727,20 +1038,34 @@ def _decode_pipeline_hits(ln: _Line) -> list[tuple[Severity, str]]:
         if any(ln.runs_stdin(j) for j in pipeline):
             hits.append((Severity.HIGH, "decoded content piped into a shell"))
             break
-        if ln.stage_runs_target(idx, pipeline, next_line=False):
+        if ln.stage_runs_target(idx, pipeline):
             hits.append((Severity.HIGH, "decoded content written to a file and run"))
             break
     return hits
 
 
+def _persistence(line: str) -> bool:
+    """A scheduler or login-item write on *line* (see ``_PERSIST_TARGET_RE``)."""
+    if _PERSISTENCE_RE.search(line):
+        return True
+    for n, target in enumerate(_PERSIST_TARGET_RE.finditer(line)):
+        if n >= 32:
+            break
+        before = line[max(0, target.start() - _PERSIST_WRITE_WINDOW) : target.start()]
+        cut = max(before.rfind("|"), before.rfind(";"), before.rfind("&"))
+        if _PERSIST_WRITER_RE.search(before[cut + 1 :]):
+            return True
+    return False
+
+
 def _line_hits(
     line: str,
-    next_line: str,
+    next_lines: list[str] | Callable[[], list[str]],
     dockerfile: bool,
     active: frozenset[str] = _ALL_GATES,
 ) -> list[tuple[Severity, str]]:
     hits: list[tuple[Severity, str]] = []
-    ln = _Line(line, next_line)
+    ln = _Line(line, next_lines)
     if "fetch" in active and _FETCH_RE.search(line):
         hits.extend(_fetch_hits(ln, dockerfile))
     hits.extend(_decode_exec_hits(ln, active))
@@ -748,7 +1073,7 @@ def _line_hits(
         hits.append((Severity.HIGH, "marshal.loads loads Python bytecode"))
     if "archive" in active and _ARCHIVE_PASSWORD_RE.search(line):
         hits.append((Severity.HIGH, "an archive is opened with a password"))
-    if "persistence" in active and _PERSISTENCE_RE.search(line):
+    if "persistence" in active and _persistence(line):
         hits.append(
             (Severity.HIGH, "writes a scheduled job or login item (persistence)")
         )
@@ -828,12 +1153,20 @@ def install_step_hits(rel: str, text: str) -> list[Hit]:
             elif raised:
                 hit.reasons[-1] = reason  # keep the reason for the severity
 
+    def following(i: int) -> Callable[[], list[str]]:
+        # The next few non-blank lines (Markdown puts blank lines between
+        # commands), looking at most twice as far as the window.
+        def get() -> list[str]:
+            ahead = lines[i + 1 : i + 1 + 2 * _RUN_WINDOW]
+            return [text for _n, text in ahead if text.strip()][:_RUN_WINDOW]
+
+        return get
+
     line_gates = active - _WINDOW_GATES
     for i, (num, line) in enumerate(lines):
         if not line_gates:
             break
-        next_line = lines[i + 1][1] if i + 1 < len(lines) else ""
-        for severity, reason in _line_hits(line, next_line, dockerfile, active):
+        for severity, reason in _line_hits(line, following(i), dockerfile, active):
             add(num, severity, reason)
     if "dns" in active:
         for num in _window_hits(lines, _DNS_TXT_RE, _EXEC_SINK_RE, 5):
@@ -841,6 +1174,9 @@ def install_step_hits(rel: str, text: str) -> list[Hit]:
     if "py_decode" in active:
         for num in _window_hits(lines, _PY_DECODE_RE, _PY_EXEC_RE, 3):
             add(num, Severity.HIGH, "decoded data passed to exec/eval/compile")
+    if "code_fetch" in active:
+        for num in _window_hits(lines, _CODE_FETCH_RE, _CODE_EXEC_RE, 3):
+            add(num, Severity.HIGH, "downloaded code passed to exec/eval")
     return sorted(by_line.values(), key=lambda h: (-rank(h.severity), h.line))
 
 
@@ -857,17 +1193,27 @@ _SKIP_PERMISSIONS_RE = re.compile(
     r"|(?<![\w.-])codex(?![\w-])[^\n|;&]{0,300}?\s"
     r"(?:--dangerously-bypass-approvals-and-sandbox|--yolo)\b"
     r"|(?<![\w.-])(?:gemini|qwen)(?![\w-])[^\n|;&]{0,300}?\s"
-    r"(?:--yolo\b|--approval-mode[= ]{1,3}[\"']?yolo\b)"
+    r"(?:--yolo\b|-y(?![\w-])|--approval-mode[= ]{1,3}[\"']?yolo\b)"
     r"|[\"']defaultMode[\"']\s{0,5}[:=]\s{0,5}[\"']bypassPermissions[\"']"
     r"|\[\s{0,3}[\"']defaultMode[\"']\s{0,3}\]\s{0,3}=\s{0,3}[\"']bypassPermissions"
     r"|^[ \t]{0,40}defaultMode[ \t]{0,5}:[ \t]{0,5}[\"']?bypassPermissions\b"
     r"|[\"']?skipDangerousModePermissionPrompt[\"']?\s{0,5}[:=]\s{0,5}true\b",
     re.MULTILINE,
 )
+_BASE_URL_NAME = (
+    r"(ANTHROPIC_[A-Z0-9_]{0,40}BASE_URL|OPENAI_BASE_URL"
+    r"|GOOGLE_GEMINI_BASE_URL|GEMINI_BASE_URL|GOOGLE_VERTEX_BASE_URL)"
+)
+_BASE_URL_VALUE = r"[\"']?((?:https?|wss?)://[^\s\"'`]{1,2048})"
+#: ``NAME=url``, ``NAME: url``, ``"NAME": "url"``, ``env["NAME"] = "url"``,
+#: ``setdefault("NAME", "url")``; Windows ``setx NAME url`` is
+#: ``_SETX_BASE_URL_RE``, run only on text that contains ``setx``.
 _BASE_URL_RE = re.compile(
-    r"(?<![A-Za-z0-9_])(ANTHROPIC_[A-Z0-9_]{0,40}BASE_URL|OPENAI_BASE_URL"
-    r"|GOOGLE_GEMINI_BASE_URL|GEMINI_BASE_URL|GOOGLE_VERTEX_BASE_URL)[\"']?"
-    r"\s{0,5}[:=]\s{0,5}[\"']?((?:https?|wss?)://[^\s\"'`]{1,2048})"
+    rf"(?<![A-Za-z0-9_]){_BASE_URL_NAME}[\"']?\s{{0,5}}\]?\s{{0,5}}[:=,]\s{{0,5}}"
+    rf"{_BASE_URL_VALUE}"
+)
+_SETX_BASE_URL_RE = re.compile(
+    rf"(?i:\bsetx)\s{{1,5}}{_BASE_URL_NAME}\s{{1,5}}{_BASE_URL_VALUE}"
 )
 _VERTEX_HOST_RE = re.compile(r"^(?:[a-z0-9-]{1,63}-)?aiplatform\.googleapis\.com$")
 _FIRST_PARTY: dict[str, re.Pattern[str]] = {
@@ -945,7 +1291,12 @@ def text_shape_hits(text: str, limit: int = 50) -> list[TextShape]:
     found = len(out)
     at = line_numbers()
     last = 0
-    for m in _BASE_URL_RE.finditer(text):
+    matches: Iterable[re.Match[str]] = _BASE_URL_RE.finditer(text)
+    if "setx" in text.lower():
+        matches = sorted(
+            [*matches, *_SETX_BASE_URL_RE.finditer(text)], key=lambda m: m.start()
+        )
+    for m in matches:
         name, value = m.group(1), m.group(2)
         if base_url_is_first_party(name, value):
             continue
@@ -1124,9 +1475,11 @@ def decode_text(data: bytes) -> str | None:
     return text
 
 
-_B64_RUN_RE = re.compile(rf"[A-Za-z0-9+/]{{{BLOB_RUN},}}")
+#: Anchored at the start of a run (the lookbehind), so a long text of runs one
+#: character too short is one pass, not one scan per character.
+_B64_RUN_RE = re.compile(rf"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{{{BLOB_RUN},}}")
 _B64_LINE_RE = re.compile(r"^[A-Za-z0-9+/]{60,200}={0,2}$")
-_HEX_RUN_RE = re.compile(rf"[0-9a-fA-F]{{{HEX_RUN},}}")
+_HEX_RUN_RE = re.compile(rf"(?<![0-9a-fA-F])[0-9a-fA-F]{{{HEX_RUN},}}")
 
 
 def _decoded_family(sample: str, hexa: bool) -> str:
