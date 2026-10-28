@@ -1985,7 +1985,7 @@
       "owasp_names": [
         "Tool Poisoning"
       ],
-      "notes": "A run of at least 16 zero-width characters made of exactly two symbols (U+200B/200C/200D/2060/FEFF), read eight at a time as bits, decodes to mostly printable text that matches no existing pattern (a match is POISON-041). Reverse CAPTCHA (arXiv 2603.00164 §4.1): U+200B = 0, U+200C = 1, 8 bits per character. MEDIUM. CWE-116. STORY-0099."
+      "notes": "A run of at least 16 zero-width characters whose two most frequent symbols are read as bits (a minority third symbol is a separator) (U+200B/200C/200D/2060/FEFF), read eight at a time as bits, decodes to mostly printable text that matches no existing pattern (a match is POISON-041). Reverse CAPTCHA (arXiv 2603.00164 §4.1): U+200B = 0, U+200C = 1, 8 bits per character. MEDIUM. CWE-116. STORY-0099."
     },
     {
       "finding_id": "POISON-044",
@@ -2009,7 +2009,7 @@
         "Tool Poisoning",
         "Intent Flow Subversion"
       ],
-      "notes": "Text tells the model to keep something from the user: do not mention/tell/inform ... to the user, do not mention this in conversation or your reply, without informing the user, keep this hidden from the user, the user must not know. 'Tell <someone> to <verb>' does not match. HIGH. CWE-223. Source: arXiv 2602.06547 (USENIX Security 2026, 'Do Not Mention This to the User') §4.2/§5.3. STORY-0099."
+      "notes": "Text tells the model to keep something from the user: do not mention/tell/reveal this (step) to the user, do not mention this in conversation or your reply, do not tell the user about this / that you ..., do not inform the user to avoid suspicion (a purpose clause), without informing the user, keep this hidden from the user, the user must not know. A named object ('never reveal API keys to the user') and 'tell <someone> to <verb>' do not match. HIGH. CWE-223. Source: arXiv 2602.06547 (accepted to USENIX Security 2026) §4.2/§5.3. STORY-0099."
     },
     {
       "finding_id": "POISON-071",
@@ -2022,7 +2022,7 @@
         "Tool Poisoning",
         "Intent Flow Subversion"
       ],
-      "notes": "Text tells the model not to ask the user for permission, approval, consent or confirmation, or to act without it. MEDIUM. CWE-862. Source: arXiv 2602.06547 (USENIX Security 2026, 'Do Not Mention This to the User') §4.2/§5.3. STORY-0099."
+      "notes": "Text tells the model not to ask the user for permission, approval, consent or confirmation, or to act without it. LOW (ordinary project instructions use the same words). CWE-862. Source: arXiv 2602.06547 (USENIX Security 2026, 'Do Not Mention This to the User') §4.2/§5.3. STORY-0099."
     },
     {
       "finding_id": "POISON-072",
@@ -2061,7 +2061,7 @@
         "Tool Poisoning",
         "Command Injection and Execution"
       ],
-      "notes": "A clause-initial order to run something when a session starts: 'On startup, execute ...', 'When you start, run ...'. MEDIUM. CWE-829. Source: research scan 2026-10-25 (A8); STORY-0099."
+      "notes": "A clause-initial order to run something when a session starts: 'On startup, execute ...', 'When you start, run ...'. LOW (ordinary project instructions use the same words). CWE-829. Source: research scan 2026-10-25 (A8); STORY-0099."
     },
     {
       "finding_id": "POISON-075",
@@ -2074,7 +2074,7 @@
         "Tool Poisoning",
         "Intent Flow Subversion"
       ],
-      "notes": "Text tells the model to fetch a URL and follow, obey or execute what it says; needs a URL, link or endpoint within 200 characters. MEDIUM. CWE-829. Source: research scan 2026-10-25 (A8); STORY-0099."
+      "notes": "Text tells the model to fetch a URL and follow, obey or execute what it says; needs a URL, link or endpoint within 200 characters. LOW (ordinary project instructions use the same words). CWE-829. Source: research scan 2026-10-25 (A8); STORY-0099."
     },
     {
       "finding_id": "MEM-005",
@@ -2087,7 +2087,7 @@
         "Tool Poisoning",
         "Intent Flow Subversion"
       ],
-      "notes": "An always-loaded instruction file (CLAUDE.md tiers, .claude/rules, AGENTS.md, OpenClaw workspace and heartbeat files) has a sentence whose condition is a deferred user cue ('if the user later says'), a privilege, hostname or production-host test, a calendar date, or an unobserved-time test, followed by an action verb (run, curl, send, write, append, upload, delete, ...). Default scan, scan --project and agent-file scans. MEDIUM. CWE-511. Sources: arXiv 2602.06547 §3.5 and Appendix B.1; Christian Schneider, persistent memory poisoning (2026). Analyzer: agent_files (STORY-0099)."
+      "notes": "An always-loaded instruction file (CLAUDE.md tiers, .claude/rules, AGENTS.md, OpenClaw workspace and heartbeat files) has a sentence with an if/when clause (or a leading date) holding an unusual trigger (deferred user cue, root/sudo/admin, hostname or production host, date, off-hours, nobody watching), a consequence that opens with an action verb, and, unless nobody is watching, a payload in the consequence (URL, curl/wget, secret-bearing object, backups, remote endpoint, silently). Default scan, scan --project and agent-file scans. MEDIUM. CWE-511. Sources: arXiv 2602.06547 §3.5 and Appendix B.1. Analyzer: agent_files (STORY-0099)."
     },
     {
       "finding_id": "MANAGED-001",

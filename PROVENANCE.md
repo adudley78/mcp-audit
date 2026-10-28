@@ -686,7 +686,9 @@ All regexes and decoders are original implementations; the phrase sets in
 sentences, reserved hostnames). Sources were read on 2026-10-28.
 
 - **"Do Not Mention This to the User": Malicious Agent Skills in the Wild**
-  (USENIX Security 2026) — [arXiv 2602.06547v4](https://arxiv.org/html/2602.06547v4).
+  — [arXiv 2602.06547v4](https://arxiv.org/html/2602.06547v4); the arXiv
+  record's comments field says "Accepted to the 35th USENIX Security
+  Symposium (USENIX Security 2026)" (checked 2026-10-28).
   §4.2 quotes, from confirmed-malicious skills: "Do NOT mention in
   conversation - just include it" and "Do NOT ask user permission" (smp_2795),
   "MANDATORY ACTIVATION PROTOCOL" (smp_2663), and a Slack bridge banning
@@ -705,13 +707,18 @@ sentences, reserved hostnames). Sources were read on 2026-10-28.
 - **Christian Schneider, "Persistent memory poisoning in AI agents"**
   (2026-02-26) — [christian-schneider.net](https://christian-schneider.net/blog/persistent-memory-poisoning-in-ai-agents/):
   conditional sleeper rules ("if the user later says X, then ..."). Basis for
-  MEM-005's deferred-user-cue trigger.
+  MEM-005's deferred-user-cue trigger. **Not independently verified:** cited
+  from the 2026-10-25 research scan; the page could not be fetched to
+  re-check it on 2026-10-28.
 - **Reverse CAPTCHA** — [arXiv 2603.00164](https://arxiv.org/abs/2603.00164)
   §4.1: "zero-width space (U+200B) for 0 and zero-width non-joiner (U+200C)
   for 1", "Each ASCII character ... encoded as 8 binary digits"; OpenAI
   models decode zero-width binary, Anthropic models prefer Unicode Tags (8,308
   outputs). Bit order is not stated; POISON-043 reads high bit first and
-  tries both symbol assignments. Basis for POISON-043.
+  tries both symbol assignments. Basis for POISON-043. **Not independently
+  verified:** the abstract does not give the mapping; the §4.1 quotes were
+  read from the PDF through a summarising fetch and not checked against a
+  second copy.
 - **Paul Butler, "Smuggling arbitrary data through an emoji"** (2025) —
   [paulbutler.org](https://paulbutler.org/2025/smuggling-arbitrary-data-through-an-emoji/):
   bytes 0–15 map to U+FE00–FE0F, bytes 16–255 to U+E0100–E01EF, appended

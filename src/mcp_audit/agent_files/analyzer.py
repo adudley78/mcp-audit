@@ -8,8 +8,8 @@ SKILL-001 (HIGH; the pattern's ``skill_severity`` for POISON-070..075)
     :mod:`mcp_audit.analyzers.poisoning` (except POISON-040/060 obfuscation
     patterns and POISON-050 length) matches the file body.  The directive
     patterns (STORY-0099) report at their own severity: HIGH for secrecy,
-    MEDIUM for autonomy override, tool-disabling, startup execution and
-    remote instructions, LOW for coercive framing.
+    MEDIUM for tool-disabling, LOW for autonomy override, coercive framing,
+    startup execution and remote instructions.
 
 SKILL-002 (MEDIUM)
     Obfuscated or oversized block in a skill / command file.  Fires on
@@ -26,7 +26,8 @@ SKILL-003 (MEDIUM)
 MEM-001 (MEDIUM)
     Imperative override instruction in a memory file.  Fires on POISON-012
     (behavioral override) except a "do not tell <someone> to <verb>"
-    instruction, or on POISON-070 (a secrecy directive aimed at the user or
+    instruction to someone other than the user (and not a purpose clause),
+    or on POISON-070 (a secrecy directive aimed at the user or
     the conversation) — more conservative than SKILL-001 to control the
     false-positive rate on innocuous project CLAUDE.md files (STORY-0099).
 
@@ -63,9 +64,9 @@ MEM-004 (HIGH)
 MEM-005 (MEDIUM)
     An always-loaded instruction file (CLAUDE.md tiers, rules, AGENTS.md,
     OpenClaw workspace and heartbeat files) holds a conditional sleeper
-    trigger: a later cue from the user, a privilege, hostname or date test,
-    or an unobserved-time test, followed in the same sentence by an action
-    verb.  Runs with MEM-003/004 (default scan).  See
+    trigger (a later cue from the user, a privilege, hostname or date test,
+    an unobserved time) in an if/when clause, a consequence that opens with
+    an action verb, and a payload cue in it.  Runs with MEM-003/004 (default scan).  See
     :mod:`mcp_audit.agent_files.sleeper`.  STORY-0099.
 
 Imported and referenced files (``AgentFile.imported_from`` set) are scanned
@@ -376,10 +377,12 @@ def _mem005_findings(af: AgentFile) -> list[Finding]:
                     "Instruction file holds a conditional sleeper trigger",
                     (
                         f"Line {hit.line} of '{af.path.name}' makes an action wait"
-                        " for a trigger ordinary project instructions do not use:"
-                        " a later cue from the user, a privilege, hostname or"
-                        " production-host test, a calendar date, or a time when"
-                        " nobody is watching. The file is loaded into every"
+                        " for a trigger (a later cue from the user, a privilege,"
+                        " hostname or production-host test, a calendar date, or a"
+                        " time when nobody is watching), and the action sends,"
+                        " runs or deletes something sensitive (a URL, credentials,"
+                        " backups, a remote endpoint, or done silently). The file"
+                        " is loaded into every"
                         " session, so the rule sits dormant until the condition"
                         " holds. Conditional triggers were 18.4% of the hidden"
                         " features of confirmed-malicious skills (USENIX Security"
