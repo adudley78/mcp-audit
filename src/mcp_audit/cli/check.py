@@ -169,17 +169,19 @@ def check(
     - 2: error (invalid path, ambiguous input, scan failure)
     """
     console = Console(width=80)
+    # With --json, stdout is the JSON document; every other line goes to stderr.
+    con = Console(stderr=True, width=80) if json_flag else console
 
     # ── Resolve positional vs --path ──────────────────────────────────────────
     if configs and len(configs) > 1:
-        console.print(
+        con.print(
             "[red]Error:[/red] check accepts a single config path. "
             "Pass one path positionally or use --path."
         )
         raise typer.Exit(2)
     config = configs[0] if configs else None
     if config is not None and path is not None:
-        console.print(
+        con.print(
             "[red]Error:[/red] Provide a config path either as a positional argument "
             "or via --path, not both."
         )
@@ -188,7 +190,7 @@ def check(
 
     # ── Path validation ───────────────────────────────────────────────────────
     if resolved_path is not None and not resolved_path.resolve().exists():
-        console.print(f"[red]File not found:[/red] {resolved_path}")
+        con.print(f"[red]File not found:[/red] {resolved_path}")
         raise typer.Exit(2)
 
     extra_paths = [resolved_path] if resolved_path else None
@@ -200,7 +202,7 @@ def check(
             skip_rug_pull=False,
         )
     except Exception as exc:  # noqa: BLE001
-        console.print(f"[red]Scan error:[/red] {exc}")
+        con.print(f"[red]Scan error:[/red] {exc}")
         raise typer.Exit(2) from None
 
     result = _apply_lock_verification(result, no_lock, console)
@@ -208,16 +210,21 @@ def check(
     # ── No configs found ──────────────────────────────────────────────────────
     # Only when nothing at all was found: a repository with no MCP config can
     # still carry findings (TRUST-008 auto-run files at the cwd root, STORY-0090;
-    # CI workflows, STORY-0091; plugin mods), and those must reach the verdict
-    # and the exit code.
+    # the current repo's git config, TRUST-006/007, STORY-0089; CI workflows,
+    # STORY-0091; plugin mods), and those must reach the verdict and the exit
+    # code, e.g. on a CI runner with no MCP clients.
     if (
         result.clients_scanned == 0
         and result.servers_found == 0
         and not extra_paths
         and not result.findings
     ):
-        console.print()
-        console.print(
+        if json_flag:
+            # Still one JSON document on stdout (zero servers), as scan does.
+            _write_json(result)
+        else:
+            con.print()
+        con.print(
             "No MCP config files found on this machine. "
             "Run [bold]mcp-audit discover[/bold] to see where mcp-audit looks."
         )
@@ -229,22 +236,20 @@ def check(
     if report is not None:
         report_lower = report.strip().lower()
         if report_lower != "pdf":
-            console.print(
+            con.print(
                 f"[red]Unknown report format:[/red] {report!r}. "
                 "Currently supported: pdf"
             )
             raise typer.Exit(2)
-        _write_pdf_report(result, output_file, org, console)
-        _maybe_ping(grade, console)
+        _write_pdf_report(result, output_file, org, con)
+        _maybe_ping(grade, con)
         raise typer.Exit(_exit_code(result))
 
     # ── JSON output ───────────────────────────────────────────────────────────
     if json_flag:
-        sys.stdout.write(
-            result.model_dump_json(by_alias=True, indent=2, exclude_none=False)
-        )
-        sys.stdout.write("\n")
-        _maybe_ping(grade, console)
+        _write_json(result)
+        # stdout is the JSON document; a ping-failure line must not follow it.
+        _maybe_ping(grade, con)
         raise typer.Exit(_exit_code(result))
 
     # ── Verbose output ────────────────────────────────────────────────────────
@@ -266,6 +271,14 @@ def check(
         _handle_register(console)
 
     raise typer.Exit(_exit_code(result))
+
+
+def _write_json(result: ScanResult) -> None:
+    """Write *result* to stdout as the ``check --json`` document."""
+    sys.stdout.write(
+        result.model_dump_json(by_alias=True, indent=2, exclude_none=False)
+    )
+    sys.stdout.write("\n")
 
 
 def _maybe_ping(grade: str, console: Console) -> None:

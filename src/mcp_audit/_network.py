@@ -58,7 +58,7 @@ def require_offline_compatible(policy: NetworkPolicy, offline: bool) -> None:
         flags = ", ".join(conflicts)
         from rich.console import Console  # noqa: PLC0415
 
-        Console().print(
+        Console(stderr=True).print(
             f"[red]Error:[/red] --offline cannot be used with {flags} "
             "(these flags require network access)."
         )

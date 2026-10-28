@@ -23,7 +23,7 @@ Score is floored at 0 before bonuses are applied.
 |--------|-------|-----------|
 | No credential exposure | +3 | No findings from the `credentials` analyzer |
 | No high-severity issues | +3 | No CRITICAL or HIGH findings |
-| No prompt injection risks | +4 | No findings from the `poisoning` analyzer |
+| No prompt injection risks | +4 | No findings from the `poisoning` analyzer, and none from `delegation` (DELEG-001..003, `--connect` only) |
 
 Final score is capped at 100.
 

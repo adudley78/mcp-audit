@@ -6,7 +6,7 @@
 # Later releases: https://github.com/adudley78/mcp-audit/releases
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.21.1  # current release; `pre-commit autoupdate` moves it forward
+    rev: v0.22.0  # current release; `pre-commit autoupdate` moves it forward
     hooks:
       - id: mcp-audit
         args: [scan, --severity-threshold, medium]

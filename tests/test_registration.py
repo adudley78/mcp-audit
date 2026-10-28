@@ -400,3 +400,53 @@ def test_register_flow_posts_placeholder_grade(tmp_config_dir: Path) -> None:
     post.assert_called_once()
     assert post.call_args.kwargs["grade"] == "?"
     assert '| `grade` | `"?"` |' in _PRIVACY_DOC.read_text(encoding="utf-8")
+
+
+def test_privacy_doc_lists_the_lock_network_flags_the_code_has(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`lock --verify` is offline; `--resolve` reaches npm/PyPI only, and the
+    page's network table names it and `--connect` (STORY-0103)."""
+    import urllib.error
+    import urllib.request
+
+    import typer
+    from typer.testing import CliRunner
+
+    from mcp_audit.cli import app
+
+    text = _PRIVACY_DOC.read_text(encoding="utf-8")
+    table = text.split("### Commands that use the network", 1)[1].split("\n---", 1)[0]
+    assert "| `lock --verify --resolve` |" in table
+    assert "| `lock --connect` (also with `--verify`) |" in table
+
+    lock_cmd = next(
+        c for c in typer.main.get_command(app).commands.values() if c.name == "lock"
+    )
+    flags = {opt for p in lock_cmd.params for opt in p.opts}
+    assert {"--resolve", "--connect"} <= flags
+
+    (tmp_path / ".cursor").mkdir()
+    (tmp_path / ".cursor" / "mcp.json").write_text(
+        json.dumps(
+            {"mcpServers": {"gh": {"command": "npx", "args": ["-y", "pkg@^1.0.0"]}}}
+        )
+    )
+    opened: list[str] = []
+
+    def record(url: object, *args: object, **kwargs: object) -> object:
+        opened.append(getattr(url, "full_url", str(url)))
+        raise urllib.error.URLError("offline test")
+
+    monkeypatch.setattr(urllib.request, "urlopen", record)
+    monkeypatch.setattr(urllib.request, "urlretrieve", record)
+    runner = CliRunner()
+    assert runner.invoke(app, ["lock", str(tmp_path), "--offline"]).exit_code == 0
+    runner.invoke(app, ["lock", str(tmp_path), "--verify"])
+    assert opened == []
+    runner.invoke(app, ["lock", str(tmp_path), "--verify", "--resolve"])
+    assert opened
+    assert all(
+        u.startswith(("https://registry.npmjs.org/", "https://pypi.org/"))
+        for u in opened
+    )

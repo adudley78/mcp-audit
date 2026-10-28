@@ -205,6 +205,36 @@ def _malicious_matches(
     ]
 
 
+def _as_list(value: Any) -> list[Any]:
+    """Return *value* as a list for rendering remote (``--online``) verdict data.
+
+    A list or tuple is returned as a list; a lone string becomes a one-item
+    list (not its characters); anything else (missing, ``None``, a number,
+    an object) becomes an empty list, so a malformed field degrades to
+    "not shown" instead of a ``TypeError``.
+    """
+    if isinstance(value, list | tuple):
+        return list(value)
+    if isinstance(value, str) and value:
+        return [value]
+    return []
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    """Return *value* if it is a dict, else an empty dict (remote verdict data)."""
+    return value if isinstance(value, dict) else {}
+
+
+def _vuln_items(verdict: dict[str, Any]) -> list[dict[str, Any]]:
+    """The verdict's ``known_vulnerabilities`` as dicts, for rendering.
+
+    An item that is not an object (possible only in an ``--online`` verdict)
+    becomes ``{}``: it is still counted, and it has no recorded fix, so it
+    keeps the exit code at 1 rather than hiding a vulnerability.
+    """
+    return [_as_dict(v) for v in _as_list(verdict.get("known_vulnerabilities"))]
+
+
 def _with_local_malicious(
     verdict: dict[str, Any],
     name: str,
@@ -233,8 +263,9 @@ def _with_local_malicious(
     if not local:
         return verdict
     merged = dict(verdict)
-    existing = [m for m in merged.get("malicious") or [] if isinstance(m, dict)]
-    seen = {m.get("id") for m in existing}
+    existing = [m for m in _as_list(merged.get("malicious")) if isinstance(m, dict)]
+    # A remote id may be any JSON type; only a string can match a local id.
+    seen = {m.get("id") for m in existing if isinstance(m.get("id"), str)}
     merged["malicious"] = existing + [m for m in local if m["id"] not in seen]
     return merged
 
@@ -360,8 +391,8 @@ def _print_known_verdict(
         console: Rich console to print to.
     """
     pkg = verdict["package"]
-    reg = verdict["registry"]
-    vulns = verdict["known_vulnerabilities"]
+    reg = _as_dict(verdict.get("registry"))
+    vulns = _vuln_items(verdict)
     caps = verdict["capabilities"]
     att = verdict["attestation"]
     links = verdict["links"]
@@ -496,8 +527,10 @@ def _open_range_phrase(item: dict[str, Any]) -> str:
     """'every release' or 'every release from X on' for a malicious item."""
     starts = [
         events[0].get("introduced")
-        for events in item.get("ranges") or []
-        if events
+        for events in _as_list(item.get("ranges"))
+        if isinstance(events, list)
+        and events
+        and all(isinstance(e, dict) for e in events)
         and not any("fixed" in e or "last_affected" in e for e in events)
         and "introduced" in events[0]
     ]
@@ -522,6 +555,13 @@ def _print_malicious_panel(
         other_ecosystem: Set when *items* describe the same name in the other
             registry, not the package this verdict is for.
     """
+    # An ``--online`` verdict is remote data: an item may lack a field the
+    # bundled builder always sets, or not be an object at all.
+    items = [i for i in _as_list(items) if isinstance(i, dict)]
+    if not items:
+        # Nothing renderable (e.g. an --online ``malicious: 42`` or ``[1]``):
+        # no panel, rather than an empty "Malicious releases listed" one.
+        return
     latest = any(i.get("latest_affected") for i in items)
     t = Text()
     if other_ecosystem is not None:
@@ -533,23 +573,29 @@ def _print_malicious_panel(
             style="bold",
         )
     for item in items:
-        t.append_text(Text.from_markup(f"  [red bold]{item['id']}[/red bold]"))
-        if item.get("aliases"):
-            t.append(f" ({', '.join(item['aliases'])})")
+        # Appended as plain text, not markup: a '[' in a remote id must not
+        # be read as a Rich tag.
+        t.append("  ")
+        t.append(str(item.get("id") or "(no id)"), style="red bold")
+        aliases = _as_list(item.get("aliases"))
+        if aliases:
+            t.append(f" ({', '.join(str(a) for a in aliases)})")
         if item.get("summary"):
             t.append(f" — {item['summary']}")
         t.append("\n")
         if item.get("latest_affected"):
             t.append(f"    {_open_range_phrase(item)} marked malicious\n")
-        elif item.get("versions"):
-            t.append(f"    releases listed: {', '.join(item['versions'][:8])}\n")
+        elif _as_list(item.get("versions")):
+            listed = ", ".join(str(v) for v in _as_list(item["versions"])[:8])
+            t.append(f"    releases listed: {listed}\n")
         if item.get("blanket_range_ignored"):
             t.append(
                 "    OSV also marks every version; the registry lists this package "
                 "as legitimate, so the explicit list is used.\n",
                 style="dim",
             )
-        t.append(f"    {item['link']}\n", style="dim")
+        if item.get("link"):
+            t.append(f"    {item['link']}\n", style="dim")
         if item.get("note"):
             t.append(f"    Note: {item['note']}\n", style="dim")
         t.append("\n")
@@ -638,7 +684,7 @@ def print_verdict(
         twin: The unscoped-twin relation when ``typosquat_basis`` is
             ``"unscoped-twin"``; ``None`` otherwise.
     """
-    reg = verdict["registry"]
+    reg = _as_dict(verdict.get("registry"))
     typosquat_name = verdict.get("typosquat_of")
     pkg_name = verdict["package"]["name"]
 
@@ -693,12 +739,14 @@ def _verdict_exit_code(verdict: dict[str, Any], strict: bool) -> int:
     Returns:
         Integer exit code (0 or 1).
     """
-    vulns = verdict.get("known_vulnerabilities", [])
+    vulns = _vuln_items(verdict)
     typosquat = verdict.get("typosquat_of")
-    listed = verdict.get("registry", {}).get("listed", False)
+    listed = _as_dict(verdict.get("registry")).get("listed", False)
     unfixed = [v for v in vulns if not v.get("fixed_in")]
     malicious_latest = [
-        m for m in verdict.get("malicious") or [] if m.get("latest_affected")
+        m
+        for m in _as_list(verdict.get("malicious"))
+        if isinstance(m, dict) and m.get("latest_affected")
     ]
 
     if unfixed or typosquat or malicious_latest:

@@ -88,6 +88,10 @@ _LAUNCHER_SUFFIXES: tuple[str, ...] = (".cmd", ".exe", ".bat", ".ps1")
 _CMD_RUN_FLAGS: frozenset[str] = frozenset({"/c", "/k"})
 # Bound on nested ``cmd /c cmd /c …`` unwrapping.
 _MAX_CMD_UNWRAP = 3
+# CreateProcess limits a command line to 32,767 characters (learn.microsoft.com,
+# CreateProcessW, lpCommandLine), so nothing past that can be launched.
+_MAX_WINDOWS_CMDLINE = 32_767
+_WINDOWS_ARG_SPACE = " \t"
 
 
 def _launcher_basename(command: str) -> str:
@@ -103,6 +107,113 @@ def _launcher_basename(command: str) -> str:
         if base.endswith(suffix) and len(base) > len(suffix):
             return base[: -len(suffix)]
     return base
+
+
+def _read_windows_program_name(text: str, i: int) -> tuple[str, int]:
+    """Read the first argument (the program name) of a Windows command line.
+
+    Double quotes group and are dropped; backslashes are always literal.
+    Returns the name and the index just past it.
+    """
+    buf: list[str] = []
+    in_quotes = False
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == '"':
+            in_quotes = not in_quotes
+        elif ch in _WINDOWS_ARG_SPACE and not in_quotes:
+            break
+        else:
+            buf.append(ch)
+        i += 1
+    return "".join(buf), i
+
+
+def _read_windows_argument(text: str, i: int) -> tuple[str, int]:
+    """Read one later argument of a Windows command line, starting at *i*.
+
+    Applies the backslash and quote rules described in
+    :func:`split_windows_command_line`. Returns the argument and the index
+    just past it. Each character is visited once.
+    """
+    buf: list[str] = []
+    in_quotes = False
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "\\":
+            j = i
+            while j < n and text[j] == "\\":
+                j += 1
+            count = j - i
+            if j < n and text[j] == '"':
+                buf.append("\\" * (count // 2))
+                if count % 2:
+                    buf.append('"')  # odd: the last backslash escapes the quote
+                    j += 1
+                # even: the quote at j is read next, as a delimiter
+            else:
+                buf.append("\\" * count)
+            i = j
+        elif ch == '"':
+            if in_quotes and i + 1 < n and text[i + 1] == '"':
+                buf.append('"')  # "" inside quotes is one literal quote
+                i += 2
+            else:
+                in_quotes = not in_quotes
+                i += 1
+        elif ch in _WINDOWS_ARG_SPACE and not in_quotes:
+            break
+        else:
+            buf.append(ch)
+            i += 1
+    return "".join(buf), i
+
+
+def split_windows_command_line(line: str) -> list[str]:
+    """Split a Windows command line into arguments the way Windows programs do.
+
+    Follows the Microsoft C runtime rules ("Parsing C command-line
+    arguments", learn.microsoft.com), which ``CommandLineToArgvW`` shares
+    for backslashes and quotes:
+
+    * spaces and tabs outside double quotes separate arguments;
+    * the first argument is the program name: double quotes group (so
+      ``"C:\\Program Files\\nodejs\\npx.cmd"`` is one argument) and are
+      dropped, and backslashes are literal;
+    * in later arguments, 2n backslashes before a ``"`` give n backslashes
+      and the quote opens or closes a quoted part; 2n+1 give n backslashes
+      and a literal ``"``; backslashes not before a quote are literal; inside
+      quotes, ``""`` is a literal ``"``; an unclosed quote runs to the end.
+
+    Leading spaces and tabs are skipped, as ``cmd /c`` skips them. Only the
+    first 32,767 characters are read (the CreateProcess limit). One pass,
+    linear in the input.
+
+    Args:
+        line: A whole command line, such as the single argument after
+            ``cmd /c``.
+
+    Returns:
+        The arguments, in order; empty when *line* is blank.
+    """
+    text = line[:_MAX_WINDOWS_CMDLINE]
+    n = len(text)
+    i = 0
+    while i < n and text[i] in _WINDOWS_ARG_SPACE:
+        i += 1
+    if i >= n:
+        return []
+    program, i = _read_windows_program_name(text, i)
+    args = [program]
+    while True:
+        while i < n and text[i] in _WINDOWS_ARG_SPACE:
+            i += 1
+        if i >= n:
+            return args
+        arg, i = _read_windows_argument(text, i)
+        args.append(arg)
 
 
 def normalize_launch(
@@ -122,7 +233,11 @@ def normalize_launch(
     * ``cmd``/``cmd.exe`` followed by ``/c`` or ``/k`` (any case, after any
       other ``/x`` switches such as ``/d /s``) is unwrapped so the next
       argument is the launcher.  A single argument holding the whole command
-      line (``cmd /c "npx -y pkg"``) is split on whitespace.
+      line (``cmd /c "npx -y pkg"``), or an argument with double quotes in it
+      (``"C:\\Program Files\\nodejs\\npx.cmd" -y pkg``), is split with
+      :func:`split_windows_command_line`.  An argument with spaces and no
+      quotes followed by more arguments is one path, as the launching program
+      quotes it.  ``cmd``'s own ``/s`` quote stripping is not modelled.
 
     Args:
         command: The server's ``command``.
@@ -147,9 +262,10 @@ def normalize_launch(
         if i >= len(rest) - 1 or rest[i].lower() not in _CMD_RUN_FLAGS:
             break
         target, rest = rest[i + 1], rest[i + 2 :]
-        if not rest and any(ch.isspace() for ch in target.strip()):
-            tokens = target.split()
-            target, rest = tokens[0], tokens[1:]
+        if '"' in target or (not rest and any(ch.isspace() for ch in target)):
+            tokens = split_windows_command_line(target)
+            if tokens:
+                target, rest = tokens[0], tokens[1:] + rest
         launcher = _launcher_basename(target)
     return launcher, rest
 

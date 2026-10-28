@@ -554,3 +554,24 @@ class TestStateDirUsesPlatformdirs:
             patch.object(rp_module, "_migration_done", False),
         ):
             rp_module._migrate_legacy_state()  # must not raise
+
+    def test_migration_notice_goes_to_stderr(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """The one-time migration notice must not land on stdout (JSON pipes)."""
+        import mcp_audit.analyzers.rug_pull as rp_module
+
+        legacy = tmp_path / "legacy"
+        legacy.mkdir()
+        (legacy / "state.json").write_text("{}")
+        new_dir = tmp_path / "new_state"
+        with (
+            patch.object(rp_module, "_LEGACY_STATE_DIR", legacy),
+            patch.object(rp_module, "_STATE_DIR", new_dir),
+            patch.object(rp_module, "_migration_done", False),
+        ):
+            rp_module._migrate_legacy_state()
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "migrated 1 state file" in captured.err
+        assert (new_dir / "state.json").exists()

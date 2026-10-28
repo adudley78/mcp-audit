@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 
 import pytest
+from typer.testing import CliRunner
 
 # ── Deterministic terminal width for the whole test session ────────────────────
 #
@@ -84,12 +85,54 @@ def _isolate_claude_plugins(
         "mcp_audit.discovery._agent_definitions_home",
         lambda: tmp_path_factory.getbasetemp() / "no-claude-agents-home",
     )
+    # Skill packages (STORY-0095) are read from ~/.claude/skills in every
+    # default scan.  Point that at nothing; tests that need skills patch it.
+    monkeypatch.setattr(
+        "mcp_audit.agent_files.skill_package._skills_home",
+        lambda: tmp_path_factory.getbasetemp() / "no-skills-home",
+    )
+    # A default scan also reads ~/.openclaw/workspace/HEARTBEAT.md (MEM-004,
+    # STORY-0098); keep a contributor's own OpenClaw workspace out of it.
+    monkeypatch.setattr(
+        "mcp_audit.agent_files.reach._user_heartbeat_files", lambda errors: []
+    )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_cwd_git_repository(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the test runner's own git checkout out of default-discovery scans.
+
+    A default scan checks the repository git would use from the current
+    directory (TRUST-006/TRUST-007, STORY-0089), and tests run from this repo's
+    checkout: a contributor's husky ``core.hooksPath``, git-lfs filters or
+    pre-commit hooks, or the ``includeIf`` entries actions/checkout writes on
+    CI, would add findings to any test that runs a default scan.  Tests that
+    exercise the check call ``mcp_audit.analyzers.git_exec`` directly or
+    restore the real function (see ``tests/test_git_exec.py``).
+    """
+    monkeypatch.setattr(
+        "mcp_audit.analyzers.git_exec.scan_cwd_repository", lambda *_a, **_k: []
+    )
 
 
 @pytest.fixture()
 def pro_enabled() -> None:  # type: ignore[return]
     """Historical no-op fixture — all features are available to all users."""
     yield  # type: ignore[misc]
+
+
+def split_runner() -> CliRunner:
+    """A ``CliRunner`` whose ``result.stdout`` holds stdout only.
+
+    Click 8.1 mixes stderr into ``stdout`` unless ``mix_stderr=False``; Click
+    8.2 removed that argument and always keeps the streams apart (``output``
+    is the mix, ``stdout``/``stderr`` are separate). Tests that check what a
+    pipe consumer reads from stdout use this on either version.
+    """
+    try:
+        return CliRunner(mix_stderr=False)  # type: ignore[call-arg]
+    except TypeError:
+        return CliRunner()
 
 
 def unwrapped(text: str) -> str:

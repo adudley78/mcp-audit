@@ -31,6 +31,13 @@ opt-in.  Keys and semantics follow code.claude.com/docs/en/permissions.
 STORY-0092 (2026-10-25) and live in :mod:`mcp_audit.analyzers.permissions`:
 ``analyze_config`` runs PERM-001..006 on the same files as HARNESS-*, and the
 scanner runs PERM-007 after every per-server analyzer.
+
+**Sandbox settings a repository can loosen (SANDBOX-001..005)** were added in
+STORY-0093 (2026-10-26) and live in :mod:`mcp_audit.analyzers.sandbox`.  They
+are not run from ``analyze_config``: whether a local settings file is the
+repository's depends on git's ignore files and their severity on the user's
+own settings, so the scanner runs all five as pipeline step 0b, on the same
+files, gated on this analyzer.
 """
 
 from __future__ import annotations
@@ -1210,6 +1217,9 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
           non-first-party host (the CVE-2026-21852 shape).
         - **PERM-001..006**: permission rules that don't do what they say
           (:mod:`mcp_audit.analyzers.permissions`, STORY-0092).
+
+        SANDBOX-001..005 (:mod:`mcp_audit.analyzers.sandbox`, STORY-0093) run
+        on the same files in pipeline step 0b, not here.
 
         Args:
             raw: The parsed JSON dict for the config file.
