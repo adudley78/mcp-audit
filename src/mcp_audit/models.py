@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from mcp_audit import __version__
+from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS as _GATEWAY_CLIENTS
 
 # ── Machine identification ─────────────────────────────────────────────────────
 
@@ -125,6 +126,23 @@ class ServerConfig(BaseModel):
 
         return redact_header_values(headers)
 
+    # Servers read from an MCP gateway's config (``<gateway>-upstream``
+    # clients, STORY-0111) also have their ``env`` values redacted
+    # (``supply_chain.redact_env_values``), and in ``raw`` their ``env`` and
+    # every secret-named key (``supply_chain.redact_nested_secrets``), on top
+    # of the all-client header and secret-key redaction: a gateway config
+    # typically holds every upstream's keys.
+
+    @field_serializer("env", when_used="json")
+    def _serialize_env(self, env: dict[str, str]) -> dict[str, str]:
+        if self.client not in _GATEWAY_CLIENTS:
+            return env
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_env_values,
+        )
+
+        return redact_env_values(env)
+
     @field_serializer("command", "url", when_used="json")
     def _serialize_launch_text(self, value: str | None) -> str | None:
         from mcp_audit.analyzers.supply_chain import redact_url  # noqa: PLC0415
@@ -159,7 +177,22 @@ class ServerConfig(BaseModel):
             value = out.get(key)
             if isinstance(value, str):
                 out[key] = redact_url(value)
-        return _redact_raw_secrets(out)
+        out = _redact_raw_secrets(out)
+        if self.client in _GATEWAY_CLIENTS:
+            from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+                redact_env_values,
+                redact_nested_secrets,
+            )
+
+            # Every other key the gateway wrote (1MCP ``oauth.clientSecret``,
+            # MCPHub fields, …): secret-named values and credential formats.
+            out = redact_nested_secrets(  # type: ignore[assignment]
+                out,
+                frozenset({"env", "headers", "args", *_RAW_LAUNCH_TEXT_KEYS}),
+            )
+            if isinstance(out.get("env"), dict):
+                out["env"] = redact_env_values(out["env"])
+        return out
 
 
 def _redact_raw_secrets(out: dict) -> dict:

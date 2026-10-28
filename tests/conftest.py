@@ -108,6 +108,13 @@ def _isolate_claude_plugins(
         "mcp_audit.agent_files.drift.DEFAULT_STATE_PATH",
         base / "drift-state" / "instruction-files.json",
     )
+    # MCP gateway configs (STORY-0111): ~/.mcptoon, ~/.config/1mcp,
+    # ~/.config/mcphub and their environment overrides.  Point at nothing.
+    monkeypatch.setattr(
+        "mcp_audit.gateways._gateway_home",
+        lambda: tmp_path_factory.getbasetemp() / "no-gateways-home",
+    )
+    monkeypatch.setattr("mcp_audit.gateways._gateway_environ", lambda: {})
     # Codex and Gemini CLI user configs (STORY-0110) join default discovery:
     # keep a contributor's own ~/.codex/config.toml and ~/.gemini/settings.json
     # (and any CODEX_HOME) out of it.  Tests that need them patch these back.
