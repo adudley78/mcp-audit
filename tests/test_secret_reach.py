@@ -133,7 +133,9 @@ def test_absolute_double_slash_rule_covers(tmp_path: Path) -> None:
     store = _write(home / ".aws" / "credentials")
     _settings(
         config / "settings.json",
-        {"permissions": {"deny": [f"Read(/{store.as_posix()})"]}},
+        # Permissions doc: "//path" from the filesystem root; on Windows the
+        # path is in POSIX form ("C:\\Users\\alice" becomes "/c/Users/alice").
+        {"permissions": {"deny": [f"Read(/{sr._posix(store)})"]}},
     )
     assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
 
@@ -288,7 +290,12 @@ def test_sandbox_absolute_path(tmp_path: Path) -> None:
     store = _write(home / ".aws" / "credentials")
     _settings(
         config / "settings.json",
-        {"sandbox": {"enabled": True, "filesystem": {"denyRead": [str(store)]}}},
+        {
+            "sandbox": {
+                "enabled": True,
+                "filesystem": {"denyRead": [str(sr._posix(store))]},
+            }
+        },
     )
     assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
 
