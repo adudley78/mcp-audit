@@ -205,6 +205,21 @@ def _malicious_matches(
     ]
 
 
+def _as_list(value: Any) -> list[Any]:
+    """Return *value* as a list for rendering remote (``--online``) verdict data.
+
+    A list or tuple is returned as a list; a lone string becomes a one-item
+    list (not its characters); anything else (missing, ``None``, a number,
+    an object) becomes an empty list, so a malformed field degrades to
+    "not shown" instead of a ``TypeError``.
+    """
+    if isinstance(value, list | tuple):
+        return list(value)
+    if isinstance(value, str) and value:
+        return [value]
+    return []
+
+
 def _with_local_malicious(
     verdict: dict[str, Any],
     name: str,
@@ -233,8 +248,9 @@ def _with_local_malicious(
     if not local:
         return verdict
     merged = dict(verdict)
-    existing = [m for m in merged.get("malicious") or [] if isinstance(m, dict)]
-    seen = {m.get("id") for m in existing}
+    existing = [m for m in _as_list(merged.get("malicious")) if isinstance(m, dict)]
+    # A remote id may be any JSON type; only a string can match a local id.
+    seen = {m.get("id") for m in existing if isinstance(m.get("id"), str)}
     merged["malicious"] = existing + [m for m in local if m["id"] not in seen]
     return merged
 
@@ -496,7 +512,7 @@ def _open_range_phrase(item: dict[str, Any]) -> str:
     """'every release' or 'every release from X on' for a malicious item."""
     starts = [
         events[0].get("introduced")
-        for events in item.get("ranges") or []
+        for events in _as_list(item.get("ranges"))
         if isinstance(events, list)
         and events
         and all(isinstance(e, dict) for e in events)
@@ -526,7 +542,7 @@ def _print_malicious_panel(
     """
     # An ``--online`` verdict is remote data: an item may lack a field the
     # bundled builder always sets, or not be an object at all.
-    items = [i for i in items if isinstance(i, dict)]
+    items = [i for i in _as_list(items) if isinstance(i, dict)]
     latest = any(i.get("latest_affected") for i in items)
     t = Text()
     if other_ecosystem is not None:
@@ -542,15 +558,16 @@ def _print_malicious_panel(
         # be read as a Rich tag.
         t.append("  ")
         t.append(str(item.get("id") or "(no id)"), style="red bold")
-        if item.get("aliases"):
-            t.append(f" ({', '.join(str(a) for a in item['aliases'])})")
+        aliases = _as_list(item.get("aliases"))
+        if aliases:
+            t.append(f" ({', '.join(str(a) for a in aliases)})")
         if item.get("summary"):
             t.append(f" — {item['summary']}")
         t.append("\n")
         if item.get("latest_affected"):
             t.append(f"    {_open_range_phrase(item)} marked malicious\n")
-        elif item.get("versions"):
-            listed = ", ".join(str(v) for v in list(item["versions"])[:8])
+        elif _as_list(item.get("versions")):
+            listed = ", ".join(str(v) for v in _as_list(item["versions"])[:8])
             t.append(f"    releases listed: {listed}\n")
         if item.get("blanket_range_ignored"):
             t.append(
@@ -709,7 +726,7 @@ def _verdict_exit_code(verdict: dict[str, Any], strict: bool) -> int:
     unfixed = [v for v in vulns if not v.get("fixed_in")]
     malicious_latest = [
         m
-        for m in verdict.get("malicious") or []
+        for m in _as_list(verdict.get("malicious"))
         if isinstance(m, dict) and m.get("latest_affected")
     ]
 

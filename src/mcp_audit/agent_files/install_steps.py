@@ -894,6 +894,10 @@ _BARE_HOST_RE = re.compile(
     r"|[a-z0-9-]{1,63}(?:\.[a-z0-9-]{1,63}){1,10}(?::\d{1,5})?/\S{0,512})$"
 )
 _WGET_RE = re.compile(r"(?i)(?<![\w./-])wget(?:\.exe)?(?![\w-])")
+#: A shell word: quoted runs keep their spaces (``-H 'A: b'`` is one value).
+#: The alternatives start on disjoint characters (no nested quantifier), so
+#: matching is linear; at most 4 KiB after the fetch command is read.
+_SHELL_WORD_RE = re.compile(r"""(?:'[^']*'|"[^"]*"|[^\s'"])+""")
 
 
 def _bare_host_url(seg: str, after: int) -> Url | None:
@@ -903,9 +907,10 @@ def _bare_host_url(seg: str, after: int) -> Url | None:
     read as plaintext for a raw IP only.  A schemeless hostname gets an empty
     scheme (LOW, not HIGH; GAPS.md).  Only the first word that is not an option
     or an option's value is read, and only a raw IP or a host with a path or
-    port counts.
+    port counts.  Words are split shell-style, so a quoted option value with
+    a space (``-H 'A: b'``) is one word.
     """
-    tokens = seg[after:].split()
+    tokens = _SHELL_WORD_RE.findall(seg[after : after + 4096])
     wget = bool(_WGET_RE.search(seg[:after]))
     skip = False
     for token in tokens[:32]:

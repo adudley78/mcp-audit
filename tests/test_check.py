@@ -815,3 +815,13 @@ class TestCheckJsonStdoutStaysParseable:
         assert r.exit_code == 2
         assert r.stdout == ""
         assert "File not found" in r.stderr
+
+    def test_bad_report_format_error_goes_to_stderr(self, tmp_path: Path) -> None:
+        server = _server(tmp_path / ".mcp.json")
+        with patch(
+            "mcp_audit.cli.check.run_scan", return_value=self._result_for(server)
+        ):
+            r = self._split.invoke(app, ["check", "--json", "--report", "docx"])
+        assert r.exit_code == 2
+        assert r.stdout == ""
+        assert "Unknown report format" in r.stderr

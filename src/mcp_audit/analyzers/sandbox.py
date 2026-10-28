@@ -457,9 +457,10 @@ _LOOSENING_KEYS: tuple[_Loosening, ...] = (
         "enabled",
         _is_false,
         Severity.HIGH,
-        "Bash commands run unsandboxed in this project even when your"
-        " ~/.claude/settings.json turns the sandbox on (project settings take"
-        " precedence over user settings)",
+        "Bash commands run unsandboxed in this project even when your user"
+        " settings (~/.claude/settings.json, or $CLAUDE_CONFIG_DIR/settings.json)"
+        " turn the sandbox on (project settings take precedence over user"
+        " settings)",
         project_only=True,
     ),
     _Loosening(
@@ -467,8 +468,8 @@ _LOOSENING_KEYS: tuple[_Loosening, ...] = (
         _is_false,
         Severity.MEDIUM,
         "when the sandbox can't start, commands run unsandboxed instead of"
-        " Claude Code refusing to start, even when your ~/.claude/settings.json"
-        " sets true",
+        " Claude Code refusing to start, even when your user settings"
+        " (~/.claude/settings.json, or $CLAUDE_CONFIG_DIR/settings.json) set true",
         project_only=True,
     ),
     _Loosening(
@@ -903,7 +904,8 @@ _SANDBOX_003 = _Check(
         " registry.npmjs.org or pypi.org). Add sandbox.network.deniedDomains for"
         " upload hosts you never want reached. To stop any repository from"
         " widening the allowlist, set sandbox.network.strictAllowlist: true in"
-        " your ~/.claude/settings.json."
+        " your user settings (~/.claude/settings.json, or"
+        " $CLAUDE_CONFIG_DIR/settings.json when that is set)."
     ),
     cwe="CWE-183",
     owasp=("MCP02", "MCP10"),

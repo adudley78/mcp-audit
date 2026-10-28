@@ -37,7 +37,7 @@ DEFAULT_STATE_PATH: Path = _STATE_DIR / "state.json"
 _STATE_VERSION = 1
 _LEGACY_STATE_DIR: Path = Path.home() / ".mcp-audit"
 
-_console = Console()
+_console = Console(stderr=True)
 
 
 # ── One-time migration from legacy ~/.mcp-audit location ──────────────────────

@@ -975,3 +975,45 @@ class TestVetOnlineMaliciousItemsAreRemoteData:
         out = unwrapped(result.output)
         assert "(no id)" in out
         assert "releases listed: 1, 2" in out
+
+    def test_wrong_typed_fields_degrade_gracefully(self) -> None:
+        """Wrong-typed aliases/versions/ranges must not raise TypeError (STORY-0104)."""
+        result = self._run(
+            [
+                {
+                    "id": "MAL-2099-2",
+                    "latest_affected": True,
+                    "aliases": 5,
+                    "ranges": 7,
+                },
+                {"id": "MAL-2099-3", "aliases": "GHSA-abcd", "versions": 3},
+                {"id": "MAL-2099-4", "versions": "1.0.0"},
+            ]
+        )
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 1
+        out = unwrapped(result.output)
+        assert "MAL-2099-2" in out
+        # A lone string alias is shown whole, not split into characters.
+        assert "(GHSA-abcd)" in out
+        assert "releases listed: 1.0.0" in out
+
+    def test_non_list_malicious_field_does_not_crash(self) -> None:
+        with patch(
+            "mcp_audit.cli.vet._fetch_online_verdict",
+            return_value={**self._online([]), "malicious": 42},
+        ):
+            result = runner.invoke(app, ["vet", "totallyunknownpkgxyz", "--online"])
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 0
+
+    def test_list_id_does_not_break_the_local_merge(self) -> None:
+        from mcp_audit.cli.vet import _with_local_malicious
+
+        online = self._online([{"id": ["MAL-2026-5479"], "latest_affected": True}])
+        online["package"]["name"] = "mcp-server-github"
+        merged = _with_local_malicious(
+            online, "mcp-server-github", "npm", _bundled_registry()
+        )
+        ids = [m["id"] for m in merged["malicious"]]
+        assert "MAL-2026-5479" in ids
