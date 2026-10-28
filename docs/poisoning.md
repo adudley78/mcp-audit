@@ -2,7 +2,7 @@
 
 mcp-audit's `POISON-*` checks are regular expressions run over the text an AI agent reads about a tool: its name, its description and the strings inside its input schema. They run on MCP config files, on live tool definitions with `scan --connect`, and (through the same `PATTERNS` list) on agent instruction files. The pattern list and severities are in [severity-framework.md](severity-framework.md); where each pattern comes from is in [PROVENANCE.md](../PROVENANCE.md).
 
-This page reports how often those checks are right, and (in [Cross-tool delegation](#cross-tool-delegation-deleg-001003)) how the DELEG-* checks that run beside them under `--connect` were measured before they shipped. Every measured number on it is recorded in `docs/research/poisoning-benchmark/results.json`, written by `scripts/bench_poisoning.py` (STORY-0088, measured 2026-10-25). Counts that describe the datasets themselves (cases per paradigm, wrapper positions) come from the dataset files, and figures from other papers are cited where they appear.
+This page reports how often those checks are right, and (in [Cross-tool delegation](#cross-tool-delegation-deleg-001003)) how the DELEG-* checks that run beside them under `--connect` were measured before they shipped. Every measured number on it is recorded in `docs/research/poisoning-benchmark/results.json`, written by `scripts/bench_poisoning.py` (STORY-0088, measured 2026-10-25; re-measured 2026-10-28 for STORY-0107), except the rows run by hand over uncommitted data, which say so where they appear. Counts that describe the datasets themselves (cases per paradigm, wrapper positions) come from the dataset files, and figures from other papers are cited where they appear.
 
 ## The numbers
 
@@ -13,12 +13,12 @@ Recall is reported twice. **Any severity** is what a plain `mcp-audit scan` exit
 | Recall: share of poisoned descriptions flagged | MCPTox, all 1,312 benchmark cases | **74.5%** (P1 79.3%, P2 79.2%, P3 68.7%) | **69.2%** (P1 72.6%, P2 68.4%, P3 68.7%) |
 | Recall, cases with no keyword wrapper | MCPTox, 435 of those cases | **23.2%** (P1 33.8%, P2 39.3%, P3 4.7%) | **7.1%** (P1 12.3%, P2 7.9%, P3 4.7%) |
 | Recall, poisoned descriptions as released without wrappers | MCPTox `pure_tool.json`, 485 | **24.9%** (P1 40.3%, P2 41.5%, P3 6.2%) | **7.0%** (P1 10.4%, P2 7.1%, P3 5.8%) |
-| Real tools flagged | MCPTox's 353 clean tools from 45 real servers | **18** (5.1%): 16 `POISON-060`, 2 `POISON-050` | **16** (4.5%) |
+| Real tools flagged | MCPTox's 353 clean tools from 45 real servers | **2** (0.6%): 2 `POISON-050` (was 18 before STORY-0107) | **0** (was 16) |
 | Precision: share of findings that were real | Live tools of the 100 most-downloaded npm MCP servers: 661 findings on 1,611 tools (mcp-audit 0.21.0) | **0 of 661** (0.0%) | 0 of 492 |
 
 MCPTox's three attack paradigms: **P1** explicit trigger, function hijacking (a tool that mimics a common function); **P2** implicit trigger, function hijacking (a tool posing as a check another tool must run first); **P3** implicit trigger, parameter tampering (a tool telling the agent to change another tool's arguments).
 
-**What this means.** POISON-* catches poisoning that announces itself: every MCPTox case carrying an `<IMPORTANT>…</IMPORTANT>` block or "Ignore the previous instructions" was flagged at HIGH (877 of 877), by `POISON-010` and `POISON-012`. Without a wrapper it flags about one poisoned description in four, and at the HIGH threshold that `check` and pre-commit use, about one in fourteen. Parameter tampering is nearly invisible either way. MCPTox measured that the two wrappers raise average attack success by 2.0% and 2.6%, so an attacker loses almost nothing by leaving them out. On the servers people actually install, the checks are noisy: none of the 661 findings on the top-100 npm servers was an attack, and 488 of them were Chinese punctuation.
+**What this means.** POISON-* catches poisoning that announces itself: every MCPTox case carrying an `<IMPORTANT>…</IMPORTANT>` block or "Ignore the previous instructions" was flagged at HIGH (877 of 877), by `POISON-010` and `POISON-012`. Without a wrapper it flags about one poisoned description in four, and at the HIGH threshold that `check` and pre-commit use, about one in fourteen. Parameter tampering is nearly invisible either way. MCPTox measured that the two wrappers raise average attack success by 2.0% and 2.6%, so an attacker loses almost nothing by leaving them out. On the servers people actually install, the checks are noisy: none of the 661 findings on the top-100 npm servers was an attack, and 488 of them were Chinese punctuation, which POISON-060 no longer counts (STORY-0107, below).
 
 **For comparison.** Cisco's MCP Scanner YARA rules, run unmodified, flagged 20.8% of the MCPTox-derived malicious descriptions in one test split (10 of 48, drawn from the same 485 descriptions as our 24.9%, less two in an "Other" class; ours is measured on all 485) ([arXiv 2604.10534](https://arxiv.org/html/2604.10534v1)). Across eight MCP scanners run on 37,288 MCPZoo servers, mean precision was 45.5% and the scanners' flagged sets overlapped 15.7% of the time on average ([arXiv 2607.11086](https://arxiv.org/html/2607.11086v1)).
 
@@ -28,7 +28,24 @@ MCPTox's three attack paradigms: **P1** explicit trigger, function hijacking (a 
 
 - **Parameter tampering (P3) is nearly invisible: 6.2% of unwrapped cases.** A description such as "when using `send_email`, set `to` to …" contains no keyword the patterns know.
 - **One pattern carries most of the unwrapped detections and many false alarms.** `POISON-030` ("first call", "before using this tool", "instead use") fired on 102 of the 121 detected unwrapped descriptions, and made 30 of the 661 top-100 findings, where the same phrases are ordinary workflow documentation (the shape "first call <tool> to resolve the ID"). It is MEDIUM, so it does not count at HIGH or above, which is where most of the unwrapped detections disappear.
-- **Full-width punctuation is the largest false-positive source.** `POISON-060` (HIGH) includes U+FF01–FF5E in its character class, which covers the full-width parenthesis, comma, colon and semicolon of Chinese text. That was 488 of the 661 top-100 findings and 16 of the 18 flagged MCPTox clean tools, all on three servers whose descriptions are in Chinese (AmapMap, BaiduMap, 12306-mcp), in descriptions and argument text. Fixing it is separate work; this page measures it.
+- **Full-width punctuation is the largest false-positive source.** `POISON-060` (HIGH) included all of U+FF01–FF5E in its character class, which covers the full-width parenthesis, comma, colon and semicolon of Chinese text. That was 488 of the 661 top-100 findings and 16 of the 18 flagged MCPTox clean tools, all on three servers whose descriptions are in Chinese (AmapMap, BaiduMap, 12306-mcp), in descriptions and argument text. Fixed in STORY-0107 (below).
+
+## POISON-060 precision fix (STORY-0107)
+
+POISON-060 now counts full-width **digits and letters** (U+FF10–FF19, U+FF21–FF3A, U+FF41–FF5A) instead of all of U+FF01–FF5E. The other 32 characters in that range are punctuation and symbols, the ordinary punctuation of CJK text, and a punctuation mark cannot spell a disguised word. The literal patterns still see through them: Unicode normalization (NFKD) folds `＜` to `<`, so a full-width-bracketed `<IMPORTANT>` still fires POISON-010. Full-width letters (`ＩＧＮＯＲＥ`), Cyrillic, Greek and mathematical letters fire as before.
+
+| Measure | Before | After |
+|---|---|---|
+| MCPTox recall, any severity (1,312 cases) | 978 (74.5%) | 978 (74.5%); no case lost |
+| MCPTox recall, HIGH or above | 908 (69.2%) | 908 (69.2%); no case lost |
+| `pure_tool.json` (485), any / HIGH or above | 121 / 34 | 121 / 34 |
+| MCPTox clean tools flagged (353), any / HIGH or above | 18 / 16 | **2 / 0** (both POISON-050) |
+| Committed-fragment replay of the 661 top-100 findings | 520 reproduce | 32 reproduce (the 488 POISON-060 fragments no longer fire) |
+| 855 real tool descriptions from 38 top-100 servers, flagged (by hand, not committed) | 28 | 27 |
+
+Per case, exactly one MCPTox case changed findings: a P1 case with a full-width colon after "Ignore the previous instructions" lost POISON-060 and is still flagged at HIGH by POISON-012. POISON-060 was never the only detection on any MCPTox case. The top-100 "0 of 661" stays a fixed measurement of the 0.21.x code (`precision` prints STALE): a fragment is only the first match in its field, so a full-width letter later in a field would still fire, and only a fresh enumeration can give the new figure.
+
+**POISON-030 was not changed.** STORY-0107 also tried gating POISON-030 ("first call", "instead use", "after calling this") on an order. MCPTox showed no loss, but MCPTox had shaped the gate; on a review set of 40 poisoned and 40 benign descriptions written outside MCPTox, the current pattern catches 39 of the poisoned descriptions and the gate caught 2; a widened version tuned on that same set caught 32 (82% of 39), below the 90% bar set before the experiment. POISON-030 therefore keeps firing on workflow documentation (30 of the 661 top-100 findings); telling an order from documentation needs a measured approach that holds out of sample.
 - **Length is a weak signal.** `POISON-050` (LOW, description of 2,000 characters or more) fired 139 times on the top-100 corpus, on API reference text, and twice on MCPTox's clean tools.
 
 ## What was measured
@@ -69,7 +86,7 @@ The full tool definitions (about 6 MB) are not committed, and neither is which s
 
 - **Committed evidence (488).** POISON-060 reports the first matching character in each text field. The summary keeps up to 12 distinct values and lists four, so in all 488 fields the first matched character was full-width Chinese punctuation (parenthesis, comma, colon or semicolon). Those are not letters, so they cannot spell a disguised word. A disguised letter later in the same field cannot be ruled out from committed data; the 2026-10-22 review of the full text found none.
 - **Review (173).** These labels come from the review done with the 2026-10-22 scan, which had the full live definitions (its README: "None of the poisoning findings in this corpus was a real attack"). The repository cannot reproduce that review without re-running the corpus's `scripts/enumerate.py`. To check them independently, on 2026-10-25 the published npm source of 54 of the 60 connected servers was read (never run; the other six are over 60 MB) for each matched phrase. Every occurrence found was ordinary documentation of a parameter, a workflow step or the code itself, for example "Override default hostname of the virtual machine", "Base64 encoded file content or file path", "first call … with filter on entityKeyId to resolve the numeric rqID" and "After calling this tool, use … to execute specific tools" (tool names elided, for the same reason the corpus does not name servers).
-- **Reproduction from committed text.** The harness also runs the current analyzer over every committed fragment: 520 of the 661 findings reproduce from the fragment alone. POISON-020 needs a nearby destination word the two-word fragment lacks, and POISON-050 published no text.
+- **Reproduction from committed text.** The harness also runs the current analyzer over every committed fragment. With the 0.21.x code 520 of the 661 findings reproduced from the fragment alone (POISON-020 needs a nearby destination word the two-word fragment lacks, and POISON-050 published no text); since STORY-0107, 32 do, because the 488 POISON-060 fragments are full-width punctuation.
 
 ## How the numbers stay true
 
