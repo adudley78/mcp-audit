@@ -34,6 +34,8 @@ from mcp_audit.lock import section_digests, tool_digests
 from mcp_audit.lock.identity import (
     MatchKey,
     build_identity,
+    comparable_identity,
+    launch_carries_secret,
     match_key,
     normalize_config_ref,
 )
@@ -275,6 +277,8 @@ def verify(
             continue
 
         key, locked_entry = locked_by_match[match]
+        if launch_carries_secret(server):
+            findings.append(_lock_013(key, server))
         drift_finding = _check_drift(key, server, locked_entry)
         if drift_finding is not None:
             findings.append(drift_finding)
@@ -788,6 +792,32 @@ def _lock_003(key: str, entry: dict) -> Finding:
     )
 
 
+def _lock_013(key: str, server: ServerConfig) -> Finding:
+    """LOW: the launch line carries a credential the lock keeps out (STORY-0118)."""
+    return Finding(
+        id="LOCK-013",
+        severity=Severity.LOW,
+        analyzer="lock",
+        client=server.client,
+        server=server.name,
+        title=f"Launch arguments carry a credential: {server.name!r}",
+        description=(
+            f"{key!r} passes a credential on its command line. `mcp-audit lock` "
+            "records the launch with that value replaced by [REDACTED], so it "
+            "never reaches the committed lock file, and the lock cannot tell "
+            "when only the credential's value changes."
+        ),
+        evidence="credential in command or arguments (value not shown)",
+        remediation=(
+            "Move the credential to an environment variable the server reads "
+            "(`env` in the config, a `${VAR}` reference) so the launch line "
+            "carries no secret."
+        ),
+        finding_path=str(server.config_path),
+        owasp_mcp_top_10=_OWASP,
+    )
+
+
 def _check_drift(key: str, server: ServerConfig, locked_entry: dict) -> Finding | None:
     """Return a LOCK-001 finding when identity/env/header names drifted."""
     current_identity = build_identity(server)
@@ -798,6 +828,10 @@ def _check_drift(key: str, server: ServerConfig, locked_entry: dict) -> Finding 
     locked_headers = locked_entry.get("header_keys", [])
 
     diffs: list[str] = []
+    # Both sides in redacted form (STORY-0118): an older lock holding a
+    # credential verbatim still matches, and evidence never quotes one.
+    current_identity = comparable_identity(current_identity)
+    locked_identity = comparable_identity(locked_identity)
     if current_identity != locked_identity:
         diffs.append(f"identity: locked={locked_identity!r} now={current_identity!r}")
     if current_env != locked_env:

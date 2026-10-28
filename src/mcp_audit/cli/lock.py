@@ -29,6 +29,7 @@ from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
 from mcp_audit.cli import app, console
 from mcp_audit.discovery import discover_project_configs
 from mcp_audit.lock import tool_digests
+from mcp_audit.lock.identity import launch_carries_secret
 from mcp_audit.lock.model import LOCK_FILENAME
 from mcp_audit.lock.verifier import servers_to_connect
 from mcp_audit.lock.verifier import verify as verify_lock
@@ -390,6 +391,13 @@ def _run_write(
         )
         console.print(f"  [cyan]{key}[/cyan]{version_note}{tools_note}")
     console.print()
+    for server in servers:
+        if launch_carries_secret(server):
+            console.print(
+                f"[yellow]WARN[/yellow] {server_key(server)}: its launch line "
+                "carries a credential; the lock records it redacted and "
+                "cannot see it change. Move it to an environment variable."
+            )
 
     if connect:
         if discarded:

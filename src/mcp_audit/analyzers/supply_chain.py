@@ -23,6 +23,8 @@ STORY-0097 adds two checks edit distance cannot make:
 
 from __future__ import annotations
 
+import base64
+import binascii
 import re
 from pathlib import Path
 from typing import Literal
@@ -906,6 +908,8 @@ def _userinfo_is_secret(userinfo: str) -> bool:
     """
     if ":" in userinfo:
         return True
+    if _userinfo_looks_encoded(userinfo):
+        return True
     # Keep only what looks like an account name (``git``, ``oauth2``,
     # ``x-access-token``, ``deploy``); anything longer, starting with a digit,
     # percent-encoded or matching SECRET_PATTERNS (``glpat-…``, ``hf_…``, a
@@ -913,6 +917,36 @@ def _userinfo_is_secret(userinfo: str) -> bool:
     return not (
         _ACCOUNT_NAME_RE.fullmatch(userinfo)
         and not any(p.search(userinfo) for _l, p, _p in SECRET_PATTERNS)
+    )
+
+
+def _userinfo_looks_encoded(userinfo: str) -> bool:
+    """True when *userinfo* is probably an encoded ``user:pass`` pair (S6).
+
+    ``https://dXNlcjpwYXNzd29yZA@host`` carries Base64 of ``user:password``
+    in the user position.  Secret when it contains ``=`` padding or a ``%``
+    escape, when it Base64-decodes (strictly, standard or URL-safe alphabet) to
+    printable text holding a ``:``, or when it is 16+ characters of letters
+    and digits only with both cases (no ``-``, ``_`` or ``.`` separators an
+    account name uses).  A plain account name stays visible.
+    """
+    if "=" in userinfo or "%" in userinfo:
+        return True
+    if len(userinfo) >= 8 and re.fullmatch(r"[A-Za-z0-9+/_-]+", userinfo):
+        padded = userinfo + "=" * (-len(userinfo) % 4)
+        try:
+            decoded = base64.b64decode(
+                padded.replace("-", "+").replace("_", "/"), validate=True
+            ).decode("ascii")
+        except (binascii.Error, UnicodeDecodeError, ValueError):
+            decoded = ""
+        if ":" in decoded and decoded.isprintable():
+            return True
+    return (
+        len(userinfo) >= 16
+        and userinfo.isalnum()
+        and any(c.islower() for c in userinfo)
+        and any(c.isupper() for c in userinfo)
     )
 
 
@@ -1066,6 +1100,8 @@ def _is_secret_flag_value(value: str) -> bool:
     v = value.strip()
     if len(v) < 4 or v.lower() in _NOT_SECRET_FLAG_VALUES:
         return False
+    if v.startswith("[REDACTED"):  # already redacted: redacting is idempotent
+        return False
     if "://" in v or v.startswith(("/", "./", "../", "~", "\\")):
         return False
     if len(v) > 2 and v[1] == ":" and v[2] in "\\/":  # C:\ or C:/
@@ -1082,6 +1118,49 @@ def _looks_like_reference(value: str) -> bool:
 
 def _matches_secret_pattern(value: str) -> bool:
     return any(pattern.search(value) for _l, pattern, _p in SECRET_PATTERNS)
+
+
+#: Flag-name tokens that name a password itself (not a key or token): the value
+#: is redacted even when it is short or starts with a dash.
+_PASSWORD_TOKENS: frozenset[str] = frozenset({"password", "passwd", "pwd", "secret"})
+
+
+def _flag_name_tokens(name: str) -> list[str]:
+    """Lower-case word tokens of a flag or variable *name* (camelCase split)."""
+    return [
+        t for t in re.split(r"[-_.]", _CAMEL_BOUNDARY_RE.sub("-", name).lower()) if t
+    ]
+
+
+def _dash_value_of_password_flag(name: str, value: str) -> bool:
+    """True for ``--password -v``: a single-dash value after a password flag.
+
+    A long option (``--verbose``) is the next flag; a short ``-x`` or a
+    ``-abc!`` is taken as the password, because quoting a flag in evidence is
+    harmless and leaking a password is not.  Only password-class names
+    (:data:`_PASSWORD_TOKENS`), never ``--api-key``/``--token``.
+    """
+    return (
+        value.startswith("-")
+        and not value.startswith("--")
+        and len(value) > 1
+        and any(t in _PASSWORD_TOKENS for t in _flag_name_tokens(name))
+    )
+
+
+def _short_password_value(name: str, value: str) -> bool:
+    """True for a short or dash-leading value of a password-class flag."""
+    v = value.strip()
+    return (
+        bool(v)
+        and v.lower() not in _NOT_SECRET_FLAG_VALUES
+        and not _looks_like_reference(v)
+        and not v.startswith("[REDACTED")
+        and any(t in _PASSWORD_TOKENS for t in _flag_name_tokens(name))
+        and not any(
+            t in _NOT_SECRET_FLAG_SUFFIXES for t in _flag_name_tokens(name)[-1:]
+        )
+    )
 
 
 def _redact_secret_flag_values(
@@ -1105,12 +1184,19 @@ def _redact_secret_flag_values(
             continue
         if eq:
             target, value = i, inline
-        elif i + 1 < len(args) and not args[i + 1].startswith("-"):
+        elif i + 1 < len(args) and (
+            not args[i + 1].startswith("-")
+            or _dash_value_of_password_flag(name, args[i + 1])
+        ):
             target, value = i + 1, args[i + 1]
         else:
             continue
         pos = offset + target
-        if pos >= len(out) or not _is_secret_flag_value(value):
+        if value in (REDACTION_MARKER, FLAG_REDACTION_MARKER):
+            continue
+        if pos >= len(out) or not (
+            _is_secret_flag_value(value) or _short_password_value(name, value)
+        ):
             continue
         if _matches_secret_pattern(value):
             continue
@@ -1119,6 +1205,267 @@ def _redact_secret_flag_values(
         else:
             out[pos] = FLAG_REDACTION_MARKER
     return out
+
+
+# ── Secrets outside secret-named flags (STORY-0118) ──────────────────────────
+#
+# Headers (``--header "X-API-Key: v"``), connection strings
+# (``Server=h;Password=v``), ``curl -u user:pass`` and secret-named query
+# parameters.  Every pass is a bounded scan or a regex with one quantified
+# class after a literal, so it stays linear on a 200 KB argument.
+
+_HEADER_NAME_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
+#: Credential headers beyond ``auth.AUTH_HEADER_NAMES``.
+_EXTRA_SECRET_HEADERS: frozenset[str] = frozenset(
+    {
+        "cookie",
+        "set-cookie",
+        "proxy-authorization",
+        "x-amz-security-token",
+        "x-goog-api-key",
+        "private-token",
+        "x-gitlab-token",
+    }
+)
+_KEEP_SCHEME_WORDS: frozenset[str] = frozenset({"bearer", "basic", "token"})
+_KV_NAME_RE = re.compile(r"-{0,2}[A-Za-z][A-Za-z0-9_.-]{0,63}")
+_KV_PIECE_RE = re.compile(r"[^;\s]+")
+_BASIC_AUTH_FLAGS: frozenset[str] = frozenset({"--user", "--proxy-user"})
+_SHORT_BASIC_AUTH_FLAGS: frozenset[str] = frozenset({"-u", "-U"})
+
+
+def secret_header_names() -> frozenset[str]:
+    """Header names (lower case) whose value is a credential.
+
+    ``auth.AUTH_HEADER_NAMES`` (the set AUTH-001 and CRED-003 share) plus
+    cookies, ``Proxy-Authorization`` and a few vendor headers.  Imported
+    lazily: ``auth`` imports from this module's neighbours.
+    """
+    from mcp_audit.analyzers.auth import AUTH_HEADER_NAMES  # noqa: PLC0415
+
+    return AUTH_HEADER_NAMES | _EXTRA_SECRET_HEADERS
+
+
+def _is_secret_header_name(name: str) -> bool:
+    n = name.strip().lower()
+    if not _HEADER_NAME_RE.fullmatch(n):
+        return False
+    return n in secret_header_names() or _is_secret_flag_name(n)
+
+
+def redact_header_arg(arg: str) -> str:
+    """Redact the value of a ``Name: value`` credential header in one argument.
+
+    ``X-API-Key: abc``, ``Cookie: session=abc``, ``Authorization: <any scheme>
+    abc`` (case-insensitive name), also after ``--header=``.  A ``Bearer``,
+    ``Basic`` or ``Token`` scheme word stays; the rest becomes
+    :data:`REDACTION_MARKER`.  A value that is only an environment reference
+    (``${TOKEN}``, ``Bearer $TOKEN``) is kept.
+    """
+    from mcp_audit.analyzers.credentials import (  # noqa: PLC0415
+        is_header_value_env_only,
+    )
+
+    prefix, body = "", arg
+    if arg.startswith("-"):
+        eq = arg.find("=")
+        colon = arg.find(":")
+        if eq != -1 and (colon == -1 or eq < colon):
+            prefix, body = arg[: eq + 1], arg[eq + 1 :]
+    name, colon_, value = body.partition(":")
+    if not colon_ or not _is_secret_header_name(name):
+        return arg
+    stripped = value.strip()
+    if (
+        not stripped
+        or stripped.startswith("[REDACTED")
+        or is_header_value_env_only(stripped)
+        or _looks_like_reference(stripped)
+    ):
+        return arg
+    word, _sp, _rest = stripped.partition(" ")
+    keep = word + " " if word.lower() in _KEEP_SCHEME_WORDS and _rest else ""
+    return f"{prefix}{name}: {keep}{REDACTION_MARKER}"
+
+
+def redact_kv_secrets(text: str) -> str:
+    """Redact ``password=…``-style pairs split on ``;`` and whitespace.
+
+    Connection strings (``Server=h;Database=d;Password=v;``), libpq DSNs
+    (``host=h password=v``) and shell assignments.  The name must be a secret
+    name (:func:`_is_secret_flag_name`: ``Password``, ``Pwd``, ``AccountKey``,
+    ``api_token``); a password-class name (``password``, ``pwd``, ``secret``)
+    hides any value, other names only values that are not settings, paths,
+    URLs or references.  Values already redacted are left alone.
+    """
+    if "=" not in text:
+        return text
+
+    def _fix(m: re.Match[str]) -> str:
+        piece = m.group(0)
+        name, eq, value = piece.partition("=")
+        if not eq or not value or not _KV_NAME_RE.fullmatch(name):
+            return piece
+        if value.startswith("[REDACTED") or _looks_like_reference(value):
+            return piece
+        bare = name.lstrip("-")
+        if not _is_secret_flag_name(bare):
+            return piece
+        if _short_password_value(bare, value) or _is_secret_flag_value(value):
+            return f"{name}={REDACTION_MARKER}"
+        return piece
+
+    return _KV_PIECE_RE.sub(_fix, text)
+
+
+def _redact_basic_auth_flags(args: list[str], parts: list[str]) -> list[str]:
+    """Redact the password of ``curl -u user:pass`` / ``--user user:pass``.
+
+    ``--user`` and ``--proxy-user`` always; ``-u``/``-U`` only when the
+    launch looks like an HTTP client (a ``curl``/``wget`` argument or a
+    ``scheme://`` argument), because ``docker run -u 1000:1000`` is not a
+    credential.  The user name stays, the password becomes the marker.
+    """
+    out = list(parts)
+    http_launch = any(
+        "://" in a or a.rsplit("/", 1)[-1].lower() in {"curl", "wget", "http", "https"}
+        for a in args
+    )
+    for i, arg in enumerate(args):
+        flag, eq, inline = arg.partition("=")
+        if flag in _BASIC_AUTH_FLAGS or (
+            flag in _SHORT_BASIC_AUTH_FLAGS and http_launch
+        ):
+            if eq:
+                target, value = i, inline
+            elif i + 1 < len(args):
+                target, value = i + 1, args[i + 1]
+            else:
+                continue
+            user, colon, password = value.partition(":")
+            if (
+                colon
+                and password
+                and not password.startswith("[REDACTED")
+                and not _looks_like_reference(password)
+                and target < len(out)
+            ):
+                new = f"{user}:{REDACTION_MARKER}"
+                out[target] = f"{flag}={new}" if eq else new
+    return out
+
+
+def _redact_one_arg(arg: str) -> str:
+    """Apply the per-argument passes: header, key=value pair, URL query."""
+    arg = redact_header_arg(arg)
+    arg = redact_kv_secrets(arg)
+    if "://" in arg:
+        arg = redact_query_secrets(arg)
+    return arg
+
+
+def _redact_launch_parts(args: list[str], parts: list[str], offset: int) -> list[str]:
+    """Run every secret pass over *parts* (already userinfo-redacted *args*)."""
+    out = _redact_secret_flag_values(list(args), parts, offset=offset)
+    out = [p if i < offset else _redact_one_arg(p) for i, p in enumerate(out)]
+    tail = _redact_basic_auth_flags(args, out[offset:])
+    return out[:offset] + tail
+
+
+# URL query / fragment parameters and ``NAME=value`` assignments, moved here
+# from ``managed_policy`` (STORY-0118) so one set of rules serves both.
+_SECRET_WORDS = (
+    "key",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "pwd",
+    "auth",
+    "credential",
+)
+# Matched as whole name tokens only (``X-Amz-Signature``, ``sig``), so a name
+# like ``DESIGN_DIR`` is not caught by ``sig``.
+_SECRET_TOKENS = frozenset({"sig", "signature"})
+_NAME_SPLIT = re.compile(r"[^A-Za-z0-9]+")
+_SCHEME_WORDS = ("bearer ", "basic ")
+
+
+def is_secret_name(name: str) -> bool:
+    """True when a parameter or variable *name* is named for a secret value."""
+    lowered = name.lower()
+    if any(word in lowered for word in _SECRET_WORDS):
+        return True
+    tokens = _NAME_SPLIT.split(_CAMEL_BOUNDARY_RE.sub("-", name).lower())
+    return any(token in _SECRET_TOKENS for token in tokens)
+
+
+def _redact_pairs(text: str) -> str:
+    """Redact the value of each secret-named ``name=value`` pair split on ``&``."""
+    pairs: list[str] = []
+    for pair in text.split("&"):
+        name, eq, value = pair.partition("=")
+        if (
+            eq
+            and is_secret_name(name)
+            and not _looks_like_reference(value.strip())
+            and not value.startswith("[REDACTED")
+        ):
+            pairs.append(f"{name}={REDACTION_MARKER}")
+        else:
+            pairs.append(pair)
+    return "&".join(pairs)
+
+
+def redact_query_secrets(text: str) -> str:
+    """Redact secret-named parameters in a URL's query string and fragment.
+
+    ``?token=…``, ``?api_key=…``, ``?sig=…``, ``X-Amz-Signature=…``,
+    ``#access_token=…`` (the OAuth implicit-flow fragment).  A value that is
+    only an environment reference (``${TOKEN}``) is kept.
+    """
+    head, hash_, fragment = text.partition("#")
+    base, mark, query = head.partition("?")
+    out = base + (mark + _redact_pairs(query) if mark else "")
+    return out + (hash_ + _redact_pairs(fragment) if hash_ else "")
+
+
+def redact_assignment(part: str) -> str:
+    """``NAME=value`` (``-e GITHUB_TOKEN=…``, ``--env=API_KEY=…``): redact value.
+
+    The name is the text before the last ``=`` ahead of the value, without
+    leading dashes; a part whose ``=`` follows a ``://`` URL is left to
+    :func:`redact_query_secrets`.
+    """
+    eq = part.find("=")
+    if eq <= 0 or "://" in part[:eq]:
+        return part
+    name_end = eq
+    # --env=API_KEY=value: the variable name is between the two '='.
+    second = part.find("=", eq + 1)
+    if part.startswith("-") and second != -1:
+        name = part[eq + 1 : second]
+        name_end = second
+    elif part.startswith("-"):
+        return part  # ``--token=value``: the secret-flag pass owns this shape
+    else:
+        name = part[:eq].lstrip("-")
+    if is_secret_name(name):
+        return part[: name_end + 1] + REDACTION_MARKER
+    return part
+
+
+def redact_auth_scheme(part: str) -> str:
+    """Redact what follows ``Authorization:``, ``Bearer `` or ``Basic ``."""
+    lowered = part.lower()
+    idx = lowered.find("authorization:")
+    if idx != -1:
+        return part[: idx + len("authorization:")] + " " + REDACTION_MARKER
+    for word in _SCHEME_WORDS:
+        idx = lowered.find(word)
+        if idx != -1:
+            return part[: idx + len(word)] + REDACTION_MARKER
+    return part
 
 
 def redact_command(command: str | None, args: list[str]) -> str:
@@ -1141,7 +1488,7 @@ def redact_command(command: str | None, args: list[str]) -> str:
     """
     parts = [_redact_userinfo(command or "")]
     parts.extend(_redact_userinfo(arg) for arg in args[:4])
-    parts = _redact_secret_flag_values(list(args[:4]), parts, offset=1)
+    parts = _redact_launch_parts(list(args[:4]), parts, offset=1)
     text = " ".join(part for part in parts if part)
     for _label, pattern, _provider in SECRET_PATTERNS:
         text = pattern.sub(_REDACTED, text)
@@ -1181,7 +1528,7 @@ def redact_args(args: list[str]) -> list[str]:
     Returns:
         A new list of the same length.
     """
-    cleaned = _redact_secret_flag_values(
+    cleaned = _redact_launch_parts(
         list(args), [_redact_userinfo(arg) for arg in args], offset=0
     )
     joined = " ".join(cleaned)
@@ -1238,13 +1585,36 @@ def redact_url(url: str | None) -> str | None:
 _INLINE_SCHEME_TOKEN_RE = re.compile(
     r"\b((?i:Bearer|Basic|Token))\s+(?!\$)[A-Za-z0-9._~+/=-]{4,}"
 )
-#: A credential header written inline (``-H 'X-API-Key: abc123'``), the value
-#: up to the next quote or space.  Linear; ``$VAR`` kept.  An ``Authorization``
-#: value with a scheme word is left to :data:`_INLINE_SCHEME_TOKEN_RE`.
-_INLINE_SECRET_HEADER_RE = re.compile(
-    r"(?i)\b(x-api-key|api-key|x-auth-token|x-access-token|cookie|authorization)"
-    r"(\s*:\s*)(?!\$|bearer\s|basic\s|token\s)[^\s'\"]{4,}"
+#: A credential header written inline (``-H 'X-API-Key: abc123'``).  The names
+#: are :func:`secret_header_names`, built on first use.
+_INLINE_HEADER_CACHE: list[re.Pattern[str]] = []
+#: ``curl -u user:pass`` / ``--user user:pass`` / ``--user=user:pass`` inside
+#: a command string; a purely numeric user (``docker run -u 1000:1000``) stays.
+_INLINE_BASIC_AUTH_RE = re.compile(
+    r"(?<![\w-])(--user|--proxy-user|-u|-U)([ =])(['\"]?)"
+    r"([^\s'\":$]*[A-Za-z][^\s'\":$]*):(?!\$|\[REDACTED)[^\s'\"]+"
 )
+
+
+def _inline_header_patterns() -> list[re.Pattern[str]]:
+    """Compiled inline header patterns (quoted value, unquoted value)."""
+    if not _INLINE_HEADER_CACHE:
+        names = "|".join(re.escape(n) for n in sorted(secret_header_names()))
+        skip = r"(?![ \t$]|\[REDACTED|bearer\s|basic\s|token\s)"
+        # Quoted: the value runs to the closing quote (``'Cookie: a=b; c=d'``).
+        _INLINE_HEADER_CACHE.append(
+            re.compile(rf"(?i)(?<=['\"])({names})(:[ \t]*){skip}" r"[^'\"\n]{4,}")
+        )
+        # Unquoted: the value is one word; ``Authorization`` may carry a
+        # scheme word and a credential (``Digest abc…``).  ``$VAR`` kept; a
+        # Bearer/Basic/Token scheme is left to _INLINE_SCHEME_TOKEN_RE.
+        _INLINE_HEADER_CACHE.append(
+            re.compile(
+                rf"(?i)\b({names})(:[ \t]*){skip}"
+                r"[^\s'\"]{4,}(?:[ \t]+[A-Za-z0-9._~+/=-]{8,})?"
+            )
+        )
+    return _INLINE_HEADER_CACHE
 
 
 def redact_command_text(text: str) -> str:
@@ -1253,11 +1623,23 @@ def redact_command_text(text: str) -> str:
     For a shell command stored as one string (Codex ``http_headers_helper``):
     URL userinfo and SECRET_PATTERNS matches as :func:`redact_args` does, plus
     the credential after an inline ``Bearer``/``Basic``/``Token`` scheme word
-    (any case) and the value of an inline ``X-API-Key:``/``Cookie:``-style header.
+    (any case), the value of an inline credential header
+    (``X-API-Key:``, ``Cookie:``, ``Authorization: <any scheme>``;
+    STORY-0118), ``curl -u user:pass`` and ``password=…`` pairs.
     """
     cleaned = redact_args([text])[0]
     cleaned = _INLINE_SCHEME_TOKEN_RE.sub(rf"\1 {REDACTION_MARKER}", cleaned)
-    return _INLINE_SECRET_HEADER_RE.sub(rf"\1\2{REDACTION_MARKER}", cleaned)
+    for pattern in _inline_header_patterns():
+        cleaned = pattern.sub(rf"\1\2{REDACTION_MARKER}", cleaned)
+    cleaned = _INLINE_BASIC_AUTH_RE.sub(
+        lambda m: (
+            m.group(0)
+            if m.group(4).isdigit()
+            else f"{m.group(1)}{m.group(2)}{m.group(3)}{m.group(4)}:{REDACTION_MARKER}"
+        ),
+        cleaned,
+    )
+    return redact_kv_secrets(cleaned)
 
 
 def redact_header_values(headers: dict) -> dict:
@@ -1336,11 +1718,33 @@ def redact_nested_secrets(
     return root[0]
 
 
+#: Word tokens that mark an environment variable as holding a credential in
+#: addition to :data:`_SECRET_FLAG_TOKENS` (``AUTH=…``, ``SESSION_COOKIE=…``).
+_SECRET_ENV_EXTRA_TOKENS: frozenset[str] = frozenset(
+    {"auth", "bearer", "cookie", "dsn", "signature"}
+)
+
+
+def _is_secret_env_name(name: str) -> bool:
+    """True when an environment variable *name* is named for a credential."""
+    if _is_secret_flag_name(name):
+        return True
+    tokens = _flag_name_tokens(name)
+    return (
+        bool(tokens)
+        and tokens[-1] not in _NOT_SECRET_FLAG_SUFFIXES
+        and any(t in _SECRET_ENV_EXTRA_TOKENS for t in tokens)
+    )
+
+
 def redact_env_values(env: dict) -> dict:
     """Return *env* with credential values redacted, for serialised output.
 
-    Used for MCP gateway upstream servers (STORY-0111), whose ``env`` comes
-    from a gateway config that often holds every upstream's API keys.  A
+    Used for every server's ``env`` in JSON, snapshots and the PDF hash input
+    (STORY-0118; gateway upstreams since STORY-0111, whose ``env`` comes from
+    a gateway config that often holds every upstream's API keys).  Values that
+    are plainly settings (``NODE_ENV=production``) stay, so ``mcp-audit diff``
+    between two scan files does not read every variable as a credential.  A
     value that is only a reference (``$VAR``, ``${VAR}``, ``%VAR%``) is kept.
     A value SECRET_PATTERNS recognises, or URL userinfo, becomes
     :data:`REDACTION_MARKER` (as :func:`redact_args`); the value of a
@@ -1357,7 +1761,7 @@ def redact_env_values(env: dict) -> dict:
         redacted = redact_args([value])[0]
         if (
             redacted == value
-            and _is_secret_flag_name(str(name))
+            and _is_secret_env_name(str(name))
             and _is_secret_flag_value(value)
         ):
             redacted = FLAG_REDACTION_MARKER

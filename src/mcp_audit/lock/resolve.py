@@ -23,8 +23,10 @@ import urllib.error
 from datetime import UTC, datetime
 
 from mcp_audit.analyzers.supply_chain import (
+    REDACTION_MARKER,
     extract_npm_package,
     extract_pypi_package,
+    redact_text,
     strip_npm_version_suffix,
 )
 from mcp_audit.attestation.hasher import compute_hash_from_url, resolve_npm_tarball_url
@@ -95,6 +97,22 @@ def extract_package_identity(server: ServerConfig) -> tuple[str, str] | None:
         name = extract_pypi_package(cmd, args)
         return ("pypi", name) if name else None
     return None
+
+
+def _lock_safe(value: str | None) -> str | None:
+    """Return *value* fit for a committed lock (STORY-0118).
+
+    A ``uvx --from git+https://user:TOKEN@host/…`` launch makes the package
+    reader return text cut from the URL, so a token could land in
+    ``package.name``.  A value with ``://`` keeps only its scheme; any other
+    credential shape is redacted as :func:`redact_text` does.  An ordinary
+    package name or version is returned unchanged.
+    """
+    if value is None:
+        return None
+    if "://" in value:
+        return value.split("://", 1)[0] + "://" + REDACTION_MARKER
+    return redact_text(value)
 
 
 def _spec_as_written(server: ServerConfig) -> str:
@@ -298,10 +316,10 @@ def resolve_package(
 
     return {
         "ecosystem": ecosystem,
-        "name": name,
-        "spec_as_written": spec,
+        "name": _lock_safe(name),
+        "spec_as_written": _lock_safe(spec),
         "range_spec": range_spec,
-        "resolved_version": resolved_version,
+        "resolved_version": _lock_safe(resolved_version),
         "resolution": {
             "method": method,
             "resolved_at": resolved_at,

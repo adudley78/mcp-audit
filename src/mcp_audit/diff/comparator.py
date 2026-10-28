@@ -9,7 +9,12 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field
 
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
-from mcp_audit.analyzers.supply_chain import FLAG_REDACTION_MARKER, REDACTION_MARKER
+from mcp_audit.analyzers.supply_chain import (
+    FLAG_REDACTION_MARKER,
+    REDACTION_MARKER,
+    redact_args,
+    redact_url,
+)
 from mcp_audit.models import ServerConfig, Severity
 
 
@@ -227,10 +232,10 @@ def _server_summary(server: ServerConfig) -> dict:
     """Compact dict representation of a server for before/after fields."""
     return {
         "name": server.name,
-        "command": server.command,
-        "args": server.args,
+        "command": redact_url(server.command),
+        "args": redact_args(list(server.args)),
         "env_keys": sorted(server.env.keys()),
-        "url": server.url,
+        "url": redact_url(server.url),
         "transport": str(server.transport),
     }
 
@@ -296,10 +301,10 @@ def _changes_for_added_server(
             Change(
                 change_type=ChangeType.ADDED,
                 entity_type=EntityType.ENDPOINT,
-                entity_name=_hostname(url) or url,
+                entity_name=_hostname(url) or redact_url(url) or "",
                 parent_server=server.name,
                 before=None,
-                after={"url": url},
+                after={"url": redact_url(url)},
                 severity=Severity.HIGH,
                 owasp_mcp_top_10=["MCP07"],
             )
@@ -345,10 +350,10 @@ def _changes_for_modified_server(
     cmd_diff: dict | None = None
     if base.command != head.command or base.args != head.args:
         cmd_diff = {
-            "before_command": base.command,
-            "after_command": head.command,
-            "before_args": base.args,
-            "after_args": head.args,
+            "before_command": redact_url(base.command),
+            "after_command": redact_url(head.command),
+            "before_args": redact_args(list(base.args)),
+            "after_args": redact_args(list(head.args)),
         }
         field_changes.append("command/args")
 
@@ -431,10 +436,10 @@ def _changes_for_modified_server(
             Change(
                 change_type=ChangeType.ADDED,
                 entity_type=EntityType.ENDPOINT,
-                entity_name=_hostname(url) or url,
+                entity_name=_hostname(url) or redact_url(url) or "",
                 parent_server=head.name,
                 before=None,
-                after={"url": url},
+                after={"url": redact_url(url)},
                 severity=Severity.HIGH,
                 owasp_mcp_top_10=["MCP07"],
             )

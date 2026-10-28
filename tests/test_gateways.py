@@ -538,14 +538,17 @@ class TestScan:
         print_results(run_scan(skip_rug_pull=True))
         assert GHP not in capsys.readouterr().out
 
-    def test_other_clients_serialisation_unchanged(self, tmp_path: Path) -> None:
+    def test_other_clients_env_is_redacted_too(self, tmp_path: Path) -> None:
+        """STORY-0118: env values are redacted for every client, not only gateways."""
         server = ServerConfig(
             name="x",
             client="cursor",
             config_path=tmp_path / "m.json",
-            env={"API_KEY": PLAIN_KEY},
+            env={"API_KEY": PLAIN_KEY, "NODE_ENV": "production"},
         )
-        assert PLAIN_KEY in server.model_dump_json()
+        dumped = server.model_dump_json()
+        assert PLAIN_KEY not in dumped
+        assert "production" in dumped  # plainly benign settings stay
 
 
 class TestRedactionHelpers:

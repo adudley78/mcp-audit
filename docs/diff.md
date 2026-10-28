@@ -199,12 +199,23 @@ references are left alone. What a scan file can no longer show:
   name is not a plain account name (a token such as `https://ghp_…@github.com`
   or `glpat-…@`). A plain account name such as `git@` in
   `git+ssh://git@github.com/…` is kept and is not a credential.
-- A secret in a URL's query string (`?api_key=…`) is redacted only when it
-  matches a known token format, and a flag value is recognised only as a
-  separate argument, not inside one command string (`"command": "npx x
-  --token abc"`).
-- `--format pr-comment` and the terminal output quote directory and git-ref
-  inputs' arguments as they are in the config files, unredacted.
+- Since STORY-0118 the scan file also redacts: secret-named query parameters
+  (`?token=`, `?api_key=`, `?sig=`, `?access_token=`, `?password=`, `?auth=`,
+  `?secret=`, `?key=`), credential headers in an argument
+  (`--header "X-API-Key: v"`, `Cookie:`, `Authorization:` with any scheme),
+  `Password=`/`Pwd=`/`secret=` pairs in a connection string, `curl -u user:pass`,
+  the value after `--password` even when it starts with `-`, Base64-looking URL
+  user info, and `servers[].env` values for every client (a credential in an
+  environment variable becomes `[REDACTED-FLAG]`, or `[REDACTED]` for a known
+  token format; `${VAR}` references and plain settings such as
+  `NODE_ENV=production` stay). Environment values are redacted by kind rather
+  than all at once so that every variable is not read as a credential. A secret
+  inside a single command string (`"command": "npx x --token abc"`) is still
+  recognised only in the shapes above.
+- `--format pr-comment`, `--format json` and the terminal output redact
+  `command`, `args` and URLs for every input kind (directories, git refs and
+  scan files) before they print or truncate them (STORY-0118). Where an input
+  is a directory, the underlying comparison still uses the real values.
 
 ## Severity classification
 

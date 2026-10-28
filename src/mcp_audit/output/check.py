@@ -401,6 +401,11 @@ _HINTS: dict[str, str] = {
         "Something reformatted mcp-lock.json. Run `mcp-audit lock --accept` to"
         " rewrite it canonically."
     ),
+    "LOCK-013": (
+        "Move the credential out of the command line into an environment"
+        " variable the server reads (`env` in the config); the lock keeps it"
+        " out of mcp-lock.json but cannot see it change."
+    ),
     # Instruction-file reach (STORY-0098)
     "MEM-003": (
         "Move the imported instructions into the repository (or delete the"

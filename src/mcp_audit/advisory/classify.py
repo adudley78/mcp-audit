@@ -90,6 +90,8 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         "LOCK-010",  # lock_version 2 resolution context changed (STORY-0116);
         # INFO, explains a difference, asserts no defect
         "LOCK-012",  # lock file reformatted, content intact (STORY-0116)
+        "LOCK-013",  # launch line carries a credential the lock redacts
+        # (STORY-0118); a deployment note, not a vulnerability in a package
         "MANAGED-001",  # managed MCP policy inventory (STORY-0112) — INFO
         "MANAGED-002",  # server the managed policy keeps from loading — dead
         # config, the policy working as intended, not a vulnerability

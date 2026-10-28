@@ -132,7 +132,26 @@ and covered by the `checksum`; `lock_version` stays `1` (an additive field, not 
 Running `lock --accept` after a package goes deprecated re-resolves and records it, exactly like any
 other lock update.
 
-### lock_version 2
+### Credentials in a launch line (STORY-0118)
+
+`identity.args` records a stdio server's command and arguments as written, with
+one exception: a credential in them (`--api-key VALUE`, URL user info such as
+`git+https://user:TOKEN@host/…`, `Password=…` in a connection string, a secret
+header, `?token=…`) is recorded as `[REDACTED]` or `[REDACTED-FLAG]`, and the
+`package` section never quotes a URL. A launch without a credential is recorded
+exactly as before.
+
+`lock --verify` compares the locked identity and the current one in this
+redacted form on both sides, so a lock written by an earlier mcp-audit, which
+holds the credential verbatim, still verifies without LOCK-001 (run `lock
+--accept` to rewrite it without the credential). The cost is that changing only
+a credential's value is not drift; `LOCK-013` (LOW) says so for each locked
+server whose launch carries one, and `mcp-audit lock` prints the same warning
+when it writes the lock. Move the credential to an `env` entry to fix both.
+`hashes` in a lock entry are SHA-256 digests of the real values and are not
+compared by `lock --verify`.
+
+## lock_version 2
 
 Version 2 (STORY-0116) is the set of changes agreed with the `trees` producer on
 [#88](https://github.com/adudley78/mcp-audit/issues/88) (ADR-0005's R59 and R62 addenda). It is
