@@ -123,6 +123,19 @@ _WALK_SKIP_DIRS: frozenset[str] = frozenset(
 
 _WALK_MAX_DEPTH: int = 8
 
+
+def _skip_walk_dir(path: Path) -> bool:
+    """Return True for a directory the project walk never enters.
+
+    Besides :data:`_WALK_SKIP_DIRS`, ``.claude/worktrees/`` is skipped: Claude
+    Code keeps whole checkouts of the project there, so walking it would report
+    every instruction file once per worktree.
+    """
+    if path.name in _WALK_SKIP_DIRS:
+        return True
+    return path.name == "worktrees" and path.parent.name == ".claude"
+
+
 #: Agent files read per discovery call, and their total bytes.  Reaching
 #: either is reported through ``errors``; files past it are not read.
 DISCOVERY_MAX_FILES: int = 5000
@@ -456,7 +469,7 @@ def _resolve_relative_pattern(
                     continue
                 if not _is_dir(child):
                     continue
-                if child.name in _WALK_SKIP_DIRS:
+                if _skip_walk_dir(child):
                     continue
                 _walk_recursive(child, depth + 1)
 
@@ -713,7 +726,7 @@ def _walk_project_dirs(
                             build_untraversed_symlink_dir_finding(child, "agent-files")
                         )
                     continue
-                if not child.is_dir() or child.name in _WALK_SKIP_DIRS:
+                if not child.is_dir() or _skip_walk_dir(child):
                     continue
             except OSError as exc:
                 logger.debug("agent_files: skipping %s: %s", child, exc)

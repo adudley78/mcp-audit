@@ -24,12 +24,14 @@ negated ("don't just reply HEARTBEAT_OK", "do not include HEARTBEAT_OK") is:
 1. **forced** — the same sentence says always / regardless / no matter /
    whatever / even if / every time / instead of reporting, with no
    "nothing to report" condition; or
-2. **paired with hiding** — the file tells the agent, with no condition,
-   not to mention, tell, report, reveal... *this step / it / what you did*,
-   or to act secretly or keep something from the user, or to reply "so the
-   user does not see"; or the
-   sentence carrying the suppression has no condition at all and the file
-   also has any unconditional not-to-mention directive; or
+2. **paired with hiding** — the sentence carrying the suppression has no
+   condition at all, and the file tells the agent, with no condition, not to
+   mention, tell, report, reveal... anything (*this step*, *these steps*,
+   *what you ran*, *the above*, or any object), to act secretly, to keep or
+   hide something *from the user / owner*, or to reply "so the user does not
+   see".  A hiding directive never overrides the suppression's own condition:
+   with "if nothing needs attention, reply HEARTBEAT_OK" the file stays
+   silent whatever else it says; or
 3. **after an action, unconditionally** — the sentence has no condition word
    (if / unless / otherwise / whenever / when — "when done" does not count)
    and the same paragraph orders the agent to run, execute, download,
@@ -100,18 +102,23 @@ _HIDE_VERBS = (
     r"acknowledge|admit|show|surface|log|record|confirm|reference|discuss|"
     r"inform|notify|alert)\w*"
 )
+_FROM_OWNER = r"from\s+(?:the\s+|your\s+)?(?:user|owner|human|operator)\b"
 # Not-to-mention aimed at the agent's own step: "do not mention this step",
-# "never tell the user about it", "don't report what you did".
+# "don't report what you ran", "keep this from the user", "so the user does
+# not see".  "It", "that" and "these events" are left out: "don't alert me
+# about it again" filters the owner's notifications, it does not hide a step.
 _HIDE_SELF_RE = re.compile(
     r"\b(?:do\s+not|don'?t|dont|never|without)\s+(?:\w+\s+){0,2}?"
     + _HIDE_VERBS
-    + r"\s+(?:\w+\s+){0,3}?(?:this|these|that|it|the\s+above|anything\s+about|"
-    r"what\s+you)\b"
-    r"|\b(?:secretly|covertly|conceal\w*)\b"
-    r"|\b(?:hide|hiding|keep|keeping)\s+(?:\w+\s+){0,3}?(?:from\s+(?:the\s+|your\s+)?"
-    r"(?:user|owner|human|operator|anyone|everyone)|secret|hidden)\b"
-    r"|\bso\s+(?:that\s+)?(?:the\s+|your\s+)?(?:user|owner|human|operator|they|"
-    r"nobody|no\s+one|no-one)\b[^\n.;]{0,40}?(?:\bnot\b|\bnever\b|n't\b|\bnothing\b)",
+    + r"\s+(?:\w+\s+){0,3}?(?:(?:this|that)\s+(?:step|task|command|action|check)|"
+    r"(?:these|those)\s+(?:steps|tasks|commands|actions|checks)|the\s+above|"
+    r"what\s+you(?:'ve|\s+have)?\s+(?:did|done|ran|run|executed|installed|"
+    r"downloaded|uploaded|sent|forwarded|changed|fetched))\b"
+    r"|\b(?:secretly|covertly)\b"
+    r"|\b(?:hide|hiding|keep|keeping|conceal|concealing)\s+(?:\w+\s+){0,3}?"
+    + _FROM_OWNER
+    + r"|\bso\s+(?:that\s+)?(?:the\s+|your\s+)?(?:user|owner|human|operator)\b"
+    r"[^\n.;]{0,40}?(?:\bnot\b|\bnever\b|n't\b|\bnothing\b)",
     re.IGNORECASE,
 )
 # Any not-to-mention directive (paired with an unconditioned suppression).
@@ -240,7 +247,10 @@ def find_suppression(text: str) -> list[SuppressionHit]:
                 reason = ""
                 if _FORCE_RE.search(context) and not benign:
                     reason = "forced"
-                elif file_hide_self or (file_hide_any and not conditioned):
+                elif (file_hide_self or file_hide_any) and not conditioned:
+                    # A hiding directive elsewhere never overrides the
+                    # suppression's own condition ("if nothing needs
+                    # attention, reply HEARTBEAT_OK" stays the documented use).
                     reason = "hidden"
                 elif para_action and not conditioned:
                     reason = "after-action"

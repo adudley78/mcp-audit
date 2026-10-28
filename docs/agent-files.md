@@ -120,6 +120,20 @@ A Claude Code `@path` import in a project instruction file (`CLAUDE.md`,
   and anything that can write it changes the agent's instructions with no
   trace. Decided from `.gitignore` files alone (git is never run).
 
+"Outside the project" follows Claude Code's own rule, outside the working
+directory the scan was started from. Running from a monorepo subdirectory
+therefore reports `@../../docs/x.md`, which lives in the same repository.
+Parenthesised forms such as `(@~/x.md)` are not imports in Claude Code and are
+not reported. A target that is a network path (`//host/share/x.md`, `/net/…`,
+`/Network/…`) is reported from its text alone: it is never stat-ed or read, so
+a scan cannot trigger an SMB or automount connection. An import written inside
+a file that is itself ignored (for example under `.claude/worktrees/`, which
+the project walk also skips) is not reported as an ignored import. Every cap
+reached (raw `@` tokens, resolved imports per file, reference verbs, the 20
+Markdown files taken from a referenced directory) is listed in the scan's
+errors; the cap counts resolved imports, so a flood of `@user` mentions cannot
+push a real external import out of view.
+
 A missing target produces nothing (Claude Code skips it too). User-scope
 files (`~/.claude/CLAUDE.md`, `~/.claude/rules/`) never produce MEM-003:
 Claude Code loads their imports without a prompt, as your own configuration.

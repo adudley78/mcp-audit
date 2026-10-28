@@ -984,6 +984,21 @@ discovery or analysis code for unconfirmed paths — add them to
   link and parenthesis wrappers and trailing punctuation are tried as
   variants. Every candidate must exist, which bounds the cost of the
   stricter reading.
+- **Windows junctions.** A junction is not a symlink to `lstat`, so the walk
+  to an import target does not stop at one. Git cannot create junctions, so a
+  cloned repository cannot plant one; a local one is read as a plain directory.
+- **Markdown parity is measured, not proven.** The masking was compared with
+  the `marked` lexer (gfm off) on about 2,000 random constructs plus this
+  repository's docs: no difference on the docs and the five reported shapes
+  are tests. A random run with deliberately hostile mixes (`<?php ?>`, CDATA,
+  backslash-backtick inside comments inside list items) still found 3 cases of
+  1,000 where an import Claude Code reads is hidden here; none is a shape found
+  in real files. Every other difference over-reports.
+- **MEM-004 hiding never overrides the documented condition.** A suppression
+  sentence that carries its own condition ("if nothing needs attention, reply
+  HEARTBEAT_OK") stays silent whatever else the file says about notifying or
+  keeping things quiet; a file that first hides a step and then adds the
+  condition for a different reason is not reported.
 - **MEM-001 on AGENTS.md:** the POISON-012 branch `do not (mention|tell|…)`
   fires on ordinary instruction prose. Measured on 10 `AGENTS.md` files in
   public skill/plugin repositories: 1 MEM-001 (trailofbits/skills, "Do not

@@ -102,8 +102,8 @@ def test_markdown_emphasis_and_links_give_trimmed_variants() -> None:
     assert "docs/a.md" in strong.variants
     (link,) = extract_imports("[@docs/b.md](https://example.com)")
     assert "docs/b.md" in link.variants
-    (paren,) = extract_imports("(@docs/c.md)")
-    assert "docs/c.md" in paren.variants
+    # Claude Code does not import "(@x)" (one text token, "(" before "@").
+    assert extract_imports("(@docs/c.md)") == []
 
 
 def test_indented_code_is_scanned_stricter_reading() -> None:
@@ -570,3 +570,206 @@ def test_user_scope_reads_inside_home_but_not_outside(tmp_path: Path) -> None:
     assert [f.path.name for f in reached] == ["mine.md"]
     # No "outside" edge for a user's own file: that is their configuration.
     assert [e.status for e in af.edges] == ["followed"]
+
+
+# ── Review round: parity shapes ───────────────────────────────────────────────
+
+_PARITY_SHAPES = [
+    "- item ` one\n- @../outside/evil.md ` two\n",
+    "Intro ` tick\n# Heading\n@../outside/evil.md ` end\n",
+    "Text with a lone ` backtick\n   \n@../outside/evil.md\nanother ` here\n",
+    "Notes <!-- draft\n\n@../outside/evil.md\n\nend -->\n",
+    "<!-- maintainer note\n```\n-->\n@../outside/evil.md\n```\n",
+]
+
+
+@pytest.mark.parametrize("text", _PARITY_SHAPES)
+def test_markup_that_cannot_span_blocks_does_not_hide_an_import(text: str) -> None:
+    assert _raws(text) == ["../outside/evil.md"]
+
+
+def test_parenthesised_import_is_not_extracted() -> None:
+    assert _raws("see (@~/x.md) and (@../x.md)") == []
+
+
+# ── Review round: network paths, NUL bytes, caps ──────────────────────────────
+
+_NETWORK = [
+    "//evil.example/share/x.md",
+    "/net/host/x.md",
+    "/Network/Servers/x.md",
+]
+
+
+@pytest.mark.parametrize(
+    "raw", ["\\\\host\\share\\x.md", "\\\\?\\C:\\x", "//h/s", "/net/h/x", "/Network/x"]
+)
+def test_is_network_path_matches_unc_device_and_automount_forms(raw: str) -> None:
+    assert im.is_network_path(raw)
+    assert not im.is_network_path("docs/x.md")
+
+
+@pytest.mark.parametrize("target", _NETWORK)
+def test_network_paths_are_reported_by_text_and_never_touched(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
+) -> None:
+    (repo / "CLAUDE.md").write_text(f"@{target.replace(' ', chr(92) + ' ')}\n")
+    root_af = _af(repo / "CLAUDE.md")
+
+    touched: list[str] = []
+    marker = target.replace("\\", "/").strip("/").split("/")[0:2]
+    needle = (
+        marker[-1] if marker[0] in ("net", "Network") or len(marker) < 2 else marker[0]
+    )
+
+    def _spy(real: object):  # type: ignore[no-untyped-def]
+        def _wrapped(*args: object, **kwargs: object) -> object:
+            touched.extend(str(a) for a in args if needle in str(a).replace("\\", "/"))
+            return real(*args, **kwargs)  # type: ignore[operator]
+
+        return _wrapped
+
+    for name in ("stat", "lstat", "open"):
+        monkeypatch.setattr(os, name, _spy(getattr(os, name)))
+    for name in ("is_file", "is_dir", "exists", "is_symlink", "stat", "lstat"):
+        monkeypatch.setattr(Path, name, _spy(getattr(Path, name)))
+    follow_references([root_af], project_root=repo, home=tmp_path)
+    monkeypatch.undo()
+    assert touched == []
+    assert [e.status for e in root_af.edges] == ["outside"]
+
+
+def test_nul_byte_in_import_or_reference_is_dropped(repo: Path, tmp_path: Path) -> None:
+    (repo / "CLAUDE.md").write_text("@a\x00b.md @ok.md\nsee docs/a\x00b.md\n")
+    (repo / "ok.md").write_text("fine", encoding="utf-8")
+    assert _raws("@a\x00b.md") == []
+    root_af = _af(repo / "CLAUDE.md")
+    reached = follow_references([root_af], project_root=repo, home=tmp_path)
+    assert [f.path.name for f in reached] == ["ok.md"]
+
+
+def test_nul_byte_does_not_lose_the_default_pass(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from mcp_audit.agent_files.reach import default_scan_findings, project_scan_findings
+
+    (repo / "CLAUDE.md").write_text("@a\x00b.md @../outside.md\n", encoding="utf-8")
+    (tmp_path / "outside.md").write_text("x", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    for fn in (default_scan_findings, project_scan_findings):
+        errors: list[str] = []
+        found = fn(repo, errors)
+        assert any(f.id == "MEM-003" for f in found), (fn.__name__, errors)
+
+
+def test_raw_token_flood_does_not_hide_a_later_external_import(
+    repo: Path, tmp_path: Path
+) -> None:
+    users = " ".join(f"@user{i}" for i in range(500))
+    (repo / "CLAUDE.md").write_text(f"{users}\n@../outside.md\n", encoding="utf-8")
+    (tmp_path / "outside.md").write_text("x", encoding="utf-8")
+    root_af = _af(repo / "CLAUDE.md")
+    follow_references([root_af], project_root=repo, home=tmp_path)
+    assert [e.status for e in root_af.edges] == ["outside"]
+
+
+def test_edge_cap_is_noted(repo: Path, tmp_path: Path) -> None:
+    for i in range(im.MAX_EDGES_PER_FILE + 5):
+        (repo / f"f{i}.md").write_text("x", encoding="utf-8")
+    body = " ".join(f"@f{i}.md" for i in range(im.MAX_EDGES_PER_FILE + 5))
+    (repo / "CLAUDE.md").write_text(body, encoding="utf-8")
+    notes: list[str] = []
+    follow_references(
+        [_af(repo / "CLAUDE.md")], project_root=repo, home=tmp_path, notes=notes
+    )
+    assert any("CLAUDE.md" in n and "200" in n for n in notes), notes
+
+
+def test_token_and_verb_caps_are_noted() -> None:
+    notes: list[str] = []
+    extract_imports(" ".join(f"@u{i}" for i in range(40)), limit=10, notes=notes)
+    assert notes
+    notes = []
+    extract_references(
+        " ".join(f"read x{i}.md." for i in range(50)), limit=5, notes=notes
+    )
+    assert notes
+
+
+def test_directory_reference_cap_is_noted(repo: Path, tmp_path: Path) -> None:
+    d = repo / "docs"
+    d.mkdir()
+    for i in range(im.MAX_DIRECTORY_REFERENCE_FILES + 3):
+        (d / f"n{i:02}.md").write_text("x", encoding="utf-8")
+    (repo / "CLAUDE.md").write_text("Read the files in `docs/` before acting.\n")
+    notes: list[str] = []
+    follow_references(
+        [_af(repo / "CLAUDE.md")], project_root=repo, home=tmp_path, notes=notes
+    )
+    assert any("docs" in n for n in notes), notes
+
+
+def test_import_of_an_ignored_file_is_not_flagged_ignored(
+    repo: Path, tmp_path: Path
+) -> None:
+    (repo / ".gitignore").write_text(".claude/worktrees/\n", encoding="utf-8")
+    wt = repo / ".claude" / "worktrees" / "w1"
+    wt.mkdir(parents=True)
+    (wt / "CLAUDE.md").write_text("@AGENTS.md", encoding="utf-8")
+    (wt / "AGENTS.md").write_text("x", encoding="utf-8")
+    root_af = _af(wt / "CLAUDE.md")
+    follow_references([root_af], project_root=repo, home=tmp_path)
+    assert [e.status for e in root_af.edges] == ["followed"]
+
+
+def test_project_walk_skips_claude_worktrees(repo: Path) -> None:
+    from mcp_audit.agent_files.discovery import discover_agent_files
+
+    (repo / "CLAUDE.md").write_text("top", encoding="utf-8")
+    wt = repo / ".claude" / "worktrees" / "w1"
+    wt.mkdir(parents=True)
+    (wt / "CLAUDE.md").write_text("copy", encoding="utf-8")
+    found = discover_agent_files(project_root=repo, include_user_global=False)
+    assert [f.path for f in found if f.path.name == "CLAUDE.md"] == [repo / "CLAUDE.md"]
+
+
+def test_secret_like_path_text_is_redacted_in_notes(repo: Path, tmp_path: Path) -> None:
+    secret = "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"  # noqa: S105
+    body = " ".join(f"@{secret}{i}.md" for i in range(im.MAX_EDGES_PER_FILE + 5))
+    for i in range(im.MAX_EDGES_PER_FILE + 5):
+        (repo / f"{secret}{i}.md").write_text("x", encoding="utf-8")
+    (repo / "CLAUDE.md").write_text(body, encoding="utf-8")
+    notes: list[str] = []
+    follow_references(
+        [_af(repo / "CLAUDE.md")], project_root=repo, home=tmp_path, notes=notes
+    )
+    assert notes and all(secret not in n for n in notes)
+
+
+def test_masking_of_unclosed_markup_is_linear() -> None:
+    for unit in ("` ", "<!-- ", "[a](", "- ` ", "> ` ", "<b "):
+        text = (unit + "@a.md\n") * 4000
+        start = time.monotonic()
+        extract_imports(text)
+        assert time.monotonic() - start < 10.0, unit
+
+
+def test_nul_byte_does_not_crash_the_cli(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from typer.testing import CliRunner
+
+    from mcp_audit.cli import app
+
+    (repo / "CLAUDE.md").write_text("@a\x00b.md @../o.md\nread x\x00y.md\n")
+    (tmp_path / "o.md").write_text("x", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    runner = CliRunner()
+    for args in (
+        ["agent-files", "scan", "--project", str(repo)],
+        ["scan", "--project", str(repo), "--include-agent-files", "--format", "json"],
+    ):
+        result = runner.invoke(app, args)
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert "MEM-003" in result.output or "outside the project" in result.output
