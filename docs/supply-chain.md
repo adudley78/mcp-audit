@@ -263,7 +263,9 @@ When this flag is set, mcp-audit:
 1. Extracts the ecosystem (`npm` or `PyPI`), package name, and version from
    each server config (`npx`/`bunx`/`pnpx`/`yarn dlx` → npm, `uvx`/`pipx` →
    PyPI; `pkg@1.2.3`, `@scope/pkg@1.2.3` and `pkg==1.2.3` are read as exact
-   pins). A launch with no version (`npx -y pkg`), `@latest`, or a range
+   pins; `[extras]` are dropped from a PyPI name and `pipx run` skips its
+   `run` subcommand; a URL, git, tarball or path spec is not looked up at
+   all, so credentials in it never leave the machine). A launch with no version (`npx -y pkg`), `@latest`, or a range
    (`^1.2.3`) is resolved to the registry's latest release and reported as
    `VULN-UNPINNED`.
 2. Queries the [deps.dev](https://deps.dev) API for the dependency graph of

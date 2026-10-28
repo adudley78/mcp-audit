@@ -1747,8 +1747,10 @@ advisory records and report lookups that could not run:
   (`git+https://…`, `github:owner/repo`, `owner/repo`, `./pkg.tgz`) is not
   looked up at all, so no credential in it reaches deps.dev or OSV; such a
   server gets no `--check-vulns` result.
-- **Launch parsing.** `pipx run pkg` is read as a package called `run`, and
-  an npm alias (`npx pkg@npm:other@1.0.0`) is looked up under the name
+- **Launch parsing.** `lock` still reads `uvx pkg==1.2.3` as unpinned (its
+  recorded `spec_as_written` is `latest`, unchanged so existing locks do not
+  drift); only `--check-vulns` and `sbom` read the pin, strip `[extras]` and
+  skip `pipx run`. An npm alias (`npx pkg@npm:other@1.0.0`) is looked up under the name
   `pkg@npm:other`, which deps.dev does not know (`VULN-UNRESOLVED`); the
   aliased package itself is not checked.
 - **Validator blind spot.** `scripts/validate_owasp_mapping.py` collects IDs

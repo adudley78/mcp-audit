@@ -392,3 +392,40 @@ class TestResolveOptIn:
         from mcp_audit.models import Severity
 
         assert result.findings[0].severity == Severity.CRITICAL
+
+
+class TestStory0106LeavesLockUnchanged:
+    """STORY-0106 taught the vulnerability lookup to read ``uvx pkg==X`` as a
+    pin. ``lock`` must keep main's reading (``spec_as_written: "latest"``), or
+    every lock already written for such a config reports LOCK-004 drift."""
+
+    def test_pep508_pin_still_recorded_as_latest(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            resolve_module,
+            "resolve_latest_version_info",
+            lambda eco, name: ("2025.4.7", None),
+        )
+        server = _server(
+            name="fetch",
+            root=tmp_path,
+            command="uvx",
+            args=["mcp-server-fetch==2025.4.7"],
+        )
+        doc = regenerate(None, [server], tmp_path, offline=False, registry=None)
+        lock_path = tmp_path / "mcp-lock.json"
+        write_lock(lock_path, doc)
+
+        (entry,) = (
+            doc["servers"].values()
+            if isinstance(doc["servers"], dict)
+            else doc["servers"]
+        )
+        package = entry["package"]
+        assert package["spec_as_written"] == "latest"
+        assert package["resolution"]["method"] == "dist-tag:latest"
+
+        result = verify(lock_path, [server], resolve=True, registry=None)
+        assert result.findings == []
+        assert result.exit_code == 0
