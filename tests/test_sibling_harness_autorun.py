@@ -120,6 +120,7 @@ class TestDiscovery:
         ".codex/config.toml": ("codex-config", "codex"),
         ".codex/hooks.json": ("codex-hooks", "codex"),
         ".claude/scheduled_tasks.json": ("claude-scheduled-tasks", "claude-code"),
+        ".mcphub/servers.json": ("mcphub-config", "mcphub-upstream"),
     }
 
     def _plant(self, root: Path) -> None:
@@ -497,6 +498,12 @@ class TestClaudePersistenceFiles:
 def test_every_sibling_kind_is_dispatched(tmp_path: Path) -> None:
     """Each TRUST-008 kind reaches a real check (no kind silently unhandled)."""
     planted = _copy_sibling_fixture(tmp_path)
+    # STORY-0119: the MCPHub config is written here rather than into the shared
+    # fixture, whose finding list other tests pin (see tests/test_mcphub_autorun.py).
+    _write(
+        planted / ".mcphub" / "servers.json",
+        '{"servers": {"s": {"env": {"T": "${cmd: ./token.sh}"}}}}',
+    )
     by_kind = {
         f.kind: f for f in discover_project_autoexec_files(planted) if not f.is_symlink
     }

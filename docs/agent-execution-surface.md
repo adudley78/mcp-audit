@@ -150,3 +150,9 @@ workflow scripts and scheduled-task prompts. Gemini CLI and Codex **MCP server**
 definitions in these same files are read as MCP configs (STORY-0110; see
 `docs/clients.md`): their servers go through every per-server check, and
 `scan --project` reports each as TRUST-001.
+
+## MCPHub (mcphub.nvim, mcp-hub)
+
+| File | What runs or applies | Finding | Scan path | Source |
+|---|---|---|---|---|
+| `.mcphub/servers.json` (project; `~/.config/mcphub/servers.json` is the user's own and is not reported) | `${cmd: command args}` in any field ("Executes commands and uses output"; "All fields support the universal placeholder syntax"), and the deprecated `"KEY": "$: command"` in `env`. mcphub.nvim reads a project's `.mcphub/servers.json` by default (`workspace.enabled = true`, project overrides global) and documents no trust prompt. The documentation does not say when the command runs. | TRUST-008 HIGH (CRITICAL on network); `${env:VAR}` and `${VAR}` are silent | both | [servers.json reference](https://github.com/ravitemer/mcphub.nvim/blob/main/doc/mcp/servers_json.md), [configuration](https://github.com/ravitemer/mcphub.nvim/blob/main/doc/configuration.md), [mcp-hub README](https://github.com/ravitemer/mcp-hub) |

@@ -53,7 +53,11 @@ _DATE = (
 _CONDITION_RE = re.compile(
     r"\b(?:if|when|whenever|once|unless)\b(?P<cond>[^,;:\n]{1,120}?)"
     r"(?:[,;:]|\s+then\b)"
-    r"|\b(?:after|on|past|from|starting)\s+(?P<date>" + _DATE + r")\s*[,;:]",
+    r"|\b(?:after|on|past|from|starting)\s+(?P<date>" + _DATE + r")\s*[,;:]"
+    # A time or place named without if/when ("At night, ...", "On weekends, ...",
+    # "Outside business hours, ...", "In production, ..."), STORY-0119.
+    r"|\b(?P<when>(?:at|during|outside(?:\s+of)?|on|in|after|before)\s+"
+    r"[^,;:\n.]{1,60}?)\s*[,;:]",
     re.IGNORECASE,
 )
 
@@ -83,7 +87,7 @@ _STRONG_TRIGGER_RE = re.compile(
 _CONSEQUENCE_RE = re.compile(
     r"\s*(?:then\s+)?(?:you\s+(?:should|must|can|will)\s+)?"
     r"(?:(?:silently|quietly|secretly|immediately|always|also|just)\s+)?"
-    r"(?:run|execute|exec|curl|wget|send|post|upload|write|append|delete|"
+    r"(?:run|execute|exec|curl|wget|send|post|upload|write|append|add|delete|"
     r"remove|copy|forward|email|push)\b",
     re.IGNORECASE,
 )
@@ -93,6 +97,9 @@ _PAYLOAD_RE = re.compile(
     r"|\b(?:credentials?|secrets?|tokens?|api[\s_-]?keys?|private\s+keys?|ssh\s+keys?"
     r"|keys|passwords?|cookies?|env\s+file|environment\s+variables|id_rsa"
     r"|authorized_keys|payload|backups?|database\s+dump)\b"
+    r"|\b(?:s3|gs|gcs|ftp|sftp|ssh|scp)://|\b(?:scp|rsync)\s+\S+\s+\S*[@:]"
+    r"|[\w.+-]{1,64}@[\w-]{1,63}(?:\.[\w-]{1,63}){1,5}\b"
+    r"|\bgit\s+remote\s+add\b|\bgit\s+push\s+\S{0,200}(?:://|@)"
     r"|\.env\b|\.ssh\b|\.aws\b|\.netrc\b|/etc/shadow\b"
     r"|\bto\s+(?:the\s+|an?\s+|my\s+|our\s+)?(?:[\w-]+\s+)?"
     r"(?:server|endpoint|webhook|bucket)\b"
@@ -111,7 +118,11 @@ def _sleeper_in(sentence: str) -> bool:
     for pm in _PAYLOAD_RE.finditer(sentence):
         last_payload = pm.start()
     for m in _CONDITION_RE.finditer(sentence):
-        cond = m.group("cond") if m.group("cond") is not None else m.group("date")
+        cond = m.group("cond")
+        if cond is None:
+            cond = m.group("date")
+        if cond is None:
+            cond = m.group("when")
         strong = bool(_STRONG_TRIGGER_RE.search(cond))
         if not strong and not _WEAK_TRIGGER_RE.search(cond):
             continue

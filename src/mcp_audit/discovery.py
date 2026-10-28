@@ -1019,6 +1019,8 @@ _PROJECT_CONFIG_SPECS: list[tuple[str, str, str]] = [
 #   Claude Code  — .claude/scheduled_tasks.json and the .claude/workflows/
 #                  directory, which Anthropic's sandboxing doc lists as
 #                  "files Claude Code runs on its own".
+#   MCPHub.nvim  — .mcphub/servers.json (workspace config, on by default; every
+#                  field accepts `${cmd: ...}`, which runs a command; STORY-0119).
 _PROJECT_AUTOEXEC_SPECS: list[tuple[str, str]] = [
     (".vscode/tasks.json", "vscode-tasks"),
     (".vscode/settings.json", "vscode-settings"),
@@ -1028,6 +1030,7 @@ _PROJECT_AUTOEXEC_SPECS: list[tuple[str, str]] = [
     (".codex/hooks.json", "codex-hooks"),
     (".claude/scheduled_tasks.json", "claude-scheduled-tasks"),
     (".claude/workflows", "claude-workflows"),
+    (".mcphub/servers.json", "mcphub-config"),
 ]
 
 #: Autoexec kinds whose candidate path is a directory, not a file.
@@ -1043,6 +1046,7 @@ _AUTOEXEC_KIND_CLIENT: dict[str, str] = {
     "codex-hooks": "codex",
     "claude-scheduled-tasks": "claude-code",
     "claude-workflows": "claude-code",
+    "mcphub-config": "mcphub-upstream",
 }
 
 #: TRUST-008's kinds: auto-run files of harnesses other than VS Code.  The
@@ -1059,6 +1063,7 @@ SIBLING_HARNESS_AUTOEXEC_KINDS: frozenset[str] = frozenset(
         "codex-hooks",
         "claude-scheduled-tasks",
         "claude-workflows",
+        "mcphub-config",
     }
 )
 
