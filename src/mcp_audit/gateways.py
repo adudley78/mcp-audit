@@ -16,19 +16,22 @@ Locations and formats, each confirmed from the gateway's own source or docs
 (see PROVENANCE.md, "Gateway upstream configs"):
 
 - **mcptoon** (``mcptoon/config.py``, 0.8.32): user config
-  ``~/.mcptoon/config.json`` and ``config.toml``, or the same names under
-  ``$MCPTOON_HOME`` or ``$XDG_CONFIG_HOME/mcptoon``; project config
+  ``config.json`` and ``config.toml`` in one root: ``$MCPTOON_HOME``, else
+  ``$XDG_CONFIG_HOME/mcptoon`` (when set, and it exists or ``~/.mcptoon``
+  does not), else ``~/.mcptoon``; project config
   ``./.mcptoon.json`` and ``./.mcptoon.toml`` in the directory ``mcptoon``
   runs from.  Root key ``servers``; ``command`` is an argv list (or one
   string) that ``args`` is appended to; ``transport`` is ``stdio`` or
   ``http``.  An entry named ``mcptoon``, or one whose argv runs
   ``mcptoon ... serve``, is dropped by mcptoon itself and is skipped here.
 - **1MCP** (docs.1mcp.app, MCP Servers reference): ``~/.config/1mcp/mcp.json``
-  on macOS and Linux, ``%APPDATA%\\1mcp\\mcp.json`` on Windows, or ``mcp.json``
-  in ``$ONE_MCP_CONFIG_DIR`` / the file ``$ONE_MCP_CONFIG``.  Root key
+  on macOS and Linux, ``<home>\\AppData\\Roaming\\1mcp\\mcp.json`` on
+  Windows (``src/constants/paths.ts``), or ``mcp.json`` in
+  ``$ONE_MCP_CONFIG_DIR`` / the file ``$ONE_MCP_CONFIG``.  Root key
   ``mcpServers`` plus ``mcpTemplates`` (a template wins over a static server of
   the same name); ``serverDefaults.env`` is merged under each server's
-  ``env``; ``env`` may be an object or a ``["KEY=value", "NAME"]`` list.
+  ``env`` (when both are arrays the server's replaces it); ``env`` may be an
+  object or a ``["KEY=value", "NAME"]`` list.
 - **MCPHub.nvim / mcp-hub** (mcphub.nvim ``doc/configuration.md``,
   ``doc/mcp/servers_json.md``): ``~/.config/mcphub/servers.json`` (the
   plugin's default ``config``), and ``.mcphub/servers.json`` in a project
@@ -139,18 +142,12 @@ def user_gateway_config_paths() -> list[tuple[str, Path]]:
     home = _gateway_home()
     out: list[tuple[str, Path]] = []
 
-    # mcptoon: MCPTOON_HOME, then $XDG_CONFIG_HOME/mcptoon, then ~/.mcptoon.
-    mcptoon_roots: list[Path] = []
-    explicit = _env_path("MCPTOON_HOME")
-    if explicit is not None:
-        mcptoon_roots.append(explicit)
-    xdg = _env_path("XDG_CONFIG_HOME")
-    if xdg is not None:
-        mcptoon_roots.append(xdg / "mcptoon")
-    mcptoon_roots.append(home / ".mcptoon")
-    for root in mcptoon_roots:
-        out.append((MCPTOON_CLIENT, root / "config.toml"))
-        out.append((MCPTOON_CLIENT, root / "config.json"))
+    # mcptoon reads ONE root (config._resolve_root): MCPTOON_HOME, else
+    # $XDG_CONFIG_HOME/mcptoon when that is set and either exists or the
+    # legacy ~/.mcptoon does not, else ~/.mcptoon.
+    root = _mcptoon_root(home)
+    out.append((MCPTOON_CLIENT, root / "config.toml"))
+    out.append((MCPTOON_CLIENT, root / "config.json"))
 
     # 1MCP: ONE_MCP_CONFIG (a file), ONE_MCP_CONFIG_DIR, then the default dir.
     onemcp_file = _env_path("ONE_MCP_CONFIG")
@@ -160,8 +157,10 @@ def user_gateway_config_paths() -> list[tuple[str, Path]]:
     if onemcp_dir is not None:
         out.append((ONEMCP_CLIENT, onemcp_dir / "mcp.json"))
     if platform.system() == "Windows":
-        appdata = _env_path("APPDATA") or home / "AppData" / "Roaming"
-        out.append((ONEMCP_CLIENT, appdata / "1mcp" / "mcp.json"))
+        # 1MCP's getGlobalConfigDir() (src/constants/paths.ts): os.homedir()
+        # + AppData/Roaming/1mcp on anything but macOS and Linux; it does not
+        # read %APPDATA%, though the docs name the folder that way.
+        out.append((ONEMCP_CLIENT, home / "AppData" / "Roaming" / "1mcp" / "mcp.json"))
     else:
         out.append((ONEMCP_CLIENT, home / ".config" / "1mcp" / "mcp.json"))
 
@@ -176,6 +175,29 @@ def user_gateway_config_paths() -> list[tuple[str, Path]]:
         seen.add(path)
         unique.append((client, path))
     return unique
+
+
+def _exists(path: Path) -> bool:
+    """``Path.exists`` that treats an unreadable path as absent."""
+    try:
+        return path.exists()
+    except OSError:
+        return False
+
+
+def _mcptoon_root(home: Path) -> Path:
+    """The one config root mcptoon uses (its ``config._resolve_root``)."""
+    explicit = _env_path("MCPTOON_HOME")
+    if explicit is not None:
+        return explicit
+    legacy = home / ".mcptoon"
+    xdg = _env_path("XDG_CONFIG_HOME")
+    if xdg is None:
+        return legacy
+    xdg_root = xdg / "mcptoon"
+    if _exists(xdg_root) or not _exists(legacy):
+        return xdg_root
+    return legacy
 
 
 def gateway_spawn_text(server: object) -> str:
@@ -425,7 +447,8 @@ def _mcptoon_servers(doc: dict) -> tuple[dict[str, dict], dict[str, str]]:
 def _onemcp_servers(doc: dict) -> tuple[dict[str, dict], dict[str, str]]:
     defaults = doc.get("serverDefaults")
     defaults = defaults if isinstance(defaults, dict) else {}
-    default_env = _env_map(defaults.get("env"))
+    default_env_raw = defaults.get("env")
+    default_env = _env_map(default_env_raw)
     default_headers = _text_map(defaults.get("headers"))
     merged: dict[str, object] = {}
     for key in ("mcpServers", "mcpTemplates"):
@@ -439,7 +462,12 @@ def _onemcp_servers(doc: dict) -> tuple[dict[str, dict], dict[str, str]]:
             continue
         norm = _normalise_entry(entry, entry.get("command"), entry.get("args"))
         declared = str(entry.get("type", "")).lower()
-        if default_env:
+        # Documented merge: object env values merge (server wins); when both
+        # are arrays, the server's array replaces the defaults'.
+        both_arrays = isinstance(default_env_raw, list) and isinstance(
+            entry.get("env"), list
+        )
+        if default_env and not both_arrays:
             norm["env"] = {**default_env, **norm["env"]}
         if default_headers and "url" in norm and "headers" not in norm:
             norm["headers"] = dict(default_headers)

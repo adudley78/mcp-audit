@@ -1260,6 +1260,51 @@ def redact_header_values(headers: dict) -> dict:
     return out
 
 
+def redact_nested_secrets(
+    value: object, skip_keys: frozenset[str] = frozenset()
+) -> object:
+    """Return a copy of a parsed config value with credentials redacted.
+
+    For the ``raw`` entry of an MCP gateway upstream server (STORY-0111),
+    whose gateway keys (1MCP ``oauth.clientSecret``, ``accessToken``, …) are
+    kept as written.  Walks dicts and lists iteratively (no recursion limit):
+    the string value of a secret-named key (``clientSecret``,
+    ``client_secret``, ``refreshToken``, ``bearer_token``, ``apiKey``: the
+    whole-word rule of :func:`_is_secret_flag_name`) that is not a reference,
+    a setting, a path or a URL becomes :data:`REDACTION_MARKER`; every other
+    string has URL userinfo and SECRET_PATTERNS matches replaced
+    (:func:`redact_args`).  Top-level keys in *skip_keys* are copied as they
+    are (the caller redacts them its own way).
+    """
+    root: list[object] = [None]
+    stack: list[tuple[object, object, object, bool]] = [(value, root, 0, True)]
+    while stack:
+        node, parent, key, top = stack.pop()
+        if isinstance(node, dict):
+            new: object = {}
+            for k, v in node.items():
+                if top and k in skip_keys:
+                    new[k] = v  # type: ignore[index]
+                elif (
+                    isinstance(v, str)
+                    and _is_secret_flag_name(str(k))
+                    and _is_secret_flag_value(v)
+                ):
+                    new[k] = REDACTION_MARKER  # type: ignore[index]
+                else:
+                    stack.append((v, new, k, False))
+        elif isinstance(node, list):
+            new = [None] * len(node)
+            for i, v in enumerate(node):
+                stack.append((v, new, i, False))
+        elif isinstance(node, str):
+            new = redact_args([node])[0]
+        else:
+            new = node
+        parent[key] = new  # type: ignore[index]
+    return root[0]
+
+
 def redact_env_values(env: dict) -> dict:
     """Return *env* with credential values redacted, for serialised output.
 

@@ -1368,7 +1368,9 @@ was confirmed from the gateway's own source or documentation on 2026-10-28:
   `transport` `stdio` (argv = `command` + `args`; a string `command` is one
   token) or `http` (`url`, `headers`). Project repository:
   https://github.com/activeing123/mcptoon (registry submission #171).
-- **1MCP** — https://docs.1mcp.app/reference/mcp-servers ("Default Locations":
+- **1MCP** — source `src/constants/paths.ts` (https://github.com/1mcp-app/agent:
+  `getGlobalConfigDir()` = `os.homedir()` + `/.config/1mcp` on darwin/linux,
+  else `/AppData/Roaming/1mcp`) and https://docs.1mcp.app/reference/mcp-servers ("Default Locations":
   `~/.config/1mcp/mcp.json` on macOS and Linux, `%APPDATA%\1mcp\mcp.json` on
   Windows; `ONE_MCP_CONFIG_DIR`; `serverDefaults`, `mcpServers`, `mcpTemplates`
   "the template entry is authoritative"; `env` object or `["KEY=value", "PATH"]`

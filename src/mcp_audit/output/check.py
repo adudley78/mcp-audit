@@ -5,6 +5,7 @@ from __future__ import annotations
 from rich.console import Console
 from rich.rule import Rule
 
+from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS
 from mcp_audit.models import Finding, ScanResult, Severity
 from mcp_audit.registration.models import RegistrationConfig
 
@@ -404,7 +405,9 @@ _HINTS: dict[str, str] = {
 
 
 #: Clients whose configs ``fix`` never edits.
-_NOT_FIXED_CLIENTS = frozenset({"claude-code-skill"})
+#: MCP gateway upstreams (STORY-0111) live in the gateway's own file and
+#: format, which ``fix`` does not write.
+_NOT_FIXED_CLIENTS = frozenset({"claude-code-skill"}) | GATEWAY_UPSTREAM_CLIENTS
 
 
 def _is_auto_fixable(finding: Finding) -> bool:

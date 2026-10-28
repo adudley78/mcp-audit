@@ -29,6 +29,11 @@ from rich.rule import Rule
 
 from mcp_audit.cli import app
 from mcp_audit.fixer.fixer import FixType, run_fix
+from mcp_audit.gateways import (
+    GATEWAY_UPSTREAM_CLIENTS,
+    PROJECT_GATEWAY_FILES,
+    user_gateway_config_paths,
+)
 from mcp_audit.lock.discovery import find_lock_for
 from mcp_audit.lock.writer import load_existing as load_existing_lock
 from mcp_audit.models import Finding, ScanResult
@@ -131,6 +136,19 @@ def fix(
         err_console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(2) from exc
 
+    # ── MCP gateway configs are never edited (STORY-0111) ────────────────────
+    # A gateway's upstream servers (client ``<gateway>-upstream``) live in the
+    # gateway's own file and format (mcptoon argv lists, TOML, 1MCP env
+    # lists), which the fix strategies do not write.  Their findings are
+    # dropped so one can never be applied to a same-name server elsewhere.
+    if _is_gateway_config(config_path, findings):
+        err_console.print(
+            f"[red]Error:[/red] {config_path} is an MCP gateway config;"
+            " mcp-audit fix does not edit gateway configs. Fix it by hand."
+        )
+        raise typer.Exit(2)
+    findings = [f for f in findings if f.client not in GATEWAY_UPSTREAM_CLIENTS]
+
     # ── Load registry for pinning strategy ───────────────────────────────────
     registry = None
     if not offline:
@@ -177,6 +195,35 @@ def fix(
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
+def _is_gateway_config(config_path: Path, findings: list[Finding]) -> bool:
+    """True when *config_path* is an MCP gateway config (STORY-0111).
+
+    Decided by the gateway project file names and by any finding of a
+    ``<gateway>-upstream`` client that points at this file.
+    """
+    for rel, _client in PROJECT_GATEWAY_FILES:
+        if config_path.parts[-len(Path(rel).parts) :] == Path(rel).parts:
+            return True
+    for _client, user_path in user_gateway_config_paths():
+        if _resolved(user_path) == _resolved(config_path):
+            return True
+    target = _resolved(config_path)
+    return any(
+        finding.client in GATEWAY_UPSTREAM_CLIENTS
+        and finding.finding_path
+        and _resolved(Path(finding.finding_path)) == target
+        for finding in findings
+    )
+
+
+def _resolved(path: Path) -> str:
+    """``str(path.resolve())``, or ``str(path)`` when it cannot be resolved."""
+    try:
+        return str(path.resolve())
+    except (OSError, RuntimeError):
+        return str(path)
+
+
 def _resolve_findings(
     path: Path | None, input_file: Path | None
 ) -> tuple[Path, list[Finding]]:
@@ -213,8 +260,9 @@ def _resolve_findings(
                 "Scan result has no servers; cannot determine config_path. "
                 "Re-run 'mcp-audit scan --output json' and pass the output here."
             )
-        # Use the config path from the first server found.
-        config_path = scan_result.servers[0].config_path.resolve()
+        # Use the config path from the first server found (a gateway's
+        # upstreams only when nothing else was found; fix then refuses).
+        config_path = _first_config_path(scan_result).resolve()
         if not config_path.exists():
             raise FileNotFoundError(
                 f"Config path from scan result not found: {config_path}"
@@ -234,11 +282,19 @@ def _resolve_findings(
     if extra_paths:
         config_path = extra_paths[0]
     elif scan_result.servers:
-        config_path = scan_result.servers[0].config_path.resolve()
+        config_path = _first_config_path(scan_result).resolve()
     else:
         raise ValueError("No config files found. Use --path to specify one explicitly.")
 
     return config_path, scan_result.findings
+
+
+def _first_config_path(scan_result: ScanResult) -> Path:
+    """The first server's config file, preferring one that is not a gateway's."""
+    for server in scan_result.servers:
+        if server.client not in GATEWAY_UPSTREAM_CLIENTS:
+            return server.config_path
+    return scan_result.servers[0].config_path
 
 
 def _print_result(result, *, apply: bool) -> None:  # type: ignore[no-untyped-def]

@@ -44,6 +44,16 @@ PLAIN_KEY = "plainvalue12345zz"
 DB_PASSWORD = "hunter2hunter2"  # noqa: S105 - synthetic
 
 
+@pytest.fixture(autouse=True)
+def _private_rug_pull_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CLI scans here run rug-pull; keep its state out of the real config dir."""
+    state_dir = tmp_path / "rug-pull-state"
+    monkeypatch.setattr("mcp_audit.analyzers.rug_pull._STATE_DIR", state_dir)
+    monkeypatch.setattr(
+        "mcp_audit.analyzers.rug_pull.DEFAULT_STATE_PATH", state_dir / "state.json"
+    )
+
+
 def _write(path: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -155,6 +165,21 @@ class TestReadOneMcp:
         assert parsed.servers["dup"]["command"] == "template-cmd"
 
 
+class TestOneMcpEnvArrays:
+    def test_server_array_replaces_defaults_array(self, tmp_path: Path) -> None:
+        doc = {
+            "serverDefaults": {"env": ["SHARED=1"]},
+            "mcpServers": {
+                "a": {"command": "x", "env": ["OWN=2"]},
+                "b": {"command": "y", "env": {"OBJ": "3"}},
+            },
+        }
+        path = _write(tmp_path / "mcp.json", json.dumps(doc))
+        servers = read_gateway_servers(path, ONEMCP_CLIENT).servers
+        assert servers["a"]["env"] == {"OWN": "2"}
+        assert servers["b"]["env"] == {"SHARED": "1", "OBJ": "3"}
+
+
 class TestReadMcphub:
     def test_servers_key_wins_over_mcpservers(self, tmp_path: Path) -> None:
         doc = {
@@ -260,18 +285,22 @@ class TestUserPaths:
             tmp_path / ".config" / "mcphub" / "servers.json",
         ) in paths
 
-    def test_windows_appdata(
+    def test_windows_home_appdata(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr("mcp_audit.gateways._gateway_home", lambda: tmp_path)
         monkeypatch.setattr("mcp_audit.gateways.platform.system", lambda: "Windows")
-        appdata = tmp_path / "Roaming"
+        # 1MCP uses os.homedir()/AppData/Roaming, not %APPDATA%.
         monkeypatch.setattr(
-            "mcp_audit.gateways._gateway_environ", lambda: {"APPDATA": str(appdata)}
+            "mcp_audit.gateways._gateway_environ",
+            lambda: {"APPDATA": str(tmp_path / "Moved")},
         )
-        assert (ONEMCP_CLIENT, appdata / "1mcp" / "mcp.json") in (
-            user_gateway_config_paths()
-        )
+        paths = user_gateway_config_paths()
+        assert (
+            ONEMCP_CLIENT,
+            tmp_path / "AppData" / "Roaming" / "1mcp" / "mcp.json",
+        ) in paths
+        assert not any("Moved" in str(p) for _c, p in paths)
 
     def test_environment_overrides_absolute_only(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -279,16 +308,48 @@ class TestUserPaths:
         monkeypatch.setattr("mcp_audit.gateways._gateway_home", lambda: tmp_path)
         env = {
             "MCPTOON_HOME": str(tmp_path / "mh"),
-            "XDG_CONFIG_HOME": str(tmp_path / "xdg"),
             "ONE_MCP_CONFIG_DIR": str(tmp_path / "od"),
             "ONE_MCP_CONFIG": "relative/mcp.json",
         }
         monkeypatch.setattr("mcp_audit.gateways._gateway_environ", lambda: env)
         paths = [p for _c, p in user_gateway_config_paths()]
         assert tmp_path / "mh" / "config.json" in paths
-        assert tmp_path / "xdg" / "mcptoon" / "config.toml" in paths
+        # MCPTOON_HOME is the only mcptoon root, as in mcptoon.
+        assert tmp_path / ".mcptoon" / "config.json" not in paths
         assert tmp_path / "od" / "mcp.json" in paths
         assert not any("relative" in str(p) for p in paths)
+
+    @pytest.mark.parametrize(
+        ("xdg_exists", "legacy_exists", "expected"),
+        [
+            (True, True, "xdg"),
+            (False, False, "xdg"),
+            (False, True, "legacy"),
+        ],
+    )
+    def test_mcptoon_reads_one_root(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        xdg_exists: bool,
+        legacy_exists: bool,
+        expected: str,
+    ) -> None:
+        monkeypatch.setattr("mcp_audit.gateways._gateway_home", lambda: tmp_path)
+        xdg = tmp_path / "xdg"
+        if xdg_exists:
+            (xdg / "mcptoon").mkdir(parents=True)
+        if legacy_exists:
+            (tmp_path / ".mcptoon").mkdir()
+        monkeypatch.setattr(
+            "mcp_audit.gateways._gateway_environ",
+            lambda: {"XDG_CONFIG_HOME": str(xdg)},
+        )
+        roots = {
+            p.parent for c, p in user_gateway_config_paths() if c == MCPTOON_CLIENT
+        }
+        want = xdg / "mcptoon" if expected == "xdg" else tmp_path / ".mcptoon"
+        assert roots == {want}
 
 
 class TestDiscovery:
@@ -685,3 +746,150 @@ def test_world_readable_gateway_config_gets_hygiene_findings(
     assert any(
         f.id == "CFHYG-001" and f.client == MCPTOON_CLIENT for f in result.findings
     )
+
+
+# ── Review round (PR #208) ───────────────────────────────────────────────────
+
+OAUTH_SECRET = "oauthsecretvalue9876"  # noqa: S105 - synthetic
+
+
+class TestOauthSecretsRedacted:
+    def _scan(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> object:
+        _home(monkeypatch, tmp_path)
+        monkeypatch.chdir(_write(tmp_path / "cwd" / "x", "").parent)
+        monkeypatch.setattr("mcp_audit.gateways.platform.system", lambda: "Linux")
+        doc = {
+            "mcpServers": {
+                "remote": {
+                    "type": "http",
+                    "url": "https://h.example/mcp",
+                    "oauth": {
+                        "clientId": "my-client",
+                        "clientSecret": OAUTH_SECRET,
+                        "accessToken": OAUTH_SECRET + "a",
+                        "refresh_token": OAUTH_SECRET + "r",
+                        "tokenUrl": "https://h.example/token",
+                    },
+                    "bearer_token": OAUTH_SECRET + "b",
+                    "nested": [{"apiKey": OAUTH_SECRET + "n"}],
+                    "ref": {"clientSecret": "${CLIENT_SECRET}"},
+                }
+            }
+        }
+        _write(tmp_path / ".config" / "1mcp" / "mcp.json", json.dumps(doc))
+        return run_scan(skip_rug_pull=True)
+
+    def test_json_check_and_snapshot(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.output.snapshot import format_native  # noqa: PLC0415
+
+        result = self._scan(tmp_path, monkeypatch)
+        texts = {
+            # scan --format json and check --json both use model_dump_json.
+            "json": result.model_dump_json(indent=2, by_alias=True),
+            "snapshot": json.dumps(format_native(result, "host")),
+        }
+        for kind, text in texts.items():
+            assert OAUTH_SECRET not in text, kind
+        raw = next(
+            s for s in json.loads(texts["json"])["servers"] if s["name"] == "remote"
+        )["raw"]
+        assert raw["oauth"]["clientSecret"] == REDACTION_MARKER
+        assert raw["oauth"]["clientId"] == "my-client"
+        assert raw["oauth"]["tokenUrl"] == "https://h.example/token"
+        assert raw["ref"]["clientSecret"] == "${CLIENT_SECRET}"
+
+    def test_check_json_cli(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        self._scan(tmp_path, monkeypatch)
+        out = CliRunner().invoke(app, ["check", "--json"])
+        assert '"clientSecret"' in out.output
+        assert OAUTH_SECRET not in out.output
+
+
+class TestRugPullKeyPerFile:
+    def test_change_in_user_file_is_reported_despite_project_twin(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.analyzers.rug_pull import RugPullAnalyzer  # noqa: PLC0415
+
+        user = tmp_path / "home" / ".mcptoon" / "config.json"
+        project = tmp_path / "repo" / ".mcptoon.json"
+
+        def servers(user_args: list[str]) -> list[ServerConfig]:
+            return [
+                ServerConfig(
+                    name="fs",
+                    client=MCPTOON_CLIENT,
+                    config_path=user,
+                    command="npx",
+                    args=user_args,
+                    raw={"command": "npx", "args": user_args},
+                ),
+                ServerConfig(
+                    name="fs",
+                    client=MCPTOON_CLIENT,
+                    config_path=project,
+                    command="npx",
+                    args=["-y", "pkg"],
+                    raw={"command": "npx", "args": ["-y", "pkg"]},
+                    is_project_scoped=True,
+                ),
+            ]
+
+        state = tmp_path / "state.json"
+        RugPullAnalyzer(state_path=state).analyze_all(servers(["-y", "pkg"]))
+        findings = RugPullAnalyzer(state_path=state).analyze_all(
+            servers(["-y", "evil-pkg"])
+        )
+        changed = [f for f in findings if f.id == "RUGPULL-001"]
+        assert len(changed) == 1 and changed[0].server == "fs"
+        # Removing one of the two is reported with the plain server name.
+        findings = RugPullAnalyzer(state_path=state).analyze_all(
+            servers(["-y", "evil-pkg"])[1:]
+        )
+        removed = [f for f in findings if f.id == "RUGPULL-003"]
+        assert [f.server for f in removed] == ["fs"]
+
+
+class TestNoFixForGateways:
+    def test_check_never_offers_fix_apply(self, tmp_path: Path) -> None:
+        from mcp_audit.models import Finding, Severity  # noqa: PLC0415
+        from mcp_audit.output.check import _is_auto_fixable  # noqa: PLC0415
+
+        finding = Finding(
+            id="CRED-001",
+            severity=Severity.HIGH,
+            analyzer="credentials",
+            client=MCPTOON_CLIENT,
+            server="gh",
+            title="t",
+            description="d",
+            evidence="e",
+            remediation="r",
+            finding_path=str(tmp_path / ".mcptoon.json"),
+        )
+        assert not _is_auto_fixable(finding)
+
+    def test_fix_refuses_gateway_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from typer.testing import CliRunner  # noqa: PLC0415
+
+        from mcp_audit.cli import app  # noqa: PLC0415
+
+        _home(monkeypatch, tmp_path / "home")
+        repo = tmp_path / "repo"
+        path = _write(repo / ".mcptoon.json", json.dumps(MCPTOON_JSON))
+        before = path.read_text()
+        monkeypatch.chdir(repo)
+        out = CliRunner().invoke(app, ["fix", "--path", str(path), "--apply"])
+        assert out.exit_code == 2
+        assert "gateway" in out.output
+        assert path.read_text() == before

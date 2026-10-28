@@ -180,8 +180,15 @@ class ServerConfig(BaseModel):
             from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
                 redact_env_values,
                 redact_header_values,
+                redact_nested_secrets,
             )
 
+            # Every other key the gateway wrote (1MCP ``oauth.clientSecret``,
+            # MCPHub fields, …): secret-named values and credential formats.
+            out = redact_nested_secrets(  # type: ignore[assignment]
+                out,
+                frozenset({"env", "headers", "args", *_RAW_LAUNCH_TEXT_KEYS}),
+            )
             if isinstance(out.get("env"), dict):
                 out["env"] = redact_env_values(out["env"])
             if isinstance(out.get("headers"), dict):
