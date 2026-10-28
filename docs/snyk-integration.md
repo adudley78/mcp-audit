@@ -48,7 +48,7 @@ with one result per finding. Every result includes:
 mcp-audit scan --format sarif -o mcp-audit.sarif
 
 # Or use the GitHub Action (uploads automatically)
-uses: adudley78/mcp-audit@v0.21.1
+uses: adudley78/mcp-audit@v0.22.0
 with:
   sarif-output: mcp-audit.sarif
   upload-sarif: 'true'

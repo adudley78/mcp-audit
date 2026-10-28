@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-10-25",
+  "last_updated": "2026-10-27",
   "entry_count": 55,
   "entries": [
     {
@@ -67,7 +67,8 @@
       },
       "capabilities": [
         "git",
-        "network_out"
+        "network_out",
+        "comms_out"
       ],
       "first_published": "2024-11-14",
       "weekly_downloads": 38100,
@@ -89,6 +90,10 @@
         "official",
         "gitlab",
         "remote"
+      ],
+      "capabilities": [
+        "git",
+        "comms_out"
       ],
       "attestation_expected": false
     },
@@ -121,7 +126,8 @@
         "remote"
       ],
       "capabilities": [
-        "network_out"
+        "network_out",
+        "comms_out"
       ],
       "attestation_expected": false
     },
@@ -900,7 +906,8 @@
       "capabilities": [
         "file_read",
         "file_write",
-        "network_out"
+        "network_out",
+        "comms_out"
       ],
       "known_vulnerabilities": [
         "CVE-2026-27826",
@@ -2257,7 +2264,8 @@
         "automation"
       ],
       "capabilities": [
-        "network_out"
+        "network_out",
+        "comms_out"
       ],
       "first_published": "2026-05-13",
       "weekly_downloads": 921,

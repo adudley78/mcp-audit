@@ -123,6 +123,22 @@ _HINTS: dict[str, str] = {
     "TOXIC-007": (
         "Review this cross-server capability chain for unintended escalation paths."
     ),
+    "TOXIC-008": (
+        "Don't load a file server and a posting server (GitHub, Slack, Jira) in"
+        " one session, or scope the posting token to the repos/channels it needs."
+    ),
+    "TOXIC-009": (
+        "Keep secret-store servers away from servers that post to GitHub, Slack"
+        " or Jira."
+    ),
+    "TOXIC-010": (
+        "Don't load a database server and a posting server together, or give"
+        " the database a read-only role and scope the posting token."
+    ),
+    "TOXIC-011": (
+        "Remove the shell server or the posting server, or allowlist the shell"
+        " commands; output can leave as a comment or a push."
+    ),
     "INTEG-001": (
         "Separate file-writing and shell-execution servers to prevent a"
         " plant-then-execute chain."
@@ -210,6 +226,26 @@ _HINTS: dict[str, str] = {
         "Remove the mcp__<server> allow rule until the server's findings are fixed,"
         " or allow only tools you have checked."
     ),
+    "SANDBOX-001": (
+        "Remove the sandbox-weakening keys from the repository's .claude settings;"
+        " a machine that needs one sets it in ~/.claude/settings.json."
+    ),
+    "SANDBOX-002": (
+        "Drop the excludedCommands or allowUnixSockets entry from the repository's"
+        " settings; keep the tool sandboxed and grant one path or host instead."
+    ),
+    "SANDBOX-003": (
+        "Remove the code-host, paste or webhook domain from the repository's"
+        " sandbox.network.allowedDomains; allow only the hosts tools need."
+    ),
+    "SANDBOX-004": (
+        "Move the key to managed or user settings, or delete it: Claude Code"
+        " ignores it in this file; see docs/permission-rules.md."
+    ),
+    "SANDBOX-005": (
+        "Add .claude/settings.local.json to .gitignore (git rm --cached it if"
+        " committed) and use ~/ instead of home paths with a username."
+    ),
     "AGENT-001": (
         "Remove permissionMode from the subagent file so it inherits your session's"
         " mode; keep Claude Code at 2.1.267+."
@@ -230,6 +266,15 @@ _HINTS: dict[str, str] = {
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
         " — a third-party base URL receives every API call and its secrets."
     ),
+    # Git can run code (STORY-0089)
+    "TRUST-006": (
+        "Delete the git config line in a text editor before running git or an"
+        " agent here; run one-off git with -c (e.g. -c core.fsmonitor=false)."
+    ),
+    "TRUST-007": (
+        "Remove the embedded bare repo or the post-index-change hook before"
+        " opening this folder in an agent; set safe.bareRepository=explicit."
+    ),
     # CI workflows (STORY-0091)
     "WORKFLOW-001": (
         "Allow only the commands this CI agent needs, make its job read-only,"
@@ -241,6 +286,23 @@ _HINTS: dict[str, str] = {
     "WORKFLOW-003": (
         "Use run-gemini-cli 0.1.22+ with Gemini CLI 0.39.1+, and don't trust a"
         " workspace that holds pull request code."
+    ),
+    # Skill packages (STORY-0095)
+    "SKILL-005": (
+        "Read the install command this skill tells the agent to run; remove the"
+        " skill if you cannot vouch for what it downloads or decodes."
+    ),
+    "SKILL-006": (
+        "Review what this skill adds to Claude Code (servers, hooks, programs,"
+        " settings) and remove anything you did not ask for."
+    ),
+    "SKILL-007": (
+        "Find out what this file in the skill is; a skill should ship only"
+        " content you can read."
+    ),
+    "SKILL-008": (
+        "Resolve the other findings on this skill, then read the code it"
+        " bundles before using it."
     ),
     # Baseline drift
     "DRIFT": (
@@ -286,16 +348,31 @@ _HINTS: dict[str, str] = {
     "LOCK-009": (
         "A locked tool is gone. If expected, run `mcp-audit lock --accept --connect`."
     ),
+    # Instruction-file reach (STORY-0098)
+    "MEM-003": (
+        "Move the imported instructions into the repository (or delete the"
+        " @import); decline Claude Code's external-imports prompt if unsure."
+    ),
+    "MEM-004": (
+        "Open HEARTBEAT.md: remove any step you didn't write and the line that"
+        " silences its result; reply HEARTBEAT_OK only if nothing needs attention."
+    ),
 }
+
+
+#: Clients whose configs ``fix`` never edits.
+_NOT_FIXED_CLIENTS = frozenset({"claude-code-skill"})
 
 
 def _is_auto_fixable(finding: Finding) -> bool:
     """True when ``mcp-audit fix`` can remediate *finding* in place.
 
     ``fix`` edits MCP JSON config files only, so an auto-fixable ID found in
-    another file (a CRED-001 in ``.gemini/.env``, STORY-0090) is not.
+    another file (a CRED-001 in ``.gemini/.env``, STORY-0090) is not, nor one
+    in an MCP config a skill carries but Claude Code does not load
+    (client ``claude-code-skill``, STORY-0095), which ``fix`` never selects.
     """
-    if finding.id not in _AUTO_FIXABLE:
+    if finding.id not in _AUTO_FIXABLE or finding.client in _NOT_FIXED_CLIENTS:
         return False
     path = finding.finding_path or ""
     return not path or path.lower().endswith(".json")
@@ -516,8 +593,9 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
         )
     if status.not_covered:
         console.print(
-            f"  [yellow]WARN:[/yellow] {len(status.not_covered)} subagent MCP"
-            " server(s) not covered by mcp-lock.json (AGENT-004)."
+            f"  [yellow]WARN:[/yellow] {len(status.not_covered)} MCP server(s)"
+            " from subagent definitions or skill folders not covered by"
+            " mcp-lock.json (AGENT-004, SKILL-006)."
         )
 
 

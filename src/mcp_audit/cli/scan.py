@@ -22,6 +22,7 @@ from rich.rule import Rule
 
 from mcp_audit import cli as _cli
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
+from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
@@ -49,6 +50,7 @@ from mcp_audit.discovery import (
     discover_project_agent_configs,
     discover_project_autoexec_files,
     discover_project_configs,
+    discover_project_git_surfaces,
 )
 from mcp_audit.extensions import analyzer as _extensions_analyzer
 from mcp_audit.extensions import discovery as _extensions_discovery
@@ -80,6 +82,28 @@ _SEVERITY_ORDER: list[Severity] = [
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
+
+
+# Status, progress and error lines for a machine-readable ``scan`` run. The
+# stream is looked up when printing, so a test runner's captured stderr works.
+_STDERR_CONSOLE = Console(stderr=True)
+
+
+def _status_console(fmt: str) -> Console:
+    """Return the console ``scan`` prints status, warning and error lines to.
+
+    With ``--format json``/``sarif``/``nucleus`` (or ``--json``), stdout is the
+    document and a consumer pipes it into a parser, so every other line goes
+    to stderr. That holds whether or not ``--output-file`` is given. With the
+    terminal format, everything stays on stdout as before.
+
+    Args:
+        fmt: The resolved output format.
+
+    Returns:
+        The shared stdout console for ``terminal``, a stderr console otherwise.
+    """
+    return console if fmt == "terminal" else _STDERR_CONSOLE
 
 
 def _scoped_state_path(extra_paths: list[Path] | None) -> Path:
@@ -642,28 +666,137 @@ def _apply_agent_files(
     """
     from mcp_audit.agent_files import analyzer as _af_analyzer  # noqa: PLC0415
     from mcp_audit.agent_files import discovery as _af_discovery  # noqa: PLC0415
+    from mcp_audit.agent_files import reach as _af_reach  # noqa: PLC0415
 
     af_skip_findings: list[Finding] = []
     af_list = _af_discovery.discover_agent_files(
-        project_root=project_root, skip_findings=af_skip_findings
+        project_root=project_root, skip_findings=af_skip_findings, errors=result.errors
     )
     # Subagent definitions' frontmatter checks (AGENT-001..004, HOOK-001/002)
     # already come from default discovery (user-global and cwd) and from
     # --project, so only their body text is scanned here (STORY-0094). A
-    # symlink default discovery already reported is not reported twice.
-    already = {
+    # symlink default discovery or the skill pass (STORY-0095) already
+    # reported is not reported twice, nor is a MEM-003/MEM-004 the default
+    # scan's cwd pass already reported (STORY-0098).
+    already_links = {
         (f.id, f.finding_path)
         for f in result.findings
         if f.id in ("TRUST-002", "TRUST-004", "TRUST-005")
     }
-    af_findings = _af_analyzer.analyze_agent_files(
-        af_list, include_definitions=False
-    ) + [f for f in af_skip_findings if (f.id, f.finding_path) not in already]
+    followed_findings, followed_links = _followed_skill_agent_files(
+        result, project_root
+    )
+    # A symlinked skill folder the skill pass followed (decision 2026-10-26) is
+    # read, so the agent-file walk's TRUST-005 for it would be untrue.
+    already_links |= {("TRUST-005", link) for link in followed_links}
+    already = {_af_reach.finding_key(f) for f in result.findings}
+    new_links = [
+        f for f in af_skip_findings if (f.id, f.finding_path) not in already_links
+    ]
+    candidates = (
+        _af_analyzer.analyze_agent_files(af_list, include_definitions=False)
+        + followed_findings
+        + new_links
+    )
+    af_findings = [f for f in candidates if _af_reach.finding_key(f) not in already]
+    af_findings += _skill_bundled_code(result, af_findings, project_root)
     result.findings.extend(af_findings)
     con.print(
         f"[dim]Agent files: {len(af_list)} file(s) scanned, "
         f"{len(af_findings)} issue(s) found[/dim]"
     )
+    return result
+
+
+def _followed_skill_agent_files(
+    result: ScanResult, project_root: Path | None
+) -> tuple[list[Finding], set[str]]:
+    """Agent-file rules for skills reached through a followed symlink.
+
+    The agent-file walk does not follow symlinked directories; the skill pass
+    follows one directly under a skills directory (decision 2026-10-26).  This
+    runs SKILL-001..004 and the sidecar pass on those skills' ``SKILL.md``.
+
+    Returns:
+        ``(findings, links)``: the findings, and the followed link paths.
+    """
+    from mcp_audit.agent_files import analyzer as _af_analyzer  # noqa: PLC0415
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
+    # The skill passes before this one already recorded these walks' errors
+    # and symlink findings.
+    seen_errors: list[str] = []
+    seen_findings: list[Finding] = []
+    packages = skill_package.default_skill_packages(
+        errors=seen_errors, findings=seen_findings
+    )
+    if project_root is not None:
+        packages += skill_package.project_skill_packages(
+            project_root, errors=seen_errors, findings=seen_findings
+        )
+    followed = [p for p in packages if p.link is not None]
+    try:
+        files = skill_package.followed_agent_files(followed, result.errors)
+        findings = _af_analyzer.analyze_agent_files(files)
+    except Exception as exc:  # noqa: BLE001 — never crash the scan
+        result.errors.append(f"skill package: followed skills: {exc}")
+        findings = []
+    return findings, {str(p.link) for p in followed}
+
+
+def _skill_bundled_code(
+    result: ScanResult, new_findings: list[Finding], project_root: Path | None
+) -> list[Finding]:
+    """SKILL-008 that only the agent-file rules can trigger (STORY-0095).
+
+    ``--include-agent-files`` adds SKILL-001 and sidecar findings the default
+    scan's skill pass could not see; a skill that bundles code and now has one
+    of those gets SKILL-008, unless it already has it.
+    """
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
+    # The skill passes before this one already recorded these walks' errors.
+    seen_errors: list[str] = []
+    packages = skill_package.default_skill_packages(errors=seen_errors)
+    if project_root is not None:
+        packages += skill_package.project_skill_packages(
+            project_root, errors=seen_errors
+        )
+    try:
+        return skill_package.bundled_code_findings(
+            packages, result.findings + new_findings
+        )
+    except Exception as exc:  # noqa: BLE001 — never crash the scan
+        result.errors.append(f"skill package: SKILL-008: {exc}")
+        return []
+
+
+def _apply_project_instruction_reach(
+    result: ScanResult, project_dir: Path, con: Console
+) -> ScanResult:
+    """MEM-003 / MEM-004 across the ``--project`` tree (STORY-0098).
+
+    Called when ``--project`` is supplied.  Walks *project_dir* for the
+    instruction files Claude Code expands ``@path`` imports in and for
+    ``HEARTBEAT.md`` files, follows the imports, and appends MEM-003 (an
+    import that leaves the folder or is ``.gitignore``'d), MEM-004 (heartbeat
+    output suppression) and TRUST-002 HIGH (a symlink on the way that leaves
+    the folder).  Findings already reported by the default scan's cwd pass or
+    by ``--include-agent-files`` are not repeated.  Problems go to
+    ``result.errors``; never raises.  Appended post-score, like the rest of
+    the ``--project`` findings.
+    """
+    from mcp_audit.agent_files import reach as _af_reach  # noqa: PLC0415
+
+    already = {_af_reach.finding_key(f) for f in result.findings}
+    new = [
+        f
+        for f in _af_reach.project_scan_findings(project_dir, result.errors)
+        if _af_reach.finding_key(f) not in already
+    ]
+    result.findings.extend(new)
+    if new:
+        con.print(f"[dim]Instruction files: {len(new)} import/heartbeat issue(s)[/dim]")
     return result
 
 
@@ -688,8 +821,16 @@ def _apply_plugin_agent_files(result: ScanResult, con: Console) -> ScanResult:
     plugins = _plugin_discovery.discover_installed_plugins()
     if not plugins:
         return result
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
     files = _plugin_discovery.plugin_agent_files(plugins)
     findings = _af_analyzer.analyze_agent_files(files)
+    # Every file in each plugin skill, not only its SKILL.md (STORY-0095).
+    findings += skill_package.analyze_skill_packages(
+        skill_package.packages_for_agent_files(files),
+        prior=result.findings + findings,
+        errors=result.errors,
+    )
     result.findings.extend(findings)
     con.print(
         f"[dim]Plugin agent files: {len(files)} skill/command file(s) from"
@@ -923,6 +1064,57 @@ def _cross_scope_flagged_allows(
     return out
 
 
+def _apply_project_skills(
+    result: ScanResult,
+    project_dir: Path,
+    skip_findings: list[Finding],
+    project_configs: list,
+) -> list:
+    """Skill packages under every ``.claude/skills`` in *project_dir*.
+
+    Called from :func:`_apply_project_scan`.  Appends SKILL-005..008 (and the
+    routed CRED-*/HOOK-*/TRUST-* findings) to *result*, TRUST-005 for
+    symlinked directories to *skip_findings*, and filesystem errors to
+    ``result.errors``.  Findings the default scan already produced for the
+    same files (``scan --project .``) are not repeated.
+
+    Returns:
+        *project_configs* with the MCP configs of the repository's
+        skills-directory plugins under their plugin identity (client
+        ``claude-code-plugin``, project-scoped): the ``--project`` walk's copy
+        of a plugin's ``.mcp.json`` is replaced by it, and a plugin's inline
+        ``plugin.json`` servers are added.  Each server is then listed once.
+    """
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
+    packages = skill_package.project_skill_packages(
+        project_dir, errors=result.errors, findings=skip_findings
+    )
+    result.findings.extend(
+        skill_package.analyze_skill_packages(
+            packages, prior=result.findings, errors=result.errors
+        )
+    )
+    plugin_configs: dict[str, object] = {}
+    for config in skill_package.skills_dir_plugin_mcp_configs(packages):
+        resolved = _resolved_str(config.path)
+        if resolved:
+            plugin_configs.setdefault(resolved, config)
+    # The --project walk reads every .mcp.json in the tree, a plugin's too;
+    # that copy is replaced so the server keeps one (plugin) identity.
+    out = [c for c in project_configs if _resolved_str(c.path) not in plugin_configs]
+    out.extend(plugin_configs.values())
+    return out
+
+
+def _resolved_str(path: Path) -> str:
+    """``str(path.resolve())``, or ``""`` when it cannot be resolved."""
+    try:
+        return str(path.resolve())
+    except (OSError, RuntimeError):
+        return ""
+
+
 def _apply_project_scan(
     result: ScanResult,
     project_dir: Path,
@@ -947,6 +1139,12 @@ def _apply_project_scan(
        Then read the GitHub Actions workflows of *project_dir* and of nested
        repository roots under it and emit WORKFLOW-001..003 for AI agent
        steps (STORY-0091).
+    0b. Walk *project_dir* for git surfaces (each ``.git`` entry and any
+       nested bare repository) and emit TRUST-006/TRUST-007 for git
+       configuration and hooks that make git run a command (STORY-0089).
+       Only config files are read and hooks listed; git is never run.
+       Findings already produced by the default scan's current-directory
+       check (same ID, path and evidence) are not added twice.
     1. Walk *project_dir* for known project-level config file patterns.
     2. Emit TRUST-001 (HIGH) for every MCP server found — fires on *origin*
        (project-scoped), not content.
@@ -980,6 +1178,9 @@ def _apply_project_scan(
     post-score, consistent with ``_apply_governance``, ``_apply_baseline_drift``,
     and ``_apply_sast``.
     """
+    from mcp_audit.agent_files.skill_package import (  # noqa: PLC0415
+        SKILLS_DIR_PLUGIN_CLIENT,
+    )
     from mcp_audit.analyzers.config_hygiene import (
         ConfigHygieneAnalyzer,  # noqa: PLC0415
     )
@@ -1019,6 +1220,26 @@ def _apply_project_scan(
             f for f in new_findings if _autoexec_finding_key(f) not in already_reported
         )
 
+    # ── TRUST-006/007: git configuration that runs commands (STORY-0089) ────
+    seen_git = {
+        (f.id, f.finding_path, f.evidence)
+        for f in result.findings
+        if f.id in _git_exec.GIT_FINDING_IDS
+    }
+    try:
+        git_findings = _git_exec.scan_git_surfaces(
+            discover_project_git_surfaces(project_dir, skip_findings=skip_findings),
+            scan_root=project_dir,
+        )
+    except Exception as e:  # noqa: BLE001 — reported, never fatal
+        git_findings = []
+        result.errors.append(f"git config check error: {type(e).__name__}: {e}")
+    for finding in git_findings:
+        git_key = (finding.id, finding.finding_path, finding.evidence)
+        if git_key not in seen_git:
+            seen_git.add(git_key)
+            result.findings.append(finding)
+
     # ── WORKFLOW-001..003: AI agent steps in GitHub Actions workflows ───────
     # The default scan already read <cwd>/.github/workflows; when cwd is the
     # project root the same findings would arrive twice, so keep one copy.
@@ -1045,6 +1266,17 @@ def _apply_project_scan(
             result.findings.append(finding)
 
     project_configs = discover_project_configs(project_dir, skip_findings=skip_findings)
+
+    # ── SKILL-005..008: skill packages in the repository (STORY-0095) ───────
+    # Every file in each .claude/skills/<skill>/ is read.  A skills-directory
+    # plugin's MCP servers (.claude/skills/<name>/.mcp.json, and inline
+    # plugin.json servers) are listed once, under client claude-code-plugin,
+    # and get TRUST-001 below.  `mcp-audit lock` records the .mcp.json ones
+    # (its project walk reads every .mcp.json); lock auto-verification checks
+    # them against that entry (lock/auto_verify.py).
+    project_configs = _apply_project_skills(
+        result, project_dir, skip_findings, project_configs
+    )
 
     # ── TRUST-002: a discovered MCP config candidate that is itself a symlink ─
     for config in project_configs:
@@ -1176,10 +1408,35 @@ def _apply_project_scan(
     effective_analyzers = (
         analyzers if analyzers is not None else get_default_analyzers()
     )
+    # A skills-directory plugin's config the default scan already analysed
+    # (`scan --project .` from the repository root: default discovery loads
+    # the cwd's skills-dir plugins) gets TRUST-001 above but is not analysed
+    # a second time.
+    analysed = {
+        _resolved_str(s.config_path)
+        for s in result.servers
+        if s.client == SKILLS_DIR_PLUGIN_CLIENT and s.is_project_scoped
+    } - {""}
+    pipeline_configs = [
+        c
+        for c in project_configs
+        if not (
+            c.client_name == SKILLS_DIR_PLUGIN_CLIENT
+            and _resolved_str(c.path) in analysed
+        )
+    ]
+    pipeline_servers = [
+        s
+        for s in project_servers
+        if not (
+            s.client == SKILLS_DIR_PLUGIN_CLIENT
+            and _resolved_str(s.config_path) in analysed
+        )
+    ]
     pipeline_result = _run_static_pipeline(
         result=_ProjectScanResult(),
-        all_servers=project_servers,
-        configs=project_configs,
+        all_servers=pipeline_servers,
+        configs=pipeline_configs,
         analyzers=effective_analyzers,
         skip_rug_pull=True,
         extra_rules_dirs=extra_rules_dirs,
@@ -1187,6 +1444,11 @@ def _apply_project_scan(
     # Merge pipeline findings only — score and registry_stats stay with
     # the main result.
     result.findings.extend(pipeline_result.findings)
+    # Errors a pipeline step reports (SANDBOX-005's unreadable ignore files,
+    # PERM-007, the rules engine) would otherwise be lost (STORY-0093).
+    for error in pipeline_result.errors:
+        if error not in result.errors:
+            result.errors.append(error)
 
     # ── PERM-007 across the default and project scans (STORY-0092) ─────────
     if any(isinstance(a, ConfigHygieneAnalyzer) for a in effective_analyzers):
@@ -1263,9 +1525,9 @@ def _apply_lock_verification(
         )
     if status.not_covered:
         con.print(
-            f"[yellow]WARN[/yellow] {len(status.not_covered)} subagent MCP"
-            " server(s) not covered by mcp-lock.json (AGENT-004): "
-            + ", ".join(status.not_covered)
+            f"[yellow]WARN[/yellow] {len(status.not_covered)} MCP server(s) from"
+            " subagent definitions or skill folders not covered by mcp-lock.json"
+            " (AGENT-004, SKILL-006): " + ", ".join(status.not_covered)
         )
     if lock_findings:
         con.print(
@@ -1588,8 +1850,10 @@ def scan(
     ),
 ) -> None:
     """Scan MCP configurations for security issues."""
+    fmt = "json" if json_flag else output_format
+    con = _status_console(fmt)
     if configs and len(configs) > 1:
-        console.print(
+        con.print(
             "[red]Error:[/red] scan accepts a single config path. "
             "For multiple configs use 'mcp-audit discover' or run scan once per config."
         )
@@ -1597,28 +1861,27 @@ def scan(
     config = configs[0] if configs else None
     path = config or path
     extra_paths = [path] if path else None
-    fmt = "json" if json_flag else output_format
 
     # Validate --project early so the user gets a clean error before any scan work.
     resolved_project: Path | None = None
     if project is not None:
         resolved_project = project.resolve()
         if not resolved_project.exists():
-            console.print(f"[red]Error:[/red] --project path not found: {project}")
+            con.print(f"[red]Error:[/red] --project path not found: {project}")
             raise typer.Exit(2)
         if not resolved_project.is_dir():
-            console.print(f"[red]Error:[/red] --project must be a directory: {project}")
+            con.print(f"[red]Error:[/red] --project must be a directory: {project}")
             raise typer.Exit(2)
 
     if reset_state:
-        _reset_scoped_state(extra_paths, console)
+        _reset_scoped_state(extra_paths, con)
 
     _preflight_checks(
         offline,
         verify_hashes,
         registry,
         sast,
-        console,
+        con,
         path=path,
         verify_signatures=verify_signatures,
         check_vulns=check_vulns,
@@ -1626,7 +1889,7 @@ def scan(
     )
 
     analyzers = _build_custom_analyzers(registry, offline_registry)
-    extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, console)
+    extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, con)
 
     # Load the governance policy early so we can extract custom scoring weights
     # before run_scan calls calculate_score inside _run_static_pipeline.
@@ -1636,7 +1899,7 @@ def scan(
     try:
         preloaded_policy = load_policy(policy)
     except ValueError as exc:
-        console.print(f"[red]Governance policy error:[/red] {exc}")
+        con.print(f"[red]Governance policy error:[/red] {exc}")
         raise typer.Exit(2) from None
     if preloaded_policy is not None and preloaded_policy.scoring is not None:
         scoring_weights = preloaded_policy.scoring
@@ -1659,14 +1922,14 @@ def scan(
             include_plugins=not no_plugins,
         )
     except RegistryLoadError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        con.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(2) from exc
 
     if asset_prefix:
         result.machine.asset_id = asset_prefix
 
     if verify_hashes:
-        result = _apply_hash_verification(result, registry, offline_registry, console)
+        result = _apply_hash_verification(result, registry, offline_registry, con)
 
     if verify_signatures:
         result = _apply_signature_verification(
@@ -1674,32 +1937,32 @@ def scan(
             registry,
             offline_registry,
             strict=strict_signatures,
-            console=console,
+            console=con,
         )
 
     if check_vulns:
         result = _apply_vuln_check(
-            result, registry, offline_registry, vuln_registry, console
+            result, registry, offline_registry, vuln_registry, con
         )
 
-    _surface_user_path_errors(result, extra_paths, console)
+    _surface_user_path_errors(result, extra_paths, con)
 
-    result = _apply_baseline_drift(result, baseline_name, console)
+    result = _apply_baseline_drift(result, baseline_name, con)
     result = _apply_governance(
-        result, policy, analyzers, console, preloaded_policy=preloaded_policy
+        result, policy, analyzers, con, preloaded_policy=preloaded_policy
     )
 
     if sast is not None:
-        result = _apply_sast(result, sast, console)
+        result = _apply_sast(result, sast, con)
 
     if include_extensions:
-        result = _apply_extensions(result, console)
+        result = _apply_extensions(result, con)
 
     if include_agent_files:
-        result = _apply_agent_files(result, resolved_project, console)
+        result = _apply_agent_files(result, resolved_project, con)
 
     if include_agent_files and not no_plugins:
-        result = _apply_plugin_agent_files(result, console)
+        result = _apply_plugin_agent_files(result, con)
 
     if resolved_project is not None:
         result = _apply_project_scan(
@@ -1707,20 +1970,23 @@ def scan(
             resolved_project,
             analyzers,
             extra_rules_dirs or None,
-            console,
+            con,
             extra_paths=extra_paths,
         )
+
+    if resolved_project is not None:
+        result = _apply_project_instruction_reach(result, resolved_project, console)
 
     result = _apply_lock_verification(
         result,
         no_lock,
-        console,
+        con,
         scoring_weights=scoring_weights,
         scoring_weights_source=scoring_weights_source,
     )
 
-    result = _apply_severity_threshold(result, severity_threshold, console)
-    result = _apply_advisory_feed(result, advisory_feed, console)
+    result = _apply_severity_threshold(result, severity_threshold, con)
+    result = _apply_advisory_feed(result, advisory_feed, con)
 
     # Suppress score for formatters when --no-score is requested.  The scanner
     # always calculates the score; suppression is a presentation-layer decision
@@ -1728,28 +1994,28 @@ def scan(
     if no_score:
         result.score = None
 
-    _write_formatted_output(result, fmt, output, asset_prefix, no_score, console)
+    _write_formatted_output(result, fmt, output, asset_prefix, no_score, con)
 
     if report is not None:
         from mcp_audit.cli.check import _write_pdf_report  # noqa: PLC0415
 
         report_lower = report.strip().lower()
         if report_lower != "pdf":
-            console.print(
+            con.print(
                 f"[red]Unknown report format:[/red] {report!r}. "
                 "Currently supported: pdf"
             )
             raise typer.Exit(2)
-        _write_pdf_report(result, output, org, console)
+        _write_pdf_report(result, output, org, con)
 
     if verbose and result.server_logs:
-        console.print()
-        console.print("[bold dim]Server output (captured stderr):[/bold dim]")
+        con.print()
+        con.print("[bold dim]Server output (captured stderr):[/bold dim]")
         for entry in result.server_logs:
-            console.print(f"[dim]{entry}[/dim]")
+            con.print(f"[dim]{entry}[/dim]")
 
     if owasp_report:
-        _print_owasp_report(result, console)
+        _print_owasp_report(result, con)
 
     if result.has_findings:
         raise typer.Exit(1)

@@ -32,6 +32,33 @@ MEM-002 (MEDIUM)
     Exfiltration, cross-tool, and length patterns are intentionally excluded
     — the false-positive rate on innocent memory files is too high.
 
+Sidecars (STORY-0095)
+    Every other prose file in a skill's directory (``.md``, ``.txt`` …) gets
+    SKILL-001, the SKILL-002 obfuscation check and POISON-041/042, but not the
+    SKILL-002 length check or SKILL-003; see
+    :func:`mcp_audit.agent_files.skill_package.sidecar_findings`.
+
+MEM-003 (MEDIUM; LOW for a Markdown file under ``~/.claude/``)
+    A project instruction file's Claude Code ``@path`` import resolves
+    outside the scanned folder (an "external import", which Claude Code asks
+    once per project to approve), or to a file matched by ``.gitignore`` (so
+    normally never committed or reviewed).  Read from the import edges
+    discovery records (:mod:`mcp_audit.agent_files.imports`); the external
+    target itself is never read.  LOW for the shape Claude Code's own memory
+    docs suggest for personal instructions (``@~/.claude/....md``).  STORY-0098.
+
+MEM-004 (HIGH)
+    A heartbeat file (OpenClaw ``HEARTBEAT.md``, run on a timer) tells the
+    agent to answer with the suppression reply (``HEARTBEAT_OK``,
+    ``NO_REPLY``, ``notify: false``) unconditionally, while hiding a step,
+    or straight after running something: the Agent Commander shape, a
+    recurring step whose result the owner never sees.  See
+    :mod:`mcp_audit.agent_files.heartbeat`.  STORY-0098.
+
+Imported and referenced files (``AgentFile.imported_from`` set) are scanned
+with the importing file's rule set; secrets matching ``SECRET_PATTERNS`` are
+redacted from their findings' text.
+
 SKILL-004 (INFO)
     Skill bundles executable scripts.  Fires once per discovered
     ``SKILL.md`` when its own directory contains a ``scripts/`` subdirectory
@@ -79,9 +106,12 @@ master pattern list in ``poisoning.py`` automatically applies here.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from mcp_audit.agent_files.models import AgentFile, AgentFileSurface
+from mcp_audit.agent_files.heartbeat import find_suppression
+from mcp_audit.agent_files.models import MEMORY_SURFACES, AgentFile, AgentFileSurface
+from mcp_audit.analyzers.credentials import SECRET_PATTERNS
 from mcp_audit.analyzers.poisoning import (
     PATTERNS,
     DetectionPattern,
@@ -181,8 +211,195 @@ def _check_skill_scripts(af: AgentFile) -> Finding | None:
 
 
 def _is_memory_surface(af: AgentFile) -> bool:
-    """Return True for memory/context surfaces."""
-    return af.surface == AgentFileSurface.CLAUDE_MEMORY
+    """Return True for memory/context surfaces (always-loaded instructions)."""
+    return af.surface in MEMORY_SURFACES
+
+
+_REDACTED = "[REDACTED]"
+
+
+def redact_secrets(text: str) -> str:
+    """Replace anything matching ``SECRET_PATTERNS`` (as ``advisory.feed.redact``)."""
+    cleaned = text
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        cleaned = pattern.sub(_REDACTED, cleaned)
+    return cleaned
+
+
+def _redacted(finding: Finding) -> Finding:
+    return finding.model_copy(
+        update={
+            "title": redact_secrets(finding.title),
+            "server": redact_secrets(finding.server),
+            "description": redact_secrets(finding.description),
+            "evidence": redact_secrets(finding.evidence),
+            "remediation": redact_secrets(finding.remediation),
+        }
+    )
+
+
+# ── MEM-003: imports from outside the project or from ignored files ───────────
+
+
+def _is_personal_claude_md(target: Path, home: Path) -> bool:
+    """A Markdown file under ``~/.claude/`` (the docs' personal-import shape)."""
+    try:
+        target.relative_to(home / ".claude")
+    except ValueError:
+        return False
+    return target.suffix.lower() == ".md"
+
+
+def _mem003_findings(af: AgentFile, home: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    for edge in af.edges:
+        if edge.kind != "import" or edge.status not in ("outside", "ignored"):
+            continue
+        where = f"'@{edge.raw}' (line {edge.line})"
+        if edge.status == "outside":
+            personal = _is_personal_claude_md(edge.target, home)
+            severity = Severity.LOW if personal else Severity.MEDIUM
+            title = "Instruction file imports a file from outside the project"
+            description = (
+                f"'{af.path.name}' imports {where}, which resolves to"
+                f" '{edge.target}', outside the scanned folder. Claude Code loads"
+                " an imported file into the agent's context with the file that"
+                " imports it (imports nest up to four hops). For a project file it"
+                " asks once per project to approve external imports; an AGENTS.md"
+                " it reads directly loads them with no prompt once approved. The"
+                " imported text is not in the repository, so a review of the"
+                " repository never sees it, and it differs on every machine."
+                " mcp-audit did not read it."
+            )
+            if personal:
+                description += (
+                    " This is the shape Claude Code's memory docs suggest for"
+                    " personal instructions shared across worktrees"
+                    " (@~/.claude/my-project-instructions.md); if you added it,"
+                    " nothing needs to change."
+                )
+            evidence = f"@{edge.raw} (line {edge.line}) -> {edge.target}"
+            remediation = (
+                "Move the instructions into the repository where they are reviewed,"
+                " or remove the import. Decline Claude Code's external-imports"
+                " prompt in projects you don't trust."
+            )
+        else:
+            severity = Severity.MEDIUM
+            title = "Instruction file imports a .gitignore'd file"
+            description = (
+                f"'{af.path.name}' imports {where}, and '{edge.target}' is matched"
+                f" by .gitignore ({edge.detail}), so it is normally never"
+                " committed. Its text reaches every agent session without ever"
+                " appearing in review or git diff, and anything that can write the"
+                " file (a tool, a script, the agent itself) changes the agent's"
+                " instructions with no trace in the repository. mcp-audit reads"
+                " .gitignore files only; it cannot see a file that was force-added."
+            )
+            evidence = (
+                f"@{edge.raw} (line {edge.line}) -> {edge.target}"
+                f" | .gitignore: {edge.detail}"
+            )
+            remediation = "Commit and review the imported file, or remove the import."
+        if af.imported_from is not None:
+            description += (
+                f" '{af.path.name}' is itself imported from '{af.imported_from}'."
+            )
+        findings.append(
+            _redacted(
+                _skill_finding(
+                    af,
+                    "MEM-003",
+                    severity,
+                    title,
+                    description,
+                    evidence,
+                    remediation,
+                    owasp_mcp_top_10=["MCP10"],
+                    cwe="CWE-829",
+                )
+            )
+        )
+    return findings
+
+
+# ── MEM-004: heartbeat output suppression ─────────────────────────────────────
+
+_MEM004_REASON = {
+    "forced": "answer with the suppression reply no matter what happened",
+    "hidden": (
+        "answer with the suppression reply while also being told to keep a step"
+        " from the owner"
+    ),
+    "after-action": (
+        "run something and then answer with the suppression reply, with no"
+        " 'nothing to report' condition"
+    ),
+}
+
+
+def _mem004_findings(af: AgentFile) -> list[Finding]:
+    if af.surface != AgentFileSurface.HEARTBEAT:
+        return []
+    findings: list[Finding] = []
+    for hit in find_suppression(af.body):
+        findings.append(
+            _redacted(
+                _skill_finding(
+                    af,
+                    "MEM-004",
+                    Severity.HIGH,
+                    "Heartbeat file hides what the agent does",
+                    (
+                        f"'{af.path.name}' is a heartbeat checklist: OpenClaw reads"
+                        " it on a timer (every 30 minutes by default) and drops a"
+                        " reply that starts or ends with HEARTBEAT_OK when at most"
+                        " 300 characters remain; NO_REPLY and notify: false"
+                        " likewise deliver nothing. Line"
+                        f" {hit.line} tells the agent to {_MEM004_REASON[hit.reason]}."
+                        " That is the Agent Commander shape (Embrace The Red,"
+                        " 2026): a recurring step that runs while its result never"
+                        " reaches the owner. The documented use is conditional"
+                        " ('if nothing needs attention, reply HEARTBEAT_OK')."
+                        " Newer OpenClaw releases no longer read HEARTBEAT.md at"
+                        " runtime; openclaw doctor --fix imports its tasks into"
+                        " automation jobs."
+                    ),
+                    f"Line {hit.line}: {hit.sentence!r}",
+                    (
+                        "Remove the step and the suppression instruction unless you"
+                        " wrote them, and check what the agent ran on earlier"
+                        " heartbeats. Reply HEARTBEAT_OK only when nothing needs"
+                        " attention."
+                    ),
+                    owasp_mcp_top_10=["MCP06", "MCP08"],
+                    cwe="CWE-223",
+                )
+            )
+        )
+    return findings
+
+
+def analyze_instruction_reach(
+    files: list[AgentFile], home: Path | None = None
+) -> list[Finding]:
+    """MEM-003 and MEM-004 only: the checks the default scan runs.
+
+    Args:
+        files: Agent files with their import edges filled in by discovery.
+        home: The user's home directory (defaults to :meth:`Path.home`).
+
+    Returns:
+        MEM-003 findings for each external or ``.gitignore``'d import of a
+        project file, and MEM-004 findings for heartbeat files.
+    """
+    home = home if home is not None else Path.home()
+    findings: list[Finding] = []
+    for af in files:
+        if af.scope == "project":
+            findings.extend(_mem003_findings(af, home))
+        findings.extend(_mem004_findings(af))
+    return findings
 
 
 def _skill_finding(
@@ -530,6 +747,17 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
     return findings
 
 
+def _sidecar_findings(af: AgentFile) -> list[Finding]:
+    """The rules above, on a skill's other prose files (STORY-0095).
+
+    Lives in :mod:`mcp_audit.agent_files.skill_package`, imported here lazily
+    because that module imports :func:`_analyze_skill` from this one.
+    """
+    from mcp_audit.agent_files.skill_package import sidecar_findings  # noqa: PLC0415
+
+    return sidecar_findings(af)
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
@@ -575,16 +803,29 @@ def analyze_agent_files(
     """
     findings: list[Finding] = []
     for af in files:
+        file_findings: list[Finding] = []
         if af.surface == AgentFileSurface.CLAUDE_AGENT:
-            findings.extend(_analyze_skill(af, check_length=False))
+            file_findings.extend(_analyze_skill(af, check_length=False))
             if include_definitions:
-                findings.extend(_analyze_agent_definition(af))
+                file_findings.extend(_analyze_agent_definition(af))
         elif _is_skill_surface(af):
-            findings.extend(_analyze_skill(af))
+            file_findings.extend(_analyze_skill(af))
             if af.surface == AgentFileSurface.CLAUDE_SKILL:
                 script_finding = _check_skill_scripts(af)
                 if script_finding is not None:
-                    findings.append(script_finding)
+                    file_findings.append(script_finding)
+                file_findings.extend(_sidecar_findings(af))
         elif _is_memory_surface(af):
-            findings.extend(_analyze_memory(af))
+            file_findings.extend(_analyze_memory(af))
+        if af.imported_from is not None:
+            via = (
+                f" mcp-audit reached this file from '{af.imported_from.name}'"
+                f" ({af.imported_from})."
+            )
+            file_findings = [
+                _redacted(f.model_copy(update={"description": f.description + via}))
+                for f in file_findings
+            ]
+        findings.extend(file_findings)
+    findings.extend(analyze_instruction_reach(files))
     return findings

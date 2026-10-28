@@ -29,7 +29,7 @@ brew install pre-commit
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.21.1
+    rev: v0.22.0
     hooks:
       - id: mcp-audit
 ```
@@ -51,7 +51,7 @@ The default hook args run `scan --severity-threshold high`, blocking only on HIG
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.21.1
+    rev: v0.22.0
     hooks:
       - id: mcp-audit
         args: [scan, --severity-threshold, medium]
@@ -107,7 +107,7 @@ If you've adopted [`mcp-audit lock`](lock.md), a second hook enforces it:
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.21.1  # mcp-audit-lock-verify needs v0.17.0 or later
+    rev: v0.22.0  # mcp-audit-lock-verify needs v0.17.0 or later
     hooks:
       - id: mcp-audit
       - id: mcp-audit-lock-verify

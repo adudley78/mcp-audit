@@ -127,6 +127,19 @@ To add a server, open a pull request against the mcp-audit repository editing
   what the keyword heuristics alone would infer from the package name, and
   separately reports any capability string that is not a defined
   `Capability` enum member — see that script's module docstring.
+- **`comms_out`** (STORY-0101) is for a server that posts to a shared service:
+  issue, pull-request or review comments, pushed commits or files, chat
+  messages, social posts, webhooks. Record it from the package's own tool
+  list (a write tool such as `add_issue_comment`, `push_files`,
+  `slack_post_message`, `confluence_add_comment`), not from the platform's
+  name: a read-only GitHub search server is `git`, not `comms_out`. A server
+  that sends email is `email`, not `comms_out`. Keep `network_out` when the
+  server also reaches arbitrary hosts (the reference Slack server does,
+  through link previews Slack fetches, CVE-2025-34072); entries that declared
+  `network_out` before `comms_out` existed keep it so their existing
+  TOXIC-001/003/005/006/007 findings do not disappear. A capability that is
+  switched off by default (Discourse's `--allow_writes`) is left out, as
+  `@toolbox-sdk/server`'s conditional `shell_exec` is (GAPS.md).
 
 ## Auditing the registry
 

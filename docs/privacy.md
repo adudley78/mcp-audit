@@ -24,6 +24,8 @@ A plain scan runs entirely on your machine and sends nothing anywhere.  Registra
 | `fix` | npm or PyPI, to look up the latest version to pin (also in its default dry run) | By default; `--offline` skips it |
 | `sbom` | deps.dev, for transitive dependencies (and npm/PyPI to resolve a version range) | By default; `--offline` skips it |
 | `lock` (writing `mcp-lock.json`) | npm or PyPI, to resolve floating versions, and npm to download tarballs it hashes | By default; `--offline` skips it |
+| `lock --verify --resolve` | npm or PyPI, to re-resolve floating versions, and npm to download the tarball it hashes when mcp-audit's registry has no hash for that version | Only with `--resolve`; plain `lock --verify` is offline |
+| `lock --connect` (also with `--verify`) | Each configured MCP server: a local server's own command is started (and may download its package, as `npx -y` does), and a remote server's URL is contacted, with the `--connect-token` bearer token if you pass one. With `--verify`, only servers the lock approves whose launch line has not changed, and none when the lock fails its checksum | Only with `--connect` |
 
 The package-registry lookups send package names and versions taken from your config, never the config itself.
 

@@ -919,3 +919,158 @@ class TestVetOnlineKeepsTheLocalMaliciousCheck:
     def test_help_documents_the_malicious_exit(self) -> None:
         result = runner.invoke(app, ["vet", "--help"])
         assert "malicious" in unwrapped(result.output)
+
+
+class TestVetOnlineMaliciousItemsAreRemoteData:
+    """An --online verdict's ``malicious`` items come from mcp-audit.dev and
+    may lack fields the bundled builder sets (STORY-0103)."""
+
+    @staticmethod
+    def _online(items: list) -> dict:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "package": {"ecosystem": "npm", "name": "totallyunknownpkgxyz"},
+            "registry": {"listed": False, "verified": False},
+            "known_vulnerabilities": [],
+            "typosquat_of": None,
+            "malicious": items,
+        }
+
+    def _run(self, items: list) -> object:
+        with patch(
+            "mcp_audit.cli.vet._fetch_online_verdict",
+            return_value=self._online(items),
+        ):
+            return runner.invoke(app, ["vet", "totallyunknownpkgxyz", "--online"])
+
+    def test_item_without_link_renders(self) -> None:
+        result = self._run([{"id": "MAL-2099-1", "latest_affected": True}])
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 1
+        out = unwrapped(result.output)
+        assert "MAL-2099-1" in out
+        assert "osv.dev" not in out
+
+    def test_item_with_link_still_shows_it(self) -> None:
+        link = "https://osv.dev/vulnerability/MAL-2099-1"
+        result = self._run(
+            [{"id": "MAL-2099-1", "latest_affected": True, "link": link}]
+        )
+        assert result.exit_code == 1
+        assert link in unwrapped(result.output)
+
+    def test_id_is_printed_as_text_not_markup(self) -> None:
+        result = self._run([{"id": "MAL-[bold]x[/bold]", "latest_affected": True}])
+        assert result.exit_code == 1
+        assert "MAL-[bold]x[/bold]" in unwrapped(result.output)
+
+    def test_missing_id_and_odd_fields_do_not_crash(self) -> None:
+        result = self._run(
+            [
+                "not-an-object",
+                {"latest_affected": False, "versions": [1, 2], "ranges": ["x", [1]]},
+            ]
+        )
+        assert result.exit_code == 0
+        out = unwrapped(result.output)
+        assert "(no id)" in out
+        assert "releases listed: 1, 2" in out
+
+    def test_wrong_typed_fields_degrade_gracefully(self) -> None:
+        """Wrong-typed aliases/versions/ranges must not raise TypeError (STORY-0104)."""
+        result = self._run(
+            [
+                {
+                    "id": "MAL-2099-2",
+                    "latest_affected": True,
+                    "aliases": 5,
+                    "ranges": 7,
+                },
+                {"id": "MAL-2099-3", "aliases": "GHSA-abcd", "versions": 3},
+                {"id": "MAL-2099-4", "versions": "1.0.0"},
+            ]
+        )
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 1
+        out = unwrapped(result.output)
+        assert "MAL-2099-2" in out
+        # A lone string alias is shown whole, not split into characters.
+        assert "(GHSA-abcd)" in out
+        assert "releases listed: 1.0.0" in out
+
+    @pytest.mark.parametrize("value", [42, "x", {"a": 1}, [1], ["x", None]])
+    def test_non_list_malicious_field_does_not_crash(self, value: object) -> None:
+        """No crash and no empty malicious panel (STORY-0104 review)."""
+        with patch(
+            "mcp_audit.cli.vet._fetch_online_verdict",
+            return_value={**self._online([]), "malicious": value},
+        ):
+            result = runner.invoke(app, ["vet", "totallyunknownpkgxyz", "--online"])
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 0
+        out = unwrapped(result.output)
+        assert "Malicious releases listed" not in out
+        assert "Listed as malicious" not in out
+
+    @staticmethod
+    def _listed_online(vulns: object, registry: object = None) -> dict:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "package": {"ecosystem": "npm", "name": "totallyunknownpkgxyz"},
+            "registry": {"listed": True, "verified": True}
+            if registry is None
+            else registry,
+            "known_vulnerabilities": vulns,
+            "capabilities": [],
+            "attestation": {},
+            "typosquat_of": None,
+            "links": {"repo": None, "verdict_page": "https://mcp-audit.dev/x"},
+        }
+
+    def _run_listed(self, vulns: object, registry: object = None) -> object:
+        with patch(
+            "mcp_audit.cli.vet._fetch_online_verdict",
+            return_value=self._listed_online(vulns, registry),
+        ):
+            return runner.invoke(app, ["vet", "totallyunknownpkgxyz", "--online"])
+
+    @pytest.mark.parametrize("vulns", [5, {"cve": "CVE-x"}, None])
+    def test_non_list_known_vulnerabilities_render(self, vulns: object) -> None:
+        result = self._run_listed(vulns)
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 0
+        assert "Known vulnerabilities: none" in unwrapped(result.output)
+
+    def test_non_object_vulnerability_item_counts_as_unfixed(self) -> None:
+        """An unreadable item is shown and keeps exit 1, never hidden."""
+        result = self._run_listed(
+            ["CVE-2099-1", {"cve": "CVE-2099-2", "fixed_in": "2"}]
+        )
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 1
+        assert "Known vulnerabilities: 2 (1 with no fix)" in unwrapped(result.output)
+
+    @pytest.mark.parametrize("registry", ["yes", [1], 7])
+    def test_non_object_registry_is_treated_as_unlisted(self, registry: object) -> None:
+        result = self._run_listed([], registry)
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 0
+        with patch(
+            "mcp_audit.cli.vet._fetch_online_verdict",
+            return_value=self._listed_online([], registry),
+        ):
+            strict = runner.invoke(
+                app, ["vet", "totallyunknownpkgxyz", "--online", "--strict"]
+            )
+        assert strict.exit_code == 1
+
+    def test_list_id_does_not_break_the_local_merge(self) -> None:
+        from mcp_audit.cli.vet import _with_local_malicious
+
+        online = self._online([{"id": ["MAL-2026-5479"], "latest_affected": True}])
+        online["package"]["name"] = "mcp-server-github"
+        merged = _with_local_malicious(
+            online, "mcp-server-github", "npm", _bundled_registry()
+        )
+        ids = [m["id"] for m in merged["malicious"]]
+        assert "MAL-2026-5479" in ids

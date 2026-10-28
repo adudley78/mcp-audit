@@ -37,7 +37,7 @@ DEFAULT_STATE_PATH: Path = _STATE_DIR / "state.json"
 _STATE_VERSION = 1
 _LEGACY_STATE_DIR: Path = Path.home() / ".mcp-audit"
 
-_console = Console()
+_console = Console(stderr=True)
 
 
 # ── One-time migration from legacy ~/.mcp-audit location ──────────────────────
@@ -105,7 +105,11 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
     out of the key.  Their paths contain the plugin version, so including them
     would move every server's rug-pull history to a fresh state file on each
     plugin update.  Their servers are still tracked in whichever file the rest
-    of the scan uses.
+    of the scan uses.  A repository's skills-directory plugin
+    (``.claude/skills/<name>``, ``is_project_scoped``) stays in the key: its
+    path does not change, and leaving it out would record its servers in the
+    state a scan of another repository reads, which would then report them as
+    removed (RUGPULL-003; STORY-0095).
 
     Subagent definitions (client ``claude-code-agent``, STORY-0094) are left
     out for a related reason: every agent file is a discovered config whether
@@ -116,7 +120,8 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
     configs = [
         c
         for c in configs
-        if c.client_name not in ("claude-code-plugin", AGENT_DEFINITION_CLIENT)
+        if c.client_name != AGENT_DEFINITION_CLIENT
+        and (c.client_name != "claude-code-plugin" or c.is_project_scoped)
     ]
     if not configs:
         return DEFAULT_STATE_PATH

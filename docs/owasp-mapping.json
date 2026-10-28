@@ -444,6 +444,58 @@
       "notes": "Source code and commit history exfiltration via network access."
     },
     {
+      "finding_id": "TOXIC-008",
+      "finding_title": "Dangerous capability combination: file read + comms posting",
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-001)."
+    },
+    {
+      "finding_id": "TOXIC-009",
+      "finding_title": "Dangerous capability combination: secrets store + comms posting",
+      "owasp_codes": [
+        "MCP01",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-003)."
+    },
+    {
+      "finding_id": "TOXIC-010",
+      "finding_title": "Dangerous capability combination: database + comms posting",
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-005)."
+    },
+    {
+      "finding_id": "TOXIC-011",
+      "finding_title": "Dangerous capability combination: shell execution + comms posting",
+      "owasp_codes": [
+        "MCP05",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-006)."
+    },
+    {
       "finding_id": "INTEG-001",
       "finding_title": "Dangerous capability combination: file write + shell execution (plant-then-execute)",
       "owasp_codes": [
@@ -1009,6 +1061,28 @@
       "notes": "Fires when discovery (the --project config/autoexec walk, or the agent-files project-tree and skills walk) encounters a symlinked directory. mcp-audit never follows a symlinked directory (loop/blow-up protection, unchanged); this finding makes that refusal visible instead of silent. Always LOW — a coverage note, not an accusation. CWE-61."
     },
     {
+      "finding_id": "TRUST-006",
+      "finding_title": "Git config runs a command",
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ],
+      "notes": "Fires on the repository's own git configuration (.git/config, in-tree include.path/includeIf targets, config.worktree files when extensions.worktreeConfig is on, the config of a .git file's gitdir: target and of nested bare repositories) for keys git runs as a program. HIGH when git runs it unprompted during commands agents run in the background (core.fsmonitor command, core.sshCommand, diff.external, diff.<driver>.command/textconv, filter.<driver>.clean/smudge/process, a !-prefixed credential.helper, git-lfs's lfs.extension.<name>.clean/smudge) — the GitSpawn shape (Manifold Security, 2026-09: seven agents, eight flaws). MEDIUM for keys that run on a git action an agent may take (core.editor, sequence.editor, core.askPass, gpg.program, merge drivers, !submodule update, remote uploadpack/receivepack, git-lfs's lfs.customtransfer.<name>.path/args), for an include outside the scanned tree (not read), core.hooksPath outside the repo, and an oversize config. LOW for pager (and delta.pager), ! aliases, core.gitProxy. INFO for core.hooksPath inside the repo (husky) and for recognised tools' own command forms run from outside the tree (git-lfs in its git-lfs form only, git-crypt, nbstripout incl. smudge = cat, non-executing textconv converters when every argument is on that tool's allowlist, an unmodified copy of git's fsmonitor-watchman.sample matched by SHA-256, plain ssh -i, gh auth git-credential), folded into one inventory finding per file; interpreters (bun, node) stay HIGH; an in-tree program is judged where it sits (MEDIUM only inside a pyvenv.cfg/conda-meta environment). Reads are budgeted (1 MiB per file; 4 MiB, 20,000 entries, 256 includes per repository; past that, MEDIUM). Values are redacted through SECRET_PATTERNS. actions/checkout's git-credentials-<uuid>.config includeIf entries are silent. Never runs git. CWE-829."
+    },
+    {
+      "finding_id": "TRUST-007",
+      "finding_title": "Git repository shape runs repo-controlled code",
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ],
+      "notes": "HIGH for a nested bare git repository (a directory not named .git holding objects/, refs/ and a valid HEAD — git's own is_git_directory test), the embedded-bare-repository attack git documents under safe.bareRepository; INFO when it sits under a test/fixture directory or a package manager's dependency cache (SwiftPM .build/repositories, Bundler cache/bundler/git, Cargo .cargo/git/db, Go pkg/mod/cache/vcs), its config runs nothing and it has no post-index-change hook. Not fired for a bare directory a .git file points at (the bare-repo-plus-worktrees layout). HIGH for an executable post-index-change hook, which git status / git diff run while writing the refreshed index (verified with git 2.43). INFO inventory of other executable hooks named as githooks(5) lists them in the git directory (CVE-2026-26268 is the hooks variant). Never runs git; never reads objects/. CWE-829."
+    },
+    {
       "finding_id": "TRUST-008",
       "finding_title": "Repo-planted auto-run file of another coding-agent harness",
       "owasp_codes": [
@@ -1057,6 +1131,45 @@
       "notes": "Requires --connect (live enumeration). Fires when >=2 distinct servers advertise the same tool name (case-sensitive). MEDIUM by default; HIGH when one claimant is registry-verified and another is not (unknown server shadowing a trusted tool). NSA CSI item 5. CWE-694."
     },
     {
+      "finding_id": "DELEG-001",
+      "finding_title": "Tool description names another server's tool",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Requires --connect (live enumeration). A tool's description, title or input-schema prose names, as a whole token (or as mcp__<server>__<tool>), a tool that a different connected server exposes and its own server does not. MCPTox's poisoned tools work this way: the poisoned tool never runs; it steers the agent to another server's tool (arXiv 2508.14925). MEDIUM; severity set by STORY-0100's measured gate (docs/poisoning.md). CWE-441."
+    },
+    {
+      "finding_id": "DELEG-002",
+      "finding_title": "Tool description tells the agent to act when something else happens",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Requires --connect. A conditional trigger (before/after/whenever/when the user ...) plus a directive (must/should/always, or an imperative after the trigger) to perform an action (read, write, delete, send, execute) whose class appears nowhere in the tool's own name or input-schema property names; not when the directive is about calling this tool itself or names only its own server's tools. MCPTox implicit-trigger shape. MEDIUM; measured gate. CWE-441."
+    },
+    {
+      "finding_id": "DELEG-003",
+      "finding_title": "Tool description tells the agent to rewrite other tools' arguments",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Requires --connect. A directive to set/change/append/remove an argument, scoped to a named tool of another server or to every call ('any tool call', 'regardless of'). MCPTox parameter tampering (P3). HIGH; measured gate. CWE-441."
+    },
+    {
       "finding_id": "SKILL-001",
       "finding_title": "Injection/exfiltration instruction in skill file",
       "owasp_codes": [
@@ -1103,6 +1216,66 @@
         "Prompt Injection Attacks"
       ],
       "notes": "Fires once per discovered Claude Code SKILL.md whose own directory contains a scripts/ subdirectory with at least one file. Inventory-only: lists bundled script filenames, never contents, and never executes or reads them. Always INFO. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-005",
+      "finding_title": "Skill contains an install step that runs remote or hidden code",
+      "owasp_codes": [
+        "MCP04",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks",
+        "Command Injection and Execution"
+      ],
+      "notes": "STORY-0095. Fires on any text file in a Claude Code skill directory (sidecars, scripts, .git/ and build/ included), not only SKILL.md. HIGH: a remote fetch that is executed while switching off TLS checks, decoding the download, using plaintext or a raw IP host; a TLS-off fetch; decode-then-execute (base64 -d | sh, eval of decoded text, PowerShell -EncodedCommand, exec(b64decode(...)), eval(atob(...))); marshal.loads; password-protected archive extraction; an executed DNS TXT record; cron/launchd/systemd/Windows scheduled-task or Run-key writes; reverse-shell shapes; a URL with a public IP host. LOW: a plain https curl | sh or download-then-run from an unlisted host. INFO: a known vendor installer or a Dockerfile RUN line. Sources: Zenity Labs (Paperclip), Snyk ToxicSkills, 0DIN, arXiv 2602.06547. CWE-494. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-006",
+      "finding_title": "Skill ships something Claude Code runs, or tells the agent to drop its guardrails",
+      "owasp_codes": [
+        "MCP01",
+        "MCP02",
+        "MCP04",
+        "MCP05",
+        "MCP07",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Privilege Escalation via Scope Creep",
+        "Software Supply Chain Attacks",
+        "Command Injection and Execution",
+        "Insufficient Authentication and Authorization",
+        "Shadow MCP Servers"
+      ],
+      "notes": "STORY-0095. A skills-directory plugin (.claude-plugin/plugin.json directly under a skills directory, loaded as <name>@skills-dir) that ships MCP servers (HIGH; MCP09/MCP04), hooks (MEDIUM; MCP05/MCP07, commands also routed through HOOK-001/002), monitors or language servers (MEDIUM; MCP05) or bin/ programs on the agent's PATH (MEDIUM, HIGH when a name shadows a common command; MCP05/MCP04). SKILL.md frontmatter hooks (MEDIUM). A carried .mcp.json (MEDIUM, servers routed through CRED/TRANSPORT/AUTH/CFHYG/POISON) or settings/hooks file (LOW) Claude Code does not load from inside a skill. Text that starts a harness with permission prompts off (HIGH; MCP02/MCP05) or points ANTHROPIC_BASE_URL and siblings at a non-vendor host (HIGH; MCP01/MCP05, CVE-2026-21852). Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-007",
+      "finding_title": "Skill contains content that cannot be inspected",
+      "owasp_codes": [
+        "MCP03",
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "STORY-0095. MEDIUM: an unrecognised binary, a compiled program, a .pyc without source, a password-protected ZIP, bytes that do not match the extension, a long base64/hex blob in a text file, a text file over the 1 MiB read cap, a skill over its read budget, or any non-text file inside .git/ that is not part of git's layout (the SkillCloak shape, arXiv 2607.02357). LOW: plain archives and dependency folders (node_modules, .venv) that are not walked. Nothing is unpacked or executed. CWE-506. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "SKILL-008",
+      "finding_title": "Skill bundles code and has another finding",
+      "owasp_codes": [
+        "MCP04",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks",
+        "Command Injection and Execution"
+      ],
+      "notes": "STORY-0095. Conjunctive bump: HIGH when a skill bundles executable code (scripts/, a code extension, a shebang or a compiled file) and another MEDIUM-or-higher finding (other than SKILL-002/003/004 or a symlink note) lands in the same skill. The other findings keep their own severity. Basis: bundled scripts raised vulnerability odds 2.12x (arXiv 2601.10338). CWE-506. Analyzer: agent_files."
     },
     {
       "finding_id": "HOOK-001",
@@ -1292,6 +1465,28 @@
       "notes": "Fires when a Claude Code marketplace entry fetches a github, url or git-subdir plugin source with no sha. Severity LOW. CWE-829. Analyzer: plugins (STORY-0080)."
     },
     {
+      "finding_id": "PLUGIN-003",
+      "finding_title": "Plugin checkout is not the commit its marketplace pins",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when a Claude Code plugin pinned to a full sha (github/url/git-subdir) has a git checkout in its install directory whose HEAD, read as files (HEAD, loose refs, packed-refs; git is never run), resolves to another commit. CRITICAL when HEAD is on a branch named like a commit SHA or FETCH_HEAD (the Plugin4Shell swap, AIR Security 2026-09-17) or the install record (gitCommitSha, or the 12-char version prefix when no version string is set) claims the pin; MEDIUM when the record does not explain the difference or HEAD cannot be resolved; silent for pin drift the record explains. Claude Code 2.1.311 keeps no .git in its plugin cache, so this applies to installs that kept one. CWE-494. Analyzer: plugins (STORY-0096)."
+    },
+    {
+      "finding_id": "PLUGIN-004",
+      "finding_title": "Plugin update channel cannot hold its pin",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "HIGH: a git-sourced Claude Code plugin's checkout holds a branch, tag or remote branch named like a commit SHA (40/64 hex) or FETCH_HEAD, the names Plugin4Shell used to redirect a pinned checkout. MEDIUM: the marketplace entry's sha is set but is not a full 40-character SHA (git resolves an abbreviated hash as a ref name first). LOW: a full-sha pin on a host other than github.com, which accepts SHA-shaped branch names. CWE-494. Analyzer: plugins (STORY-0096)."
+    },
+    {
       "finding_id": "MOD-001",
       "finding_title": "Mod can approve tool calls before the permission prompt",
       "owasp_codes": [
@@ -1386,6 +1581,30 @@
         "Prompt Injection Attacks"
       ],
       "notes": "Fires on restricted memory pattern subset: POISON-010/011/040/060 only. Exfiltration and length patterns excluded to control FP rate. Severity capped at MEDIUM. CWE-74. Analyzer: agent_files."
+    },
+    {
+      "finding_id": "MEM-003",
+      "finding_title": "Instruction file imports a file from outside the project / a .gitignore'd file",
+      "owasp_codes": [
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "Fires when a Claude Code @path import in a project instruction file (CLAUDE.md, .claude/CLAUDE.md, CLAUDE.local.md, .claude/rules/**/*.md, AGENTS.md, .claude/AGENTS.md, or a file they import, up to four hops) resolves to an existing file outside the scanned folder (Claude Code's 'external import', approved once per project; the target is never read) or to a file matched by .gitignore (normally never committed or reviewed; decided from .gitignore files only, git is never run). MEDIUM; LOW for a Markdown file under ~/.claude/ (the personal-instructions import Claude Code's memory docs suggest). Runs in a default scan/check (cwd root), scan --project (tree walk) and the agent-file scan. Source: Bad Memory (arXiv 2607.14611), code.claude.com/docs/en/memory. CWE-829. Analyzer: agent_files (STORY-0098)."
+    },
+    {
+      "finding_id": "MEM-004",
+      "finding_title": "Heartbeat file hides what the agent does",
+      "owasp_codes": [
+        "MCP06",
+        "MCP08"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion",
+        "Lack of Audit and Telemetry"
+      ],
+      "notes": "Fires on an OpenClaw HEARTBEAT.md (~/.openclaw/workspace or any project directory) that tells the agent to answer with the suppression reply (HEARTBEAT_OK, NO_REPLY, notify: false) unconditionally, while also being told to keep a step from the owner, or straight after running, downloading, installing, uploading, forwarding or transferring something, or after fetching a URL and following it. The documented conditional form ('If nothing needs attention, reply HEARTBEAT_OK') and negated forms stay silent. HIGH. Source: Embrace The Red, Agent Commander (2026-03-16); OpenClaw gateway heartbeat docs. CWE-223. Analyzer: agent_files (STORY-0098)."
     },
     {
       "finding_id": "STDIO-002a",
@@ -1619,6 +1838,69 @@
         "Insufficient Authentication and Authorization"
       ],
       "notes": "Fires when a whole-server allow rule (mcp__<server> or mcp__<server>__*) matches, by the server's whole normalized name as in Claude Code 2.1.299, a Claude Code MCP server with a HIGH or CRITICAL poisoning, rug-pull or supply-chain finding in the same scan (SC-004 only when the configured version is known to be affected; toxic-flow findings do not count). Under scan --project the default and project scans are paired too. HIGH. CWE-862. Source: Claude Code CHANGELOG 2.1.299, code.claude.com/docs/en/permissions (MCP), code.claude.com/docs/en/mcp. Post-pass in scanner._run_static_pipeline step 5b and cli/scan._apply_project_scan (STORY-0092)."
+    },
+    {
+      "finding_id": "SANDBOX-001",
+      "finding_title": "Repository settings weaken or switch off the Bash sandbox",
+      "owasp_codes": [
+        "MCP02",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Command Injection and Execution"
+      ],
+      "notes": "Fires when a repository's shared .claude/settings.json (outside the home directory), or a .claude/settings.local.json that git carries (no ignore file covers it, or .claude is a symlink), sets sandbox.enableWeakerNestedSandbox, sandbox.enableWeakerNetworkIsolation, sandbox.network.allowAllUnixSockets or sandbox.network.allowLocalBinding to true, or (shared project file only) sandbox.enabled to false: HIGH. sandbox.failIfUnavailable false (shared project file only) or a sandbox.network.httpProxyPort / socksProxyPort: MEDIUM; a proxy port is INFO while the user's own settings set sandbox.network.strictAllowlist true. A local file whose ignore files can't be read: MEDIUM at most. User settings and a local file git ignores are not reported. CWE-693. Source: code.claude.com/docs/en/sandboxing (Keep developers from widening the policy; Repository settings under an admin-required sandbox; Locks that apply without an admin-required sandbox; Custom proxy configuration), settings-reference, permissions. Analyzer: config_hygiene, pipeline step 0b (STORY-0093)."
+    },
+    {
+      "finding_id": "SANDBOX-002",
+      "finding_title": "Repository settings take code-running commands out of the sandbox",
+      "owasp_codes": [
+        "MCP05",
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "Fires when a repository settings file's sandbox.excludedCommands has an entry that leaves a shell or interpreter, a wrapper that runs what follows it (env, timeout, time, nice, nohup, stdbuf, command, builtin, noglob, watch, setsid, ionice, flock), a package or environment runner, or a container runtime (docker/podman/nerdctl, run/exec/create/container/compose) open with a trailing wildcard, or starts with * (every command): MEDIUM while a 'Bash command (unsandboxed)' prompt still guards it; HIGH when an allow rule in the same file covers the entry or the user's own settings set permissions.defaultMode to bypassPermissions or auto. HIGH when sandbox.network.allowUnixSockets lists docker.sock, podman.sock or containerd.sock. Narrowed entries (python scripts/x.py *, docker ps, timeout 30 npm test *) and sudo/eval/xargs (which stay sandboxed) are not reported. CWE-250. Source: code.claude.com/docs/en/sandboxing (Run commands outside the sandbox with excludedCommands; Security limitations), settings-reference (sandbox.excludedCommands, permissions.defaultMode), permissions (Wrappers), permission-modes. Analyzer: config_hygiene, pipeline step 0b (STORY-0093)."
+    },
+    {
+      "finding_id": "SANDBOX-003",
+      "finding_title": "Repository settings let sandboxed commands reach hosts anyone can publish to",
+      "owasp_codes": [
+        "MCP02",
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "Fires when a repository settings file's sandbox.network.allowedDomains admits a code host (github.com, gitlab.com, bitbucket.org; MITRE ATT&CK T1567.001), a paste site (pastebin.com and others; T1567.003), a webhook receiver (discord.com, hooks.slack.com, webhook.site; T1567.004), a subdomain of one, or a bare *. MEDIUM; INFO while the user's own settings set sandbox.network.strictAllowlist true (Claude Code then ignores a repository's allowedDomains, 2.1.285 or later). CWE-183. Source: code.claude.com/docs/en/sandboxing (Security limitations: 'Allowing broad domains such as github.com can create paths for data exfiltration'; Locks that apply without an admin-required sandbox), settings-reference (sandbox.network). Analyzer: config_hygiene, pipeline step 0b (STORY-0093)."
+    },
+    {
+      "finding_id": "SANDBOX-004",
+      "finding_title": "Sandbox keys this settings file can't set (ignored by Claude Code)",
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "INFO dead-config note: a sandbox key Claude Code does not read from this file, set to a value that would do something. In project and local settings: the 'User or managed' keys (allowAppleEvents, allowNestedUserNamespaces true, filesystem.disabled, network.strictAllowlist, network.tlsTerminate, ripgrep, credentials.allowPlaintextInject/awsPairs/sigv4, credentials mask entries) and the 'Managed' keys (bwrapPath, socatPath, filesystem.allowManagedReadPathsOnly, network.allowManagedDomainsOnly); in user settings: the Managed keys only. Names the keys that look like locks. CWE-693. Source: code.claude.com/docs/en/settings-reference (settings index Scope column, per-key scope lines), sandboxing. Not published as an advisory. Analyzer: config_hygiene, pipeline step 0b (STORY-0093)."
+    },
+    {
+      "finding_id": "SANDBOX-005",
+      "finding_title": "Local Claude Code settings are not ignored by git",
+      "owasp_codes": [
+        "MCP10",
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Context Injection and Over-sharing",
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "MEDIUM: a .claude/settings.local.json inside a git work tree (a .git entry at or above the project) that no ignore file covers (the .gitignore files from the work-tree root down, .git/info/exclude, and the global excludes file named by core.excludesFile or $XDG_CONFIG_HOME/git/ignore, where Claude Code itself writes **/.claude/settings.local.json). LOW: a project or local settings file headed for git that contains home-directory paths naming a person (/Users/<name>, /home/<name>, C:\\Users\\<name>). Ignore files are read, git is never run. CWE-538. Source: code.claude.com/docs/en/settings (Keep personal settings out of a repository), permissions (When your local settings file needs trust); UpGuard (18,470 committed settings.local.json; 8,341 username-bearing entries). Pipeline step 0b (STORY-0093)."
     },
     {
       "finding_id": "WORKFLOW-001",

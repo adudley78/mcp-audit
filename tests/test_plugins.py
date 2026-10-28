@@ -324,8 +324,10 @@ class TestScanIntegration:
             for f in result.findings
         )
         # Pin checks ride along in the default scan and count toward the score.
+        # PLUGIN-004 (STORY-0096) is the LOW for `versioned@mkt`, a pinned
+        # source on git.example rather than github.com.
         ids = sorted(f.id for f in result.findings if f.id.startswith("PLUGIN"))
-        assert ids == ["PLUGIN-001", "PLUGIN-002"]
+        assert ids == ["PLUGIN-001", "PLUGIN-002", "PLUGIN-004"]
         assert result.score is not None and result.score.numeric_score < 100
 
     def test_run_scan_opt_out_and_explicit_path_skip_plugins(
