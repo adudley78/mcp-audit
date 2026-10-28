@@ -2123,6 +2123,30 @@
       "notes": "An always-loaded instruction file (CLAUDE.md tiers, .claude/rules, AGENTS.md, OpenClaw workspace and heartbeat files) has a sentence with an if/when clause (or a leading date) holding an unusual trigger (deferred user cue, root/sudo/admin, hostname or production host, date, off-hours, nobody watching), a consequence that opens with an action verb, and, unless nobody is watching, a payload in the consequence (URL, curl/wget, secret-bearing object, backups, remote endpoint, silently). Default scan, scan --project and agent-file scans. MEDIUM. CWE-511. Sources: arXiv 2602.06547 §3.5 and Appendix B.1. Analyzer: agent_files (STORY-0099)."
     },
     {
+      "finding_id": "INSTR-001",
+      "finding_title": "Instruction file changed since the last scan",
+      "owasp_codes": [
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "A user-global instruction file (~/.claude/CLAUDE.md, ~/.claude/skills/**/SKILL.md, rules, commands, subagents, ~/.codex/AGENTS.md, OpenClaw workspace) or one at the working directory's root (CLAUDE.md, AGENTS.md, .claude/..., .github/copilot-instructions.md, ...) has a different SHA-256 than the last default scan recorded for the same path. Record holds hashes and finding IDs only, never content. INFO: usually the user's own edit. Default scan/check only. CWE-345. Non-advisory. Analyzer: agent_files (STORY-0113)."
+    },
+    {
+      "finding_id": "INSTR-002",
+      "finding_title": "Instruction file changed and the change brought a finding",
+      "owasp_codes": [
+        "MCP10",
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Context Injection and Over-sharing",
+        "Tool Poisoning"
+      ],
+      "notes": "As INSTR-001, and this scan reports a MEDIUM-or-higher finding ID on the file that the previous record for that file did not hold. MEDIUM. The underlying finding keeps its own severity. CWE-345. Non-advisory. Analyzer: agent_files (STORY-0113)."
+    },
+    {
       "finding_id": "MANAGED-001",
       "finding_title": "Managed MCP policy on this machine",
       "owasp_codes": [

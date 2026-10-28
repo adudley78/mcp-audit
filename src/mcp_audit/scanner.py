@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from platformdirs import user_config_dir
 
+from mcp_audit.agent_files import drift as _drift
 from mcp_audit.agent_files import skill_package as _skill_package
 from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
@@ -209,6 +210,7 @@ def _run_static_pipeline(
     extra_rules_dirs: list[Path] | None = None,
     scoring_weights: ScoringWeights | None = None,
     scoring_weights_source: str = "default",
+    instruction_files: list[_drift.InstructionFile] | None = None,
 ) -> ScanResult:
     """Run the canonical static analysis pipeline against parsed servers.
 
@@ -246,6 +248,13 @@ def _run_static_pipeline(
        with HIGH or CRITICAL findings is reported and scored.  It runs only
        when a :class:`ConfigHygieneAnalyzer` is in ``analyzers``, like the
        PERM-001..006 and HARNESS-* checks it sits beside.
+    5c. Instruction-file drift (INSTR-001/002, STORY-0113):
+       :func:`~mcp_audit.agent_files.drift.instruction_drift_findings` over
+       *instruction_files* (a default scan's user-global and cwd-root
+       instruction files), against every finding above, so INSTR-002 can say
+       a change brought a MEDIUM+ finding.  Skipped with ``skip_rug_pull`` or
+       when *instruction_files* is ``None``; the record sits beside the
+       rug-pull state (:func:`~mcp_audit.agent_files.drift.state_path_for`).
     6. :func:`~mcp_audit.scoring.calculate_score` over the final finding list.
     7. ``result.registry_stats`` attached from the SupplyChainAnalyzer.
 
@@ -273,6 +282,8 @@ def _run_static_pipeline(
             When ``None``, the hardcoded defaults in :mod:`mcp_audit.scoring` are used.
         scoring_weights_source: Audit label written to ``ScanScore.weights_source``.
             Callers should pass ``"policy:<abs-path>"`` when custom weights are active.
+        instruction_files: Instruction files to check for drift (step 5c);
+            ``None`` skips the step.
 
     Returns:
         The same :class:`~mcp_audit.models.ScanResult` passed in, now
@@ -369,6 +380,18 @@ def _run_static_pipeline(
         except Exception as e:  # noqa: BLE001
             result.errors.append(f"permissions error: {e}")
 
+    # ── 5c. Instruction-file drift (INSTR-001/002, STORY-0113) ───────────────
+    # Needs every finding above (INSTR-002); never raises.
+    if instruction_files is not None and not skip_rug_pull:
+        result.findings.extend(
+            _drift.instruction_drift_findings(
+                instruction_files,
+                result.findings,
+                _drift.state_path_for(state_path),
+                result.errors,
+            )
+        )
+
     # ── 6. Scoring ────────────────────────────────────────────────────────────
     result.score = calculate_score(
         result.findings,
@@ -434,6 +457,19 @@ def _cwd_autoexec_findings() -> list[Finding]:
                 )
             )
     return findings
+
+
+def _default_instruction_files(
+    extra_paths: list[Path] | None, skip_rug_pull: bool, errors: list[str]
+) -> list[_drift.InstructionFile] | None:
+    """Instruction files whose drift a default scan checks (STORY-0113).
+
+    ``None`` (no check) for an explicit path, which means "scan exactly
+    this", and when rug-pull state is skipped (``pin``/``diff``).
+    """
+    if extra_paths or skip_rug_pull:
+        return None
+    return _drift.instruction_files(Path.cwd(), errors)
 
 
 def _cwd_instruction_reach_findings(errors: list[str]) -> list[Finding]:
@@ -773,6 +809,9 @@ async def run_scan_async(
         extra_rules_dirs=extra_rules_dirs,
         scoring_weights=scoring_weights,
         scoring_weights_source=scoring_weights_source,
+        instruction_files=_default_instruction_files(
+            extra_paths, skip_rug_pull, result.errors
+        ),
     )
 
 
@@ -866,4 +905,7 @@ def run_scan(
         extra_rules_dirs=extra_rules_dirs,
         scoring_weights=scoring_weights,
         scoring_weights_source=scoring_weights_source,
+        instruction_files=_default_instruction_files(
+            extra_paths, skip_rug_pull, result.errors
+        ),
     )

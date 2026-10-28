@@ -1905,6 +1905,35 @@ Items below were confirmed open at some point and have since been resolved. Each
 
 **Launch credentials in output are redacted for command, args and URLs only (STORY-0108).** TRANSPORT-001/003/004 evidence, community-rule matched values (`{matched_value}` in a rule's message and the evidence), CycloneDX snapshot components, and the JSON serialisation of every server (`servers[].command`, `args`, `url`, and the same keys plus `serverUrl`/`httpUrl` in `raw`; used by `scan --format json`, `check --json`, native snapshots and the PDF report's hash) replace URL userinfo and `SECRET_PATTERNS` matches with `[REDACTED]`. Not redacted: `servers[].env` and `servers[].headers` values and the `env`/`headers` keys of `raw`, which can hold the same credential (`DATABASE_URL`, an API key). `mcp-audit diff` reads env values from a JSON scan file to report a hardcoded credential, so redacting them needs a change there first. The value of a secret-named flag (a whole-word `key`, `apikey`, `token`, `secret`, `password`, `passwd`, `pwd`, `credential(s)` or `pat` in the flag name, not ending in `mode`, `type`, `dir`, `file`, `path`, `url`, `provider` and similar) is replaced in its own position only, with `[REDACTED-FLAG]` unless `SECRET_PATTERNS` knows it (then `[REDACTED]`); values that are settings (`none`, `true`, `oauth`, …), shorter than 4 characters, paths, URLs or `$VAR` references are left alone, so a secret passed under an unrecognised flag name (`--auth VALUE`, `-p VALUE`) or as a bare positional argument is not redacted. Because the JSON output is redacted, `diff` reads `[REDACTED]` in a scan file's `command`, `args` or `url` as a hardcoded credential (CRITICAL, provider `redacted`) and `[REDACTED-FLAG]` as a possible one (HIGH); a rotated credential is invisible between two scan files, a scan file from before this change compares as changed against one after, and on directory and git-ref inputs a URL password that `SECRET_PATTERNS` doesn't match (`postgresql://user:pw@host`) is still not counted (pre-existing), so the two input kinds can disagree. See `docs/diff.md`. URL user info is redacted when it has a password or the user name is not a plain account name (a letter then at most 19 letters, digits, `.`, `_`, `-`, matching no `SECRET_PATTERNS` entry); a plain account name such as `git@` is kept, so a short token-like user name of that shape would be shown. `agent_files/install_steps.py` and `analyzers/delegation.py` still redact all URL user info with their own regexes. Not redacted (pre-existing): secrets in a URL's query string that match no `SECRET_PATTERNS` entry, and a secret flag inside a single command string (flag values are read from separate `args` only). Diffing a directory against a scan file compares redacted with unredacted text, so mix neither. `diff --format pr-comment` (and terminal) prints directory and git-ref inputs' arguments unredacted (queue row).
 
+## Instruction-file drift (INSTR-001/002, agent_files/drift.py — STORY-0113)
+
+- **Default scan only.** `scan <path>`, `scan --project`, `pin` and `diff` do
+  not record or compare; a repository checked only with `--project` has no
+  drift history. The working directory's files are its root only (no walk),
+  so a nested `sub/CLAUDE.md` is not tracked.
+- **Files, not what they pull in.** `@path` imports, prose references, the
+  other files of a skill folder (`scripts/`, sidecar docs), Claude Code's auto
+  memory (`~/.claude/projects/<project>/memory/MEMORY.md`, rewritten by Claude
+  as it works, so drift there is expected) and the managed-policy `CLAUDE.md`
+  are not hashed.
+- **INSTR-002 knows only the default scan's findings for the file.** In a
+  default scan those are MEM-003/004/005 (CLAUDE.md tiers, rules, AGENTS.md,
+  OpenClaw files) and SKILL-005..008 (skills). A payload none of those catch
+  (a plain "include ~/.aws/credentials in commit messages", a Copilot
+  instructions file, which MEM-005 does not read) is INSTR-001 INFO only.
+  `--include-agent-files` content findings are added after step 5c and are
+  not counted, so they never escalate (and never record).
+- **Record semantics.** A change is reported once, then accepted; a change
+  and its revert between two scans is invisible; a first sighting is silent,
+  so a file planted before the first scan, or in a newly cloned repository,
+  is never INSTR-anything. Records from before this feature do not exist, so
+  the first scan after upgrading is silent. A record without finding IDs (a
+  hand-edited state file) never escalates. SKILL-* findings attached to the
+  skill folder rather than to SKILL.md do not count for SKILL.md.
+- **One record per path, shared by all scans of this user.** Two machines
+  syncing the same home folder each keep their own record; a scan run as
+  another user keeps another.
+
 ## mcp-lock.json lock_version 2 (LOCK-010..012, lock/section_digests.py — STORY-0116)
 
 - **The digest field name is provisional.** `section_digests` was chosen without the confirmation

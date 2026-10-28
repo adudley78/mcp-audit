@@ -211,6 +211,49 @@ instruction files fires. Runs where MEM-003/MEM-004 run (default scan, `scan
 --project`, agent-file scans); a file reached twice is reported once.
 Implementation: `agent_files/sleeper.py` (STORY-0099).
 
+### INSTR-001 (INFO) / INSTR-002 (MEDIUM): instruction file changed since the last scan
+
+Claude Code loads CLAUDE.md files "at the start of every conversation", and
+Claude edits them when asked ("add this to CLAUDE.md";
+https://code.claude.com/docs/en/memory), so a changed instruction file is
+where a persistent instruction lands. Rug-pull state and `mcp-lock.json` hash
+MCP *server entries*; neither looks at these files. A default `scan` or
+`check` now records one SHA-256 per instruction file and compares it with
+the previous scan:
+
+- **Which files:** the user-global ones (`~/.claude/CLAUDE.md`,
+  `~/.claude/skills/**/SKILL.md`, `~/.claude/rules/**/*.md`,
+  `~/.claude/commands/*.md`, `~/.claude/agents/**/*.md`,
+  `~/.cursor/rules/*.mdc`, `~/.codex/AGENTS.md` and `AGENTS.override.md`,
+  the OpenClaw workspace files) and those at the top of the working directory
+  (`CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.claude/...`,
+  `.cursor/rules`, `.github/copilot-instructions.md`, `.github/instructions`,
+  `.github/prompts`, the OpenClaw names). No tree walk; the working
+  directory's files are skipped when it is your home folder. A file at the
+  working directory's root that is a symlink, or sits under a symlinked
+  folder, is not hashed (it is TRUST-002 elsewhere); a user-global file is
+  read through a final symlink, as a dotfile manager sets it up.
+- **INSTR-001 (INFO):** the file's bytes changed. Usually your own edit;
+  reported once, then the new hash is the record.
+- **INSTR-002 (MEDIUM):** the bytes changed *and* this scan reports a
+  MEDIUM-or-higher finding on the file (for example MEM-005, MEM-003, a
+  SKILL-00x on a SKILL.md) that the previous scan's record for that file did
+  not have: the change brought the finding. The finding itself keeps its own
+  severity.
+- **What is stored:** `<user-config-dir>/mcp-audit/state/instruction-files.json`
+  (0o700 directory, 0o600 file; beside the rug-pull state file when a caller
+  passes one), keyed by absolute path: SHA-256, size, first/last seen, and the
+  IDs of the MEDIUM+ findings on the file. Never the content; evidence shows
+  the first 16 hex digits of the old and new hashes and the sizes. At most
+  10,000 records (least recently seen dropped).
+- **Not reported:** a file seen for the first time (every newly visited
+  repository would otherwise report every file) and a file that disappeared.
+  Not run for an explicit path (`scan <path>`), `scan --project`, or when
+  rug-pull state is skipped (`pin`, `diff`).
+- **Bounds:** a regular file only (a FIFO is refused), 32 MiB per file,
+  5,000 files / 256 MiB per scan; anything skipped is listed in the scan's
+  errors. Implementation: `agent_files/drift.py` (STORY-0113).
+
 ### POISON-041 (HIGH) / POISON-042 (LOW) / POISON-043, POISON-044 (MEDIUM): concealment channels
 
 Fires on skill, command, and memory files alike when the file body contains
@@ -503,6 +546,13 @@ reported, so the documented `ln -s AGENTS.md CLAUDE.md` raises nothing.
 - **MEM-004** checks `HEARTBEAT.md` only, in English, with the reply tokens
   OpenClaw documents; NanoClaw scheduled tasks and Claude Code
   `.claude/scheduled_tasks.json` prompts are not read.
+- **INSTR-001/002** cover the instruction files themselves, not what they
+  import, not the other files in a skill folder, not Claude Code's auto memory
+  (`~/.claude/projects/<project>/memory/`, which Claude rewrites as it works)
+  and not the managed-policy `CLAUDE.md`. INSTR-002 only knows the findings a
+  default scan computes for that file (MEM-003/004/005, SKILL-005..008); the
+  content checks of `--include-agent-files` run after it and are not counted.
+  A change made and reverted between two scans is invisible.
 - **SKILL-004** lists a skill's bundled `scripts/` filenames only — it never
   reads script contents and never executes them. A malicious script that a
   skill's prose merely *references* by name (without the file being present)

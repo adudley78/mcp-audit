@@ -75,6 +75,10 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # (STORY-0105) — INFO "undecidable", asserts no affected release
         "HARNESS-007",  # enabledMcpjsonServers inventory (STORY-0090) — INFO;
         # Claude Code writes it when you approve a server, not a defect by itself
+        "INSTR-001",  # instruction file changed since the last scan (STORY-0113) —
+        # local state about this machine, usually the user's own edit
+        "INSTR-002",  # the change brought a finding (STORY-0113) — the finding
+        # itself is the advisory; this only dates it
         "CFHYG-008",  # Foundry resource chosen in project settings (STORY-0108) —
         # INFO, asks a person to confirm ownership; not itself a defect
         "SANDBOX-004",  # sandbox keys Claude Code ignores in this file
