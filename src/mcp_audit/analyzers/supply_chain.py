@@ -991,6 +991,18 @@ def redact_command(command: str | None, args: list[str]) -> str:
     return text
 
 
+def redact_text(text: str) -> str:
+    """Return *text* with URL userinfo and every SECRET_PATTERNS match redacted.
+
+    For free text read from outside (a registry's deprecation notice) that
+    lands in a finding or a lock-verify message.
+    """
+    text = _redact_userinfo(text)
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        text = pattern.sub(_REDACTED, text)
+    return text
+
+
 def build_twin_finding(
     server: ServerConfig,
     package: str,
@@ -1220,6 +1232,10 @@ def build_malicious_finding(
     )
 
 
+#: Longest registry deprecation notice an SC-005 finding quotes.
+_DEPRECATION_NOTICE_MAX = 300
+
+
 def build_deprecated_package_finding(
     *,
     client: str,
@@ -1256,6 +1272,25 @@ def build_deprecated_package_finding(
 
     pkg_name = package.get("name", "")
     version = package.get("resolved_version") or "unknown"
+    # The notice is the maintainer's free text, read from the registry:
+    # credential shapes are redacted and its length capped before it lands
+    # in a finding (STORY-0116).
+    notice = redact_text(str(deprecated))
+    if len(notice) > _DEPRECATION_NOTICE_MAX:
+        notice = notice[:_DEPRECATION_NOTICE_MAX] + "…"
+    spec = package.get("spec_as_written")
+    if spec == "latest":
+        install_note = (
+            "This config asks for `@latest` explicitly, so npm installs that "
+            "deprecated version."
+        )
+    else:
+        install_note = (
+            "npm 10.8.2 and later (npm-pick-manifest 9.1.0+) skip a deprecated "
+            "`latest` for a bare or range spec and may install a lower, "
+            "non-deprecated version when one exists; earlier npm installs the "
+            "deprecated `latest`."
+        )
 
     return Finding(
         id="SC-005",
@@ -1263,16 +1298,15 @@ def build_deprecated_package_finding(
         analyzer="supply_chain",
         client=client,
         server=server,
-        title=f"Deprecated package: {pkg_name} ({version})",
+        title=f"`latest` is deprecated on npm: {pkg_name} ({version})",
         description=(
-            f"Package {pkg_name!r} version {version} is marked deprecated "
-            f"by its registry: {deprecated!r}. A deprecated package may be "
-            "unmaintained, superseded, or withdrawn without further "
-            "security patches."
+            f"`latest` for {pkg_name!r} is deprecated on npm: version {version}, "
+            f"which the registry's `latest` dist-tag points at, carries the "
+            f"notice {notice!r}. A deprecated package may be unmaintained, "
+            f"superseded, or withdrawn without further security patches. "
+            f"{install_note}"
         ),
-        evidence=(
-            f"package: {pkg_name} | version: {version} | deprecated: {deprecated}"
-        ),
+        evidence=(f"package: {pkg_name} | latest: {version} | deprecated: {notice}"),
         remediation=(
             f"Check {pkg_name!r}'s registry page for a maintained "
             "replacement and migrate off the deprecated package/version."

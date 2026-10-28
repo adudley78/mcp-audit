@@ -1771,6 +1771,39 @@
       "notes": "mcp-audit lock --verify --connect. A tool in the lock record is no longer listed. LOW; does not fail the exit code on its own, like LOCK-003."
     },
     {
+      "finding_id": "LOCK-010",
+      "finding_title": "Resolution context changed",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify --resolve on a lock_version 2 lock (STORY-0116). The registry context recorded when an entry was resolved (what `latest` pointed at, its deprecation notice, npm major, Node version) differs from now. INFO, explanatory only: never fails the exit code and never folded into LOCK-004, which reports any change to the resolved version or hash. Not an advisory."
+    },
+    {
+      "finding_id": "LOCK-011",
+      "finding_title": "Lock section digest does not hold",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify, scan and check, on a lock_version 2 lock (STORY-0116, ADR-0005 R59 (a)). A `section_digests` entry is missing, malformed, names a missing section or the envelope, or does not match the SHA-256 of the section's RFC 8785 encoding: a section changed without its producer updating its digest. HIGH, fails the exit code, not waivable by --allow-unverified."
+    },
+    {
+      "finding_id": "LOCK-012",
+      "finding_title": "Lock file is not in canonical form",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "lock_version 2 only (STORY-0116). mcp-lock.json's bytes differ from the RFC 8785 encoding of its own content (ADR-0005 \u00a72): a tool or editor reformatted it. Content still matches its checksums. LOW, does not fail the exit code. Not an advisory."
+    },
+    {
       "finding_id": "PERM-001",
       "finding_title": "Permission rules that Claude Code ignores or never matches",
       "owasp_codes": [

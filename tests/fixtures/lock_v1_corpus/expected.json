@@ -1,0 +1,725 @@
+{
+  "offline": {
+    "auto_verify": {
+      "checked_servers": 25,
+      "finding_ids": [],
+      "unresolved_entries": [
+        "claude-code/npx-bare",
+        "claude-code/npx-deprecated",
+        "claude-code/npx-explicit-latest",
+        "claude-code/npx-scoped-bare",
+        "claude-code/npx-scoped-range",
+        "claude-code/npx-star",
+        "claude-code/npx-trailing-at",
+        "claude-code/pipx-run",
+        "claude-code/uvx-bare",
+        "claude-code/uvx-eqeq",
+        "claude-code/uvx-extras",
+        "claude-code/uvx-from",
+        "claude-code/uvx-range",
+        "cursor/yarn-dlx",
+        "vscode/vscode-npx"
+      ],
+      "unverified_sections": [
+        "trees"
+      ],
+      "verified": true
+    },
+    "resolve_drifted": {
+      "checked_servers": 25,
+      "exit_code": 1,
+      "findings": [
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-deprecated",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-deprecated'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-explicit-latest",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-explicit-latest'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-scoped-bare",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-scoped-bare'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-scoped-range",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-scoped-range'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-star",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-star'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-trailing-at",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-trailing-at'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "pipx-run",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'pipx-run'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-eqeq",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-eqeq'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-extras",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-extras'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-from",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-from'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-range",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-range'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.5.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-bare",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-bare'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='2025.2.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-bare",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-bare'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "package: deprecated-mcp | version: 1.4.0 | deprecated: Package no longer supported",
+          "finding_path": "<root>/.mcp.json",
+          "id": "SC-005",
+          "server": "npx-deprecated",
+          "severity": "MEDIUM",
+          "title": "Deprecated package: deprecated-mcp (1.4.0)"
+        },
+        {
+          "client": "cursor",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.cursor/mcp.json",
+          "id": "LOCK-004",
+          "server": "yarn-dlx",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'yarn-dlx'"
+        },
+        {
+          "client": "vscode",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.vscode/mcp.json",
+          "id": "LOCK-004",
+          "server": "vscode-npx",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'vscode-npx'"
+        }
+      ],
+      "outside_root": [],
+      "tampered": false,
+      "unresolved_entries": [
+        "claude-code/npx-bare",
+        "claude-code/npx-deprecated",
+        "claude-code/npx-explicit-latest",
+        "claude-code/npx-scoped-bare",
+        "claude-code/npx-scoped-range",
+        "claude-code/npx-star",
+        "claude-code/npx-trailing-at",
+        "claude-code/pipx-run",
+        "claude-code/uvx-bare",
+        "claude-code/uvx-eqeq",
+        "claude-code/uvx-extras",
+        "claude-code/uvx-from",
+        "claude-code/uvx-range",
+        "cursor/yarn-dlx",
+        "vscode/vscode-npx"
+      ],
+      "unverified": [
+        [
+          "entry",
+          "claude-code/npx-bare",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-deprecated",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-explicit-latest",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-scoped-bare",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-scoped-range",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-star",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-trailing-at",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/pipx-run",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-bare",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-eqeq",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-extras",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-from",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-range",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "cursor/yarn-dlx",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "vscode/vscode-npx",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ]
+      ],
+      "unverified_sections": [
+        "trees"
+      ]
+    },
+    "resolve_locked": {
+      "checked_servers": 25,
+      "exit_code": 1,
+      "findings": [
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-bare",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-bare'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-deprecated",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-deprecated'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-explicit-latest",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-explicit-latest'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-scoped-bare",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-scoped-bare'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-scoped-range",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-scoped-range'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-star",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-star'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-trailing-at",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-trailing-at'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "pipx-run",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'pipx-run'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-bare",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-bare'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-eqeq",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-eqeq'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-extras",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-extras'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-from",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-from'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-range",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-range'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "package: deprecated-mcp | version: 1.4.0 | deprecated: Package no longer supported",
+          "finding_path": "<root>/.mcp.json",
+          "id": "SC-005",
+          "server": "npx-deprecated",
+          "severity": "MEDIUM",
+          "title": "Deprecated package: deprecated-mcp (1.4.0)"
+        },
+        {
+          "client": "cursor",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.cursor/mcp.json",
+          "id": "LOCK-004",
+          "server": "yarn-dlx",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'yarn-dlx'"
+        },
+        {
+          "client": "vscode",
+          "evidence": "locked=None now='1.4.0'",
+          "finding_path": "<root>/.vscode/mcp.json",
+          "id": "LOCK-004",
+          "server": "vscode-npx",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'vscode-npx'"
+        }
+      ],
+      "outside_root": [],
+      "tampered": false,
+      "unresolved_entries": [
+        "claude-code/npx-bare",
+        "claude-code/npx-deprecated",
+        "claude-code/npx-explicit-latest",
+        "claude-code/npx-scoped-bare",
+        "claude-code/npx-scoped-range",
+        "claude-code/npx-star",
+        "claude-code/npx-trailing-at",
+        "claude-code/pipx-run",
+        "claude-code/uvx-bare",
+        "claude-code/uvx-eqeq",
+        "claude-code/uvx-extras",
+        "claude-code/uvx-from",
+        "claude-code/uvx-range",
+        "cursor/yarn-dlx",
+        "vscode/vscode-npx"
+      ],
+      "unverified": [
+        [
+          "entry",
+          "claude-code/npx-bare",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-deprecated",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-explicit-latest",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-scoped-bare",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-scoped-range",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-star",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-trailing-at",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/pipx-run",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-bare",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-eqeq",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-extras",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-from",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-range",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "cursor/yarn-dlx",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "vscode/vscode-npx",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ]
+      ],
+      "unverified_sections": [
+        "trees"
+      ]
+    },
+    "verify": {
+      "checked_servers": 25,
+      "exit_code": 1,
+      "findings": [],
+      "outside_root": [],
+      "tampered": false,
+      "unresolved_entries": [
+        "claude-code/npx-bare",
+        "claude-code/npx-deprecated",
+        "claude-code/npx-explicit-latest",
+        "claude-code/npx-scoped-bare",
+        "claude-code/npx-scoped-range",
+        "claude-code/npx-star",
+        "claude-code/npx-trailing-at",
+        "claude-code/pipx-run",
+        "claude-code/uvx-bare",
+        "claude-code/uvx-eqeq",
+        "claude-code/uvx-extras",
+        "claude-code/uvx-from",
+        "claude-code/uvx-range",
+        "cursor/yarn-dlx",
+        "vscode/vscode-npx"
+      ],
+      "unverified": [
+        [
+          "entry",
+          "claude-code/npx-bare",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-deprecated",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-explicit-latest",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-scoped-bare",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-scoped-range",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-star",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/npx-trailing-at",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/pipx-run",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-bare",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-eqeq",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-extras",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-from",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "claude-code/uvx-range",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "cursor/yarn-dlx",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ],
+        [
+          "entry",
+          "vscode/vscode-npx",
+          "locked with an unresolved version (offline at lock time) \u2014 never confirmed against the registry"
+        ]
+      ],
+      "unverified_sections": [
+        "trees"
+      ]
+    }
+  },
+  "resolved": {
+    "auto_verify": {
+      "checked_servers": 25,
+      "finding_ids": [],
+      "unresolved_entries": [],
+      "unverified_sections": [
+        "trees"
+      ],
+      "verified": true
+    },
+    "resolve_drifted": {
+      "checked_servers": 25,
+      "exit_code": 1,
+      "findings": [
+        {
+          "client": "claude-code",
+          "evidence": "locked='1.4.0' now='1.5.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "npx-bare",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'npx-bare'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked='1.4.0' now='2025.2.0'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "uvx-bare",
+          "severity": "HIGH",
+          "title": "Resolution drifted: 'uvx-bare'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "locked='sha256:4b57a0a9d23a9d7bbdc557285e129ccd784bcfde64117e8d09e1396db2437d68' now='sha256:316f435eb16df667c805ad942e0980994668795e2ce415272b1fc71539f89183'",
+          "finding_path": "<root>/.mcp.json",
+          "id": "LOCK-004",
+          "server": "with-env",
+          "severity": "CRITICAL",
+          "title": "Same version, different hash: 'with-env'"
+        },
+        {
+          "client": "claude-code",
+          "evidence": "package: deprecated-mcp | version: 1.4.0 | deprecated: Package no longer supported",
+          "finding_path": "<root>/.mcp.json",
+          "id": "SC-005",
+          "server": "npx-deprecated",
+          "severity": "MEDIUM",
+          "title": "Deprecated package: deprecated-mcp (1.4.0)"
+        }
+      ],
+      "outside_root": [],
+      "tampered": false,
+      "unresolved_entries": [],
+      "unverified": [],
+      "unverified_sections": [
+        "trees"
+      ]
+    },
+    "resolve_locked": {
+      "checked_servers": 25,
+      "exit_code": 0,
+      "findings": [
+        {
+          "client": "claude-code",
+          "evidence": "package: deprecated-mcp | version: 1.4.0 | deprecated: Package no longer supported",
+          "finding_path": "<root>/.mcp.json",
+          "id": "SC-005",
+          "server": "npx-deprecated",
+          "severity": "MEDIUM",
+          "title": "Deprecated package: deprecated-mcp (1.4.0)"
+        }
+      ],
+      "outside_root": [],
+      "tampered": false,
+      "unresolved_entries": [],
+      "unverified": [],
+      "unverified_sections": [
+        "trees"
+      ]
+    },
+    "verify": {
+      "checked_servers": 25,
+      "exit_code": 0,
+      "findings": [],
+      "outside_root": [],
+      "tampered": false,
+      "unresolved_entries": [],
+      "unverified": [],
+      "unverified_sections": [
+        "trees"
+      ]
+    }
+  }
+}

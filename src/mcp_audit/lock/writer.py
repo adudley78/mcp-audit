@@ -26,13 +26,15 @@ from pathlib import Path
 from mcp_audit import __version__
 from mcp_audit.advisory.canonical import CanonicalError, canonicalize
 from mcp_audit.analyzers.rug_pull import compute_hashes, server_key
-from mcp_audit.lock import tool_digests
+from mcp_audit.lock import section_digests, tool_digests
 from mcp_audit.lock.identity import build_identity, relative_config_path
 from mcp_audit.lock.model import (
     LOCK_VERSION,
     RESERVED_FOREIGN_KEYS,
+    SECTION_DIGESTS_KEY,
     STRUCTURAL_KEYS,
     compute_checksum,
+    unsupported_version,
 )
 from mcp_audit.lock.resolve import resolve_package
 from mcp_audit.models import ServerConfig
@@ -193,8 +195,22 @@ def regenerate(
             fails its own checksum and *tool_records* is ``None`` (carrying
             it forward would re-checksum a hand edit into a valid record).
             With *tool_records*, a section that fails its checksum is
-            discarded and only this run's records are written.
+            discarded and only this run's records are written. Also raised
+            when *existing_doc* declares a ``lock_version`` newer than this
+            mcp-audit writes (rewriting it would silently downgrade the
+            file), or its ``section_digests`` is not an object.
+
+    The document is written as ``lock_version`` 2: ``section_digests`` keeps
+    every other producer's entries verbatim and recomputes mcp-audit's own
+    (:func:`mcp_audit.lock.section_digests.merge`).
     """
+    newer = unsupported_version(existing_doc or {})
+    if newer is not None:
+        raise LockWriteError(
+            f"The existing lock declares lock_version {newer}, newer than this "
+            f"mcp-audit writes ({LOCK_VERSION}). Upgrade mcp-audit rather than "
+            "overwrite it — see docs/lock.md."
+        )
     existing_servers: dict = (existing_doc or {}).get("servers", {})
     now = datetime.now(UTC).isoformat()
 
@@ -240,6 +256,16 @@ def regenerate(
     doc["generated_by"] = f"mcp-audit/{__version__}"
     doc["generated_at"] = now
     doc["servers"] = new_servers
+    try:
+        doc[SECTION_DIGESTS_KEY] = section_digests.merge(
+            (existing_doc or {}).get(SECTION_DIGESTS_KEY), doc
+        )
+    except ValueError as exc:  # includes CanonicalError
+        raise LockWriteError(
+            f"Cannot write `{SECTION_DIGESTS_KEY}`: {exc}. Inspect "
+            "`mcp-lock.json`; mcp-audit will not overwrite another producer's "
+            "entries — see docs/lock.md."
+        ) from None
     doc["checksum"] = compute_checksum(doc)
     return doc
 

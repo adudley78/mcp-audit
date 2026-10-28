@@ -81,6 +81,9 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # subagent ends up with less access than intended, not more
         "AGENT-004",  # inline subagent MCP server inventory (STORY-0094); the
         # server's own findings carry any vulnerability
+        "LOCK-010",  # lock_version 2 resolution context changed (STORY-0116);
+        # INFO, explains a difference, asserts no defect
+        "LOCK-012",  # lock file reformatted, content intact (STORY-0116)
         "VULN-UNRESOLVED",  # --check-vulns lookup that could not run
         # (STORY-0106) — operational note, asserts nothing about the package
     }

@@ -33,9 +33,16 @@ from mcp_audit.registry.loader import KnownServerRegistry
 from mcp_audit.vulnerability.models import Ecosystem
 from mcp_audit.vulnerability.resolver import (
     extract_ecosystem_and_version,
+    extract_package,
     is_version_range,
     resolve_latest_version_info,
 )
+
+#: ``spec_as_written`` for a launch that names a package and no version
+#: (``npx -y foo``, ``uvx pkg``, ``foo@``). npm-package-arg reads a bare name
+#: as the range ``*`` (``lib/npa.js``, v14.0.0: ``spec = '*'``), not as the
+#: ``latest`` tag; lock_version 1 wrote ``"latest"`` here (STORY-0116).
+BARE_SPEC = "*"
 
 _NPM_LAUNCHERS = {"npx", "bunx", "pnpx"}
 _PYPI_LAUNCHERS = {"uvx", "pipx"}
@@ -87,18 +94,95 @@ def extract_package_identity(server: ServerConfig) -> tuple[str, str] | None:
 
 
 def _spec_as_written(server: ServerConfig) -> str:
-    """Return the literal version/range token from *server*'s args, or ``"latest"``.
+    """Return the version/range token from *server*'s args as ``lock`` records it.
 
     Reuses :func:`extract_ecosystem_and_version` purely for its version
     extraction (its own name extraction is ignored here — name comes from
     :func:`extract_package_identity` so it matches the supply-chain
-    analyzer's registry-lookup key exactly).
+    analyzer's registry-lookup key exactly). That reading is unchanged from
+    lock_version 1, so every spec it already read is recorded and resolved
+    exactly as before.
+
+    lock_version 2 changes one case: a launch that names the package with no
+    version at all is recorded as :data:`BARE_SPEC` (``"*"``) instead of
+    ``"latest"``; ``foo@latest`` stays ``"latest"``. "Bare" is decided by the
+    lookup reading (:func:`extract_package`): no version, and the package
+    name it sees is the same name ``lock`` locks. Every other launch this
+    reading cannot parse (``uvx pkg==1.2.3``, ``uvx pkg>=1``, ``pipx run
+    pkg==1.0``) keeps lock_version 1's ``"latest"``: reading it as a pin
+    would change its resolved version, which a version-1 lock would then
+    report as LOCK-004 under ``--resolve`` on an untouched config.
     """
     extracted = extract_ecosystem_and_version(server)
     if extracted is not None:
         _, _, version = extracted
         return version
+    identity = extract_package_identity(server)
+    looked_up = extract_package(server, for_lookup=True)
+    if (
+        identity is not None
+        and looked_up is not None
+        and looked_up[2] is None
+        and looked_up[1] == identity[1]
+    ):
+        return BARE_SPEC
     return "latest"
+
+
+def _resolution_context(
+    method: str, resolved_at: str | None, latest: str | None, deprecated: str | None
+) -> dict | None:
+    """Return ``resolution.resolution_context`` (lock_version 2).
+
+    An object only when the registry was consulted (``dist-tag:latest``):
+    then ``latest`` is the version the registry's ``latest`` pointed at and
+    ``latest_deprecated`` its deprecation notice, as seen at *resolved_at*.
+    ``npm_major`` and ``node_version`` stay ``None``: mcp-audit reads the
+    dist-tag over HTTPS and runs neither npm nor Node, so neither shaped
+    this resolution. ``None`` for an exact pin or an unresolved entry.
+    """
+    if method != "dist-tag:latest":
+        return None
+    return {
+        "resolved_at": resolved_at,
+        "latest": latest,
+        "latest_deprecated": deprecated,
+        "npm_major": None,
+        "node_version": None,
+    }
+
+
+def _is_current_shape(existing: dict, spec: str, range_spec: bool) -> bool:
+    """Whether a reused *existing* package already has lock_version 2's shape."""
+    resolution = existing.get("resolution")
+    return (
+        isinstance(resolution, dict)
+        and "resolution_context" in resolution
+        and existing.get("spec_as_written") == spec
+        and existing.get("range_spec") == range_spec
+    )
+
+
+def _upgrade(existing: dict, spec: str, range_spec: bool) -> dict:
+    """Bring a reused version-1 *existing* package to lock_version 2's shape.
+
+    Called only when the version (and deprecation) just resolved equal what
+    *existing* records, so its ``resolved_at`` and ``integrity`` stay: the
+    first re-lock after upgrading adds keys and never churns a timestamp.
+    """
+    upgraded = dict(existing)
+    resolution = dict(existing.get("resolution") or {})
+    method = str(resolution.get("method", ""))
+    resolution["resolution_context"] = _resolution_context(
+        method,
+        resolution.get("resolved_at"),
+        existing.get("resolved_version"),
+        existing.get("deprecated"),
+    )
+    upgraded["resolution"] = resolution
+    upgraded["spec_as_written"] = spec
+    upgraded["range_spec"] = range_spec
+    return upgraded
 
 
 def resolve_package(
@@ -143,7 +227,7 @@ def resolve_package(
     eco_enum = Ecosystem.NPM if ecosystem == "npm" else Ecosystem.PYPI
 
     deprecated: str | None = None
-    if not range_spec and spec not in ("latest", "*"):
+    if not range_spec and spec not in ("latest", BARE_SPEC):
         resolved_version: str | None = spec
         method: str = "exact-pin"
     elif offline:
@@ -174,7 +258,9 @@ def resolve_package(
         and existing.get("resolved_version") == resolved_version
         and existing.get("deprecated") == deprecated
     ):
-        return existing
+        if _is_current_shape(existing, spec, range_spec):
+            return existing
+        return _upgrade(existing, spec, range_spec)
 
     now = datetime.now(UTC).isoformat()
     resolved_at: str | None
@@ -210,7 +296,13 @@ def resolve_package(
         "spec_as_written": spec,
         "range_spec": range_spec,
         "resolved_version": resolved_version,
-        "resolution": {"method": method, "resolved_at": resolved_at},
+        "resolution": {
+            "method": method,
+            "resolved_at": resolved_at,
+            "resolution_context": _resolution_context(
+                method, resolved_at, resolved_version, deprecated
+            ),
+        },
         "integrity": integrity,
         "source": source,
         "deprecated": deprecated,

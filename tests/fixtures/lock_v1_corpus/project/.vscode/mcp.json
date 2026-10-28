@@ -1,0 +1,6 @@
+{
+  "servers": {
+    "remote-http": {"type": "http", "url": "https://api.example.com/mcp", "headers": {"X-Api-Key": "${input:api-key}"}},
+    "vscode-npx": {"type": "stdio", "command": "npx", "args": ["-y", "vscode-mcp-server"]}
+  }
+}
