@@ -71,6 +71,11 @@ class MatchCondition(BaseModel):
     pattern: str
     type: MatchType
     negate: bool = False
+    # Fixed text reported as this condition's matched value instead of the
+    # field's content (STORY-0105).  A negated condition otherwise reports the
+    # whole field it inspected, e.g. every launch argument, which can carry
+    # tokens, home paths and other per-host text into findings and advisories.
+    report: str | None = None
 
 
 class RuleMatch(BaseModel):
@@ -88,6 +93,7 @@ class RuleMatch(BaseModel):
     pattern: str | None = None
     type: MatchType | None = None
     negate: bool = False
+    report: str | None = None
 
     @model_validator(mode="after")
     def _validate_structure(self) -> RuleMatch:
@@ -187,6 +193,7 @@ class RuleEngine:
             matched, matched_value = _evaluate_rule_match(rule.match, server)
             if not matched:
                 continue
+            matched_value = _redact_matched_value(matched_value, server)
 
             description = rule.message.replace(
                 "{matched_value}", matched_value
@@ -214,6 +221,40 @@ class RuleEngine:
         return findings
 
 
+# ── Evidence redaction ─────────────────────────────────────────────────────────
+
+
+def _redact_matched_value(value: str, server: ServerConfig) -> str:
+    """Redact secrets from a rule's matched value before it reaches a finding.
+
+    A negated condition reports the whole field it inspected (COMM-010 since
+    STORY-0105 reports the launch arguments), and arguments or a URL can carry
+    a password (the userinfo of a database URL) or a token.  Each argument,
+    the URL and the command are replaced by their userinfo-redacted form
+    (``supply_chain._redact_userinfo``, one value at a time so a URL never
+    spans two arguments), then every ``SECRET_PATTERNS`` match is replaced.
+    """
+    # Imported lazily: the rule engine has no top-level analyzer dependency.
+    from mcp_audit.analyzers.credentials import SECRET_PATTERNS  # noqa: PLC0415
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        _REDACTED,
+        _redact_userinfo,
+        secret_arg_values,
+    )
+
+    for secret in sorted(set(secret_arg_values(server.args)), key=len, reverse=True):
+        if len(secret) >= 4:
+            value = value.replace(secret, _REDACTED)
+    for raw in (*server.args, server.url or "", server.command or ""):
+        if raw and "://" in raw:
+            redacted = _redact_userinfo(raw)
+            if redacted != raw:
+                value = value.replace(raw, redacted)
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        value = pattern.sub(_REDACTED, value)
+    return value
+
+
 # ── Registry exemption ─────────────────────────────────────────────────────────
 
 
@@ -224,7 +265,10 @@ def _server_in_registry(
 
     Consults the registry by checking the command, every argument, and the
     server name against :meth:`KnownServerRegistry.get` (case-insensitive
-    exact match).  Mirrors the token-based lookup already used by
+    exact match), then the package the launch command installs through
+    :func:`mcp_audit.analyzers.supply_chain.resolve_launch_entry` (the
+    resolver TRANSPORT-003 uses, so a pinned ``@scope/name@1.2.3`` resolves).
+    Mirrors the token-based lookup already used by
     :func:`mcp_audit.analyzers.toxic_flow.tag_server` so that a server which
     toxic-flow recognises as a registry entry is also exempt from
     registry-exempt rules.
@@ -239,7 +283,15 @@ def _server_in_registry(
             continue
         if registry.get(token) is not None:
             return True
-    return False
+    # The launch package, resolved exactly as TRANSPORT-003 resolves it
+    # (Q-016): ``npx -y @scope/name@1.2.3`` never matched a whole-token
+    # lookup, so every pinned scoped registry entry got COMM-004.  Imported
+    # lazily: the rule engine has no top-level dependency on the analyzers.
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        resolve_launch_entry,
+    )
+
+    return resolve_launch_entry(server, registry) is not None
 
 
 # ── Match evaluation ───────────────────────────────────────────────────────────
@@ -359,11 +411,16 @@ def _evaluate_condition(
 
     if condition.negate:
         # Inverted match: succeed when the underlying match *fails*.
-        # Use the field value as matched_value so callers have context.
+        # Use the field value as matched_value so callers have context,
+        # unless the rule names a fixed ``report`` text.
         if not result:
+            if condition.report is not None:
+                return True, condition.report
             return True, field_value or ""
         return False, ""
 
+    if result and condition.report is not None:
+        return True, condition.report
     return result, value
 
 
@@ -386,6 +443,7 @@ def _evaluate_rule_match(
             pattern=rule_match.pattern,
             type=rule_match.type,
             negate=rule_match.negate,
+            report=rule_match.report,
         )
         return _evaluate_condition(cond, server)
 

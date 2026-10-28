@@ -238,6 +238,12 @@ Fields added by STORY-0097 (the schema allows additional properties):
 
 **Slug convention:** `@scope/name` → `at-scope-name`, lowercased, `_` → `-`.
 
+**Ecosystem:** without `--ecosystem`, an unscoped name the registry lists only for
+PyPI gets a PyPI badge (`vet mcptoon --badge` → `/v1/badge/pypi/mcptoon.json`),
+spelled as the registry spells it (`MCP_Atlassian` → `mcp-atlassian`).  Every other
+name, including one the registry doesn't list, gets the npm badge, as before.
+Registry names are unique across ecosystems, so the choice is never ambiguous.
+
 The badge shows registry verification status and known CVE count for the package —
 not a grade, not an endorsement, nothing about any deployment. See
 [docs/badge.md](badge.md) for the full specification: what the badge asserts, what

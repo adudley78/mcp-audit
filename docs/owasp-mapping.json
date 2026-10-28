@@ -304,6 +304,17 @@
       "notes": "Fires when `mcp-audit lock` (or `lock --verify --resolve`) resolves an unpinned spec to a version the package registry itself marks deprecated (npm's `deprecated` field on dist-tags.latest; PyPI is not covered — see GAPS.md). Network check, opt-in via the same resolution these commands already perform; never fires on a plain offline `scan`, `vet` (without `--online`), or `scan --check-vulns` (STORY-0074, deferred). Severity MEDIUM."
     },
     {
+      "finding_id": "SC-009",
+      "finding_title": "Known CVE fix not comparable with pinned version",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires instead of SC-004 when the launch pins an exact version and every remaining recorded advisory's fixed_in uses a different version numbering scheme (calendar version such as 2025.7.1, first number >= 1000, versus semantic version such as 2.0.0) and the registry cannot order them: with the entry's semver_resumed_at the pair is ordered (SC-004 or no finding); without it a 0.x semantic pin against a calendar fix stays SC-004 HIGH, every other cross-scheme pair is SC-009. INFO. Not an advisory (classify.NON_ADVISORY_IDS). Offline (STORY-0105, top-100 scan Q-010)."
+    },
+    {
       "finding_id": "SC-007",
       "finding_title": "Unscoped twin of a known package",
       "owasp_codes": [

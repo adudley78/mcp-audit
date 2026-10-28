@@ -57,6 +57,10 @@ _HINTS: dict[str, str] = {
         "This name copies a known package without its scope. Switch the launch "
         "command to the package named in the finding, or confirm the publisher."
     ),
+    "SC-009": (
+        "Check the pinned release's date against the fix on the package "
+        "registry (npm: `npm view <pkg> time`); if it predates the fix, upgrade."
+    ),
     "SC-008": (
         "OSV lists malicious releases of this package; follow the finding: "
         "remove it, or pin a release the record does not list."

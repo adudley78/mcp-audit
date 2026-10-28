@@ -89,6 +89,7 @@ match:
   pattern: <string>
   type: <MatchType>
   negate: <boolean>   # optional, default false
+  report: <string>    # optional: fixed text reported as {matched_value}
 ```
 
 ### 4.2 Compound match
@@ -101,6 +102,7 @@ match:
       pattern: <string>
       type: <MatchType>
       negate: <boolean>    # optional
+      report: <string>     # optional: fixed text reported instead of the field
     - field: <MatchField>
       pattern: <string>
       type: <MatchType>
