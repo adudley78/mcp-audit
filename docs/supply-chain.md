@@ -735,8 +735,10 @@ record that is not withdrawn and names a package whose name contains `mcp` or
 that the registry lists. The substring test is deliberate: a match is by exact
 name, so an extra record can never cause a false positive. The file is a mirror,
 not additive: a record OSV withdraws is removed. The weekly
-`registry-advisory-sync.yml` check fails when the file has drifted; `--write`
-updates it.
+`registry-advisory-sync.yml` check fails when the file has drifted and uploads
+the proposed `known-malicious.json` next to the proposed `known-servers.json`
+as the run's artifact, so the records that would be added or removed can be
+reviewed in full; `--write` updates it.
 
 `vet` reports the same records: a record covering the latest release exits 1;
 past releases only are listed and exit 0. Without `--ecosystem`, `vet` also warns
