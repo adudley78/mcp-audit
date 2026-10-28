@@ -192,8 +192,9 @@ references are left alone. What a scan file can no longer show:
   credential as modified, because one side is redacted and the other is not.
   Don't mix the two input kinds: compare two directories (or git refs), or
   two scan files.
-- Only user info with a password (`user:pass@`) or a user name that is a known
-  token format (`https://ghp_…@github.com`) is redacted; `git@` in
+- User info is redacted when it has a password (`user:pass@`) or when the user
+  name is not a plain account name (a token such as `https://ghp_…@github.com`
+  or `glpat-…@`). A plain account name such as `git@` in
   `git+ssh://git@github.com/…` is kept and is not a credential.
 - A secret in a URL's query string (`?api_key=…`) is redacted only when it
   matches a known token format, and a flag value is recognised only as a

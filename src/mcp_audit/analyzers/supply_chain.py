@@ -891,18 +891,29 @@ _AUTHORITY_END = frozenset("/?#")
 _MAX_EVIDENCE_COMMAND = 300
 
 
+_ACCOUNT_NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9._-]{0,19}")
+
+
 def _userinfo_is_secret(userinfo: str) -> bool:
     """True when a URL's userinfo carries a secret (STORY-0108 review).
 
     A password is present (``user:pass``, ``:pass``), or the user name alone
     matches SECRET_PATTERNS (a token used as the user name, as GitHub accepts).
-    A plain user name such as ``git`` in ``git+ssh://git@github.com`` is not a
+    A plain account name such as ``git`` in ``git+ssh://git@github.com`` (a
+    letter then up to 19 letters, digits, ``.``, ``_`` or ``-``) is not a
     secret: redacting it hid nothing and made ``mcp-audit diff`` report a
-    credential.
+    credential.  Any other user name is redacted.
     """
     if ":" in userinfo:
         return True
-    return any(pattern.search(userinfo) for _l, pattern, _p in SECRET_PATTERNS)
+    # Keep only what looks like an account name (``git``, ``oauth2``,
+    # ``x-access-token``, ``deploy``); anything longer, starting with a digit,
+    # percent-encoded or matching SECRET_PATTERNS (``glpat-…``, ``hf_…``, a
+    # 40-hex token) is treated as a token used as the user name.
+    return not (
+        _ACCOUNT_NAME_RE.fullmatch(userinfo)
+        and not any(p.search(userinfo) for _l, p, _p in SECRET_PATTERNS)
+    )
 
 
 def _redact_userinfo(text: str) -> str:
@@ -916,9 +927,9 @@ def _redact_userinfo(text: str) -> str:
     bounded number of times, so it stays linear on any input.
     SECRET_PATTERNS' database-URL rule does not cover ``postgresql://``, the
     scheme ``@modelcontextprotocol/server-postgres`` documents.  Userinfo that
-    is only a user name (``git+ssh://git@github.com``) is kept unless the name
-    itself matches SECRET_PATTERNS (``https://ghp_…@github.com``); see
-    :func:`_userinfo_is_secret`.
+    is only a plain account name (``git+ssh://git@github.com``) is kept; a
+    token used as the user name (``https://ghp_…@github.com``) is redacted;
+    see :func:`_userinfo_is_secret`.
     """
     out: list[str] = []
     i = 0

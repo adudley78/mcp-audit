@@ -521,3 +521,56 @@ def test_diff_of_scan_files_with_token_userinfo_is_critical(tmp_path: Path) -> N
     assert _GH_TOKEN not in head.read_text(encoding="utf-8")
     (cred,) = _diff_credentials(base, head)
     assert cred.severity.value == "CRITICAL"
+
+
+# Token-shaped user names (reviewer #202 round 4), built at test time.
+_TOKEN_USERNAMES = [
+    "glpat-" + "Ab3dE" * 4,  # GitLab PAT shape, 26 chars
+    "hf_" + "aBcD" * 8 + "xyz12",  # Hugging Face token shape, 37 chars
+    "0123456789abcdef" * 2 + "01234567",  # 40-hex classic token, digit first
+    "tok%2Fen",  # percent-encoded
+]
+
+
+@pytest.mark.parametrize("user", _TOKEN_USERNAMES)
+def test_token_shaped_username_is_redacted_by_every_consumer(
+    tmp_path: Path, user: str
+) -> None:
+    from mcp_audit.analyzers.supply_chain import redact_command  # noqa: PLC0415
+    from mcp_audit.mcp_client import redact_server_text  # noqa: PLC0415
+    from mcp_audit.rules.engine import _redact_matched_value  # noqa: PLC0415
+
+    url = f"https://{user}@gitlab.example.com/acme/x.git"
+    args = ["--from", f"git+{url}", "x"]
+    assert user not in " ".join(redact_args(args))
+    assert user not in redact_command("uvx", args)
+    assert user not in redact_server_text(f"fatal: could not read {url}", args=args)
+    server = ServerConfig(
+        name="x", client="c", config_path=tmp_path / "c.json", command="uvx", args=args
+    )
+    assert user not in _redact_matched_value(" ".join(args), server)
+
+
+@pytest.mark.parametrize("user", ["git", "oauth2", "x-access-token", "deploy"])
+def test_account_names_are_kept(user: str) -> None:
+    arg = f"git+ssh://{user}@github.com/acme/x.git"
+    assert redact_args([arg]) == [arg]
+
+
+def test_diff_of_scan_files_with_glpat_username_is_critical(tmp_path: Path) -> None:
+    user = _TOKEN_USERNAMES[0]
+    base = _scan_json_servers(tmp_path, "base", _BASE)
+    head = _scan_json_servers(
+        tmp_path,
+        "head",
+        {
+            **_BASE,
+            "git": {
+                "command": "uvx",
+                "args": ["--from", f"git+https://{user}@gitlab.com/a/b.git", "b"],
+            },
+        },
+    )
+    assert user not in head.read_text(encoding="utf-8")
+    (cred,) = _diff_credentials(base, head)
+    assert cred.severity.value == "CRITICAL"
