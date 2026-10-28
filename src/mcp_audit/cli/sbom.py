@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import urllib.error
 from pathlib import Path
 
@@ -90,7 +91,7 @@ def sbom(
     # Resolve packages and (optionally) transitive dependencies
     all_packages: list[ResolvedPackage] = []
     for server in servers:
-        result = extract_ecosystem_and_version(server)
+        result = extract_ecosystem_and_version(server, for_lookup=True)
         if result is None:
             continue
         ecosystem, name, version = result
@@ -107,7 +108,12 @@ def sbom(
                 original_version = version
                 try:
                     version = resolve_latest_version(ecosystem, name)
-                except (ValueError, urllib.error.URLError) as exc:
+                except (
+                    ValueError,
+                    urllib.error.URLError,
+                    http.client.HTTPException,
+                    RecursionError,
+                ) as exc:
                     console.print(
                         f"[yellow]Warning:[/yellow] {name} is pinned to a "
                         f"semver range ({original_version}); could not "

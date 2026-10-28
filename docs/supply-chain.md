@@ -260,16 +260,62 @@ mcp-audit scan --check-vulns
 
 When this flag is set, mcp-audit:
 
-1. Extracts the ecosystem (`npm` or `PyPI`), package name, and pinned version
-   from each server config (same extraction logic as `--verify-hashes`).
-2. Queries the [deps.dev](https://deps.dev) API for the full transitive
-   dependency graph of each resolved package.
+1. Extracts the ecosystem (`npm` or `PyPI`), package name, and version from
+   each server config (`npx`/`bunx`/`pnpx`/`yarn dlx` → npm, `uvx`/`pipx` →
+   PyPI; `pkg@1.2.3`, `@scope/pkg@1.2.3` and `pkg==1.2.3` are read as exact
+   pins; `[extras]` are dropped from a PyPI name and `pipx run` skips its
+   `run` subcommand; a URL, git, tarball or path spec is not looked up at
+   all, so credentials in it never leave the machine). A launch with no version (`npx -y pkg`), `@latest`, or a range
+   (`^1.2.3`) is resolved to the registry's latest release and reported as
+   `VULN-UNPINNED`.
+2. Queries the [deps.dev](https://deps.dev) API for the dependency graph of
+   each resolved package, keeping each node's `relation` (`SELF`, `DIRECT`,
+   `INDIRECT`; deps.dev marks a dependency that is both as direct).
 3. Submits all packages (top-level + transitive) to the
-   [OSV.dev](https://osv.dev) batch API, which returns advisories from
-   GitHub Advisory Database, NVD, PYSEC, and others.
-4. Emits a `VULN-<OSV-ID>` finding for each matched advisory.
+   [OSV.dev](https://osv.dev) batch API (`/v1/querybatch`), which answers
+   with advisory IDs only.
+4. Fetches the full record of each distinct advisory once from
+   `/v1/vulns/{id}` (at most 256 distinct IDs, 8 at a time, 10 s each, 4 MiB
+   per record; no new fetch starts after 120 s, so with a fetch still
+   running the worst case is about 130 s) and reads its summary, aliases, CWEs, fixed
+   versions for this package, and severity.
+5. Emits a `VULN-<OSV-ID>` finding for each matched advisory, and a
+   `VULN-UNRESOLVED` finding for each lookup that could not run.
 
 `--check-vulns` requires network access and cannot be combined with `--offline`.
+
+#### Where a `VULN-<OSV-ID>` severity comes from
+
+From the advisory's own record, in this order, and the finding's evidence
+says which (`severity_basis`):
+
+| `severity_basis` | Read from | Example |
+|---|---|---|
+| `cvss_v3` | a CVSS v3 vector in `severity[]`; the base score is computed and banded (Critical ≥ 9.0, High ≥ 7.0, Medium ≥ 4.0, Low > 0). CVSS 3.0 vectors are scored with the 3.1 formula (the two differ only in rounding). | `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H` → 7.5 → HIGH |
+| `database_specific` | the database's own rating in `database_specific.severity` (GitHub: `LOW`, `MODERATE`, `HIGH`, `CRITICAL`; `MODERATE` is reported as MEDIUM) | a record with only a CVSS v4 vector |
+| `malicious-package` | an OSV `MAL-*` record (a malicious package) → CRITICAL, as SC-008 rates a listed release | `MAL-2026-5481` |
+| `unrated` | none of the above, or the record could not be fetched → INFO, and the description says which | |
+
+The evidence also carries `relation` (`self`, `direct`, `indirect`) and
+`direct_dependency` (true for the server package itself and its direct
+dependencies).
+
+#### When a lookup cannot run: `VULN-UNRESOLVED`
+
+A check that did not run is not a clean result. `VULN-UNRESOLVED` (INFO) is
+reported for the server, and a line is added to the scan's `errors`, when:
+
+| `stage` | Cause | What was still checked |
+|---|---|---|
+| `version` | no concrete version could be resolved for an unpinned or range launch | nothing |
+| `dependencies` | deps.dev has no graph for the version (HTTP 404: deps.dev has not indexed a release published in the last few days yet) or the request failed | the server package itself, in OSV |
+| `advisories` | the OSV query failed | the packages in other batches only |
+
+A deps.dev graph that carries node errors, an OSV result with a further
+page, and advisory records that could not be fetched are reported in
+`errors` (the affected `VULN-<OSV-ID>` findings say so in their
+description). `VULN-UNRESOLVED` never becomes an advisory-feed record and is
+not listed as a vulnerability in `mcp-audit sbom`.
 
 ### `--vuln-registry URL`
 
@@ -279,7 +325,11 @@ mcp-audit scan --check-vulns --vuln-registry https://your-osv-mirror.internal/v1
 
 Override the OSV API endpoint to point at an air-gapped or private mirror (for
 example, an OSV-compatible proxy behind a corporate firewall). The URL must
-implement the OSV `querybatch` POST contract.
+implement the OSV `querybatch` POST contract. When it ends in
+`/querybatch`, full advisory records are fetched from the sibling `/vulns/`
+path (`…/v1/querybatch` → `…/v1/vulns/{id}`); otherwise only what the mirror's
+querybatch returned is used, and an advisory without a readable severity
+says that the details endpoint is unknown.
 
 ### `mcp-audit sbom`
 
@@ -344,8 +394,9 @@ is a separate design question, not addressed here.
 
 | Finding ID     | Severity  | Meaning |
 |----------------|-----------|---------|
-| `VULN-<OSV-ID>` | CRITICAL / HIGH / MEDIUM / LOW | Known CVE in a direct or transitive dependency; severity derived from the advisory's qualitative rating |
+| `VULN-<OSV-ID>` | CRITICAL / HIGH / MEDIUM / LOW / INFO | Known advisory against the server package or a direct or transitive dependency; severity read from the advisory's own record (see "Where a `VULN-<OSV-ID>` severity comes from"); INFO when the record carries no readable rating |
 | `VULN-UNPINNED` | LOW | Server uses an unpinned (floating) version; vulnerability scan used the latest published version, which may differ from the actual runtime version |
+| `VULN-UNRESOLVED` | INFO | A lookup could not run (no version resolved, no deps.dev graph, OSV query failed); says what was and was not checked |
 
 ### The `--offline` contract
 

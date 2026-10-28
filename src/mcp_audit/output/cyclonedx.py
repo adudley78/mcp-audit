@@ -103,7 +103,10 @@ class CycloneDxFormatter(BaseFormatter):
             bom.components.add(comp)
 
         for finding in result.findings:
-            if not finding.id.startswith("VULN-") or finding.id == "VULN-UNPINNED":
+            if not finding.id.startswith("VULN-") or finding.id in (
+                "VULN-UNPINNED",
+                "VULN-UNRESOLVED",
+            ):
                 continue
 
             osv_id = finding.id.removeprefix("VULN-")

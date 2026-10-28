@@ -1725,6 +1725,42 @@ in `analyzers/transport.py`.
 
 ---
 
+## `--check-vulns` lookups (STORY-0106)
+
+What `scan --check-vulns` still does not do, after it learned to read full
+advisory records and report lookups that could not run:
+
+- **CVSS v4-only records.** No CVSS v4 calculator ships, so a record whose
+  only vector is v4 is rated from `database_specific.severity` when present
+  and otherwise reported INFO (`severity_basis: unrated`). CVSS 3.0 vectors
+  are scored with the 3.1 formula, which can differ by 0.1.
+- **Budgets.** At most 256 distinct advisories are fetched per scan, 8 at a
+  time, 10 s each; no new fetch starts after 120 s (a soft deadline: a fetch
+  already running may take up to 10 s more, about 130 s worst case); the rest stay INFO and the scan's
+  errors say how many. OSV paginates very large results (over 1,000
+  advisories for one package); only the first page is read, and the scan's
+  errors say so.
+- **Graph quality.** A deps.dev graph that carries node errors is used as is
+  and noted in the scan's errors, not as a finding. The published-graph vs
+  installed-tree gap in `docs/supply-chain.md` is unchanged.
+- **Mirrors.** A `--vuln-registry` URL that does not end in `/querybatch`
+  has no known details endpoint, so its advisories keep whatever the mirror
+  returned.
+- **Non-registry launches.** A URL, git, tarball or path spec
+  (`git+https://…`, `github:owner/repo`, `owner/repo`, `./pkg.tgz`) is not
+  looked up at all, so no credential in it reaches deps.dev or OSV; such a
+  server gets no `--check-vulns` result.
+- **Launch parsing.** `lock` still reads `uvx pkg==1.2.3` as unpinned (its
+  recorded `spec_as_written` is `latest`, unchanged so existing locks do not
+  drift); only `--check-vulns` and `sbom` read the pin, strip `[extras]` and
+  skip `pipx run`. An npm alias (`npx pkg@npm:other@1.0.0`) is looked up under the name
+  `pkg@npm:other`, which deps.dev does not know (`VULN-UNRESOLVED`); the
+  aliased package itself is not checked.
+- **Validator blind spot.** `scripts/validate_owasp_mapping.py` collects IDs
+  that end in digits, so word-suffixed IDs (`VULN-UNPINNED`,
+  `VULN-UNRESOLVED`) are not audited; `VULN-UNRESOLVED` is mapped by hand and
+  the script prints it as "not found in source".
+
 ## Closed gaps
 
 Items below were confirmed open at some point and have since been resolved. Each entry records the gap ID or description, what fixed it, and in which version.
