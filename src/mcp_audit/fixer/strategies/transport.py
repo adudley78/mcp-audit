@@ -29,8 +29,11 @@ class TransportFixStrategy(BaseFixStrategy):
                 f"Server {finding.server!r} not found in config; cannot apply fix."
             )
 
-        url: str | None = server_dict.get("url")
-        if url is None:
+        # Gemini CLI connects to ``httpUrl`` in preference to ``url``
+        # (STORY-0110), so that is the field the finding is about.
+        key = "httpUrl" if isinstance(server_dict.get("httpUrl"), str) else "url"
+        url = server_dict.get(key)
+        if not isinstance(url, str):
             raise ValueError(
                 f"Server {finding.server!r} has no 'url' field; "
                 "cannot apply TRANSPORT-001 fix."
@@ -41,7 +44,7 @@ class TransportFixStrategy(BaseFixStrategy):
 
         new_url = "https://" + url[len("http://") :]
         new_config = copy.deepcopy(config)
-        new_config[root_key][finding.server]["url"] = new_url
+        new_config[root_key][finding.server][key] = new_url
         return (
             new_config,
             f"Upgraded URL for {finding.server!r}: {url!r} → {new_url!r}",

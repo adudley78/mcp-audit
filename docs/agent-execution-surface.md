@@ -145,4 +145,6 @@ Known gaps are listed in `GAPS.md` ("Other harnesses' auto-run files",
 JetBrains run configurations, Codex `requirements.toml` and
 `[sandbox_workspace_write]`, Gemini `.gemini/policies/`, and the contents of
 workflow scripts and scheduled-task prompts. Gemini CLI and Codex **MCP server**
-definitions are a separate, queued surface.
+definitions in these same files are read as MCP configs (STORY-0110; see
+`docs/clients.md`): their servers go through every per-server check, and
+`scan --project` reports each as TRUST-001.

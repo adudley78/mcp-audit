@@ -96,6 +96,16 @@ def _isolate_claude_plugins(
     monkeypatch.setattr(
         "mcp_audit.agent_files.reach._user_heartbeat_files", lambda errors: []
     )
+    # Codex and Gemini CLI user configs (STORY-0110) join default discovery:
+    # keep a contributor's own ~/.codex/config.toml and ~/.gemini/settings.json
+    # (and any CODEX_HOME) out of it.  Tests that need them patch these back.
+    monkeypatch.setenv(
+        "CODEX_HOME", str(tmp_path_factory.getbasetemp() / "no-codex-home")
+    )
+    monkeypatch.setattr(
+        "mcp_audit.discovery.gemini_user_config_path",
+        lambda: tmp_path_factory.getbasetemp() / "no-gemini-home" / "settings.json",
+    )
 
 
 @pytest.fixture(autouse=True)

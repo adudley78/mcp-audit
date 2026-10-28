@@ -73,6 +73,9 @@ _AUTH_FIELD_NAMES: frozenset[str] = frozenset(
         "authorization",
         "access_token",
         "secret",
+        # Gemini CLI: google_credentials / service_account_impersonation /
+        # dynamic_discovery each add credentials to every request (STORY-0110).
+        "authprovidertype",
     }
 )
 

@@ -1261,3 +1261,37 @@ Measures the existing POISON-* patterns; adds or changes none. Results:
 - Brief: products/mcp-audit/discovery/briefs/2026-10-25-research-scan.md §A3
   (Marcus). Original implementation; no code or fixtures were copied from any of
   these projects.
+
+## Codex and Gemini CLI MCP server discovery (config_parser.py, discovery.py — STORY-0110)
+
+No new detection pattern: the existing per-server analyzers run on servers read
+from two more clients' files. Paths, keys and parsing rules were confirmed on
+2026-10-28 from each vendor's own source and docs (read, not copied; no code or
+fixture was taken):
+
+- Codex, openai/codex `main`:
+  [`codex-rs/config/src/mcp_types.rs`](https://github.com/openai/codex/blob/main/codex-rs/config/src/mcp_types.rs)
+  (`RawMcpServerConfig`: `command`/`args`/`env`/`env_vars`/`cwd` for stdio,
+  `url`/`bearer_token_env_var`/`http_headers`/`env_http_headers` for streamable
+  HTTP, `command` and `url` mutually exclusive, retired `bearer_token`),
+  [`codex-rs/config/src/loader/mod.rs`](https://github.com/openai/codex/blob/main/codex-rs/config/src/loader/mod.rs)
+  (layer order, project `.codex/config.toml` "loaded but disabled when
+  untrusted", `.codex` equal to `CODEX_HOME` skipped, `PROJECT_LOCAL_CONFIG_DENYLIST`
+  without `mcp_servers`) and
+  [`codex-rs/utils/home-dir/src/lib.rs`](https://github.com/openai/codex/blob/main/codex-rs/utils/home-dir/src/lib.rs)
+  (`CODEX_HOME`, default `~/.codex`).
+- Gemini CLI, google-gemini/gemini-cli `main`:
+  [`docs/tools/mcp-server.md`](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md)
+  (`mcpServers` keys),
+  [`docs/reference/configuration.md`](https://github.com/google-gemini/gemini-cli/blob/main/docs/reference/configuration.md)
+  (user and project settings locations),
+  [`packages/core/src/tools/mcp-client.ts`](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/tools/mcp-client.ts)
+  (transport order: `httpUrl`, then `url` + `type`, then `url`, then `command`),
+  [`packages/core/src/config/config.ts`](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/config/config.ts)
+  (`MCPServerConfig`, incl. `type` and `authProviderType`) and
+  [`packages/cli/src/config/settings.ts`](https://github.com/google-gemini/gemini-cli/blob/main/packages/cli/src/config/settings.ts)
+  (`JSON.parse(stripJsonComments(content))`).
+
+The developer-docs pages (developers.openai.com/codex/mcp, geminicli.com) could
+not be fetched from the build environment; the source files above are the
+primary record used.

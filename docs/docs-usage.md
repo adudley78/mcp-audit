@@ -47,7 +47,7 @@ Run your first scan in 30 seconds. mcp-audit will discover all MCP configs on yo
 mcp-audit scan
 ```
 
-That's it. mcp-audit searches your home directory for MCP configurations across all supported AI coding clients — Claude Desktop, Cursor, VS Code, Windsurf, Claude Code, Copilot CLI, and Augment — and prints a findings report with a letter grade.
+That's it. mcp-audit searches your home directory for MCP configurations across all supported AI coding clients — Claude Desktop, Cursor, VS Code, Windsurf, Claude Code, Copilot CLI, Augment, Codex and Gemini CLI — and prints a findings report with a letter grade.
 
 ---
 
@@ -64,6 +64,10 @@ mcp-audit automatically discovers MCP server configurations for:
 | Claude Code | `~/.claude/claude_mcp_config.json` |
 | Copilot CLI | `~/.config/github-copilot/mcp.json` |
 | Augment | `~/.augment/mcp_config.json` |
+| Codex | `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`), project `.codex/config.toml` (TOML) |
+| Gemini CLI | `~/.gemini/settings.json`, project `.gemini/settings.json` |
+
+The full table, with project files and how each one is read, is in [clients.md](clients.md).
 
 ---
 

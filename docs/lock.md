@@ -54,8 +54,14 @@ mcp-audit lock --verify
 
 `lock` (no flags) discovers project-scoped MCP config files under the given path (same walk as
 `scan --project`: `.mcp.json`, `.cursor/mcp.json`, `.claude/settings.json`,
-`.claude/settings.local.json`, `.vscode/mcp.json`, `.amazonq/mcp.json`, etc.), resolves each server's
+`.claude/settings.local.json`, `.vscode/mcp.json`, `.amazonq/mcp.json`, Codex's `.codex/config.toml`,
+Gemini CLI's `.gemini/settings.json`, etc.; see [clients.md](clients.md)), resolves each server's
 package version, and writes `mcp-lock.json` next to the project root.
+
+Codex and Gemini CLI project files are locked and verified like the others
+(STORY-0110). A lock written by an earlier release has no entries for them, so
+`lock --verify` (and the automatic check in `scan`/`check`) reports their servers
+as LOCK-002 until you review them and re-run `mcp-audit lock`.
 
 Try it: [`demo/lock/`](../demo/lock/) — a small, reproducible fixture that runs this exact sequence
 (`bash demo/lock/run.sh`) and asserts every exit code along the way.

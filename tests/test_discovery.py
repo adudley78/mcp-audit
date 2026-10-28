@@ -323,6 +323,10 @@ class TestHomeHelperConsistency:
 
     def test_discovery_uses_home_helper(self, tmp_path: Path, monkeypatch) -> None:
         """All paths from _get_client_specs() must be rooted under _home()."""
+        # conftest points the Codex/Gemini CLI user paths away from any real
+        # home; undo that here so they are checked like every other client.
+        monkeypatch.undo()
+        monkeypatch.delenv("CODEX_HOME", raising=False)
         monkeypatch.setattr("mcp_audit.discovery._home", lambda: tmp_path)
         specs = _get_client_specs()
         for spec in specs:

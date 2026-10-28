@@ -576,8 +576,16 @@ def _discover_and_parse(
             result.errors.append(f"ci_workflows: workflow scan failed: {exc}")
 
     all_servers: list[ServerConfig] = []
+    # A file that is both an auto-run file and an MCP config (Codex's
+    # .codex/config.toml, Gemini CLI's .gemini/settings.json; STORY-0110) is
+    # reported as a symlink once, by whichever pass saw it first.
+    reported_links = {
+        f.finding_path for f in result.findings if f.id in ("TRUST-002", "TRUST-004")
+    }
     for config in configs:
-        if config.is_symlink:
+        if config.is_symlink and str(config.path) in reported_links:
+            pass
+        elif config.is_symlink:
             if config.symlink_root is not None:
                 result.findings.append(
                     build_project_symlink_finding(
