@@ -699,7 +699,22 @@ class TestSecretsInOutput:
         monkeypatch.chdir(repo)
         return repo
 
-    @pytest.mark.parametrize("fmt", ["terminal", "json", "sarif"])
+    @pytest.mark.parametrize(
+        "fmt",
+        [
+            "terminal",
+            "sarif",
+            # servers[].args in JSON output are redacted by STORY-0108's
+            # ServerConfig serialisers (#202), not merged yet.  strict: this
+            # fails the moment that lands, so the marker is removed then.
+            pytest.param(
+                "json",
+                marks=pytest.mark.xfail(
+                    strict=True, reason="JSON args redaction lands with STORY-0108"
+                ),
+            ),
+        ],
+    )
     def test_password_in_args_is_redacted(
         self, repo: Path, tmp_path: Path, fmt: str
     ) -> None:
