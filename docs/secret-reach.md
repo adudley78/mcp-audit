@@ -1,0 +1,114 @@
+# Secrets a Claude Code session can reach (REACH-001..003)
+
+A plain `mcp-audit scan` or `mcp-audit check` (no explicit path) asks one
+question about the machine it runs on: **which credential files could a Claude
+Code session read without asking you?** It answers without opening any of
+them.
+
+## Why this matters
+
+From Anthropic's Claude Code documentation (read 2026-10-28):
+
+- [Permissions, "Read-only commands"](https://code.claude.com/docs/en/permissions):
+  Claude Code "runs them without a permission prompt in every mode, except as
+  `permissions.blockReadsOutsideWorkingDirectories` changes for paths outside
+  your working directories. The set includes `ls`, `cat`, ... `head`, `tail`".
+- [Sandboxing](https://code.claude.com/docs/en/sandboxing): the sandbox's
+  default read access is "Most of the machine, including credential files such
+  as `~/.ssh` and `~/.aws/credentials`", and "There is no built-in credential
+  deny list".
+- File reads need no approval "within the working directory and additional
+  directories" (permissions table).
+
+So `cat ~/.aws/credentials` runs without a prompt unless something says
+otherwise, and a `.env` file in the project is read without a prompt. A
+prompt-injected session (a poisoned issue, skill, web page or tool result) can
+then send what it read anywhere it can write. Incidents: a Cursor agent found
+and used a production token "in an unrelated file" (PocketOS, April 2026);
+Claude Code uploaded credentials to a public repository after a hidden issue
+instruction (Roblox, Black Hat USA 2026); a trojanized skill's harvester
+checked 127 Unix secret paths (Zenity Labs, August 2026).
+
+## What protects a file
+
+A credential file counts as covered when any settings file the session loads
+(managed `managed-settings.json` and `managed-settings.d/*.json`, your
+`~/.claude/settings.json` or `$CLAUDE_CONFIG_DIR/settings.json`, and the
+working directory's `.claude/settings.json` and `.claude/settings.local.json`)
+has:
+
+- a `permissions.deny` `Read(...)` rule that matches the file or a directory
+  above it (or the file a symlink points to). Read deny rules "apply to Claude's
+  built-in file tools, to file commands Claude Code recognizes in Bash, such as
+  `cat`, `head`, `tail`". Pattern anchoring follows the permissions doc:
+  `//path` absolute, `~/path` home, `/path` relative to the settings file (user
+  settings: `~/.claude`; project and local settings: the working directory),
+  `path` relative to the working directory, and a bare name matches at any
+  depth below it; a `!` carve-out in the same file reopens a relative rule;
+- `permissions.blockReadsOutsideWorkingDirectories: true` (home-directory stores
+  only, and only when the working directory is not the home directory or above
+  it); or
+- `sandbox.enabled: true` with a `sandbox.filesystem.denyRead` path or a
+  `sandbox.credentials.files` entry with `"mode": "deny"` that covers it (not
+  when `sandbox.filesystem.disabled` is true). The Read tool still asks before
+  reading outside the working directory, so this counts.
+
+## Findings
+
+| ID | Severity | What it means |
+|---|---|---|
+| REACH-001 | LOW | Credential stores under your home directory that nothing above covers. One finding lists them all. |
+| REACH-002 | MEDIUM | Claude Code's own login store (`.credentials.json`, written with mode 0600) can be read by another local account: the file has a group or other read bit and every directory above it lets that class through. A group that is your private group (same name as you) does not count. |
+| REACH-003 | LOW | Non-empty `.env` / `.env.*` files at the working directory's root that no `Read` deny rule covers. `.env.example`, `.env.sample`, `.env.template` and similar are skipped. |
+
+Stores checked for REACH-001 (each path from the tool's own documentation):
+SSH default private keys (`~/.ssh/id_rsa`, `id_ecdsa`, `id_ecdsa_sk`,
+`id_ed25519`, `id_ed25519_sk`), `~/.aws/credentials`, Google Cloud application
+default credentials, `~/.git-credentials`, `~/.netrc` (and `_netrc` on
+Windows), `~/.pypirc`, Claude Code's `.credentials.json`; and, labelled "may
+hold", `~/.npmrc`, `~/.docker/config.json`, `~/.kube/config`,
+`~/.config/gh/hosts.yml`.
+
+## Fix
+
+Add Read deny rules to your user settings, for example:
+
+```json
+{
+  "permissions": {
+    "deny": ["Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(//**/.env)"]
+  }
+}
+```
+
+or set `"blockReadsOutsideWorkingDirectories": true`. With the sandbox on, list
+credential directories in `sandbox.credentials.files` with `"mode": "deny"`, as
+Anthropic's sandboxing guide recommends. For a project, commit
+`"Read(./.env)"` and `"Read(./.env.*)"` in `.claude/settings.json`.
+
+## Privacy
+
+- No credential store is ever opened: each is checked with `stat()` (exists,
+  regular file, non-empty, mode bits). The home directory and `~/.ssh` are not
+  listed; the store paths are a fixed list. Only the working directory's root is
+  listed, by entry name, to find `.env` files.
+- Only the settings keys above are read from settings files (1 MiB per file,
+  256 drop-ins, 8 MiB per scan); a file over the limit is reported in the
+  scan's errors and its rules are not counted.
+- Findings name files as `~/...` or by file name, never by absolute path.
+  REACH findings are never turned into advisories (`mcp-audit advise`).
+- Runs only in a default scan, and only when a Claude Code config directory
+  exists; an explicit path or `demo/configs/` produces none.
+
+## Measured
+
+Six benign machine profiles (all parent directories searchable, the strictest
+case for REACH-002): Linux developer defaults (SSH keys, AWS credentials 0600,
+`~/.npmrc`, login store 0600, `.env.example` only), macOS with Keychain login
+and Docker `credsStore`, the same Linux machine configured as Anthropic's docs
+show (`blockReadsOutsideWorkingDirectories` plus project `.env` deny rules),
+the same with `sandbox.credentials.files` deny entries, a 0640 login store in
+the owner's private group, and Claude Code with no stores. Result: 0 MEDIUM or
+higher; REACH-001 LOW on three; silent on the hardened and sandboxed profiles.
+
+Limits: see `GAPS.md` ("Secrets a Claude Code session can reach").

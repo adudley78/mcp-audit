@@ -606,6 +606,12 @@ def _discover_and_parse(
                 all_servers, configs, Path.cwd(), result.errors
             )
         )
+        # Credential files a Claude Code session can read without asking
+        # (STORY-0114, REACH-001..003): stat() and settings JSON only; no
+        # credential store is ever opened.  Never raises.
+        from mcp_audit.analyzers import secret_reach as _secret_reach  # noqa: PLC0415
+
+        result.findings.extend(_secret_reach.secret_reach_findings(result.errors))
 
     result.servers_found = len(all_servers)
     result.servers = all_servers
