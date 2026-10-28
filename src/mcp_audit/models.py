@@ -108,8 +108,8 @@ class ServerConfig(BaseModel):
     #
     # JSON scan output, ``check --json`` and native snapshots dump servers with
     # ``model_dump_json``.  A launch command or URL can carry a credential
-    # (``postgresql://user:pass@host/db``, ``--api-key sk-…``), so in JSON mode
-    # the command, args, url and the matching keys of ``raw`` have URL
+    # (a database URL with a password before ``@``, an ``--api-key`` value), so
+    # in JSON mode the command, args, url and matching keys of ``raw`` have URL
     # userinfo and SECRET_PATTERNS matches replaced with ``[REDACTED]``
     # (``supply_chain.redact_args``).  The in-memory object is unchanged, so
     # analyzers, lock and rug-pull hashing still see the real values.  ``env``
