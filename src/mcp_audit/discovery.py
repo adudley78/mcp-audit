@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from mcp_audit.analyzers.git_exec import GitSurface, is_bare_repository
 from mcp_audit.models import Finding, Severity
 
 #: ``mcp-lock.json``'s own filename. Imported here as a literal rather than
@@ -833,7 +835,9 @@ SIBLING_HARNESS_AUTOEXEC_KINDS: frozenset[str] = frozenset(
 )
 
 
-# Directory names to skip while walking the project tree.
+# Directory names to skip while walking the project tree.  ``.git`` stays
+# skipped: discover_project_git_surfaces() records each .git entry it passes
+# and git_exec reads only its config files and hooks listing (STORY-0089).
 _WALK_SKIP_DIRS: frozenset[str] = frozenset(
     {
         "node_modules",
@@ -1107,3 +1111,63 @@ def discover_project_autoexec_files(
 
     _walk(root, 0)
     return discovered
+
+
+def discover_project_git_surfaces(
+    root: Path, skip_findings: list[Finding] | None = None
+) -> list[GitSurface]:
+    """Walk a repository tree for git surfaces that can make git run code.
+
+    The read-only exception to the ``.git`` entry in :data:`_WALK_SKIP_DIRS`
+    (STORY-0089, TRUST-006/TRUST-007): the walk still never descends into a
+    ``.git`` directory or a bare repository (so ``objects/`` is never read), but
+    it records each ``.git`` entry (directory or ``gitdir:`` file) it passes and
+    each directory not named ``.git`` that git itself would treat as a
+    repository.  :func:`mcp_audit.analyzers.git_exec.scan_git_surfaces` then
+    reads only their config files and lists their hooks.
+
+    Mirrors :func:`discover_project_configs`'s walk rules (skip-dir list, depth
+    cap, no symlinked directories, TRUST-005 for each one not traversed).
+
+    Args:
+        root: Resolved absolute path of the repository root to walk.
+        skip_findings: Optional list to append TRUST-005 findings to for
+            symlinked directories that were not traversed.
+
+    Returns:
+        :class:`~mcp_audit.analyzers.git_exec.GitSurface` objects; a bare
+        repository at *root* itself is returned with ``nested=False`` and its
+        contents are not walked.
+    """
+    if not os.path.lexists(root / ".git") and is_bare_repository(root):
+        return [GitSurface(kind="bare-repo", path=root, nested=False)]
+    surfaces: list[GitSurface] = []
+
+    def _walk(dirpath: Path, depth: int) -> None:
+        if depth > _WALK_MAX_DEPTH:
+            return
+        dot_git = dirpath / ".git"
+        if os.path.lexists(dot_git):
+            surfaces.append(GitSurface(kind="dot-git", path=dot_git))
+        try:
+            children = sorted(dirpath.iterdir())
+        except OSError:
+            return
+        for child in children:
+            if child.is_symlink():
+                if child.is_dir() and skip_findings is not None:
+                    skip_findings.append(
+                        build_untraversed_symlink_dir_finding(child, "project")
+                    )
+                continue
+            if not child.is_dir() or child.name in _WALK_SKIP_DIRS:
+                continue
+            if depth + 1 > _WALK_MAX_DEPTH:
+                continue
+            if is_bare_repository(child):
+                surfaces.append(GitSurface(kind="bare-repo", path=child))
+                continue
+            _walk(child, depth + 1)
+
+    _walk(root, 0)
+    return surfaces

@@ -329,6 +329,118 @@ project-file paths were verified against official 2026 documentation from
 Anthropic (Claude Code), Cursor, and Microsoft (VS Code / GitHub Copilot).
 See `src/mcp_audit/discovery.py` for inline references and coverage notes.
 
+## Git can run code (analyzers/git_exec.py — TRUST-006/007, STORY-0089)
+
+The git-config reader, the command-key table and the repository-shape checks
+are original implementations written from git's own documentation and the
+disclosures below. No code or fixtures were copied from any of them, and the
+scanner never runs git.
+
+- **GitSpawn — Manifold Security (2026-09)**, via
+  [The Hacker News](https://thehackernews.com/2026/09/malicious-git-configs-can-make-claude.html)
+  and the researchers' own post,
+  [manifold.security/blog/ai-coding-agents-git-hijack](https://www.manifold.security/blog/ai-coding-agents-git-hijack):
+  coding agents run `git status --porcelain=2 --branch` / `git diff --name-only HEAD`
+  at startup; git honours `core.fsmonitor` from the repository's own
+  `.git/config`, so a repository that arrives as files with `.git` intact
+  (zip, shared drive, sync folder; a plain clone does not carry it) runs the
+  command before the trust prompt and outside the sandbox. Seven agents, eight
+  flaws (goose CVE-2026-72718, Codex CLI CVE-2026-19592, Claude Code fixed
+  2.1.196 with a second, withheld key still live on 2.1.252, Hermes, Qwen
+  Code, Grok Build, Cursor CLI). The write-up names only `core.fsmonitor` and
+  says "several git settings are command execution sinks"; it does not
+  describe nested bare repositories, `gitdir:` files or worktree configs. The
+  other keys in `_RULES` come from git's documentation below.
+- **CVE-2026-26268 (Cursor < 2.5)**,
+  [GHSA-8pcm-8jpx-hv8r](https://github.com/cursor/cursor/security/advisories/GHSA-8pcm-8jpx-hv8r):
+  an agent could write `.git` settings including hooks, which git then ran
+  outside the sandbox — the basis for the `.git/hooks` inventory.
+- **CVE-2026-55607 (Claude Code < 2.1.163)**,
+  [GHSA-7835-87q9-rgvv](https://github.com/anthropics/claude-code/security/advisories/GHSA-7835-87q9-rgvv):
+  worktrees named `.git` and fsmonitor execution during worktree operations.
+- **Anthropic, Claude Code sandboxing documentation**,
+  [code.claude.com/docs/en/sandboxing](https://code.claude.com/docs/en/sandboxing)
+  ("Protected paths"): the vendor write-protects `.git/config`, `.git/hooks`,
+  and the files that would turn a directory into a bare repository (`HEAD`,
+  `objects`, `refs`) — a vendor-published list of the same surfaces.
+- **git documentation**: [git-config](https://git-scm.com/docs/git-config)
+  (syntax rules the reader follows; `include`/`includeIf`; `core.fsmonitor`
+  boolean-or-command; `core.hooksPath`; `core.sshCommand`; `diff.external`;
+  `diff.<driver>.textconv`; `filter.<driver>.clean`/`smudge`;
+  `credential.helper` "if preceded by !, shell commands"; `safe.bareRepository`,
+  which describes "attacks that involve cloning a repository that contains a
+  bare repository"); [githooks](https://git-scm.com/docs/githooks)
+  (`post-index-change`, executable-bit rule);
+  [gitrepository-layout](https://git-scm.com/docs/gitrepository-layout)
+  (`commondir`, `config.worktree`, `worktrees/<id>/`). The parser follows
+  `get_base_var`, `get_extended_base_var`, `get_value` and `parse_value` in
+  git's `config.c`, and was checked line-for-line against git 2.43's own
+  reader on 30 crafted inputs during the build (only difference: git 2.43
+  turns an unquoted tab inside a value into a space; current git documentation
+  says internal whitespace is kept, which is what the reader does).
+- **Build-time measurements (git 2.43, scratch repositories):**
+  `git status --porcelain=2 --branch` and `git diff --name-only HEAD` ran a
+  `post-index-change` hook in a checkout with touched files (the reason that
+  hook is HIGH); `.git/worktrees/<id>/config` is ignored and
+  `config.worktree` is read only with `extensions.worktreeConfig = true`.
+- **Watchman sample digests:** SHA-256 of `templates/hooks--fsmonitor-watchman.sample`
+  (`templates/hooks/fsmonitor-watchman.sample` from 2.48) at every git release
+  tag v2.16.0–v2.56.0, fetched from `raw.githubusercontent.com/git/git/<tag>/…`
+  at build time: five distinct versions (2.16–2.24, 2.25, 2.26–2.36,
+  2.37–2.53, 2.54–2.56). Only the digests are stored; git's sample (GPL-2.0)
+  is not copied into this repository. Installed copies matched: Ubuntu git
+  2.43 (2.37–2.53 digest), and the CI runners' git 2.55 (ubuntu-latest) and
+  Homebrew git 2.56 (macos-latest) (2.54–2.56 digest).
+- **False-positive sources added after review of PR #181:** nbstripout's
+  installer ([`_nbstripout.py`](https://github.com/kynan/nbstripout/blob/master/nbstripout/_nbstripout.py),
+  `install()`) writes `filter.nbstripout.clean`, `filter.nbstripout.smudge cat`,
+  `filter.nbstripout.required true` and `diff.ipynb.textconv '<path> -t'`, so
+  `cat` is a known clean/smudge program. The text converters treated as known
+  `textconv` programs (exiftool, docx2txt, pdftotext, pandoc, odt2txt, strings,
+  hexdump, xxd, cat, sops, gpg, age, unzip) were chosen because they read the
+  file git hands them and print text. After the second review the deny-list of
+  code-loading options was replaced by per-tool allowlists (`_ARG_SPECS`),
+  written from each tool's own option reference: pandoc's built-in reader and
+  writer names (`pandoc --list-input-formats` / `--list-output-formats`, and
+  the MANUAL's custom Lua readers and writers, given as a `.lua` path to `-f`
+  or `-t`), ExifTool (the reviewer confirmed it reads `-IF` and `-if2` as
+  `-if`, which evaluates Perl), gpg, sops, age, less (`-o`/`-O` log file,
+  `-k` lesskey), git-lfs `merge-driver` (its `--program` option runs a
+  command), emacsclient (`-a` names the editor to run when no server is
+  up). ansible-vault was removed because `ansible-vault view` reads
+  `vault_password_file` from an `ansible.cfg` in the working directory
+  (Ansible's configuration-file search order).
+- **Tools that run programs from their own git-config section (round 3 of
+  the PR #181 review):** git-lfs's
+  [`git-lfs-config`](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-config.adoc)
+  documents `lfs.extension.<name>.clean` ("the command which runs when files are
+  added to the index") and `smudge`, `lfs.customtransfer.<name>.path` ("the
+  process you wish to invoke") and `args` ("expanded by the shell"),
+  `lfs.standalonetransferagent`, and the restricted key set of `.lfsconfig`.
+  The reviewer confirmed with git-lfs 3.4.1 that an extension's `clean` runs on
+  `git add` and on `git status --porcelain=2 --branch` after a tracked file is
+  touched. delta's [manual](https://dyn.manpages.debian.org/trixie/git-delta/delta.1.en.html)
+  says it reads settings from a `[delta]` git config section ("most delta
+  options can be given in a git config file"), including `--pager`, and that
+  `--no-gitconfig` turns that off. The dependency-cache
+  layouts (SwiftPM `.build/repositories/`, Bundler `cache/bundler/git/`, Cargo
+  `.cargo/git/db/`, Go `pkg/mod/cache/vcs/`) are where those tools keep bare
+  clones of git dependencies. Git's discovery rules (an invalid `.git`
+  directory is skipped, a malformed `.git` file is an error) follow
+  `setup.c::setup_git_directory_gently_1` and `is_git_directory`.
+- **False-positive sources read at build time:** actions/checkout
+  [`src/git-auth-helper.ts`](https://github.com/actions/checkout/blob/main/src/git-auth-helper.ts)
+  (v6+ writes `includeIf.gitdir:<path>.path` entries pointing at
+  `$RUNNER_TEMP/git-credentials-<uuid>.config`, and `core.sshCommand` with
+  `-i`/`-o UserKnownHostsFile=` when given an SSH key); husky
+  [`index.js`](https://github.com/typicode/husky/blob/main/index.js) (sets
+  `core.hooksPath` to `.husky/_` and writes 14 hook stubs, none of them
+  `post-index-change`); `git lfs install --local` (filter.lfs clean/smudge/process);
+  git-crypt, nbstripout and nbdime install forms.
+- **Research scan** `discovery/briefs/2026-10-25-research-scan.md` (marcus
+  repo) §A1 and the incidents table in `research_notes/incidents_and_talks.md`
+  rows 5–6.
+
 ## Tool-name collision detection (analyzers/collision.py — COLLIDE-001)
 
 The `COLLIDE-001` finding and its detection logic in
@@ -367,6 +479,43 @@ collisions; any static heuristic (e.g. flagging two servers with the same server
 inflates the corpus count and weakens trust in the rule pack.  COMM-032 is
 therefore reserved as an unissued ID; the next new community rule will be
 COMM-035 (COMM-034 already exists).
+
+---
+
+## Cross-tool delegation (analyzers/delegation.py — DELEG-001..003, STORY-0100)
+
+Original implementation: a token-based matcher with a closed vocabulary
+written for mcp-audit. No detector, rule or fixture was copied; MCPTox's data
+was read for measurement only and is not committed (no stated licence).
+
+- **MCPTox: A Benchmark for Tool Poisoning on Real-World MCP Servers**
+  (arXiv 2508.14925, AAAI 2026; [HTML](https://arxiv.org/html/2508.14925v1)).
+  The threat model the checks follow: "An attacker can register a malicious
+  MCP server with tool descriptions" (§2.2); "an agent is connected to both a
+  trusted MCP server and a malicious one" (§3.4); "the poisoned tool itself is
+  never executed" (§3.1); an effective description has "a Trigger Condition",
+  "the Malicious Action" and "a Plausible Justification" (§3.2). DELEG-001 is
+  the cross-server reference, DELEG-002 the trigger plus an action the tool
+  cannot do itself (P2), DELEG-003 the parameter-tampering paradigm (P3:
+  "The attack is triggered implicitly when the agent decides to use a
+  legitimate tool", §3.1). The dataset is also the gate's measurement.
+- **MCP-ITP: implicit tool poisoning** (arXiv 2601.07395,
+  [abstract](https://arxiv.org/abs/2601.07395)): the poisoned tool is never
+  invoked; its metadata steers the agent to a legitimate high-privilege tool
+  (84.2% ASR across 12 agents on MCPTox). Motivates checking structure rather
+  than keywords; its optimized descriptions were not available to measure.
+- **CSA research note, ShareLock / multi-tool threshold poisoning** (2026-06-26,
+  [CSA](https://labs.cloudsecurityalliance.org/research/csa-research-note-sharelock-mcp-threshold-poisoning-20260626/)):
+  payloads split across cooperating descriptions, described as a hypothetical
+  pattern rather than a measured attack, with no detector published.
+  DELEG-001's cross-server reference is the part of it a static read can see.
+- **Claude Code permissions documentation**
+  ([code.claude.com/docs/en/permissions](https://code.claude.com/docs/en/permissions),
+  quoted in `docs/permission-rules.md`): MCP tools are named
+  `mcp__<server>__<tool>`, so DELEG-001 reads that form as a reference to
+  `<tool>`.
+- Severity and the decision to ship: EPIC-0007's STORY-0100 gate, measured with
+  STORY-0088's harness (`scripts/bench_poisoning.py delegation`).
 
 ---
 
@@ -674,6 +823,102 @@ quoted in the finding text and in `docs/permission-rules.md`:
   or fixtures were copied. Anthropic's example settings files
   (github.com/anthropics/claude-code/tree/main/examples/settings) were used only to
   measure precision locally and are not committed.
+
+## Sandbox settings a repository can loosen (SANDBOX-001..005, analyzers/sandbox.py — STORY-0093)
+
+Every key name, which settings file Claude Code reads it from, and what it does comes
+from Anthropic's documentation, read 2026-10-26, and is quoted in the finding text and
+in `docs/permission-rules.md`:
+
+- **Claude Code sandboxing doc** (https://code.claude.com/docs/en/sandboxing) —
+  SANDBOX-001: "Unless managed settings set them, a developer's user settings or
+  `--settings` can turn on the following keys. A repository's `.claude/settings.json`
+  can too, unless the sandbox is admin-required. Each one weakens the sandbox"
+  (`enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`,
+  `network.allowAllUnixSockets`, `network.allowLocalBinding`), and the "Repository
+  settings under an admin-required sandbox" table of "the settings that loosen it"
+  (`enabled`/`failIfUnavailable` "`false`, when the developer's
+  `~/.claude/settings.json` sets `true`", the proxy ports), "Requires Claude Code
+  v2.1.285 or later"; Custom proxy configuration: "Once either port applies, your proxy
+  is responsible for filtering everything sent to it." SANDBOX-002: "An excluded command
+  runs with your full access. A broad entry such as `docker *` covers everything that
+  tool can do. If you write a pattern that covers an interpreter …, as `docker compose`
+  does with its compose file, Claude can write that file and then run it outside the
+  sandbox"; Security limitations: "allowing access to `/var/run/docker.sock` effectively
+  grants access to the host system through the Docker socket". SANDBOX-002's severity:
+  "An excluded command goes through the regular permission flow" — "commands your allow
+  rules cover run without a prompt", "In auto mode, the classifier reviews other
+  excluded commands", "In `bypassPermissions` mode, an excluded command runs without a
+  prompt unless an ask rule matches it", otherwise a prompt titled "Bash command
+  (unsandboxed)"; entries are matched because "Claude Code matches the text of the
+  call". SANDBOX-003: "Allowing broad domains such as `github.com` can create paths for
+  data exfiltration." "Locks that apply without an admin-required sandbox":
+  `network.strictAllowlist` in "Managed settings, `--settings`, user settings" makes
+  Claude Code ignore a repository's "proxy ports, `allowedDomains`, and
+  `WebFetch(domain:...)` allow rules"; `network.deniedDomains` or a
+  `WebFetch(domain:...)` deny rule in "Managed settings, `--settings`" makes it ignore
+  "`httpProxyPort` and `socksProxyPort`" (the INFO downgrade and the finding notes).
+  SANDBOX-004:
+  `allowAppleEvents` "is only honored from user, managed, or CLI settings. Project
+  settings cannot enable it"; `strictAllowlist` "Setting it in a repository's
+  `.claude/settings.json` or `.claude/settings.local.json` has no effect."
+- **Claude Code settings reference** (https://code.claude.com/docs/en/settings-reference)
+  — the settings index's Scope column (`Any file`, `User or managed`, `Managed`) for
+  every `sandbox.*` key (SANDBOX-004's table), each key's effect (SANDBOX-001's
+  descriptions), the `excludedCommands` entry ("a pattern with no wildcard is an exact
+  match"; "Claude Code keeps a Bash call sandboxed when it has one of these shapes",
+  including "A command starting with `sudo`, `eval`, or `xargs`"), `permissions.defaultMode`
+  ("`auto` and `bypassPermissions` don't take effect from project or local settings"),
+  and "Claude Code honors `mask` entries, `allowPlaintextInject`, `awsPairs`, and `sigv4`
+  only from user settings, managed settings, and the `--settings` flag." **Permission
+  modes doc** (https://code.claude.com/docs/en/permission-modes): in `dontAsk` mode
+  "Claude Code auto-denies every tool call that would otherwise prompt you" (why
+  `dontAsk` does not raise SANDBOX-002). **Permissions doc**, Wrappers: "The stripped
+  wrappers are `timeout`, `time`, `nice`, `nohup`, and `stdbuf`, plus the shell
+  builtins `command` and `builtin`, and zsh's `noglob`. Each runs its argument as the
+  actual command"; "Exec wrappers: such as `watch`, `setsid`, `ionice`, and `flock`";
+  "the query form `command -v`, which looks up a command rather than running one"
+  (SANDBOX-002's wrapper list).
+- **Claude Code settings doc** (https://code.claude.com/docs/en/settings) — SANDBOX-005:
+  the local file "Claude Code keeps it out of git when it creates the file; if you
+  create it by hand, add it to `.gitignore` yourself", written to the global excludes
+  file (`core.excludesFile` when absolute or `~`-prefixed, else
+  `$XDG_CONFIG_HOME/git/ignore` or `~/.config/git/ignore`). **Permissions doc**
+  (https://code.claude.com/docs/en/permissions): "When the file is tracked in git, or
+  `.claude` is a symlink, Claude Code treats it as repository-supplied instead and holds
+  its rules until you trust the folder" (why SANDBOX-001..003 run on a local file only
+  when git carries it or `.claude` is a symlink); the configuration-home exception (why
+  `~/.claude/settings.local.json` is skipped). The settings doc's `CLAUDE_CONFIG_DIR`:
+  "Claude Code then stores your settings, session history, and plugins there instead"
+  (where the user settings file is read from).
+- **gitignore(5)** (https://git-scm.com/docs/gitignore) — pattern semantics, order of
+  precedence, "It is not possible to re-include a file if a parent directory of that
+  file is excluded"; **Git 2.32 release notes**
+  (https://www.kernel.org/pub/software/scm/git/docs/RelNotes/2.32.0.adoc): "`.gitignore`
+  … files that are symbolic links are ignored." **git-config(1)**
+  (https://git-scm.com/docs/git-config, "Includes"): a plain `[include] path` is read
+  where it appears, relative paths against the including file's directory (followed
+  one level). `_gitignore.py` is an original matcher (linear-time wildcards, bounded
+  matching); during development it agreed with
+  `git ls-files --others --ignored --exclude-standard` on 1,350 pattern combinations,
+  including byte-order marks, `***` segments and empty segments. Git is never run by
+  mcp-audit.
+- **MITRE ATT&CK** — T1567.001 Exfiltration to Code Repository
+  (https://attack.mitre.org/techniques/T1567/001/), T1567.003 Exfiltration to Text
+  Storage Sites (https://attack.mitre.org/techniques/T1567/003/), T1567.004
+  Exfiltration Over Webhook (https://attack.mitre.org/techniques/T1567/004/): the host
+  classes SANDBOX-003 lists beside Anthropic's `github.com`.
+- **Why it matters** — UpGuard
+  (https://www.upguard.com/blog/yolo-mode-hidden-risks-in-claude-code-permissions):
+  18,470 `.claude/settings.local.json` files collected from public GitHub repositories,
+  "8,341 instances of user-specific permissions containing usernames" (SANDBOX-005).
+  Claude Code advisory GHSA-ff64-7w26-62rf / CVE-2026-25725 (fixed 2.1.2): a sandboxed
+  command could create `.claude/settings.json` and inject hooks, the reason a repository's
+  settings are an attack surface for the sandbox itself. Research scan 2026-10-25 §A2;
+  Pillar's "week of sandbox escapes" via CSA is secondary and not relied on.
+- All five checks and the gitignore matcher are original implementations; no code or
+  fixtures were copied. Anthropic's example settings files and the doc pages' JSON
+  blocks were used only to measure precision locally and are not committed.
 
 ## Claude Code mods (MOD-001..006, plugins/mods.py — STORY-0085)
 

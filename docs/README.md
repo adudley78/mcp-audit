@@ -13,15 +13,16 @@
 | [writing-rules.md](writing-rules.md) | Policy-as-code YAML rule format, match types, contributing |
 | [sast-rules.md](sast-rules.md) | Semgrep rule catalog, severity rationale, false positive guidance |
 | [extensions.md](extensions.md) | IDE extension scanner overview, supported clients, analysis layers |
+| [git-exec.md](git-exec.md) | Git can run code: the git config keys, hooks and nested bare repositories `scan`, `check` and `scan --project` flag (TRUST-006/007) |
 | [supply-chain.md](supply-chain.md) | Supply chain attestation, hash verification, contribution guide |
 | [dependency-reachability.md](dependency-reachability.md) | Why Dependabot findings in transitives are unused, and which call-site changes invalidate those dismissals |
-| [permission-rules.md](permission-rules.md) | Claude Code permission rules that don't do what they say (PERM-001..007): each rule, the vendor-documented reason, the bypass and the fix |
+| [permission-rules.md](permission-rules.md) | Claude Code permission rules that don't do what they say (PERM-001..007) and sandbox settings a repository can loosen (SANDBOX-001..005): each rule or key, the vendor-documented reason, the bypass and the fix |
 | [severity-framework.md](severity-framework.md) | CVSS base scores and OWASP Agentic Top 10 mappings for every finding ID; decision tree for calibrating new findings |
 | [agent-execution-surface.md](agent-execution-surface.md) | Every repository file mcp-audit reads that a coding-agent harness runs or obeys (Gemini CLI, Codex, Claude Code, VS Code), with the finding and vendor source for each |
 | [registry.md](registry.md) | Known-server registry reference, contributing entries |
 | [registry-contributions.md](registry-contributions.md) | How to submit new registry entries |
 | [research/2026-10-top100-npm/](research/2026-10-top100-npm/README.md) | Scan of the 100 most-downloaded MCP servers on npm (2026-10-22): corpus, aggregate numbers, scripts |
-| [poisoning.md](poisoning.md) | Measured POISON-* recall (MCPTox) and precision (top-100 npm corpus), how they were measured, and how CI keeps them current |
+| [poisoning.md](poisoning.md) | Measured POISON-* recall (MCPTox) and precision (top-100 npm corpus), the measured gate the DELEG-001..003 cross-tool delegation checks passed, how they were measured, and how CI keeps them current |
 | [nucleus-integration.md](nucleus-integration.md) | push-nucleus command, FlexConnect API, fleet push examples |
 | [fleet-scanning.md](fleet-scanning.md) | Fleet merge workflow, asset prefix, enterprise deployment |
 | [enterprise-deployment.md](enterprise-deployment.md) | Fleet deployment guide for IT/security teams |

@@ -169,6 +169,117 @@ walk). Known boundaries:
   planted file itself is TRUST-008, but the hook that writes it is only
   CFHYG-005/HOOK-001.
 
+**Git can run code (TRUST-006/TRUST-007, STORY-0089).** The repository's own
+git configuration and hooks are read (never run) in a default `scan`/`check`
+(the repository enclosing the current directory) and under `--project` (every
+`.git` entry and nested bare repository the walk passes). Known boundaries:
+
+- **Default scan checks only the enclosing repository.** Nested bare
+  repositories and nested `.git` directories are found only by
+  `scan --project`; the current-directory check does not walk the tree (the
+  current directory may be `$HOME`).
+- **The walk's skip list and depth cap apply.** A bare repository inside
+  `node_modules/`, `build/`, `dist/`, `venv/`/`.venv/` or deeper than 8 levels
+  is not found.
+- **Attributes are not evaluated.** `filter.<driver>.*`, `diff.<driver>.*` and
+  `merge.<driver>.driver` only run for files whose `.gitattributes`,
+  `.git/info/attributes`, `core.attributesFile` or `attr.tree` select that
+  driver; the finding fires on the key alone, which over-reports a driver
+  nothing selects.
+- **`includeIf` conditions are not evaluated** (every include is treated as
+  active), and an include that resolves outside the scanned tree is reported
+  (MEDIUM) but not read. Global and system git config (`~/.gitconfig`,
+  `/etc/gitconfig`), `GIT_CONFIG_*` and `-c` overrides are the user's own and
+  are not read.
+- **The known-tool list assumes the tool on `PATH` is the real one.** A bare
+  `git-lfs`, `git-crypt`, `nbstripout`, `cat`, `ssh`, `gh`, `gitsign`, text
+  converter, editor or pager command run from outside the tree is INFO; a
+  `PATH` that contains `.` or a repository directory (or old tool bugs like
+  git-lfs CVE-2020-27955 on Windows) defeats that. Only the `git-lfs …` form is
+  known: `git lfs …` is HIGH, because without git-lfs installed git runs
+  `alias.lfs`, which the same config can define. A program path inside the
+  tree is judged where it sits, not where a symlink points (a repository's
+  `.venv/bin/python` symlink runs the repository's own `site-packages`): inside
+  a Python environment with a `pyvenv.cfg` or `conda-meta/` it is MEDIUM,
+  anywhere else in the tree it is the full severity. `python -m X` is the full
+  severity when the repo root holds anything named `X` or `X.*` (`X.py`,
+  `X.pyc`, `X/`, an extension module).
+- **`bun` as a textconv is a deliberate HIGH.** `diff.lockb.textconv = bun`
+  (how `bun.lockb` was diffed before Bun 1.2's text lockfile) runs
+  `bun <file>`, and bun executes any `.js`/`.ts` file `.gitattributes` routes to
+  that driver; text converters
+  (`exiftool`, `pdftotext`, `pandoc`, `sops decrypt`, `unzip -c`, …) are INFO
+  only when every argument is on that converter's allowlist of display options.
+- **Known tools' own config is read for git-lfs and delta only.** git-lfs's
+  `lfs.extension.<name>.clean`/`smudge` and `lfs.customtransfer.<name>.path`/`args`,
+  and delta's `pager` (in `[delta]` or a `[delta "<feature>"]` section, whether
+  or not that feature is enabled), are reported and take away the tool's INFO
+  status. `lfs.standalonetransferagent` is not reported on its own (it names an
+  agent, not a program); it raises the named agent's `path`/`args` from MEDIUM to
+  HIGH (STORY-0103). Any `lfs.<url>.standalonetransferagent` counts, whichever
+  URL it names, because which endpoint a remote resolves to is not known from
+  config alone; a URL key that overrides the plain one for the real endpoint is
+  not modelled. Not covered: delta's
+  `diff-args` (used only when delta compares two files itself); git's
+  `interactive.diffFilter` (delta's documented `git add -p` setup, run only on
+  interactive add); git-annex's own `annex.*` settings, which can name programs,
+  so a `git-annex` filter stays INFO whatever the `annex.*` section says; and
+  config files tools read outside git config (`~/.ExifTool_config`, pandoc's
+  data directory, `~/.gnupg`), which are the user's.
+- **Known-tool argument allowlists can be too narrow.** A known tool given an
+  option that is harmless but not on its list (`_ARG_SPECS` in
+  `analyzers/git_exec.py`) keeps the key's full severity, for example
+  `pandoc --toc`, `less -P<prompt>` or a `textconv` with a less common display
+  flag. That is the deliberate trade: an over-report names the key and can be
+  baselined, and every deny-list tried missed a way to load code (ExifTool's
+  case-insensitive `-IF`/`-if2`, a pandoc Lua reader via `-f reader.lua`,
+  attached `pandoc -o<path>`). A value that happens to equal the name of a file
+  at the repository root (`pandoc -t plain` in a repo with a file called
+  `plain`) is also treated as in-tree. ansible-vault is never known (its
+  `view` reads an `ansible.cfg` from the repository root). The tools' own
+  config files outside the repository (`~/.ExifTool_config`, `~/.gnupg`,
+  pandoc's user data directory) are the user's, and are not read.
+- **Legitimate shapes that still fire:** Watchman's fsmonitor integration
+  when the hook is not an exact copy of a sample git shipped (an unmodified
+  copy of any of the five versions git shipped from v2.16 to v2.56, matched
+  by SHA-256, is INFO; a sample from a later git is HIGH until its digest is
+  added, and `tests/test_git_exec.py` skips with the digest to add when a
+  machine's git ships one; an edited or distro-patched copy stays HIGH,
+  because a matching header proves nothing); VFS for Git's
+  `post-index-change` hook (HIGH); transcrypt's `$(git rev-parse …)` filter
+  commands (HIGH, shell substitution); the Android `repo` tool's
+  `.repo/projects/*.git` directories under `--project` (TRUST-007). Each names
+  the key or path, so it can be baselined.
+- **Expected bare repositories are inventory.** Under `--project`, a bare
+  repository in a test/fixture directory or a package manager's dependency
+  cache (SwiftPM `.build/repositories/`, Bundler `cache/bundler/git/`, Cargo
+  `.cargo/git/db/`, Go `pkg/mod/cache/vcs/`) is INFO when its config runs
+  nothing and it has no `post-index-change` hook; otherwise HIGH. Other
+  package managers' caches are not recognised.
+- **Not covered:** `ext::` remote URLs with `protocol.ext.allow`,
+  `url.<base>.insteadOf` rewrites, `http.proxy` (traffic redirection, not
+  execution), `difftool`/`mergetool` `.cmd`, `trailer.<token>.cmd`, and
+  `uploadpack.packObjectsHook` (git honours it only in protected config).
+  Manifold withheld the second Claude Code key (the `ultrareview` path, "a
+  different git setting of the same kind"); it is covered only if it is one of
+  the keys in `analyzers/git_exec.py::_RULES`.
+- **A config git itself rejects is still read.** Git refuses the whole file at
+  its first syntax error, so its keys are inert for git; the finding keeps its
+  severity and says so, because other git implementations may read it.
+- **Reads are capped and budgeted.** 1 MiB per config file; per repository
+  (its config, every include, and its worktree configs together) 4 MiB, 20,000
+  entries and 256 followed includes. Anything past a cap is reported as a
+  MEDIUM "too large to inspect fully", never silently dropped. Hooks and
+  worktrees listings stop at 512 entries; include depth is git's own 10. An
+  unexpected error in the git check is recorded in the scan's errors and the
+  rest of the scan still runs.
+- **Repository discovery follows git's rules**, including the quirks: a
+  `.git` directory that is not a valid git directory is skipped and the search
+  continues upward (so a decoy cannot hide the real repository); a malformed
+  `.git` file, or one pointing at something that is not a git directory, ends
+  the search with no findings, because git itself stops there and runs
+  nothing.
+
 **Symlinked config/agent-file candidates (TRUST-002/TRUST-004/TRUST-005,
 2026-09-08/STORY-0065).** All nine discovery sites that used to silently
 `continue` past a symlinked candidate (six in `discovery.py`, three in
@@ -229,6 +340,71 @@ detection logic.
 
 ---
 
+## Cross-tool delegation (DELEG-001..003, STORY-0100)
+
+Measured before shipping (2026-10-26; method and every number in
+[`docs/poisoning.md`](docs/poisoning.md#cross-tool-delegation-deleg-001003),
+pinned in `docs/research/poisoning-benchmark/results.json` under `delegation`).
+On MCPTox with the poisoned tool on its own server: POISON-* plus DELEG-* flag
+99.4% of the 1,312 cases (97.8% of the 370 unwrapped implicit-trigger cases,
+against 21.4% for POISON-* alone); DELEG-* flags 1 of the 353 clean tools. The
+gate passed, so the stated severities ship.
+
+**Known limits:**
+
+- **Needs `--connect`.** Descriptions exist only in a live `tools/list`. The
+  `tools` section of `mcp-lock.json` records names and SHA-256 digests, never
+  text (`lock/tool_digests.py`), so a default scan, `check` and the GitHub
+  Action never run these checks. EPIC-0007 described the lock as storing
+  definitions; it stores their digests, and changing the lock format was out
+  of scope.
+- **The session is the servers that enumerated.** A server that fails to
+  connect contributes no tool names, so a reference to its tools is not seen
+  (the same limit as COLLIDE-001).
+- **Same-server delegation is not flagged, by design.** DELEG-001 needs a
+  tool of a *different* server, and DELEG-002 skips a sentence that names only
+  the describing server's own tools (a server documenting its own workflow is
+  the commonest benign shape on real servers). MCPTox's prompts list the
+  poisoned tool among the target server's tools; in that layout POISON-* plus
+  DELEG-* reach 23.5% of the unwrapped implicit cases, against 21.4% for
+  POISON-* alone. DELEG-002 also counts what the describing server's other
+  tools can do as its own, and DELEG-003's "every call" scope does not apply
+  to an argument the server's own tools take, so a malicious server can mute
+  both by adding decoy tools with those capabilities or argument names
+  (DELEG-001 still fires on the cross-server name). A compromised server that poisons one of its own tools to
+  misuse another of its own tools is in this gap; it already controls both.
+- **Exact names only.** "The file-reading tool" instead of `read_file`
+  evades DELEG-001; so does a name broken with zero-width characters or
+  homoglyphs (POISON-040 and POISON-060 flag those characters). A plain-word
+  tool name (`search`) counts only quoted and in tool context.
+- **English vocabulary.** DELEG-002/003 match a closed English word list
+  (trigger words, obligation words, action verbs by class). A tool's own
+  capability is inferred from words in its name and input-schema property
+  names, so a tool whose name says nothing about what it does can trip
+  DELEG-002; a verb used as a noun ("emails", "post") counts as the verb.
+  Non-English descriptions are not covered (MCPTox is English).
+- **Tools only.** Resource and prompt descriptions, `outputSchema` and
+  annotations are not read; schema `enum`/`default`/`examples` strings are not
+  either.
+- **What the measurement can and cannot say.** The 353 MCPTox clean tools (1
+  flagged) and a first set of 640 real tool descriptions (statically read from
+  the published npm source of 35 top-100 corpus servers; 1 flagged) both
+  informed the design; only a second set of 215 descriptions from 3 more
+  servers was held out until the design was frozen (0 flagged). That benign check is a
+  one-off by hand (the third-party source is not committed), not a CI test.
+  MCP-ITP's optimized implicit poisoning (arXiv 2601.07395) was not measured:
+  no dataset was published.
+- **Budgets.** 64 KiB of text per tool, 8 MiB per scan, 20,000 tools, schemas
+  to 5,000 nodes and 64 levels. The scan budget is shared fairly across
+  servers (the smallest demands are met in full, the rest split evenly), so
+  one server cannot use it up for the others; anything beyond a server's
+  share is not read and the scan's errors name the server. Evidence is redacted with `SECRET_PATTERNS` over the shown
+  excerpt plus 1,000 characters either side, not the whole field (one of those
+  patterns rescans to the end of its input from every start); a secret longer
+  than that margin, starting outside it, could show in part.
+
+---
+
 ## Authentication checks (AUTH-001 / AUTH-002)
 
 ~~**No check for unauthenticated remote MCP servers.**~~ **Resolved v0.12.0.**
@@ -263,6 +439,7 @@ by arXiv 2605.22333 are out of scope for static analysis (require live
 - **Precision on the top-100 npm corpus** (`docs/research/2026-10-top100-npm/`, live tools, mcp-audit 0.21.0): **0 of 661 findings real (0.0%)**, 0 of the 492 at HIGH or above, 41 findings per 100 tools. The earlier "661 of 661 false" count is confirmed. This is a fixed measurement of the 0.21.x code (`labelled_patterns_fingerprint` in `top100-labels.json`): re-measuring it after a pattern change needs a fresh enumeration of the corpus, which runs third-party servers and is never done in CI, so a pattern change refreshes only the committed-fragment replay and `precision` prints STALE. 488 labels (POISON-060) rest on committed evidence: the first matched character in each field was full-width Chinese punctuation. 173 (POISON-050 139, POISON-030 30, POISON-012 2, POISON-020 2) rest on the 2026-10-22 review of the full definitions, which are not committed, plus a 2026-10-25 read of 54 of the 60 connected servers' npm source.
 - **Known limits of the measurement:** MCPTox is never committed (no stated licence) and CI never fetches it, so recall is re-measured by hand (`scripts/bench_poisoning.py recall --check`) before any release that changes `analyzers/poisoning.py` or `build_runtime_server_config`; agent instruction files and POISON-041/042 are not exercised by either corpus; MCPZoo's benign servers were not used (no download found); MCPTox is English only.
 - **Pinned:** `tests/test_bench_poisoning.py` fingerprints the whole source of `analyzers/poisoning.py` and `build_runtime_server_config`, so any change to either forces a re-measure (CI fails until `results.json` is re-taken); it also fails when a pattern fires on a committed top-100 fragment it did not fire on before.
+- **With `--connect`, DELEG-001..003 run beside POISON-* (STORY-0100)** and close most of the unwrapped gap on MCPTox when the poisoned tool sits on its own server: 97.8% of unwrapped implicit-trigger cases for both together, 95.8% for parameter tampering. See "Cross-tool delegation" above; the other numbers here are POISON-* alone.
 
 **The 22-server false-positive benchmark covers config entries, not tool descriptions (2026-04-23; scoped 2026-10-25).** The poisoning analyzer produces zero findings on the configs of 12 official `@modelcontextprotocol/*` servers and 10 popular community servers. That is still true and still a regression test (`tests/test_false_positive_benchmark.py`), but those fixtures hold only `command`, `args` and `env`; none holds a tool description, so the benchmark says nothing about precision on what `--connect` reads. The measured numbers above do. Acceptable non-FP findings on legitimate servers: TRANSPORT-003 (runtime package fetch, expected for all npx/uvx servers), COMM-010 (npx without pinned version). Note: the "base64 encode" false positive from the filesystem server's runtime tool descriptions (fetched via `--connect`) is not covered by static analysis and remains a known limitation of the live connection path.
 
@@ -451,7 +628,7 @@ tests.
 
 **SC-007 (unscoped twins) knows only the shapes it was measured on (STORY-0097).** A twin is derived from a registry entry: the name part of `@scope/server-<x>` or `@scope/mcp-server-<x>`, the `mcp-server-<x>` spelling of `@scope/server-<x>` or `@scope/<x>-mcp-server`, or the same `mcp-server-<x>` name across npm and PyPI. Squats of packages outside the 55-entry registry are invisible to it (OSV's `mcp-server-figma` and `mcp-server-sentry` have no registry entry; SC-008 still catches those two by exact name). Other plausible spellings (`<x>-mcp`, `<x>-mcp-server`, `mcp-<x>`) are deliberately not keys: they are the names community servers for the same product naturally take (an unrelated `notion-mcp-server` has ~2,500 weekly downloads). A lookalike under a different scope (`@evil/server-github`) is left to SC-001..003, which only see it when it is within 3 edits. SC-007 cannot tell a squat from a small community package that took the official server's name: on 2026-10-25, of the 21 twin names published on npm, 6 were small live packages (7 to 158 weekly downloads), one with a real repository (a Google Maps server), and on PyPI 2 of 5 were small community servers; those fire MEDIUM (SC-007 ships MEDIUM for this reason; the twins OSV lists as malicious are CRITICAL under SC-008). Allowlisting the package in a governance policy's `approved_servers` records the decision but does not silence SC-007: mcp-audit has no per-finding suppression. Precedence over SC-001..003 means a twin that is also one or two edits from another registry entry reports MEDIUM (SC-007) rather than CRITICAL or HIGH (SC-001/002); on 2026-10-25 no real registry name was in that position (the one real collision, `uvx mcp-server-github`, was SC-003 MEDIUM before).
 
-**SC-008 (known-malicious packages) covers MCP-named packages only, and is as current as the last release (STORY-0097).** `registry/known-malicious.json` keeps OSV `MAL-*` records for npm and PyPI packages whose name contains `mcp` or that the registry lists (217 records on 2026-10-25). A malicious package configured as an MCP server under a name without `mcp` is not matched (the Paperclip PyPI packages `browser-use-headless`/`paperclip-ai`, MAL-2026-10484/10869, and SANDWORM_MODE's `claud-code`-style names are outside the selection; `scan --check-vulns` still finds them over the network). The file updates with each mcp-audit release; `update-registry` does not refresh it, and OSV itself publishes a record only after someone detects the package. Twin names without `mcp` (`server-github`) are not mirrored: none had an OSV record on 2026-10-25 (npm's own takedown of `server-github` left no OSV record). Version semantics follow OSV except for one documented case: for a registry-listed package, a blanket all-versions range next to an explicit version list is ignored. For a package not in the registry, OSV's blanket range is taken as stated even when the package still serves other releases: of the 64 npm records with a blanket range on 2026-10-25, 4 non-registry packages (`@relyt/claude-context-mcp`, `@relyt/mcp-server-relytone`, `lite-serper-mcp-server`, `mcp-knowledge-base`) still served versions outside the record's list, so pinning one of those still reports CRITICAL. An unpinned launch of a package with only past malicious releases is MEDIUM; that fires on 1 of the 100 most-downloaded npm MCP servers when launched unpinned (`@mastra/mcp-docs-server`, release 1.1.47). **Launch-command parsing limits (all supply-chain checks, SC-001..008):** the launcher is recognised as `npx`/`bunx`/`pnpx`/`yarn dlx`/`uvx`/`pipx`/`python -m` under any path, any case, a Windows `.cmd`/`.exe`/`.bat`/`.ps1` wrapper, or behind `cmd /c`/`cmd /k` (STORY-0097 review); `pnpm dlx`, `npm exec`, `uv run --with`, `powershell -Command` and `bash -c` launches are not recognised. With `npx -p <pkg> <bin>` or `npx --package=<pkg> <bin>`, the name checked is the bin, not the package. **Twin keys come from whatever registry is loaded:** a user-local cache written by `update-registry`, or `--registry PATH`, changes the set of twins (the shipped-registry measurements above don't apply to a custom registry).
+**SC-008 (known-malicious packages) covers MCP-named packages only, and is as current as the last release (STORY-0097).** `registry/known-malicious.json` keeps OSV `MAL-*` records for npm and PyPI packages whose name contains `mcp` or that the registry lists (217 records on 2026-10-25). A malicious package configured as an MCP server under a name without `mcp` is not matched (the Paperclip PyPI packages `browser-use-headless`/`paperclip-ai`, MAL-2026-10484/10869, and SANDWORM_MODE's `claud-code`-style names are outside the selection; `scan --check-vulns` still finds them over the network). The file updates with each mcp-audit release; `update-registry` does not refresh it, and OSV itself publishes a record only after someone detects the package. Twin names without `mcp` (`server-github`) are not mirrored: none had an OSV record on 2026-10-25 (npm's own takedown of `server-github` left no OSV record). Version semantics follow OSV except for one documented case: for a registry-listed package, a blanket all-versions range next to an explicit version list is ignored. For a package not in the registry, OSV's blanket range is taken as stated even when the package still serves other releases: of the 64 npm records with a blanket range on 2026-10-25, 4 non-registry packages (`@relyt/claude-context-mcp`, `@relyt/mcp-server-relytone`, `lite-serper-mcp-server`, `mcp-knowledge-base`) still served versions outside the record's list, so pinning one of those still reports CRITICAL. An unpinned launch of a package with only past malicious releases is MEDIUM; that fires on 1 of the 100 most-downloaded npm MCP servers when launched unpinned (`@mastra/mcp-docs-server`, release 1.1.47). **Launch-command parsing limits (all supply-chain checks, SC-001..008):** the launcher is recognised as `npx`/`bunx`/`pnpx`/`yarn dlx`/`uvx`/`pipx`/`python -m` under any path, any case, a Windows `.cmd`/`.exe`/`.bat`/`.ps1` wrapper, or behind `cmd /c`/`cmd /k` (STORY-0097 review); a whole command line in one `cmd /c` argument is split with the Microsoft C runtime rules (STORY-0103), but `cmd`'s own quote stripping (`/s`, and its rule for a line with more than two quotes) is not modelled, so a line `cmd` itself would fail to run can still be reported; `pnpm dlx`, `npm exec`, `uv run --with`, `powershell -Command` and `bash -c` launches are not recognised. With `npx -p <pkg> <bin>` or `npx --package=<pkg> <bin>`, the name checked is the bin, not the package. **Twin keys come from whatever registry is loaded:** a user-local cache written by `update-registry`, or `--registry PATH`, changes the set of twins (the shipped-registry measurements above don't apply to a custom registry).
 
 **Rug-pull compares config entries, not tool definitions (STORY-0084).** `analyzers/rug_pull.py::compute_hashes` hashes a server's `command`, `args`, environment variable names and raw config entry. A server whose launch line is unchanged but whose tools now say something different (a new release behind an unpinned `npx`, or a remote server that changed) is not detected. Live tool definitions from `--connect` go to the poisoning analyzer only. *Partly closed 2026-10-13 (STORY-0086):* `lock --connect` / `lock --verify --connect` record and compare tool-definition digests in `mcp-lock.json` (LOCK-006..009). Rug-pull itself still hashes config entries only.
 
@@ -464,6 +641,8 @@ tests.
 **HARNESS-001..006 evaluate each settings file alone (STORY-0079, STORY-0087).** HARNESS-006 only sees a delete guard in the same file: bypass mode in project settings with the guard hook in `~/.claude/settings.json` still fires, and any PreToolUse hook matching shell commands counts as a guard because the hook's script isn't read. HARNESS-005's command list is a fixed set; a rule for an unlisted powerful command is not flagged. Claude Code merges user, project, local and managed settings with precedence; mcp-audit checks what each file asks for, not the effective setting. The only in-file interaction honoured is `disableBypassPermissionsMode: "disable"` suppressing HARNESS-001/003 in the same file, so a managed-settings lock elsewhere does not suppress a finding. Managed settings themselves are not discovered. Other harnesses' equivalent switches are checked only where a repository plants them: a project `.codex/config.toml`'s `approval_policy`/`sandbox_mode` is TRUST-008 (STORY-0090), but the user-level `~/.codex/config.toml`, Gemini CLI per-server `trust`, Cline `autoApprove` and VS Code `chat.tools.autoApprove` are not checked, because mcp-audit does not discover those settings files today.
 
 **PERM-001..007 read rules, not the effective policy (STORY-0092).** Each settings file is checked on its own, like HARNESS-*: `sandbox.enabled: true` in `~/.claude/settings.json` does not silence a project file's PERM-004 or PERM-005, and a `sandbox.enabled` set only elsewhere does not raise PERM-005 or PERM-006. Managed settings (including `allowManagedPermissionRulesOnly`, which makes Claude Code ignore every other file's rules) are not discovered. The installed Claude Code version is not read, so rules whose behaviour changed are judged by the current docs: before 2.1.299 a bare `mcp__a` allow also reached a server named `a__b`, and PERM-007 does not report that older reach. PERM-002 checks project and local settings only for filesystem-root directory names (`/Users`, `/home`, `/etc`, `/tmp`, …) and assumes the session starts at the directory that holds `.claude/`; a rule anchored at a real project directory of the same name is skipped. PERM-003 reports only a `*` that extends the program name, not one that extends an argument (`Bash(npm run test*)`). PERM-004's command list is fixed (network tools, delete tools, `git push`) and covers Bash rules only; PowerShell's own bypass forms are not documented and not checked. PERM-004 counts a `defaultMode` of `bypassPermissions` or `auto` only in user settings, because the settings reference says those modes don't take effect from project or local settings; before Claude Code 2.1.257 `bypassPermissions` did take effect from any file, so on an older install a project file's bypass mode is under-reported (INFO, not MEDIUM). Its allow-side test counts only rules that approve any shell form (`Bash`, `Bash(sh -c *)`, `Bash(env *)`, `Bash(sudo -E *)`, `Bash(* --version)`, an absolute directory such as `Bash(/usr/bin/*)`); a launcher narrowed to a script (`Bash(bash scripts/test.sh *)`) or a relative directory (`Bash(./scripts/*)`) does not raise it, even though such a script could itself run the missed form. **PERM-007 trades recall for precision.** It counts only HIGH/CRITICAL findings that indict the server itself: poisoning, rug-pull, and supply-chain, with SC-004 only when the configured version is known to be affected (a pinned version). Not counted: toxic-flow TOXIC-*/INTEG-* (capability combinations many legitimate servers have, already reported at their own severity), SC-004 on an unpinned launch (version unknown offline), findings about the config file, credentials, transport, auth or community rules, and attestation findings, which `--verify-hashes`/`--verify-signatures` add after the pipeline. Measured on a 34-server fixture of commonly configured servers with every server allow-listed: 6 PERM-007 before this narrowing (two unpinned SC-004 with no recorded fix, four single-server toxic flows), 0 after; the typosquat case still fires. So an allow-listed server whose only serious finding is an unfixed CVE on an unpinned launch, or a single-server exfiltration pair, gets no PERM-007 (its own finding still reports it). Under `scan --project`, PERM-007 also pairs the default scan's settings files with the repository's servers and the reverse; the default scan's settings files are found again with the same `--path`, and a pair already reported is not repeated. It reads whole-server rules only (`mcp__<server>`, `mcp__<server>__*`), not tool-prefix globs such as `mcp__github__get_*`; a plugin server is matched only when its `plugin.json` has a `name`. HARNESS-005's runner forms skip one target argument (container, image, pod or directory) and options; a runner rule with option values (`docker run -v a:b image *`) can be missed, and three-word runners (`docker compose exec`) and `nix-shell --run` are not in the table. Not built, because no Anthropic document supports them as findings: `ask` rules under `auto`/`bypassPermissions` (they still prompt), label-vs-canonical tool names, `!` carve-outs that carve nothing (they make a deny stronger), and `Agent(model:*)` on an omitted parameter.
+
+**SANDBOX-001..005 read each settings file alone, and decide git state from ignore files (STORY-0093).** Like HARNESS-* and PERM-*, each settings file is checked on its own, except that two keys of the user's own `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) set severities: `sandbox.network.strictAllowlist: true` lowers SANDBOX-003 and a proxy port to INFO, and `permissions.defaultMode` `bypassPermissions` or `auto` raises SANDBOX-002 to HIGH. Managed settings and `--settings` are not discovered, so two kinds of lock are invisible. A sandbox they make admin-required (`allowUnsandboxedCommands: false` in managed settings or `--settings`, or `allowManagedDomainsOnly: true` in managed settings; Claude Code 2.1.285 or later), under which Claude Code ignores a repository's loosening keys, still gets SANDBOX-001..003. And the "Locks that apply without an admin-required sandbox": `network.strictAllowlist` in managed settings or `--settings` (Claude Code ignores a repository's `allowedDomains`, proxy ports and `WebFetch(domain:…)` allow rules), and `network.deniedDomains` or a `WebFetch(domain:…)` deny rule there (it ignores the repository's proxy ports). Each finding names the locks that would make Claude Code ignore it. The installed Claude Code version is not read: before 2.1.285 any settings file could set a proxy port and none of these locks existed. SANDBOX-001 reports the four Booleans the sandboxing doc says weaken the sandbox, `enabled`/`failIfUnavailable` set to `false` in the shared `.claude/settings.json` (not in `.claude/settings.local.json`, where Claude Code's `/sandbox` panel writes `enabled`), and the proxy ports; it does not know the platform, so a macOS-only key (`enableWeakerNetworkIsolation`, `allowLocalBinding`) is reported on a repository opened on Linux too. SANDBOX-002 reports an `excludedCommands` entry only when its arguments are left open (`python *`, `npx *`, `docker compose *`, `timeout 30 *`); a pattern narrowed to a script or subcommand (`python scripts/x.py *`, `uv run pytest *`, `make *`, `npm test`) is not reported, even though the sandboxing doc warns that Claude can edit such a script and then run it unsandboxed. Option values before the wildcard (`docker --context x *`) and `kubectl`/`gh`/cloud CLIs (which run outside with your credentials) are not reported. Wrappers recognised as running what follows them: `env` and the permissions doc's `timeout`, `time`, `nice`, `nohup`, `stdbuf`, `command`, `builtin`, `noglob`, `watch`, `setsid`, `ionice`, `flock`. Other programs that run their argument are not: `doas`, `su -c`, `runuser`, `chroot`, `nsenter`, `taskset`, `chrt`, `numactl`, `cgexec`, `firejail`, `systemd-run`, `script -c`, `strace`, `ltrace`, `gdb`, `valgrind`, `parallel`, `entr`, `caffeinate`, `arch`, `open` (macOS), `cmd /c`, `start`, `wsl` (Windows), and `find … -exec`. `sudo *`, `eval *` and `xargs *` are not reported because the settings reference says Claude Code keeps a call that starts with them sandboxed, and `unshare` likewise. SANDBOX-002's severity pairs an entry only with allow rules in the same file, matched word by word from the start (`Bash(docker *)` and `Bash(docker compose up)` overlap `docker compose *`; a `*` word in an allow rule matches any word, as in `Bash(docker * up)`, but a wildcard inside a word, as in `Bash(dock* up)`, is compared literally). Allow rules in other files, an ask rule that would still prompt under `bypassPermissions`, and a mode chosen on the command line (`--permission-mode`, `--dangerously-skip-permissions`) are not seen, and a repository file's own `defaultMode` is not counted (the settings reference says `auto` and `bypassPermissions` "don't take effect from project or local settings"; before 2.1.257 `bypassPermissions` did, so an older install is under-reported). Only `docker.sock`, `podman.sock` and `containerd.sock` socket names are recognised in `allowUnixSockets`. SANDBOX-003's host list is fixed (code hosts, paste sites, webhook receivers named by MITRE T1567.001/.003/.004 plus `*`); cloud storage (T1567.002), npm and PyPI upload hosts, and content hosts added through `WebFetch(domain:…)` allow rules (which feed the same allowlist) are not reported. Not built (each is a documented loosening, but a finding needs a precision measure first): `filesystem.allowWrite` to shell startup files or `$PATH` directories (the doc's "Filesystem permission escalation"), `allowMachLookup` (`"*"` admits every XPC service), `ignoreViolations` (hides reports, the sandbox still blocks), a repository's `autoAllowBashIfSandboxed: true` over a user's `false`, `allowUnsandboxedCommands: true` (overrode a user's `false` before 2.1.285), and managed-only keys outside the `sandbox` block (`allowManagedHooksOnly`, `allowManagedPermissionRulesOnly`, `strictKnownMarketplaces`). Git state never comes from running git. A file is treated as headed for git when it sits in a work tree (a `.git` entry at or above the project) and no ignore file matches it; `.git/index` is not read, so a local file that is already tracked but also matched by an ignore file (added with `git add -f`, or ignored after it was committed) is treated as the user's own: no SANDBOX-005, and its loosening keys are not reported. A local file outside any work tree is the user's own too, and one reached through a symlinked directory other than `.claude` has an unknown state. Ignore files read: `.gitignore` files from the work-tree root down, `.git/info/exclude` (not for a worktree or submodule whose `.git` is a file), and the global excludes file from `core.excludesFile` in `~/.gitconfig` or `$XDG_CONFIG_HOME/git/config` (or the XDG default), following a plain `[include] path = …` there one level (at most 16 targets); not the repository's own or the system git config, `includeIf`, nested includes, or `GIT_CONFIG_GLOBAL`. Matching is case-sensitive (git's `core.ignoreCase` on macOS and Windows is not modelled). A `core.excludesFile` set to a relative path is treated as no global excludes file. An ignore file that can't be read, is over 1 MiB, or falls outside the scan's 512-file / 8 MiB budget, or a scan that spends its 5,000,000 pattern-matching steps, makes the file's state unknown: no SANDBOX-005, a local file's SANDBOX-001..003 at MEDIUM at most, and the reason in the scan's errors. The LOW username check covers `/Users/<name>`, `/home/<name>`, `C:\Users\<name>` and `/c/Users/<name>`, skips a fixed list of placeholder and CI/container/Homebrew account names, and looks at the first 20,000 strings and 16 KiB of each. Config-level findings, these included, are reported twice under `scan --project .` when the default scan already read the same file (pre-existing behaviour shared with HARNESS-* and PERM-001..006).
 
 **SC-005 (deprecated packages, STORY-0073) has no registry-level maintenance-status field.** `mcp-lock.json`'s `package.deprecated` and `SC-005` are populated from the live npm registry response at `lock` resolution time only; `registry/known-servers.json` itself carries no independent "maintained/deprecated" flag an offline scan could check, so eleven of the fifteen `@modelcontextprotocol/server-*` entries currently ship in the registry with no indication their npm `latest` is deprecated — see backlog item for a future registry-wide audit. **PyPI "yanked" releases are not covered at all**: PyPI's JSON API exposes `yanked`/`yanked_reason` only per-release inside `releases`, not on the `info` object `resolve_latest_version_info()` reads for the latest version, so `deprecated` is always `null` for PyPI packages today.
 

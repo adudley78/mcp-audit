@@ -32,6 +32,19 @@ fires. Two measurements, both written to
     never written anywhere. The dataset has no stated licence, so it is never
     committed; ``results.json`` records each file's SHA-256 instead.
 
+``delegation``
+    STORY-0100. Needs MCPTox, like ``recall``. Runs the DELEG-* detector
+    (``analyzers/delegation.py``, the code ``scan --connect`` runs after
+    COLLIDE-001) over every case, with the case's target server's real tools
+    in the session, in two session models: the poisoned tool on its own
+    server (MCPTox's threat model) and listed among the target server's tools
+    (MCPTox's prompt layout). Reports recall per paradigm for POISON-* alone,
+    DELEG-* alone, each DELEG ID and the union, and how many of the 353 clean
+    tools DELEG-* flags with all 45 servers in one session and with each
+    alone. Applies STORY-0100's gate (:func:`gate_decision`) and records the
+    severities that ship; ``tests/test_delegation.py`` fails when the
+    detector or the severities in ``analyzers/delegation.py`` no longer match.
+
 Recall and the clean-tool flag rate are reported twice: for any POISON-*
 finding (what a plain ``scan`` exits 1 on, its default threshold being INFO)
 and for HIGH or CRITICAL only (what ``check``, the pre-commit default and
@@ -51,6 +64,7 @@ Usage::
     python scripts/bench_poisoning.py precision --check
     python scripts/bench_poisoning.py recall --check
     python scripts/bench_poisoning.py recall --source ~/data/mcptox --write
+    python scripts/bench_poisoning.py delegation --source ~/data/mcptox --check
 """
 
 from __future__ import annotations
@@ -69,9 +83,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from mcp_audit.analyzers import delegation as _delegation
 from mcp_audit.analyzers import poisoning as _poisoning
 from mcp_audit.mcp_client import build_runtime_server_config
-from mcp_audit.models import ServerConfig, ServerEnumeration, ToolInfo, TransportType
+from mcp_audit.models import (
+    ServerConfig,
+    ServerEnumeration,
+    ToolInfo,
+    TransportType,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS_PATH = ROOT / "docs" / "research" / "poisoning-benchmark" / "results.json"
@@ -299,15 +319,16 @@ def _servers(response_all: dict[str, Any]) -> dict[str, Any]:
     return servers
 
 
-def benchmark_cases(
+def server_cases(
     response_all: dict[str, Any],
-) -> tuple[list[tuple[str, str, ToolDef]], int]:
-    """Return ``[(paradigm, wrapper, tool)]`` for valid cases, and the excluded count.
+) -> tuple[list[tuple[str, str, str, ToolDef]], int]:
+    """Return ``[(server, paradigm, wrapper, tool)]`` for valid cases, and exclusions.
 
-    A case is valid when ``wrong_data`` is 0; that leaves exactly the 1,312
-    cases the paper states.
+    *server* is the MCPTox server whose real tools the case targets. A case is
+    valid when ``wrong_data`` is 0; that leaves exactly the 1,312 cases the
+    paper states.
     """
-    cases: list[tuple[str, str, ToolDef]] = []
+    cases: list[tuple[str, str, str, ToolDef]] = []
     excluded = 0
     for sname, server in _servers(response_all).items():
         for inst in server.get("malicious_instance") or []:
@@ -319,8 +340,20 @@ def benchmark_cases(
             if tool is None:
                 raise BenchError(f"unparseable poisoned_tool in server {sname!r}")
             paradigm = _paradigm((inst.get("metadata") or {}).get("paradigm"))
-            cases.append((paradigm, wrapper_of(text), tool))
+            cases.append((sname, paradigm, wrapper_of(text), tool))
     return cases, excluded
+
+
+def benchmark_cases(
+    response_all: dict[str, Any],
+) -> tuple[list[tuple[str, str, ToolDef]], int]:
+    """Return ``[(paradigm, wrapper, tool)]`` for valid cases, and the excluded count.
+
+    A case is valid when ``wrong_data`` is 0; that leaves exactly the 1,312
+    cases the paper states.
+    """
+    cases, excluded = server_cases(response_all)
+    return [(p, w, t) for _, p, w, t in cases], excluded
 
 
 def clean_tools(response_all: dict[str, Any]) -> list[tuple[str, ToolDef]]:
@@ -346,9 +379,14 @@ def clean_tools(response_all: dict[str, Any]) -> list[tuple[str, ToolDef]]:
     return tools
 
 
-def unwrapped_descriptions(pure_tool: list[Any]) -> list[tuple[str, ToolDef]]:
-    """Return ``[(paradigm, tool)]`` for ``pure_tool.json`` (no keyword wrappers)."""
-    out: list[tuple[str, ToolDef]] = []
+def unwrapped_server_cases(
+    pure_tool: list[Any],
+) -> list[tuple[str | None, str, ToolDef]]:
+    """Return ``[(server, paradigm, tool)]`` for ``pure_tool.json`` (no wrappers).
+
+    *server* is the record's ``server_name`` (``None`` when absent).
+    """
+    out: list[tuple[str | None, str, ToolDef]] = []
     if not isinstance(pure_tool, list):
         raise BenchError("pure_tool.json is not a list")
     for group in pure_tool:
@@ -356,8 +394,20 @@ def unwrapped_descriptions(pure_tool: list[Any]) -> list[tuple[str, ToolDef]]:
             content = unescape_newlines(str(rec.get("tool_content") or ""))
             desc, schema = split_description(content)
             name = str(rec.get("tool_name") or key)
-            out.append((_paradigm(rec.get("paradigm")), ToolDef(name, desc, schema)))
+            server = rec.get("server_name")
+            out.append(
+                (
+                    str(server) if server is not None else None,
+                    _paradigm(rec.get("paradigm")),
+                    ToolDef(name, desc, schema),
+                )
+            )
     return out
+
+
+def unwrapped_descriptions(pure_tool: list[Any]) -> list[tuple[str, ToolDef]]:
+    """Return ``[(paradigm, tool)]`` for ``pure_tool.json`` (no keyword wrappers)."""
+    return [(p, t) for _, p, t in unwrapped_server_cases(pure_tool)]
 
 
 def _recall_table(
@@ -449,6 +499,366 @@ def measure_recall(files: dict[str, bytes]) -> dict[str, Any]:
             "flagged_by_server": dict(sorted(flagged_servers.items())),
         },
     }
+
+
+# ── cross-tool delegation (STORY-0100) ───────────────────────────────────────
+
+DELEG_IDS: tuple[str, ...] = ("DELEG-001", "DELEG-002", "DELEG-003")
+#: The gate STORY-0100 decided: DELEG-* ship at their stated severities only if
+#: they lift MCPTox's implicit-trigger recall over POISON-* and flag no more
+#: than this many of its 353 clean real tools.
+CLEAN_FLAG_LIMIT = 5
+#: MCPTox's implicit-trigger paradigms (P2 function hijacking, P3 parameter
+#: tampering).
+IMPLICIT: tuple[str, ...] = ("P2", "P3")
+ATTACKER_SERVER = "mcptox-attacker"
+SESSION_MODELS: dict[str, str] = {
+    "separate": (
+        "the poisoned tool comes from its own server beside the target server: "
+        "MCPTox's threat model (§2.2 'An attacker can register a malicious MCP "
+        "server', §3.4 'an agent is connected to both a trusted MCP server and "
+        "a malicious one')"
+    ),
+    "same_server": (
+        "the poisoned tool is listed among the target server's own tools, the "
+        "layout of MCPTox's prompts; DELEG-001 cannot fire here by design (no "
+        "server boundary to cross)"
+    ),
+}
+
+
+def detector_fingerprint() -> str:
+    """Return a SHA-256 over the whole source of ``analyzers/delegation.py``."""
+    blob = _source(_delegation)
+    return "sha256:" + hashlib.sha256(blob.encode()).hexdigest()
+
+
+def _bench_server(name: str) -> ServerConfig:
+    return ServerConfig(
+        name=name,
+        client="bench",
+        config_path=Path("bench.json"),
+        transport=TransportType.STDIO,
+        command=name,
+    )
+
+
+def _tool_info(tool: ToolDef) -> ToolInfo:
+    return ToolInfo(
+        name=tool.name, description=tool.description, input_schema=tool.input_schema
+    )
+
+
+def clean_tools_by_server(response_all: dict[str, Any]) -> dict[str, list[ToolDef]]:
+    """Return ``{server: [clean tools]}`` (the 353 tools of :func:`clean_tools`)."""
+    out: dict[str, list[ToolDef]] = {}
+    for sname, tool in clean_tools(response_all):
+        out.setdefault(sname, []).append(tool)
+    return out
+
+
+def delegation_findings(
+    model: str, target: str, target_tools: list[ToolDef], poisoned: ToolDef
+) -> list[tuple[str, str]]:
+    """Return sorted ``(id, severity)`` DELEG-* findings on *poisoned* in a session.
+
+    Runs :func:`~mcp_audit.analyzers.delegation.detect_delegation`, the code
+    ``scan --connect`` runs, over the session *model* describes.
+    """
+    if model == "separate":
+        pairs = [
+            (
+                _bench_server(target),
+                ServerEnumeration(tools=[_tool_info(t) for t in target_tools]),
+            ),
+            (
+                _bench_server(ATTACKER_SERVER),
+                ServerEnumeration(tools=[_tool_info(poisoned)]),
+            ),
+        ]
+        owner = ATTACKER_SERVER
+    elif model == "same_server":
+        # The poisoned tool first, so a same-named real tool cannot shadow it.
+        tools = [_tool_info(poisoned)] + [_tool_info(t) for t in target_tools]
+        pairs = [(_bench_server(target), ServerEnumeration(tools=tools))]
+        owner = target
+    else:
+        raise BenchError(f"unknown session model {model!r}")
+    findings = _delegation.detect_delegation(pairs)
+    return sorted(
+        {
+            (f.id, str(f.severity))
+            for f in findings
+            if f.server == owner and f.tool == poisoned.name
+        }
+    )
+
+
+def _deleg_table(
+    rows: list[tuple[str, list[tuple[str, str]], list[tuple[str, str]]]],
+) -> dict[str, Any]:
+    """Per-paradigm cells for ``[(paradigm, poison findings, deleg findings)]``.
+
+    Each paradigm (and ``implicit`` = P2+P3, and ``all``) gets POISON-* alone,
+    DELEG-* alone, each DELEG ID, and the union, at any severity and at HIGH
+    or above.
+    """
+    groups = {code: [r for r in rows if r[0] == code] for code in ("P1", "P2", "P3")}
+    groups["implicit"] = [r for r in rows if r[0] in IMPLICIT]
+    groups["all"] = list(rows)
+    table: dict[str, Any] = {}
+    for code, sub in groups.items():
+        n = len(sub)
+
+        def count(pred: Any, sub: list[Any] = sub) -> int:
+            return sum(1 for r in sub if pred(r))
+
+        table[code] = {
+            "poison": _cell(count(lambda r: _detected(r[1], False)), n),
+            "delegation": _cell(count(lambda r: _detected(r[2], False)), n),
+            "union": _cell(count(lambda r: _detected(r[1] + r[2], False)), n),
+            "poison_high_or_above": _cell(count(lambda r: _detected(r[1], True)), n),
+            "union_high_or_above": _cell(
+                count(lambda r: _detected(r[1] + r[2], True)), n
+            ),
+            "by_id": {
+                i: _cell(count(lambda r, i=i: any(f == i for f, _ in r[2])), n)
+                for i in DELEG_IDS
+            },
+        }
+    return table
+
+
+def _clean_flags(findings: list[Any], total: int) -> dict[str, Any]:
+    """Summarize DELEG-* findings on clean tools (a tool counts once)."""
+    by_tool: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for f in findings:
+        by_tool.setdefault((f.server, f.tool or ""), set()).add((f.id, str(f.severity)))
+    return {
+        "total": total,
+        "flagged": len(by_tool),
+        "flagged_high_or_above": sum(
+            1 for v in by_tool.values() if any(s in HIGH_OR_ABOVE for _, s in v)
+        ),
+        "flagged_by_id": {
+            i: sum(1 for v in by_tool.values() if any(f == i for f, _ in v))
+            for i in DELEG_IDS
+        },
+        "flagged_tools": [
+            [server, tool, sorted(f for f, _ in ids)]
+            for (server, tool), ids in sorted(by_tool.items())
+        ],
+    }
+
+
+def gate_decision(section: dict[str, Any]) -> dict[str, Any]:
+    """Apply STORY-0100's gate to a measured ``delegation`` section.
+
+    Passes when DELEG-* lifts implicit-trigger recall (P2+P3, any severity)
+    over POISON-* in **both** session models, and flags no more than
+    :data:`CLEAN_FLAG_LIMIT` of the clean tools in the worse of the two clean
+    sessions. A pass ships the stated severities; a fail ships INFO.
+    """
+    lifts: dict[str, int] = {}
+    for model in SESSION_MODELS:
+        cell = section[model]["benchmark_cases"]["all"]["implicit"]
+        lifts[model] = cell["union"]["detected"] - cell["poison"]["detected"]
+    clean = section["clean_tools"]
+    flagged = max(
+        clean["all_servers_one_session"]["flagged"],
+        clean["each_server_alone"]["flagged"],
+    )
+    passed = all(v > 0 for v in lifts.values()) and flagged <= CLEAN_FLAG_LIMIT
+    stated = section["stated_severity"]
+    return {
+        "rule": (
+            "ship at the stated severities only if DELEG-* lifts implicit-trigger "
+            "(P2+P3) recall over POISON-* in both session models and flags no more "
+            f"than {CLEAN_FLAG_LIMIT} of MCPTox's clean real tools; otherwise INFO"
+        ),
+        "implicit_recall_lift": lifts,
+        "clean_tools_flagged": flagged,
+        "clean_flag_limit": CLEAN_FLAG_LIMIT,
+        "passed": passed,
+        "shipped_severity": {
+            i: (stated[i] if passed else "INFO") for i in sorted(stated)
+        },
+    }
+
+
+def measure_delegation(files: dict[str, bytes]) -> dict[str, Any]:
+    """Run DELEG-* over MCPTox; return ``results.json``'s ``delegation`` section."""
+    try:
+        response_all = json.loads(files["response_all.json"])
+        pure_tool = json.loads(files["pure_tool.json"])
+    except (KeyError, ValueError) as exc:
+        raise BenchError(f"MCPTox files unreadable: {exc}") from exc
+
+    clean = clean_tools_by_server(response_all)
+    cases, _excluded = server_cases(response_all)
+    pure = unwrapped_server_cases(pure_tool)
+    for server, _, tool in pure:
+        if server not in clean:
+            raise BenchError(
+                f"pure_tool.json: {tool.name!r} names unknown server {server!r}"
+            )
+
+    poison_cache: dict[int, list[tuple[str, str]]] = {}
+
+    def poison(tool: ToolDef) -> list[tuple[str, str]]:
+        key = id(tool)
+        if key not in poison_cache:
+            poison_cache[key] = poison_findings(tool)
+        return poison_cache[key]
+
+    section: dict[str, Any] = {
+        "dataset": "MCPTox (arXiv 2508.14925, AAAI 2026)",
+        "files": file_digests(files),
+        "patterns_fingerprint": patterns_fingerprint(),
+        "detector_fingerprint": detector_fingerprint(),
+        "session_models": SESSION_MODELS,
+        "stated_severity": {i: str(_delegation.STATED_SEVERITY[i]) for i in DELEG_IDS},
+    }
+    for model in SESSION_MODELS:
+        rows = [
+            (s, p, w, poison(t), delegation_findings(model, s, clean[s], t))
+            for s, p, w, t in cases
+        ]
+        pure_rows = [
+            (p, poison(t), delegation_findings(model, str(s), clean[str(s)], t))
+            for s, p, t in pure
+        ]
+        section[model] = {
+            "benchmark_cases": {
+                "all": _deleg_table([(p, a, b) for _, p, _, a, b in rows]),
+                "unwrapped": _deleg_table(
+                    [(p, a, b) for _, p, w, a, b in rows if w == "none"]
+                ),
+            },
+            "unwrapped_descriptions": _deleg_table(pure_rows),
+        }
+
+    session = [
+        (_bench_server(s), ServerEnumeration(tools=[_tool_info(t) for t in tools]))
+        for s, tools in clean.items()
+    ]
+    total = sum(len(t) for t in clean.values())
+    alone: list[Any] = []
+    for pair in session:
+        alone.extend(_delegation.detect_delegation([pair]))
+    section["clean_tools"] = {
+        "all_servers_one_session": _clean_flags(
+            _delegation.detect_delegation(session), total
+        ),
+        "each_server_alone": _clean_flags(alone, total),
+    }
+    section["gate"] = gate_decision(section)
+    return section
+
+
+def _deleg_cells(section: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Flatten every delegation/union cell in a ``delegation`` section."""
+    out: dict[str, dict[str, Any]] = {}
+    for model in SESSION_MODELS:
+        block = section.get(model) or {}
+        tables = {
+            f"{model}/benchmark_cases/{k}": v
+            for k, v in (block.get("benchmark_cases") or {}).items()
+        }
+        tables[f"{model}/unwrapped_descriptions"] = (
+            block.get("unwrapped_descriptions") or {}
+        )
+        for prefix, table in tables.items():
+            for code, cells in table.items():
+                for kind in ("delegation", "union", "union_high_or_above"):
+                    out[f"{prefix}/{code}/{kind}"] = cells[kind]
+                for fid, cell in cells["by_id"].items():
+                    out[f"{prefix}/{code}/{fid}"] = cell
+    return out
+
+
+def compare_delegation(
+    pinned: dict[str, Any], fresh: dict[str, Any]
+) -> tuple[list[str], list[str]]:
+    """Return ``(regressions, improvements)`` between two ``delegation`` sections.
+
+    A regression is fewer poisoned cases detected, more clean tools flagged,
+    or a gate that passed now failing.
+    """
+    if (pinned.get("files") or {}) != (fresh.get("files") or {}):
+        raise DatasetUnavailableError(
+            "MCPTox files differ from the pinned SHA-256 values"
+        )
+    regressions: list[str] = []
+    improvements: list[str] = []
+    old, new = _deleg_cells(pinned), _deleg_cells(fresh)
+    for path in sorted(set(old) | set(new)):
+        a, b = old.get(path), new.get(path)
+        if a is None or b is None or a["total"] != b["total"]:
+            regressions.append(f"{path}: case set changed ({a} -> {b})")
+        elif b["detected"] < a["detected"]:
+            regressions.append(f"{path}: detected {a['detected']} -> {b['detected']}")
+        elif b["detected"] > a["detected"]:
+            improvements.append(f"{path}: detected {a['detected']} -> {b['detected']}")
+    for session in ("all_servers_one_session", "each_server_alone"):
+        for key in ("flagged", "flagged_high_or_above"):
+            fa = ((pinned.get("clean_tools") or {}).get(session) or {}).get(key, 0)
+            fb = ((fresh.get("clean_tools") or {}).get(session) or {}).get(key, 0)
+            if fb > fa:
+                regressions.append(f"clean_tools/{session}: {key} {fa} -> {fb}")
+            elif fb < fa:
+                improvements.append(f"clean_tools/{session}: {key} {fa} -> {fb}")
+    if (pinned.get("gate") or {}).get("passed") and not (fresh.get("gate") or {}).get(
+        "passed"
+    ):
+        regressions.append("gate: passed -> failed")
+    return regressions, improvements
+
+
+def _print_delegation(section: dict[str, Any]) -> None:
+    for model in SESSION_MODELS:
+        print(f"session model: {model}")
+        block = section[model]
+        tables = [
+            ("benchmark cases, all", block["benchmark_cases"]["all"]),
+            ("benchmark cases, unwrapped", block["benchmark_cases"]["unwrapped"]),
+            ("pure_tool.json, unwrapped", block["unwrapped_descriptions"]),
+        ]
+        for label, table in tables:
+            print(
+                f"  {label}:  POISON-* | DELEG-* | union | HIGH+ POISON | HIGH+ union"
+            )
+            for code in ("P1", "P2", "P3", "implicit", "all"):
+                c = table[code]
+                kinds = (
+                    "poison",
+                    "delegation",
+                    "union",
+                    "poison_high_or_above",
+                    "union_high_or_above",
+                )
+                shown = "  ".join(_pct(c[k]) for k in kinds)
+                by_id = " ".join(
+                    f"{i[-3:]}:{c['by_id'][i]['detected']}" for i in DELEG_IDS
+                )
+                print(f"    {code:<8} n={c['union']['total']:<5} {shown}   ({by_id})")
+    clean = section["clean_tools"]
+    for session in ("all_servers_one_session", "each_server_alone"):
+        c = clean[session]
+        print(
+            f"clean tools, {session}: {c['flagged']}/{c['total']} flagged "
+            f"({c['flagged_high_or_above']} HIGH+) {c['flagged_by_id']}"
+        )
+        for server, tool, ids in c["flagged_tools"]:
+            print(f"    {server}/{tool}: {', '.join(ids)}")
+    gate = section["gate"]
+    print(
+        f"gate: {'PASSED' if gate['passed'] else 'FAILED'} "
+        f"(implicit lift {gate['implicit_recall_lift']}, "
+        f"clean flagged {gate['clean_tools_flagged']}/"
+        f"{clean['all_servers_one_session']['total']}, "
+        f"limit {gate['clean_flag_limit']}) -> ships {gate['shipped_severity']}"
+    )
 
 
 # ── fetching ─────────────────────────────────────────────────────────────────
@@ -929,11 +1339,38 @@ def run_recall(args: argparse.Namespace) -> int:
     return status
 
 
+def run_delegation(args: argparse.Namespace) -> int:
+    """``delegation`` subcommand (STORY-0100): DELEG-* on MCPTox, and its gate."""
+    results = _read_json(args.results) if args.results.exists() else {}
+    pinned = results.get("delegation") or {}
+    if args.check and not pinned:
+        raise BenchError(f"{args.results}: no 'delegation' section to check against")
+    files = load_mcptox(args.source)
+    digests = file_digests(files)
+    for name, d in digests.items():
+        print(f"{name}: sha256 {d['sha256']} ({d['bytes']} bytes)")
+    expected = pinned.get("files") or (results.get("mcptox") or {}).get("files")
+    if expected and digests != expected:
+        print(f"hashes DIFFER from {args.results} (pinned {expected})")
+        if args.check:
+            raise DatasetUnavailableError(
+                "MCPTox files differ from the pinned SHA-256 values"
+            )
+    section = measure_delegation(files)
+    _print_delegation(section)
+    status = 0
+    if args.check:
+        status = _finish(*compare_delegation(pinned, section), "delegation")
+    if args.write:
+        _write_unless_regressed(status, args.results, "delegation", section)
+    return status
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point; returns the process exit code."""
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("precision", "recall"):
+    for name in ("precision", "recall", "delegation"):
         p = sub.add_parser(name)
         p.add_argument("--results", type=Path, default=RESULTS_PATH)
         p.add_argument("--check", action="store_true", help="exit 1 on a regression")
@@ -941,9 +1378,15 @@ def main(argv: list[str] | None = None) -> int:
     sub.choices["precision"].add_argument("--summary", type=Path, default=SUMMARY_PATH)
     sub.choices["precision"].add_argument("--labels", type=Path, default=LABELS_PATH)
     sub.choices["recall"].add_argument("--source", default=MCPTOX_DEFAULT_SOURCE)
+    sub.choices["delegation"].add_argument("--source", default=MCPTOX_DEFAULT_SOURCE)
     args = parser.parse_args(argv)
+    runners = {
+        "precision": run_precision,
+        "recall": run_recall,
+        "delegation": run_delegation,
+    }
     try:
-        return run_precision(args) if args.command == "precision" else run_recall(args)
+        return runners[args.command](args)
     except BenchError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

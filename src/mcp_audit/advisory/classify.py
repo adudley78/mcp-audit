@@ -73,6 +73,8 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         "MOD-005",  # Claude Code mod inventory (STORY-0085) — neutral, not a defect
         "HARNESS-007",  # enabledMcpjsonServers inventory (STORY-0090) — INFO;
         # Claude Code writes it when you approve a server, not a defect by itself
+        "SANDBOX-004",  # sandbox keys Claude Code ignores in this file
+        # (STORY-0093) — INFO dead-config note, not a vulnerability
         "AGENT-002",  # disallowedTools specifier removes the whole tool — the
         # subagent ends up with less access than intended, not more
         "AGENT-004",  # inline subagent MCP server inventory (STORY-0094); the
@@ -144,6 +146,8 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "COLLIDE-001": "tool-collision",
     "TRUST-001": "untrusted-config-origin",
     "TRUST-002": "untrusted-config-origin",
+    "TRUST-006": "hook-execution",  # git config runs a command (STORY-0089)
+    "TRUST-007": "untrusted-config-origin",  # embedded bare repo / git hooks
     "TRUST-008": "untrusted-config-origin",
     # An instruction-file import from outside the repository or from an
     # ignored file (STORY-0098); MEM-004 keeps the MEM- prefix's class.
@@ -155,6 +159,7 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "MOD-002": "toxic-flow",
     "MOD-003": "tool-poisoning",
     "MOD-006": "untrusted-config-origin",
+    "SANDBOX-005": "config-hygiene",
     "AGENT-001": "excessive-scope",
     "AGENT-003": "hook-execution",
 }
@@ -162,12 +167,14 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
 # Prefix → class, applied when no exact ID match exists. Longest prefix wins.
 _CLASS_BY_PREFIX: Final[dict[str, str]] = {
     "POISON-": "tool-poisoning",
+    "DELEG-": "tool-poisoning",
     "SKILL-": "tool-poisoning",
     "MEM-": "tool-poisoning",
     "HOOK-": "hook-execution",
     "MOD-": "hook-execution",
     "HARNESS-": "excessive-scope",
     "PERM-": "excessive-scope",
+    "SANDBOX-": "sandbox-disabled",
     "AGENT-": "excessive-scope",
     "SC-": "typosquat",
     "CFHYG-": "config-hygiene",
@@ -215,6 +222,7 @@ _PACKAGE_INTRINSIC_PREFIXES: Final[tuple[str, ...]] = (
     "SAST-",
     "EXT-",
     "COLLIDE-",
+    "DELEG-",
 )
 
 

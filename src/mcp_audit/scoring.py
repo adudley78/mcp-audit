@@ -145,7 +145,11 @@ def calculate_score(
             f"No high-severity issues found (+{pts_all_pinned} pts)"
         )
 
-    has_poisoning_findings = any(f.analyzer == "poisoning" for f in findings)
+    # DELEG-* (STORY-0100) are prompt-injection findings too: a description that
+    # steers the agent to another server's tools.
+    has_poisoning_findings = any(
+        f.analyzer in ("poisoning", "delegation") for f in findings
+    )
     if not has_poisoning_findings and pts_registry_only > 0:
         bonus += pts_registry_only
         positive_signals.append(

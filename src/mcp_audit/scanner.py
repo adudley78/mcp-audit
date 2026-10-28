@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from platformdirs import user_config_dir
 
+from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.base import BaseAnalyzer
@@ -16,6 +17,7 @@ from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.permissions import analyze_flagged_server_allows
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import RugPullAnalyzer, derive_state_path
+from mcp_audit.analyzers.sandbox import analyze_sandbox_files
 from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
 from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
@@ -216,6 +218,16 @@ def _run_static_pipeline(
        :meth:`~mcp_audit.analyzers.base.BaseAnalyzer.analyze_config` —
        calls every analyzer once per config file, independent of server count.
        Analyzers that have nothing to check return ``[]`` (the default).
+    0b. SANDBOX-001..005 (STORY-0093):
+       :func:`~mcp_audit.analyzers.sandbox.analyze_sandbox_files` over the
+       Claude Code settings files in ``configs``: sandbox keys a repository's
+       settings loosen, keys a file can't set, a local settings file in a git
+       work tree that no ignore file covers, and home-directory paths in a
+       settings file headed for git.  It reads ignore files and the user's
+       ``~/.claude/settings.json`` (never runs git); each file is checked on
+       its own, and read failures and per-file crashes go to
+       ``result.errors``.  Runs only when a :class:`ConfigHygieneAnalyzer` is
+       in ``analyzers``.
     1. Per-server analyzers (``analyzer.analyze(server)`` for each pair).
     2. :meth:`~mcp_audit.analyzers.rug_pull.RugPullAnalyzer.analyze_all`
        (skipped when ``skip_rug_pull`` is ``True``).
@@ -280,6 +292,18 @@ def _run_static_pipeline(
                 result.findings.extend(config_findings)
             except Exception:  # noqa: BLE001, S110
                 pass  # parse errors already captured by _discover_and_parse
+
+    # ── 0b. Sandbox settings (SANDBOX-001..005, STORY-0093) ───────────────────
+    # Reads ignore files and the user's settings (never runs git), so unlike
+    # step 0 its failures are reported in result.errors rather than swallowed.
+    # analyze_sandbox_files isolates each file; this try is the last guard.
+    if any(isinstance(a, ConfigHygieneAnalyzer) for a in analyzers):
+        try:
+            sandbox_findings, sandbox_errors = analyze_sandbox_files(configs)
+            result.findings.extend(sandbox_findings)
+            result.errors.extend(sandbox_errors)
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"SANDBOX checks failed: {type(e).__name__}")
 
     # ── 1. Per-server static analysis ─────────────────────────────────────────
     for server in all_servers:
@@ -452,10 +476,13 @@ def _discover_and_parse(
 
     With no *extra_paths*, the VS Code, Gemini CLI, Codex and Claude Code
     auto-run files at the working directory's root are checked too (TRUST-003,
-    TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), and so are its
+    TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), its
     instruction files' imports and heartbeat files (MEM-003, MEM-004;
-    STORY-0098; see :func:`_cwd_instruction_reach_findings`), all scored like
-    the rest.
+    STORY-0098; see :func:`_cwd_instruction_reach_findings`), and the
+    repository git would use from the current directory, for git configuration
+    and hooks that run commands (TRUST-006/TRUST-007, STORY-0089; see
+    :func:`mcp_audit.analyzers.git_exec.scan_cwd_repository`).  All are scored
+    like the rest.
 
     Without *extra_paths*, Claude Code subagent definitions
     (``~/.claude/agents/``, ``<cwd>/.claude/agents/``) are discovered too, as
@@ -479,6 +506,16 @@ def _discover_and_parse(
     )
     result.findings.extend(discovery_findings)
     result.clients_scanned = len({c.client_name for c in configs})
+
+    if not extra_paths:
+        # Git can run code (STORY-0089, TRUST-006/007): the repository git
+        # would use from here — a repo checkout is the GitHub Action's default
+        # working directory.  Reads config files and lists hooks; never runs git.
+        # A failure here is reported, never fatal: the rest of the scan must run.
+        try:
+            result.findings.extend(_git_exec.scan_cwd_repository())
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"git config check error: {type(e).__name__}: {e}")
 
     if include_plugins and not extra_paths:
         from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415
@@ -555,7 +592,10 @@ async def run_scan_async(
     enumerate its live tool/resource/prompt definitions, and run the
     :class:`~mcp_audit.analyzers.poisoning.PoisoningAnalyzer` against the
     runtime data *before* the pipeline runs.  This surfaces poisoned tool
-    descriptions that look clean in static config files.
+    descriptions that look clean in static config files.  Across the
+    enumerated servers it then runs COLLIDE-001 (tool-name collisions) and
+    DELEG-001..003 (descriptions that steer the agent to another server's
+    tools, :mod:`mcp_audit.analyzers.delegation`).
 
     Requires the ``mcp`` optional dependency when *connect* is ``True``::
 
@@ -665,6 +705,22 @@ async def run_scan_async(
                 )
             except Exception as e:  # noqa: BLE001
                 result.errors.append(f"collision error: {e}")
+
+        # ── Cross-tool delegation (DELEG-001..003, STORY-0100) ───────────────
+        # Reads the same enumerations: descriptions that steer the agent to
+        # another server's tools or rewrite their arguments.  Text only; the
+        # lock's `tools` section holds digests, so this needs --connect.
+        if connect_pairs:
+            from mcp_audit.analyzers.delegation import (  # noqa: PLC0415
+                detect_delegation,
+            )
+
+            try:
+                result.findings.extend(
+                    detect_delegation(connect_pairs, errors=result.errors)
+                )
+            except Exception as e:  # noqa: BLE001
+                result.errors.append(f"delegation error: {e}")
 
     return _run_static_pipeline(
         result=result,

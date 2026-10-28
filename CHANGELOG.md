@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **Every file the agent reads as instructions (MEM-003, MEM-004).** Agent-file scanning now reads `AGENTS.md` in any directory (Codex, Cursor, Copilot, Claude Code 2.1.277+ and the other agents.md readers), `AGENTS.override.md` and `~/.codex/AGENTS*.md` (Codex), `.claude/AGENTS.md`, `CLAUDE.local.md`, Claude Code rules (`.claude/rules/**/*.md`, `~/.claude/rules/`), and OpenClaw's workspace files (`AGENTS.md`, `SOUL.md`, `USER.md`, `MEMORY.md`, `HEARTBEAT.md` in `~/.openclaw/workspace` or a repository). It also follows what those files pull in: Claude Code `@path` imports (relative to the importing file, four hops deep, skipping fenced code, code spans and block HTML comments; where the Markdown reading is ambiguous the scan reads the stricter way and may report an import Claude Code would skip), and orders such as "Read the files in `knowledge/` before starting" (the Bad Memory paper's shape), scanning each reached file with the importing file's rules. Two new checks run in the scan you already run (`check`, `scan`, `scan --project`, the GitHub Action's default run): **MEM-003** (MEDIUM; LOW for a Markdown file under `~/.claude/`, the shape Claude Code's docs suggest for personal notes) when a project instruction file imports a file from outside the folder, which Claude Code loads after a one-time approval and nobody reviewing the repository sees, or a file `.gitignore` keeps out of git; **MEM-004** (HIGH) when a `HEARTBEAT.md`, which OpenClaw runs every 30 minutes, tells the agent to answer `HEARTBEAT_OK`/`NO_REPLY` no matter what, while hiding a step, or right after running something: the Agent Commander shape, a recurring step whose result the owner never sees. The documented "if nothing needs attention, reply HEARTBEAT_OK" stays silent. Nothing is executed and git is never run; targets outside the folder are never read, and network paths (`//host/share`, `/net/…`, `/Network/…`) are never touched at all; symlinks on the way are reported, not followed; every size and count limit reached is listed in the scan's errors. See `docs/agent-files.md`.
+- **Sandbox settings a repository can loosen (SANDBOX-001..005).** The scan you already run (`check`, `scan`, `scan --project`, the GitHub Action) now reads the `sandbox` block of every Claude Code settings file it already reads. SANDBOX-001: a repository's settings turn on a key Anthropic says weakens the sandbox (`enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`, `network.allowAllUnixSockets`, `network.allowLocalBinding`) or the shared file switches it off with `enabled: false` (HIGH); `failIfUnavailable: false` or a proxy port that takes filtering away from Claude Code (MEDIUM). SANDBOX-002: `excludedCommands` takes a shell, interpreter, wrapper (`env *`, `timeout 30 *`, `nohup *`), package runner or container runtime out of the sandbox with any arguments (`python *`, `npx *`, `docker *`, `docker compose *`): MEDIUM while Claude Code still asks you before each one runs, HIGH when nothing asks (an allow rule in the same file covers it, or your own settings start sessions in `bypassPermissions` or `auto` mode); `allowUnixSockets` opening the Docker socket is HIGH. SANDBOX-003: `allowedDomains` lets sandboxed commands reach a host anyone can publish to, such as `github.com`, a paste site or a webhook receiver (MEDIUM). If your own `~/.claude/settings.json` sets `network.strictAllowlist: true`, Claude Code ignores a repository's hosts and proxy ports, and those findings drop to INFO and say why. SANDBOX-004: a sandbox key Claude Code ignores in that file, such as `strictAllowlist` or `allowManagedDomainsOnly` in a repository, so a lock you think you have isn't there (INFO). SANDBOX-005: a `.claude/settings.local.json` inside a git repository that no ignore file covers, so your personal approvals get committed (MEDIUM), and home-directory paths with a username in a settings file headed for git (LOW). "A repository's settings" means its shared `.claude/settings.json`, and its `.claude/settings.local.json` only when git carries it: your own local file, which Claude Code keeps out of git, is not reported. To decide, mcp-audit reads `.gitignore`, `.git/info/exclude` and your global git excludes file, and never runs git; when it can't read them, it says so in the scan's errors and reports a local file at MEDIUM at most. See `docs/permission-rules.md`.
 - **Permission rules that don't do what they say (PERM-001..007).** The scan you already run (`check`, `scan`, `scan --project`, the GitHub Action) now reads every Claude Code settings file for rules Anthropic documents as ignored, misanchored or not a security boundary, and names each rule, the form that gets past it, and what to write instead. PERM-001: a rule Claude Code skips or never matches, such as `Bash(command:rm *)`, an `mcp__` rule with parentheses, `Write(path)`, `Bash(git:* push)` or an `mcp__*` allow (HIGH in `deny`, MEDIUM in `ask`, INFO in `allow`). PERM-002: `Read(/Users/…)` with one slash, which points inside the project, not at `/` (MEDIUM in `deny`/`ask`, INFO in `allow`). PERM-003: `Bash(ls*)`, which also allows `lsof` (LOW). PERM-004: a deny on `curl`, `rm` or `git push` with no sandbox, which `/usr/bin/curl` or `sh -c` gets past (MEDIUM when the same file runs those forms without asking, through an allow such as `Bash(sh -c *)` or a bypass/auto mode in user settings; INFO otherwise). PERM-005: `WebFetch(domain:*)`, which opens the sandbox to every host (HIGH with the sandbox on, LOW otherwise). PERM-006: a bare `Bash` ask rule that the sandbox's auto-allow skips (MEDIUM). PERM-007: an `mcp__<server>` allow rule on a server the scan found poisoned, typosquatted, changed since approval, or pinned to a vulnerable version, matched by the whole server name as Claude Code 2.1.299 does, including a `~/.claude/settings.json` rule on a repository's server under `scan --project` (HIGH). See `docs/permission-rules.md`.
 - **AI agents in GitHub Actions workflows: WORKFLOW-001..003 (STORY-0091).** A
   plain `scan` or `check` run inside a repository, which is what the GitHub
@@ -77,6 +78,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   project MCP servers a settings file approves by name.
 - **`docs/agent-execution-surface.md`:** every repository file mcp-audit reads that a
   harness runs or obeys, per harness, with the vendor source for each.
+- **TRUST-006 / TRUST-007 — git configuration that runs code.** A repository
+  that arrives as files with its `.git` folder intact (a zip, a shared drive)
+  can make git run a program the moment an agent runs `git status` in the
+  background, before any trust prompt (GitSpawn, 2026). `scan`, `check` and
+  `scan --project` now read the repository's own git config and hooks — never
+  running git — and flag keys that run a command (`core.fsmonitor`,
+  `core.sshCommand`, `diff.external`, diff and filter drivers, `!` credential
+  helpers: HIGH; editor, signing, merge-driver and similar keys: MEDIUM or
+  LOW), includes from outside the repository, nested bare repositories git
+  would use (HIGH), and a `post-index-change` hook, which `git status` runs
+  (HIGH), plus the programs git-lfs and delta read from their own sections of
+  the same config (`lfs.extension.<name>.clean`/`smudge`: HIGH;
+  `lfs.customtransfer.<name>.path`/`args`: MEDIUM; `delta.pager`: LOW). The
+  standard installs of Git LFS, git-crypt, nbstripout, common
+  diff text converters with display options only (exiftool, pdftotext, sops,
+  …; each tool's arguments are checked against an allowlist), husky, an unmodified
+  copy of git's own Watchman hook sample, a plain `ssh -i key` and
+  actions/checkout's own settings stay out of HIGH; a tool run from a Python
+  environment inside the repository is MEDIUM. Secrets in config values are
+  redacted from findings. See `docs/git-exec.md`.
 - **Claude Code subagent definitions are scanned** (`.claude/agents/**/*.md`,
   `~/.claude/agents/**/*.md`), in the default `scan`, `check` and `scan --project`.
   `AGENT-001` flags a subagent that asks for `bypassPermissions` (MEDIUM in a repo,
@@ -123,9 +144,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`scripts/sync_registry_advisories.py` keeps `known-malicious.json` current** from
   OSV's bulk export; the weekly registry-advisory check now also fails when that file
   has drifted.
+- **Tool descriptions that steer the agent to another server's tools (DELEG-001..003)**
+  (STORY-0100). With `scan --connect` (and `dashboard --connect`), mcp-audit now reads
+  every connected server's tool descriptions for the poisoning shape that works: a tool
+  that never runs itself but tells the agent "whenever you do X, first call that other
+  tool" or "when you use that tool, change this argument". DELEG-001 (MEDIUM): the text
+  names a tool another connected server exposes. DELEG-002 (MEDIUM): a trigger ("before",
+  "whenever", "when the user …") plus an order to do something no tool on its own
+  server can do. DELEG-003 (HIGH): an order to rewrite another tool's arguments, or every
+  call's. A plain scan never connects, so it never reports these: the lock file keeps
+  only fingerprints of tool definitions, not their text. Measured on MCPTox before
+  shipping, as EPIC-0007 required: with the poisoned tool on its own server (MCPTox's
+  threat model), POISON-* and DELEG-* together flag 97.8% of the poisoned descriptions
+  that carry no keyword wrapper and target an implicit trigger, against 21.4% for
+  POISON-* alone (parameter tampering: 95.8% against 4.7%), and DELEG-* flags 1 of
+  MCPTox's 353 real tools. On 855 real tool descriptions read from the published
+  source of 38 popular npm MCP servers, all in one session, it flagged 1
+  (DELEG-002). Those are not independent numbers: MCPTox's clean tools and 640 of
+  the 855 informed the design; of the 215 held out until the design was frozen,
+  it flagged none. Numbers per attack paradigm, and what it misses, are in
+  [`docs/poisoning.md`](docs/poisoning.md#cross-tool-delegation-deleg-001003);
+  `scripts/bench_poisoning.py delegation` re-takes the measurement, and a test fails
+  if the detector changes without it.
 
 ### Changed
 
+- **The score's "No prompt injection risks detected" bonus now also needs no DELEG-*
+  finding**, since those are prompt-injection findings too (STORY-0100). Nothing
+  changes for a scan without `--connect`.
 - **Supply-chain evidence no longer quotes credentials.** SC-001..003 and the new SC-007
   quote the launch command with URL passwords (`postgresql://user:pass@…`, including
   passwords that contain `@` or spaces) and known token formats replaced by `[REDACTED]`,
@@ -155,11 +201,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   TRUST-002 (a link out of the repository) instead of its files being read as the
   repository's own.
 - **`check` no longer says "No MCP config files found" and exits 0 when the scan has
-  findings** (STORY-0090, STORY-0091). A folder with no MCP config can still carry a
-  planted auto-run file or a risky CI workflow; its findings now reach the verdict and
+  findings** (STORY-0089, STORY-0090, STORY-0091). A folder with no MCP config can still
+  carry a planted auto-run file, a git config that runs a command, or a risky CI workflow; its findings now reach the verdict and
   the exit code. The same applies to a machine with no MCP config whose installed
   Claude Code plugins or mods have findings (PLUGIN-*, MOD-*): `check` used to exit 0
   there and now reports them, and exits 1 when one is HIGH or the grade drops below B.
+- **`scan --project` now shows errors from its project pass** (STORY-0093). Errors that a
+  step of the repository's own analysis reported (for example an ignore file the SANDBOX
+  checks could not read) were dropped; they now appear in the scan's errors, once each.
 - **HARNESS-005 now recognises environment runners and PowerShell code-running commands.** An allow rule such as `Bash(devbox run *)`, `Bash(docker exec app *)`, `Bash(uv run:*)`, `Bash(poetry run:*)`, `Bash(pnpm exec:*)` or `PowerShell(iex *)` approves any command, the same as `Bash(npx *)`, and is now reported. If you see a new HARNESS-005 for a rule like `Bash(uv run:*)` that you added so Claude can run your tests: Anthropic's docs say these runners "execute their arguments as a command", so the rule also approves `uv run rm -rf .`; write one rule per command instead, such as `Bash(uv run pytest *)`. A rule that names the inner command, such as `Bash(devbox run npm test)` (Anthropic's recommended form), is not reported. Meaning and severity (MEDIUM) are unchanged.
 
 - **`mcp-audit register` says what registering actually does.** The prompt
@@ -171,6 +220,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Terminal output no longer breaks on text a scanned server sent.** A tool name or
+  live description containing something like `[/dim]` made `scan --connect` stop with
+  a Rich markup error before printing its findings, and `[link=…]` rendered as a hidden
+  link. Finding titles, evidence, remediation and server names are now shown as
+  written (STORY-0100).
 - **The privacy page now names the address registration actually sends to.**
   `docs/privacy.md` said `https://register.mcp-audit.dev/ping`; the code posts to a
   Pipedream webhook (`https://eo4jvaanlkuohuc.m.pipedream.net`) that emails the
@@ -226,6 +280,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   third-party action.
 - **`docs/owasp-mapping.json` no longer states a hand-typed count** ("103 static
   finding IDs" while it held 127). Completeness is what CI already checks.
+- **`scan --format json`, `sarif` and `nucleus` (and `--json`) print only the
+  document on stdout (STORY-0103).** With an `mcp-lock.json` present, the
+  `Lock: verified` line and the lock `WARN` lines came first, so the output
+  did not parse; so did the `--project`, `--include-agent-files` and
+  `--include-extensions` summaries. Every such line, and every error, now goes
+  to stderr in those formats; terminal output is unchanged. `check --json`
+  sends a failed registration ping's message to stderr, and with no MCP config
+  found it still writes the JSON document. `lock --verify --format json|sarif`
+  does the same, and its SARIF is no longer broken across lines at 80 columns
+  when piped.
+- **`vet --online` no longer crashes on a malicious-package entry without a
+  link.** An entry from mcp-audit.dev that lacks `link` or `id`, or is not an
+  object, is shown without it instead of stopping with an error.
+- **A Windows `cmd /c` command line with a quoted path is checked.** When the
+  whole line is one argument, such as `"C:\Program Files\nodejs\npx.cmd" -y
+  pkg`, it was split at spaces, so the launcher was never recognised and no
+  supply-chain check ran. It is now split the way Windows programs split a
+  command line (double quotes group, backslashes are literal except before a
+  quote).
+- **The privacy page and README name every network use.** The README said
+  `check` makes no network calls without a flag; after `mcp-audit register`,
+  each `check` sends a short ping with the grade. The privacy page's table now
+  lists `lock --verify --resolve` (npm or PyPI) and `lock --connect` (starts or
+  contacts each configured server), both opt-in.
+- **TRUST-006: a git-lfs custom transfer agent that runs on every transfer is
+  HIGH.** `lfs.customtransfer.<name>.path`/`args` in a repository's git config
+  was MEDIUM even when `lfs.standalonetransferagent` (or
+  `lfs.<url>.standalonetransferagent`) names that agent. git-lfs then runs it on
+  every fetch, pull, checkout and push that moves LFS objects, without asking
+  the server, the same exposure as `core.sshCommand`, which is HIGH. It is HIGH
+  in that case and stays MEDIUM otherwise (it then runs only if the LFS server
+  picks it).
+- **SANDBOX finding text names the user settings file Claude Code reads.** With
+  `CLAUDE_CONFIG_DIR` set, the notes about `strictAllowlist` and `defaultMode`
+  said "your ~/.claude/settings.json"; they now name that file (as `~/…` when it
+  is under your home directory, otherwise `$CLAUDE_CONFIG_DIR/settings.json`).
+
+### Security
+
+- **The HTML dashboard, the fleet report and the PDF report show scan text as
+  text (STORY-0103).** The dashboard and `merge --format html` put server
+  names, finding titles, attack-path hops, client and analyzer names and
+  machine names into the page as HTML, so a server name in a repository's
+  `.mcp.json`, or a tool name a live server chose (a COLLIDE-001 title), could
+  add markup or script to the report you open. Every such string is now
+  escaped, and the "Recommended action" entries no longer use an inline
+  `onclick` built from the server name. The embedded scan data already escaped
+  `<`, `>` and `&`; a server named after a page marker (`__D3_JS__`) no longer
+  breaks the page. The PDF report (`--report pdf`) passed finding titles and
+  server names to reportlab's markup parser: a `<` stopped the report with an
+  error, and a link or image tag was honoured. They are now escaped too.
 
 ## [0.21.1] - 2026-10-25
 

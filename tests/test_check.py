@@ -21,6 +21,7 @@ from mcp_audit.models import (
     TransportType,
 )
 from mcp_audit.output.check import _remediation_hint, print_check_results
+from tests.conftest import split_runner, unwrapped
 
 runner = CliRunner()
 
@@ -458,6 +459,21 @@ class TestCheckCommand:
         assert r.exit_code == 0
         assert "No MCP config files found" in r.output
 
+    def test_findings_without_mcp_configs_are_not_swallowed(self) -> None:
+        # STORY-0089: a repo's git config can carry HIGH findings on a machine
+        # with no MCP clients at all (a CI runner); check must still report.
+        result = _findings_result(
+            [_make_finding(finding_id="TRUST-006", severity=Severity.HIGH)],
+            numeric=90,
+            grade="A",
+        )
+        result.clients_scanned = 0
+        result.servers_found = 0
+        with self._patch_run_scan(result):
+            r = runner.invoke(app, ["check"])
+        assert r.exit_code == 1
+        assert "No MCP config files found" not in r.output
+
     def test_verbose_flag_uses_full_output(self) -> None:
         findings = [_make_finding(finding_id="CRED-001", severity=Severity.HIGH)]
         result = _findings_result(findings, numeric=55, grade="C")
@@ -699,3 +715,90 @@ class TestLockAutoVerification:
         assert parsed["lock_status"]["present"] is True
         assert parsed["lock_status"]["verified"] is True
         assert parsed["lock_status"]["checked_servers"] == 1
+
+
+class TestCheckJsonStdoutStaysParseable:
+    """`check --json` stdout is one JSON document with a lock present, and a
+    registered user's failed ping does not follow it (STORY-0103)."""
+
+    _split = split_runner()
+
+    @staticmethod
+    def _result_for(server: ServerConfig) -> ScanResult:
+        result = _findings_result([], numeric=100, grade="A")
+        result.servers = [server]
+        return result
+
+    def test_verified_lock(self, tmp_path: Path) -> None:
+        (tmp_path / ".git").mkdir()
+        server = _server(tmp_path / ".mcp.json")
+        _write_lock_for(tmp_path, [server])
+        with patch(
+            "mcp_audit.cli.check.run_scan", return_value=self._result_for(server)
+        ):
+            r = self._split.invoke(app, ["check", "--json"])
+        doc = json.loads(r.stdout)
+        assert doc["lock_status"]["present"] is True
+        assert doc["lock_status"]["verified"] is True
+        assert "Lock:" not in r.stdout
+
+    def test_outside_root_and_not_covered(self, tmp_path: Path) -> None:
+        from mcp_audit.models import LockStatus
+
+        server = _server(tmp_path / ".mcp.json")
+        status = LockStatus(
+            present=True,
+            verified=True,
+            checked_servers=1,
+            lock_paths=[str(tmp_path / "mcp-lock.json")],
+            outside_root=["/elsewhere/.mcp.json"],
+            not_covered=["claude-code-agent/browser (/r/.claude/agents/a.md)"],
+        )
+        with (
+            patch(
+                "mcp_audit.cli.check.run_scan", return_value=self._result_for(server)
+            ),
+            patch("mcp_audit.cli.check._lock_auto_verify", return_value=([], status)),
+        ):
+            as_json = self._split.invoke(app, ["check", "--json"])
+            verdict = self._split.invoke(app, ["check"])
+        doc = json.loads(as_json.stdout)
+        assert doc["lock_status"]["outside_root"] == ["/elsewhere/.mcp.json"]
+        assert len(doc["lock_status"]["not_covered"]) == 1
+        assert "WARN" not in as_json.stdout
+        # The one-page verdict still prints both warnings.
+        out = unwrapped(verdict.stdout)
+        assert "outside the lock root" in out
+        assert "not covered by mcp-lock.json" in out
+
+    def test_failed_ping_goes_to_stderr(self, tmp_path: Path) -> None:
+        server = _server(tmp_path / ".mcp.json")
+        with (
+            patch(
+                "mcp_audit.cli.check.run_scan", return_value=self._result_for(server)
+            ),
+            patch(
+                "mcp_audit.registration.manager.load_registration",
+                return_value=object(),
+            ),
+            patch("mcp_audit.registration.client.post_ping", return_value=False),
+        ):
+            r = self._split.invoke(app, ["check", "--json"])
+        json.loads(r.stdout)
+        assert "Registration ping failed" in r.stderr
+
+    def test_nothing_found_still_writes_one_json_document(self) -> None:
+        empty = ScanResult()
+        empty.clients_scanned = 0
+        empty.servers_found = 0
+        with patch("mcp_audit.cli.check.run_scan", return_value=empty):
+            r = self._split.invoke(app, ["check", "--json"])
+        assert r.exit_code == 0
+        assert json.loads(r.stdout)["servers"] == []
+        assert "No MCP config files found" in unwrapped(r.stderr)
+
+    def test_errors_go_to_stderr(self, tmp_path: Path) -> None:
+        r = self._split.invoke(app, ["check", str(tmp_path / "missing.json"), "--json"])
+        assert r.exit_code == 2
+        assert r.stdout == ""
+        assert "File not found" in r.stderr

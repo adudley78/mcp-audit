@@ -79,7 +79,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **Cross-server toxic flows** — capability tagging and 7 dangerous pair patterns detecting multi-server attack paths (file-read + network, secrets + network, shell-exec + network, etc.)
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
 - **Interactive attack graph dashboard** — `mcp-audit dashboard` opens a D3 force-directed graph in your browser with light/dark mode, click-to-highlight attack paths, and hitting set recommendations
-- **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions; `--connect` mode also detects tool-name collisions across servers (`COLLIDE-001`) — the namespace-shadowing attack named in NSA's MCP security guidance
+- **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions; `--connect` mode also detects tool-name collisions across servers (`COLLIDE-001`) — the namespace-shadowing attack named in NSA's MCP security guidance — and descriptions that steer the agent to another server's tools or rewrite their arguments (`DELEG-001..003`). Measured on MCPTox before shipping: with the poisoned tool on its own server, the two together flag 98.2% of the poisoned descriptions that carry no keyword wrapper (the poisoning patterns alone: 23.2%), and the new checks flag 1 of MCPTox's 353 real tools; that clean set and 640 of 855 real descriptions also checked informed the design, and 0 of the other 215, held out, were flagged ([docs/poisoning.md](docs/poisoning.md#cross-tool-delegation-deleg-001003))
 - **Project-level config scan** — `scan --project <dir>` walks a cloned repo for project-level MCP config files and emits `TRUST-001` (HIGH) before you click "Trust this folder" in your AI editor (Adversa TrustFall / CVE-2026-30615); also flags repo-planted IDE auto-execution files — `.vscode/tasks.json` tasks that run on folder open and command-bearing `.vscode/settings.json` keys (`TRUST-003`, HIGH/CRITICAL) — the persistence mechanism used by the Keyv npm worm and Shai-Hulud "V.A.P.E" (2026); and other harnesses' auto-run files — Gemini CLI hooks and `.gemini/.env`, Codex `config.toml`/`hooks.json` (`notify`, `approval_policy = "never"`, `danger-full-access`, hooks), Claude Code scheduled tasks and workflows (`TRUST-008`); and project settings whose `env` sends API traffic to another host (`CFHYG-007`, CVE-2026-21852). A plain `scan`/`check` reads the `TRUST-003` and `TRUST-008` files at the root of the folder it runs in. See [`docs/agent-execution-surface.md`](docs/agent-execution-surface.md)
 - **SAST rule pack** — 91 Semgrep rules (47 Python, 44 TypeScript) across 6 categories for MCP server source code
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
@@ -94,7 +94,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus Security FlexConnect, self-contained HTML dashboard
 - **Continuous monitoring** — `mcp-audit watch` monitors config files in real-time and re-scans on any change
 - **Fleet deployment** — machine-tagged output with `--asset-prefix` for enterprise-wide aggregation
-- **Offline scans** — `scan` and `check` make no network calls unless you pass a network flag; `fix`, `sbom` and `lock` look up package versions online unless you pass `--offline` ([full list](docs/privacy.md#commands-that-use-the-network))
+- **Offline scans** — `scan` makes no network calls unless you pass a network flag, and neither does `check` for a user who has not registered (after `mcp-audit register`, each `check` run sends a short ping with the grade); `fix`, `sbom` and `lock` look up package versions online unless you pass `--offline` ([full list](docs/privacy.md#commands-that-use-the-network))
 
 ## Enterprise vulnerability management
 
@@ -382,7 +382,7 @@ See [`docs/diff.md`](docs/diff.md) for input formats, severity table, and edge c
 
 By default, `mcp-audit` performs static analysis — it reads config files and inspects the command, args, env vars, and any tool descriptions stored there.
 
-The `--connect` flag goes further: it connects to each server using the MCP protocol, completes the initialization handshake, and calls `list_tools()`, `list_resources()`, and `list_prompts()` to retrieve the actual definitions the server exposes to the AI agent. Those live definitions are then run through the poisoning analyzer.
+The `--connect` flag goes further: it connects to each server using the MCP protocol, completes the initialization handshake, and calls `list_tools()`, `list_resources()`, and `list_prompts()` to retrieve the actual definitions the server exposes to the AI agent. Those live definitions are then run through the poisoning analyzer. Across all the servers that answered, it also flags two servers exposing the same tool name (`COLLIDE-001`) and descriptions that steer the agent to another server's tools or rewrite their arguments (`DELEG-001..003`, measured in [docs/poisoning.md](docs/poisoning.md#cross-tool-delegation-deleg-001003)).
 
 This matters because a config file can look completely clean while the server it points to is serving poisoned tool descriptions. Static analysis cannot catch this. Connection-based analysis can.
 
@@ -481,7 +481,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-5,020 tests validate detection accuracy and guard against regressions.
+5,766 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -707,7 +707,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 5,020 tests
+uv run pytest                        # Run all 5,766 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

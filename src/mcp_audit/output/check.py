@@ -210,6 +210,26 @@ _HINTS: dict[str, str] = {
         "Remove the mcp__<server> allow rule until the server's findings are fixed,"
         " or allow only tools you have checked."
     ),
+    "SANDBOX-001": (
+        "Remove the sandbox-weakening keys from the repository's .claude settings;"
+        " a machine that needs one sets it in ~/.claude/settings.json."
+    ),
+    "SANDBOX-002": (
+        "Drop the excludedCommands or allowUnixSockets entry from the repository's"
+        " settings; keep the tool sandboxed and grant one path or host instead."
+    ),
+    "SANDBOX-003": (
+        "Remove the code-host, paste or webhook domain from the repository's"
+        " sandbox.network.allowedDomains; allow only the hosts tools need."
+    ),
+    "SANDBOX-004": (
+        "Move the key to managed or user settings, or delete it: Claude Code"
+        " ignores it in this file; see docs/permission-rules.md."
+    ),
+    "SANDBOX-005": (
+        "Add .claude/settings.local.json to .gitignore (git rm --cached it if"
+        " committed) and use ~/ instead of home paths with a username."
+    ),
     "AGENT-001": (
         "Remove permissionMode from the subagent file so it inherits your session's"
         " mode; keep Claude Code at 2.1.267+."
@@ -229,6 +249,15 @@ _HINTS: dict[str, str] = {
     "CFHYG-006": (
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"
         " — a third-party base URL receives every API call and its secrets."
+    ),
+    # Git can run code (STORY-0089)
+    "TRUST-006": (
+        "Delete the git config line in a text editor before running git or an"
+        " agent here; run one-off git with -c (e.g. -c core.fsmonitor=false)."
+    ),
+    "TRUST-007": (
+        "Remove the embedded bare repo or the post-index-change hook before"
+        " opening this folder in an agent; set safe.bareRepository=explicit."
     ),
     # CI workflows (STORY-0091)
     "WORKFLOW-001": (
