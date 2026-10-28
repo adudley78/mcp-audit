@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "yarn-dlx": {"command": "yarn", "args": ["dlx", "yarn-mcp"]},
+    "bunx-major": {"command": "bunx", "args": ["bun-mcp@2"]},
+    "npx-next-tag": {"command": "npx", "args": ["-y", "tagged-mcp@next"]},
+    "fs-pinned": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem@2025.1.14", "/srv/other"]}
+  }
+}

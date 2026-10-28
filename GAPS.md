@@ -442,6 +442,43 @@ Dynamic-client-registration flaws found in 96.6% of OAuth-enabled MCP servers
 by arXiv 2605.22333 are out of scope for static analysis (require live
 `/.well-known/oauth-authorization-server` fetch).
 
+## Managed MCP policy report (MANAGED-001..005, STORY-0112)
+
+- **Only the file tier is read.** `managed-settings.json`, `managed-settings.d/*.json`
+  and `managed-mcp.json` in Claude Code's system directory. An MDM profile, the Windows
+  HKLM/HKCU registry and server-managed settings from the claude.ai console are not
+  read, and under Claude Code's default "first-wins" rule a higher source that
+  delivers any policy key replaces the files' allowlist. A MANAGED-002 "not-allowed"
+  verdict can therefore be wrong on a machine whose MDM or server-managed policy
+  differs from its files; denylist and `managed-mcp.json` verdicts hold (read from
+  every admin source / always applied). MANAGED-003 can fire where the MCP policy
+  lives in a source mcp-audit can't see; its text says so.
+- **`managedSourcesBehavior: "merge"`, parent settings from an embedding host, and
+  `policyHelper` output are not modelled.**
+- **`${VAR}` is not expanded** in policy entries or server values: such a pair is
+  never reported as blocked (undecidable, silent).
+- **Unlocked allowlists from other projects.** With `allowManagedMcpServersOnly`
+  unset, any project's settings can admit a server. mcp-audit checks the user file
+  and the scanned project's files only; the MANAGED-002 text says another project
+  could still add it.
+- **Servers compared:** `~/.claude.json` top-level servers, project `.mcp.json`, and
+  plugin servers. Local-scope servers under `~/.claude.json` `projects.*`, subagent
+  inline servers, claude.ai connectors and servers passed with `--mcp-config` are not
+  compared. `strictPluginOnlyCustomization` set to a quoted boolean or an object is
+  recognised as an MCP policy (it suppresses MANAGED-003) but never used to claim a
+  server is blocked: how Claude Code reads those shapes for this key is not documented.
+- **Ports for other schemes.** Only `https` (443) and `http` (80) default ports are
+  known; a pattern that needs another scheme's default port is undecidable.
+- **Other harnesses.** VS Code documents `ChatAllowedMcpServers` /
+  `ChatDeniedMcpServers` / `ChatAllowManagedMcpServersOnly` policies (Linux:
+  `/etc/vscode/policy.json`) without an entry format on the pages that could be read
+  for this story; Cursor's team MCP controls are server-side. Neither is checked.
+- **Partial policy is not evaluated.** When any managed settings file can't be read or
+  parsed (or the drop-in directory can't be listed), only MANAGED-001 is reported.
+- **The managed directory is trusted as admin-written.** A symlinked drop-in is read
+  like Claude Code reads it. On WSL `/etc/claude-code` is user-writable; that is not
+  reported.
+
 ## Detection quality
 
 **Measured POISON-* recall and precision (2026-10-25, STORY-0088).** Full method and caveats: [`docs/poisoning.md`](docs/poisoning.md); numbers: `docs/research/poisoning-benchmark/results.json`.
@@ -663,7 +700,7 @@ tests.
 
 **SC-005 (deprecated packages, STORY-0073) has no registry-level maintenance-status field.** `mcp-lock.json`'s `package.deprecated` and `SC-005` are populated from the live npm registry response at `lock` resolution time only; `registry/known-servers.json` itself carries no independent "maintained/deprecated" flag an offline scan could check, so eleven of the fifteen `@modelcontextprotocol/server-*` entries currently ship in the registry with no indication their npm `latest` is deprecated — see backlog item for a future registry-wide audit. **PyPI "yanked" releases are not covered at all**: PyPI's JSON API exposes `yanked`/`yanked_reason` only per-release inside `releases`, not on the `info` object `resolve_latest_version_info()` reads for the latest version, so `deprecated` is always `null` for PyPI packages today.
 
-**Bare package spec is recorded and resolved as `latest` (R59, latent).** `lock/resolve.py::_spec_as_written` returns the literal string `"latest"` for a bare package name (no version/range token in the launch command), and `resolve_package` then resolves it via `resolve_latest_version_info()` — the `/latest` dist-tag endpoint. But npm-package-arg itself does not treat a bare name as the `latest` tag: it types a bare name as range `*`, and npm ≥ 10's dist-tag fast path (`npm-pick-manifest`) skips a deprecated or `engines`-incompatible `latest` in favor of a satisfying alternative when one exists, while an explicit `@latest` selector returns the tagged manifest unconditionally regardless of deprecation or `engines`. So a bare spec and an explicit `@latest` are not the same selector, and mcp-audit's lock currently resolves both identically. Measured impact, attributed to Prachet Poddar on [#88](https://github.com/adudley78/mcp-audit/issues/88) (2026-09-13): across 250 MCP server root packages, `latest` deprecated 0/250; roots where a real `npx` install picks something other than `latest`: node 18.20.4 14/250, node 20.18.0 8/250, node 22.11.0 7/250, node 24.0.0 0/250 — the gap is real but small and shrinking as the ecosystem moves to newer Node LTS lines. Our own population looks worse in isolation: 11 of the 15 `@modelcontextprotocol/server-*` registry entries have a deprecated `latest` (see above), and for four checked version-by-version (github 13/13, slack 10/10, postgres 8/8, puppeteer 8/8) *every* published version is deprecated, so for those specifically the bare-vs-`@latest` divergence collapses (no clean lower version exists to fall back to either way). Given that, SC-005's precise claim is "the registry's `latest` for this package is deprecated," not "you will install a deprecated version" — the two coincide whenever no clean lower version exists, and diverge otherwise. Fix shape, deliberately not built in this window: first make `spec_as_written` record the bare form faithfully instead of coercing it to `"latest"`, so the lock file at least states what the config actually said; bare-form *resolution* semantics (whether to model npm's dist-tag fast path) are a separate, later decision — never a semver range resolver, which mcp-audit has already declined to build (see "mcp-audit does not implement semver range resolution anywhere" above). See `docs/decisions/ADR-0005-mcp-audit-lock.md`'s R59 addendum. Independent of the bare-spec
+**Bare package spec is recorded and resolved as `latest` (R59, latent).** *Partly closed by STORY-0116 (lock_version 2): a bare spec is now recorded as `"*"` and SC-005 says "`latest` is deprecated on npm"; resolution still goes through the `latest` dist-tag, so the divergence described here remains for resolution. The npm boundary is 10.8.2, not 10 (see PROVENANCE.md).* Original entry: `lock/resolve.py::_spec_as_written` returns the literal string `"latest"` for a bare package name (no version/range token in the launch command), and `resolve_package` then resolves it via `resolve_latest_version_info()` — the `/latest` dist-tag endpoint. But npm-package-arg itself does not treat a bare name as the `latest` tag: it types a bare name as range `*`, and npm ≥ 10's dist-tag fast path (`npm-pick-manifest`) skips a deprecated or `engines`-incompatible `latest` in favor of a satisfying alternative when one exists, while an explicit `@latest` selector returns the tagged manifest unconditionally regardless of deprecation or `engines`. So a bare spec and an explicit `@latest` are not the same selector, and mcp-audit's lock currently resolves both identically. Measured impact, attributed to Prachet Poddar on [#88](https://github.com/adudley78/mcp-audit/issues/88) (2026-09-13): across 250 MCP server root packages, `latest` deprecated 0/250; roots where a real `npx` install picks something other than `latest`: node 18.20.4 14/250, node 20.18.0 8/250, node 22.11.0 7/250, node 24.0.0 0/250 — the gap is real but small and shrinking as the ecosystem moves to newer Node LTS lines. Our own population looks worse in isolation: 11 of the 15 `@modelcontextprotocol/server-*` registry entries have a deprecated `latest` (see above), and for four checked version-by-version (github 13/13, slack 10/10, postgres 8/8, puppeteer 8/8) *every* published version is deprecated, so for those specifically the bare-vs-`@latest` divergence collapses (no clean lower version exists to fall back to either way). Given that, SC-005's precise claim is "the registry's `latest` for this package is deprecated," not "you will install a deprecated version" — the two coincide whenever no clean lower version exists, and diverge otherwise. Fix shape, deliberately not built in this window: first make `spec_as_written` record the bare form faithfully instead of coercing it to `"latest"`, so the lock file at least states what the config actually said; bare-form *resolution* semantics (whether to model npm's dist-tag fast path) are a separate, later decision — never a semver range resolver, which mcp-audit has already declined to build (see "mcp-audit does not implement semver range resolution anywhere" above). See `docs/decisions/ADR-0005-mcp-audit-lock.md`'s R59 addendum. Independent of the bare-spec
 question, the R59 context fields matter even for an exact-pin root: running the same resolver over the
 same 250 roots against the registry as of 2026-09-07 (rebuilt from publish timestamps) and as of 2026-09-17,
 184 of 250 (73.6%) resolved to a different transitive package set with the corpus the same size (2,867 →
@@ -1643,6 +1680,10 @@ Deliberate scope limits, recorded rather than smoothed over:
   retired literal `bearer_token` and the OAuth client secret (`client_secret`,
   `clientSecret`) are redacted; an authentication header keeps its scheme word
   (`Bearer [REDACTED]`), and a value that is only `${VAR}` / `$VAR` is kept.
+  An `http_headers_helper` command has secret-pattern matches, URL passwords
+  and the token after an inline `Bearer`/`Basic`/`Token` redacted; a credential
+  in it in any other shape (an opaque `--key VALUE` inside the one string) is
+  printed.
 
 ## Missing capabilities
 
@@ -1860,3 +1901,40 @@ Items below were confirmed open at some point and have since been resolved. Each
 | V-17: Credential regex gaps — no GCP, Azure SAS, DigitalOcean, Vercel, PEM, Vault, or GitHub fine-grained PAT coverage | 8 new patterns added to `credentials.py`; matching Semgrep rules added; 13 new tests | v0.10.0 |
 
 **Launch credentials in output are redacted for command, args and URLs only (STORY-0108).** TRANSPORT-001/003/004 evidence, community-rule matched values (`{matched_value}` in a rule's message and the evidence), CycloneDX snapshot components, and the JSON serialisation of every server (`servers[].command`, `args`, `url`, and the same keys plus `serverUrl`/`httpUrl` in `raw`; used by `scan --format json`, `check --json`, native snapshots and the PDF report's hash) replace URL userinfo and `SECRET_PATTERNS` matches with `[REDACTED]`. Not redacted: `servers[].env` values and the `env` key of `raw`, which can hold the same credential (header values are redacted since STORY-0110) (`DATABASE_URL`, an API key). `mcp-audit diff` reads env values from a JSON scan file to report a hardcoded credential, so redacting them needs a change there first. The value of a secret-named flag (a whole-word `key`, `apikey`, `token`, `secret`, `password`, `passwd`, `pwd`, `credential(s)` or `pat` in the flag name, not ending in `mode`, `type`, `dir`, `file`, `path`, `url`, `provider` and similar) is replaced in its own position only, with `[REDACTED-FLAG]` unless `SECRET_PATTERNS` knows it (then `[REDACTED]`); values that are settings (`none`, `true`, `oauth`, …), shorter than 4 characters, paths, URLs or `$VAR` references are left alone, so a secret passed under an unrecognised flag name (`--auth VALUE`, `-p VALUE`) or as a bare positional argument is not redacted. Because the JSON output is redacted, `diff` reads `[REDACTED]` in a scan file's `command`, `args` or `url` as a hardcoded credential (CRITICAL, provider `redacted`) and `[REDACTED-FLAG]` as a possible one (HIGH); a rotated credential is invisible between two scan files, a scan file from before this change compares as changed against one after, and on directory and git-ref inputs a URL password that `SECRET_PATTERNS` doesn't match (`postgresql://user:pw@host`) is still not counted (pre-existing), so the two input kinds can disagree. See `docs/diff.md`. URL user info is redacted when it has a password or the user name is not a plain account name (a letter then at most 19 letters, digits, `.`, `_`, `-`, matching no `SECRET_PATTERNS` entry); a plain account name such as `git@` is kept, so a short token-like user name of that shape would be shown. `agent_files/install_steps.py` and `analyzers/delegation.py` still redact all URL user info with their own regexes. Not redacted (pre-existing): secrets in a URL's query string that match no `SECRET_PATTERNS` entry, and a secret flag inside a single command string (flag values are read from separate `args` only). Diffing a directory against a scan file compares redacted with unredacted text, so mix neither. `diff --format pr-comment` (and terminal) prints directory and git-ref inputs' arguments unredacted (queue row).
+
+## mcp-lock.json lock_version 2 (LOCK-010..012, lock/section_digests.py — STORY-0116)
+
+- **The digest field name is provisional.** `section_digests` was chosen without the confirmation
+  from the `trees` producer that #88 called for; it may be renamed before release.
+- **`npm_major` and `node_version` are always `null` in mcp-audit's section.** mcp-audit resolves by
+  reading the registry's `latest` dist-tag, so neither shaped its answer. LOCK-010 can therefore only
+  see a change in `latest` or in its deprecation notice for mcp-audit-written entries. PyPI has no
+  per-version deprecation at the endpoint read, so `latest_deprecated` is always `null` for PyPI.
+- **Specs `lock` does not parse are still recorded as `"latest"`.** `uvx pkg==1.2.3`, `uvx pkg>=1`
+  and `pipx run pkg==1.0` keep version 1's reading (resolved through `latest`) on purpose: reading
+  them as pins would change their resolved version, which a version-1 lock would report as LOCK-004
+  on an untouched config. `npx foo@next` is still recorded as an exact pin `"next"` (a dist-tag
+  mcp-audit does not resolve), unchanged from version 1.
+- **Digests catch changes, not malice.** Like `checksum` and `tools._checksum`, a section digest is
+  unkeyed: someone who edits a section and recomputes its digest is not caught. A `trees` producer
+  that does not write a `section_digests` entry gets no protection from it.
+- **LOCK-012 names sections by substring.** A section is reported as reformatted when its canonical
+  member text (`"key":<value>`) does not occur in the file; a member text that happens to occur
+  elsewhere in the file would hide a reformat of that section (the file is still reported, as
+  `<layout>`, unless every byte matches).
+- **LOCK-012 names at most 16 sections.** It walks the canonical members once with a cursor and
+  stops naming after 16 misses (`…`), and names nothing above 8 MiB (`<layout>`), so its cost stays
+  linear in the file size however many keys a file has. A section moved out of canonical order is
+  reported as not canonical.
+- **Canonical-form interop.** Integers beyond ±2^53 canonicalize exactly in Python and lossily in a
+  JavaScript producer, so a digest over such a section would differ between producers. A lone UTF-16
+  surrogate has no canonical encoding: such a section is listed as unverified (in mcp-audit's own
+  sections, LOCK-005), never passed. Neither occurs in anything mcp-audit writes.
+- **Terminal output with many foreign keys.** `lock --verify` lists every unverified section and,
+  with `--allow-unverified`, prints one WAIVED line each; with tens of thousands of foreign keys the
+  terminal rendering takes tens of seconds (as in 0.22). `--format json` and `scan`/`check` are not
+  affected.
+- **Older readers.** mcp-audit 0.22 and earlier read a version-2 lock without crashing and without
+  LOCK-005, but count `section_digests` as an unverified foreign section (exit 1 unless
+  `--allow-unverified`). An older `lock` rewrites the file as version 1, keeping the stale
+  `section_digests` map as a foreign key; the next current `lock` recomputes its own entries.

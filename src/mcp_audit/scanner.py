@@ -615,6 +615,18 @@ def _discover_and_parse(
             result.errors.append(str(e))
         result.errors.extend(config.parse_warnings)
 
+    if not extra_paths:
+        # Managed MCP policy (STORY-0112, MANAGED-001..005): what the
+        # organization's managed files allow or deny versus the Claude Code
+        # servers found above.  Read-only; failures go to result.errors.
+        from mcp_audit.analyzers import managed_policy as _managed  # noqa: PLC0415
+
+        result.findings.extend(
+            _managed.managed_policy_findings(
+                all_servers, configs, Path.cwd(), result.errors
+            )
+        )
+
     result.servers_found = len(all_servers)
     result.servers = all_servers
     return configs, all_servers

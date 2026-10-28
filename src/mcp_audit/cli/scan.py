@@ -1361,6 +1361,28 @@ def _apply_project_scan(
         f" {len(project_servers)} server(s) found[/dim]"
     )
 
+    # ── MANAGED-002/004: managed MCP policy vs the repository's servers ──────
+    # Machine-level MANAGED-001/003/005 came from the default scan; the
+    # repository adds servers the policy may block and settings files that
+    # may broaden an unlocked allowlist (STORY-0112).  Same server and file
+    # reported once across the default scan and this walk.
+    from mcp_audit.analyzers import managed_policy as _managed  # noqa: PLC0415
+
+    seen_managed = {
+        _managed.finding_key(f) for f in result.findings if f.id.startswith("MANAGED-")
+    }
+    for finding in _managed.managed_policy_findings(
+        project_servers,
+        project_configs,
+        project_dir,
+        result.errors,
+        machine_findings=False,
+    ):
+        managed_key = _managed.finding_key(finding)
+        if managed_key not in seen_managed:
+            seen_managed.add(managed_key)
+            result.findings.append(finding)
+
     # ── TRUST-001: fires for every project-scoped server ───────────────────────
     # Logic is deliberately dumb — origin (is_project_scoped) is the only
     # criterion.  Content-based analysis runs separately below.

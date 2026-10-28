@@ -187,6 +187,15 @@ def _redact_raw_secrets(out: dict) -> dict:
     for key in _RAW_HEADER_KEYS:
         if isinstance(out.get(key), dict):
             out[key] = redact_header_values(out[key])
+    # Codex's http_headers_helper is a shell command that prints the headers,
+    # so it often carries the credential itself.
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        redact_command_text,
+    )
+
+    helper = out.get("http_headers_helper")
+    if isinstance(helper, str):
+        out["http_headers_helper"] = redact_command_text(helper)
     if "bearer_token" in out:
         out["bearer_token"] = _secret(out["bearer_token"])
     oauth = out.get("oauth")

@@ -83,6 +83,14 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # subagent ends up with less access than intended, not more
         "AGENT-004",  # inline subagent MCP server inventory (STORY-0094); the
         # server's own findings carry any vulnerability
+        "LOCK-010",  # lock_version 2 resolution context changed (STORY-0116);
+        # INFO, explains a difference, asserts no defect
+        "LOCK-012",  # lock file reformatted, content intact (STORY-0116)
+        "MANAGED-001",  # managed MCP policy inventory (STORY-0112) — INFO
+        "MANAGED-002",  # server the managed policy keeps from loading — dead
+        # config, the policy working as intended, not a vulnerability
+        "MANAGED-003",  # managed settings without MCP policy — organisation
+        # posture with no package or server to attach an advisory to
         "VULN-UNRESOLVED",  # --check-vulns lookup that could not run
         # (STORY-0106) — operational note, asserts nothing about the package
     }
@@ -194,6 +202,7 @@ _CLASS_BY_PREFIX: Final[dict[str, str]] = {
     "EXT-": "ide-extension",
     "SAST-": "source-vulnerability",
     "GOV-": "policy-violation",
+    "MANAGED-": "policy-violation",
     "DRIFT-": "configuration-drift",
     "BL-": "operational-error",
     "COMM-": "community-rule",

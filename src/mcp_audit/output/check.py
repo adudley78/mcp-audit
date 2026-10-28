@@ -186,6 +186,23 @@ _HINTS: dict[str, str] = {
     "MOD-003": "Read the mod's prompt and description hooks and diff them on update.",
     "MOD-004": "Check which programs the mod starts and why before keeping it.",
     "MOD-005": "Review installed mods with `claude plugin validate <dir>`.",
+    "MANAGED-001": "Run /status in Claude Code to see which managed source applies.",
+    "MANAGED-002": (
+        "Remove the server, or ask the policy owner to allowlist it by serverUrl or"
+        " serverCommand."
+    ),
+    "MANAGED-003": (
+        "Add deniedMcpServers, or allowedMcpServers with allowManagedMcpServersOnly,"
+        " to managed settings."
+    ),
+    "MANAGED-004": (
+        "Set allowManagedMcpServersOnly: true in managed settings; drop"
+        " allowedMcpServers from committed settings."
+    ),
+    "MANAGED-005": (
+        "Add serverUrl and serverCommand allowlist entries; names alone admit"
+        " any server."
+    ),
     "MOD-006": (
         "Remove CLAUDE_CODE_PLUGIN_DIRS from settings; load dev plugins with"
         " --plugin-dir only when needed."
@@ -360,6 +377,19 @@ _HINTS: dict[str, str] = {
     ),
     "LOCK-009": (
         "A locked tool is gone. If expected, run `mcp-audit lock --accept --connect`."
+    ),
+    # lock_version 2 (STORY-0116)
+    "LOCK-010": (
+        "The registry's `latest` or deprecation notice changed since the lock;"
+        " informational. Re-lock with `mcp-audit lock --accept` to record it."
+    ),
+    "LOCK-011": (
+        "A section of mcp-lock.json changed without its digest. Inspect"
+        " `git diff mcp-lock.json`; re-run whichever tool wrote that section."
+    ),
+    "LOCK-012": (
+        "Something reformatted mcp-lock.json. Run `mcp-audit lock --accept` to"
+        " rewrite it canonically."
     ),
     # Instruction-file reach (STORY-0098)
     "MEM-003": (

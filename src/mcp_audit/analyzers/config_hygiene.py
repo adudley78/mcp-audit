@@ -2391,9 +2391,13 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             if not isinstance(helper, str) or not helper.strip():
                 continue
             net = _network_primitive([helper])
+            from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+                redact_command_text,
+            )
+
             evidence = (
                 f"{path}: mcp_servers.{name}.http_headers_helper ="
-                f" {_quote_commands([helper])}"
+                f" {_quote_commands([redact_command_text(helper)])}"
             )
             if net:
                 evidence += f" | network primitive matched: {net!r}"

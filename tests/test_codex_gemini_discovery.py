@@ -1120,3 +1120,94 @@ def test_codex_env_vars_are_recorded_as_references(tmp_path: Path) -> None:
     )
     [server] = parse_config(_codex(path))
     assert server.env == {"A": "1", "HOME_TOKEN": "${HOME_TOKEN}", "OTHER": "${OTHER}"}
+
+
+# ── http_headers_helper never printed in clear ───────────────────────────────
+
+ANTHROPIC_KEY = "sk-ant-api03-" + "a" * 93 + "AA"  # noqa: S105 - synthetic
+HELPER_SECRET_TOML = f"""\
+[mcp_servers.api]
+url = "https://api.example.com/mcp"
+http_headers_helper = "sh -c 'curl -s https://keys.example/?k={ANTHROPIC_KEY}'"
+
+[mcp_servers.api2]
+url = "https://api2.example.com/mcp"
+http_headers_helper = "printf '{{\\"Authorization\\":\\"Bearer {GH_TOKEN}\\"}}'"
+
+[mcp_servers.api3]
+url = "https://api3.example.com/mcp"
+http_headers_helper = "printf 'Authorization: Bearer plainOpaqueTok3n'"
+"""
+HELPER_SECRETS = (ANTHROPIC_KEY, GH_TOKEN, "plainOpaqueTok3n")
+
+
+class TestHeaderHelperRedaction:
+    @pytest.mark.parametrize("where", ["repo", "user"])
+    def test_scan_json(
+        self,
+        home: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        where: str,
+    ) -> None:
+        work = tmp_path / "repo"
+        work.mkdir()
+        target = (
+            work / ".codex" / "config.toml"
+            if where == "repo"
+            else home / ".codex" / "config.toml"
+        )
+        _write(target, HELPER_SECRET_TOML)
+        monkeypatch.chdir(work)
+        out = tmp_path / "out.json"
+        r = runner.invoke(app, ["scan", "--format", "json", "-o", str(out)])
+        assert r.exit_code in (0, 1), r.output
+        text = out.read_text(encoding="utf-8") + r.output
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        helpers = [
+            s["raw"]["http_headers_helper"]
+            for s in payload["servers"]
+            if "http_headers_helper" in s["raw"]
+        ]
+        assert len(helpers) == 3
+        assert all("[REDACTED]" in h for h in helpers)
+        for secret in HELPER_SECRETS:
+            assert secret not in text, (where, secret)
+        if where == "repo":
+            assert sum(f["id"] == "TRUST-008" for f in payload["findings"]) >= 3
+
+    def test_check_json_and_native_snapshot(
+        self, home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        work = tmp_path / "repo"
+        _write(work / ".codex" / "config.toml", HELPER_SECRET_TOML)
+        monkeypatch.chdir(work)
+        r = runner.invoke(app, ["check", "--json"])
+        assert r.exit_code in (0, 1), r.output
+        assert "http_headers_helper" in r.output
+        snap = tmp_path / "snap.json"
+        r2 = runner.invoke(app, ["snapshot", "--format", "native", "-o", str(snap)])
+        assert r2.exit_code in (0, 1), r2.output
+        snap_text = snap.read_text(encoding="utf-8")
+        assert "api.example.com" in snap_text
+        for secret in HELPER_SECRETS:
+            assert secret not in r.output, secret
+            assert secret not in snap_text, secret
+
+    def test_env_reference_in_helper_is_kept(self) -> None:
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_command_text,
+        )
+
+        kept = "printf 'Authorization: Bearer $TOKEN'"
+        assert redact_command_text(kept) == kept
+
+    def test_inline_token_regex_is_linear(self) -> None:
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_command_text,
+        )
+
+        text = "Bearer " * 50_000 + "x" * 100_000
+        start = time.perf_counter()
+        redact_command_text(text)
+        assert time.perf_counter() - start < 2.0

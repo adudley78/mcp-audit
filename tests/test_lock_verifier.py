@@ -7,8 +7,9 @@ from pathlib import Path
 import pytest
 
 from mcp_audit.lock import resolve as resolve_module
+from mcp_audit.lock.section_digests import section_digest
 from mcp_audit.lock.verifier import verify
-from mcp_audit.lock.writer import regenerate, write_lock
+from mcp_audit.lock.writer import regenerate, serialize, write_lock
 from mcp_audit.models import ServerConfig, TransportType
 
 
@@ -150,7 +151,9 @@ class TestLock005Tampered:
             "_schema_version": 1,
             "servers": {"github": {"deps": ["a", "b", "c"]}},
         }
-        lock_path.write_text(json.dumps(doc), encoding="utf-8")
+        # A conforming producer writes the canonical encoding (ADR-0005 §2);
+        # a non-canonical rewrite is LOCK-012 (tests/test_lock_v2.py).
+        lock_path.write_bytes(serialize(doc))
 
         result = verify(lock_path, [server], resolve=False, registry=None)
 
@@ -383,7 +386,8 @@ class TestResolveOptIn:
         doc = json.loads(lock_path.read_text(encoding="utf-8"))
         doc["servers"]["cursor/github"]["package"]["integrity"] = "sha256:original"
         doc["checksum"] = compute_checksum(doc)
-        lock_path.write_text(json.dumps(doc), encoding="utf-8")
+        doc["section_digests"]["servers"] = section_digest(doc["servers"])
+        lock_path.write_bytes(serialize(doc))
 
         result = verify(lock_path, [server], resolve=True, registry=None)
 

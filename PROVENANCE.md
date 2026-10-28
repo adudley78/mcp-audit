@@ -792,6 +792,28 @@ matters. `docs/agent-execution-surface.md` is the per-harness table.
   `description`, `inputSchema`, `outputSchema`, `annotations`; **RFC 8785** for the canonical
   JSON that is hashed (`advisory/canonical.py`, shared with the advisory feed).
 
+## mcp-lock.json lock_version 2 (LOCK-010..012, SC-005 wording, lock/section_digests.py — STORY-0116)
+
+- **Prachet Poddar, [#88](https://github.com/adudley78/mcp-audit/issues/88)** (2026-09-13 to
+  2026-09-22) — the four format changes (bare spec as written, `resolution_context` per section by
+  the producer that resolved it, a per-section digest, SC-005's wording) were agreed in that thread,
+  and the measurements behind them are his (ADR-0005 R59/R62 addenda, quoted there). No code from
+  his `mcp-supply-chain-study` was read or used.
+- **npm-package-arg** — `lib/npa.js` at
+  [v14.0.0](https://github.com/npm/npm-package-arg/blob/v14.0.0/lib/npa.js): a name with no
+  specifier, or with an empty one after `@`, gets `spec = '*'` (a range), which is why a bare spec
+  is recorded as `"*"`.
+- **npm-pick-manifest** — `lib/index.js` at
+  [v12.0.0](https://github.com/npm/npm-pick-manifest/blob/v12.0.0/lib/index.js): for a range (or
+  `*`), the `latest` dist-tag is returned only if `engineOk(...) && !mani.deprecated`; otherwise
+  versions are sorted preferring non-deprecated, engine-compatible ones. The deprecation check first
+  appears in v9.1.0 (absent in v9.0.0/v9.0.1). npm bundles 9.0.x up to npm 10.8.1 and 9.1.0 from
+  npm 10.8.2 (`node_modules/npm-pick-manifest/package.json` in the
+  [npm/cli](https://github.com/npm/cli) tags v10.8.1 and v10.8.2), and 10.0.0 in npm 10.9 and 11.x;
+  hence "npm 10.8.2 and later" in SC-005.
+- **RFC 8785** (JCS) — the encoding each section digest is taken over and the on-disk format LOCK-012
+  compares against (`advisory/canonical.py`).
+
 ## Permission rules that don't do what they say (PERM-001..007, analyzers/permissions.py — STORY-0092)
 
 Every rule semantic comes from Anthropic's documentation, read 2026-10-25, and is
@@ -1262,6 +1284,43 @@ Measures the existing POISON-* patterns; adds or changes none. Results:
 - Brief: products/mcp-audit/discovery/briefs/2026-10-25-research-scan.md §A3
   (Marcus). Original implementation; no code or fixtures were copied from any of
   these projects.
+
+## Managed MCP policy report (MANAGED-001..005, analyzers/managed_policy.py — STORY-0112)
+
+Every rule the module applies is taken from Anthropic's Claude Code
+documentation, read 2026-10-28:
+
+- **Control MCP server access for your organization** (https://code.claude.com/docs/en/managed-mcp)
+  — `managed-mcp.json` paths per OS and exclusive control ("Users can't add,
+  modify, or use any other MCP servers, including plugin-provided servers");
+  `managedMcpServers` entry checks ("What an entry can contain") and
+  precedence over same-name user/project/local servers and same-URL plugin
+  servers (2.1.259+); `allowedMcpServers` / `deniedMcpServers` entry keys
+  (`serverUrl`, `serverCommand`, `serverName`), unset vs empty semantics, the
+  three-step evaluation (merge, denylist, allowlist), the per-transport
+  allowlist table, matching rules (exact commands, `*` URL wildcards,
+  case-insensitive host with trailing-dot ignored, case-sensitive paths, no
+  path = any path), the `serverName` warning ("not a security control"), the
+  allowlist name character set, and "Without `allowManagedMcpServersOnly`,
+  allowlists from every settings scope merge". The evaluation-table tests in
+  `tests/test_managed_policy.py` reproduce the page's accordion rows.
+- **Deploy managed settings** (https://code.claude.com/docs/en/managed-settings)
+  — system directory per OS, `managed-settings.d/` drop-in merge order and
+  rules, source precedence (server-managed > MDM/HKLM > files > HKCU,
+  "first-wins"), keys read from every admin source (`allowManagedMcpServersOnly`,
+  `deniedMcpServers`, 2.1.273+), and invalid-entry handling
+  (`allowedMcpServers` "Enforced as an empty allowlist until the value is
+  fixed"; invalid entries stripped).
+- **Settings reference** (https://code.claude.com/docs/en/settings-reference)
+  — settings index scopes: `allowedMcpServers` and `deniedMcpServers` "Any
+  file"; `allowManagedMcpServersOnly`, `managedMcpServers`,
+  `strictPluginOnlyCustomization` "Managed".
+- **VS Code enterprise policies** (https://code.visualstudio.com/docs/enterprise/policies)
+  — names `ChatAllowedMcpServers`, `ChatDeniedMcpServers`,
+  `ChatAllowManagedMcpServersOnly` and the Linux `/etc/vscode/policy.json`
+  location, but not the entry shape; not implemented (GAPS.md).
+- Queue item Q-004 (Marcus `products/mcp-audit/factory/queue.md`, decision
+  2026-10-13). Original implementation; no code or fixtures copied.
 
 ## Calibration follow-ups (HARNESS-001 scope, symlinked parents, CFHYG-008, launch redaction — STORY-0108)
 

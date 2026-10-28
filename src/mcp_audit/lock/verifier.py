@@ -24,9 +24,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from mcp_audit.advisory.canonical import CanonicalError
 from mcp_audit.analyzers.rug_pull import server_key
-from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
-from mcp_audit.lock import tool_digests
+from mcp_audit.analyzers.supply_chain import (
+    build_deprecated_package_finding,
+    redact_text,
+)
+from mcp_audit.lock import section_digests, tool_digests
 from mcp_audit.lock.identity import (
     MatchKey,
     build_identity,
@@ -34,8 +38,11 @@ from mcp_audit.lock.identity import (
     normalize_config_ref,
 )
 from mcp_audit.lock.model import (
+    SECTION_DIGESTS_KEY,
     compute_checksum,
     foreign_sections_with_content,
+    is_version_2,
+    unsupported_version,
     unverified_sections,
 )
 from mcp_audit.lock.resolve import resolve_package
@@ -48,8 +55,26 @@ _OWASP = ["MCP04"]
 #: Findings that fail the exit code. LOCK-003 and LOCK-009 (something was
 #: removed) never do on their own.
 _DRIFT_IDS = frozenset(
-    {"LOCK-001", "LOCK-002", "LOCK-004", "LOCK-006", "LOCK-007", "LOCK-008"}
+    {
+        "LOCK-001",
+        "LOCK-002",
+        "LOCK-004",
+        "LOCK-006",
+        "LOCK-007",
+        "LOCK-008",
+        "LOCK-011",
+    }
 )
+
+#: ``resolution_context`` fields compared by LOCK-010. ``resolved_at`` is
+#: not: it differs on every resolution by construction.
+_CONTEXT_FIELDS = ("latest", "latest_deprecated", "npm_major", "node_version")
+
+#: Longest context value quoted in a LOCK-010 message.
+_MAX_CONTEXT_TEXT = 200
+
+#: LOCK-011 findings listed per lock; the rest are counted in the last one.
+_MAX_DIGEST_FINDINGS = 20
 
 #: How many tool names a finding's evidence lists before summarising.
 _MAX_NAMED_TOOLS = 20
@@ -111,6 +136,9 @@ class VerifyResult:
     #: ``None`` when tools were not enumerated (no ``--connect``), so a green
     #: result never implies tool definitions were checked.
     tools_compared: int | None = None
+    #: The lock's ``lock_version`` when it is newer than this mcp-audit can
+    #: verify; nothing else was checked (exit 2).
+    unsupported_version: int | None = None
 
 
 def verify(
@@ -155,10 +183,17 @@ def verify(
             comparison. A server with no tool record, or whose tools could
             not be listed, is reported as unverified rather than passed.
 
+    A ``lock_version`` 1 lock is verified exactly as mcp-audit 0.22 verified
+    it. A version-2 lock also gets its ``section_digests`` checked (LOCK-011)
+    and its bytes compared with their canonical form (LOCK-012), and under
+    *resolve* each entry's ``resolution_context`` compared (LOCK-010). A
+    version above 2 is not checked at all (:attr:`VerifyResult.unsupported_version`).
+
     Returns:
         A :class:`VerifyResult`. ``exit_code`` is ``2`` when the lock is
-        missing or tampered (LOCK-005); otherwise ``1`` when any
-        LOCK-001/002/004/006/007/008 finding exists, **or** (R56, unless
+        missing, tampered (LOCK-005), or newer than this mcp-audit reads;
+        otherwise ``1`` when any
+        LOCK-001/002/004/006/007/008/011 finding exists, **or** (R56, unless
         waived) when :attr:`VerifyResult.unverified` is non-empty — an
         unresolved package version, a genuinely populated foreign section
         (not mcp-audit's own default ``trees: {}``/``tools: null`` stub —
@@ -172,8 +207,24 @@ def verify(
     if doc is None:
         return VerifyResult(lock_missing=True, exit_code=2)
 
+    # A lock_version this mcp-audit does not know may mean anything; checking
+    # it as an older format would claim more than was checked.
+    newer = unsupported_version(doc)
+    if newer is not None:
+        return VerifyResult(unsupported_version=newer, exit_code=2)
+
     # ── LOCK-005 short-circuits everything else (ADR-0005 §10) ─────────────
-    expected_checksum = compute_checksum(doc)
+    try:
+        expected_checksum = compute_checksum(doc)
+    except CanonicalError as exc:
+        # mcp-audit never writes owned content it cannot encode (too large, or
+        # a lone surrogate), so such content is an edit: tampered, not a crash.
+        finding = _lock_005(
+            lock_path,
+            scope="its own owned content (lock_version, generated_by, servers)",
+            evidence=f"owned content cannot be canonically encoded: {exc}",
+        )
+        return VerifyResult(findings=[finding], exit_code=2, tampered=True)
     actual_checksum = doc.get("checksum")
     if actual_checksum != expected_checksum:
         finding = _lock_005(
@@ -185,7 +236,7 @@ def verify(
 
     tools_section = doc.get(tool_digests.TOOLS_KEY)
     owned_tools = tool_digests.is_owned(tools_section)
-    if owned_tools and not tool_digests.checksum_ok(tools_section):
+    if owned_tools and not _tools_checksum_ok(tools_section):
         finding = _lock_005(
             lock_path,
             scope="the content of its `tools` section (`tools._checksum`)",
@@ -211,6 +262,13 @@ def verify(
         if (entry.get("package") or {}).get("source") == "unresolved"
     ]
 
+    # ── lock_version 2: per-section digests and canonical bytes ─────────────
+    # A version-1 lock skips this entirely, so it verifies exactly as before.
+    digest_items: list[UnverifiedItem] = []
+    if is_version_2(doc):
+        digest_findings, digest_items = _check_section_digests(lock_path, doc)
+        findings.extend(digest_findings)
+
     for match, server in current.items():
         if match not in locked_by_match:
             findings.append(_lock_002(server_key(server), server))
@@ -232,6 +290,9 @@ def verify(
             resolution_finding = _check_resolution(package, fresh, server)
             if resolution_finding is not None:
                 findings.append(resolution_finding)
+            context_finding = _check_context(key, package, fresh, server)
+            if context_finding is not None:
+                findings.append(context_finding)
             deprecation_finding = _check_deprecation(server, fresh)
             if deprecation_finding is not None:
                 findings.append(deprecation_finding)
@@ -279,6 +340,7 @@ def verify(
             )
             for section in foreign_sections_with_content(doc)
         ]
+        + digest_items
         + tool_items
     )
 
@@ -320,10 +382,15 @@ def servers_to_connect(
         root: The lock root (see :func:`verify`).
     """
     doc = load_existing(lock_path)
-    if doc is None or doc.get("checksum") != compute_checksum(doc):
+    if doc is None:
+        return []
+    try:
+        if doc.get("checksum") != compute_checksum(doc):
+            return []
+    except CanonicalError:
         return []
     section = doc.get(tool_digests.TOOLS_KEY)
-    if not tool_digests.is_owned(section) or not tool_digests.checksum_ok(section):
+    if not tool_digests.is_owned(section) or not _tools_checksum_ok(section):
         return []
     records = section["servers"]
     lock_root = root if root is not None else lock_path.resolve().parent
@@ -363,6 +430,134 @@ def _lock_005(lock_path: Path, *, scope: str, evidence: str) -> Finding:
         finding_path=str(lock_path),
         owasp_mcp_top_10=_OWASP,
     )
+
+
+def _tools_checksum_ok(section: dict) -> bool:
+    """``tools._checksum`` holds; content that cannot be encoded does not."""
+    try:
+        return tool_digests.checksum_ok(section)
+    except CanonicalError:
+        return False
+
+
+def _short(text: str) -> str:
+    """Redact and cap text taken from the lock file for a message."""
+    text = redact_text(text)
+    if len(text) > _MAX_CONTEXT_TEXT:
+        text = text[:_MAX_CONTEXT_TEXT] + "…"
+    return text
+
+
+def _check_section_digests(
+    lock_path: Path, doc: dict
+) -> tuple[list[Finding], list[UnverifiedItem]]:
+    """LOCK-011 / LOCK-012 for a version-2 lock (STORY-0116).
+
+    LOCK-011: a ``section_digests`` entry does not hold — the section changed
+    without its producer updating its digest, or the map itself was edited.
+    LOCK-012: the file is not byte-identical to its canonical form, so some
+    tool reformatted it (content intact; not a failure on its own). A section
+    too large to digest is returned as unverified, never as passed.
+    """
+    findings: list[Finding] = []
+    items: list[UnverifiedItem] = []
+    outcome = section_digests.check(doc)
+    shown = outcome.problems[:_MAX_DIGEST_FINDINGS]
+    hidden = len(outcome.problems) - len(shown)
+    for index, problem in enumerate(shown):
+        section = _short(repr(problem.section))
+        evidence = f"{SECTION_DIGESTS_KEY}[{section}]: {problem.reason}"
+        if problem.recorded or problem.computed:
+            evidence += (
+                f"; recorded {_short(problem.recorded or 'nothing')}, "
+                f"computed {problem.computed or 'nothing'}"
+            )
+        if hidden and index == len(shown) - 1:
+            evidence += f"; and {hidden} more section_digests problem(s) not listed"
+        findings.append(
+            Finding(
+                id="LOCK-011",
+                severity=Severity.HIGH,
+                analyzer="lock",
+                client="",
+                server="",
+                title=f"Lock section digest does not hold: {section}",
+                description=(
+                    "mcp-lock.json (lock_version 2) records a digest per "
+                    "section so that each producer can tell when a section it "
+                    "wrote was changed by someone else. "
+                    f"{section}: {problem.reason}. mcp-audit cannot "
+                    "say who changed it; for a section another tool produces "
+                    "(such as `trees`), that tool's own verifier is the "
+                    "authority on its contents."
+                ),
+                evidence=evidence,
+                remediation=(
+                    "Inspect `git diff mcp-lock.json`. If mcp-audit's own "
+                    "section changed, re-run `mcp-audit lock --accept`; if "
+                    "another producer's section changed, re-run that producer "
+                    "so it records a fresh digest."
+                ),
+                finding_path=str(lock_path),
+                owasp_mcp_top_10=_OWASP,
+            )
+        )
+    for name in outcome.not_digestible:
+        items.append(
+            UnverifiedItem(
+                kind="section",
+                name=_short(name),
+                reason="too large for mcp-audit to digest, or holds text with no "
+                "canonical encoding (a lone UTF-16 surrogate), so its recorded "
+                "digest was not checked — see docs/lock.md",
+            )
+        )
+
+    try:
+        raw = lock_path.read_bytes()
+    except OSError:
+        return findings, items
+    reformatted = section_digests.noncanonical_sections(raw, doc)
+    if reformatted:
+        findings.append(
+            Finding(
+                id="LOCK-012",
+                severity=Severity.LOW,
+                analyzer="lock",
+                client="",
+                server="",
+                title="Lock file is not in canonical form",
+                description=(
+                    "mcp-lock.json is written in RFC 8785 canonical form so "
+                    "that two producers never disagree on the bytes of a "
+                    "section neither changed. This file differs from its "
+                    "canonical form: something reformatted it. Its content "
+                    "still matches its checksums; this does not fail "
+                    "verification on its own."
+                ),
+                evidence="not canonical: "
+                + ", ".join(_short(name) for name in reformatted),
+                remediation=(
+                    "Re-run `mcp-audit lock --accept` to rewrite the file "
+                    "canonically, and keep editors and formatters off "
+                    "mcp-lock.json (use a git textconv to read diffs — see "
+                    "docs/lock.md)."
+                ),
+                finding_path=str(lock_path),
+                owasp_mcp_top_10=_OWASP,
+            )
+        )
+    elif reformatted is None:
+        items.append(
+            UnverifiedItem(
+                kind="section",
+                name="<file>",
+                reason="too large for mcp-audit to re-encode, or holds text with "
+                "no canonical encoding, so its canonical form was not checked — "
+                "see docs/lock.md",
+            )
+        )
+    return findings, items
 
 
 def _tool_problem(
@@ -706,6 +901,65 @@ def _check_resolution(
         )
 
     return None
+
+
+def _context_text(value: object) -> str:
+    """Render one context value for a message: redacted and length-capped."""
+    text = redact_text(repr(value))
+    if len(text) > _MAX_CONTEXT_TEXT:
+        text = text[:_MAX_CONTEXT_TEXT] + "…"
+    return text
+
+
+def _check_context(
+    key: str, package: dict | None, fresh: dict | None, server: ServerConfig
+) -> Finding | None:
+    """Return LOCK-010 under ``--resolve`` when the resolution context changed.
+
+    Compares the locked ``resolution.resolution_context`` (lock_version 2)
+    with a fresh one: what ``latest`` pointed at, its deprecation notice,
+    and the npm major / Node version of the resolver. Reported on its own,
+    never folded into LOCK-004: the context explains why two locks differ;
+    only resolved versions and integrity hashes can regenerate one. An entry
+    without a recorded context (a version-1 entry, an exact pin, an
+    unresolved entry) has nothing to compare and is skipped.
+    """
+    if not package:
+        return None
+    locked = (package.get("resolution") or {}).get("resolution_context")
+    now = ((fresh or {}).get("resolution") or {}).get("resolution_context")
+    if not isinstance(locked, dict) or not isinstance(now, dict):
+        return None
+    changed = [f for f in _CONTEXT_FIELDS if locked.get(f) != now.get(f)]
+    if not changed:
+        return None
+    parts = [
+        f"{field}: locked={_context_text(locked.get(field))} "
+        f"now={_context_text(now.get(field))}"
+        for field in changed
+    ]
+    return Finding(
+        id="LOCK-010",
+        severity=Severity.INFO,
+        analyzer="lock",
+        client=server.client,
+        server=server.name,
+        title=f"Resolution context changed: {server.name!r}",
+        description=(
+            f"What the registry said when {key!r} was resolved "
+            f"({_context_text(locked.get('resolved_at'))}) differs from what it "
+            "says now. The context explains why two locks differ; it cannot "
+            "regenerate one. Any change to the resolved version or its hash "
+            "is reported separately as LOCK-004."
+        ),
+        evidence="; ".join(parts),
+        remediation=(
+            "No action needed on its own. Re-lock with `mcp-audit lock "
+            "--accept` to record the current context."
+        ),
+        finding_path=str(server.config_path),
+        owasp_mcp_top_10=_OWASP,
+    )
 
 
 def _check_deprecation(server: ServerConfig, fresh: dict | None) -> Finding | None:
