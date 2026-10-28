@@ -101,6 +101,83 @@ capability combination, not any individual server.
 | TOXIC-005  | HIGH     | ASI03 | MCP05, MCP10 | Database + network. Database contents could be exfiltrated. |
 | TOXIC-006  | CRITICAL | ASI04 | MCP05, MCP10 | Shell execution + network. Arbitrary command execution with exfiltration capability. |
 | TOXIC-007  | MEDIUM   | — | MCP10 | Git access + network. Source code or commit history could be exfiltrated via outbound requests. |
+| TOXIC-008  | HIGH     | ASI04, ASI03 | MCP05, MCP10 | File read + comms posting (STORY-0101). A server that posts to a shared service (issue or PR comment, git push, chat message, webhook) next to one that reads local files. HIGH, the same as TOXIC-001: see "comms_out sinks" below. |
+| TOXIC-009  | CRITICAL | ASI06 | MCP01, MCP10 | Secrets store + comms posting. Credentials posted where the attacker reads them (`GEMINI_API_KEY` as a public issue comment in the Comment and Control CI-harness attack). |
+| TOXIC-010  | HIGH     | ASI03 | MCP05, MCP10 | Database + comms posting. Query results posted to a shared service. HIGH, the same as TOXIC-005. |
+| TOXIC-011  | CRITICAL | ASI04 | MCP05, MCP10 | Shell execution + comms posting. Command output (process environments carry credentials) posted to a PR comment or pushed as a commit (the sink class Comment and Control used from a CI harness). |
+
+#### comms_out sinks (STORY-0101)
+
+`comms_out` marks a server that posts to a shared service: an issue, pull or
+merge request, or review comment; a pushed commit or file; a chat message; a
+social post; a webhook. TOXIC-008..011 pair it with the four sources that
+already pair with `network_out` (file read, secrets, database, shell).
+TOXIC-008 and TOXIC-010 are **HIGH**, the same as their network twins
+(TOXIC-001, TOXIC-005); TOXIC-009 and TOXIC-011 are **CRITICAL**, the same as
+TOXIC-003 and TOXIC-006.
+
+The published evidence confirms the sink class, mostly in single-server form:
+Invariant Labs (2025, official GitHub MCP server, private repository contents
+into a public pull request), Cato CTRL (2025, Atlassian's MCP, internal data
+into an outside requester's Jira ticket), CVE-2025-34072 (2025, reference
+Slack server, data out through a link preview Slack fetches; CVSS 4.0 9.3 from
+VulnCheck) and GitLost (2026, a private README in a public issue comment) each
+ran inside one server that could both read and post. Comment and Control (ACM
+CCS 2026) was a CI harness (Claude Code, Gemini CLI and Copilot running in
+GitHub Actions, posting credentials as a PR comment, a public issue comment
+and a git push), not MCP, so it supports the sink class and the shell-plus-post
+shape of TOXIC-011, not a cross-server MCP claim. None of these attacks was
+shown against two separate MCP servers combined, which is what TOXIC-008 and
+TOXIC-010 report, so they do not clear the CRITICAL row's "confirmed against
+real LLM agents" bar for a cross-server pair. They are HIGH for a second
+reason: the property that makes this sink worse than a generic fetch in a CI
+run, an egress allowlist that permits the platform's own host, is absent on a
+developer laptop, which has no egress allowlist for the sink to get around.
+TOXIC-009 and TOXIC-011 stay CRITICAL because a credential store or a shell
+next to any outbound channel is already CRITICAL (TOXIC-003, TOXIC-006). The
+attacker still reads the result without running anything. Sources are in
+PROVENANCE.md.
+
+Registry entries keep `network_out` where they already declared it
+(`server-github`, `server-slack`, `mcp-atlassian`, `@autoposting.ai/cli`), so
+no existing finding stops firing. On those servers a TOXIC-008..011 finding is
+reported beside its TOXIC-001/003/005/006 twin for the same two servers, as
+TOXIC-004 and INTEG-001 are for one pair; the attack path for that pair takes
+the more severe of the two, the first listed on a tie (`attack_paths._candidates_from_toxic_findings`).
+Email stays `email`: it already has its own wired sink (TOXIC-002), and its
+destination is a recipient the attacker names, not a shared space.
+
+**Measurement (2026-10-27).** Each registry entry run as one server
+(`npx -y <name>`, registry-first tagging), all 55 at once, as R37 did; the
+same with heuristics only; the published top-100 npm corpus
+(`docs/research/2026-10-top100-npm/scan-config-100-servers.mcp.json`, pinned
+versions, so the registry lookup misses and only keywords tag); and
+`demo/configs/`.
+
+| Corpus | Posting servers tagged | TOXIC-008 | TOXIC-009 | TOXIC-010 | TOXIC-011 | Same server pair already had the network twin |
+|---|---|---|---|---|---|---|
+| Registry, 55 entries | 5 (`server-github`, `server-gitlab`, `server-slack`, `mcp-atlassian`, `@autoposting.ai/cli`) | 30 (29 cross, 1 self: `mcp-atlassian`) | 0 (no entry declares `secrets`) | 30 | 20 | 63 of 80 in the same direction; the other 17 are the 16 `server-gitlab` pairs (it declared no capabilities before) and `mcptoon` → `mcp-atlassian`, whose network twin exists only in the opposite direction |
+| Registry names, heuristics only | 4 | 12 | 0 | 16 | 4 | 16 of 32 |
+| Top-100 npm corpus | 4 (`@azure-devops/mcp`, `slack-mcp-server`, `@zencoderai/slack-mcp-server`, `@zereight/mcp-gitlab`) | 8 | 0 | 4 | 4 | 0 of 16 (none of the four was tagged before) |
+| `demo/configs/` | 1 (`github`) | 2 | 0 | 1 | 1 | 4 of 4 |
+
+In the registry run the 80 findings are spread evenly over the five posting
+servers (6 + 6 + 6 + 6 + 6 per source), not concentrated on one generic server
+(R37's `FILE_WRITE + NETWORK_OUT` was declined because `server-filesystem`
+dominated it). Every TOXIC-008..011 finding needs a data source next to a
+posting server; a posting server alone fires nothing new. In the top-100
+corpus all four tagged servers have posting tools in their own documentation;
+one (`slack-mcp-server`) ships with its add-message tool switched off
+(`SLACK_MCP_ADD_MESSAGE_TOOL` unset), which a name keyword cannot see (GAPS.md).
+
+**Not added, measured.** `git + comms_out` would fire on every GitHub and
+GitLab server alone (2 of 55 registry entries as self-pairs, `@zereight/mcp-gitlab`
+alone in the top-100) plus 12 cross pairs, all 12 already reported by TOXIC-007.
+A finding on every code-host server, whose fix (a token scoped to public
+repositories) is not visible in the config, is the "obviously that's what it
+does" case R37 declined. TOXIC-007 keeps reporting the GitLost/Invariant shape
+where the server declares `network_out`. `browser + comms_out` (25 registry
+cross pairs) is not added either: no pair backs `browser` with any sink.
 
 **Integrity axis (R37).** Every TOXIC-* pair above models one axis —
 confidentiality: does data leave? It never asks whether state can be changed,
@@ -617,8 +694,8 @@ state for servers whose capability data is unavailable.
 
 | RiskLevel | Maps to | When assigned |
 |-----------|---------|---------------|
-| CRITICAL  | Severity.CRITICAL | Single server holds both SHELL_EXEC + NETWORK_OUT, or SECRETS + NETWORK_OUT |
-| HIGH      | Severity.HIGH | Single server holds DATABASE + NETWORK_OUT, FILE_READ + NETWORK_OUT, FILE_READ + EMAIL, FILE_READ + SHELL_EXEC, or FILE_WRITE + SHELL_EXEC (INTEG-001, R37) |
+| CRITICAL  | Severity.CRITICAL | Single server holds both SHELL_EXEC + NETWORK_OUT, or SECRETS + NETWORK_OUT, or SECRETS or SHELL_EXEC + COMMS_OUT (TOXIC-009/011, STORY-0101) |
+| HIGH      | Severity.HIGH | Single server holds DATABASE + NETWORK_OUT, FILE_READ + NETWORK_OUT, FILE_READ + EMAIL, FILE_READ or DATABASE + COMMS_OUT (TOXIC-008/010, STORY-0101; e.g. `mcp-atlassian`), FILE_READ + SHELL_EXEC, or FILE_WRITE + SHELL_EXEC (INTEG-001, R37) |
 | MEDIUM    | Severity.MEDIUM | Single server holds GIT + NETWORK_OUT |
 | LOW       | Severity.LOW | Capabilities detected but no toxic pair fires |
 | INFO      | Severity.INFO | Registry-verified server with an explicitly empty capability set |
