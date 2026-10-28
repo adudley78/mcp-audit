@@ -61,7 +61,9 @@ a different environment; the default locations are always checked too.
 Files are read as text (at most 4 MiB each) and parsed as JSON, or TOML for a
 `.toml` file. Nothing in them is run, expanded or fetched: mcptoon and 1MCP
 `${VAR}` references, MCPHub `${cmd: ...}` placeholders and 1MCP Handlebars
-templates stay literal. A file that cannot be read or parsed, or is too large
+templates stay literal. (A committed `.mcphub/servers.json` that holds a
+`${cmd: ...}` placeholder is also reported as TRUST-008, HIGH, CRITICAL when the
+command reaches the network; see `docs/agent-execution-surface.md`.) A file that cannot be read or parsed, or is too large
 or too deeply nested, is reported in the scan's errors; at most 1,000 servers
 per file are analysed and the rest are named in the errors.
 
@@ -105,5 +107,6 @@ upstreams never show up as removed in another repository's scan.
 
 See GAPS.md, "MCP gateway upstreams (STORY-0111)": other gateways (Docker MCP
 Gateway, MetaMCP, sparfenyuk and TBXark `mcp-proxy`, `mcp-hub` started with
-its own `--config`), `MCPTOON_SERVERS`, `mcp-audit watch`, and `--path` to a
-gateway file.
+its own `--config`), `MCPTOON_SERVERS`, and `--path` to a gateway file.
+`mcp-audit watch` re-scans when a user-level or working-directory gateway
+config changes.
