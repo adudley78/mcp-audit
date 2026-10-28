@@ -22,6 +22,7 @@ from typing import Any
 
 from mcp_audit import __version__
 from mcp_audit._redact import redact_finding_path
+from mcp_audit.analyzers.supply_chain import redact_command, redact_url
 from mcp_audit.models import Finding, ScanResult
 
 # ── CycloneDX helpers ──────────────────────────────────────────────────────────
@@ -188,9 +189,8 @@ def format_cyclonedx_aibom(
             if f.server == server.name
             and (f.client == server.client or f.analyzer not in _NON_SERVER_ANALYZERS)
         ]
-        cmd_display = server.command or ""
-        if server.args:
-            cmd_display = " ".join([cmd_display] + server.args[:4])
+        # Launch arguments and URLs can carry credentials (STORY-0108).
+        cmd_display = redact_command(server.command, server.args)
 
         comp: dict[str, Any] = {
             "type": "application",
@@ -221,7 +221,9 @@ def format_cyclonedx_aibom(
                 {"name": "mcp-audit:command", "value": cmd_display}
             )
         if server.url:
-            comp["properties"].append({"name": "mcp-audit:url", "value": server.url})
+            comp["properties"].append(
+                {"name": "mcp-audit:url", "value": redact_url(server.url)}
+            )
         components.append(comp)
 
     # ── Vulnerabilities ───────────────────────────────────────────────────────

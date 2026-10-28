@@ -75,6 +75,8 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # (STORY-0105) — INFO "undecidable", asserts no affected release
         "HARNESS-007",  # enabledMcpjsonServers inventory (STORY-0090) — INFO;
         # Claude Code writes it when you approve a server, not a defect by itself
+        "CFHYG-008",  # Foundry resource chosen in project settings (STORY-0108) —
+        # INFO, asks a person to confirm ownership; not itself a defect
         "SANDBOX-004",  # sandbox keys Claude Code ignores in this file
         # (STORY-0093) — INFO dead-config note, not a vulnerability
         "AGENT-002",  # disallowedTools specifier removes the whole tool — the

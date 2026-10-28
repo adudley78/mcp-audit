@@ -194,8 +194,9 @@ _HINTS: dict[str, str] = {
         "Ask the marketplace owner to pin the plugin entry with a full commit sha."
     ),
     "HARNESS-001": (
-        "Remove permissions.defaultMode: bypassPermissions; keep bypass for one"
-        " session in an isolated container."
+        "Remove permissions.defaultMode: bypassPermissions (Claude Code 2.1.257+"
+        " ignores it in project settings; older versions don't); keep bypass for"
+        " one session in an isolated container."
     ),
     "HARNESS-002": (
         "Remove enableAllProjectMcpServers; approve trusted servers by name with"
@@ -269,6 +270,10 @@ _HINTS: dict[str, str] = {
     "AGENT-004": (
         "Review the subagent's inline MCP server like a .mcp.json entry; write"
         " rules for it as mcp__<full-name>__*."
+    ),
+    "CFHYG-008": (
+        "Confirm the named Azure Foundry resource belongs to your organisation;"
+        " set the Foundry variables in user or managed settings instead."
     ),
     "CFHYG-006": (
         "Unset ANTHROPIC_BASE_URL or point it at https://api.anthropic.com"

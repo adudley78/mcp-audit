@@ -1516,18 +1516,61 @@ def project_settings(tmp_path: Path) -> Path:
 
 
 class TestHarnessPosture:
-    def test_bypass_default_mode_fires_high(self, project_settings: Path) -> None:
+    def test_bypass_default_mode_in_project_settings_is_medium(
+        self, project_settings: Path
+    ) -> None:
+        """STORY-0108: Claude Code 2.1.257+ ignores bypassPermissions here."""
         out = _harness(
             {"permissions": {"defaultMode": "bypassPermissions"}}, project_settings
         )
         # HARNESS-006 (STORY-0087): nothing in this file guards recursive deletes.
         assert [(f.id, f.severity) for f in out] == [
-            ("HARNESS-001", Severity.HIGH),
+            ("HARNESS-001", Severity.MEDIUM),
             ("HARNESS-006", Severity.MEDIUM),
         ]
         assert "committed project settings" in out[0].description.lower()
+        assert "2.1.257" in out[0].title
+        assert "ignore" in out[0].description and "Older versions" in (
+            out[0].description
+        )
         assert out[0].finding_path == str(project_settings)
         assert out[0].owasp_mcp_top_10 == ["MCP02", "MCP07"]
+
+    def test_bypass_default_mode_in_local_settings_is_medium(
+        self, tmp_path: Path
+    ) -> None:
+        local = tmp_path / "repo" / ".claude" / "settings.local.json"
+        local.parent.mkdir(parents=True)
+        out = _harness({"permissions": {"defaultMode": "bypassPermissions"}}, local)
+        assert out[0].id == "HARNESS-001"
+        assert out[0].severity == Severity.MEDIUM
+        assert "local project settings" in out[0].description.lower()
+
+    def test_bypass_default_mode_in_user_settings_stays_high(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """User settings are where Claude Code honours bypassPermissions."""
+        home = tmp_path / "home"
+        user = home / ".claude" / "settings.json"
+        user.parent.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+        out = _harness({"permissions": {"defaultMode": "bypassPermissions"}}, user)
+        assert out[0].id == "HARNESS-001"
+        assert out[0].severity == Severity.HIGH
+        assert out[0].title == (
+            "Claude Code sessions start with permission prompts skipped"
+        )
+        assert "user settings" in out[0].description.lower()
+
+    def test_bypass_default_mode_in_global_config_stays_high(
+        self, tmp_path: Path
+    ) -> None:
+        global_config = tmp_path / ".claude.json"
+        out = _harness(
+            {"permissions": {"defaultMode": "bypassPermissions"}}, global_config
+        )
+        assert out[0].id == "HARNESS-001"
+        assert out[0].severity == Severity.HIGH
 
     @pytest.mark.parametrize("mode", ["default", "acceptEdits", "plan", "dontAsk"])
     def test_other_modes_are_silent(self, project_settings: Path, mode: str) -> None:

@@ -882,11 +882,38 @@ def _undecidable_finding(
 
 _ECOSYSTEM_LABEL: dict[str, str] = {"npm": "npm", "pypi": "PyPI"}
 
-_REDACTED = "[REDACTED]"
+#: What :func:`redact_args` / :func:`redact_command` put in place of a secret.
+REDACTION_MARKER = "[REDACTED]"
+_REDACTED = REDACTION_MARKER
 # An authority (userinfo@host:port) ends at the first of these after "://".
 _AUTHORITY_END = frozenset("/?#")
 # Longest launch command quoted in evidence; the rest is elided.
 _MAX_EVIDENCE_COMMAND = 300
+
+
+_ACCOUNT_NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9._-]{0,19}")
+
+
+def _userinfo_is_secret(userinfo: str) -> bool:
+    """True when a URL's userinfo carries a secret (STORY-0108 review).
+
+    A password is present (``user:pass``, ``:pass``), or the user name alone
+    matches SECRET_PATTERNS (a token used as the user name, as GitHub accepts).
+    A plain account name such as ``git`` in ``git+ssh://git@github.com`` (a
+    letter then up to 19 letters, digits, ``.``, ``_`` or ``-``) is not a
+    secret: redacting it hid nothing and made ``mcp-audit diff`` report a
+    credential.  Any other user name is redacted.
+    """
+    if ":" in userinfo:
+        return True
+    # Keep only what looks like an account name (``git``, ``oauth2``,
+    # ``x-access-token``, ``deploy``); anything longer, starting with a digit,
+    # percent-encoded or matching SECRET_PATTERNS (``glpat-…``, ``hf_…``, a
+    # 40-hex token) is treated as a token used as the user name.
+    return not (
+        _ACCOUNT_NAME_RE.fullmatch(userinfo)
+        and not any(p.search(userinfo) for _l, p, _p in SECRET_PATTERNS)
+    )
 
 
 def _redact_userinfo(text: str) -> str:
@@ -899,7 +926,10 @@ def _redact_userinfo(text: str) -> str:
     hand-written scan rather than a regex: each character is visited a
     bounded number of times, so it stays linear on any input.
     SECRET_PATTERNS' database-URL rule does not cover ``postgresql://``, the
-    scheme ``@modelcontextprotocol/server-postgres`` documents.
+    scheme ``@modelcontextprotocol/server-postgres`` documents.  Userinfo that
+    is only a plain account name (``git+ssh://git@github.com``) is kept; a
+    token used as the user name (``https://ghp_…@github.com``) is redacted;
+    see :func:`_userinfo_is_secret`.
     """
     out: list[str] = []
     i = 0
@@ -915,7 +945,7 @@ def _redact_userinfo(text: str) -> str:
             end += 1
         at = text.rfind("@", k, end)
         out.append(text[i:k])
-        if at >= k:
+        if at >= k and _userinfo_is_secret(text[k:at]):
             out.append(_REDACTED)
             i = at
         else:
@@ -965,14 +995,142 @@ def secret_arg_values(args: list[str]) -> list[str]:
     return values
 
 
+#: What :func:`redact_args` / :func:`redact_command` put in place of the value of
+#: a secret-named flag that matches no SECRET_PATTERNS entry (STORY-0108).  It is
+#: a weaker signal than :data:`REDACTION_MARKER`: ``mcp-audit diff`` reports it as
+#: a possible credential (HIGH), not a hardcoded one (CRITICAL).
+FLAG_REDACTION_MARKER = "[REDACTED-FLAG]"
+
+# Word tokens of a flag name that mark its value as a secret, for redaction.
+# Matched as whole tokens (``--api-key``, ``--apiKey``, ``--auth-token``), never as
+# substrings, so ``--keys-dir`` or ``--monkey`` don't count.
+_SECRET_FLAG_TOKENS: frozenset[str] = frozenset(
+    {
+        "key",
+        "apikey",
+        "token",
+        "secret",
+        "password",
+        "passwd",
+        "pwd",
+        "credential",
+        "credentials",
+        "pat",
+    }
+)
+# A flag whose last word is one of these names a setting about the secret (its
+# kind, a file or directory holding it, where to fetch it), not the secret.
+_NOT_SECRET_FLAG_SUFFIXES: frozenset[str] = frozenset(
+    {
+        "mode",
+        "type",
+        "dir",
+        "directory",
+        "file",
+        "path",
+        "url",
+        "uri",
+        "endpoint",
+        "provider",
+        "method",
+        "scheme",
+        "name",
+        "id",
+        "env",
+        "var",
+        "header",
+        "helper",
+        "command",
+        "cmd",
+    }
+)
+# Values that are settings, not secrets.
+_NOT_SECRET_FLAG_VALUES: frozenset[str] = frozenset(
+    {"none", "true", "false", "on", "off", "yes", "no", "null", "oauth", "auto"}
+)
+_CAMEL_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+
+
+def _is_secret_flag_name(name: str) -> bool:
+    """True when the flag *name* (dashes stripped) is named for a secret value."""
+    tokens = [
+        t for t in re.split(r"[-_.]", _CAMEL_BOUNDARY_RE.sub("-", name).lower()) if t
+    ]
+    if not tokens or tokens[-1] in _NOT_SECRET_FLAG_SUFFIXES:
+        return False
+    return any(t in _SECRET_FLAG_TOKENS for t in tokens)
+
+
+def _is_secret_flag_value(value: str) -> bool:
+    """True unless *value* is plainly a setting, a path, a URL or a reference."""
+    v = value.strip()
+    if len(v) < 4 or v.lower() in _NOT_SECRET_FLAG_VALUES:
+        return False
+    if "://" in v or v.startswith(("/", "./", "../", "~", "\\")):
+        return False
+    if len(v) > 2 and v[1] == ":" and v[2] in "\\/":  # C:\ or C:/
+        return False
+    return not _looks_like_reference(v)
+
+
+def _looks_like_reference(value: str) -> bool:
+    """``$VAR``, ``${VAR}`` or ``%VAR%``: a name, not a literal secret."""
+    return bool(
+        re.fullmatch(r"\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|%[A-Za-z0-9_]+%", value)
+    )
+
+
+def _matches_secret_pattern(value: str) -> bool:
+    return any(pattern.search(value) for _l, pattern, _p in SECRET_PATTERNS)
+
+
+def _redact_secret_flag_values(
+    args: list[str], parts: list[str], offset: int
+) -> list[str]:
+    """Redact the value of every secret-named flag, in its own position only.
+
+    ``parts[offset + i]`` is the (already userinfo-redacted) text of
+    ``args[i]``.  For ``--api-key VALUE`` the next argument is replaced; for
+    ``--token=VALUE`` only the text after ``=``.  Nothing is substring-replaced
+    across other arguments.  A value SECRET_PATTERNS recognises is left for the
+    pattern pass (``[REDACTED]``); any other secret-flag value becomes
+    :data:`FLAG_REDACTION_MARKER`.
+    """
+    out = list(parts)
+    for i, arg in enumerate(args):
+        if not arg.startswith("-"):
+            continue
+        name, eq, inline = arg.lstrip("-").partition("=")
+        if not _is_secret_flag_name(name):
+            continue
+        if eq:
+            target, value = i, inline
+        elif i + 1 < len(args) and not args[i + 1].startswith("-"):
+            target, value = i + 1, args[i + 1]
+        else:
+            continue
+        pos = offset + target
+        if pos >= len(out) or not _is_secret_flag_value(value):
+            continue
+        if _matches_secret_pattern(value):
+            continue
+        if eq:
+            out[pos] = out[pos].split("=", 1)[0] + "=" + FLAG_REDACTION_MARKER
+        else:
+            out[pos] = FLAG_REDACTION_MARKER
+    return out
+
+
 def redact_command(command: str | None, args: list[str]) -> str:
     """Return ``command args[:4]`` for evidence, with secrets redacted.
 
     Launch arguments can carry credentials (a connection string, a token
     flag).  Each argument has its URL userinfo replaced with ``[REDACTED]``
-    (:func:`_redact_userinfo`), then every SECRET_PATTERNS match in the
-    joined string is replaced too, and the result is capped at 300
-    characters (after redacting, so a cut can't expose a secret's prefix).
+    (:func:`_redact_userinfo`) and the value of every secret-named flag is
+    replaced in its own position (:func:`_redact_secret_flag_values`), then
+    every SECRET_PATTERNS match in the joined string is replaced too, and the
+    result is capped at 300 characters (after redacting, so a cut can't expose
+    a secret's prefix).
 
     Args:
         command: The server's ``command``.
@@ -983,6 +1141,7 @@ def redact_command(command: str | None, args: list[str]) -> str:
     """
     parts = [_redact_userinfo(command or "")]
     parts.extend(_redact_userinfo(arg) for arg in args[:4])
+    parts = _redact_secret_flag_values(list(args[:4]), parts, offset=1)
     text = " ".join(part for part in parts if part)
     for _label, pattern, _provider in SECRET_PATTERNS:
         text = pattern.sub(_REDACTED, text)
@@ -1001,6 +1160,76 @@ def redact_text(text: str) -> str:
     for _label, pattern, _provider in SECRET_PATTERNS:
         text = pattern.sub(_REDACTED, text)
     return text
+
+
+def redact_args(args: list[str]) -> list[str]:
+    """Return *args* with credentials redacted, one output item per argument.
+
+    The serialised form of a server's launch arguments (``servers[].args`` in
+    JSON scan output and snapshots, STORY-0108).  Each argument has its URL
+    userinfo replaced (:func:`_redact_userinfo`) and the value of every
+    secret-named flag replaced in its own position
+    (:func:`_redact_secret_flag_values`); then every SECRET_PATTERNS
+    match in the space-joined arguments is replaced in each argument it
+    overlaps, so a secret split across two arguments (``Bearer``, ``<token>``)
+    is caught the way :func:`redact_command` catches it.  Unlike
+    :func:`redact_command`, every argument is kept and nothing is truncated.
+
+    Args:
+        args: The server's ``args``.
+
+    Returns:
+        A new list of the same length.
+    """
+    cleaned = _redact_secret_flag_values(
+        list(args), [_redact_userinfo(arg) for arg in args], offset=0
+    )
+    joined = " ".join(cleaned)
+    hits: list[tuple[int, int]] = []
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        hits.extend(
+            (m.start(), m.end())
+            for m in pattern.finditer(joined)
+            if m.end() > m.start()
+        )
+    if not hits:
+        return cleaned
+    out: list[str] = []
+    pos = 0
+    for arg in cleaned:
+        start, end = pos, pos + len(arg)
+        pos = end + 1
+        local = sorted(
+            (max(hs, start) - start, min(he, end) - start)
+            for hs, he in hits
+            if hs < end and he > start
+        )
+        if not local:
+            out.append(arg)
+            continue
+        pieces: list[str] = []
+        cursor = 0
+        for lo, hi in local:
+            if hi <= cursor:
+                continue
+            lo = max(lo, cursor)
+            pieces.append(arg[cursor:lo])
+            pieces.append(_REDACTED)
+            cursor = hi
+        pieces.append(arg[cursor:])
+        out.append("".join(pieces))
+    return out
+
+
+def redact_url(url: str | None) -> str | None:
+    """Return *url* with its userinfo and any SECRET_PATTERNS match redacted.
+
+    For a remote server's ``url`` in evidence and serialised output
+    (STORY-0108); ``None`` stays ``None``.
+    """
+    if url is None:
+        return None
+    return redact_args([url])[0]
 
 
 def build_twin_finding(

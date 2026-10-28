@@ -1284,3 +1284,34 @@ Measures the existing POISON-* patterns; adds or changes none. Results:
 - Brief: products/mcp-audit/discovery/briefs/2026-10-25-research-scan.md §A3
   (Marcus). Original implementation; no code or fixtures were copied from any of
   these projects.
+
+## Calibration follow-ups (HARNESS-001 scope, symlinked parents, CFHYG-008, launch redaction — STORY-0108)
+
+Confirmed from the vendor's own documentation on 2026-10-28.
+
+- **Claude Code settings reference** (https://code.claude.com/docs/en/settings-reference),
+  `permissions.defaultMode`: "`auto` and `bypassPermissions` don't take effect from
+  project or local settings, so set them in `~/.claude/settings.json` instead. Before
+  v2.1.257, `bypassPermissions` took effect from any file." The settings guide
+  (https://code.claude.com/docs/en/settings) says the same, and the permission-modes
+  doc (https://code.claude.com/docs/en/permission-modes): "If you set
+  `"bypassPermissions"` in those two files, it doesn't take effect either, and the
+  session starts in Manual mode." Basis for HARNESS-001 MEDIUM in project and local
+  settings.
+- **Claude Code env vars** (https://code.claude.com/docs/en/env-vars) and **Microsoft
+  Foundry** (https://code.claude.com/docs/en/microsoft-foundry):
+  `ANTHROPIC_FOUNDRY_BASE_URL` is the "Full base URL for the Microsoft Foundry resource
+  (for example, `https://my-resource.services.ai.azure.com/anthropic`)";
+  `ANTHROPIC_FOUNDRY_RESOURCE` is the "Microsoft Foundry resource name" and Claude Code
+  "refuses a URL or host name"; "Claude Code builds the endpoint URL from this value".
+  The settings reference's "When Claude Code applies `env` values" applies project
+  values after workspace trust, and its list of variables project settings can't set
+  does not include the Foundry variables. Basis for CFHYG-008.
+- **Symlinked parent directories** — the rule STORY-0090 applied to auto-run files
+  (`discovery._autoexec_candidate`), now shared as `discovery._reached_through_symlink`
+  for project MCP configs and settings. Queue item Q-036 (#180 re-review).
+- **Launch credentials** — `postgresql://user:password@host/db` is the connection
+  string `@modelcontextprotocol/server-postgres` documents as its argument; reuses
+  STORY-0097's `_redact_userinfo` and `SECRET_PATTERNS`. Queue item Q-038.
+- All changes are original implementations; no code was copied.
+
