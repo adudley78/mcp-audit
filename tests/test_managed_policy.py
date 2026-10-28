@@ -26,8 +26,11 @@ from mcp_audit.analyzers.managed_policy import (
 from mcp_audit.discovery import DiscoveredConfig
 from mcp_audit.models import ServerConfig
 
-_SECRET_URL = "https://alice:hunter2pass@mcp.evil.example/api?api_key=qsecretval"  # noqa: S105 — fixture
-_SECRET_ARG = "postgresql://admin:s3cretPassw0rd@db.internal/prod"  # noqa: S105
+_LEAKY_URL = (
+    "https://alice:hunter2pass@mcp.evil.example/api?api_key=qsecretval"
+    "&sig=sigsecretval&X-Amz-Signature=amzsigsecret#access_token=fragsecretval"
+)
+_LEAKY_ARG = "postgresql://admin:s3cretPassw0rd@db.internal/prod"
 
 
 def _write(path: Path, data: object) -> Path:
@@ -485,7 +488,7 @@ class TestBroadened:
         repo = tmp_path / "repo"
         cfg = _settings_config(
             repo / ".claude" / "settings.json",
-            {"allowedMcpServers": [{"serverUrl": _SECRET_URL}]},
+            {"allowedMcpServers": [{"serverUrl": _LEAKY_URL}]},
             "claude-code-project",
         )
         findings = _run(
@@ -602,9 +605,13 @@ def machine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Path]:
                     "args": [
                         "-y",
                         "pg-mcp",
-                        _SECRET_ARG,
+                        _LEAKY_ARG,
                         "--api-key",
                         "mysecretvalue123",
+                        "-e",
+                        "GITHUB_PERSONAL_ACCESS_TOKEN=s3cr3tvalue123",
+                        "--header",
+                        "Authorization: Bearer abcdefSECRET",
                     ],
                 }
             }
@@ -612,7 +619,7 @@ def machine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Path]:
     )
     _write(
         repo / ".mcp.json",
-        {"mcpServers": {"remote": {"type": "http", "url": _SECRET_URL}}},
+        {"mcpServers": {"remote": {"type": "http", "url": _LEAKY_URL}}},
     )
     _write(
         managed / "managed-settings.json",
@@ -642,7 +649,17 @@ class TestEndToEnd:
         from mcp_audit.cli import app  # noqa: PLC0415
 
         runner = CliRunner()
-        secrets = ("hunter2pass", "s3cretPassw0rd", "mysecretvalue123", "qsecretval")
+        secrets = (
+            "hunter2pass",
+            "s3cretPassw0rd",
+            "mysecretvalue123",
+            "qsecretval",
+            "s3cr3tvalue123",
+            "abcdefSECRET",
+            "sigsecretval",
+            "amzsigsecret",
+            "fragsecretval",
+        )
 
         res = runner.invoke(app, ["scan", "--format", "json", "--no-score"])
         data = json.loads(res.stdout[res.stdout.index("{") :])
@@ -973,7 +990,82 @@ class TestRedaction:
         assert len(findings) == 2
         text = " ".join(f.description + f.evidence for f in findings)
         assert "plainsecret" not in text
-        assert "--api-key [REDACTED]" in text and "--token=[REDACTED]" in text
+        assert "--api-key [REDACTED-FLAG]" in text
+        assert "--token=[REDACTED-FLAG]" in text
+
+    @pytest.mark.parametrize(
+        ("args", "secret", "shown"),
+        [
+            (
+                ["run", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN=s3cr3tvalue123", "img"],
+                "s3cr3tvalue123",
+                "GITHUB_PERSONAL_ACCESS_TOKEN=[REDACTED]",
+            ),
+            (
+                ["--env=API_KEY=envsecretvalue", "img"],
+                "envsecretvalue",
+                "--env=API_KEY=[REDACTED]",
+            ),
+            (
+                [
+                    "mcp-remote",
+                    "https://x",
+                    "--header",
+                    "Authorization: Bearer abcdefSECRET",
+                ],
+                "abcdefSECRET",
+                "Authorization: [REDACTED]",
+            ),
+            (
+                ["--header", "X-Auth: Basic dXNlcjpwYXNzd29yZA"],
+                "dXNlcjpwYXNzd29yZA",
+                "Basic [REDACTED]",
+            ),
+            (["Bearer", "splitsecretvalue"], "splitsecretvalue", "Bearer [REDACTED]"),
+        ],
+    )
+    def test_assignment_and_header_shapes(
+        self, tmp_path: Path, args: list[str], secret: str, shown: str
+    ) -> None:
+        policy = _policy(tmp_path, {"deniedMcpServers": [{"serverName": "s"}]})
+        (f,) = [
+            f
+            for f in _run(policy, [_stdio("s", "docker", *args)])
+            if f.id == "MANAGED-002"
+        ]
+        assert secret not in f.evidence + f.description
+        assert shown in f.evidence
+
+    @pytest.mark.parametrize(
+        ("url", "secret", "shown"),
+        [
+            (
+                "https://x.example/mcp?sig=sigsecretval",
+                "sigsecretval",
+                "sig=[REDACTED]",
+            ),
+            (
+                "https://x.example/mcp?X-Amz-Signature=amzsig&a=1",
+                "amzsig",
+                "X-Amz-Signature=[REDACTED]&a=1",
+            ),
+            (
+                "https://x.example/cb#access_token=fragsecretval&state=1",
+                "fragsecretval",
+                "#access_token=[REDACTED]&state=1",
+            ),
+        ],
+    )
+    def test_url_signature_and_fragment(
+        self, tmp_path: Path, url: str, secret: str, shown: str
+    ) -> None:
+        policy = _policy(tmp_path, {"deniedMcpServers": [{"serverName": "u"}]})
+        (f,) = [f for f in _run(policy, [_remote("u", url)]) if f.id == "MANAGED-002"]
+        assert secret not in f.evidence
+        assert shown in f.evidence
+
+    def test_design_dir_is_not_a_signature(self) -> None:
+        assert mp._redact_parts(["DESIGN_DIR=/tmp/x"]) == "DESIGN_DIR=/tmp/x"
 
     def test_query_string_secrets(self, tmp_path: Path) -> None:
         policy = _policy(
@@ -984,3 +1076,109 @@ class TestRedaction:
         (f,) = [f for f in _run(policy, [server]) if f.id == "MANAGED-002"]
         assert "qqqsecret" not in f.evidence
         assert "access_token=[REDACTED]&mode=1" in f.evidence
+
+
+class TestWithheldVerdicts:
+    """A managed file Claude Code can't parse means verdicts can't be backed."""
+
+    def _dropin(self, managed: Path) -> None:
+        _write(
+            managed / "managed-settings.d" / "10.json",
+            {
+                "allowManagedMcpServersOnly": True,
+                "allowedMcpServers": [{"serverUrl": "https://ok.example/*"}],
+                "deniedMcpServers": [{"serverName": "a"}],
+            },
+        )
+
+    def _check(self, policy, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        cfg = _settings_config(
+            repo / ".claude" / "settings.json",
+            {"allowedMcpServers": [{"serverName": "x"}]},
+            "claude-code-project",
+        )
+        findings = _run(
+            policy,
+            [_stdio("a", "node"), _stdio("b", "node")],
+            [cfg],
+            tmp_path / "h",
+            repo,
+        )
+        assert _ids(findings) == ["MANAGED-001"]
+        assert "verdicts withheld" in findings[0].description
+        assert (
+            analyze_managed_policy(
+                policy,
+                [_stdio("a", "node")],
+                [cfg],
+                tmp_path / "h",
+                repo,
+                machine_findings=False,
+            )
+            == []
+        )
+
+    def test_unreadable_main_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        managed = tmp_path / "m"
+        _write(managed / "managed-settings.json", {"model": "x"})
+        self._dropin(managed)
+        real_open = Path.open
+
+        def guarded(self: Path, *args: object, **kwargs: object):
+            if self.name == "managed-settings.json":
+                raise PermissionError(13, "Permission denied")
+            return real_open(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", guarded)
+        errors: list[str] = []
+        policy = read_managed_policy(managed, errors)
+        assert policy.incomplete and any("PermissionError" in e for e in errors)
+        self._check(policy, tmp_path)
+
+    def test_oversized_main_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(mp, "MAX_FILE_BYTES", 200)
+        managed = tmp_path / "m"
+        _write(managed / "managed-settings.json", {"model": "x" * 400})
+        self._dropin(managed)
+        policy = read_managed_policy(managed, [])
+        assert policy.incomplete
+        self._check(policy, tmp_path)
+
+    def test_unlistable_dropin_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        managed = tmp_path / "m"
+        self._dropin(managed)
+        real_iterdir = Path.iterdir
+
+        def boom(self: Path):
+            if self.name == "managed-settings.d":
+                raise PermissionError(13, "Permission denied")
+            return real_iterdir(self)
+
+        monkeypatch.setattr(Path, "iterdir", boom)
+        policy = read_managed_policy(managed, [])
+        assert policy.incomplete
+        assert _ids(_run(policy, [_stdio("a", "node")])) == ["MANAGED-001"]
+
+
+def test_strict_plugin_only_arrays_combine_across_dropins(tmp_path: Path) -> None:
+    managed = tmp_path / "m"
+    _write(
+        managed / "managed-settings.json", {"strictPluginOnlyCustomization": ["skills"]}
+    )
+    _write(
+        managed / "managed-settings.d" / "10.json",
+        {"strictPluginOnlyCustomization": ["mcp"]},
+    )
+    _write(
+        managed / "managed-settings.d" / "20.json",
+        {"strictPluginOnlyCustomization": ["hooks"]},
+    )
+    policy = read_managed_policy(managed, [])
+    assert policy.strict_plugin_only_blocks is True

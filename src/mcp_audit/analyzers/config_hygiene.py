@@ -585,6 +585,42 @@ def _redirecting_env_vars(env: dict) -> list[tuple[str, str]]:
     return found
 
 
+# An Azure resource name as ANTHROPIC_FOUNDRY_RESOURCE takes it: Claude Code
+# "refuses a URL or host name" there (code.claude.com/docs/en/env-vars).
+_FOUNDRY_RESOURCE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,63}$")
+_FOUNDRY_HOST_SUFFIX = ".services.ai.azure.com"
+
+
+def _foundry_resources(env: dict) -> list[tuple[str, str]]:
+    """``(variable, resource)`` for each Azure Foundry resource *env* selects.
+
+    CFHYG-008 (STORY-0108).  ``ANTHROPIC_FOUNDRY_BASE_URL`` counts only when
+    CFHYG-007 stays silent on it, i.e. every reading of the URL is on a
+    ``<resource>.services.ai.azure.com`` host; the resource is that host's
+    first label.  ``ANTHROPIC_FOUNDRY_RESOURCE`` counts when it is a plain
+    resource name (Claude Code refuses anything else).  Empty values and
+    env-var references name no resource.
+    """
+    found: list[tuple[str, str]] = []
+    url = env.get("ANTHROPIC_FOUNDRY_BASE_URL")
+    if (
+        isinstance(url, str)
+        and _redirect_host("ANTHROPIC_FOUNDRY_BASE_URL", url) is None
+    ):
+        text = re.sub(r"[\t\n\r]", "", url.strip(_C0_OR_SPACE))
+        host = _parse_endpoint(text, whatwg=True).host.rstrip(".") if text else ""
+        if host.endswith(_FOUNDRY_HOST_SUFFIX):
+            found.append(
+                ("ANTHROPIC_FOUNDRY_BASE_URL", host[: -len(_FOUNDRY_HOST_SUFFIX)])
+            )
+    name = env.get("ANTHROPIC_FOUNDRY_RESOURCE")
+    if isinstance(name, str):
+        name = name.strip()
+        if _FOUNDRY_RESOURCE_NAME_RE.match(name) and not _looks_like_env_ref(name):
+            found.append(("ANTHROPIC_FOUNDRY_RESOURCE", name.lower()))
+    return found
+
+
 # ── HARNESS-005/006 helpers (STORY-0087) ─────────────────────────────────────
 
 # First words of shell commands whose arguments alone can write files, run code
@@ -1390,6 +1426,78 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             finding_path=str(config_path),
         )
 
+    def _harness_001(
+        self, config_path: Path, client: str, scope_cap: str, basis: str
+    ) -> Finding:
+        """HARNESS-001: ``permissions.defaultMode`` is ``bypassPermissions``.
+
+        HIGH in user settings and the global config.  MEDIUM in project and
+        local settings (STORY-0108): the settings reference, under
+        ``permissions.defaultMode``, says "``auto`` and ``bypassPermissions``
+        don't take effect from project or local settings, so set them in
+        ``~/.claude/settings.json`` instead. Before v2.1.257,
+        ``bypassPermissions`` took effect from any file."  The installed
+        Claude Code version is not read, so the finding stays: an older
+        install still starts every session in bypass mode from this file.
+        The layer comes from :func:`permissions.settings_scope`, the same
+        test PERM-004 uses for the same sentence.
+        """
+        evidence = f"{config_path}: permissions.defaultMode = bypassPermissions"
+        remediation = (
+            "Remove defaultMode or set it to 'default'. Use bypass mode"
+            " only for a single session in an isolated container, and set"
+            ' permissions.disableBypassPermissionsMode to "disable" in'
+            " managed or user settings to prevent it elsewhere."
+        )
+        if _permissions.settings_scope(config_path) in ("project", "local"):
+            return self._harness_finding(
+                finding_id="HARNESS-001",
+                severity=Severity.MEDIUM,
+                client=client,
+                config_path=config_path,
+                title=(
+                    "Project settings ask for bypassPermissions (ignored by"
+                    " Claude Code 2.1.257 and later)"
+                ),
+                description=(
+                    f"{scope_cap} set permissions.defaultMode to"
+                    " 'bypassPermissions'. Claude Code 2.1.257 and later ignore"
+                    " this value in project and local settings and start the"
+                    " session with prompts on (settings reference: 'auto and"
+                    " bypassPermissions don't take effect from project or local"
+                    " settings'). Older versions honour it from any file: every"
+                    " session in this project then starts with tool-call approval"
+                    " skipped, so an instruction injected through a file, a tool"
+                    " result or an MCP server runs without a person seeing it."
+                    " mcp-audit does not read which version is installed." + basis
+                ),
+                evidence=evidence,
+                remediation=(
+                    "Remove defaultMode from this file or set it to 'default', and"
+                    " update Claude Code to 2.1.257 or later. " + remediation
+                ),
+                cwe="CWE-862",
+                owasp=["MCP02", "MCP07"],
+            )
+        return self._harness_finding(
+            finding_id="HARNESS-001",
+            severity=Severity.HIGH,
+            client=client,
+            config_path=config_path,
+            title="Claude Code sessions start with permission prompts skipped",
+            description=(
+                f"{scope_cap} set permissions.defaultMode to"
+                " 'bypassPermissions'. Every session starts with tool-call"
+                " approval skipped, including writes to .git and .claude, so"
+                " an instruction injected through a file, a tool result or an"
+                " MCP server runs without a person seeing it." + basis
+            ),
+            evidence=evidence,
+            remediation=remediation,
+            cwe="CWE-862",
+            owasp=["MCP02", "MCP07"],
+        )
+
     def _check_harness_posture(
         self,
         raw: dict,
@@ -1426,33 +1534,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         )
 
         if perms.get("defaultMode") == "bypassPermissions" and not bypass_disabled:
-            findings.append(
-                self._harness_finding(
-                    finding_id="HARNESS-001",
-                    severity=Severity.HIGH,
-                    client=client,
-                    config_path=config_path,
-                    title="Claude Code sessions start with permission prompts skipped",
-                    description=(
-                        f"{scope_cap} set permissions.defaultMode to"
-                        " 'bypassPermissions'. Every session starts with tool-call"
-                        " approval skipped, including writes to .git and .claude, so"
-                        " an instruction injected through a file, a tool result or an"
-                        " MCP server runs without a person seeing it." + basis
-                    ),
-                    evidence=(
-                        f"{config_path}: permissions.defaultMode = bypassPermissions"
-                    ),
-                    remediation=(
-                        "Remove defaultMode or set it to 'default'. Use bypass mode"
-                        " only for a single session in an isolated container, and set"
-                        ' permissions.disableBypassPermissionsMode to "disable" in'
-                        " managed or user settings to prevent it elsewhere."
-                    ),
-                    cwe="CWE-862",
-                    owasp=["MCP02", "MCP07"],
-                )
-            )
+            findings.append(self._harness_001(config_path, client, scope_cap, basis))
 
         if raw.get("enableAllProjectMcpServers") is True:
             findings.append(
@@ -1741,6 +1823,60 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     ),
                     cwe="CWE-441",
                     cve=(["CVE-2026-21852"] if name == "ANTHROPIC_BASE_URL" else []),
+                    owasp_mcp_top_10=["MCP01", "MCP08"],
+                    finding_path=str(config_path),
+                )
+            )
+        findings.extend(self._foundry_resource_findings(env, config_path, client))
+        return findings
+
+    def _foundry_resource_findings(
+        self, env: dict, config_path: Path, client: str
+    ) -> list[Finding]:
+        """CFHYG-008 — project settings choose an Azure Foundry resource.
+
+        CFHYG-007 treats ``<resource>.services.ai.azure.com`` as Foundry's own
+        host, but anyone can create a Foundry resource in their own Azure
+        subscription, and a legitimate organisation resource looks the same
+        (STORY-0108).  So a resource chosen in a repository's settings is
+        reported at INFO, naming the resource, for a person to confirm.
+        """
+        findings: list[Finding] = []
+        for name, resource in _foundry_resources(env):
+            findings.append(
+                Finding(
+                    id="CFHYG-008",
+                    severity=Severity.INFO,
+                    analyzer=self.name,
+                    client=client,
+                    server="(config-level)",
+                    title=(
+                        f"Project settings send API requests to Azure Foundry"
+                        f" resource '{resource}'"
+                    ),
+                    description=(
+                        f"'{_short_path(config_path)}' is project settings that reach"
+                        f" everyone who clones the repository. Its env block sets"
+                        f" {name}, so Claude Code sends API requests, with your"
+                        f" Azure credential and the conversation, to the Microsoft"
+                        f" Foundry resource '{resource}'"
+                        f" ({resource}{_FOUNDRY_HOST_SUFFIX}). That host is"
+                        " Microsoft's, but anyone can create a Foundry resource in"
+                        " their own Azure subscription, so mcp-audit cannot tell"
+                        " whether this one belongs to your organisation. Claude"
+                        " Code applies project env values once the folder is"
+                        " trusted, and at startup in 'claude -p'."
+                    ),
+                    evidence=(
+                        f"{config_path}: env.{name} -> Foundry resource {resource}"
+                    ),
+                    remediation=(
+                        f"Verify that the Foundry resource '{resource}' belongs to"
+                        " your organisation's Azure subscription. Prefer setting"
+                        f" {name} in managed settings, user settings or your shell,"
+                        " where a cloned repository cannot change it."
+                    ),
+                    cwe="CWE-441",
                     owasp_mcp_top_10=["MCP01", "MCP08"],
                     finding_path=str(config_path),
                 )

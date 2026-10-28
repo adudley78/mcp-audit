@@ -26,7 +26,7 @@ The system directory is `/Library/Application Support/ClaudeCode/` on macOS,
 `/etc/claude-code/` on Linux and WSL, and `C:\Program Files\ClaudeCode\` on Windows
 (Anthropic, [Deploy managed settings](https://code.claude.com/docs/en/managed-settings)).
 Drop-in files merge the way Claude Code merges them: lists combine with duplicates
-removed, a single value is replaced by the later file, and a later `managedMcpServers`
+removed (including `strictPluginOnlyCustomization` arrays), a single value is replaced by the later file, and a later `managedMcpServers`
 entry with the same name replaces the earlier one. Each file is capped at 1 MiB, the
 directory at 256 drop-ins and 8 MiB; anything skipped is listed in the scan's errors.
 
@@ -85,8 +85,9 @@ known default port, or whose port isn't a number, is undecidable and never repor
 A malformed entry is stripped, as Claude Code strips it; an `allowedMcpServers` value
 that isn't a list is enforced as an empty allowlist.
 
-Servers compared: user scope (`~/.claude.json`), project `.mcp.json`, and installed
-plugin servers. Subagent inline servers and other clients (Cursor, VS Code, Claude
+Servers compared: user scope (the top-level `mcpServers` in `~/.claude.json`), project
+`.mcp.json`, and installed plugin servers. Local-scope servers (`projects.<path>.mcpServers`
+in `~/.claude.json`) are not compared. Subagent inline servers and other clients (Cursor, VS Code, Claude
 Desktop) are not, because the policy doesn't govern them or the documentation doesn't
 say it does.
 
@@ -100,9 +101,18 @@ say it does.
 | MANAGED-004 | MEDIUM / LOW | The managed allowlist is not locked and a settings file adds entries it doesn't have. MEDIUM for a repository's shared `.claude/settings.json` (it widens the list for everyone who opens the repository), LOW for `.claude/settings.local.json` and `~/.claude/settings.json`. A file reached through a symlinked `.claude` directory is not attributed to the repository. |
 | MANAGED-005 | LOW | The managed allowlist has `serverName` entries and no `serverUrl` entries (remote servers) and/or no `serverCommand` entries (stdio servers): "A `serverName` entry, in either list, is not a security control." |
 
-Commands and URLs in finding text have the values of secret-named flags
-(`--api-key VALUE`, `--token=VALUE`), URL passwords, secret-named query parameters and
-known credential formats removed.
+Commands and URLs in finding text have secrets removed: the values of secret-named
+flags (`--api-key VALUE`, `--token=VALUE`) and assignments (`-e GITHUB_TOKEN=…`,
+`--env=API_KEY=…`), whatever follows `Authorization:`, `Bearer ` or `Basic `, URL
+passwords, secret-named query and fragment parameters (`?sig=…`, `X-Amz-Signature=…`,
+`#access_token=…`), and known credential formats. The same launch-argument redaction
+as the JSON `servers[].args` output (STORY-0108) runs last.
+
+**Verdicts are withheld when a managed file can't be read.** If a managed settings
+file is unreadable, over the size limit or not a JSON object, or the
+`managed-settings.d` directory can't be listed, only MANAGED-001 is reported, saying
+why: Claude Code drops a source it can't read and refuses to start on a managed
+document it can't parse, so a verdict built from the remaining files would be a guess.
 
 ## What it can't tell
 

@@ -45,8 +45,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from mcp_audit.analyzers.credentials import SECRET_PATTERNS
-from mcp_audit.analyzers.supply_chain import _redact_userinfo, secret_arg_values
+from mcp_audit.analyzers.supply_chain import redact_args
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 ANALYZER = "managed_policy"
@@ -139,14 +138,28 @@ class ManagedPolicy:
     # (fail closed, Claude Code 2.1.282+).  Quoted booleans and objects only
     # mark an MCP policy as present.
     strict_plugin_only_blocks: bool = False
+    # The drop-in directory exists but couldn't be listed.
+    dropins_unlisted: bool = False
     other_mcp_keys: list[str] = field(default_factory=list)
 
     @property
     def present(self) -> bool:
         """True when any managed settings file or ``managed-mcp.json`` exists."""
         return bool(
-            self.settings_files or self.unparsable_files or self.mcp_file is not None
+            self.settings_files
+            or self.unparsable_files
+            or self.dropins_unlisted
+            or self.mcp_file is not None
         )
+
+    @property
+    def incomplete(self) -> bool:
+        """True when a managed settings file or the drop-in list couldn't be read.
+
+        Claude Code then drops the source or refuses to start, so verdicts
+        built from the rest would be claims mcp-audit can't back.
+        """
+        return bool(self.unparsable_files or self.dropins_unlisted)
 
     @property
     def exclusive(self) -> bool:
@@ -188,46 +201,104 @@ _SECRET_WORDS = (
     "auth",
     "credential",
 )
+# Matched as whole name tokens only (``X-Amz-Signature``, ``sig``), so a name
+# like ``DESIGN_DIR`` is not caught by ``sig``.
+_SECRET_TOKENS = frozenset({"sig", "signature"})
+_NAME_SPLIT = re.compile(r"[^A-Za-z0-9]+")
+_CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+_SCHEME_WORDS = ("bearer ", "basic ")
+
+
+def _is_secret_name(name: str) -> bool:
+    """True when a parameter or variable *name* is named for a secret value."""
+    lowered = name.lower()
+    if any(word in lowered for word in _SECRET_WORDS):
+        return True
+    tokens = _NAME_SPLIT.split(_CAMEL.sub("-", name).lower())
+    return any(token in _SECRET_TOKENS for token in tokens)
+
+
+def _redact_pairs(text: str) -> str:
+    """Redact the value of each secret-named ``name=value`` pair split on ``&``."""
+    pairs: list[str] = []
+    for pair in text.split("&"):
+        name, eq, _value = pair.partition("=")
+        pairs.append(f"{name}=[REDACTED]" if eq and _is_secret_name(name) else pair)
+    return "&".join(pairs)
 
 
 def _redact_query(text: str) -> str:
-    """Replace the value of each secret-named query parameter in a URL."""
-    head, mark, rest = text.partition("?")
-    if not mark:
-        return text
-    query, hash_, fragment = rest.partition("#")
-    pairs: list[str] = []
-    for pair in query.split("&"):
-        name, eq, _value = pair.partition("=")
-        if eq and any(word in name.lower() for word in _SECRET_WORDS):
-            pairs.append(f"{name}=[REDACTED]")
-        else:
-            pairs.append(pair)
-    return head + "?" + "&".join(pairs) + hash_ + fragment
+    """Redact secret-named parameters in a URL's query string and fragment.
+
+    ``?sig=…``, ``X-Amz-Signature=…``, ``#access_token=…`` (the OAuth
+    implicit-flow fragment).
+    """
+    head, hash_, fragment = text.partition("#")
+    base, mark, query = head.partition("?")
+    out = base + (mark + _redact_pairs(query) if mark else "")
+    return out + (hash_ + _redact_pairs(fragment) if hash_ else "")
+
+
+def _redact_assignment(part: str) -> str:
+    """``NAME=value`` (``-e GITHUB_TOKEN=…``, ``--env=API_KEY=…``): redact value.
+
+    The name is the text before the last ``=`` ahead of the value, without
+    leading dashes; a part whose ``=`` follows a ``://`` URL is left to
+    :func:`_redact_query`.
+    """
+    eq = part.find("=")
+    if eq <= 0 or "://" in part[:eq]:
+        return part
+    name_end = eq
+    # --env=API_KEY=value: the variable name is between the two '='.
+    second = part.find("=", eq + 1)
+    if part.startswith("-") and second != -1:
+        name = part[eq + 1 : second]
+        name_end = second
+    else:
+        name = part[:eq].lstrip("-")
+    if _is_secret_name(name):
+        return part[: name_end + 1] + "[REDACTED]"
+    return part
+
+
+def _redact_auth_schemes(part: str) -> str:
+    """Redact what follows ``Authorization:``, ``Bearer `` or ``Basic ``."""
+    lowered = part.lower()
+    idx = lowered.find("authorization:")
+    if idx != -1:
+        return part[: idx + len("authorization:")] + " [REDACTED]"
+    for word in _SCHEME_WORDS:
+        idx = lowered.find(word)
+        if idx != -1:
+            return part[: idx + len(word)] + "[REDACTED]"
+    return part
 
 
 def _redact_parts(parts: list[str]) -> str:
     """Join a command (or one URL) for finding text with secrets removed.
 
-    Values of secret-named flags (``--api-key VALUE``, ``--token=VALUE``;
-    ``supply_chain.secret_arg_values``) are replaced first, then URL
-    userinfo and secret-named query parameters in each part, then every
-    SECRET_PATTERNS match; the result is capped at 300 characters after
-    redacting.
+    Each part first has secret-named ``NAME=value`` assignments, header
+    values after ``Authorization:``, ``Bearer `` or ``Basic `` (a part that is
+    just ``Bearer`` or ``Basic`` hides the next part), and secret-named URL
+    query and fragment parameters redacted; then
+    ``supply_chain.redact_args`` (STORY-0108: URL userinfo, secret-named
+    flag values, SECRET_PATTERNS) runs over the result, so the two redaction
+    paths never diverge.  Capped at 300 characters after redacting.
     """
-    secrets = {value for value in secret_arg_values(list(parts)) if value}
-    out: list[str] = []
+    pre: list[str] = []
+    hide_next = False
     for part in parts:
-        if part in secrets:
-            part = "[REDACTED]"
-        elif part.startswith("-") and "=" in part:
-            flag, _eq, value = part.partition("=")
-            if value in secrets:
-                part = f"{flag}=[REDACTED]"
-        out.append(_redact_query(_redact_userinfo(part)))
-    cleaned = " ".join(out)
-    for _label, pattern, _provider in SECRET_PATTERNS:
-        cleaned = pattern.sub("[REDACTED]", cleaned)
+        if hide_next:
+            pre.append("[REDACTED]")
+            hide_next = False
+            continue
+        if part.strip().lower() in ("bearer", "basic"):
+            hide_next = True
+            pre.append(part)
+            continue
+        pre.append(_redact_auth_schemes(_redact_assignment(_redact_query(part))))
+    cleaned = " ".join(p for p in redact_args(pre) if p)
     if len(cleaned) > 300:
         cleaned = cleaned[:300] + "…"
     return cleaned
@@ -250,30 +321,31 @@ def _read_json(
 ) -> tuple[bool, object | None]:
     """Read *path* as JSON.  Returns ``(exists, parsed-or-None)``.
 
-    ``parsed`` is ``None`` for a file that exists but can't be read, is over
-    the size cap or the budget, or isn't valid JSON; the reason goes to
-    *errors*.  Never raises.
+    At most ``MAX_FILE_BYTES + 1`` bytes are read, so a file that grows
+    between checks can't exceed the cap.  ``parsed`` is ``None`` for a file
+    that exists but can't be read, is over the size cap or the budget, or
+    isn't valid JSON; the reason goes to *errors*.  Never raises.
     """
     try:
         if not path.is_file():
             return (False, None)
-        size = path.stat().st_size
+        with path.open("rb") as handle:
+            data = handle.read(min(MAX_FILE_BYTES, budget.remaining) + 1)
     except OSError as exc:
         errors.append(f"managed policy: cannot read {path}: {type(exc).__name__}")
         return (True, None)
-    if size > MAX_FILE_BYTES:
+    if len(data) > MAX_FILE_BYTES:
         errors.append(
-            f"managed policy: {path} is {size} bytes, over the"
-            f" {MAX_FILE_BYTES}-byte limit; not read"
+            f"managed policy: {path} is over the {MAX_FILE_BYTES}-byte limit; not read"
         )
         return (True, None)
-    if size > budget.remaining:
+    if len(data) > budget.remaining:
         errors.append(f"managed policy: read budget exhausted at {path}; not read")
         return (True, None)
-    budget.remaining -= size
+    budget.remaining -= len(data)
     try:
-        text = path.read_text(encoding="utf-8-sig")
-    except (OSError, UnicodeDecodeError) as exc:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
         errors.append(f"managed policy: cannot read {path}: {type(exc).__name__}")
         return (True, None)
     try:
@@ -441,9 +513,11 @@ def read_managed_policy(
             candidates += names[:MAX_DROPINS]
     except OSError as exc:
         errs.append(f"managed policy: cannot list {dropins}: {type(exc).__name__}")
+        policy.dropins_unlisted = True
 
     allowed: dict[tuple, PolicyEntry] | None = None
     denied: dict[tuple, PolicyEntry] = {}
+    strict: object = None
     for path in candidates:
         exists, data = _read_json(path, budget, errs)
         if not exists:
@@ -496,15 +570,19 @@ def read_managed_policy(
         elif provided is not None:
             policy.provided_dropped.append("managedMcpServers (not an object)")
         if "strictPluginOnlyCustomization" in data:
-            present, blocks = _strict_plugin_only_mcp(
-                data["strictPluginOnlyCustomization"]
-            )
-            policy.strict_plugin_only_mcp = present
-            policy.strict_plugin_only_blocks = blocks
+            value = data["strictPluginOnlyCustomization"]
+            # Drop-in rules: lists combine, a single value replaces.
+            if isinstance(value, list) and isinstance(strict, list):
+                strict = strict + [v for v in value if v not in strict]
+            else:
+                strict = list(value) if isinstance(value, list) else value
         for key in ("allowAllClaudeAiMcps", "allowClaudeInChromeWithManagedMcp"):
             if key in data and key not in policy.other_mcp_keys:
                 policy.other_mcp_keys.append(key)
 
+    policy.strict_plugin_only_mcp, policy.strict_plugin_only_blocks = (
+        _strict_plugin_only_mcp(strict)
+    )
     if allowed is not None:
         policy.allowed = [] if policy.allowed_invalid_value else list(allowed.values())
     policy.denied = list(denied.values())
@@ -905,6 +983,14 @@ def _inventory(policy: ManagedPolicy) -> Finding:
             "strictPluginOnlyCustomization is set to a value whose effect on MCP"
             " mcp-audit can't decide (a quoted boolean or an object)"
         )
+    if policy.incomplete:
+        parts.append(
+            "verdicts withheld (no MANAGED-002/003/004/005): a managed settings"
+            " file or the managed-settings.d directory could not be read or"
+            " parsed, so mcp-audit can't tell what Claude Code enforces (it"
+            " drops a source it can't read and refuses to start on a document"
+            " it can't parse)"
+        )
     if policy.unparsable_files:
         parts.append(
             "unreadable or invalid managed settings file(s) (Claude Code refuses"
@@ -1202,6 +1288,10 @@ def analyze_managed_policy(
     if not policy.present:
         return []
     findings: list[Finding] = []
+    if policy.incomplete:
+        # A managed source Claude Code can't parse is dropped or stops it from
+        # starting; nothing built from the remaining files can be backed.
+        return [_inventory(policy)] if machine_findings else []
     if machine_findings:
         findings.append(_inventory(policy))
         if not policy.has_mcp_policy and policy.settings_files:
