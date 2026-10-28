@@ -220,6 +220,21 @@ def _as_list(value: Any) -> list[Any]:
     return []
 
 
+def _as_dict(value: Any) -> dict[str, Any]:
+    """Return *value* if it is a dict, else an empty dict (remote verdict data)."""
+    return value if isinstance(value, dict) else {}
+
+
+def _vuln_items(verdict: dict[str, Any]) -> list[dict[str, Any]]:
+    """The verdict's ``known_vulnerabilities`` as dicts, for rendering.
+
+    An item that is not an object (possible only in an ``--online`` verdict)
+    becomes ``{}``: it is still counted, and it has no recorded fix, so it
+    keeps the exit code at 1 rather than hiding a vulnerability.
+    """
+    return [_as_dict(v) for v in _as_list(verdict.get("known_vulnerabilities"))]
+
+
 def _with_local_malicious(
     verdict: dict[str, Any],
     name: str,
@@ -376,8 +391,8 @@ def _print_known_verdict(
         console: Rich console to print to.
     """
     pkg = verdict["package"]
-    reg = verdict["registry"]
-    vulns = verdict["known_vulnerabilities"]
+    reg = _as_dict(verdict.get("registry"))
+    vulns = _vuln_items(verdict)
     caps = verdict["capabilities"]
     att = verdict["attestation"]
     links = verdict["links"]
@@ -543,6 +558,10 @@ def _print_malicious_panel(
     # An ``--online`` verdict is remote data: an item may lack a field the
     # bundled builder always sets, or not be an object at all.
     items = [i for i in _as_list(items) if isinstance(i, dict)]
+    if not items:
+        # Nothing renderable (e.g. an --online ``malicious: 42`` or ``[1]``):
+        # no panel, rather than an empty "Malicious releases listed" one.
+        return
     latest = any(i.get("latest_affected") for i in items)
     t = Text()
     if other_ecosystem is not None:
@@ -665,7 +684,7 @@ def print_verdict(
         twin: The unscoped-twin relation when ``typosquat_basis`` is
             ``"unscoped-twin"``; ``None`` otherwise.
     """
-    reg = verdict["registry"]
+    reg = _as_dict(verdict.get("registry"))
     typosquat_name = verdict.get("typosquat_of")
     pkg_name = verdict["package"]["name"]
 
@@ -720,9 +739,9 @@ def _verdict_exit_code(verdict: dict[str, Any], strict: bool) -> int:
     Returns:
         Integer exit code (0 or 1).
     """
-    vulns = verdict.get("known_vulnerabilities", [])
+    vulns = _vuln_items(verdict)
     typosquat = verdict.get("typosquat_of")
-    listed = verdict.get("registry", {}).get("listed", False)
+    listed = _as_dict(verdict.get("registry")).get("listed", False)
     unfixed = [v for v in vulns if not v.get("fixed_in")]
     malicious_latest = [
         m

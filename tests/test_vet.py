@@ -998,14 +998,71 @@ class TestVetOnlineMaliciousItemsAreRemoteData:
         assert "(GHSA-abcd)" in out
         assert "releases listed: 1.0.0" in out
 
-    def test_non_list_malicious_field_does_not_crash(self) -> None:
+    @pytest.mark.parametrize("value", [42, "x", {"a": 1}, [1], ["x", None]])
+    def test_non_list_malicious_field_does_not_crash(self, value: object) -> None:
+        """No crash and no empty malicious panel (STORY-0104 review)."""
         with patch(
             "mcp_audit.cli.vet._fetch_online_verdict",
-            return_value={**self._online([]), "malicious": 42},
+            return_value={**self._online([]), "malicious": value},
         ):
             result = runner.invoke(app, ["vet", "totallyunknownpkgxyz", "--online"])
         assert result.exception is None or isinstance(result.exception, SystemExit)
         assert result.exit_code == 0
+        out = unwrapped(result.output)
+        assert "Malicious releases listed" not in out
+        assert "Listed as malicious" not in out
+
+    @staticmethod
+    def _listed_online(vulns: object, registry: object = None) -> dict:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "package": {"ecosystem": "npm", "name": "totallyunknownpkgxyz"},
+            "registry": {"listed": True, "verified": True}
+            if registry is None
+            else registry,
+            "known_vulnerabilities": vulns,
+            "capabilities": [],
+            "attestation": {},
+            "typosquat_of": None,
+            "links": {"repo": None, "verdict_page": "https://mcp-audit.dev/x"},
+        }
+
+    def _run_listed(self, vulns: object, registry: object = None) -> object:
+        with patch(
+            "mcp_audit.cli.vet._fetch_online_verdict",
+            return_value=self._listed_online(vulns, registry),
+        ):
+            return runner.invoke(app, ["vet", "totallyunknownpkgxyz", "--online"])
+
+    @pytest.mark.parametrize("vulns", [5, {"cve": "CVE-x"}, None])
+    def test_non_list_known_vulnerabilities_render(self, vulns: object) -> None:
+        result = self._run_listed(vulns)
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 0
+        assert "Known vulnerabilities: none" in unwrapped(result.output)
+
+    def test_non_object_vulnerability_item_counts_as_unfixed(self) -> None:
+        """An unreadable item is shown and keeps exit 1, never hidden."""
+        result = self._run_listed(
+            ["CVE-2099-1", {"cve": "CVE-2099-2", "fixed_in": "2"}]
+        )
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 1
+        assert "Known vulnerabilities: 2 (1 with no fix)" in unwrapped(result.output)
+
+    @pytest.mark.parametrize("registry", ["yes", [1], 7])
+    def test_non_object_registry_is_treated_as_unlisted(self, registry: object) -> None:
+        result = self._run_listed([], registry)
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code == 0
+        with patch(
+            "mcp_audit.cli.vet._fetch_online_verdict",
+            return_value=self._listed_online([], registry),
+        ):
+            strict = runner.invoke(
+                app, ["vet", "totallyunknownpkgxyz", "--online", "--strict"]
+            )
+        assert strict.exit_code == 1
 
     def test_list_id_does_not_break_the_local_merge(self) -> None:
         from mcp_audit.cli.vet import _with_local_malicious

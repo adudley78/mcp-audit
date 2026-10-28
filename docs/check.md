@@ -80,6 +80,7 @@ mcp-audit — Security Check
 | No MCP configs found | Prints a friendly message and exits 0 |
 | `--verbose` | Prints full scan output (Rich panels, OWASP codes, attack paths) |
 | `--json` | Outputs the full `ScanResult` JSON to stdout and nothing else. No `Lock:` or lock-warning lines are printed at all (the lock result is the `lock_status` object in the document); a failed registration ping, errors (including an unknown `--report` format) and the "No MCP config files found" note go to stderr. With nothing found it still writes the (empty) document and exits 0 |
+| `--report pdf` with `--json` | `--report` takes precedence: the PDF is written and no JSON document is printed; stdout stays empty and the "PDF report written" lines go to stderr. Run `check --json` separately for the document |
 | `--path /nonexistent` | Prints "File not found" and exits 2 (to stderr with `--json`) |
 | `mcp-lock.json` present (default) | Auto-verifies the nearest ancestor lock; adds a `Lock:` line and folds any `LOCK-*` findings into the grade |
 | `--no-lock` | Skips lock verification entirely; no `Lock:` line, no `LOCK-*` findings |

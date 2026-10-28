@@ -382,7 +382,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (STORY-0104).** A `malicious` item whose `aliases`, `versions` or `ranges` is
   a number, or whose `id` is a list, raised a `TypeError`; such a field is now
   skipped (a lone string is shown as one value), and a non-list `malicious`
-  field is treated as empty.
+  field is treated as empty (no empty "Malicious releases listed" panel). A
+  non-object `registry` is read as not listed, and a non-list
+  `known_vulnerabilities` as none; a vulnerability item that is not an object
+  is still counted and has no recorded fix, so `vet` exits 1 rather than
+  hiding it.
 - **A `$VAR`- or `%VAR%`-rooted path no longer makes a server a poster
   (STORY-0101 follow-up, STORY-0104).** `$HOME/code/discord` or
   `${workspaceFolder}/slack` as an argument is now read as a path, like
