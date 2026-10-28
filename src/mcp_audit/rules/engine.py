@@ -223,7 +223,7 @@ def _redact_matched_value(value: str, server: ServerConfig) -> str:
 
     A negated condition reports the whole field it inspected (COMM-010 since
     STORY-0105 reports the launch arguments), and arguments or a URL can carry
-    a password (``postgresql://user:pass@host``) or a token.  Each argument,
+    a password (the userinfo of a database URL) or a token.  Each argument,
     the URL and the command are replaced by their userinfo-redacted form
     (``supply_chain._redact_userinfo``, one value at a time so a URL never
     spans two arguments), then every ``SECRET_PATTERNS`` match is replaced.
