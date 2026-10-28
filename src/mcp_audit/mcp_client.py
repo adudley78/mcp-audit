@@ -139,15 +139,28 @@ def build_runtime_server_config(
     if not enumeration.tools and not enumeration.resources and not enumeration.prompts:
         return None
 
+    # Every field of a tool the lock's ``definition`` digest covers (see
+    # :mod:`mcp_audit.lock.tool_digests`): ``title``, ``outputSchema`` and
+    # ``annotations`` too when the server sent them (STORY-0099), so the text
+    # checks read every string of the metadata, down to parameter
+    # descriptions, ``enum``, ``default`` and ``examples`` in the schemas.
+    tools: list[dict] = []
+    for t in enumeration.tools:
+        entry: dict = {
+            "name": t.name,
+            "description": t.description or "",
+            "inputSchema": t.input_schema,
+        }
+        if t.title is not None:
+            entry["title"] = t.title
+        if t.output_schema is not None:
+            entry["outputSchema"] = t.output_schema
+        if t.annotations is not None:
+            entry["annotations"] = t.annotations
+        tools.append(entry)
+
     raw: dict = {
-        "tools": [
-            {
-                "name": t.name,
-                "description": t.description or "",
-                "inputSchema": t.input_schema,
-            }
-            for t in enumeration.tools
-        ],
+        "tools": tools,
         "resources": [
             {
                 "uri": r.uri,

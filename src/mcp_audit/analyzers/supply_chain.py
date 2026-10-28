@@ -1236,7 +1236,14 @@ def redact_url(url: str | None) -> str | None:
 #: string (``printf '{"Authorization":"Bearer abc123"}'``).  Linear: one
 #: alternation, then a single character class.  A ``$VAR`` reference is kept.
 _INLINE_SCHEME_TOKEN_RE = re.compile(
-    r"\b(Bearer|Basic|Token)\s+(?!\$)[A-Za-z0-9._~+/=-]{4,}"
+    r"\b((?i:Bearer|Basic|Token))\s+(?!\$)[A-Za-z0-9._~+/=-]{4,}"
+)
+#: A credential header written inline (``-H 'X-API-Key: abc123'``), the value
+#: up to the next quote or space.  Linear; ``$VAR`` kept.  An ``Authorization``
+#: value with a scheme word is left to :data:`_INLINE_SCHEME_TOKEN_RE`.
+_INLINE_SECRET_HEADER_RE = re.compile(
+    r"(?i)\b(x-api-key|api-key|x-auth-token|x-access-token|cookie|authorization)"
+    r"(\s*:\s*)(?!\$|bearer\s|basic\s|token\s)[^\s'\"]{4,}"
 )
 
 
@@ -1245,10 +1252,12 @@ def redact_command_text(text: str) -> str:
 
     For a shell command stored as one string (Codex ``http_headers_helper``):
     URL userinfo and SECRET_PATTERNS matches as :func:`redact_args` does, plus
-    the credential after an inline ``Bearer``/``Basic``/``Token`` scheme word.
+    the credential after an inline ``Bearer``/``Basic``/``Token`` scheme word
+    (any case) and the value of an inline ``X-API-Key:``/``Cookie:``-style header.
     """
     cleaned = redact_args([text])[0]
-    return _INLINE_SCHEME_TOKEN_RE.sub(rf"\1 {REDACTION_MARKER}", cleaned)
+    cleaned = _INLINE_SCHEME_TOKEN_RE.sub(rf"\1 {REDACTION_MARKER}", cleaned)
+    return _INLINE_SECRET_HEADER_RE.sub(rf"\1\2{REDACTION_MARKER}", cleaned)
 
 
 def redact_header_values(headers: dict) -> dict:

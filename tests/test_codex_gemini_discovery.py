@@ -1211,3 +1211,33 @@ class TestHeaderHelperRedaction:
         start = time.perf_counter()
         redact_command_text(text)
         assert time.perf_counter() - start < 2.0
+
+
+@pytest.mark.parametrize(
+    ("text", "secret", "kept"),
+    [
+        ("printf 'authorization: bearer lowerTok3nValue'", "lowerTok3nValue", "bearer"),
+        ("curl -H 'X-API-Key: k3yValue99' https://h", "k3yValue99", "X-API-Key"),
+        ('curl -H "Cookie: session=abcdef12345" https://h', "abcdef12345", "Cookie"),
+        (
+            "printf 'Authorization: rawTokenNoScheme'",
+            "rawTokenNoScheme",
+            "Authorization",
+        ),
+    ],
+)
+def test_helper_inline_credentials_are_redacted(
+    text: str, secret: str, kept: str
+) -> None:
+    from mcp_audit.analyzers.supply_chain import redact_command_text  # noqa: PLC0415
+
+    out = redact_command_text(text)
+    assert secret not in out
+    assert kept in out and "[REDACTED]" in out
+
+
+def test_helper_inline_header_references_are_kept() -> None:
+    from mcp_audit.analyzers.supply_chain import redact_command_text  # noqa: PLC0415
+
+    kept = "curl -H 'X-API-Key: $KEY' -H 'Cookie: ${C}' https://h"
+    assert redact_command_text(kept) == kept
