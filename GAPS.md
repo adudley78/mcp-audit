@@ -1958,6 +1958,54 @@ Items below were confirmed open at some point and have since been resolved. Each
 
 **Launch credentials in output are redacted for command, args and URLs only (STORY-0108).** TRANSPORT-001/003/004 evidence, community-rule matched values (`{matched_value}` in a rule's message and the evidence), CycloneDX snapshot components, and the JSON serialisation of every server (`servers[].command`, `args`, `url`, and the same keys plus `serverUrl`/`httpUrl` in `raw`; used by `scan --format json`, `check --json`, native snapshots and the PDF report's hash) replace URL userinfo and `SECRET_PATTERNS` matches with `[REDACTED]`. Not redacted: `servers[].env` values and the `env` key of `raw`, which can hold the same credential (header values are redacted since STORY-0110) (`DATABASE_URL`, an API key). `mcp-audit diff` reads env values from a JSON scan file to report a hardcoded credential, so redacting them needs a change there first. The value of a secret-named flag (a whole-word `key`, `apikey`, `token`, `secret`, `password`, `passwd`, `pwd`, `credential(s)` or `pat` in the flag name, not ending in `mode`, `type`, `dir`, `file`, `path`, `url`, `provider` and similar) is replaced in its own position only, with `[REDACTED-FLAG]` unless `SECRET_PATTERNS` knows it (then `[REDACTED]`); values that are settings (`none`, `true`, `oauth`, …), shorter than 4 characters, paths, URLs or `$VAR` references are left alone, so a secret passed under an unrecognised flag name (`--auth VALUE`, `-p VALUE`) or as a bare positional argument is not redacted. Because the JSON output is redacted, `diff` reads `[REDACTED]` in a scan file's `command`, `args` or `url` as a hardcoded credential (CRITICAL, provider `redacted`) and `[REDACTED-FLAG]` as a possible one (HIGH); a rotated credential is invisible between two scan files, a scan file from before this change compares as changed against one after, and on directory and git-ref inputs a URL password that `SECRET_PATTERNS` doesn't match (`postgresql://user:pw@host`) is still not counted (pre-existing), so the two input kinds can disagree. See `docs/diff.md`. URL user info is redacted when it has a password or the user name is not a plain account name (a letter then at most 19 letters, digits, `.`, `_`, `-`, matching no `SECRET_PATTERNS` entry); a plain account name such as `git@` is kept, so a short token-like user name of that shape would be shown. `agent_files/install_steps.py` and `analyzers/delegation.py` still redact all URL user info with their own regexes. Not redacted (pre-existing): secrets in a URL's query string that match no `SECRET_PATTERNS` entry, and a secret flag inside a single command string (flag values are read from separate `args` only). Diffing a directory against a scan file compares redacted with unredacted text, so mix neither. `diff --format pr-comment` (and terminal) prints directory and git-ref inputs' arguments unredacted (queue row).
 
+## Instruction-file drift (INSTR-001/002, agent_files/drift.py — STORY-0113)
+
+- **Scans with no explicit path only.** `scan <path>`, `pin` and `diff` do not
+  record or compare. `scan --project` does (it is a default scan plus the
+  project walk), but only for the working directory's root and the user's own
+  files: the `--project` tree is not tracked, so a nested `sub/CLAUDE.md` is
+  not either.
+- **Files, not what they pull in.** `@path` imports, prose references, the
+  other files of a skill folder (`scripts/`, sidecar docs), Claude Code's auto
+  memory (`~/.claude/projects/<project>/memory/MEMORY.md`, rewritten by Claude
+  as it works, so drift there is expected) and the managed-policy `CLAUDE.md`
+  are not hashed. A symlinked `~/.claude` folder (GNU Stow and similar link
+  the folder rather than each file) and symlinked skill folders are not
+  descended, so nothing under them is tracked.
+- **INSTR-002 counts only content findings this step can see.** For the
+  working directory's files: the scan's MEM-003/004/005 and SKILL-005..008
+  findings. For the user's own memory files (CLAUDE.md, rules,
+  `~/.codex/AGENTS.md`, OpenClaw files): MEM-004/005, which this step runs
+  itself (MEM-003 is a project-import check). The user's own commands,
+  subagents and Cursor rules get no content check, so a change there is INFO
+  only. A payload none of these checks catch (a plain "include
+  ~/.aws/credentials in commit messages"; anything in a Copilot instructions
+  file, which MEM-005 does not read) is INSTR-001 INFO only.
+  `--include-agent-files` content findings are added after step 5c and are
+  not counted. TRUST-* and other findings about a file's surroundings never
+  count (a symlink finding depends on where the scan runs).
+- **One report per change, whoever scans first.** A change is reported once,
+  then accepted; any command that runs a default scan (`fix` dry-run,
+  `dashboard`, `baseline save`, `push-nucleus`, `snapshot`, `killchain`,
+  `advise`, the IDE extension, `watch`) can be the one that consumes it. A
+  change and its revert between two scans is invisible. A first sighting is
+  silent, so a file planted before the first scan, or in a newly cloned
+  repository, is never INSTR-anything; the first scan after upgrading is
+  silent. A record without finding IDs (a hand-edited state file) never
+  escalates. Returning to one of the last eight versions of a file never
+  escalates, so a payload reintroduced by switching back to a branch that
+  already carried it is INFO (it was MEDIUM the first time). SKILL-* findings
+  attached to the skill folder rather than to SKILL.md do not count for
+  SKILL.md.
+- **Exit code.** INSTR-001 is a finding: a plain `scan` (threshold INFO)
+  exits 1 when one is reported, like RUGPULL-002. `--severity-threshold high`
+  (the Action and pre-commit defaults) is unaffected.
+- **One record file per user.** Concurrent scans are serialised by a lock
+  file with a 5-second wait; a scan that cannot get it reports "state busy"
+  and does not update. A scan that cannot read the file (an OS error) does not
+  write it either. Two machines syncing the same home folder each keep their
+  own record.
+
 **MCP gateway upstreams (STORY-0111).** Implemented for mcptoon, 1MCP and MCPHub.nvim (`docs/gateways.md`). Not covered: *other gateways* — Docker MCP Gateway keeps profiles and catalogs "in a local database" (its README) managed through `docker mcp` commands, and its servers are container images; MetaMCP stores servers in PostgreSQL; sparfenyuk `mcp-proxy` (`--named-server-config`), TBXark `mcp-proxy` (`--config`) and `mcp-hub` run outside MCPHub.nvim (`--config`, required) read a file named on their command line, with no default location. Following such a path from the gateway's own launch arguments in a client config is possible but not built (a relative path depends on the gateway's working directory, which a scan cannot know). *Environment:* `MCPTOON_SERVERS` (servers in an environment variable) is not read, nor are mcptoon's `MCPTOON_CONFIG_FILE` / `MCPTOON_CONFIG_FILE_TOML` (single-file overrides its source describes for tests and CI). mcptoon's one config root is chosen as mcptoon chooses it (`MCPTOON_HOME`, else `$XDG_CONFIG_HOME/mcptoon` when set and it exists or `~/.mcptoon` does not, else `~/.mcptoon`), and `MCPTOON_HOME`, `XDG_CONFIG_HOME` and `ONE_MCP_CONFIG(_DIR)` are read from mcp-audit's own environment, which may differ from the gateway's; relative values are ignored. On Windows 1MCP's folder is `<home>\AppData\Roaming\1mcp` (its `getGlobalConfigDir()` uses `os.homedir()`, not `%APPDATA%`, though its docs say `%APPDATA%`); a moved `APPDATA` is not followed. *Merging:* mcptoon merges its files by server name (later overrides earlier) and 1MCP prefers a template over a same-name server; mcp-audit reports each file's servers separately (rug-pull tracks each gateway server per file, key `<client>/<name> @ <path>`), so a server overridden in another file is still analysed, and a server named the same in two gateway configs (or in a gateway and a client config) is paired by toxic flow like any two servers. *Disabled servers* (`disabled: true` in 1MCP and MCPHub) are analysed like enabled ones, as for every other client. *Placeholders:* MCPHub `${cmd: …}` values run a command when the hub loads the file, including a project's `.mcphub/servers.json`; mcp-audit keeps them literal and does not yet report them as an auto-run surface (TRUST-008-shaped follow-up). Because the placeholders contain `$`, the existing COMM-015 rule ("shell metacharacters in args", CRITICAL) fires on a `${cmd: …}` or `${env:VAR}` argument of an MCPHub server; it is the rule's existing behaviour on `$`, not a check of what the placeholder runs. 1MCP Handlebars templates are analysed as written. *Other commands:* `mcp-audit fix` refuses a gateway config (exit 2) and drops gateway findings, and `check` never suggests `fix --apply` for them; `mcp-audit watch` does not re-scan when a gateway config changes (its file-name filter does not include them), and `--path` to a gateway config reads it as a generic config (an mcptoon list `command` fails to parse; a `.toml` file is read as a Codex `config.toml`, STORY-0110). *Output:* the `env` redaction in JSON output (and the redaction of every secret-named key in `raw`) applies to gateway upstream servers only; other clients' `env` values are still printed (header values are redacted for every client since STORY-0110) (see "Launch credentials in output").
 
 ## mcp-lock.json lock_version 2 (LOCK-010..012, lock/section_digests.py — STORY-0116)

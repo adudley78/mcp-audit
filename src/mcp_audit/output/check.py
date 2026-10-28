@@ -401,6 +401,15 @@ _HINTS: dict[str, str] = {
         "Open HEARTBEAT.md: remove any step you didn't write and the line that"
         " silences its result; reply HEARTBEAT_OK only if nothing needs attention."
     ),
+    # Instruction-file drift (STORY-0113)
+    "INSTR-001": (
+        "If you didn't edit this file since the last scan, read it (git diff in a"
+        " repository) and remove what you didn't write."
+    ),
+    "INSTR-002": (
+        "This file changed and now has the finding named in the title; if you"
+        " didn't make the change, restore the file and find what wrote it."
+    ),
     # Orders that hide (STORY-0099)
     "MEM-005": (
         "Open the file at the line shown: remove a conditional rule you didn't"

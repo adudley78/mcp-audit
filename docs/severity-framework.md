@@ -368,6 +368,18 @@ See `docs/agent-files.md` ("Imports and references", "Heartbeat files").
 | MEM-004    | HIGH     | ASI01, ASI08 | MCP06, MCP08 | An OpenClaw `HEARTBEAT.md` (run on a timer, every 30 minutes by default) tells the agent to answer with the suppression reply (`HEARTBEAT_OK`, `NO_REPLY`, `notify: false`) unconditionally, while also being told to keep a step from the owner, or straight after running, downloading, installing, uploading, forwarding or transferring something or following a fetched URL. The documented conditional form ("if nothing needs attention, reply HEARTBEAT_OK") stays silent. Agent Commander (Embrace The Red, 2026) used exactly this to run a recurring step whose output the owner never saw. HIGH because a hidden, recurring, unattended step is the C2 shape. CWE-223. |
 | MEM-005    | MEDIUM   | ASI01, ASI08 | MCP03, MCP06 | Conditional sleeper trigger (STORY-0099) in an always-loaded instruction file (CLAUDE.md tiers, .claude/rules, AGENTS.md, OpenClaw workspace and heartbeat files): one sentence with an if/when clause (or leading date) holding an unusual trigger (deferred user cue, root/sudo/admin, hostname or production host, date, off-hours, nobody watching), a consequence that opens with an action verb, and, unless nobody is watching, a payload in the consequence (URL, curl/wget, secret-bearing object, backups, remote endpoint, silently). arXiv 2602.06547: conditional triggers are 18.4% of confirmed-malicious skills' shadow features. 0 of 129 real project instruction files and 0 of 4,987 skill-repository files fire. Runs where MEM-003/004 run. CWE-511. |
 
+### Instruction-file drift (`agent_files/drift.py`, INSTR-001/INSTR-002, STORY-0113)
+
+Every scan with no explicit path (`scan`, `check`, `scan --project`) records one SHA-256 per user-global and working-directory-root
+instruction file (beside the rug-pull state) and compares it with the previous scan.
+Hashes and finding IDs only; never content. Not advisories (`NON_ADVISORY_IDS`).
+See `docs/agent-files.md`.
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| INSTR-001  | INFO     | ASI06 | MCP10 | The file's bytes differ from the last scan's record for the same path. INFO: people edit these files all the time; reported because an agent (Claude edits CLAUDE.md on request, code.claude.com/docs/en/memory), a skill or a sync tool can write there too. A first sighting and a removal are not reported. CWE-345. |
+| INSTR-002  | MEDIUM   | ASI06 | MCP10, MCP03 | As INSTR-001, and the file now has a MEDIUM-or-higher finding ID from a check of its own content (MEM-/SKILL-/POISON-/AGENT-/HOOK-; never TRUST-*) that the previous record did not hold: the change brought the finding. For the user's own memory files the MEM-004/005 checks run in this step (their findings are not added to the scan). A version seen before (one of the last eight hashes) never escalates again. Fixed MEDIUM whatever the underlying finding's severity, which that finding keeps. CWE-345. |
+
 ### Sandbox settings (`analyzers/sandbox.py`, SANDBOX-001..005, STORY-0093)
 
 Claude Code `sandbox` keys that a repository's settings file uses to loosen the
