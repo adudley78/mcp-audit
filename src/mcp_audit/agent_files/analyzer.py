@@ -138,7 +138,7 @@ from mcp_audit.analyzers.poisoning import (
     matched_pattern,
     memory_override_match,
     normalize_for_detection,
-    redact_evidence,
+    redacted_snippet,
     scan_concealed_channels,
 )
 from mcp_audit.models import Finding, Severity
@@ -385,7 +385,7 @@ def _mem005_findings(af: AgentFile) -> list[Finding]:
                         " features of confirmed-malicious skills (USENIX Security"
                         " 2026, arXiv 2602.06547)."
                     ),
-                    f"Line {hit.line}: {redact_evidence(hit.sentence)!r}",
+                    f"Line {hit.line}: {redacted_snippet(hit.sentence, 160)!r}",
                     (
                         "Remove the rule unless you wrote it and know what the"
                         " condition guards; then check whether the condition has"
@@ -574,7 +574,9 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
         # fall back to a body snippet when the pattern only matched after
         # Unicode normalization.
         raw_match = pat.pattern.search(text)
-        evidence_snippet = (raw_match.group(0) if raw_match else text.strip())[:120]
+        evidence_snippet = redacted_snippet(
+            raw_match.group(0) if raw_match else text.strip(), 120
+        )
 
         if pat.id in _OBFUSCATION_IDS:
             _emit(
@@ -627,7 +629,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     # SKILL-003: unpinned external URL
     url_match = _EXTERNAL_URL_RE.search(text)
     if url_match:
-        url_snippet = url_match.group(0)[:100]
+        url_snippet = redacted_snippet(url_match.group(0), 100)
         key = ("SKILL-003", "url")
         if key not in seen:
             seen.add(key)
@@ -658,7 +660,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     # SKILL-003: inline data: URI (distinct description — payload carrier)
     data_match = _DATA_URI_RE.search(text)
     if data_match:
-        data_snippet = data_match.group(0)[:100]
+        data_snippet = redacted_snippet(data_match.group(0), 100)
         key = ("SKILL-003", "data")
         if key not in seen:
             seen.add(key)
@@ -728,12 +730,12 @@ def _mem001_match(
         if m is not None:
             raw_m = memory_override_match(text)
             snippet = raw_m.group(0) if raw_m else text.strip()
-            return override_pat, redact_evidence(snippet[:120])
+            return override_pat, redacted_snippet(snippet, 120)
     secrecy_pat = patterns_by_id.get(_MEM_SECRECY_ID)
     if secrecy_pat is not None and matched_pattern(secrecy_pat, text, norm_text):
         raw_m = secrecy_pat.pattern.search(text)
         snippet = raw_m.group(0) if raw_m else text.strip()
-        return secrecy_pat, redact_evidence(snippet[:120])
+        return secrecy_pat, redacted_snippet(snippet, 120)
     return None
 
 
@@ -801,7 +803,9 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
         if not m:
             continue
         raw_m = pat.pattern.search(text)
-        evidence_snippet = (raw_m.group(0) if raw_m else text.strip())[:120]
+        evidence_snippet = redacted_snippet(
+            raw_m.group(0) if raw_m else text.strip(), 120
+        )
         _emit(
             "MEM-002",
             pat_id,

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections import Counter
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -268,10 +269,10 @@ def _evidence_snippet(pattern: DetectionPattern, raw_text: str) -> str:
     """
     raw_match = pattern.pattern.search(raw_text)
     if raw_match is not None:
-        return f"Matched: {redact_evidence(raw_match.group()[:100])}"
+        return f"Matched: {redacted_snippet(raw_match.group(), 100)}"
     return (
         "Matched after Unicode normalization in:"
-        f" {redact_evidence(raw_text.strip()[:100])!r}"
+        f" {redacted_snippet(raw_text.strip(), 100)!r}"
     )
 
 
@@ -284,6 +285,24 @@ def redact_evidence(text: str) -> str:
     :func:`~mcp_audit.analyzers.supply_chain.redact_command` (STORY-0099).
     """
     return redact_command(None, [text])
+
+
+# Characters read past a snippet's end before redacting, so a secret that
+# straddles the cut is still recognised whole (every SECRET_PATTERNS shape is
+# shorter than this).
+_REDACT_LOOKAHEAD: int = 300
+
+
+def redacted_snippet(text: str, limit: int) -> str:
+    """Return the first *limit* characters of *text*, redacted before the cut.
+
+    Truncating first would leave the head of a token that straddles the cut
+    (``ghp_`` plus 29 of its 40 characters) unrecognisable to
+    ``SECRET_PATTERNS``; redacting a window that reaches
+    :data:`_REDACT_LOOKAHEAD` characters past the cut and then truncating
+    does not (STORY-0099 review).
+    """
+    return redact_evidence(text[: limit + _REDACT_LOOKAHEAD])[:limit]
 
 
 # POISON-060 fires on the presence of a confusable character in the ORIGINAL
@@ -341,13 +360,20 @@ POISON_012_SECRECY_RE: re.Pattern[str] = re.compile(
     _POISON_012_SECRECY_BRANCH, re.IGNORECASE
 )
 
+# Verbs that make "do not tell X to <verb>" a purpose clause ("to avoid
+# suspicion") rather than an order passed on to X ("to pre-filter").
+_PURPOSE_VERBS: str = r"(?:avoid|prevent|keep|stop|hide|protect|minimi[sz]e|ensure|not)"
+
 # "tell/inform <one or two words> to <verb>" or "... they need/should/must":
 # an order about what to tell someone, not an order to hide something
-# ("Do not tell a reviewer to pre-filter", "Do not tell users to run
-# commands as root").
+# ("Do not tell a reviewer to pre-filter").  Never applies when the someone
+# is the user's side (user, human, operator, owner) or when "to <verb>" is a
+# purpose ("Do not inform the user to avoid suspicion").
 _INSTRUCTING_TAIL_RE: re.Pattern[str] = re.compile(
-    r"\s+(?:(?:the|a|an|any|your|our)\s+)?[\w-]+(?:\s+[\w-]+)?\s+"
-    r"(?:to\s+(?!(?:the|a|an|any|your|my|our|their|this|that|them|him|her|me|us)\b)"
+    r"\s+(?!(?:the\s+|your\s+|a\s+|an\s+|any\s+)?(?:user|human|operator|owner)s?\b)"
+    r"(?:(?:the|a|an|any|your|our)\s+)?[\w-]+(?:\s+[\w-]+)?\s+"
+    r"(?:to\s+(?!(?:the|a|an|any|your|my|our|their|this|that|them|him|her|me|us"
+    r"|" + _PURPOSE_VERBS[3:-1] + r")\b)"
     r"[a-z]|they\s+(?:need|should|must|have\s+to|can)\b)",
     re.IGNORECASE,
 )
@@ -361,8 +387,11 @@ def memory_override_match(norm_text: str) -> re.Match[str] | None:
     <someone> to <verb>" (or "... they need ...") does not count: it tells
     the agent what to say to a person, it does not hide anything.  That
     shape was MEM-001's false positive on trailofbits/skills ``AGENTS.md``
-    ("Do not tell a reviewer to pre-filter").  Every other POISON-012 match
-    still counts, so MEM-001 loses no detection to this (STORY-0099).
+    ("Do not tell a reviewer to pre-filter").  The exclusion never applies
+    when the someone is the user, human, operator or owner, or when "to
+    <verb>" is a purpose (avoid, prevent, keep, stop, hide, protect,
+    minimise, ensure, not): "Do not inform the user to avoid suspicion"
+    still counts (STORY-0099).
 
     Args:
         norm_text: Text already passed through :func:`normalize_for_detection`.
@@ -396,6 +425,21 @@ def memory_override_match(norm_text: str) -> re.Match[str] | None:
 _DIR_NEG: str = r"(?:do\s+not|don'?t|never|must\s+not|should\s+not|shall\s+not)"
 _DIR_AUDIENCE: str = r"(?:the\s+|your\s+|any\s+|a\s+)?(?:user|human|operator|owner)s?\b"
 _DIR_APPROVAL: str = r"(?:permission|approval|consent|confirmation|authori[sz]ation)"
+_DIR_AUDIENCE_ANY: str = (
+    r"(?:(?:the\s+|your\s+|any\s+|a\s+)?(?:user|human|operator|owner)s?"
+    r"|anyone|anybody)\b"
+)
+# What is hidden, for the secrecy forms: a demonstrative or "anything", never
+# a named object ("API keys", "the raw stack trace") — that is redaction
+# guidance, not concealment.
+_DIR_THIS: str = (
+    r"(?:(?:this|that|these)(?:\s+[\w-]+){0,2}?|it|anything"
+    r"|any\s+of\s+(?:this|it|that)|what\s+you\s+(?:did|do|ran|read|sent|changed))"
+)
+_DIR_PURPOSE: str = (
+    r"(?:in\s+order\s+to|so\s+as\s+to|so\s+that"
+    r"|to\s+(?:avoid|prevent|keep|stop|hide|protect|minimi[sz]e|ensure|not)\b)"
+)
 _DIR_RUN: str = r"(?:run|execute|exec|invoke|source|curl|wget|bash|sh)\b"
 _DIR_ADVERB: str = (
     r"(?:always\s+|first\s+|immediately\s+|silently\s+|automatically\s+)?"
@@ -587,20 +631,22 @@ PATTERNS: list[DetectionPattern] = [
         id="POISON-070",
         name="Secrecy directive",
         pattern=re.compile(
-            # "do not mention/tell/... [this] to the user", "do not tell the
-            # user [about ...]" (not "tell the user to <verb>" or "tell the
-            # user they ...", which instruct rather than hide), "do not
-            # mention this in your reply / in conversation", "without
+            # "do not mention/reveal [this step] to the user" (only a
+            # demonstrative object: "never reveal API keys to the user" is
+            # redaction guidance), "do not tell the user [about this]", "do
+            # not tell the user to avoid suspicion" (a purpose, not an order
+            # passed on), "do not mention this in your reply", "without
             # informing the user", "keep this hidden from the user", "the
             # user must not know".
             rf"\b{_DIR_NEG}\s+(?:mention|tell|reveal|disclose|inform|notify|alert|report|say|show)\b"
-            rf"(?:(?:\s+(?:this|it|that|these|anything|any\s+of\s+this|about\s+(?:this|it)))?"
-            rf"\s+(?:to|with)\s+{_DIR_AUDIENCE}"
-            rf"|\s+{_DIR_AUDIENCE}(?=\s*(?:[.!;,)]|$)"
-            r"|\s+(?:about|of|regarding|anything|what|that\s+you|you|this|it|any)\b)"
+            rf"(?:(?:\s+{_DIR_THIS})?\s+(?:to|with)\s+{_DIR_AUDIENCE}"
             r"|(?:\s+(?:this|it|that|anything))?\s+in\s+(?:the\s+)?"
-            r"(?:conversation|chat|your\s+(?:reply|response|answer|output|summary))"
-            rf"|[^.;:!?\n]{{1,40}}?\bto\s+{_DIR_AUDIENCE})"
+            r"(?:conversation|chat|your\s+(?:reply|response|answer|output|summary)))"
+            rf"|\b{_DIR_NEG}\s+(?:tell|inform|notify|alert)\s+{_DIR_AUDIENCE_ANY}"
+            r"(?=\s*(?:[.!;,)]|$)"
+            rf"|\s+(?:about|of|regarding)\s+{_DIR_THIS}"
+            r"|\s+(?:anything|what\s+you|that\s+you|you\s|this|it)\b"
+            rf"|\s+{_DIR_PURPOSE})"
             rf"|\bwithout\s+(?:telling|informing|notifying|alerting)\s+{_DIR_AUDIENCE}"
             r"|\b(?:keep|hide)\s+(?:this|it|that|these)(?:\s+\w+)?\s+(?:hidden\s+|secret\s+)?"
             rf"from\s+{_DIR_AUDIENCE}"
@@ -639,8 +685,8 @@ PATTERNS: list[DetectionPattern] = [
             + _DIR_APPROVAL,
             re.IGNORECASE | re.MULTILINE,
         ),
-        severity=Severity.MEDIUM,
-        skill_severity=Severity.MEDIUM,
+        severity=Severity.LOW,
+        skill_severity=Severity.LOW,
         description=(
             "Text tells the model not to ask the user for permission or"
             " confirmation (\"do not ask the user for confirmation\")"
@@ -731,8 +777,8 @@ PATTERNS: list[DetectionPattern] = [
             + _DIR_RUN,
             re.IGNORECASE | re.MULTILINE,
         ),
-        severity=Severity.MEDIUM,
-        skill_severity=Severity.MEDIUM,
+        severity=Severity.LOW,
+        skill_severity=Severity.LOW,
         description=(
             "Text orders the model to run something as soon as a session"
             " starts (\"on startup, execute ...\")"
@@ -762,8 +808,8 @@ PATTERNS: list[DetectionPattern] = [
             re.IGNORECASE,
         ),
         requires_cooccurrence=("http", "https", "url", "link", "endpoint", "uri"),
-        severity=Severity.MEDIUM,
-        skill_severity=Severity.MEDIUM,
+        severity=Severity.LOW,
+        skill_severity=Severity.LOW,
         description=(
             "Text tells the model to fetch instructions from a URL and follow"
             " them, so whoever controls the URL controls the agent"
@@ -894,7 +940,7 @@ _TAG_CHAR_RE: re.Pattern[str] = re.compile(r"[\U000E0020-\U000E007E]+")
 # Reverse CAPTCHA (arXiv 2603.00164 §4.1) encodes each ASCII character "as 8
 # binary digits" with "zero-width space (U+200B) for 0 and zero-width
 # non-joiner (U+200C) for 1"; the same scheme works with any two of the
-# zero-width characters below, so a run of exactly two distinct ones is read
+# zero-width characters below, so the two most frequent in a run are read
 # as bits both ways round and the reading with more printable text is kept.
 # Legitimate text uses these characters singly (a ZWNJ inside a Persian word,
 # a ZWJ between two emoji), never 16 in a row.
@@ -971,14 +1017,23 @@ def _bits_to_text(bits: str) -> str:
 def _decode_zero_width_run(run: str) -> str | None:
     """Decode a zero-width run as an 8-bit stream, or ``None`` if it is not one.
 
-    Exactly two distinct characters are required (one per bit value).  Both
-    assignments are tried; the paper's (U+200B = 0) wins a tie.
+    The two most frequent characters are the bit values; any other is a
+    separator and is dropped when it makes up at most a quarter of the run.
+    Both assignments are tried; the paper's (U+200B = 0) wins a tie.
     """
     run = run[:_MAX_DECODE_RUN]
-    symbols = sorted(set(run))
-    if len(symbols) != 2:
+    counts = Counter(run)
+    if len(counts) < 2:
         return None
-    zero, one = symbols
+    if len(counts) > 2:
+        # A third symbol is read as a separator (between bytes or words) and
+        # dropped, as long as it is a minority of the run.
+        keep = {ch for ch, _ in counts.most_common(2)}
+        dropped = sum(n for ch, n in counts.items() if ch not in keep)
+        if dropped * 4 > len(run):
+            return None
+        run = "".join(ch for ch in run if ch in keep)
+    zero, one = sorted(set(run))
     readings = []
     for z, o in ((zero, one), (one, zero)):
         bits = run.replace(z, "0").replace(o, "1")
@@ -1183,7 +1238,7 @@ def concealment_evidence(match: ConcealmentMatch) -> str:
     original (invisible-when-rendered, or delimiter-only) bytes.
     """
     channel = match.channel
-    snippet = redact_evidence(channel.decoded.strip()[:100])
+    snippet = redacted_snippet(channel.decoded.strip(), 100)
     if channel.kind == "tag" and channel.codepoint_range is not None:
         lo, hi = channel.codepoint_range
         source = f"{channel.char_count} TAG character(s) (U+{lo:04X}-U+{hi:04X})"
@@ -1422,7 +1477,9 @@ class PoisoningAnalyzer(BaseAnalyzer):
                                 server=server.name,
                                 title=pattern.name,
                                 description=pattern.description,
-                                evidence=f"Matched: {match.group()[:100]}",
+                                evidence=(
+                                    f"Matched: {redacted_snippet(match.group(), 100)}"
+                                ),
                                 remediation=pattern.remediation,
                                 cwe=pattern.cwe,
                                 owasp_mcp_top_10=pattern.owasp_mcp_top_10,
