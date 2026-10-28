@@ -55,7 +55,7 @@
       }
     },
     "replay": {
-      "patterns_fingerprint": "sha256:2400b72771f04dca0dceb1dafa4ff77519dac72323d045d38ff49d46d292050d",
+      "patterns_fingerprint": "sha256:2e51d4105bcbb03f9ddc5edba510600229e83e0648959b9574aedae9b24262d5",
       "findings_reproduced_from_committed_text": 2,
       "groups": [
         {
@@ -183,7 +183,7 @@
         "bytes": 20666873
       }
     },
-    "patterns_fingerprint": "sha256:2400b72771f04dca0dceb1dafa4ff77519dac72323d045d38ff49d46d292050d",
+    "patterns_fingerprint": "sha256:2e51d4105bcbb03f9ddc5edba510600229e83e0648959b9574aedae9b24262d5",
     "detected_means": "at least one POISON-* finding on the tool, any severity (what a plain scan exits 1 on)",
     "high_or_above_means": "at least one HIGH or CRITICAL POISON-* finding (what check, the pre-commit default and --severity-threshold high fail on)",
     "benchmark_cases": {
@@ -453,7 +453,7 @@
         "bytes": 20666873
       }
     },
-    "patterns_fingerprint": "sha256:2400b72771f04dca0dceb1dafa4ff77519dac72323d045d38ff49d46d292050d",
+    "patterns_fingerprint": "sha256:2e51d4105bcbb03f9ddc5edba510600229e83e0648959b9574aedae9b24262d5",
     "detector_fingerprint": "sha256:69f6361cf33716a217d6f375d9046eb265d1d8da33c602891406d1235e13fd48",
     "session_models": {
       "separate": "the poisoned tool comes from its own server beside the target server: MCPTox's threat model (§2.2 'An attacker can register a malicious MCP server', §3.4 'an agent is connected to both a trusted MCP server and a malicious one')",

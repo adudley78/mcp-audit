@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from bisect import bisect_left, bisect_right
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -36,11 +37,12 @@ class DetectionPattern:
     # webhook, …) near an encoding instruction so a benign "base64 encode"
     # mention does not fire.  See ``_has_cooccurrence``.
     requires_cooccurrence: tuple[str, ...] | None = None
-    # When set, a regex match only counts if this predicate accepts it, given
-    # the text that was searched and the match.  Used by POISON-030 to tell an
-    # order ("you must first call X") from workflow documentation ("the first
-    # call returns 201").  See ``_poison_030_context`` (STORY-0107).
-    context_gate: Callable[[str, re.Match[str]], bool] | None = None
+    # When set, a regex match only counts if a predicate accepts it.  The gate
+    # is called once per searched text and returns the per-match predicate, so
+    # it can index the text in one pass.  Used by POISON-030 to tell an order
+    # ("you must first call X") from workflow documentation ("the first call
+    # returns 201").  See ``_poison_030_gate`` (STORY-0107).
+    context_gate: Callable[[str], Callable[[re.Match[str]], bool]] | None = None
 
 
 # ── Unicode normalization for detection (UTS #39 / NFKD) ───────────────────────
@@ -224,9 +226,10 @@ def search_pattern(pattern: DetectionPattern, text: str) -> re.Match[str] | None
     Patterns without a ``context_gate`` behave exactly like
     ``pattern.pattern.search(text)``.  A gated pattern walks its matches in
     order and returns the first one the gate accepts, so a gated-off
-    occurrence early in the text never hides a real one later.  Each gate
-    looks at a fixed-size window around one match, so the walk is linear in
-    the length of *text*.
+    occurrence early in the text never hides a real one later.  The gate is
+    built once per text (only when the pattern matches at all) and answers
+    each match from that index, so the walk stays linear in the length of
+    *text*.
 
     No normalization and no co-occurrence check happen here; callers that
     want the full decision use :func:`matched_pattern`.
@@ -241,8 +244,15 @@ def search_pattern(pattern: DetectionPattern, text: str) -> re.Match[str] | None
     gate = pattern.context_gate
     if gate is None:
         return pattern.pattern.search(text)
-    for m in pattern.pattern.finditer(text):
-        if gate(text, m):
+    matches = pattern.pattern.finditer(text)
+    first = next(matches, None)
+    if first is None:
+        return None
+    accept = gate(text)
+    if accept(first):
+        return first
+    for m in matches:
+        if accept(m):
             return m
     return None
 
@@ -379,7 +389,9 @@ _TARGET_RE: re.Pattern[str] = re.compile(
     + _R
     + r"|https?://|\.env"
     + _R
-    + r"|[\w.+-]+@[\w-]+\.[A-Za-z]{2,}",
+    # An e-mail address, matched from the start of its run only and without
+    # backtracking (possessive), so a long run of word characters is linear.
+    + r"|(?<![\w.+-])[\w.+-]++@[\w-]++\.[A-Za-z]{2,}",
     re.IGNORECASE,
 )
 _THIS_TOOL_RE: re.Pattern[str] = re.compile(r"\bthis\s+tool\b", re.IGNORECASE)
@@ -392,46 +404,66 @@ _NOUN_DETERMINER_RE: re.Pattern[str] = re.compile(
 _SENTENCE_END_RE: re.Pattern[str] = re.compile(r"[.!?](?=\s)|\n[ \t]*\n")
 
 
-def _same_sentence_before(text: str, start: int) -> str:
-    """Return up to ``_POISON_030_BEFORE`` chars before *start*, within its sentence."""
-    window = text[max(0, start - _POISON_030_BEFORE) : start]
-    cut = 0
-    for m in _SENTENCE_END_RE.finditer(window):
-        cut = m.end()
-    return window[cut:]
+class _Occurrences:
+    """Sorted, non-overlapping ``(start, end)`` spans of one regex over a text."""
+
+    __slots__ = ("ends", "starts")
+
+    def __init__(self, regex: re.Pattern[str], text: str) -> None:
+        self.starts: list[int] = []
+        self.ends: list[int] = []
+        for m in regex.finditer(text):
+            self.starts.append(m.start())
+            self.ends.append(m.end())
+
+    def within(self, lo: int, hi: int) -> bool:
+        """Return True when one span lies wholly inside ``[lo, hi)``."""
+        i = bisect_left(self.starts, lo)
+        return i < len(self.starts) and self.ends[i] <= hi
 
 
-def _same_sentence_after(text: str, end: int) -> str:
-    """Return up to ``_POISON_030_AFTER`` chars after *end*, within its sentence."""
-    window = text[end : end + _POISON_030_AFTER + 1]
-    m = _SENTENCE_END_RE.search(window)
-    return window[: m.start()] if m else window[:_POISON_030_AFTER]
+def _poison_030_gate(text: str) -> Callable[[re.Match[str]], bool]:
+    """Index *text* once and return the POISON-030 predicate (see above).
 
-
-def _poison_030_context(text: str, match: re.Match[str]) -> bool:
-    """Return True when a POISON-030 phrase is phrased as an order (see above).
-
-    Looks only at a fixed window on each side of *match*, so it is linear.
+    Each regex the gate needs runs once over the whole text; every candidate
+    match is then decided with a few binary searches, so a text packed with
+    candidate phrases costs O(n log n), not one regex pass per phrase.
     """
-    phrase = match.group(0).lower()
-    if phrase.startswith("before"):
-        return True
-    before = _same_sentence_before(text, match.start())
-    after = _same_sentence_after(text, match.end())
-    obliged_before = _OBLIGATION_RE.search(before) is not None
-    obliged_after = _OBLIGATION_RE.search(after) is not None
-    has_target = (
-        _TARGET_RE.search(before) is not None or _TARGET_RE.search(after) is not None
-    )
-    if phrase.startswith("first") and _NOUN_DETERMINER_RE.search(before):
-        return obliged_after or (obliged_before and has_target)
-    if obliged_before or _SEQUENCE_TRIGGER_RE.search(before):
-        return True
-    if phrase.startswith(("after", "instead")) and obliged_after:
-        return True
-    if phrase.startswith("instead") and _THIS_TOOL_RE.search(after):
-        return True
-    return has_target
+    breaks = _Occurrences(_SENTENCE_END_RE, text)
+    obligation = _Occurrences(_OBLIGATION_RE, text)
+    trigger = _Occurrences(_SEQUENCE_TRIGGER_RE, text)
+    target = _Occurrences(_TARGET_RE, text)
+    this_tool = _Occurrences(_THIS_TOOL_RE, text)
+
+    def accept(match: re.Match[str]) -> bool:
+        phrase = match.group(0).lower()
+        if phrase.startswith("before"):
+            return True
+        start, end = match.start(), match.end()
+        # Sentence start: the end of the last break at or before *start*.
+        i = bisect_right(breaks.ends, start)
+        lo = max(start - _POISON_030_BEFORE, breaks.ends[i - 1] if i else 0)
+        # Sentence end: the start of the first break at or after *end*.
+        j = bisect_left(breaks.starts, end)
+        hi = end + _POISON_030_AFTER
+        if j < len(breaks.starts):
+            hi = min(hi, breaks.starts[j])
+        # Cheapest checks first; stop at the first decision.
+        if phrase.startswith("first") and _NOUN_DETERMINER_RE.search(text, lo, start):
+            if obligation.within(end, hi):
+                return True
+            return obligation.within(lo, start) and (
+                target.within(lo, start) or target.within(end, hi)
+            )
+        if obligation.within(lo, start) or trigger.within(lo, start):
+            return True
+        if phrase.startswith(("after", "instead")) and obligation.within(end, hi):
+            return True
+        if phrase.startswith("instead") and this_tool.within(end, hi):
+            return True
+        return target.within(lo, start) or target.within(end, hi)
+
+    return accept
 
 
 # fmt: off
@@ -619,7 +651,7 @@ PATTERNS: list[DetectionPattern] = [
             r"\bafter\s+(calling|using)\s+this\b)",
             re.IGNORECASE,
         ),
-        context_gate=_poison_030_context,
+        context_gate=_poison_030_gate,
         severity=Severity.MEDIUM,
         description="Tool description attempts to influence usage of other tools",
         remediation=(
