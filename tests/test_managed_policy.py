@@ -26,7 +26,7 @@ from mcp_audit.analyzers.managed_policy import (
 from mcp_audit.discovery import DiscoveredConfig
 from mcp_audit.models import ServerConfig
 
-_SECRET_URL = "https://alice:hunter2pass@mcp.evil.example/api"  # noqa: S105 — fixture
+_SECRET_URL = "https://alice:hunter2pass@mcp.evil.example/api?api_key=qsecretval"  # noqa: S105 — fixture
 _SECRET_ARG = "postgresql://admin:s3cretPassw0rd@db.internal/prod"  # noqa: S105
 
 
@@ -597,7 +597,16 @@ def machine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Path]:
         home / ".claude.json",
         {
             "mcpServers": {
-                "db": {"command": "npx", "args": ["-y", "pg-mcp", _SECRET_ARG]}
+                "db": {
+                    "command": "npx",
+                    "args": [
+                        "-y",
+                        "pg-mcp",
+                        _SECRET_ARG,
+                        "--api-key",
+                        "mysecretvalue123",
+                    ],
+                }
             }
         },
     )
@@ -633,7 +642,7 @@ class TestEndToEnd:
         from mcp_audit.cli import app  # noqa: PLC0415
 
         runner = CliRunner()
-        secrets = ("hunter2pass", "s3cretPassw0rd")
+        secrets = ("hunter2pass", "s3cretPassw0rd", "mysecretvalue123", "qsecretval")
 
         res = runner.invoke(app, ["scan", "--format", "json", "--no-score"])
         data = json.loads(res.stdout[res.stdout.index("{") :])
@@ -725,3 +734,253 @@ def test_demo_configs_produce_no_managed_findings() -> None:
 def test_conftest_keeps_the_real_managed_directory_out() -> None:
     policy = read_managed_policy()
     assert not policy.present
+
+
+# ── Review fixes: ports, fail-closed keys, redaction, merged allowlists ──────
+
+
+class TestPorts:
+    """managed-mcp 'How serverUrl entries match': every row of the port table."""
+
+    @pytest.mark.parametrize(
+        ("pattern", "url", "expected"),
+        [
+            # Hostname written out in full: the scheme's default port only.
+            ("https://mcp.example.com/*", "https://mcp.example.com/api", True),
+            ("https://mcp.example.com/*", "https://mcp.example.com:443/api", True),
+            ("https://mcp.example.com/*", "https://mcp.example.com:8443/api", False),
+            ("https://mcp.example.com", "https://mcp.example.com:443/x/y", True),
+            ("https://mcp.example.com", "https://mcp.example.com:8443/x", False),
+            ("http://mcp.example.com/*", "http://mcp.example.com:80/a", True),
+            ("http://mcp.example.com/*", "http://mcp.example.com:8080/a", False),
+            # Explicit port.
+            ("https://mcp.example.com:8443/*", "https://mcp.example.com:8443/a", True),
+            ("https://mcp.example.com:8443/*", "https://mcp.example.com/a", False),
+            ("https://mcp.example.com:443/*", "https://mcp.example.com/a", True),
+            # :* = every port, 443 included.
+            ("https://mcp.example.com:*/*", "https://mcp.example.com/api", True),
+            ("https://mcp.example.com:*/*", "https://mcp.example.com:8443/a", True),
+            # Hostname with a * in it: every port.
+            ("https://*.example.com/*", "https://a.example.com:8443/api", True),
+            ("https://*.example.com/*", "https://a.example.com/api", True),
+            ("http://localhost:*/*", "http://localhost:8080/mcp", True),
+            ("http://localhost:*/*", "http://localhost/mcp", True),
+            # *:// = each scheme on its default port only.
+            ("*://mcp.example.com/*", "http://mcp.example.com/x", True),
+            ("*://mcp.example.com/*", "https://mcp.example.com:443/x", True),
+            ("*://mcp.example.com/*", "https://mcp.example.com:8443/x", False),
+            # Denylist bullets for staging.example.com.
+            (
+                "https://staging.example.com/*",
+                "https://staging.example.com:8443/api",
+                False,
+            ),
+            (
+                "https://staging.example.com:*/*",
+                "https://staging.example.com:8443/api",
+                True,
+            ),
+            (
+                "*://staging.example.com:*/*",
+                "http://staging.example.com:9000/api",
+                True,
+            ),
+            # IPv6 literal.
+            ("http://[::1]:*/*", "http://[::1]:3000/mcp", True),
+            ("http://[::1]/*", "http://[::1]:3000/mcp", False),
+        ],
+    )
+    def test_port_rules(self, pattern: str, url: str, expected: bool) -> None:
+        assert url_matches(pattern, url) is expected
+
+    def test_unknown_scheme_default_port_is_undecidable(self) -> None:
+        assert (
+            url_matches("ws://mcp.example.com/*", "ws://mcp.example.com:9000/x") is None
+        )
+        assert url_matches("https://a/*", "https://a:abc/x") is None
+
+    def test_staging_8443_row_of_the_deny_accordion(self, tmp_path: Path) -> None:
+        policy = _policy(
+            tmp_path,
+            {
+                "allowedMcpServers": [{"serverUrl": "https://*.example.com/*"}],
+                "deniedMcpServers": [{"serverUrl": "https://staging.example.com/*"}],
+            },
+        )
+        servers = [
+            _remote("s443", "https://staging.example.com/api"),
+            _remote("s8443", "https://staging.example.com:8443/api"),
+        ]
+        assert _dead(_run(policy, servers)) == {"s443"}
+
+
+class TestFailClosedKeys:
+    @pytest.mark.parametrize(
+        ("value", "locked", "invalid"),
+        [
+            (True, True, False),
+            ("true", True, False),
+            (False, False, False),
+            ("false", False, False),
+            (None, False, False),
+            (1, True, True),
+            ("yes", True, True),
+            ([], True, True),
+        ],
+    )
+    def test_allow_managed_only(
+        self, tmp_path: Path, value: object, locked: bool, invalid: bool
+    ) -> None:
+        policy = _policy(
+            tmp_path,
+            {
+                "allowManagedMcpServersOnly": value,
+                "allowedMcpServers": [{"serverName": "a"}],
+            },
+        )
+        assert (policy.lock, policy.lock_invalid) == (locked, invalid)
+
+    def test_null_lock_in_dropin_removes_an_earlier_true(self, tmp_path: Path) -> None:
+        managed = tmp_path / "m"
+        _write(managed / "managed-settings.json", {"allowManagedMcpServersOnly": True})
+        _write(
+            managed / "managed-settings.d" / "10.json",
+            {"allowManagedMcpServersOnly": None},
+        )
+        assert read_managed_policy(managed, []).lock is False
+
+    @pytest.mark.parametrize(
+        ("value", "present", "blocks"),
+        [
+            (True, True, True),
+            (["mcp"], True, True),
+            (["skills", "mcp"], True, True),
+            (["skills"], False, False),
+            (False, False, False),
+            (None, False, False),
+            (5, True, True),  # neither boolean nor array -> treated as true
+            ("true", True, False),  # quoted: policy present, never claimed
+            ({"mcp": True}, True, False),
+        ],
+    )
+    def test_strict_plugin_only(
+        self, tmp_path: Path, value: object, present: bool, blocks: bool
+    ) -> None:
+        policy = _policy(tmp_path, {"strictPluginOnlyCustomization": value})
+        assert policy.strict_plugin_only_mcp is present
+        assert policy.strict_plugin_only_blocks is blocks
+        servers = [
+            _stdio("user", "node"),
+            _stdio(
+                "proj", "node", client="claude-code-project", path=Path("/r/.mcp.json")
+            ),
+            _stdio(
+                "plug", "node", client="claude-code-plugin", path=Path("/p/.mcp.json")
+            ),
+        ]
+        findings = _run(policy, servers)
+        assert _dead(findings) == ({"user", "proj"} if blocks else set())
+        assert ("MANAGED-003" in _ids(findings)) is (not present)
+
+    def test_null_allowlist_claims_nothing(self, tmp_path: Path) -> None:
+        managed = tmp_path / "m"
+        _write(
+            managed / "managed-settings.json",
+            {"allowedMcpServers": [{"serverName": "a"}]},
+        )
+        _write(managed / "managed-settings.d" / "10.json", {"allowedMcpServers": None})
+        policy = read_managed_policy(managed, [])
+        repo = tmp_path / "repo"
+        cfg = _settings_config(
+            repo / ".claude" / "settings.json",
+            {"allowedMcpServers": [{"serverName": "x"}]},
+            "claude-code-project",
+        )
+        findings = _run(policy, [_stdio("b", "node")], [cfg], tmp_path / "h", repo)
+        assert _dead(findings) == set()
+        assert "MANAGED-004" not in _ids(findings)
+        assert "null" in [f for f in findings if f.id == "MANAGED-001"][0].description
+
+
+class TestMergedAllowlist:
+    def test_project_command_entry_removes_the_name_match(self, tmp_path: Path) -> None:
+        """A merged serverCommand entry stops a stdio name match from counting."""
+        policy = _policy(tmp_path, {"allowedMcpServers": [{"serverName": "x"}]})
+        repo = tmp_path / "repo"
+        cfg = _settings_config(
+            repo / ".claude" / "settings.json",
+            {"allowedMcpServers": [{"serverCommand": ["other"]}]},
+            "claude-code-project",
+        )
+        findings = _run(policy, [_stdio("x", "node")], [cfg], tmp_path / "h", repo)
+        assert _dead(findings) == {"x"}
+
+    def test_locked_list_ignores_other_scopes(self, tmp_path: Path) -> None:
+        policy = _policy(
+            tmp_path,
+            {
+                "allowManagedMcpServersOnly": True,
+                "allowedMcpServers": [{"serverName": "x"}],
+            },
+        )
+        repo = tmp_path / "repo"
+        cfg = _settings_config(
+            repo / ".claude" / "settings.json",
+            {"allowedMcpServers": [{"serverCommand": ["other"]}]},
+            "claude-code-project",
+        )
+        assert (
+            _dead(_run(policy, [_stdio("x", "node")], [cfg], tmp_path / "h", repo))
+            == set()
+        )
+
+
+class TestProvidedChecks:
+    def test_hidden_characters_drop_the_entry(self, tmp_path: Path) -> None:
+        policy = _policy(
+            tmp_path,
+            {
+                "managedMcpServers": {
+                    "search": {
+                        "type": "http",
+                        "url": "https://search.example.com/mcp\u200b",
+                    }
+                }
+            },
+        )
+        assert policy.provided == {}
+        assert _dead(_run(policy, [_stdio("search", "node")])) == set()
+
+
+class TestRedaction:
+    def test_secret_flag_values_in_server_and_policy_command(
+        self, tmp_path: Path
+    ) -> None:
+        policy = _policy(
+            tmp_path,
+            {
+                "deniedMcpServers": [
+                    {"serverCommand": ["node", "s.js", "--api-key", "plainsecretAAA"]},
+                    {"serverCommand": ["node", "t.js", "--token=plainsecretBBB"]},
+                ]
+            },
+        )
+        servers = [
+            _stdio("a", "node", "s.js", "--api-key", "plainsecretAAA"),
+            _stdio("b", "node", "t.js", "--token=plainsecretBBB"),
+        ]
+        findings = [f for f in _run(policy, servers) if f.id == "MANAGED-002"]
+        assert len(findings) == 2
+        text = " ".join(f.description + f.evidence for f in findings)
+        assert "plainsecret" not in text
+        assert "--api-key [REDACTED]" in text and "--token=[REDACTED]" in text
+
+    def test_query_string_secrets(self, tmp_path: Path) -> None:
+        policy = _policy(
+            tmp_path,
+            {"deniedMcpServers": [{"serverUrl": "https://x.example/*"}]},
+        )
+        server = _remote("q", "https://x.example/mcp?access_token=qqqsecret&mode=1")
+        (f,) = [f for f in _run(policy, [server]) if f.id == "MANAGED-002"]
+        assert "qqqsecret" not in f.evidence
+        assert "access_token=[REDACTED]&mode=1" in f.evidence

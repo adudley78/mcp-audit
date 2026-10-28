@@ -1983,7 +1983,7 @@
       "owasp_names": [
         "Shadow MCP Servers"
       ],
-      "notes": "Dead config (INFO): a Claude Code user (~/.claude.json), project (.mcp.json) or plugin server that managed-mcp.json exclusive control, a managed deniedMcpServers entry, a same-name/same-URL managedMcpServers entry, or the managed allowedMcpServers list keeps from loading. ${VAR} references are undecidable and never claimed. Excluded from advisories. CWE-1188. Source: code.claude.com/docs/en/managed-mcp, managed-settings, settings-reference. Analyzer: managed_policy (STORY-0112)."
+      "notes": "Dead config (INFO): a Claude Code user (~/.claude.json), project (.mcp.json) or plugin server that managed-mcp.json exclusive control, a managed deniedMcpServers entry, strictPluginOnlyCustomization locking MCP (true, an array with \"mcp\", or a fail-closed invalid value), a same-name/same-URL managedMcpServers entry, or the managed allowedMcpServers list (merged with other scopes' lists when unlocked; ports per the documented default-port rules) keeps from loading. ${VAR} references are undecidable and never claimed. Excluded from advisories. CWE-1188. Source: code.claude.com/docs/en/managed-mcp, managed-settings, settings-reference. Analyzer: managed_policy (STORY-0112)."
     },
     {
       "finding_id": "MANAGED-003",

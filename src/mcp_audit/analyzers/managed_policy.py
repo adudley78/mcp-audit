@@ -40,12 +40,13 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
-from mcp_audit.analyzers.supply_chain import _redact_userinfo
+from mcp_audit.analyzers.supply_chain import _redact_userinfo, secret_arg_values
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 ANALYZER = "managed_policy"
@@ -101,7 +102,7 @@ class PolicyEntry:
     def shown(self) -> str:
         """The entry as text for findings, with secrets redacted."""
         if isinstance(self.value, tuple):
-            return f"{self.kind} {_redact(' '.join(self.value))}"
+            return f"{self.kind} {_redact_parts(list(self.value))}"
         return f"{self.kind} {_redact(self.value)}"
 
 
@@ -122,12 +123,22 @@ class ManagedPolicy:
     mcp_file_problem: str | None = None
     allowed: list[PolicyEntry] | None = None
     allowed_invalid_value: bool = False
+    # A file set allowedMcpServers to null ("A null removes the key"); how that
+    # combines with another file's list is not documented, so allowlist
+    # verdicts are undecidable.
+    allowed_null: bool = False
     denied: list[PolicyEntry] = field(default_factory=list)
     stripped_entries: int = 0
     lock: bool = False
+    lock_invalid: bool = False
     provided: dict[str, dict] = field(default_factory=dict)
     provided_dropped: list[str] = field(default_factory=list)
     strict_plugin_only_mcp: bool = False
+    # True only when the value certainly locks the MCP surface: true, an
+    # array containing "mcp", or a value that is neither boolean nor array
+    # (fail closed, Claude Code 2.1.282+).  Quoted booleans and objects only
+    # mark an MCP policy as present.
+    strict_plugin_only_blocks: bool = False
     other_mcp_keys: list[str] = field(default_factory=list)
 
     @property
@@ -148,6 +159,7 @@ class ManagedPolicy:
         return bool(
             self.mcp_file is not None
             or self.allowed is not None
+            or self.allowed_null
             or self.denied
             or self.lock
             or self.provided
@@ -159,21 +171,71 @@ class ManagedPolicy:
 
 @dataclass(frozen=True)
 class _Verdict:
-    reason: Literal["exclusive", "denied", "shadowed", "not-allowed"]
+    reason: Literal["exclusive", "denied", "plugin-only", "shadowed", "not-allowed"]
     detail: str
 
 
 # ── Reading the managed directory ─────────────────────────────────────────────
 
 
-def _redact(text: str) -> str:
-    """Replace URL userinfo and SECRET_PATTERNS matches in *text*; cap at 300."""
-    cleaned = " ".join(_redact_userinfo(part) for part in text.split(" "))
+_SECRET_WORDS = (
+    "key",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "pwd",
+    "auth",
+    "credential",
+)
+
+
+def _redact_query(text: str) -> str:
+    """Replace the value of each secret-named query parameter in a URL."""
+    head, mark, rest = text.partition("?")
+    if not mark:
+        return text
+    query, hash_, fragment = rest.partition("#")
+    pairs: list[str] = []
+    for pair in query.split("&"):
+        name, eq, _value = pair.partition("=")
+        if eq and any(word in name.lower() for word in _SECRET_WORDS):
+            pairs.append(f"{name}=[REDACTED]")
+        else:
+            pairs.append(pair)
+    return head + "?" + "&".join(pairs) + hash_ + fragment
+
+
+def _redact_parts(parts: list[str]) -> str:
+    """Join a command (or one URL) for finding text with secrets removed.
+
+    Values of secret-named flags (``--api-key VALUE``, ``--token=VALUE``;
+    ``supply_chain.secret_arg_values``) are replaced first, then URL
+    userinfo and secret-named query parameters in each part, then every
+    SECRET_PATTERNS match; the result is capped at 300 characters after
+    redacting.
+    """
+    secrets = {value for value in secret_arg_values(list(parts)) if value}
+    out: list[str] = []
+    for part in parts:
+        if part in secrets:
+            part = "[REDACTED]"
+        elif part.startswith("-") and "=" in part:
+            flag, _eq, value = part.partition("=")
+            if value in secrets:
+                part = f"{flag}=[REDACTED]"
+        out.append(_redact_query(_redact_userinfo(part)))
+    cleaned = " ".join(out)
     for _label, pattern, _provider in SECRET_PATTERNS:
         cleaned = pattern.sub("[REDACTED]", cleaned)
     if len(cleaned) > 300:
         cleaned = cleaned[:300] + "…"
     return cleaned
+
+
+def _redact(text: str) -> str:
+    """Redact one value (a URL or a name) for finding text."""
+    return _redact_parts([text])
 
 
 class _Budget:
@@ -273,24 +335,65 @@ def _provided_problem(name: str, entry: object) -> str | None:
             return f"entry has a {member} member"
     if "${" in json.dumps(entry):
         return "a value contains a ${VAR} reference"
+    if _has_hidden_chars(name) or _has_hidden_chars(entry):
+        return "a key or value contains control or invisible formatting characters"
     return None
 
 
-def _strict_plugin_only_mcp(value: object) -> bool:
-    """Best-effort read of ``strictPluginOnlyCustomization`` for the MCP surface.
-
-    The settings index documents the key and its ``.mcp`` member ("Lock MCP
-    servers to plugin and managed sources") but not every value shape, so
-    this is used only to recognise that an MCP policy exists, never to claim
-    a server is blocked.
-    """
-    if value is True:
+def _has_hidden_chars(obj: object, depth: int = 0) -> bool:
+    """True when any string in *obj* has a control (Cc) or format (Cf) character."""
+    if depth > 32:
         return True
-    if isinstance(value, list):
-        return "mcp" in value
-    if isinstance(value, dict):
-        return bool(value.get("mcp"))
+    if isinstance(obj, str):
+        return any(unicodedata.category(ch) in ("Cc", "Cf") for ch in obj)
+    if isinstance(obj, dict):
+        return any(
+            _has_hidden_chars(k, depth + 1) or _has_hidden_chars(v, depth + 1)
+            for k, v in obj.items()
+        )
+    if isinstance(obj, list):
+        return any(_has_hidden_chars(v, depth + 1) for v in obj)
     return False
+
+
+def _strict_plugin_only_mcp(value: object) -> tuple[bool, bool]:
+    """Read ``strictPluginOnlyCustomization`` for the MCP surface.
+
+    Returns ``(policy_present, blocks_user_and_project_servers)``.  ``true``
+    or an array containing ``"mcp"`` locks the MCP surface ("Plugin servers
+    only: Users can't add servers through ~/.claude.json or .mcp.json;
+    plugin servers still load").  A value that is neither a boolean nor an
+    array is "Treated as true, locking all four surfaces" (managed-settings,
+    Keys that fail closed, Claude Code 2.1.282+), except two shapes whose
+    reading is not documented for this key: a quoted boolean and an object.
+    Those mark a policy as present but never support a "blocked" claim.
+    ``null`` removes the key.
+    """
+    if value is None or value is False:
+        return (False, False)
+    if value is True:
+        return (True, True)
+    if isinstance(value, list):
+        locked = "mcp" in value
+        return (locked, locked)
+    if isinstance(value, (str, dict)):
+        return (True, False)
+    return (True, True)
+
+
+def _lock_value(value: object) -> tuple[bool, bool]:
+    """Read ``allowManagedMcpServersOnly``: ``(locked, value_was_invalid)``.
+
+    ``true`` or ``"true"`` locks and ``false`` or ``"false"`` doesn't (the
+    quoted form "reads as that boolean"); any other value fails closed and
+    "reads as" the restrictive value (managed-settings, Keys that fail
+    closed).  ``null`` is handled by the caller (it removes the key).
+    """
+    if value is True or value == "true":
+        return (True, False)
+    if value is False or value == "false":
+        return (False, False)
+    return (True, True)
 
 
 def read_managed_policy(
@@ -352,7 +455,9 @@ def read_managed_policy(
             continue
         policy.settings_files.append(path)
 
-        if "allowedMcpServers" in data:
+        if data.get("allowedMcpServers", 0) is None:
+            policy.allowed_null = True
+        elif "allowedMcpServers" in data:
             raw_allowed = data["allowedMcpServers"]
             allowed = {} if allowed is None else allowed
             if isinstance(raw_allowed, list):
@@ -374,7 +479,11 @@ def read_managed_policy(
                 else:
                     denied.setdefault(entry.key(), entry)
         if "allowManagedMcpServersOnly" in data:
-            policy.lock = data["allowManagedMcpServersOnly"] is True
+            raw_lock = data["allowManagedMcpServersOnly"]
+            if raw_lock is None:
+                policy.lock, policy.lock_invalid = (False, False)
+            else:
+                policy.lock, policy.lock_invalid = _lock_value(raw_lock)
         provided = data.get("managedMcpServers")
         if isinstance(provided, dict):
             for name, entry in provided.items():
@@ -386,8 +495,12 @@ def read_managed_policy(
                     policy.provided_dropped.append(f"{name} ({problem})")
         elif provided is not None:
             policy.provided_dropped.append("managedMcpServers (not an object)")
-        if _strict_plugin_only_mcp(data.get("strictPluginOnlyCustomization")):
-            policy.strict_plugin_only_mcp = True
+        if "strictPluginOnlyCustomization" in data:
+            present, blocks = _strict_plugin_only_mcp(
+                data["strictPluginOnlyCustomization"]
+            )
+            policy.strict_plugin_only_mcp = present
+            policy.strict_plugin_only_blocks = blocks
         for key in ("allowAllClaudeAiMcps", "allowClaudeInChromeWithManagedMcp"):
             if key in data and key not in policy.other_mcp_keys:
                 policy.other_mcp_keys.append(key)
@@ -443,12 +556,17 @@ def _glob(pattern: str, text: str) -> bool:
     return True
 
 
-def _split_url(url: str) -> tuple[str, str, str] | None:
-    """Split *url* into lower-case scheme, lower-case authority and path.
+_DEFAULT_PORTS = {"https": "443", "http": "80"}
 
-    Userinfo is dropped and a trailing dot on the host removed (Claude Code's
-    hostname match "is case-insensitive and ignores a trailing FQDN dot";
-    "Paths stay case-sensitive").  Returns ``None`` without ``://``.
+
+def _split_url(url: str) -> tuple[str, str, str | None, str] | None:
+    """Split *url* into scheme, host, port and path.
+
+    Scheme and host are lower-cased, userinfo is dropped and a trailing dot
+    on the host removed (Claude Code's hostname match "is case-insensitive
+    and ignores a trailing FQDN dot"; "Paths stay case-sensitive").  The
+    port is ``None`` when the URL gives none.  Returns ``None`` without
+    ``://`` or for a malformed bracketed (IPv6) host.
     """
     head, sep, rest = url.partition("://")
     if not sep:
@@ -460,20 +578,34 @@ def _split_url(url: str) -> tuple[str, str, str] | None:
             cut = min(cut, idx)
     authority = rest[:cut].rpartition("@")[2].lower()
     path = rest[cut:]
-    host, colon, port = authority.rpartition(":")
-    if colon and (port.isdigit() or port == "*") and not host.endswith("]"):
-        authority = f"{host.rstrip('.')}:{port}"
+    port: str | None
+    if authority.startswith("["):
+        close = authority.find("]")
+        if close == -1:
+            return None
+        host, tail = authority[: close + 1], authority[close + 1 :]
+        if tail and not tail.startswith(":"):
+            return None
+        port = tail[1:] if tail else None
     else:
-        authority = authority.rstrip(".")
-    return (head.lower(), authority, path)
+        host, colon, port_text = authority.partition(":")
+        port = port_text if colon else None
+    return (head.lower(), host.rstrip("."), port or None, path)
 
 
 def url_matches(pattern: str, url: str) -> bool | None:
     """Does a ``serverUrl`` *pattern* match a server *url*?
 
-    ``*`` matches anything anywhere, including the scheme; a pattern with no
-    path matches any path.  Returns ``None`` (undecidable) when either side
-    has a ``${VAR}`` reference, isn't a ``scheme://`` URL, or is too long.
+    Rules from managed-mcp "How serverUrl entries match": ``*`` matches
+    anything anywhere, including the whole scheme; a pattern with no path
+    matches any path.  Ports: a pattern port must match the server's port
+    (the scheme's default, 443 for https and 80 for http, when the URL
+    gives none), ``:*`` matching every port; with no port in the pattern, a
+    hostname written out in full matches the default port only and a
+    hostname with a ``*`` in it matches every port.  Returns ``None``
+    (undecidable) when either side has a ``${VAR}`` reference, isn't a
+    ``scheme://`` URL, is too long, has a non-numeric port, or the server's
+    scheme has no default port mcp-audit knows when one is needed.
     """
     if "${" in pattern or "${" in url:
         return None
@@ -483,10 +615,25 @@ def url_matches(pattern: str, url: str) -> bool | None:
     srv = _split_url(url)
     if pat is None or srv is None:
         return None
-    p_scheme, p_auth, p_path = pat
-    s_scheme, s_auth, s_path = srv
-    if not _glob(p_scheme, s_scheme) or not _glob(p_auth, s_auth):
+    p_scheme, p_host, p_port, p_path = pat
+    s_scheme, s_host, s_port, s_path = srv
+    if not _glob(p_scheme, s_scheme) or not _glob(p_host, s_host):
         return False
+    if s_port is not None and not s_port.isdigit():
+        return None
+    default = _DEFAULT_PORTS.get(s_scheme)
+    if p_port is None:
+        if "*" not in p_host and s_port is not None:
+            if default is None:
+                return None
+            if s_port.lstrip("0") != default:
+                return False
+    else:
+        effective = (s_port.lstrip("0") or "0") if s_port is not None else default
+        if effective is None:
+            return None
+        if not _glob(p_port, effective):
+            return False
     if not p_path:
         return True
     paths = [s_path or "/"]
@@ -732,6 +879,16 @@ def _inventory(policy: ManagedPolicy) -> Finding:
             "allowManagedMcpServersOnly is true but no file sets"
             " allowedMcpServers, so every server that passes the denylist loads"
         )
+    if policy.allowed_null:
+        parts.append(
+            "a file sets allowedMcpServers to null, which removes the key;"
+            " allowlist verdicts are not reported"
+        )
+    if policy.lock_invalid:
+        parts.append(
+            "allowManagedMcpServersOnly has a value Claude Code can't read, so it"
+            " reads as true (fails closed)"
+        )
     if policy.denied:
         parts.append(f"deniedMcpServers has {len(policy.denied)} entries")
     if policy.stripped_entries:
@@ -739,9 +896,14 @@ def _inventory(policy: ManagedPolicy) -> Finding:
             f"{policy.stripped_entries} malformed allow/deny entr"
             f"{'y' if policy.stripped_entries == 1 else 'ies'} Claude Code strips"
         )
-    if policy.strict_plugin_only_mcp:
+    if policy.strict_plugin_only_blocks:
         parts.append(
             "strictPluginOnlyCustomization locks MCP to plugin and managed sources"
+        )
+    elif policy.strict_plugin_only_mcp:
+        parts.append(
+            "strictPluginOnlyCustomization is set to a value whose effect on MCP"
+            " mcp-audit can't decide (a quoted boolean or an object)"
         )
     if policy.unparsable_files:
         parts.append(
@@ -774,6 +936,13 @@ def _inventory(policy: ManagedPolicy) -> Finding:
     )
 
 
+_VERDICT_CAVEAT = (
+    " This holds when the managed settings files are the source Claude Code"
+    " applies: an MDM profile or server-managed settings that deliver any policy"
+    " key replace them, and mcp-audit can't read those."
+)
+
+
 def _verdict(
     policy: ManagedPolicy,
     server: ServerConfig,
@@ -799,6 +968,15 @@ def _verdict(
                 " (Claude Code reads deniedMcpServers from every admin source,"
                 " 2.1.273 or later).",
             )
+    if policy.strict_plugin_only_blocks and server.client != _PLUGIN_CLIENT:
+        return _Verdict(
+            "plugin-only",
+            "managed settings set strictPluginOnlyCustomization for MCP, so"
+            " 'Users can't add servers through ~/.claude.json or .mcp.json;"
+            " plugin servers still load' (Anthropic, managed-mcp: Choose a"
+            " pattern; a value that is neither a boolean nor an array is treated"
+            " as true, Claude Code 2.1.282 or later)." + _VERDICT_CAVEAT,
+        )
     if policy.provided:
         for name, entry in policy.provided.items():
             same_name = server.client != _PLUGIN_CLIENT and name == server.name
@@ -816,24 +994,29 @@ def _verdict(
                     f" this one through managedMcpServers ({name}), and a"
                     " provided server takes precedence, so Claude Code connects"
                     " the organization's definition instead (Claude Code 2.1.259"
-                    " or later).",
+                    " or later)." + _VERDICT_CAVEAT,
                 )
-    if policy.allowed is None:
+    if policy.allowed is None or policy.allowed_null:
         return None
-    if _allow_verdict(policy.allowed, server) != "blocked":
-        return None
+    entries = list(policy.allowed)
     extra_note = ""
     if not policy.lock:
-        # Unlocked: allowlists from every settings scope merge.
+        # Unlocked: allowlist entries from every settings scope merge into
+        # one list, and the per-transport rule is applied to that list.
+        seen = {e.key() for e in entries}
         for allowlist in extra_allowed:
-            if _allow_verdict(list(allowlist.entries), server) != "blocked":
-                return None
+            for entry in allowlist.entries:
+                if entry.key() not in seen:
+                    seen.add(entry.key())
+                    entries.append(entry)
         extra_note = (
             " The allowlist isn't locked (allowManagedMcpServersOnly), so"
             " another project's settings file could still add this server;"
             " none mcp-audit read does."
         )
-    if not policy.allowed:
+    if _allow_verdict(entries, server) != "blocked":
+        return None
+    if not entries:
         shown = "the managed allowlist is empty"
     elif server.url:
         shown = (
@@ -848,8 +1031,8 @@ def _verdict(
     return _Verdict(
         "not-allowed",
         f"{shown}; commands must match exactly, every argument in order, and"
-        " URLs by pattern (Anthropic, managed-mcp: How a server is evaluated)."
-        + extra_note,
+        " URLs by pattern and port (Anthropic, managed-mcp: How a server is"
+        " evaluated)." + extra_note + _VERDICT_CAVEAT,
     )
 
 
@@ -857,7 +1040,7 @@ def _server_shown(server: ServerConfig) -> str:
     if server.url:
         return f"url {_redact(server.url)}"
     if server.command:
-        return "command " + _redact(" ".join([server.command, *server.args]))
+        return "command " + _redact_parts([server.command, *server.args])
     return "no command or url"
 
 
@@ -907,7 +1090,10 @@ def _broadened(policy: ManagedPolicy, allowlist: SettingsAllowlist) -> Finding |
         " ~/.claude/settings.json, so a user can broaden what your allowlist"
         " permits'. allowedMcpServers can be set in any settings file, so a"
         " repository's committed settings broaden it for everyone who opens"
-        " the repository.",
+        " the repository. mcp-audit reads only the managed files: Claude Code"
+        " turns the lock on from a true in any admin source (2.1.273 or"
+        " later), so an MDM profile or server-managed settings it can't read"
+        " may already lock the list.",
         f"file: {allowlist.path} | added: {shown}",
         "Administrators: set allowManagedMcpServersOnly to true next to"
         " allowedMcpServers in managed settings. Repository owners: remove"
@@ -1025,7 +1211,12 @@ def analyze_managed_policy(
             findings.append(name_only)
 
     allowlists = settings_allowlists(configs, home, root)
-    if policy.allowed is not None and not policy.lock and not policy.exclusive:
+    if (
+        policy.allowed is not None
+        and not policy.allowed_null
+        and not policy.lock
+        and not policy.exclusive
+    ):
         for allowlist in allowlists:
             broadened = _broadened(policy, allowlist)
             if broadened is not None:

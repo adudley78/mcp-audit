@@ -452,9 +452,11 @@ by arXiv 2605.22333 are out of scope for static analysis (require live
 - **Servers compared:** `~/.claude.json` top-level servers, project `.mcp.json`, and
   plugin servers. Local-scope servers under `~/.claude.json` `projects.*`, subagent
   inline servers, claude.ai connectors and servers passed with `--mcp-config` are not
-  compared. `strictPluginOnlyCustomization` is recognised as an MCP policy (it
-  suppresses MANAGED-003) but never used to claim a server is blocked: its value
-  shapes are not fully documented on the pages read.
+  compared. `strictPluginOnlyCustomization` set to a quoted boolean or an object is
+  recognised as an MCP policy (it suppresses MANAGED-003) but never used to claim a
+  server is blocked: how Claude Code reads those shapes for this key is not documented.
+- **Ports for other schemes.** Only `https` (443) and `http` (80) default ports are
+  known; a pattern that needs another scheme's default port is undecidable.
 - **Other harnesses.** VS Code documents `ChatAllowedMcpServers` /
   `ChatDeniedMcpServers` / `ChatAllowManagedMcpServersOnly` policies (Linux:
   `/etc/vscode/policy.json`) without an entry format on the pages that could be read
