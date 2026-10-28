@@ -273,10 +273,19 @@ def _evidence_snippet(pattern: DetectionPattern, raw_text: str) -> str:
 _POISON_060_EXTRA: str = "".join(
     sorted({c for c in _CONFUSABLES if not ("\u0370" <= c <= "\u04ff")})
 )
+#
+# Fullwidth forms (STORY-0107): only the fullwidth DIGITS and LETTERS
+# (U+FF10-FF19, U+FF21-FF3A, U+FF41-FF5A) are in the class.  The fullwidth
+# punctuation in U+FF01-FF5E (comma, colon, semicolon, parentheses, ...) is the
+# ordinary punctuation of Chinese, Japanese and Korean text, and was 488 of the
+# 661 false findings on the top-100 npm corpus and 16 of 18 flagged MCPTox clean
+# tools.  A punctuation mark cannot spell a disguised word, and the literal
+# patterns still see through it: ``normalize_for_detection`` folds U+FF1C to
+# ``<``, so a fullwidth-bracketed <IMPORTANT> still fires POISON-010.
 _POISON_060_CLASS: str = (
-    "[\u0370-\u03ff\u0400-\u04ff\uff01-\uff5e\U0001d400-\U0001d7ff"
-    + _POISON_060_EXTRA
-    + "]"
+    "[\u0370-\u03ff\u0400-\u04ff"
+    "\uff10-\uff19\uff21-\uff3a\uff41-\uff5a"
+    "\U0001d400-\U0001d7ff" + _POISON_060_EXTRA + "]"
 )
 
 
@@ -496,7 +505,8 @@ PATTERNS: list[DetectionPattern] = [
         name="Unicode homoglyph substitution",
         # The character class is built at import time (``_POISON_060_CLASS``) as
         # the union of the broad confusable-script ranges — Cyrillic
-        # (U+0400–04FF), Greek (U+0370–03FF), fullwidth ASCII (U+FF01–FF5E),
+        # (U+0400–04FF), Greek (U+0370–03FF), fullwidth digits and letters
+        # (U+FF10–FF19, U+FF21–FF3A, U+FF41–FF5A; not fullwidth punctuation),
         # mathematical alphanumerics (U+1D400–1D7FF) — and the specific code
         # points in ``_CONFUSABLES``, which add the Armenian / Cherokee / Coptic
         # letters that fall outside those ranges.  POISON-060 runs against the
