@@ -55,8 +55,8 @@
       }
     },
     "replay": {
-      "patterns_fingerprint": "sha256:21b594ccad7f3b2b411dece244e22310377c570407650e178f9f5ece70ac659d",
-      "findings_reproduced_from_committed_text": 520,
+      "patterns_fingerprint": "sha256:d660ecbb69ac1dcdd680b289a7c2eba20f760d301e5c935eaef8305fc2ce3dcf",
+      "findings_reproduced_from_committed_text": 2,
       "groups": [
         {
           "id": "POISON-012",
@@ -86,9 +86,7 @@
           "fragments": [
             {
               "text": "After calling this",
-              "fires": [
-                "POISON-030"
-              ]
+              "fires": []
             }
           ]
         },
@@ -98,9 +96,7 @@
           "fragments": [
             {
               "text": "First call",
-              "fires": [
-                "POISON-030"
-              ]
+              "fires": []
             }
           ]
         },
@@ -110,9 +106,7 @@
           "fragments": [
             {
               "text": "Instead use",
-              "fires": [
-                "POISON-030"
-              ]
+              "fires": []
             }
           ]
         },
@@ -122,9 +116,7 @@
           "fragments": [
             {
               "text": "first call",
-              "fires": [
-                "POISON-030"
-              ]
+              "fires": []
             }
           ]
         },
@@ -134,9 +126,7 @@
           "fragments": [
             {
               "text": "instead of call",
-              "fires": [
-                "POISON-030"
-              ]
+              "fires": []
             }
           ]
         },
@@ -151,27 +141,19 @@
           "fragments": [
             {
               "text": "（",
-              "fires": [
-                "POISON-060"
-              ]
+              "fires": []
             },
             {
               "text": "，",
-              "fires": [
-                "POISON-060"
-              ]
+              "fires": []
             },
             {
               "text": "：",
-              "fires": [
-                "POISON-060"
-              ]
+              "fires": []
             },
             {
               "text": "；",
-              "fires": [
-                "POISON-060"
-              ]
+              "fires": []
             }
           ]
         }
@@ -201,7 +183,7 @@
         "bytes": 20666873
       }
     },
-    "patterns_fingerprint": "sha256:21b594ccad7f3b2b411dece244e22310377c570407650e178f9f5ece70ac659d",
+    "patterns_fingerprint": "sha256:d660ecbb69ac1dcdd680b289a7c2eba20f760d301e5c935eaef8305fc2ce3dcf",
     "detected_means": "at least one POISON-* finding on the tool, any severity (what a plain scan exits 1 on)",
     "high_or_above_means": "at least one HIGH or CRITICAL POISON-* finding (what check, the pre-commit default and --severity-threshold high fail on)",
     "benchmark_cases": {
@@ -391,8 +373,7 @@
         "POISON-002": 3,
         "POISON-010": 460,
         "POISON-012": 434,
-        "POISON-030": 270,
-        "POISON-060": 1
+        "POISON-030": 270
       }
     },
     "unwrapped_descriptions": {
@@ -449,17 +430,13 @@
     },
     "clean_tools": {
       "total": 353,
-      "flagged": 18,
-      "flagged_high_or_above": 16,
+      "flagged": 2,
+      "flagged_high_or_above": 0,
       "findings_by_id": {
-        "POISON-050": 2,
-        "POISON-060": 16
+        "POISON-050": 2
       },
       "flagged_by_server": {
-        "12306-mcp": 1,
         "AdFin": 1,
-        "AmapMap": 8,
-        "BaiduMap": 7,
         "Sequential Thinking": 1
       }
     }
@@ -476,7 +453,7 @@
         "bytes": 20666873
       }
     },
-    "patterns_fingerprint": "sha256:21b594ccad7f3b2b411dece244e22310377c570407650e178f9f5ece70ac659d",
+    "patterns_fingerprint": "sha256:d660ecbb69ac1dcdd680b289a7c2eba20f760d301e5c935eaef8305fc2ce3dcf",
     "detector_fingerprint": "sha256:69f6361cf33716a217d6f375d9046eb265d1d8da33c602891406d1235e13fd48",
     "session_models": {
       "separate": "the poisoned tool comes from its own server beside the target server: MCPTox's threat model (§2.2 'An attacker can register a malicious MCP server', §3.4 'an agent is connected to both a trusted MCP server and a malicious one')",

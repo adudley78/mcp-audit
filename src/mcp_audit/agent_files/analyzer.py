@@ -119,6 +119,7 @@ from mcp_audit.analyzers.poisoning import (
     matched_pattern,
     normalize_for_detection,
     scan_concealed_channels,
+    search_pattern,
 )
 from mcp_audit.models import Finding, Severity
 
@@ -495,7 +496,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
         # Evidence shows the attacker's ORIGINAL text: prefer the raw match;
         # fall back to a body snippet when the pattern only matched after
         # Unicode normalization.
-        raw_match = pat.pattern.search(text)
+        raw_match = search_pattern(pat, text)
         evidence_snippet = (raw_match.group(0) if raw_match else text.strip())[:120]
 
         if pat.id in _OBFUSCATION_IDS:
@@ -659,7 +660,7 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
     if override_pat:
         m = matched_pattern(override_pat, text, norm_text)
         if m:
-            raw_m = override_pat.pattern.search(text)
+            raw_m = search_pattern(override_pat, text)
             evidence_snippet = (raw_m.group(0) if raw_m else text.strip())[:120]
             _emit(
                 "MEM-001",
@@ -696,7 +697,7 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
         m = matched_pattern(pat, text, norm_text)
         if not m:
             continue
-        raw_m = pat.pattern.search(text)
+        raw_m = search_pattern(pat, text)
         evidence_snippet = (raw_m.group(0) if raw_m else text.strip())[:120]
         _emit(
             "MEM-002",

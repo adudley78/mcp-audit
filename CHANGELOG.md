@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Fewer false poisoning alarms, with no poisoned description missed (STORY-0107).** POISON-060 (HIGH, homoglyph characters) no longer fires on full-width punctuation such as `，` `：` `（`, the ordinary punctuation of Chinese, Japanese and Korean text; full-width letters and digits, Cyrillic, Greek and mathematical letters still fire, and a full-width-bracketed `<IMPORTANT>` is still caught by POISON-010. POISON-030 (MEDIUM, cross-tool manipulation) now fires on an order ("you must first call …", "Before using X, first call Y", "you should instead call …") and no longer on documentation of a workflow ("the first call returns 201", "After calling this tool, use the fields in the response"); "before using this tool" fires as before. The same applies where these patterns run on skill and memory files (SKILL-001/002, MEM-002). On the MCPTox benchmark the real tools flagged fell from 18 of 353 (16 at HIGH) to 2 (none at HIGH), and every one of the 978 poisoned descriptions caught before is still caught, and the 908 caught at HIGH or above still are. These two patterns made 518 of the 661 false findings on the 100 most-downloaded npm MCP servers; that corpus needs a fresh run to give the new figure. POISON-050 (length) is unchanged. See `docs/poisoning.md`.
+
 ---
 
 ## [0.22.0] - 2026-10-27
