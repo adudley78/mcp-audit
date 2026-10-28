@@ -442,6 +442,43 @@ Dynamic-client-registration flaws found in 96.6% of OAuth-enabled MCP servers
 by arXiv 2605.22333 are out of scope for static analysis (require live
 `/.well-known/oauth-authorization-server` fetch).
 
+## Managed MCP policy report (MANAGED-001..005, STORY-0112)
+
+- **Only the file tier is read.** `managed-settings.json`, `managed-settings.d/*.json`
+  and `managed-mcp.json` in Claude Code's system directory. An MDM profile, the Windows
+  HKLM/HKCU registry and server-managed settings from the claude.ai console are not
+  read, and under Claude Code's default "first-wins" rule a higher source that
+  delivers any policy key replaces the files' allowlist. A MANAGED-002 "not-allowed"
+  verdict can therefore be wrong on a machine whose MDM or server-managed policy
+  differs from its files; denylist and `managed-mcp.json` verdicts hold (read from
+  every admin source / always applied). MANAGED-003 can fire where the MCP policy
+  lives in a source mcp-audit can't see; its text says so.
+- **`managedSourcesBehavior: "merge"`, parent settings from an embedding host, and
+  `policyHelper` output are not modelled.**
+- **`${VAR}` is not expanded** in policy entries or server values: such a pair is
+  never reported as blocked (undecidable, silent).
+- **Unlocked allowlists from other projects.** With `allowManagedMcpServersOnly`
+  unset, any project's settings can admit a server. mcp-audit checks the user file
+  and the scanned project's files only; the MANAGED-002 text says another project
+  could still add it.
+- **Servers compared:** `~/.claude.json` top-level servers, project `.mcp.json`, and
+  plugin servers. Local-scope servers under `~/.claude.json` `projects.*`, subagent
+  inline servers, claude.ai connectors and servers passed with `--mcp-config` are not
+  compared. `strictPluginOnlyCustomization` set to a quoted boolean or an object is
+  recognised as an MCP policy (it suppresses MANAGED-003) but never used to claim a
+  server is blocked: how Claude Code reads those shapes for this key is not documented.
+- **Ports for other schemes.** Only `https` (443) and `http` (80) default ports are
+  known; a pattern that needs another scheme's default port is undecidable.
+- **Other harnesses.** VS Code documents `ChatAllowedMcpServers` /
+  `ChatDeniedMcpServers` / `ChatAllowManagedMcpServersOnly` policies (Linux:
+  `/etc/vscode/policy.json`) without an entry format on the pages that could be read
+  for this story; Cursor's team MCP controls are server-side. Neither is checked.
+- **Partial policy is not evaluated.** When any managed settings file can't be read or
+  parsed (or the drop-in directory can't be listed), only MANAGED-001 is reported.
+- **The managed directory is trusted as admin-written.** A symlinked drop-in is read
+  like Claude Code reads it. On WSL `/etc/claude-code` is user-writable; that is not
+  reported.
+
 ## Detection quality
 
 **Measured POISON-* recall and precision (2026-10-25, STORY-0088).** Full method and caveats: [`docs/poisoning.md`](docs/poisoning.md); numbers: `docs/research/poisoning-benchmark/results.json`.
