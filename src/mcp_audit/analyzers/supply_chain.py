@@ -1220,6 +1220,63 @@ def redact_url(url: str | None) -> str | None:
     return redact_args([url])[0]
 
 
+def redact_header_values(headers: dict) -> dict:
+    """Return *headers* with credential values redacted, for serialised output.
+
+    A value that is only an environment reference (``Bearer ${TOKEN}``) is
+    kept.  An authentication header (``auth.AUTH_HEADER_NAMES``:
+    ``Authorization``, ``X-Api-Key``, …) keeps its scheme word and loses the
+    rest (``Bearer [REDACTED]``); any other header has URL userinfo and
+    SECRET_PATTERNS matches replaced, as :func:`redact_args` does.  Non-string
+    values are returned unchanged.
+    """
+    from mcp_audit.analyzers.auth import AUTH_HEADER_NAMES  # noqa: PLC0415
+    from mcp_audit.analyzers.credentials import (  # noqa: PLC0415
+        is_header_value_env_only,
+        strip_scheme_prefix,
+    )
+
+    out: dict = {}
+    for name, value in headers.items():
+        if not isinstance(value, str) or is_header_value_env_only(value):
+            out[name] = value
+        elif str(name).lower() in AUTH_HEADER_NAMES:
+            rest = strip_scheme_prefix(value)
+            out[name] = value[: len(value) - len(rest)] + REDACTION_MARKER
+        else:
+            out[name] = redact_args([value])[0]
+    return out
+
+
+def redact_env_values(env: dict) -> dict:
+    """Return *env* with credential values redacted, for serialised output.
+
+    Used for MCP gateway upstream servers (STORY-0111), whose ``env`` comes
+    from a gateway config that often holds every upstream's API keys.  A
+    value that is only a reference (``$VAR``, ``${VAR}``, ``%VAR%``) is kept.
+    A value SECRET_PATTERNS recognises, or URL userinfo, becomes
+    :data:`REDACTION_MARKER` (as :func:`redact_args`); the value of a
+    secret-named variable (``API_KEY``, ``GITHUB_TOKEN``, ``DB_PASSWORD``:
+    the same whole-word rule as secret flags) that is not plainly a setting,
+    path or URL becomes :data:`FLAG_REDACTION_MARKER`.  Non-string values are
+    returned unchanged.
+    """
+    out: dict = {}
+    for name, value in env.items():
+        if not isinstance(value, str) or _looks_like_reference(value.strip()):
+            out[name] = value
+            continue
+        redacted = redact_args([value])[0]
+        if (
+            redacted == value
+            and _is_secret_flag_name(str(name))
+            and _is_secret_flag_value(value)
+        ):
+            redacted = FLAG_REDACTION_MARKER
+        out[name] = redacted
+    return out
+
+
 def build_twin_finding(
     server: ServerConfig,
     package: str,

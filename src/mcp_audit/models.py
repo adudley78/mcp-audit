@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from mcp_audit import __version__
+from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS as _GATEWAY_CLIENTS
 
 # ── Machine identification ─────────────────────────────────────────────────────
 
@@ -115,6 +116,32 @@ class ServerConfig(BaseModel):
     # analyzers, lock and rug-pull hashing still see the real values.  ``env``
     # and ``headers`` values are not touched here (GAPS.md).
 
+    # Servers read from an MCP gateway's config (``<gateway>-upstream``
+    # clients, STORY-0111) also have their ``env`` and ``headers`` values, and
+    # the same keys of ``raw``, redacted (``supply_chain.redact_env_values`` /
+    # ``redact_header_values``): a gateway config typically holds every
+    # upstream's keys, and none of it reached any output before.
+
+    @field_serializer("env", when_used="json")
+    def _serialize_env(self, env: dict[str, str]) -> dict[str, str]:
+        if self.client not in _GATEWAY_CLIENTS:
+            return env
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_env_values,
+        )
+
+        return redact_env_values(env)
+
+    @field_serializer("headers", when_used="json")
+    def _serialize_headers(self, headers: dict[str, str]) -> dict[str, str]:
+        if self.client not in _GATEWAY_CLIENTS:
+            return headers
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_header_values,
+        )
+
+        return redact_header_values(headers)
+
     @field_serializer("command", "url", when_used="json")
     def _serialize_launch_text(self, value: str | None) -> str | None:
         from mcp_audit.analyzers.supply_chain import redact_url  # noqa: PLC0415
@@ -149,6 +176,16 @@ class ServerConfig(BaseModel):
             value = out.get(key)
             if isinstance(value, str):
                 out[key] = redact_url(value)
+        if self.client in _GATEWAY_CLIENTS:
+            from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+                redact_env_values,
+                redact_header_values,
+            )
+
+            if isinstance(out.get("env"), dict):
+                out["env"] = redact_env_values(out["env"])
+            if isinstance(out.get("headers"), dict):
+                out["headers"] = redact_header_values(out["headers"])
         return out
 
 

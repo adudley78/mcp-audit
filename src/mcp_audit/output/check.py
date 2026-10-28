@@ -624,8 +624,8 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
     if status.not_covered:
         console.print(
             f"  [yellow]WARN:[/yellow] {len(status.not_covered)} MCP server(s)"
-            " from subagent definitions or skill folders not covered by"
-            " mcp-lock.json (AGENT-004, SKILL-006)."
+            " from subagent definitions, skill folders or MCP gateway configs"
+            " not covered by mcp-lock.json (AGENT-004, SKILL-006)."
         )
 
 

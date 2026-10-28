@@ -1330,3 +1330,36 @@ Confirmed from the vendor's own documentation on 2026-10-28.
   STORY-0097's `_redact_userinfo` and `SECRET_PATTERNS`. Queue item Q-038.
 - All changes are original implementations; no code was copied.
 
+
+## Gateway upstream configs (gateways.py — STORY-0111)
+
+No new detection pattern: this adds a discovery surface. Every location and key
+was confirmed from the gateway's own source or documentation on 2026-10-28:
+
+- **mcptoon** — source of release 0.8.32 from PyPI (`mcptoon-0.8.32.tar.gz`,
+  https://pypi.org/project/mcptoon/), `src/mcptoon/config.py`: `load_config()`
+  reads `config.toml` and `config.json` under the config root (`MCPTOON_HOME`,
+  else `$XDG_CONFIG_HOME/mcptoon` when set and present, else `~/.mcptoon`), then
+  `./.mcptoon.toml` and `./.mcptoon.json`, then `MCPTOON_SERVERS`; root key
+  `servers`; `_is_self_entry()` drops an entry named `mcptoon` or whose argv has
+  `mcptoon` and `serve` tokens. `src/mcptoon/client.py::_make_client()`:
+  `transport` `stdio` (argv = `command` + `args`; a string `command` is one
+  token) or `http` (`url`, `headers`). Project repository:
+  https://github.com/activeing123/mcptoon (registry submission #171).
+- **1MCP** — https://docs.1mcp.app/reference/mcp-servers ("Default Locations":
+  `~/.config/1mcp/mcp.json` on macOS and Linux, `%APPDATA%\1mcp\mcp.json` on
+  Windows; `ONE_MCP_CONFIG_DIR`; `serverDefaults`, `mcpServers`, `mcpTemplates`
+  "the template entry is authoritative"; `env` object or `["KEY=value", "PATH"]`
+  array; `type` `stdio`/`http`/`sse`/`streamableHttp`) and
+  https://docs.1mcp.app/guide/essentials/configuration (`--config` /
+  `ONE_MCP_CONFIG`, `mcp.json` holds `mcpServers`, `config.toml` does not).
+- **MCPHub.nvim / mcp-hub** — https://github.com/ravitemer/mcphub.nvim
+  `doc/configuration.md` (default `config = "~/.config/mcphub/servers.json"`;
+  `workspace.enabled = true`, `look_for = { ".mcphub/servers.json", … }`) and
+  `doc/mcp/servers_json.md` (`servers` and `mcpServers` both supported, VS Code
+  format taking precedence; `${cmd: …}` placeholders executed by the hub).
+  `mcp-hub` itself (https://github.com/ravitemer/mcp-hub README) requires
+  `--config` and has no default path.
+
+Gateways checked and not implemented, with the reason, are listed in GAPS.md
+("MCP gateway upstreams").

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, DiscoveredConfig
+from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS, read_gateway_servers
 from mcp_audit.models import ServerConfig, TransportType
 
 
@@ -41,6 +42,8 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
     """
     if config.client_name == AGENT_DEFINITION_CLIENT:
         return _parse_agent_definition(config)
+    if config.client_name in GATEWAY_UPSTREAM_CLIENTS:
+        return _parse_gateway_config(config)
 
     try:
         raw_text = config.path.read_text(encoding="utf-8")
@@ -115,6 +118,29 @@ def _parse_agent_definition(config: DiscoveredConfig) -> list[ServerConfig]:
         for display, _declared, spec in agent_mcp_servers(parsed)
     }
     return _servers_from_dict(servers_dict, config)
+
+
+def _parse_gateway_config(config: DiscoveredConfig) -> list[ServerConfig]:
+    """Parse an MCP gateway's config into its upstream servers (STORY-0111).
+
+    The gateway's format (mcptoon JSON/TOML, 1MCP, MCPHub) is read by
+    :func:`mcp_audit.gateways.read_gateway_servers`; each upstream becomes a
+    server of client ``config.client_name`` (``<gateway>-upstream``) and goes
+    through every analyzer like any other.  ``config.raw`` is the parsed
+    document; content past the server cap is noted in ``parse_warnings``.
+
+    Raises:
+        ValueError: The file cannot be read or parsed.
+    """
+    parsed = read_gateway_servers(config.path, config.client_name)
+    config.raw = parsed.raw
+    config.parse_warnings = list(parsed.warnings)
+    servers = _servers_from_dict(parsed.servers, config)
+    for server in servers:
+        declared = parsed.transports.get(server.name)
+        if declared is not None:
+            server.transport = TransportType(declared)
+    return servers
 
 
 def _servers_from_dict(

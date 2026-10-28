@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
+from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS
 from mcp_audit.lock.discovery import find_lock_for
 from mcp_audit.lock.identity import MatchKey, match_key
 from mcp_audit.lock.verifier import _index_locked_entries
@@ -28,7 +29,10 @@ from mcp_audit.models import Finding, LockStatus, ServerConfig
 #: STORY-0095).  ``lock``'s project walk does read that ``.mcp.json`` (as
 #: ``claude-code``), so a repository's such server is verified against the
 #: entry for its config path when the lock has one.
-_NOT_LOCKED_CLIENTS = frozenset({"claude-code-plugin"})
+#: MCP gateway upstreams (``<gateway>-upstream``, STORY-0111) are never
+#: recorded either; a project-scoped one under a lock root is listed in
+#: ``status.not_covered``.
+_NOT_LOCKED_CLIENTS = frozenset({"claude-code-plugin"}) | GATEWAY_UPSTREAM_CLIENTS
 
 _DRIFT_IDS = frozenset(
     {"LOCK-001", "LOCK-002", "LOCK-004", "LOCK-005", "LOCK-006", "LOCK-007", "LOCK-008"}

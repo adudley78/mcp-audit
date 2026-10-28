@@ -148,7 +148,8 @@ def _has_hardcoded_cred(server: ServerConfig) -> tuple[bool, str, str]:
     # A JSON scan file (STORY-0108) carries ``[REDACTED]`` where a launch
     # argument or URL held a credential, so a diff between two scan files
     # still sees one being added.
-    launch_text = " ".join([server.command or "", args_str, server.url or ""])
+    # A gateway upstream's env values are redacted the same way (STORY-0111).
+    launch_text = " ".join([server.command or "", args_str, server.url or "", env_vals])
     if REDACTION_MARKER in launch_text:
         return True, "Redacted credential", "redacted"
     return False, "", ""
@@ -160,7 +161,9 @@ def _possible_flag_credential(server: ServerConfig) -> bool:
     ``--password VALUE`` whose value matches no SECRET_PATTERNS entry reads
     ``[REDACTED-FLAG]`` in a scan file: probably a credential, not certainly.
     """
-    launch_text = " ".join([server.command or "", *server.args, server.url or ""])
+    launch_text = " ".join(
+        [server.command or "", *server.args, server.url or "", *server.env.values()]
+    )
     return FLAG_REDACTION_MARKER in launch_text
 
 

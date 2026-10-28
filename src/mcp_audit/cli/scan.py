@@ -54,6 +54,7 @@ from mcp_audit.discovery import (
 )
 from mcp_audit.extensions import analyzer as _extensions_analyzer
 from mcp_audit.extensions import discovery as _extensions_discovery
+from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS, gateway_spawn_text
 from mcp_audit.governance.evaluator import evaluate_governance
 from mcp_audit.governance.loader import load_policy
 from mcp_audit.governance.models import GovernancePolicy
@@ -1280,7 +1281,11 @@ def _apply_project_scan(
             seen_workflow.add(key)
             result.findings.append(finding)
 
-    project_configs = discover_project_configs(project_dir, skip_findings=skip_findings)
+    # MCP gateway project configs (.mcptoon.json/.toml, .mcphub/servers.json;
+    # STORY-0111) join this walk; `mcp-audit lock` walks without them.
+    project_configs = discover_project_configs(
+        project_dir, skip_findings=skip_findings, include_gateways=True
+    )
 
     # ── SKILL-005..008: skill packages in the repository (STORY-0095) ───────
     # Every file in each .claude/skills/<skill>/ is read.  A skills-directory
@@ -1379,7 +1384,11 @@ def _apply_project_scan(
     # Logic is deliberately dumb — origin (is_project_scoped) is the only
     # criterion.  Content-based analysis runs separately below.
     for server in project_servers:
-        if server.client == AGENT_DEFINITION_CLIENT:
+        if server.client in GATEWAY_UPSTREAM_CLIENTS:
+            # Same origin-based finding; the gateway, not the editor, starts
+            # it (STORY-0111).
+            spawn = gateway_spawn_text(server)
+        elif server.client == AGENT_DEFINITION_CLIENT:
             # Same origin-based finding; the launch moment differs (STORY-0094).
             spawn = (
                 f"Server '{server.name}' is declared inline in"
@@ -1449,26 +1458,23 @@ def _apply_project_scan(
     # (`scan --project .` from the repository root: default discovery loads
     # the cwd's skills-dir plugins) gets TRUST-001 above but is not analysed
     # a second time.
+    # The same holds for a gateway project config in the working directory
+    # (STORY-0111): default discovery already analysed it, project-scoped.
+    once_clients = GATEWAY_UPSTREAM_CLIENTS | {SKILLS_DIR_PLUGIN_CLIENT}
     analysed = {
         _resolved_str(s.config_path)
         for s in result.servers
-        if s.client == SKILLS_DIR_PLUGIN_CLIENT and s.is_project_scoped
+        if s.client in once_clients and s.is_project_scoped
     } - {""}
     pipeline_configs = [
         c
         for c in project_configs
-        if not (
-            c.client_name == SKILLS_DIR_PLUGIN_CLIENT
-            and _resolved_str(c.path) in analysed
-        )
+        if not (c.client_name in once_clients and _resolved_str(c.path) in analysed)
     ]
     pipeline_servers = [
         s
         for s in project_servers
-        if not (
-            s.client == SKILLS_DIR_PLUGIN_CLIENT
-            and _resolved_str(s.config_path) in analysed
-        )
+        if not (s.client in once_clients and _resolved_str(s.config_path) in analysed)
     ]
     pipeline_result = _run_static_pipeline(
         result=_ProjectScanResult(),
@@ -1563,8 +1569,9 @@ def _apply_lock_verification(
     if status.not_covered:
         con.print(
             f"[yellow]WARN[/yellow] {len(status.not_covered)} MCP server(s) from"
-            " subagent definitions or skill folders not covered by mcp-lock.json"
-            " (AGENT-004, SKILL-006): " + ", ".join(status.not_covered)
+            " subagent definitions, skill folders or MCP gateway configs not"
+            " covered by mcp-lock.json (AGENT-004, SKILL-006): "
+            + ", ".join(status.not_covered)
         )
     if lock_findings:
         con.print(

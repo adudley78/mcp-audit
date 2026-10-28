@@ -96,6 +96,13 @@ def _isolate_claude_plugins(
     monkeypatch.setattr(
         "mcp_audit.agent_files.reach._user_heartbeat_files", lambda errors: []
     )
+    # MCP gateway configs (STORY-0111): ~/.mcptoon, ~/.config/1mcp,
+    # ~/.config/mcphub and their environment overrides.  Point at nothing.
+    monkeypatch.setattr(
+        "mcp_audit.gateways._gateway_home",
+        lambda: tmp_path_factory.getbasetemp() / "no-gateways-home",
+    )
+    monkeypatch.setattr("mcp_audit.gateways._gateway_environ", lambda: {})
 
 
 @pytest.fixture(autouse=True)
