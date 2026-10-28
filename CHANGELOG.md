@@ -169,6 +169,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`scripts/smoke_test.py` check 5 now scans `official_mcp_servers_no_pairs.json` (STORY-0101).** The full official-servers fixture contains filesystem + github, which now (correctly) yields CRITICAL TOXIC-008, so it can no longer stand in for "no CRITICAL findings". The new fixture keeps the three official servers with no dangerous pair.
+
 - **Configs that pair a file, database, secret or shell server with GitHub, GitLab, Slack or Jira report one more finding, at CRITICAL (STORY-0101).** Registry entries keep `network_out` where they had it, so the existing TOXIC-001/003/005/006 finding for the same two servers is still reported beside the new TOXIC-008..011 one, and the score counts both. `mcp-atlassian` alone now scores CRITICAL in `shadow` (it reads local files for attachment upload and posts). `demo/configs/` gives 74 findings on a first scan and 66 after (was 70 and 62).
 - **An attack path between two servers now shows the most severe pair they form (STORY-0101).** When several toxic-flow findings name the same servers, the attack path took whichever was listed first; it now takes the most severe. So a file server next to the GitHub server shows its CRITICAL posting path rather than the HIGH network one, and a server with file read, shell execution and network access (the reference `server-everything`) shows its CRITICAL shell-and-network path, which was hidden behind a HIGH file-read one.
 - **The score's "No prompt injection risks detected" bonus now also needs no DELEG-*

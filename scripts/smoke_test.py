@@ -47,7 +47,10 @@ _COMMAND_TIMEOUT_SECONDS = 90
 
 FIXTURES = Path(__file__).parent.parent / "tests" / "fixtures"
 MALICIOUS = FIXTURES / "smoke_test_config.json"
-CLEAN = FIXTURES / "real_servers" / "official_mcp_servers.json"
+# Subset of the official servers with no dangerous capability pair.  The full
+# official fixture now (correctly) yields CRITICAL comms_out pairs
+# (filesystem -> github, STORY-0101), so it is no longer a "no CRITICAL" fixture.
+CLEAN = FIXTURES / "real_servers" / "official_mcp_servers_no_pairs.json"
 
 # Minimal valid MCP config used by new smoke steps.
 _MINIMAL_CONFIG = json.dumps(
