@@ -815,3 +815,30 @@ class TestCheckJsonStdoutStaysParseable:
         assert r.exit_code == 2
         assert r.stdout == ""
         assert "File not found" in r.stderr
+
+    def test_report_takes_precedence_over_json(self, tmp_path: Path) -> None:
+        """`--json --report pdf` writes the PDF; stdout stays empty (docs/check.md)."""
+        server = _server(tmp_path / ".mcp.json")
+
+        def _fake_pdf(result, output_file, org, console) -> None:  # noqa: ANN001
+            console.print("PDF report written: x.pdf")
+
+        with (
+            patch(
+                "mcp_audit.cli.check.run_scan", return_value=self._result_for(server)
+            ),
+            patch("mcp_audit.cli.check._write_pdf_report", side_effect=_fake_pdf),
+        ):
+            r = self._split.invoke(app, ["check", "--json", "--report", "pdf"])
+        assert r.stdout == ""
+        assert "PDF report written" in r.stderr
+
+    def test_bad_report_format_error_goes_to_stderr(self, tmp_path: Path) -> None:
+        server = _server(tmp_path / ".mcp.json")
+        with patch(
+            "mcp_audit.cli.check.run_scan", return_value=self._result_for(server)
+        ):
+            r = self._split.invoke(app, ["check", "--json", "--report", "docx"])
+        assert r.exit_code == 2
+        assert r.stdout == ""
+        assert "Unknown report format" in r.stderr

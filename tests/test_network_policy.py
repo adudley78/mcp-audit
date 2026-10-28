@@ -65,3 +65,14 @@ class TestRequireOfflineCompatible:
         with pytest.raises(typer.Exit) as exc_info:
             require_offline_compatible(policy, offline=True)
         assert exc_info.value.exit_code == 2
+
+
+def test_offline_conflict_error_goes_to_stderr(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The --offline conflict message must not pollute stdout (JSON/SARIF pipes)."""
+    with pytest.raises(typer.Exit):
+        require_offline_compatible(NetworkPolicy(check_vulns=True), offline=True)
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "--offline cannot be used with --check-vulns" in captured.err

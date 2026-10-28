@@ -236,13 +236,13 @@ def check(
     if report is not None:
         report_lower = report.strip().lower()
         if report_lower != "pdf":
-            console.print(
+            con.print(
                 f"[red]Unknown report format:[/red] {report!r}. "
                 "Currently supported: pdf"
             )
             raise typer.Exit(2)
-        _write_pdf_report(result, output_file, org, console)
-        _maybe_ping(grade, console)
+        _write_pdf_report(result, output_file, org, con)
+        _maybe_ping(grade, con)
         raise typer.Exit(_exit_code(result))
 
     # ── JSON output ───────────────────────────────────────────────────────────

@@ -130,7 +130,9 @@ class TestSandbox001:
     ) -> None:
         out = _sandbox(_box(enabled=False), project)
         assert _ids(out) == [("SANDBOX-001", Severity.HIGH)]
-        assert "even when your ~/.claude/settings.json" in out[0].description
+        assert "even when your user settings" in out[0].description
+        # Names both places Claude Code reads user settings from (STORY-0104).
+        assert "$CLAUDE_CONFIG_DIR/settings.json" in out[0].description
         # Claude Code's /sandbox panel writes `enabled` to the local file.
         assert _sandbox(_box(enabled=False), local, LOCAL_IN_GIT) == []
         assert _sandbox(_box(enabled=True), project) == []

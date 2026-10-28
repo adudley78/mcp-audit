@@ -193,11 +193,16 @@ def _anchored_platform_keywords(*names: str) -> tuple[str, ...]:
 
 
 def _looks_like_path_or_uri(arg: str) -> bool:
-    """Return True when *arg* is a local path or a connection string."""
+    """Return True when *arg* is a local path or a connection string.
+
+    A value starting with ``$`` or ``%`` (``$HOME/...``, ``${workspaceFolder}/...``,
+    ``%APPDATA%\\...``) is an environment-variable-rooted path and is treated
+    as one.
+    """
     value = arg.split("=", 1)[1] if arg.startswith("-") and "=" in arg else arg
     if "://" in value:
         return True
-    if value.startswith(("/", "~", ".", "\\")):
+    if value.startswith(("/", "~", ".", "\\", "$", "%")):
         return True
     return (
         len(value) > 2

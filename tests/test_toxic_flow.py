@@ -1197,6 +1197,23 @@ class TestCommsOutKeywords:
         # which is correct; the fs server itself must not self-pair.
         assert not [f for f in findings if f.server == "fs"]
 
+    @pytest.mark.parametrize(
+        "arg",
+        [
+            "$HOME/code/discord",
+            "${workspaceFolder}/discord",
+            "%USERPROFILE%/code/discord",
+            "--root=$HOME/discord",
+        ],
+    )
+    def test_env_var_rooted_path_is_not_a_poster(self, arg: str) -> None:
+        """A $VAR- or %VAR%-rooted path is a path, not a platform name (STORY-0104)."""
+        server = _server(
+            "fs",
+            args=["-y", "@modelcontextprotocol/server-filesystem@2025.1.14", arg],
+        )
+        assert Capability.COMMS_OUT not in tag_server(server)
+
     def test_platform_named_database_gives_no_attack_path(self) -> None:
         """summarize_attack_paths tags with no registry; a database called
         'webhooks' must not become a CRITICAL/HIGH comms path."""
