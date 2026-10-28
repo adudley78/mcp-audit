@@ -364,3 +364,54 @@ class TestVetPinnedVersion:
         _code, verdict = self._vet("mcp-remote")
         assert "version" not in verdict["package"]
         assert all("status" not in v for v in verdict["known_vulnerabilities"])
+
+    def test_undecidable_pin_is_not_a_clean_exit(self) -> None:
+        for flags in ([], ["--strict"]):
+            result = runner.invoke(
+                app,
+                [
+                    "vet",
+                    "mcp-server-git@1.2.0",
+                    "--ecosystem",
+                    "pypi",
+                    *flags,
+                    "--format",
+                    "json",
+                    "--offline-registry",
+                ],
+            )
+            statuses = {
+                v["status"] for v in json.loads(result.output)["known_vulnerabilities"]
+            }
+            assert "undecidable" in statuses
+            assert result.exit_code == 1
+
+    def test_dropped_spec_is_announced_on_stderr_not_in_json(self) -> None:
+        result = (
+            CliRunner(mix_stderr=False).invoke(
+                app,
+                ["vet", "mcp-remote@next", "--format", "json", "--offline-registry"],
+            )
+            if "mix_stderr" in CliRunner.__init__.__code__.co_varnames
+            else None
+        )
+        if result is None:
+            pytest.skip("CliRunner cannot separate stderr")
+        json.loads(result.stdout)
+        assert "No version applied" in result.stderr
+
+
+class TestDeepBaseline:
+    def test_compare_exits_2_not_a_traceback(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.baselines import manager as manager_mod
+
+        monkeypatch.setattr(manager_mod, "_DEFAULT_STORAGE_DIR", tmp_path)
+        (tmp_path / "t.json").write_text(
+            '{"version":1,"servers":' + "[" * 200_000 + "]" * 200_000 + "}"
+        )
+        result = runner.invoke(app, ["baseline", "compare", "t"])
+        assert result.exit_code == 2
+        assert "Traceback" not in result.output
+        assert not isinstance(result.exception, RecursionError)

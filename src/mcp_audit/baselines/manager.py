@@ -267,7 +267,8 @@ class BaselineManager:
 
         Raises:
             FileNotFoundError: If no baseline with that name exists.
-            ValueError: If *name* contains path-traversal sequences.
+            ValueError: If *name* contains path-traversal sequences, or the
+                file is not valid JSON, not a baseline, or nested too deeply.
         """
         path = self._safe_baseline_path(name)
         stem = name.removesuffix(".json")
@@ -276,8 +277,11 @@ class BaselineManager:
                 f"No baseline named {stem!r} found in {self._storage_dir}. "
                 "Run 'mcp-audit baseline list' to see available baselines."
             )
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return Baseline.model_validate(data)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return Baseline.model_validate(data)
+        except RecursionError as exc:
+            raise ValueError(f"Baseline {stem!r} is nested too deeply") from exc
 
     def load_latest(self) -> Baseline | None:
         """Return the most recently created baseline, or ``None`` if none exist.

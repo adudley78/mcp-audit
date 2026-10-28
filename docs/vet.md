@@ -237,7 +237,7 @@ Fields added by STORY-0117, only when a version is given (`vet pkg@1.2.3`, `vet 
 | `package.version` | The exact version asked about. The name is looked up without it. A dist-tag (`@latest`) or range (`@^1.2`) names no single release and is dropped, with no `version` field |
 | `known_vulnerabilities[].status` | `affected` (no recorded fix, or the version is below it), `fixed`, or `undecidable` (the fix uses a different numbering scheme, calendar versus semantic, and `semver_resumed_at` does not order them: the SC-004/SC-009 rule) |
 
-With a version, the exit code is 1 when any CVE is `affected`; `undecidable` ones are shown and do not change it. Without one, the rule is unchanged: 1 when a recorded CVE has no fix. The OSV `MAL-*` check is by package name, not by version.
+With a version, the exit code is 1 when any CVE is `affected` or `undecidable` (an unsure answer is not a clean one); 0 only when every recorded CVE is `fixed` at that version. Without one, the rule is unchanged: 1 when a recorded CVE has no fix. The OSV `MAL-*` check is by package name, not by version.
 
 ---
 

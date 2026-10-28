@@ -472,12 +472,12 @@ def _print_known_verdict(
         if unfixed:
             heading = (
                 f"  [red bold]Known vulnerabilities: {len(vulns)} "
-                f"({len(unfixed)} affect {pinned})[/red bold]\n\n"
+                f"({len(unfixed)} affect or may affect {pinned})[/red bold]\n\n"
             )
         else:
             heading = (
                 f"  [yellow bold]Known vulnerabilities: {len(vulns)} "
-                f"(none confirmed to affect {pinned})[/yellow bold]\n\n"
+                f"(all fixed in or before {pinned})[/yellow bold]\n\n"
             )
         t.append_text(Text.from_markup(heading))
         for v in vulns:
@@ -795,11 +795,12 @@ def _open_vulns(
 
     Without a pinned version: those with no recorded fix.  With one
     (``vet pkg@1.2.3``): those the pinned version is still affected by
-    (``status`` ``affected``); ``undecidable`` ones are shown, not counted.
+    (``status`` ``affected``) or cannot be ruled out (``undecidable``: an
+    unsure answer is not a clean one).
     """
     if _as_dict(verdict.get("package")).get("version") is None:
         return [v for v in vulns if not v.get("fixed_in")]
-    return [v for v in vulns if v.get("status", "affected") == "affected"]
+    return [v for v in vulns if v.get("status", "affected") != "fixed"]
 
 
 def _verdict_exit_code(verdict: dict[str, Any], strict: bool) -> int:
@@ -913,6 +914,12 @@ def vet(
 
     # ── Input validation ──────────────────────────────────────────────────────
     pkg_name, pinned_version = split_package_spec(package if package else "")
+    raw_spec = (package or "").strip()
+    if pinned_version is None and pkg_name != raw_spec:
+        Console(stderr=True).print(
+            f"[dim]No version applied: {raw_spec[len(pkg_name) :]!r} names no "
+            "single release.[/dim]"
+        )
     if not pkg_name:
         console.print("[red]Error:[/red] Package name must not be empty.")
         raise typer.Exit(2)

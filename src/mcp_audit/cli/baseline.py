@@ -108,8 +108,8 @@ def baseline_compare(
     if baseline_name is not None:
         try:
             bl = mgr.load(baseline_name)
-        except FileNotFoundError as exc:
-            console.print(f"[red]{exc}[/red]")
+        except (FileNotFoundError, ValueError, OSError) as exc:
+            console.print(f"[red]Cannot load baseline {baseline_name!r}:[/red] {exc}")
             raise typer.Exit(2)  # noqa: B904
     else:
         bl = mgr.load_latest()
