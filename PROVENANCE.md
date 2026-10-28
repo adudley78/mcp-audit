@@ -1285,6 +1285,43 @@ Measures the existing POISON-* patterns; adds or changes none. Results:
   (Marcus). Original implementation; no code or fixtures were copied from any of
   these projects.
 
+## Managed MCP policy report (MANAGED-001..005, analyzers/managed_policy.py — STORY-0112)
+
+Every rule the module applies is taken from Anthropic's Claude Code
+documentation, read 2026-10-28:
+
+- **Control MCP server access for your organization** (https://code.claude.com/docs/en/managed-mcp)
+  — `managed-mcp.json` paths per OS and exclusive control ("Users can't add,
+  modify, or use any other MCP servers, including plugin-provided servers");
+  `managedMcpServers` entry checks ("What an entry can contain") and
+  precedence over same-name user/project/local servers and same-URL plugin
+  servers (2.1.259+); `allowedMcpServers` / `deniedMcpServers` entry keys
+  (`serverUrl`, `serverCommand`, `serverName`), unset vs empty semantics, the
+  three-step evaluation (merge, denylist, allowlist), the per-transport
+  allowlist table, matching rules (exact commands, `*` URL wildcards,
+  case-insensitive host with trailing-dot ignored, case-sensitive paths, no
+  path = any path), the `serverName` warning ("not a security control"), the
+  allowlist name character set, and "Without `allowManagedMcpServersOnly`,
+  allowlists from every settings scope merge". The evaluation-table tests in
+  `tests/test_managed_policy.py` reproduce the page's accordion rows.
+- **Deploy managed settings** (https://code.claude.com/docs/en/managed-settings)
+  — system directory per OS, `managed-settings.d/` drop-in merge order and
+  rules, source precedence (server-managed > MDM/HKLM > files > HKCU,
+  "first-wins"), keys read from every admin source (`allowManagedMcpServersOnly`,
+  `deniedMcpServers`, 2.1.273+), and invalid-entry handling
+  (`allowedMcpServers` "Enforced as an empty allowlist until the value is
+  fixed"; invalid entries stripped).
+- **Settings reference** (https://code.claude.com/docs/en/settings-reference)
+  — settings index scopes: `allowedMcpServers` and `deniedMcpServers` "Any
+  file"; `allowManagedMcpServersOnly`, `managedMcpServers`,
+  `strictPluginOnlyCustomization` "Managed".
+- **VS Code enterprise policies** (https://code.visualstudio.com/docs/enterprise/policies)
+  — names `ChatAllowedMcpServers`, `ChatDeniedMcpServers`,
+  `ChatAllowManagedMcpServersOnly` and the Linux `/etc/vscode/policy.json`
+  location, but not the entry shape; not implemented (GAPS.md).
+- Queue item Q-004 (Marcus `products/mcp-audit/factory/queue.md`, decision
+  2026-10-13). Original implementation; no code or fixtures copied.
+
 ## Calibration follow-ups (HARNESS-001 scope, symlinked parents, CFHYG-008, launch redaction — STORY-0108)
 
 Confirmed from the vendor's own documentation on 2026-10-28.

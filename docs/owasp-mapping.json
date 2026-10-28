@@ -2008,6 +2008,65 @@
         "Software Supply Chain Attacks"
       ],
       "notes": "run-gemini-cli step on an event a stranger can write, pinned below action 0.1.22 or Gemini CLI 0.39.1 / 0.40.0-preview.3, or setting GEMINI_CLI_TRUST_WORKSPACE / GEMINI_TRUST_WORKSPACE after checking out pull-request code. Severity HIGH. CWE-1395 / CWE-829. Analyzer: ci_workflow (STORY-0091)."
+    },
+    {
+      "finding_id": "MANAGED-001",
+      "finding_title": "Managed MCP policy on this machine",
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ],
+      "notes": "Inventory (INFO): Claude Code managed files in the system directory (managed-settings.json, managed-settings.d/*.json, managed-mcp.json) exist; lists exclusive control, managedMcpServers, allowedMcpServers (lock state), deniedMcpServers, stripped entries and unparsable files. MDM, HKLM and server-managed settings are not read. Excluded from advisories. CWE-1188. Source: code.claude.com/docs/en/managed-mcp, managed-settings, settings-reference. Analyzer: managed_policy (STORY-0112)."
+    },
+    {
+      "finding_id": "MANAGED-002",
+      "finding_title": "Configured MCP server that the managed policy keeps from loading",
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ],
+      "notes": "Dead config (INFO): a Claude Code user (~/.claude.json), project (.mcp.json) or plugin server that managed-mcp.json exclusive control, a managed deniedMcpServers entry, strictPluginOnlyCustomization locking MCP (true, an array with \"mcp\", or a fail-closed invalid value), a same-name/same-URL managedMcpServers entry, or the managed allowedMcpServers list (merged with other scopes' lists when unlocked; ports per the documented default-port rules) keeps from loading. ${VAR} references are undecidable and never claimed. Excluded from advisories. CWE-1188. Source: code.claude.com/docs/en/managed-mcp, managed-settings, settings-reference. Analyzer: managed_policy (STORY-0112)."
+    },
+    {
+      "finding_id": "MANAGED-003",
+      "finding_title": "Managed settings are deployed but set no MCP policy",
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ],
+      "notes": "LOW: managed settings files exist but set none of allowedMcpServers, deniedMcpServers, allowManagedMcpServersOnly, managedMcpServers or strictPluginOnlyCustomization (MCP), and there is no managed-mcp.json. Excluded from advisories. CWE-1188. Source: code.claude.com/docs/en/managed-mcp, managed-settings, settings-reference. Analyzer: managed_policy (STORY-0112)."
+    },
+    {
+      "finding_id": "MANAGED-004",
+      "finding_title": "Settings file adds servers to an unlocked managed MCP allowlist",
+      "owasp_codes": [
+        "MCP02",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Shadow MCP Servers"
+      ],
+      "notes": "MEDIUM for a repository's shared .claude/settings.json, LOW for .claude/settings.local.json or ~/.claude/settings.json: the file's allowedMcpServers adds entries the managed allowlist lacks while allowManagedMcpServersOnly is not true, so the lists merge. Files reached through a symlinked component are not attributed. CWE-284. Source: code.claude.com/docs/en/managed-mcp, managed-settings, settings-reference. Analyzer: managed_policy (STORY-0112)."
+    },
+    {
+      "finding_id": "MANAGED-005",
+      "finding_title": "Managed MCP allowlist admits servers by name only",
+      "owasp_codes": [
+        "MCP09",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers",
+        "Insufficient Authentication and Authorization"
+      ],
+      "notes": "LOW: the managed allowedMcpServers list has serverName entries and no serverUrl (remote) and/or no serverCommand (stdio) entries, so that transport is admitted by a user-assigned label ('A serverName entry ... is not a security control'). CWE-284. Source: code.claude.com/docs/en/managed-mcp, managed-settings, settings-reference. Analyzer: managed_policy (STORY-0112)."
     }
   ],
   "dynamic_patterns": [
