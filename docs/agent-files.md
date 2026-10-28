@@ -59,6 +59,13 @@ Hook analysis covers `~/.claude.json`, `.claude/settings.json`, and
 `.claude/settings.local.json` (all Claude Code config files that can contain
 a `hooks` section).
 
+A skill is more than its `SKILL.md`. Every other file in each skill folder
+(scripts, reference files, archives, `bin/`, `.git/`, and the plugin
+components of a skill folder that holds `.claude-plugin/plugin.json`) is read
+in the default `scan` and `check` and reported as SKILL-005..008; with
+`--include-agent-files` the `SKILL.md` rules below also run on the skill's
+other prose files. See [skill-packages.md](skill-packages.md).
+
 ---
 
 ## Finding IDs
@@ -476,6 +483,19 @@ encountered mid-walk is still never traversed (loop/blow-up protection,
 unchanged) but now emits `TRUST-005` (LOW) naming it instead of the entire
 subtree vanishing with no explanation. See
 `humans/decisions/2026-09-08-trust-002-symlink-sites.md` (marcus repo).
+
+**Exception: a symlinked skill folder** (decision 2026-10-26, marcus repo
+`humans/decisions/2026-10-26-follow-symlinked-skill-folders.md`). A symlink
+directly under `~/.claude/skills/` or `.claude/skills/` that points at a skill
+is followed one level, because Claude Code reads skills that way and the skills
+CLI installs them that way by default. The skill is read at its target and the
+link is reported as `TRUST-004` (INFO); `SKILL-001..004`, the sidecar pass and
+`SKILL-005..008` all run on it, and no `TRUST-005` is reported for that link.
+In a repository the target must stay inside the repository: a link that leaves
+it is `TRUST-002` HIGH and is not read. A link to the skills directory itself
+or one of its ancestors, or to a folder with no skill in it, is still
+`TRUST-005`. Nothing inside a followed skill is followed. See
+[skill-packages.md](skill-packages.md).
 
 ---
 

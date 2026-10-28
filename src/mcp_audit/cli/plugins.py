@@ -145,6 +145,7 @@ def plugins_scan(
     """Scan installed Claude Code plugins: pin integrity, mods, skills, MCP servers."""
     import json as _json  # noqa: PLC0415
 
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
     from mcp_audit.agent_files.analyzer import analyze_agent_files  # noqa: PLC0415
     from mcp_audit.cli import run_scan  # noqa: PLC0415
     from mcp_audit.plugins.analyzer import analyze_plugin_integrity  # noqa: PLC0415
@@ -166,12 +167,17 @@ def plugins_scan(
     except Exception as exc:  # noqa: BLE001 — a bad record must not crash the scan
         pin_findings = []
         errors.append(f"plugin pin check failed: {type(exc).__name__}")
+    skill_files = plugin_agent_files(plugins)
     findings = (
         analyze_plugin_integrity(plugins)
         + pin_findings
         + analyze_mods(discover_mods(plugins))
         + analyze_plugin_dirs_setting()
-        + analyze_agent_files(plugin_agent_files(plugins))
+        + analyze_agent_files(skill_files)
+    )
+    # Every file in each plugin skill, not only its SKILL.md (STORY-0095).
+    findings += skill_package.analyze_skill_packages(
+        skill_package.packages_for_agent_files(skill_files), prior=findings
     )
     if plugins:
         # Plugin MCP servers go through the full analyzer pipeline; keep only

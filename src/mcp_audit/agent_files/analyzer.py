@@ -32,6 +32,12 @@ MEM-002 (MEDIUM)
     Exfiltration, cross-tool, and length patterns are intentionally excluded
     — the false-positive rate on innocent memory files is too high.
 
+Sidecars (STORY-0095)
+    Every other prose file in a skill's directory (``.md``, ``.txt`` …) gets
+    SKILL-001, the SKILL-002 obfuscation check and POISON-041/042, but not the
+    SKILL-002 length check or SKILL-003; see
+    :func:`mcp_audit.agent_files.skill_package.sidecar_findings`.
+
 MEM-003 (MEDIUM; LOW for a Markdown file under ``~/.claude/``)
     A project instruction file's Claude Code ``@path`` import resolves
     outside the scanned folder (an "external import", which Claude Code asks
@@ -741,6 +747,17 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
     return findings
 
 
+def _sidecar_findings(af: AgentFile) -> list[Finding]:
+    """The rules above, on a skill's other prose files (STORY-0095).
+
+    Lives in :mod:`mcp_audit.agent_files.skill_package`, imported here lazily
+    because that module imports :func:`_analyze_skill` from this one.
+    """
+    from mcp_audit.agent_files.skill_package import sidecar_findings  # noqa: PLC0415
+
+    return sidecar_findings(af)
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
@@ -797,6 +814,7 @@ def analyze_agent_files(
                 script_finding = _check_skill_scripts(af)
                 if script_finding is not None:
                     file_findings.append(script_finding)
+                file_findings.extend(_sidecar_findings(af))
         elif _is_memory_surface(af):
             file_findings.extend(_analyze_memory(af))
         if af.imported_from is not None:

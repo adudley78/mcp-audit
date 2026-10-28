@@ -150,6 +150,14 @@ def agent_files_scan(
     for line in errors:
         typer.echo(f"warning: {line}", err=True)
     findings = analyze_agent_files(files) + skip_findings
+    package_findings, followed_links = _skill_package_findings(project_root, findings)
+    # A symlinked skill folder the skill pass followed (decision 2026-10-26)
+    # was read, so the agent-file walk's TRUST-005 for it would be untrue.
+    findings = [
+        f
+        for f in findings
+        if not (f.id == "TRUST-005" and f.finding_path in followed_links)
+    ] + package_findings
 
     if output_format == "json":
         typer.echo(_json.dumps([f.model_dump() for f in findings], indent=2))
@@ -203,3 +211,44 @@ def agent_files_scan(
         f"\n[bold]{len(findings)} finding(s)[/bold] across {len(files)} agent file(s)"
     )
     raise typer.Exit(1)  # noqa: B904
+
+
+def _skill_package_findings(
+    project_root: Path | None, prior: list
+) -> tuple[list, set[str]]:
+    """SKILL-005..008 for every user skill (and the project's, if given).
+
+    The agent-file rules above read each ``SKILL.md`` and its prose sidecars;
+    this reads every other file in each skill directory (STORY-0095), and runs
+    the agent-file rules on skills reached through a followed symlink, which
+    the agent-file walk does not enter.  Filesystem problems are printed,
+    never raised.
+
+    Returns:
+        ``(findings, followed_links)``.
+    """
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+    from mcp_audit.agent_files.analyzer import analyze_agent_files  # noqa: PLC0415
+
+    errors: list[str] = []
+    trust: list = []
+    packages = skill_package.default_skill_packages(
+        cwd=project_root, errors=errors, findings=trust
+    )
+    if project_root is not None:
+        roots = {str(p.root) for p in packages}
+        packages += [
+            p
+            for p in skill_package.project_skill_packages(
+                project_root, errors=errors, findings=trust
+            )
+            if str(p.root) not in roots
+        ]
+    followed = [p for p in packages if p.link is not None]
+    seen = {(f.id, f.finding_path) for f in prior}
+    out = [f for f in trust if (f.id, f.finding_path) not in seen]
+    out += analyze_agent_files(skill_package.followed_agent_files(followed, errors))
+    out += skill_package.analyze_skill_packages(packages, prior + out, errors)
+    for error in errors[:20]:
+        console.print(f"[yellow]Warning:[/yellow] {error}")
+    return out, {str(p.link) for p in followed}
