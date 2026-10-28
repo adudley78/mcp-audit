@@ -9,8 +9,11 @@
 #
 # Same trust rule as registry-drift.yml: automation never writes the registry.
 # This job runs the sync in --check mode, writes the missing IDs to the job
-# summary, uploads the proposed file as an artifact, and FAILS when anything is
-# missing. A human (or the weekly build loop, in a reviewed PR) runs
+# summary, uploads the proposed files as an artifact, and FAILS when anything is
+# missing. Both proposed files are uploaded: known-servers.json (advisory IDs)
+# and known-malicious.json (the OSV MAL-* mirror, STORY-0097), so the reviewer
+# sees the malicious-package records that would be added or removed, not only
+# their names in the summary (STORY-0109). Neither committed file may change. A human (or the weekly build loop, in a reviewed PR) runs
 # `python scripts/sync_registry_advisories.py --write`. The weekly signal sweep
 # reads this job's latest result.
 
@@ -40,37 +43,43 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
       - name: Install version parser
         run: pip install --quiet packaging
 
-      - name: Hash registry before the check
-        run: sha256sum registry/known-servers.json | tee "${RUNNER_TEMP}/registry.before"
+      - name: Hash registry files before the check
+        run: |
+          sha256sum registry/known-servers.json registry/known-malicious.json \
+            | tee "${RUNNER_TEMP}/registry.before"
 
       - name: Check advisories (report-only, never --write)
         id: check
         run: |
           python scripts/sync_registry_advisories.py --check \
             --summary "${GITHUB_STEP_SUMMARY}" \
-            --out "${RUNNER_TEMP}/known-servers.proposed.json"
+            --out "${RUNNER_TEMP}/known-servers.proposed.json" \
+            --malicious-out "${RUNNER_TEMP}/known-malicious.proposed.json"
 
-      - name: Assert the registry file was not mutated
+      - name: Assert the registry files were not mutated
         if: ${{ always() && !cancelled() }}
         run: |
-          sha256sum registry/known-servers.json | tee "${RUNNER_TEMP}/registry.after"
+          sha256sum registry/known-servers.json registry/known-malicious.json \
+            | tee "${RUNNER_TEMP}/registry.after"
           if ! cmp -s "${RUNNER_TEMP}/registry.before" "${RUNNER_TEMP}/registry.after"; then
-            echo "MUTATION: registry/known-servers.json changed during a read-only check."
+            echo "MUTATION: a registry file changed during a read-only check."
             exit 1
           fi
 
-      - name: Upload proposed registry
+      - name: Upload proposed registry files
         if: ${{ failure() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: registry-advisory-sync-proposed
-          path: ${{ runner.temp }}/known-servers.proposed.json
+          path: |
+            ${{ runner.temp }}/known-servers.proposed.json
+            ${{ runner.temp }}/known-malicious.proposed.json
           if-no-files-found: ignore
           retention-days: 30

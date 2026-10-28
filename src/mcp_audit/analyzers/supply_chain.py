@@ -425,6 +425,67 @@ def extract_pypi_package(command: str, args: list[str]) -> str | None:
     return None
 
 
+def launch_package(server: ServerConfig) -> tuple[Literal["npm", "pypi"], str] | None:
+    """Return ``(ecosystem, package)`` for the package *server*'s launch installs.
+
+    An npm launcher (``npx``, ``bunx``, ``pnpx``, ``yarn dlx``, under any path
+    or ``cmd /c`` spelling) gives the npm name with any version suffix
+    stripped; ``uvx``, ``pipx`` and ``python -m`` give the PEP 503 name with
+    any version or specifier stripped.
+
+    Args:
+        server: The MCP server configuration to inspect.
+
+    Returns:
+        The ecosystem and bare package name, or ``None`` when the launch
+        command installs no package mcp-audit can name.
+    """
+    launcher, args = normalize_launch(server.command, server.args)
+    if launcher == "yarn":
+        if not args or args[0] != "dlx":
+            return None
+        launcher, args = "npx", args[1:]
+    if launcher in _NPX_LIKE:
+        spec = extract_npm_package(args)
+        return ("npm", strip_npm_version_suffix(spec)) if spec else None
+    if launcher in _PYPI_LIKE or _is_python_interpreter(launcher):
+        package = extract_pypi_package(launcher, args)
+        return ("pypi", package) if package else None
+    return None
+
+
+def resolve_launch_entry(
+    server: ServerConfig, registry: KnownServerRegistry
+) -> RegistryEntry | None:
+    """Return the registry entry for the package *server*'s launch command installs.
+
+    The one resolver for "which registry entry is this server": TRANSPORT-003's
+    tiering and the rule engine's ``exempt_known_servers`` both call it, so
+    they can no longer disagree (Q-016: COMM-004 missed every
+    ``@scope/name@version`` launch that TRANSPORT-003 recognised).  The lookup
+    is ecosystem-scoped (:func:`launch_package`): npm names resolve through
+    :meth:`KnownServerRegistry.get_npm`, PyPI names through
+    :meth:`KnownServerRegistry.get_pypi`, so a package listed only for the
+    other ecosystem never matches.
+
+    Args:
+        server: The MCP server configuration to resolve.
+        registry: The known-server registry.
+
+    Returns:
+        The matching :class:`RegistryEntry`, or ``None`` when the launch
+        installs no package or the package is not in the registry for that
+        ecosystem.
+    """
+    found = launch_package(server)
+    if found is None:
+        return None
+    ecosystem, package = found
+    return (
+        registry.get_npm(package) if ecosystem == "npm" else registry.get_pypi(package)
+    )
+
+
 # An exact npm version: MAJOR.MINOR.PATCH with optional pre-release/build.
 # Anything else (ranges, dist-tags, ``latest``) is not a pin.
 _NPM_EXACT_VERSION_RE: re.Pattern[str] = re.compile(
@@ -504,6 +565,75 @@ def _version_lt(a: str, b: str) -> bool | None:
         return None
 
 
+# A version whose first number is at least this is a calendar version
+# (``2025.7.1``): no semantic-version major release reaches four digits.
+_CALVER_MIN_MAJOR = 1000
+
+
+def _is_calendar_version(version: str) -> bool | None:
+    """Return whether *version* is a calendar version, or ``None`` if unparsable."""
+    try:
+        return Version(version).release[0] >= _CALVER_MIN_MAJOR
+    except InvalidVersion:
+        return None
+
+
+def _schemes_differ(pinned: str, fixed: str) -> bool:
+    """Return ``True`` when one version is calendar-based and the other is not.
+
+    ``@modelcontextprotocol/server-filesystem`` published ``2026.8.31`` and then
+    ``1.0.0`` and ``2.0.0`` (Q-010).  Ordered as numbers, ``2.0.0`` sorts below
+    the recorded fix ``2025.7.1`` although it was published later, and the
+    reverse switch would hide an affected release.
+    """
+    a, b = _is_calendar_version(pinned), _is_calendar_version(fixed)
+    return a is not None and b is not None and a != b
+
+
+def _fix_status(
+    pinned: str, fixed: str, semver_resumed_at: str | None
+) -> Literal["affected", "fixed", "undecidable"]:
+    """Order a pinned version against one CVE's recorded fix.
+
+    Same scheme: PEP 440 order, as before (a version that won't parse counts
+    as affected).  Different schemes (calendar vs semantic):
+
+    * semantic pin, calendar fix: with ``semver_resumed_at`` recorded, a pin
+      below it is from the semantic line that preceded the calendar releases
+      (affected) and a pin at or above it came after them (fixed).  Without
+      it, a ``0.x`` pin is affected: both registry packages that use calendar
+      versions (server-filesystem, mcp-server-git) published ``0.x`` first,
+      so this is what ``main`` reported before STORY-0105.  Anything else is
+      undecidable offline (SC-009).
+    * calendar pin, semantic fix: with ``semver_resumed_at``, a fix below it
+      is on the earlier semantic line (the calendar pin came later: fixed),
+      and a fix at or above it came after every calendar release
+      (affected).  Without it: undecidable.
+
+    Args:
+        pinned: The exact version pinned in the launch command.
+        fixed: The recorded fixed version for one advisory.
+        semver_resumed_at: The registry entry's ``semver_resumed_at``.
+
+    Returns:
+        ``"affected"``, ``"fixed"`` or ``"undecidable"``.
+    """
+    if not _schemes_differ(pinned, fixed):
+        return "fixed" if _version_lt(pinned, fixed) is False else "affected"
+    resumed = semver_resumed_at
+    if resumed is not None and _is_calendar_version(resumed) is not False:
+        resumed = None  # unparsable or itself calendar-shaped: ignore it
+    if _is_calendar_version(fixed):
+        if resumed is not None:
+            return "affected" if _version_lt(pinned, resumed) else "fixed"
+        if Version(pinned).release[0] == 0:
+            return "affected"
+        return "undecidable"
+    if resumed is not None:
+        return "fixed" if _version_lt(fixed, resumed) else "affected"
+    return "undecidable"
+
+
 def _highest_version(versions: set[str]) -> str | None:
     """Return the highest of *versions*, or ``None`` if any fails to parse."""
     try:
@@ -577,15 +707,20 @@ def _emit_known_cve_findings(
         return []
 
     pinned = _pinned_version(server)
+    undecidable: list[str] = []
     if pinned is None:
         affected = cves
     else:
-        affected = [
-            c
+        status = {
+            c: _fix_status(pinned, fixed_in[c], entry.semver_resumed_at)
             for c in cves
-            if c not in fixed_in or _version_lt(pinned, fixed_in[c]) is not False
-        ]
+            if c in fixed_in
+        }
+        undecidable = [c for c in cves if status.get(c) == "undecidable"]
+        affected = [c for c in cves if c not in fixed_in or status[c] == "affected"]
     if not affected:
+        if undecidable and pinned is not None:
+            return [_undecidable_finding(server, entry, pinned, undecidable, fixed_in)]
         return []
 
     fixes = {fixed_in[c] for c in affected if c in fixed_in}
@@ -599,6 +734,13 @@ def _emit_known_cve_findings(
             if highest_fix
             else f" The config pins version {pinned}."
         )
+        if undecidable:
+            version_note += (
+                f" Not counted here: {', '.join(undecidable)}, whose recorded fix "
+                "uses a different version numbering scheme (calendar versus "
+                "semantic), so mcp-audit cannot tell offline whether "
+                f"{pinned} includes it."
+            )
         severity = Severity.HIGH
     else:
         version_note = (
@@ -680,6 +822,64 @@ def _emit_known_cve_findings(
     ]
 
 
+def _undecidable_finding(
+    server: ServerConfig,
+    entry: RegistryEntry,
+    pinned: str,
+    cves: list[str],
+    fixed_in: dict[str, str],
+) -> Finding:
+    """Build SC-009 (INFO): a pinned version that cannot be ordered against its fix.
+
+    Emitted instead of SC-004 when every CVE left for a pinned launch has a
+    recorded fix in a different numbering scheme from the pin (calendar
+    versus semantic, Q-010).  The check is not dropped: the advisories are
+    listed, and the user is told how to settle it.
+
+    Args:
+        server: The MCP server configuration that references this package.
+        entry: Registry entry for the matched package.
+        pinned: The exact version pinned in the launch command.
+        cves: The advisory IDs whose fix could not be compared.
+        fixed_in: Recorded fixed version per advisory ID.
+
+    Returns:
+        One SC-009 :class:`~mcp_audit.models.Finding`.
+    """
+    listed = ", ".join(f"{c} (fixed in {fixed_in[c]})" for c in cves)
+    return Finding(
+        id="SC-009",
+        severity=Severity.INFO,
+        analyzer="supply_chain",
+        client=server.client,
+        server=server.name,
+        title=f"Known CVE fix not comparable with pinned version: {entry.name}",
+        description=(
+            f"Package {entry.name!r} has public advisories recorded in the "
+            f"mcp-audit known-server registry: {listed}. The config pins "
+            f"version {pinned}, which uses a different version numbering scheme "
+            "from the recorded fix (calendar versions such as 2025.7.1 versus "
+            "semantic versions such as 2.0.0). A package that changes scheme "
+            "can publish a lower-numbered release after the fix, so mcp-audit "
+            "cannot tell offline whether the pinned release is affected."
+        ),
+        evidence=(
+            f"package: {entry.name} | cves: {', '.join(cves)} | pinned: {pinned}"
+            f" | fixed_in: {', '.join(sorted({fixed_in[c] for c in cves}))}"
+            f" | maintainer: {entry.maintainer}"
+        ),
+        remediation=(
+            f"Check the release dates of {entry.name} {pinned} and of the fixed "
+            "version on the package registry (npm: `npm view "
+            f"{entry.name} time`), or read the advisory. If {pinned} was "
+            "published after the fix, it is not affected."
+        ),
+        cwe="CWE-1104",
+        owasp_mcp_top_10=["MCP04"],
+        finding_path=str(server.config_path),
+    )
+
+
 _ECOSYSTEM_LABEL: dict[str, str] = {"npm": "npm", "pypi": "PyPI"}
 
 #: What :func:`redact_args` / :func:`redact_command` put in place of a secret.
@@ -724,13 +924,77 @@ def _redact_userinfo(text: str) -> str:
             i = k
 
 
+# A flag whose name contains one of these carries a secret as its value.
+_SECRET_FLAG_WORDS: tuple[str, ...] = (
+    "key",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "pwd",
+    "auth",
+    "credential",
+)
+
+
+def secret_arg_values(args: list[str]) -> list[str]:
+    """Return values given to secret-named flags in a launch command.
+
+    ``--api-key VALUE``, ``--token=VALUE``, ``-password VALUE``: the flag
+    name (case-insensitive) contains ``key``, ``token``, ``secret``,
+    ``password``, ``passwd``, ``pwd``, ``auth`` or ``credential``.  The value
+    is the text after ``=``, or the next argument when it is not itself a
+    flag.  Used to redact those values from text that quotes them (STORY-0105).
+
+    Args:
+        args: The server's ``args``.
+
+    Returns:
+        The non-empty values, in argument order.
+    """
+    values: list[str] = []
+    for i, arg in enumerate(args):
+        if not arg.startswith("-"):
+            continue
+        name, eq, inline = arg.lstrip("-").partition("=")
+        if not any(word in name.lower() for word in _SECRET_FLAG_WORDS):
+            continue
+        if eq:
+            if inline:
+                values.append(inline)
+        elif i + 1 < len(args) and not args[i + 1].startswith("-"):
+            values.append(args[i + 1])
+    return values
+
+
+def _redact_secret_flag_values(args: list[str], parts: list[str]) -> list[str]:
+    """Replace the values of secret-named flags in *args* within each of *parts*.
+
+    The values come from :func:`secret_arg_values` (``--password VALUE``,
+    ``--token=VALUE``); values shorter than 4 characters are left alone so a
+    flag like ``--auth on`` doesn't blank out every ``on``.
+    """
+    secrets = sorted(
+        {v for v in secret_arg_values(args) if len(v) >= 4}, key=len, reverse=True
+    )
+    if not secrets:
+        return parts
+    out: list[str] = []
+    for part in parts:
+        for secret in secrets:
+            part = part.replace(secret, _REDACTED)
+        out.append(part)
+    return out
+
+
 def redact_command(command: str | None, args: list[str]) -> str:
     """Return ``command args[:4]`` for evidence, with secrets redacted.
 
     Launch arguments can carry credentials (a connection string, a token
     flag).  Each argument has its URL userinfo replaced with ``[REDACTED]``
-    (:func:`_redact_userinfo`), then every SECRET_PATTERNS match in the
-    joined string is replaced too, and the result is capped at 300
+    (:func:`_redact_userinfo`) and the value of every secret-named flag
+    (:func:`secret_arg_values`) is replaced, then every SECRET_PATTERNS match
+    in the joined string is replaced too, and the result is capped at 300
     characters (after redacting, so a cut can't expose a secret's prefix).
 
     Args:
@@ -742,6 +1006,7 @@ def redact_command(command: str | None, args: list[str]) -> str:
     """
     parts = [_redact_userinfo(command or "")]
     parts.extend(_redact_userinfo(arg) for arg in args[:4])
+    parts = _redact_secret_flag_values(list(args), parts)
     text = " ".join(part for part in parts if part)
     for _label, pattern, _provider in SECRET_PATTERNS:
         text = pattern.sub(_REDACTED, text)
@@ -755,7 +1020,8 @@ def redact_args(args: list[str]) -> list[str]:
 
     The serialised form of a server's launch arguments (``servers[].args`` in
     JSON scan output and snapshots, STORY-0108).  Each argument has its URL
-    userinfo replaced (:func:`_redact_userinfo`); then every SECRET_PATTERNS
+    userinfo replaced (:func:`_redact_userinfo`) and the value of every
+    secret-named flag (:func:`secret_arg_values`) replaced; then every SECRET_PATTERNS
     match in the space-joined arguments is replaced in each argument it
     overlaps, so a secret split across two arguments (``Bearer``, ``<token>``)
     is caught the way :func:`redact_command` catches it.  Unlike
@@ -767,7 +1033,9 @@ def redact_args(args: list[str]) -> list[str]:
     Returns:
         A new list of the same length.
     """
-    cleaned = [_redact_userinfo(arg) for arg in args]
+    cleaned = _redact_secret_flag_values(
+        list(args), [_redact_userinfo(arg) for arg in args]
+    )
     joined = " ".join(cleaned)
     hits: list[tuple[int, int]] = []
     for _label, pattern, _provider in SECRET_PATTERNS:

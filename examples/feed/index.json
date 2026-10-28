@@ -20,56 +20,6 @@
           },
           "package": {
             "ecosystem": "npm",
-            "name": "mcp-audit-fixture-github-server",
-            "purl": "pkg:npm/mcp-audit-fixture-github-server"
-          },
-          "ranges": [
-            {
-              "events": [
-                {
-                  "introduced": "1.0.0"
-                }
-              ],
-              "type": "SEMVER"
-            }
-          ]
-        }
-      ],
-      "canonical_sha256": "2edddfeb262e0c4fb98a734e1f36543b7f8adb072af9f59701739b12d2909e24",
-      "id": "x_MCPSA-15bb864c7eef",
-      "modified": "2026-01-31T00:00:00Z",
-      "owasp_mcp": [
-        "MCP04"
-      ],
-      "path": "advisories/x_MCPSA-15bb864c7eef.json",
-      "severity": [
-        {
-          "score": "CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:U/C:L/I:N/A:N",
-          "type": "CVSS_V3"
-        }
-      ],
-      "summary": "npx used without pinned version"
-    },
-    {
-      "affected": [
-        {
-          "database_specific": {
-            "cvss_basis": "severity-band",
-            "finding_class": "unpinned-dependency",
-            "mcp_audit_rule_id": "COMM-010",
-            "mcp_transport": "stdio",
-            "observation": "deployment",
-            "owasp_mcp": [
-              "MCP04"
-            ],
-            "verified_patch": {
-              "cosign_bundle": null,
-              "fixed_version": null,
-              "pr_url": null
-            }
-          },
-          "package": {
-            "ecosystem": "npm",
             "name": "@modelcontextprotocol/server-filesytem",
             "purl": "pkg:npm/@modelcontextprotocol/server-filesytem"
           },
@@ -85,7 +35,7 @@
           ]
         }
       ],
-      "canonical_sha256": "25ddf8eaf82fcf38d873ed4fdc4cf02d272e87028b0a8af548ad16fb55311fe1",
+      "canonical_sha256": "3341e6680805e39a222529101600b922bed1a0c4e938d7ce55c5be24fb996a98",
       "id": "x_MCPSA-20ce54c348dd",
       "modified": "2026-01-31T00:00:00Z",
       "owasp_mcp": [
@@ -1188,7 +1138,7 @@
       "summary": "Broad Deno permission flags in use"
     }
   ],
-  "count": 23,
+  "count": 22,
   "expires": "2099-01-01T00:00:00Z",
   "feed_version": "1.1",
   "generator": "mcp-audit/0.22.0",

@@ -2441,3 +2441,174 @@ class TestStdioRulesShippedAndCounted:
         assert "STDIO-002a" in rules
         assert "STDIO-002b" in rules
         assert "STDIO-002" not in rules
+
+
+# ── COMM-010 reads the args (STORY-0105, Q-011) ──────────────────────────────
+
+
+class TestComm010ReadsArgs:
+    """COMM-010 fires only when the npx package carries no exact version."""
+
+    def _ids(self, args: list[str], command: str = "npx") -> list[str]:
+        rules = [r for r in load_bundled_community_rules() if r.id == "COMM-010"]
+        server = _make_server(command=command, args=args)
+        return [f.id for f in RuleEngine(rules).match_server(server)]
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["-y", "pkg@1.2.3"],
+            ["-y", "@scope/pkg@1.2.3"],
+            ["--yes", "@scope/pkg@1.2.3-beta.1", "--port", "8080"],
+            ["pkg@1.2.3+build.5"],
+            ["-y", "@modelcontextprotocol/server-filesystem@2.0.0", "/tmp"],  # noqa: S108
+        ],
+    )
+    def test_exact_pin_is_silent(self, args: list[str]) -> None:
+        assert self._ids(args) == []
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            [],
+            ["pkg"],
+            ["-y", "@scope/pkg"],
+            ["-y", "pkg@^1.2.3"],
+            ["-y", "pkg@~1.2.3"],
+            ["-y", "pkg@latest"],
+            ["-y", "pkg@1.2"],
+            ["-y", "pkg@1.2.x"],
+            ["-y", "pkg@1.2.3x"],
+            # A pinned token later in the args is not the package npx runs.
+            ["-y", "pkg", "other@1.0.0"],
+        ],
+    )
+    def test_unpinned_fires(self, args: list[str]) -> None:
+        assert self._ids(args) == ["COMM-010"]
+
+    def test_non_npx_command_is_silent(self) -> None:
+        assert self._ids(["pkg"], command="node") == []
+
+    def test_message_says_what_was_checked(self) -> None:
+        rules = [r for r in load_bundled_community_rules() if r.id == "COMM-010"]
+        server = _make_server(command="npx", args=["-y", "pkg"])
+        (finding,) = RuleEngine(rules).match_server(server)
+        assert "without an exact version pin" in finding.description
+
+    def test_regex_is_linear_on_pathological_args(self) -> None:
+        import time
+
+        args = ["-" + "a" * 50_000] * 20 + ["x" * 200_000 + "@1.2"]
+        start = time.monotonic()
+        assert self._ids(args) == ["COMM-010"]
+        assert time.monotonic() - start < 2.0
+
+
+class TestRuleEvidenceRedaction:
+    """A matched value that quotes arguments never carries a secret (STORY-0105)."""
+
+    def test_args_rule_evidence_redacts_url_password_and_token(self) -> None:
+        """Second layer, for any rule that quotes the args (not COMM-010, which
+        reports a fixed label)."""
+        token = "ghp_" + "aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"
+        rule = _make_rule(
+            field=MatchField.ARGS, pattern="postgres", match_type=MatchType.CONTAINS
+        )
+        server = _make_server(
+            command="npx",
+            args=[
+                "-y",
+                "mcp-server-postgres",
+                "postgresql://admin:hunter2pass@db.internal/app",
+                f"--token={token}",
+            ],
+        )
+        (finding,) = RuleEngine([rule]).match_server(server)
+        for text in (finding.evidence, finding.description):
+            assert "hunter2pass" not in text
+            assert token not in text
+        assert "postgresql://[REDACTED]@db.internal/app" in finding.evidence
+
+
+class TestComm010ReportsOnlyALabel:
+    """COMM-010's evidence never quotes the launch arguments (STORY-0105 review)."""
+
+    _ARGS = [
+        "-y",
+        "@upstash/context7-mcp",
+        "--api-key",
+        "ctx7sk-0123456789abcdefghij",
+        "/Users/alice/projects",
+    ]
+
+    def _finding(self) -> object:
+        rules = [r for r in load_bundled_community_rules() if r.id == "COMM-010"]
+        server = _make_server(command="npx", args=list(self._ARGS))
+        (finding,) = RuleEngine(rules).match_server(server)
+        return finding, server
+
+    def test_finding_carries_no_argument_text(self) -> None:
+        finding, _server = self._finding()
+        for text in (finding.evidence, finding.description):
+            assert "ctx7sk-" not in text
+            assert "/Users/" not in text
+            assert "context7" not in text
+        assert "first package argument has no exact version" in finding.evidence
+
+    def test_advisory_carries_no_argument_text(self) -> None:
+        import json
+
+        from mcp_audit.advisory.feed import build_advisory
+
+        finding, server = self._finding()
+        advisory = build_advisory(finding, server, now="2026-01-31T00:00:00Z")
+        assert advisory is not None
+        text = json.dumps(advisory.to_osv())
+        assert "ctx7sk-" not in text
+        assert "/Users/" not in text
+
+
+class TestReportOption:
+    """A condition's ``report`` replaces the field content in the matched value."""
+
+    def test_negated_condition_reports_label(self) -> None:
+        rule = PolicyRule.model_validate(
+            {
+                "id": "TEST-REPORT",
+                "name": "t",
+                "description": "t",
+                "severity": "LOW",
+                "category": "test",
+                "match": {
+                    "field": "args",
+                    "pattern": "safe",
+                    "type": "contains",
+                    "negate": True,
+                    "report": "no safe flag",
+                },
+                "message": "{matched_value}",
+            }
+        )
+        (finding,) = RuleEngine([rule]).match_server(
+            _make_server(args=["--token", "abc123secret"])
+        )
+        assert finding.description == "no safe flag"
+        assert "abc123secret" not in finding.evidence
+
+    def test_without_report_negated_keeps_field_value(self) -> None:
+        """COMM-031 relies on this: it quotes the remote URL."""
+        rules = [r for r in load_bundled_community_rules() if r.id == "COMM-031"]
+        server = _make_server(
+            command=None, url="https://mcp.example.com/sse", transport=TransportType.SSE
+        )
+        (finding,) = RuleEngine(rules).match_server(server)
+        assert "https://mcp.example.com/sse" in finding.description
+
+    def test_secret_flag_value_redacted_from_any_rule_evidence(self) -> None:
+        rule = _make_rule(
+            field=MatchField.ARGS, pattern="--api-key", match_type=MatchType.CONTAINS
+        )
+        (finding,) = RuleEngine([rule]).match_server(
+            _make_server(args=["--api-key", "plainsecretvalue"])
+        )
+        assert "plainsecretvalue" not in finding.evidence

@@ -103,6 +103,37 @@ def _detect_ecosystem(name: str) -> str:
     return "npm" if name.startswith("@") else "npm"
 
 
+def _badge_target(name: str, offline_registry: bool) -> tuple[str, str]:
+    """Return ``(ecosystem, name)`` for ``vet <name> --badge`` without ``--ecosystem``.
+
+    The badge used to assume npm for every unscoped name, so a PyPI-only
+    registry entry such as ``mcptoon`` got an npm badge URL that 404s
+    (Q-020).  Registry names are unique across ecosystems (the loader
+    rejects duplicates), so when the name is listed only for PyPI the
+    badge points at PyPI, under the entry's own spelling.  Anything else,
+    including a registry that cannot be loaded, keeps the npm default:
+    the badge is still printed, as before.
+
+    Args:
+        name: Package name exactly as supplied.
+        offline_registry: Use only the bundled registry.
+
+    Returns:
+        The ecosystem and the package name to build the badge URL from.
+    """
+    if name.startswith("@"):
+        return "npm", name
+    try:
+        registry = load_registry(offline=offline_registry)
+    except (FileNotFoundError, RegistryLoadError):
+        return "npm", name
+    if registry.get_npm(name) is None:
+        entry = registry.get_pypi(name)
+        if entry is not None:
+            return "pypi", entry.name
+    return "npm", name
+
+
 def _lookup(
     name: str,
     ecosystem: str,
@@ -849,8 +880,11 @@ def vet(
 
     # ── Badge-only output ─────────────────────────────────────────────────────
     if badge:
-        url = badge_url(eco, pkg_name)
-        vpage = verdict_page_url(eco, pkg_name)
+        badge_name = pkg_name
+        if ecosystem is None:
+            eco, badge_name = _badge_target(pkg_name, offline_registry)
+        url = badge_url(eco, badge_name)
+        vpage = verdict_page_url(eco, badge_name)
         sys.stdout.write(f"[![mcp-audit verdict]({url})]({vpage})\n")
         raise typer.Exit(0)
 

@@ -307,3 +307,32 @@ def test_diff_of_two_clean_json_scans_reports_no_credential(tmp_path: Path) -> N
     head = _scan_json(tmp_path, "head", ["-y", "@acme/postgres-mcp", "--port=5432"])
     changes = compare(load_input(str(base)), load_input(str(head)))
     assert not [c for c in changes if c.entity_type == EntityType.CREDENTIAL]
+
+
+def test_secret_flag_values_are_redacted_everywhere() -> None:
+    """``--password VALUE`` (secret_arg_values, #200) is redacted too."""
+    from mcp_audit.analyzers.supply_chain import redact_command  # noqa: PLC0415
+
+    args = ["-y", "@acme/db-mcp", "--password", "plainPass99", "--api-key=abcd1234"]
+    assert redact_args(args) == [
+        "-y",
+        "@acme/db-mcp",
+        "--password",
+        "[REDACTED]",
+        "--api-key=[REDACTED]",
+    ]
+    text = redact_command("npx", args)
+    assert "plainPass99" not in text and "abcd1234" not in text
+    # A short value is left alone so ``--auth on`` doesn't blank every "on".
+    assert redact_args(["--auth", "on", "json"]) == ["--auth", "on", "json"]
+
+
+def test_community_rule_evidence_uses_the_rule_engine_redaction(
+    tmp_path: Path,
+) -> None:
+    """COMM-031 quotes the URL it matched; #200's _redact_matched_value redacts it."""
+    result = run_scan(extra_paths=[_config(tmp_path)], skip_rug_pull=True)
+    comm = [f for f in result.findings if f.id == "COMM-031"]
+    assert comm
+    for finding in comm:
+        _assert_clean(finding.evidence + finding.description)
