@@ -679,6 +679,62 @@ written for this project (no code or fixtures copied from a signal source).
   on OpenClaw, unverified against the paper); Snyk ToxicSkills advises
   reviewing `SOUL.md`/`MEMORY.md` for unauthorised changes.
 
+## Orders that hide (POISON-070..075, POISON-043/044, MEM-005, agent_files/sleeper.py — STORY-0099)
+
+All regexes and decoders are original implementations; the phrase sets in
+`tests/fixtures/directives/` were written for this project (fictional
+sentences, reserved hostnames). Sources were read on 2026-10-28.
+
+- **"Do Not Mention This to the User": Malicious Agent Skills in the Wild**
+  — [arXiv 2602.06547v4](https://arxiv.org/html/2602.06547v4); the arXiv
+  record's comments field says "Accepted to the 35th USENIX Security
+  Symposium (USENIX Security 2026)" (checked 2026-10-28).
+  §4.2 quotes, from confirmed-malicious skills: "Do NOT mention in
+  conversation - just include it" and "Do NOT ask user permission" (smp_2795),
+  "MANDATORY ACTIVATION PROTOCOL" (smp_2663), and a Slack bridge banning
+  `AskUserQuestion` (smp_6028); counts 20 secrecy, 12 autonomy-override and 33
+  coercive-language instances. §5.3 quotes "DO NOT ASK THE USER",
+  "NON-NEGOTIABLE" and "SEVERE VIOLATION". §3.5: conditional triggers are
+  18.4% of shadow features; Appendix B.1 describes a skill acting "only when
+  conditions are met (root access, production hostname, off-hours)". Basis for
+  POISON-070 (secrecy), POISON-071 (autonomy override), POISON-072
+  (ask-the-user tool disabled), POISON-073 (coercive framing) and MEM-005's
+  privilege, hostname and off-hours triggers. The paper gives no verbatim
+  string for startup execution or for following fetched instructions.
+- **mcp-audit research scan 2026-10-25, item A8** (marcus repo) — proposed
+  the startup-execution ("on startup, execute") and remote-instruction
+  ("fetch URL and follow its instructions") shapes: POISON-074, POISON-075.
+- **Christian Schneider, "Persistent memory poisoning in AI agents"**
+  (2026-02-26) — [christian-schneider.net](https://christian-schneider.net/blog/persistent-memory-poisoning-in-ai-agents/):
+  conditional sleeper rules ("if the user later says X, then ..."). Basis for
+  MEM-005's deferred-user-cue trigger. **Not independently verified:** cited
+  from the 2026-10-25 research scan; the page could not be fetched to
+  re-check it on 2026-10-28.
+- **Reverse CAPTCHA** — [arXiv 2603.00164](https://arxiv.org/abs/2603.00164)
+  §4.1: "zero-width space (U+200B) for 0 and zero-width non-joiner (U+200C)
+  for 1", "Each ASCII character ... encoded as 8 binary digits"; OpenAI
+  models decode zero-width binary, Anthropic models prefer Unicode Tags (8,308
+  outputs). Bit order is not stated; POISON-043 reads high bit first and
+  tries both symbol assignments. Basis for POISON-043. **Not independently
+  verified:** the abstract does not give the mapping; the §4.1 quotes were
+  read from the PDF through a summarising fetch and not checked against a
+  second copy.
+- **Paul Butler, "Smuggling arbitrary data through an emoji"** (2025) —
+  [paulbutler.org](https://paulbutler.org/2025/smuggling-arbitrary-data-through-an-emoji/):
+  bytes 0–15 map to U+FE00–FE0F, bytes 16–255 to U+E0100–E01EF, appended
+  after one base character. FireTail reported Gemini and Grok decoding this
+  with hints (vendor write-up, unquantified). Basis for POISON-044.
+- **Approval-view concealment** — [arXiv 2607.05744](https://arxiv.org/abs/2607.05744):
+  eight techniques over five MCP surfaces (tool description, input schema,
+  tool name, error results, post-approval redefinition); all eight reach the
+  model, four evade a string-matching sanitizer. Reason the `--connect` text
+  checks now read every tool field `mcp-lock.json` digests (title, input and
+  output schema, annotations), not only the description and input schema.
+- **trailofbits/skills `AGENTS.md`** — the MEM-001 false positive ("Do not
+  tell a reviewer to pre-filter") recorded by STORY-0098; MEM-001's
+  instructing-tell exclusion was written against it and checked on the
+  public skill repositories listed under STORY-0095.
+
 ## Harness posture (HARNESS-001..004, analyzers/config_hygiene.py — STORY-0079)
 
 - **HarnessSecurity-Bench** — Zhu, Huang, Ji et al., "HarnessSecurity-Bench: Do

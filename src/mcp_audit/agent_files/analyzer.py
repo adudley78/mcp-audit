@@ -2,11 +2,14 @@
 
 Finding IDs
 -----------
-SKILL-001 (HIGH)
+SKILL-001 (HIGH; the pattern's ``skill_severity`` for POISON-070..075)
     Injection or exfiltration instruction detected in a skill / command /
     instruction file.  Fires when any PATTERNS entry from
     :mod:`mcp_audit.analyzers.poisoning` (except POISON-040/060 obfuscation
-    patterns and POISON-050 length) matches the file body.
+    patterns and POISON-050 length) matches the file body.  The directive
+    patterns (STORY-0099) report at their own severity: HIGH for secrecy,
+    MEDIUM for tool-disabling, LOW for autonomy override, coercive framing,
+    startup execution and remote instructions.
 
 SKILL-002 (MEDIUM)
     Obfuscated or oversized block in a skill / command file.  Fires on
@@ -22,8 +25,11 @@ SKILL-003 (MEDIUM)
 
 MEM-001 (MEDIUM)
     Imperative override instruction in a memory file.  Fires on POISON-012
-    (behavioral override) patterns only — more conservative than SKILL-001
-    to control false-positive rate on innocuous project CLAUDE.md files.
+    (behavioral override) except a "do not tell <someone> to <verb>"
+    instruction to someone other than the user (and not a purpose clause),
+    or on POISON-070 (a secrecy directive aimed at the user or
+    the conversation) — more conservative than SKILL-001 to control the
+    false-positive rate on innocuous project CLAUDE.md files (STORY-0099).
 
 MEM-002 (MEDIUM)
     Injection pattern in a memory file.  Fires on the restricted subset
@@ -55,6 +61,14 @@ MEM-004 (HIGH)
     recurring step whose result the owner never sees.  See
     :mod:`mcp_audit.agent_files.heartbeat`.  STORY-0098.
 
+MEM-005 (MEDIUM)
+    An always-loaded instruction file (CLAUDE.md tiers, rules, AGENTS.md,
+    OpenClaw workspace and heartbeat files) holds a conditional sleeper
+    trigger (a later cue from the user, a privilege, hostname or date test,
+    an unobserved time) in an if/when clause, a consequence that opens with
+    an action verb, and a payload cue in it.  Runs with MEM-003/004 (default scan).  See
+    :mod:`mcp_audit.agent_files.sleeper`.  STORY-0099.
+
 Imported and referenced files (``AgentFile.imported_from`` set) are scanned
 with the importing file's rule set; secrets matching ``SECRET_PATTERNS`` are
 redacted from their findings' text.
@@ -68,9 +82,12 @@ SKILL-004 (INFO)
     trust as the skill's instructions; this exists so a reviewer knows they
     are there.
 
-POISON-041 (HIGH) / POISON-042 (LOW) — documented exception
+POISON-041/042/043/044 — documented exception
+    (POISON-041 HIGH, POISON-042 LOW, POISON-043/044 MEDIUM.)
     Concealment channels (Unicode TAG-character runs decoding to hidden
-    text; HTML comments invisible when this file renders as Markdown).
+    text; HTML comments invisible when this file renders as Markdown;
+    zero-width characters read as bits and variation-selector runs read as
+    bytes, STORY-0099).
     Fires on both skill/command/instruction and memory surfaces via
     :func:`mcp_audit.analyzers.poisoning.scan_concealed_channels` and
     :func:`mcp_audit.analyzers.poisoning.build_concealment_finding` — the
@@ -83,9 +100,10 @@ POISON-041 (HIGH) / POISON-042 (LOW) — documented exception
     does not; the precedent is ``discovery.py``'s shared symlink-finding
     builders, which keep ``analyzer="discovery"`` regardless of whether
     ``discovery.py`` or ``agent_files/discovery.py`` calls them).
-    POISON-042 fires only for the TAG-character channel — a bare HTML
-    comment is common and legitimate in Markdown and must stay silent
-    unless its content actually matches an existing pattern.
+    POISON-042/043/044 fire only for the TAG, zero-width binary and
+    variation-selector channels — a bare HTML comment is common and
+    legitimate in Markdown and must stay silent unless its content actually
+    matches an existing pattern.
 
 Subagent definitions (STORY-0094)
 ---------------------------------
@@ -111,13 +129,17 @@ from typing import TYPE_CHECKING
 
 from mcp_audit.agent_files.heartbeat import find_suppression
 from mcp_audit.agent_files.models import MEMORY_SURFACES, AgentFile, AgentFileSurface
+from mcp_audit.agent_files.sleeper import find_sleepers
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
 from mcp_audit.analyzers.poisoning import (
     PATTERNS,
     DetectionPattern,
     build_concealment_finding,
+    concealment_finding_id,
     matched_pattern,
+    memory_override_match,
     normalize_for_detection,
+    redacted_snippet,
     scan_concealed_channels,
 )
 from mcp_audit.models import Finding, Severity
@@ -138,8 +160,10 @@ _MEM_INJECTION_IDS: frozenset[str] = frozenset(
 # ID of the excessive-length pattern — applied to skills but not memory.
 _LENGTH_PATTERN_ID: str = "POISON-050"
 
-# MEM-001 uses the behavioral override pattern only.
+# MEM-001 uses the behavioral override pattern (read by
+# memory_override_match) and the secrecy directive (STORY-0099).
 _MEM_OVERRIDE_ID: str = "POISON-012"
+_MEM_SECRECY_ID: str = "POISON-070"
 
 # Minimum body length (chars) that triggers SKILL-002 oversized finding.
 _SKILL_OVERSIZED_THRESHOLD: int = 2_000
@@ -338,6 +362,46 @@ _MEM004_REASON = {
 }
 
 
+def _mem005_findings(af: AgentFile) -> list[Finding]:
+    """MEM-005: conditional sleeper triggers in an always-loaded file (STORY-0099)."""
+    if af.surface not in MEMORY_SURFACES:
+        return []
+    findings: list[Finding] = []
+    for hit in find_sleepers(af.body):
+        findings.append(
+            _redacted(
+                _skill_finding(
+                    af,
+                    "MEM-005",
+                    Severity.MEDIUM,
+                    "Instruction file holds a conditional sleeper trigger",
+                    (
+                        f"Line {hit.line} of '{af.path.name}' makes an action wait"
+                        " for a trigger (a later cue from the user, a privilege,"
+                        " hostname or production-host test, a calendar date, or a"
+                        " time when nobody is watching), and the action sends,"
+                        " runs or deletes something sensitive (a URL, credentials,"
+                        " backups, a remote endpoint, or done silently). The file"
+                        " is loaded into every"
+                        " session, so the rule sits dormant until the condition"
+                        " holds. Conditional triggers were 18.4% of the hidden"
+                        " features of confirmed-malicious skills (USENIX Security"
+                        " 2026, arXiv 2602.06547)."
+                    ),
+                    f"Line {hit.line}: {redacted_snippet(hit.sentence, 160)!r}",
+                    (
+                        "Remove the rule unless you wrote it and know what the"
+                        " condition guards; then check whether the condition has"
+                        " already been met."
+                    ),
+                    owasp_mcp_top_10=["MCP03", "MCP06"],
+                    cwe="CWE-511",
+                )
+            )
+        )
+    return findings
+
+
 def _mem004_findings(af: AgentFile) -> list[Finding]:
     if af.surface != AgentFileSurface.HEARTBEAT:
         return []
@@ -383,7 +447,7 @@ def _mem004_findings(af: AgentFile) -> list[Finding]:
 def analyze_instruction_reach(
     files: list[AgentFile], home: Path | None = None
 ) -> list[Finding]:
-    """MEM-003 and MEM-004 only: the checks the default scan runs.
+    """MEM-003, MEM-004 and MEM-005 only: the checks the default scan runs.
 
     Args:
         files: Agent files with their import edges filled in by discovery.
@@ -391,15 +455,32 @@ def analyze_instruction_reach(
 
     Returns:
         MEM-003 findings for each external or ``.gitignore``'d import of a
-        project file, and MEM-004 findings for heartbeat files.
+        project file, MEM-004 findings for heartbeat files, and MEM-005
+        findings for sleeper triggers in always-loaded instruction files.
     """
     home = home if home is not None else Path.home()
     findings: list[Finding] = []
+    seen_bodies: set[str] = set()
     for af in files:
         if af.scope == "project":
             findings.extend(_mem003_findings(af, home))
         findings.extend(_mem004_findings(af))
+        # One file reached twice (CLAUDE.md -> AGENTS.md symlink, or imported
+        # by two files) is checked once for MEM-005.
+        key = _real_path_key(af.path)
+        if key in seen_bodies:
+            continue
+        seen_bodies.add(key)
+        findings.extend(_mem005_findings(af))
     return findings
+
+
+def _real_path_key(path: Path) -> str:
+    """Return *path* resolved through symlinks, or as written if that fails."""
+    try:
+        return str(path.resolve())
+    except (OSError, RuntimeError):
+        return str(path)
 
 
 def _skill_finding(
@@ -496,7 +577,9 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
         # fall back to a body snippet when the pattern only matched after
         # Unicode normalization.
         raw_match = pat.pattern.search(text)
-        evidence_snippet = (raw_match.group(0) if raw_match else text.strip())[:120]
+        evidence_snippet = redacted_snippet(
+            raw_match.group(0) if raw_match else text.strip(), 120
+        )
 
         if pat.id in _OBFUSCATION_IDS:
             _emit(
@@ -520,14 +603,15 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
                 ),
             )
         else:
-            # Injection / exfiltration pattern → SKILL-001
+            # Injection / exfiltration pattern → SKILL-001 (HIGH, or the
+            # directive pattern's own skill_severity, STORY-0099)
             _emit(
                 "SKILL-001",
                 pat.id,
                 _skill_finding(
                     af,
                     "SKILL-001",
-                    Severity.HIGH,
+                    pat.skill_severity or Severity.HIGH,
                     f"Injection/exfiltration instruction in skill file ({pat.name})",
                     (
                         f"The file '{af.path.name}' contains an instruction"
@@ -548,7 +632,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     # SKILL-003: unpinned external URL
     url_match = _EXTERNAL_URL_RE.search(text)
     if url_match:
-        url_snippet = url_match.group(0)[:100]
+        url_snippet = redacted_snippet(url_match.group(0), 100)
         key = ("SKILL-003", "url")
         if key not in seen:
             seen.add(key)
@@ -579,7 +663,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     # SKILL-003: inline data: URI (distinct description — payload carrier)
     data_match = _DATA_URI_RE.search(text)
     if data_match:
-        data_snippet = data_match.group(0)[:100]
+        data_snippet = redacted_snippet(data_match.group(0), 100)
         key = ("SKILL-003", "data")
         if key not in seen:
             seen.add(key)
@@ -613,7 +697,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     # not "agent_files").
     for cmatch in scan_concealed_channels(text):
         pat_key = cmatch.matched_pattern.id if cmatch.matched_pattern else "none"
-        fid = "POISON-041" if cmatch.matched_pattern is not None else "POISON-042"
+        fid = concealment_finding_id(cmatch)
         _emit(
             fid,
             f"concealment:{cmatch.channel.kind}:{pat_key}",
@@ -631,6 +715,31 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
 
 
 # ── Memory analyzers ──────────────────────────────────────────────────────────
+
+
+def _mem001_match(
+    text: str, norm_text: str, patterns_by_id: dict[str, DetectionPattern]
+) -> tuple[DetectionPattern, str] | None:
+    """Return the pattern and evidence MEM-001 reports for *text*, or ``None``.
+
+    POISON-012 counts as :func:`memory_override_match` reads it (a "do not
+    tell <someone> to <verb>" instruction is not an override); a secrecy
+    directive counts when POISON-070 matches.  Evidence is the original text
+    when it matches, else a snippet.
+    """
+    override_pat = patterns_by_id.get(_MEM_OVERRIDE_ID)
+    if override_pat is not None:
+        m = memory_override_match(norm_text)
+        if m is not None:
+            raw_m = memory_override_match(text)
+            snippet = raw_m.group(0) if raw_m else text.strip()
+            return override_pat, redacted_snippet(snippet, 120)
+    secrecy_pat = patterns_by_id.get(_MEM_SECRECY_ID)
+    if secrecy_pat is not None and matched_pattern(secrecy_pat, text, norm_text):
+        raw_m = secrecy_pat.pattern.search(text)
+        snippet = raw_m.group(0) if raw_m else text.strip()
+        return secrecy_pat, redacted_snippet(snippet, 120)
+    return None
 
 
 def _analyze_memory(af: AgentFile) -> list[Finding]:
@@ -654,39 +763,39 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
             seen.add(key)
             findings.append(f)
 
-    # MEM-001: behavioral override patterns only (POISON-012)
-    override_pat = patterns_by_id.get(_MEM_OVERRIDE_ID)
-    if override_pat:
-        m = matched_pattern(override_pat, text, norm_text)
-        if m:
-            raw_m = override_pat.pattern.search(text)
-            evidence_snippet = (raw_m.group(0) if raw_m else text.strip())[:120]
-            _emit(
+    # MEM-001: behavioral override (POISON-012, except "do not tell
+    # <someone> to <verb>") or a secrecy directive aimed at the user
+    # (POISON-070).  STORY-0099: that shape fired on ordinary prose
+    # ("Do not tell a reviewer to pre-filter", trailofbits/skills AGENTS.md).
+    hit = _mem001_match(text, norm_text, patterns_by_id)
+    if hit is not None:
+        override_pat, evidence_snippet = hit
+        _emit(
+            "MEM-001",
+            _MEM_OVERRIDE_ID,
+            _skill_finding(
+                af,
                 "MEM-001",
-                _MEM_OVERRIDE_ID,
-                _skill_finding(
-                    af,
-                    "MEM-001",
-                    Severity.MEDIUM,
-                    "Imperative override instruction in memory file",
-                    (
-                        f"The memory file '{af.path.name}' contains an"
-                        " instruction that attempts to override agent behavior"
-                        f" ({override_pat.description}). Memory files are"
-                        " injected into every session — a malicious override"
-                        " instruction persists across all future interactions."
-                    ),
-                    f"Matched: {evidence_snippet!r}",
-                    (
-                        "Review the memory file for instructions you did not"
-                        " intentionally add. Remove any behavioral overrides."
-                        " Restrict write access: chmod 600 CLAUDE.md (or"
-                        " equivalent)."
-                    ),
-                    owasp_mcp_top_10=["MCP03"],
-                    cwe="CWE-74",
+                Severity.MEDIUM,
+                "Imperative override instruction in memory file",
+                (
+                    f"The memory file '{af.path.name}' contains an"
+                    " instruction that attempts to override agent behavior"
+                    f" ({override_pat.description}). Memory files are"
+                    " injected into every session — a malicious override"
+                    " instruction persists across all future interactions."
                 ),
-            )
+                f"Matched: {evidence_snippet!r}",
+                (
+                    "Review the memory file for instructions you did not"
+                    " intentionally add. Remove any behavioral overrides."
+                    " Restrict write access: chmod 600 CLAUDE.md (or"
+                    " equivalent)."
+                ),
+                owasp_mcp_top_10=["MCP03"],
+                cwe="CWE-74",
+            ),
+        )
 
     # MEM-002: restricted injection subset (POISON-010/011/040/060)
     for pat_id in sorted(_MEM_INJECTION_IDS):
@@ -697,7 +806,9 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
         if not m:
             continue
         raw_m = pat.pattern.search(text)
-        evidence_snippet = (raw_m.group(0) if raw_m else text.strip())[:120]
+        evidence_snippet = redacted_snippet(
+            raw_m.group(0) if raw_m else text.strip(), 120
+        )
         _emit(
             "MEM-002",
             pat_id,
@@ -730,7 +841,7 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
     # _MEM_INJECTION_IDS subset used above for direct pattern matches.
     for cmatch in scan_concealed_channels(text):
         pat_key = cmatch.matched_pattern.id if cmatch.matched_pattern else "none"
-        fid = "POISON-041" if cmatch.matched_pattern is not None else "POISON-042"
+        fid = concealment_finding_id(cmatch)
         _emit(
             fid,
             f"concealment:{cmatch.channel.kind}:{pat_key}",
