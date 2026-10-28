@@ -126,11 +126,12 @@ src/mcp_audit/
 │   ├── discovery.py   # discover_workflow_files(): <root>/.github/workflows/*.y{a,}ml (top level only); walk=True (--project) adds nested repo roots (a .git entry); a symlinked .github or workflows dir is not read and every file must resolve inside root; 256 KiB per file, 4 MiB per call; size/budget skips and an unreadable workflow dir or file (stat(), not is_dir(), which hides EACCES from 3.13) reported to the caller's errors; every probe catches OSError
 │   └── analyzer.py    # analyze_workflow_files(): steps using claude-code-action / claude-code-security-review / run-gemini-cli × stranger-writable trigger × secret in with/env × write (or absent) permissions × tool posture per vendor docs; workflow_call evaluated once per local caller path (triggers + token ceiling); every pass over untrusted text is linear — ${{ }} extraction (no lazy-dot regex), whole-shell rule matching (no adjacent \s* quantifiers), claude_args splitting (_posix_split, not shlex, whose per-char token concatenation is quadratic); parse cached by SHA-256 of the bytes
 ├── lock/              # mcp-lock.json (ADR-0005): committable record of approved servers
-│   ├── model.py       # ownership boundary + top-level checksum ({lock_version, generated_by, servers})
+│   ├── model.py       # ownership boundary + top-level checksum ({lock_version, generated_by, servers}); LOCK_VERSION 2, SUPPORTED_LOCK_VERSIONS, ResolutionContext
 │   ├── writer.py      # regenerate()/write_lock(); foreign sections preserved; owned `tools` merged
-│   ├── verifier.py    # lock --verify: LOCK-001..005, and LOCK-006..009 with --connect
+│   ├── verifier.py    # lock --verify: LOCK-001..005, LOCK-006..009 with --connect; lock_version 1 and 2 (STORY-0116): v2 adds LOCK-011/012 (section digests, canonical bytes) and LOCK-010 under --resolve; a v1 lock verifies exactly as before (tests/test_lock_v2.py vs tests/fixtures/lock_v1_corpus); a newer version → exit 2
+│   ├── section_digests.py # lock_version 2 `section_digests`: per-section SHA-256 of the RFC 8785 encoding; each producer writes its own entries, keeps the rest verbatim (merge/check/noncanonical_sections)
 │   ├── tool_digests.py # `tools` section (STORY-0086): per-tool definition/contract digests, own _checksum
-│   └── identity.py, resolve.py, discovery.py, auto_verify.py
+│   └── identity.py, resolve.py (bare spec → "*", resolution_context), discovery.py, auto_verify.py
 ├── advisory/          # OSV 1.6.0 advisory records + signed feed (mcp-audit advise / feed verify)
 │   ├── __init__.py    # Package marker; re-exports Advisory, build_advisory, write_feed, sign_feed, verify_feed
 │   ├── schema.py      # Advisory dataclass → OSV 1.6.0 JSON; stable `x_MCPSA-<12hex>` IDs; MCP metadata under affected[].database_specific; FINDING_CLASS_TO_OWASP + owasp_for(); rejects codes owasp_mcp.py does not define

@@ -31,7 +31,16 @@ from mcp_audit.models import Finding, LockStatus, ServerConfig
 _NOT_LOCKED_CLIENTS = frozenset({"claude-code-plugin"})
 
 _DRIFT_IDS = frozenset(
-    {"LOCK-001", "LOCK-002", "LOCK-004", "LOCK-005", "LOCK-006", "LOCK-007", "LOCK-008"}
+    {
+        "LOCK-001",
+        "LOCK-002",
+        "LOCK-004",
+        "LOCK-005",
+        "LOCK-006",
+        "LOCK-007",
+        "LOCK-008",
+        "LOCK-011",
+    }
 )
 
 
@@ -141,8 +150,16 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
     unverified_sections: set[str] = set()
     outside_root: list[str] = []
     tools_recorded = 0
+    newer_locks = False
     for lock_path, group_servers in groups.items():
         result = verify_lock(lock_path, group_servers, root=lock_path.parent)
+        if result.unsupported_version is not None:
+            # Nothing in it was checked: say so instead of "verified".
+            newer_locks = True
+            unverified_sections.add(
+                f"lock_version {result.unsupported_version} "
+                "(newer than this mcp-audit; upgrade it)"
+            )
         all_findings.extend(result.findings)
         total_checked += result.checked_servers
         unresolved.extend(result.unresolved_entries)
@@ -150,7 +167,7 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
         outside_root.extend(result.outside_root)
         tools_recorded += result.tools_recorded
 
-    verified = not any(f.id in _DRIFT_IDS for f in all_findings)
+    verified = not newer_locks and not any(f.id in _DRIFT_IDS for f in all_findings)
     status = LockStatus(
         present=True,
         verified=verified,

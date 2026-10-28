@@ -1,7 +1,9 @@
 # `mcp-audit lock` — a committable, reviewable record of approved MCP servers
 
-> **EXPERIMENTAL for v0.17.0.** `lock_version` (currently `1`) may change before the format is
-> frozen at version `2`. Treat `mcp-lock.json`'s shape as subject to change across a minor release
+> **EXPERIMENTAL.** `lock` writes `lock_version` `2` (see [lock_version 2](#lock_version-2)) and
+> verifies both `1` and `2`. The name of the `section_digests` field is pending confirmation with
+> the `trees` producer ([#88](https://github.com/adudley78/mcp-audit/issues/88)) and may change
+> before it is released. Treat `mcp-lock.json`'s shape as subject to change across a minor release
 > until this note is removed — the same posture the advisory feed shipped with.
 
 `mcp-audit lock` writes `mcp-lock.json` at your project root: a small, deterministic, git-committable
@@ -66,8 +68,8 @@ Try it: [`demo/lock/`](../demo/lock/) — a small, reproducible fixture that run
 
 ```jsonc
 {
-  "lock_version": 1,
-  "generated_by": "mcp-audit/0.17.0",
+  "lock_version": 2,
+  "generated_by": "mcp-audit/0.23.0",
   "generated_at": "2026-09-10T13:00:00Z",
   "servers": {
     "cursor/github": {
@@ -78,10 +80,20 @@ Try it: [`demo/lock/`](../demo/lock/) — a small, reproducible fixture that run
       "package": {
         "ecosystem": "npm",
         "name": "@modelcontextprotocol/server-github",
-        "spec_as_written": "latest",
-        "range_spec": false,
+        "spec_as_written": "*",
+        "range_spec": true,
         "resolved_version": "2026.7.10",
-        "resolution": { "method": "dist-tag:latest", "resolved_at": "2026-09-07T09:00:00Z" },
+        "resolution": {
+          "method": "dist-tag:latest",
+          "resolved_at": "2026-09-07T09:00:00Z",
+          "resolution_context": {
+            "resolved_at": "2026-09-07T09:00:00Z",
+            "latest": "2026.7.10",
+            "latest_deprecated": null,
+            "npm_major": null,
+            "node_version": null
+          }
+        },
         "integrity": "sha256:e563…",
         "source": "registry",
         "deprecated": null
@@ -95,6 +107,7 @@ Try it: [`demo/lock/`](../demo/lock/) — a small, reproducible fixture that run
   },
   "trees": {},
   "tools": null,
+  "section_digests": { "servers": "sha256:<hex>" },
   "checksum": "sha256:<hex>"
 }
 ```
@@ -112,6 +125,68 @@ never populated for PyPI packages — see `GAPS.md`. A non-null value emits one 
 and covered by the `checksum`; `lock_version` stays `1` (an additive field, not a schema break).
 Running `lock --accept` after a package goes deprecated re-resolves and records it, exactly like any
 other lock update.
+
+### lock_version 2
+
+Version 2 (STORY-0116) is the set of changes agreed with the `trees` producer on
+[#88](https://github.com/adudley78/mcp-audit/issues/88) (ADR-0005's R59 and R62 addenda). It is
+additive: every version-1 field keeps its meaning.
+
+- **`spec_as_written` records a bare spec as `"*"`.** `npx -y foo`, `uvx pkg`, `pipx run pkg` and
+  `foo@` name no version. npm reads such a name as the range `*`
+  ([npm-package-arg `lib/npa.js`](https://github.com/npm/npm-package-arg/blob/v14.0.0/lib/npa.js),
+  `spec = '*'`), not as the `latest` tag, so version 1's `"latest"` overstated what the config said.
+  `foo@latest` stays `"latest"`. Resolution is unchanged: both still resolve through the registry's
+  `latest` dist-tag, and mcp-audit still implements no range resolver. A spec `lock` does not parse
+  (`uvx pkg==1.2.3`, `uvx pkg>=1`) keeps version 1's `"latest"` and resolution, so re-reading it
+  can never turn an untouched config into `LOCK-004`.
+- **`package.resolution.resolution_context`** records what the registry said when the version was
+  picked: `resolved_at`, `latest` (the version `latest` pointed at) and `latest_deprecated` (its
+  deprecation notice), plus `npm_major` and `node_version`. Those last two are always `null` in the
+  section mcp-audit writes: mcp-audit reads the dist-tag over HTTPS and runs neither npm nor Node.
+  As agreed on #88 (ADR-0005 R62), the `trees` producer, which does run npm, is to record its own
+  context in its own section; his published spec does not have these fields yet. Context is never
+  copied across sections. `resolution_context` is `null` for an exact pin and for an entry locked offline
+  (the registry was not consulted). **The context explains why two locks differ; only the resolved
+  versions and integrity hashes can regenerate one.** Dist-tags and deprecation flags have no
+  queryable history, so a recorded context is not a coordinate anyone can return to.
+- **`section_digests`** is a top-level map from section name to `sha256:` + the SHA-256 of that
+  section's RFC 8785 encoding. Each producer writes the entries for the sections it produced and
+  copies every other entry verbatim (even one that no longer matches: that is the other producer's
+  evidence). mcp-audit writes `servers`, and `tools` once `lock --connect` has populated it; it
+  never writes `trees`. Any tool can recompute any entry. The map is outside mcp-audit's own
+  `checksum`, so another producer adding its entry never trips `LOCK-005`. A `section_digests`
+  that is not an object stops `lock` (exit 2) rather than be overwritten.
+
+**Interop limits of the canonical form.** Both the digests and LOCK-012 rely on every producer
+writing the same RFC 8785 bytes. Two inputs cannot round-trip between languages and are kept out of
+any section a producer digests: integers beyond ±2^53 (mcp-audit writes them exactly; a JavaScript
+producer parses them into doubles and writes a different number, so the digest differs), and
+strings with a lone UTF-16 surrogate (`"\ud800"`), which have no UTF-8 encoding at all. mcp-audit
+never writes either; a section holding a lone surrogate cannot be digested or re-encoded and is
+listed as unverified (never passed), and in mcp-audit's own sections it is `LOCK-005`.
+
+Verifying a version-2 lock adds three findings:
+
+| ID | Severity | When | Fails the exit code |
+|---|---|---|---|
+| `LOCK-010` | INFO | `--verify --resolve`: an entry's `resolution_context` differs from a fresh resolution (`latest`, `latest_deprecated`, `npm_major`, `node_version`) | no; any change to the resolved version or hash is `LOCK-004`, separately |
+| `LOCK-011` | HIGH | every verify, including `scan`/`check`: a `section_digests` entry is missing for a section mcp-audit wrote, malformed, names a section that is gone or the envelope (`lock_version`, `checksum`…), or does not match its section | yes, and `--allow-unverified` does not waive it |
+| `LOCK-012` | LOW | every verify: the file is not byte-identical to its canonical form (someone pretty-printed it, or an editor added a newline); names up to 16 reformatted sections (then `…`; none above 8 MiB), or `<layout>` | no |
+
+A section matching its digest is still a foreign section mcp-audit has not verified the contents
+of: a populated `trees` keeps failing the exit code under R56 (below) unless waived. A section too
+large to digest is listed as unverified, never passed.
+
+**Compatibility.** A version-1 lock is verified exactly as before: none of the three checks run,
+and a `section_digests` key in a version-1 file is an unrecognised section like any other. The next
+`lock` or `lock --accept` rewrites it as version 2 without changing any `first_locked`,
+`resolved_at`, `resolved_version` or `integrity`. A lock declaring a version above 2 is refused:
+`lock --verify` exits 2 and `scan`/`check` list it as not verified; `lock` will not overwrite it.
+mcp-audit 0.22 and earlier read a version-2 lock without error and without `LOCK-005`, but report
+`section_digests` as an unverified section, so `lock --verify` there exits 1 unless
+`--allow-unverified`. **Upgrade every place that runs `lock --verify` (CI, pre-commit) before you
+commit a version-2 lock.**
 
 **Never in the file:** environment variable *values*, header *values*, absolute filesystem paths,
 the scanning machine's hostname or username, or the raw config block. Only key names (`env_keys`,
@@ -172,9 +247,10 @@ job, not an edit to anything mcp-audit owns or verifies.
 | Mode | Compares lock against | Network | Finding IDs on drift |
 |---|---|---|---|
 | `lock --verify` (default) | current on-disk configs only: identity, env/header key names, presence/absence | none | `LOCK-001` (drifted), `LOCK-002` (unlocked server present), `LOCK-003` (locked server missing) |
-| `lock --verify --resolve` | the above, **plus** the current registry resolution of every floating/range spec vs. the locked `resolved_version`/`integrity` | npm/PyPI (same policy as `fix --fix-type pinning` / `vet`) | adds `LOCK-004` (resolution drifted; **CRITICAL** when the *same* version now hashes differently — a republished artifact) and `SC-005` (MEDIUM; the freshly re-resolved version is deprecated) |
+| `lock --verify --resolve` | the above, **plus** the current registry resolution of every floating/range spec vs. the locked `resolved_version`/`integrity` | npm/PyPI (same policy as `fix --fix-type pinning` / `vet`) | adds `LOCK-004` (resolution drifted; **CRITICAL** when the *same* version now hashes differently — a republished artifact), `SC-005` (MEDIUM; `latest` for the package is deprecated on npm) and, on a version-2 lock, `LOCK-010` (INFO; the recorded resolution context changed) |
 | `lock --verify --connect` | the above, **plus** each server's live tool list vs. the digests in `tools` | starts each configured server (same as `scan --connect`) | adds `LOCK-006` (tool added, HIGH), `LOCK-007` (schema or annotations changed, HIGH), `LOCK-008` (only the description or title changed, MEDIUM), `LOCK-009` (tool removed, LOW) |
 | always | mcp-audit's own owned-section `checksum`, and `tools._checksum` when `tools` is populated, against their recomputed values | none | `LOCK-005` (mcp-audit's own record — header + `servers`, or the `tools` section — tampered or hand-edited) — short-circuits all other checks, exit 2 |
+| always, version-2 lock | `section_digests` against each section; the file's bytes against their canonical form | none | `LOCK-011` (a section changed without its digest, HIGH), `LOCK-012` (file reformatted, LOW) |
 
 `lock --verify`'s exit code and message vocabulary are permanently scoped to what it can see offline
 unless `--resolve` is passed. A green default `--verify` never implies the registry was consulted.
@@ -471,6 +547,12 @@ skip the file.
 
 ## Known limitations
 
+- A bare spec (`"*"`) and an explicit `@latest` are both resolved through the registry's `latest`
+  dist-tag, but npm does not treat them alike: for a bare or range spec, npm 10.8.2 and later
+  (bundling [npm-pick-manifest](https://github.com/npm/npm-pick-manifest/blob/v12.0.0/lib/index.js)
+  9.1.0 or later, whose `latest` fast path checks `!mani.deprecated` and the engines) skip a
+  deprecated or engine-incompatible `latest` and then prefer the highest version that is neither,
+  when one exists. mcp-audit does not model this; SC-005 says so in its message.
 - No semver range resolution: a range spec (`foo@^1.2.3`) is recorded verbatim in `spec_as_written`
   and resolved the same way an unpinned `latest` spec is (via the registry's own `latest` dist-tag /
   PyPI's latest-stable), never by computing a highest-satisfying version. `range_spec: true` flags

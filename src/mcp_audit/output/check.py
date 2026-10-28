@@ -378,6 +378,19 @@ _HINTS: dict[str, str] = {
     "LOCK-009": (
         "A locked tool is gone. If expected, run `mcp-audit lock --accept --connect`."
     ),
+    # lock_version 2 (STORY-0116)
+    "LOCK-010": (
+        "The registry's `latest` or deprecation notice changed since the lock;"
+        " informational. Re-lock with `mcp-audit lock --accept` to record it."
+    ),
+    "LOCK-011": (
+        "A section of mcp-lock.json changed without its digest. Inspect"
+        " `git diff mcp-lock.json`; re-run whichever tool wrote that section."
+    ),
+    "LOCK-012": (
+        "Something reformatted mcp-lock.json. Run `mcp-audit lock --accept` to"
+        " rewrite it canonically."
+    ),
     # Instruction-file reach (STORY-0098)
     "MEM-003": (
         "Move the imported instructions into the repository (or delete the"
