@@ -624,6 +624,18 @@ test instead.
 
 ---
 
+### Managed MCP policy (`analyzers/managed_policy.py`, MANAGED-001..005, STORY-0112)
+
+Rules from code.claude.com/docs/en/managed-mcp and managed-settings; see `docs/managed-policy.md`.
+
+| ID | Severity | OWASP Agentic | OWASP MCP | Rationale |
+|---|---|---|---|---|
+| MANAGED-001 | INFO | ASI03 | MCP09 | Inventory of the managed MCP policy in Claude Code's system directory (exclusive control, provided servers, allow/deny lists, lock). Describes, asserts no defect. Not an advisory. CWE-1188 |
+| MANAGED-002 | INFO | ASI03 | MCP09 | A configured user, project or plugin server the policy keeps from loading (exclusive control, denylist, shadowed by a provided server, allowlist). The policy working; the risk is a developer who believes a server runs. Not an advisory. CWE-1188 |
+| MANAGED-003 | LOW | ASI03 | MCP09 | Managed settings deployed with no MCP key and no `managed-mcp.json`: "anyone running Claude Code can connect any MCP server they choose". LOW because an MDM or server-managed source mcp-audit can't see may carry the policy. Not an advisory. CWE-1188 |
+| MANAGED-004 | MEDIUM / LOW | ASI03, ASI09 | MCP02, MCP09 | Unlocked managed allowlist widened by another settings file ("allowlists from every settings scope merge"). MEDIUM when a repository's committed file does it for everyone who opens it; LOW for the user's own or local file. CWE-284 |
+| MANAGED-005 | LOW | ASI03 | MCP09, MCP07 | Managed allowlist admits a transport by `serverName` only, which Anthropic says "is not a security control". LOW: it needs a user who renames a server, and the list is the organization's choice. CWE-284 |
+
 ## How to assign severity to a new finding
 
 When adding a new analyzer or detection pattern, use this decision tree:
