@@ -2204,6 +2204,39 @@
         "Insufficient Authentication and Authorization"
       ],
       "notes": "LOW: the managed allowedMcpServers list has serverName entries and no serverUrl (remote) and/or no serverCommand (stdio) entries, so that transport is admitted by a user-assigned label ('A serverName entry ... is not a security control'). CWE-284. Source: code.claude.com/docs/en/managed-mcp, managed-settings, settings-reference. Analyzer: managed_policy (STORY-0112)."
+    },
+    {
+      "finding_id": "REACH-001",
+      "finding_title": "Credential files a Claude Code session can read without asking",
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "LOW: well-known credential stores under the home directory (SSH default keys, ~/.aws/credentials, gcloud ADC, ~/.git-credentials, ~/.netrc, ~/.pypirc, Claude Code .credentials.json; npmrc/docker/kube/gh configs as 'may hold') exist (stat only, never opened) and no Read deny rule, blockReadsOutsideWorkingDirectories or enabled-sandbox denyRead/credentials deny entry covers them; Claude Code runs cat/head/tail without a prompt in every mode. Default scan only, only when a Claude Code config directory exists. Excluded from advisories. CWE-522. Source: code.claude.com/docs/en/permissions, sandboxing, settings-reference, authentication. Analyzer: secret_reach (STORY-0114)."
+    },
+    {
+      "finding_id": "REACH-002",
+      "finding_title": "Claude Code's login store is readable by other local accounts",
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "MEDIUM: .credentials.json in the Claude Code config directory has a group or other read bit and every directory above it is searchable by that class (POSIX mode bits; a user-private group does not count; ACLs not read). Claude Code writes it 0600. Excluded from advisories. CWE-732. Source: code.claude.com/docs/en/permissions, sandboxing, settings-reference, authentication. Analyzer: secret_reach (STORY-0114)."
+    },
+    {
+      "finding_id": "REACH-003",
+      "finding_title": ".env files in the working directory with no Read deny rule",
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "LOW: non-empty .env / .env.* files at the working directory's root (templates such as .env.example skipped; found by name, never opened) that no Read deny rule covers; Claude Code reads working-directory files without approval. Default scan only, skipped when the working directory is the home directory. Excluded from advisories. CWE-522. Source: code.claude.com/docs/en/permissions, sandboxing, settings-reference, authentication. Analyzer: secret_reach (STORY-0114)."
     }
   ],
   "dynamic_patterns": [

@@ -95,6 +95,11 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # config, the policy working as intended, not a vulnerability
         "MANAGED-003",  # managed settings without MCP policy — organisation
         # posture with no package or server to attach an advisory to
+        "REACH-001",  # credential files a Claude Code session can read
+        "REACH-002",  # Claude Code login store readable by other accounts
+        "REACH-003",  # .env files with no Read deny rule (STORY-0114) — all
+        # three describe one machine's files, never a package; a home-directory
+        # inventory must never become a published advisory
         "VULN-UNRESOLVED",  # --check-vulns lookup that could not run
         # (STORY-0106) — operational note, asserts nothing about the package
     }

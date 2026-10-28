@@ -204,6 +204,15 @@ _HINTS: dict[str, str] = {
         "Add serverUrl and serverCommand allowlist entries; names alone admit"
         " any server."
     ),
+    "REACH-001": (
+        "Add Read deny rules for these files to ~/.claude/settings.json, or set"
+        " permissions.blockReadsOutsideWorkingDirectories to true."
+    ),
+    "REACH-002": "chmod 600 the Claude Code .credentials.json file.",
+    "REACH-003": (
+        'Add "Read(./.env)" and "Read(./.env.*)" to permissions.deny in'
+        " .claude/settings.json."
+    ),
     "MOD-006": (
         "Remove CLAUDE_CODE_PLUGIN_DIRS from settings; load dev plugins with"
         " --plugin-dir only when needed."

@@ -661,6 +661,18 @@ Rules from code.claude.com/docs/en/managed-mcp and managed-settings; see `docs/m
 | MANAGED-004 | MEDIUM / LOW | ASI03, ASI09 | MCP02, MCP09 | Unlocked managed allowlist widened by another settings file ("allowlists from every settings scope merge"). MEDIUM when a repository's committed file does it for everyone who opens it; LOW for the user's own or local file. CWE-284 |
 | MANAGED-005 | LOW | ASI03 | MCP09, MCP07 | Managed allowlist admits a transport by `serverName` only, which Anthropic says "is not a security control". LOW: it needs a user who renames a server, and the list is the organization's choice. CWE-284 |
 
+### Secrets a Claude Code session can reach (`analyzers/secret_reach.py`, REACH-001..003, STORY-0114)
+
+Rules from code.claude.com/docs/en/permissions, sandboxing, settings-reference and authentication; see `docs/secret-reach.md`. No credential store is opened: `stat()` and settings JSON only.
+
+| ID | Severity | OWASP Agentic | OWASP MCP | Rationale |
+|---|---|---|---|---|
+| REACH-001 | LOW | ASI03 | MCP01 | Well-known credential stores under home that no `Read` deny rule, `blockReadsOutsideWorkingDirectories` or enabled-sandbox deny entry covers; Claude Code runs `cat`/`head`/`tail` "without a permission prompt in every mode". LOW: this is Claude Code's default posture, and the read still needs the model to choose it (prompt injection). One finding per scan. Not an advisory. CWE-522 |
+| REACH-002 | MEDIUM | ASI03 | MCP01 | Claude Code's `.credentials.json` (written 0600) readable by another local account through its mode bits and searchable parent directories. Only a changed mode fires; correct installs are silent. Not an advisory. CWE-732 |
+| REACH-003 | LOW | ASI03 | MCP01 | Non-empty `.env`/`.env.*` at the working directory's root (templates skipped) that no `Read` deny rule covers; working-directory reads need no approval. LOW for the same reason as REACH-001. Not an advisory. CWE-522 |
+
+Measured on six benign machine profiles (`docs/secret-reach.md`): 0 MEDIUM+; REACH-001 LOW on the three with credential stores and no protection, silent on the two configured as Anthropic's docs show.
+
 ## How to assign severity to a new finding
 
 When adding a new analyzer or detection pattern, use this decision tree:
