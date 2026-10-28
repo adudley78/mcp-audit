@@ -958,6 +958,50 @@ in `docs/permission-rules.md`:
   which quote the `{"version": 2, "plugins": {"<id>": [records]}}` structure.
 - Original implementation; no code was copied.
 
+## Plugin pin vs the checkout (PLUGIN-003/004, plugins/checkout.py — STORY-0096)
+
+- **Plugin4Shell** — AIR Security, 2026-09-17
+  (https://www.air.security/blog-posts/plugin4shell). The install sequence
+  (`git clone`, then `git checkout <40-hex>`; Gemini CLI: `git fetch origin <sha>`,
+  `git checkout FETCH_HEAD`), the default-branch-named-like-the-SHA and
+  default-branch-named-`FETCH_HEAD` swaps, GitHub's refusal of SHA-shaped branch names,
+  other hosts accepting them, and the fix versions (Claude Code 2.1.179, Codex 0.146.0).
+  Source for PLUGIN-003's CRITICAL signature and PLUGIN-004 HIGH/LOW.
+- **Pebblous write-up** — 2026-09-19
+  (https://blog.pebblous.ai/blog/plugin4shell-sha-pinning-bypass/en/). Same mechanism;
+  "a non-default branch is fetched only as a remote-tracking ref", and detection by
+  comparing the commit the working tree resolves to with the pin.
+- **CSA research note** — 2026-09-19
+  (https://labs.cloudsecurityalliance.org/research/csa-research-note-plugin4shell-ai-coding-agent-supply-chain/).
+  The control PLUGIN-003 implements: keep "a record of exactly which commit each
+  installed plugin currently resolves to" and verify it independently of the agent's
+  self-reported pin status.
+- **Claude Code plugin documentation** — code.claude.com/docs/en/plugins/loading
+  (cache layout `cache/<marketplace>/<plugin>/<version>/`, copied plugins, version
+  computation, auto-update defaults) and plugins/marketplace-reference (`sha` is "a full
+  40-character lowercase commit SHA"; marketplace sources take `ref` but no `sha`).
+- **Observed behaviour, Claude Code 2.1.311 (2026-10-27, temporary home directory)** —
+  installs from `claude-plugins-official` (`url`, `git-subdir`, relative) and
+  `anthropics/skills` (relative): cache copies carry no `.git`; `installed_plugins.json`
+  records carry `gitCommitSha` (the pin for `url`/`git-subdir`, the marketplace commit
+  for relative); a third-party marketplace is a real clone (`.git`, `HEAD` on
+  `refs/heads/main`); a local `file://` plugin whose default branch was named after the
+  pinned SHA was refused ("SHA pin verification failed: expected HEAD to be …, got ….
+  Refusing to install.").
+- **anthropics/claude-code#56740** — `gitCommitSha` going stale after `plugin update`
+  (so the "record claims the pin" and "record explains drift" decisions are only as
+  good as that field),
+  and install-created caches carrying `.git` on 2.1.131 (reporter's statement).
+- **git** — `builtin/checkout.c` (`setup_new_branch_info_and_source_tree`: an existing
+  `refs/heads/<arg>` is switched to before the argument is taken as a commit),
+  `object-name.c` (`get_oid_basic`: a full-length hex name is the object, with an
+  ambiguity warning; an abbreviated one is looked up as a ref first),
+  `refs/refs-internal.h` `SYMREF_MAXDEPTH` (5), all read at v2.43.0, and
+  gitrepository-layout (`HEAD`, `refs/`, `packed-refs`, `commondir`). Each behaviour PLUGIN-003/004 rely on was reproduced with
+  git 2.43 on hand-made repositories (branch, tag, short tag, short branch, remote-only
+  branch, `FETCH_HEAD` default branch).
+- Original implementation; no code was copied.
+
 ## Claude Code subagent definitions (AGENT-001..004, agent_files/subagents.py — STORY-0094)
 
 - **Claude Code sub-agents documentation** — https://code.claude.com/docs/en/sub-agents

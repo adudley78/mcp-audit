@@ -1465,6 +1465,28 @@
       "notes": "Fires when a Claude Code marketplace entry fetches a github, url or git-subdir plugin source with no sha. Severity LOW. CWE-829. Analyzer: plugins (STORY-0080)."
     },
     {
+      "finding_id": "PLUGIN-003",
+      "finding_title": "Plugin checkout is not the commit its marketplace pins",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when a Claude Code plugin pinned to a full sha (github/url/git-subdir) has a git checkout in its install directory whose HEAD, read as files (HEAD, loose refs, packed-refs; git is never run), resolves to another commit. CRITICAL when HEAD is on a branch named like a commit SHA or FETCH_HEAD (the Plugin4Shell swap, AIR Security 2026-09-17) or the install record (gitCommitSha, or the 12-char version prefix when no version string is set) claims the pin; MEDIUM when the record does not explain the difference or HEAD cannot be resolved; silent for pin drift the record explains. Claude Code 2.1.311 keeps no .git in its plugin cache, so this applies to installs that kept one. CWE-494. Analyzer: plugins (STORY-0096)."
+    },
+    {
+      "finding_id": "PLUGIN-004",
+      "finding_title": "Plugin update channel cannot hold its pin",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "HIGH: a git-sourced Claude Code plugin's checkout holds a branch, tag or remote branch named like a commit SHA (40/64 hex) or FETCH_HEAD, the names Plugin4Shell used to redirect a pinned checkout. MEDIUM: the marketplace entry's sha is set but is not a full 40-character SHA (git resolves an abbreviated hash as a ref name first). LOW: a full-sha pin on a host other than github.com, which accepts SHA-shaped branch names. CWE-494. Analyzer: plugins (STORY-0096)."
+    },
+    {
       "finding_id": "MOD-001",
       "finding_title": "Mod can approve tool calls before the permission prompt",
       "owasp_codes": [

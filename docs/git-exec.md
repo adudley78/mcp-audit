@@ -26,6 +26,7 @@ repository is the attack); it reads a few small files as text.
 | `mcp-audit scan`, `mcp-audit check` (no path given) | The repository git would use from the current directory, found the way git finds it: walking up to the nearest valid `.git` (a `.git` folder that is not a real git directory is skipped, as git skips it), or a bare repository. This is the GitHub Action's default. |
 | `mcp-audit scan --project <dir>` | Every `.git` folder or `.git` file the project walk passes, and every nested bare repository under `<dir>`. |
 | `mcp-audit scan --path <file>` | Nothing: an explicit path means "scan exactly this". |
+| `mcp-audit scan`, `check`, `plugins scan` (installed Claude Code plugins) | Each installed plugin's install directory that is a git checkout, and each marketplace clone under `~/.claude/plugins/marketplaces/`: Claude Code runs git there when it refreshes a marketplace (STORY-0096; see `docs/plugins.md`). |
 
 No new flags. The walk keeps skipping the inside of `.git`; mcp-audit reads only:
 

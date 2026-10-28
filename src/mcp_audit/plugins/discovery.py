@@ -4,7 +4,9 @@ File formats, from Claude Code's documentation and public bug reports:
 
 * ``installed_plugins.json``: ``{"version": 2, "plugins": {"<name>@<marketplace>":
   [{"scope", "projectPath", "installPath", "version", ...}, ...]}}`` — one array
-  entry per install (anthropics/claude-code issues #45997, #17032).
+  entry per install (anthropics/claude-code issues #45997, #17032).  Records
+  written by Claude Code 2.1.311 also carry ``installedAt``, ``lastUpdated`` and
+  ``gitCommitSha`` (observed, undocumented; STORY-0096).
 * ``known_marketplaces.json``: per marketplace, ``source``, ``installLocation``,
   ``lastUpdated``, ``autoUpdate`` (docs: plugins/loading).
 * ``<marketplace root>/.claude-plugin/marketplace.json``: ``plugins`` entries with
@@ -26,7 +28,7 @@ from typing import Any
 
 from mcp_audit.agent_files.discovery import _read_agent_file
 from mcp_audit.agent_files.models import AgentFile, AgentFileSurface
-from mcp_audit.plugins.models import InstalledPlugin
+from mcp_audit.plugins.models import InstalledPlugin, normalize_object_id
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +150,7 @@ def discover_installed_plugins(root: Path | None = None) -> list[InstalledPlugin
                     else None,
                     manifest_version=_manifest_version(install_path),
                     record_path=record_path,
+                    git_commit_sha=normalize_object_id(record.get("gitCommitSha")),
                 )
             )
     return found
