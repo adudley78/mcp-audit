@@ -739,3 +739,152 @@ class TestRedactionInOutputs:
 def test_fixture_project_is_unchanged_by_tests() -> None:
     """The corpus configs are inputs; a test must never rewrite them."""
     assert not (CORPUS / "project" / "mcp-lock.json").exists()
+
+
+# ── 8. Hostile lock content: no crash, no blind spot, bounded time ─────────
+
+
+def _write_ascii_json(path: Path, doc: dict) -> None:
+    """Write *doc* the way a non-canonical tool would (``\\uXXXX`` escapes)."""
+    path.write_text(json.dumps(doc, ensure_ascii=True), encoding="utf-8")
+
+
+class TestHostileLockContent:
+    def test_lone_surrogate_is_a_canonical_error(self) -> None:
+        with pytest.raises(CanonicalError, match="surrogate"):
+            canonicalize({"trees": {"x": "\ud800"}})
+        with pytest.raises(CanonicalError):
+            canonicalize({"\udfff": 1})
+
+    def _surrogate_lock(self, tmp_path: Path, *, digest: bool) -> Path:
+        path = _v2_lock(tmp_path)
+        doc = _load(path)
+        doc["trees"] = {"x": "\ud800"}
+        if digest:
+            doc["section_digests"]["trees"] = "sha256:" + "0" * 64
+        _write_ascii_json(path, doc)
+        return path
+
+    @pytest.mark.parametrize("digest", [True, False])
+    def test_surrogate_in_foreign_section_is_unverified_not_a_crash(
+        self, tmp_path: Path, digest: bool
+    ) -> None:
+        path = self._surrogate_lock(tmp_path, digest=digest)
+        result = verify(path, _server_for(tmp_path))
+        assert result.findings == []
+        names = {i.name for i in result.unverified}
+        assert "<file>" in names  # canonical form not checked
+        assert ("trees" in names) is True  # populated foreign section (R56)
+        if digest:
+            assert any(
+                i.name == "trees" and "lone UTF-16 surrogate" in i.reason
+                for i in result.unverified
+            )
+        assert result.exit_code == 1
+
+    def test_surrogate_in_scan_auto_verify_is_not_blind(self, tmp_path: Path) -> None:
+        (tmp_path / ".git").mkdir()
+        self._surrogate_lock(tmp_path, digest=True)
+        findings, status = auto_verify(_server_for(tmp_path))
+        assert findings == []
+        assert status.present is True
+        assert "trees" in status.unverified_sections
+
+    @pytest.mark.parametrize("command", ["check", "scan"])
+    def test_surrogate_lock_does_not_crash_scan_or_check(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
+    ) -> None:
+        (tmp_path / ".git").mkdir()
+        (tmp_path / ".cursor").mkdir()
+        (tmp_path / ".cursor" / "mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "github": {"command": "npx", "args": ["-y", "foo@1.0.0"]}
+                    }
+                }
+            )
+        )
+        self._surrogate_lock(tmp_path, digest=True)
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(app, [command])
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert result.exit_code != 2
+        assert "Traceback" not in result.output
+
+    def test_surrogate_in_owned_section_is_lock_005(self, tmp_path: Path) -> None:
+        path = _v2_lock(tmp_path)
+        doc = _load(path)
+        doc["generated_by"] = "mcp-audit/\ud800"
+        _write_ascii_json(path, doc)
+        result = verify(path, _server_for(tmp_path))
+        assert [f.id for f in result.findings] == ["LOCK-005"]
+        assert result.exit_code == 2
+
+    def test_surrogate_in_v1_lock_verifies_as_before(self, project: Path) -> None:
+        doc = _load(CORPUS / "mcp-lock.resolved.json")
+        doc["trees"] = {"x": "\ud800"}
+        _write_ascii_json(project / "mcp-lock.json", doc)
+        result = verify(project / "mcp-lock.json", corpus.discover(project))
+        assert result.findings == []
+        assert [i.name for i in result.unverified] == ["trees"]
+
+    @pytest.mark.parametrize("layout", ["indented", "trailing-newline"])
+    def test_many_foreign_keys_is_bounded(self, tmp_path: Path, layout: str) -> None:
+        path = _v2_lock(tmp_path)
+        doc = _load(path)
+        for i in range(20_000):
+            doc[f"k{i:05d}"] = {"v": i}
+        if layout == "indented":  # every member reformatted
+            path.write_text(json.dumps(doc, indent=1))
+        else:  # every member found, layout differs
+            path.write_bytes(serialize(doc) + b"\n")
+        start = time.monotonic()
+        result = verify(path, _server_for(tmp_path), allow_unverified=True)
+        elapsed = time.monotonic() - start
+        lock_012 = [f for f in result.findings if f.id == "LOCK-012"]
+        assert len(lock_012) == 1
+        if layout == "indented":
+            assert lock_012[0].evidence.endswith("…")
+        else:
+            assert lock_012[0].evidence == "not canonical: <layout>"
+        assert elapsed < 10, elapsed
+
+    def test_many_digest_problems_are_capped(self, tmp_path: Path) -> None:
+        def many(doc: dict) -> None:
+            for i in range(500):
+                doc[f"s{i}"] = i
+                doc["section_digests"][f"s{i}"] = "sha256:" + "0" * 64
+
+        path = _v2_lock(tmp_path, many)
+        result = verify(path, _server_for(tmp_path))
+        lock_011 = [f for f in result.findings if f.id == "LOCK-011"]
+        assert len(lock_011) == 20
+        assert "480 more" in lock_011[-1].evidence
+
+    def test_long_section_name_is_capped(self, tmp_path: Path) -> None:
+        name = "n" * 5000
+        path = _v2_lock(
+            tmp_path,
+            lambda d: d["section_digests"].update({name: "sha256:" + "0" * 64}),
+        )
+        result = verify(path, _server_for(tmp_path))
+        assert result.findings[0].id == "LOCK-011"
+        assert len(result.findings[0].title) < 400
+
+    def test_context_notice_is_capped_in_the_lock(self) -> None:
+        def latest(_eco: object, _name: str) -> tuple[str, str]:
+            return "1.0.0", "x" * 50_000
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr("mcp_audit.lock.resolve.resolve_latest_version_info", latest)
+            mp.setattr(
+                "mcp_audit.lock.resolve.compute_hash_from_url",
+                lambda url: "sha256:" + "a" * 64,
+            )
+            pkg = resolve_package(
+                _srv("npx", ["-y", "foo"]), offline=False, registry=None
+            )
+        assert pkg is not None
+        ctx = pkg["resolution"]["resolution_context"]
+        assert len(ctx["latest_deprecated"]) <= 1025

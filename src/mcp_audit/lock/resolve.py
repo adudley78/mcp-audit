@@ -44,6 +44,10 @@ from mcp_audit.vulnerability.resolver import (
 #: ``latest`` tag; lock_version 1 wrote ``"latest"`` here (STORY-0116).
 BARE_SPEC = "*"
 
+#: Longest registry deprecation notice copied into ``resolution_context``
+#: (``package.deprecated`` keeps version 1's full text, unchanged).
+MAX_CONTEXT_NOTICE = 1024
+
 _NPM_LAUNCHERS = {"npx", "bunx", "pnpx"}
 _PYPI_LAUNCHERS = {"uvx", "pipx"}
 
@@ -143,6 +147,8 @@ def _resolution_context(
     """
     if method != "dist-tag:latest":
         return None
+    if deprecated is not None and len(deprecated) > MAX_CONTEXT_NOTICE:
+        deprecated = deprecated[:MAX_CONTEXT_NOTICE] + "…"
     return {
         "resolved_at": resolved_at,
         "latest": latest,

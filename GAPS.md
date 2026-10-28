@@ -1833,6 +1833,18 @@ Items below were confirmed open at some point and have since been resolved. Each
   member text (`"key":<value>`) does not occur in the file; a member text that happens to occur
   elsewhere in the file would hide a reformat of that section (the file is still reported, as
   `<layout>`, unless every byte matches).
+- **LOCK-012 names at most 16 sections.** It walks the canonical members once with a cursor and
+  stops naming after 16 misses (`…`), and names nothing above 8 MiB (`<layout>`), so its cost stays
+  linear in the file size however many keys a file has. A section moved out of canonical order is
+  reported as not canonical.
+- **Canonical-form interop.** Integers beyond ±2^53 canonicalize exactly in Python and lossily in a
+  JavaScript producer, so a digest over such a section would differ between producers. A lone UTF-16
+  surrogate has no canonical encoding: such a section is listed as unverified (in mcp-audit's own
+  sections, LOCK-005), never passed. Neither occurs in anything mcp-audit writes.
+- **Terminal output with many foreign keys.** `lock --verify` lists every unverified section and,
+  with `--allow-unverified`, prints one WAIVED line each; with tens of thousands of foreign keys the
+  terminal rendering takes tens of seconds (as in 0.22). `--format json` and `scan`/`check` are not
+  affected.
 - **Older readers.** mcp-audit 0.22 and earlier read a version-2 lock without crashing and without
   LOCK-005, but count `section_digests` as an unverified foreign section (exit 1 unless
   `--allow-unverified`). An older `lock` rewrites the file as version 1, keeping the stale

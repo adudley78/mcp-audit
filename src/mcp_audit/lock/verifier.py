@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from mcp_audit.advisory.canonical import CanonicalError
 from mcp_audit.analyzers.rug_pull import server_key
 from mcp_audit.analyzers.supply_chain import (
     build_deprecated_package_finding,
@@ -71,6 +72,9 @@ _CONTEXT_FIELDS = ("latest", "latest_deprecated", "npm_major", "node_version")
 
 #: Longest context value quoted in a LOCK-010 message.
 _MAX_CONTEXT_TEXT = 200
+
+#: LOCK-011 findings listed per lock; the rest are counted in the last one.
+_MAX_DIGEST_FINDINGS = 20
 
 #: How many tool names a finding's evidence lists before summarising.
 _MAX_NAMED_TOOLS = 20
@@ -210,7 +214,17 @@ def verify(
         return VerifyResult(unsupported_version=newer, exit_code=2)
 
     # ── LOCK-005 short-circuits everything else (ADR-0005 §10) ─────────────
-    expected_checksum = compute_checksum(doc)
+    try:
+        expected_checksum = compute_checksum(doc)
+    except CanonicalError as exc:
+        # mcp-audit never writes owned content it cannot encode (too large, or
+        # a lone surrogate), so such content is an edit: tampered, not a crash.
+        finding = _lock_005(
+            lock_path,
+            scope="its own owned content (lock_version, generated_by, servers)",
+            evidence=f"owned content cannot be canonically encoded: {exc}",
+        )
+        return VerifyResult(findings=[finding], exit_code=2, tampered=True)
     actual_checksum = doc.get("checksum")
     if actual_checksum != expected_checksum:
         finding = _lock_005(
@@ -222,7 +236,7 @@ def verify(
 
     tools_section = doc.get(tool_digests.TOOLS_KEY)
     owned_tools = tool_digests.is_owned(tools_section)
-    if owned_tools and not tool_digests.checksum_ok(tools_section):
+    if owned_tools and not _tools_checksum_ok(tools_section):
         finding = _lock_005(
             lock_path,
             scope="the content of its `tools` section (`tools._checksum`)",
@@ -368,10 +382,15 @@ def servers_to_connect(
         root: The lock root (see :func:`verify`).
     """
     doc = load_existing(lock_path)
-    if doc is None or doc.get("checksum") != compute_checksum(doc):
+    if doc is None:
+        return []
+    try:
+        if doc.get("checksum") != compute_checksum(doc):
+            return []
+    except CanonicalError:
         return []
     section = doc.get(tool_digests.TOOLS_KEY)
-    if not tool_digests.is_owned(section) or not tool_digests.checksum_ok(section):
+    if not tool_digests.is_owned(section) or not _tools_checksum_ok(section):
         return []
     records = section["servers"]
     lock_root = root if root is not None else lock_path.resolve().parent
@@ -413,6 +432,22 @@ def _lock_005(lock_path: Path, *, scope: str, evidence: str) -> Finding:
     )
 
 
+def _tools_checksum_ok(section: dict) -> bool:
+    """``tools._checksum`` holds; content that cannot be encoded does not."""
+    try:
+        return tool_digests.checksum_ok(section)
+    except CanonicalError:
+        return False
+
+
+def _short(text: str) -> str:
+    """Redact and cap text taken from the lock file for a message."""
+    text = redact_text(text)
+    if len(text) > _MAX_CONTEXT_TEXT:
+        text = text[:_MAX_CONTEXT_TEXT] + "…"
+    return text
+
+
 def _check_section_digests(
     lock_path: Path, doc: dict
 ) -> tuple[list[Finding], list[UnverifiedItem]]:
@@ -427,13 +462,18 @@ def _check_section_digests(
     findings: list[Finding] = []
     items: list[UnverifiedItem] = []
     outcome = section_digests.check(doc)
-    for problem in outcome.problems:
-        evidence = f"{SECTION_DIGESTS_KEY}[{problem.section!r}]: {problem.reason}"
+    shown = outcome.problems[:_MAX_DIGEST_FINDINGS]
+    hidden = len(outcome.problems) - len(shown)
+    for index, problem in enumerate(shown):
+        section = _short(repr(problem.section))
+        evidence = f"{SECTION_DIGESTS_KEY}[{section}]: {problem.reason}"
         if problem.recorded or problem.computed:
             evidence += (
-                f"; recorded {problem.recorded or 'nothing'}, "
+                f"; recorded {_short(problem.recorded or 'nothing')}, "
                 f"computed {problem.computed or 'nothing'}"
             )
+        if hidden and index == len(shown) - 1:
+            evidence += f"; and {hidden} more section_digests problem(s) not listed"
         findings.append(
             Finding(
                 id="LOCK-011",
@@ -441,12 +481,12 @@ def _check_section_digests(
                 analyzer="lock",
                 client="",
                 server="",
-                title=f"Lock section digest does not hold: {problem.section!r}",
+                title=f"Lock section digest does not hold: {section}",
                 description=(
                     "mcp-lock.json (lock_version 2) records a digest per "
                     "section so that each producer can tell when a section it "
                     "wrote was changed by someone else. "
-                    f"{problem.section!r}: {problem.reason}. mcp-audit cannot "
+                    f"{section}: {problem.reason}. mcp-audit cannot "
                     "say who changed it; for a section another tool produces "
                     "(such as `trees`), that tool's own verifier is the "
                     "authority on its contents."
@@ -462,12 +502,13 @@ def _check_section_digests(
                 owasp_mcp_top_10=_OWASP,
             )
         )
-    for section in outcome.too_large:
+    for name in outcome.not_digestible:
         items.append(
             UnverifiedItem(
                 kind="section",
-                name=section,
-                reason="too large for mcp-audit to digest, so its recorded "
+                name=_short(name),
+                reason="too large for mcp-audit to digest, or holds text with no "
+                "canonical encoding (a lone UTF-16 surrogate), so its recorded "
                 "digest was not checked — see docs/lock.md",
             )
         )
@@ -494,7 +535,8 @@ def _check_section_digests(
                     "still matches its checksums; this does not fail "
                     "verification on its own."
                 ),
-                evidence="not canonical: " + ", ".join(reformatted),
+                evidence="not canonical: "
+                + ", ".join(_short(name) for name in reformatted),
                 remediation=(
                     "Re-run `mcp-audit lock --accept` to rewrite the file "
                     "canonically, and keep editors and formatters off "
@@ -510,8 +552,9 @@ def _check_section_digests(
             UnverifiedItem(
                 kind="section",
                 name="<file>",
-                reason="too large for mcp-audit to re-encode, so its canonical "
-                "form was not checked — see docs/lock.md",
+                reason="too large for mcp-audit to re-encode, or holds text with "
+                "no canonical encoding, so its canonical form was not checked — "
+                "see docs/lock.md",
             )
         )
     return findings, items

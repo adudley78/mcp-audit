@@ -337,7 +337,8 @@ def serialize(doc: dict) -> bytes:
         offending = _find_oversized_key(doc)
         raise LockWriteError(
             f"{offending!r} section is too large for mcp-audit to process "
-            "safely (exceeds an internal canonicalization size bound). "
+            "safely (exceeds an internal canonicalization size bound), or "
+            "holds text with no canonical encoding (a lone UTF-16 surrogate). "
             "This is a limitation of mcp-audit's own processing, not a "
             "problem with your lock file — see docs/lock.md."
         ) from None

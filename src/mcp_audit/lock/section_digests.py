@@ -122,7 +122,7 @@ class DigestCheck:
 
     problems: list[DigestProblem]
     #: Sections whose digest could not be computed (canonicalization bound).
-    too_large: list[str]
+    not_digestible: list[str]
     #: Sections whose recorded digest matched.
     matched: list[str]
 
@@ -135,11 +135,11 @@ def check(doc: dict) -> DigestCheck:
     it); an entry names an envelope key or a section the document does not
     have; a value is not ``sha256:`` + 64 hex; or a recorded digest does not
     match the section. A section that exceeds the canonicalization bound is
-    reported in :attr:`DigestCheck.too_large` instead (not checked, not
+    reported in :attr:`DigestCheck.not_digestible` instead (not checked, not
     passed).
     """
     problems: list[DigestProblem] = []
-    too_large: list[str] = []
+    not_digestible: list[str] = []
     matched: list[str] = []
     digests = doc.get(SECTION_DIGESTS_KEY)
     if not isinstance(digests, dict):
@@ -147,7 +147,7 @@ def check(doc: dict) -> DigestCheck:
         problems.append(
             DigestProblem(SECTION_DIGESTS_KEY, f"`{SECTION_DIGESTS_KEY}` is {reason}")
         )
-        return DigestCheck(problems, too_large, matched)
+        return DigestCheck(problems, not_digestible, matched)
 
     for name in owned_sections(doc):
         if name not in digests:
@@ -177,8 +177,10 @@ def check(doc: dict) -> DigestCheck:
             continue
         try:
             computed = section_digest(doc[name])
-        except CanonicalError:
-            too_large.append(name)
+        except (CanonicalError, UnicodeEncodeError, TypeError):
+            # Too large, too deep, or text with no canonical encoding (a lone
+            # surrogate): not checked, never passed.
+            not_digestible.append(name)
             continue
         if computed != value:
             problems.append(
@@ -191,27 +193,54 @@ def check(doc: dict) -> DigestCheck:
             )
         else:
             matched.append(name)
-    return DigestCheck(problems, too_large, matched)
+    return DigestCheck(problems, not_digestible, matched)
+
+
+#: How many non-canonical sections LOCK-012 names before it stops looking.
+MAX_NAMED_SECTIONS = 16
+#: Above this many bytes LOCK-012 does not name sections, only says the
+#: layout differs (naming needs one scan of the file per missing section).
+MAX_NAMING_BYTES = 8 * 1024 * 1024
 
 
 def noncanonical_sections(raw: bytes, doc: dict) -> list[str] | None:
     """Return which top-level members of *raw* are not in canonical form.
 
     ADR-0005 §2 makes the on-disk format the RFC 8785 encoding of the whole
-    document. Returns ``[]`` when *raw* is exactly that; otherwise the keys
-    whose canonical member text (``"key":<value>``) does not appear in
-    *raw*, or ``["<layout>"]`` when every member does but the bytes between
-    them differ (whitespace, order, a trailing newline). ``None`` when the
-    document is too large to canonicalize (not checked).
+    document. Returns ``[]`` when *raw* is exactly that. Otherwise walks the
+    canonical members (``"key":<value>``) in canonical order with one cursor
+    through *raw*: a member found at or after the cursor moves the cursor
+    past it; one that is not is named. Naming stops after
+    :data:`MAX_NAMED_SECTIONS` misses (``"…"`` is appended), so the cost is
+    bounded by that many scans of the file plus one pass, whatever the number
+    of keys; above :data:`MAX_NAMING_BYTES` nothing is named. When every
+    member is found but the bytes still differ (whitespace between members, a
+    trailing newline) the result is ``["<layout>"]``. ``None`` when the
+    document cannot be canonicalized (too large, or a lone surrogate): not
+    checked.
     """
     try:
         if raw == canonicalize(doc):
             return []
-        names = []
-        for key in sorted(doc):
+        if len(raw) > MAX_NAMING_BYTES:
+            return ["<layout>"]
+        names: list[str] = []
+        cursor = 0
+        for key in sorted(doc, key=_utf16_order):
             member = canonicalize({key: doc[key]})[1:-1]
-            if member not in raw:
+            found = raw.find(member, cursor)
+            if found < 0:
                 names.append(key)
-    except CanonicalError:
+                if len(names) >= MAX_NAMED_SECTIONS:
+                    names.append("…")
+                    break
+            else:
+                cursor = found + len(member)
+    except (CanonicalError, UnicodeEncodeError, TypeError):
         return None
     return names or ["<layout>"]
+
+
+def _utf16_order(key: str) -> bytes:
+    """RFC 8785 member order (UTF-16 code units), matching ``canonicalize``."""
+    return key.encode("utf-16-be", errors="surrogatepass")

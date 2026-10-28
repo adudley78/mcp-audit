@@ -52,9 +52,17 @@ def canonicalize(value: Any) -> bytes:
     Raises:
         TypeError: The structure contains a type JSON cannot represent.
         ValueError: The structure contains NaN or Infinity, which JSON forbids.
-        CanonicalError: Nesting or node count exceeds the safety bound.
+        CanonicalError: Nesting or node count exceeds the safety bound, or a
+            string holds a lone UTF-16 surrogate (``"\\ud800"`` from a JSON
+            escape), which has no UTF-8 encoding and so no canonical form.
     """
-    return canonicalize_str(value).encode("utf-8")
+    try:
+        return canonicalize_str(value).encode("utf-8")
+    except UnicodeEncodeError:
+        raise CanonicalError(
+            "document contains a lone UTF-16 surrogate, which has no canonical "
+            "UTF-8 encoding"
+        ) from None
 
 
 def canonicalize_str(value: Any) -> str:

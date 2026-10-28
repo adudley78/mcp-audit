@@ -144,8 +144,9 @@ additive: every version-1 field keeps its meaning.
   picked: `resolved_at`, `latest` (the version `latest` pointed at) and `latest_deprecated` (its
   deprecation notice), plus `npm_major` and `node_version`. Those last two are always `null` in the
   section mcp-audit writes: mcp-audit reads the dist-tag over HTTPS and runs neither npm nor Node.
-  The `trees` producer, which does, records its own in its own section; context is never copied
-  across sections. `resolution_context` is `null` for an exact pin and for an entry locked offline
+  As agreed on #88 (ADR-0005 R62), the `trees` producer, which does run npm, is to record its own
+  context in its own section; his published spec does not have these fields yet. Context is never
+  copied across sections. `resolution_context` is `null` for an exact pin and for an entry locked offline
   (the registry was not consulted). **The context explains why two locks differ; only the resolved
   versions and integrity hashes can regenerate one.** Dist-tags and deprecation flags have no
   queryable history, so a recorded context is not a coordinate anyone can return to.
@@ -157,13 +158,21 @@ additive: every version-1 field keeps its meaning.
   `checksum`, so another producer adding its entry never trips `LOCK-005`. A `section_digests`
   that is not an object stops `lock` (exit 2) rather than be overwritten.
 
+**Interop limits of the canonical form.** Both the digests and LOCK-012 rely on every producer
+writing the same RFC 8785 bytes. Two inputs cannot round-trip between languages and are kept out of
+any section a producer digests: integers beyond ±2^53 (mcp-audit writes them exactly; a JavaScript
+producer parses them into doubles and writes a different number, so the digest differs), and
+strings with a lone UTF-16 surrogate (`"\ud800"`), which have no UTF-8 encoding at all. mcp-audit
+never writes either; a section holding a lone surrogate cannot be digested or re-encoded and is
+listed as unverified (never passed), and in mcp-audit's own sections it is `LOCK-005`.
+
 Verifying a version-2 lock adds three findings:
 
 | ID | Severity | When | Fails the exit code |
 |---|---|---|---|
 | `LOCK-010` | INFO | `--verify --resolve`: an entry's `resolution_context` differs from a fresh resolution (`latest`, `latest_deprecated`, `npm_major`, `node_version`) | no; any change to the resolved version or hash is `LOCK-004`, separately |
 | `LOCK-011` | HIGH | every verify, including `scan`/`check`: a `section_digests` entry is missing for a section mcp-audit wrote, malformed, names a section that is gone or the envelope (`lock_version`, `checksum`…), or does not match its section | yes, and `--allow-unverified` does not waive it |
-| `LOCK-012` | LOW | every verify: the file is not byte-identical to its canonical form (someone pretty-printed it, or an editor added a newline); names the reformatted sections, or `<layout>` | no |
+| `LOCK-012` | LOW | every verify: the file is not byte-identical to its canonical form (someone pretty-printed it, or an editor added a newline); names up to 16 reformatted sections (then `…`; none above 8 MiB), or `<layout>` | no |
 
 A section matching its digest is still a foreign section mcp-audit has not verified the contents
 of: a populated `trees` keeps failing the exit code under R56 (below) unless waived. A section too
