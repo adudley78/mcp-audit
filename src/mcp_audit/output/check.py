@@ -123,6 +123,22 @@ _HINTS: dict[str, str] = {
     "TOXIC-007": (
         "Review this cross-server capability chain for unintended escalation paths."
     ),
+    "TOXIC-008": (
+        "Don't load a file server and a posting server (GitHub, Slack, Jira) in"
+        " one session, or scope the posting token to the repos/channels it needs."
+    ),
+    "TOXIC-009": (
+        "Keep secret-store servers away from servers that post to GitHub, Slack"
+        " or Jira."
+    ),
+    "TOXIC-010": (
+        "Don't load a database server and a posting server together, or give"
+        " the database a read-only role and scope the posting token."
+    ),
+    "TOXIC-011": (
+        "Remove the shell server or the posting server, or allowlist the shell"
+        " commands; output can leave as a comment or a push."
+    ),
     "INTEG-001": (
         "Separate file-writing and shell-execution servers to prevent a"
         " plant-then-execute chain."

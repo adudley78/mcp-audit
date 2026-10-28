@@ -91,7 +91,7 @@ src/mcp_audit/
 │   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed); SC-007 unscoped twins (takes precedence over SC-001..003) and SC-008 OSV MAL-* exact-name matches (STORY-0097); redact_command() for evidence
 │   ├── config_hygiene.py # Config-file filesystem hygiene (CFHYG-001..007; CFHYG-007 = project settings `env` redirecting API traffic, STORY-0090); hook-command checks HOOK-001/002 and harness posture HARNESS-001..007 (STORY-0079, STORY-0087, STORY-0090) via analyze_config; repo-planted auto-run files TRUST-003 (VS Code) and TRUST-008 (Gemini CLI, Codex, Claude Code scheduled tasks/workflows, STORY-0090) via analyze_autoexec_file
 │   ├── rug_pull.py     # Config-entry change detection via hashing (command, args, env key names, raw entry; not live tool definitions)
-│   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection
+│   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection (TOXIC-001..011, INTEG-001; COMMS_OUT sinks TOXIC-008..011, STORY-0101)
 │   ├── auth.py         # Remote server authentication checks (AUTH-001, AUTH-002)
 │   ├── collision.py    # Tool-name collision detection across --connect servers (COLLIDE-001)
 │   ├── delegation.py   # Cross-tool delegation in live tool descriptions (DELEG-001..003, STORY-0100): names another
@@ -102,7 +102,7 @@ src/mcp_audit/
 │   ├── git_exec.py     # Git can run code (TRUST-006/007, STORY-0089): tolerant git-config parser, command-key table (_RULES), includes/worktree configs/gitfiles, hooks, nested bare repos; scan_cwd_repository() (default scan/check, via scanner._discover_and_parse) and scan_git_surfaces() (--project, via discovery.discover_project_git_surfaces); check_git_config() is the standalone per-file API (STORY-0096). Never runs git; not a BaseAnalyzer
 │   ├── permissions.py  # Claude Code permission-rule linter (PERM-001..007, STORY-0092): public settings parser (load_claude_settings, reused by sandbox checks); PERM-001..006 via config_hygiene.analyze_config, PERM-007 as _run_static_pipeline step 5b and again across scopes in cli/scan._apply_project_scan; every rule quoted from code.claude.com/docs (docs/permission-rules.md)
 │   ├── sandbox.py      # Claude Code sandbox settings a repository can loosen (SANDBOX-001..005, STORY-0093): reuses permissions.load_claude_settings; all five run as _run_static_pipeline step 0b (analyze_sandbox_files, NOT analyze_config), each file in its own try: a SandboxContext says whose file it is (shared project file = repository; settings.local.json = repository only when no ignore file covers it or .claude is a symlink, MEDIUM cap when its git state is unknown, user's own when ignored or outside a work tree; user settings get only SANDBOX-004) and carries UserSettingsLocks read from ~/.claude/settings.json (strictAllowlist → SANDBOX-003/proxy ports INFO; defaultMode bypassPermissions/auto → SANDBOX-002 HIGH); SANDBOX-005 (local settings headed for git, home paths with a masked username) via _gitignore.py; errors prefixed "SANDBOX checks: "; key scopes from code.claude.com/docs settings-reference (docs/permission-rules.md)
-│   └── attack_paths.py # Multi-hop attack path detection and greedy hitting set algorithm
+│   └── attack_paths.py # Multi-hop attack path detection and greedy hitting set algorithm; one path per hop sequence, the most severe pair's (STORY-0101)
 ├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001..004; also emits POISON-041/042, analyzer="poisoning")
 │   ├── __init__.py    # Package marker; offline-only invariant docs
 │   ├── models.py      # AgentFile dataclass (+ follows_imports, imported_from, edges), AgentFileSurface StrEnum, MEMORY_SURFACES, ImportEdge
@@ -469,6 +469,35 @@ Measurement scripts (dev tooling, not in the package):
   defect never used. This is a finding about process (an ad-hoc metadata
   edit that never cross-checked the `Capability` enum), not about
   documentation, and is recorded here rather than smoothed over.
+  **STORY-0101 added `Capability.COMMS_OUT`** ("posts to a shared service":
+  issue/PR/review comments, pushed commits or files, chat, Jira/Confluence,
+  social posts, webhooks) as a wired sink, not tag-only: `TOXIC-008..011`
+  (`FILE_READ`/`SECRETS`/`DATABASE`/`SHELL_EXEC` + `COMMS_OUT`;
+  008 and 010 HIGH like TOXIC-001/005, 009 and 011 CRITICAL; the cited
+  attacks were single-server or a CI harness, not two MCP servers) in `TOXIC_PAIRS`, the same four edges in `CAPABILITY_FLOWS`,
+  `COMMS_OUT` in `_SINK_CAPS`. Registry entries that already declared
+  `network_out` keep it (`server-github`, `server-slack`, `mcp-atlassian`,
+  `@autoposting.ai/cli`; `server-gitlab` went from null to `["git",
+  "comms_out"]`), so no existing TOXIC-* finding stops firing and a comms
+  pair is reported beside its network twin; `_candidates_from_toxic_findings`
+  now keeps the most severe pair per hop sequence (it kept the first, which
+  hid `server-everything`'s CRITICAL TOXIC-006 behind TOXIC-001). The
+  `KEYWORD_RULES` entry matches code hosts only as whole tokens or package
+  fragments (`" github "`, `server-github`, `github-mcp`), never the bare
+  `github` substring a local `~/github/...` path carries; platform names
+  (`slack`, `discord`, `webhook`, ...) are anchored the same way and the rule
+  (`KeywordRule.skip_path_args`) ignores path and `scheme://` arguments, so
+  a `discord-bot` directory or a `webhooks` database is not a poster. Email stays
+  `EMAIL`. `git + comms_out` and `browser + comms_out` were measured and not
+  added. Measurement table: `docs/severity-framework.md` ("comms_out
+  sinks"); limits: GAPS.md. Running `find_undeclared_capabilities()` with
+  the new keyword rule against the pre-change registry flagged exactly
+  `server-github`, `server-slack` (subset) and `mcp-atlassian` (disjoint);
+  all fixed, and `tests/test_audit_registry.py` now pins all four offline
+  checks clean against the shipped file. Pre-existing, not fixed:
+  `registry.get()` is exact-match, so a pinned launch
+  (`server-github@2025.4.8`) misses the registry and is tagged by keywords
+  only.
 
 - **Agent-file scanning** (`agent_files/`) covers the non-MCP-config instruction
   surfaces an agent reads: Claude Code commands/memory, Cursor `.mdc` rules, and
@@ -738,8 +767,8 @@ What's built:
 - Live MCP server connection via --connect (optional, MCP SDK)
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
-- Demo environment producing 70 findings on a first scan of all demo configs (62 once rug-pull state exists; counted 2026-10-26 for STORY-0097, which added SC-007 + SC-008 on the demo's `npx -y mcp-server-postgres` — OSV MAL-2026-5481 since June 2026; it was 68/60 from v0.20.0 to v0.21.1) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 5960 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- Demo environment producing 74 findings on a first scan of all demo configs (66 once rug-pull state exists; counted 2026-10-27 for STORY-0101, which added TOXIC-008 ×2 and TOXIC-010 (HIGH) and TOXIC-011 (CRITICAL) on the demo's `github` server, attack paths unchanged at 26 with 3 CRITICAL; 70/62 after STORY-0097, which added SC-007 + SC-008 on the demo's `npx -y mcp-server-postgres` — OSV MAL-2026-5481 since June 2026; it was 68/60 from v0.20.0 to v0.21.1) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
+- 6105 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 28 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
