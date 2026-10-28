@@ -96,6 +96,12 @@ The supply chain analyzer detects typosquatted npm package names by computing Le
 - **OSV schema, "Evaluation"** ([ossf.github.io/osv-schema](https://ossf.github.io/osv-schema/)) — the range semantics `registry/malicious.py` implements (`introduced` / `fixed` / `last_affected` walked in version order, plus the explicit `versions` list). The one deliberate deviation (a blanket all-versions range is ignored for a registry-listed package when the record also lists explicit versions) is documented in that module and in `docs/supply-chain.md`, with `MAL-2025-191195` (`@browserbasehq/mcp`) as the measured case.
 - **PEP 503** ([peps.python.org](https://peps.python.org/pep-0503/)) — the name folding SC-007 applies to both ecosystems' names before comparing.
 
+**`--check-vulns` record reading and VULN-UNRESOLVED (STORY-0106, 2026-10-28):**
+
+- **OSV API, `POST /v1/querybatch`** ([docs](https://google.github.io/osv.dev/post-v1-querybatch/)) — "Returns vulnerability ids and modified field only", and paginates with `next_page_token` for a query over 1,000 results: why each record is then fetched from `GET /v1/vulns/{id}`, and why a further page is reported.
+- **deps.dev API v3alpha, `GetDependencies`** ([docs](https://docs.deps.dev/api/v3alpha/)) — `nodes[].relation` is "one of SELF, DIRECT, INDIRECT … if [both], it is marked as direct"; `nodes[].errors` and the graph-wide `error` "may imply the graph as a whole is incorrect". The 404 for a version not yet indexed is not documented; it was measured on the top-100 corpus (17 of 100 latest versions, content-marketer report 2026-10-22).
+- **OSV schema 1.6.0** (vendored at `src/mcp_audit/advisory/osv_schema/osv-1.6.0.json`) — `severity[]` entries carry `type` and a `score` vector string; read with `advisory/classify.py::cvss_base_score` (CVSS v3.1 specification §7.1). GitHub's `database_specific.severity` and string `cwe_ids` were confirmed on a live record (`GHSA-cph5-m8f7-6c5x`, fetched 2026-10-28).
+
 ### Rug-pull detection (analyzers/rug_pull.py)
 
 The rug-pull analyzer detects changes to MCP server configurations between scans by maintaining SHA-256 hashes of each server's configuration state and comparing them across scan invocations.
