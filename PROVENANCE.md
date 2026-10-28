@@ -980,8 +980,11 @@ in `docs/permission-rules.md`:
   another scanner: the bash and POSIX `sh` manuals for option parsing (`-c` and `-s`
   decide where the script comes from; `-e`, `-x`, `-o pipefail` do not, and `-o`/`-O`
   take one argument), `env`/`sudo`/`busybox` as wrappers that run the named program,
-  and here-strings (`<<<`); the curl and GNU Wget manuals for a URL written without a
-  scheme (fetched as HTTP); `basenc`, `openssl base64 -d`, `gunzip`/`zcat`/`xz -d` as
+  and here-strings (`<<<`); the curl manual ("URL" section: a host without a scheme is fetched
+  over HTTP, FTP is guessed for hosts starting `ftp.`) and the GNU Wget manual
+  ("URL Format": newer releases may default to https), so only a raw IP is read
+  as plaintext; the bash manual ("INVOCATION", `-c`, `-s`, `-e`, `-x`, `-o`) and the
+  POSIX `sh` utility page (OPTIONS) for how options decide the script source; `basenc`, `openssl base64 -d`, `gunzip`/`zcat`/`xz -d` as
   decoders in the same decode-then-execute class as `base64 -d`; PowerShell's
   `IEX (New-Object Net.WebClient).DownloadString(…)` download cradle and Perl's
   `eval decode_base64(…)` as the PowerShell and Perl forms of fetch- or

