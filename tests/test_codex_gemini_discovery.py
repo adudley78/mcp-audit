@@ -1189,7 +1189,7 @@ class TestHeaderHelperRedaction:
         r2 = runner.invoke(app, ["snapshot", "--format", "native", "-o", str(snap)])
         assert r2.exit_code in (0, 1), r2.output
         snap_text = snap.read_text(encoding="utf-8")
-        assert "api.example.com" in snap_text
+        assert "http_headers_helper" in snap_text
         for secret in HELPER_SECRETS:
             assert secret not in r.output, secret
             assert secret not in snap_text, secret
