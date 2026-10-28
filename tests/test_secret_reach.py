@@ -710,7 +710,9 @@ _SB_SSH = {"enabled": True, "filesystem": {"denyRead": ["~/.ssh"]}}
             {"sandbox": {"enabled": True}},
             True,
         ),
-        (_SB_SSH, None, {"sandbox": {"filesystem": {"disabled": True}}}, False),
+        # filesystem.disabled has scope "User or managed": a repo file's value
+        # is ignored either way.
+        (_SB_SSH, None, {"sandbox": {"filesystem": {"disabled": True}}}, True),
     ],
 )
 def test_sandbox_enabled_follows_precedence(
@@ -798,6 +800,10 @@ def test_allow_managed_permission_rules_only_drops_user_rules(
         ({"allowRead": ["~/"], "denyRead": ["~/.ssh/id_rsa"]}, True),
         ({"allowRead": ["~/"], "denyRead": ["~/**/id_rsa"]}, True),
         ({"denyRead": ["~/.ssh"], "allowRead": ["~/.ssh/id_rsa"]}, False),
+        # "An exact or wildcard denyRead entry stays blocked inside a broader
+        # allowRead".
+        ({"denyRead": ["~/**/id_rsa"], "allowRead": ["~/.ssh"]}, True),
+        ({"denyRead": ["~/.ssh/id_rsa"], "allowRead": ["~/.ssh"]}, True),
         ({"denyRead": ["~/.ssh"], "allowRead": ["~/.ssh"]}, False),  # tie: not counted
     ],
 )
@@ -860,3 +866,54 @@ def test_reach_001_points_at_a_store(tmp_path: Path) -> None:
     home, cwd, config = _ssh_store(tmp_path)
     f = _reach1(_run(tmp_path, home, cwd, config))
     assert f.finding_path == str(home / ".ssh" / "id_rsa")
+
+
+def test_repo_cannot_turn_filesystem_isolation_back_on(tmp_path: Path) -> None:
+    """User disabled:true wins over a project file's disabled:false."""
+    home, cwd, config = _ssh_store(tmp_path)
+    _settings(
+        config / "settings.json",
+        {
+            "sandbox": {
+                **_SB_SSH,
+                "filesystem": {"denyRead": ["~/.ssh"], "disabled": True},
+            }
+        },
+    )
+    for name in ("settings.json", "settings.local.json"):
+        _settings(
+            cwd / ".claude" / name, {"sandbox": {"filesystem": {"disabled": False}}}
+        )
+    assert "REACH-001" in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_sandbox_entry_budget_never_reads_as_protected(tmp_path: Path) -> None:
+    home, cwd, config = _ssh_store(tmp_path)
+    deny = ["~/.ssh"] + [f"~/x{i}" for i in range(sr.MAX_SANDBOX_ENTRIES + 10)]
+    _settings(
+        cwd / ".claude" / "settings.json",
+        {"sandbox": {"enabled": True, "filesystem": {"denyRead": deny}}},
+    )
+    errors: list[str] = []
+    assert "REACH-001" in _ids(_run(tmp_path, home, cwd, config, errors))
+    assert any("sandbox path entries" in e for e in errors)
+
+
+def test_hostile_sandbox_globs_are_fast(tmp_path: Path) -> None:
+    home, cwd, config = _layout(tmp_path)
+    for store in sr.HOME_STORES:
+        _write(home / store.rel)
+    seg = "*a" * 60 + "*"
+    n = sr.MAX_SANDBOX_WILDCARDS // 2
+    filesystem = {
+        "denyRead": [f"~/**/{seg}/**/{seg}{i}" for i in range(n)],
+        "allowRead": [f"~/**/{seg}{i}/**" for i in range(n)],
+    }
+    for name in ("settings.json", "settings.local.json"):
+        _settings(
+            cwd / ".claude" / name,
+            {"sandbox": {"enabled": True, "filesystem": filesystem}},
+        )
+    start = time.monotonic()
+    _run(tmp_path, home, cwd, config)
+    assert time.monotonic() - start < 2

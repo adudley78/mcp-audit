@@ -86,6 +86,13 @@ MAX_DROPINS = 256
 
 #: Bounds on rule text so matching stays cheap on hostile settings files.
 _MAX_RULES_PER_FILE = 4096
+
+#: Sandbox path entries kept per scan across every file (denyRead, allowRead,
+#: credentials deny), and how many of them may contain wildcards.  Over either
+#: cap the sandbox counts as protecting nothing: a repository can add entries,
+#: so a cut-off list must never read as "protected".
+MAX_SANDBOX_ENTRIES = 4096
+MAX_SANDBOX_WILDCARDS = 256
 _MAX_PATTERN_CHARS = 4096
 _MAX_PATTERN_SEGMENTS = 128
 _MAX_SEGMENT_CHARS = 512
@@ -550,6 +557,19 @@ def _default_mode(data: dict) -> str | None:
     return mode if isinstance(mode, str) else None
 
 
+def _sandbox_budget(protection: Protection, entry: _SandboxEntry) -> bool:
+    """Count *entry* against the per-scan caps; ``False`` once a cap is hit."""
+    if protection.sandbox_over_budget:
+        return False
+    count = len(protection.sandbox_deny) + len(protection.sandbox_allow)
+    wildcards = protection.sandbox_wildcards + entry.wildcard
+    if count >= MAX_SANDBOX_ENTRIES or wildcards > MAX_SANDBOX_WILDCARDS:
+        protection.sandbox_over_budget = True
+        return False
+    protection.sandbox_wildcards = wildcards
+    return True
+
+
 @dataclass
 class Protection:
     """What the loaded settings files do to reads, merged across files."""
@@ -559,6 +579,8 @@ class Protection:
     sandbox_enabled: bool = False
     sandbox_fs_disabled: bool = False
     bypass_mode: bool = False
+    sandbox_over_budget: bool = False
+    sandbox_wildcards: int = 0
     sandbox_deny: list[_SandboxEntry] = field(default_factory=list)
     sandbox_allow: list[_SandboxEntry] = field(default_factory=list)
 
@@ -599,6 +621,7 @@ class Protection:
         """
         if (
             not _SANDBOX_SUPPORTED
+            or self.sandbox_over_budget
             or not self.sandbox_enabled
             or self.sandbox_fs_disabled
             or self.bypass_mode
@@ -607,12 +630,11 @@ class Protection:
         allows = [a.depth for a in self.sandbox_allow if a.matches(target)]
 
         def reopened(deny: _SandboxEntry) -> bool:
-            # A wildcard deny "holds inside a wider allow"; an allow of the
-            # same exact path is undocumented and not counted as protection.
-            return any(
-                depth > deny.depth or (depth == deny.depth and not deny.wildcard)
-                for depth in allows
-            )
+            # "An exact or wildcard denyRead entry stays blocked inside a
+            # broader allowRead": an allow re-opens only when it is at least as
+            # deep as the whole deny entry (a tie is undocumented and is not
+            # counted as protection).
+            return any(depth >= len(deny.parts) for depth in allows)
 
         return any(
             deny.matches(target) and not reopened(deny) for deny in self.sandbox_deny
@@ -628,7 +650,10 @@ def _dict(value: object) -> dict:
 
 
 def build_protection(
-    sources: Iterable[SettingsSource], cwd: Path, home: Path
+    sources: Iterable[SettingsSource],
+    cwd: Path,
+    home: Path,
+    errors: list[str] | None = None,
 ) -> Protection:
     """Merge the read-relevant keys of *sources* into one :class:`Protection`.
 
@@ -681,17 +706,30 @@ def build_protection(
             item = _dict(item)
             if item.get("mode") == "deny":
                 denies.append(item.get("path"))
+        allows_raw = _list(filesystem.get("allowRead"))
+        if max(len(denies), len(allows_raw)) > _MAX_RULES_PER_FILE:
+            protection.sandbox_over_budget = True
         for entry in denies[:_MAX_RULES_PER_FILE]:
             parsed = _sandbox_entry(entry, source, home)
-            if parsed is not None:
+            if parsed is not None and _sandbox_budget(protection, parsed):
                 protection.sandbox_deny.append(parsed)
         if not managed_read_paths_only or source.scope == "managed":
-            for entry in _list(filesystem.get("allowRead"))[:_MAX_RULES_PER_FILE]:
+            for entry in allows_raw[:_MAX_RULES_PER_FILE]:
                 parsed = _sandbox_entry(entry, source, home)
-                if parsed is not None:
+                if parsed is not None and _sandbox_budget(protection, parsed):
                     protection.sandbox_allow.append(parsed)
     protection.sandbox_enabled = _highest(sources, _sandbox_enabled_value) is True
-    protection.sandbox_fs_disabled = _highest(sources, _sandbox_disabled_value) is True
+    # Settings reference, sandbox.filesystem.disabled: scope "User or managed",
+    # so a repository's file can't switch filesystem isolation back on.
+    protection.sandbox_fs_disabled = (
+        _highest(sources, _sandbox_disabled_value, ("managed", "user")) is True
+    )
+    if protection.sandbox_over_budget and errors is not None:
+        errors.append(
+            f"secret reach: more than {MAX_SANDBOX_ENTRIES} sandbox path entries"
+            f" (or {MAX_SANDBOX_WILDCARDS} with wildcards) in the settings files;"
+            " sandbox settings were not counted as protection"
+        )
     protection.bypass_mode = (
         _highest(sources, _default_mode, ("managed", "user")) == "bypassPermissions"
     )
@@ -1008,7 +1046,7 @@ def _secret_reach_findings(
         return []
 
     sources = load_settings_sources(cwd, home, config_dir, managed_dir, errors)
-    protection = build_protection(sources, cwd, home)
+    protection = build_protection(sources, cwd, home, errors)
     user_settings = config_dir / "settings.json"
 
     findings: list[Finding] = []

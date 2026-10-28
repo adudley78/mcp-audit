@@ -57,7 +57,8 @@ has:
   highest-precedence settings file that sets `sandbox.enabled` sets it to
   `true` (managed, then `.claude/settings.local.json`, where the `/sandbox`
   panel writes it, then the project's `.claude/settings.json`, then your user
-  settings), `sandbox.filesystem.disabled` is not true, and a
+  settings), `sandbox.filesystem.disabled` is not true in your user or managed
+  settings (its documented scope; a repository's value is ignored), and a
   `sandbox.filesystem.denyRead` path or a `sandbox.credentials.files` entry
   with `"mode": "deny"` covers the file without a narrower
   `sandbox.filesystem.allowRead` entry re-opening it (the sandboxing doc's
@@ -119,13 +120,16 @@ Anthropic's sandboxing guide recommends. For a project, commit
   regular file, non-empty, mode bits). The home directory and `~/.ssh` are not
   listed; the store paths are a fixed list. Only the working directory's root is
   listed, by entry name, to find `.env` files.
+- More than 4,096 sandbox path entries in all, or more than 256 with
+  wildcards, makes mcp-audit count the sandbox as protecting nothing (and say
+  so in the scan's errors), so a cut-off list never reads as protected.
 - Only the settings keys above are read from settings files (1 MiB per file,
   256 drop-ins, 8 MiB per scan); a file over the limit is reported in the
   scan's errors and its rules are not counted.
 - Finding titles, descriptions, evidence and remediation name files as `~/...`
   or by file name. The `finding_path` field holds the store's absolute path,
-  like every other finding: terminal and `--format json` output show it as is,
-  and the outputs meant to leave the machine (SARIF, Nucleus, snapshots)
+  like every other finding: `--format json` output carries it as is (the
+  terminal report does not print it), and the outputs meant to leave the machine (SARIF, Nucleus, snapshots)
   rewrite it without your home directory. REACH findings are never turned
   into advisories (`mcp-audit advise`).
 - Runs only in a default scan, and only when a Claude Code config directory
