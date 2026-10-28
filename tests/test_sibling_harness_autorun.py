@@ -866,6 +866,115 @@ class TestSettingsEnvRedirect:
         ) == ["CFHYG-007"]
 
 
+# ── CFHYG-008: project settings choose an Azure Foundry resource (STORY-0108) ─
+
+
+class TestFoundryResource:
+    def _ids_and_findings(
+        self, tmp_path: Path, env: object, name: str = "settings.json"
+    ) -> list:
+        findings = _settings_findings(tmp_path / ".claude" / name, {"env": env})
+        return [f for f in findings if f.id in ("CFHYG-007", "CFHYG-008")]
+
+    @pytest.mark.parametrize(
+        ("name", "value", "resource"),
+        [
+            (
+                "ANTHROPIC_FOUNDRY_BASE_URL",
+                "https://my-resource.services.ai.azure.com/anthropic",
+                "my-resource",
+            ),
+            (
+                "ANTHROPIC_FOUNDRY_BASE_URL",
+                "https://Team-AI.services.ai.azure.com./anthropic",
+                "team-ai",
+            ),
+            ("ANTHROPIC_FOUNDRY_RESOURCE", "contoso-claude", "contoso-claude"),
+        ],
+    )
+    def test_foundry_resource_is_info_and_named(
+        self, tmp_path: Path, name: str, value: str, resource: str
+    ) -> None:
+        (finding,) = self._ids_and_findings(tmp_path, {name: value})
+        assert finding.id == "CFHYG-008"
+        assert finding.severity == Severity.INFO
+        assert f"'{resource}'" in finding.title
+        assert finding.evidence.endswith(f"env.{name} -> Foundry resource {resource}")
+        assert "belongs to your organisation" in finding.remediation
+        assert finding.owasp_mcp_top_10 == ["MCP01", "MCP08"]
+
+    def test_local_settings_file_counts(self, tmp_path: Path) -> None:
+        found = self._ids_and_findings(
+            tmp_path,
+            {"ANTHROPIC_FOUNDRY_RESOURCE": "contoso"},
+            name="settings.local.json",
+        )
+        assert _ids(found) == ["CFHYG-008"]
+
+    def test_both_variables_give_two_findings(self, tmp_path: Path) -> None:
+        found = self._ids_and_findings(
+            tmp_path,
+            {
+                "ANTHROPIC_FOUNDRY_BASE_URL": "https://a.services.ai.azure.com/x",
+                "ANTHROPIC_FOUNDRY_RESOURCE": "b",
+            },
+        )
+        assert sorted(f.title for f in found) == [
+            "Project settings send API requests to Azure Foundry resource 'a'",
+            "Project settings send API requests to Azure Foundry resource 'b'",
+        ]
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "https://my-resource.services.ai.azure.com.example.net/anthropic",
+            "https://user:pw@my-resource.services.ai.azure.com/anthropic",
+            "https://evil.example.net\\@my-resource.services.ai.azure.com/",
+        ],
+    )
+    def test_non_foundry_host_is_cfhyg007_not_008(
+        self, tmp_path: Path, value: str
+    ) -> None:
+        found = self._ids_and_findings(tmp_path, {"ANTHROPIC_FOUNDRY_BASE_URL": value})
+        assert _ids(found) == ["CFHYG-007"]
+        assert "pw" not in found[0].evidence
+
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [
+            ("ANTHROPIC_FOUNDRY_BASE_URL", ""),
+            ("ANTHROPIC_FOUNDRY_BASE_URL", "${FOUNDRY_URL}"),
+            ("ANTHROPIC_FOUNDRY_BASE_URL", "http://localhost:8080/anthropic"),
+            ("ANTHROPIC_FOUNDRY_BASE_URL", 7),
+            ("ANTHROPIC_FOUNDRY_RESOURCE", ""),
+            ("ANTHROPIC_FOUNDRY_RESOURCE", "${RESOURCE}"),
+            ("ANTHROPIC_FOUNDRY_RESOURCE", "$RESOURCE"),
+            ("ANTHROPIC_FOUNDRY_RESOURCE", "https://x.services.ai.azure.com"),
+            ("ANTHROPIC_FOUNDRY_RESOURCE", "x.services.ai.azure.com"),
+            ("ANTHROPIC_FOUNDRY_RESOURCE", None),
+            (
+                "ANTHROPIC_BEDROCK_BASE_URL",
+                "https://bedrock-runtime.us-east-1.amazonaws.com",
+            ),
+        ],
+    )
+    def test_no_resource_named_is_silent(
+        self, tmp_path: Path, name: str, value: object
+    ) -> None:
+        assert self._ids_and_findings(tmp_path, {name: value}) == []
+
+    def test_user_settings_are_not_project_settings(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        assert Path.home() == tmp_path
+        found = self._ids_and_findings(
+            tmp_path, {"ANTHROPIC_FOUNDRY_RESOURCE": "contoso"}
+        )
+        assert found == []
+
+
 # ── HARNESS-007: enabledMcpjsonServers inventory ─────────────────────────────
 
 

@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field
 
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
+from mcp_audit.analyzers.supply_chain import FLAG_REDACTION_MARKER, REDACTION_MARKER
 from mcp_audit.models import ServerConfig, Severity
 
 
@@ -92,6 +93,18 @@ def _classify_env_key(key: str) -> tuple[bool, str]:
     return False, ""
 
 
+def _hostname(url: str) -> str | None:
+    """``urlparse(url).hostname``, or ``None`` when the URL doesn't parse.
+
+    ``urlparse`` raises ``ValueError`` on some malformed authorities (an
+    unbalanced ``[``, a non-numeric port); a diff never fails over one URL.
+    """
+    try:
+        return urlparse(url).hostname
+    except ValueError:
+        return None
+
+
 def _extract_external_urls(server: ServerConfig) -> list[str]:
     """Extract non-localhost HTTP/HTTPS URLs from a server's url and args."""
     urls: list[str] = []
@@ -103,8 +116,12 @@ def _extract_external_urls(server: ServerConfig) -> list[str]:
 
     for candidate in candidates:
         for match in _URL_RE.findall(candidate):
-            parsed = urlparse(match)
-            host = (parsed.hostname or "").strip("[]")
+            try:
+                host = (urlparse(match).hostname or "").strip("[]")
+            except ValueError:
+                # Unparsable authority: report it rather than drop it.
+                urls.append(match)
+                continue
             if host and host not in (  # nosec B104 — detection pattern, not a bind address
                 "localhost",
                 "127.0.0.1",
@@ -119,7 +136,8 @@ def _has_hardcoded_cred(server: ServerConfig) -> tuple[bool, str, str]:
     """Return ``(found, secret_name, provider)`` if hardcoded creds appear in args.
 
     Checks env values as well — we want CRITICAL when the actual secret value is
-    present, not just a reference key name.
+    present, not just a reference key name.  ``found`` is only for a definite
+    credential (CRITICAL); see :func:`_credential_change` for the HIGH case.
     """
     args_str = " ".join(server.args)
     env_vals = " ".join(server.env.values())
@@ -127,7 +145,63 @@ def _has_hardcoded_cred(server: ServerConfig) -> tuple[bool, str, str]:
     for secret_name, pattern, provider in SECRET_PATTERNS:
         if pattern.search(text):
             return True, secret_name, provider
+    # A JSON scan file (STORY-0108) carries ``[REDACTED]`` where a launch
+    # argument or URL held a credential, so a diff between two scan files
+    # still sees one being added.
+    launch_text = " ".join([server.command or "", args_str, server.url or ""])
+    if REDACTION_MARKER in launch_text:
+        return True, "Redacted credential", "redacted"
     return False, "", ""
+
+
+def _possible_flag_credential(server: ServerConfig) -> bool:
+    """True when a scan file redacted a secret-named flag's value (STORY-0108).
+
+    ``--password VALUE`` whose value matches no SECRET_PATTERNS entry reads
+    ``[REDACTED-FLAG]`` in a scan file: probably a credential, not certainly.
+    """
+    launch_text = " ".join([server.command or "", *server.args, server.url or ""])
+    return FLAG_REDACTION_MARKER in launch_text
+
+
+def _credential_change(
+    server: ServerConfig, base: ServerConfig | None = None
+) -> Change | None:
+    """The CREDENTIAL change for *server* (added, or modified from *base*).
+
+    CRITICAL for a hardcoded credential (SECRET_PATTERNS, or ``[REDACTED]``
+    from a scan file); HIGH for a possible one (``[REDACTED-FLAG]``).  With
+    *base*, only a credential *base* does not already have counts.
+    """
+    found, secret_name, provider = _has_hardcoded_cred(server)
+    if found and not (base is not None and _has_hardcoded_cred(base)[0]):
+        return Change(
+            change_type=ChangeType.ADDED,
+            entity_type=EntityType.CREDENTIAL,
+            entity_name=secret_name,
+            parent_server=server.name,
+            before=None,
+            after={"provider": provider, "location": "args/env-value"},
+            severity=Severity.CRITICAL,
+            owasp_mcp_top_10=["MCP01"],
+        )
+    if found:
+        return None
+    if _possible_flag_credential(server) and not (
+        base is not None
+        and (_possible_flag_credential(base) or _has_hardcoded_cred(base)[0])
+    ):
+        return Change(
+            change_type=ChangeType.ADDED,
+            entity_type=EntityType.CREDENTIAL,
+            entity_name="Possible credential flag value",
+            parent_server=server.name,
+            before=None,
+            after={"provider": "redacted-flag", "location": "args"},
+            severity=Severity.HIGH,
+            owasp_mcp_top_10=["MCP01"],
+        )
+    return None
 
 
 def _server_fingerprint(server: ServerConfig) -> tuple[str, str]:
@@ -192,20 +266,9 @@ def _changes_for_added_server(
     )
 
     # ── Hardcoded credential in args/env values ───────────────────────────
-    found, secret_name, provider = _has_hardcoded_cred(server)
-    if found:
-        changes.append(
-            Change(
-                change_type=ChangeType.ADDED,
-                entity_type=EntityType.CREDENTIAL,
-                entity_name=secret_name,
-                parent_server=server.name,
-                before=None,
-                after={"provider": provider, "location": "args/env-value"},
-                severity=Severity.CRITICAL,
-                owasp_mcp_top_10=["MCP01"],
-            )
-        )
+    cred = _credential_change(server)
+    if cred is not None:
+        changes.append(cred)
 
     # ── High-value env-var key references ────────────────────────────────
     for key in server.env:
@@ -230,7 +293,7 @@ def _changes_for_added_server(
             Change(
                 change_type=ChangeType.ADDED,
                 entity_type=EntityType.ENDPOINT,
-                entity_name=urlparse(url).hostname or url,
+                entity_name=_hostname(url) or url,
                 parent_server=server.name,
                 before=None,
                 after={"url": url},
@@ -353,21 +416,9 @@ def _changes_for_modified_server(
         )
 
     # ── Sub-change: hardcoded credential introduced in head args/env ──────
-    base_found, _, _ = _has_hardcoded_cred(base)
-    head_found, secret_name, provider = _has_hardcoded_cred(head)
-    if head_found and not base_found:
-        changes.append(
-            Change(
-                change_type=ChangeType.ADDED,
-                entity_type=EntityType.CREDENTIAL,
-                entity_name=secret_name,
-                parent_server=head.name,
-                before=None,
-                after={"provider": provider, "location": "args/env-value"},
-                severity=Severity.CRITICAL,
-                owasp_mcp_top_10=["MCP01"],
-            )
-        )
+    cred = _credential_change(head, base)
+    if cred is not None:
+        changes.append(cred)
 
     # ── Sub-change: new external endpoint ────────────────────────────────
     base_endpoints = set(_extract_external_urls(base))
@@ -377,7 +428,7 @@ def _changes_for_modified_server(
             Change(
                 change_type=ChangeType.ADDED,
                 entity_type=EntityType.ENDPOINT,
-                entity_name=urlparse(url).hostname or url,
+                entity_name=_hostname(url) or url,
                 parent_server=head.name,
                 before=None,
                 after={"url": url},

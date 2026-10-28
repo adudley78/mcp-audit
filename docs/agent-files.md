@@ -272,7 +272,7 @@ Keys and semantics follow code.claude.com/docs/en/permissions.
 
 | ID | Severity | Fires when |
 |---|---|---|
-| HARNESS-001 | HIGH | `permissions.defaultMode` is `bypassPermissions` |
+| HARNESS-001 | HIGH, or MEDIUM | `permissions.defaultMode` is `bypassPermissions`. MEDIUM in project and local settings: Claude Code 2.1.257 and later ignore the value there (settings reference: "`auto` and `bypassPermissions` don't take effect from project or local settings … Before v2.1.257, `bypassPermissions` took effect from any file"); older versions honour it, and mcp-audit does not read the installed version (STORY-0108) |
 | HARNESS-002 | HIGH | `enableAllProjectMcpServers` is `true` (every server in a repo's `.mcp.json` approved without a prompt) |
 | HARNESS-003 | MEDIUM | `skipDangerousModePermissionPrompt` is `true` |
 | HARNESS-004 | HIGH | `permissions.allow` contains bare `Bash`, `Bash(*)`, `PowerShell` or `PowerShell(*)` |
