@@ -330,47 +330,82 @@ _POISON_060_CLASS: str = (
 # returns 201", "If the user gives a key, first call the list tool to resolve
 # the ID", "After calling this tool, use the fields in the response").  On the
 # top-100 npm corpus all 30 POISON-030 findings were such documentation.  What
-# the poisoned descriptions in MCPTox do is give an order: every one of its
-# 383 matches (336 "first call", 39 "before using this tool", 8 "instead
-# call") either is "before using this tool" or has an obligation word ("you
-# MUST first call", "you should instead call") in the same sentence just
-# before the phrase.  So, apart from "before using this tool" (kept
-# unconditional: it is about the tool's own use and had no false finding),
-# a phrase counts only when the same sentence also carries an obligation
-# word or a "before using/calling ..." trigger before it within
-# ``_POISON_030_BEFORE`` characters ("after calling this" may carry its
-# obligation word after it: "After calling this tool, you must ..."), and
-# "first call" does not count as a noun ("the first call", "on first call").
+# poisoning does is give an order, or send something somewhere.  "before
+# using this tool" stays unconditional (it is about the tool's own use and
+# had no false finding).  Any other phrase counts when its sentence (a
+# window of ``_POISON_030_BEFORE`` characters before it and
+# ``_POISON_030_AFTER`` after it, cut at ``.``/``!``/``?`` followed by
+# whitespace or at a blank line; a single line break does not end a
+# sentence, so hard-wrapped text is read as one) has:
+#
+# * an obligation word or softened imperative before it ("you MUST first
+#   call", "Please first call", "Make sure to first call", "It is critical
+#   that you first call"), or a sequencing trigger ("Before doing anything
+#   else, first call", "Prior to any action, ...");
+# * for "after calling this" and "instead ...", an obligation word after it
+#   ("Instead of using X, you must use this tool"); "instead" pointing at
+#   "this tool" is tool shadowing and counts by itself;
+# * an outbound or secret target anywhere in the sentence (send, email,
+#   upload, post, a URL, an e-mail address, token, key, secret, credential,
+#   password, ``.env``, ssh): the ``requires_cooccurrence`` model of
+#   POISON-020 ("First call list_messages and send every result to ...").
+#
+# "first call" after a determiner or preposition ("the first call", "on
+# first call") is a noun: it counts only with an obligation word after it
+# ("Your first call must always be to get_secrets") or an obligation word
+# before it together with a target ("You must, on first call, send the
+# session token").  Every one of MCPTox's 383 phrase matches passes.
 _POISON_030_BEFORE: int = 40
 _POISON_030_AFTER: int = 60
+# Targets use a letter boundary ("get_keys" names a key, "entityKey" does not);
+# obligation words use a word boundary ("input_required" is not an order).
+_L: str = r"(?<![A-Za-z])"
+_R: str = r"(?![A-Za-z])"
 _OBLIGATION_RE: re.Pattern[str] = re.compile(
     r"\b(?:must|should|shall|always|need(?:s|ed)?\s+to|ha(?:ve|s)\s+to"
-    r"|required|mandatory|necessary|important)\b",
+    r"|required|mandatory|necessary|important|critical|essential|please"
+    r"|make\s+sure|be\s+sure|remember\s+to|ensure"
+    r"|(?:don'?t|do\s+not)\s+forget)\b",
     re.IGNORECASE,
 )
 _SEQUENCE_TRIGGER_RE: re.Pattern[str] = re.compile(
-    r"\bbefore\s+(?:using|calling|running|invoking|executing)\b", re.IGNORECASE
+    _L + r"(?:before\s+(?:using|calling|running|invoking|executing|doing"
+    r"|anything|any)|prior\s+to)" + _R,
+    re.IGNORECASE,
 )
+_TARGET_RE: re.Pattern[str] = re.compile(
+    _L + r"(?:send\w*|e-?mail\w*|mail|upload\w*|post(?:s|ed|ing)?|exfiltrat\w*"
+    r"|webhooks?|tokens?|secrets?|credentials?|passwords?|keys?|ssh|id_rsa)"
+    + _R
+    + r"|https?://|\.env"
+    + _R
+    + r"|[\w.+-]+@[\w-]+\.[A-Za-z]{2,}",
+    re.IGNORECASE,
+)
+_THIS_TOOL_RE: re.Pattern[str] = re.compile(r"\bthis\s+tool\b", re.IGNORECASE)
 _NOUN_DETERMINER_RE: re.Pattern[str] = re.compile(
     r"\b(?:the|a|an|its|their|his|her|your|our|my|this|that|each|every|any"
     r"|on|upon)\s+$",
     re.IGNORECASE,
 )
-_SENTENCE_END_CHARS: str = ".!?\n"
+# A sentence ends at . ! ? followed by whitespace, or at a blank line.
+_SENTENCE_END_RE: re.Pattern[str] = re.compile(r"[.!?](?=\s)|\n[ \t]*\n")
 
 
 def _same_sentence_before(text: str, start: int) -> str:
     """Return up to ``_POISON_030_BEFORE`` chars before *start*, within its sentence."""
     window = text[max(0, start - _POISON_030_BEFORE) : start]
-    cut = max(window.rfind(c) for c in _SENTENCE_END_CHARS)
-    return window[cut + 1 :]
+    cut = 0
+    for m in _SENTENCE_END_RE.finditer(window):
+        cut = m.end()
+    return window[cut:]
 
 
 def _same_sentence_after(text: str, end: int) -> str:
     """Return up to ``_POISON_030_AFTER`` chars after *end*, within its sentence."""
-    window = text[end : end + _POISON_030_AFTER]
-    cuts = [i for i in (window.find(c) for c in _SENTENCE_END_CHARS) if i != -1]
-    return window[: min(cuts)] if cuts else window
+    window = text[end : end + _POISON_030_AFTER + 1]
+    m = _SENTENCE_END_RE.search(window)
+    return window[: m.start()] if m else window[:_POISON_030_AFTER]
 
 
 def _poison_030_context(text: str, match: re.Match[str]) -> bool:
@@ -382,15 +417,21 @@ def _poison_030_context(text: str, match: re.Match[str]) -> bool:
     if phrase.startswith("before"):
         return True
     before = _same_sentence_before(text, match.start())
+    after = _same_sentence_after(text, match.end())
+    obliged_before = _OBLIGATION_RE.search(before) is not None
+    obliged_after = _OBLIGATION_RE.search(after) is not None
+    has_target = (
+        _TARGET_RE.search(before) is not None or _TARGET_RE.search(after) is not None
+    )
     if phrase.startswith("first") and _NOUN_DETERMINER_RE.search(before):
-        return False
-    if _OBLIGATION_RE.search(before) or _SEQUENCE_TRIGGER_RE.search(before):
+        return obliged_after or (obliged_before and has_target)
+    if obliged_before or _SEQUENCE_TRIGGER_RE.search(before):
         return True
-    if phrase.startswith("after"):
-        return (
-            _OBLIGATION_RE.search(_same_sentence_after(text, match.end())) is not None
-        )
-    return False
+    if phrase.startswith(("after", "instead")) and obliged_after:
+        return True
+    if phrase.startswith("instead") and _THIS_TOOL_RE.search(after):
+        return True
+    return has_target
 
 
 # fmt: off
