@@ -83,6 +83,9 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # subagent ends up with less access than intended, not more
         "AGENT-004",  # inline subagent MCP server inventory (STORY-0094); the
         # server's own findings carry any vulnerability
+        "LOCK-010",  # lock_version 2 resolution context changed (STORY-0116);
+        # INFO, explains a difference, asserts no defect
+        "LOCK-012",  # lock file reformatted, content intact (STORY-0116)
         "MANAGED-001",  # managed MCP policy inventory (STORY-0112) — INFO
         "MANAGED-002",  # server the managed policy keeps from loading — dead
         # config, the policy working as intended, not a vulnerability

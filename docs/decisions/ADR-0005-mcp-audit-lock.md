@@ -688,3 +688,30 @@ tripwire.
 **Out of scope.** Resources and prompts; tool lists that change after the handshake or differ per
 caller (see `GAPS.md`); running `--connect` from the GitHub Action's `lock-verify` input.
 
+
+## Amendment (STORY-0116, 2026-10-28): lock_version 2
+
+The R59 set (a)–(d) ships together as `lock_version` 2, as the R59 addendum required, with R62's
+per-section rule. Practitioner detail is in `docs/lock.md` ("lock_version 2").
+
+- **(a)** A top-level `section_digests` map: section name → `sha256:` of the section's RFC 8785
+  encoding. Each producer writes its own entries and copies the rest verbatim; mcp-audit writes
+  `servers`, and `tools` when it owns it. The map sits outside §10's `checksum` so another producer
+  can add its entry without tripping LOCK-005. Not inside each section: a member inside `servers`
+  would be read as a server entry by every earlier mcp-audit. Mismatch is LOCK-011 (HIGH); a file
+  not in canonical form, which a digest over parsed values cannot see, is LOCK-012 (LOW). **The
+  field name was to be coordinated with the trees producer and has not been confirmed yet**
+  (decision record in the Marcus repo, `2026-10-28-lock-v2-digest-field.md`).
+- **(b)/R62** `package.resolution.resolution_context`: `resolved_at`, `latest`,
+  `latest_deprecated`, `npm_major`, `node_version`; `null` when the registry was not consulted.
+  mcp-audit's own `npm_major`/`node_version` are `null` because it runs neither. LOCK-010 (INFO,
+  `--resolve`) reports a changed context separately from LOCK-004.
+- **(c)** A bare spec is recorded as `"*"` (npm-package-arg's reading). Resolution semantics for it
+  are unchanged (the `latest` dist-tag); no range resolver. Specs `lock` does not parse keep
+  version 1's `"latest"` so a version-1 lock never reports LOCK-004 on an untouched config.
+- **(d)** SC-005: "`latest` is deprecated on npm", with the npm 10.8.2+ note for bare and range
+  specs (the R59 text said "npm ≥ 10"; npm 10.0–10.8.1 bundle an npm-pick-manifest without the
+  deprecation check).
+- **Versioning.** The verifier accepts 1 and 2. A version-1 lock is verified exactly as before
+  (pinned by `tests/test_lock_v2.py` against locks and outcomes recorded from the version-1 code);
+  a version above 2 is refused, and `lock` will not overwrite it.

@@ -480,6 +480,7 @@ def _run_verify(
 
     if output_format == "json":
         payload = {
+            "unsupported_version": result.unsupported_version,
             "checked_servers": result.checked_servers,
             "unverified_sections": result.unverified_sections,
             "unresolved_entries": result.unresolved_entries,
@@ -516,6 +517,13 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
     if result.tampered:
         console.print("[bold red]Lock file tampered or hand-edited.[/bold red]")
         console.print(result.findings[0].evidence)
+        return
+    if result.unsupported_version is not None:
+        console.print(
+            f"[red]Error:[/red] {lock_path} declares lock_version "
+            f"{result.unsupported_version}, newer than this mcp-audit can "
+            "verify. Upgrade mcp-audit; nothing was checked."
+        )
         return
 
     for finding in result.findings:

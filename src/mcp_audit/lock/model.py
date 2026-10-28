@@ -22,8 +22,19 @@ from pydantic import BaseModel, Field
 from mcp_audit.advisory.canonical import canonicalize
 from mcp_audit.lock import tool_digests
 
-LOCK_VERSION = 1
+#: The ``lock_version`` this mcp-audit writes. Version 2 (STORY-0116, the
+#: ADR-0005 R59/R62 set agreed on #88) adds ``section_digests``, a per-entry
+#: ``resolution.resolution_context``, and records a bare spec as ``"*"``.
+LOCK_VERSION = 2
+#: Every ``lock_version`` this mcp-audit can verify. A version-1 lock is
+#: verified exactly as v0.22 verified it; anything newer is refused.
+SUPPORTED_LOCK_VERSIONS: frozenset[int] = frozenset({1, 2})
 LOCK_FILENAME = "mcp-lock.json"
+
+#: The version-2 top-level map of per-section digests (see
+#: :mod:`mcp_audit.lock.section_digests`). Part of the envelope of a v2 lock;
+#: in a v1 lock it is just an unrecognised (foreign) key, as it always was.
+SECTION_DIGESTS_KEY = "section_digests"
 
 #: Top-level keys mcp-audit itself produces and checksums.  ``generated_at``
 #: is deliberately excluded from the checksummed body — ADR-0005 §5 (a
@@ -52,11 +63,34 @@ RESERVED_FOREIGN_KEYS: frozenset[str] = frozenset({"trees", "tools"})
 RESERVED_FOREIGN_DEFAULTS: dict[str, object] = {"trees": {}, "tools": None}
 
 
+class ResolutionContext(BaseModel):
+    """What the registry said when a version was resolved (lock_version 2).
+
+    Explanatory, never reproducible: these fields explain why two locks
+    differ; only resolved versions and integrity hashes can regenerate one.
+    Dist-tags and deprecation flags have no queryable history, so a recorded
+    context is not a coordinate anyone can return to (ADR-0005 R59/R62).
+    ``npm_major`` and ``node_version`` are always ``None`` in the section
+    mcp-audit writes: it reads the registry's ``latest`` dist-tag over HTTPS
+    and runs neither npm nor Node.
+    """
+
+    resolved_at: str | None = None
+    latest: str | None = None
+    latest_deprecated: str | None = None
+    npm_major: int | None = None
+    node_version: str | None = None
+
+
 class LockResolution(BaseModel):
     """How and when a package's version was resolved (ADR-0005 §7)."""
 
     method: Literal["dist-tag:latest", "exact-pin", "known_hashes", "unresolved"]
     resolved_at: str | None = None
+    #: lock_version 2: set when the registry was consulted to pick the
+    #: version (``dist-tag:latest``); ``None`` for an exact pin or an
+    #: unresolved entry. Absent (``None``) on a version-1 entry.
+    resolution_context: ResolutionContext | None = None
 
 
 class LockPackage(BaseModel):
@@ -123,6 +157,34 @@ class LockFile(BaseModel):
     checksum: str
 
 
+def lock_version_of(doc: dict) -> object:
+    """Return *doc*'s ``lock_version`` value as written (may be anything)."""
+    return doc.get("lock_version")
+
+
+def is_version_2(doc: dict) -> bool:
+    """Whether *doc* declares ``lock_version`` 2 (an int, not a bool)."""
+    version = lock_version_of(doc)
+    return isinstance(version, int) and not isinstance(version, bool) and version == 2
+
+
+def unsupported_version(doc: dict) -> int | None:
+    """Return *doc*'s ``lock_version`` when it is newer than this mcp-audit reads.
+
+    Only an integer above the highest supported version counts. A missing or
+    odd value is read as version 1, exactly as v0.22 (which never looked at
+    ``lock_version``) read it.
+    """
+    version = lock_version_of(doc)
+    if (
+        isinstance(version, int)
+        and not isinstance(version, bool)
+        and version > max(SUPPORTED_LOCK_VERSIONS)
+    ):
+        return version
+    return None
+
+
 def owned_subdocument(doc: dict) -> dict:
     """Return the sub-document mcp-audit's ``checksum`` actually covers.
 
@@ -178,6 +240,8 @@ def unverified_sections(doc: dict) -> list[str]:
         set (e.g. ``["trees"]``).
     """
     owned_and_structural = OWNED_CHECKSUM_KEYS | STRUCTURAL_KEYS
+    if is_version_2(doc):
+        owned_and_structural = owned_and_structural | {SECTION_DIGESTS_KEY}
     return sorted(
         k
         for k in doc
