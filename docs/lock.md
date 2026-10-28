@@ -431,7 +431,9 @@ skip the file.
   other post-scoring finding source (baseline drift, governance, SAST, extensions, agent-files),
   LOCK findings **do** recompute the scan score and grade — this is deliberate, not an inconsistency.
   `check`'s one-page verdict gets a `Lock: verified (N servers)` line (or a finding-count summary on
-  drift), plus one `WARN` per entry that was locked offline and never confirmed. `check --json` gets
+  drift), plus one `WARN` per entry that was locked offline and never confirmed. `scan` prints the
+  same lines; with `--format json`, `sarif` or `nucleus` they go to stderr (as does every other
+  status line), so stdout is only the document. `lock --verify --format json|sarif` does the same. `check --json` gets
   a `lock_status: {present, verified, findings, checked_servers, lock_paths, unresolved_entries,
   unverified_sections, outside_root, not_covered}` object mirroring `feed_status`'s shape.
   `not_covered` (STORY-0094) lists MCP servers declared inline in a project

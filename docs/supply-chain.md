@@ -483,7 +483,14 @@ reduces the launcher to its bare name: the path is dropped (either `/` or `\`),
 case is ignored, a Windows `.cmd`/`.exe`/`.bat`/`.ps1` wrapper is stripped, and
 `cmd /c` or `cmd /k` (after switches such as `/d /s`) is unwrapped so the next
 argument is the launcher. `C:\Program Files\nodejs\npx.cmd -y pkg` and
-`cmd /c npx -y pkg` are checked exactly like `npx -y pkg`. `pnpm dlx`, `npm exec`
+`cmd /c npx -y pkg` are checked exactly like `npx -y pkg`. When the whole command
+line is one argument after `cmd /c` (`"\"C:\\Program Files\\nodejs\\npx.cmd\" -y pkg"`
+in the JSON), or an argument carries double quotes, it is split the way Windows
+programs split a command line ([Microsoft: Parsing C command-line
+arguments](https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments)):
+double quotes group, backslashes are literal except before a quote, and the first
+argument (the program) keeps its backslashes. Only the first 32,767 characters
+are read, the longest command line Windows can start. `pnpm dlx`, `npm exec`
 and `uv run --with` are not recognised (see GAPS.md).
 
 **Short-name guard:** Package names ≤ 5 characters use a tighter threshold of 1

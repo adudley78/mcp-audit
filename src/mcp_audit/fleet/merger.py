@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from mcp_audit import __version__
 from mcp_audit._paths import data_dir
 from mcp_audit.models import Finding, ScanScore, Severity
+from mcp_audit.output.dashboard import fill_template, script_safe_json
 
 _SCANNER_VERSION = __version__
 
@@ -739,9 +740,21 @@ const PALETTE = {
 let SC = Object.assign({}, PALETTE.dark);
 
 const GRADE_COLORS = {A:'var(--safe)',B:'var(--low)',C:'var(--med)',D:'var(--high)',F:'var(--crit)'};
-function gradeColor(g){ return GRADE_COLORS[g] || 'var(--text-dim)'; }
-function sevColor(s){ return SC[s] || SC.INFO; }
+function gradeColor(g){
+  return Object.prototype.hasOwnProperty.call(GRADE_COLORS, g) ? GRADE_COLORS[g] : 'var(--text-dim)';
+}
+function sevColor(s){
+  return Object.prototype.hasOwnProperty.call(SC, s) ? SC[s] : SC.INFO;
+}
 function trunc(s, n){ return s && s.length > n ? s.slice(0, n) + '\u2026' : (s || ''); }
+// Every string from the merged scan files is untrusted (machine ids, server
+// names and titles come from other machines' configs). Escape it before it
+// goes into any innerHTML; everything else uses textContent.
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(ch){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+  });
+}
 
 let state = {sevFilt:'', machineFilt:'', analyzerFilt:'', sortCol:'severity', sortAsc:true};
 
@@ -758,9 +771,9 @@ function initHeader(){
     divider() +
     tile(s.total_findings, 'Findings') +
     divider() +
-    `<div class="top-stat"><div class="ts-num" style="color:var(--crit)">${critH}</div><div class="ts-label">Crit+High</div></div>` +
+    `<div class="top-stat"><div class="ts-num" style="color:var(--crit)">${esc(critH)}</div><div class="ts-label">Crit+High</div></div>` +
     (s.average_score != null
-      ? divider() + tile(s.average_score.toFixed(1), 'Avg Score')
+      ? divider() + tile(Number(s.average_score).toFixed(1), 'Avg Score')
       : '');
 
   document.getElementById('top-date').textContent = D.generated_at;
@@ -790,7 +803,7 @@ function initHeader(){
 }
 
 function tile(val, label){
-  return '<div class="top-stat"><div class="ts-num">' + val + '</div><div class="ts-label">' + label + '</div></div>';
+  return '<div class="top-stat"><div class="ts-num">' + esc(val) + '</div><div class="ts-label">' + esc(label) + '</div></div>';
 }
 function divider(){ return '<div class="ts-divider"></div>'; }
 
@@ -810,7 +823,7 @@ function initMachineGrid(){
     card.dataset.mid = m.machine_id;
 
     const gradeEl = m.grade
-      ? '<span class="mc-grade" style="color:' + gradeColor(m.grade) + ';border-color:' + gradeColor(m.grade) + '">' + m.grade + '</span>'
+      ? '<span class="mc-grade" style="color:' + esc(gradeColor(m.grade)) + ';border-color:' + esc(gradeColor(m.grade)) + '">' + esc(m.grade) + '</span>'
       : '<span class="mc-grade" style="color:var(--text-dim);border-color:var(--border)">\u2013</span>';
 
     const crit = m.severity_breakdown.CRITICAL||0;
@@ -821,9 +834,9 @@ function initMachineGrid(){
     const total = m.finding_count;
 
     const countTxt = total > 0
-      ? '<b style="color:var(--crit)">' + crit + '</b> crit \u00b7 ' +
-        '<b style="color:var(--high)">' + high + '</b> high \u00b7 ' +
-        total + ' total'
+      ? '<b style="color:var(--crit)">' + esc(crit) + '</b> crit \u00b7 ' +
+        '<b style="color:var(--high)">' + esc(high) + '</b> high \u00b7 ' +
+        esc(total) + ' total'
       : '<b style="color:var(--safe)">No findings</b>';
 
     // Mini severity bar
@@ -833,14 +846,14 @@ function initMachineGrid(){
         const sev = pair[0], cnt = pair[1];
         if(!cnt) return;
         const pct = (cnt / total * 100).toFixed(1);
-        barSegs += '<div class="sev-seg" style="width:' + pct + '%;background:' + sevColor(sev) + '" title="' + sev + ': ' + cnt + '"></div>';
+        barSegs += '<div class="sev-seg" style="width:' + esc(pct) + '%;background:' + esc(sevColor(sev)) + '" title="' + esc(sev) + ': ' + esc(cnt) + '"></div>';
       });
     } else {
       barSegs = '<div class="sev-seg" style="width:100%;background:var(--safe)" title="Clean"></div>';
     }
 
     card.innerHTML =
-      '<div class="mc-header"><span class="mc-hostname" title="' + m.machine_id + '">' + trunc(m.machine_id, 22) + '</span>' + gradeEl + '</div>' +
+      '<div class="mc-header"><span class="mc-hostname" title="' + esc(m.machine_id) + '">' + esc(trunc(m.machine_id, 22)) + '</span>' + gradeEl + '</div>' +
       '<div class="mc-counts">' + countTxt + '</div>' +
       '<div class="sev-bar">' + barSegs + '</div>';
 
@@ -970,16 +983,16 @@ function renderTable(){
 
   data.forEach(function(f){
     const tr = document.createElement('tr');
-    const dot = '<span class="sev-dot" style="background:' + sevColor(f.severity) + '"></span>';
-    const sevTxt = '<span style="color:' + sevColor(f.severity) + '">' + f.severity + '</span>';
-    const machTxt = f.affected_count + '/' + total;
+    const dot = '<span class="sev-dot" style="background:' + esc(sevColor(f.severity)) + '"></span>';
+    const sevTxt = '<span style="color:' + esc(sevColor(f.severity)) + '">' + esc(f.severity) + '</span>';
+    const machTxt = esc(f.affected_count + '/' + total);
     const machStyle = f.affected_count === total ? 'color:var(--crit);font-weight:600' : '';
     tr.innerHTML =
       '<td><div class="td-sev">' + dot + sevTxt + '</div></td>' +
-      '<td class="td-mono" style="' + machStyle + '" title="' + f.affected_machines.join(', ') + '">' + machTxt + '</td>' +
-      '<td class="td-mono">' + f.analyzer + '</td>' +
-      '<td class="td-mono" title="' + f.server_name + '">' + trunc(f.server_name, 24) + '</td>' +
-      '<td title="' + (f.title||'') + '">' + trunc(f.title||'', 60) + '</td>';
+      '<td class="td-mono" style="' + machStyle + '" title="' + esc(f.affected_machines.join(', ')) + '">' + machTxt + '</td>' +
+      '<td class="td-mono">' + esc(f.analyzer) + '</td>' +
+      '<td class="td-mono" title="' + esc(f.server_name) + '">' + esc(trunc(f.server_name, 24)) + '</td>' +
+      '<td title="' + esc(f.title||'') + '">' + esc(trunc(f.title||'', 60)) + '</td>';
     tbody.appendChild(tr);
   });
 }
@@ -1042,18 +1055,10 @@ def generate_fleet_html(report: FleetReport) -> str:
     Returns:
         A UTF-8 HTML string suitable for writing to a ``.html`` file.
     """
-    fleet_data = _build_fleet_data(report)
-    d3_js = _load_d3()
-    html = _FLEET_HTML
-    _json_blob = json.dumps(fleet_data, indent=2)
-    # Escape < > & so a malicious server name containing </script> cannot break
-    # out of the inline <script> block.  \uXXXX escapes are valid JSON and
-    # decoded transparently by JavaScript.
-    _json_blob = (
-        _json_blob.replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
+    return fill_template(
+        _FLEET_HTML,
+        {
+            "__FLEET_DATA_JSON__": script_safe_json(_build_fleet_data(report)),
+            "__D3_JS__": _load_d3(),
+        },
     )
-    html = html.replace("__FLEET_DATA_JSON__", _json_blob)
-    html = html.replace("__D3_JS__", d3_js)
-    return html

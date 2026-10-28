@@ -185,6 +185,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`scripts/sync_registry_advisories.py` keeps `known-malicious.json` current** from
   OSV's bulk export; the weekly registry-advisory check now also fails when that file
   has drifted.
+- **Tool descriptions that steer the agent to another server's tools (DELEG-001..003)**
+  (STORY-0100). With `scan --connect` (and `dashboard --connect`), mcp-audit now reads
+  every connected server's tool descriptions for the poisoning shape that works: a tool
+  that never runs itself but tells the agent "whenever you do X, first call that other
+  tool" or "when you use that tool, change this argument". DELEG-001 (MEDIUM): the text
+  names a tool another connected server exposes. DELEG-002 (MEDIUM): a trigger ("before",
+  "whenever", "when the user …") plus an order to do something no tool on its own
+  server can do. DELEG-003 (HIGH): an order to rewrite another tool's arguments, or every
+  call's. A plain scan never connects, so it never reports these: the lock file keeps
+  only fingerprints of tool definitions, not their text. Measured on MCPTox before
+  shipping, as EPIC-0007 required: with the poisoned tool on its own server (MCPTox's
+  threat model), POISON-* and DELEG-* together flag 97.8% of the poisoned descriptions
+  that carry no keyword wrapper and target an implicit trigger, against 21.4% for
+  POISON-* alone (parameter tampering: 95.8% against 4.7%), and DELEG-* flags 1 of
+  MCPTox's 353 real tools. On 855 real tool descriptions read from the published
+  source of 38 popular npm MCP servers, all in one session, it flagged 1
+  (DELEG-002). Those are not independent numbers: MCPTox's clean tools and 640 of
+  the 855 informed the design; of the 215 held out until the design was frozen,
+  it flagged none. Numbers per attack paradigm, and what it misses, are in
+  [`docs/poisoning.md`](docs/poisoning.md#cross-tool-delegation-deleg-001003);
+  `scripts/bench_poisoning.py delegation` re-takes the measurement, and a test fails
+  if the detector changes without it.
 
 ### Changed
 
@@ -193,6 +215,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   skills-directory plugin server under a lock root is listed as not covered by
   the lock (the WARN line subagent servers get), never as LOCK-002; installed
   plugins stay silent (STORY-0095).
+- **The score's "No prompt injection risks detected" bonus now also needs no DELEG-*
+  finding**, since those are prompt-injection findings too (STORY-0100). Nothing
+  changes for a scan without `--connect`.
 - **Supply-chain evidence no longer quotes credentials.** SC-001..003 and the new SC-007
   quote the launch command with URL passwords (`postgresql://user:pass@…`, including
   passwords that contain `@` or spaces) and known token formats replaced by `[REDACTED]`,
@@ -241,6 +266,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Terminal output no longer breaks on text a scanned server sent.** A tool name or
+  live description containing something like `[/dim]` made `scan --connect` stop with
+  a Rich markup error before printing its findings, and `[link=…]` rendered as a hidden
+  link. Finding titles, evidence, remediation and server names are now shown as
+  written (STORY-0100).
 - **The privacy page now names the address registration actually sends to.**
   `docs/privacy.md` said `https://register.mcp-audit.dev/ping`; the code posts to a
   Pipedream webhook (`https://eo4jvaanlkuohuc.m.pipedream.net`) that emails the
@@ -296,6 +326,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   third-party action.
 - **`docs/owasp-mapping.json` no longer states a hand-typed count** ("103 static
   finding IDs" while it held 127). Completeness is what CI already checks.
+- **`scan --format json`, `sarif` and `nucleus` (and `--json`) print only the
+  document on stdout (STORY-0103).** With an `mcp-lock.json` present, the
+  `Lock: verified` line and the lock `WARN` lines came first, so the output
+  did not parse; so did the `--project`, `--include-agent-files` and
+  `--include-extensions` summaries. Every such line, and every error, now goes
+  to stderr in those formats; terminal output is unchanged. `check --json`
+  sends a failed registration ping's message to stderr, and with no MCP config
+  found it still writes the JSON document. `lock --verify --format json|sarif`
+  does the same, and its SARIF is no longer broken across lines at 80 columns
+  when piped.
+- **`vet --online` no longer crashes on a malicious-package entry without a
+  link.** An entry from mcp-audit.dev that lacks `link` or `id`, or is not an
+  object, is shown without it instead of stopping with an error.
+- **A Windows `cmd /c` command line with a quoted path is checked.** When the
+  whole line is one argument, such as `"C:\Program Files\nodejs\npx.cmd" -y
+  pkg`, it was split at spaces, so the launcher was never recognised and no
+  supply-chain check ran. It is now split the way Windows programs split a
+  command line (double quotes group, backslashes are literal except before a
+  quote).
+- **The privacy page and README name every network use.** The README said
+  `check` makes no network calls without a flag; after `mcp-audit register`,
+  each `check` sends a short ping with the grade. The privacy page's table now
+  lists `lock --verify --resolve` (npm or PyPI) and `lock --connect` (starts or
+  contacts each configured server), both opt-in.
+- **TRUST-006: a git-lfs custom transfer agent that runs on every transfer is
+  HIGH.** `lfs.customtransfer.<name>.path`/`args` in a repository's git config
+  was MEDIUM even when `lfs.standalonetransferagent` (or
+  `lfs.<url>.standalonetransferagent`) names that agent. git-lfs then runs it on
+  every fetch, pull, checkout and push that moves LFS objects, without asking
+  the server, the same exposure as `core.sshCommand`, which is HIGH. It is HIGH
+  in that case and stays MEDIUM otherwise (it then runs only if the LFS server
+  picks it).
+- **SANDBOX finding text names the user settings file Claude Code reads.** With
+  `CLAUDE_CONFIG_DIR` set, the notes about `strictAllowlist` and `defaultMode`
+  said "your ~/.claude/settings.json"; they now name that file (as `~/…` when it
+  is under your home directory, otherwise `$CLAUDE_CONFIG_DIR/settings.json`).
+
+### Security
+
+- **The HTML dashboard, the fleet report and the PDF report show scan text as
+  text (STORY-0103).** The dashboard and `merge --format html` put server
+  names, finding titles, attack-path hops, client and analyzer names and
+  machine names into the page as HTML, so a server name in a repository's
+  `.mcp.json`, or a tool name a live server chose (a COLLIDE-001 title), could
+  add markup or script to the report you open. Every such string is now
+  escaped, and the "Recommended action" entries no longer use an inline
+  `onclick` built from the server name. The embedded scan data already escaped
+  `<`, `>` and `&`; a server named after a page marker (`__D3_JS__`) no longer
+  breaks the page. The PDF report (`--report pdf`) passed finding titles and
+  server names to reportlab's markup parser: a `<` stopped the report with an
+  error, and a link or image tag was honoured. They are now escaped too.
 
 ## [0.21.1] - 2026-10-25
 

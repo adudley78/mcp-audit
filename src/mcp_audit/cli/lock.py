@@ -442,21 +442,23 @@ def _run_verify(
     entries and populated foreign sections no longer fail the exit code —
     see :func:`mcp_audit.lock.verifier.verify`'s ``allow_unverified`` param.
     """
+    # Machine-readable formats own stdout; every other line goes to stderr.
+    con = console if output_format not in ("json", "sarif") else _stderr
     if not lock_path.exists():
         if if_present:
-            console.print(
+            con.print(
                 f"[dim]No mcp-lock.json found at {lock_path} — "
                 "skipping lock verification (--if-present).[/dim]"
             )
             raise typer.Exit(0)
-        console.print(
+        con.print(
             f"[red]Error:[/red] No lock file found at {lock_path}. "
             "Run `mcp-audit lock` first."
         )
         raise typer.Exit(2)
 
-    servers = _discover_lock_servers(root, include_user, console)
-    registry = _load_registry(registry_path, console) if resolve else None
+    servers = _discover_lock_servers(root, include_user, con)
+    registry = _load_registry(registry_path, con) if resolve else None
     # Start only servers whose tools can be compared: never one the lock
     # does not approve, one whose launch line drifted, or anything when the
     # lock fails its checksum.
@@ -499,7 +501,9 @@ def _run_verify(
         from mcp_audit.models import ScanResult  # noqa: PLC0415
 
         scan_result = ScanResult(servers=[], findings=result.findings)
-        console.print(format_sarif(scan_result))
+        # typer.echo for the same reason as the JSON branch: console.print
+        # hard-wraps a piped SARIF document at 80 columns.
+        typer.echo(format_sarif(scan_result))
     else:
         _print_verify_terminal(result, lock_path)
 

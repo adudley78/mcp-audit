@@ -84,6 +84,28 @@ _SEVERITY_ORDER: list[Severity] = [
 # ── Private helpers ───────────────────────────────────────────────────────────
 
 
+# Status, progress and error lines for a machine-readable ``scan`` run. The
+# stream is looked up when printing, so a test runner's captured stderr works.
+_STDERR_CONSOLE = Console(stderr=True)
+
+
+def _status_console(fmt: str) -> Console:
+    """Return the console ``scan`` prints status, warning and error lines to.
+
+    With ``--format json``/``sarif``/``nucleus`` (or ``--json``), stdout is the
+    document and a consumer pipes it into a parser, so every other line goes
+    to stderr. That holds whether or not ``--output-file`` is given. With the
+    terminal format, everything stays on stdout as before.
+
+    Args:
+        fmt: The resolved output format.
+
+    Returns:
+        The shared stdout console for ``terminal``, a stderr console otherwise.
+    """
+    return console if fmt == "terminal" else _STDERR_CONSOLE
+
+
 def _scoped_state_path(extra_paths: list[Path] | None) -> Path:
     """Derive the scoped rug-pull state path for the given extra paths."""
     configs = _cli.discover_configs(extra_paths=extra_paths)
@@ -1792,8 +1814,10 @@ def scan(
     ),
 ) -> None:
     """Scan MCP configurations for security issues."""
+    fmt = "json" if json_flag else output_format
+    con = _status_console(fmt)
     if configs and len(configs) > 1:
-        console.print(
+        con.print(
             "[red]Error:[/red] scan accepts a single config path. "
             "For multiple configs use 'mcp-audit discover' or run scan once per config."
         )
@@ -1801,28 +1825,27 @@ def scan(
     config = configs[0] if configs else None
     path = config or path
     extra_paths = [path] if path else None
-    fmt = "json" if json_flag else output_format
 
     # Validate --project early so the user gets a clean error before any scan work.
     resolved_project: Path | None = None
     if project is not None:
         resolved_project = project.resolve()
         if not resolved_project.exists():
-            console.print(f"[red]Error:[/red] --project path not found: {project}")
+            con.print(f"[red]Error:[/red] --project path not found: {project}")
             raise typer.Exit(2)
         if not resolved_project.is_dir():
-            console.print(f"[red]Error:[/red] --project must be a directory: {project}")
+            con.print(f"[red]Error:[/red] --project must be a directory: {project}")
             raise typer.Exit(2)
 
     if reset_state:
-        _reset_scoped_state(extra_paths, console)
+        _reset_scoped_state(extra_paths, con)
 
     _preflight_checks(
         offline,
         verify_hashes,
         registry,
         sast,
-        console,
+        con,
         path=path,
         verify_signatures=verify_signatures,
         check_vulns=check_vulns,
@@ -1830,7 +1853,7 @@ def scan(
     )
 
     analyzers = _build_custom_analyzers(registry, offline_registry)
-    extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, console)
+    extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, con)
 
     # Load the governance policy early so we can extract custom scoring weights
     # before run_scan calls calculate_score inside _run_static_pipeline.
@@ -1840,7 +1863,7 @@ def scan(
     try:
         preloaded_policy = load_policy(policy)
     except ValueError as exc:
-        console.print(f"[red]Governance policy error:[/red] {exc}")
+        con.print(f"[red]Governance policy error:[/red] {exc}")
         raise typer.Exit(2) from None
     if preloaded_policy is not None and preloaded_policy.scoring is not None:
         scoring_weights = preloaded_policy.scoring
@@ -1863,14 +1886,14 @@ def scan(
             include_plugins=not no_plugins,
         )
     except RegistryLoadError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        con.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(2) from exc
 
     if asset_prefix:
         result.machine.asset_id = asset_prefix
 
     if verify_hashes:
-        result = _apply_hash_verification(result, registry, offline_registry, console)
+        result = _apply_hash_verification(result, registry, offline_registry, con)
 
     if verify_signatures:
         result = _apply_signature_verification(
@@ -1878,32 +1901,32 @@ def scan(
             registry,
             offline_registry,
             strict=strict_signatures,
-            console=console,
+            console=con,
         )
 
     if check_vulns:
         result = _apply_vuln_check(
-            result, registry, offline_registry, vuln_registry, console
+            result, registry, offline_registry, vuln_registry, con
         )
 
-    _surface_user_path_errors(result, extra_paths, console)
+    _surface_user_path_errors(result, extra_paths, con)
 
-    result = _apply_baseline_drift(result, baseline_name, console)
+    result = _apply_baseline_drift(result, baseline_name, con)
     result = _apply_governance(
-        result, policy, analyzers, console, preloaded_policy=preloaded_policy
+        result, policy, analyzers, con, preloaded_policy=preloaded_policy
     )
 
     if sast is not None:
-        result = _apply_sast(result, sast, console)
+        result = _apply_sast(result, sast, con)
 
     if include_extensions:
-        result = _apply_extensions(result, console)
+        result = _apply_extensions(result, con)
 
     if include_agent_files:
-        result = _apply_agent_files(result, resolved_project, console)
+        result = _apply_agent_files(result, resolved_project, con)
 
     if include_agent_files and not no_plugins:
-        result = _apply_plugin_agent_files(result, console)
+        result = _apply_plugin_agent_files(result, con)
 
     if resolved_project is not None:
         result = _apply_project_scan(
@@ -1911,20 +1934,20 @@ def scan(
             resolved_project,
             analyzers,
             extra_rules_dirs or None,
-            console,
+            con,
             extra_paths=extra_paths,
         )
 
     result = _apply_lock_verification(
         result,
         no_lock,
-        console,
+        con,
         scoring_weights=scoring_weights,
         scoring_weights_source=scoring_weights_source,
     )
 
-    result = _apply_severity_threshold(result, severity_threshold, console)
-    result = _apply_advisory_feed(result, advisory_feed, console)
+    result = _apply_severity_threshold(result, severity_threshold, con)
+    result = _apply_advisory_feed(result, advisory_feed, con)
 
     # Suppress score for formatters when --no-score is requested.  The scanner
     # always calculates the score; suppression is a presentation-layer decision
@@ -1932,28 +1955,28 @@ def scan(
     if no_score:
         result.score = None
 
-    _write_formatted_output(result, fmt, output, asset_prefix, no_score, console)
+    _write_formatted_output(result, fmt, output, asset_prefix, no_score, con)
 
     if report is not None:
         from mcp_audit.cli.check import _write_pdf_report  # noqa: PLC0415
 
         report_lower = report.strip().lower()
         if report_lower != "pdf":
-            console.print(
+            con.print(
                 f"[red]Unknown report format:[/red] {report!r}. "
                 "Currently supported: pdf"
             )
             raise typer.Exit(2)
-        _write_pdf_report(result, output, org, console)
+        _write_pdf_report(result, output, org, con)
 
     if verbose and result.server_logs:
-        console.print()
-        console.print("[bold dim]Server output (captured stderr):[/bold dim]")
+        con.print()
+        con.print("[bold dim]Server output (captured stderr):[/bold dim]")
         for entry in result.server_logs:
-            console.print(f"[dim]{entry}[/dim]")
+            con.print(f"[dim]{entry}[/dim]")
 
     if owasp_report:
-        _print_owasp_report(result, console)
+        _print_owasp_report(result, con)
 
     if result.has_findings:
         raise typer.Exit(1)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.text import Text
@@ -236,16 +237,19 @@ def print_results(
             cve_ids = ", ".join(finding.cve)
             cve_badge = f"  [dim red]\\[{cve_ids}][/dim red]"
 
+        # Finding text can carry what a scanned server sent (tool names, live
+        # descriptions): escape it so "[/dim]" in it is shown, not parsed as
+        # Rich markup (which raises, or renders a hidden "[link=…]").
         console.print(
             f"{icon} [{color} bold]{finding.severity.value}[/{color} bold]  "
-            f"[dim]{finding.analyzer}[/dim]  "
-            f"{finding.client}/{finding.server}"
+            f"[dim]{escape(finding.analyzer)}[/dim]  "
+            f"{escape(finding.client)}/{escape(finding.server)}"
             f"{owasp_badge}"
             f"{cve_badge}"
         )
-        console.print(f"   {finding.title}")
-        console.print(f"   [dim]→ {finding.evidence}[/dim]")
-        console.print(f"   [italic]ℹ {finding.remediation}[/italic]")
+        console.print(f"   {escape(finding.title)}")
+        console.print(f"   [dim]→ {escape(finding.evidence)}[/dim]")
+        console.print(f"   [italic]ℹ {escape(finding.remediation)}[/italic]")
         console.print()
 
     # Policy violations panel — distinct from security findings
@@ -265,7 +269,8 @@ def print_results(
         for gf in gov_findings:
             color = SEVERITY_COLORS[gf.severity]
             gov_lines.append(
-                f"  [dim]{gf.client}/{gf.server}[/dim]  [{color}]{gf.title}[/{color}]"
+                f"  [dim]{escape(gf.client)}/{escape(gf.server)}[/dim]  "
+                f"[{color}]{escape(gf.title)}[/{color}]"
             )
         console.print(
             Panel(

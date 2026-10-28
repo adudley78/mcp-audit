@@ -214,8 +214,12 @@ git configuration and hooks are read (never run) in a default `scan`/`check`
   `lfs.extension.<name>.clean`/`smudge` and `lfs.customtransfer.<name>.path`/`args`,
   and delta's `pager` (in `[delta]` or a `[delta "<feature>"]` section, whether
   or not that feature is enabled), are reported and take away the tool's INFO
-  status. Not covered: `lfs.standalonetransferagent` on its own (it names an
-  agent, not a program; the agent's `path` is what is reported); delta's
+  status. `lfs.standalonetransferagent` is not reported on its own (it names an
+  agent, not a program); it raises the named agent's `path`/`args` from MEDIUM to
+  HIGH (STORY-0103). Any `lfs.<url>.standalonetransferagent` counts, whichever
+  URL it names, because which endpoint a remote resolves to is not known from
+  config alone; a URL key that overrides the plain one for the real endpoint is
+  not modelled. Not covered: delta's
   `diff-args` (used only when delta compares two files itself); git's
   `interactive.diffFilter` (delta's documented `git add -p` setup, run only on
   interactive add); git-annex's own `annex.*` settings, which can name programs,
@@ -336,6 +340,71 @@ detection logic.
 
 ---
 
+## Cross-tool delegation (DELEG-001..003, STORY-0100)
+
+Measured before shipping (2026-10-26; method and every number in
+[`docs/poisoning.md`](docs/poisoning.md#cross-tool-delegation-deleg-001003),
+pinned in `docs/research/poisoning-benchmark/results.json` under `delegation`).
+On MCPTox with the poisoned tool on its own server: POISON-* plus DELEG-* flag
+99.4% of the 1,312 cases (97.8% of the 370 unwrapped implicit-trigger cases,
+against 21.4% for POISON-* alone); DELEG-* flags 1 of the 353 clean tools. The
+gate passed, so the stated severities ship.
+
+**Known limits:**
+
+- **Needs `--connect`.** Descriptions exist only in a live `tools/list`. The
+  `tools` section of `mcp-lock.json` records names and SHA-256 digests, never
+  text (`lock/tool_digests.py`), so a default scan, `check` and the GitHub
+  Action never run these checks. EPIC-0007 described the lock as storing
+  definitions; it stores their digests, and changing the lock format was out
+  of scope.
+- **The session is the servers that enumerated.** A server that fails to
+  connect contributes no tool names, so a reference to its tools is not seen
+  (the same limit as COLLIDE-001).
+- **Same-server delegation is not flagged, by design.** DELEG-001 needs a
+  tool of a *different* server, and DELEG-002 skips a sentence that names only
+  the describing server's own tools (a server documenting its own workflow is
+  the commonest benign shape on real servers). MCPTox's prompts list the
+  poisoned tool among the target server's tools; in that layout POISON-* plus
+  DELEG-* reach 23.5% of the unwrapped implicit cases, against 21.4% for
+  POISON-* alone. DELEG-002 also counts what the describing server's other
+  tools can do as its own, and DELEG-003's "every call" scope does not apply
+  to an argument the server's own tools take, so a malicious server can mute
+  both by adding decoy tools with those capabilities or argument names
+  (DELEG-001 still fires on the cross-server name). A compromised server that poisons one of its own tools to
+  misuse another of its own tools is in this gap; it already controls both.
+- **Exact names only.** "The file-reading tool" instead of `read_file`
+  evades DELEG-001; so does a name broken with zero-width characters or
+  homoglyphs (POISON-040 and POISON-060 flag those characters). A plain-word
+  tool name (`search`) counts only quoted and in tool context.
+- **English vocabulary.** DELEG-002/003 match a closed English word list
+  (trigger words, obligation words, action verbs by class). A tool's own
+  capability is inferred from words in its name and input-schema property
+  names, so a tool whose name says nothing about what it does can trip
+  DELEG-002; a verb used as a noun ("emails", "post") counts as the verb.
+  Non-English descriptions are not covered (MCPTox is English).
+- **Tools only.** Resource and prompt descriptions, `outputSchema` and
+  annotations are not read; schema `enum`/`default`/`examples` strings are not
+  either.
+- **What the measurement can and cannot say.** The 353 MCPTox clean tools (1
+  flagged) and a first set of 640 real tool descriptions (statically read from
+  the published npm source of 35 top-100 corpus servers; 1 flagged) both
+  informed the design; only a second set of 215 descriptions from 3 more
+  servers was held out until the design was frozen (0 flagged). That benign check is a
+  one-off by hand (the third-party source is not committed), not a CI test.
+  MCP-ITP's optimized implicit poisoning (arXiv 2601.07395) was not measured:
+  no dataset was published.
+- **Budgets.** 64 KiB of text per tool, 8 MiB per scan, 20,000 tools, schemas
+  to 5,000 nodes and 64 levels. The scan budget is shared fairly across
+  servers (the smallest demands are met in full, the rest split evenly), so
+  one server cannot use it up for the others; anything beyond a server's
+  share is not read and the scan's errors name the server. Evidence is redacted with `SECRET_PATTERNS` over the shown
+  excerpt plus 1,000 characters either side, not the whole field (one of those
+  patterns rescans to the end of its input from every start); a secret longer
+  than that margin, starting outside it, could show in part.
+
+---
+
 ## Authentication checks (AUTH-001 / AUTH-002)
 
 ~~**No check for unauthenticated remote MCP servers.**~~ **Resolved v0.12.0.**
@@ -370,6 +439,7 @@ by arXiv 2605.22333 are out of scope for static analysis (require live
 - **Precision on the top-100 npm corpus** (`docs/research/2026-10-top100-npm/`, live tools, mcp-audit 0.21.0): **0 of 661 findings real (0.0%)**, 0 of the 492 at HIGH or above, 41 findings per 100 tools. The earlier "661 of 661 false" count is confirmed. This is a fixed measurement of the 0.21.x code (`labelled_patterns_fingerprint` in `top100-labels.json`): re-measuring it after a pattern change needs a fresh enumeration of the corpus, which runs third-party servers and is never done in CI, so a pattern change refreshes only the committed-fragment replay and `precision` prints STALE. 488 labels (POISON-060) rest on committed evidence: the first matched character in each field was full-width Chinese punctuation. 173 (POISON-050 139, POISON-030 30, POISON-012 2, POISON-020 2) rest on the 2026-10-22 review of the full definitions, which are not committed, plus a 2026-10-25 read of 54 of the 60 connected servers' npm source.
 - **Known limits of the measurement:** MCPTox is never committed (no stated licence) and CI never fetches it, so recall is re-measured by hand (`scripts/bench_poisoning.py recall --check`) before any release that changes `analyzers/poisoning.py` or `build_runtime_server_config`; agent instruction files and POISON-041/042 are not exercised by either corpus; MCPZoo's benign servers were not used (no download found); MCPTox is English only.
 - **Pinned:** `tests/test_bench_poisoning.py` fingerprints the whole source of `analyzers/poisoning.py` and `build_runtime_server_config`, so any change to either forces a re-measure (CI fails until `results.json` is re-taken); it also fails when a pattern fires on a committed top-100 fragment it did not fire on before.
+- **With `--connect`, DELEG-001..003 run beside POISON-* (STORY-0100)** and close most of the unwrapped gap on MCPTox when the poisoned tool sits on its own server: 97.8% of unwrapped implicit-trigger cases for both together, 95.8% for parameter tampering. See "Cross-tool delegation" above; the other numbers here are POISON-* alone.
 
 **The 22-server false-positive benchmark covers config entries, not tool descriptions (2026-04-23; scoped 2026-10-25).** The poisoning analyzer produces zero findings on the configs of 12 official `@modelcontextprotocol/*` servers and 10 popular community servers. That is still true and still a regression test (`tests/test_false_positive_benchmark.py`), but those fixtures hold only `command`, `args` and `env`; none holds a tool description, so the benchmark says nothing about precision on what `--connect` reads. The measured numbers above do. Acceptable non-FP findings on legitimate servers: TRANSPORT-003 (runtime package fetch, expected for all npx/uvx servers), COMM-010 (npx without pinned version). Note: the "base64 encode" false positive from the filesystem server's runtime tool descriptions (fetched via `--connect`) is not covered by static analysis and remains a known limitation of the live connection path.
 
@@ -558,7 +628,7 @@ tests.
 
 **SC-007 (unscoped twins) knows only the shapes it was measured on (STORY-0097).** A twin is derived from a registry entry: the name part of `@scope/server-<x>` or `@scope/mcp-server-<x>`, the `mcp-server-<x>` spelling of `@scope/server-<x>` or `@scope/<x>-mcp-server`, or the same `mcp-server-<x>` name across npm and PyPI. Squats of packages outside the 55-entry registry are invisible to it (OSV's `mcp-server-figma` and `mcp-server-sentry` have no registry entry; SC-008 still catches those two by exact name). Other plausible spellings (`<x>-mcp`, `<x>-mcp-server`, `mcp-<x>`) are deliberately not keys: they are the names community servers for the same product naturally take (an unrelated `notion-mcp-server` has ~2,500 weekly downloads). A lookalike under a different scope (`@evil/server-github`) is left to SC-001..003, which only see it when it is within 3 edits. SC-007 cannot tell a squat from a small community package that took the official server's name: on 2026-10-25, of the 21 twin names published on npm, 6 were small live packages (7 to 158 weekly downloads), one with a real repository (a Google Maps server), and on PyPI 2 of 5 were small community servers; those fire MEDIUM (SC-007 ships MEDIUM for this reason; the twins OSV lists as malicious are CRITICAL under SC-008). Allowlisting the package in a governance policy's `approved_servers` records the decision but does not silence SC-007: mcp-audit has no per-finding suppression. Precedence over SC-001..003 means a twin that is also one or two edits from another registry entry reports MEDIUM (SC-007) rather than CRITICAL or HIGH (SC-001/002); on 2026-10-25 no real registry name was in that position (the one real collision, `uvx mcp-server-github`, was SC-003 MEDIUM before).
 
-**SC-008 (known-malicious packages) covers MCP-named packages only, and is as current as the last release (STORY-0097).** `registry/known-malicious.json` keeps OSV `MAL-*` records for npm and PyPI packages whose name contains `mcp` or that the registry lists (217 records on 2026-10-25). A malicious package configured as an MCP server under a name without `mcp` is not matched (the Paperclip PyPI packages `browser-use-headless`/`paperclip-ai`, MAL-2026-10484/10869, and SANDWORM_MODE's `claud-code`-style names are outside the selection; `scan --check-vulns` still finds them over the network). The file updates with each mcp-audit release; `update-registry` does not refresh it, and OSV itself publishes a record only after someone detects the package. Twin names without `mcp` (`server-github`) are not mirrored: none had an OSV record on 2026-10-25 (npm's own takedown of `server-github` left no OSV record). Version semantics follow OSV except for one documented case: for a registry-listed package, a blanket all-versions range next to an explicit version list is ignored. For a package not in the registry, OSV's blanket range is taken as stated even when the package still serves other releases: of the 64 npm records with a blanket range on 2026-10-25, 4 non-registry packages (`@relyt/claude-context-mcp`, `@relyt/mcp-server-relytone`, `lite-serper-mcp-server`, `mcp-knowledge-base`) still served versions outside the record's list, so pinning one of those still reports CRITICAL. An unpinned launch of a package with only past malicious releases is MEDIUM; that fires on 1 of the 100 most-downloaded npm MCP servers when launched unpinned (`@mastra/mcp-docs-server`, release 1.1.47). **Launch-command parsing limits (all supply-chain checks, SC-001..008):** the launcher is recognised as `npx`/`bunx`/`pnpx`/`yarn dlx`/`uvx`/`pipx`/`python -m` under any path, any case, a Windows `.cmd`/`.exe`/`.bat`/`.ps1` wrapper, or behind `cmd /c`/`cmd /k` (STORY-0097 review); `pnpm dlx`, `npm exec`, `uv run --with`, `powershell -Command` and `bash -c` launches are not recognised. With `npx -p <pkg> <bin>` or `npx --package=<pkg> <bin>`, the name checked is the bin, not the package. **Twin keys come from whatever registry is loaded:** a user-local cache written by `update-registry`, or `--registry PATH`, changes the set of twins (the shipped-registry measurements above don't apply to a custom registry).
+**SC-008 (known-malicious packages) covers MCP-named packages only, and is as current as the last release (STORY-0097).** `registry/known-malicious.json` keeps OSV `MAL-*` records for npm and PyPI packages whose name contains `mcp` or that the registry lists (217 records on 2026-10-25). A malicious package configured as an MCP server under a name without `mcp` is not matched (the Paperclip PyPI packages `browser-use-headless`/`paperclip-ai`, MAL-2026-10484/10869, and SANDWORM_MODE's `claud-code`-style names are outside the selection; `scan --check-vulns` still finds them over the network). The file updates with each mcp-audit release; `update-registry` does not refresh it, and OSV itself publishes a record only after someone detects the package. Twin names without `mcp` (`server-github`) are not mirrored: none had an OSV record on 2026-10-25 (npm's own takedown of `server-github` left no OSV record). Version semantics follow OSV except for one documented case: for a registry-listed package, a blanket all-versions range next to an explicit version list is ignored. For a package not in the registry, OSV's blanket range is taken as stated even when the package still serves other releases: of the 64 npm records with a blanket range on 2026-10-25, 4 non-registry packages (`@relyt/claude-context-mcp`, `@relyt/mcp-server-relytone`, `lite-serper-mcp-server`, `mcp-knowledge-base`) still served versions outside the record's list, so pinning one of those still reports CRITICAL. An unpinned launch of a package with only past malicious releases is MEDIUM; that fires on 1 of the 100 most-downloaded npm MCP servers when launched unpinned (`@mastra/mcp-docs-server`, release 1.1.47). **Launch-command parsing limits (all supply-chain checks, SC-001..008):** the launcher is recognised as `npx`/`bunx`/`pnpx`/`yarn dlx`/`uvx`/`pipx`/`python -m` under any path, any case, a Windows `.cmd`/`.exe`/`.bat`/`.ps1` wrapper, or behind `cmd /c`/`cmd /k` (STORY-0097 review); a whole command line in one `cmd /c` argument is split with the Microsoft C runtime rules (STORY-0103), but `cmd`'s own quote stripping (`/s`, and its rule for a line with more than two quotes) is not modelled, so a line `cmd` itself would fail to run can still be reported; `pnpm dlx`, `npm exec`, `uv run --with`, `powershell -Command` and `bash -c` launches are not recognised. With `npx -p <pkg> <bin>` or `npx --package=<pkg> <bin>`, the name checked is the bin, not the package. **Twin keys come from whatever registry is loaded:** a user-local cache written by `update-registry`, or `--registry PATH`, changes the set of twins (the shipped-registry measurements above don't apply to a custom registry).
 
 **Rug-pull compares config entries, not tool definitions (STORY-0084).** `analyzers/rug_pull.py::compute_hashes` hashes a server's `command`, `args`, environment variable names and raw config entry. A server whose launch line is unchanged but whose tools now say something different (a new release behind an unpinned `npx`, or a remote server that changed) is not detected. Live tool definitions from `--connect` go to the poisoning analyzer only. *Partly closed 2026-10-13 (STORY-0086):* `lock --connect` / `lock --verify --connect` record and compare tool-definition digests in `mcp-lock.json` (LOCK-006..009). Rug-pull itself still hashes config entries only.
 
