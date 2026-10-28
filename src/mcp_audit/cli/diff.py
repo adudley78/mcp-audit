@@ -138,7 +138,11 @@ def diff(  # noqa: PLR0912
         raise typer.Exit(2) from exc
 
     # ── Compare ───────────────────────────────────────────────────────────
-    all_changes = compare(base_servers, head_servers)
+    try:
+        all_changes = compare(base_servers, head_servers)
+    except ValueError as exc:
+        _err.print(f"[red]Error:[/red] could not compare the two inputs: {exc}")
+        raise typer.Exit(2) from exc
     changes = _filter_by_threshold(all_changes, threshold)
 
     # ── Render ────────────────────────────────────────────────────────────
