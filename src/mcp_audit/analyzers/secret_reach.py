@@ -35,13 +35,17 @@ is readable are consulted.
   reads need no approval "within the working directory and additional
   directories".
 
-So a path is *covered* when a ``Read`` deny rule matches it (or the file it
-resolves to), when ``blockReadsOutsideWorkingDirectories`` is ``true`` in any
-file and the path is outside the working directory, or when the sandbox is
-enabled and ``sandbox.filesystem.denyRead`` / a ``sandbox.credentials.files``
-``deny`` entry covers it (the Read tool still prompts for a path outside the
-working directory).  Rules are merged across the files, as Claude Code merges
-deny rules.
+So a path is *covered* when a ``Read`` deny rule matches it (for a file
+symlink, the file it resolves to), when ``blockReadsOutsideWorkingDirectories``
+is ``true`` in any file and the path is outside the working directory, or when
+the sandbox is enabled (by the highest-precedence file), runs on this OS, and a
+``sandbox.filesystem.denyRead`` / ``sandbox.credentials.files`` ``deny`` entry
+covers it without a narrower ``allowRead`` re-opening it.  Sandbox entries stop
+sandboxed Bash commands only, not the Read tool; they are counted because the
+Read tool asks before reading outside the working directory in the default
+modes, and not counted under ``bypassPermissions`` (see :meth:`Protection.
+sandbox_covers` and GAPS.md for the cases this misses).  See
+:func:`build_protection` for how files combine.
 
 Findings:
 
@@ -64,7 +68,7 @@ import os
 import re
 import stat
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from fnmatch import fnmatchcase
 from pathlib import Path, PurePosixPath
@@ -383,7 +387,11 @@ def _read_rule(
     if rule.specifier is None:
         # A bare tool name denies every use of the tool.
         return _ReadRule(PurePosixPath("/"), (), False, index, everything=True)
-    spec = rule.specifier.strip()
+    spec = rule.specifier
+    if spec != spec.strip():
+        # The docs never say Claude Code trims the specifier; a padded rule is
+        # not counted as protection.
+        return None
     if not spec or spec == "!":
         return None
     negated = spec.startswith("!")
@@ -453,6 +461,91 @@ def _sandbox_path(
     return _posix(base) / (text[2:] if text.startswith("./") else text)
 
 
+@dataclass(frozen=True)
+class _SandboxEntry:
+    """A sandbox path entry as absolute segments.
+
+    ``depth`` (segments before the first wildcard) is how narrow the entry is
+    for the docs' overlap rule.
+    """
+
+    parts: tuple[str, ...]
+    wildcard: bool
+
+    @property
+    def depth(self) -> int:
+        """Number of leading segments without a wildcard."""
+        for i, part in enumerate(self.parts):
+            if any(ch in part for ch in "*?["):
+                return i
+        return len(self.parts)
+
+    def matches(self, target: PurePosixPath) -> bool:
+        """The entry is *target* or a directory above it (or its glob matches)."""
+        if self.wildcard:
+            return _covers(PurePosixPath("/"), list(self.parts), target)
+        return target.parts[1 : len(self.parts) + 1] == self.parts
+
+
+def _sandbox_entry(
+    entry: object, source: SettingsSource, home: Path
+) -> _SandboxEntry | None:
+    if not isinstance(entry, str):
+        return None
+    resolved = _sandbox_path(entry, source, home)
+    if resolved is None:
+        return None
+    text = resolved.as_posix()
+    parts = _segments(text)
+    if parts is None:
+        return None
+    return _SandboxEntry(tuple(parts), any(ch in text for ch in "*?["))
+
+
+#: Settings precedence for a value taken from the highest source that sets it
+#: (settings doc): managed, then local, project, user.  Command-line values are
+#: not visible to a scan.
+_PRECEDENCE: dict[str, int] = {"managed": 0, "local": 1, "project": 2, "user": 3}
+
+
+def _highest(
+    sources: list[SettingsSource],
+    getter: Callable[[dict], object],
+    scopes: tuple[str, ...] | None = None,
+) -> object:
+    """The value from the highest-precedence source that sets it, else ``None``.
+
+    Among managed files a later drop-in overrides earlier ones and the main
+    file (managed-settings doc: "later files override earlier ones").
+    """
+    ranked = sorted(
+        enumerate(sources),
+        key=lambda item: (_PRECEDENCE.get(item[1].scope, 9), -item[0]),
+    )
+    for _index, source in ranked:
+        if scopes is not None and source.scope not in scopes:
+            continue
+        value = getter(source.data)
+        if value is not None:
+            return value
+    return None
+
+
+def _sandbox_enabled_value(data: dict) -> bool | None:
+    value = _dict(data.get("sandbox")).get("enabled")
+    return value if isinstance(value, bool) else None
+
+
+def _sandbox_disabled_value(data: dict) -> bool | None:
+    value = _dict(_dict(data.get("sandbox")).get("filesystem")).get("disabled")
+    return value if isinstance(value, bool) else None
+
+
+def _default_mode(data: dict) -> str | None:
+    mode = _dict(data.get("permissions")).get("defaultMode")
+    return mode if isinstance(mode, str) else None
+
+
 @dataclass
 class Protection:
     """What the loaded settings files do to reads, merged across files."""
@@ -461,9 +554,9 @@ class Protection:
     block_outside_cwd: bool = False
     sandbox_enabled: bool = False
     sandbox_fs_disabled: bool = False
-    sandbox_deny: list[tuple[PurePosixPath, tuple[str, ...]]] = field(
-        default_factory=list
-    )
+    bypass_mode: bool = False
+    sandbox_deny: list[_SandboxEntry] = field(default_factory=list)
+    sandbox_allow: list[_SandboxEntry] = field(default_factory=list)
 
     def read_rule_covers(self, target: PurePosixPath) -> bool:
         """A ``Read`` deny rule covers *target* and no ``!`` rule reopens it.
@@ -490,16 +583,36 @@ class Protection:
         return False
 
     def sandbox_covers(self, target: PurePosixPath) -> bool:
-        """The sandbox is on and a ``denyRead``/credentials entry covers *target*."""
-        if not self.sandbox_enabled or self.sandbox_fs_disabled:
+        """The sandbox is on and stops sandboxed Bash commands reading *target*.
+
+        Sandboxing doc: the sandbox runs on macOS, Linux and WSL2 only; "When
+        read rules overlap, the rule with the narrower path applies" (a
+        narrower ``allowRead`` re-opens part of a ``denyRead`` region; an exact
+        or wildcard ``denyRead`` holds inside a wider ``allowRead``).  It covers
+        Bash only ("A ``denyRead`` entry doesn't stop the Read tool"), so under
+        ``bypassPermissions``, where the Read tool needs no approval anywhere,
+        sandbox entries don't count.
+        """
+        if (
+            _ON_WINDOWS
+            or not self.sandbox_enabled
+            or self.sandbox_fs_disabled
+            or self.bypass_mode
+        ):
             return False
-        for anchor, pattern in self.sandbox_deny:
-            if not pattern:
-                if target == anchor or anchor in target.parents:
-                    return True
-            elif _covers(anchor, list(pattern), target):
-                return True
-        return False
+        allows = [a.depth for a in self.sandbox_allow if a.matches(target)]
+
+        def reopened(deny: _SandboxEntry) -> bool:
+            # A wildcard deny "holds inside a wider allow"; an allow of the
+            # same exact path is undocumented and not counted as protection.
+            return any(
+                depth > deny.depth or (depth == deny.depth and not deny.wildcard)
+                for depth in allows
+            )
+
+        return any(
+            deny.matches(target) and not reopened(deny) for deny in self.sandbox_deny
+        )
 
 
 def _list(value: object) -> list:
@@ -513,40 +626,71 @@ def _dict(value: object) -> dict:
 def build_protection(
     sources: Iterable[SettingsSource], cwd: Path, home: Path
 ) -> Protection:
-    """Merge the read-relevant keys of *sources* into one :class:`Protection`."""
+    """Merge the read-relevant keys of *sources* into one :class:`Protection`.
+
+    - ``Read`` deny rules merge across files, except that a managed
+      ``allowManagedPermissionRulesOnly: true`` makes Claude Code ignore every
+      non-managed file's rules (settings reference).
+    - ``blockReadsOutsideWorkingDirectories``: "A ``true`` in any file applies".
+    - ``sandbox.enabled`` and ``sandbox.filesystem.disabled``: the value of the
+      highest-precedence file that sets them (managed > local > project > user;
+      the ``/sandbox`` panel writes ``settings.local.json``).
+    - ``denyRead`` / credentials ``deny`` and ``allowRead`` merge across files;
+      with a managed ``allowManagedReadPathsOnly: true`` only managed
+      ``allowRead`` entries count.
+    - ``permissions.defaultMode`` ``bypassPermissions`` from managed or user
+      settings (it doesn't take effect from project or local settings) makes
+      sandbox entries not count (:meth:`Protection.sandbox_covers`).
+    """
+    sources = list(sources)
     protection = Protection()
+    managed = [s for s in sources if s.scope == "managed"]
+    # Documented as a top-level key; also honoured inside ``permissions`` so a
+    # misplaced lock never makes a non-managed rule count as protection.
+    managed_rules_only = any(
+        s.data.get("allowManagedPermissionRulesOnly") is True
+        or _dict(s.data.get("permissions")).get("allowManagedPermissionRulesOnly")
+        is True
+        for s in managed
+    )
+    managed_read_paths_only = any(
+        _dict(_dict(s.data.get("sandbox")).get("filesystem")).get(
+            "allowManagedReadPathsOnly"
+        )
+        is True
+        for s in managed
+    )
     for index, source in enumerate(sources):
         permissions = _dict(source.data.get("permissions"))
-        for entry in _list(permissions.get("deny"))[:_MAX_RULES_PER_FILE]:
-            if isinstance(entry, str):
-                rule = _read_rule(entry, source, index, cwd, home)
-                if rule is not None:
-                    protection.read_rules.append(rule)
+        if not managed_rules_only or source.scope == "managed":
+            for entry in _list(permissions.get("deny"))[:_MAX_RULES_PER_FILE]:
+                if isinstance(entry, str):
+                    rule = _read_rule(entry, source, index, cwd, home)
+                    if rule is not None:
+                        protection.read_rules.append(rule)
         if permissions.get("blockReadsOutsideWorkingDirectories") is True:
             protection.block_outside_cwd = True
         sandbox = _dict(source.data.get("sandbox"))
-        if sandbox.get("enabled") is True:
-            protection.sandbox_enabled = True
         filesystem = _dict(sandbox.get("filesystem"))
-        if filesystem.get("disabled") is True:
-            protection.sandbox_fs_disabled = True
-        entries: list[str] = [
-            e for e in _list(filesystem.get("denyRead")) if isinstance(e, str)
-        ]
+        denies: list[object] = list(_list(filesystem.get("denyRead")))
         for item in _list(_dict(sandbox.get("credentials")).get("files")):
             item = _dict(item)
-            if item.get("mode") == "deny" and isinstance(item.get("path"), str):
-                entries.append(item["path"])
-        for entry in entries[:_MAX_RULES_PER_FILE]:
-            resolved = _sandbox_path(entry, source, home)
-            if resolved is None:
-                continue
-            if any(ch in resolved.as_posix() for ch in "*?["):
-                parts = _segments(resolved.as_posix())
-                if parts is not None:
-                    protection.sandbox_deny.append((PurePosixPath("/"), tuple(parts)))
-            else:
-                protection.sandbox_deny.append((resolved, ()))
+            if item.get("mode") == "deny":
+                denies.append(item.get("path"))
+        for entry in denies[:_MAX_RULES_PER_FILE]:
+            parsed = _sandbox_entry(entry, source, home)
+            if parsed is not None:
+                protection.sandbox_deny.append(parsed)
+        if not managed_read_paths_only or source.scope == "managed":
+            for entry in _list(filesystem.get("allowRead"))[:_MAX_RULES_PER_FILE]:
+                parsed = _sandbox_entry(entry, source, home)
+                if parsed is not None:
+                    protection.sandbox_allow.append(parsed)
+    protection.sandbox_enabled = _highest(sources, _sandbox_enabled_value) is True
+    protection.sandbox_fs_disabled = _highest(sources, _sandbox_disabled_value) is True
+    protection.bypass_mode = (
+        _highest(sources, _default_mode, ("managed", "user")) == "bypassPermissions"
+    )
     return protection
 
 
@@ -604,10 +748,18 @@ def _uncovered_home_stores(
         targets = [_posix(path)]
         real = _resolved(path)
         if real is not None and real != targets[0]:
-            targets.append(real)
+            try:
+                final_link = path.is_symlink()
+            except OSError:
+                final_link = True
+            # A file symlink (GNU Stow, chezmoi): a rule on the link name alone
+            # leaves the target readable by its own path, so only the target
+            # counts.  A symlinked directory on the way: either path counts
+            # (permissions doc: rules "written through a symlinked directory").
+            targets = [real] if final_link else [targets[0], real]
         if any(protection.read_rule_covers(t) for t in targets):
             continue
-        in_working_dir = _inside(targets[0], cwd_posix)
+        in_working_dir = any(_inside(t, cwd_posix) for t in targets)
         if protection.block_outside_cwd and not in_working_dir:
             continue
         if any(protection.sandbox_covers(t) for t in targets):
@@ -700,7 +852,7 @@ def _reach_001(
         ' set "permissions": {"blockReadsOutsideWorkingDirectories": true}. With'
         " the sandbox on, also list them in sandbox.credentials.files with"
         f' "mode": "deny". See {_PERMISSIONS_DOC} and {_SANDBOX_DOC}.',
-        user_settings,
+        hits[0][1],
         "CWE-522",
     )
 

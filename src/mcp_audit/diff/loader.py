@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from mcp_audit.config_parser import parse_config
+from mcp_audit.config_parser import config_dialect, parse_config
 from mcp_audit.discovery import DiscoveredConfig, discover_configs
 from mcp_audit.models import ScanResult, ServerConfig
 
@@ -22,7 +22,18 @@ _KNOWN_GIT_RELATIVE_PATHS: list[tuple[str, str]] = [
     ("claude_desktop_config.json", "mcpServers"),
     (".claude.json", "mcpServers"),
     ("mcp.json", "mcpServers"),
+    # Codex and Gemini CLI project files (STORY-0110).  The parser reads each
+    # in its own dialect (``DiscoveredConfig.dialect``), since the temporary
+    # copy's name no longer says which file it was.
+    (".codex/config.toml", "mcp_servers"),
+    (".gemini/settings.json", "mcpServers"),
 ]
+
+#: Parser dialect for the known paths above whose format is not plain JSON.
+_GIT_PATH_DIALECT: dict[str, str] = {
+    ".codex/config.toml": "codex",
+    ".gemini/settings.json": "gemini",
+}
 
 
 def _load_from_directory(path: Path) -> list[ServerConfig]:
@@ -39,8 +50,13 @@ def _load_from_json_file(path: Path) -> list[ServerConfig]:
     """Load ServerConfigs from a JSON file.
 
     Accepts either a ``mcp-audit scan --output-file`` ScanResult JSON or a
-    raw MCP config JSON (``mcpServers`` / ``servers`` root keys).
+    raw MCP config JSON (``mcpServers`` / ``servers`` root keys).  A ``.toml``
+    file is read as Codex's ``config.toml`` and ``.gemini/settings.json`` as
+    Gemini CLI's settings (STORY-0110).
     """
+    probe = DiscoveredConfig(client_name="diff-input", root_key="mcpServers", path=path)
+    if config_dialect(probe) is not None:
+        return parse_config(probe)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -129,6 +145,7 @@ def _load_from_git_sha(sha: str) -> list[ServerConfig]:
                 client_name=f"git:{sha}",
                 root_key=root_key,
                 path=tmp_path,
+                dialect=_GIT_PATH_DIALECT.get(rel_path),
             )
             with contextlib.suppress(ValueError):
                 servers.extend(parse_config(discovered))

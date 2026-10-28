@@ -291,4 +291,8 @@ The following are intentionally not handled by `fix` in v0.11.0:
 - Rug-pull state resets
 - Governance policy auto-patching (use `mcp-audit killchain --patch yaml`)
 - Interactive mode / per-finding prompts
+- Codex's `config.toml` (TOML) and Gemini CLI `settings.json` files with
+  comments: `fix` writes JSON only and refuses them, so you edit them by hand
+  (`check` does not offer `fix` for a TOML file). A Gemini CLI `httpUrl` is
+  upgraded by the TRANSPORT-001 fix like `url`.
 - `--revert` flag (use the `.bak` file)

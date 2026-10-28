@@ -38,20 +38,39 @@ working directory's `.claude/settings.json` and `.claude/settings.local.json`)
 has:
 
 - a `permissions.deny` `Read(...)` rule that matches the file or a directory
-  above it (or the file a symlink points to). Read deny rules "apply to Claude's
+  above it. When the store itself is a symlink (GNU Stow, chezmoi), the rule
+  must match the file it points to: a rule on the link name alone leaves the
+  target readable by its own path. A rule written with spaces inside the
+  parentheses is not counted. Read deny rules "apply to Claude's
   built-in file tools, to file commands Claude Code recognizes in Bash, such as
   `cat`, `head`, `tail`". Pattern anchoring follows the permissions doc:
   `//path` absolute, `~/path` home, `/path` relative to the settings file (user
   settings: `~/.claude`; project and local settings: the working directory),
   `path` relative to the working directory, and a bare name matches at any
-  depth below it; a `!` carve-out in the same file reopens a relative rule;
+  depth below it; a `!` carve-out in the same file reopens a relative rule.
+  When managed settings set `allowManagedPermissionRulesOnly: true`, only
+  managed rules count, as in Claude Code;
 - `permissions.blockReadsOutsideWorkingDirectories: true` (home-directory stores
   only, and only when the working directory is not the home directory or above
   it); or
-- `sandbox.enabled: true` with a `sandbox.filesystem.denyRead` path or a
-  `sandbox.credentials.files` entry with `"mode": "deny"` that covers it (not
-  when `sandbox.filesystem.disabled` is true). The Read tool still asks before
-  reading outside the working directory, so this counts.
+- the sandbox, on macOS, Linux or WSL2 (never on native Windows), when the
+  highest-precedence settings file that sets `sandbox.enabled` sets it to
+  `true` (managed, then `.claude/settings.local.json`, where the `/sandbox`
+  panel writes it, then the project's `.claude/settings.json`, then your user
+  settings), `sandbox.filesystem.disabled` is not true, and a
+  `sandbox.filesystem.denyRead` path or a `sandbox.credentials.files` entry
+  with `"mode": "deny"` covers the file without a narrower
+  `sandbox.filesystem.allowRead` entry re-opening it (the sandboxing doc's
+  overlap rule; with a managed `allowManagedReadPathsOnly`, only managed
+  `allowRead` entries count).
+
+  **The sandbox covers Bash commands only.** "A `denyRead` entry doesn't stop
+  the Read tool." mcp-audit still counts it, because the Read tool asks before
+  reading outside the working directory in the default permission modes, but
+  not when `permissions.defaultMode` is `bypassPermissions` in your user or
+  managed settings (there the Read tool reads without asking). A mode chosen on
+  the command line (`--dangerously-skip-permissions`) and the sandbox's
+  unsandboxed-retry path are not visible to a scan; see GAPS.md.
 
 ## Findings
 
@@ -68,6 +87,14 @@ default credentials, `~/.git-credentials`, `~/.netrc` (and `_netrc` on
 Windows), `~/.pypirc`, Claude Code's `.credentials.json`; and, labelled "may
 hold", `~/.npmrc`, `~/.docker/config.json`, `~/.kube/config`,
 `~/.config/gh/hosts.yml`.
+
+## Exit code
+
+On a developer machine with Claude Code and unprotected credential files, a
+plain `mcp-audit scan` now exits 1 with one LOW finding (REACH-001): `scan`
+exits 1 on any finding, INFO included. Use `--severity-threshold medium` to
+ignore it. `check`, the GitHub Action and the pre-commit hook are unaffected:
+they gate on grade or on HIGH and above.
 
 ## Fix
 
@@ -95,8 +122,12 @@ Anthropic's sandboxing guide recommends. For a project, commit
 - Only the settings keys above are read from settings files (1 MiB per file,
   256 drop-ins, 8 MiB per scan); a file over the limit is reported in the
   scan's errors and its rules are not counted.
-- Findings name files as `~/...` or by file name, never by absolute path.
-  REACH findings are never turned into advisories (`mcp-audit advise`).
+- Finding titles, descriptions, evidence and remediation name files as `~/...`
+  or by file name. The `finding_path` field holds the store's absolute path,
+  like every other finding: terminal and `--format json` output show it as is,
+  and the outputs meant to leave the machine (SARIF, Nucleus, snapshots)
+  rewrite it without your home directory. REACH findings are never turned
+  into advisories (`mcp-audit advise`).
 - Runs only in a default scan, and only when a Claude Code config directory
   exists; an explicit path or `demo/configs/` produces none.
 

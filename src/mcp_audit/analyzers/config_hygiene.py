@@ -2369,6 +2369,64 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             findings.append(finding)
         return findings
 
+    def _codex_header_helpers(
+        self, data: dict, path: Path, client: str, trust_gate: str
+    ) -> list[Finding]:
+        """TRUST-008 for ``[mcp_servers.<name>] http_headers_helper`` (STORY-0110).
+
+        Codex runs this "local-only shell command that prints a JSON object of
+        dynamic HTTP headers" (``codex-rs/config/src/mcp_types.rs``) whenever it
+        connects to that ``url`` server, and the key is not on Codex's
+        project-local deny list, so a trusted repository can make Codex run a
+        command of its choosing.  Same severity rule as ``notify``.
+        """
+        servers = data.get("mcp_servers")
+        if not isinstance(servers, dict):
+            return []
+        findings: list[Finding] = []
+        for name, entry in servers.items():
+            if not isinstance(entry, dict):
+                continue
+            helper = entry.get("http_headers_helper")
+            if not isinstance(helper, str) or not helper.strip():
+                continue
+            net = _network_primitive([helper])
+            from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+                redact_command_text,
+            )
+
+            evidence = (
+                f"{path}: mcp_servers.{name}.http_headers_helper ="
+                f" {_quote_commands([redact_command_text(helper)])}"
+            )
+            if net:
+                evidence += f" | network primitive matched: {net!r}"
+            findings.append(
+                self._trust008(
+                    severity=Severity.CRITICAL if net else Severity.HIGH,
+                    client=client,
+                    path=path,
+                    server=str(name),
+                    title="Repository sets a command Codex runs to build MCP headers",
+                    description=(
+                        f"'{_short_path(path)}' gives MCP server '{name}' an"
+                        " http_headers_helper: a shell command Codex runs on your"
+                        " machine each time it connects to that server, to print"
+                        " the HTTP headers (usually credentials) it sends. Codex"
+                        " allows it in a project file."
+                        + trust_gate
+                        + (" The command reaches the network." if net else "")
+                    ),
+                    evidence=evidence,
+                    remediation=(
+                        "Read the command before trusting the project. If the"
+                        " server needs a token, set the helper in your own"
+                        " ~/.codex/config.toml or use bearer_token_env_var."
+                    ),
+                )
+            )
+        return findings
+
     def _check_codex_config(self, text: str, path: Path, client: str) -> list[Finding]:
         """``.codex/config.toml``: notify, approval_policy, sandbox_mode, hooks."""
         try:
@@ -2470,6 +2528,8 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     ),
                 )
             )
+
+        findings.extend(self._codex_header_helpers(data, path, client, trust_gate))
 
         hooks = data.get("hooks")
         commands = self._extract_hook_commands(hooks) if isinstance(hooks, dict) else []

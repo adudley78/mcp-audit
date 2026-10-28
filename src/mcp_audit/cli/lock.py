@@ -78,8 +78,9 @@ def _discover_lock_servers(
         # so they never belong in a committed lock. Inline subagent servers
         # (STORY-0094) stay out too, so locks written before they were
         # discovered keep verifying (scan's auto-verify skips them as well).
+        # MCP gateway upstreams (STORY-0111) stay out for the same reason.
         for config in _cli.discover_configs(
-            include_plugins=False, include_agents=False
+            include_plugins=False, include_agents=False, include_gateways=False
         ):
             try:
                 servers.extend(_cli.parse_config(config))

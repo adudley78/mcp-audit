@@ -111,6 +111,14 @@ def run_fix(
     """
     result = FixResult(config_path=config_path)
 
+    if config_path.suffix.lower() == ".toml":
+        # Codex's config.toml (STORY-0110): fix writes JSON only, and
+        # rewriting TOML would drop the user's comments and layout.
+        raise ValueError(
+            f"{config_path} is a TOML file (Codex). mcp-audit fix edits JSON MCP"
+            " configs only; apply the remediation in this file by hand."
+        )
+
     original_text = config_path.read_text(encoding="utf-8")
 
     try:

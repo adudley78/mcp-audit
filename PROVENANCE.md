@@ -1421,3 +1421,71 @@ Confirmed from the vendor's own documentation on 2026-10-28.
   STORY-0097's `_redact_userinfo` and `SECRET_PATTERNS`. Queue item Q-038.
 - All changes are original implementations; no code was copied.
 
+
+## Gateway upstream configs (gateways.py — STORY-0111)
+
+No new detection pattern: this adds a discovery surface. Every location and key
+was confirmed from the gateway's own source or documentation on 2026-10-28:
+
+- **mcptoon** — source of release 0.8.32 from PyPI (`mcptoon-0.8.32.tar.gz`,
+  https://pypi.org/project/mcptoon/), `src/mcptoon/config.py`: `load_config()`
+  reads `config.toml` and `config.json` under the config root (`MCPTOON_HOME`,
+  else `$XDG_CONFIG_HOME/mcptoon` when set and present, else `~/.mcptoon`), then
+  `./.mcptoon.toml` and `./.mcptoon.json`, then `MCPTOON_SERVERS`; root key
+  `servers`; `_is_self_entry()` drops an entry named `mcptoon` or whose argv has
+  `mcptoon` and `serve` tokens. `src/mcptoon/client.py::_make_client()`:
+  `transport` `stdio` (argv = `command` + `args`; a string `command` is one
+  token) or `http` (`url`, `headers`). Project repository:
+  https://github.com/activeing123/mcptoon (registry submission #171).
+- **1MCP** — source `src/constants/paths.ts` (https://github.com/1mcp-app/agent:
+  `getGlobalConfigDir()` = `os.homedir()` + `/.config/1mcp` on darwin/linux,
+  else `/AppData/Roaming/1mcp`) and https://docs.1mcp.app/reference/mcp-servers ("Default Locations":
+  `~/.config/1mcp/mcp.json` on macOS and Linux, `%APPDATA%\1mcp\mcp.json` on
+  Windows; `ONE_MCP_CONFIG_DIR`; `serverDefaults`, `mcpServers`, `mcpTemplates`
+  "the template entry is authoritative"; `env` object or `["KEY=value", "PATH"]`
+  array; `type` `stdio`/`http`/`sse`/`streamableHttp`) and
+  https://docs.1mcp.app/guide/essentials/configuration (`--config` /
+  `ONE_MCP_CONFIG`, `mcp.json` holds `mcpServers`, `config.toml` does not).
+- **MCPHub.nvim / mcp-hub** — https://github.com/ravitemer/mcphub.nvim
+  `doc/configuration.md` (default `config = "~/.config/mcphub/servers.json"`;
+  `workspace.enabled = true`, `look_for = { ".mcphub/servers.json", … }`) and
+  `doc/mcp/servers_json.md` (`servers` and `mcpServers` both supported, VS Code
+  format taking precedence; `${cmd: …}` placeholders executed by the hub).
+  `mcp-hub` itself (https://github.com/ravitemer/mcp-hub README) requires
+  `--config` and has no default path.
+
+Gateways checked and not implemented, with the reason, are listed in GAPS.md
+("MCP gateway upstreams").
+## Codex and Gemini CLI MCP server discovery (config_parser.py, discovery.py — STORY-0110)
+
+No new detection pattern: the existing per-server analyzers run on servers read
+from two more clients' files. Paths, keys and parsing rules were confirmed on
+2026-10-28 from each vendor's own source and docs (read, not copied; no code or
+fixture was taken):
+
+- Codex, openai/codex `main`:
+  [`codex-rs/config/src/mcp_types.rs`](https://github.com/openai/codex/blob/main/codex-rs/config/src/mcp_types.rs)
+  (`RawMcpServerConfig`: `command`/`args`/`env`/`env_vars`/`cwd` for stdio,
+  `url`/`bearer_token_env_var`/`http_headers`/`env_http_headers` for streamable
+  HTTP, `command` and `url` mutually exclusive, retired `bearer_token`),
+  [`codex-rs/config/src/loader/mod.rs`](https://github.com/openai/codex/blob/main/codex-rs/config/src/loader/mod.rs)
+  (layer order, project `.codex/config.toml` "loaded but disabled when
+  untrusted", `.codex` equal to `CODEX_HOME` skipped, `PROJECT_LOCAL_CONFIG_DENYLIST`
+  without `mcp_servers`) and
+  [`codex-rs/utils/home-dir/src/lib.rs`](https://github.com/openai/codex/blob/main/codex-rs/utils/home-dir/src/lib.rs)
+  (`CODEX_HOME`, default `~/.codex`).
+- Gemini CLI, google-gemini/gemini-cli `main`:
+  [`docs/tools/mcp-server.md`](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md)
+  (`mcpServers` keys),
+  [`docs/reference/configuration.md`](https://github.com/google-gemini/gemini-cli/blob/main/docs/reference/configuration.md)
+  (user and project settings locations),
+  [`packages/core/src/tools/mcp-client.ts`](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/tools/mcp-client.ts)
+  (transport order: `httpUrl`, then `url` + `type`, then `url`, then `command`),
+  [`packages/core/src/config/config.ts`](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/config/config.ts)
+  (`MCPServerConfig`, incl. `type` and `authProviderType`) and
+  [`packages/cli/src/config/settings.ts`](https://github.com/google-gemini/gemini-cli/blob/main/packages/cli/src/config/settings.ts)
+  (`JSON.parse(stripJsonComments(content))`).
+
+The developer-docs pages (developers.openai.com/codex/mcp, geminicli.com) could
+not be fetched from the build environment; the source files above are the
+primary record used.

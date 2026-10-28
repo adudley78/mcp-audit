@@ -673,3 +673,183 @@ def test_check_hints_exist() -> None:
     from mcp_audit.output.check import _HINTS
 
     assert {"REACH-001", "REACH-002", "REACH-003"} <= set(_HINTS)
+
+
+# ── Review fixes: precedence, platform, managed locks, allowRead ──────────────
+
+
+def _ssh_store(tmp_path: Path) -> tuple[Path, Path, Path]:
+    home, cwd, config = _layout(tmp_path)
+    _write(home / ".ssh" / "id_rsa")
+    return home, cwd, config
+
+
+_SB_SSH = {"enabled": True, "filesystem": {"denyRead": ["~/.ssh"]}}
+
+
+@pytest.mark.parametrize(
+    ("user", "project", "local", "covered"),
+    [
+        (_SB_SSH, None, {"sandbox": {"enabled": False}}, False),  # /sandbox off
+        (
+            {"filesystem": {"denyRead": ["~/.ssh"]}},
+            None,
+            {"sandbox": {"enabled": True}},
+            True,
+        ),
+        (_SB_SSH, {"sandbox": {"enabled": False}}, None, False),
+        (
+            _SB_SSH,
+            {"sandbox": {"enabled": False}},
+            {"sandbox": {"enabled": True}},
+            True,
+        ),
+        (_SB_SSH, None, {"sandbox": {"filesystem": {"disabled": True}}}, False),
+    ],
+)
+def test_sandbox_enabled_follows_precedence(
+    tmp_path: Path, user: dict, project: dict | None, local: dict | None, covered: bool
+) -> None:
+    """Settings doc: the highest-precedence file wins (local > project > user)."""
+    home, cwd, config = _ssh_store(tmp_path)
+    _settings(config / "settings.json", {"sandbox": user})
+    if project is not None:
+        _settings(cwd / ".claude" / "settings.json", project)
+    if local is not None:
+        _settings(cwd / ".claude" / "settings.local.json", local)
+    assert ("REACH-001" not in _ids(_run(tmp_path, home, cwd, config))) is covered
+
+
+def test_managed_sandbox_value_wins(tmp_path: Path) -> None:
+    home, cwd, config = _ssh_store(tmp_path)
+    managed = tmp_path / "managed"
+    _settings(managed / "managed-settings.json", {"sandbox": {"enabled": False}})
+    _settings(cwd / ".claude" / "settings.local.json", {"sandbox": _SB_SSH})
+    assert "REACH-001" in _ids(_run(tmp_path, home, cwd, config, managed=managed))
+    _settings(
+        managed / "managed-settings.d" / "50-on.json", {"sandbox": {"enabled": True}}
+    )
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config, managed=managed))
+
+
+def test_sandbox_never_covers_on_native_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Sandboxing doc: the sandbox runs on macOS, Linux and WSL2."""
+    home, cwd, config = _ssh_store(tmp_path)
+    _settings(config / "settings.json", {"sandbox": _SB_SSH})
+    monkeypatch.setattr(sr, "_ON_WINDOWS", True)
+    assert "REACH-001" in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_bypass_mode_voids_sandbox_coverage(tmp_path: Path) -> None:
+    """denyRead doesn't stop the Read tool, which needs no approval in bypass mode."""
+    home, cwd, config = _ssh_store(tmp_path)
+    _settings(
+        config / "settings.json",
+        {"sandbox": _SB_SSH, "permissions": {"defaultMode": "bypassPermissions"}},
+    )
+    assert "REACH-001" in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_project_bypass_mode_is_ignored(tmp_path: Path) -> None:
+    """Settings reference: bypassPermissions doesn't take effect from project files."""
+    home, cwd, config = _ssh_store(tmp_path)
+    _settings(config / "settings.json", {"sandbox": _SB_SSH})
+    _settings(
+        cwd / ".claude" / "settings.json",
+        {"permissions": {"defaultMode": "bypassPermissions"}},
+    )
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_allow_managed_permission_rules_only_drops_user_rules(
+    tmp_path: Path, nested: bool
+) -> None:
+    home, cwd, config = _ssh_store(tmp_path)
+    managed = tmp_path / "managed"
+    lock = {"allowManagedPermissionRulesOnly": True}
+    _settings(
+        managed / "managed-settings.json", {"permissions": lock} if nested else lock
+    )
+    _settings(config / "settings.json", {"permissions": {"deny": ["Read(~/.ssh/**)"]}})
+    assert "REACH-001" in _ids(_run(tmp_path, home, cwd, config, managed=managed))
+    _settings(
+        managed / "managed-settings.d" / "deny.json",
+        {"permissions": {"deny": ["Read(~/.ssh/**)"]}},
+    )
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config, managed=managed))
+
+
+@pytest.mark.parametrize(
+    ("filesystem", "covered"),
+    [
+        # The sandboxing doc's overlap table.
+        ({"denyRead": ["~/"], "allowRead": ["~/.ssh"]}, False),
+        ({"denyRead": ["~/"], "allowRead": ["~/projects"]}, True),
+        ({"allowRead": ["~/"], "denyRead": ["~/.ssh/id_rsa"]}, True),
+        ({"allowRead": ["~/"], "denyRead": ["~/**/id_rsa"]}, True),
+        ({"denyRead": ["~/.ssh"], "allowRead": ["~/.ssh/id_rsa"]}, False),
+        ({"denyRead": ["~/.ssh"], "allowRead": ["~/.ssh"]}, False),  # tie: not counted
+    ],
+)
+def test_allow_read_overlap(tmp_path: Path, filesystem: dict, covered: bool) -> None:
+    home, cwd, config = _ssh_store(tmp_path)
+    _settings(
+        config / "settings.json",
+        {"sandbox": {"enabled": True, "filesystem": filesystem}},
+    )
+    assert ("REACH-001" not in _ids(_run(tmp_path, home, cwd, config))) is covered
+
+
+def test_allow_managed_read_paths_only_ignores_user_allow(tmp_path: Path) -> None:
+    home, cwd, config = _ssh_store(tmp_path)
+    managed = tmp_path / "managed"
+    _settings(
+        managed / "managed-settings.json",
+        {
+            "sandbox": {
+                "enabled": True,
+                "filesystem": {"denyRead": ["~/"], "allowManagedReadPathsOnly": True},
+            }
+        },
+    )
+    _settings(
+        config / "settings.json", {"sandbox": {"filesystem": {"allowRead": ["~/.ssh"]}}}
+    )
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config, managed=managed))
+
+
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="symlinks need privileges")
+def test_file_symlink_needs_its_target_covered(tmp_path: Path) -> None:
+    """A rule on the link name leaves the target readable by its own path."""
+    home, cwd, config = _layout(tmp_path)
+    vault = _write(tmp_path / "vault" / "key")
+    (home / ".ssh").mkdir()
+    (home / ".ssh" / "id_ecdsa").symlink_to(vault)
+    _settings(config / "settings.json", {"permissions": {"deny": ["Read(~/.ssh/**)"]}})
+    assert "~/.ssh/id_ecdsa" in _reach1(_run(tmp_path, home, cwd, config)).evidence
+
+
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="symlinks need privileges")
+def test_symlinked_directory_either_path_covers(tmp_path: Path) -> None:
+    home, cwd, config = _layout(tmp_path)
+    _write(home / "dotfiles" / "ssh" / "id_rsa")
+    (home / ".ssh").symlink_to(home / "dotfiles" / "ssh")
+    _settings(config / "settings.json", {"permissions": {"deny": ["Read(~/.ssh/**)"]}})
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_padded_specifier_is_not_counted(tmp_path: Path) -> None:
+    home, cwd, config = _ssh_store(tmp_path)
+    _settings(
+        config / "settings.json", {"permissions": {"deny": ["Read( ~/.ssh/** )"]}}
+    )
+    assert "REACH-001" in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_reach_001_points_at_a_store(tmp_path: Path) -> None:
+    home, cwd, config = _ssh_store(tmp_path)
+    f = _reach1(_run(tmp_path, home, cwd, config))
+    assert f.finding_path == str(home / ".ssh" / "id_rsa")
