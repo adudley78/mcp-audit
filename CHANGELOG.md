@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.22.0] - 2026-10-27
+
 ### Added
 
 - **Plugin pin vs the actual checkout (PLUGIN-003, PLUGIN-004; STORY-0096).** The scan you already run (`check`, `scan`, `plugins scan`) now compares an installed Claude Code plugin's pinned commit with what is on disk, where the plugin's install directory is a git checkout: it reads `.git/HEAD`, the ref files and `packed-refs` as text and never runs git. PLUGIN-003 (CRITICAL): the checkout's `HEAD` is a different commit from the marketplace's `sha`, and either `HEAD` sits on a branch named like a commit SHA or `FETCH_HEAD`, which is how Plugin4Shell (AIR Security, 2026-09-17) swapped a pinned plugin's code, or Claude Code's own install record says it installed the pin. MEDIUM when the record doesn't explain the difference or `HEAD` can't be read; silent when the marketplace simply moved its pin after install. PLUGIN-004: a branch, tag or remote branch named like a SHA or `FETCH_HEAD` in a plugin checkout (HIGH), a `sha` that isn't a full 40-character SHA (MEDIUM), and a pinned plugin fetched from a host other than github.com, which unlike GitHub accepts SHA-shaped branch names (LOW). Plugin checkouts and the marketplace clones Claude Code fetches into also get the git-config and hook checks (TRUST-006/007). AIR Security reports the fix in Claude Code 2.1.179 (the refusal was observed on 2.1.311), but it is an install-time check and doesn't re-check plugins already on disk; Claude Code 2.1.311 keeps no `.git` in its plugin cache, so for plugins it installed only PLUGIN-004 MEDIUM/LOW can fire. `plugins discover --format json` now shows the commit Claude Code recorded (`git_commit_sha`). See `docs/plugins.md`.

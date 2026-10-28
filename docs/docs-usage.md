@@ -322,9 +322,9 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/mcp-audit@v0.21.1
+      - uses: adudley78/mcp-audit@v0.22.0
         with:
-          version: v0.21.1
+          version: v0.22.0
           severity-threshold: high
           sarif-output: mcp-audit.sarif
 ```
@@ -332,9 +332,9 @@ jobs:
 **With SAST analysis** (the action installs Semgrep itself, with `pipx`, when `run-sast` is `'true'`):
 
 ```yaml
-      - uses: adudley78/mcp-audit@v0.21.1
+      - uses: adudley78/mcp-audit@v0.22.0
         with:
-          version: v0.21.1
+          version: v0.22.0
           run-sast: 'true'
           sast-path: './src'
           sarif-output: mcp-audit.sarif
@@ -407,7 +407,7 @@ Add mcp-audit to your pre-commit pipeline to catch MCP config issues before they
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.21.1
+    rev: v0.22.0
     hooks:
       - id: mcp-audit
 ```
