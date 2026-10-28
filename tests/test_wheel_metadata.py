@@ -57,7 +57,7 @@ def test_wheel_check_lives_in_ci_not_the_binary_composite() -> None:
     assert not re.search(r"twine==\d", runs)
     # A pin like twine==X.Y.Z split on `=` leaves an empty field.
     assert "awk -F=" not in runs
-    assert "s/^twine==//p" in runs
+    assert r"s/^twine==\([^ ]*\).*/\1/p" in runs
     assert sha  # release.yml still has a SHA for the job to parse
 
     composite_runs = "\n".join(
