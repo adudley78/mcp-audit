@@ -1150,3 +1150,44 @@ class TestFailedHandshakeStderr:
     async def test_cancellation_is_not_swallowed(self) -> None:
         with pytest.raises(asyncio.CancelledError):
             await _enumerate_dying(b"x\n", exc=asyncio.CancelledError())
+
+
+class TestRedactServerTextOrder:
+    """Server secrets are removed by value before patterns run (STORY-0105 review)."""
+
+    def test_env_value_containing_a_pattern_is_removed_whole(self) -> None:
+        token = "ghp_" + "aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"
+        value = f"prefix-{token}-suffix"
+        out = mcp_client.redact_server_text(f"bad value {value}", [value])
+        assert out == "bad value [REDACTED]"
+
+    def test_secret_flag_values_in_args_are_redacted(self) -> None:
+        out = mcp_client.redact_server_text(
+            "rejected key ctx7sk-0123456789abcdef and tok-abcdefgh",
+            [],
+            [
+                "-y",
+                "pkg",
+                "--api-key",
+                "ctx7sk-0123456789abcdef",
+                "--token=tok-abcdefgh",
+            ],
+        )
+        assert "ctx7sk-" not in out
+        assert "tok-abcdefgh" not in out
+
+    @pytest.mark.asyncio
+    async def test_failed_handshake_redacts_flag_values(self) -> None:
+        server = _stdio_server()
+        server.args = ["-y", "@example/server", "--api-key", "plain-secret-12345"]
+        result = await mcp_client._enumerate_stdio(
+            server,
+            MagicMock(),
+            _DyingStdioClient(
+                b"invalid key plain-secret-12345\n",
+                _task_group_failure("auth plain-secret-12345"),
+            ),
+            lambda **kw: SimpleNamespace(**kw),
+        )
+        for text in (result.error or "", result.server_stderr or ""):
+            assert "plain-secret-12345" not in text

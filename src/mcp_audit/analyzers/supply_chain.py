@@ -584,12 +584,54 @@ def _schemes_differ(pinned: str, fixed: str) -> bool:
     ``@modelcontextprotocol/server-filesystem`` published ``2026.8.31`` and then
     ``1.0.0`` and ``2.0.0`` (Q-010).  Ordered as numbers, ``2.0.0`` sorts below
     the recorded fix ``2025.7.1`` although it was published later, and the
-    reverse switch would hide an affected release.  Without publish dates
-    (the registry carries none, and the scan is offline) the order of two
-    versions from different numbering schemes cannot be decided.
+    reverse switch would hide an affected release.
     """
     a, b = _is_calendar_version(pinned), _is_calendar_version(fixed)
     return a is not None and b is not None and a != b
+
+
+def _fix_status(
+    pinned: str, fixed: str, semver_resumed_at: str | None
+) -> Literal["affected", "fixed", "undecidable"]:
+    """Order a pinned version against one CVE's recorded fix.
+
+    Same scheme: PEP 440 order, as before (a version that won't parse counts
+    as affected).  Different schemes (calendar vs semantic):
+
+    * semantic pin, calendar fix: with ``semver_resumed_at`` recorded, a pin
+      below it is from the semantic line that preceded the calendar releases
+      (affected) and a pin at or above it came after them (fixed).  Without
+      it, a ``0.x`` pin is affected: both registry packages that use calendar
+      versions (server-filesystem, mcp-server-git) published ``0.x`` first,
+      so this is what ``main`` reported before STORY-0105.  Anything else is
+      undecidable offline (SC-009).
+    * calendar pin, semantic fix: with ``semver_resumed_at``, a fix below it
+      is on the earlier semantic line (the calendar pin came later: fixed),
+      and a fix at or above it came after every calendar release
+      (affected).  Without it: undecidable.
+
+    Args:
+        pinned: The exact version pinned in the launch command.
+        fixed: The recorded fixed version for one advisory.
+        semver_resumed_at: The registry entry's ``semver_resumed_at``.
+
+    Returns:
+        ``"affected"``, ``"fixed"`` or ``"undecidable"``.
+    """
+    if not _schemes_differ(pinned, fixed):
+        return "fixed" if _version_lt(pinned, fixed) is False else "affected"
+    resumed = semver_resumed_at
+    if resumed is not None and _is_calendar_version(resumed) is not False:
+        resumed = None  # unparsable or itself calendar-shaped: ignore it
+    if _is_calendar_version(fixed):
+        if resumed is not None:
+            return "affected" if _version_lt(pinned, resumed) else "fixed"
+        if Version(pinned).release[0] == 0:
+            return "affected"
+        return "undecidable"
+    if resumed is not None:
+        return "fixed" if _version_lt(fixed, resumed) else "affected"
+    return "undecidable"
 
 
 def _highest_version(versions: set[str]) -> str | None:
@@ -669,15 +711,13 @@ def _emit_known_cve_findings(
     if pinned is None:
         affected = cves
     else:
-        undecidable = [
-            c for c in cves if c in fixed_in and _schemes_differ(pinned, fixed_in[c])
-        ]
-        affected = [
-            c
+        status = {
+            c: _fix_status(pinned, fixed_in[c], entry.semver_resumed_at)
             for c in cves
-            if c not in undecidable
-            and (c not in fixed_in or _version_lt(pinned, fixed_in[c]) is not False)
-        ]
+            if c in fixed_in
+        }
+        undecidable = [c for c in cves if status.get(c) == "undecidable"]
+        affected = [c for c in cves if c not in fixed_in or status[c] == "affected"]
     if not affected:
         if undecidable and pinned is not None:
             return [_undecidable_finding(server, entry, pinned, undecidable, fixed_in)]
@@ -880,6 +920,49 @@ def _redact_userinfo(text: str) -> str:
             i = at
         else:
             i = k
+
+
+# A flag whose name contains one of these carries a secret as its value.
+_SECRET_FLAG_WORDS: tuple[str, ...] = (
+    "key",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "pwd",
+    "auth",
+    "credential",
+)
+
+
+def secret_arg_values(args: list[str]) -> list[str]:
+    """Return values given to secret-named flags in a launch command.
+
+    ``--api-key VALUE``, ``--token=VALUE``, ``-password VALUE``: the flag
+    name (case-insensitive) contains ``key``, ``token``, ``secret``,
+    ``password``, ``passwd``, ``pwd``, ``auth`` or ``credential``.  The value
+    is the text after ``=``, or the next argument when it is not itself a
+    flag.  Used to redact those values from text that quotes them (STORY-0105).
+
+    Args:
+        args: The server's ``args``.
+
+    Returns:
+        The non-empty values, in argument order.
+    """
+    values: list[str] = []
+    for i, arg in enumerate(args):
+        if not arg.startswith("-"):
+            continue
+        name, eq, inline = arg.lstrip("-").partition("=")
+        if not any(word in name.lower() for word in _SECRET_FLAG_WORDS):
+            continue
+        if eq:
+            if inline:
+                values.append(inline)
+        elif i + 1 < len(args) and not args[i + 1].startswith("-"):
+            values.append(args[i + 1])
+    return values
 
 
 def redact_command(command: str | None, args: list[str]) -> str:

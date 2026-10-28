@@ -88,7 +88,7 @@ src/mcp_audit/
 │   ├── poisoning.py    # Tool description poisoning detection (regex-based); PATTERNS list reused by agent_files; also owns POISON-041/042 concealment-channel extract/decode/rescan (scan_concealed_channels, build_concealment_finding), shared with agent_files
 │   ├── credentials.py  # Secret/API key exposure in configs (SECRET_PATTERNS)
 │   ├── transport.py    # Transport security (TLS, localhost binding, etc.)
-│   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed); SC-007 unscoped twins (takes precedence over SC-001..003) and SC-008 OSV MAL-* exact-name matches (STORY-0097); SC-009 INFO when a pinned version and a CVE's fixed_in are in different numbering schemes (calendar vs semantic, STORY-0105); launch_package()/resolve_launch_entry(), the one "which registry entry does this launch install" resolver shared by TRANSPORT-003 and the rule engine's exempt_known_servers; redact_command() for evidence
+│   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed); SC-007 unscoped twins (takes precedence over SC-001..003) and SC-008 OSV MAL-* exact-name matches (STORY-0097); SC-009 INFO when a pinned version and a CVE's fixed_in are in different numbering schemes (calendar vs semantic) and neither RegistryEntry.semver_resumed_at nor the 0.x rule orders them (_fix_status, STORY-0105); secret_arg_values() (values of --api-key/--token-style flags, for redaction); launch_package()/resolve_launch_entry(), the one "which registry entry does this launch install" resolver shared by TRANSPORT-003 and the rule engine's exempt_known_servers; redact_command() for evidence
 │   ├── config_hygiene.py # Config-file filesystem hygiene (CFHYG-001..007; CFHYG-007 = project settings `env` redirecting API traffic, STORY-0090); hook-command checks HOOK-001/002 and harness posture HARNESS-001..007 (STORY-0079, STORY-0087, STORY-0090) via analyze_config; repo-planted auto-run files TRUST-003 (VS Code) and TRUST-008 (Gemini CLI, Codex, Claude Code scheduled tasks/workflows, STORY-0090) via analyze_autoexec_file
 │   ├── rug_pull.py     # Config-entry change detection via hashing (command, args, env key names, raw entry; not live tool definitions)
 │   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection (TOXIC-001..011, INTEG-001; COMMS_OUT sinks TOXIC-008..011, STORY-0101)
@@ -150,12 +150,12 @@ src/mcp_audit/
 │   └── manager.py     # BaselineManager, Baseline, BaselineServer, DriftFinding, DriftType; save/load/compare
 ├── registry/
 │   ├── __init__.py    # Package marker
-│   ├── loader.py      # KnownServerRegistry, RegistryEntry, load_registry(); Levenshtein helper; scoped_parts_close() (find_closest_npm compares @scope and name separately, STORY-0105)
+│   ├── loader.py      # KnownServerRegistry, RegistryEntry, load_registry(); Levenshtein helper; scoped_parts_close() (find_closest_npm compares @scope and name separately, with osa_distance(), STORY-0105); optional RegistryEntry.semver_resumed_at
 │   ├── twins.py       # TwinIndex: unscoped-twin keys derived from registry entries (SC-007, STORY-0097); pure, no I/O
 │   └── malicious.py   # load_known_malicious(), assess(): registry/known-malicious.json (OSV MAL-*) for SC-008 and vet; tolerant loader with size/entry caps, load_error surfaced in ScanResult.errors
 ├── rules/
 │   ├── __init__.py    # Package marker
-│   └── engine.py      # PolicyRule, RuleMatch, MatchCondition, RuleEngine; load_rules_from_file/dir; load_bundled_community_rules; matched values redacted (URL userinfo, SECRET_PATTERNS) before they reach a finding (STORY-0105)
+│   └── engine.py      # PolicyRule, RuleMatch, MatchCondition, RuleEngine; load_rules_from_file/dir; load_bundled_community_rules; a condition's optional `report:` label replaces the field content as matched value; matched values redacted (secret flag values, URL userinfo, SECRET_PATTERNS) before they reach a finding (STORY-0105)
 ├── governance/
 │   ├── __init__.py    # Package marker
 │   ├── models.py      # GovernancePolicy, ApprovedServers, ScoreThreshold, TransportPolicy, RegistryPolicy, FindingPolicy, ClientOverride, PolicyMode

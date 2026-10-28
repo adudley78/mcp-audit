@@ -71,6 +71,11 @@ class MatchCondition(BaseModel):
     pattern: str
     type: MatchType
     negate: bool = False
+    # Fixed text reported as this condition's matched value instead of the
+    # field's content (STORY-0105).  A negated condition otherwise reports the
+    # whole field it inspected, e.g. every launch argument, which can carry
+    # tokens, home paths and other per-host text into findings and advisories.
+    report: str | None = None
 
 
 class RuleMatch(BaseModel):
@@ -88,6 +93,7 @@ class RuleMatch(BaseModel):
     pattern: str | None = None
     type: MatchType | None = None
     negate: bool = False
+    report: str | None = None
 
     @model_validator(mode="after")
     def _validate_structure(self) -> RuleMatch:
@@ -233,8 +239,12 @@ def _redact_matched_value(value: str, server: ServerConfig) -> str:
     from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
         _REDACTED,
         _redact_userinfo,
+        secret_arg_values,
     )
 
+    for secret in sorted(set(secret_arg_values(server.args)), key=len, reverse=True):
+        if len(secret) >= 4:
+            value = value.replace(secret, _REDACTED)
     for raw in (*server.args, server.url or "", server.command or ""):
         if raw and "://" in raw:
             redacted = _redact_userinfo(raw)
@@ -401,11 +411,16 @@ def _evaluate_condition(
 
     if condition.negate:
         # Inverted match: succeed when the underlying match *fails*.
-        # Use the field value as matched_value so callers have context.
+        # Use the field value as matched_value so callers have context,
+        # unless the rule names a fixed ``report`` text.
         if not result:
+            if condition.report is not None:
+                return True, condition.report
             return True, field_value or ""
         return False, ""
 
+    if result and condition.report is not None:
+        return True, condition.report
     return result, value
 
 
@@ -428,6 +443,7 @@ def _evaluate_rule_match(
             pattern=rule_match.pattern,
             type=rule_match.type,
             negate=rule_match.negate,
+            report=rule_match.report,
         )
         return _evaluate_condition(cond, server)
 

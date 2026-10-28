@@ -267,6 +267,7 @@ async def _enumerate_stdio(
         redact_server_text(
             raw_stderr.decode("utf-8", errors="replace").strip(),
             server.env.values(),
+            server.args,
         )
         if raw_stderr
         else None
@@ -274,7 +275,9 @@ async def _enumerate_stdio(
 
     if failure is not None or result is None:
         reason = (
-            redact_server_text(describe_exception(failure), server.env.values())
+            redact_server_text(
+                describe_exception(failure), server.env.values(), server.args
+            )
             if failure is not None
             else "no result"
         )
@@ -384,18 +387,24 @@ def describe_exception(exc: BaseException) -> str:
     return f"{type(leaf).__name__}: {message}" if message else type(leaf).__name__
 
 
-def redact_server_text(text: str, env_values: Any = ()) -> str:
+def redact_server_text(
+    text: str, env_values: Any = (), args: list[str] | None = None
+) -> str:
     """Redact secrets from text a server process produced (stderr, errors).
 
     Server output is shown to the user and written into scan results, and a
-    server that fails to start often prints the value it rejected.  Three
-    passes, each linear: every ``SECRET_PATTERNS`` match, every value of the
-    server's own ``env`` at least ``_MIN_REDACTED_ENV_VALUE`` characters long,
-    and the userinfo of every ``scheme://user:pass@host`` on each line.
+    server that fails to start often prints the value it rejected.  Passes,
+    each linear: the server's own secrets first, by value (every ``env``
+    value and every value of a secret-named flag in its ``args``,
+    ``supply_chain.secret_arg_values``, at least ``_MIN_REDACTED_ENV_VALUE``
+    characters long), so a pattern match cannot leave part of one behind;
+    then every ``SECRET_PATTERNS`` match; then the userinfo of every
+    ``scheme://user:pass@host`` on each line.
 
     Args:
         text: The text to clean.
         env_values: The values of the server's configured ``env``.
+        args: The server's launch arguments.
 
     Returns:
         The text with secrets replaced by ``[REDACTED]``.
@@ -404,19 +413,21 @@ def redact_server_text(text: str, env_values: Any = ()) -> str:
     from mcp_audit.analyzers.credentials import SECRET_PATTERNS  # noqa: PLC0415
     from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
         _redact_userinfo,
+        secret_arg_values,
     )
 
-    cleaned = text
-    for _label, pattern, _provider in SECRET_PATTERNS:
-        cleaned = pattern.sub(_REDACTED, cleaned)
+    candidates = [v for v in env_values if isinstance(v, str)]
+    candidates.extend(secret_arg_values(list(args or [])))
     values = sorted(
-        {v for v in env_values if isinstance(v, str)},
+        {v for v in candidates if len(v) >= _MIN_REDACTED_ENV_VALUE},
         key=len,
         reverse=True,
     )
+    cleaned = text
     for value in values:
-        if len(value) >= _MIN_REDACTED_ENV_VALUE:
-            cleaned = cleaned.replace(value, _REDACTED)
+        cleaned = cleaned.replace(value, _REDACTED)
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        cleaned = pattern.sub(_REDACTED, cleaned)
     return "\n".join(_redact_userinfo(line) for line in cleaned.split("\n"))
 
 

@@ -25,6 +25,9 @@ match:
       pattern: '^(?:-\S*\s+)*(?:@[A-Za-z0-9._~-]+/)?[A-Za-z0-9._~-]+@\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?(?:\s|$)'
       type: regex
       negate: true
+      # Report a fixed label, not the arguments: they can carry tokens and
+      # home paths that must not reach findings or the advisory feed.
+      report: "first package argument has no exact version"
 message: "Server '{server_name}' runs a package with npx without an exact version pin — supply chain risk"
 tags:
   - supply-chain

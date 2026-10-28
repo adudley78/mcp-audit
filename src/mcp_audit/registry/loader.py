@@ -200,6 +200,14 @@ class RegistryEntry(BaseModel):
     # Default empty list — entries without vuln data omit this field.
     known_vulns: list[dict] = []
 
+    # The first semantic version released after the package used calendar
+    # versions (STORY-0105).  ``@modelcontextprotocol/server-filesystem`` went
+    # 0.6.2 -> 2025.1.14 ... 2026.8.31 -> 1.0.0, so this is "1.0.0": a semantic
+    # pin below it predates every calendar release, one at or above it came
+    # after them.  SC-004 uses it to order a pin against a fix recorded in the
+    # other scheme.  ``None`` (the default) means no switch back is recorded.
+    semver_resumed_at: str | None = None
+
 
 # ── Registry class ─────────────────────────────────────────────────────────────
 
@@ -643,8 +651,10 @@ def scoped_parts_close(candidate: str, entry_name: str) -> bool:
     part a reader compares still looks like the original.  When both names
     are scoped, the scope and the name are compared separately, and every
     part that differs must have no more than a third of the entry part's
-    length edited (``mintlify`` is 8 characters, so at most 2 edits;
-    ``netlify`` needs 3).  Real squats stay in: a one- or two-letter slip
+    length edited, counting an adjacent swap as one edit (optimal string
+    alignment, so ``@azrue/mcp`` is one edit from ``@azure/mcp``).
+    ``mintlify`` is 8 characters, so at most 2 edits; ``netlify`` needs 3.
+    Real squats stay in: a one- or two-letter slip
     in a scope (``@modelcontextprotocal/...``) or a name
     (``@modelcontextprotocol/server-filesytem``), or both.
 
@@ -662,10 +672,41 @@ def scoped_parts_close(candidate: str, entry_name: str) -> bool:
     if a is None or b is None:
         return True
     for part_a, part_b in zip(a, b, strict=True):
-        dist = levenshtein(part_a, part_b)
+        dist = osa_distance(part_a, part_b)
         if dist and dist * _SCOPED_PART_MAX_EDIT_FRACTION > len(part_b):
             return False
     return True
+
+
+def osa_distance(a: str, b: str) -> int:
+    """Return the optimal-string-alignment distance between *a* and *b*.
+
+    Levenshtein distance plus one operation: swapping two adjacent
+    characters counts as a single edit (Damerau's observation that
+    transpositions are among the commonest typing errors).  O(len(a) *
+    len(b)) time, three rows of memory.
+
+    Args:
+        a: First string.
+        b: Second string.
+
+    Returns:
+        The number of single-character insertions, deletions, substitutions
+        and adjacent transpositions needed to turn *a* into *b*.
+    """
+    if a == b:
+        return 0
+    prev2: list[int] = []
+    prev = list(range(len(b) + 1))
+    for i in range(1, len(a) + 1):
+        cur = [i] + [0] * len(b)
+        for j in range(1, len(b) + 1):
+            cost = 0 if a[i - 1] == b[j - 1] else 1
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+            if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
+                cur[j] = min(cur[j], prev2[j - 2] + 1)
+        prev2, prev = prev, cur
+    return prev[len(b)]
 
 
 def levenshtein(a: str, b: str) -> int:

@@ -2359,12 +2359,85 @@ class TestSc009SchemeMismatch:
         ).analyze(_srv("npx", ["-y", "@acme/server-files@2.0.0"]))
         assert [(f.id, f.severity) for f in out] == [("SC-004", Severity.HIGH)]
 
-    def test_bundled_server_filesystem_2_0_0_is_sc009(self) -> None:
-        """The real registry entry and the real version from the top-100 scan."""
+    def _bundled(self, command: str, spec: str) -> list[tuple[str, Severity]]:
         out = SupplyChainAnalyzer(malicious=KnownMaliciousPackages([])).analyze(
-            _srv("npx", ["-y", "@modelcontextprotocol/server-filesystem@2.0.0"])
+            _srv(command, ["-y", spec] if command == "npx" else [spec])
         )
-        assert [f.id for f in out] == ["SC-009"]
+        return [(f.id, f.severity) for f in out if f.id.startswith("SC-")]
+
+    def test_bundled_server_filesystem_2_0_0_is_after_the_fix(self) -> None:
+        """The top-100 case: the registry records semver_resumed_at 1.0.0, so
+        2.0.0 is ordered after the calendar releases and the fix: no finding."""
+        assert (
+            self._bundled("npx", "@modelcontextprotocol/server-filesystem@2.0.0") == []
+        )
+
+    def test_bundled_server_filesystem_0_6_2_stays_high(self) -> None:
+        """0.6.2 (2024-12) predates the calendar line and the fix: affected."""
+        assert self._bundled(
+            "npx", "@modelcontextprotocol/server-filesystem@0.6.2"
+        ) == [("SC-004", Severity.HIGH)]
+
+    def test_bundled_mcp_server_git_0_6_2_stays_high(self) -> None:
+        """No semver_resumed_at recorded: a 0.x pin is affected, as on main."""
+        assert self._bundled("uvx", "mcp-server-git==0.6.2") == [
+            ("SC-004", Severity.HIGH)
+        ]
+
+
+class TestSemverResumedAt:
+    """The registry's semver_resumed_at orders pins across a scheme switch."""
+
+    def _run(self, fixes: dict[str, str], spec: str, resumed: str | None) -> list:
+        entry = _calver_entry(fixes)
+        if resumed is not None:
+            entry["semver_resumed_at"] = resumed
+        reg = _vuln_registry([entry])
+        out = SupplyChainAnalyzer(
+            registry=reg, malicious=KnownMaliciousPackages([])
+        ).analyze(_srv("npx", ["-y", spec]))
+        return [(f.id, f.severity) for f in out]
+
+    def test_semver_pin_below_resumption_is_affected(self) -> None:
+        assert self._run(
+            {"CVE-2025-53109": "2025.7.1"}, "@acme/server-files@0.9.0", "1.0.0"
+        ) == [("SC-004", Severity.HIGH)]
+
+    def test_semver_pin_at_or_above_resumption_is_fixed(self) -> None:
+        for pin in ("1.0.0", "2.0.0"):
+            assert (
+                self._run(
+                    {"CVE-2025-53109": "2025.7.1"}, f"@acme/server-files@{pin}", "1.0.0"
+                )
+                == []
+            )
+
+    def test_calver_pin_vs_semver_fix_before_resumption_is_fixed(self) -> None:
+        """Fix 0.6.0 on the old semantic line; a calendar release came later."""
+        assert (
+            self._run({"CVE-2026-1": "0.6.0"}, "@acme/server-files@2025.1.14", "1.0.0")
+            == []
+        )
+
+    def test_calver_pin_vs_semver_fix_after_resumption_is_affected(self) -> None:
+        assert self._run(
+            {"CVE-2026-1": "2.0.1"}, "@acme/server-files@2026.8.31", "1.0.0"
+        ) == [("SC-004", Severity.HIGH)]
+
+    def test_no_field_major_zero_pin_is_affected(self) -> None:
+        assert self._run(
+            {"CVE-2025-53109": "2025.7.1"}, "@acme/server-files@0.6.2", None
+        ) == [("SC-004", Severity.HIGH)]
+
+    def test_no_field_major_two_pin_stays_sc009(self) -> None:
+        assert self._run(
+            {"CVE-2025-53109": "2025.7.1"}, "@acme/server-files@2.0.0", None
+        ) == [("SC-009", Severity.INFO)]
+
+    def test_bad_field_value_is_ignored(self) -> None:
+        assert self._run(
+            {"CVE-2025-53109": "2025.7.1"}, "@acme/server-files@2.0.0", "2026.1.1"
+        ) == [("SC-009", Severity.INFO)]
 
 
 # ── SC-001..003: scoped names compared part by part (STORY-0105, Q-015) ──────
@@ -2406,6 +2479,11 @@ class TestScopedTyposquatParts:
             ("@mintlfy/mcp", "@mintlify/mcp"),
             ("@playwrite/mcp", "@playwright/mcp"),
             ("@azur/mcp", "@azure/mcp"),
+            # Adjacent swaps count as one edit (optimal string alignment).
+            ("@azrue/mcp", "@azure/mcp"),
+            ("@zaure/mcp", "@azure/mcp"),
+            ("@auzre/mcp", "@azure/mcp"),
+            ("@azuer/mcp", "@azure/mcp"),
         ],
     )
     def test_real_scoped_squats_still_match(
@@ -2431,6 +2509,45 @@ class TestScopedTyposquatParts:
                 )
                 if reg.find_closest_npm(cand, threshold=3) is None:
                     missed.append(cand)
+        assert missed == []
+
+    @pytest.mark.parametrize(
+        "swap", ["@azrue/mcp", "@zaure/mcp", "@auzre/mcp", "@azuer/mcp"]
+    )
+    def test_azure_swaps_report_sc002_high(self, swap: str) -> None:
+        out = SupplyChainAnalyzer(malicious=KnownMaliciousPackages([])).analyze(
+            _srv("npx", ["-y", swap])
+        )
+        assert [(f.id, f.severity) for f in out] == [("SC-002", Severity.HIGH)]
+
+    def test_osa_distance_unit(self) -> None:
+        from mcp_audit.registry.loader import osa_distance
+
+        assert osa_distance("azrue", "azure") == 1
+        assert osa_distance("netlify", "mintlify") == 3
+        assert osa_distance("", "abc") == 3
+        assert osa_distance("abc", "abc") == 0
+        assert osa_distance("ca", "abc") == 3  # OSA, not full Damerau
+
+    def test_every_adjacent_swap_in_a_scoped_entry_is_still_caught(self) -> None:
+        reg = _loader_module.load_registry()
+        missed = []
+        for entry in reg.entries:
+            if entry.package_ecosystem != "npm" or not entry.name.startswith("@"):
+                continue
+            scope, name = entry.name[1:].split("/", 1)
+            for which, part in (("scope", scope), ("name", name)):
+                for i in range(len(part) - 1):
+                    if part[i] == part[i + 1]:
+                        continue
+                    swapped = part[:i] + part[i + 1] + part[i] + part[i + 2 :]
+                    cand = (
+                        f"@{swapped}/{name}"
+                        if which == "scope"
+                        else f"@{scope}/{swapped}"
+                    )
+                    if reg.find_closest_npm(cand, threshold=3) is None:
+                        missed.append(cand)
         assert missed == []
 
     def test_scoped_parts_close_unit(self) -> None:
@@ -2547,3 +2664,22 @@ class TestResolveLaunchEntry:
         assert launch_package(_srv("node", ["server.js"])) is None
         assert launch_package(_srv("yarn", ["start"])) is None
         assert launch_package(_srv("yarn", ["dlx", "@a/b@1.0.0"])) == ("npm", "@a/b")
+
+
+class TestSecretArgValues:
+    def test_flag_forms(self) -> None:
+        from mcp_audit.analyzers.supply_chain import secret_arg_values
+
+        args = [
+            "-y",
+            "pkg",
+            "--api-key",
+            "ctx7sk-abcdef123456",
+            "--token=tok-xyz-987654",
+            "--Password",
+            "--verbose",
+            "--port",
+            "8080",
+            "--auth-header=",
+        ]
+        assert secret_arg_values(args) == ["ctx7sk-abcdef123456", "tok-xyz-987654"]
