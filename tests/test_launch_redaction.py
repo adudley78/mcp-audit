@@ -1,0 +1,257 @@
+"""Launch credentials never leave in clear (STORY-0108, queue Q-038).
+
+A server's launch command, args or URL can carry a credential: a database
+connection string (``postgresql://user:pass@host/db``, the form
+``@modelcontextprotocol/server-postgres`` documents) or a token flag.  Before
+STORY-0108, TRANSPORT-003 evidence and ``servers[].args`` / ``raw.args`` in
+JSON output quoted them verbatim.  These tests run the real scan and every
+output format against such a config.
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+from typer.testing import CliRunner
+
+from mcp_audit.analyzers.supply_chain import redact_args, redact_url
+from mcp_audit.analyzers.transport import TransportAnalyzer
+from mcp_audit.cli import app
+from mcp_audit.models import ServerConfig, TransportType
+from mcp_audit.output.snapshot import format_cyclonedx_aibom, format_native
+from mcp_audit.scanner import run_scan
+
+runner = CliRunner()
+
+# Built at test time so no credential-shaped string is committed to the repo.
+_DB_PASSWORD = "hunter2" + "Zq9" * 3
+_GH_TOKEN = "ghp_" + "aB3" * 12
+_URL_PASSWORD = "s3cr3t" + "Wx" * 4
+
+
+def _config(tmp_path: Path) -> Path:
+    path = tmp_path / "mcp.json"
+    path.write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "pg": {
+                        "command": "npx",
+                        "args": [
+                            "-y",
+                            "@acme/postgres-mcp",
+                            f"postgresql://admin:{_DB_PASSWORD}@db.internal:5432/app",
+                        ],
+                    },
+                    "tokened": {
+                        "command": "npx",
+                        "args": ["-y", "some-mcp-server", "--token", _GH_TOKEN],
+                    },
+                    "remote": {
+                        "url": f"http://ops:{_URL_PASSWORD}@mcp.example.com/sse",
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def _assert_clean(text: str) -> None:
+    flat = "".join(text.split())  # immune to Rich wrapping
+    for secret in (_DB_PASSWORD, _GH_TOKEN, _URL_PASSWORD):
+        assert secret not in flat
+    assert "[REDACTED]" in flat
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+class TestRedactArgs:
+    def test_userinfo_and_secret_patterns(self) -> None:
+        out = redact_args(
+            ["-y", "pkg", f"postgresql://u:{_DB_PASSWORD}@h/db", "--t", _GH_TOKEN]
+        )
+        assert out == [
+            "-y",
+            "pkg",
+            "postgresql://[REDACTED]@h/db",
+            "--t",
+            "[REDACTED]",
+        ]
+
+    def test_password_with_at_sign_and_space(self) -> None:
+        assert redact_args(["postgres://admin:p@ss w0rd@db/x"]) == [
+            "postgres://[REDACTED]@db/x"
+        ]
+
+    def test_clean_args_are_unchanged(self) -> None:
+        args = ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/projects"]
+        assert redact_args(args) == args
+        assert redact_args([]) == []
+
+    def test_same_length_and_never_truncated(self) -> None:
+        args = ["x" * 5000, _GH_TOKEN, "tail"]
+        out = redact_args(args)
+        assert len(out) == 3
+        assert out[0] == "x" * 5000
+        assert out[1] == "[REDACTED]"
+        assert out[2] == "tail"
+
+    def test_redact_url(self) -> None:
+        assert redact_url(None) is None
+        assert (
+            redact_url(f"https://ops:{_URL_PASSWORD}@mcp.example.com/sse")
+            == "https://[REDACTED]@mcp.example.com/sse"
+        )
+        assert redact_url("https://mcp.example.com/sse") == (
+            "https://mcp.example.com/sse"
+        )
+
+    def test_pathological_input_is_linear(self) -> None:
+        args = ["://" + "@" * 20000 + "/" * 20000, "a://" * 20000]
+        start = time.monotonic()
+        redact_args(args)
+        assert time.monotonic() - start < 2.0
+
+
+# ── Evidence ──────────────────────────────────────────────────────────────────
+
+
+class TestTransportEvidence:
+    def test_transport_003_evidence_is_redacted(self, tmp_path: Path) -> None:
+        server = ServerConfig(
+            name="pg",
+            client="claude-desktop",
+            config_path=tmp_path / "c.json",
+            transport=TransportType.STDIO,
+            command="npx",
+            args=[
+                "-y",
+                "@acme/postgres-mcp",
+                f"postgresql://admin:{_DB_PASSWORD}@db/app",
+            ],
+        )
+        (finding,) = [
+            f for f in TransportAnalyzer().analyze(server) if f.id == "TRANSPORT-003"
+        ]
+        assert finding.evidence == (
+            "Command: npx -y @acme/postgres-mcp postgresql://[REDACTED]@db/app"
+        )
+        # The object the analyzers see is untouched.
+        assert _DB_PASSWORD in server.args[2]
+
+    def test_transport_001_url_evidence_is_redacted(self, tmp_path: Path) -> None:
+        server = ServerConfig(
+            name="remote",
+            client="claude-desktop",
+            config_path=tmp_path / "c.json",
+            transport=TransportType.SSE,
+            url=f"http://ops:{_URL_PASSWORD}@mcp.example.com/sse",
+        )
+        (finding,) = [
+            f for f in TransportAnalyzer().analyze(server) if f.id == "TRANSPORT-001"
+        ]
+        assert finding.evidence == "URL: http://[REDACTED]@mcp.example.com/sse"
+
+
+# ── Serialisation and every output format ───────────────────────────────────
+
+
+class TestServerSerialisation:
+    def test_model_dump_json_redacts_and_python_dump_does_not(
+        self, tmp_path: Path
+    ) -> None:
+        server = ServerConfig(
+            name="pg",
+            client="c",
+            config_path=tmp_path / "c.json",
+            command="npx",
+            args=["-y", "pkg", f"postgresql://a:{_DB_PASSWORD}@h/db"],
+            url=f"https://ops:{_URL_PASSWORD}@h/mcp",
+            raw={
+                "command": "npx",
+                "args": ["-y", "pkg", f"postgresql://a:{_DB_PASSWORD}@h/db"],
+                "url": f"https://ops:{_URL_PASSWORD}@h/mcp",
+                "serverUrl": f"https://ops:{_URL_PASSWORD}@h/mcp",
+                "disabled": False,
+            },
+        )
+        data = json.loads(server.model_dump_json())
+        _assert_clean(json.dumps(data))
+        assert data["args"][:2] == ["-y", "pkg"]
+        assert data["raw"]["disabled"] is False
+        # Python-mode dumps (used in memory) keep the real values.
+        assert _DB_PASSWORD in server.model_dump()["args"][2]
+
+    def test_raw_args_with_non_strings_survive(self, tmp_path: Path) -> None:
+        server = ServerConfig(
+            name="x",
+            client="c",
+            config_path=tmp_path / "c.json",
+            raw={"args": ["--port", 8080, _GH_TOKEN]},
+        )
+        data = json.loads(server.model_dump_json())
+        assert data["raw"]["args"] == ["--port", 8080, "[REDACTED]"]
+
+    def test_round_trip_through_scan_result(self, tmp_path: Path) -> None:
+        from mcp_audit.models import ScanResult  # noqa: PLC0415
+
+        result = run_scan(extra_paths=[_config(tmp_path)], skip_rug_pull=True)
+        reloaded = ScanResult.model_validate_json(result.model_dump_json())
+        assert {s.name for s in reloaded.servers} == {"pg", "tokened", "remote"}
+
+
+@pytest.mark.parametrize("fmt", ["terminal", "json", "sarif", "nucleus"])
+def test_scan_output_never_quotes_launch_credentials(tmp_path: Path, fmt: str) -> None:
+    config = _config(tmp_path)
+    with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+        r = runner.invoke(app, ["scan", "--path", str(config), "--format", fmt])
+    # TRANSPORT-003 fires on the unregistered postgres server in every format;
+    # SARIF carries rule IDs and messages, not the evidence text.
+    if fmt == "sarif":
+        assert "TRANSPORT-003" in r.output
+    else:
+        assert "postgresql://[REDACTED]@db.internal" in "".join(r.output.split())
+    flat = "".join(r.output.split())
+    for secret in (_DB_PASSWORD, _GH_TOKEN, _URL_PASSWORD):
+        assert secret not in flat
+
+
+def test_json_output_servers_args_are_redacted(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    out = tmp_path / "scan.json"
+    runner.invoke(
+        app, ["scan", "--path", str(config), "--format", "json", "-o", str(out)]
+    )
+    data = json.loads(out.read_text(encoding="utf-8"))
+    _assert_clean(out.read_text(encoding="utf-8"))
+    by_name = {s["name"]: s for s in data["servers"]}
+    assert by_name["pg"]["args"] == [
+        "-y",
+        "@acme/postgres-mcp",
+        "postgresql://[REDACTED]@db.internal:5432/app",
+    ]
+    assert by_name["pg"]["raw"]["args"] == by_name["pg"]["args"]
+    assert by_name["tokened"]["args"][-1] == "[REDACTED]"
+    assert by_name["remote"]["url"] == "http://[REDACTED]@mcp.example.com/sse"
+    evidence = [f["evidence"] for f in data["findings"] if f["id"] == "TRANSPORT-003"]
+    assert any("postgresql://[REDACTED]@db.internal" in e for e in evidence)
+
+
+def test_check_json_is_redacted(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+        r = runner.invoke(app, ["check", "--path", str(config), "--json"])
+    _assert_clean(r.output)
+
+
+def test_snapshots_are_redacted(tmp_path: Path) -> None:
+    result = run_scan(extra_paths=[_config(tmp_path)], skip_rug_pull=True)
+    _assert_clean(json.dumps(format_cyclonedx_aibom(result, "host")))
+    _assert_clean(json.dumps(format_native(result, "host")))

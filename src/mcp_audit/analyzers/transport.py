@@ -5,6 +5,7 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 from mcp_audit.analyzers.base import BaseAnalyzer
+from mcp_audit.analyzers.supply_chain import redact_command, redact_url
 from mcp_audit.models import Finding, ServerConfig, Severity, TransportType
 from mcp_audit.registry.loader import KnownServerRegistry
 
@@ -88,7 +89,7 @@ class TransportAnalyzer(BaseAnalyzer):
                         description=(
                             "SSE/HTTP server uses http:// to a non-localhost address"
                         ),
-                        evidence=f"URL: {server.url}",
+                        evidence=f"URL: {redact_url(server.url)}",
                         remediation="Use https:// or restrict to localhost",
                         cwe="CWE-319",
                         owasp_mcp_top_10=["MCP07"],
@@ -113,7 +114,7 @@ class TransportAnalyzer(BaseAnalyzer):
                             " internet. This is the network-exposure precondition for"
                             " CVE-2026-33032 (MCPwn, CVSS 9.8)."
                         ),
-                        evidence=f"URL: {server.url}",
+                        evidence=f"URL: {redact_url(server.url)}",
                         remediation=(
                             "Bind to 127.0.0.1 (or ::1) to restrict access"
                             " to the local machine only."
@@ -249,7 +250,9 @@ class TransportAnalyzer(BaseAnalyzer):
             server=server.name,
             title=title,
             description=description,
-            evidence=f"Command: {server.command} {' '.join(server.args[:3])}",
+            # Launch arguments can carry credentials (a connection string, a
+            # token flag): redacted like SC-007/SC-008 evidence (STORY-0108).
+            evidence=f"Command: {redact_command(server.command, server.args[:3])}",
             remediation=(
                 "Install packages locally and reference the installed binary instead"
             ),

@@ -261,6 +261,49 @@ def _resolved_or_self(path: Path) -> Path:
         return path
 
 
+def _safe_is_symlink(path: Path) -> bool:
+    """``Path.is_symlink`` that treats an unreadable path as not a link."""
+    try:
+        return path.is_symlink()
+    except OSError:
+        return False
+
+
+def _safe_is_file(path: Path) -> bool:
+    """``Path.is_file`` that treats an unreadable path as not a file."""
+    try:
+        return path.is_file()
+    except OSError:
+        return False
+
+
+def _safe_is_dir(path: Path) -> bool:
+    """``Path.is_dir`` that treats an unreadable path as not a directory."""
+    try:
+        return path.is_dir()
+    except OSError:
+        return False
+
+
+def _reached_through_symlink(base: Path, rel_path: str) -> bool:
+    """True when a directory between *base* and ``base / rel_path`` is a symlink.
+
+    Only the intermediate components are checked (``.claude`` in
+    ``.claude/settings.json``); the final component is the caller's own
+    ``is_symlink`` test.  A symlinked parent (``.claude -> /elsewhere``) puts
+    the file outside the reviewed tree just as a symlinked file does
+    (STORY-0090 for auto-run files, STORY-0108 for project MCP configs and
+    settings), so the candidate is reported as TRUST-002, not as the
+    repository's own file.  An unreadable component counts as not a link.
+    """
+    current = base
+    for part in Path(rel_path).parts[:-1]:
+        current = current / part
+        if _safe_is_symlink(current):
+            return True
+    return False
+
+
 # ── Symlink findings (TRUST-002 / TRUST-004 / TRUST-005) ──────────────────────
 #
 # See humans/decisions/2026-09-08-trust-002-symlink-sites.md (marcus repo) for
@@ -508,7 +551,10 @@ def discover_configs(
         # walk below — not the $HOME dotfile-manager shape.
         cwd = Path.cwd()
         vscode_mcp = cwd / ".vscode" / "mcp.json"
-        if vscode_mcp.is_symlink():
+        if _safe_is_symlink(vscode_mcp) or (
+            _reached_through_symlink(cwd, ".vscode/mcp.json")
+            and _safe_is_file(vscode_mcp)
+        ):
             discovered.append(
                 DiscoveredConfig(
                     client_name="vscode",
@@ -518,7 +564,7 @@ def discover_configs(
                     symlink_root=cwd,
                 )
             )
-        elif vscode_mcp.exists():
+        elif _safe_is_file(vscode_mcp):
             discovered.append(
                 DiscoveredConfig(
                     client_name="vscode",
@@ -542,7 +588,11 @@ def discover_configs(
             ".claude/settings.local.json",
         ):
             candidate = cwd / rel
-            if candidate.is_symlink():
+            # A symlinked parent (``.claude -> /elsewhere``) is reported like
+            # a symlinked file: TRUST-002, never the checkout's own settings.
+            if _safe_is_symlink(candidate) or (
+                _reached_through_symlink(cwd, rel) and _safe_is_file(candidate)
+            ):
                 discovered.append(
                     DiscoveredConfig(
                         client_name="claude-code-project",
@@ -552,7 +602,7 @@ def discover_configs(
                         symlink_root=cwd,
                     )
                 )
-            elif candidate.is_file() and candidate.resolve() not in already:
+            elif _safe_is_file(candidate) and candidate.resolve() not in already:
                 discovered.append(
                     DiscoveredConfig(
                         client_name="claude-code-project",
@@ -917,7 +967,10 @@ def discover_project_configs(
     - A config candidate that is itself a symlink is *included*
       (``is_symlink=True``, ``symlink_root=root``) rather than skipped — the
       caller still parses it normally and is expected to emit a TRUST-002
-      finding via :func:`build_project_symlink_finding`.
+      finding via :func:`build_project_symlink_finding`.  So is a file reached
+      through a symlinked parent directory (``.claude -> /elsewhere`` makes
+      ``.claude/settings.json`` a TRUST-002 candidate, STORY-0108), the rule
+      :func:`_autoexec_candidate` applies to auto-run files.
 
     Args:
         root: Resolved absolute path of the repository root to walk.
@@ -939,7 +992,12 @@ def discover_project_configs(
         # Check each known project-config pattern relative to this directory.
         for rel_path, client_name, root_key in _PROJECT_CONFIG_SPECS:
             candidate = dirpath / rel_path
-            if candidate.is_symlink():
+            # A symlinked file, or a file reached through a symlinked parent
+            # directory (``.claude -> /elsewhere``, STORY-0108), is a TRUST-002
+            # candidate, not the repository's own file.
+            if _safe_is_symlink(candidate) or (
+                _reached_through_symlink(dirpath, rel_path) and _safe_is_file(candidate)
+            ):
                 if is_lock_file(candidate):
                     continue
                 discovered.append(
@@ -953,7 +1011,7 @@ def discover_project_configs(
                     )
                 )
                 continue
-            if candidate.is_file() and not is_lock_file(candidate):
+            if _safe_is_file(candidate) and not is_lock_file(candidate):
                 discovered.append(
                     DiscoveredConfig(
                         client_name=client_name,
@@ -966,17 +1024,17 @@ def discover_project_configs(
         # Recurse into non-symlink subdirectories not in the skip list.
         try:
             children = sorted(dirpath.iterdir())
-        except PermissionError:
+        except OSError:
             return
 
         for child in children:
-            if child.is_symlink():
-                if child.is_dir() and skip_findings is not None:
+            if _safe_is_symlink(child):
+                if _safe_is_dir(child) and skip_findings is not None:
                     skip_findings.append(
                         build_untraversed_symlink_dir_finding(child, "project")
                     )
                 continue
-            if not child.is_dir():
+            if not _safe_is_dir(child):
                 continue
             if child.name in _WALK_SKIP_DIRS:
                 continue
@@ -1040,13 +1098,7 @@ def _autoexec_candidate(
     # A symlinked *parent* (``.gemini -> /elsewhere/.gemini``) puts the file
     # outside the reviewed tree just as a symlinked file does, so any link on
     # the way down makes this a TRUST-002 candidate, not the repo's own file.
-    parent = dirpath
-    via_link = False
-    for part in Path(rel_path).parts[:-1]:
-        parent = parent / part
-        if parent.is_symlink():
-            via_link = True
-            break
+    via_link = _reached_through_symlink(dirpath, rel_path)
     if candidate.is_symlink() or (via_link and candidate.exists()):
         return DiscoveredAutoexecFile(
             kind=kind, path=candidate, is_symlink=True, symlink_root=root

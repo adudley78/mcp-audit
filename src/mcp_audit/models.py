@@ -7,7 +7,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from mcp_audit import __version__
 
@@ -103,6 +103,58 @@ class ServerConfig(BaseModel):
     # Used by _apply_project_scan() to emit TRUST-001.  Never set by the normal
     # user-level discovery path so default-scan behaviour is unchanged.
     is_project_scoped: bool = False
+
+    # ── JSON serialisation: launch credentials never leave in clear (STORY-0108)
+    #
+    # JSON scan output, ``check --json`` and native snapshots dump servers with
+    # ``model_dump_json``.  A launch command or URL can carry a credential
+    # (``postgresql://user:pass@host/db``, ``--api-key sk-…``), so in JSON mode
+    # the command, args, url and the matching keys of ``raw`` have URL
+    # userinfo and SECRET_PATTERNS matches replaced with ``[REDACTED]``
+    # (``supply_chain.redact_args``).  The in-memory object is unchanged, so
+    # analyzers, lock and rug-pull hashing still see the real values.  ``env``
+    # and ``headers`` values are not touched here (GAPS.md).
+
+    @field_serializer("command", "url", when_used="json")
+    def _serialize_launch_text(self, value: str | None) -> str | None:
+        from mcp_audit.analyzers.supply_chain import redact_url  # noqa: PLC0415
+
+        return redact_url(value)
+
+    @field_serializer("args", when_used="json")
+    def _serialize_args(self, args: list[str]) -> list[str]:
+        from mcp_audit.analyzers.supply_chain import redact_args  # noqa: PLC0415
+
+        return redact_args([str(arg) for arg in args])
+
+    @field_serializer("raw", when_used="json")
+    def _serialize_raw(self, raw: dict) -> dict:
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_args,
+            redact_url,
+        )
+
+        if not isinstance(raw, dict):
+            return raw
+        out = dict(raw)
+        args = out.get("args")
+        if isinstance(args, list):
+            if all(isinstance(a, str) for a in args):
+                out["args"] = redact_args(args)
+            else:
+                out["args"] = [
+                    redact_args([a])[0] if isinstance(a, str) else a for a in args
+                ]
+        for key in _RAW_LAUNCH_TEXT_KEYS:
+            value = out.get(key)
+            if isinstance(value, str):
+                out[key] = redact_url(value)
+        return out
+
+
+#: Keys of a raw server entry whose string value is a launch command or an
+#: endpoint URL (``serverUrl``: Windsurf; ``httpUrl``: Gemini CLI).
+_RAW_LAUNCH_TEXT_KEYS: tuple[str, ...] = ("command", "url", "serverUrl", "httpUrl")
 
 
 class ToolInfo(BaseModel):

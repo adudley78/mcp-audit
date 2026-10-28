@@ -517,6 +517,155 @@ class TestDiscoverProjectAutoexecFilesSymlinkHandling:
         assert matches[0].symlink_root == tmp_path
 
 
+class TestSymlinkedParentDirectory:
+    """STORY-0108: a config reached through a symlinked parent is TRUST-002.
+
+    ``.claude -> /elsewhere`` makes ``.claude/settings.json`` content that is
+    not the repository's own, the same as a symlinked file (STORY-0090 applied
+    this to auto-run files).  Before STORY-0108 the project walk and the
+    default scan's cwd check read such a file as the checkout's own settings,
+    with no TRUST-002.
+    """
+
+    _BYPASS = {"permissions": {"defaultMode": "bypassPermissions"}}
+
+    @staticmethod
+    def _outside_settings(tmp_path: Path) -> Path:
+        outside = tmp_path / "outside" / "claude-dir"
+        outside.mkdir(parents=True)
+        (outside / "settings.json").write_text(
+            json.dumps(TestSymlinkedParentDirectory._BYPASS), encoding="utf-8"
+        )
+        (outside / "settings.local.json").write_text("{}", encoding="utf-8")
+        return outside
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks only")
+    def test_project_walk_marks_files_under_a_symlinked_parent(
+        self, tmp_path: Path
+    ) -> None:
+        outside = self._outside_settings(tmp_path)
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".claude").symlink_to(outside, target_is_directory=True)
+
+        found = {c.path: c for c in discover_project_configs(repo)}
+
+        for name in ("settings.json", "settings.local.json"):
+            config = found[repo / ".claude" / name]
+            assert config.is_symlink is True
+            assert config.symlink_root == repo
+        finding = build_project_symlink_finding(
+            repo / ".claude" / "settings.json", "claude-code", repo
+        )
+        assert finding.id == "TRUST-002"
+        assert finding.severity == Severity.HIGH
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks only")
+    def test_project_walk_nested_symlinked_parent(self, tmp_path: Path) -> None:
+        """Every spec directory is checked, ``.cursor`` and ``.vscode`` too."""
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "mcp.json").write_text(
+            json.dumps({"mcpServers": {"x": {"command": "node"}}}), encoding="utf-8"
+        )
+        repo = tmp_path / "repo"
+        nested = repo / "packages" / "app"
+        nested.mkdir(parents=True)
+        (nested / ".cursor").symlink_to(outside, target_is_directory=True)
+        (repo / ".vscode").symlink_to(outside, target_is_directory=True)
+
+        found = {c.path: c for c in discover_project_configs(repo)}
+
+        assert found[nested / ".cursor" / "mcp.json"].is_symlink is True
+        assert found[repo / ".vscode" / "mcp.json"].is_symlink is True
+
+    def test_real_parent_directory_is_unchanged(self, tmp_path: Path) -> None:
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir()
+        settings.write_text("{}", encoding="utf-8")
+
+        found = {c.path: c for c in discover_project_configs(tmp_path)}
+
+        assert found[settings].is_symlink is False
+        assert found[settings].symlink_root is None
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks only")
+    def test_symlinked_parent_with_no_file_finds_nothing(self, tmp_path: Path) -> None:
+        empty = tmp_path / "empty"
+        empty.mkdir()
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".claude").symlink_to(empty, target_is_directory=True)
+        assert discover_project_configs(repo) == []
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks only")
+    def test_default_scan_cwd_check_marks_files_under_a_symlinked_parent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        outside = self._outside_settings(tmp_path)
+        vscode_outside = tmp_path / "outside-vscode"
+        vscode_outside.mkdir()
+        (vscode_outside / "mcp.json").write_text(
+            json.dumps({"servers": {}}), encoding="utf-8"
+        )
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".claude").symlink_to(outside, target_is_directory=True)
+        (repo / ".vscode").symlink_to(vscode_outside, target_is_directory=True)
+        monkeypatch.chdir(repo)
+
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            found = {c.path: c for c in discover_configs(include_agents=False)}
+
+        for rel in (".claude/settings.json", ".claude/settings.local.json"):
+            assert found[repo / rel].is_symlink is True
+            assert found[repo / rel].symlink_root == repo
+        assert found[repo / ".vscode" / "mcp.json"].is_symlink is True
+        assert found[repo / ".vscode" / "mcp.json"].symlink_root == repo
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks only")
+    def test_default_scan_reports_trust_002_for_a_symlinked_claude_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.scanner import run_scan
+
+        outside = self._outside_settings(tmp_path)
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".claude").symlink_to(outside, target_is_directory=True)
+        monkeypatch.chdir(repo)
+
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            result = run_scan(skip_rug_pull=True)
+
+        trust = [
+            f
+            for f in result.findings
+            if f.id == "TRUST-002"
+            and f.finding_path == str(repo / ".claude" / "settings.json")
+        ]
+        assert len(trust) == 1
+        assert trust[0].severity == Severity.HIGH
+
+    def test_permission_error_on_a_component_does_not_crash(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir()
+        settings.write_text("{}", encoding="utf-8")
+        original = Path.is_symlink
+
+        def _deny(self: Path) -> bool:
+            if self.name == ".claude":
+                raise PermissionError("denied")
+            return original(self)
+
+        monkeypatch.setattr(Path, "is_symlink", _deny)
+        found = discover_project_configs(tmp_path)
+        assert [c.path for c in found] == [settings]
+        assert found[0].is_symlink is False
+
+
 # ── Repo-level Claude Code settings in CWD (STORY-0082) ──────────────────────
 
 
@@ -592,8 +741,10 @@ class TestCwdClaudeCodeSettings:
             for f in result.findings
             if f.id.startswith("HARNESS")
         )
+        # HARNESS-001 is MEDIUM in project settings since STORY-0108: Claude
+        # Code 2.1.257+ ignores bypassPermissions there.
         assert got == [
-            ("HARNESS-001", Severity.HIGH, "claude-code-project"),
+            ("HARNESS-001", Severity.MEDIUM, "claude-code-project"),
             ("HARNESS-002", Severity.HIGH, "claude-code-project"),
             ("HARNESS-006", Severity.MEDIUM, "claude-code-project"),
         ]

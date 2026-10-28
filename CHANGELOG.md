@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Project settings that pick an Azure Foundry resource are named for you to check (CFHYG-008, INFO).** CFHYG-007 treats `<resource>.services.ai.azure.com` as Microsoft's own host and stays silent on it, which is right for the host but not for the resource: anyone can create a Foundry resource in their own Azure subscription, and Claude Code then sends your Azure credential and the conversation there. When a repository's `.claude/settings.json` or `settings.local.json` sets `ANTHROPIC_FOUNDRY_BASE_URL` on such a host, or `ANTHROPIC_FOUNDRY_RESOURCE`, the scan now names the resource and asks you to confirm it belongs to your organisation. Your own `~/.claude/settings.json` is not reported.
+
+### Changed
+
+- **HARNESS-001 is MEDIUM in a repository's settings (was HIGH).** Claude Code's settings reference says `bypassPermissions` "doesn't take effect from project or local settings" since 2.1.257; before that it took effect from any file. The finding stays, at MEDIUM, with a title and text that say so, because mcp-audit can't tell which Claude Code version is installed. In your own `~/.claude/settings.json` and `~/.claude.json` it is still HIGH.
+
+### Fixed
+
+- **A settings or MCP config file reached through a symlinked folder is now reported (TRUST-002).** If a repository's `.claude` (or `.cursor`, `.vscode`, `.amazonq`) folder is a symlink to somewhere else, its `settings.json` or `mcp.json` was read as the repository's own file with no warning. Both `scan --project` and the default scan from a checkout now report TRUST-002 for it, HIGH when the link leaves the repository, as they already did for a symlinked file and for auto-run files. Agent-file discovery already refused to read through such a folder; a test now pins that.
+- **Passwords and tokens in a server's launch command no longer appear in output.** TRANSPORT-003's evidence quoted the launch command, and `servers[].args` (and `raw.args`) in JSON output quoted every argument, including a database password in `postgresql://user:password@host/db` or a `--token ghp_…` argument. URL user info and known secret formats are now replaced with `[REDACTED]` there, in remote URLs (TRANSPORT-001/004 evidence, `servers[].url`), in community-rule findings that quote the matched value, and in CycloneDX snapshots. The scan itself still sees the real values. Environment-variable and header values in JSON output are not changed yet (see `GAPS.md`).
+
 ---
 
 ## [0.22.0] - 2026-10-27

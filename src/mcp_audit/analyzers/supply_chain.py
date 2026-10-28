@@ -748,6 +748,72 @@ def redact_command(command: str | None, args: list[str]) -> str:
     return text
 
 
+def redact_args(args: list[str]) -> list[str]:
+    """Return *args* with credentials redacted, one output item per argument.
+
+    The serialised form of a server's launch arguments (``servers[].args`` in
+    JSON scan output and snapshots, STORY-0108).  Each argument has its URL
+    userinfo replaced (:func:`_redact_userinfo`); then every SECRET_PATTERNS
+    match in the space-joined arguments is replaced in each argument it
+    overlaps, so a secret split across two arguments (``Bearer``, ``<token>``)
+    is caught the way :func:`redact_command` catches it.  Unlike
+    :func:`redact_command`, every argument is kept and nothing is truncated.
+
+    Args:
+        args: The server's ``args``.
+
+    Returns:
+        A new list of the same length.
+    """
+    cleaned = [_redact_userinfo(arg) for arg in args]
+    joined = " ".join(cleaned)
+    hits: list[tuple[int, int]] = []
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        hits.extend(
+            (m.start(), m.end())
+            for m in pattern.finditer(joined)
+            if m.end() > m.start()
+        )
+    if not hits:
+        return cleaned
+    out: list[str] = []
+    pos = 0
+    for arg in cleaned:
+        start, end = pos, pos + len(arg)
+        pos = end + 1
+        local = sorted(
+            (max(hs, start) - start, min(he, end) - start)
+            for hs, he in hits
+            if hs < end and he > start
+        )
+        if not local:
+            out.append(arg)
+            continue
+        pieces: list[str] = []
+        cursor = 0
+        for lo, hi in local:
+            if hi <= cursor:
+                continue
+            lo = max(lo, cursor)
+            pieces.append(arg[cursor:lo])
+            pieces.append(_REDACTED)
+            cursor = hi
+        pieces.append(arg[cursor:])
+        out.append("".join(pieces))
+    return out
+
+
+def redact_url(url: str | None) -> str | None:
+    """Return *url* with its userinfo and any SECRET_PATTERNS match redacted.
+
+    For a remote server's ``url`` in evidence and serialised output
+    (STORY-0108); ``None`` stays ``None``.
+    """
+    if url is None:
+        return None
+    return redact_args([url])[0]
+
+
 def build_twin_finding(
     server: ServerConfig,
     package: str,

@@ -20,6 +20,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
+from mcp_audit.analyzers.supply_chain import redact_url
 from mcp_audit.models import Finding, ServerConfig, Severity
 from mcp_audit.registry.loader import KnownServerRegistry
 
@@ -187,6 +188,10 @@ class RuleEngine:
             matched, matched_value = _evaluate_rule_match(rule.match, server)
             if not matched:
                 continue
+            # The matched value can be a launch argument or URL carrying a
+            # credential (``http://user:pass@host``): redact it before it
+            # reaches the description or evidence (STORY-0108).
+            matched_value = redact_url(matched_value) or ""
 
             description = rule.message.replace(
                 "{matched_value}", matched_value

@@ -587,6 +587,19 @@
       "notes": "Fires when the top-level env block of a project-scoped .claude/settings.json or .claude/settings.local.json (never ~/.claude/) sets an API endpoint or proxy variable to a host that is not the provider's own: ANTHROPIC_BASE_URL (first-party host api.anthropic.com, CFHYG-006's own test plus an exact-host check), ANTHROPIC_BEDROCK_BASE_URL, ANTHROPIC_BEDROCK_MANTLE_BASE_URL, ANTHROPIC_VERTEX_BASE_URL, ANTHROPIC_FOUNDRY_BASE_URL, ANTHROPIC_AWS_BASE_URL and any other ANTHROPIC_*BASE_URL, OPENAI_BASE_URL, GOOGLE_GEMINI_BASE_URL, GOOGLE_VERTEX_BASE_URL, HTTP_PROXY, HTTPS_PROXY. Each value is read both as Node's WHATWG parser reads it (backslashes as path separators, extra slashes skipped) and literally; it is reported when either reading leaves the first-party hosts, when it carries user info before '@', or when it has no parsable host. Loopback hosts, empty values and wholly-reference values are not reported. One finding per variable; the evidence names the host only, never userinfo, path or query. CVE-2026-21852 (Check Point Research) is attached to the ANTHROPIC_BASE_URL finding only. Severity HIGH. CWE-441. CFHYG-006 (a server's env) is unchanged. Analyzer: config_hygiene (STORY-0090)."
     },
     {
+      "finding_id": "CFHYG-008",
+      "finding_title": "Project settings send API requests to an Azure Foundry resource",
+      "owasp_codes": [
+        "MCP01",
+        "MCP08"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure",
+        "Lack of Audit and Telemetry"
+      ],
+      "notes": "Fires when the top-level env block of a project-scoped .claude/settings.json or .claude/settings.local.json (never ~/.claude/) selects a Microsoft Foundry resource: ANTHROPIC_FOUNDRY_BASE_URL on a <resource>.services.ai.azure.com host (the case CFHYG-007 treats as first-party and leaves silent) or ANTHROPIC_FOUNDRY_RESOURCE set to a resource name. The host is Microsoft's, but anyone can create a Foundry resource in their own Azure subscription, so the finding names the resource for a person to confirm. Severity INFO; not an advisory. CWE-441. Analyzer: config_hygiene (STORY-0108)."
+    },
+    {
       "finding_id": "ATTEST-010",
       "finding_title": "Sigstore provenance verified (valid match)",
       "owasp_codes": [],
@@ -1314,7 +1327,7 @@
         "Privilege Escalation via Scope Creep",
         "Insufficient Authentication and Authorization"
       ],
-      "notes": "Fires when a Claude Code settings file sets permissions.defaultMode to bypassPermissions (suppressed when the same file sets permissions.disableBypassPermissionsMode to \"disable\"). Severity HIGH. CWE-862. Basis: HarnessSecurity-Bench, arXiv 2610.07639. Analyzer: config_hygiene (STORY-0079)."
+      "notes": "Fires when a Claude Code settings file sets permissions.defaultMode to bypassPermissions (suppressed when the same file sets permissions.disableBypassPermissionsMode to \"disable\"). HIGH in user settings (~/.claude/settings.json) and the global config (~/.claude.json); MEDIUM in project and local settings (.claude/settings.json, .claude/settings.local.json) since STORY-0108, because the Claude Code settings reference says auto and bypassPermissions don't take effect from project or local settings (before v2.1.257 bypassPermissions took effect from any file; the installed version is not read). CWE-862. Basis: HarnessSecurity-Bench, arXiv 2610.07639. Analyzer: config_hygiene (STORY-0079)."
     },
     {
       "finding_id": "HARNESS-002",
