@@ -1732,7 +1732,8 @@ advisory records and report lookups that could not run:
   and otherwise reported INFO (`severity_basis: unrated`). CVSS 3.0 vectors
   are scored with the 3.1 formula, which can differ by 0.1.
 - **Budgets.** At most 256 distinct advisories are fetched per scan, 8 at a
-  time, 10 s each and 120 s in total; the rest stay INFO and the scan's
+  time, 10 s each; no new fetch starts after 120 s (a soft deadline: a fetch
+  already running may take up to 10 s more, about 130 s worst case); the rest stay INFO and the scan's
   errors say how many. OSV paginates very large results (over 1,000
   advisories for one package); only the first page is read, and the scan's
   errors say so.
@@ -1742,6 +1743,10 @@ advisory records and report lookups that could not run:
 - **Mirrors.** A `--vuln-registry` URL that does not end in `/querybatch`
   has no known details endpoint, so its advisories keep whatever the mirror
   returned.
+- **Non-registry launches.** A URL, git, tarball or path spec
+  (`git+https://…`, `github:owner/repo`, `owner/repo`, `./pkg.tgz`) is not
+  looked up at all, so no credential in it reaches deps.dev or OSV; such a
+  server gets no `--check-vulns` result.
 - **Launch parsing.** `pipx run pkg` is read as a package called `run`, and
   an npm alias (`npx pkg@npm:other@1.0.0`) is looked up under the name
   `pkg@npm:other`, which deps.dev does not know (`VULN-UNRESOLVED`); the

@@ -90,7 +90,7 @@ def sbom(
     # Resolve packages and (optionally) transitive dependencies
     all_packages: list[ResolvedPackage] = []
     for server in servers:
-        result = extract_ecosystem_and_version(server)
+        result = extract_ecosystem_and_version(server, skip_non_registry=True)
         if result is None:
             continue
         ecosystem, name, version = result

@@ -273,8 +273,9 @@ When this flag is set, mcp-audit:
    [OSV.dev](https://osv.dev) batch API (`/v1/querybatch`), which answers
    with advisory IDs only.
 4. Fetches the full record of each distinct advisory once from
-   `/v1/vulns/{id}` (at most 256 distinct IDs, 8 at a time, 10 s each, 120 s
-   in total, 4 MiB per record) and reads its summary, aliases, CWEs, fixed
+   `/v1/vulns/{id}` (at most 256 distinct IDs, 8 at a time, 10 s each, 4 MiB
+   per record; no new fetch starts after 120 s, so with a fetch still
+   running the worst case is about 130 s) and reads its summary, aliases, CWEs, fixed
    versions for this package, and severity.
 5. Emits a `VULN-<OSV-ID>` finding for each matched advisory, and a
    `VULN-UNRESOLVED` finding for each lookup that could not run.

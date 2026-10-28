@@ -197,6 +197,7 @@ def _preflight_checks(
     verify_signatures: bool = False,
     check_vulns: bool = False,
     connect: bool = False,
+    vuln_registry: str | None = None,
 ) -> None:
     """Validate incompatible flag combinations and user-supplied paths.
 
@@ -221,6 +222,15 @@ def _preflight_checks(
 
     if sast is not None and not sast.resolve().exists():
         con.print(f"[red]SAST target path does not exist:[/red] {sast}")
+        raise typer.Exit(2)
+
+    if vuln_registry is not None and not vuln_registry.lower().startswith(
+        ("https://", "http://")
+    ):
+        # urllib would otherwise open file:// or ftp:// targets (STORY-0106).
+        con.print(
+            "[red]Error:[/red] --vuln-registry must be an http:// or https:// URL"
+        )
         raise typer.Exit(2)
 
 
@@ -1891,6 +1901,7 @@ def scan(
         verify_signatures=verify_signatures,
         check_vulns=check_vulns,
         connect=connect,
+        vuln_registry=vuln_registry,
     )
 
     analyzers = _build_custom_analyzers(registry, offline_registry)
