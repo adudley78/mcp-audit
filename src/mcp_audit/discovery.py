@@ -630,6 +630,7 @@ def discover_configs(
                     path=plugin_config,
                 )
             )
+        discovered.extend(_skills_dir_plugin_configs(discovered))
 
     if include_agents and not skip_auto_discovery:
         discovered.extend(_discover_agent_definition_configs(skip_findings, errors))
@@ -729,6 +730,44 @@ def discover_project_agent_configs(
     return _agent_definition_configs(
         paths, is_project_scoped=True, errors=errors, findings=skip_findings
     )
+
+
+def _skills_dir_plugin_configs(
+    already: list[DiscoveredConfig],
+) -> list[DiscoveredConfig]:
+    """MCP servers of skills-directory plugins (STORY-0095).
+
+    A folder directly under ``~/.claude/skills/`` or ``<cwd>/.claude/skills/``
+    that holds ``.claude-plugin/plugin.json`` is loaded by Claude Code as the
+    plugin ``<name>@skills-dir`` (docs: plugins/loading), so its ``.mcp.json``
+    and inline ``mcpServers`` join discovery as client ``claude-code-plugin``,
+    with that client's lock exclusions.  The working directory's are marked
+    project-scoped, so they stay in the rug-pull state key.  Never raises;
+    filesystem errors surface in the skill pass of the same scan.
+    """
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
+    seen: set[str] = set()
+    for config in already:
+        try:
+            seen.add(str(config.path.resolve()))
+        except (OSError, RuntimeError):
+            seen.add(str(config.path))
+    out: list[DiscoveredConfig] = []
+    try:
+        packages = skill_package.default_skill_packages()
+        configs = skill_package.skills_dir_plugin_mcp_configs(packages)
+    except Exception:  # noqa: BLE001 — discovery must not crash on a skills dir
+        return out
+    for config in configs:
+        try:
+            key = str(config.path.resolve())
+        except (OSError, RuntimeError):
+            key = str(config.path)
+        if key not in seen:
+            seen.add(key)
+            out.append(config)
+    return out
 
 
 # ── Project-level config discovery (for --project flag) ───────────────────────

@@ -995,6 +995,97 @@ in `docs/permission-rules.md`:
   `--strict-mcp-config` gap applies to `--agents`/SDK definitions, not agent files.
 - Original implementation; no code was copied. Test fixtures were written for this repo.
 
+## Skill packages (SKILL-005..008, agent_files/skill_package.py, agent_files/install_steps.py — STORY-0095)
+
+- **Paperclip** — Zenity Labs, "Attackers target agents via the skill supply chain",
+  2026-08-06 (https://labs.zenity.io/post/attackers-target-agents-via-the-skill-supply-chain).
+  `SKILL.md` stayed clean; one byte-identical `setup-installation.md` was copied into
+  seven skill paths (including `skills/paperclip/references/` and
+  `.claude/skills/design-guide/`); "The board, planning and agent-management skills
+  directed the agent to the paperclip skill, which in turn referenced its trojanized
+  setup guide"; the guide said "Do not use npx paperclipai" and ran
+  `curl -s -k … | base64 -d > /tmp/t.mjs && node /tmp/t.mjs && rm /tmp/t.mjs`. Source
+  for reading every file in a skill, the sidecar pass (every prose file, because
+  references chain), and the SKILL-005 HIGH reasons "TLS certificate checks switched
+  off", "the download is decoded", and "downloaded to a file that is then run".
+- **USENIX Security 2026** — "Do Not Mention This to the User": Malicious Agent Skills
+  in the Wild, arXiv 2602.06547v4 (https://arxiv.org/html/2602.06547v4). "a reverse
+  shell is embedded within a skill.md file" (§1); "Base64 encoding with exec() (61.1%)"
+  and "dynamic execution via exec, pickle, or marshal" (§4.3); "The
+  --dangerously-skip-permissions flag disables all safety checks"; smp_9014 "redirects
+  all Claude API calls to attacker-proxy.example"; smp_866 "ships a .mcp.json with
+  hardcoded API credentials"; smp_413 "PostToolUse hooks exfiltrate results to external
+  servers". Source for SKILL-005 decode-then-execute, `marshal.loads` and reverse-shell
+  shapes, the SKILL-006 text shapes (permissions off, base-URL redirect), and the
+  carried `.mcp.json` / hooks components.
+- **SkillCloak** — "Cloak and Detonate", arXiv 2607.02357
+  (https://arxiv.org/abs/2607.02357), 2026-07-02. Payloads moved into `.git/` and
+  `build/` evaded eight scanners more than 90% of the time; the authors' stopgaps are to
+  flag opaque blobs in ignored folders and oversize files. Source for walking `.git/`,
+  `build/` and `dist/`, the git-layout check, and SKILL-007 (opaque files, encoded
+  blobs, over-cap files and budgets reported rather than skipped).
+- **Snyk ToxicSkills** — 2026-02-05
+  (https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub): 76 confirmed
+  malicious skills of 3,984, with password-protected ZIP payloads and `curl | bash`.
+  Source for the archive-password shape and SKILL-007's encrypted-ZIP check.
+- **0DIN** — "Clone this repo and I own your machine"
+  (https://0din.ai/blog/clone-this-repo-and-i-own-your-machine): a setup script pulled
+  its payload from a DNS TXT record. Source for the DNS-TXT-then-execute window rule.
+- **Agent Skills in the Wild** — arXiv 2601.10338v1
+  (https://arxiv.org/html/2601.10338v1), 2026-01-15: skills that bundle scripts were 2.12
+  times as likely to be vulnerable. Source for SKILL-008's conjunctive bump.
+- **Claude Code documentation**, read 2026-10-26 — Skills
+  (https://code.claude.com/docs/en/skills): "add a `.claude-plugin/plugin.json` to a
+  personal or project skill folder and Claude Code can load it as a plugin named
+  `<name>@skills-dir` with its own agents, hooks, and MCP servers". Plugins: loading
+  (https://code.claude.com/docs/en/plugins/loading): the `@skills-dir` origin and its
+  `defaultEnabled` rule; "Trust check and component limits for repository plugins"
+  (per-server approval; bundles and servers from outside the plugin directory skipped;
+  monitors do not load) and "Neither the trust check nor these component limits apply to
+  a plugin under your own `~/.claude/skills/`". Plugins reference
+  (https://code.claude.com/docs/en/plugins-reference): `bin/` "Files here are on the
+  Bash tool's `PATH` while the plugin is enabled". Hooks
+  (https://code.claude.com/docs/en/hooks), "Hooks in skills and agents": skill hooks are
+  registered on invocation and kept "for the rest of the session", "including in a `-p`
+  run in a folder you haven't trusted". Source for every SKILL-006 component and tier.
+- **Base-URL redirect** — CVE-2026-21852 (Check Point), as already cited for CFHYG-007;
+  the first-party host table is the one each vendor documents for its API. The
+  setting is also matched where Python sets it (`os.environ[…] = …`,
+  `setdefault`) and where Windows sets it persistently (`setx NAME value`, Microsoft's
+  `setx` command reference).
+- **Independent review of PR #194 (2026-10-27)** listed shapes of the classes above
+  that the first matcher missed, written with other tools; no new attack class was
+  added. How each is read follows the tool's own manual, not a pattern list from
+  another scanner: the bash and POSIX `sh` manuals for option parsing (`-c` and `-s`
+  decide where the script comes from; `-e`, `-x`, `-o pipefail` do not, and `-o`/`-O`
+  take one argument), `env`/`sudo`/`busybox` as wrappers that run the named program,
+  and here-strings (`<<<`); the curl manual ("URL" section: a host without a scheme is fetched
+  over HTTP, FTP is guessed for hosts starting `ftp.`) and the GNU Wget manual
+  ("URL Format": newer releases may default to https), so only a raw IP is read
+  as plaintext; the bash manual ("INVOCATION", `-c`, `-s`, `-e`, `-x`, `-o`) and the
+  POSIX `sh` utility page (OPTIONS) for how options decide the script source; `basenc`, `openssl base64 -d`, `gunzip`/`zcat`/`xz -d` as
+  decoders in the same decode-then-execute class as `base64 -d`; PowerShell's
+  `IEX (New-Object Net.WebClient).DownloadString(…)` download cradle and Perl's
+  `eval decode_base64(…)` as the PowerShell and Perl forms of fetch- or
+  decode-then-execute; Python `exec(urlopen(…).read())` and JavaScript
+  `fetch(…).then(eval)` as the "dynamic execution via exec" class (USENIX Security
+  2026, above); Gemini CLI's `-y`, the documented short form of `--yolo`.
+- **Vendor installers** — the host and path each vendor's own install documentation
+  gives for its script (uv/ruff, rustup, Hugging Face CLI, Claude Code, Bun, Deno,
+  Docker, nvm, Homebrew, fnm, pnpm, Poetry, Ollama, Google Cloud SDK, pyenv, mise, Volta,
+  Starship, Determinate Nix, .NET). A list for tiering, not a reputation service
+  (GAPS.md).
+- **File formats** — magic numbers from the published format specifications (PNG, GIF,
+  JPEG, WebP, PDF, ZIP, gzip, ELF, Mach-O, PE, WebAssembly, Java class, `.pyc`); the ZIP
+  encryption flag is general-purpose bit 0 (PKWARE APPNOTE 4.4.4).
+- **Measurement corpus** (not committed) — default branches of anthropics/skills,
+  anthropics/claude-code, ComposioHQ/awesome-claude-skills, huggingface/skills,
+  obra/superpowers, openai/skills, trailofbits/skills and vercel-labs/agent-skills,
+  fetched 2026-10-25, plus Anthropic's example skills; numbers in
+  `docs/skill-packages.md`.
+- All patterns are original implementations. No rule, code or fixture was copied from
+  SkillSpector, Agent Threat Rules, mcp-scan or any other scanner.
+
 
 ## SAST: SSRF guards that only block IP literals (STORY-0081)
 

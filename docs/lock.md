@@ -440,7 +440,12 @@ skip the file.
   subagent definition (`.claude/agents/**/*.md`, client `claude-code-agent`)
   under a lock root: `mcp-audit lock` never records them and verification skips
   them, so an existing lock keeps passing, but `check` and `scan` print a `WARN`
-  that the lock does not cover them, and their AGENT-004 is MEDIUM. A monorepo with several
+  that the lock does not cover them, and their AGENT-004 is MEDIUM. A repository's
+  skills-directory plugin servers (`.claude/skills/<name>/.mcp.json`, client
+  `claude-code-plugin`, STORY-0095) are verified against the entry `mcp-audit lock` wrote for
+  that `.mcp.json` (matched by config path and name, so drift is LOCK-001 in `check` as in
+  `lock --verify`); one the lock has no entry for, such as an inline `plugin.json` server, is
+  listed in `not_covered`. A monorepo with several
   `mcp-lock.json` files verifies each project config against its own nearest ancestor lock, never a
   sibling's.
 - **The GitHub Action** (`action.yml`) gains `lock-verify` (default `false`) and `lock-resolve`

@@ -19,6 +19,7 @@
 | [permission-rules.md](permission-rules.md) | Claude Code permission rules that don't do what they say (PERM-001..007) and sandbox settings a repository can loosen (SANDBOX-001..005): each rule or key, the vendor-documented reason, the bypass and the fix |
 | [severity-framework.md](severity-framework.md) | CVSS base scores and OWASP Agentic Top 10 mappings for every finding ID; decision tree for calibrating new findings |
 | [agent-execution-surface.md](agent-execution-surface.md) | Every repository file mcp-audit reads that a coding-agent harness runs or obeys (Gemini CLI, Codex, Claude Code, VS Code), with the finding and vendor source for each |
+| [skill-packages.md](skill-packages.md) | Every file in a Claude Code skill (SKILL-005..008): install steps, what a skill ships into Claude Code, unreadable content, and the measured rate on 1,129 ordinary skills |
 | [registry.md](registry.md) | Known-server registry reference, contributing entries |
 | [registry-contributions.md](registry-contributions.md) | How to submit new registry entries |
 | [research/2026-10-top100-npm/](research/2026-10-top100-npm/README.md) | Scan of the 100 most-downloaded MCP servers on npm (2026-10-22): corpus, aggregate numbers, scripts |
