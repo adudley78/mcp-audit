@@ -613,7 +613,11 @@ def _apply_vuln_check(
     vuln_registry_url: str | None,
     console: Console,
 ) -> ScanResult:
-    """Check for known CVEs in server dependencies via deps.dev + OSV.dev."""
+    """Check for known CVEs in server dependencies via deps.dev + OSV.dev.
+
+    Only called when ``--check-vulns`` is active.  Lookups that could not run
+    are reported as VULN-UNRESOLVED findings and lines in ``result.errors``.
+    """
     from mcp_audit.vulnerability.scanner import check_vulnerabilities  # noqa: PLC0415
 
     vuln_registry_obj = KnownServerRegistry(path=registry, offline=offline_registry)
@@ -621,6 +625,7 @@ def _apply_vuln_check(
         result.servers,
         vuln_registry_obj,
         vuln_registry_url=vuln_registry_url,
+        errors=result.errors,
     )
     result.findings.extend(findings)
     return result

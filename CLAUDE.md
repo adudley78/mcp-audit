@@ -164,10 +164,10 @@ src/mcp_audit/
 ├── vulnerability/     # OSV.dev CVE lookups for `scan --check-vulns` (network, opt-in)
 │   ├── __init__.py    # Package marker
 │   ├── models.py      # ResolvedPackage, VulnAdvisory data models
-│   ├── resolver.py    # extract_ecosystem_and_version(); resolve_latest_version() from a ServerConfig
-│   ├── depsdev.py     # fetch_transitive_deps() — transitive dependency graph from deps.dev
-│   ├── osv.py         # query_vulns_batch() — OSV.dev batch CVE query
-│   └── scanner.py     # check_vulnerabilities() — orchestrates resolver → depsdev → osv → Finding objects
+│   ├── resolver.py    # extract_package() (version may be None: `npx -y pkg`), extract_ecosystem_and_version(); resolve_latest_version() from a ServerConfig
+│   ├── depsdev.py     # fetch_dependency_graph() → DependencyGraph (relation SELF/DIRECT/INDIRECT, error, incomplete; 8 MiB cap); fetch_transitive_deps() wrapper for sbom
+│   ├── osv.py         # query_vulns_batch() (IDs only on OSV.dev) + enrich_advisories()/fetch_vuln_details() (/v1/vulns/{id}, distinct IDs, 256 / 120 s / 4 MiB budgets); severity_from_record(): CVSS v3 → database_specific → MAL-* CRITICAL → unrated (STORY-0106)
+│   └── scanner.py     # check_vulnerabilities(errors=result.errors) — resolver → depsdev → osv → VULN-<OSV-ID>, VULN-UNPINNED, VULN-UNRESOLVED (INFO: a lookup that could not run; non-advisory)
 ├── diff/              # MCP-aware diff engine (mcp-audit diff)
 │   ├── __init__.py    # Package marker
 │   ├── loader.py      # Load diff inputs (directory, JSON scan file, or git SHA) into ServerConfig lists
@@ -770,7 +770,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 74 findings on a first scan of all demo configs (66 once rug-pull state exists; counted 2026-10-27 for STORY-0101, which added TOXIC-008 ×2 and TOXIC-010 (HIGH) and TOXIC-011 (CRITICAL) on the demo's `github` server, attack paths unchanged at 26 with 3 CRITICAL; 70/62 after STORY-0097, which added SC-007 + SC-008 on the demo's `npx -y mcp-server-postgres` — OSV MAL-2026-5481 since June 2026; it was 68/60 from v0.20.0 to v0.21.1) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 6568 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 6614 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 28 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release

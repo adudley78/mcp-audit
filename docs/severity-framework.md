@@ -214,6 +214,14 @@ Recorded as a known, measured gap in GAPS.md — not silently dropped, and not
 a deliberate deferral like `CLOUD` (see toxic_flow.py's module docstring and
 `INTEGRITY_PAIRS` comment for the full measurement).
 
+### Vulnerability lookups (`vulnerability/`, `scan --check-vulns`)
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| VULN-&lt;OSV-ID&gt; | from the advisory | ASI10 | — | Read from the advisory's own OSV record (STORY-0106): CVSS v3 base score, else `database_specific.severity`, else CRITICAL for an OSV `MAL-*` record, else INFO with the reason. mcp-audit does not re-rate a published advisory. |
+| VULN-UNPINNED | LOW | ASI10 | — | The launch floats; the lookup used the latest release, which may not be what runs. |
+| VULN-UNRESOLVED | INFO | — | MCP04 | A lookup could not run (STORY-0106). INFO because it asserts nothing about the package; it exists so a partial check never reads as clean. Not an advisory. |
+
 ### Attestation (`attestation/`)
 
 **Layer 1 — hash verification (`--verify-hashes`)**

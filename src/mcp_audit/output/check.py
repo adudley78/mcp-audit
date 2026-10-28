@@ -61,6 +61,10 @@ _HINTS: dict[str, str] = {
         "OSV lists malicious releases of this package; follow the finding: "
         "remove it, or pin a release the record does not list."
     ),
+    "VULN-UNRESOLVED": (
+        "The vulnerability lookup for this package could not finish; re-run "
+        "`scan --check-vulns` later or look it up at https://osv.dev."
+    ),
     # Poisoning / prompt injection
     "POISON-001": (
         "Remove or sanitise the suspicious instruction from the tool description."

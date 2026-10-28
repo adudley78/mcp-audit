@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`scan --check-vulns` now reports each advisory's real severity and summary (STORY-0106).** OSV's batch endpoint answers with advisory IDs only, so every match used to come out as INFO with "No summary available.", including HIGH CVEs. Each distinct advisory is now fetched once from OSV's `/v1/vulns/{id}` (at most 256 per scan, with timeouts and size limits) and its severity is read from its own record: the CVSS v3 score, else the database's own rating (GitHub's LOW/MODERATE/HIGH/CRITICAL), else CRITICAL for an OSV `MAL-*` malicious-package record, else INFO with the reason. The evidence says which (`severity_basis`), and `direct_dependency` is now true for direct dependencies too: deps.dev's `relation` field was being ignored. Fixed versions are read from the affected package's own entry, and GitHub's CWE list is read again.
+- **A vulnerability lookup that cannot run no longer looks clean (VULN-UNRESOLVED, INFO; STORY-0106).** When deps.dev has no dependency graph for a version (it answers 404 for releases from the last few days; 17 of the top 100 MCP servers on the day we measured), when the OSV query fails, or when no concrete version can be resolved, `--check-vulns` now reports `VULN-UNRESOLVED` for that server, says what was and was not checked, and adds a line to the scan's errors. A server launched with no version at all (`npx -y pkg`) used to be skipped without a word; it is now resolved to the latest release, checked, and reported as `VULN-UNPINNED`, like `@latest` and ranges already were. `uvx pkg==1.2.3` is read as an exact pin. Network use is unchanged: only with `--check-vulns`, and never with `--offline`. See `docs/supply-chain.md`.
+
 ---
 
 ## [0.22.0] - 2026-10-27
