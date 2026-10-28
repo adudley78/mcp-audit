@@ -346,6 +346,45 @@ def _quote_commands(commands: list[str]) -> str:
     return quoted
 
 
+#: ``${cmd: ...}``: MCPHub's run-a-command placeholder.  The body stops at the
+#: first ``}`` (linear: one negated class), which is enough to name the command.
+_MCPHUB_CMD_RE: re.Pattern[str] = re.compile(r"\$\{cmd:([^}]*)")
+
+#: Most commands collected from one file, and the deepest nesting walked.
+_MCPHUB_MAX_COMMANDS = 200
+_MCPHUB_MAX_DEPTH = 64
+
+
+def _mcphub_commands(doc: dict | list) -> list[str]:
+    """Commands in MCPHub ``${cmd: ...}`` / legacy ``$: ...`` placeholders.
+
+    Walks the parsed document iteratively (no recursion, depth-bounded) and
+    returns the placeholder bodies in document order.  Pure text work.
+    """
+    found: list[str] = []
+    stack: list[tuple[object, str, int]] = [(doc, "", 0)]
+    while stack and len(found) < _MCPHUB_MAX_COMMANDS:
+        node, parent_key, depth = stack.pop()
+        if depth > _MCPHUB_MAX_DEPTH:
+            continue
+        if isinstance(node, str):
+            for match in _MCPHUB_CMD_RE.finditer(node):
+                found.append(match.group(1).strip())
+            if parent_key == "env" and node.startswith("$:"):
+                found.append(node[2:].strip())
+        elif isinstance(node, dict):
+            items = list(node.items())
+            for key, value in reversed(items):
+                if parent_key == "env" and isinstance(value, str):
+                    stack.append((value, "env", depth + 1))
+                else:
+                    stack.append((value, str(key), depth + 1))
+        elif isinstance(node, list):
+            for value in reversed(node):
+                stack.append((value, parent_key, depth + 1))
+    return found[:_MCPHUB_MAX_COMMANDS]
+
+
 def _network_primitive(commands: list[str]) -> str | None:
     """Return the first network-egress primitive in *commands* (HOOK-001's regex)."""
     for cmd in commands:
@@ -2202,6 +2241,8 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             return self._check_codex_config(text, path, client)
         if kind == "codex-hooks":
             return self._check_codex_hooks(text, path, client)
+        if kind == "mcphub-config":
+            return self._check_mcphub_config(text, path, client)
         return []
 
     def _hook_file_finding(
@@ -2571,6 +2612,62 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     "Project hooks load once the project is trusted, and Codex"
                     " asks you to review and trust each new or changed hook"
                     " before it runs."
+                ),
+            )
+        ]
+
+    def _check_mcphub_config(self, text: str, path: Path, client: str) -> list[Finding]:
+        """``.mcphub/servers.json``: ``${cmd: ...}`` placeholders (STORY-0119).
+
+        MCPHub (mcp-hub, used by mcphub.nvim) resolves ``${cmd: command args}``
+        in every field of a server entry by running the command and using its
+        output (mcp-hub README, "Placeholder Syntax": "Executes commands and
+        uses output"; mcphub.nvim ``doc/mcp/servers_json.md``: "All fields
+        support the universal placeholder syntax").  mcphub.nvim reads a
+        project's ``.mcphub/servers.json`` by default (workspace detection,
+        ``doc/configuration.md``) and documents no trust prompt, so a
+        committed file whose placeholders run a command is an auto-run surface.
+        The legacy ``"KEY": "$: command"`` form in an ``env`` object is the
+        same thing (documented as deprecated but still supported).  Nothing
+        is evaluated here: the placeholders are found as text.
+        """
+        parsed = parse_jsonc(text)
+        if not isinstance(parsed, (dict, list)):
+            logger.warning("config_hygiene: failed to parse JSONC in %s", path)
+            return []
+        commands = _mcphub_commands(parsed)
+        if not commands:
+            return []
+        net = _network_primitive(commands)
+        evidence = f"{path}: commands: {_quote_commands(commands)}"
+        if net:
+            evidence += f" | network primitive matched: {net!r}"
+        return [
+            self._trust008(
+                severity=Severity.CRITICAL if net else Severity.HIGH,
+                client=client,
+                path=path,
+                server="(placeholders)",
+                title="Repository MCPHub config runs commands via ${cmd:} placeholders",
+                description=(
+                    f"'{_short_path(path)}' is MCPHub's project config, which"
+                    " MCPHub.nvim loads by default when you open the folder in"
+                    " Neovim. It holds placeholders of the form ${cmd: ...} (or"
+                    " the legacy '$: ...' in env); MCPHub runs the command and"
+                    " substitutes its output, and the documentation names no"
+                    " approval step for a project file."
+                    + (
+                        " A command reaches the network, the shape of an"
+                        " exfiltration or command-and-control channel."
+                        if net
+                        else ""
+                    )
+                ),
+                evidence=evidence,
+                remediation=(
+                    "Read every ${cmd: ...} command before opening the folder"
+                    " with MCPHub, and replace each with a ${env:NAME}"
+                    " reference. mcp-audit does not modify this file."
                 ),
             )
         ]

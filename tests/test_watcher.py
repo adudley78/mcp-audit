@@ -479,3 +479,63 @@ class TestWatchCLI:
             ["watch", "--severity-threshold", "BOGUS"],
         )
         assert result.exit_code == 2
+
+
+# ── Gateway configs (STORY-0119 T5) ────────────────────────────────────────────
+
+
+class TestGatewayConfigs:
+    """``watch`` re-scans when a gateway's config file changes."""
+
+    def _home(self, tmp_path: Path, monkeypatch) -> Path:  # noqa: ANN001
+        home = tmp_path / "home"
+        (home / ".mcptoon").mkdir(parents=True)
+        (home / ".config" / "mcphub").mkdir(parents=True)
+        monkeypatch.setattr("mcp_audit.gateways._gateway_home", lambda: home)
+        monkeypatch.setattr("mcp_audit.gateways._gateway_environ", lambda: {})
+        monkeypatch.chdir(tmp_path)
+        return home
+
+    def test_gateway_files_pass_the_filter_by_full_path(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:  # noqa: ANN001
+        from mcp_audit.watcher import _gateway_watch_files  # noqa: PLC0415
+
+        home = self._home(tmp_path, monkeypatch)
+        files = _gateway_watch_files()
+        assert home / ".mcptoon" / "config.toml" in files
+        assert home / ".config" / "mcphub" / "servers.json" in files
+        assert tmp_path / ".mcptoon.json" in files
+        assert tmp_path / ".mcphub" / "servers.json" in files
+        handler = _McpConfigEventHandler(MagicMock(), frozenset({"mcp.json"}), files)
+        assert handler._is_relevant(str(home / ".mcptoon" / "config.toml"))
+        assert handler._is_relevant(str(home / ".config" / "mcphub" / "servers.json"))
+        assert handler._is_relevant(str(tmp_path / ".mcptoon.toml"))
+        # A same-named file elsewhere is still not a gateway config.
+        assert not handler._is_relevant(str(tmp_path / "other" / "servers.json"))
+        assert not handler._is_relevant(str(tmp_path / "other" / "config.toml"))
+
+    def test_gateway_directories_are_watched(self, tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+        home = self._home(tmp_path, monkeypatch)
+        watchable, _ = _watch_directories()
+        assert home / ".mcptoon" in watchable
+        assert home / ".config" / "mcphub" in watchable
+
+    def test_editing_a_gateway_config_triggers_a_rescan(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:  # noqa: ANN001
+        home = self._home(tmp_path, monkeypatch)
+        fired: list[tuple[Path, str]] = []
+        watcher = ConfigWatcher(on_change_callback=lambda p, e: fired.append((p, e)))
+        watcher.start()
+        try:
+            time.sleep(0.3)
+            target = home / ".mcptoon" / "config.toml"
+            target.write_text('[servers.a]\ncommand = "x"\n')
+            deadline = time.time() + 5
+            while time.time() < deadline and not fired:
+                time.sleep(0.1)
+        finally:
+            watcher.stop()
+        assert fired
+        assert fired[0][0] == target

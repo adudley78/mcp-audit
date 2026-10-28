@@ -290,7 +290,7 @@ See the COLLIDE-001 section below for why `COMM-032` was skipped.)
 | COMM-012 | Non-HTTPS remote URL | Original — transport security; mirrors TRANSPORT-001 for rule-engine coverage |
 | COMM-013 | npx auto-confirm flag (silent execution) | Original — OX Security STDIO disclosure (CVE-2025-49596 and related CVEs); npx `-y`/`--yes` bypasses interactive confirmation, enabling silent RCE when an attacker controls the package name |
 | COMM-014 | MCP Sampling capability declared | Palo Alto Unit42 MCP Security Analysis, May 2026 — documents Sampling-based resource theft, conversation hijacking, and covert invocation attack vectors |
-| COMM-015 | Shell metacharacters in server args | OX Security advisory / CVE-2026-30623 (CVSS 9.8) — config tampering enables shell command injection at server spawn time |
+| COMM-015 | Shell metacharacters in server args | OX Security advisory / CVE-2026-30623 (CVSS 9.8) — config tampering enables shell command injection at server spawn time. STORY-0119: a pure `${VAR}` / `${env:VAR}` reference (the placeholder form VS Code, mcphub.nvim and mcp-hub document) is not command substitution and no longer matches; `$(`, backtick, `$VAR`, `${IFS}` and a `${cmd: …}` with a network primitive still do (mcphub.nvim `doc/mcp/servers_json.md`, mcp-hub README "Placeholder Syntax"). |
 | COMM-016 | Role-claim poisoning in server args | OWASP MCP Top 10 MCP01 (Prompt Injection); adversarial MCP PoC research 2025-2026; role-directive strings in args are a canonical injection delivery mechanism |
 | COMM-017 | Authority-claim / AI identity impersonation | OWASP MCP Top 10 MCP01; targeted MCP phishing toolkit research 2025-2026; highest-risk impersonation pattern — "I am Anthropic / I am Claude" overrides user trust calibration |
 | COMM-018 | Output-format hijack instruction | OWASP MCP Top 10 MCP01; format-override directives in tool descriptions are a standard persistent injection technique across multiple published PoCs |
@@ -1557,3 +1557,28 @@ parameters (`token`, `api_key`, `sig`, `X-Amz-Signature`, `access_token` in the
 OAuth fragment) follow RFC 6750 section 2.3 and the AWS Signature Version 4
 query form. URL user info carrying Base64 `user:pass` is the form RFC 7617
 (Basic) encodes. Written from these specifications; no external code copied.
+## MCPHub `${cmd:}` placeholders, COMM-015 and MEM-005 follow-ups (STORY-0119)
+
+Read on 2026-10-28; fetched pages are data, quoted only where the code depends on them.
+
+- **TRUST-008 for `.mcphub/servers.json`.** mcphub.nvim `doc/mcp/servers_json.md`
+  (https://github.com/ravitemer/mcphub.nvim/blob/main/doc/mcp/servers_json.md):
+  `${cmd: command args}` is "Executes commands and uses output", "All fields
+  support the universal placeholder syntax", and `"$: command"` in `env` is
+  "deprecated but still supported". mcp-hub README (https://github.com/ravitemer/mcp-hub):
+  `${cmd: ...}` is step 1 of placeholder resolution, "command execution across
+  all fields", and no security note. mcphub.nvim `doc/configuration.md`
+  (https://github.com/ravitemer/mcphub.nvim/blob/main/doc/configuration.md):
+  `workspace.enabled = true` by default, project config overrides global,
+  `.mcphub/servers.json` is in `look_for`; no trust or confirmation step is
+  documented. **Not stated by the vendor:** which process runs the command and
+  when, so the finding says MCPHub "runs" the command and does not claim it
+  runs on open. The CRITICAL-on-network test reuses HOOK-001's regex.
+- **COMM-015 narrowing.** Original; measured on every JSON config under the
+  repository, the top-100 and MCPTox scratch data (656 files): 3 distinct args
+  matched the old pattern; 1 stopped matching (`${CLAUDE_PLUGIN_ROOT}/...` in a
+  real plugin `.mcp.json`); `sh -c "$USER_COMMAND"` in the unsafe-shell-runner
+  fixture and one `>=` version spec keep matching.
+- **MEM-005 widening.** Original, same sources as STORY-0099 above; measured on
+  129 real project instruction files and 10,099 skill-repository files (0 hits
+  before and after).

@@ -2,16 +2,20 @@ id: COMM-015
 name: Shell metacharacters in server args
 description: >
   One or more server args contain shell metacharacters (;, &&, ||, |, $(...),
-  backtick, >, <). These characters have no legitimate use in MCP server args
-  and strongly indicate command injection or config tampering. A threat actor
-  who can modify an MCP config file can inject shell commands that execute
+  $VAR, backtick, >, <). These characters have no legitimate use in MCP server
+  args and strongly indicate command injection or config tampering. A threat
+  actor who can modify an MCP config file can inject shell commands that execute
   when the server process is spawned. Associated with the OX Security advisory
-  (CVE-2026-30623, CVSS 9.8).
+  (CVE-2026-30623, CVSS 9.8). A pure ${VAR} or ${env:VAR} reference (the
+  placeholder form clients and MCPHub document) is an environment reference, not
+  command substitution, and does not fire. A ${cmd: ...} placeholder fires only
+  when its command reaches the network; a ${cmd:} in a committed MCPHub config
+  is reported separately as TRUST-008.
 severity: CRITICAL
 category: injection
 match:
   field: args
-  pattern: "[;|&`$><]|\\$\\(|&&|\\|\\|"
+  pattern: "[;|&`><]|\\$(?!\\{(?:env:)?(?!IFS\\})[A-Za-z_][A-Za-z0-9_]*\\})(?!\\{cmd:)|\\$\\{cmd:[^}]{0,200}(?:curl|wget|ncat?|socat|https?://|Invoke-WebRequest|Invoke-RestMethod)"
   type: regex
 message: "Server '{server_name}' has shell metacharacters in args: {matched_value}"
 tags:

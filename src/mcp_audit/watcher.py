@@ -40,6 +40,24 @@ def _known_config_filenames() -> frozenset[str]:
     return frozenset(names)
 
 
+def _gateway_watch_files() -> frozenset[Path]:
+    """Gateway config files (STORY-0119): user-level and the working directory's.
+
+    ``watch`` filters events by file name and ``.json`` suffix, which drops
+    ``config.json`` / ``servers.json`` (too generic to match by name anywhere)
+    and mcptoon's ``.toml``.  These are matched by full path instead.
+    """
+    from mcp_audit.gateways import (  # noqa: PLC0415 — keep module import light
+        PROJECT_GATEWAY_FILES,
+        user_gateway_config_paths,
+    )
+
+    files = {path for _client, path in user_gateway_config_paths()}
+    cwd = Path.cwd()
+    files.update(cwd / rel for rel, _client in PROJECT_GATEWAY_FILES)
+    return frozenset(files)
+
+
 def _watch_directories(
     extra_paths: list[Path] | None = None,
 ) -> tuple[list[Path], list[Path]]:
@@ -66,6 +84,10 @@ def _watch_directories(
     cwd = _Path.cwd()
     dirs.add(cwd)
     dirs.add(cwd / ".vscode")
+    # Gateway configs (mcptoon, 1MCP, MCPHub): re-scan when one is created or
+    # edited, so a server added behind a gateway is not missed (STORY-0119).
+    for gateway_file in _gateway_watch_files():
+        dirs.add(gateway_file.parent)
 
     if extra_paths:
         for p in extra_paths:
@@ -89,10 +111,12 @@ class _McpConfigEventHandler(FileSystemEventHandler):
         self,
         callback: ChangeCallback,
         known_filenames: frozenset[str],
+        known_paths: frozenset[Path] = frozenset(),
     ) -> None:
         super().__init__()
         self._callback = callback
         self._known_filenames = known_filenames
+        self._known_paths = known_paths
         self._lock = threading.Lock()
         self._pending: dict[Path, threading.Timer] = {}
         # Serialises callback execution: only one scan runs at a time.  When
@@ -105,6 +129,8 @@ class _McpConfigEventHandler(FileSystemEventHandler):
 
     def _is_relevant(self, path_str: str) -> bool:
         p = Path(path_str)
+        if p in self._known_paths:
+            return True
         return p.suffix == ".json" and p.name in self._known_filenames
 
     def _schedule(self, path: Path, event_type: str) -> None:
@@ -215,7 +241,9 @@ class ConfigWatcher:
                     self._known_filenames = frozenset(self._known_filenames | {ep.name})
 
         self._watchable, self._skipped = _watch_directories(extra_paths)
-        self._handler = _McpConfigEventHandler(self._callback, self._known_filenames)
+        self._handler = _McpConfigEventHandler(
+            self._callback, self._known_filenames, _gateway_watch_files()
+        )
         self._observer: Observer = Observer()
 
     @property
