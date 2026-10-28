@@ -82,7 +82,11 @@ def normalise(result: object, root: Path) -> dict:
     prefix = str(root)
 
     def clean(text: object) -> object:
-        return text.replace(prefix, "<root>") if isinstance(text, str) else text
+        # Windows paths: the root prefix, then separators, so outcomes recorded
+        # on Linux compare on every OS.
+        if not isinstance(text, str):
+            return text
+        return text.replace(prefix, "<root>").replace("\\", "/")
 
     findings = sorted(
         (
