@@ -662,3 +662,80 @@ def test_lock_cli_warns_and_never_writes_the_secret(
     v = runner.invoke(app, ["lock", "--verify"])
     assert v.exit_code == 0, v.output
     assert "LOCK-013" in v.output
+
+
+# ── Review fixes ─────────────────────────────────────────────────────────────
+
+
+def test_env_flag_with_inner_assignment_is_redacted() -> None:
+    assert redact_args(["--env=API_KEY=abcdef12"]) == ["--env=API_KEY=[REDACTED]"]
+    assert redact_args(["--env=NODE_ENV=production"]) == ["--env=NODE_ENV=production"]
+    assert redact_args(["-e", "API_KEY=abcdef12"]) == ["-e", "API_KEY=[REDACTED]"]
+
+
+@pytest.mark.parametrize(
+    ("arg", "expected"),
+    [
+        (
+            "Server=h;User Id=sa;Password=se cret;Encrypt=true",
+            "Server=h;User Id=sa;Password=[REDACTED];Encrypt=true",
+        ),
+        ("Data Source=x;Password='my pass'", "Data Source=x;Password=[REDACTED]"),
+        ('Pwd="a b;c";X=1', "Pwd=[REDACTED];X=1"),
+        ("host=h password=abc dbname=x", "host=h password=[REDACTED] dbname=x"),
+    ],
+)
+def test_passwords_with_spaces_are_redacted_whole(arg: str, expected: str) -> None:
+    assert redact_args([arg]) == [expected]
+    assert redact_command_text(arg) == expected
+
+
+def test_query_names_match_whole_tokens() -> None:
+    url = "https://h/x?author=a&keyword=k&monkey=m&sort_key=1&primary_key=2&page=3"
+    assert redact_url(url) == url
+    assert redact_url("https://h/x?apiKey=zzzz&X-Amz-Credential=c") == (
+        "https://h/x?apiKey=[REDACTED]&X-Amz-Credential=[REDACTED]"
+    )
+
+
+def test_short_env_password_is_redacted() -> None:
+    assert redact_env_values({"PASSWORD": "x1"})["PASSWORD"] == FLAG_REDACTION_MARKER
+
+
+def test_directory_vs_its_own_scan_file_is_no_change(tmp_path: Path) -> None:
+    d = tmp_path / "a"
+    d.mkdir()
+    (d / ".mcp.json").write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "plain": {
+                        "command": "npx",
+                        "args": ["-y", "@acme/p", "--port=80"],
+                        "env": {
+                            "GITHUB_TOKEN": KEY,
+                            "DB_PASSWORD": PW,
+                            "NODE_ENV": "x",
+                        },
+                    },
+                    "sec": {
+                        "command": "npx",
+                        "args": ["-y", "p", "--password", "hunter22"],
+                    },
+                    "conn": {
+                        "command": "npx",
+                        "args": ["p", f"Server=h;Password={PW} x;Encrypt=true"],
+                    },
+                    "remote": {"url": f"https://u:{PW}@h.example/mcp?token={KEY}"},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    scan = tmp_path / "a.json"
+    scan.write_text(
+        run_scan(extra_paths=[d], skip_rug_pull=True).model_dump_json(),
+        encoding="utf-8",
+    )
+    assert compare(load_input(str(d)), load_input(str(scan))) == []
+    assert compare(load_input(str(scan)), load_input(str(d))) == []

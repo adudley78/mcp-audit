@@ -13,6 +13,7 @@ from mcp_audit.analyzers.supply_chain import (
     FLAG_REDACTION_MARKER,
     REDACTION_MARKER,
     redact_args,
+    redact_env_values,
     redact_url,
 )
 from mcp_audit.models import ServerConfig, Severity
@@ -118,6 +119,9 @@ def _extract_external_urls(server: ServerConfig) -> list[str]:
     if server.url:
         candidates.append(server.url)
     candidates.extend(server.args)
+    # Redacted first, so a directory and its own scan file give the same set
+    # (and no URL printed from here carries a credential).
+    candidates = redact_args([str(c) for c in candidates])
 
     for candidate in candidates:
         for match in _URL_RE.findall(candidate):
@@ -135,6 +139,26 @@ def _extract_external_urls(server: ServerConfig) -> list[str]:
             ):
                 urls.append(match)
     return urls
+
+
+def _redacted_env(server: ServerConfig) -> dict[str, str]:
+    """``server.env`` as a scan file holds it, so both inputs compare alike."""
+    return redact_env_values(server.env)
+
+
+def _launch_view(server: ServerConfig) -> tuple[str, list[str], str, dict]:
+    """Command, args, URL and env in redacted form (STORY-0118).
+
+    A JSON scan file is redacted and a directory is not; comparing the two
+    raw reports every credential as changed.  Redaction is idempotent, so both
+    inputs reduce to the same text.
+    """
+    return (
+        redact_url(server.command or "") or "",
+        redact_args([str(a) for a in server.args]),
+        redact_url(server.url or "") or "",
+        _redacted_env(server),
+    )
 
 
 def _has_hardcoded_cred(server: ServerConfig) -> tuple[bool, str, str]:
@@ -157,6 +181,12 @@ def _has_hardcoded_cred(server: ServerConfig) -> tuple[bool, str, str]:
     launch_text = " ".join([server.command or "", args_str, server.url or "", env_vals])
     if REDACTION_MARKER in launch_text:
         return True, "Redacted credential", "redacted"
+    # A directory input holds the credential in clear where a scan file holds
+    # the marker (STORY-0118): judge both by what redaction would make of it.
+    command, args, url, env = _launch_view(server)
+    view_text = " ".join([command, *args, url, *map(str, env.values())])
+    if REDACTION_MARKER in view_text:
+        return True, "Redacted credential", "redacted"
     return False, "", ""
 
 
@@ -166,8 +196,18 @@ def _possible_flag_credential(server: ServerConfig) -> bool:
     ``--password VALUE`` whose value matches no SECRET_PATTERNS entry reads
     ``[REDACTED-FLAG]`` in a scan file: probably a credential, not certainly.
     """
+    command, args, url, env = _launch_view(server)
     launch_text = " ".join(
-        [server.command or "", *server.args, server.url or "", *server.env.values()]
+        [
+            server.command or "",
+            *server.args,
+            server.url or "",
+            *server.env.values(),
+            command,
+            *args,
+            url,
+            *map(str, env.values()),
+        ]
     )
     return FLAG_REDACTION_MARKER in launch_text
 
@@ -348,7 +388,8 @@ def _changes_for_modified_server(
 
     # ── Command / args diff ───────────────────────────────────────────────
     cmd_diff: dict | None = None
-    if base.command != head.command or base.args != head.args:
+    base_view, head_view = _launch_view(base), _launch_view(head)
+    if base_view[:2] != head_view[:2]:
         cmd_diff = {
             "before_command": redact_url(base.command),
             "after_command": redact_url(head.command),
@@ -357,7 +398,7 @@ def _changes_for_modified_server(
         }
         field_changes.append("command/args")
 
-    if base.url != head.url:
+    if base_view[2] != head_view[2]:
         field_changes.append("url")
 
     # ── Env-var changes ───────────────────────────────────────────────────
@@ -367,7 +408,9 @@ def _changes_for_modified_server(
     added_keys = head_keys - base_keys
     removed_keys = base_keys - head_keys
     # Changed values for keys present in both
-    changed_keys = {k for k in base_keys & head_keys if base.env[k] != head.env[k]}
+    changed_keys = {
+        k for k in base_keys & head_keys if base_view[3][k] != head_view[3][k]
+    }
 
     if added_keys or removed_keys or changed_keys:
         field_changes.append("env")

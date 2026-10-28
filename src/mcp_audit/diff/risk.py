@@ -148,7 +148,10 @@ def classify_modified_server(
     base_env = set(base.env.keys())
     head_env = set(head.env.keys())
     new_keys = head_env - base_env
-    changed_keys = {k for k in base_env & head_env if base.env[k] != head.env[k]}
+    from mcp_audit.diff.comparator import _redacted_env  # noqa: PLC0415
+
+    b_env, h_env = _redacted_env(base), _redacted_env(head)
+    changed_keys = {k for k in base_env & head_env if b_env[k] != h_env[k]}
     for key in new_keys | changed_keys:
         is_hv, _ = _classify_env_key(key)
         if is_hv:

@@ -1228,8 +1228,6 @@ _EXTRA_SECRET_HEADERS: frozenset[str] = frozenset(
     }
 )
 _KEEP_SCHEME_WORDS: frozenset[str] = frozenset({"bearer", "basic", "token"})
-_KV_NAME_RE = re.compile(r"-{0,2}[A-Za-z][A-Za-z0-9_.-]{0,63}")
-_KV_PIECE_RE = re.compile(r"[^;\s]+")
 _BASIC_AUTH_FLAGS: frozenset[str] = frozenset({"--user", "--proxy-user"})
 _SHORT_BASIC_AUTH_FLAGS: frozenset[str] = frozenset({"-u", "-U"})
 
@@ -1288,34 +1286,68 @@ def redact_header_arg(arg: str) -> str:
     return f"{prefix}{name}: {keep}{REDACTION_MARKER}"
 
 
+_KV_NAME_AT_RE = re.compile(r"(?<![^\s;'\",(=])(-{0,2}[A-Za-z][A-Za-z0-9_.-]{0,63})=")
+_KV_VALUE_END_RE = re.compile(r"[;\s]")
+
+
 def redact_kv_secrets(text: str) -> str:
-    """Redact ``password=…``-style pairs split on ``;`` and whitespace.
+    """Redact ``password=…``-style pairs in connection strings and commands.
 
     Connection strings (``Server=h;Database=d;Password=v;``), libpq DSNs
     (``host=h password=v``) and shell assignments.  The name must be a secret
     name (:func:`_is_secret_flag_name`: ``Password``, ``Pwd``, ``AccountKey``,
-    ``api_token``); a password-class name (``password``, ``pwd``, ``secret``)
-    hides any value, other names only values that are not settings, paths,
-    URLs or references.  Values already redacted are left alone.
+    ``api_token``) at the start of the text or after whitespace, ``;``, a
+    quote, ``,`` or ``(``.  A quoted value runs to its closing quote.  A
+    password-class name (``password``, ``pwd``, ``secret``) hides any value, and
+    when the text has a later ``;`` its value runs to that ``;`` (``Password=se
+    cret;``), otherwise to whitespace; other names hide values that are not
+    settings, paths, URLs or references.  ``--env=NAME=value`` is read through
+    its inner assignment.  Values already redacted are left alone.  Linear: a
+    consumed value is never rescanned.
     """
     if "=" not in text:
         return text
-
-    def _fix(m: re.Match[str]) -> str:
-        piece = m.group(0)
-        name, eq, value = piece.partition("=")
-        if not eq or not value or not _KV_NAME_RE.fullmatch(name):
-            return piece
-        if value.startswith("[REDACTED") or _looks_like_reference(value):
-            return piece
+    out: list[str] = []
+    pos = 0
+    n = len(text)
+    for m in _KV_NAME_AT_RE.finditer(text):
+        if m.start() < pos:
+            continue
+        name, vstart = m.group(1), m.end()
         bare = name.lstrip("-")
-        if not _is_secret_flag_name(bare):
-            return piece
-        if _short_password_value(bare, value) or _is_secret_flag_value(value):
-            return f"{name}={REDACTION_MARKER}"
-        return piece
-
-    return _KV_PIECE_RE.sub(_fix, text)
+        password_class = any(t in _PASSWORD_TOKENS for t in _flag_name_tokens(bare))
+        if vstart < n and text[vstart] in "'\"":
+            close = text.find(text[vstart], vstart + 1)
+            vend = n if close == -1 else close + 1
+        else:
+            stop = _KV_VALUE_END_RE.search(text, vstart)
+            vend = stop.start() if stop else n
+            if password_class and stop and text[vend] != ";":
+                semi = text.find(";", vend)
+                if semi != -1:
+                    vend = semi
+        value = text[vstart:vend]
+        bare_value = value.strip("'\"")
+        if name.startswith("-") and "=" in value and not _is_secret_flag_name(bare):
+            continue  # ``--env=NAME=v``: the inner pair is matched next
+        if (
+            not bare_value
+            or bare_value.startswith("[REDACTED")
+            or _looks_like_reference(bare_value)
+            or not _is_secret_flag_name(bare)
+            or not (
+                _short_password_value(bare, bare_value)
+                or _is_secret_flag_value(bare_value)
+            )
+        ):
+            continue
+        out.append(text[pos:vstart])
+        out.append(REDACTION_MARKER)
+        pos = vend
+    if not out:
+        return text
+    out.append(text[pos:])
+    return "".join(out)
 
 
 def _redact_basic_auth_flags(args: list[str], parts: list[str]) -> list[str]:
@@ -1374,30 +1406,58 @@ def _redact_launch_parts(args: list[str], parts: list[str], offset: int) -> list
 
 # URL query / fragment parameters and ``NAME=value`` assignments, moved here
 # from ``managed_policy`` (STORY-0118) so one set of rules serves both.
-_SECRET_WORDS = (
-    "key",
-    "token",
-    "secret",
-    "password",
-    "passwd",
-    "pwd",
-    "auth",
-    "credential",
-)
-# Matched as whole name tokens only (``X-Amz-Signature``, ``sig``), so a name
-# like ``DESIGN_DIR`` is not caught by ``sig``.
-_SECRET_TOKENS = frozenset({"sig", "signature"})
 _NAME_SPLIT = re.compile(r"[^A-Za-z0-9]+")
 _SCHEME_WORDS = ("bearer ", "basic ")
 
 
+#: Name tokens that mark a query parameter or variable as a credential (whole
+#: tokens, so ``author``, ``keyword`` and ``monkey`` are not).
+_SECRET_NAME_TOKENS: frozenset[str] = frozenset(
+    {
+        "key",
+        "apikey",
+        "token",
+        "secret",
+        "password",
+        "passwd",
+        "pwd",
+        "auth",
+        "credential",
+        "credentials",
+        "sig",
+        "signature",
+        "bearer",
+    }
+)
+#: A ``key`` after one of these is a database or cache key, not a credential.
+_NOT_SECRET_KEY_PREFIXES: frozenset[str] = frozenset(
+    {
+        "sort",
+        "primary",
+        "foreign",
+        "order",
+        "partition",
+        "cache",
+        "group",
+        "row",
+        "shard",
+    }
+)
+
+
 def is_secret_name(name: str) -> bool:
     """True when a parameter or variable *name* is named for a secret value."""
-    lowered = name.lower()
-    if any(word in lowered for word in _SECRET_WORDS):
+    tokens = [
+        t for t in _NAME_SPLIT.split(_CAMEL_BOUNDARY_RE.sub("-", name).lower()) if t
+    ]
+    for i, token in enumerate(tokens):
+        if token not in _SECRET_NAME_TOKENS:
+            continue
+        previous = tokens[i - 1] if i > 0 else ""
+        if token == "key" and previous in _NOT_SECRET_KEY_PREFIXES:  # noqa: S105
+            continue
         return True
-    tokens = _NAME_SPLIT.split(_CAMEL_BOUNDARY_RE.sub("-", name).lower())
-    return any(token in _SECRET_TOKENS for token in tokens)
+    return False
 
 
 def _redact_pairs(text: str) -> str:
@@ -1762,7 +1822,9 @@ def redact_env_values(env: dict) -> dict:
         if (
             redacted == value
             and _is_secret_env_name(str(name))
-            and _is_secret_flag_value(value)
+            and (
+                _is_secret_flag_value(value) or _short_password_value(str(name), value)
+            )
         ):
             redacted = FLAG_REDACTION_MARKER
         out[name] = redacted
