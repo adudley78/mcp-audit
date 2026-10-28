@@ -18,6 +18,7 @@
 | [supply-chain.md](supply-chain.md) | Supply chain attestation, hash verification, contribution guide |
 | [dependency-reachability.md](dependency-reachability.md) | Why Dependabot findings in transitives are unused, and which call-site changes invalidate those dismissals |
 | [permission-rules.md](permission-rules.md) | Claude Code permission rules that don't do what they say (PERM-001..007) and sandbox settings a repository can loosen (SANDBOX-001..005): each rule or key, the vendor-documented reason, the bypass and the fix |
+| [gateways.md](gateways.md) | Servers behind an MCP gateway (mcptoon, 1MCP, MCPHub): where their configs are read from, how upstream servers are reported, and what is not covered |
 | [managed-policy.md](managed-policy.md) | Claude Code managed MCP policy versus the servers you have (MANAGED-001..005): which servers the organization's policy keeps from loading, and allowlists a repository can widen or that trust names |
 | [severity-framework.md](severity-framework.md) | CVSS base scores and OWASP Agentic Top 10 mappings for every finding ID; decision tree for calibrating new findings |
 | [agent-execution-surface.md](agent-execution-surface.md) | Every repository file mcp-audit reads that a coding-agent harness runs or obeys (Gemini CLI, Codex, Claude Code, VS Code), with the finding and vendor source for each |

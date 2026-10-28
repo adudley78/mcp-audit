@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from mcp_audit.analyzers.git_exec import GitSurface, is_bare_repository
+from mcp_audit.gateways import PROJECT_GATEWAY_FILES, user_gateway_config_paths
 from mcp_audit.models import Finding, Severity
 
 #: ``mcp-lock.json``'s own filename. Imported here as a literal rather than
@@ -547,6 +548,7 @@ def discover_configs(
     include_agents: bool = True,
     skip_findings: list[Finding] | None = None,
     errors: list[str] | None = None,
+    include_gateways: bool = True,
 ) -> list[DiscoveredConfig]:
     """Find all MCP configuration files on this machine.
 
@@ -577,6 +579,14 @@ def discover_configs(
             paths and report symlinks through ``is_symlink`` instead).
         errors: Optional list to receive subagent-discovery filesystem errors
             and budget notes (a scan's ``result.errors``).
+        include_gateways: Also return the config files of MCP gateways
+            (mcptoon, 1MCP, MCPHub; :mod:`mcp_audit.gateways`), whose upstream
+            servers become servers of client ``<gateway>-upstream``
+            (STORY-0111): the user-level files, and the working directory's
+            project files (``.mcptoon.json``, ``.mcptoon.toml``,
+            ``.mcphub/servers.json``, marked ``is_project_scoped``).  Same rules
+            as *include_plugins*: on by default, ignored with
+            *skip_auto_discovery*; ``lock`` passes ``False``.
 
     Returns:
         List of discovered configuration files.  A candidate that is itself a
@@ -614,6 +624,27 @@ def discover_configs(
                         )
                     )
 
+        # Gateway configs (STORY-0111): the servers behind an MCP gateway.
+        # User-global — info-shaped (TRUST-004) if a symlink, like the client
+        # configs above.
+        if include_gateways:
+            for gw_client, gw_path in user_gateway_config_paths():
+                if _safe_is_symlink(gw_path):
+                    discovered.append(
+                        DiscoveredConfig(
+                            client_name=gw_client,
+                            root_key="servers",
+                            path=gw_path,
+                            is_symlink=True,
+                        )
+                    )
+                elif _safe_is_file(gw_path):
+                    discovered.append(
+                        DiscoveredConfig(
+                            client_name=gw_client, root_key="servers", path=gw_path
+                        )
+                    )
+
         # Check for VS Code / Claude Code project-level configs in CWD.
         # Boundary-shaped (TRUST-002): these live inside whatever directory the
         # user is scanning from, the same GhostApproval risk as the --project
@@ -627,7 +658,11 @@ def discover_configs(
         at_home = _is_user_level_harness_dir(cwd)
 
         def _add_cwd_candidate(
-            rel: str, client_name: str, root_key: str, dialect: str | None = None
+            rel: str,
+            client_name: str,
+            root_key: str,
+            dialect: str | None = None,
+            project_scoped: bool = False,
         ) -> None:
             candidate = cwd / rel
             # A symlinked file or a symlinked parent (``.claude -> /elsewhere``)
@@ -651,6 +686,7 @@ def discover_configs(
                     client_name=client_name,
                     root_key=root_key,
                     path=candidate,
+                    is_project_scoped=project_scoped,
                     is_symlink=linked,
                     symlink_root=cwd if linked else None,
                     dialect=dialect,
@@ -681,6 +717,16 @@ def discover_configs(
         # server never shares a rug-pull key with a same-named user server.
         for rel, client_name, root_key, dialect in _HARNESS_CWD_SPECS:
             _add_cwd_candidate(rel, client_name, root_key, dialect)
+
+        # A gateway's project config in the working directory (STORY-0111):
+        # mcptoon reads ./.mcptoon.json and ./.mcptoon.toml from the directory
+        # it runs in, MCPHub.nvim's workspace detection reads
+        # .mcphub/servers.json.  Marked project-scoped so the servers stay in
+        # this directory's rug-pull state key and lock auto-verification lists
+        # them as not covered, like a repository's skills-directory plugin.
+        if include_gateways:
+            for rel, gw_client in PROJECT_GATEWAY_FILES:
+                _add_cwd_candidate(rel, gw_client, "servers", project_scoped=True)
 
     # Check extra paths. Explicit — info-shaped (TRUST-004): the user named
     # this path themselves, and today's silent `continue` here is a plain bug
@@ -1042,7 +1088,9 @@ _WALK_MAX_DEPTH: int = 8
 
 
 def discover_project_configs(
-    root: Path, skip_findings: list[Finding] | None = None
+    root: Path,
+    skip_findings: list[Finding] | None = None,
+    include_gateways: bool = False,
 ) -> list[DiscoveredConfig]:
     """Walk a repository tree and find all project-level MCP config files.
 
@@ -1070,6 +1118,11 @@ def discover_project_configs(
         skip_findings: Optional list to append TRUST-005 findings to for
             symlinked directories that were not traversed.  When ``None``,
             those directories are still skipped, just silently (as before).
+        include_gateways: Also return MCP gateway project configs
+            (:data:`mcp_audit.gateways.PROJECT_GATEWAY_FILES`, STORY-0111),
+            with the same symlink rules.  ``scan --project`` passes ``True``;
+            ``mcp-audit lock`` does not, so locks never record gateway
+            upstreams.
 
     Returns:
         List of :class:`DiscoveredConfig` objects with
@@ -1083,7 +1136,10 @@ def discover_project_configs(
             return
 
         # Check each known project-config pattern relative to this directory.
-        for rel_path, client_name, root_key in _PROJECT_CONFIG_SPECS:
+        specs = list(_PROJECT_CONFIG_SPECS)
+        if include_gateways:
+            specs += [(rel, client, "servers") for rel, client in PROJECT_GATEWAY_FILES]
+        for rel_path, client_name, root_key in specs:
             candidate = dirpath / rel_path
             # A symlinked file, or a file reached through a symlinked parent
             # directory (``.claude -> /elsewhere``, STORY-0108), is a TRUST-002

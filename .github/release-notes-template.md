@@ -107,7 +107,7 @@ changelog section above.
 - 22-server false-positive benchmark — 0% poisoning FP rate on legitimate server config entries (measured recall and precision on tool descriptions: [`docs/poisoning.md`](docs/poisoning.md))
 - CVSS + OWASP MCP Top 10 severity mappings on every finding ID
 
-**7,316 tests · Apache 2.0 · macOS · Linux · Windows**
+**7,365 tests · Apache 2.0 · macOS · Linux · Windows**
 
 ---
 

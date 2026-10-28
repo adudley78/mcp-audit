@@ -30,6 +30,7 @@ from rich.console import Console
 
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, DiscoveredConfig
+from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 _STATE_DIR: Path = Path(user_config_dir("mcp-audit")) / "state"
@@ -115,6 +116,13 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
     out for a related reason: every agent file is a discovered config whether
     or not it declares a server, so adding or deleting one would otherwise move
     the whole scan's rug-pull history to a new state file.
+
+    User-level MCP gateway configs (``<gateway>-upstream`` clients,
+    STORY-0111) are left out too, so a machine that already had one does not
+    lose its rug-pull history to a new state file when they join discovery;
+    their servers are tracked in whichever file the rest of the scan uses.  A
+    working directory's gateway project file (``is_project_scoped``) stays in
+    the key, for the reason given above for skills-directory plugins.
     """
     _migrate_legacy_state()
     configs = [
@@ -122,6 +130,7 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
         for c in configs
         if c.client_name != AGENT_DEFINITION_CLIENT
         and (c.client_name != "claude-code-plugin" or c.is_project_scoped)
+        and (c.client_name not in GATEWAY_UPSTREAM_CLIENTS or c.is_project_scoped)
     ]
     if not configs:
         return DEFAULT_STATE_PATH
@@ -130,8 +139,26 @@ def derive_state_path(configs: list[DiscoveredConfig]) -> Path:
     return _STATE_DIR / f"state_{digest}.json"
 
 
+#: Separates a gateway upstream's name from its config path in a state key.
+_GATEWAY_KEY_SEP = " @ "
+
+
 def server_key(server: ServerConfig) -> str:
-    """Return the canonical state-file key for a server: ``'{client}/{name}'``."""
+    """Return the canonical state-file key for a server: ``'{client}/{name}'``.
+
+    A server read from an MCP gateway's config (``<gateway>-upstream``,
+    STORY-0111) also carries its config file, ``'{client}/{name} @ {path}'``:
+    a gateway reads several files (mcptoon's user and project configs, JSON
+    and TOML) that can each name the same server, and one key for all of
+    them would let a change in one file go unreported.  No earlier state
+    used these keys.
+    """
+    if server.client in GATEWAY_UPSTREAM_CLIENTS:
+        try:
+            path = str(server.config_path.resolve())
+        except (OSError, RuntimeError):
+            path = str(server.config_path)
+        return f"{server.client}/{server.name}{_GATEWAY_KEY_SEP}{path}"
     return f"{server.client}/{server.name}"
 
 
@@ -302,6 +329,8 @@ class RugPullAnalyzer(BaseAnalyzer):
         for key, entry in stored.items():
             if key not in current:
                 client, _, srv_name = key.partition("/")
+                if client in GATEWAY_UPSTREAM_CLIENTS:
+                    srv_name = srv_name.rsplit(_GATEWAY_KEY_SEP, 1)[0]
                 findings.append(self._removed_finding(client, srv_name, key, entry))
 
         # ── Persist updated state ─────────────────────────────────────────────
