@@ -2131,7 +2131,7 @@
       "owasp_names": [
         "Context Injection and Over-sharing"
       ],
-      "notes": "A user-global instruction file (~/.claude/CLAUDE.md, ~/.claude/skills/**/SKILL.md, rules, commands, subagents, ~/.codex/AGENTS.md, OpenClaw workspace) or one at the working directory's root (CLAUDE.md, AGENTS.md, .claude/..., .github/copilot-instructions.md, ...) has a different SHA-256 than the last default scan recorded for the same path. Record holds hashes and finding IDs only, never content. INFO: usually the user's own edit. Default scan/check only. CWE-345. Non-advisory. Analyzer: agent_files (STORY-0113)."
+      "notes": "A user-global instruction file (~/.claude/CLAUDE.md, ~/.claude/skills/**/SKILL.md, rules, commands, subagents, ~/.codex/AGENTS.md, OpenClaw workspace) or one at the working directory's root (CLAUDE.md, AGENTS.md, .claude/..., .github/copilot-instructions.md, ...) has a different SHA-256 than the last default scan recorded for the same path. Record holds hashes and finding IDs only, never content. INFO: usually the user's own edit. Every scan with no explicit path (scan, check, scan --project). CWE-345. Non-advisory. Analyzer: agent_files (STORY-0113)."
     },
     {
       "finding_id": "INSTR-002",
@@ -2144,7 +2144,7 @@
         "Context Injection and Over-sharing",
         "Tool Poisoning"
       ],
-      "notes": "As INSTR-001, and this scan reports a MEDIUM-or-higher finding ID on the file that the previous record for that file did not hold. MEDIUM. The underlying finding keeps its own severity. CWE-345. Non-advisory. Analyzer: agent_files (STORY-0113)."
+      "notes": "As INSTR-001, and the file now has a MEDIUM-or-higher content finding ID (MEM-/SKILL-/POISON-/AGENT-/HOOK-, never TRUST-*) that the previous record for that file did not hold; for the user's own memory files MEM-004/005 run in this step, recorded but not reported. A version seen before never escalates. MEDIUM. The underlying finding keeps its own severity. CWE-345. Non-advisory. Analyzer: agent_files (STORY-0113)."
     },
     {
       "finding_id": "MANAGED-001",

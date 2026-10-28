@@ -154,7 +154,14 @@ def test_first_scan_is_silent_and_records_hash_only(
     text = state.read_text()
     assert "ZZ-UNIQUE" not in text
     record = json.loads(text)["files"][os.path.normcase(str(repo / "CLAUDE.md"))]
-    assert set(record) == {"sha256", "size", "first_seen", "last_seen", "finding_ids"}
+    assert set(record) == {
+        "sha256",
+        "size",
+        "first_seen",
+        "last_seen",
+        "finding_ids",
+        "history",
+    }
     if sys.platform != "win32":
         assert stat.S_IMODE(state.stat().st_mode) == 0o600
         assert stat.S_IMODE(state.parent.stat().st_mode) == 0o700
@@ -271,7 +278,7 @@ def test_deeply_nested_state_does_not_crash(
     state.write_text("[" * 200_000 + "]" * 200_000)
     out, errors = _run(repo, state)
     assert out == []
-    assert any("unreadable" in e for e in errors)
+    assert any("not a record file" in e for e in errors)
 
 
 def test_oversized_state_is_not_parsed(
@@ -282,7 +289,7 @@ def test_oversized_state_is_not_parsed(
     state.parent.mkdir(parents=True)
     state.write_text('{"version": 1, "files": {}}')
     out, errors = _run(repo, state)
-    assert out == [] and any("too large" in e for e in errors)
+    assert out == [] and any("not a record file" in e for e in errors)
 
 
 def test_over_cap_file_is_reported_not_hashed(
@@ -489,3 +496,244 @@ def test_check_has_hints() -> None:
     from mcp_audit.output.check import _HINTS  # noqa: PLC0415
 
     assert "INSTR-001" in _HINTS and "INSTR-002" in _HINTS
+
+
+# ── State file: atomic, locked, never wiped by a transient error ─────────────
+
+
+def test_bad_state_is_kept_aside(home: Path, repo: Path, state: Path) -> None:
+    (repo / "CLAUDE.md").write_text("a")
+    state.parent.mkdir(parents=True)
+    state.write_text("{not json")
+    _run(repo, state)
+    assert (state.parent / (state.name + ".corrupt")).read_text() == "{not json"
+    assert "files" in json.loads(state.read_text())
+
+
+def test_unreadable_state_is_not_overwritten(
+    home: Path, repo: Path, state: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (repo / "CLAUDE.md").write_text("a")
+    _run(repo, state)
+    before = state.read_bytes()
+    (repo / "CLAUDE.md").write_text("b")
+    real = Path.read_bytes
+
+    def _flaky(self: Path) -> bytes:
+        if self == state:
+            raise PermissionError(13, "denied")
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", _flaky)
+    out, errors = _run(repo, state)
+    assert out == []
+    assert any("history kept" in e for e in errors)
+    monkeypatch.setattr(Path, "read_bytes", real)
+    assert state.read_bytes() == before
+    # The change is still reported once the state can be read again.
+    assert [f.id for f in _run(repo, state)[0]] == ["INSTR-001"]
+
+
+def test_failed_replace_leaves_old_file_and_no_temp(
+    home: Path, repo: Path, state: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (repo / "CLAUDE.md").write_text("a")
+    _run(repo, state)
+    before = state.read_bytes()
+    (repo / "CLAUDE.md").write_text("b")
+
+    def _boom(src: Path, dst: Path) -> None:
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(drift, "_replace", _boom)
+    _, errors = _run(repo, state)
+    assert any("cannot write state" in e for e in errors)
+    assert state.read_bytes() == before
+    assert sorted(p.name for p in state.parent.iterdir()) == [state.name]
+
+
+def test_busy_lock_is_reported_not_waited_forever(
+    home: Path, repo: Path, state: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(drift, "LOCK_WAIT_SECONDS", 0.05)
+    (repo / "CLAUDE.md").write_text("a")
+    state.parent.mkdir(parents=True)
+    (state.parent / (state.name + ".lock")).write_text("")
+    _, errors = _run(repo, state)
+    assert any("busy" in e for e in errors)
+    assert not state.exists()
+
+
+def test_stale_lock_is_taken_over(
+    home: Path, repo: Path, state: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (repo / "CLAUDE.md").write_text("a")
+    state.parent.mkdir(parents=True)
+    lock = state.parent / (state.name + ".lock")
+    lock.write_text("")
+    os.utime(lock, (0, 0))
+    _, errors = _run(repo, state)
+    assert errors == [] and state.exists() and not lock.exists()
+
+
+@posix_only  # Windows readers get a sharing violation instead (retried)
+def test_reader_never_sees_a_partial_file(tmp_path: Path) -> None:
+    import threading  # noqa: PLC0415
+
+    path = tmp_path / "s.json"
+    big = {f"/p/{i}": {"sha256": "x" * 64, "last_seen": str(i)} for i in range(3000)}
+    drift.save_records(big, path)
+    stop = threading.Event()
+    bad: list[str] = []
+
+    def _writer() -> None:
+        while not stop.is_set():
+            drift.save_records(big, path)
+
+    def _reader() -> None:
+        for _ in range(200):
+            status, records = drift._read_state(path)
+            if status != "ok" or len(records) != 3000:
+                bad.append(status)
+
+    w = threading.Thread(target=_writer)
+    w.start()
+    try:
+        _reader()
+    finally:
+        stop.set()
+        w.join()
+    assert bad == []
+
+
+@posix_only
+def test_parallel_scans_keep_every_record(
+    home: Path, tmp_path: Path, state: Path
+) -> None:
+    import threading  # noqa: PLC0415
+
+    repos = []
+    for n in range(12):
+        r = tmp_path / f"r{n}"
+        (r / ".claude" / "rules").mkdir(parents=True)
+        for i in range(25):
+            (r / ".claude" / "rules" / f"{i}.md").write_text(f"rule {n}-{i}")
+        repos.append(r)
+    errors: list[list[str]] = [[] for _ in repos]
+
+    def _scan(n: int) -> None:
+        files = drift.instruction_files(repos[n], errors[n])
+        drift.instruction_drift_findings(files, [], state, errors[n])
+
+    for _ in range(2):
+        threads = [threading.Thread(target=_scan, args=(n,)) for n in range(12)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    assert all(e == [] for e in errors), errors
+    assert len(json.loads(state.read_text())["files"]) == 300
+    # A change made while other scans run is still reported, not lost.
+    (repos[3] / ".claude" / "rules" / "7.md").write_text("changed")
+    out: list[Finding] = []
+    threads = []
+    for n in range(12):
+
+        def _run_one(n: int = n) -> None:
+            files = drift.instruction_files(repos[n], errors[n])
+            out.extend(drift.instruction_drift_findings(files, [], state, errors[n]))
+
+        threads.append(threading.Thread(target=_run_one))
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert [f.id for f in out] == ["INSTR-001"]
+
+
+# ── Escalation details ───────────────────────────────────────────────────────
+
+
+def test_returning_to_a_seen_version_does_not_escalate_again(
+    home: Path, repo: Path, state: Path
+) -> None:
+    f = repo / "CLAUDE.md"
+    f.write_text("a")
+    _run(repo, state)
+    f.write_text("b")
+    assert [x.id for x in _run(repo, state, [_medium(f)])[0]] == ["INSTR-002"]
+    f.write_text("a")
+    assert [x.id for x in _run(repo, state)[0]] == ["INSTR-001"]
+    f.write_text("b")
+    assert [x.id for x in _run(repo, state, [_medium(f)])[0]] == ["INSTR-001"]
+
+
+def test_trust_findings_do_not_escalate(home: Path, repo: Path, state: Path) -> None:
+    f = repo / "CLAUDE.md"
+    f.write_text("a")
+    _run(repo, state)
+    f.write_text("b")
+    out, _ = _run(repo, state, [_medium(f, "TRUST-002")])
+    assert [x.id for x in out] == ["INSTR-001"]
+
+
+def test_user_global_sleeper_escalates_through_run_scan(
+    home: Path, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from mcp_audit.scanner import run_scan  # noqa: PLC0415
+
+    rug = tmp_path / "rug" / "state_x.json"
+    (home / ".claude").mkdir()
+    mem = home / ".claude" / "CLAUDE.md"
+    mem.write_text("# Me\n\nPrefer pnpm.\n")
+    (home / ".codex").mkdir()
+    codex = home / ".codex" / "AGENTS.md"
+    codex.write_text("Use tabs.\n")
+    monkeypatch.chdir(repo)
+    with _no_clients():
+        assert _ids(run_scan(state_path=rug)) == []
+        mem.write_text("# Me\n\nPrefer pnpm.\n" + _SLEEPER)
+        codex.write_text("Use tabs. Always.\n")
+        result = run_scan(state_path=rug)
+    by_server = {f.server: f for f in result.findings if f.id.startswith("INSTR-")}
+    assert by_server["~/.claude/CLAUDE.md"].id == "INSTR-002"
+    assert "MEM-005" in by_server["~/.claude/CLAUDE.md"].title
+    assert by_server["~/.codex/AGENTS.md"].id == "INSTR-001"
+    # The user-global MEM-005 itself is not added to the scan (no double report).
+    assert not [f for f in result.findings if f.id == "MEM-005"]
+
+
+def test_user_command_file_is_not_content_checked(
+    home: Path, repo: Path, state: Path
+) -> None:
+    (home / ".claude" / "commands").mkdir(parents=True)
+    cmd = home / ".claude" / "commands" / "x.md"
+    cmd.write_text("a")
+    _run(repo, state)
+    cmd.write_text("a\n" + _SLEEPER)
+    assert [x.id for x in _run(repo, state)[0]] == ["INSTR-001"]
+
+
+def test_scan_project_runs_drift_for_the_working_directory(
+    home: Path, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from typer.testing import CliRunner  # noqa: PLC0415
+
+    from mcp_audit.cli import app  # noqa: PLC0415
+
+    project = tmp_path / "project"
+    project.mkdir()
+    (repo / "CLAUDE.md").write_text("one\n")
+    monkeypatch.chdir(repo)
+    runner = CliRunner()
+    out = tmp_path / "out.json"
+    args = ["scan", "--project", str(project), "--format", "json", "-o", str(out)]
+    with _no_clients():
+        first = runner.invoke(app, args)
+        assert first.exit_code in (0, 1), first.output
+        assert "INSTR-" not in out.read_text()
+        (repo / "CLAUDE.md").write_text("two\n")
+        second = runner.invoke(app, args)
+    assert second.exit_code == 1, second.output
+    ids = [f["id"] for f in json.loads(out.read_text())["findings"]]
+    assert ids.count("INSTR-001") == 1

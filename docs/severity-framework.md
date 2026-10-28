@@ -370,7 +370,7 @@ See `docs/agent-files.md` ("Imports and references", "Heartbeat files").
 
 ### Instruction-file drift (`agent_files/drift.py`, INSTR-001/INSTR-002, STORY-0113)
 
-A default `scan`/`check` records one SHA-256 per user-global and working-directory-root
+Every scan with no explicit path (`scan`, `check`, `scan --project`) records one SHA-256 per user-global and working-directory-root
 instruction file (beside the rug-pull state) and compares it with the previous scan.
 Hashes and finding IDs only; never content. Not advisories (`NON_ADVISORY_IDS`).
 See `docs/agent-files.md`.
@@ -378,7 +378,7 @@ See `docs/agent-files.md`.
 | Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
 |------------|----------|----------------------|------------------|-----------|
 | INSTR-001  | INFO     | ASI06 | MCP10 | The file's bytes differ from the last scan's record for the same path. INFO: people edit these files all the time; reported because an agent (Claude edits CLAUDE.md on request, code.claude.com/docs/en/memory), a skill or a sync tool can write there too. A first sighting and a removal are not reported. CWE-345. |
-| INSTR-002  | MEDIUM   | ASI06 | MCP10, MCP03 | As INSTR-001, and this scan reports a MEDIUM-or-higher finding ID on the file that the previous record did not hold: the change brought the finding. Fixed MEDIUM whatever the underlying finding's severity, which that finding keeps. CWE-345. |
+| INSTR-002  | MEDIUM   | ASI06 | MCP10, MCP03 | As INSTR-001, and the file now has a MEDIUM-or-higher finding ID from a check of its own content (MEM-/SKILL-/POISON-/AGENT-/HOOK-; never TRUST-*) that the previous record did not hold: the change brought the finding. For the user's own memory files the MEM-004/005 checks run in this step (their findings are not added to the scan). A version seen before (one of the last eight hashes) never escalates again. Fixed MEDIUM whatever the underlying finding's severity, which that finding keeps. CWE-345. |
 
 ### Sandbox settings (`analyzers/sandbox.py`, SANDBOX-001..005, STORY-0093)
 
