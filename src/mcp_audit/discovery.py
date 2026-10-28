@@ -158,7 +158,66 @@ def _get_client_specs() -> list[ClientSpec]:
     # Amazon Q Developer — project-level only; see _PROJECT_CONFIG_SPECS below.
     # No user-global config path is documented, so no entry is added here.
 
+    # Codex — ``[mcp_servers.<name>]`` tables in ``$CODEX_HOME/config.toml``
+    # (default ``~/.codex``), read as TOML by the parser (STORY-0110).
+    clients.append(
+        ClientSpec(
+            name=CODEX_CLIENT,
+            root_key=CODEX_ROOT_KEY,
+            config_paths=[codex_user_config_path()],
+        )
+    )
+
+    # Gemini CLI — ``mcpServers`` in ``~/.gemini/settings.json`` (JSON with
+    # comments; STORY-0110).
+    clients.append(
+        ClientSpec(
+            name=GEMINI_CLIENT,
+            root_key="mcpServers",
+            config_paths=[gemini_user_config_path()],
+        )
+    )
+
     return clients
+
+
+#: Client names for Codex and Gemini CLI (STORY-0110).  A server found in the
+#: working directory's ``.codex/config.toml`` / ``.gemini/settings.json`` by a
+#: default scan is labelled ``<client>-project`` (as ``claude-code-project``),
+#: so it never shares a rug-pull key with a user-level server of the same
+#: name; ``scan --project`` and ``lock`` use the plain name, as for the other
+#: project config files.
+CODEX_CLIENT = "codex"
+GEMINI_CLIENT = "gemini-cli"
+CODEX_ROOT_KEY = "mcp_servers"
+
+#: Parser dialect for each Codex / Gemini CLI client label.
+_HARNESS_DIALECT: dict[str, str] = {
+    CODEX_CLIENT: "codex",
+    f"{CODEX_CLIENT}-project": "codex",
+    GEMINI_CLIENT: "gemini",
+    f"{GEMINI_CLIENT}-project": "gemini",
+}
+
+
+def codex_user_config_path() -> Path:
+    """Codex's user config: ``$CODEX_HOME/config.toml``, else ``~/.codex/config.toml``.
+
+    Codex reads ``CODEX_HOME`` when it is set and non-empty
+    (``codex-rs/utils/home-dir``); the value is resolved like any user path.
+    """
+    override = os.environ.get("CODEX_HOME", "").strip()
+    if override:
+        try:
+            return Path(override).expanduser().resolve() / "config.toml"
+        except (OSError, RuntimeError):
+            return Path(override).expanduser() / "config.toml"
+    return _home() / ".codex" / "config.toml"
+
+
+def gemini_user_config_path() -> Path:
+    """Gemini CLI's user settings file, ``~/.gemini/settings.json``."""
+    return _home() / ".gemini" / "settings.json"
 
 
 @dataclass
@@ -189,6 +248,12 @@ class DiscoveredConfig:
     # YAML rejects). Callers that report errors append these to
     # ScanResult.errors, so partly-read content is never dropped silently.
     parse_warnings: list[str] = field(default_factory=list)
+    # How parse_config() reads the file when the path alone does not say:
+    # ``"codex"`` (TOML, ``[mcp_servers.<name>]`` tables) or ``"gemini"``
+    # (``settings.json`` with comments, ``httpUrl``/``type`` transports).
+    # ``None`` lets the parser infer it from the path (a ``.toml`` suffix, or
+    # ``.gemini/settings.json``) and otherwise read plain JSON (STORY-0110).
+    dialect: str | None = None
 
 
 def _agent_definitions_home() -> Path:
@@ -527,21 +592,25 @@ def discover_configs(
         # if a symlink: this is exactly the path shape dotfile managers own.
         for spec in _get_client_specs():
             for config_path in spec.config_paths:
-                if config_path.is_symlink():
+                # An unreadable directory (PermissionError on ~/.codex) is
+                # "not there", never a crash of the whole scan (STORY-0110).
+                if _safe_is_symlink(config_path):
                     discovered.append(
                         DiscoveredConfig(
                             client_name=spec.name,
                             root_key=spec.root_key,
                             path=config_path,
                             is_symlink=True,
+                            dialect=_HARNESS_DIALECT.get(spec.name),
                         )
                     )
-                elif config_path.exists() and config_path.is_file():
+                elif _safe_is_file(config_path):
                     discovered.append(
                         DiscoveredConfig(
                             client_name=spec.name,
                             root_key=spec.root_key,
                             path=config_path,
+                            dialect=_HARNESS_DIALECT.get(spec.name),
                         )
                     )
 
@@ -557,7 +626,9 @@ def discover_configs(
         already = {_resolved_or_self(d.path) for d in discovered}
         at_home = _is_user_level_harness_dir(cwd)
 
-        def _add_cwd_candidate(rel: str, client_name: str, root_key: str) -> None:
+        def _add_cwd_candidate(
+            rel: str, client_name: str, root_key: str, dialect: str | None = None
+        ) -> None:
             candidate = cwd / rel
             # A symlinked file or a symlinked parent (``.claude -> /elsewhere``)
             # is TRUST-002, never the checkout's own file (STORY-0108).
@@ -582,6 +653,7 @@ def discover_configs(
                     path=candidate,
                     is_symlink=linked,
                     symlink_root=cwd if linked else None,
+                    dialect=dialect,
                 )
             )
 
@@ -603,6 +675,12 @@ def discover_configs(
             ".claude/settings.local.json",
         ):
             _add_cwd_candidate(rel, "claude-code-project", "mcpServers")
+
+        # Codex and Gemini CLI project files at the working directory's root
+        # (STORY-0110): their MCP servers, as <client>-project, so a repository
+        # server never shares a rug-pull key with a same-named user server.
+        for rel, client_name, root_key, dialect in _HARNESS_CWD_SPECS:
+            _add_cwd_candidate(rel, client_name, root_key, dialect)
 
     # Check extra paths. Explicit — info-shaped (TRUST-004): the user named
     # this path themselves, and today's silent `continue` here is a plain bug
@@ -679,6 +757,14 @@ def discover_configs(
         discovered.extend(_discover_agent_definition_configs(skip_findings, errors))
 
     return discovered
+
+
+#: Codex and Gemini CLI project files a default scan reads at the working
+#: directory's root: (relative path, client, root key, parser dialect).
+_HARNESS_CWD_SPECS: tuple[tuple[str, str, str, str], ...] = (
+    (".codex/config.toml", "codex-project", "mcp_servers", "codex"),
+    (".gemini/settings.json", "gemini-cli-project", "mcpServers", "gemini"),
+)
 
 
 def _discover_agent_definition_configs(
@@ -838,6 +924,18 @@ def _skills_dir_plugin_configs(
 #   project-level MCP file — omitted intentionally.
 # Zed: uses "context_servers" key in settings.json; different schema — omitted.
 # Continue.dev: YAML-based (.continue/config.yaml) — out of scope for JSON parser.
+#
+# Added in STORY-0110, from each vendor's source and docs (2026-10-28):
+#   Codex       — .codex/config.toml in every directory from the project root
+#                 down to the working directory, loaded when the project is
+#                 trusted ("loaded but disabled when untrusted",
+#                 codex-rs/config/src/loader/mod.rs); `mcp_servers` is not on
+#                 Codex's project-config deny list.  TOML.
+#   Gemini CLI  — .gemini/settings.json in the project root ("Project settings
+#                 file", docs/reference/configuration.md); ignored in an
+#                 untrusted folder.  JSON with comments.
+# Each harness skips its project file when it is the user's own file (the
+# working directory is $HOME, or .codex is $CODEX_HOME); so does the walk.
 _PROJECT_CONFIG_SPECS: list[tuple[str, str, str]] = [
     (".mcp.json", "claude-code", "mcpServers"),
     (".claude/settings.json", "claude-code", "mcpServers"),
@@ -846,6 +944,8 @@ _PROJECT_CONFIG_SPECS: list[tuple[str, str, str]] = [
     (".cursor/settings.json", "cursor", "mcpServers"),
     (".vscode/mcp.json", "vscode", "servers"),
     (".amazonq/mcp.json", "amazon-q", "mcpServers"),
+    (".codex/config.toml", "codex", "mcp_servers"),
+    (".gemini/settings.json", "gemini-cli", "mcpServers"),
 ]
 
 # Non-MCP IDE auto-execution surfaces (TRUST-003). These files have no
@@ -1034,7 +1134,37 @@ def discover_project_configs(
             _walk(child, depth + 1)
 
     _walk(root, 0)
-    return discovered
+    return [c for c in discovered if not _is_user_harness_config(c)]
+
+
+def _is_user_harness_config(config: DiscoveredConfig) -> bool:
+    """True when a project-walk candidate is the user's own Codex/Gemini file.
+
+    Walking ``$HOME`` (``scan --project ~``) reaches ``~/.codex/config.toml``
+    and ``~/.gemini/settings.json``, which are user-level config, not a
+    repository's.  Codex skips a ``.codex`` directory that is ``$CODEX_HOME``
+    and Gemini CLI skips workspace settings that are the user settings, so
+    the walk does the same instead of reporting the user's own servers as
+    TRUST-001.  The comparison is by the directory the walk was in (the
+    parent of ``.codex`` / ``.gemini``) and the names below it, not by
+    following links: a dotfile-managed ``~/.gemini`` is still the user's, and
+    a repository whose ``.gemini`` links into the home directory is still the
+    repository's (TRUST-002).  With ``CODEX_HOME`` set elsewhere, ``~/.codex``
+    is an ordinary project layer to Codex, and to the walk.
+    """
+    user_paths = {
+        "codex": codex_user_config_path(),
+        "gemini-cli": gemini_user_config_path(),
+    }
+    user_path = user_paths.get(config.client_name)
+    if user_path is None:
+        return False
+    return (
+        config.path.name == user_path.name
+        and config.path.parent.name == user_path.parent.name
+        and _resolved_or_self(config.path.parent.parent)
+        == _resolved_or_self(user_path.parent.parent)
+    )
 
 
 @dataclass

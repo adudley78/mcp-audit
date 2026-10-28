@@ -1231,8 +1231,13 @@ def _apply_project_scan(
                 client=autoexec_file.client,
                 project_root=project_dir,
             )
+        linked = {f.finding_path for f in result.findings if f.id == "TRUST-002"}
         result.findings.extend(
-            f for f in new_findings if _autoexec_finding_key(f) not in already_reported
+            f
+            for f in new_findings
+            if _autoexec_finding_key(f) not in already_reported
+            # One TRUST-002 per linked file, whichever pass saw it (STORY-0110).
+            and not (f.id == "TRUST-002" and f.finding_path in linked)
         )
 
     # ── TRUST-006/007: git configuration that runs commands (STORY-0089) ────
@@ -1294,8 +1299,11 @@ def _apply_project_scan(
     )
 
     # ── TRUST-002: a discovered MCP config candidate that is itself a symlink ─
+    # A Codex/Gemini CLI file is also an auto-run file (STORY-0110), so the
+    # auto-run pass above may have reported the same link already.
+    reported_links = {f.finding_path for f in result.findings if f.id == "TRUST-002"}
     for config in project_configs:
-        if config.is_symlink:
+        if config.is_symlink and str(config.path) not in reported_links:
             result.findings.append(
                 build_project_symlink_finding(
                     config.path, config.client_name, config.symlink_root

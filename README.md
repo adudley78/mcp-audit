@@ -70,7 +70,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 
 ## Features
 
-- **Auto-discovers** MCP configs across 8 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code user-level, Claude Code project-level, GitHub Copilot CLI, Augment Code)
+- **Auto-discovers** MCP configs across 10 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code, GitHub Copilot CLI, Augment Code, Amazon Q Developer, Codex, Gemini CLI), user-level and project-level; see [docs/clients.md](docs/clients.md)
 - **Tool poisoning detection** — 18 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with zero false positives on our published 22-server benchmark (a regression test over config entries, which hold no tool descriptions). Measured on tool descriptions it is much weaker ([docs/poisoning.md](docs/poisoning.md)): it flags 74.7% of MCPTox's 1,312 poisoned descriptions but 23.7% of those without an `<IMPORTANT>` or "ignore the previous instructions" wrapper (69.3% and 7.4% at HIGH or above, the threshold `check` and the pre-commit hook fail on), and none of its 661 findings on the 100 most-downloaded npm MCP servers was an attack (a fixed measurement of v0.21; since then POISON-060 no longer fires on full-width CJK punctuation, which made 488 of those 661, and MCPTox's clean tools flagged fell from 18 of 353 to 2 with no MCPTox detection lost — MCPTox is in-sample for that check). Six patterns for orders that hide ("do not mention this to the user", "do not ask for permission", banning the ask-the-user tool, threats, run-on-startup, fetch-a-URL-and-follow-it; POISON-070..075) caught 23 of 45 hand-written orders held out from their design and 0 of 45 look-alike ordinary sentences, and flag none of MCPTox's 353 real tools; zero-width and variation-selector text is decoded and rescanned (POISON-043/044)
 - **Credential exposure** — 17 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
@@ -366,6 +366,10 @@ See [`docs/diff.md`](docs/diff.md) for input formats, severity table, and edge c
 | GitHub Copilot CLI | `~/.copilot/mcp-config.json` |
 | Augment Code | `~/.augment/settings.json` |
 | Amazon Q Developer (project) | `.amazonq/mcp.json` (project root; `scan --project` only) |
+| Codex | `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`); `.codex/config.toml` (project) — TOML `[mcp_servers.<name>]` |
+| Gemini CLI | `~/.gemini/settings.json`; `.gemini/settings.json` (project) — `mcpServers`, comments allowed |
+
+Paths, keys and how each file is read: [docs/clients.md](docs/clients.md).
 
 ## What it detects
 
@@ -490,7 +494,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-7,221 tests validate detection accuracy and guard against regressions.
+7,316 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -716,7 +720,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 7,221 tests
+uv run pytest                        # Run all 7,316 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

@@ -46,6 +46,7 @@ trust the project ([advanced config](https://learn.chatgpt.com/docs/config-file/
 | `.codex/config.toml` | `notify`: a program run after every agent turn. Cymulate (2026) showed it running outside the sandbox from a project config; current Codex ignores it in project config and warns. | TRUST-008 HIGH (CRITICAL on network) | both | [Config reference](https://learn.chatgpt.com/docs/config-file/config-reference), [Cymulate](https://cymulate.com/blog/the-race-to-ship-ai-tools-left-security-behind/) |
 | `.codex/config.toml` | `approval_policy = "never"`: Codex never asks before running a command. | TRUST-008 HIGH | both | [Config reference](https://learn.chatgpt.com/docs/config-file/config-reference) |
 | `.codex/config.toml` | `sandbox_mode = "danger-full-access"`: no sandbox for the commands Codex runs. | TRUST-008 HIGH | both | [Config reference](https://learn.chatgpt.com/docs/config-file/config-reference) |
+| `.codex/config.toml` | `[mcp_servers.<name>] http_headers_helper`: a shell command Codex runs on each connection to that server to print its HTTP headers; allowed in a project config (STORY-0110). | TRUST-008 HIGH (CRITICAL on network) | both | [`mcp_types.rs`](https://github.com/openai/codex/blob/main/codex-rs/config/src/mcp_types.rs) |
 | `.codex/config.toml` | Inline `[hooks]` command handlers (reviewed and trusted per hook before they run). | TRUST-008 HIGH (CRITICAL on network) | both | [Hooks](https://learn.chatgpt.com/docs/hooks) |
 | `.codex/hooks.json` | Command hooks, same schema and trust review. | TRUST-008 HIGH (CRITICAL on network) | both | [Hooks](https://learn.chatgpt.com/docs/hooks) |
 | `AGENTS.md`, `AGENTS.override.md` (any directory from the project root down to the working directory; `~/.codex/AGENTS.md`, `~/.codex/AGENTS.override.md`) | Instructions: "Codex concatenates files from the root down", one per directory, override first, up to `project_doc_max_bytes` (32 KiB). No import syntax. | MEM-001/002 | agent-file scan | [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md) |
@@ -146,4 +147,6 @@ Known gaps are listed in `GAPS.md` ("Other harnesses' auto-run files",
 JetBrains run configurations, Codex `requirements.toml` and
 `[sandbox_workspace_write]`, Gemini `.gemini/policies/`, and the contents of
 workflow scripts and scheduled-task prompts. Gemini CLI and Codex **MCP server**
-definitions are a separate, queued surface.
+definitions in these same files are read as MCP configs (STORY-0110; see
+`docs/clients.md`): their servers go through every per-server check, and
+`scan --project` reports each as TRUST-001.
