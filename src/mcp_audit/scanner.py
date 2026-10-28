@@ -557,7 +557,19 @@ def _discover_and_parse(
         result.findings.extend(_plugin_mods.analyze_plugin_dirs_setting())
 
     if not extra_paths:
-        result.findings.extend(_cwd_autoexec_findings())
+        # A repository ``.gemini``/``.codex`` that links into the user's own
+        # config directory was already reported (TRUST-002) by discovery, which
+        # analyses the file once as the user's; report the link once (STORY-0110).
+        linked = {
+            f.finding_path
+            for f in result.findings
+            if f.id in ("TRUST-002", "TRUST-004")
+        }
+        result.findings.extend(
+            f
+            for f in _cwd_autoexec_findings()
+            if not (f.id == "TRUST-002" and f.finding_path in linked)
+        )
         # Skill packages (STORY-0095): every file in each user and cwd skill.
         result.findings.extend(
             _skill_package.scan_default_skills(result.errors, prior=result.findings)

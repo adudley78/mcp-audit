@@ -1231,8 +1231,13 @@ def _apply_project_scan(
                 client=autoexec_file.client,
                 project_root=project_dir,
             )
+        linked = {f.finding_path for f in result.findings if f.id == "TRUST-002"}
         result.findings.extend(
-            f for f in new_findings if _autoexec_finding_key(f) not in already_reported
+            f
+            for f in new_findings
+            if _autoexec_finding_key(f) not in already_reported
+            # One TRUST-002 per linked file, whichever pass saw it (STORY-0110).
+            and not (f.id == "TRUST-002" and f.finding_path in linked)
         )
 
     # ── TRUST-006/007: git configuration that runs commands (STORY-0089) ────

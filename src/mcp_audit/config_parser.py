@@ -320,6 +320,15 @@ def _parse_codex_config(config: DiscoveredConfig) -> list[ServerConfig]:
             headers["Authorization"] = f"Bearer {literal_token}"
         elif token_variable:
             headers.setdefault("Authorization", f"Bearer ${{{token_variable}}}")
+        env = _text_dict(entry.get("env"))
+        # ``env_vars``: names of variables Codex passes through from its own
+        # environment (strings, or tables with ``name``).  Recorded as
+        # references so lock and rug-pull see which variables reach the server.
+        env_vars = entry.get("env_vars")
+        for item in env_vars if isinstance(env_vars, list) else []:
+            var = item.get("name") if isinstance(item, dict) else item
+            if isinstance(var, str) and var:
+                env.setdefault(var, f"${{{var}}}")
         if command:
             transport = TransportType.STDIO
         elif url:
@@ -334,7 +343,7 @@ def _parse_codex_config(config: DiscoveredConfig) -> list[ServerConfig]:
                 transport=transport,
                 command=command,
                 args=_text_list(entry.get("args")),
-                env=_text_dict(entry.get("env")),
+                env=env,
                 url=url,
                 headers=headers,
                 raw=_json_safe(entry),  # type: ignore[arg-type]

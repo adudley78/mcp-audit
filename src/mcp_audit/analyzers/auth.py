@@ -76,6 +76,10 @@ _AUTH_FIELD_NAMES: frozenset[str] = frozenset(
         # Gemini CLI: google_credentials / service_account_impersonation /
         # dynamic_discovery each add credentials to every request (STORY-0110).
         "authprovidertype",
+        # Codex: the variable holding a bearer token, and a local command that
+        # prints the request headers (STORY-0110).
+        "bearer_token_env_var",
+        "http_headers_helper",
     }
 )
 
@@ -99,8 +103,14 @@ _AUDIENCE_KEYS: frozenset[str] = frozenset(
         "resource",
         "resource_indicator",
         "aud",
+        # Gemini CLI MCPOAuthConfig: ``audiences`` (string[]), STORY-0110.
+        "audiences",
     }
 )
+
+# Top-level (outside the OAuth block) resource keys: Codex ``oauth_resource``
+# (``codex-rs/config/src/mcp_types.rs``), STORY-0110.
+_TOP_LEVEL_RESOURCE_KEYS: tuple[str, ...] = ("oauth_resource",)
 
 # Wildcard audience values that are functionally equivalent to "no binding".
 _WILDCARD_AUDIENCE_VALUES: frozenset[str] = frozenset({"*", "any", ""})
@@ -296,6 +306,15 @@ def _oauth_audience_state(oauth_block: dict, env: dict[str, str]) -> tuple[bool,
     for key in oauth_block:
         norm = key.lower()
         if norm in _AUDIENCE_KEYS:
+            if isinstance(oauth_block[key], list):
+                concrete = [
+                    str(v).strip()
+                    for v in oauth_block[key]
+                    if str(v).strip() not in _WILDCARD_AUDIENCE_VALUES
+                ]
+                if not concrete:
+                    return False, f"no concrete audience in {key!r}"
+                return True, f"audience bound via {key!r}"
             val = str(oauth_block[key]).strip()
             if val in _WILDCARD_AUDIENCE_VALUES:
                 return False, f"wildcard audience ({key!r}: {val!r})"
@@ -428,6 +447,13 @@ class AuthAnalyzer(BaseAnalyzer):
         oauth_block = _extract_oauth_block(server.raw)
         if oauth_block is None:
             return None
+        for key in _TOP_LEVEL_RESOURCE_KEYS:
+            value = server.raw.get(key)
+            if (
+                isinstance(value, str)
+                and value.strip() not in _WILDCARD_AUDIENCE_VALUES
+            ):
+                return None
 
         bound, evidence = _oauth_audience_state(oauth_block, server.env)
         if bound:

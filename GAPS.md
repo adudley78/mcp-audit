@@ -1615,6 +1615,15 @@ Deliberate scope limits, recorded rather than smoothed over:
   `.gemini/`.** Codex also loads `.codex/config.toml` from every directory
   between the project root and the working directory; `scan --project` walks
   them all, a default scan from a subdirectory does not.
+- **Codex `http_headers_helper` in the user's own `~/.codex/config.toml`** is
+  not reported (it is the user's command); only a project file's is TRUST-008.
+  Its command is checked for network primitives only, like `notify`.
+- **Codex's `${PWD}/config.toml` "cwd" layer**, listed in the loader's comment
+  but not found in its project-layer code, is not read.
+- **AUTH-001 on OAuth negotiated at runtime.** A remote Codex or Gemini CLI
+  server that authenticates through OAuth discovery with no `oauth` table,
+  `auth`, header or helper in the file (Codex `codex mcp login`, Gemini
+  dynamic discovery) still gets AUTH-001 HIGH, as for other clients.
 - **Gemini CLI per-server `trust: true`** (skips every tool confirmation for
   that server) and `includeTools` / `excludeTools` are recorded in `raw` but
   not checked; there is no finding for them yet.

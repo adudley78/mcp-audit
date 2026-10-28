@@ -48,6 +48,14 @@ Confirmed from Codex's own source (openai/codex, `main`, 2026-10-28):
   and the retired literal `bearer_token` (which Codex now refuses) as
   `Authorization: Bearer <value>`, because the secret is still in the file:
   CRED-003 reports it.
+- **`http_headers_helper`** is "a local-only shell command that prints a JSON
+  object of dynamic HTTP headers", run on each connection to a `url` server,
+  and a project file may set it. In a project `.codex/config.toml` it is
+  TRUST-008 (HIGH; CRITICAL when the command reaches the network), with the
+  command quoted, secrets masked. In any file it counts as authentication for
+  AUTH-001, as does `bearer_token_env_var`. `env_vars` names are recorded as
+  `${NAME}` env references. A top-level `oauth_resource` counts as the
+  audience binding for AUTH-002.
 - **Entries Codex would not start.** An entry with both `command` and `url`
   (a Codex error) or `enabled = false` is still analysed: one edit makes it
   live.
@@ -75,7 +83,8 @@ Confirmed from Gemini CLI's docs and source (google-gemini/gemini-cli,
   allowed, trailing commas are not. mcp-audit reads it the same way; a file
   Gemini CLI would reject is reported in the scan's errors.
 - **Auth.** `authProviderType` counts as authentication for AUTH-001, like
-  `oauth`. `$VAR` / `${VAR}` references in `env` and `headers` are references,
+  `oauth`; `oauth.audiences` (a list with at least one non-wildcard value)
+  counts as the audience binding for AUTH-002. `$VAR` / `${VAR}` references in `env` and `headers` are references,
   not literal secrets.
 
 ## Limits
