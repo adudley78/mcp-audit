@@ -435,6 +435,21 @@ def _cwd_autoexec_findings() -> list[Finding]:
     return findings
 
 
+def _cwd_instruction_reach_findings(errors: list[str]) -> list[Finding]:
+    """MEM-003 / MEM-004 for the working directory's instruction files.
+
+    A default scan (no explicit path) reads the files at the cwd root that
+    Claude Code expands ``@path`` imports in, follows those imports (MEM-003
+    for one that leaves the folder or is ``.gitignore``'d), and checks
+    ``HEARTBEAT.md`` there and in ``~/.openclaw/workspace`` (MEM-004).  Root
+    only; ``scan --project`` walks the tree.  Never raises: problems go to
+    *errors* (STORY-0098; see :mod:`mcp_audit.agent_files.reach`).
+    """
+    from mcp_audit.agent_files import reach as _reach  # noqa: PLC0415
+
+    return _reach.default_scan_findings(Path.cwd(), errors)
+
+
 def _discover_and_parse(
     extra_paths: list[Path] | None,
     result: ScanResult,
@@ -463,10 +478,12 @@ def _discover_and_parse(
 
     With no *extra_paths*, the VS Code, Gemini CLI, Codex and Claude Code
     auto-run files at the working directory's root are checked too (TRUST-003,
-    TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), and so is the
+    TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), its
+    instruction files' imports and heartbeat files (MEM-003, MEM-004;
+    STORY-0098; see :func:`_cwd_instruction_reach_findings`), and the
     repository git would use from the current directory, for git configuration
     and hooks that run commands (TRUST-006/TRUST-007, STORY-0089; see
-    :func:`mcp_audit.analyzers.git_exec.scan_cwd_repository`).  Both are scored
+    :func:`mcp_audit.analyzers.git_exec.scan_cwd_repository`).  All are scored
     like the rest.
 
     Without *extra_paths*, Claude Code subagent definitions
@@ -536,6 +553,7 @@ def _discover_and_parse(
 
     if not extra_paths:
         result.findings.extend(_cwd_autoexec_findings())
+        result.findings.extend(_cwd_instruction_reach_findings(result.errors))
 
         # GitHub Actions workflows of the repository the scan runs in
         # (STORY-0091): the GitHub Action's default run is a scan from the

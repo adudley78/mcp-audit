@@ -19,7 +19,9 @@ def agent_files_discover(
         "--project",
         help=(
             "Walk this directory tree for project-level agent files"
-            " (.claude/commands/, .claude/agents/, .cursor/rules/, .github/ subtrees)."
+            " (.claude/commands/, .claude/agents/, .cursor/rules/, .github/"
+            " subtrees, CLAUDE.md, AGENTS.md, OpenClaw workspace files) and the"
+            " files they import."
         ),
         exists=False,
     ),
@@ -45,7 +47,10 @@ def agent_files_discover(
             console.print(f"[red]Error:[/red] --project must be a directory: {project}")
             raise typer.Exit(2)
 
-    files = discover_agent_files(project_root=project_root)
+    errors: list[str] = []
+    files = discover_agent_files(project_root=project_root, errors=errors)
+    for line in errors:
+        typer.echo(f"warning: {line}", err=True)
 
     if output_format == "json":
         typer.echo(
@@ -57,6 +62,9 @@ def agent_files_discover(
                         "client": f.client,
                         "scope": f.scope,
                         "size_chars": len(f.raw_content),
+                        "imported_from": (
+                            str(f.imported_from) if f.imported_from else None
+                        ),
                     }
                     for f in files
                 ],
@@ -105,7 +113,9 @@ def agent_files_scan(
         "--project",
         help=(
             "Walk this directory tree for project-level agent files"
-            " (.claude/commands/, .claude/agents/, .cursor/rules/, .github/ subtrees)."
+            " (.claude/commands/, .claude/agents/, .cursor/rules/, .github/"
+            " subtrees, CLAUDE.md, AGENTS.md, OpenClaw workspace files) and the"
+            " files they import."
         ),
         exists=False,
     ),
@@ -133,7 +143,12 @@ def agent_files_scan(
             raise typer.Exit(2)
 
     skip_findings: list = []
-    files = discover_agent_files(project_root=project_root, skip_findings=skip_findings)
+    errors: list[str] = []
+    files = discover_agent_files(
+        project_root=project_root, skip_findings=skip_findings, errors=errors
+    )
+    for line in errors:
+        typer.echo(f"warning: {line}", err=True)
     findings = analyze_agent_files(files) + skip_findings
 
     if output_format == "json":

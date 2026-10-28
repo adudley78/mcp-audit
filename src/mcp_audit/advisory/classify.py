@@ -149,6 +149,9 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "TRUST-006": "hook-execution",  # git config runs a command (STORY-0089)
     "TRUST-007": "untrusted-config-origin",  # embedded bare repo / git hooks
     "TRUST-008": "untrusted-config-origin",
+    # An instruction-file import from outside the repository or from an
+    # ignored file (STORY-0098); MEM-004 keeps the MEM- prefix's class.
+    "MEM-003": "untrusted-config-origin",
     "CFHYG-005": "hook-execution",
     "HARNESS-002": "untrusted-config-origin",
     "PLUGIN-001": "unverified-provenance",
