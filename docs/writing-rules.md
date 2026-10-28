@@ -247,8 +247,10 @@ exempt_known_servers: true
 
 When the rule engine is constructed with a registry (the default scan
 pipeline does this automatically), servers whose `command`, any `arg`, or
-`server_name` matches a registry entry are skipped **before** match
-evaluation. Servers that do not resolve to a registry entry still evaluate
+`server_name` matches a registry entry, or whose launch command installs a
+registry package (`npx -y @scope/name@1.2.3`, `uvx pkg==1.0`, resolved by
+`supply_chain.resolve_launch_entry`, the same resolver TRANSPORT-003 uses), are
+skipped **before** match evaluation. Servers that do not resolve to a registry entry still evaluate
 against the rule normally.
 
 Use this when:

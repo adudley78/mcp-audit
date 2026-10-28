@@ -187,6 +187,7 @@ class RuleEngine:
             matched, matched_value = _evaluate_rule_match(rule.match, server)
             if not matched:
                 continue
+            matched_value = _redact_matched_value(matched_value, server)
 
             description = rule.message.replace(
                 "{matched_value}", matched_value
@@ -214,6 +215,36 @@ class RuleEngine:
         return findings
 
 
+# ── Evidence redaction ─────────────────────────────────────────────────────────
+
+
+def _redact_matched_value(value: str, server: ServerConfig) -> str:
+    """Redact secrets from a rule's matched value before it reaches a finding.
+
+    A negated condition reports the whole field it inspected (COMM-010 since
+    STORY-0105 reports the launch arguments), and arguments or a URL can carry
+    a password (``postgresql://user:pass@host``) or a token.  Each argument,
+    the URL and the command are replaced by their userinfo-redacted form
+    (``supply_chain._redact_userinfo``, one value at a time so a URL never
+    spans two arguments), then every ``SECRET_PATTERNS`` match is replaced.
+    """
+    # Imported lazily: the rule engine has no top-level analyzer dependency.
+    from mcp_audit.analyzers.credentials import SECRET_PATTERNS  # noqa: PLC0415
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        _REDACTED,
+        _redact_userinfo,
+    )
+
+    for raw in (*server.args, server.url or "", server.command or ""):
+        if raw and "://" in raw:
+            redacted = _redact_userinfo(raw)
+            if redacted != raw:
+                value = value.replace(raw, redacted)
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        value = pattern.sub(_REDACTED, value)
+    return value
+
+
 # ── Registry exemption ─────────────────────────────────────────────────────────
 
 
@@ -224,7 +255,10 @@ def _server_in_registry(
 
     Consults the registry by checking the command, every argument, and the
     server name against :meth:`KnownServerRegistry.get` (case-insensitive
-    exact match).  Mirrors the token-based lookup already used by
+    exact match), then the package the launch command installs through
+    :func:`mcp_audit.analyzers.supply_chain.resolve_launch_entry` (the
+    resolver TRANSPORT-003 uses, so a pinned ``@scope/name@1.2.3`` resolves).
+    Mirrors the token-based lookup already used by
     :func:`mcp_audit.analyzers.toxic_flow.tag_server` so that a server which
     toxic-flow recognises as a registry entry is also exempt from
     registry-exempt rules.
@@ -239,7 +273,15 @@ def _server_in_registry(
             continue
         if registry.get(token) is not None:
             return True
-    return False
+    # The launch package, resolved exactly as TRANSPORT-003 resolves it
+    # (Q-016): ``npx -y @scope/name@1.2.3`` never matched a whole-token
+    # lookup, so every pinned scoped registry entry got COMM-004.  Imported
+    # lazily: the rule engine has no top-level dependency on the analyzers.
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        resolve_launch_entry,
+    )
+
+    return resolve_launch_entry(server, registry) is not None
 
 
 # ── Match evaluation ───────────────────────────────────────────────────────────

@@ -425,6 +425,67 @@ def extract_pypi_package(command: str, args: list[str]) -> str | None:
     return None
 
 
+def launch_package(server: ServerConfig) -> tuple[Literal["npm", "pypi"], str] | None:
+    """Return ``(ecosystem, package)`` for the package *server*'s launch installs.
+
+    An npm launcher (``npx``, ``bunx``, ``pnpx``, ``yarn dlx``, under any path
+    or ``cmd /c`` spelling) gives the npm name with any version suffix
+    stripped; ``uvx``, ``pipx`` and ``python -m`` give the PEP 503 name with
+    any version or specifier stripped.
+
+    Args:
+        server: The MCP server configuration to inspect.
+
+    Returns:
+        The ecosystem and bare package name, or ``None`` when the launch
+        command installs no package mcp-audit can name.
+    """
+    launcher, args = normalize_launch(server.command, server.args)
+    if launcher == "yarn":
+        if not args or args[0] != "dlx":
+            return None
+        launcher, args = "npx", args[1:]
+    if launcher in _NPX_LIKE:
+        spec = extract_npm_package(args)
+        return ("npm", strip_npm_version_suffix(spec)) if spec else None
+    if launcher in _PYPI_LIKE or _is_python_interpreter(launcher):
+        package = extract_pypi_package(launcher, args)
+        return ("pypi", package) if package else None
+    return None
+
+
+def resolve_launch_entry(
+    server: ServerConfig, registry: KnownServerRegistry
+) -> RegistryEntry | None:
+    """Return the registry entry for the package *server*'s launch command installs.
+
+    The one resolver for "which registry entry is this server": TRANSPORT-003's
+    tiering and the rule engine's ``exempt_known_servers`` both call it, so
+    they can no longer disagree (Q-016: COMM-004 missed every
+    ``@scope/name@version`` launch that TRANSPORT-003 recognised).  The lookup
+    is ecosystem-scoped (:func:`launch_package`): npm names resolve through
+    :meth:`KnownServerRegistry.get_npm`, PyPI names through
+    :meth:`KnownServerRegistry.get_pypi`, so a package listed only for the
+    other ecosystem never matches.
+
+    Args:
+        server: The MCP server configuration to resolve.
+        registry: The known-server registry.
+
+    Returns:
+        The matching :class:`RegistryEntry`, or ``None`` when the launch
+        installs no package or the package is not in the registry for that
+        ecosystem.
+    """
+    found = launch_package(server)
+    if found is None:
+        return None
+    ecosystem, package = found
+    return (
+        registry.get_npm(package) if ecosystem == "npm" else registry.get_pypi(package)
+    )
+
+
 # An exact npm version: MAJOR.MINOR.PATCH with optional pre-release/build.
 # Anything else (ranges, dist-tags, ``latest``) is not a pin.
 _NPM_EXACT_VERSION_RE: re.Pattern[str] = re.compile(
@@ -504,6 +565,33 @@ def _version_lt(a: str, b: str) -> bool | None:
         return None
 
 
+# A version whose first number is at least this is a calendar version
+# (``2025.7.1``): no semantic-version major release reaches four digits.
+_CALVER_MIN_MAJOR = 1000
+
+
+def _is_calendar_version(version: str) -> bool | None:
+    """Return whether *version* is a calendar version, or ``None`` if unparsable."""
+    try:
+        return Version(version).release[0] >= _CALVER_MIN_MAJOR
+    except InvalidVersion:
+        return None
+
+
+def _schemes_differ(pinned: str, fixed: str) -> bool:
+    """Return ``True`` when one version is calendar-based and the other is not.
+
+    ``@modelcontextprotocol/server-filesystem`` published ``2026.8.31`` and then
+    ``1.0.0`` and ``2.0.0`` (Q-010).  Ordered as numbers, ``2.0.0`` sorts below
+    the recorded fix ``2025.7.1`` although it was published later, and the
+    reverse switch would hide an affected release.  Without publish dates
+    (the registry carries none, and the scan is offline) the order of two
+    versions from different numbering schemes cannot be decided.
+    """
+    a, b = _is_calendar_version(pinned), _is_calendar_version(fixed)
+    return a is not None and b is not None and a != b
+
+
 def _highest_version(versions: set[str]) -> str | None:
     """Return the highest of *versions*, or ``None`` if any fails to parse."""
     try:
@@ -577,15 +665,22 @@ def _emit_known_cve_findings(
         return []
 
     pinned = _pinned_version(server)
+    undecidable: list[str] = []
     if pinned is None:
         affected = cves
     else:
+        undecidable = [
+            c for c in cves if c in fixed_in and _schemes_differ(pinned, fixed_in[c])
+        ]
         affected = [
             c
             for c in cves
-            if c not in fixed_in or _version_lt(pinned, fixed_in[c]) is not False
+            if c not in undecidable
+            and (c not in fixed_in or _version_lt(pinned, fixed_in[c]) is not False)
         ]
     if not affected:
+        if undecidable and pinned is not None:
+            return [_undecidable_finding(server, entry, pinned, undecidable, fixed_in)]
         return []
 
     fixes = {fixed_in[c] for c in affected if c in fixed_in}
@@ -599,6 +694,13 @@ def _emit_known_cve_findings(
             if highest_fix
             else f" The config pins version {pinned}."
         )
+        if undecidable:
+            version_note += (
+                f" Not counted here: {', '.join(undecidable)}, whose recorded fix "
+                "uses a different version numbering scheme (calendar versus "
+                "semantic), so mcp-audit cannot tell offline whether "
+                f"{pinned} includes it."
+            )
         severity = Severity.HIGH
     else:
         version_note = (
@@ -678,6 +780,64 @@ def _emit_known_cve_findings(
             finding_path=str(server.config_path),
         )
     ]
+
+
+def _undecidable_finding(
+    server: ServerConfig,
+    entry: RegistryEntry,
+    pinned: str,
+    cves: list[str],
+    fixed_in: dict[str, str],
+) -> Finding:
+    """Build SC-009 (INFO): a pinned version that cannot be ordered against its fix.
+
+    Emitted instead of SC-004 when every CVE left for a pinned launch has a
+    recorded fix in a different numbering scheme from the pin (calendar
+    versus semantic, Q-010).  The check is not dropped: the advisories are
+    listed, and the user is told how to settle it.
+
+    Args:
+        server: The MCP server configuration that references this package.
+        entry: Registry entry for the matched package.
+        pinned: The exact version pinned in the launch command.
+        cves: The advisory IDs whose fix could not be compared.
+        fixed_in: Recorded fixed version per advisory ID.
+
+    Returns:
+        One SC-009 :class:`~mcp_audit.models.Finding`.
+    """
+    listed = ", ".join(f"{c} (fixed in {fixed_in[c]})" for c in cves)
+    return Finding(
+        id="SC-009",
+        severity=Severity.INFO,
+        analyzer="supply_chain",
+        client=server.client,
+        server=server.name,
+        title=f"Known CVE fix not comparable with pinned version: {entry.name}",
+        description=(
+            f"Package {entry.name!r} has public advisories recorded in the "
+            f"mcp-audit known-server registry: {listed}. The config pins "
+            f"version {pinned}, which uses a different version numbering scheme "
+            "from the recorded fix (calendar versions such as 2025.7.1 versus "
+            "semantic versions such as 2.0.0). A package that changes scheme "
+            "can publish a lower-numbered release after the fix, so mcp-audit "
+            "cannot tell offline whether the pinned release is affected."
+        ),
+        evidence=(
+            f"package: {entry.name} | cves: {', '.join(cves)} | pinned: {pinned}"
+            f" | fixed_in: {', '.join(sorted({fixed_in[c] for c in cves}))}"
+            f" | maintainer: {entry.maintainer}"
+        ),
+        remediation=(
+            f"Check the release dates of {entry.name} {pinned} and of the fixed "
+            "version on the package registry (npm: `npm view "
+            f"{entry.name} time`), or read the advisory. If {pinned} was "
+            "published after the fix, it is not affected."
+        ),
+        cwe="CWE-1104",
+        owasp_mcp_top_10=["MCP04"],
+        finding_path=str(server.config_path),
+    )
 
 
 _ECOSYSTEM_LABEL: dict[str, str] = {"npm": "npm", "pypi": "PyPI"}

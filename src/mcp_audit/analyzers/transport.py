@@ -13,12 +13,6 @@ from mcp_audit.registry.loader import KnownServerRegistry
 # launchers and are not relevant to npm typosquatting detection.
 _RUNTIME_FETCH_COMMANDS: frozenset[str] = frozenset({"npx", "uvx", "bunx", "pipx"})
 
-# npm-family launchers among _RUNTIME_FETCH_COMMANDS (plus "yarn dlx", handled
-# separately below since it requires an args[0] == "dlx" check). Everything
-# else in _RUNTIME_FETCH_COMMANDS (uvx, pipx) is pip-ecosystem and must be
-# looked up via the registry's pypi-scoped methods, not the npm-scoped ones.
-_NPM_FAMILY_COMMANDS: frozenset[str] = frozenset({"npx", "bunx", "yarn"})
-
 # Commands (and path-suffixes) that execute with elevated privileges.
 _PRIV_ESC_NAMES: frozenset[str] = frozenset({"sudo", "doas", "pkexec", "su", "run0"})
 
@@ -185,8 +179,10 @@ class TransportAnalyzer(BaseAnalyzer):
         scan.  Callers that constructed this analyzer without a registry
         always get a MEDIUM finding (historic behaviour preserved).
 
-        The registry lookup is ecosystem-scoped: ``npx``/``bunx``/``yarn dlx``
-        resolve via ``get_npm()``, ``uvx``/``pipx`` via ``get_pypi()``. Using
+        The registry lookup is ecosystem-scoped
+        (``supply_chain.resolve_launch_entry``, shared with the rule engine's
+        ``exempt_known_servers``): ``npx``/``bunx``/``yarn dlx`` resolve via
+        ``get_npm()``, ``uvx``/``pipx`` via ``get_pypi()``. Using
         the ecosystem-blind ``get()`` here would let a package that exists
         ONLY in the *other* ecosystem's registry entry (e.g. a PyPI-only
         package launched via ``npx``) suppress a finding about a package that
@@ -195,28 +191,20 @@ class TransportAnalyzer(BaseAnalyzer):
         ``cli/vet.py`` for the ``mcp-server-git`` npm/pypi collision.
         """
         # Imported lazily to avoid adding a top-level dependency between the
-        # transport and supply_chain analyzer modules.
+        # transport and supply_chain analyzer modules.  resolve_launch_entry is
+        # the same resolver the rule engine's exempt_known_servers uses (Q-016).
         from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
-            extract_npm_package,
-            strip_npm_version_suffix,
+            launch_package,
+            resolve_launch_entry,
         )
 
-        # For `yarn dlx <pkg>`, skip the 'dlx' subcommand token.
-        effective_args = (
-            server.args[1:]
-            if server.command == "yarn" and server.args and server.args[0] == "dlx"
-            else server.args
+        found = launch_package(server)
+        package = found[1] if found is not None else None
+        entry = (
+            resolve_launch_entry(server, self._registry)
+            if self._registry is not None
+            else None
         )
-        spec = extract_npm_package(effective_args)
-        package = strip_npm_version_suffix(spec) if spec is not None else None
-
-        entry = None
-        if self._registry is not None and package is not None:
-            entry = (
-                self._registry.get_npm(package)
-                if server.command in _NPM_FAMILY_COMMANDS
-                else self._registry.get_pypi(package)
-            )
 
         if entry is not None and entry.verified:
             # Verified registry entry: suppress — the signal is covered by

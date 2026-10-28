@@ -574,6 +574,20 @@ record gives `fixed_in` for a CVE, that CVE is dropped if the pinned version is 
 or above the fix.  If every CVE is dropped, no SC-004 fires.  A CVE with no
 `fixed_in`, or a version that won't parse, is kept.
 
+**SC-009: a fix in a different numbering scheme** (STORY-0105).  Some packages
+switch from calendar versions to semantic versions:
+`@modelcontextprotocol/server-filesystem` published `2026.8.31`, then `1.0.0` on
+2026-10-11 and `2.0.0` on 2026-10-19 (npm `time` field).  Numerically `2.0.0` is
+below the recorded fix `2025.7.1`, although it was published fifteen months later.
+When a pinned version and a CVE's `fixed_in` are in different schemes (one has a
+first number of 1000 or more, the other doesn't), the CVE is set aside: if nothing
+else is left, SC-009 (INFO) lists those advisories and says how to settle it (compare
+release dates with `npm view <pkg> time`); if other CVEs are still affected, SC-004
+stays HIGH for them and names the set-aside ones in its description.  The reverse
+switch (a calendar pin against a semantic fix) is set aside the same way, instead of
+reading as "past the fix".  The registry carries no publish dates, so an offline scan
+cannot decide the order; `--check-vulns` (OSV.dev, network) can.
+
 **What it still can't do:** mcp-audit never resolves ranges, so a range
 (`pkg@^1.4.0`, `pkg>=0.21`) or no version at all is treated as unpinned and every
 recorded CVE is reported.  Use `scan --check-vulns` for a network lookup against

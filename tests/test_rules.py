@@ -2441,3 +2441,86 @@ class TestStdioRulesShippedAndCounted:
         assert "STDIO-002a" in rules
         assert "STDIO-002b" in rules
         assert "STDIO-002" not in rules
+
+
+# ── COMM-010 reads the args (STORY-0105, Q-011) ──────────────────────────────
+
+
+class TestComm010ReadsArgs:
+    """COMM-010 fires only when the npx package carries no exact version."""
+
+    def _ids(self, args: list[str], command: str = "npx") -> list[str]:
+        rules = [r for r in load_bundled_community_rules() if r.id == "COMM-010"]
+        server = _make_server(command=command, args=args)
+        return [f.id for f in RuleEngine(rules).match_server(server)]
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["-y", "pkg@1.2.3"],
+            ["-y", "@scope/pkg@1.2.3"],
+            ["--yes", "@scope/pkg@1.2.3-beta.1", "--port", "8080"],
+            ["pkg@1.2.3+build.5"],
+            ["-y", "@modelcontextprotocol/server-filesystem@2.0.0", "/tmp"],  # noqa: S108
+        ],
+    )
+    def test_exact_pin_is_silent(self, args: list[str]) -> None:
+        assert self._ids(args) == []
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            [],
+            ["pkg"],
+            ["-y", "@scope/pkg"],
+            ["-y", "pkg@^1.2.3"],
+            ["-y", "pkg@~1.2.3"],
+            ["-y", "pkg@latest"],
+            ["-y", "pkg@1.2"],
+            ["-y", "pkg@1.2.x"],
+            ["-y", "pkg@1.2.3x"],
+            # A pinned token later in the args is not the package npx runs.
+            ["-y", "pkg", "other@1.0.0"],
+        ],
+    )
+    def test_unpinned_fires(self, args: list[str]) -> None:
+        assert self._ids(args) == ["COMM-010"]
+
+    def test_non_npx_command_is_silent(self) -> None:
+        assert self._ids(["pkg"], command="node") == []
+
+    def test_message_says_what_was_checked(self) -> None:
+        rules = [r for r in load_bundled_community_rules() if r.id == "COMM-010"]
+        server = _make_server(command="npx", args=["-y", "pkg"])
+        (finding,) = RuleEngine(rules).match_server(server)
+        assert "without an exact version pin" in finding.description
+
+    def test_regex_is_linear_on_pathological_args(self) -> None:
+        import time
+
+        args = ["-" + "a" * 50_000] * 20 + ["x" * 200_000 + "@1.2"]
+        start = time.monotonic()
+        assert self._ids(args) == ["COMM-010"]
+        assert time.monotonic() - start < 2.0
+
+
+class TestRuleEvidenceRedaction:
+    """A matched value that quotes arguments never carries a secret (STORY-0105)."""
+
+    def test_comm010_evidence_redacts_url_password_and_token(self) -> None:
+        token = "ghp_" + "aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"
+        rules = [r for r in load_bundled_community_rules() if r.id == "COMM-010"]
+        server = _make_server(
+            command="npx",
+            args=[
+                "-y",
+                "mcp-server-postgres",
+                "postgresql://admin:hunter2pass@db.internal/app",
+                f"--token={token}",
+            ],
+        )
+        (finding,) = RuleEngine(rules).match_server(server)
+        for text in (finding.evidence, finding.description):
+            assert "hunter2pass" not in text
+            assert token not in text
+        assert "postgresql://[REDACTED]@db.internal/app" in finding.evidence

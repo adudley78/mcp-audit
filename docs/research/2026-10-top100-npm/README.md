@@ -61,6 +61,8 @@ The scan's job was to measure the servers, and it also measured mcp-audit. Found
 - **SC-003** reports `@netlify/mcp` as a lookalike of `@mintlify/mcp`.
 - **`--check-vulns`** reports every dependency advisory as INFO with no summary, HIGH advisories included.
 
+SC-004 (now SC-009 INFO for a fix in another numbering scheme), COMM-010 (now reads the arguments), SC-003 (scope and name now compared separately), COMM-004 missing pinned scoped registry entries, the lost `--connect` stderr and `vet --badge` picking npm for a PyPI-only package were fixed in STORY-0105.
+
 The ecosystem numbers in `summary.json` were computed from the raw data, not from the scanner's verdicts where those were wrong.
 
 The 661 poisoning findings are labelled and scored as mcp-audit's precision benchmark in `docs/research/poisoning-benchmark/`; method and results in [`docs/poisoning.md`](../../poisoning.md).

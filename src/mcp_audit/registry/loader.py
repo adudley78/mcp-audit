@@ -504,6 +504,8 @@ class KnownServerRegistry:
             d = levenshtein(lower, entry.name.lower())
             if d == 0:
                 return None  # shouldn't happen given the index check above
+            if d < min_dist and not scoped_parts_close(lower, entry.name.lower()):
+                continue
             if d < min_dist:
                 min_dist = d
                 closest_entry = entry
@@ -616,6 +618,54 @@ def load_registry(
 
 
 # ── Levenshtein implementation ─────────────────────────────────────────────────
+
+
+# A scope or name part that differs from the registry entry's counts as a
+# lookalike only when at most this fraction of the entry part's characters
+# were edited (Q-015).
+_SCOPED_PART_MAX_EDIT_FRACTION = 3
+
+
+def _split_scoped(name: str) -> tuple[str, str] | None:
+    """Return ``(scope, name)`` for ``@scope/name``, or ``None`` if unscoped."""
+    if not name.startswith("@") or "/" not in name:
+        return None
+    scope, _, rest = name[1:].partition("/")
+    return scope, rest
+
+
+def scoped_parts_close(candidate: str, entry_name: str) -> bool:
+    """Return whether two scoped npm names are close part by part (Q-015).
+
+    A whole-string edit distance of 3 made ``@netlify/mcp`` a typosquat of
+    ``@mintlify/mcp``: two real vendors whose short scopes share most letters.
+    An npm scope is an owned namespace, so a lookalike works only if each
+    part a reader compares still looks like the original.  When both names
+    are scoped, the scope and the name are compared separately, and every
+    part that differs must have no more than a third of the entry part's
+    length edited (``mintlify`` is 8 characters, so at most 2 edits;
+    ``netlify`` needs 3).  Real squats stay in: a one- or two-letter slip
+    in a scope (``@modelcontextprotocal/...``) or a name
+    (``@modelcontextprotocol/server-filesytem``), or both.
+
+    Unscoped names, or one scoped and one unscoped, are not split and keep
+    the whole-string comparison.
+
+    Args:
+        candidate: The configured package name, lowercased.
+        entry_name: The registry entry's name, lowercased.
+
+    Returns:
+        ``True`` when the pair stays a typosquat candidate.
+    """
+    a, b = _split_scoped(candidate), _split_scoped(entry_name)
+    if a is None or b is None:
+        return True
+    for part_a, part_b in zip(a, b, strict=True):
+        dist = levenshtein(part_a, part_b)
+        if dist and dist * _SCOPED_PART_MAX_EDIT_FRACTION > len(part_b):
+            return False
+    return True
 
 
 def levenshtein(a: str, b: str) -> int:

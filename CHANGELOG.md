@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **SC-009 (INFO): a pinned version that can't be compared with the CVE fix.** When a package switches from calendar versions to semantic versions, the numbers stop saying which release is newer: `@modelcontextprotocol/server-filesystem` 2.0.0 was published in October 2026, after the July 2025 fix `2025.7.1`, but sorts below it. SC-004 used to report HIGH, "pins version 2.0.0, which is below the fix", on the current release of the most-installed reference server. Now, when the pinned version and the recorded fix are in different numbering schemes, mcp-audit says it can't tell offline and lists the advisories at INFO, with how to check the release dates; if other advisories are still clearly affected, SC-004 stays HIGH for those. The reverse switch, which used to go silent, is reported the same way. See `docs/supply-chain.md`.
+
+### Fixed
+
+- **COMM-010 now reads the arguments.** "npx used without pinned version" fired on every `npx` server, pinned or not (all 100 pinned servers in the top-100 npm scan). It now fires only when the package npx runs carries no exact version (`pkg`, `pkg@^1.2.3`, `pkg@latest`), and stays quiet on `npx -y pkg@1.2.3` or `@scope/pkg@1.2.3`.
+- **COMM-004 recognises pinned scoped registry packages.** "Not in the known-server registry" fired on `npx -y @scope/name@1.2.3` for every scoped registry entry (nine in the top-100 scan) because its exemption compared whole arguments. The exemption now uses the same resolver as TRANSPORT-003's registry check, so the two can't disagree.
+- **`@netlify/mcp` is no longer called a typosquat of `@mintlify/mcp`.** For two scoped names, the scope and the name are now compared separately, and a part that differs must still look like the original (at most a third of its letters changed). Every one-letter change to a scoped registry package is still caught; see `GAPS.md` for the few two- and three-letter shapes this gives up.
+- **A server that fails to start under `--connect` now says why.** The error used to read "unhandled errors in a TaskGroup (1 sub-exception)" and the server's stderr was lost. mcp-audit now reads the stderr even when the handshake fails, reports the underlying exception and the last line the server printed (for example "STRIPE_SECRET_KEY not set"), and redacts credentials, the server's own env values and URL passwords from both.
+- **`vet <name> --badge` picks PyPI for a PyPI-only registry package.** `vet mcptoon --badge` printed an npm badge URL that doesn't exist; without `--ecosystem`, a name the registry lists only on PyPI now gets the PyPI badge.
+
 ---
 
 ## [0.22.0] - 2026-10-27
