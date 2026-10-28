@@ -1232,15 +1232,46 @@ def redact_url(url: str | None) -> str | None:
     return redact_args([url])[0]
 
 
+#: An auth scheme word followed by a literal credential, inside a command
+#: string (``printf '{"Authorization":"Bearer abc123"}'``).  Linear: one
+#: alternation, then a single character class.  A ``$VAR`` reference is kept.
+_INLINE_SCHEME_TOKEN_RE = re.compile(
+    r"\b((?i:Bearer|Basic|Token))\s+(?!\$)[A-Za-z0-9._~+/=-]{4,}"
+)
+#: A credential header written inline (``-H 'X-API-Key: abc123'``), the value
+#: up to the next quote or space.  Linear; ``$VAR`` kept.  An ``Authorization``
+#: value with a scheme word is left to :data:`_INLINE_SCHEME_TOKEN_RE`.
+_INLINE_SECRET_HEADER_RE = re.compile(
+    r"(?i)\b(x-api-key|api-key|x-auth-token|x-access-token|cookie|authorization)"
+    r"(\s*:\s*)(?!\$|bearer\s|basic\s|token\s)[^\s'\"]{4,}"
+)
+
+
+def redact_command_text(text: str) -> str:
+    """Return a whole command string with credentials redacted (STORY-0110).
+
+    For a shell command stored as one string (Codex ``http_headers_helper``):
+    URL userinfo and SECRET_PATTERNS matches as :func:`redact_args` does, plus
+    the credential after an inline ``Bearer``/``Basic``/``Token`` scheme word
+    (any case) and the value of an inline ``X-API-Key:``/``Cookie:``-style header.
+    """
+    cleaned = redact_args([text])[0]
+    cleaned = _INLINE_SCHEME_TOKEN_RE.sub(rf"\1 {REDACTION_MARKER}", cleaned)
+    return _INLINE_SECRET_HEADER_RE.sub(rf"\1\2{REDACTION_MARKER}", cleaned)
+
+
 def redact_header_values(headers: dict) -> dict:
     """Return *headers* with credential values redacted, for serialised output.
 
-    A value that is only an environment reference (``Bearer ${TOKEN}``) is
-    kept.  An authentication header (``auth.AUTH_HEADER_NAMES``:
-    ``Authorization``, ``X-Api-Key``, …) keeps its scheme word and loses the
-    rest (``Bearer [REDACTED]``); any other header has URL userinfo and
-    SECRET_PATTERNS matches replaced, as :func:`redact_args` does.  Non-string
-    values are returned unchanged.
+    STORY-0110: a Codex server's retired literal ``bearer_token`` becomes an
+    ``Authorization`` header (so CRED-003 reports it), and Codex
+    ``http_headers`` / Gemini CLI ``headers`` carry literal values, so the JSON
+    output must not print them.  A value that is only an environment
+    reference (``Bearer ${TOKEN}``) is kept.  An authentication header
+    (``auth.AUTH_HEADER_NAMES``: ``Authorization``, ``X-Api-Key``, …) keeps its
+    scheme word and loses the rest (``Bearer [REDACTED]``); any other header
+    has URL userinfo and SECRET_PATTERNS matches replaced, as
+    :func:`redact_args` does.  Non-string values are returned unchanged.
     """
     from mcp_audit.analyzers.auth import AUTH_HEADER_NAMES  # noqa: PLC0415
     from mcp_audit.analyzers.credentials import (  # noqa: PLC0415

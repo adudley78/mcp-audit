@@ -2010,6 +2010,119 @@
       "notes": "run-gemini-cli step on an event a stranger can write, pinned below action 0.1.22 or Gemini CLI 0.39.1 / 0.40.0-preview.3, or setting GEMINI_CLI_TRUST_WORKSPACE / GEMINI_TRUST_WORKSPACE after checking out pull-request code. Severity HIGH. CWE-1395 / CWE-829. Analyzer: ci_workflow (STORY-0091)."
     },
     {
+      "finding_id": "POISON-043",
+      "finding_title": "Zero-width binary channel present, no matched payload",
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Tool Poisoning"
+      ],
+      "notes": "A run of at least 16 zero-width characters whose two most frequent symbols are read as bits (a minority third symbol is a separator) (U+200B/200C/200D/2060/FEFF), read eight at a time as bits, decodes to mostly printable text that matches no existing pattern (a match is POISON-041). Reverse CAPTCHA (arXiv 2603.00164 §4.1): U+200B = 0, U+200C = 1, 8 bits per character. MEDIUM. CWE-116. STORY-0099."
+    },
+    {
+      "finding_id": "POISON-044",
+      "finding_title": "Variation-selector channel present, no matched payload",
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Tool Poisoning"
+      ],
+      "notes": "Two or more consecutive variation selectors (U+FE00-FE0F as bytes 0-15, U+E0100-E01EF as bytes 16-255) decode to mostly printable UTF-8 that matches no existing pattern (a match is POISON-041). A single selector after a character (an emoji's VS16, an ideographic variant) is ordinary and not read. FireTail (vendor, unquantified). MEDIUM. CWE-116. STORY-0099."
+    },
+    {
+      "finding_id": "POISON-070",
+      "finding_title": "Secrecy directive",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Text tells the model to keep something from the user: do not mention/tell/reveal this (step) to the user, do not mention this in conversation or your reply, do not tell the user about this / that you ..., do not inform the user to avoid suspicion (a purpose clause), without informing the user, keep this hidden from the user, the user must not know. A named object ('never reveal API keys to the user') and 'tell <someone> to <verb>' do not match. HIGH. CWE-223. Source: arXiv 2602.06547 (accepted to USENIX Security 2026) §4.2/§5.3. STORY-0099."
+    },
+    {
+      "finding_id": "POISON-071",
+      "finding_title": "Autonomy override directive",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Text tells the model not to ask the user for permission, approval, consent or confirmation, or to act without it. LOW (ordinary project instructions use the same words). CWE-862. Source: arXiv 2602.06547 (USENIX Security 2026, 'Do Not Mention This to the User') §4.2/§5.3. STORY-0099."
+    },
+    {
+      "finding_id": "POISON-072",
+      "finding_title": "Ask-the-user tool disabled",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Text bans the tool the agent asks the user with (AskUserQuestion, ask_user, a confirmation tool), unless the ban is conditional (if/when/unless within the sentence). MEDIUM. CWE-862. Source: arXiv 2602.06547 (USENIX Security 2026, 'Do Not Mention This to the User') §4.2/§5.3. STORY-0099."
+    },
+    {
+      "finding_id": "POISON-073",
+      "finding_title": "Coercive framing",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Threat-of-consequence framing: SEVERE VIOLATION, MANDATORY ACTIVATION PROTOCOL, failure to comply, you will be penalized/terminated, non-negotiable ... overrides other instructions. A bare 'This is non-negotiable' (common in legitimate skills) does not match. LOW. CWE-74. Source: arXiv 2602.06547 (USENIX Security 2026, 'Do Not Mention This to the User') §4.2/§5.3. STORY-0099."
+    },
+    {
+      "finding_id": "POISON-074",
+      "finding_title": "Startup execution directive",
+      "owasp_codes": [
+        "MCP03",
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Command Injection and Execution"
+      ],
+      "notes": "A clause-initial order to run something when a session starts: 'On startup, execute ...', 'When you start, run ...'. LOW (ordinary project instructions use the same words). CWE-829. Source: research scan 2026-10-25 (A8); STORY-0099."
+    },
+    {
+      "finding_id": "POISON-075",
+      "finding_title": "Remote instruction following",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Text tells the model to fetch a URL and follow, obey or execute what it says; needs a URL, link or endpoint within 200 characters. LOW (ordinary project instructions use the same words). CWE-829. Source: research scan 2026-10-25 (A8); STORY-0099."
+    },
+    {
+      "finding_id": "MEM-005",
+      "finding_title": "Instruction file holds a conditional sleeper trigger",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "An always-loaded instruction file (CLAUDE.md tiers, .claude/rules, AGENTS.md, OpenClaw workspace and heartbeat files) has a sentence with an if/when clause (or a leading date) holding an unusual trigger (deferred user cue, root/sudo/admin, hostname or production host, date, off-hours, nobody watching), a consequence that opens with an action verb, and, unless nobody is watching, a payload in the consequence (URL, curl/wget, secret-bearing object, backups, remote endpoint, silently). Default scan, scan --project and agent-file scans. MEDIUM. CWE-511. Sources: arXiv 2602.06547 §3.5 and Appendix B.1. Analyzer: agent_files (STORY-0099)."
+    },
+    {
       "finding_id": "MANAGED-001",
       "finding_title": "Managed MCP policy on this machine",
       "owasp_codes": [

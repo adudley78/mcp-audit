@@ -153,9 +153,12 @@ Each of `<base>` and `<head>` can be:
 - **A directory path** — all MCP configs discovered under that directory (same
   discovery logic as `mcp-audit scan --path`).
 - **A JSON file path** — either a `mcp-audit scan --output-file` ScanResult JSON
-  or a raw MCP config JSON (`mcpServers` / `servers` root key).
+  or a raw MCP config JSON (`mcpServers` / `servers` root key). A `.toml` file
+  is read as Codex's `config.toml` and `.gemini/settings.json` as Gemini CLI's
+  settings (see [clients.md](clients.md)).
 - **A git ref** — any ref that `git show` can resolve: a SHA, `HEAD~3`, a branch
-  name, a tag. mcp-audit checks each known MCP config path at that ref.
+  name, a tag. mcp-audit checks each known MCP config path at that ref,
+  including `.codex/config.toml` and `.gemini/settings.json`.
 
 ```bash
 # Compare two directories

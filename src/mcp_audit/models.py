@@ -114,13 +114,24 @@ class ServerConfig(BaseModel):
     # userinfo and SECRET_PATTERNS matches replaced with ``[REDACTED]``
     # (``supply_chain.redact_args``).  The in-memory object is unchanged, so
     # analyzers, lock and rug-pull hashing still see the real values.  ``env``
-    # and ``headers`` values are not touched here (GAPS.md).
+    # values are not touched here (GAPS.md).  Header values are
+    # (``supply_chain.redact_header_values``), and so are the secret-only keys
+    # of Codex and Gemini CLI entries in ``raw`` (STORY-0110).
+
+    @field_serializer("headers", when_used="json")
+    def _serialize_headers(self, headers: dict[str, str]) -> dict[str, str]:
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_header_values,
+        )
+
+        return redact_header_values(headers)
 
     # Servers read from an MCP gateway's config (``<gateway>-upstream``
-    # clients, STORY-0111) also have their ``env`` and ``headers`` values, and
-    # the same keys of ``raw``, redacted (``supply_chain.redact_env_values`` /
-    # ``redact_header_values``): a gateway config typically holds every
-    # upstream's keys, and none of it reached any output before.
+    # clients, STORY-0111) also have their ``env`` values redacted
+    # (``supply_chain.redact_env_values``), and in ``raw`` their ``env`` and
+    # every secret-named key (``supply_chain.redact_nested_secrets``), on top
+    # of the all-client header and secret-key redaction: a gateway config
+    # typically holds every upstream's keys.
 
     @field_serializer("env", when_used="json")
     def _serialize_env(self, env: dict[str, str]) -> dict[str, str]:
@@ -131,16 +142,6 @@ class ServerConfig(BaseModel):
         )
 
         return redact_env_values(env)
-
-    @field_serializer("headers", when_used="json")
-    def _serialize_headers(self, headers: dict[str, str]) -> dict[str, str]:
-        if self.client not in _GATEWAY_CLIENTS:
-            return headers
-        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
-            redact_header_values,
-        )
-
-        return redact_header_values(headers)
 
     @field_serializer("command", "url", when_used="json")
     def _serialize_launch_text(self, value: str | None) -> str | None:
@@ -176,10 +177,10 @@ class ServerConfig(BaseModel):
             value = out.get(key)
             if isinstance(value, str):
                 out[key] = redact_url(value)
+        out = _redact_raw_secrets(out)
         if self.client in _GATEWAY_CLIENTS:
             from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
                 redact_env_values,
-                redact_header_values,
                 redact_nested_secrets,
             )
 
@@ -191,9 +192,61 @@ class ServerConfig(BaseModel):
             )
             if isinstance(out.get("env"), dict):
                 out["env"] = redact_env_values(out["env"])
-            if isinstance(out.get("headers"), dict):
-                out["headers"] = redact_header_values(out["headers"])
         return out
+
+
+def _redact_raw_secrets(out: dict) -> dict:
+    """Redact the secret-carrying keys of a raw entry in place (STORY-0110).
+
+    ``headers`` (Gemini CLI, Claude, …) and ``http_headers`` (Codex) go
+    through ``supply_chain.redact_header_values``; Codex's retired literal
+    ``bearer_token`` and the OAuth client secret (Codex ``oauth.client_secret``,
+    Gemini CLI ``oauth.clientSecret``) are replaced unless they are only an
+    environment reference.
+    """
+    from mcp_audit.analyzers.credentials import (  # noqa: PLC0415
+        is_header_value_env_only,
+    )
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        REDACTION_MARKER,
+        redact_header_values,
+    )
+
+    def _secret(value: object) -> object:
+        if isinstance(value, str) and value and not is_header_value_env_only(value):
+            return REDACTION_MARKER
+        return value
+
+    for key in _RAW_HEADER_KEYS:
+        if isinstance(out.get(key), dict):
+            out[key] = redact_header_values(out[key])
+    # Codex's http_headers_helper is a shell command that prints the headers,
+    # so it often carries the credential itself.
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        redact_command_text,
+    )
+
+    helper = out.get("http_headers_helper")
+    if isinstance(helper, str):
+        out["http_headers_helper"] = redact_command_text(helper)
+    if "bearer_token" in out:
+        out["bearer_token"] = _secret(out["bearer_token"])
+    oauth = out.get("oauth")
+    if isinstance(oauth, dict):
+        oauth = dict(oauth)
+        for key in _RAW_OAUTH_SECRET_KEYS:
+            if key in oauth:
+                oauth[key] = _secret(oauth[key])
+        out["oauth"] = oauth
+    return out
+
+
+#: Keys of a raw server entry holding HTTP headers (``http_headers``: Codex).
+_RAW_HEADER_KEYS: tuple[str, ...] = ("headers", "http_headers")
+
+#: OAuth client-secret spellings: Codex (``client_secret``), Gemini CLI
+#: (``clientSecret``).
+_RAW_OAUTH_SECRET_KEYS: tuple[str, ...] = ("client_secret", "clientSecret")
 
 
 #: Keys of a raw server entry whose string value is a launch command or an

@@ -401,6 +401,29 @@ _HINTS: dict[str, str] = {
         "Open HEARTBEAT.md: remove any step you didn't write and the line that"
         " silences its result; reply HEARTBEAT_OK only if nothing needs attention."
     ),
+    # Orders that hide (STORY-0099)
+    "MEM-005": (
+        "Open the file at the line shown: remove a conditional rule you didn't"
+        " write, and check whether its condition (date, host, root) already held."
+    ),
+    "POISON-043": (
+        "Remove the invisible zero-width characters; decoded, they spell text."
+    ),
+    "POISON-044": (
+        "Remove the run of invisible variation selectors; decoded, they spell text."
+    ),
+    "POISON-070": (
+        "Remove this server or text: it tells the model to hide something from you."
+    ),
+    "POISON-071": ("Remove the line telling the model not to ask for your approval."),
+    "POISON-072": (
+        "Remove the ban on the ask-the-user tool unless you wrote it on purpose."
+    ),
+    "POISON-073": "Read the instruction behind the threat; remove it if unwanted.",
+    "POISON-074": ("Check what the startup order runs; remove it unless you wrote it."),
+    "POISON-075": (
+        "Check who controls the URL; fetched instructions can change after review."
+    ),
 }
 
 
