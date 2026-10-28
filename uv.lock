@@ -772,7 +772,7 @@ wheels = [
 
 [[package]]
 name = "mcp-audit-scanner"
-version = "0.21.1"
+version = "0.22.0"
 source = { editable = "." }
 dependencies = [
     { name = "idna" },
