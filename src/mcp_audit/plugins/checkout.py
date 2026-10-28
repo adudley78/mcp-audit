@@ -11,9 +11,9 @@ Plugin4Shell (AIR Security, 2026-09-17): agents ran ``git checkout <sha>`` for
 a marketplace-pinned plugin and never checked where ``HEAD`` landed.  When a
 local branch has exactly that name (a remote's default branch becomes one on
 clone), git checks out the branch instead and only warns that the name is
-ambiguous.  Claude Code fixed this in 2.1.179: it now refuses an install whose
-``HEAD`` is not the pin (observed on 2.1.311: "SHA pin verification failed:
-expected HEAD to be …, got …. Refusing to install.").  The fix checks at
+ambiguous.  AIR Security reports the fix in Claude Code 2.1.179; the refusal itself was
+observed on 2.1.311 ("SHA pin verification failed: expected HEAD to be …, got
+…. Refusing to install.").  The fix checks at
 install time; it does not re-check plugins already on disk.
 
 What this module reads, all as files (it never runs git; running git in a
@@ -95,6 +95,7 @@ _MAX_LISTED_REFS = 10
 _OBJECT_ID_RE = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
 _SHA_SHAPED_RE = re.compile(r"[0-9A-Fa-f]{40}|[0-9A-Fa-f]{64}")
 _VERSION_PREFIX_RE = re.compile(r"[0-9a-f]{12}")
+_SHORT_PIN_RE = re.compile(r"[0-9a-f]{7,39}")
 _SHORTHAND_RE = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 # scp-like git URL: [user@]host:path, with no slash before the first colon.
 _SCP_RE = re.compile(r"(?:[^@/:]+@)?(?P<host>[^@/:]+):(?P<path>.*)")
@@ -125,6 +126,8 @@ class GitCheckout:
         git_dir: The git directory read (``.git`` itself or its ``gitdir:``).
         head_ref: The branch ``HEAD`` is attached to (``refs/heads/main``), or
             ``None`` when ``HEAD`` is detached at a commit.
+        head_chain: Every ref name on the symbolic-ref chain from ``HEAD``
+            (``head_ref`` first), as far as it could be followed.
         head_commit: The lower-cased object id ``HEAD`` resolves to, or
             ``None`` when it could not be resolved (see ``unresolved``).
         unresolved: Why ``HEAD`` could not be resolved by reading files.
@@ -138,6 +141,7 @@ class GitCheckout:
     work_tree: Path
     git_dir: Path
     head_ref: str | None = None
+    head_chain: tuple[str, ...] = ()
     head_commit: str | None = None
     unresolved: str | None = None
     sha_shaped_refs: tuple[str, ...] = ()
@@ -147,6 +151,16 @@ class GitCheckout:
 
 class _UnverifiableError(Exception):
     """A ref could not be resolved by reading files; the message says why."""
+
+
+def _why(exc: Exception) -> str:
+    """A short reason for a failed filesystem call."""
+    return (getattr(exc, "strerror", None) or type(exc).__name__)
+
+
+def _printable(value: object) -> str:
+    """*value* as text safe for a report line: no NUL or control characters."""
+    return "".join(c if c.isprintable() else "?" for c in str(value))[:300]
 
 
 def _lstat(path: Path) -> os.stat_result | None:
@@ -161,9 +175,9 @@ def _lstat(path: Path) -> os.stat_result | None:
         return None
     except NotADirectoryError:
         return None
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         raise _UnverifiableError(
-            f"'{path}' could not be read ({exc.strerror})"
+            f"'{_printable(path)}' could not be read ({_why(exc)})"
         ) from exc
 
 
@@ -175,9 +189,9 @@ def _read_capped(path: Path, limit: int, budget: _Budget) -> bytes:
     try:
         with path.open("rb") as fh:
             data = fh.read(cap + 1)
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         raise _UnverifiableError(
-            f"'{path}' could not be read ({exc.strerror})"
+            f"'{_printable(path)}' could not be read ({_why(exc)})"
         ) from exc
     budget.bytes_left -= min(len(data), cap)
     if len(data) > cap:
@@ -350,6 +364,7 @@ def _safe_stat_mode(path: Path) -> int:
 @dataclass
 class _Head:
     ref: str | None = None  # the branch HEAD is attached to
+    chain: list[str] = field(default_factory=list)  # every symref hop, in order
     commit: str | None = None
     packed: _PackedRefs | None = None  # packed-refs, when the lookup needed it
 
@@ -370,6 +385,7 @@ def _resolve_head(git_dir: Path, common: Path, budget: _Budget, head: _Head) -> 
         return
     head.ref = value
     name = value
+    head.chain.append(name)
     for _ in range(_MAX_SYMREF_DEPTH):
         base = git_dir if name.startswith(_PER_WORKTREE_PREFIXES) else common
         loose = _loose_ref(base, name, budget)
@@ -386,6 +402,7 @@ def _resolve_head(git_dir: Path, common: Path, budget: _Budget, head: _Head) -> 
             head.commit = value
             return
         name = value
+        head.chain.append(name)
     raise _UnverifiableError("HEAD is a chain of symbolic refs longer than git allows")
 
 
@@ -399,6 +416,8 @@ def _under_root(path: Path, root: Path) -> str | None:
     anything between *root* and *path* must be a real directory.  Otherwise the
     reason it is not read.
     """
+    if ".." in path.parts or "\x00" in str(path):
+        return f"'{path}' has a '..' component or a NUL byte; not read"
     real_root = _git._real(root)
     for candidate in (path, *path.parents):
         if _git._real(candidate) == real_root:
@@ -498,6 +517,7 @@ def read_git_checkout(
         work_tree=work_tree,
         git_dir=git_dir,
         head_ref=head.ref,
+        head_chain=tuple(head.chain),
         head_commit=None if unresolved else head.commit,
         unresolved=unresolved,
         sha_shaped_refs=tuple(shaped),
@@ -513,7 +533,7 @@ def source_host(source: dict) -> tuple[str, str]:
 
     *host* is lower-cased, without userinfo or port, or ``""`` when it cannot
     be told (a local path, a ``file://`` URL, anything unparseable).
-    *location* is the URL with any userinfo removed, for reports.  A backslash
+    *location* is the URL with userinfo, query and fragment removed, for reports.  A backslash
     in the authority makes the host unknown: Python's URL parser and the WHATWG
     parser Node uses split such an authority differently, and git hands the URL
     to curl, so no single reading is safe to trust.
@@ -532,17 +552,27 @@ def source_host(source: dict) -> tuple[str, str]:
     if sep:
         end = min((i for i in (rest.find(c) for c in "/?#") if i >= 0), default=-1)
         authority = rest if end < 0 else rest[:end]
-        path = "" if end < 0 else rest[end:]
+        path = "" if end < 0 else _cut_query(rest[end:])
         hostport = authority.rpartition("@")[2]
         location = f"{scheme}://{hostport}{path}"
         if scheme.lower() == "file" or "\\" in authority or hostport.startswith("["):
             return "", location
         return hostport.partition(":")[0].lower(), location
+    # scp form: whatever precedes the last "@" before the first "/" is userinfo
+    # (``git:password@host:path`` included), and a query or fragment can carry a
+    # token; neither reaches the report.
+    head, slash, tail = url.partition("/")
+    url = _cut_query(head.rpartition("@")[2] + slash + tail)
     match = _SCP_RE.fullmatch(url)
     if match and len(match.group("host")) > 1:  # "C:" is a Windows drive
         host = match.group("host").lower()
         return host, f"{host}:{match.group('path')}"
     return "", url
+
+
+def _cut_query(text: str) -> str:
+    """*text* up to the first ``?`` or ``#``: tokens ride in both."""
+    return re.split(r"[?#]", text, maxsplit=1)[0]
 
 
 # ══ Findings ══════════════════════════════════════════════════════════════════
@@ -590,22 +620,64 @@ def _branch_short(ref: str) -> str:
     return "/".join(parts[2:]) if parts[:2] == ["refs", "heads"] else ref
 
 
+def _short_name(ref: str) -> str:
+    """The branch, tag or remote-branch name inside a full ref name."""
+    parts = ref.split("/")
+    if parts[:2] in (["refs", "heads"], ["refs", "tags"]):
+        return "/".join(parts[2:])
+    if parts[:2] == ["refs", "remotes"] and len(parts) >= 4:
+        return "/".join(parts[3:])
+    return ref
+
+
+def _swap_ref(chain: tuple[str, ...], pin: str) -> str | None:
+    """The first ref on HEAD's symbolic-ref chain named like a SHA, or the pin.
+
+    ``FETCH_HEAD`` counts.  A short pin (7-39 hex) is a swap name too: git
+    reads an abbreviated hash as a ref name first.
+    """
+    for ref in chain:
+        if _sha_shaped(ref) or _short_name(ref).lower() == pin:
+            return ref
+    return None
+
+
+def _agrees(recorded: str, pin: str) -> bool:
+    """Do a recorded commit (or commit prefix) and the pin name the same commit?"""
+    return recorded.startswith(pin) or pin.startswith(recorded)
+
+
 def _checkout_verdict(
     plugin: InstalledPlugin, pin: str, checkout: GitCheckout
 ) -> Finding | None:
-    """PLUGIN-003 for one pinned plugin's checkout, or ``None``."""
+    """PLUGIN-003 for one pinned plugin's checkout, or ``None``.
+
+    *pin* is the marketplace ``sha``: 40 hex, or an abbreviation of 7-39 hex
+    (compared as a prefix of HEAD).  A swap shape anywhere on HEAD's
+    symbolic-ref chain makes a mismatch CRITICAL even when HEAD's commit could
+    not be read or has the wrong length: the name alone is the Plugin4Shell
+    signature, and an unreadable or SHA-256 checkout must not hide it.
+    """
     where = f"'{checkout.work_tree}'"
     evidence_base = (
         f"plugin: {plugin.plugin_id} | pinned sha: {pin} | git dir: {checkout.git_dir}"
     )
+    chain = checkout.head_chain or (
+        (checkout.head_ref,) if checkout.head_ref is not None else ()
+    )
+    swap_ref = _swap_ref(chain, pin)
+    full = len(pin) == 40
     unresolved = checkout.unresolved
-    if checkout.head_commit is not None and len(checkout.head_commit) != len(pin):
+    head = checkout.head_commit
+    if head is not None and full and len(head) != len(pin):
         unresolved = (
             "the checkout uses SHA-256 object ids and the pin is a SHA-1 id"
-            if len(checkout.head_commit) == 64
+            if len(head) == 64
             else "the checkout's object ids are not the pin's length"
         )
-    if checkout.head_commit is None or unresolved:
+    if head is not None and (head == pin or (not full and head.startswith(pin))):
+        return None
+    if (head is None or unresolved) and swap_ref is None:
         return _finding(
             plugin,
             PLUGIN_CHECKOUT_ID,
@@ -621,16 +693,15 @@ def _checkout_verdict(
             ),
             evidence=f"{evidence_base} | reason: {unresolved}",
             remediation=(
-                f"Reinstall the plugin with Claude Code {_FIXED_IN} or later"
-                f" (`claude plugin uninstall {plugin.plugin_id}`, then install it"
-                " again); those versions refuse a checkout that does not land on"
-                " the pin."
+                f"Reinstall the plugin (`claude plugin uninstall {plugin.plugin_id}`,"
+                " then install it again) on a current Claude Code; AIR Security"
+                f" reports the Plugin4Shell fix in {_FIXED_IN}, and a refusal to"
+                " install a checkout that does not land on the pin was observed on"
+                " 2.1.311."
             ),
             finding_path=str(checkout.work_tree),
         )
-    head = checkout.head_commit
-    if head == pin:
-        return None
+    shown_head = head[:12] if head else "a commit it could not read"
     prefix = _version_prefix(plugin)
     on_branch = (
         f" (HEAD is on branch `{_branch_short(checkout.head_ref)}`)"
@@ -638,28 +709,30 @@ def _checkout_verdict(
         else " (HEAD is detached)"
     )
     evidence = (
-        f"{evidence_base} | HEAD: {checkout.head_ref or 'detached'} -> {head}"
+        f"{evidence_base} | HEAD: {checkout.head_ref or 'detached'}"
+        f" -> {head or 'unresolved'}"
         f" | recorded: {_recorded(plugin)}"
     )
-    branch = _branch_short(checkout.head_ref) if checkout.head_ref else None
-    signature = checkout.head_ref is not None and _sha_shaped(checkout.head_ref)
-    claims_pin = plugin.git_commit_sha == pin or (
-        prefix is not None and pin[:12] == prefix
-    )
-    names_head = plugin.git_commit_sha == head or (
-        prefix is not None and head.startswith(prefix)
+    signature = swap_ref is not None
+    claims_pin = (
+        plugin.git_commit_sha is not None and _agrees(plugin.git_commit_sha, pin)
+    ) or (prefix is not None and _agrees(prefix, pin))
+    names_head = bool(head) and (
+        plugin.git_commit_sha == head or (prefix is not None and head.startswith(prefix))
     )
     if signature or claims_pin:
-        if signature:
+        if swap_ref is not None:
+            branch = _short_name(swap_ref)
             what = (
                 "the pinned SHA"
-                if branch and branch.lower() == pin
+                if branch.lower() == pin
                 else ("`FETCH_HEAD`" if branch == "FETCH_HEAD" else "a commit SHA")
             )
+            hop = "" if swap_ref == checkout.head_ref else " (further down HEAD's chain)"
             why = (
-                f" HEAD is on branch `{branch}`, named {what}: git checked out that"
-                " branch instead of the commit, which is the Plugin4Shell swap"
-                f" (AIR Security, 2026-09-17, {_PLUGIN4SHELL})."
+                f" HEAD reaches branch `{branch}`{hop}, named {what}: git checked"
+                " out that branch instead of the commit, which is the Plugin4Shell"
+                f" swap (AIR Security, 2026-09-17, {_PLUGIN4SHELL})."
             )
         else:
             why = (
@@ -675,7 +748,7 @@ def _checkout_verdict(
             f"{plugin.plugin_id}",
             description=(
                 f"The marketplace pins {plugin.plugin_id} to commit {pin[:12]}, but"
-                f" the plugin's checkout at {where} resolves HEAD to {head[:12]}"
+                f" the plugin's checkout at {where} resolves HEAD to {shown_head}"
                 f"{'' if signature else on_branch}.{why} Claude Code loads the code"
                 " on disk, so the"
                 " plugin's skills, hooks and MCP servers come from a commit the"
@@ -685,10 +758,11 @@ def _checkout_verdict(
             evidence=evidence,
             remediation=(
                 f"Disable the plugin now (`claude plugin disable {plugin.plugin_id}`),"
-                f" update Claude Code to {_FIXED_IN} or later, then uninstall and"
-                " reinstall it; those versions refuse a checkout that does not land"
-                " on the pin. Tell the marketplace owner, and review what the commit"
-                " on disk changed."
+                f" update Claude Code (AIR Security reports the Plugin4Shell fix in"
+                f" {_FIXED_IN}; a refusal to install a checkout that does not land on"
+                " the pin was observed on 2.1.311), then uninstall and reinstall it."
+                " Tell the marketplace owner, and review what the commit on disk"
+                " changed."
             ),
             finding_path=str(checkout.work_tree),
         )
@@ -717,14 +791,14 @@ def _checkout_verdict(
         title=f"Plugin checkout is not at its pinned commit: {plugin.plugin_id}",
         description=(
             f"The marketplace pins {plugin.plugin_id} to commit {pin[:12]}, but the"
-            f" plugin's checkout at {where} resolves HEAD to {head[:12]}{on_branch}."
+            f" plugin's checkout at {where} resolves HEAD to {shown_head}{on_branch}."
             f"{why}"
         ),
         evidence=evidence,
         remediation=(
-            f"Run `claude plugin update {plugin.plugin_id}` on Claude Code"
-            f" {_FIXED_IN} or later. If HEAD still differs from the pin, uninstall"
-            " and reinstall the plugin."
+            f"Run `claude plugin update {plugin.plugin_id}` on a current Claude Code"
+            f" (AIR Security reports the Plugin4Shell fix in {_FIXED_IN}). If HEAD"
+            " still differs from the pin, uninstall and reinstall the plugin."
         ),
         finding_path=str(checkout.work_tree),
     )
@@ -769,9 +843,10 @@ def _shaped_refs_finding(plugin: InstalledPlugin, checkout: GitCheckout) -> Find
         ),
         remediation=(
             f"Uninstall the plugin (`claude plugin uninstall {plugin.plugin_id}`) and"
-            " report the repository to the marketplace owner. Keep Claude Code at"
-            f" {_FIXED_IN} or later, which refuses a checkout that does not land on"
-            " the pin."
+            " report the repository to the marketplace owner. Keep Claude Code"
+            f" current (AIR Security reports the Plugin4Shell fix in {_FIXED_IN}; a"
+            " refusal to install a checkout that does not land on the pin was"
+            " observed on 2.1.311)."
         ),
         finding_path=str(checkout.git_dir),
     )
@@ -836,16 +911,16 @@ def _posture_findings(plugin: InstalledPlugin) -> list[Finding]:
                 f" {shown_host}. GitHub refuses branch names shaped like a full"
                 " commit SHA, which blocks the Plugin4Shell swap there; GitLab,"
                 " Bitbucket and self-hosted servers accept them (AIR Security,"
-                f" 2026-09-17). Claude Code {_FIXED_IN} and later check that the"
-                " checkout landed on the pin and refuse to install otherwise; older"
-                " versions did not."
+                f" 2026-09-17), who report the fix in Claude Code {_FIXED_IN}; the"
+                " refusal to install a checkout that does not land on the pin was"
+                " observed on 2.1.311."
             ),
             evidence=(
                 f"plugin: {plugin.plugin_id} | source type: {plugin.source_type}"
                 f" | location: {location or 'unknown'} | sha: {pin}"
             ),
             remediation=(
-                f"Keep Claude Code at {_FIXED_IN} or later. If this plugin is also"
+                "Keep Claude Code current. If this plugin is also"
                 " installed with an older version or another agent, prefer a"
                 " GitHub-hosted source or a mirror you control."
             ),
@@ -931,6 +1006,70 @@ def _checkout_at(
     return checkout
 
 
+def _short_pin(plugin: InstalledPlugin) -> str | None:
+    """A 7-39 hex abbreviated ``sha``, lower-cased, or ``None``."""
+    if not isinstance(plugin.source, dict):
+        return None
+    raw = plugin.source.get("sha")
+    if not isinstance(raw, str):
+        return None
+    pin = raw.strip().lower()
+    return pin if _SHORT_PIN_RE.fullmatch(pin) else None
+
+
+def _analyze_one(
+    plugin: InstalledPlugin,
+    root: Path,
+    budget: _Budget,
+    checked: set[Path],
+    posture_seen: set[str],
+    errors: list[str],
+) -> list[Finding]:
+    """Every finding for one install record."""
+    findings: list[Finding] = []
+    if plugin.plugin_id not in posture_seen:
+        posture_seen.add(plugin.plugin_id)
+        findings.extend(_posture_findings(plugin))
+    git_source = plugin.source_type in GIT_SOURCE_TYPES
+    checkout = _checkout_at(
+        plugin.install_path,
+        root,
+        budget,
+        checked,
+        errors,
+        report_skips=git_source,
+    )
+    if checkout is None:
+        return findings
+    pin = plugin.pinned_sha or (_short_pin(plugin) if git_source else None)
+    if git_source and pin is not None:
+        verdict = _checkout_verdict(plugin, pin, checkout)
+        if verdict is not None:
+            findings.append(verdict)
+    elif checkout.unresolved:
+        errors.append(
+            f"plugin checkout {checkout.work_tree}: {_printable(checkout.unresolved)}"
+        )
+    if git_source and checkout.sha_shaped_refs:
+        findings.append(_shaped_refs_finding(plugin, checkout))
+    if checkout.located:
+        findings.extend(_git_checks(checkout.work_tree, errors))
+    return findings
+
+
+def _analyze_clone(
+    clone: Path, root: Path, budget: _Budget, checked: set[Path], errors: list[str]
+) -> list[Finding]:
+    """TRUST-006/007 for one marketplace clone."""
+    checkout = _checkout_at(clone, root, budget, checked, errors)
+    if checkout is None:
+        return []
+    if checkout.located:
+        return _git_checks(clone, errors)
+    errors.append(f"plugin marketplace {clone}: not read: {checkout.unresolved}")
+    return []
+
+
 def analyze_plugin_pins(
     plugins: list[InstalledPlugin],
     *,
@@ -965,42 +1104,23 @@ def analyze_plugin_pins(
     checked: set[Path] = set()
 
     for plugin in plugins:
-        if plugin.plugin_id not in posture_seen:
-            posture_seen.add(plugin.plugin_id)
-            findings.extend(_posture_findings(plugin))
-        git_source = plugin.source_type in GIT_SOURCE_TYPES
-        checkout = _checkout_at(
-            plugin.install_path,
-            root,
-            budget,
-            checked,
-            errors,
-            report_skips=git_source,
-        )
-        if checkout is None:
-            continue
-        if git_source and plugin.pinned_sha is not None:
-            verdict = _checkout_verdict(plugin, plugin.pinned_sha, checkout)
-            if verdict is not None:
-                findings.append(verdict)
-        elif checkout.unresolved:
-            errors.append(
-                f"plugin checkout {checkout.work_tree}: {checkout.unresolved}"
+        try:
+            findings.extend(
+                _analyze_one(plugin, root, budget, checked, posture_seen, errors)
             )
-        if git_source and checkout.sha_shaped_refs:
-            findings.append(_shaped_refs_finding(plugin, checkout))
-        if checkout.located:
-            findings.extend(_git_checks(checkout.work_tree, errors))
+        except Exception as exc:  # noqa: BLE001 — one odd record must not stop the rest
+            errors.append(
+                f"plugin checkout {_printable(plugin.install_path)}: not checked:"
+                f" {type(exc).__name__}: {_printable(exc)}"
+            )
 
     for clone in _marketplace_clones(root, errors):
-        checkout = _checkout_at(clone, root, budget, checked, errors)
-        if checkout is None:
-            continue
-        if checkout.located:
-            findings.extend(_git_checks(clone, errors))
-        else:
+        try:
+            findings.extend(_analyze_clone(clone, root, budget, checked, errors))
+        except Exception as exc:  # noqa: BLE001 — same
             errors.append(
-                f"plugin marketplace {clone}: not read: {checkout.unresolved}"
+                f"plugin marketplace {_printable(clone)}: not checked:"
+                f" {type(exc).__name__}: {_printable(exc)}"
             )
 
     return _git._dedupe(findings)

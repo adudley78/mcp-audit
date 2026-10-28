@@ -161,9 +161,14 @@ def plugins_scan(
 
     plugins = discover_installed_plugins()
     errors: list[str] = []
+    try:
+        pin_findings = analyze_plugin_pins(plugins, errors=errors)
+    except Exception as exc:  # noqa: BLE001 — a bad record must not crash the scan
+        pin_findings = []
+        errors.append(f"plugin pin check failed: {type(exc).__name__}")
     findings = (
         analyze_plugin_integrity(plugins)
-        + analyze_plugin_pins(plugins, errors=errors)
+        + pin_findings
         + analyze_mods(discover_mods(plugins))
         + analyze_plugin_dirs_setting()
         + analyze_agent_files(plugin_agent_files(plugins))

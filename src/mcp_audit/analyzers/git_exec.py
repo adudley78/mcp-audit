@@ -396,7 +396,7 @@ class _ConfigView:
 def _real(path: Path) -> Path:
     try:
         return path.resolve()
-    except (OSError, RuntimeError):
+    except (OSError, RuntimeError, ValueError):  # ValueError: embedded NUL byte
         return Path(os.path.abspath(path))
 
 
@@ -1957,9 +1957,12 @@ class GitSurface:
 
 def _read_small(path: Path) -> str | None:
     try:
+        # A FIFO or device named like a git file would block the open forever.
+        if not stat_module.S_ISREG(os.stat(path).st_mode):
+            return None
         with path.open("rb") as fh:
             return fh.read(_MAX_SMALL_FILE_BYTES).decode("utf-8", errors="replace")
-    except OSError:
+    except (OSError, ValueError):
         return None
 
 

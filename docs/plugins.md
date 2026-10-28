@@ -45,7 +45,7 @@ Claude Code, Codex, Copilot and Gemini CLI checking out a marketplace-pinned com
 without verifying the result, so a hostile plugin repository could swap the code
 while the agent still reported the pinned commit. A swap recorded that way leaves no
 mismatch, and PLUGIN-001 does not hash plugin files, so it cannot see one. Claude
-Code fixed the checkout in 2.1.179; the remediation points there.
+Code fix is reported in 2.1.179 (AIR Security); the remediation points there.
 
 PLUGIN-001 never guesses. It is skipped when a version is set in `plugin.json` or the
 marketplace entry (the recorded version is then that string), for `git-subdir`
@@ -92,10 +92,10 @@ gets PLUGIN-003 MEDIUM rather than silence.
 no checkout to read and PLUGIN-003 and PLUGIN-004 HIGH stay silent. Earlier versions kept
 the clone's `.git` in the cache for at least some installs (a public bug report against
 2.1.131, anthropics/claude-code#56740), and Claude Code keeps a cached copy until the
-plugin's computed version changes, so a plugin swapped before the 2.1.179 fix can still
-be on disk: 2.1.179 checks HEAD at install time (observed on 2.1.311: "SHA pin
-verification failed: expected HEAD to be …, got …. Refusing to install."), it does not
-re-check copies already installed.
+plugin's computed version changes, so a plugin swapped before the fix can still be on
+disk. AIR Security reports the fix in 2.1.179; the refusal itself ("SHA pin verification
+failed: expected HEAD to be …, got …. Refusing to install.") was observed on 2.1.311.
+It is an install-time check and does not re-check copies already installed.
 
 **How PLUGIN-003 decides.** With the pin `S` and the checkout's `HEAD` resolving to
 `H`:
@@ -117,10 +117,13 @@ pin) and the marketplace's commit for a relative-path plugin.
 plugin's checkout is HIGH whether or not the plugin is pinned: no legitimate workflow
 needs one, and GitHub refuses branch names shaped like a full SHA. A `sha` that is set but
 is not a full 40-character SHA is MEDIUM (Claude Code's marketplace reference requires
-the full form; git reads an abbreviated hash as a ref name first). A full-SHA pin on a
+the full form; git reads an abbreviated hash as a ref name first; a 7-39 hex pin is
+still compared with HEAD as a prefix, and a branch named exactly the pin is CRITICAL). A swap
+name anywhere on HEAD's symbolic-ref chain (HEAD -> a -> b -> `refs/heads/<sha>`) is CRITICAL
+even when HEAD's commit cannot be read or is a SHA-256 id. A full-SHA pin on a
 host other than github.com is LOW: GitLab, Bitbucket and self-hosted servers accept
-SHA-shaped branch names, so only the agent's own check (Claude Code 2.1.179 and later)
-stands between the pin and a swap. The host is read strictly: userinfo and port are
+SHA-shaped branch names, so only the agent's own check (reported fixed in Claude Code 2.1.179, refusal observed
+on 2.1.311) stands between the pin and a swap. The host is read strictly: userinfo and port are
 dropped, anything other than exactly `github.com` counts as another host, and a
 backslash in the authority makes the host unknown.
 

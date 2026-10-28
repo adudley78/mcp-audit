@@ -909,7 +909,9 @@ in `docs/permission-rules.md`:
   `refs/heads/main`); a local `file://` plugin whose default branch was named after the
   pinned SHA was refused ("SHA pin verification failed: expected HEAD to be …, got ….
   Refusing to install.").
-- **anthropics/claude-code#56740** — `gitCommitSha` going stale after `plugin update`,
+- **anthropics/claude-code#56740** — `gitCommitSha` going stale after `plugin update`
+  (so the "record claims the pin" and "record explains drift" decisions are only as
+  good as that field),
   and install-created caches carrying `.git` on 2.1.131 (reporter's statement).
 - **git** — `builtin/checkout.c` (`setup_new_branch_info_and_source_tree`: an existing
   `refs/heads/<arg>` is switched to before the argument is taken as a commit),

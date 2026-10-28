@@ -942,3 +942,284 @@ class TestWiring:
         demo = Path(__file__).resolve().parents[1] / "demo" / "configs"
         result = run_scan(extra_paths=sorted(demo.glob("*.json")), skip_rug_pull=True)
         assert not [f for f in result.findings if f.id in ("PLUGIN-003", "PLUGIN-004")]
+
+
+# ── Review fixes: swap shape beats "unverifiable" ────────────────────────────
+
+
+class TestSwapShapeBeatsUnverifiable:
+    def test_sha256_repo_attached_to_the_pin_named_branch_is_critical(
+        self, root: Path
+    ) -> None:
+        plugin = _plugin(root, version=S[:12])
+        _git(
+            plugin.install_path,
+            f"ref: refs/heads/{S}",
+            loose={f"refs/heads/{S}": S256},
+        )
+        [f, *_] = [
+            x
+            for x in analyze_plugin_pins([plugin], root=root)
+            if x.id == "PLUGIN-003"
+        ]
+        assert f.severity == Severity.CRITICAL
+        assert "Plugin4Shell" in f.description
+
+    def test_unborn_swap_branch_is_critical(self, root: Path) -> None:
+        plugin = _plugin(root, version=S[:12])
+        _git(plugin.install_path, f"ref: refs/heads/{S}")  # no ref file at all
+        findings = analyze_plugin_pins([plugin], root=root)
+        assert ("PLUGIN-003", "CRITICAL") in _ids(findings)
+
+    def test_swap_name_further_down_a_symref_chain_is_critical(
+        self, root: Path
+    ) -> None:
+        plugin = _plugin(root, version=S[:12])
+        _git(
+            plugin.install_path,
+            "ref: refs/heads/a",
+            loose={
+                "refs/heads/a": "ref: refs/heads/b",
+                "refs/heads/b": f"ref: refs/heads/{S}",
+                f"refs/heads/{S}": A,
+            },
+        )
+        findings = analyze_plugin_pins([plugin], root=root)
+        f = _only(findings, "PLUGIN-003")
+        assert f.severity == Severity.CRITICAL
+        assert "further down HEAD's chain" in f.description
+        checkout = read_git_checkout(plugin.install_path, root=root)
+        assert checkout is not None
+        assert checkout.head_chain == (
+            "refs/heads/a",
+            "refs/heads/b",
+            f"refs/heads/{S}",
+        )
+
+    def test_chain_without_a_swap_name_stays_medium_when_unresolved(
+        self, root: Path
+    ) -> None:
+        plugin = _plugin(root, version=S[:12])
+        _git(
+            plugin.install_path,
+            "ref: refs/heads/a",
+            loose={"refs/heads/a": "ref: refs/heads/b"},
+        )
+        [f] = analyze_plugin_pins([plugin], root=root)
+        assert (f.id, f.severity) == ("PLUGIN-003", Severity.MEDIUM)
+
+    def test_fetch_head_branch_with_foreign_hash_length_is_critical(
+        self, root: Path
+    ) -> None:
+        plugin = _plugin(root, version=S[:12])
+        _git(
+            plugin.install_path,
+            "ref: refs/heads/FETCH_HEAD",
+            loose={"refs/heads/FETCH_HEAD": S256},
+        )
+        assert ("PLUGIN-003", "CRITICAL") in _ids(
+            analyze_plugin_pins([plugin], root=root)
+        )
+
+
+class TestShortPin:
+    def test_short_pin_swap_is_critical_when_the_branch_is_the_pin(
+        self, root: Path
+    ) -> None:
+        source = {"source": "github", "repo": "acme/p", "sha": S[:7]}
+        plugin = _plugin(root, source=source, version="1.0.0")
+        _git(
+            plugin.install_path,
+            f"ref: refs/heads/{S[:7]}",
+            loose={f"refs/heads/{S[:7]}": A},
+        )
+        findings = analyze_plugin_pins([plugin], root=root)
+        assert ("PLUGIN-003", "CRITICAL") in _ids(findings)
+        assert ("PLUGIN-004", "MEDIUM") in _ids(findings)
+
+    def test_short_pin_is_compared_as_a_prefix(self, root: Path) -> None:
+        source = {"source": "github", "repo": "acme/p", "sha": S[:9].upper()}
+        good = _plugin(root, "g", source=source, version="1.0.0")
+        _git(good.install_path, S)
+        bad = _plugin(root, "b", source=source, version="1.0.0")
+        _git(bad.install_path, A)
+        findings = analyze_plugin_pins([good, bad], root=root)
+        [f] = [x for x in findings if x.id == "PLUGIN-003"]
+        assert f.server == "b@mkt" and f.severity == Severity.MEDIUM
+
+
+# ── Review fixes: NUL bytes, '..', FIFOs ─────────────────────────────────────
+
+
+class TestHostileInputs:
+    def test_nul_in_install_path_does_not_stop_a_later_swap(self, root: Path) -> None:
+        nul = _plugin(root, "n", install_path=root / "cache" / "x\x00y")
+        swapped = _plugin(root, "s", version=S[:12])
+        _git(
+            swapped.install_path,
+            f"ref: refs/heads/{S}",
+            loose={f"refs/heads/{S}": A},
+        )
+        errors: list[str] = []
+        findings = analyze_plugin_pins([nul, swapped], root=root, errors=errors)
+        assert ("PLUGIN-003", "CRITICAL") in _ids(findings)
+        assert all("\x00" not in e for e in errors)
+
+    def test_nul_in_a_dot_git_file_does_not_stop_a_later_swap(self, root: Path) -> None:
+        bad = _plugin(root, "n", version="v1")
+        bad.install_path.mkdir(parents=True)
+        (bad.install_path / ".git").write_text("gitdir: ../x\x00y\n")
+        swapped = _plugin(root, "s", version=S[:12])
+        _git(
+            swapped.install_path,
+            f"ref: refs/heads/{S}",
+            loose={f"refs/heads/{S}": A},
+        )
+        findings = analyze_plugin_pins([bad, swapped], root=root, errors=[])
+        assert ("PLUGIN-003", "CRITICAL") in _ids(findings)
+
+    def test_one_record_raising_is_recorded_and_the_rest_continue(
+        self, root: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        first = _plugin(root, "f", version="v1")
+        swapped = _plugin(root, "s", version=S[:12])
+        _git(
+            swapped.install_path,
+            f"ref: refs/heads/{S}",
+            loose={f"refs/heads/{S}": A},
+        )
+        real = checkout_mod._checkout_at
+
+        def flaky(path: Path | None, *a: object, **k: object):  # type: ignore[no-untyped-def]
+            if path == first.install_path:
+                raise ValueError("embedded null byte")
+            return real(path, *a, **k)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(checkout_mod, "_checkout_at", flaky)
+        errors: list[str] = []
+        findings = analyze_plugin_pins([first, swapped], root=root, errors=errors)
+        assert ("PLUGIN-003", "CRITICAL") in _ids(findings)
+        assert any("not checked: ValueError" in e for e in errors)
+
+    def test_a_broken_marketplace_clone_does_not_stop_the_scan(
+        self, root: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        (root / "marketplaces" / "m1").mkdir(parents=True)
+        (root / "marketplaces" / "m2").mkdir(parents=True)
+        real = checkout_mod._checkout_at
+
+        def flaky(path: Path | None, *a: object, **k: object):  # type: ignore[no-untyped-def]
+            if path is not None and path.name == "m1":
+                raise RuntimeError("synthetic")
+            return real(path, *a, **k)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(checkout_mod, "_checkout_at", flaky)
+        errors: list[str] = []
+        assert analyze_plugin_pins([], root=root, errors=errors) == []
+        assert any("m1" in e and "not checked" in e for e in errors)
+
+    def test_plugins_scan_survives_a_crash_in_the_pin_check(
+        self,
+        root: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from mcp_audit.cli import app
+
+        _write_root(root)
+        monkeypatch.setenv("CLAUDE_CODE_PLUGIN_CACHE_DIR", str(root))
+        monkeypatch.setattr("mcp_audit.discovery._home", lambda: tmp_path / "home")
+        monkeypatch.setenv("HOME", str(tmp_path / "home"))
+        monkeypatch.chdir(tmp_path)
+
+        def boom(*_a: object, **_k: object) -> list[Finding]:
+            raise OSError("synthetic")
+
+        monkeypatch.setattr(checkout_mod, "analyze_plugin_pins", boom)
+        out = CliRunner().invoke(app, ["plugins", "scan"])
+        assert not isinstance(out.exception, OSError), out.output
+        assert "plugin pin check failed" in out.output
+
+    def test_nul_in_a_record_through_the_cli_does_not_traceback(
+        self, root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.cli import app
+
+        install = _write_root(root)
+        record = json.loads((root / "installed_plugins.json").read_text())
+        record["plugins"]["n@mkt"] = [
+            {"scope": "user", "installPath": str(root / "cache" / "x\x00y")}
+        ]
+        (root / "installed_plugins.json").write_text(json.dumps(record))
+        monkeypatch.setenv("CLAUDE_CODE_PLUGIN_CACHE_DIR", str(root))
+        monkeypatch.setattr("mcp_audit.discovery._home", lambda: tmp_path / "home")
+        monkeypatch.setenv("HOME", str(tmp_path / "home"))
+        monkeypatch.chdir(tmp_path)
+        out = CliRunner().invoke(app, ["plugins", "scan", "--format", "json"])
+        assert out.exception is None or isinstance(out.exception, SystemExit)
+        assert out.exit_code == 1, out.output
+        assert any(f["id"] == "PLUGIN-003" for f in json.loads(out.output))
+        assert install.exists()
+
+    def test_dotdot_install_path_is_rejected(self, root: Path, tmp_path: Path) -> None:
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        _git(outside, f"ref: refs/heads/{S}", loose={f"refs/heads/{S}": A})
+        (root / "a").mkdir()
+        sneaky = root / "a" / ".." / ".." / "outside"
+        plugin = _plugin(root, version=S[:12], install_path=sneaky)
+        errors: list[str] = []
+        assert analyze_plugin_pins([plugin], root=root, errors=errors) == []
+        assert any("'..'" in e for e in errors)
+
+    @pytest.mark.skipif(_WINDOWS, reason="needs mkfifo")
+    def test_fifo_named_like_a_git_file_does_not_hang(self, root: Path) -> None:
+        plugin = _plugin(root, version=S[:12])
+        _git(plugin.install_path, S)
+        (plugin.install_path / ".git" / "commondir").unlink(missing_ok=True)
+        os.mkfifo(plugin.install_path / ".git" / "commondir")
+        started = time.monotonic()
+        analyze_plugin_pins([plugin], root=root, errors=[])
+        assert time.monotonic() - started < 5
+
+
+# ── Review fixes: nothing from a URL's query, fragment or scp userinfo ───────
+
+
+class TestSourceHostRedaction:
+    @pytest.mark.parametrize(
+        ("url", "host", "secret"),
+        [
+            (
+                "https://git.example/p.git?private_token=QUERYTOK99#fragSECRET",
+                "git.example",
+                "QUERYTOK99",
+            ),
+            ("https://git.example?private_token=QUERYTOK99", "git.example", "QUERY"),
+            ("https://git.example#fragSECRET", "git.example", "fragSECRET"),
+            ("git:scppw77@git.example:org/p.git", "git.example", "scppw77"),
+            ("git@git.example:org/p.git?x=scppw77", "git.example", "scppw77"),
+        ],
+    )
+    def test_secrets_never_reach_the_location(
+        self, url: str, host: str, secret: str
+    ) -> None:
+        got_host, location = source_host({"source": "url", "url": url})
+        assert got_host == host
+        assert secret not in location and "fragSECRET" not in location
+        assert "?" not in location and "#" not in location
+
+    def test_secrets_never_reach_the_report(self, root: Path) -> None:
+        urls = (
+            "https://git.example/p.git?private_token=QUERYTOK99#fragSECRET",
+            "git:scppw77@git.example:org/p.git",
+        )
+        plugins = [
+            _plugin(root, f"u{i}", source={"source": "url", "url": u, "sha": S})
+            for i, u in enumerate(urls)
+        ]
+        findings = analyze_plugin_pins(plugins, root=root)
+        assert len(findings) == 2
+        blob = json.dumps([f.model_dump(mode="json") for f in findings])
+        for secret in ("QUERYTOK99", "fragSECRET", "scppw77"):
+            assert secret not in blob
