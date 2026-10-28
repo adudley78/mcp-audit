@@ -14,6 +14,12 @@ from mcp_audit.analyzers import secret_reach as sr
 from mcp_audit.models import Severity
 
 
+@pytest.fixture(autouse=True)
+def _sandbox_platform(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise the sandbox rules on every CI OS; one test turns the platform off."""
+    monkeypatch.setattr(sr, "_SANDBOX_SUPPORTED", True)
+
+
 def _layout(tmp_path: Path) -> tuple[Path, Path, Path]:
     home = tmp_path / "home"
     cwd = home / "proj"
@@ -738,7 +744,8 @@ def test_sandbox_never_covers_on_native_windows(
     """Sandboxing doc: the sandbox runs on macOS, Linux and WSL2."""
     home, cwd, config = _ssh_store(tmp_path)
     _settings(config / "settings.json", {"sandbox": _SB_SSH})
-    monkeypatch.setattr(sr, "_ON_WINDOWS", True)
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
+    monkeypatch.setattr(sr, "_SANDBOX_SUPPORTED", False)
     assert "REACH-001" in _ids(_run(tmp_path, home, cwd, config))
 
 

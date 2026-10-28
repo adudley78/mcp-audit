@@ -168,6 +168,10 @@ _ENV_TEMPLATE_PARTS = frozenset(
 
 _ON_WINDOWS = sys.platform.startswith("win")
 
+#: The sandbox runs on macOS, Linux and WSL2 (sandboxing doc); a native Windows
+#: session has none, so sandbox settings protect nothing there.
+_SANDBOX_SUPPORTED = not _ON_WINDOWS
+
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 
@@ -594,7 +598,7 @@ class Protection:
         sandbox entries don't count.
         """
         if (
-            _ON_WINDOWS
+            not _SANDBOX_SUPPORTED
             or not self.sandbox_enabled
             or self.sandbox_fs_disabled
             or self.bypass_mode
