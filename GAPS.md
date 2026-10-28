@@ -434,8 +434,8 @@ by arXiv 2605.22333 are out of scope for static analysis (require live
 
 **Measured POISON-* recall and precision (2026-10-25, STORY-0088).** Full method and caveats: [`docs/poisoning.md`](docs/poisoning.md); numbers: `docs/research/poisoning-benchmark/results.json`.
 
-- **Recall on MCPTox** ([arXiv 2508.14925](https://arxiv.org/html/2508.14925v1), `response_all.json` SHA-256 `79a90049…41c03`, 1,312 valid cases): **74.5%** at any severity (P1 explicit trigger 79.3%, P2 implicit trigger 79.2%, P3 parameter tampering 68.7%); **69.2% at HIGH or above**, the threshold `check`, the pre-commit default and `--severity-threshold high` fail on. Every case carrying `<IMPORTANT>` or "Ignore the previous instructions" is caught at HIGH (877 of 877, by POISON-010/012). **Without a wrapper it is 23.2%, and 7.1% at HIGH or above** (435 cases: P1 33.8/12.3%, P2 39.3/7.9%, P3 4.7/4.7%); on the 485 unwrapped descriptions in `pure_tool.json` it is 24.9% and 7.0% (P1 40.3/10.4%, P2 41.5/7.1%, P3 6.2/5.8%). Cisco's YARA rules scored 20.8% on a split of the same 485 ([arXiv 2604.10534](https://arxiv.org/html/2604.10534v1)). MCPTox found the wrappers add 2.0–2.6% attack success, so the unwrapped numbers are the realistic ones. A plain `scan` exits 1 on any finding (default threshold INFO), so the any-severity column is what it reports.
-- **Clean tools flagged on MCPTox:** 2 of 353 (0.6%), none at HIGH, both POISON-050. Before STORY-0107 it was 18 (16 at HIGH): POISON-060 on full-width punctuation in three servers' Chinese descriptions, which POISON-060 no longer counts. Recall did not move (978/1,312 any severity, 908 at HIGH or above, no case lost). This and the committed-fragment replay are the precision checks that re-run after a pattern change.
+- **Recall on MCPTox** ([arXiv 2508.14925](https://arxiv.org/html/2508.14925v1), `response_all.json` SHA-256 `79a90049…41c03`, 1,312 valid cases): **74.7%** at any severity (P1 explicit trigger 79.8%, P2 implicit trigger 79.2%, P3 parameter tampering 68.9%); **69.3% at HIGH or above**, the threshold `check`, the pre-commit default and `--severity-threshold high` fail on. Every case carrying `<IMPORTANT>` or "Ignore the previous instructions" is caught at HIGH (877 of 877, by POISON-010/012). **Without a wrapper it is 23.7%, and 7.4% at HIGH or above** (435 cases: P1 35.4/12.3%, P2 39.3/7.9%, P3 5.2/5.2%); on the 485 unwrapped descriptions in `pure_tool.json` it is 25.6% and 7.4% (P1 41.6/10.4%, P2 41.5/7.1%, P3 7.1/6.7%). STORY-0099's directive patterns added 2 cases and 3 unwrapped descriptions. Cisco's YARA rules scored 20.8% on a split of the same 485 ([arXiv 2604.10534](https://arxiv.org/html/2604.10534v1)). MCPTox found the wrappers add 2.0–2.6% attack success, so the unwrapped numbers are the realistic ones. A plain `scan` exits 1 on any finding (default threshold INFO), so the any-severity column is what it reports.
+- **Clean tools flagged on MCPTox:** 2 of 353 (0.6%), none at HIGH, both POISON-050. Before STORY-0107 it was 18 (16 at HIGH): POISON-060 on full-width punctuation in three servers' Chinese descriptions, which POISON-060 no longer counts. Recall did not move (978/1,312 any severity, 908 at HIGH or above, no case lost). STORY-0099's eight new POISON-* IDs flag none of the 353 either. This and the committed-fragment replay are the precision checks that re-run after a pattern change.
 - **Precision on the top-100 npm corpus** (`docs/research/2026-10-top100-npm/`, live tools, mcp-audit 0.21.0): **0 of 661 findings real (0.0%)**, 0 of the 492 at HIGH or above, 41 findings per 100 tools. The earlier "661 of 661 false" count is confirmed. This is a fixed measurement of the 0.21.x code (`labelled_patterns_fingerprint` in `top100-labels.json`): re-measuring it after a pattern change needs a fresh enumeration of the corpus, which runs third-party servers and is never done in CI, so a pattern change refreshes only the committed-fragment replay and `precision` prints STALE. 488 labels (POISON-060) rest on committed evidence: the first matched character in each field was full-width Chinese punctuation. 173 (POISON-050 139, POISON-030 30, POISON-012 2, POISON-020 2) rest on the 2026-10-22 review of the full definitions, which are not committed, plus a 2026-10-25 read of 54 of the 60 connected servers' npm source. Since STORY-0107 the figure is STALE: the 488 POISON-060 fragments (full-width punctuation) no longer fire, and only a fresh enumeration can give the new number.
 - **Left as measured, STORY-0107.** POISON-030 still fires on workflow documentation (30 of the 661 top-100 findings, MEDIUM). A gate that fired only on orders lost no MCPTox case but caught 2 of a review set of 40 poisoned descriptions written outside MCPTox, where the current pattern catches 39, and a widened gate tuned on that set caught 32 (82% of 39, under the 90% bar fixed before the experiment), so it was abandoned: MCPTox had shaped it and could not show the loss. POISON-050 (LOW, length) is unchanged: none of its 139 top-100 texts is committed, so no narrower rule could be measured. POISON-060 still fires on any Greek or Cyrillic letter, including mathematical notation (σ, Δ, θ: 34 of 4,717 Markdown files in public skill repositories).
 - **Known limits of the measurement:** MCPTox is never committed (no stated licence) and CI never fetches it, so recall is re-measured by hand (`scripts/bench_poisoning.py recall --check`) before any release that changes `analyzers/poisoning.py` or `build_runtime_server_config`; agent instruction files and POISON-041/042 are not exercised by either corpus; MCPZoo's benign servers were not used (no download found); MCPTox is English only.
@@ -1198,13 +1198,51 @@ discovery or analysis code for unconfirmed paths — add them to
   HEARTBEAT_OK") stays silent whatever else the file says about notifying or
   keeping things quiet; a file that first hides a step and then adds the
   condition for a different reason is not reported.
-- **MEM-001 on AGENTS.md:** the POISON-012 branch `do not (mention|tell|…)`
-  fires on ordinary instruction prose. Measured on 10 `AGENTS.md` files in
-  public skill/plugin repositories: 1 MEM-001 (trailofbits/skills, "Do not
-  tell a reviewer to pre-filter"). The same branch already fires on
-  `CLAUDE.md`; STORY-0099 re-measures secrecy directives with a precision gate.
-  POISON-012 itself is unchanged here (its precision/recall fingerprint is
-  pinned by STORY-0088).
+- **MEM-001 on AGENTS.md (closed in STORY-0099):** POISON-012's bare
+  `do not (mention|tell|…)` branch fired MEM-001 on trailofbits/skills
+  `AGENTS.md` ("Do not tell a reviewer to pre-filter"). MEM-001 now skips that
+  branch when it reads "do not tell/inform <one or two words> to <verb>" (or
+  "... they need ..."), and also fires on POISON-070. Still reported, by
+  POISON-012's own wording: "Do not mention internal ticket numbers in commit
+  messages", "Do not say 'I think'" (2 of 45 held-out benign sentences).
+  POISON-012 itself is unchanged in tool descriptions and skills.
+- **Directive family (POISON-070..075, STORY-0099) is English, literal
+  phrasing.** Out of sample it caught 22 of 45 hand-written orders and 0 of 45
+  look-alike benign sentences (`tests/fixtures/directives/heldout.json`); it
+  misses paraphrase ("don't let the user know", "avoid mentioning the
+  background request", "there is no need to ask for the user's permission",
+  "Calling ask_followup_question is not allowed", "Go to <URL>, then do
+  whatever it says"). POISON-070 also fires where a document *describes*
+  hiding ("retry logic that exhausts attempts without informing the user", 1
+  of 4,987 skill-repository files) and POISON-075 on install instructions
+  that tell an agent to fetch and follow a URL (obra/superpowers' README):
+  the text says it, the context is not judged. POISON-072 knows the
+  ask-the-user tool names AskUserQuestion, ask_user*, ask_human*,
+  request_user*, get_user_input, human_input, a "confirm... tool" and
+  "human-in-the-loop"; another harness's name (ask_followup_question) is
+  missed. A conditional ban ("... if the user's prompt already makes their
+  intent clear") is silent by design.
+- **MEM-005 sleeper triggers:** one sentence at a time, English, with an
+  if/when/whenever/once/unless (dates need none) and one of the listed action
+  verbs after the condition. "When nobody is watching" (only "no one") and
+  "Should the user later type ..." are missed; a rule split across two
+  sentences is missed. A legitimate rule that tests the hostname or a date
+  and runs something is reported; MEDIUM, not HIGH, because none of these has
+  been measured on a large corpus of real CLAUDE.md files (0 of 18 such files
+  and 0 of 4,987 skill-repository files fired).
+- **POISON-043/044 decode, they do not guess.** A zero-width run must be 16+
+  characters of exactly two symbols (a three-symbol scheme or a separator is
+  only POISON-040), read high bit first; a variation-selector run must be two
+  or more in a row (Paul Butler's layout, one base character followed by the
+  run, is read; one selector after each of many base characters is not).
+  Either is reported only when 80% of the decoded text is printable. No
+  in-the-wild sample was available to measure recall; 0 hits on MCPTox and
+  on 5,379 skill-repository files.
+- **Live metadata surfaces:** `scan --connect` reads title, description,
+  input and output schemas and annotations of every tool. Resource and prompt
+  metadata is read as before (name, description, URI); tool-call error
+  results and a definition that changes after approval (arXiv 2607.05744's
+  other two surfaces) are not static text and are out of reach.
 - **MEM-004 scope:** `HEARTBEAT.md` only, English phrasing, the reply tokens
   OpenClaw documents (`HEARTBEAT_OK`, `NO_REPLY`, `notify: false`). Not read:
   NanoClaw scheduled tasks (no documented file), Claude Code
