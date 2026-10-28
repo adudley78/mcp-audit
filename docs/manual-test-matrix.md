@@ -1556,10 +1556,12 @@ mcp-audit lock "$SCRATCH/lock-dep" --verify --resolve
 echo "exit: $?"
 ```
 
-**Expected:** both commands emit `SC-005` ("Deprecated package: request
-(2.88.2)") with the upstream deprecation notice as evidence; the lock records
-`package.deprecated`, `range_spec: true`, `spec_as_written: "latest"` and the
-`dist-tag:latest` resolution method. Exit 0 both times — `SC-005` is MEDIUM
+**Expected:** both commands emit `SC-005` ("`latest` is deprecated on npm:
+request (2.88.2)", with the npm 10.8.2 note for a bare spec) with the upstream
+deprecation notice as evidence; the lock (lock_version 2) records
+`package.deprecated`, `range_spec: true`, `spec_as_written: "*"`, the
+`dist-tag:latest` resolution method and a `resolution_context` whose `latest` is
+2.88.2. Exit 0 both times — `SC-005` is MEDIUM
 and informational at lock time, not a verification failure.
 
 ---

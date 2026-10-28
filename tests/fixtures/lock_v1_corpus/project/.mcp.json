@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "fs-pinned": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem@2025.1.14", "/srv/data"]},
+    "npx-bare": {"command": "npx", "args": ["-y", "plain-mcp-server"]},
+    "npx-scoped-bare": {"command": "npx", "args": ["-y", "@acme/mcp-thing"]},
+    "npx-scoped-range": {"command": "npx", "args": ["-y", "@acme/ranged-mcp@^1.2.0"]},
+    "npx-explicit-latest": {"command": "npx", "args": ["-y", "explicit-mcp@latest"]},
+    "npx-trailing-at": {"command": "npx", "args": ["-y", "trailing-mcp@"]},
+    "npx-star": {"command": "npx", "args": ["-y", "star-mcp@*"]},
+    "npx-deprecated": {"command": "npx", "args": ["-y", "deprecated-mcp"]},
+    "uvx-bare": {"command": "uvx", "args": ["mcp-server-fetch"]},
+    "uvx-eqeq": {"command": "uvx", "args": ["mcp-server-time==0.6.2"]},
+    "uvx-from": {"command": "uvx", "args": ["--from", "mcp-tools==1.0.0", "mcp-tools-cli"]},
+    "uvx-at": {"command": "uvx", "args": ["mcp-server-git@0.6.2"]},
+    "uvx-range": {"command": "uvx", "args": ["mcp-server-ranged>=1.0"]},
+    "uvx-extras": {"command": "uvx", "args": ["mcp-extras[cli]"]},
+    "pipx-run": {"command": "pipx", "args": ["run", "mcp-pipx-server"]},
+    "with-env": {"command": "npx", "args": ["-y", "env-mcp@2.0.0"], "env": {"API_TOKEN": "${API_TOKEN}", "REGION": "eu-west-1"}},
+    "local-node": {"command": "node", "args": ["./server/index.js"]},
+    "docker": {"command": "docker", "args": ["run", "-i", "--rm", "ghcr.io/acme/mcp:1.0"]},
+    "remote-sse": {"type": "sse", "url": "https://Mcp.Example.com:443/sse/?session=abc#frag", "headers": {"Authorization": "Bearer ${MCP_TOKEN}"}}
+  }
+}
