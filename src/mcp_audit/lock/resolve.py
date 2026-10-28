@@ -18,6 +18,7 @@ network-touching functions in the first place.
 
 from __future__ import annotations
 
+import http.client
 import urllib.error
 from datetime import UTC, datetime
 
@@ -152,7 +153,13 @@ def resolve_package(
         try:
             resolved_version, deprecated = resolve_latest_version_info(eco_enum, name)
             method = "dist-tag:latest"
-        except (ValueError, urllib.error.URLError, OSError):
+        except (
+            ValueError,
+            urllib.error.URLError,
+            OSError,
+            http.client.HTTPException,
+            RecursionError,
+        ):
             resolved_version = None
             method = "unresolved"
 
