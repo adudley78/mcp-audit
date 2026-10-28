@@ -96,6 +96,18 @@ def _isolate_claude_plugins(
     monkeypatch.setattr(
         "mcp_audit.agent_files.reach._user_heartbeat_files", lambda errors: []
     )
+    # Instruction-file drift (STORY-0113) hashes the user's instruction files
+    # and keeps a record under the user config dir in every default scan.
+    # Point both at per-session nothing; tests/test_instruction_drift.py
+    # patches them itself.
+    base = tmp_path_factory.getbasetemp()
+    monkeypatch.setattr(
+        "mcp_audit.agent_files.drift._home", lambda: base / "no-drift-home"
+    )
+    monkeypatch.setattr(
+        "mcp_audit.agent_files.drift.DEFAULT_STATE_PATH",
+        base / "drift-state" / "instruction-files.json",
+    )
     # MCP gateway configs (STORY-0111): ~/.mcptoon, ~/.config/1mcp,
     # ~/.config/mcphub and their environment overrides.  Point at nothing.
     monkeypatch.setattr(
