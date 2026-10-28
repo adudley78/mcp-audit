@@ -71,7 +71,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 ## Features
 
 - **Auto-discovers** MCP configs across 8 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code user-level, Claude Code project-level, GitHub Copilot CLI, Augment Code)
-- **Tool poisoning detection** — 12 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with zero false positives on our published 22-server benchmark (a regression test over config entries, which hold no tool descriptions). Measured on tool descriptions it is much weaker ([docs/poisoning.md](docs/poisoning.md)): it flags 74.5% of MCPTox's 1,312 poisoned descriptions but 23.2% of those without an `<IMPORTANT>` or "ignore the previous instructions" wrapper (69.2% and 7.1% at HIGH or above, the threshold `check` and the pre-commit hook fail on), and none of its 661 findings on the 100 most-downloaded npm MCP servers was an attack (a fixed measurement of v0.21: since then the two patterns behind 518 of those 661 no longer fire on full-width CJK punctuation or on workflow documentation, MCPTox's clean tools flagged fell from 18 of 353 to 2, and no MCPTox detection was lost)
+- **Tool poisoning detection** — 12 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with zero false positives on our published 22-server benchmark (a regression test over config entries, which hold no tool descriptions). Measured on tool descriptions it is much weaker ([docs/poisoning.md](docs/poisoning.md)): it flags 74.5% of MCPTox's 1,312 poisoned descriptions but 23.2% of those without an `<IMPORTANT>` or "ignore the previous instructions" wrapper (69.2% and 7.1% at HIGH or above, the threshold `check` and the pre-commit hook fail on), and none of its 661 findings on the 100 most-downloaded npm MCP servers was an attack (a fixed measurement of v0.21; since then POISON-060 no longer fires on full-width CJK punctuation, which made 488 of those 661, and MCPTox's clean tools flagged fell from 18 of 353 to 2 with no MCPTox detection lost — MCPTox is in-sample for that check)
 - **Credential exposure** — 17 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
 - **Supply chain** — typosquatting detection via Levenshtein distance against 55 known MCP servers; offline CVE advisory check (`SC-004`) against the bundled registry (`known_vulnerabilities`); SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
@@ -490,7 +490,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-6,733 tests validate detection accuracy and guard against regressions.
+6,749 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -716,7 +716,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 6,733 tests
+uv run pytest                        # Run all 6,749 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

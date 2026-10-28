@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from bisect import bisect_left, bisect_right
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -37,12 +35,6 @@ class DetectionPattern:
     # webhook, …) near an encoding instruction so a benign "base64 encode"
     # mention does not fire.  See ``_has_cooccurrence``.
     requires_cooccurrence: tuple[str, ...] | None = None
-    # When set, a regex match only counts if a predicate accepts it.  The gate
-    # is called once per searched text and returns the per-match predicate, so
-    # it can index the text in one pass.  Used by POISON-030 to tell an order
-    # ("you must first call X") from workflow documentation ("the first call
-    # returns 201").  See ``_poison_030_gate`` (STORY-0107).
-    context_gate: Callable[[str], Callable[[re.Match[str]], bool]] | None = None
 
 
 # ── Unicode normalization for detection (UTS #39 / NFKD) ───────────────────────
@@ -220,43 +212,6 @@ def _has_cooccurrence(
     return _cooccurrence_regex(terms).search(text[lo:hi]) is not None
 
 
-def search_pattern(pattern: DetectionPattern, text: str) -> re.Match[str] | None:
-    """Return the first match of *pattern* in *text* that its context gate accepts.
-
-    Patterns without a ``context_gate`` behave exactly like
-    ``pattern.pattern.search(text)``.  A gated pattern walks its matches in
-    order and returns the first one the gate accepts, so a gated-off
-    occurrence early in the text never hides a real one later.  The gate is
-    built once per text (only when the pattern matches at all) and answers
-    each match from that index, so the walk stays linear in the length of
-    *text*.
-
-    No normalization and no co-occurrence check happen here; callers that
-    want the full decision use :func:`matched_pattern`.
-
-    Args:
-        pattern: The detection pattern to search for.
-        text: The text to search, as given.
-
-    Returns:
-        The accepted :class:`re.Match`, or ``None``.
-    """
-    gate = pattern.context_gate
-    if gate is None:
-        return pattern.pattern.search(text)
-    matches = pattern.pattern.finditer(text)
-    first = next(matches, None)
-    if first is None:
-        return None
-    accept = gate(text)
-    if accept(first):
-        return first
-    for m in matches:
-        if accept(m):
-            return m
-    return None
-
-
 def matched_pattern(
     pattern: DetectionPattern,
     raw_text: str,
@@ -267,10 +222,9 @@ def matched_pattern(
     Obfuscation-detector patterns (POISON-040/060) are searched against the
     original text; every other pattern is searched against the normalized text
     (:func:`normalize_for_detection`) so homoglyph / compatibility obfuscation
-    cannot evade a literal pattern.  A pattern's ``context_gate`` (POISON-030)
-    is applied to every candidate match (:func:`search_pattern`).  When the
-    pattern declares ``requires_cooccurrence``, the match is vetoed unless a
-    co-occurrence term is near it.
+    cannot evade a literal pattern.  When the pattern declares
+    ``requires_cooccurrence``, the match is vetoed unless a co-occurrence term
+    is near it.
 
     Args:
         pattern: The detection pattern to evaluate.
@@ -282,10 +236,10 @@ def matched_pattern(
         The :class:`re.Match` if the pattern fires, otherwise ``None``.
     """
     if pattern.id in _OBFUSCATION_PATTERN_IDS:
-        return search_pattern(pattern, raw_text)
+        return pattern.pattern.search(raw_text)
     if norm_text is None:
         norm_text = normalize_for_detection(raw_text)
-    m = search_pattern(pattern, norm_text)
+    m = pattern.pattern.search(norm_text)
     if m is None:
         return None
     if pattern.requires_cooccurrence and not _has_cooccurrence(
@@ -304,7 +258,7 @@ def _evidence_snippet(pattern: DetectionPattern, raw_text: str) -> str:
     original text is shown so the analyst sees the real bytes, never the
     normalized form.
     """
-    raw_match = search_pattern(pattern, raw_text)
+    raw_match = pattern.pattern.search(raw_text)
     if raw_match is not None:
         return f"Matched: {raw_match.group()[:100]}"
     return f"Matched after Unicode normalization in: {raw_text.strip()[:100]!r}"
@@ -322,9 +276,9 @@ _POISON_060_EXTRA: str = "".join(
 #
 # Fullwidth forms (STORY-0107): only the fullwidth DIGITS and LETTERS
 # (U+FF10-FF19, U+FF21-FF3A, U+FF41-FF5A) are in the class.  The fullwidth
-# punctuation in U+FF01-FF5E (comma, colon, semicolon, parentheses, ...) is the ordinary
-# punctuation of Chinese, Japanese and Korean text, and was 488 of the 661
-# false findings on the top-100 npm corpus and 16 of 18 flagged MCPTox clean
+# punctuation in U+FF01-FF5E (comma, colon, semicolon, parentheses, ...) is the
+# ordinary punctuation of Chinese, Japanese and Korean text, and was 488 of the
+# 661 false findings on the top-100 npm corpus and 16 of 18 flagged MCPTox clean
 # tools.  A punctuation mark cannot spell a disguised word, and the literal
 # patterns still see through it: ``normalize_for_detection`` folds U+FF1C to
 # ``<``, so a fullwidth-bracketed <IMPORTANT> still fires POISON-010.
@@ -333,137 +287,6 @@ _POISON_060_CLASS: str = (
     "\uff10-\uff19\uff21-\uff3a\uff41-\uff5a"
     "\U0001d400-\U0001d7ff" + _POISON_060_EXTRA + "]"
 )
-
-
-# POISON-030 context gate (STORY-0107).  The phrases POISON-030 looks for are
-# also how ordinary tool documentation describes a workflow ("the first call
-# returns 201", "If the user gives a key, first call the list tool to resolve
-# the ID", "After calling this tool, use the fields in the response").  On the
-# top-100 npm corpus all 30 POISON-030 findings were such documentation.  What
-# poisoning does is give an order, or send something somewhere.  "before
-# using this tool" stays unconditional (it is about the tool's own use and
-# had no false finding).  Any other phrase counts when its sentence (a
-# window of ``_POISON_030_BEFORE`` characters before it and
-# ``_POISON_030_AFTER`` after it, cut at ``.``/``!``/``?`` followed by
-# whitespace or at a blank line; a single line break does not end a
-# sentence, so hard-wrapped text is read as one) has:
-#
-# * an obligation word or softened imperative before it ("you MUST first
-#   call", "Please first call", "Make sure to first call", "It is critical
-#   that you first call"), or a sequencing trigger ("Before doing anything
-#   else, first call", "Prior to any action, ...");
-# * for "after calling this" and "instead ...", an obligation word after it
-#   ("Instead of using X, you must use this tool"); "instead" pointing at
-#   "this tool" is tool shadowing and counts by itself;
-# * an outbound or secret target anywhere in the sentence (send, email,
-#   upload, post, a URL, an e-mail address, token, key, secret, credential,
-#   password, ``.env``, ssh): the ``requires_cooccurrence`` model of
-#   POISON-020 ("First call list_messages and send every result to ...").
-#
-# "first call" after a determiner or preposition ("the first call", "on
-# first call") is a noun: it counts only with an obligation word after it
-# ("Your first call must always be to get_secrets") or an obligation word
-# before it together with a target ("You must, on first call, send the
-# session token").  Every one of MCPTox's 383 phrase matches passes.
-_POISON_030_BEFORE: int = 40
-_POISON_030_AFTER: int = 60
-# Targets use a letter boundary ("get_keys" names a key, "entityKey" does not);
-# obligation words use a word boundary ("input_required" is not an order).
-_L: str = r"(?<![A-Za-z])"
-_R: str = r"(?![A-Za-z])"
-_OBLIGATION_RE: re.Pattern[str] = re.compile(
-    r"\b(?:must|should|shall|always|need(?:s|ed)?\s+to|ha(?:ve|s)\s+to"
-    r"|required|mandatory|necessary|important|critical|essential|please"
-    r"|make\s+sure|be\s+sure|remember\s+to|ensure"
-    r"|(?:don'?t|do\s+not)\s+forget)\b",
-    re.IGNORECASE,
-)
-_SEQUENCE_TRIGGER_RE: re.Pattern[str] = re.compile(
-    _L + r"(?:before\s+(?:using|calling|running|invoking|executing|doing"
-    r"|anything|any)|prior\s+to)" + _R,
-    re.IGNORECASE,
-)
-_TARGET_RE: re.Pattern[str] = re.compile(
-    _L + r"(?:send\w*|e-?mail\w*|mail|upload\w*|post(?:s|ed|ing)?|exfiltrat\w*"
-    r"|webhooks?|tokens?|secrets?|credentials?|passwords?|keys?|ssh|id_rsa)"
-    + _R
-    + r"|https?://|\.env"
-    + _R
-    # An e-mail address, matched from the start of its run only and without
-    # backtracking (possessive), so a long run of word characters is linear.
-    + r"|(?<![\w.+-])[\w.+-]++@[\w-]++\.[A-Za-z]{2,}",
-    re.IGNORECASE,
-)
-_THIS_TOOL_RE: re.Pattern[str] = re.compile(r"\bthis\s+tool\b", re.IGNORECASE)
-_NOUN_DETERMINER_RE: re.Pattern[str] = re.compile(
-    r"\b(?:the|a|an|its|their|his|her|your|our|my|this|that|each|every|any"
-    r"|on|upon)\s+$",
-    re.IGNORECASE,
-)
-# A sentence ends at . ! ? followed by whitespace, or at a blank line.
-_SENTENCE_END_RE: re.Pattern[str] = re.compile(r"[.!?](?=\s)|\n[ \t]*\n")
-
-
-class _Occurrences:
-    """Sorted, non-overlapping ``(start, end)`` spans of one regex over a text."""
-
-    __slots__ = ("ends", "starts")
-
-    def __init__(self, regex: re.Pattern[str], text: str) -> None:
-        self.starts: list[int] = []
-        self.ends: list[int] = []
-        for m in regex.finditer(text):
-            self.starts.append(m.start())
-            self.ends.append(m.end())
-
-    def within(self, lo: int, hi: int) -> bool:
-        """Return True when one span lies wholly inside ``[lo, hi)``."""
-        i = bisect_left(self.starts, lo)
-        return i < len(self.starts) and self.ends[i] <= hi
-
-
-def _poison_030_gate(text: str) -> Callable[[re.Match[str]], bool]:
-    """Index *text* once and return the POISON-030 predicate (see above).
-
-    Each regex the gate needs runs once over the whole text; every candidate
-    match is then decided with a few binary searches, so a text packed with
-    candidate phrases costs O(n log n), not one regex pass per phrase.
-    """
-    breaks = _Occurrences(_SENTENCE_END_RE, text)
-    obligation = _Occurrences(_OBLIGATION_RE, text)
-    trigger = _Occurrences(_SEQUENCE_TRIGGER_RE, text)
-    target = _Occurrences(_TARGET_RE, text)
-    this_tool = _Occurrences(_THIS_TOOL_RE, text)
-
-    def accept(match: re.Match[str]) -> bool:
-        phrase = match.group(0).lower()
-        if phrase.startswith("before"):
-            return True
-        start, end = match.start(), match.end()
-        # Sentence start: the end of the last break at or before *start*.
-        i = bisect_right(breaks.ends, start)
-        lo = max(start - _POISON_030_BEFORE, breaks.ends[i - 1] if i else 0)
-        # Sentence end: the start of the first break at or after *end*.
-        j = bisect_left(breaks.starts, end)
-        hi = end + _POISON_030_AFTER
-        if j < len(breaks.starts):
-            hi = min(hi, breaks.starts[j])
-        # Cheapest checks first; stop at the first decision.
-        if phrase.startswith("first") and _NOUN_DETERMINER_RE.search(text, lo, start):
-            if obligation.within(end, hi):
-                return True
-            return obligation.within(lo, start) and (
-                target.within(lo, start) or target.within(end, hi)
-            )
-        if obligation.within(lo, start) or trigger.within(lo, start):
-            return True
-        if phrase.startswith(("after", "instead")) and obligation.within(end, hi):
-            return True
-        if phrase.startswith("instead") and this_tool.within(end, hi):
-            return True
-        return target.within(lo, start) or target.within(end, hi)
-
-    return accept
 
 
 # fmt: off
@@ -642,16 +465,12 @@ PATTERNS: list[DetectionPattern] = [
         id="POISON-030",
         name="Cross-tool manipulation",
         pattern=re.compile(
-            # Word boundaries (STORY-0107) keep "first call_tool" and
-            # "first caller" out; ``context_gate`` decides whether the phrase
-            # is an order or workflow documentation.
-            r"(\bbefore\s+using\s+this\s+tool\b|"
-            r"\bfirst\s+call\b|"
-            r"\binstead\s+(of\s+)?(use|using|call(?:ing)?)\b|"
-            r"\bafter\s+(calling|using)\s+this\b)",
+            r"(before\s+using\s+this\s+tool|"
+            r"first\s+call|"
+            r"instead\s+(of\s+)?(use|using|call)|"
+            r"after\s+(calling|using)\s+this)",
             re.IGNORECASE,
         ),
-        context_gate=_poison_030_gate,
         severity=Severity.MEDIUM,
         description="Tool description attempts to influence usage of other tools",
         remediation=(

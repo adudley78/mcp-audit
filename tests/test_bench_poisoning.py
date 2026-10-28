@@ -99,22 +99,16 @@ class TestTop100Precision:
         """The replay runs the current analyzer over every committed fragment.
 
         Since STORY-0107, full-width CJK punctuation (the 488-finding class) no
-        longer trips POISON-060, and a bare POISON-030 phrase with no order
-        around it ("first call") no longer fires. "Override default" still
-        fires POISON-012, which shows the fragments do reach the analyzer.
-        POISON-020 needs a nearby destination word the bare fragment lacks,
-        and POISON-050 published no text.
+        longer trips POISON-060; the POISON-030 and POISON-012 fragments still
+        fire, which shows the fragments reach the analyzer. POISON-020 needs a
+        nearby destination word the bare fragment lacks, and POISON-050
+        published no text: 661 - 488 - 2 - 139.
         """
         replay = bench.replay_evidence(SUMMARY)
         p060 = next(g for g in replay["groups"] if g["id"] == "POISON-060")
         assert [r["text"] for r in p060["fragments"]] == ["（", "，", "：", "；"]
         assert all(r["fires"] == [] for r in p060["fragments"])
-        p030 = [g for g in replay["groups"] if g["id"] == "POISON-030"]
-        assert len(p030) == 5
-        assert all(r["fires"] == [] for g in p030 for r in g["fragments"])
-        p012 = next(g for g in replay["groups"] if g["id"] == "POISON-012")
-        assert p012["fragments"][0]["fires"] == ["POISON-012"]
-        assert replay["findings_reproduced_from_committed_text"] == 2
+        assert replay["findings_reproduced_from_committed_text"] == 32
 
     def test_results_match_the_current_patterns(self) -> None:
         """Both pinned measurements were taken with today's POISON-* detection code.
@@ -292,12 +286,15 @@ class TestComparePrecision:
 
     def test_stopped_fire_is_an_improvement(self) -> None:
         fresh = self._section()
-        pinned = self._section()
-        p012 = next(g for g in fresh["replay"]["groups"] if g["id"] == "POISON-012")
-        p012["fragments"][0]["fires"] = []
-        regressions, improvements = bench.compare_precision(pinned, fresh)
+        p030 = next(
+            g
+            for g in fresh["replay"]["groups"]
+            if g["id"] == "POISON-030" and g["fragments"][0]["text"] == "first call"
+        )
+        p030["fragments"][0]["fires"] = []
+        regressions, improvements = bench.compare_precision(self._section(), fresh)
         assert regressions == []
-        assert improvements and "POISON-012" in improvements[0]
+        assert improvements and "POISON-030" in improvements[0]
 
     def test_changed_label_precision_is_flagged(self) -> None:
         fresh = self._section()
@@ -309,10 +306,12 @@ class TestComparePrecision:
         self, tmp_path: Path
     ) -> None:
         pinned = self._section()
-        # Pretend the pinned replay had "Override default" silent: today's code
-        # fires POISON-012 on it, a new fire, so --check fails and writes nothing.
-        p012 = next(g for g in pinned["replay"]["groups"] if g["id"] == "POISON-012")
-        p012["fragments"][0]["fires"] = []
+        p030 = next(
+            g
+            for g in pinned["replay"]["groups"]
+            if g["id"] == "POISON-030" and g["fragments"][0]["text"] == "first call"
+        )
+        p030["fragments"][0]["fires"] = []
         results = tmp_path / "results.json"
         before = json.dumps({"top100": pinned})
         results.write_text(before, encoding="utf-8")
