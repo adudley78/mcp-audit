@@ -1088,7 +1088,8 @@ def discover_project_configs(
         # Check each known project-config pattern relative to this directory.
         for rel_path, client_name, root_key in _PROJECT_CONFIG_SPECS:
             candidate = dirpath / rel_path
-            if candidate.is_symlink():
+            # An unreadable directory is "not there", never a crash.
+            if _probe(candidate.is_symlink):
                 if is_lock_file(candidate):
                     continue
                 discovered.append(
@@ -1102,7 +1103,7 @@ def discover_project_configs(
                     )
                 )
                 continue
-            if candidate.is_file() and not is_lock_file(candidate):
+            if _probe(candidate.is_file) and not is_lock_file(candidate):
                 discovered.append(
                     DiscoveredConfig(
                         client_name=client_name,
