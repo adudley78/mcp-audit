@@ -43,6 +43,10 @@ LABEL_TO_CAPABILITY: dict[str, Capability] = {
     "Control a web browser": Capability.BROWSER,
     "Access git repositories or version history": Capability.GIT,
     "Access cloud resources (AWS, GCP, Azure, etc.)": Capability.CLOUD,
+    (
+        "Post to a shared service: issue or PR comments, git push, chat "
+        "messages, social posts, webhooks"
+    ): Capability.COMMS_OUT,
 }
 
 
@@ -100,3 +104,11 @@ class TestTemplateCapabilityBijection:
             raise AssertionError("template has no 'capabilities' checkboxes field")
         assert "starting point" in description.lower()
         assert "derived from the package" in description.lower()
+
+    def test_description_routes_email_to_the_email_box(self) -> None:
+        """STORY-0101: email stays EMAIL. A submitter whose server sends email
+        must not be steered to the shared-service (comms_out) box."""
+        data = yaml.safe_load(TEMPLATE_PATH.read_text(encoding="utf-8"))
+        field = next(f for f in data["body"] if f.get("id") == "capabilities")
+        description = " ".join(field["attributes"]["description"].split())
+        assert 'sends email checks "Send or read email"' in description

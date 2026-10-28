@@ -109,6 +109,17 @@ The toxic flow analyzer tags each MCP server with capability labels sourced (in 
 - **arXiv 2601.17549** and **arXiv 2601.17548** (cited in poisoning section above) — Both papers analyze multi-server chaining as an amplification technique. A prompt injection in one server can trigger tool calls on other servers, traversing the toxic pair.
 - **Invariant Labs cross-server interaction research** — The same group that disclosed tool poisoning also demonstrated that agents do not maintain trust boundaries between servers: a compromised server can instruct the agent to call tools on other servers. This motivates the pair-based (not just individual-server) threat model in our toxic flow analyzer.
 
+**`comms_out` and TOXIC-008..011 (STORY-0101).** A capability for servers that post to a shared service (issue or pull-request comments, pushed commits or files, chat messages, social posts, webhooks), and four pairs that mirror TOXIC-001/003/005/006 with that sink. The capability, the pairs, the keyword list and the severity are our own; the sources below establish that this sink is the one documented agent exfiltrations used, mostly inside a single server (Invariant, Cato, CVE-2025-34072, GitLost), and that egress controls aimed at "outbound network" did not stop it in a CI harness. None shows two separate MCP servers combined, which is why TOXIC-008 and TOXIC-010 are HIGH:
+
+- **Comment and Control** — N. Fendley, Z. Liu, A. Guan, J. Zhong, Y. Cao, accepted at ACM CCS 2026; write-up by A. Guan, 15 Apr 2026 ([oddguan.com](https://oddguan.com/blog/comment-and-control-prompt-injection-credential-theft-claude-code-gemini-cli-github-copilot/)). A CI-harness attack, not MCP: three agents running in GitHub Actions leaked credentials through GitHub itself: Claude Code Security Review's output (with `ps auxeww` secrets) "gets posted as a PR comment"; "Gemini CLI posts `GEMINI_API_KEY: ...` as a public issue comment"; Copilot's base64 dump was "exfiltrated as a commit in the PR, through the allowed channel" because "`github.com` is whitelisted — and `git push` to GitHub is the standard operation." Cited for the sink class and for the claim that an egress allowlist does not cover it in a CI run; it is evidence for the shell-plus-post shape of TOXIC-011 and the credential shape of TOXIC-009 only as a CI harness, not as MCP servers.
+- **ChainWatch** — O. Narayan, R. Jyoti, R. Singh, arXiv 2607.19432, 20 Jul 2026 ([arxiv.org](https://arxiv.org/html/2607.19432v1)). Its kill chain's Exfiltration stage (Table I, stage 6) lists "READ-to-NETWORK chain, communication tools with data"; scenario S2 ("GitHub Data Heist") ends in "create_PR as a chained NETWORK call at Stage 6", for which its rule R3 raises a CRITICAL alert. ChainWatch reports no precision or recall ("the evaluation takes the form of scenario analyses"), so it is cited for the model, not for any number.
+- **Invariant Labs, "GitHub MCP Exploited: Accessing private repositories via MCP"** — M. Milanta, L. Beurer-Kellner, 26 May 2025 ([invariantlabs.ai](https://invariantlabs.ai/blog/mcp-github-vulnerability)). A malicious public issue made an agent using the official GitHub MCP server pull private repository data into context and leak it into a pull request on a public repository; "not a flaw in the GitHub MCP server code itself." ChainWatch's S2 is this attack (its reference [3]). Source for the `server-github` registry entry and TOXIC-008.
+- **Embrace The Red, CVE-2025-34072** — wunderwuzzi, 24 Jun 2025 ([embracethered.com](https://embracethered.com/blog/posts/2025/security-advisory-anthropic-slack-mcp-server-data-leakage/)); scored CVSS 4.0 9.3 by VulnCheck ([vulncheck.com](https://www.vulncheck.com/advisories/anthropic-slack-mcp-server-data-exfiltration)). `@modelcontextprotocol/server-slack` posts a message containing a link, Slack unfurls it, and the attacker's server receives the data; the server was archived and "will not be patched." Source for the `server-slack` registry entry keeping `network_out` beside `comms_out`, and an anchor for the CRITICAL band.
+- **Cato CTRL, "Living off AI"** — G. Waizel, D. M. Attiya, S. Bamberger, 19 Jun 2025 ([catonetworks.com](https://www.catonetworks.com/blog/cato-ctrl-poc-attack-targeting-atlassians-mcp/)). An outside user's Jira Service Management ticket carried a prompt injection; a support engineer's agent using Atlassian's MCP wrote internal data back into the ticket ("Data is exfiltrated to the threat actor's ticket"). Source for treating Jira/Confluence posting as `comms_out` and for the `mcp-atlassian` registry entry.
+- **Noma Security, "GitLost"** — 7 Jul 2026 ([noma.security](https://noma.security/blog/gitlost-how-we-tricked-githubs-ai-agent-into-leaking-private-repos/); reported by [The Hacker News](https://thehackernews.com/2026/07/public-github-issue-could-trick-github.html)). A GitHub Agentic Workflows agent triggered by an assigned issue pasted a private repository's README into a public comment on that issue. Corroborates the issue-comment sink; details taken from the secondary report.
+
+Registry `capabilities` additions were taken from each package's own tool list: the archived `server-github` (`add_issue_comment`, `create_issue`, `create_pull_request`, `push_files`, `create_or_update_file`) and `server-gitlab` (`create_issue`, `create_merge_request`, `push_files`) READMEs in `modelcontextprotocol/servers-archived`, the archived `server-slack` README (`slack_post_message`, `slack_reply_to_thread`), the `mcp-atlassian` README (`jira_create_issue`, `confluence_create_page`, `confluence_add_comment`), and the Autoposting MCP tool catalog (`publish-post`, "Immediately publish a post to all its platforms").
+
 ### Attack path engine (analyzers/attack_paths.py)
 
 The attack path engine performs multi-hop reachability analysis across server capability graphs and uses a greedy set cover algorithm to compute the minimum hitting set — the smallest number of servers to remove to break all identified attack paths.
@@ -329,6 +340,118 @@ project-file paths were verified against official 2026 documentation from
 Anthropic (Claude Code), Cursor, and Microsoft (VS Code / GitHub Copilot).
 See `src/mcp_audit/discovery.py` for inline references and coverage notes.
 
+## Git can run code (analyzers/git_exec.py — TRUST-006/007, STORY-0089)
+
+The git-config reader, the command-key table and the repository-shape checks
+are original implementations written from git's own documentation and the
+disclosures below. No code or fixtures were copied from any of them, and the
+scanner never runs git.
+
+- **GitSpawn — Manifold Security (2026-09)**, via
+  [The Hacker News](https://thehackernews.com/2026/09/malicious-git-configs-can-make-claude.html)
+  and the researchers' own post,
+  [manifold.security/blog/ai-coding-agents-git-hijack](https://www.manifold.security/blog/ai-coding-agents-git-hijack):
+  coding agents run `git status --porcelain=2 --branch` / `git diff --name-only HEAD`
+  at startup; git honours `core.fsmonitor` from the repository's own
+  `.git/config`, so a repository that arrives as files with `.git` intact
+  (zip, shared drive, sync folder; a plain clone does not carry it) runs the
+  command before the trust prompt and outside the sandbox. Seven agents, eight
+  flaws (goose CVE-2026-72718, Codex CLI CVE-2026-19592, Claude Code fixed
+  2.1.196 with a second, withheld key still live on 2.1.252, Hermes, Qwen
+  Code, Grok Build, Cursor CLI). The write-up names only `core.fsmonitor` and
+  says "several git settings are command execution sinks"; it does not
+  describe nested bare repositories, `gitdir:` files or worktree configs. The
+  other keys in `_RULES` come from git's documentation below.
+- **CVE-2026-26268 (Cursor < 2.5)**,
+  [GHSA-8pcm-8jpx-hv8r](https://github.com/cursor/cursor/security/advisories/GHSA-8pcm-8jpx-hv8r):
+  an agent could write `.git` settings including hooks, which git then ran
+  outside the sandbox — the basis for the `.git/hooks` inventory.
+- **CVE-2026-55607 (Claude Code < 2.1.163)**,
+  [GHSA-7835-87q9-rgvv](https://github.com/anthropics/claude-code/security/advisories/GHSA-7835-87q9-rgvv):
+  worktrees named `.git` and fsmonitor execution during worktree operations.
+- **Anthropic, Claude Code sandboxing documentation**,
+  [code.claude.com/docs/en/sandboxing](https://code.claude.com/docs/en/sandboxing)
+  ("Protected paths"): the vendor write-protects `.git/config`, `.git/hooks`,
+  and the files that would turn a directory into a bare repository (`HEAD`,
+  `objects`, `refs`) — a vendor-published list of the same surfaces.
+- **git documentation**: [git-config](https://git-scm.com/docs/git-config)
+  (syntax rules the reader follows; `include`/`includeIf`; `core.fsmonitor`
+  boolean-or-command; `core.hooksPath`; `core.sshCommand`; `diff.external`;
+  `diff.<driver>.textconv`; `filter.<driver>.clean`/`smudge`;
+  `credential.helper` "if preceded by !, shell commands"; `safe.bareRepository`,
+  which describes "attacks that involve cloning a repository that contains a
+  bare repository"); [githooks](https://git-scm.com/docs/githooks)
+  (`post-index-change`, executable-bit rule);
+  [gitrepository-layout](https://git-scm.com/docs/gitrepository-layout)
+  (`commondir`, `config.worktree`, `worktrees/<id>/`). The parser follows
+  `get_base_var`, `get_extended_base_var`, `get_value` and `parse_value` in
+  git's `config.c`, and was checked line-for-line against git 2.43's own
+  reader on 30 crafted inputs during the build (only difference: git 2.43
+  turns an unquoted tab inside a value into a space; current git documentation
+  says internal whitespace is kept, which is what the reader does).
+- **Build-time measurements (git 2.43, scratch repositories):**
+  `git status --porcelain=2 --branch` and `git diff --name-only HEAD` ran a
+  `post-index-change` hook in a checkout with touched files (the reason that
+  hook is HIGH); `.git/worktrees/<id>/config` is ignored and
+  `config.worktree` is read only with `extensions.worktreeConfig = true`.
+- **Watchman sample digests:** SHA-256 of `templates/hooks--fsmonitor-watchman.sample`
+  (`templates/hooks/fsmonitor-watchman.sample` from 2.48) at every git release
+  tag v2.16.0–v2.56.0, fetched from `raw.githubusercontent.com/git/git/<tag>/…`
+  at build time: five distinct versions (2.16–2.24, 2.25, 2.26–2.36,
+  2.37–2.53, 2.54–2.56). Only the digests are stored; git's sample (GPL-2.0)
+  is not copied into this repository. Installed copies matched: Ubuntu git
+  2.43 (2.37–2.53 digest), and the CI runners' git 2.55 (ubuntu-latest) and
+  Homebrew git 2.56 (macos-latest) (2.54–2.56 digest).
+- **False-positive sources added after review of PR #181:** nbstripout's
+  installer ([`_nbstripout.py`](https://github.com/kynan/nbstripout/blob/master/nbstripout/_nbstripout.py),
+  `install()`) writes `filter.nbstripout.clean`, `filter.nbstripout.smudge cat`,
+  `filter.nbstripout.required true` and `diff.ipynb.textconv '<path> -t'`, so
+  `cat` is a known clean/smudge program. The text converters treated as known
+  `textconv` programs (exiftool, docx2txt, pdftotext, pandoc, odt2txt, strings,
+  hexdump, xxd, cat, sops, gpg, age, unzip) were chosen because they read the
+  file git hands them and print text. After the second review the deny-list of
+  code-loading options was replaced by per-tool allowlists (`_ARG_SPECS`),
+  written from each tool's own option reference: pandoc's built-in reader and
+  writer names (`pandoc --list-input-formats` / `--list-output-formats`, and
+  the MANUAL's custom Lua readers and writers, given as a `.lua` path to `-f`
+  or `-t`), ExifTool (the reviewer confirmed it reads `-IF` and `-if2` as
+  `-if`, which evaluates Perl), gpg, sops, age, less (`-o`/`-O` log file,
+  `-k` lesskey), git-lfs `merge-driver` (its `--program` option runs a
+  command), emacsclient (`-a` names the editor to run when no server is
+  up). ansible-vault was removed because `ansible-vault view` reads
+  `vault_password_file` from an `ansible.cfg` in the working directory
+  (Ansible's configuration-file search order).
+- **Tools that run programs from their own git-config section (round 3 of
+  the PR #181 review):** git-lfs's
+  [`git-lfs-config`](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-config.adoc)
+  documents `lfs.extension.<name>.clean` ("the command which runs when files are
+  added to the index") and `smudge`, `lfs.customtransfer.<name>.path` ("the
+  process you wish to invoke") and `args` ("expanded by the shell"),
+  `lfs.standalonetransferagent`, and the restricted key set of `.lfsconfig`.
+  The reviewer confirmed with git-lfs 3.4.1 that an extension's `clean` runs on
+  `git add` and on `git status --porcelain=2 --branch` after a tracked file is
+  touched. delta's [manual](https://dyn.manpages.debian.org/trixie/git-delta/delta.1.en.html)
+  says it reads settings from a `[delta]` git config section ("most delta
+  options can be given in a git config file"), including `--pager`, and that
+  `--no-gitconfig` turns that off. The dependency-cache
+  layouts (SwiftPM `.build/repositories/`, Bundler `cache/bundler/git/`, Cargo
+  `.cargo/git/db/`, Go `pkg/mod/cache/vcs/`) are where those tools keep bare
+  clones of git dependencies. Git's discovery rules (an invalid `.git`
+  directory is skipped, a malformed `.git` file is an error) follow
+  `setup.c::setup_git_directory_gently_1` and `is_git_directory`.
+- **False-positive sources read at build time:** actions/checkout
+  [`src/git-auth-helper.ts`](https://github.com/actions/checkout/blob/main/src/git-auth-helper.ts)
+  (v6+ writes `includeIf.gitdir:<path>.path` entries pointing at
+  `$RUNNER_TEMP/git-credentials-<uuid>.config`, and `core.sshCommand` with
+  `-i`/`-o UserKnownHostsFile=` when given an SSH key); husky
+  [`index.js`](https://github.com/typicode/husky/blob/main/index.js) (sets
+  `core.hooksPath` to `.husky/_` and writes 14 hook stubs, none of them
+  `post-index-change`); `git lfs install --local` (filter.lfs clean/smudge/process);
+  git-crypt, nbstripout and nbdime install forms.
+- **Research scan** `discovery/briefs/2026-10-25-research-scan.md` (marcus
+  repo) §A1 and the incidents table in `research_notes/incidents_and_talks.md`
+  rows 5–6.
+
 ## Tool-name collision detection (analyzers/collision.py — COLLIDE-001)
 
 The `COLLIDE-001` finding and its detection logic in
@@ -367,6 +490,43 @@ collisions; any static heuristic (e.g. flagging two servers with the same server
 inflates the corpus count and weakens trust in the rule pack.  COMM-032 is
 therefore reserved as an unissued ID; the next new community rule will be
 COMM-035 (COMM-034 already exists).
+
+---
+
+## Cross-tool delegation (analyzers/delegation.py — DELEG-001..003, STORY-0100)
+
+Original implementation: a token-based matcher with a closed vocabulary
+written for mcp-audit. No detector, rule or fixture was copied; MCPTox's data
+was read for measurement only and is not committed (no stated licence).
+
+- **MCPTox: A Benchmark for Tool Poisoning on Real-World MCP Servers**
+  (arXiv 2508.14925, AAAI 2026; [HTML](https://arxiv.org/html/2508.14925v1)).
+  The threat model the checks follow: "An attacker can register a malicious
+  MCP server with tool descriptions" (§2.2); "an agent is connected to both a
+  trusted MCP server and a malicious one" (§3.4); "the poisoned tool itself is
+  never executed" (§3.1); an effective description has "a Trigger Condition",
+  "the Malicious Action" and "a Plausible Justification" (§3.2). DELEG-001 is
+  the cross-server reference, DELEG-002 the trigger plus an action the tool
+  cannot do itself (P2), DELEG-003 the parameter-tampering paradigm (P3:
+  "The attack is triggered implicitly when the agent decides to use a
+  legitimate tool", §3.1). The dataset is also the gate's measurement.
+- **MCP-ITP: implicit tool poisoning** (arXiv 2601.07395,
+  [abstract](https://arxiv.org/abs/2601.07395)): the poisoned tool is never
+  invoked; its metadata steers the agent to a legitimate high-privilege tool
+  (84.2% ASR across 12 agents on MCPTox). Motivates checking structure rather
+  than keywords; its optimized descriptions were not available to measure.
+- **CSA research note, ShareLock / multi-tool threshold poisoning** (2026-06-26,
+  [CSA](https://labs.cloudsecurityalliance.org/research/csa-research-note-sharelock-mcp-threshold-poisoning-20260626/)):
+  payloads split across cooperating descriptions, described as a hypothetical
+  pattern rather than a measured attack, with no detector published.
+  DELEG-001's cross-server reference is the part of it a static read can see.
+- **Claude Code permissions documentation**
+  ([code.claude.com/docs/en/permissions](https://code.claude.com/docs/en/permissions),
+  quoted in `docs/permission-rules.md`): MCP tools are named
+  `mcp__<server>__<tool>`, so DELEG-001 reads that form as a reference to
+  `<tool>`.
+- Severity and the decision to ship: EPIC-0007's STORY-0100 gate, measured with
+  STORY-0088's harness (`scripts/bench_poisoning.py delegation`).
 
 ---
 
@@ -436,6 +596,74 @@ The **new** patterns specific to the agent-file surface are:
 5. **Adversa AI TrustFall** (May 2026) — Project-level MCP config and
    instruction file attacks via freshly-cloned repositories.  Source for the
    `--project` / `--include-agent-files` cloned-repo threat model.
+
+## Instruction-file reach (MEM-003, MEM-004, agent_files/imports.py, gitignore.py, heartbeat.py — STORY-0098)
+
+Every surface, import rule and reply token below was confirmed from the
+vendor's own documentation on 2026-10-25; the incidents and research say why
+each matters. All parsing and detection code is original; fixtures are
+written for this project (no code or fixtures copied from a signal source).
+
+- **Claude Code memory and imports** — [code.claude.com/docs/en/memory](https://code.claude.com/docs/en/memory):
+  `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `~/.claude/CLAUDE.md`,
+  `.claude/rules/**/*.md` and `~/.claude/rules/`; `AGENTS.md` and
+  `.claude/AGENTS.md` read directly from 2.1.277; "Imported files can
+  recursively import other files, with a maximum depth of four hops";
+  relative paths resolve against the importing file; "the path ends at the
+  first space" unless escaped; "A path wrapped in quotes isn't imported at
+  all"; "Import parsing skips Markdown code spans and fenced code blocks";
+  block-level HTML comments are stripped; an import outside the working
+  directory is "external" and needs a one-time approval; user-scope files'
+  imports load without it; "Claude Code skips a file over 4 MiB". The
+  published 2.1.100 npm package (read, never run) agrees on the token rule
+  (`@` at the start or after whitespace, path to the first unescaped
+  whitespace, `#` fragment, accepted starts `./`, `~/`, `/`,
+  `[A-Za-z0-9._-]`) and on skipping comments; MEM-003's import parser is an
+  original implementation of those documented rules.
+- **AGENTS.md** — [agents.md](https://agents.md/) ("the closest one takes
+  precedence"; readers include Codex, Cursor, Copilot, Gemini CLI, Jules, Zed
+  and others); Codex ([AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md):
+  `~/.codex` `AGENTS.override.md` then `AGENTS.md`, project root down to the
+  working directory, one file per directory, `project_doc_max_bytes` 32 KiB,
+  no import syntax); Cursor ([rules](https://cursor.com/docs/context/rules):
+  "AGENTS.md in the project root and subdirectories"); GitHub Copilot
+  ([repository instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions):
+  "one or more AGENTS.md files, stored anywhere within the repository").
+- **OpenClaw workspace** — [agent workspace](https://docs.openclaw.ai/concepts/agent-workspace)
+  (default `~/.openclaw/workspace`; `AGENTS.md`, `SOUL.md`, `USER.md` loaded
+  every session, `MEMORY.md` in the main session, `HEARTBEAT.md` the heartbeat
+  checklist) and [heartbeat](https://docs.openclaw.ai/gateway/heartbeat) as
+  shipped in openclaw 2026.6.6 (`docs/gateway/heartbeat.md`: default `30m`;
+  prompt "Read HEARTBEAT.md if it exists ... If nothing needs attention, reply
+  HEARTBEAT_OK"; "The token is stripped and the reply is dropped if the
+  remaining content is ≤ ackMaxChars (default: 300)"; `heartbeat_respond`
+  with `notify: false`). Current docs: runtime no longer reads `HEARTBEAT.md`;
+  `openclaw doctor --fix` imports it into automation jobs, which "Return
+  NO_REPLY when a check has no visible update".
+- **Agent Commander** (Embrace The Red, 2026-03-16,
+  [embracethered.com](https://embracethered.com/blog/posts/2026/agent-commander-your-agent-works-for-me-now/))
+  — prompt injection wrote a recurring step into `HEARTBEAT.md`; "Responses
+  to the user can be suppressed with HEARTBEAT_OK" and "There is also a
+  NO_REPLY option to suppress info." The write-up does not publish the
+  injected text, so MEM-004's three shapes (forced, paired with hiding, after
+  an action) are derived from the documented reply contract.
+- **Bad Memory** (Gadgil, Alexander, Sunku, Roesner; [arXiv 2607.14611](https://arxiv.org/html/2607.14611))
+  — payloads in files referenced from CLAUDE.md/AGENTS.md ("Read the files in
+  `knowledge/` ... before recommending anything substantive"; "Read this file
+  at the start of every conversation alongside `identity.md`"); Opus left a
+  payload in place 96.7% (same attack) and 93.3% (different attack) of the
+  time; recommends explicit review of changes to CLAUDE.md, AGENTS.md and
+  behaviour files. Source for following prose references and for MEM-003's
+  ignored-file case (instructions that never reach review).
+- **gitignore semantics** — [git-scm.com/docs/gitignore](https://git-scm.com/docs/gitignore)
+  (pattern format, precedence, "It is not possible to re-include a file if a
+  parent directory of that file is excluded"); git 2.32 release notes (a
+  symlinked `.gitignore` is not followed).
+- **Context:** the 2026-10-25 research scan §A8 (Marcus,
+  products/mcp-audit/discovery/briefs/2026-10-25-research-scan.md):
+  AutoRedClaw's inject phase writes AGENTS.md/MEMORY.md/USER.md/SOUL.md (54.7–81.3%
+  on OpenClaw, unverified against the paper); Snyk ToxicSkills advises
+  reviewing `SOUL.md`/`MEMORY.md` for unauthorised changes.
 
 ## Harness posture (HARNESS-001..004, analyzers/config_hygiene.py — STORY-0079)
 
@@ -607,6 +835,102 @@ quoted in the finding text and in `docs/permission-rules.md`:
   (github.com/anthropics/claude-code/tree/main/examples/settings) were used only to
   measure precision locally and are not committed.
 
+## Sandbox settings a repository can loosen (SANDBOX-001..005, analyzers/sandbox.py — STORY-0093)
+
+Every key name, which settings file Claude Code reads it from, and what it does comes
+from Anthropic's documentation, read 2026-10-26, and is quoted in the finding text and
+in `docs/permission-rules.md`:
+
+- **Claude Code sandboxing doc** (https://code.claude.com/docs/en/sandboxing) —
+  SANDBOX-001: "Unless managed settings set them, a developer's user settings or
+  `--settings` can turn on the following keys. A repository's `.claude/settings.json`
+  can too, unless the sandbox is admin-required. Each one weakens the sandbox"
+  (`enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`,
+  `network.allowAllUnixSockets`, `network.allowLocalBinding`), and the "Repository
+  settings under an admin-required sandbox" table of "the settings that loosen it"
+  (`enabled`/`failIfUnavailable` "`false`, when the developer's
+  `~/.claude/settings.json` sets `true`", the proxy ports), "Requires Claude Code
+  v2.1.285 or later"; Custom proxy configuration: "Once either port applies, your proxy
+  is responsible for filtering everything sent to it." SANDBOX-002: "An excluded command
+  runs with your full access. A broad entry such as `docker *` covers everything that
+  tool can do. If you write a pattern that covers an interpreter …, as `docker compose`
+  does with its compose file, Claude can write that file and then run it outside the
+  sandbox"; Security limitations: "allowing access to `/var/run/docker.sock` effectively
+  grants access to the host system through the Docker socket". SANDBOX-002's severity:
+  "An excluded command goes through the regular permission flow" — "commands your allow
+  rules cover run without a prompt", "In auto mode, the classifier reviews other
+  excluded commands", "In `bypassPermissions` mode, an excluded command runs without a
+  prompt unless an ask rule matches it", otherwise a prompt titled "Bash command
+  (unsandboxed)"; entries are matched because "Claude Code matches the text of the
+  call". SANDBOX-003: "Allowing broad domains such as `github.com` can create paths for
+  data exfiltration." "Locks that apply without an admin-required sandbox":
+  `network.strictAllowlist` in "Managed settings, `--settings`, user settings" makes
+  Claude Code ignore a repository's "proxy ports, `allowedDomains`, and
+  `WebFetch(domain:...)` allow rules"; `network.deniedDomains` or a
+  `WebFetch(domain:...)` deny rule in "Managed settings, `--settings`" makes it ignore
+  "`httpProxyPort` and `socksProxyPort`" (the INFO downgrade and the finding notes).
+  SANDBOX-004:
+  `allowAppleEvents` "is only honored from user, managed, or CLI settings. Project
+  settings cannot enable it"; `strictAllowlist` "Setting it in a repository's
+  `.claude/settings.json` or `.claude/settings.local.json` has no effect."
+- **Claude Code settings reference** (https://code.claude.com/docs/en/settings-reference)
+  — the settings index's Scope column (`Any file`, `User or managed`, `Managed`) for
+  every `sandbox.*` key (SANDBOX-004's table), each key's effect (SANDBOX-001's
+  descriptions), the `excludedCommands` entry ("a pattern with no wildcard is an exact
+  match"; "Claude Code keeps a Bash call sandboxed when it has one of these shapes",
+  including "A command starting with `sudo`, `eval`, or `xargs`"), `permissions.defaultMode`
+  ("`auto` and `bypassPermissions` don't take effect from project or local settings"),
+  and "Claude Code honors `mask` entries, `allowPlaintextInject`, `awsPairs`, and `sigv4`
+  only from user settings, managed settings, and the `--settings` flag." **Permission
+  modes doc** (https://code.claude.com/docs/en/permission-modes): in `dontAsk` mode
+  "Claude Code auto-denies every tool call that would otherwise prompt you" (why
+  `dontAsk` does not raise SANDBOX-002). **Permissions doc**, Wrappers: "The stripped
+  wrappers are `timeout`, `time`, `nice`, `nohup`, and `stdbuf`, plus the shell
+  builtins `command` and `builtin`, and zsh's `noglob`. Each runs its argument as the
+  actual command"; "Exec wrappers: such as `watch`, `setsid`, `ionice`, and `flock`";
+  "the query form `command -v`, which looks up a command rather than running one"
+  (SANDBOX-002's wrapper list).
+- **Claude Code settings doc** (https://code.claude.com/docs/en/settings) — SANDBOX-005:
+  the local file "Claude Code keeps it out of git when it creates the file; if you
+  create it by hand, add it to `.gitignore` yourself", written to the global excludes
+  file (`core.excludesFile` when absolute or `~`-prefixed, else
+  `$XDG_CONFIG_HOME/git/ignore` or `~/.config/git/ignore`). **Permissions doc**
+  (https://code.claude.com/docs/en/permissions): "When the file is tracked in git, or
+  `.claude` is a symlink, Claude Code treats it as repository-supplied instead and holds
+  its rules until you trust the folder" (why SANDBOX-001..003 run on a local file only
+  when git carries it or `.claude` is a symlink); the configuration-home exception (why
+  `~/.claude/settings.local.json` is skipped). The settings doc's `CLAUDE_CONFIG_DIR`:
+  "Claude Code then stores your settings, session history, and plugins there instead"
+  (where the user settings file is read from).
+- **gitignore(5)** (https://git-scm.com/docs/gitignore) — pattern semantics, order of
+  precedence, "It is not possible to re-include a file if a parent directory of that
+  file is excluded"; **Git 2.32 release notes**
+  (https://www.kernel.org/pub/software/scm/git/docs/RelNotes/2.32.0.adoc): "`.gitignore`
+  … files that are symbolic links are ignored." **git-config(1)**
+  (https://git-scm.com/docs/git-config, "Includes"): a plain `[include] path` is read
+  where it appears, relative paths against the including file's directory (followed
+  one level). `_gitignore.py` is an original matcher (linear-time wildcards, bounded
+  matching); during development it agreed with
+  `git ls-files --others --ignored --exclude-standard` on 1,350 pattern combinations,
+  including byte-order marks, `***` segments and empty segments. Git is never run by
+  mcp-audit.
+- **MITRE ATT&CK** — T1567.001 Exfiltration to Code Repository
+  (https://attack.mitre.org/techniques/T1567/001/), T1567.003 Exfiltration to Text
+  Storage Sites (https://attack.mitre.org/techniques/T1567/003/), T1567.004
+  Exfiltration Over Webhook (https://attack.mitre.org/techniques/T1567/004/): the host
+  classes SANDBOX-003 lists beside Anthropic's `github.com`.
+- **Why it matters** — UpGuard
+  (https://www.upguard.com/blog/yolo-mode-hidden-risks-in-claude-code-permissions):
+  18,470 `.claude/settings.local.json` files collected from public GitHub repositories,
+  "8,341 instances of user-specific permissions containing usernames" (SANDBOX-005).
+  Claude Code advisory GHSA-ff64-7w26-62rf / CVE-2026-25725 (fixed 2.1.2): a sandboxed
+  command could create `.claude/settings.json` and inject hooks, the reason a repository's
+  settings are an attack surface for the sandbox itself. Research scan 2026-10-25 §A2;
+  Pillar's "week of sandbox escapes" via CSA is secondary and not relied on.
+- All five checks and the gitignore matcher are original implementations; no code or
+  fixtures were copied. Anthropic's example settings files and the doc pages' JSON
+  blocks were used only to measure precision locally and are not committed.
+
 ## Claude Code mods (MOD-001..006, plugins/mods.py — STORY-0085)
 
 - **Claude Code mods documentation** — code.claude.com/docs/en/plugins/mods/overview,
@@ -632,6 +956,50 @@ quoted in the finding text and in `docs/permission-rules.md`:
   types and the `ref`/`sha` fields).
 - **`installed_plugins.json` shape** — anthropics/claude-code issues #45997 and #17032,
   which quote the `{"version": 2, "plugins": {"<id>": [records]}}` structure.
+- Original implementation; no code was copied.
+
+## Plugin pin vs the checkout (PLUGIN-003/004, plugins/checkout.py — STORY-0096)
+
+- **Plugin4Shell** — AIR Security, 2026-09-17
+  (https://www.air.security/blog-posts/plugin4shell). The install sequence
+  (`git clone`, then `git checkout <40-hex>`; Gemini CLI: `git fetch origin <sha>`,
+  `git checkout FETCH_HEAD`), the default-branch-named-like-the-SHA and
+  default-branch-named-`FETCH_HEAD` swaps, GitHub's refusal of SHA-shaped branch names,
+  other hosts accepting them, and the fix versions (Claude Code 2.1.179, Codex 0.146.0).
+  Source for PLUGIN-003's CRITICAL signature and PLUGIN-004 HIGH/LOW.
+- **Pebblous write-up** — 2026-09-19
+  (https://blog.pebblous.ai/blog/plugin4shell-sha-pinning-bypass/en/). Same mechanism;
+  "a non-default branch is fetched only as a remote-tracking ref", and detection by
+  comparing the commit the working tree resolves to with the pin.
+- **CSA research note** — 2026-09-19
+  (https://labs.cloudsecurityalliance.org/research/csa-research-note-plugin4shell-ai-coding-agent-supply-chain/).
+  The control PLUGIN-003 implements: keep "a record of exactly which commit each
+  installed plugin currently resolves to" and verify it independently of the agent's
+  self-reported pin status.
+- **Claude Code plugin documentation** — code.claude.com/docs/en/plugins/loading
+  (cache layout `cache/<marketplace>/<plugin>/<version>/`, copied plugins, version
+  computation, auto-update defaults) and plugins/marketplace-reference (`sha` is "a full
+  40-character lowercase commit SHA"; marketplace sources take `ref` but no `sha`).
+- **Observed behaviour, Claude Code 2.1.311 (2026-10-27, temporary home directory)** —
+  installs from `claude-plugins-official` (`url`, `git-subdir`, relative) and
+  `anthropics/skills` (relative): cache copies carry no `.git`; `installed_plugins.json`
+  records carry `gitCommitSha` (the pin for `url`/`git-subdir`, the marketplace commit
+  for relative); a third-party marketplace is a real clone (`.git`, `HEAD` on
+  `refs/heads/main`); a local `file://` plugin whose default branch was named after the
+  pinned SHA was refused ("SHA pin verification failed: expected HEAD to be …, got ….
+  Refusing to install.").
+- **anthropics/claude-code#56740** — `gitCommitSha` going stale after `plugin update`
+  (so the "record claims the pin" and "record explains drift" decisions are only as
+  good as that field),
+  and install-created caches carrying `.git` on 2.1.131 (reporter's statement).
+- **git** — `builtin/checkout.c` (`setup_new_branch_info_and_source_tree`: an existing
+  `refs/heads/<arg>` is switched to before the argument is taken as a commit),
+  `object-name.c` (`get_oid_basic`: a full-length hex name is the object, with an
+  ambiguity warning; an abbreviated one is looked up as a ref first),
+  `refs/refs-internal.h` `SYMREF_MAXDEPTH` (5), all read at v2.43.0, and
+  gitrepository-layout (`HEAD`, `refs/`, `packed-refs`, `commondir`). Each behaviour PLUGIN-003/004 rely on was reproduced with
+  git 2.43 on hand-made repositories (branch, tag, short tag, short branch, remote-only
+  branch, `FETCH_HEAD` default branch).
 - Original implementation; no code was copied.
 
 ## Claude Code subagent definitions (AGENT-001..004, agent_files/subagents.py — STORY-0094)
@@ -670,6 +1038,97 @@ quoted in the finding text and in `docs/permission-rules.md`:
   and harness-permissions notes Q6 (Marcus, 2026-10-25), which also record that the
   `--strict-mcp-config` gap applies to `--agents`/SDK definitions, not agent files.
 - Original implementation; no code was copied. Test fixtures were written for this repo.
+
+## Skill packages (SKILL-005..008, agent_files/skill_package.py, agent_files/install_steps.py — STORY-0095)
+
+- **Paperclip** — Zenity Labs, "Attackers target agents via the skill supply chain",
+  2026-08-06 (https://labs.zenity.io/post/attackers-target-agents-via-the-skill-supply-chain).
+  `SKILL.md` stayed clean; one byte-identical `setup-installation.md` was copied into
+  seven skill paths (including `skills/paperclip/references/` and
+  `.claude/skills/design-guide/`); "The board, planning and agent-management skills
+  directed the agent to the paperclip skill, which in turn referenced its trojanized
+  setup guide"; the guide said "Do not use npx paperclipai" and ran
+  `curl -s -k … | base64 -d > /tmp/t.mjs && node /tmp/t.mjs && rm /tmp/t.mjs`. Source
+  for reading every file in a skill, the sidecar pass (every prose file, because
+  references chain), and the SKILL-005 HIGH reasons "TLS certificate checks switched
+  off", "the download is decoded", and "downloaded to a file that is then run".
+- **USENIX Security 2026** — "Do Not Mention This to the User": Malicious Agent Skills
+  in the Wild, arXiv 2602.06547v4 (https://arxiv.org/html/2602.06547v4). "a reverse
+  shell is embedded within a skill.md file" (§1); "Base64 encoding with exec() (61.1%)"
+  and "dynamic execution via exec, pickle, or marshal" (§4.3); "The
+  --dangerously-skip-permissions flag disables all safety checks"; smp_9014 "redirects
+  all Claude API calls to attacker-proxy.example"; smp_866 "ships a .mcp.json with
+  hardcoded API credentials"; smp_413 "PostToolUse hooks exfiltrate results to external
+  servers". Source for SKILL-005 decode-then-execute, `marshal.loads` and reverse-shell
+  shapes, the SKILL-006 text shapes (permissions off, base-URL redirect), and the
+  carried `.mcp.json` / hooks components.
+- **SkillCloak** — "Cloak and Detonate", arXiv 2607.02357
+  (https://arxiv.org/abs/2607.02357), 2026-07-02. Payloads moved into `.git/` and
+  `build/` evaded eight scanners more than 90% of the time; the authors' stopgaps are to
+  flag opaque blobs in ignored folders and oversize files. Source for walking `.git/`,
+  `build/` and `dist/`, the git-layout check, and SKILL-007 (opaque files, encoded
+  blobs, over-cap files and budgets reported rather than skipped).
+- **Snyk ToxicSkills** — 2026-02-05
+  (https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub): 76 confirmed
+  malicious skills of 3,984, with password-protected ZIP payloads and `curl | bash`.
+  Source for the archive-password shape and SKILL-007's encrypted-ZIP check.
+- **0DIN** — "Clone this repo and I own your machine"
+  (https://0din.ai/blog/clone-this-repo-and-i-own-your-machine): a setup script pulled
+  its payload from a DNS TXT record. Source for the DNS-TXT-then-execute window rule.
+- **Agent Skills in the Wild** — arXiv 2601.10338v1
+  (https://arxiv.org/html/2601.10338v1), 2026-01-15: skills that bundle scripts were 2.12
+  times as likely to be vulnerable. Source for SKILL-008's conjunctive bump.
+- **Claude Code documentation**, read 2026-10-26 — Skills
+  (https://code.claude.com/docs/en/skills): "add a `.claude-plugin/plugin.json` to a
+  personal or project skill folder and Claude Code can load it as a plugin named
+  `<name>@skills-dir` with its own agents, hooks, and MCP servers". Plugins: loading
+  (https://code.claude.com/docs/en/plugins/loading): the `@skills-dir` origin and its
+  `defaultEnabled` rule; "Trust check and component limits for repository plugins"
+  (per-server approval; bundles and servers from outside the plugin directory skipped;
+  monitors do not load) and "Neither the trust check nor these component limits apply to
+  a plugin under your own `~/.claude/skills/`". Plugins reference
+  (https://code.claude.com/docs/en/plugins-reference): `bin/` "Files here are on the
+  Bash tool's `PATH` while the plugin is enabled". Hooks
+  (https://code.claude.com/docs/en/hooks), "Hooks in skills and agents": skill hooks are
+  registered on invocation and kept "for the rest of the session", "including in a `-p`
+  run in a folder you haven't trusted". Source for every SKILL-006 component and tier.
+- **Base-URL redirect** — CVE-2026-21852 (Check Point), as already cited for CFHYG-007;
+  the first-party host table is the one each vendor documents for its API. The
+  setting is also matched where Python sets it (`os.environ[…] = …`,
+  `setdefault`) and where Windows sets it persistently (`setx NAME value`, Microsoft's
+  `setx` command reference).
+- **Independent review of PR #194 (2026-10-27)** listed shapes of the classes above
+  that the first matcher missed, written with other tools; no new attack class was
+  added. How each is read follows the tool's own manual, not a pattern list from
+  another scanner: the bash and POSIX `sh` manuals for option parsing (`-c` and `-s`
+  decide where the script comes from; `-e`, `-x`, `-o pipefail` do not, and `-o`/`-O`
+  take one argument), `env`/`sudo`/`busybox` as wrappers that run the named program,
+  and here-strings (`<<<`); the curl manual ("URL" section: a host without a scheme is fetched
+  over HTTP, FTP is guessed for hosts starting `ftp.`) and the GNU Wget manual
+  ("URL Format": newer releases may default to https), so only a raw IP is read
+  as plaintext; the bash manual ("INVOCATION", `-c`, `-s`, `-e`, `-x`, `-o`) and the
+  POSIX `sh` utility page (OPTIONS) for how options decide the script source; `basenc`, `openssl base64 -d`, `gunzip`/`zcat`/`xz -d` as
+  decoders in the same decode-then-execute class as `base64 -d`; PowerShell's
+  `IEX (New-Object Net.WebClient).DownloadString(…)` download cradle and Perl's
+  `eval decode_base64(…)` as the PowerShell and Perl forms of fetch- or
+  decode-then-execute; Python `exec(urlopen(…).read())` and JavaScript
+  `fetch(…).then(eval)` as the "dynamic execution via exec" class (USENIX Security
+  2026, above); Gemini CLI's `-y`, the documented short form of `--yolo`.
+- **Vendor installers** — the host and path each vendor's own install documentation
+  gives for its script (uv/ruff, rustup, Hugging Face CLI, Claude Code, Bun, Deno,
+  Docker, nvm, Homebrew, fnm, pnpm, Poetry, Ollama, Google Cloud SDK, pyenv, mise, Volta,
+  Starship, Determinate Nix, .NET). A list for tiering, not a reputation service
+  (GAPS.md).
+- **File formats** — magic numbers from the published format specifications (PNG, GIF,
+  JPEG, WebP, PDF, ZIP, gzip, ELF, Mach-O, PE, WebAssembly, Java class, `.pyc`); the ZIP
+  encryption flag is general-purpose bit 0 (PKWARE APPNOTE 4.4.4).
+- **Measurement corpus** (not committed) — default branches of anthropics/skills,
+  anthropics/claude-code, ComposioHQ/awesome-claude-skills, huggingface/skills,
+  obra/superpowers, openai/skills, trailofbits/skills and vercel-labs/agent-skills,
+  fetched 2026-10-25, plus Anthropic's example skills; numbers in
+  `docs/skill-packages.md`.
+- All patterns are original implementations. No rule, code or fixture was copied from
+  SkillSpector, Agent Threat Rules, mcp-scan or any other scanner.
 
 
 ## SAST: SSRF guards that only block IP literals (STORY-0081)

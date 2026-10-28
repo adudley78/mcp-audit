@@ -76,10 +76,10 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
 - **Supply chain** — typosquatting detection via Levenshtein distance against 55 known MCP servers; offline CVE advisory check (`SC-004`) against the bundled registry (`known_vulnerabilities`); SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
 - **Rug-pull detection** — stateful SHA-256 comparison of each server's configuration entry (command, arguments, environment variable names, raw entry) across scans. Live tool definitions are pinned separately, by `lock --connect` ([docs/lock.md](docs/lock.md#tool-definitions---connect))
-- **Cross-server toxic flows** — capability tagging and 7 dangerous pair patterns detecting multi-server attack paths (file-read + network, secrets + network, shell-exec + network, etc.)
+- **Cross-server toxic flows** — capability tagging and 12 dangerous pair patterns detecting multi-server attack paths (file-read + network, secrets + network, shell-exec + network, a data source next to a server that posts to GitHub, GitLab, Slack or Jira, etc.)
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
 - **Interactive attack graph dashboard** — `mcp-audit dashboard` opens a D3 force-directed graph in your browser with light/dark mode, click-to-highlight attack paths, and hitting set recommendations
-- **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions; `--connect` mode also detects tool-name collisions across servers (`COLLIDE-001`) — the namespace-shadowing attack named in NSA's MCP security guidance
+- **Live server analysis** — connects to running servers via MCP protocol to inspect actual tool definitions; `--connect` mode also detects tool-name collisions across servers (`COLLIDE-001`) — the namespace-shadowing attack named in NSA's MCP security guidance — and descriptions that steer the agent to another server's tools or rewrite their arguments (`DELEG-001..003`). Measured on MCPTox before shipping: with the poisoned tool on its own server, the two together flag 98.2% of the poisoned descriptions that carry no keyword wrapper (the poisoning patterns alone: 23.2%), and the new checks flag 1 of MCPTox's 353 real tools; that clean set and 640 of 855 real descriptions also checked informed the design, and 0 of the other 215, held out, were flagged ([docs/poisoning.md](docs/poisoning.md#cross-tool-delegation-deleg-001003))
 - **Project-level config scan** — `scan --project <dir>` walks a cloned repo for project-level MCP config files and emits `TRUST-001` (HIGH) before you click "Trust this folder" in your AI editor (Adversa TrustFall / CVE-2026-30615); also flags repo-planted IDE auto-execution files — `.vscode/tasks.json` tasks that run on folder open and command-bearing `.vscode/settings.json` keys (`TRUST-003`, HIGH/CRITICAL) — the persistence mechanism used by the Keyv npm worm and Shai-Hulud "V.A.P.E" (2026); and other harnesses' auto-run files — Gemini CLI hooks and `.gemini/.env`, Codex `config.toml`/`hooks.json` (`notify`, `approval_policy = "never"`, `danger-full-access`, hooks), Claude Code scheduled tasks and workflows (`TRUST-008`); and project settings whose `env` sends API traffic to another host (`CFHYG-007`, CVE-2026-21852). A plain `scan`/`check` reads the `TRUST-003` and `TRUST-008` files at the root of the folder it runs in. See [`docs/agent-execution-surface.md`](docs/agent-execution-surface.md)
 - **SAST rule pack** — 91 Semgrep rules (47 Python, 44 TypeScript) across 6 categories for MCP server source code
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
@@ -94,7 +94,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **5 output formats** — terminal (Rich), JSON, SARIF (GitHub Security tab), Nucleus Security FlexConnect, self-contained HTML dashboard
 - **Continuous monitoring** — `mcp-audit watch` monitors config files in real-time and re-scans on any change
 - **Fleet deployment** — machine-tagged output with `--asset-prefix` for enterprise-wide aggregation
-- **Offline scans** — `scan` and `check` make no network calls unless you pass a network flag; `fix`, `sbom` and `lock` look up package versions online unless you pass `--offline` ([full list](docs/privacy.md#commands-that-use-the-network))
+- **Offline scans** — `scan` makes no network calls unless you pass a network flag, and neither does `check` for a user who has not registered (after `mcp-audit register`, each `check` run sends a short ping with the grade); `fix`, `sbom` and `lock` look up package versions online unless you pass `--offline` ([full list](docs/privacy.md#commands-that-use-the-network))
 
 ## Enterprise vulnerability management
 
@@ -376,13 +376,13 @@ See [`docs/diff.md`](docs/diff.md) for input formats, severity table, and edge c
 | Transport security | TRANSPORT-001…003 | Unencrypted remote SSE connections, elevated privilege execution, runtime package fetching via `npx`/`uvx` without version pinning |
 | Supply chain | SC-001…003 | Typosquatted package names (`@modelcontextprotocol/server-filesytem` vs `server-filesystem`), distance-1 substitutions flagged CRITICAL |
 | Rug-pull | RUGPULL-001…003 | Server configuration entry changed since last scan (HIGH), new server appeared (INFO), previously tracked server removed (INFO). For changed *tool definitions*, see `lock --verify --connect` (LOCK-006…009, [docs/lock.md](docs/lock.md#tool-definitions---connect)) |
-| Toxic flow | TOXIC-001…007, INTEG-001 | File-read server + network server (exfiltration path), secret-access server + network server (credential theft), shell-exec server + network server (arbitrary command + exfiltration), file-write server + shell-exec server (plant-then-execute integrity path) |
+| Toxic flow | TOXIC-001…011, INTEG-001 | File-read server + network server (exfiltration path), secret-access server + network server (credential theft), shell-exec server + network server (arbitrary command + exfiltration), any of those sources + a server that posts to an issue tracker, code host or chat (TOXIC-008…011), file-write server + shell-exec server (plant-then-execute integrity path) |
 
 ## Live server analysis
 
 By default, `mcp-audit` performs static analysis — it reads config files and inspects the command, args, env vars, and any tool descriptions stored there.
 
-The `--connect` flag goes further: it connects to each server using the MCP protocol, completes the initialization handshake, and calls `list_tools()`, `list_resources()`, and `list_prompts()` to retrieve the actual definitions the server exposes to the AI agent. Those live definitions are then run through the poisoning analyzer.
+The `--connect` flag goes further: it connects to each server using the MCP protocol, completes the initialization handshake, and calls `list_tools()`, `list_resources()`, and `list_prompts()` to retrieve the actual definitions the server exposes to the AI agent. Those live definitions are then run through the poisoning analyzer. Across all the servers that answered, it also flags two servers exposing the same tool name (`COLLIDE-001`) and descriptions that steer the agent to another server's tools or rewrite their arguments (`DELEG-001..003`, measured in [docs/poisoning.md](docs/poisoning.md#cross-tool-delegation-deleg-001003)).
 
 This matters because a config file can look completely clean while the server it points to is serving poisoned tool descriptions. Static analysis cannot catch this. Connection-based analysis can.
 
@@ -404,7 +404,7 @@ Most MCP security analysis focuses on individual servers. That misses an entire 
 
 Server A reads files. Server B makes HTTP requests. Neither is malicious alone — they each do exactly what the config says. Together, a prompt injection can instruct the agent to read your SSH keys with A and POST them to an attacker's endpoint with B. No single server ever looked dangerous.
 
-`mcp-audit` detects 8 categories of these toxic combinations by tagging each server with capability labels (`FILE_READ`, `NETWORK_OUT`, `SHELL_EXEC`, `DATABASE`, `SECRETS`, etc.) and checking every server pair for known-dangerous combinations:
+`mcp-audit` detects 12 categories of these toxic combinations by tagging each server with capability labels (`FILE_READ`, `NETWORK_OUT`, `COMMS_OUT`, `SHELL_EXEC`, `DATABASE`, `SECRETS`, etc.) and checking every server pair for known-dangerous combinations:
 
 | ID | Combination | Severity |
 |----|-------------|----------|
@@ -415,11 +415,20 @@ Server A reads files. Server B makes HTTP requests. Neither is malicious alone �
 | TOXIC-005 | Database access + outbound network | HIGH |
 | TOXIC-006 | Shell execution + outbound network | CRITICAL |
 | TOXIC-007 | Git repository access + outbound network | MEDIUM |
+| TOXIC-008 | File read + posting to a shared service (issue/PR comment, git push, chat) | HIGH |
+| TOXIC-009 | Secret store access + posting to a shared service | CRITICAL |
+| TOXIC-010 | Database access + posting to a shared service | HIGH |
+| TOXIC-011 | Shell execution + posting to a shared service | CRITICAL |
 | INTEG-001 | File write + shell execution ("plant-then-execute") | HIGH |
 
 † A single server that provides both capabilities of a dangerous pair is also flagged — no second server required.
 
-TOXIC-001…007 all model the same axis: confidentiality (does data leave?). INTEG-001 is a
+`COMMS_OUT` marks a server that posts to a shared service: GitHub or GitLab issues, pull requests
+and pushes, Slack and other chat, Jira and Confluence, social posts, webhooks. The published
+2025–2026 agent exfiltrations through GitHub, Slack and Jira left this way, and an egress
+allowlist permits it because the platform's own host is the destination (see [docs/severity-framework.md](docs/severity-framework.md#comms_out-sinks-story-0101)).
+
+TOXIC-001…011 all model the same axis: confidentiality (does data leave?). INTEG-001 is a
 different claim — integrity (can content written by one server be executed by another?) —
 which is why it gets its own `INTEG-*` ID prefix instead of being folded into the TOXIC-*
 numbering. See [GAPS.md](GAPS.md#toxic-flow-analysis) for why `FILE_WRITE + NETWORK_OUT`
@@ -481,7 +490,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-4,858 tests validate detection accuracy and guard against regressions.
+6,568 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -603,9 +612,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run mcp-audit
-        uses: adudley78/mcp-audit@v0.21.1
+        uses: adudley78/mcp-audit@v0.22.0
         with:
-          version: v0.21.1
+          version: v0.22.0
           severity-threshold: high
           upload-sarif: 'true'
 ```
@@ -667,7 +676,7 @@ Add this to your `.pre-commit-config.yaml` (`rev` is the current release; `pre-c
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.21.1
+    rev: v0.22.0
     hooks:
       - id: mcp-audit
 ```
@@ -707,7 +716,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 4,858 tests
+uv run pytest                        # Run all 6,568 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

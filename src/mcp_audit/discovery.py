@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from mcp_audit.analyzers.git_exec import GitSurface, is_bare_repository
 from mcp_audit.models import Finding, Severity
 
 #: ``mcp-lock.json``'s own filename. Imported here as a literal rather than
@@ -628,6 +630,7 @@ def discover_configs(
                     path=plugin_config,
                 )
             )
+        discovered.extend(_skills_dir_plugin_configs(discovered))
 
     if include_agents and not skip_auto_discovery:
         discovered.extend(_discover_agent_definition_configs(skip_findings, errors))
@@ -727,6 +730,44 @@ def discover_project_agent_configs(
     return _agent_definition_configs(
         paths, is_project_scoped=True, errors=errors, findings=skip_findings
     )
+
+
+def _skills_dir_plugin_configs(
+    already: list[DiscoveredConfig],
+) -> list[DiscoveredConfig]:
+    """MCP servers of skills-directory plugins (STORY-0095).
+
+    A folder directly under ``~/.claude/skills/`` or ``<cwd>/.claude/skills/``
+    that holds ``.claude-plugin/plugin.json`` is loaded by Claude Code as the
+    plugin ``<name>@skills-dir`` (docs: plugins/loading), so its ``.mcp.json``
+    and inline ``mcpServers`` join discovery as client ``claude-code-plugin``,
+    with that client's lock exclusions.  The working directory's are marked
+    project-scoped, so they stay in the rug-pull state key.  Never raises;
+    filesystem errors surface in the skill pass of the same scan.
+    """
+    from mcp_audit.agent_files import skill_package  # noqa: PLC0415
+
+    seen: set[str] = set()
+    for config in already:
+        try:
+            seen.add(str(config.path.resolve()))
+        except (OSError, RuntimeError):
+            seen.add(str(config.path))
+    out: list[DiscoveredConfig] = []
+    try:
+        packages = skill_package.default_skill_packages()
+        configs = skill_package.skills_dir_plugin_mcp_configs(packages)
+    except Exception:  # noqa: BLE001 — discovery must not crash on a skills dir
+        return out
+    for config in configs:
+        try:
+            key = str(config.path.resolve())
+        except (OSError, RuntimeError):
+            key = str(config.path)
+        if key not in seen:
+            seen.add(key)
+            out.append(config)
+    return out
 
 
 # ── Project-level config discovery (for --project flag) ───────────────────────
@@ -833,7 +874,9 @@ SIBLING_HARNESS_AUTOEXEC_KINDS: frozenset[str] = frozenset(
 )
 
 
-# Directory names to skip while walking the project tree.
+# Directory names to skip while walking the project tree.  ``.git`` stays
+# skipped: discover_project_git_surfaces() records each .git entry it passes
+# and git_exec reads only its config files and hooks listing (STORY-0089).
 _WALK_SKIP_DIRS: frozenset[str] = frozenset(
     {
         "node_modules",
@@ -1107,3 +1150,63 @@ def discover_project_autoexec_files(
 
     _walk(root, 0)
     return discovered
+
+
+def discover_project_git_surfaces(
+    root: Path, skip_findings: list[Finding] | None = None
+) -> list[GitSurface]:
+    """Walk a repository tree for git surfaces that can make git run code.
+
+    The read-only exception to the ``.git`` entry in :data:`_WALK_SKIP_DIRS`
+    (STORY-0089, TRUST-006/TRUST-007): the walk still never descends into a
+    ``.git`` directory or a bare repository (so ``objects/`` is never read), but
+    it records each ``.git`` entry (directory or ``gitdir:`` file) it passes and
+    each directory not named ``.git`` that git itself would treat as a
+    repository.  :func:`mcp_audit.analyzers.git_exec.scan_git_surfaces` then
+    reads only their config files and lists their hooks.
+
+    Mirrors :func:`discover_project_configs`'s walk rules (skip-dir list, depth
+    cap, no symlinked directories, TRUST-005 for each one not traversed).
+
+    Args:
+        root: Resolved absolute path of the repository root to walk.
+        skip_findings: Optional list to append TRUST-005 findings to for
+            symlinked directories that were not traversed.
+
+    Returns:
+        :class:`~mcp_audit.analyzers.git_exec.GitSurface` objects; a bare
+        repository at *root* itself is returned with ``nested=False`` and its
+        contents are not walked.
+    """
+    if not os.path.lexists(root / ".git") and is_bare_repository(root):
+        return [GitSurface(kind="bare-repo", path=root, nested=False)]
+    surfaces: list[GitSurface] = []
+
+    def _walk(dirpath: Path, depth: int) -> None:
+        if depth > _WALK_MAX_DEPTH:
+            return
+        dot_git = dirpath / ".git"
+        if os.path.lexists(dot_git):
+            surfaces.append(GitSurface(kind="dot-git", path=dot_git))
+        try:
+            children = sorted(dirpath.iterdir())
+        except OSError:
+            return
+        for child in children:
+            if child.is_symlink():
+                if child.is_dir() and skip_findings is not None:
+                    skip_findings.append(
+                        build_untraversed_symlink_dir_finding(child, "project")
+                    )
+                continue
+            if not child.is_dir() or child.name in _WALK_SKIP_DIRS:
+                continue
+            if depth + 1 > _WALK_MAX_DEPTH:
+                continue
+            if is_bare_repository(child):
+                surfaces.append(GitSurface(kind="bare-repo", path=child))
+                continue
+            _walk(child, depth + 1)
+
+    _walk(root, 0)
+    return surfaces

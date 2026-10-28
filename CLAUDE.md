@@ -82,6 +82,7 @@ src/mcp_audit/
 ├── mcp_client.py      # Live MCP server connection via MCP SDK (--connect)
 ├── _paths.py          # data_dir() and resolve_bundled_resource() — shared helpers for locating bundled data in source, wheel, and PyInstaller frozen contexts
 ├── _network.py        # NetworkPolicy + require_offline_compatible() — centralised --offline mutual-exclusion enforcement for network-touching flags
+├── _gitignore.py      # Is a file git-ignored? Read-only (never runs git): gitignore(5) matcher with linear-time wildcards; reads .gitignore files (symlinked ones skipped, as git ≥2.32), .git/info/exclude and the global excludes file (core.excludesFile / XDG, a plain [include] path followed one level); BOM, `***`, empty segments as git; 1 MiB per file, 512-file / 8 MiB budget, anchored patterns longer than the path rejected up front, 5,000,000-step matching budget (MatchMeter); unreadable or over budget → IgnoreStateUnknownError + error text without absolute paths (STORY-0093)
 ├── analyzers/
 │   ├── base.py         # BaseAnalyzer abstract class — all analyzers inherit this
 │   ├── poisoning.py    # Tool description poisoning detection (regex-based); PATTERNS list reused by agent_files; also owns POISON-041/042 concealment-channel extract/decode/rescan (scan_concealed_channels, build_concealment_finding), shared with agent_files
@@ -90,20 +91,33 @@ src/mcp_audit/
 │   ├── supply_chain.py # Package provenance and typosquatting detection (registry-backed); SC-007 unscoped twins (takes precedence over SC-001..003) and SC-008 OSV MAL-* exact-name matches (STORY-0097); redact_command() for evidence
 │   ├── config_hygiene.py # Config-file filesystem hygiene (CFHYG-001..007; CFHYG-007 = project settings `env` redirecting API traffic, STORY-0090); hook-command checks HOOK-001/002 and harness posture HARNESS-001..007 (STORY-0079, STORY-0087, STORY-0090) via analyze_config; repo-planted auto-run files TRUST-003 (VS Code) and TRUST-008 (Gemini CLI, Codex, Claude Code scheduled tasks/workflows, STORY-0090) via analyze_autoexec_file
 │   ├── rug_pull.py     # Config-entry change detection via hashing (command, args, env key names, raw entry; not live tool definitions)
-│   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection
+│   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection (TOXIC-001..011, INTEG-001; COMMS_OUT sinks TOXIC-008..011, STORY-0101)
 │   ├── auth.py         # Remote server authentication checks (AUTH-001, AUTH-002)
 │   ├── collision.py    # Tool-name collision detection across --connect servers (COLLIDE-001)
+│   ├── delegation.py   # Cross-tool delegation in live tool descriptions (DELEG-001..003, STORY-0100): names another
+│   │                   #   server's tool / trigger + action its server lacks / rewrite another tool's arguments;
+│   │                   #   token-based, budgets shared fairly per server, redacted evidence; runs in run_scan_async
+│   │                   #   after COLLIDE-001 (needs --connect: the lock holds digests, not text); SHIPPED_SEVERITY
+│   │                   #   must equal results.json's measured gate decision
+│   ├── git_exec.py     # Git can run code (TRUST-006/007, STORY-0089): tolerant git-config parser, command-key table (_RULES), includes/worktree configs/gitfiles, hooks, nested bare repos; scan_cwd_repository() (default scan/check, via scanner._discover_and_parse) and scan_git_surfaces() (--project, via discovery.discover_project_git_surfaces); check_git_config() is the standalone per-file API (STORY-0096). Never runs git; not a BaseAnalyzer
 │   ├── permissions.py  # Claude Code permission-rule linter (PERM-001..007, STORY-0092): public settings parser (load_claude_settings, reused by sandbox checks); PERM-001..006 via config_hygiene.analyze_config, PERM-007 as _run_static_pipeline step 5b and again across scopes in cli/scan._apply_project_scan; every rule quoted from code.claude.com/docs (docs/permission-rules.md)
-│   └── attack_paths.py # Multi-hop attack path detection and greedy hitting set algorithm
-├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001/002; also emits POISON-041/042, analyzer="poisoning")
+│   ├── sandbox.py      # Claude Code sandbox settings a repository can loosen (SANDBOX-001..005, STORY-0093): reuses permissions.load_claude_settings; all five run as _run_static_pipeline step 0b (analyze_sandbox_files, NOT analyze_config), each file in its own try: a SandboxContext says whose file it is (shared project file = repository; settings.local.json = repository only when no ignore file covers it or .claude is a symlink, MEDIUM cap when its git state is unknown, user's own when ignored or outside a work tree; user settings get only SANDBOX-004) and carries UserSettingsLocks read from ~/.claude/settings.json (strictAllowlist → SANDBOX-003/proxy ports INFO; defaultMode bypassPermissions/auto → SANDBOX-002 HIGH); SANDBOX-005 (local settings headed for git, home paths with a masked username) via _gitignore.py; errors prefixed "SANDBOX checks: "; key scopes from code.claude.com/docs settings-reference (docs/permission-rules.md)
+│   └── attack_paths.py # Multi-hop attack path detection and greedy hitting set algorithm; one path per hop sequence, the most severe pair's (STORY-0101)
+├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001..004; also emits POISON-041/042, analyzer="poisoning")
 │   ├── __init__.py    # Package marker; offline-only invariant docs
-│   ├── models.py      # AgentFile dataclass, AgentFileSurface StrEnum
-│   ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions)
-│   ├── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked), plus scan_concealed_channels/build_concealment_finding for POISON-041/042. NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+│   ├── models.py      # AgentFile dataclass (+ follows_imports, imported_from, edges), AgentFileSurface StrEnum, MEMORY_SURFACES, ImportEdge
+│   ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions); AGENT_INSTRUCTION_PATTERNS incl. AGENTS.md, CLAUDE.local.md, .claude/rules, OpenClaw workspace files (STORY-0098); discover_root_agent_files() / discover_user_heartbeat_files() for the default scan; 4 MiB per-file read cap and a per-call budget
+│   ├── imports.py     # Claude Code @path imports (documented rules: relative to importer, 4 hops, code/comments skipped) and "read X" prose references; follow_references() never reads outside the root or through a symlink (TRUST-002/004), budgeted (STORY-0098)
+│   ├── gitignore.py   # .gitignore matcher read by file (never runs git), non-backtracking wildmatch; MEM-003's "ignored" case
+│   ├── heartbeat.py   # MEM-004 detector: HEARTBEAT_OK/NO_REPLY/notify:false forced, paired with hiding, or after an action
+│   ├── reach.py       # MEM-003/MEM-004 in the default scan (cwd root + ~/.openclaw/workspace/HEARTBEAT.md, via scanner._cwd_instruction_reach_findings) and scan --project (cli/scan._apply_project_instruction_reach); never raises
+│   ├── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked), plus scan_concealed_channels/build_concealment_finding for POISON-041/042; calls skill_package.sidecar_findings for a skill's other prose files; MEM-003/004 via analyze_instruction_reach(); imported files get the importer's rules, secrets redacted. NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+│   ├── skill_package.py # STORY-0095: every file in a skill folder (SKILL-005..008), default scan/check (scanner._discover_and_parse → scan_default_skills) and scan --project (cli/scan._apply_project_skills; a skills-dir plugin's config is listed once, as claude-code-plugin, and not re-analysed when the default scan already did); a nested SKILL.md folder is its own package only when discovery returns it (else walked with the parent); .git text records are read, git binaries magic-checked; follows a symlink directly under a skills dir one level when it points at a skill (TRUST-004 INFO; a repo link leaving the repo is TRUST-002 HIGH, not read; decision 2026-10-26) and no other symlink (TRUST-002/004/005), O_NOFOLLOW reads under per-file/per-skill/per-scan budgets, errors → ScanResult.errors; skills-directory plugin (.claude-plugin/plugin.json) servers join discovery as "claude-code-plugin" (discovery._skills_dir_plugin_configs); carried .mcp.json routed through per-server analyzers as "claude-code-skill" (never discovered; check never offers `fix`)
+│   ├── install_steps.py # STORY-0095: pure text/byte checks (no I/O): SKILL-005 install-step shapes with per-file literal gates (parity-tested), SKILL-006 text shapes, SKILL-007 format/blob identification, redact()
 │   └── subagents.py   # Claude Code subagent definitions (STORY-0094): frontmatter read the way Claude Code's loader reads it (1 MiB file cap, split at the first `---` anywhere, quote-and-retry on a YAML error) plus the `---`-line reading, findings from both; repeated/unreadable security keys are findings; node/nesting/alias budgets; agent_mcp_servers() (one server per item, repeats `name#2`), analyze_agent_definition() AGENT-001..004; files join default discovery as client "claude-code-agent" (discover_configs(include_agents=True); never with --path; lock opts out; auto-verify skips them and lists project ones under a lock root in `lock_status.not_covered`; rug-pull state key excludes), step 0 via ConfigHygieneAnalyzer.analyze_agent_definition (+HOOK-001/002)
 ├── plugins/           # Claude Code plugin inventory + integrity (PLUGIN-001/002); offline, reads ~/.claude/plugins records only
 │   ├── models.py      # InstalledPlugin dataclass; GIT_SOURCE_TYPES; pinned_sha / source_type
-│   ├── discovery.py   # discover_installed_plugins(), plugin_agent_files(), plugin_mcp_config_paths(); plugin MCP servers join default auto-discovery (discover_configs(include_plugins=True) is the default; never with an explicit --path; lock opts out; excluded from the rug-pull state key) as client "claude-code-plugin"
+│   ├── discovery.py   # discover_installed_plugins(), plugin_agent_files(), plugin_mcp_config_paths(); plugin MCP servers join default auto-discovery (discover_configs(include_plugins=True) is the default; never with an explicit --path; lock opts out; lock auto-verify skips them, listing a repository's skills-directory plugin servers under a lock root in `lock_status.not_covered`; excluded from the rug-pull state key) as client "claude-code-plugin" — skills-directory plugins (`~/.claude/skills/<name>/.claude-plugin/plugin.json`, cwd `.claude/skills/…`) join the same way (STORY-0095), except that the cwd's are `is_project_scoped` and stay in the rug-pull state key so one repository's plugin servers never show up as RUGPULL-003 in another's scan
 │   ├── analyzer.py    # analyze_plugin_integrity() — PLUGIN-001 (recorded version != pinned sha prefix), PLUGIN-002 (unpinned git source)
 │   └── mods.py        # Claude Code mods (STORY-0085): discover_mods() (installed plugins, ~/.claude/dev-mods, CLAUDE_CODE_PLUGIN_DIRS), static read of hooks modules (never executed), read_guard_state() (managed-settings file), analyze_mods() MOD-001..005, analyze_plugin_dirs_setting() MOD-006; wired into default discovery next to PLUGIN-001/002
 ├── ci_workflows/      # GitHub Actions workflows that run an AI agent (WORKFLOW-001..003, STORY-0091); YAML read with safe_load, never run
@@ -248,7 +262,7 @@ Build and distribution scripts at project root:
 - `scripts/install.sh` — curl-based end-user installer for GitHub Releases
 
 Measurement scripts (dev tooling, not in the package):
-- `scripts/bench_poisoning.py` — POISON-* recall and clean-tool flag rate on MCPTox (fetched by hand at release time, never in CI, never committed; any severity and HIGH-or-above) and precision on the top-100 npm corpus (a fixed measurement of the 0.21.x code, labels in `docs/research/poisoning-benchmark/top100-labels.json` with `labelled_patterns_fingerprint`; `precision` prints STALE once the code differs) plus a replay of the corpus's committed evidence fragments; pinned in `docs/research/poisoning-benchmark/results.json`. `tests/test_bench_poisoning.py` fingerprints the whole source of `analyzers/poisoning.py` and `mcp_client.build_runtime_server_config`: any change to either forces a re-measure (`precision --write`, `recall --write`, then update the numbers in `docs/poisoning.md`, `GAPS.md` and `README.md`); see `docs/poisoning.md` (STORY-0088)
+- `scripts/bench_poisoning.py` — POISON-* recall and clean-tool flag rate on MCPTox (fetched by hand at release time, never in CI, never committed; any severity and HIGH-or-above) and precision on the top-100 npm corpus (a fixed measurement of the 0.21.x code, labels in `docs/research/poisoning-benchmark/top100-labels.json` with `labelled_patterns_fingerprint`; `precision` prints STALE once the code differs) plus a replay of the corpus's committed evidence fragments; pinned in `docs/research/poisoning-benchmark/results.json`. `tests/test_bench_poisoning.py` fingerprints the whole source of `analyzers/poisoning.py` and `mcp_client.build_runtime_server_config`: any change to either forces a re-measure (`precision --write`, `recall --write`, then update the numbers in `docs/poisoning.md`, `GAPS.md` and `README.md`); see `docs/poisoning.md` (STORY-0088). The `delegation` subcommand (STORY-0100) measures DELEG-001..003 on MCPTox in two session models (poisoned tool on its own server; among the target server's tools), counts flagged clean tools with all 45 servers in one session and each alone, and applies the gate (`gate_decision`); `tests/test_delegation.py` fails if `analyzers/delegation.py` changes without `delegation --write`, or if `SHIPPED_SEVERITY` differs from the recorded decision
 
 ## Key conventions
 
@@ -256,7 +270,7 @@ Measurement scripts (dev tooling, not in the package):
 - Detection patterns are hardcoded in each analyzer (regex constants); supply-chain data is now sourced from `registry/known-servers.json` via `registry/loader.py`
 - All findings use the `Finding` Pydantic model from models.py
 - Analyzers inherit from `BaseAnalyzer` and implement an `analyze()` method. **Exception:** `rug_pull.py` and `toxic_flow.py` have a no-op `analyze()` — real work is in `analyze_all()` (they need the full server list). `attack_paths.py` is not a `BaseAnalyzer` subclass — it is a standalone module exposing `summarize_attack_paths()`. `collision.py` is also not a `BaseAnalyzer` subclass — it exposes `detect_tool_collisions(pairs)` and is called in `run_scan_async()` after the `--connect` loop, before `_run_static_pipeline()`.
-- **`_run_static_pipeline()` in `scanner.py` is the canonical implementation of the analysis pipeline.** Both `run_scan` (sync) and `run_scan_async` (async, after live `--connect` enumeration completes) delegate to it. The helper is intentionally synchronous and runs steps 1–7 in this exact order: (1) per-server analyzers, (2) `RugPullAnalyzer.analyze_all`, (3) `ToxicFlowAnalyzer.analyze_all` with the shared registry, (4) `summarize_attack_paths`, (5) policy-as-code rule engine, (5b) PERM-007 (`permissions.analyze_flagged_server_allows`: `mcp__<server>` allow rules on servers with HIGH+ findings, which needs every finding above; only when a `ConfigHygieneAnalyzer` is in the list), (6) `calculate_score`, (7) attach `registry_stats`. Wire new analyzers or pipeline changes here, not in either entry point. **Exception:** `detect_tool_collisions()` from `collision.py` runs in `run_scan_async()` inside the `if connect:` block, immediately after the per-server enumeration loop and before `_run_static_pipeline()`. It is not part of `_run_static_pipeline()` because it requires live `ServerEnumeration` data that is not available in the static pipeline.
+- **`_run_static_pipeline()` in `scanner.py` is the canonical implementation of the analysis pipeline.** Both `run_scan` (sync) and `run_scan_async` (async, after live `--connect` enumeration completes) delegate to it. The helper is intentionally synchronous and runs steps 1–7 in this exact order (after step 0, `analyze_config` per config file, and step 0b, SANDBOX-001..005 `sandbox.analyze_sandbox_files`, which reads ignore files and the user's settings, checks each settings file in its own `try`, and reports read failures and crashes in `result.errors`; only when a `ConfigHygieneAnalyzer` is in the list): (1) per-server analyzers, (2) `RugPullAnalyzer.analyze_all`, (3) `ToxicFlowAnalyzer.analyze_all` with the shared registry, (4) `summarize_attack_paths`, (5) policy-as-code rule engine, (5b) PERM-007 (`permissions.analyze_flagged_server_allows`: `mcp__<server>` allow rules on servers with HIGH+ findings, which needs every finding above; only when a `ConfigHygieneAnalyzer` is in the list), (6) `calculate_score`, (7) attach `registry_stats`. Wire new analyzers or pipeline changes here, not in either entry point. **Exception:** `detect_tool_collisions()` from `collision.py` runs in `run_scan_async()` inside the `if connect:` block, immediately after the per-server enumeration loop and before `_run_static_pipeline()`. It is not part of `_run_static_pipeline()` because it requires live `ServerEnumeration` data that is not available in the static pipeline. `detect_delegation()` from `delegation.py` (DELEG-001..003, STORY-0100) runs right after it in the same block, over the same pairs, for the same reason.
 - Output formatters inherit from `BaseFormatter` and implement a `format()` method
 - The dashboard HTML template is a single large string (`_DASHBOARD_HTML`) embedded in `output/dashboard.py`. All scan data is injected via a `__SCAN_DATA_JSON__` placeholder at render time. D3 v7 is bundled from `data/d3.v7.min.js` and injected via `__D3_JS__`. Do not split the template into separate files.
 - **Scoring** runs after all analyzers complete inside `scanner.py` and attaches a `ScanScore` to `ScanResult`. Analyzers never call the scorer directly. See `scoring.py` and `docs/scoring.md`.
@@ -457,6 +471,35 @@ Measurement scripts (dev tooling, not in the package):
   defect never used. This is a finding about process (an ad-hoc metadata
   edit that never cross-checked the `Capability` enum), not about
   documentation, and is recorded here rather than smoothed over.
+  **STORY-0101 added `Capability.COMMS_OUT`** ("posts to a shared service":
+  issue/PR/review comments, pushed commits or files, chat, Jira/Confluence,
+  social posts, webhooks) as a wired sink, not tag-only: `TOXIC-008..011`
+  (`FILE_READ`/`SECRETS`/`DATABASE`/`SHELL_EXEC` + `COMMS_OUT`;
+  008 and 010 HIGH like TOXIC-001/005, 009 and 011 CRITICAL; the cited
+  attacks were single-server or a CI harness, not two MCP servers) in `TOXIC_PAIRS`, the same four edges in `CAPABILITY_FLOWS`,
+  `COMMS_OUT` in `_SINK_CAPS`. Registry entries that already declared
+  `network_out` keep it (`server-github`, `server-slack`, `mcp-atlassian`,
+  `@autoposting.ai/cli`; `server-gitlab` went from null to `["git",
+  "comms_out"]`), so no existing TOXIC-* finding stops firing and a comms
+  pair is reported beside its network twin; `_candidates_from_toxic_findings`
+  now keeps the most severe pair per hop sequence (it kept the first, which
+  hid `server-everything`'s CRITICAL TOXIC-006 behind TOXIC-001). The
+  `KEYWORD_RULES` entry matches code hosts only as whole tokens or package
+  fragments (`" github "`, `server-github`, `github-mcp`), never the bare
+  `github` substring a local `~/github/...` path carries; platform names
+  (`slack`, `discord`, `webhook`, ...) are anchored the same way and the rule
+  (`KeywordRule.skip_path_args`) ignores path and `scheme://` arguments, so
+  a `discord-bot` directory or a `webhooks` database is not a poster. Email stays
+  `EMAIL`. `git + comms_out` and `browser + comms_out` were measured and not
+  added. Measurement table: `docs/severity-framework.md` ("comms_out
+  sinks"); limits: GAPS.md. Running `find_undeclared_capabilities()` with
+  the new keyword rule against the pre-change registry flagged exactly
+  `server-github`, `server-slack` (subset) and `mcp-atlassian` (disjoint);
+  all fixed, and `tests/test_audit_registry.py` now pins all four offline
+  checks clean against the shipped file. Pre-existing, not fixed:
+  `registry.get()` is exact-match, so a pinned launch
+  (`server-github@2025.4.8`) misses the registry and is tagged by keywords
+  only.
 
 - **Agent-file scanning** (`agent_files/`) covers the non-MCP-config instruction
   surfaces an agent reads: Claude Code commands/memory, Cursor `.mdc` rules, and
@@ -471,6 +514,14 @@ Measurement scripts (dev tooling, not in the package):
   and is owned by `analyzers/poisoning.py` (see that module's docstring and
   `agent_files/analyzer.py`'s own "documented exception" note). Detection
   patterns are **imported** from `analyzers/poisoning.py` — never forked.
+  **MEM-003/MEM-004** (STORY-0098: imports from outside the folder or of a
+  `.gitignore`'d file; heartbeat output suppression) also run in a default
+  `scan`/`check` (cwd-root instruction files, skipped when cwd is `$HOME`, plus
+  `~/.openclaw/workspace/HEARTBEAT.md`) and in `scan --project`, through
+  `agent_files/reach.py`; findings are deduplicated across the three paths
+  (`reach.finding_key`) and only a symlink leaving the folder (TRUST-002 HIGH)
+  is reported on the first two. `tests/conftest.py` stubs the user heartbeat
+  lookup.
   **HOOK-001/002** (network-egress and config-write hook commands) deliberately
   live in `analyzers/config_hygiene.py::analyze_config` (pipeline step 0), not in
   `agent_files/`, because they inspect the parsed `hooks` section of a Claude config
@@ -718,8 +769,8 @@ What's built:
 - Live MCP server connection via --connect (optional, MCP SDK)
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
-- Demo environment producing 70 findings on a first scan of all demo configs (62 once rug-pull state exists; counted 2026-10-26 for STORY-0097, which added SC-007 + SC-008 on the demo's `npx -y mcp-server-postgres` — OSV MAL-2026-5481 since June 2026; it was 68/60 from v0.20.0 to v0.21.1) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 4858 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- Demo environment producing 74 findings on a first scan of all demo configs (66 once rug-pull state exists; counted 2026-10-27 for STORY-0101, which added TOXIC-008 ×2 and TOXIC-010 (HIGH) and TOXIC-011 (CRITICAL) on the demo's `github` server, attack paths unchanged at 26 with 3 CRITICAL; 70/62 after STORY-0097, which added SC-007 + SC-008 on the demo's `npx -y mcp-server-postgres` — OSV MAL-2026-5481 since June 2026; it was 68/60 from v0.20.0 to v0.21.1) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
+- 6568 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 28 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release

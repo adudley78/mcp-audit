@@ -101,6 +101,83 @@ capability combination, not any individual server.
 | TOXIC-005  | HIGH     | ASI03 | MCP05, MCP10 | Database + network. Database contents could be exfiltrated. |
 | TOXIC-006  | CRITICAL | ASI04 | MCP05, MCP10 | Shell execution + network. Arbitrary command execution with exfiltration capability. |
 | TOXIC-007  | MEDIUM   | — | MCP10 | Git access + network. Source code or commit history could be exfiltrated via outbound requests. |
+| TOXIC-008  | HIGH     | ASI04, ASI03 | MCP05, MCP10 | File read + comms posting (STORY-0101). A server that posts to a shared service (issue or PR comment, git push, chat message, webhook) next to one that reads local files. HIGH, the same as TOXIC-001: see "comms_out sinks" below. |
+| TOXIC-009  | CRITICAL | ASI06 | MCP01, MCP10 | Secrets store + comms posting. Credentials posted where the attacker reads them (`GEMINI_API_KEY` as a public issue comment in the Comment and Control CI-harness attack). |
+| TOXIC-010  | HIGH     | ASI03 | MCP05, MCP10 | Database + comms posting. Query results posted to a shared service. HIGH, the same as TOXIC-005. |
+| TOXIC-011  | CRITICAL | ASI04 | MCP05, MCP10 | Shell execution + comms posting. Command output (process environments carry credentials) posted to a PR comment or pushed as a commit (the sink class Comment and Control used from a CI harness). |
+
+#### comms_out sinks (STORY-0101)
+
+`comms_out` marks a server that posts to a shared service: an issue, pull or
+merge request, or review comment; a pushed commit or file; a chat message; a
+social post; a webhook. TOXIC-008..011 pair it with the four sources that
+already pair with `network_out` (file read, secrets, database, shell).
+TOXIC-008 and TOXIC-010 are **HIGH**, the same as their network twins
+(TOXIC-001, TOXIC-005); TOXIC-009 and TOXIC-011 are **CRITICAL**, the same as
+TOXIC-003 and TOXIC-006.
+
+The published evidence confirms the sink class, mostly in single-server form:
+Invariant Labs (2025, official GitHub MCP server, private repository contents
+into a public pull request), Cato CTRL (2025, Atlassian's MCP, internal data
+into an outside requester's Jira ticket), CVE-2025-34072 (2025, reference
+Slack server, data out through a link preview Slack fetches; CVSS 4.0 9.3 from
+VulnCheck) and GitLost (2026, a private README in a public issue comment) each
+ran inside one server that could both read and post. Comment and Control (ACM
+CCS 2026) was a CI harness (Claude Code, Gemini CLI and Copilot running in
+GitHub Actions, posting credentials as a PR comment, a public issue comment
+and a git push), not MCP, so it supports the sink class and the shell-plus-post
+shape of TOXIC-011, not a cross-server MCP claim. None of these attacks was
+shown against two separate MCP servers combined, which is what TOXIC-008 and
+TOXIC-010 report, so they do not clear the CRITICAL row's "confirmed against
+real LLM agents" bar for a cross-server pair. They are HIGH for a second
+reason: the property that makes this sink worse than a generic fetch in a CI
+run, an egress allowlist that permits the platform's own host, is absent on a
+developer laptop, which has no egress allowlist for the sink to get around.
+TOXIC-009 and TOXIC-011 stay CRITICAL because a credential store or a shell
+next to any outbound channel is already CRITICAL (TOXIC-003, TOXIC-006). The
+attacker still reads the result without running anything. Sources are in
+PROVENANCE.md.
+
+Registry entries keep `network_out` where they already declared it
+(`server-github`, `server-slack`, `mcp-atlassian`, `@autoposting.ai/cli`), so
+no existing finding stops firing. On those servers a TOXIC-008..011 finding is
+reported beside its TOXIC-001/003/005/006 twin for the same two servers, as
+TOXIC-004 and INTEG-001 are for one pair; the attack path for that pair takes
+the more severe of the two, the first listed on a tie (`attack_paths._candidates_from_toxic_findings`).
+Email stays `email`: it already has its own wired sink (TOXIC-002), and its
+destination is a recipient the attacker names, not a shared space.
+
+**Measurement (2026-10-27).** Each registry entry run as one server
+(`npx -y <name>`, registry-first tagging), all 55 at once, as R37 did; the
+same with heuristics only; the published top-100 npm corpus
+(`docs/research/2026-10-top100-npm/scan-config-100-servers.mcp.json`, pinned
+versions, so the registry lookup misses and only keywords tag); and
+`demo/configs/`.
+
+| Corpus | Posting servers tagged | TOXIC-008 | TOXIC-009 | TOXIC-010 | TOXIC-011 | Same server pair already had the network twin |
+|---|---|---|---|---|---|---|
+| Registry, 55 entries | 5 (`server-github`, `server-gitlab`, `server-slack`, `mcp-atlassian`, `@autoposting.ai/cli`) | 30 (29 cross, 1 self: `mcp-atlassian`) | 0 (no entry declares `secrets`) | 30 | 20 | 63 of 80 in the same direction; the other 17 are the 16 `server-gitlab` pairs (it declared no capabilities before) and `mcptoon` → `mcp-atlassian`, whose network twin exists only in the opposite direction |
+| Registry names, heuristics only | 4 | 12 | 0 | 16 | 4 | 16 of 32 |
+| Top-100 npm corpus | 4 (`@azure-devops/mcp`, `slack-mcp-server`, `@zencoderai/slack-mcp-server`, `@zereight/mcp-gitlab`) | 8 | 0 | 4 | 4 | 0 of 16 (none of the four was tagged before) |
+| `demo/configs/` | 1 (`github`) | 2 | 0 | 1 | 1 | 4 of 4 |
+
+In the registry run the 80 findings are spread evenly over the five posting
+servers (6 + 6 + 6 + 6 + 6 per source), not concentrated on one generic server
+(R37's `FILE_WRITE + NETWORK_OUT` was declined because `server-filesystem`
+dominated it). Every TOXIC-008..011 finding needs a data source next to a
+posting server; a posting server alone fires nothing new. In the top-100
+corpus all four tagged servers have posting tools in their own documentation;
+one (`slack-mcp-server`) ships with its add-message tool switched off
+(`SLACK_MCP_ADD_MESSAGE_TOOL` unset), which a name keyword cannot see (GAPS.md).
+
+**Not added, measured.** `git + comms_out` would fire on every GitHub and
+GitLab server alone (2 of 55 registry entries as self-pairs, `@zereight/mcp-gitlab`
+alone in the top-100) plus 12 cross pairs, all 12 already reported by TOXIC-007.
+A finding on every code-host server, whose fix (a token scoped to public
+repositories) is not visible in the config, is the "obviously that's what it
+does" case R37 declined. TOXIC-007 keeps reporting the GitLost/Invariant shape
+where the server declares `network_out`. `browser + comms_out` (25 registry
+cross pairs) is not added either: no pair backs `browser` with any sink.
 
 **Integrity axis (R37).** Every TOXIC-* pair above models one axis —
 confidentiality: does data leave? It never asks whether state can be changed,
@@ -211,6 +288,8 @@ the two exploitation pre-conditions that malware relied on.
 | CFHYG-005   | MEDIUM   | ASI06 | MCP01, MCP07 | Claude Code hooks section detected in `.claude.json`. Hooks execute as shell commands — a write-access threat actor can inject arbitrary commands. CVE-2025-59536. CWE-78. CVSS: 6.5 |
 | PLUGIN-001  | MEDIUM   | ASI04 | MCP04 | Claude Code plugin's recorded version is not the 12-char prefix of the marketplace's pinned sha (git source, no manifest/entry version). Usually a plugin not updated since the pin moved, or a record that does not match the pin. Compares records only; does not hash plugin files, so it cannot see a Plugin4Shell-style swap recorded at the requested commit. CWE-494 |
 | PLUGIN-002  | LOW      | ASI04 | MCP04 | Plugin marketplace entry fetches a git source with no `sha`, so installs follow a branch. CWE-829 |
+| PLUGIN-003  | CRITICAL / MEDIUM | ASI04 | MCP04 | A pinned Claude Code plugin's git checkout resolves `HEAD` (read as files, git never run) to a commit other than the marketplace `sha`. CRITICAL when `HEAD` is on a branch named like a SHA or `FETCH_HEAD` (the Plugin4Shell swap, AIR Security 2026-09-17) or the install record claims the pin; MEDIUM when the record doesn't explain the difference or `HEAD` can't be resolved. Silent for pin drift the record explains. Applies only where the install directory kept `.git` (Claude Code 2.1.311 doesn't). CWE-494 (STORY-0096) |
+| PLUGIN-004  | HIGH / MEDIUM / LOW | ASI04 | MCP04 | The update channel can't hold the pin. HIGH: a git plugin's checkout holds a branch, tag or remote branch named like a SHA or `FETCH_HEAD`. MEDIUM: the marketplace `sha` is set but not a full 40-character SHA (git reads an abbreviated hash as a ref name first). LOW: a full-SHA pin on a host other than github.com, which accepts SHA-shaped branch names. CWE-494 (STORY-0096) |
 | MOD-001     | HIGH     | ASI02, ASI03 | MCP07, MCP04 | Claude Code mod hooks `tool.check`: it can approve or deny tool calls before the permission prompt, and in auto mode an approved call skips the classifier. CWE-863 (STORY-0085) |
 | MOD-002     | HIGH / MEDIUM | ASI06 | MCP01, MCP04 | One mod reads secrets (`$.env.get`/`$.settings.read`, HIGH) or files (`$.fs.read`, MEDIUM) and makes network requests (`$.http.fetch`). A started program is MOD-004. CWE-201 |
 | MOD-003     | MEDIUM   | ASI01 | MCP03, MCP06 | Mod rewrites what Claude reads (tool descriptions, system prompt sections, context, stored rows) or submits prompts as the user. CWE-1427 |
@@ -254,6 +333,54 @@ PERM-007 runs as pipeline step 5b. Each rule's basis is quoted in
 | PERM-005    | HIGH / LOW | ASI04, ASI06 | MCP02, MCP10 | `WebFetch(domain:*)` allow: unprompted fetches anywhere and, with the sandbox on, sandboxed commands can reach any host (the sandbox's network boundary is gone). HIGH when this file enables the sandbox, LOW otherwise (a bare `WebFetch` allow has the same fetch effect without touching the sandbox). CWE-862 |
 | PERM-006    | MEDIUM   | ASI03, ASI04 | MCP07, MCP05 | Bare `Bash`/`Bash(*)` ask rule with the sandbox on and `autoAllowBashIfSandboxed` at its default: skipped for every sandboxed command, so commands the author meant to review run unreviewed inside the sandbox. CWE-693 |
 | PERM-007    | HIGH     | ASI03, ASI10 | MCP02, MCP07 | Whole-server `mcp__<server>[__*]` allow on a Claude Code server with a HIGH/CRITICAL poisoning, rug-pull or supply-chain finding (SC-004 only for a known-affected configured version): that server's tools run without a prompt. Matched by whole normalized name (Claude Code 2.1.299); paired across the default and project scans under `--project`. CWE-862 |
+
+### Instruction-file reach (`agent_files/`, MEM-003/MEM-004, STORY-0098)
+
+Both run in a default `scan`/`check` (the working directory's top-level
+instruction files and `~/.openclaw/workspace/HEARTBEAT.md`), under
+`scan --project` (every directory of the walk) and in the agent-file scan.
+See `docs/agent-files.md` ("Imports and references", "Heartbeat files").
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| MEM-003    | MEDIUM / LOW | ASI08 | MCP10 | A Claude Code `@path` import in a project instruction file (CLAUDE.md, .claude/CLAUDE.md, CLAUDE.local.md, .claude/rules/**/*.md, AGENTS.md, .claude/AGENTS.md, or a file they import, four hops deep) resolves to an existing file outside the scanned folder (Claude Code's "external import", approved once per project; the target is never read) or to a file matched by `.gitignore` (normally never committed, so never reviewed; decided from `.gitignore` files only). LOW for a Markdown file under `~/.claude/`, the personal-instructions import Claude Code's memory docs suggest. Bad Memory (arXiv 2607.14611) kept payloads in referenced files and the strongest model left them in place 93–97% of the time. CWE-829. |
+| MEM-004    | HIGH     | ASI01, ASI08 | MCP06, MCP08 | An OpenClaw `HEARTBEAT.md` (run on a timer, every 30 minutes by default) tells the agent to answer with the suppression reply (`HEARTBEAT_OK`, `NO_REPLY`, `notify: false`) unconditionally, while also being told to keep a step from the owner, or straight after running, downloading, installing, uploading, forwarding or transferring something or following a fetched URL. The documented conditional form ("if nothing needs attention, reply HEARTBEAT_OK") stays silent. Agent Commander (Embrace The Red, 2026) used exactly this to run a recurring step whose output the owner never saw. HIGH because a hidden, recurring, unattended step is the C2 shape. CWE-223. |
+
+### Sandbox settings (`analyzers/sandbox.py`, SANDBOX-001..005, STORY-0093)
+
+Claude Code `sandbox` keys that a repository's settings file uses to loosen the
+Bash sandbox, keys a file can't set, and local settings headed for git. Emitted
+with `analyzer="config_hygiene"` from pipeline step 0b (gated on the config
+hygiene analyzer). "Repository settings" are a shared `.claude/settings.json`
+outside the home directory, and a `.claude/settings.local.json` that git carries
+(no ignore file covers it, or `.claude` is a symlink; capped at MEDIUM when its
+ignore files can't be read; a local file git ignores is the user's own). User
+settings get only SANDBOX-004, and two of their keys set severities:
+`network.strictAllowlist: true` drops SANDBOX-003 and proxy ports to INFO, and
+`permissions.defaultMode` `bypassPermissions` or `auto` raises SANDBOX-002 to
+HIGH. Each key's basis is quoted in
+[permission-rules.md](permission-rules.md#sandbox-settings-a-repository-can-loosen-sandbox-001005).
+
+| Finding ID  | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|-------------|----------|----------------------|------------------|-----------|
+| SANDBOX-001 | HIGH / MEDIUM / INFO | ASI04, ASI09 | MCP02, MCP05 | A repository file turns on `enableWeakerNestedSandbox`, `enableWeakerNetworkIsolation`, `network.allowAllUnixSockets` or `network.allowLocalBinding` (Anthropic: "Each one weakens the sandbox"), or, in the shared project file, sets `enabled: false` (overrides a user's `true`): HIGH, chosen by the repository for everyone who opens it. `failIfUnavailable: false` (shared project file) or a `httpProxyPort`/`socksProxyPort` (the repository's port takes over filtering and Claude Code's domain lists stop applying): MEDIUM, because the harm depends on what the machine does. A proxy port is INFO while the user's own settings set `network.strictAllowlist: true`, which makes Claude Code ignore it. The booleans are ignored only under an admin-required sandbox, the ports also under `strictAllowlist` or a managed/`--settings` `deniedDomains`; managed settings can't be seen. A local file whose git state is unknown: MEDIUM at most. CWE-693 |
+| SANDBOX-002 | HIGH / MEDIUM | ASI04, ASI03 | MCP05, MCP02 | A repository file's `excludedCommands` leaves a shell, interpreter, wrapper (`env *`, `timeout 30 *`, `nohup *`, `nice *`), package/environment runner or container runtime open with a wildcard (`python *`, `npx *`, `docker *`, `docker compose *`), or every command (`*`). The command runs "with your full access", and Claude can write the file it runs. MEDIUM while a "Bash command (unsandboxed)" prompt still guards it; HIGH when nothing asks: an allow rule in the same file covers it, or the user's own settings start sessions in `bypassPermissions` or `auto` (a repository's own `defaultMode` of those "don't take effect"; `dontAsk` denies). HIGH: `allowUnixSockets` lists the Docker/Podman/containerd socket. CWE-250 |
+| SANDBOX-003 | MEDIUM / INFO | ASI04, ASI06 | MCP02, MCP10 | A repository file adds a host anyone can publish to (code host, paste site, webhook receiver; MITRE T1567.001/.003/.004) or `*` to `network.allowedDomains`: an exfiltration path out of the sandbox. MEDIUM because the sandbox must be on and data must reach the command first. INFO while the user's own settings set `network.strictAllowlist: true`, which makes Claude Code ignore a repository's `allowedDomains` (2.1.285 or later). CWE-183 |
+| SANDBOX-004 | INFO     | ASI04 | MCP02 | A key Claude Code ignores in this file (User-or-managed keys in a project/local file; Managed keys in any non-managed file), set to a value that would act. Dead config: a lock listed here (`strictAllowlist`, `allowManagedDomainsOnly`, a credential `mask` entry) protects nothing; a loosening key loosens nothing. Not an advisory. CWE-693 |
+| SANDBOX-005 | MEDIUM / LOW | ASI06, ASI03 | MCP10, MCP02 | MEDIUM: `.claude/settings.local.json` inside a git work tree that no ignore file covers, so personal approvals reach everyone who clones and Claude Code then treats the file as repository-supplied. LOW: home-directory paths naming a person in a project or local file headed for git (privacy and portability). Read from ignore files; git is never run. CWE-538 |
+
+### Skill packages (`agent_files/skill_package.py`, SKILL-005..008, STORY-0095)
+
+Every file in a Claude Code skill directory, not only `SKILL.md`. Runs in the
+default `scan`/`check` (user and cwd skills) and `scan --project` (every
+`.claude/skills` in the tree). Details and sources: [skill-packages.md](skill-packages.md).
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| SKILL-005  | HIGH / LOW / INFO | ASI10, ASI07 | MCP04, MCP05 | An install step in any file of the skill. HIGH for the concealed shapes the 2026 campaigns used (TLS checks off, decoded download, plaintext or raw-IP host, decode-then-execute, code fetched and evaluated in Python or JavaScript, `marshal.loads`, password-protected archive, executed DNS TXT record, scheduler/login-item write, reverse shell, public-IP URL). LOW for a plain `curl … \| sh` over https from an unlisted host, INFO for a known vendor installer or a Dockerfile `RUN` line: 9 lines in 1,129 benign skills pipe or download-and-run a third-party installer, so the plain shape is not MEDIUM. CWE-494 |
+| SKILL-006  | HIGH / MEDIUM / LOW | ASI10, ASI03 | MCP09, MCP04, MCP05, MCP02, MCP01, MCP07 | What the skill ships into Claude Code. A skills-directory plugin's MCP server (HIGH, it starts with the user's privileges), hooks, monitors, language servers (MEDIUM) and `bin/` programs on the PATH (MEDIUM; HIGH when one shadows `git`, `curl`, `python` …); `SKILL.md` frontmatter hooks (MEDIUM, registered for the rest of the session). Carried configs Claude Code does not load from a skill folder: `.mcp.json` MEDIUM, settings/hooks LOW. A `defaultEnabled: false` plugin is one tier lower. Text starting a harness with prompts off, or pointing `ANTHROPIC_BASE_URL` and siblings at a non-vendor host: HIGH (CVE-2026-21852 shape). CWE-829 / CWE-269 / CWE-441 |
+| SKILL-007  | MEDIUM / LOW | ASI10, ASI08 | MCP04, MCP03 | Content no text scanner can read: unrecognised or compiled binaries, `.pyc` without source, a password-protected ZIP, bytes that contradict the extension, a long base64/hex blob in text, an over-cap text file, a skill over its read budget, and, in `.git/`, a binary outside git's own layout or one whose first bytes are not the git format its name claims (SkillCloak); git's text records are read for SKILL-005. LOW for plain archives and skipped dependency folders. CWE-506 |
+| SKILL-008  | HIGH     | ASI10, ASI03 | MCP04, MCP05 | The skill bundles executable code and has another MEDIUM-or-higher finding (SKILL-002/003/004, symlink notes and a SKILL-007 that only reports the scan-wide budget excluded). A conjunctive bump, not a change to the other finding's severity; bundled scripts raised vulnerability odds 2.12× (arXiv 2601.10338). CWE-506 |
 
 ### Auth analyzer (`analyzers/auth.py`)
 
@@ -325,6 +452,8 @@ separately via the full analyzer pipeline.
 | TRUST-003  | HIGH (CRITICAL on network) | ASI04, ASI09 | MCP05, MCP09 | Repo-planted IDE auto-execution file: a `.vscode/tasks.json` task with `runOptions.runOn: folderOpen`, or a command-bearing `.vscode/settings.json` key (terminal profile/env/shellArgs, `*Path` interpreter setting) pointing at a shell command, URL, or absolute path outside the project root. Same "trust this folder → arbitrary command runs" shape as TRUST-001, but for a non-MCP auto-execution surface. Anchor incidents: Keyv npm worm and Shai-Hulud "V.A.P.E" (2026) both planted this file alongside a `.claude/settings.json` SessionStart hook. Read under `--project` and, since STORY-0090, at the cwd root of a default `scan`/`check` (same meaning and severity). CWE-829. CVSS: 7.8 (HIGH) / 9.1 (CRITICAL, network-reaching) |
 | TRUST-004  | INFO     | ASI07 | MCP09 | A user-global known-client config or an explicit `--path` candidate is itself a symlink. Always INFO — this is exactly how dotfile managers (GNU Stow, chezmoi, yadm, dotbot) manage `~/.claude.json`, `~/.cursor/mcp.json`, etc.; a rule that fires on every correctly-configured machine gets switched off wholesale. CWE-61. |
 | TRUST-005  | LOW      | ASI07 | MCP09 | A symlinked directory was encountered during a project/agent-files tree walk and was not traversed (loop/blow-up protection, unchanged). Makes a previously-silent refusal visible. CWE-61. |
+| TRUST-006  | HIGH / MEDIUM / LOW / INFO | ASI04, ASI10 | MCP05 | The repository's own git configuration names a program git runs (`analyzers/git_exec.py`, STORY-0089). **HIGH** when git runs it on its own during commands agents run unprompted: a non-boolean `core.fsmonitor` (`git status`/`git diff` index refresh), `core.sshCommand`, `diff.external`, `diff.<driver>.command`/`textconv`, `filter.<driver>.clean`/`smudge`/`process`, a `!`-prefixed `credential.helper` (or one pointing at a program inside the tree), git-lfs's `lfs.extension.<name>.clean`/`smudge`, and git-lfs's `lfs.customtransfer.<name>.path`/`args` when `lfs.standalonetransferagent` or any `lfs.<url>.standalonetransferagent` names `<name>` (git-lfs then runs it on every LFS transfer without asking the server; names compared without case; STORY-0103). A repo delivered with `.git` intact runs these before any trust prompt, as the user, outside the agent sandbox — GitSpawn (Manifold Security, 2026-09: seven agents, eight flaws). **MEDIUM** for keys run on a git action an agent may take (`core.editor`, `sequence.editor`, `core.askPass`, `gpg.program`, merge drivers, `!` submodule update, remote `uploadpack`/`receivepack`, git-lfs's `lfs.customtransfer.<name>.path`/`args` when no standalone agent key names it, so it runs only if the LFS server picks it), an `include.path`/`includeIf` outside the scanned tree (not read), `core.hooksPath` outside the repo, an oversize config (1 MiB per file; 4 MiB, 20,000 entries and 256 includes per repository), and a recognised tool run from a Python environment inside the tree (one with a `pyvenv.cfg` or `conda-meta/`; an in-tree program anywhere else keeps the full severity). **LOW** for pagers (git pages only to a terminal; also `delta.pager`), `!` aliases and `core.gitProxy`. **INFO** for `core.hooksPath` inside the repo (husky) and for recognised tools' own command forms run from outside the tree (git-lfs in its `git-lfs …` form only, git-crypt, git-annex, nbstripout including its `smudge = cat`, nbdime, difftastic, rs-git-fsmonitor, non-executing text converters such as exiftool, pdftotext, pandoc, sops, unzip when every argument is on that tool's allowlist of display options, an unmodified copy of git's own `fsmonitor-watchman.sample` matched by SHA-256, plain `ssh -i`, `gh auth git-credential`, gitsign), one inventory finding per file; git-lfs or delta loses that status when the same config names a program for it to run (`lfs.extension.*`, `lfs.customtransfer.*`, `delta.pager`). Interpreters (bun, node, python on a repo file) stay HIGH. Config values are redacted through `SECRET_PATTERNS` before any finding text is built. Last value wins, as in git. CWE-829. CVSS: 8.1 (HIGH) |
+| TRUST-007  | HIGH / INFO | ASI04, ASI10 | MCP05 | A git repository shape that makes git run repo-controlled code. **HIGH** for a nested bare repository — a directory not named `.git` holding `objects/`, `refs/` and a valid `HEAD` (git's own `is_git_directory` test); git uses its `config` when run inside it, the attack git documents under `safe.bareRepository` — and for an executable `post-index-change` hook, which `git status`/`git diff` run while writing the refreshed index. **INFO** for a bare repository under a test/fixture directory or a package manager's dependency cache (SwiftPM `.build/repositories/`, Bundler `cache/bundler/git/`, Cargo `.cargo/git/db/`, Go `pkg/mod/cache/vcs/`) whose config runs nothing and that has no `post-index-change` hook and for the inventory of other executable hooks (githooks(5) names) in the git directory (CVE-2026-26268 is the hooks variant; pre-commit, husky v4, lefthook, git-lfs install these legitimately). CWE-829. CVSS: 7.8 (HIGH) |
 | TRUST-008  | HIGH / MEDIUM (CRITICAL on network) | ASI04, ASI09 | MCP05, MCP09 | Repo-planted auto-run file of another coding-agent harness. HIGH: `.gemini/settings.json` command hooks; `.codex/config.toml` `notify`, `approval_policy = "never"`, `sandbox_mode = "danger-full-access"` or inline `[hooks]` (one finding per key); `.codex/hooks.json` command hooks; `.gemini/.env` that redirects an API endpoint or proxy. MEDIUM: `.gemini/.env` otherwise (a value matching one of CRED-001's secret patterns also raises CRED-001, by name only), Gemini `tools.enableHooks` with no hooks, `.claude/scheduled_tasks.json`, a non-empty `.claude/workflows/`, and any of these files over 2 MiB (reported unread). CRITICAL when a hook or `notify` command reaches the network (HOOK-001's regex). Anchor incidents: Miasma worm (2026), GHSA-wpqr-6v78-jr5g (CVSS 10.0), Cymulate (2026). CWE-829 (STORY-0090) |
 
 **Supported project-level config paths** (discovered by `discover_project_configs()`):
@@ -360,6 +489,13 @@ read at the root of the working directory by a default `scan`/`check`, so the
 GitHub Action's default run sees them; the same paths directly under `$HOME` are
 each harness's user config and are skipped. Per-harness sources:
 `docs/agent-execution-surface.md`.
+
+**TRUST-006 / TRUST-007** read git's own files, never run git: under
+`--project`, `discovery.py::discover_project_git_surfaces()` records each
+`.git` entry and nested bare repository the walk passes (it still never
+descends into `.git` or `objects/`); in a default `scan`/`check`, the
+repository git would use from the current directory is located the way git
+locates it (`git_exec.scan_cwd_repository()`). See `docs/git-exec.md`.
 
 **TRUST-002 / TRUST-004 / TRUST-005** (symlink handling) apply uniformly
 across every discovery site — the default (non-`--project`) scan, the
@@ -414,6 +550,33 @@ declare tool names.
 - Comparison is case-sensitive: `read_file` and `Read_File` are distinct names.
 - No Levenshtein / near-miss detection in v1.
 - Servers that fail to connect are excluded from comparison.
+
+---
+
+### Cross-tool delegation (`analyzers/delegation.py`, finding IDs `DELEG-001..003`, STORY-0100)
+
+Runs with `--connect`, right after COLLIDE-001, over the tool definitions every
+server returned (description, title, and the `description`/`title` strings of
+the input schema). MCPTox's poisoned tools "never execute": they steer the
+agent to a different, legitimate tool (arXiv 2508.14925 §3.1). These checks
+look for that shape. Severities are the ones STORY-0100's measured gate allows;
+the measurement is in [poisoning.md](poisoning.md#cross-tool-delegation-deleg-001003).
+
+| Finding ID | Severity | OWASP MCP Top 10 | Rationale |
+|------------|----------|------------------|-----------|
+| DELEG-001  | MEDIUM   | MCP03 + MCP06 | The text names a tool that a **different** connected server exposes (and its own server does not): as a whole, case-sensitive token, or as Claude Code's `mcp__<server>__<tool>`. A plain-word name (`search`) counts only quoted and in tool context ("use 'search'", "the `search` tool"); a value after `key=`, `key:` or `key: "…"` does not count. CWE-441. |
+| DELEG-002  | MEDIUM   | MCP03 + MCP06 | A conditional trigger (before / after / whenever / when the user …) plus a directive (must, should, always, or an imperative right after the trigger) to perform an action whose class (read, write, delete, send, execute) appears in none of the describing server's tool names or input-schema property names (this tool's or its siblings'). Not when the directive is about calling this tool itself ("use this when …", "this tool must be called before …"), or when the sentence names only its own server's tools (a server documenting its own workflow). CWE-441. |
+| DELEG-003  | HIGH     | MCP03 + MCP06 | A directive to set, change, append, remove or otherwise rewrite an argument (named by a noun like *path*, *recipient*, *query*, or quoted), scoped to a named tool of another server or to every call ("any tool call", "regardless of …"); the every-call scope does not apply when the targeted argument is one the describing server's own tools take. MCPTox's parameter-tampering paradigm. CWE-441. |
+
+**Gate (decided in EPIC-0007):** ship at these severities only if DELEG-* lifts
+MCPTox's implicit-trigger recall over POISON-* and flags no more than 5 of its
+353 clean real tools; otherwise INFO. Measured 2026-10-26: lifts in both session
+models, 1 of 353 flagged (DELEG-002). `tests/test_delegation.py` fails if the
+shipped severities differ from the gate decision recorded in
+`docs/research/poisoning-benchmark/results.json`, or if the detector changes
+without a re-measure.
+
+**Scope and limitations:** see GAPS.md "Cross-tool delegation".
 
 ---
 
@@ -533,8 +696,8 @@ state for servers whose capability data is unavailable.
 
 | RiskLevel | Maps to | When assigned |
 |-----------|---------|---------------|
-| CRITICAL  | Severity.CRITICAL | Single server holds both SHELL_EXEC + NETWORK_OUT, or SECRETS + NETWORK_OUT |
-| HIGH      | Severity.HIGH | Single server holds DATABASE + NETWORK_OUT, FILE_READ + NETWORK_OUT, FILE_READ + EMAIL, FILE_READ + SHELL_EXEC, or FILE_WRITE + SHELL_EXEC (INTEG-001, R37) |
+| CRITICAL  | Severity.CRITICAL | Single server holds both SHELL_EXEC + NETWORK_OUT, or SECRETS + NETWORK_OUT, or SECRETS or SHELL_EXEC + COMMS_OUT (TOXIC-009/011, STORY-0101) |
+| HIGH      | Severity.HIGH | Single server holds DATABASE + NETWORK_OUT, FILE_READ + NETWORK_OUT, FILE_READ + EMAIL, FILE_READ or DATABASE + COMMS_OUT (TOXIC-008/010, STORY-0101; e.g. `mcp-atlassian`), FILE_READ + SHELL_EXEC, or FILE_WRITE + SHELL_EXEC (INTEG-001, R37) |
 | MEDIUM    | Severity.MEDIUM | Single server holds GIT + NETWORK_OUT |
 | LOW       | Severity.LOW | Capabilities detected but no toxic pair fires |
 | INFO      | Severity.INFO | Registry-verified server with an explicitly empty capability set |

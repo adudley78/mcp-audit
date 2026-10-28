@@ -61,6 +61,15 @@ CAPABILITY_FLOWS: frozenset[tuple[Capability, Capability]] = frozenset(
         (Capability.GIT, Capability.NETWORK_OUT),
         (Capability.BROWSER, Capability.NETWORK_OUT),
         (Capability.BROWSER, Capability.EMAIL),
+        # COMMS_OUT (STORY-0101): exactly the four edges TOXIC-008..011
+        # report, so every comms edge in the graph is backed by a pair.
+        # GIT -> COMMS_OUT was measured and not added (see toxic_flow.py's
+        # TOXIC_PAIRS comment); BROWSER -> COMMS_OUT is not added either,
+        # since no pair backs BROWSER with any sink.
+        (Capability.FILE_READ, Capability.COMMS_OUT),
+        (Capability.SECRETS, Capability.COMMS_OUT),
+        (Capability.DATABASE, Capability.COMMS_OUT),
+        (Capability.SHELL_EXEC, Capability.COMMS_OUT),
     }
 )
 
@@ -77,7 +86,7 @@ _SOURCE_CAPS: frozenset[Capability] = frozenset(
 )
 
 _SINK_CAPS: frozenset[Capability] = frozenset(
-    {Capability.NETWORK_OUT, Capability.EMAIL}
+    {Capability.NETWORK_OUT, Capability.EMAIL, Capability.COMMS_OUT}
 )
 
 # Severity mapping for (source_cap, sink_cap) pairs used in multi-hop paths.
@@ -109,6 +118,7 @@ _CAP_LABELS: dict[Capability, str] = {
     # (_path_description's per-hop cap_labels) renders it readably rather
     # than falling back to the raw enum string if that ever changes.
     Capability.CLOUD: "cloud resource access",
+    Capability.COMMS_OUT: "comms posting",
 }
 
 
@@ -140,7 +150,7 @@ def _path_severity(source_cap: Capability, sink_cap: Capability) -> Severity:
     # Heuristic for combinations produced by multi-hop traversal.
     if source_cap in (Capability.SECRETS, Capability.SHELL_EXEC):
         return Severity.CRITICAL
-    if sink_cap in (Capability.NETWORK_OUT, Capability.EMAIL):
+    if sink_cap in _SINK_CAPS:
         return Severity.HIGH
     return Severity.MEDIUM
 
@@ -261,9 +271,18 @@ def _candidates_from_toxic_findings(
 
     Parses the finding's ``server`` field ("source + sink" or "name" for
     self-pairs) and resolves the source/sink capabilities from the finding ID.
+
+    When several pair findings name the same servers (a server pair can be
+    both TOXIC-001 and TOXIC-008, or a self-pair TOXIC-001, -004 and -006),
+    the path takes the most severe pair; on a tie the first one listed stays,
+    in its original position. Before STORY-0101 the first one listed always
+    stayed, which reported ``server-everything`` (file read, shell execution
+    and network access) as a HIGH file-read path instead of its CRITICAL
+    TOXIC-006 shell path.
     """
     finding_id_to_pair = {tp.finding_id: tp for tp in TOXIC_PAIRS}
-    seen: set[tuple[str, ...]] = set()
+    index_by_hops: dict[tuple[str, ...], int] = {}
+    severity_by_hops: dict[tuple[str, ...], Severity] = {}
     candidates: list[_PathCandidate] = []
 
     for f in toxic_findings:
@@ -279,10 +298,17 @@ def _candidates_from_toxic_findings(
         else:
             hops = (f.server,)  # self-pair
 
-        if hops in seen:
+        candidate = _PathCandidate(hops, tp.source, tp.sink)
+        if hops not in index_by_hops:
+            index_by_hops[hops] = len(candidates)
+            severity_by_hops[hops] = tp.severity
+            candidates.append(candidate)
             continue
-        seen.add(hops)
-        candidates.append(_PathCandidate(hops, tp.source, tp.sink))
+        if _SEVERITY_ORDER.index(tp.severity) < _SEVERITY_ORDER.index(
+            severity_by_hops[hops]
+        ):
+            candidates[index_by_hops[hops]] = candidate
+            severity_by_hops[hops] = tp.severity
 
     return candidates
 

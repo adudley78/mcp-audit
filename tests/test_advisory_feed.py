@@ -153,6 +153,8 @@ class TestClassification:
             ("AUTH-001", "missing-authentication"),
             ("TOXIC-003", "toxic-flow"),
             ("HOOK-001", "hook-execution"),
+            ("TRUST-006", "hook-execution"),
+            ("TRUST-007", "untrusted-config-origin"),
             ("SAST-ABC123DEF456", "source-vulnerability"),
         ],
     )

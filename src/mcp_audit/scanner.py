@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 from platformdirs import user_config_dir
 
+from mcp_audit.agent_files import skill_package as _skill_package
+from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.base import BaseAnalyzer
@@ -16,6 +18,7 @@ from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.permissions import analyze_flagged_server_allows
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import RugPullAnalyzer, derive_state_path
+from mcp_audit.analyzers.sandbox import analyze_sandbox_files
 from mcp_audit.analyzers.supply_chain import SupplyChainAnalyzer
 from mcp_audit.analyzers.toxic_flow import ToxicFlowAnalyzer
 from mcp_audit.analyzers.transport import TransportAnalyzer
@@ -216,6 +219,16 @@ def _run_static_pipeline(
        :meth:`~mcp_audit.analyzers.base.BaseAnalyzer.analyze_config` —
        calls every analyzer once per config file, independent of server count.
        Analyzers that have nothing to check return ``[]`` (the default).
+    0b. SANDBOX-001..005 (STORY-0093):
+       :func:`~mcp_audit.analyzers.sandbox.analyze_sandbox_files` over the
+       Claude Code settings files in ``configs``: sandbox keys a repository's
+       settings loosen, keys a file can't set, a local settings file in a git
+       work tree that no ignore file covers, and home-directory paths in a
+       settings file headed for git.  It reads ignore files and the user's
+       ``~/.claude/settings.json`` (never runs git); each file is checked on
+       its own, and read failures and per-file crashes go to
+       ``result.errors``.  Runs only when a :class:`ConfigHygieneAnalyzer` is
+       in ``analyzers``.
     1. Per-server analyzers (``analyzer.analyze(server)`` for each pair).
     2. :meth:`~mcp_audit.analyzers.rug_pull.RugPullAnalyzer.analyze_all`
        (skipped when ``skip_rug_pull`` is ``True``).
@@ -280,6 +293,18 @@ def _run_static_pipeline(
                 result.findings.extend(config_findings)
             except Exception:  # noqa: BLE001, S110
                 pass  # parse errors already captured by _discover_and_parse
+
+    # ── 0b. Sandbox settings (SANDBOX-001..005, STORY-0093) ───────────────────
+    # Reads ignore files and the user's settings (never runs git), so unlike
+    # step 0 its failures are reported in result.errors rather than swallowed.
+    # analyze_sandbox_files isolates each file; this try is the last guard.
+    if any(isinstance(a, ConfigHygieneAnalyzer) for a in analyzers):
+        try:
+            sandbox_findings, sandbox_errors = analyze_sandbox_files(configs)
+            result.findings.extend(sandbox_findings)
+            result.errors.extend(sandbox_errors)
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"SANDBOX checks failed: {type(e).__name__}")
 
     # ── 1. Per-server static analysis ─────────────────────────────────────────
     for server in all_servers:
@@ -411,6 +436,21 @@ def _cwd_autoexec_findings() -> list[Finding]:
     return findings
 
 
+def _cwd_instruction_reach_findings(errors: list[str]) -> list[Finding]:
+    """MEM-003 / MEM-004 for the working directory's instruction files.
+
+    A default scan (no explicit path) reads the files at the cwd root that
+    Claude Code expands ``@path`` imports in, follows those imports (MEM-003
+    for one that leaves the folder or is ``.gitignore``'d), and checks
+    ``HEARTBEAT.md`` there and in ``~/.openclaw/workspace`` (MEM-004).  Root
+    only; ``scan --project`` walks the tree.  Never raises: problems go to
+    *errors* (STORY-0098; see :mod:`mcp_audit.agent_files.reach`).
+    """
+    from mcp_audit.agent_files import reach as _reach  # noqa: PLC0415
+
+    return _reach.default_scan_findings(Path.cwd(), errors)
+
+
 def _discover_and_parse(
     extra_paths: list[Path] | None,
     result: ScanResult,
@@ -431,14 +471,25 @@ def _discover_and_parse(
 
     With *include_plugins* (the default) and no *extra_paths*, installed Claude
     Code plugins are part of discovery: their MCP servers arrive as client
-    ``claude-code-plugin`` and the PLUGIN-001/002 pin checks are appended to
-    ``result.findings`` here, so every ``run_scan`` consumer (``scan``,
-    ``check``, ``dashboard`` …) sees them and the score counts them.
+    ``claude-code-plugin`` and the PLUGIN-001/002 pin checks, plus the
+    PLUGIN-003/004 pin-vs-checkout checks and TRUST-006/007 on plugin and
+    marketplace checkouts (STORY-0096), are appended to ``result.findings``
+    here, so every ``run_scan`` consumer (``scan``, ``check``, ``dashboard`` …)
+    sees them and the score counts them.
 
     With no *extra_paths*, the VS Code, Gemini CLI, Codex and Claude Code
     auto-run files at the working directory's root are checked too (TRUST-003,
-    TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), and are scored
+    TRUST-008; STORY-0090; see :func:`_cwd_autoexec_findings`), its
+    instruction files' imports and heartbeat files (MEM-003, MEM-004;
+    STORY-0098; see :func:`_cwd_instruction_reach_findings`), and the
+    repository git would use from the current directory, for git configuration
+    and hooks that run commands (TRUST-006/TRUST-007, STORY-0089; see
+    :func:`mcp_audit.analyzers.git_exec.scan_cwd_repository`).  All are scored
     like the rest.
+    So are the skills under ``~/.claude/skills`` and ``<cwd>/.claude/skills``:
+    every file in each skill directory is read (SKILL-005..008, STORY-0095;
+    see :func:`mcp_audit.agent_files.skill_package.scan_default_skills`), and
+    filesystem problems there go to ``result.errors``.
 
     Without *extra_paths*, Claude Code subagent definitions
     (``~/.claude/agents/``, ``<cwd>/.claude/agents/``) are discovered too, as
@@ -463,6 +514,16 @@ def _discover_and_parse(
     result.findings.extend(discovery_findings)
     result.clients_scanned = len({c.client_name for c in configs})
 
+    if not extra_paths:
+        # Git can run code (STORY-0089, TRUST-006/007): the repository git
+        # would use from here — a repo checkout is the GitHub Action's default
+        # working directory.  Reads config files and lists hooks; never runs git.
+        # A failure here is reported, never fatal: the rest of the scan must run.
+        try:
+            result.findings.extend(_git_exec.scan_cwd_repository())
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(f"git config check error: {type(e).__name__}: {e}")
+
     if include_plugins and not extra_paths:
         from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415
         from mcp_audit.plugins import discovery as _plugin_discovery  # noqa: PLC0415
@@ -470,6 +531,24 @@ def _discover_and_parse(
 
         installed = _plugin_discovery.discover_installed_plugins()
         result.findings.extend(_plugin_analyzer.analyze_plugin_integrity(installed))
+        # Plugin pin vs the actual checkout (STORY-0096, PLUGIN-003/004) and the
+        # checkouts' git config (TRUST-006/007).  Reads HEAD, refs and config as
+        # files; never runs git.  A failure is reported, never fatal.
+        try:
+            from mcp_audit.plugins import checkout as _plugin_checkout  # noqa: PLC0415
+
+            seen = {(f.id, f.finding_path, f.evidence) for f in result.findings}
+            result.findings.extend(
+                f
+                for f in _plugin_checkout.analyze_plugin_pins(
+                    installed, errors=result.errors
+                )
+                if (f.id, f.finding_path, f.evidence) not in seen
+            )
+        except Exception as e:  # noqa: BLE001
+            result.errors.append(
+                f"plugin checkout check error: {type(e).__name__}: {e}"
+            )
         # Mods (STORY-0085): installed plugins, Claude-written dev mods and
         # CLAUDE_CODE_PLUGIN_DIRS, read statically, never executed.
         result.findings.extend(
@@ -479,6 +558,11 @@ def _discover_and_parse(
 
     if not extra_paths:
         result.findings.extend(_cwd_autoexec_findings())
+        # Skill packages (STORY-0095): every file in each user and cwd skill.
+        result.findings.extend(
+            _skill_package.scan_default_skills(result.errors, prior=result.findings)
+        )
+        result.findings.extend(_cwd_instruction_reach_findings(result.errors))
 
         # GitHub Actions workflows of the repository the scan runs in
         # (STORY-0091): the GitHub Action's default run is a scan from the
@@ -537,7 +621,10 @@ async def run_scan_async(
     enumerate its live tool/resource/prompt definitions, and run the
     :class:`~mcp_audit.analyzers.poisoning.PoisoningAnalyzer` against the
     runtime data *before* the pipeline runs.  This surfaces poisoned tool
-    descriptions that look clean in static config files.
+    descriptions that look clean in static config files.  Across the
+    enumerated servers it then runs COLLIDE-001 (tool-name collisions) and
+    DELEG-001..003 (descriptions that steer the agent to another server's
+    tools, :mod:`mcp_audit.analyzers.delegation`).
 
     Requires the ``mcp`` optional dependency when *connect* is ``True``::
 
@@ -647,6 +734,22 @@ async def run_scan_async(
                 )
             except Exception as e:  # noqa: BLE001
                 result.errors.append(f"collision error: {e}")
+
+        # ── Cross-tool delegation (DELEG-001..003, STORY-0100) ───────────────
+        # Reads the same enumerations: descriptions that steer the agent to
+        # another server's tools or rewrite their arguments.  Text only; the
+        # lock's `tools` section holds digests, so this needs --connect.
+        if connect_pairs:
+            from mcp_audit.analyzers.delegation import (  # noqa: PLC0415
+                detect_delegation,
+            )
+
+            try:
+                result.findings.extend(
+                    detect_delegation(connect_pairs, errors=result.errors)
+                )
+            except Exception as e:  # noqa: BLE001
+                result.errors.append(f"delegation error: {e}")
 
     return _run_static_pipeline(
         result=result,

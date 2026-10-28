@@ -192,3 +192,37 @@ class TestTerminalOutputKeepsAbsolutePaths:
         result = _make_result(findings=[finding])
         output = _capture(result)
         assert "/Users/alice/.config/claude/config.json" in output
+
+
+# ── Server-supplied text is shown, never parsed as markup ────────────────────
+
+
+class TestFindingTextIsEscaped:
+    """A tool name or live description can carry Rich markup (STORY-0100)."""
+
+    def _finding(self, analyzer: str = "collision") -> Finding:
+        return Finding(
+            id="COLLIDE-001",
+            severity=Severity.MEDIUM,
+            analyzer=analyzer,
+            client="cursor",
+            server="a[/dim] + b",
+            title="Tool name collision: '[/bold]x' claimed by multiple servers",
+            description="d",
+            evidence="Tool '[link=https://evil.example]x[/link]' claimed",
+            remediation="Rename [red]it[/red].",
+        )
+
+    def test_closing_tag_in_finding_text_does_not_raise(self) -> None:
+        out = _capture(_make_result(findings=[self._finding()]))
+        assert "'[/bold]x'" in out
+        assert "a[/dim] + b" in out
+
+    def test_link_markup_is_shown_literally(self) -> None:
+        out = _capture(_make_result(findings=[self._finding()]))
+        assert "[link=https://evil.example]x[/link]" in out
+        assert "Rename [red]it[/red]." in out
+
+    def test_governance_panel_text_is_escaped(self) -> None:
+        out = _capture(_make_result(findings=[self._finding("governance")]))
+        assert "'[/bold]x'" in out
