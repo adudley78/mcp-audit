@@ -1074,3 +1074,43 @@ class TestVetOnlineMaliciousItemsAreRemoteData:
         )
         ids = [m["id"] for m in merged["malicious"]]
         assert "MAL-2026-5479" in ids
+
+
+# ── CLI: --badge picks the registry's ecosystem (STORY-0105, Q-020) ──────────
+
+
+class TestVetBadgeEcosystem:
+    """An unscoped name listed only for PyPI gets a PyPI badge."""
+
+    def test_pypi_only_entry_gets_pypi_badge(self) -> None:
+        result = runner.invoke(app, ["vet", "mcptoon", "--badge"])
+        assert result.exit_code == 0
+        assert "/v1/badge/pypi/mcptoon.json" in result.output
+        assert "/v1/verdicts/pypi/mcptoon.json" in result.output
+        assert "/npm/" not in result.output
+
+    def test_pypi_name_spelling_follows_the_entry(self) -> None:
+        """PEP 503: MCP_Atlassian is the registry's mcp-atlassian on PyPI."""
+        result = runner.invoke(app, ["vet", "MCP_Atlassian", "--badge"])
+        assert "/v1/badge/pypi/mcp-atlassian.json" in result.output
+
+    def test_npm_entry_keeps_npm_badge(self) -> None:
+        result = runner.invoke(app, ["vet", "mcp-remote", "--badge"])
+        assert "/v1/badge/npm/mcp-remote.json" in result.output
+
+    def test_unknown_name_keeps_npm_default(self) -> None:
+        result = runner.invoke(app, ["vet", "no-such-package-xyz", "--badge"])
+        assert result.exit_code == 0
+        assert "/v1/badge/npm/no-such-package-xyz.json" in result.output
+
+    def test_explicit_ecosystem_wins(self) -> None:
+        result = runner.invoke(app, ["vet", "mcptoon", "--badge", "--ecosystem", "npm"])
+        assert "/v1/badge/npm/mcptoon.json" in result.output
+
+    def test_unloadable_registry_still_prints_npm_badge(self) -> None:
+        with patch(
+            "mcp_audit.cli.vet.load_registry", side_effect=FileNotFoundError("gone")
+        ):
+            result = runner.invoke(app, ["vet", "mcptoon", "--badge"])
+        assert result.exit_code == 0
+        assert "/v1/badge/npm/mcptoon.json" in result.output

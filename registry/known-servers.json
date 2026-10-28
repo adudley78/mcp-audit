@@ -47,7 +47,8 @@
           "description": "@modelcontextprotocol/server-filesystem vulnerability allows for path validation bypass via colliding path prefix",
           "fixed_in": "2025.7.1"
         }
-      ]
+      ],
+      "semver_resumed_at": "1.0.0"
     },
     {
       "name": "@modelcontextprotocol/server-github",
