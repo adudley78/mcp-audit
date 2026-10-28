@@ -155,7 +155,7 @@ class _UnverifiableError(Exception):
 
 def _why(exc: Exception) -> str:
     """A short reason for a failed filesystem call."""
-    return (getattr(exc, "strerror", None) or type(exc).__name__)
+    return getattr(exc, "strerror", None) or type(exc).__name__
 
 
 def _printable(value: object) -> str:
@@ -533,7 +533,8 @@ def source_host(source: dict) -> tuple[str, str]:
 
     *host* is lower-cased, without userinfo or port, or ``""`` when it cannot
     be told (a local path, a ``file://`` URL, anything unparseable).
-    *location* is the URL with userinfo, query and fragment removed, for reports.  A backslash
+    *location* is the URL with userinfo, query and fragment removed, for
+    reports.  A backslash
     in the authority makes the host unknown: Python's URL parser and the WHATWG
     parser Node uses split such an authority differently, and git hands the URL
     to curl, so no single reading is safe to trust.
@@ -718,7 +719,8 @@ def _checkout_verdict(
         plugin.git_commit_sha is not None and _agrees(plugin.git_commit_sha, pin)
     ) or (prefix is not None and _agrees(prefix, pin))
     names_head = bool(head) and (
-        plugin.git_commit_sha == head or (prefix is not None and head.startswith(prefix))
+        plugin.git_commit_sha == head
+        or (prefix is not None and head.startswith(prefix))
     )
     if signature or claims_pin:
         if swap_ref is not None:
@@ -728,7 +730,9 @@ def _checkout_verdict(
                 if branch.lower() == pin
                 else ("`FETCH_HEAD`" if branch == "FETCH_HEAD" else "a commit SHA")
             )
-            hop = "" if swap_ref == checkout.head_ref else " (further down HEAD's chain)"
+            hop = (
+                "" if swap_ref == checkout.head_ref else " (further down HEAD's chain)"
+            )
             why = (
                 f" HEAD reaches branch `{branch}`{hop}, named {what}: git checked"
                 " out that branch instead of the commit, which is the Plugin4Shell"

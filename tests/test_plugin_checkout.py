@@ -958,9 +958,7 @@ class TestSwapShapeBeatsUnverifiable:
             loose={f"refs/heads/{S}": S256},
         )
         [f, *_] = [
-            x
-            for x in analyze_plugin_pins([plugin], root=root)
-            if x.id == "PLUGIN-003"
+            x for x in analyze_plugin_pins([plugin], root=root) if x.id == "PLUGIN-003"
         ]
         assert f.severity == Severity.CRITICAL
         assert "Plugin4Shell" in f.description
