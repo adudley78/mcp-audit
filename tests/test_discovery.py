@@ -647,6 +647,83 @@ class TestSymlinkedParentDirectory:
         assert len(trust) == 1
         assert trust[0].severity == Severity.HIGH
 
+    @staticmethod
+    def _home_with_settings(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, link: str
+    ) -> tuple[Path, Path, ClientSpec]:
+        """``$HOME`` whose ``.claude`` folder (or settings file) is a dotfiles link."""
+        home = tmp_path / "home"
+        home.mkdir()
+        dotfiles = tmp_path / "dotfiles" / "claude"
+        dotfiles.mkdir(parents=True)
+        (dotfiles / "settings.json").write_text(
+            json.dumps(TestSymlinkedParentDirectory._BYPASS), encoding="utf-8"
+        )
+        if link == "folder":
+            (home / ".claude").symlink_to(dotfiles, target_is_directory=True)
+        else:
+            (home / ".claude").mkdir()
+            (home / ".claude" / "settings.json").symlink_to(dotfiles / "settings.json")
+        monkeypatch.setattr("mcp_audit.discovery._home", lambda: home)
+        user = home / ".claude" / "settings.json"
+        spec = ClientSpec(
+            name="claude-code", root_key="mcpServers", config_paths=[user]
+        )
+        return home, user, spec
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks only")
+    @pytest.mark.parametrize("link", ["folder", "file"])
+    def test_scan_from_home_with_linked_dotfiles_is_one_user_config(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, link: str
+    ) -> None:
+        """Reviewer #202: no false TRUST-002 and no second, project-scoped parse."""
+        home, user, spec = self._home_with_settings(tmp_path, monkeypatch, link=link)
+        monkeypatch.chdir(home)
+        skip: list = []
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[spec]):
+            found = discover_configs(include_agents=False, skip_findings=skip)
+
+        settings = [c for c in found if c.path.name == "settings.json"]
+        assert [c.client_name for c in settings] == ["claude-code"]
+        assert all(c.symlink_root is None for c in settings)
+        assert not [f for f in skip if f.id == "TRUST-002"]
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks only")
+    def test_scan_from_home_full_pipeline_has_no_trust_002(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.scanner import run_scan
+
+        home, user, spec = self._home_with_settings(
+            tmp_path, monkeypatch, link="folder"
+        )
+        monkeypatch.chdir(home)
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[spec]):
+            result = run_scan(skip_rug_pull=True)
+        assert not [f for f in result.findings if f.id == "TRUST-002"]
+        harness = [f for f in result.findings if f.id == "HARNESS-001"]
+        assert [f.client for f in harness] == ["claude-code"]
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks only")
+    def test_repo_link_into_user_settings_is_reported_once_not_parsed_twice(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home, user, spec = self._home_with_settings(tmp_path, monkeypatch, link="file")
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / ".claude").symlink_to(home / ".claude", target_is_directory=True)
+        monkeypatch.chdir(repo)
+        skip: list = []
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[spec]):
+            found = discover_configs(include_agents=False, skip_findings=skip)
+
+        assert [c.client_name for c in found if c.path.name == "settings.json"] == [
+            "claude-code"
+        ]
+        trust = [f for f in skip if f.id == "TRUST-002"]
+        assert len(trust) == 1
+        assert trust[0].finding_path == str(repo / ".claude" / "settings.json")
+
     def test_permission_error_on_a_component_does_not_crash(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

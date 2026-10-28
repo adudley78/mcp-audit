@@ -169,6 +169,23 @@ mcp-audit diff HEAD~1 HEAD
 mcp-audit diff $GITHUB_BASE_REF $GITHUB_HEAD_REF
 ```
 
+**Scan files hold redacted launch arguments (since STORY-0108).** A ScanResult
+JSON replaces a credential in a server's `command`, `args` or `url` (URL user
+info such as a database password, or a known token format) with `[REDACTED]`.
+`diff` counts `[REDACTED]` in those fields as a hardcoded credential, so a
+credential added between two scan files is still reported (CRITICAL). What a
+scan file can no longer show:
+
+- **Rotation is invisible.** Two different secrets both read `[REDACTED]`, so
+  replacing one credential with another is not a change between two scan files.
+  Compare directories or git refs to see it.
+- **Scans from before and after the change don't compare cleanly.** A scan file
+  written by an older mcp-audit has the secret in clear; diffing it against a
+  newer one reports the argument as changed. Re-run the older scan, or compare
+  config directories.
+- Comparing a scan file with a directory reports a server whose args hold a
+  credential as modified, because one side is redacted and the other is not.
+
 ## Severity classification
 
 | Severity | Triggers |

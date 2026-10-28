@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field
 
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
+from mcp_audit.analyzers.supply_chain import REDACTION_MARKER
 from mcp_audit.models import ServerConfig, Severity
 
 
@@ -127,6 +128,12 @@ def _has_hardcoded_cred(server: ServerConfig) -> tuple[bool, str, str]:
     for secret_name, pattern, provider in SECRET_PATTERNS:
         if pattern.search(text):
             return True, secret_name, provider
+    # A JSON scan file (STORY-0108) carries ``[REDACTED]`` where a launch
+    # argument or URL held a credential, so a diff between two scan files
+    # still sees one being added.
+    launch_text = " ".join([server.command or "", args_str, server.url or ""])
+    if REDACTION_MARKER in launch_text:
+        return True, "Redacted credential", "redacted"
     return False, "", ""
 
 

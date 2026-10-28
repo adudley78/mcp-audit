@@ -255,3 +255,55 @@ def test_snapshots_are_redacted(tmp_path: Path) -> None:
     result = run_scan(extra_paths=[_config(tmp_path)], skip_rug_pull=True)
     _assert_clean(json.dumps(format_cyclonedx_aibom(result, "host")))
     _assert_clean(json.dumps(format_native(result, "host")))
+
+
+# ── diff between two JSON scan files (reviewer #202) ────────────────────────
+
+
+def _scan_json(tmp_path: Path, name: str, args: list[str]) -> Path:
+    cfg = tmp_path / f"{name}-mcp.json"
+    cfg.write_text(
+        json.dumps({"mcpServers": {"pg": {"command": "npx", "args": args}}}),
+        encoding="utf-8",
+    )
+    out = tmp_path / f"{name}-scan.json"
+    out.write_text(
+        run_scan(extra_paths=[cfg], skip_rug_pull=True).model_dump_json(),
+        encoding="utf-8",
+    )
+    return out
+
+
+@pytest.mark.parametrize(
+    "secret_arg",
+    [f"postgresql://admin:{_DB_PASSWORD}@db/app", _GH_TOKEN],
+)
+def test_diff_of_two_json_scans_still_reports_an_added_credential(
+    tmp_path: Path, secret_arg: str
+) -> None:
+    """A redacted argument still counts as a hardcoded credential in diff."""
+    from mcp_audit.diff.comparator import EntityType, compare  # noqa: PLC0415
+    from mcp_audit.diff.loader import load_input  # noqa: PLC0415
+
+    base = _scan_json(tmp_path, "base", ["-y", "@acme/postgres-mcp"])
+    head = _scan_json(tmp_path, "head", ["-y", "@acme/postgres-mcp", secret_arg])
+    assert secret_arg not in head.read_text(encoding="utf-8")
+
+    changes = compare(load_input(str(base)), load_input(str(head)))
+    creds = [c for c in changes if c.entity_type == EntityType.CREDENTIAL]
+    assert creds, changes
+    assert creds[0].severity.value == "CRITICAL"
+
+    r = runner.invoke(app, ["diff", str(base), str(head), "--format", "json"])
+    assert '"credential"' in r.output
+    assert secret_arg not in r.output
+
+
+def test_diff_of_two_clean_json_scans_reports_no_credential(tmp_path: Path) -> None:
+    from mcp_audit.diff.comparator import EntityType, compare  # noqa: PLC0415
+    from mcp_audit.diff.loader import load_input  # noqa: PLC0415
+
+    base = _scan_json(tmp_path, "base", ["-y", "@acme/postgres-mcp"])
+    head = _scan_json(tmp_path, "head", ["-y", "@acme/postgres-mcp", "--port=5432"])
+    changes = compare(load_input(str(base)), load_input(str(head)))
+    assert not [c for c in changes if c.entity_type == EntityType.CREDENTIAL]

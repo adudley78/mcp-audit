@@ -550,28 +550,45 @@ def discover_configs(
         # user is scanning from, the same GhostApproval risk as the --project
         # walk below — not the $HOME dotfile-manager shape.
         cwd = Path.cwd()
-        vscode_mcp = cwd / ".vscode" / "mcp.json"
-        if _safe_is_symlink(vscode_mcp) or (
-            _reached_through_symlink(cwd, ".vscode/mcp.json")
-            and _safe_is_file(vscode_mcp)
-        ):
+        # A path already discovered above is not added twice: with cwd ==
+        # $HOME, .claude/settings.json *is* the user-level file (STORY-0082),
+        # and a symlinked ~/.claude must not turn it into a project file with
+        # a false TRUST-002 (STORY-0108).
+        already = {_resolved_or_self(d.path) for d in discovered}
+        at_home = _is_user_level_harness_dir(cwd)
+
+        def _add_cwd_candidate(rel: str, client_name: str, root_key: str) -> None:
+            candidate = cwd / rel
+            # A symlinked file or a symlinked parent (``.claude -> /elsewhere``)
+            # is TRUST-002, never the checkout's own file (STORY-0108).
+            linked = _safe_is_symlink(candidate) or (
+                _reached_through_symlink(cwd, rel) and _safe_is_file(candidate)
+            )
+            if not linked and not _safe_is_file(candidate):
+                return
+            if _resolved_or_self(candidate) in already:
+                # Same file as a user-level config already discovered: analyse
+                # it once, as the user's.  A repository link into it (not a
+                # scan from $HOME) is still reported, without a second parse.
+                if linked and not at_home and skip_findings is not None:
+                    skip_findings.append(
+                        build_project_symlink_finding(candidate, client_name, cwd)
+                    )
+                return
             discovered.append(
                 DiscoveredConfig(
-                    client_name="vscode",
-                    root_key="servers",
-                    path=vscode_mcp,
-                    is_symlink=True,
-                    symlink_root=cwd,
+                    client_name=client_name,
+                    root_key=root_key,
+                    path=candidate,
+                    is_symlink=linked,
+                    symlink_root=cwd if linked else None,
                 )
             )
-        elif _safe_is_file(vscode_mcp):
-            discovered.append(
-                DiscoveredConfig(
-                    client_name="vscode",
-                    root_key="servers",
-                    path=vscode_mcp,
-                )
-            )
+
+        # VS Code project config.  Boundary-shaped (TRUST-002): it lives inside
+        # whatever directory the user is scanning from, the same GhostApproval
+        # risk as the --project walk below, not the $HOME dotfile-manager shape.
+        _add_cwd_candidate(".vscode/mcp.json", "vscode", "servers")
 
         # Claude Code's project files: the server list (.mcp.json) and the
         # settings that govern approval (.claude/settings.json, committed, and
@@ -579,37 +596,13 @@ def discover_configs(
         # servers as a rule, but config hygiene reads them for HOOK-001/002 and
         # HARNESS-001..004 — so a scan run from a repo checkout (the GitHub
         # Action's default) sees a commit that switches approval off
-        # (STORY-0082).  A path already discovered above (cwd == $HOME makes
-        # .claude/settings.json the user-level file) is not added twice.
-        already = {d.path.resolve() for d in discovered}
+        # (STORY-0082).
         for rel in (
             ".mcp.json",
             ".claude/settings.json",
             ".claude/settings.local.json",
         ):
-            candidate = cwd / rel
-            # A symlinked parent (``.claude -> /elsewhere``) is reported like
-            # a symlinked file: TRUST-002, never the checkout's own settings.
-            if _safe_is_symlink(candidate) or (
-                _reached_through_symlink(cwd, rel) and _safe_is_file(candidate)
-            ):
-                discovered.append(
-                    DiscoveredConfig(
-                        client_name="claude-code-project",
-                        root_key="mcpServers",
-                        path=candidate,
-                        is_symlink=True,
-                        symlink_root=cwd,
-                    )
-                )
-            elif _safe_is_file(candidate) and candidate.resolve() not in already:
-                discovered.append(
-                    DiscoveredConfig(
-                        client_name="claude-code-project",
-                        root_key="mcpServers",
-                        path=candidate,
-                    )
-                )
+            _add_cwd_candidate(rel, "claude-code-project", "mcpServers")
 
     # Check extra paths. Explicit — info-shaped (TRUST-004): the user named
     # this path themselves, and today's silent `continue` here is a plain bug

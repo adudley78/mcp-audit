@@ -682,7 +682,9 @@ def _emit_known_cve_findings(
 
 _ECOSYSTEM_LABEL: dict[str, str] = {"npm": "npm", "pypi": "PyPI"}
 
-_REDACTED = "[REDACTED]"
+#: What :func:`redact_args` / :func:`redact_command` put in place of a secret.
+REDACTION_MARKER = "[REDACTED]"
+_REDACTED = REDACTION_MARKER
 # An authority (userinfo@host:port) ends at the first of these after "://".
 _AUTHORITY_END = frozenset("/?#")
 # Longest launch command quoted in evidence; the rest is elided.
