@@ -2,10 +2,27 @@
 
 from __future__ import annotations
 
+import datetime
 import json
+import os
+import tomllib
+from pathlib import Path
 
-from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, DiscoveredConfig
+from mcp_audit.discovery import (
+    AGENT_DEFINITION_CLIENT,
+    CODEX_ROOT_KEY,
+    DiscoveredConfig,
+)
 from mcp_audit.models import ServerConfig, TransportType
+
+#: ``DiscoveredConfig.dialect`` values (STORY-0110).
+CODEX_DIALECT = "codex"
+GEMINI_DIALECT = "gemini"
+
+#: Largest Codex ``config.toml`` or Gemini CLI ``settings.json`` that is read.
+#: A larger file is reported in ``result.errors`` (not read), never skipped
+#: silently.  Real files are a few KiB.
+SETTINGS_MAX_BYTES = 4 * 1024 * 1024
 
 
 def _detect_transport(server_data: dict) -> TransportType:
@@ -23,7 +40,9 @@ def _detect_transport(server_data: dict) -> TransportType:
 def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
     """Parse a discovered config file into a list of ServerConfig objects.
 
-    Handles the VS Code 'servers' vs 'mcpServers' key difference.
+    Handles the VS Code 'servers' vs 'mcpServers' key difference, Codex's
+    TOML ``config.toml`` and Gemini CLI's ``settings.json`` (see
+    :func:`config_dialect`).
 
     As a side effect, stores the top-level parsed JSON dict in
     ``config.raw`` so downstream pipeline steps (e.g. config-level
@@ -41,6 +60,11 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
     """
     if config.client_name == AGENT_DEFINITION_CLIENT:
         return _parse_agent_definition(config)
+    dialect = config_dialect(config)
+    if dialect == CODEX_DIALECT:
+        return _parse_codex_config(config)
+    if dialect == GEMINI_DIALECT:
+        return _parse_gemini_settings(config)
 
     try:
         raw_text = config.path.read_text(encoding="utf-8")
@@ -152,3 +176,315 @@ def _servers_from_dict(
         )
 
     return servers
+
+
+# ── Codex and Gemini CLI (STORY-0110) ─────────────────────────────────────────
+
+
+def config_dialect(config: DiscoveredConfig) -> str | None:
+    """Return how *config* is read: ``"codex"``, ``"gemini"`` or ``None`` (JSON).
+
+    Discovery sets ``config.dialect`` for the files it finds.  For an explicit
+    ``--path`` (client ``custom``) or a ``diff`` input, the path decides: any
+    ``.toml`` file is read as Codex's ``config.toml``, and a ``settings.json``
+    whose directory is ``.gemini`` as Gemini CLI's settings.
+    """
+    if config.dialect is not None:
+        return config.dialect
+    if config.path.suffix.lower() == ".toml":
+        return CODEX_DIALECT
+    if config.path.name == "settings.json" and config.path.parent.name == ".gemini":
+        return GEMINI_DIALECT
+    return None
+
+
+def _read_settings_text(path: Path) -> str:
+    """Read a Codex or Gemini CLI settings file, size-capped, BOM stripped.
+
+    Raises:
+        ValueError: The file cannot be read, is not UTF-8, or is larger than
+            :data:`SETTINGS_MAX_BYTES` (the caller records the message in
+            ``result.errors``).
+    """
+    try:
+        size = os.stat(path).st_size
+    except OSError as e:
+        raise ValueError(f"Cannot read {path}: {e}") from e
+    if size > SETTINGS_MAX_BYTES:
+        raise ValueError(
+            f"{path} is {size} bytes, over mcp-audit's {SETTINGS_MAX_BYTES}-byte"
+            " limit for a settings file; it was not read. Review it by hand."
+        )
+    try:
+        with path.open("rb") as handle:
+            data = handle.read(SETTINGS_MAX_BYTES + 1)
+    except OSError as e:
+        raise ValueError(f"Cannot read {path}: {e}") from e
+    if len(data) > SETTINGS_MAX_BYTES:
+        raise ValueError(
+            f"{path} is over mcp-audit's {SETTINGS_MAX_BYTES}-byte limit for a"
+            " settings file; it was not read. Review it by hand."
+        )
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise ValueError(f"{path} is not UTF-8 text: {e}") from e
+    return text.removeprefix("\ufeff")
+
+
+def _json_safe(value: object) -> object:
+    """Convert parsed TOML into JSON-serialisable values.
+
+    TOML has date and time values JSON does not; ``raw`` is hashed with
+    ``json.dumps`` (rug-pull) and written to JSON output, so they become ISO
+    8601 strings.  Keys become strings.
+    """
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, datetime.date | datetime.time):
+        return value.isoformat()
+    return value
+
+
+def _as_text(value: object) -> str | None:
+    """A scalar config value as text; ``None`` for a missing or structured value."""
+    if value is None or isinstance(value, dict | list):
+        return None
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, datetime.date | datetime.time):
+        return value.isoformat()
+    return str(value)
+
+
+def _text_list(value: object) -> list[str]:
+    """The scalar items of a list, as text (structured items are dropped)."""
+    if not isinstance(value, list):
+        return []
+    return [text for text in (_as_text(item) for item in value) if text is not None]
+
+
+def _text_dict(value: object) -> dict[str, str]:
+    """The scalar values of a table, as text, keyed by the table's keys."""
+    if not isinstance(value, dict):
+        return {}
+    out: dict[str, str] = {}
+    for key, item in value.items():
+        text = _as_text(item)
+        if text is not None:
+            out[str(key)] = text
+    return out
+
+
+def _parse_codex_config(config: DiscoveredConfig) -> list[ServerConfig]:
+    """Parse Codex's ``config.toml``: one server per ``[mcp_servers.<name>]`` table.
+
+    Keys follow Codex's own ``RawMcpServerConfig`` (``codex-rs/config/src/
+    mcp_types.rs``): ``command`` makes a stdio server (``args``, ``env``,
+    ``cwd``; ``env_vars`` lists variable *names* to pass through), otherwise
+    ``url`` makes a streamable-HTTP server.  Headers are gathered from
+    ``http_headers`` (literal values), ``env_http_headers`` (header -> variable
+    name, recorded as ``${NAME}``), ``bearer_token_env_var`` (recorded as
+    ``Authorization: Bearer ${NAME}``) and the retired literal ``bearer_token``
+    (which Codex now refuses, but which is still a secret in the file).  Every
+    field is kept as written: an entry Codex would refuse (both ``command``
+    and ``url``) or has switched off (``enabled = false``) is still analysed,
+    because one edit makes it live.
+
+    Raises:
+        ValueError: The file cannot be read or is not valid TOML.
+    """
+    text = _read_settings_text(config.path)
+    try:
+        data = tomllib.loads(text)
+    except (tomllib.TOMLDecodeError, RecursionError) as e:
+        raise ValueError(f"Invalid TOML in {config.path}: {e}") from e
+    config.raw = _json_safe(data)  # type: ignore[assignment]
+    tables = data.get(CODEX_ROOT_KEY)
+    if not isinstance(tables, dict):
+        return []
+    servers: list[ServerConfig] = []
+    for name, entry in tables.items():
+        if not isinstance(entry, dict):
+            continue
+        command = _as_text(entry.get("command"))
+        url = _as_text(entry.get("url"))
+        headers = _text_dict(entry.get("http_headers"))
+        for header, variable in _text_dict(entry.get("env_http_headers")).items():
+            headers.setdefault(header, f"${{{variable}}}")
+        token_variable = _as_text(entry.get("bearer_token_env_var"))
+        literal_token = _as_text(entry.get("bearer_token"))
+        if literal_token:
+            headers["Authorization"] = f"Bearer {literal_token}"
+        elif token_variable:
+            headers.setdefault("Authorization", f"Bearer ${{{token_variable}}}")
+        env = _text_dict(entry.get("env"))
+        # ``env_vars``: names of variables Codex passes through from its own
+        # environment (strings, or tables with ``name``).  Recorded as
+        # references so lock and rug-pull see which variables reach the server.
+        env_vars = entry.get("env_vars")
+        for item in env_vars if isinstance(env_vars, list) else []:
+            var = item.get("name") if isinstance(item, dict) else item
+            if isinstance(var, str) and var:
+                env.setdefault(var, f"${{{var}}}")
+        if command:
+            transport = TransportType.STDIO
+        elif url:
+            # Codex's only remote transport is streamable HTTP (no SSE).
+            transport = TransportType.STREAMABLE_HTTP
+        else:
+            transport = TransportType.UNKNOWN
+        servers.append(
+            _server(
+                str(name),
+                config,
+                transport=transport,
+                command=command,
+                args=_text_list(entry.get("args")),
+                env=env,
+                url=url,
+                headers=headers,
+                raw=_json_safe(entry),  # type: ignore[arg-type]
+            )
+        )
+    return servers
+
+
+def _strip_json_comments(text: str) -> str:
+    """Remove ``//`` and ``/* */`` comments outside strings, as Gemini CLI does.
+
+    Gemini CLI reads ``settings.json`` with ``JSON.parse(stripJsonComments(
+    content))`` (``packages/cli/src/config/settings.ts``): comments are
+    allowed, trailing commas are not.  Linear, string-aware scan.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    escape = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "/" and i + 1 < n and text[i + 1] == "/":
+            end = text.find("\n", i)
+            i = n if end == -1 else end
+            continue
+        if ch == "/" and i + 1 < n and text[i + 1] == "*":
+            end = text.find("*/", i + 2)
+            # An unterminated block comment runs to the end, as in
+            # strip-json-comments; whitespace keeps JSON error positions sane.
+            i = n if end == -1 else end + 2
+            out.append(" ")
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _parse_gemini_settings(config: DiscoveredConfig) -> list[ServerConfig]:
+    """Parse Gemini CLI's ``settings.json`` (``mcpServers``).
+
+    Comments are allowed and trailing commas are not, as in Gemini CLI.  The
+    transport follows Gemini CLI's own order (``packages/core/src/tools/
+    mcp-client.ts``): ``httpUrl`` (streamable HTTP) wins, then ``url`` with
+    ``type`` ``"http"`` or ``"sse"``, then ``url`` alone, then ``command``
+    (stdio).  The command of an entry that also has a URL never runs, but it
+    is still analysed (the stricter reading: one edit makes it live).
+
+    Raises:
+        ValueError: The file cannot be read or is not valid JSON.
+    """
+    text = _read_settings_text(config.path)
+    try:
+        data = json.loads(_strip_json_comments(text))
+    except (json.JSONDecodeError, RecursionError) as e:
+        raise ValueError(f"Invalid JSON in {config.path}: {e}") from e
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Expected JSON object in {config.path}, got {type(data).__name__}"
+        )
+    config.raw = data
+    entries = data.get("mcpServers")
+    if not isinstance(entries, dict):
+        return []
+    servers: list[ServerConfig] = []
+    for name, entry in entries.items():
+        if not isinstance(entry, dict):
+            continue
+        command = _as_text(entry.get("command"))
+        http_url = _as_text(entry.get("httpUrl"))
+        url = _as_text(entry.get("url"))
+        declared = entry.get("type")
+        if http_url:
+            transport, effective_url = TransportType.STREAMABLE_HTTP, http_url
+        elif url:
+            effective_url = url
+            if declared == "sse":
+                transport = TransportType.SSE
+            elif declared == "http":
+                transport = TransportType.STREAMABLE_HTTP
+            else:
+                transport = _detect_transport({"url": url})
+        else:
+            effective_url = None
+            transport = TransportType.STDIO if command else TransportType.UNKNOWN
+        servers.append(
+            _server(
+                str(name),
+                config,
+                transport=transport,
+                command=command,
+                args=_text_list(entry.get("args")),
+                env=_text_dict(entry.get("env")),
+                url=effective_url,
+                headers=_text_dict(entry.get("headers")),
+                raw=entry,
+            )
+        )
+    return servers
+
+
+def _server(
+    name: str,
+    config: DiscoveredConfig,
+    *,
+    transport: TransportType,
+    command: str | None,
+    args: list[str],
+    env: dict[str, str],
+    url: str | None,
+    headers: dict[str, str],
+    raw: dict,
+) -> ServerConfig:
+    """Build one :class:`ServerConfig` from already-normalised fields."""
+    capabilities = raw.get("capabilities")
+    return ServerConfig(
+        name=name,
+        client=config.client_name,
+        config_path=config.path,
+        transport=transport,
+        command=command,
+        args=args,
+        env=env,
+        url=url,
+        headers=headers,
+        raw=raw,
+        capabilities=capabilities if isinstance(capabilities, dict) else None,
+        is_project_scoped=config.is_project_scoped,
+    )

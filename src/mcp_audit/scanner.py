@@ -593,7 +593,19 @@ def _discover_and_parse(
         result.findings.extend(_plugin_mods.analyze_plugin_dirs_setting())
 
     if not extra_paths:
-        result.findings.extend(_cwd_autoexec_findings())
+        # A repository ``.gemini``/``.codex`` that links into the user's own
+        # config directory was already reported (TRUST-002) by discovery, which
+        # analyses the file once as the user's; report the link once (STORY-0110).
+        linked = {
+            f.finding_path
+            for f in result.findings
+            if f.id in ("TRUST-002", "TRUST-004")
+        }
+        result.findings.extend(
+            f
+            for f in _cwd_autoexec_findings()
+            if not (f.id == "TRUST-002" and f.finding_path in linked)
+        )
         # Skill packages (STORY-0095): every file in each user and cwd skill.
         result.findings.extend(
             _skill_package.scan_default_skills(result.errors, prior=result.findings)
@@ -612,8 +624,16 @@ def _discover_and_parse(
             result.errors.append(f"ci_workflows: workflow scan failed: {exc}")
 
     all_servers: list[ServerConfig] = []
+    # A file that is both an auto-run file and an MCP config (Codex's
+    # .codex/config.toml, Gemini CLI's .gemini/settings.json; STORY-0110) is
+    # reported as a symlink once, by whichever pass saw it first.
+    reported_links = {
+        f.finding_path for f in result.findings if f.id in ("TRUST-002", "TRUST-004")
+    }
     for config in configs:
-        if config.is_symlink:
+        if config.is_symlink and str(config.path) in reported_links:
+            pass
+        elif config.is_symlink:
             if config.symlink_root is not None:
                 result.findings.append(
                     build_project_symlink_finding(
