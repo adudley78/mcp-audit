@@ -367,6 +367,11 @@ def test_agent_instruction_patterns_covers_every_documented_surface() -> None:
         AgentFileSurface.COPILOT_SCOPED,
         AgentFileSurface.COPILOT_PROMPT,
         AgentFileSurface.CLAUDE_AGENT,  # STORY-0094
+        # STORY-0098
+        AgentFileSurface.CLAUDE_RULE,
+        AgentFileSurface.AGENTS_MD,
+        AgentFileSurface.OPENCLAW_WORKSPACE,
+        AgentFileSurface.HEARTBEAT,
     }
 
 

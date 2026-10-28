@@ -320,6 +320,18 @@ PERM-007 runs as pipeline step 5b. Each rule's basis is quoted in
 | PERM-006    | MEDIUM   | ASI03, ASI04 | MCP07, MCP05 | Bare `Bash`/`Bash(*)` ask rule with the sandbox on and `autoAllowBashIfSandboxed` at its default: skipped for every sandboxed command, so commands the author meant to review run unreviewed inside the sandbox. CWE-693 |
 | PERM-007    | HIGH     | ASI03, ASI10 | MCP02, MCP07 | Whole-server `mcp__<server>[__*]` allow on a Claude Code server with a HIGH/CRITICAL poisoning, rug-pull or supply-chain finding (SC-004 only for a known-affected configured version): that server's tools run without a prompt. Matched by whole normalized name (Claude Code 2.1.299); paired across the default and project scans under `--project`. CWE-862 |
 
+### Instruction-file reach (`agent_files/`, MEM-003/MEM-004, STORY-0098)
+
+Both run in a default `scan`/`check` (the working directory's top-level
+instruction files and `~/.openclaw/workspace/HEARTBEAT.md`), under
+`scan --project` (every directory of the walk) and in the agent-file scan.
+See `docs/agent-files.md` ("Imports and references", "Heartbeat files").
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| MEM-003    | MEDIUM / LOW | ASI08 | MCP10 | A Claude Code `@path` import in a project instruction file (CLAUDE.md, .claude/CLAUDE.md, CLAUDE.local.md, .claude/rules/**/*.md, AGENTS.md, .claude/AGENTS.md, or a file they import, four hops deep) resolves to an existing file outside the scanned folder (Claude Code's "external import", approved once per project; the target is never read) or to a file matched by `.gitignore` (normally never committed, so never reviewed; decided from `.gitignore` files only). LOW for a Markdown file under `~/.claude/`, the personal-instructions import Claude Code's memory docs suggest. Bad Memory (arXiv 2607.14611) kept payloads in referenced files and the strongest model left them in place 93–97% of the time. CWE-829. |
+| MEM-004    | HIGH     | ASI01, ASI08 | MCP06, MCP08 | An OpenClaw `HEARTBEAT.md` (run on a timer, every 30 minutes by default) tells the agent to answer with the suppression reply (`HEARTBEAT_OK`, `NO_REPLY`, `notify: false`) unconditionally, while also being told to keep a step from the owner, or straight after running, downloading, installing, uploading, forwarding or transferring something or following a fetched URL. The documented conditional form ("if nothing needs attention, reply HEARTBEAT_OK") stays silent. Agent Commander (Embrace The Red, 2026) used exactly this to run a recurring step whose output the owner never saw. HIGH because a hidden, recurring, unattended step is the C2 shape. CWE-223. |
+
 ### Sandbox settings (`analyzers/sandbox.py`, SANDBOX-001..005, STORY-0093)
 
 Claude Code `sandbox` keys that a repository's settings file uses to loosen the

@@ -331,6 +331,15 @@ _HINTS: dict[str, str] = {
     "LOCK-009": (
         "A locked tool is gone. If expected, run `mcp-audit lock --accept --connect`."
     ),
+    # Instruction-file reach (STORY-0098)
+    "MEM-003": (
+        "Move the imported instructions into the repository (or delete the"
+        " @import); decline Claude Code's external-imports prompt if unsure."
+    ),
+    "MEM-004": (
+        "Open HEARTBEAT.md: remove any step you didn't write and the line that"
+        " silences its result; reply HEARTBEAT_OK only if nothing needs attention."
+    ),
 }
 
 

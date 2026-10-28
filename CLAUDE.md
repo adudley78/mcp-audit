@@ -103,11 +103,15 @@ src/mcp_audit/
 │   ├── permissions.py  # Claude Code permission-rule linter (PERM-001..007, STORY-0092): public settings parser (load_claude_settings, reused by sandbox checks); PERM-001..006 via config_hygiene.analyze_config, PERM-007 as _run_static_pipeline step 5b and again across scopes in cli/scan._apply_project_scan; every rule quoted from code.claude.com/docs (docs/permission-rules.md)
 │   ├── sandbox.py      # Claude Code sandbox settings a repository can loosen (SANDBOX-001..005, STORY-0093): reuses permissions.load_claude_settings; all five run as _run_static_pipeline step 0b (analyze_sandbox_files, NOT analyze_config), each file in its own try: a SandboxContext says whose file it is (shared project file = repository; settings.local.json = repository only when no ignore file covers it or .claude is a symlink, MEDIUM cap when its git state is unknown, user's own when ignored or outside a work tree; user settings get only SANDBOX-004) and carries UserSettingsLocks read from ~/.claude/settings.json (strictAllowlist → SANDBOX-003/proxy ports INFO; defaultMode bypassPermissions/auto → SANDBOX-002 HIGH); SANDBOX-005 (local settings headed for git, home paths with a masked username) via _gitignore.py; errors prefixed "SANDBOX checks: "; key scopes from code.claude.com/docs settings-reference (docs/permission-rules.md)
 │   └── attack_paths.py # Multi-hop attack path detection and greedy hitting set algorithm; one path per hop sequence, the most severe pair's (STORY-0101)
-├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001/002; also emits POISON-041/042, analyzer="poisoning")
+├── agent_files/       # Agent instruction/memory file scanner (SKILL-001/002/003, MEM-001..004; also emits POISON-041/042, analyzer="poisoning")
 │   ├── __init__.py    # Package marker; offline-only invariant docs
-│   ├── models.py      # AgentFile dataclass, AgentFileSurface StrEnum
-│   ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions)
-│   ├── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked), plus scan_concealed_channels/build_concealment_finding for POISON-041/042. NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
+│   ├── models.py      # AgentFile dataclass (+ follows_imports, imported_from, edges), AgentFileSurface StrEnum, MEMORY_SURFACES, ImportEdge
+│   ├── discovery.py   # discover_agent_files(); user-global + project-tree walk (mirrors discovery.py conventions); AGENT_INSTRUCTION_PATTERNS incl. AGENTS.md, CLAUDE.local.md, .claude/rules, OpenClaw workspace files (STORY-0098); discover_root_agent_files() / discover_user_heartbeat_files() for the default scan; 4 MiB per-file read cap and a per-call budget
+│   ├── imports.py     # Claude Code @path imports (documented rules: relative to importer, 4 hops, code/comments skipped) and "read X" prose references; follow_references() never reads outside the root or through a symlink (TRUST-002/004), budgeted (STORY-0098)
+│   ├── gitignore.py   # .gitignore matcher read by file (never runs git), non-backtracking wildmatch; MEM-003's "ignored" case
+│   ├── heartbeat.py   # MEM-004 detector: HEARTBEAT_OK/NO_REPLY/notify:false forced, paired with hiding, or after an action
+│   ├── reach.py       # MEM-003/MEM-004 in the default scan (cwd root + ~/.openclaw/workspace/HEARTBEAT.md, via scanner._cwd_instruction_reach_findings) and scan --project (cli/scan._apply_project_instruction_reach); never raises
+│   ├── analyzer.py    # analyze_agent_files(); imports PATTERNS from analyzers/poisoning.py (never forked), plus scan_concealed_channels/build_concealment_finding for POISON-041/042; MEM-003/004 via analyze_instruction_reach(); imported files get the importer's rules, secrets redacted. NB: HOOK-001/002 live in analyzers/config_hygiene.py, not here
 │   └── subagents.py   # Claude Code subagent definitions (STORY-0094): frontmatter read the way Claude Code's loader reads it (1 MiB file cap, split at the first `---` anywhere, quote-and-retry on a YAML error) plus the `---`-line reading, findings from both; repeated/unreadable security keys are findings; node/nesting/alias budgets; agent_mcp_servers() (one server per item, repeats `name#2`), analyze_agent_definition() AGENT-001..004; files join default discovery as client "claude-code-agent" (discover_configs(include_agents=True); never with --path; lock opts out; auto-verify skips them and lists project ones under a lock root in `lock_status.not_covered`; rug-pull state key excludes), step 0 via ConfigHygieneAnalyzer.analyze_agent_definition (+HOOK-001/002)
 ├── plugins/           # Claude Code plugin inventory + integrity (PLUGIN-001/002); offline, reads ~/.claude/plugins records only
 │   ├── models.py      # InstalledPlugin dataclass; GIT_SOURCE_TYPES; pinned_sha / source_type
@@ -504,6 +508,14 @@ Measurement scripts (dev tooling, not in the package):
   and is owned by `analyzers/poisoning.py` (see that module's docstring and
   `agent_files/analyzer.py`'s own "documented exception" note). Detection
   patterns are **imported** from `analyzers/poisoning.py` — never forked.
+  **MEM-003/MEM-004** (STORY-0098: imports from outside the folder or of a
+  `.gitignore`'d file; heartbeat output suppression) also run in a default
+  `scan`/`check` (cwd-root instruction files, skipped when cwd is `$HOME`, plus
+  `~/.openclaw/workspace/HEARTBEAT.md`) and in `scan --project`, through
+  `agent_files/reach.py`; findings are deduplicated across the three paths
+  (`reach.finding_key`) and only a symlink leaving the folder (TRUST-002 HIGH)
+  is reported on the first two. `tests/conftest.py` stubs the user heartbeat
+  lookup.
   **HOOK-001/002** (network-egress and config-write hook commands) deliberately
   live in `analyzers/config_hygiene.py::analyze_config` (pipeline step 0), not in
   `agent_files/`, because they inspect the parsed `hooks` section of a Claude config
@@ -752,7 +764,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 8 supported MCP clients including Copilot CLI and Augment
 - Demo environment producing 74 findings on a first scan of all demo configs (66 once rug-pull state exists; counted 2026-10-27 for STORY-0101, which added TOXIC-008 ×2, TOXIC-010 and TOXIC-011 on the demo's `github` server; 70/62 after STORY-0097, which added SC-007 + SC-008 on the demo's `npx -y mcp-server-postgres` — OSV MAL-2026-5481 since June 2026; it was 68/60 from v0.20.0 to v0.21.1) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 5866 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 5960 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 28 top-level CLI commands: vet, check, fix, scan, discover, pin, diff, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release
