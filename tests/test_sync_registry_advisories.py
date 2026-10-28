@@ -284,6 +284,68 @@ class TestWorkflow:
         assert "gh pr" not in text
         assert "git push" not in text
 
+    def _step(self, name_prefix: str) -> dict:
+        steps = self._load()["jobs"]["check"]["steps"]
+        return next(s for s in steps if str(s.get("name", "")).startswith(name_prefix))
+
+    def test_both_registry_files_are_hashed_before_and_after(self) -> None:
+        """STORY-0109: the read-only guard covers the malicious mirror too."""
+        for prefix in ("Hash registry files before", "Assert the registry files"):
+            run = self._step(prefix)["run"]
+            assert "registry/known-servers.json" in run
+            assert "registry/known-malicious.json" in run
+
+    def test_workflow_run_writes_and_uploads_both_proposed_files(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """STORY-0109: run the workflow's own command line against the script.
+
+        The check step's arguments are taken from the YAML and passed to
+        ``main()`` (OSV stubbed), so the test fails if the workflow stops
+        passing ``--malicious-out`` or the upload step stops naming the file
+        the script writes.
+        """
+        import shlex
+
+        run = self._step("Check advisories")["run"]
+        runner_temp = tmp_path / "runner"
+        runner_temp.mkdir()
+        expanded = (
+            run.replace("\\\n", " ")
+            .replace("${RUNNER_TEMP}", str(runner_temp))
+            .replace("${GITHUB_STEP_SUMMARY}", str(tmp_path / "summary.md"))
+        )
+        argv = shlex.split(expanded)
+        assert argv[:2] == ["python", "scripts/sync_registry_advisories.py"]
+        assert "--malicious-out" in argv
+
+        reg = TestSyncAndCli()._registry(tmp_path)
+        before = reg.read_bytes()
+        monkeypatch.setattr(sync_mod, "query_osv", TestSyncAndCli._fake_osv)
+        monkeypatch.setattr(
+            sync_mod,
+            "fetch_malicious_export",
+            lambda eco, keep: [_mal("MAL-1", "b-mcp")] if eco == "npm" else [],
+        )
+        assert sync_mod.main([*argv[2:], "--registry", str(reg)]) == 1
+
+        written = sorted(p.name for p in runner_temp.iterdir())
+        assert written == [
+            "known-malicious.proposed.json",
+            "known-servers.proposed.json",
+        ]
+        upload = self._step("Upload proposed registry files")
+        uploaded = sorted(
+            Path(line.strip().replace("${{ runner.temp }}", str(runner_temp))).name
+            for line in str(upload["with"]["path"]).splitlines()
+            if line.strip()
+        )
+        assert uploaded == written
+        assert "failure()" in str(upload.get("if", ""))
+        # Committed files are never written by a --check run.
+        assert reg.read_bytes() == before
+        assert not (tmp_path / "known-malicious.json").exists()
+
 
 # ── Known-malicious mirror (STORY-0097) ───────────────────────────────────────
 
