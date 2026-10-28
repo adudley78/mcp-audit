@@ -96,14 +96,19 @@ class TestTop100Precision:
         assert fresh == RESULTS["top100"]["replay"], RERUN
 
     def test_replay_reaches_the_analyzer(self) -> None:
-        """Full-width CJK punctuation still trips POISON-060 (the 488-finding class)."""
+        """The replay runs the current analyzer over every committed fragment.
+
+        Since STORY-0107, full-width CJK punctuation (the 488-finding class) no
+        longer trips POISON-060; the POISON-030 and POISON-012 fragments still
+        fire, which shows the fragments reach the analyzer. POISON-020 needs a
+        nearby destination word the bare fragment lacks, and POISON-050
+        published no text: 661 - 488 - 2 - 139.
+        """
         replay = bench.replay_evidence(SUMMARY)
         p060 = next(g for g in replay["groups"] if g["id"] == "POISON-060")
         assert [r["text"] for r in p060["fragments"]] == ["（", "，", "：", "；"]
-        assert all(r["fires"] == ["POISON-060"] for r in p060["fragments"])
-        # POISON-020 needs a nearby destination word the bare fragment lacks,
-        # and POISON-050 published no text: 661 - 2 - 139.
-        assert replay["findings_reproduced_from_committed_text"] == 520
+        assert all(r["fires"] == [] for r in p060["fragments"])
+        assert replay["findings_reproduced_from_committed_text"] == 32
 
     def test_results_match_the_current_patterns(self) -> None:
         """Both pinned measurements were taken with today's POISON-* detection code.
@@ -281,11 +286,15 @@ class TestComparePrecision:
 
     def test_stopped_fire_is_an_improvement(self) -> None:
         fresh = self._section()
-        p060 = next(g for g in fresh["replay"]["groups"] if g["id"] == "POISON-060")
-        p060["fragments"][0]["fires"] = []
+        p030 = next(
+            g
+            for g in fresh["replay"]["groups"]
+            if g["id"] == "POISON-030" and g["fragments"][0]["text"] == "first call"
+        )
+        p030["fragments"][0]["fires"] = []
         regressions, improvements = bench.compare_precision(self._section(), fresh)
         assert regressions == []
-        assert improvements and "POISON-060" in improvements[0]
+        assert improvements and "POISON-030" in improvements[0]
 
     def test_changed_label_precision_is_flagged(self) -> None:
         fresh = self._section()
@@ -511,14 +520,14 @@ class TestMcptoxScoring:
         assert pure["recall_high_or_above"]["P2"]["detected"] == 0
         assert pure["recall"]["P3"]["detected"] == 0
         assert pure["recall"]["P1"] == {"detected": 0, "total": 0, "rate": None}
-        # Full-width CJK punctuation in a real tool's description is flagged, at
-        # HIGH: the same false-positive class as 488 of the top-100 findings.
+        # Full-width CJK punctuation in a real tool's description (the class of
+        # 488 of the top-100 findings) is no longer flagged (STORY-0107).
         assert section["clean_tools"] == {
             "total": 3,
-            "flagged": 1,
-            "flagged_high_or_above": 1,
-            "findings_by_id": {"POISON-060": 1},
-            "flagged_by_server": {"Maps": 1},
+            "flagged": 0,
+            "flagged_high_or_above": 0,
+            "findings_by_id": {},
+            "flagged_by_server": {},
         }
         assert section["files"] == bench.file_digests(files)
         assert section["patterns_fingerprint"] == bench.patterns_fingerprint()
@@ -554,7 +563,7 @@ class TestCompareRecall:
         pinned, fresh = self._sections()
         fresh["clean_tools"]["flagged"] += 1
         regressions, _ = bench.compare_recall(pinned, fresh)
-        assert regressions == ["clean_tools: flagged 1 -> 2"]
+        assert regressions == ["clean_tools: flagged 0 -> 1"]
 
     def test_fewer_high_detections_is_a_regression(self) -> None:
         pinned, fresh = self._sections()
@@ -566,7 +575,7 @@ class TestCompareRecall:
         pinned, fresh = self._sections()
         fresh["clean_tools"]["flagged_high_or_above"] += 1
         regressions, _ = bench.compare_recall(pinned, fresh)
-        assert regressions == ["clean_tools: flagged_high_or_above 1 -> 2"]
+        assert regressions == ["clean_tools: flagged_high_or_above 0 -> 1"]
 
     def test_changed_case_set_is_a_regression(self) -> None:
         pinned, fresh = self._sections()

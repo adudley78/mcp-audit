@@ -1294,8 +1294,11 @@ def _apply_project_scan(
     )
 
     # ── TRUST-002: a discovered MCP config candidate that is itself a symlink ─
+    # A Codex/Gemini CLI file is also an auto-run file (STORY-0110), so the
+    # auto-run pass above may have reported the same link already.
+    reported_links = {f.finding_path for f in result.findings if f.id == "TRUST-002"}
     for config in project_configs:
-        if config.is_symlink:
+        if config.is_symlink and str(config.path) not in reported_links:
             result.findings.append(
                 build_project_symlink_finding(
                     config.path, config.client_name, config.symlink_root

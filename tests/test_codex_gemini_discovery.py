@@ -699,22 +699,7 @@ class TestSecretsInOutput:
         monkeypatch.chdir(repo)
         return repo
 
-    @pytest.mark.parametrize(
-        "fmt",
-        [
-            "terminal",
-            "sarif",
-            # servers[].args in JSON output are redacted by STORY-0108's
-            # ServerConfig serialisers (#202), not merged yet.  strict: this
-            # fails the moment that lands, so the marker is removed then.
-            pytest.param(
-                "json",
-                marks=pytest.mark.xfail(
-                    strict=True, reason="JSON args redaction lands with STORY-0108"
-                ),
-            ),
-        ],
-    )
+    @pytest.mark.parametrize("fmt", ["terminal", "json", "sarif"])
     def test_password_in_args_is_redacted(
         self, repo: Path, tmp_path: Path, fmt: str
     ) -> None:
@@ -727,6 +712,83 @@ class TestSecretsInOutput:
         text = r.output + (out.read_text(encoding="utf-8") if out.exists() else "")
         assert "postgres" in text  # the servers were scanned
         assert DB_PASSWORD not in text
+
+    @pytest.mark.parametrize("fmt", ["terminal", "json", "sarif"])
+    def test_literal_tokens_and_client_secrets_are_redacted(
+        self, home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fmt: str
+    ) -> None:
+        """Codex ``bearer_token`` / ``oauth.client_secret`` / ``http_headers``
+        and Gemini ``headers`` / ``oauth.clientSecret`` never reach the output,
+        while CRED-003 still reports the literal token."""
+        repo = tmp_path / "repo"
+        _write(
+            repo / ".codex" / "config.toml",
+            "[mcp_servers.remote]\n"
+            'url = "https://docs.example.com/mcp"\n'
+            f'bearer_token = "{GH_TOKEN}"\n'
+            'http_headers = { "X-Api-Key" = "codexHeaderSecret123" }\n'
+            "[mcp_servers.remote.oauth]\n"
+            'client_id = "app"\n'
+            'client_secret = "codexClientSecret456"\n',
+        )
+        _write(
+            repo / ".gemini" / "settings.json",
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "g": {
+                            "httpUrl": "https://g.example.com/mcp",
+                            "headers": {"Authorization": "Bearer geminiHdrSecret789"},
+                            "oauth": {"clientId": "a", "clientSecret": "gemOauth000"},
+                        }
+                    }
+                }
+            ),
+        )
+        monkeypatch.chdir(repo)
+        out = tmp_path / f"out.{fmt}"
+        with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+            r = runner.invoke(
+                app, ["scan", "--format", fmt, "-o", str(out), "--no-score"]
+            )
+        assert r.exit_code in (0, 1), r.output
+        text = r.output + (out.read_text(encoding="utf-8") if out.exists() else "")
+        for secret in (
+            GH_TOKEN,
+            "codexHeaderSecret123",
+            "codexClientSecret456",
+            "geminiHdrSecret789",
+            "gemOauth000",
+        ):
+            assert secret not in text, (fmt, secret)
+        if fmt == "json":
+            payload = json.loads(out.read_text(encoding="utf-8"))
+            assert any(f["id"] == "CRED-003" for f in payload["findings"])
+            [remote] = [s for s in payload["servers"] if s["name"] == "remote"]
+            assert remote["headers"]["Authorization"] == "Bearer [REDACTED]"
+            assert remote["raw"]["bearer_token"] == "[REDACTED]"  # noqa: S105
+            assert remote["raw"]["oauth"]["client_secret"] == "[REDACTED]"  # noqa: S105
+            assert remote["raw"]["oauth"]["client_id"] == "app"
+
+    def test_env_references_and_account_names_are_kept(self, tmp_path: Path) -> None:
+        """References stay readable; ``git@`` is an account name, not a secret."""
+        path = _write(
+            tmp_path / "config.toml",
+            "[mcp_servers.a]\n"
+            'command = "npx"\n'
+            'args = ["git+ssh://git@github.com/org/repo", "--token", "$TOK"]\n'
+            "[mcp_servers.b]\n"
+            'url = "https://h/mcp"\n'
+            'bearer_token = "${LEGACY}"\n'
+            'env_http_headers = { "X-Api-Key" = "KEYVAR" }\n',
+        )
+        dumped = {
+            s.name: json.loads(s.model_dump_json()) for s in parse_config(_codex(path))
+        }
+        assert dumped["a"]["args"][0] == "git+ssh://git@github.com/org/repo"
+        assert dumped["a"]["args"][2] == "$TOK"
+        assert dumped["b"]["headers"]["X-Api-Key"] == "${KEYVAR}"
+        assert dumped["b"]["raw"]["bearer_token"] == "${LEGACY}"  # noqa: S105
 
 
 # ── lock, diff, rug-pull, fix, check ──────────────────────────────────────────
@@ -874,3 +936,25 @@ def test_demo_configs_unchanged() -> None:
         "gemini-cli",
         "gemini-cli-project",
     }
+
+
+def test_project_scan_symlinked_codex_dir_reported_once(
+    tmp_path: Path, home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``.codex -> /elsewhere``: one TRUST-002 although the auto-run walk and
+    the MCP-config walk both see ``.codex/config.toml``."""
+    elsewhere = tmp_path / "elsewhere"
+    _write(elsewhere / "config.toml", CODEX_TOML)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _symlink(repo / ".codex", elsewhere)
+    out = tmp_path / "out.json"
+    monkeypatch.chdir(tmp_path)
+    with patch("mcp_audit.discovery._get_client_specs", return_value=[]):
+        r = runner.invoke(
+            app, ["scan", "--project", str(repo), "--format", "json", "-o", str(out)]
+        )
+    assert r.exit_code in (0, 1), r.output
+    findings = json.loads(out.read_text(encoding="utf-8"))["findings"]
+    trust = [f for f in findings if f["id"] == "TRUST-002"]
+    assert len(trust) == 1 and trust[0]["severity"] == "HIGH"

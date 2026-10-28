@@ -326,6 +326,49 @@ def _resolved_or_self(path: Path) -> Path:
         return path
 
 
+def _safe_is_symlink(path: Path) -> bool:
+    """``Path.is_symlink`` that treats an unreadable path as not a link."""
+    try:
+        return path.is_symlink()
+    except OSError:
+        return False
+
+
+def _safe_is_file(path: Path) -> bool:
+    """``Path.is_file`` that treats an unreadable path as not a file."""
+    try:
+        return path.is_file()
+    except OSError:
+        return False
+
+
+def _safe_is_dir(path: Path) -> bool:
+    """``Path.is_dir`` that treats an unreadable path as not a directory."""
+    try:
+        return path.is_dir()
+    except OSError:
+        return False
+
+
+def _reached_through_symlink(base: Path, rel_path: str) -> bool:
+    """True when a directory between *base* and ``base / rel_path`` is a symlink.
+
+    Only the intermediate components are checked (``.claude`` in
+    ``.claude/settings.json``); the final component is the caller's own
+    ``is_symlink`` test.  A symlinked parent (``.claude -> /elsewhere``) puts
+    the file outside the reviewed tree just as a symlinked file does
+    (STORY-0090 for auto-run files, STORY-0108 for project MCP configs and
+    settings), so the candidate is reported as TRUST-002, not as the
+    repository's own file.  An unreadable component counts as not a link.
+    """
+    current = base
+    for part in Path(rel_path).parts[:-1]:
+        current = current / part
+        if _safe_is_symlink(current):
+            return True
+    return False
+
+
 # ── Symlink findings (TRUST-002 / TRUST-004 / TRUST-005) ──────────────────────
 #
 # See humans/decisions/2026-09-08-trust-002-symlink-sites.md (marcus repo) for
@@ -551,7 +594,7 @@ def discover_configs(
             for config_path in spec.config_paths:
                 # An unreadable directory (PermissionError on ~/.codex) is
                 # "not there", never a crash of the whole scan (STORY-0110).
-                if _probe(config_path.is_symlink):
+                if _safe_is_symlink(config_path):
                     discovered.append(
                         DiscoveredConfig(
                             client_name=spec.name,
@@ -561,7 +604,7 @@ def discover_configs(
                             dialect=_HARNESS_DIALECT.get(spec.name),
                         )
                     )
-                elif _probe(config_path.is_file):
+                elif _safe_is_file(config_path):
                     discovered.append(
                         DiscoveredConfig(
                             client_name=spec.name,
@@ -576,25 +619,48 @@ def discover_configs(
         # user is scanning from, the same GhostApproval risk as the --project
         # walk below — not the $HOME dotfile-manager shape.
         cwd = Path.cwd()
-        vscode_mcp = cwd / ".vscode" / "mcp.json"
-        if vscode_mcp.is_symlink():
+        # A path already discovered above is not added twice: with cwd ==
+        # $HOME, .claude/settings.json *is* the user-level file (STORY-0082),
+        # and a symlinked ~/.claude must not turn it into a project file with
+        # a false TRUST-002 (STORY-0108).
+        already = {_resolved_or_self(d.path) for d in discovered}
+        at_home = _is_user_level_harness_dir(cwd)
+
+        def _add_cwd_candidate(
+            rel: str, client_name: str, root_key: str, dialect: str | None = None
+        ) -> None:
+            candidate = cwd / rel
+            # A symlinked file or a symlinked parent (``.claude -> /elsewhere``)
+            # is TRUST-002, never the checkout's own file (STORY-0108).
+            linked = _safe_is_symlink(candidate) or (
+                _reached_through_symlink(cwd, rel) and _safe_is_file(candidate)
+            )
+            if not linked and not _safe_is_file(candidate):
+                return
+            if _resolved_or_self(candidate) in already:
+                # Same file as a user-level config already discovered: analyse
+                # it once, as the user's.  A repository link into it (not a
+                # scan from $HOME) is still reported, without a second parse.
+                if linked and not at_home and skip_findings is not None:
+                    skip_findings.append(
+                        build_project_symlink_finding(candidate, client_name, cwd)
+                    )
+                return
             discovered.append(
                 DiscoveredConfig(
-                    client_name="vscode",
-                    root_key="servers",
-                    path=vscode_mcp,
-                    is_symlink=True,
-                    symlink_root=cwd,
+                    client_name=client_name,
+                    root_key=root_key,
+                    path=candidate,
+                    is_symlink=linked,
+                    symlink_root=cwd if linked else None,
+                    dialect=dialect,
                 )
             )
-        elif vscode_mcp.exists():
-            discovered.append(
-                DiscoveredConfig(
-                    client_name="vscode",
-                    root_key="servers",
-                    path=vscode_mcp,
-                )
-            )
+
+        # VS Code project config.  Boundary-shaped (TRUST-002): it lives inside
+        # whatever directory the user is scanning from, the same GhostApproval
+        # risk as the --project walk below, not the $HOME dotfile-manager shape.
+        _add_cwd_candidate(".vscode/mcp.json", "vscode", "servers")
 
         # Claude Code's project files: the server list (.mcp.json) and the
         # settings that govern approval (.claude/settings.json, committed, and
@@ -602,37 +668,19 @@ def discover_configs(
         # servers as a rule, but config hygiene reads them for HOOK-001/002 and
         # HARNESS-001..004 — so a scan run from a repo checkout (the GitHub
         # Action's default) sees a commit that switches approval off
-        # (STORY-0082).  A path already discovered above (cwd == $HOME makes
-        # .claude/settings.json the user-level file) is not added twice.
-        already = {d.path.resolve() for d in discovered}
+        # (STORY-0082).
         for rel in (
             ".mcp.json",
             ".claude/settings.json",
             ".claude/settings.local.json",
         ):
-            candidate = cwd / rel
-            if candidate.is_symlink():
-                discovered.append(
-                    DiscoveredConfig(
-                        client_name="claude-code-project",
-                        root_key="mcpServers",
-                        path=candidate,
-                        is_symlink=True,
-                        symlink_root=cwd,
-                    )
-                )
-            elif candidate.is_file() and candidate.resolve() not in already:
-                discovered.append(
-                    DiscoveredConfig(
-                        client_name="claude-code-project",
-                        root_key="mcpServers",
-                        path=candidate,
-                    )
-                )
+            _add_cwd_candidate(rel, "claude-code-project", "mcpServers")
 
         # Codex and Gemini CLI project files at the working directory's root
-        # (STORY-0110): their MCP servers, as <client>-project.
-        discovered.extend(_harness_cwd_configs(cwd, discovered, skip_findings))
+        # (STORY-0110): their MCP servers, as <client>-project, so a repository
+        # server never shares a rug-pull key with a same-named user server.
+        for rel, client_name, root_key, dialect in _HARNESS_CWD_SPECS:
+            _add_cwd_candidate(rel, client_name, root_key, dialect)
 
     # Check extra paths. Explicit — info-shaped (TRUST-004): the user named
     # this path themselves, and today's silent `continue` here is a plain bug
@@ -717,60 +765,6 @@ _HARNESS_CWD_SPECS: tuple[tuple[str, str, str, str], ...] = (
     (".codex/config.toml", "codex-project", "mcp_servers", "codex"),
     (".gemini/settings.json", "gemini-cli-project", "mcpServers", "gemini"),
 )
-
-
-def _probe(check: object) -> bool:
-    """Run a ``Path`` predicate, treating a filesystem error as ``False``."""
-    try:
-        return bool(check())  # type: ignore[operator]
-    except OSError:
-        return False
-
-
-def _harness_cwd_configs(
-    cwd: Path,
-    discovered: list[DiscoveredConfig],
-    skip_findings: list[Finding] | None,
-) -> list[DiscoveredConfig]:
-    """Codex / Gemini CLI project configs at *cwd*'s root for a default scan.
-
-    A symlinked file, or one reached through a symlinked ``.codex`` /
-    ``.gemini`` directory, is returned as a TRUST-002 candidate
-    (``is_symlink``, ``symlink_root=cwd``), never as the checkout's own file.
-    A file that is already discovered (the working directory is ``$HOME``, so
-    ``.gemini/settings.json`` *is* the user file) is not added twice; a
-    repository link into such a file is still reported, as TRUST-002 in
-    *skip_findings*, without a second parse.  Filesystem errors count as
-    "not there" and never stop the scan.
-    """
-    already = {_resolved_or_self(d.path) for d in discovered}
-    at_home = _is_user_level_harness_dir(cwd)
-    found: list[DiscoveredConfig] = []
-    for rel, client_name, root_key, dialect in _HARNESS_CWD_SPECS:
-        candidate = cwd / rel
-        via_parent = _probe((cwd / rel).parent.is_symlink)
-        linked = _probe(candidate.is_symlink) or (
-            via_parent and _probe(candidate.exists)
-        )
-        if not linked and not _probe(candidate.is_file):
-            continue
-        if _resolved_or_self(candidate) in already:
-            if linked and not at_home and skip_findings is not None:
-                skip_findings.append(
-                    build_project_symlink_finding(candidate, client_name, cwd)
-                )
-            continue
-        found.append(
-            DiscoveredConfig(
-                client_name=client_name,
-                root_key=root_key,
-                path=candidate,
-                is_symlink=linked,
-                symlink_root=cwd if linked else None,
-                dialect=dialect,
-            )
-        )
-    return found
 
 
 def _discover_agent_definition_configs(
@@ -1066,7 +1060,10 @@ def discover_project_configs(
     - A config candidate that is itself a symlink is *included*
       (``is_symlink=True``, ``symlink_root=root``) rather than skipped — the
       caller still parses it normally and is expected to emit a TRUST-002
-      finding via :func:`build_project_symlink_finding`.
+      finding via :func:`build_project_symlink_finding`.  So is a file reached
+      through a symlinked parent directory (``.claude -> /elsewhere`` makes
+      ``.claude/settings.json`` a TRUST-002 candidate, STORY-0108), the rule
+      :func:`_autoexec_candidate` applies to auto-run files.
 
     Args:
         root: Resolved absolute path of the repository root to walk.
@@ -1088,8 +1085,12 @@ def discover_project_configs(
         # Check each known project-config pattern relative to this directory.
         for rel_path, client_name, root_key in _PROJECT_CONFIG_SPECS:
             candidate = dirpath / rel_path
-            # An unreadable directory is "not there", never a crash.
-            if _probe(candidate.is_symlink):
+            # A symlinked file, or a file reached through a symlinked parent
+            # directory (``.claude -> /elsewhere``, STORY-0108), is a TRUST-002
+            # candidate, not the repository's own file.
+            if _safe_is_symlink(candidate) or (
+                _reached_through_symlink(dirpath, rel_path) and _safe_is_file(candidate)
+            ):
                 if is_lock_file(candidate):
                     continue
                 discovered.append(
@@ -1103,7 +1104,7 @@ def discover_project_configs(
                     )
                 )
                 continue
-            if _probe(candidate.is_file) and not is_lock_file(candidate):
+            if _safe_is_file(candidate) and not is_lock_file(candidate):
                 discovered.append(
                     DiscoveredConfig(
                         client_name=client_name,
@@ -1116,17 +1117,17 @@ def discover_project_configs(
         # Recurse into non-symlink subdirectories not in the skip list.
         try:
             children = sorted(dirpath.iterdir())
-        except PermissionError:
+        except OSError:
             return
 
         for child in children:
-            if child.is_symlink():
-                if child.is_dir() and skip_findings is not None:
+            if _safe_is_symlink(child):
+                if _safe_is_dir(child) and skip_findings is not None:
                     skip_findings.append(
                         build_untraversed_symlink_dir_finding(child, "project")
                     )
                 continue
-            if not child.is_dir():
+            if not _safe_is_dir(child):
                 continue
             if child.name in _WALK_SKIP_DIRS:
                 continue
@@ -1220,13 +1221,7 @@ def _autoexec_candidate(
     # A symlinked *parent* (``.gemini -> /elsewhere/.gemini``) puts the file
     # outside the reviewed tree just as a symlinked file does, so any link on
     # the way down makes this a TRUST-002 candidate, not the repo's own file.
-    parent = dirpath
-    via_link = False
-    for part in Path(rel_path).parts[:-1]:
-        parent = parent / part
-        if parent.is_symlink():
-            via_link = True
-            break
+    via_link = _reached_through_symlink(dirpath, rel_path)
     if candidate.is_symlink() or (via_link and candidate.exists()):
         return DiscoveredAutoexecFile(
             kind=kind, path=candidate, is_symlink=True, symlink_root=root

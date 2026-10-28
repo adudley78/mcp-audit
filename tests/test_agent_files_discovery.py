@@ -475,3 +475,40 @@ def test_resolve_relative_pattern_includes_symlinked_file_boundary_shaped(
     from mcp_audit.models import Severity  # noqa: PLC0415
 
     assert skip_findings[0].severity == Severity.HIGH
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need admin on Windows")
+def test_discover_project_symlinked_claude_dir_reads_nothing_through_it(
+    tmp_path: Path,
+) -> None:
+    """STORY-0108: agent-file discovery never reads through a symlinked parent.
+
+    ``.claude -> /elsewhere`` holds commands, rules, agents, skills and
+    memory; none is read as the repository's own, and the refusal is
+    reported (TRUST-005 naming the link), never silent.
+    """
+    outside = tmp_path / "outside"
+    for rel in (
+        "commands/deploy.md",
+        "rules/style.md",
+        "agents/helper.md",
+        "skills/deploy/SKILL.md",
+        "CLAUDE.md",
+        "AGENTS.md",
+    ):
+        target = outside / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("# outside the repository", encoding="utf-8")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".claude").symlink_to(outside, target_is_directory=True)
+
+    skip_findings: list = []
+    files = discover_agent_files(
+        project_root=repo, include_user_global=False, skip_findings=skip_findings
+    )
+
+    assert files == []
+    trust_005 = [f for f in skip_findings if f.id == "TRUST-005"]
+    assert trust_005
+    assert all(str(repo / ".claude") in f.evidence for f in trust_005)

@@ -7,7 +7,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from mcp_audit import __version__
 
@@ -103,6 +103,113 @@ class ServerConfig(BaseModel):
     # Used by _apply_project_scan() to emit TRUST-001.  Never set by the normal
     # user-level discovery path so default-scan behaviour is unchanged.
     is_project_scoped: bool = False
+
+    # ── JSON serialisation: launch credentials never leave in clear (STORY-0108)
+    #
+    # JSON scan output, ``check --json`` and native snapshots dump servers with
+    # ``model_dump_json``.  A launch command or URL can carry a credential
+    # (a database URL with a password before ``@``, an ``--api-key`` value), so
+    # in JSON mode the command, args, url and matching keys of ``raw`` have URL
+    # userinfo and SECRET_PATTERNS matches replaced with ``[REDACTED]``
+    # (``supply_chain.redact_args``).  The in-memory object is unchanged, so
+    # analyzers, lock and rug-pull hashing still see the real values.  ``env``
+    # values are not touched here (GAPS.md).  Header values are
+    # (``supply_chain.redact_header_values``), and so are the secret-only keys
+    # of Codex and Gemini CLI entries in ``raw`` (STORY-0110).
+
+    @field_serializer("headers", when_used="json")
+    def _serialize_headers(self, headers: dict[str, str]) -> dict[str, str]:
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_header_values,
+        )
+
+        return redact_header_values(headers)
+
+    @field_serializer("command", "url", when_used="json")
+    def _serialize_launch_text(self, value: str | None) -> str | None:
+        from mcp_audit.analyzers.supply_chain import redact_url  # noqa: PLC0415
+
+        return redact_url(value)
+
+    @field_serializer("args", when_used="json")
+    def _serialize_args(self, args: list[str]) -> list[str]:
+        from mcp_audit.analyzers.supply_chain import redact_args  # noqa: PLC0415
+
+        return redact_args([str(arg) for arg in args])
+
+    @field_serializer("raw", when_used="json")
+    def _serialize_raw(self, raw: dict) -> dict:
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_args,
+            redact_url,
+        )
+
+        if not isinstance(raw, dict):
+            return raw
+        out = dict(raw)
+        args = out.get("args")
+        if isinstance(args, list):
+            if all(isinstance(a, str) for a in args):
+                out["args"] = redact_args(args)
+            else:
+                out["args"] = [
+                    redact_args([a])[0] if isinstance(a, str) else a for a in args
+                ]
+        for key in _RAW_LAUNCH_TEXT_KEYS:
+            value = out.get(key)
+            if isinstance(value, str):
+                out[key] = redact_url(value)
+        return _redact_raw_secrets(out)
+
+
+def _redact_raw_secrets(out: dict) -> dict:
+    """Redact the secret-carrying keys of a raw entry in place (STORY-0110).
+
+    ``headers`` (Gemini CLI, Claude, …) and ``http_headers`` (Codex) go
+    through ``supply_chain.redact_header_values``; Codex's retired literal
+    ``bearer_token`` and the OAuth client secret (Codex ``oauth.client_secret``,
+    Gemini CLI ``oauth.clientSecret``) are replaced unless they are only an
+    environment reference.
+    """
+    from mcp_audit.analyzers.credentials import (  # noqa: PLC0415
+        is_header_value_env_only,
+    )
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        REDACTION_MARKER,
+        redact_header_values,
+    )
+
+    def _secret(value: object) -> object:
+        if isinstance(value, str) and value and not is_header_value_env_only(value):
+            return REDACTION_MARKER
+        return value
+
+    for key in _RAW_HEADER_KEYS:
+        if isinstance(out.get(key), dict):
+            out[key] = redact_header_values(out[key])
+    if "bearer_token" in out:
+        out["bearer_token"] = _secret(out["bearer_token"])
+    oauth = out.get("oauth")
+    if isinstance(oauth, dict):
+        oauth = dict(oauth)
+        for key in _RAW_OAUTH_SECRET_KEYS:
+            if key in oauth:
+                oauth[key] = _secret(oauth[key])
+        out["oauth"] = oauth
+    return out
+
+
+#: Keys of a raw server entry holding HTTP headers (``http_headers``: Codex).
+_RAW_HEADER_KEYS: tuple[str, ...] = ("headers", "http_headers")
+
+#: OAuth client-secret spellings: Codex (``client_secret``), Gemini CLI
+#: (``clientSecret``).
+_RAW_OAUTH_SECRET_KEYS: tuple[str, ...] = ("client_secret", "clientSecret")
+
+
+#: Keys of a raw server entry whose string value is a launch command or an
+#: endpoint URL (``serverUrl``: Windsurf; ``httpUrl``: Gemini CLI).
+_RAW_LAUNCH_TEXT_KEYS: tuple[str, ...] = ("command", "url", "serverUrl", "httpUrl")
 
 
 class ToolInfo(BaseModel):

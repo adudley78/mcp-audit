@@ -81,6 +81,10 @@ Confirmed from Gemini CLI's docs and source (google-gemini/gemini-cli,
 ## Limits
 
 - Files over 4 MiB are not read; the scan's errors say so.
+- JSON output redacts header values (`Bearer [REDACTED]`; `${VAR}` references
+  are kept), Codex's `bearer_token` and the OAuth client secret in `raw`, and
+  credentials in launch arguments and URLs (STORY-0108). `env` values are
+  printed as written, as for every client (GAPS.md).
 - `mcp-audit fix` edits JSON only: it refuses Codex's `config.toml` and tells
   you to edit it by hand, and `check` never offers `fix` for it. A Gemini CLI
   `settings.json` with comments is refused too (rewriting it would drop them).

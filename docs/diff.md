@@ -172,6 +172,40 @@ mcp-audit diff HEAD~1 HEAD
 mcp-audit diff $GITHUB_BASE_REF $GITHUB_HEAD_REF
 ```
 
+**Scan files hold redacted launch arguments (since STORY-0108).** A ScanResult
+JSON replaces a credential in a server's `command`, `args` or `url` (URL user
+info such as a database password, or a known token format) with `[REDACTED]`,
+and the value of a secret-named flag that matches no known token format
+(`--password VALUE`, `--api-key=VALUE`) with `[REDACTED-FLAG]`. `diff` counts
+`[REDACTED]` in those fields as a hardcoded credential (CRITICAL) and
+`[REDACTED-FLAG]` as a possible one (HIGH, "Possible credential flag value"),
+so a credential added between two scan files is still reported. Flags named
+for a setting rather than a secret (`--auth-type`, `--keys-dir`,
+`--api-key-file`) and values such as `none`, `oauth`, paths, URLs and `$VAR`
+references are left alone. What a scan file can no longer show:
+
+- **Rotation is invisible.** Two different secrets both read `[REDACTED]`, so
+  replacing one credential with another is not a change between two scan files.
+  Compare directories or git refs to see it.
+- **Scans from before and after the change don't compare cleanly.** A scan file
+  written by an older mcp-audit has the secret in clear; diffing it against a
+  newer one reports the argument as changed. Re-run the older scan, or compare
+  config directories.
+- Comparing a scan file with a directory reports a server whose args hold a
+  credential as modified, because one side is redacted and the other is not.
+  Don't mix the two input kinds: compare two directories (or git refs), or
+  two scan files.
+- User info is redacted when it has a password (`user:pass@`) or when the user
+  name is not a plain account name (a token such as `https://ghp_…@github.com`
+  or `glpat-…@`). A plain account name such as `git@` in
+  `git+ssh://git@github.com/…` is kept and is not a credential.
+- A secret in a URL's query string (`?api_key=…`) is redacted only when it
+  matches a known token format, and a flag value is recognised only as a
+  separate argument, not inside one command string (`"command": "npx x
+  --token abc"`).
+- `--format pr-comment` and the terminal output quote directory and git-ref
+  inputs' arguments as they are in the config files, unredacted.
+
 ## Severity classification
 
 | Severity | Triggers |

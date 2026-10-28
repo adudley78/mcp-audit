@@ -40,6 +40,15 @@ def _has_hardcoded_cred(server: ServerConfig) -> bool:
     return _hc(server)[0]
 
 
+def _possible_flag_cred(server: ServerConfig) -> bool:
+    """True when a scan file redacted a secret-named flag's value (STORY-0108)."""
+    from mcp_audit.diff.comparator import (  # noqa: PLC0415
+        _possible_flag_credential,
+    )
+
+    return _possible_flag_credential(server)
+
+
 def classify_added_server(
     server: ServerConfig,
     base_servers: list[ServerConfig],  # noqa: ARG001
@@ -64,6 +73,8 @@ def classify_added_server(
     """
     if _has_hardcoded_cred(server):
         return Severity.CRITICAL
+    if _possible_flag_cred(server):
+        return Severity.HIGH
 
     caps = tag_server(server)
 
@@ -119,6 +130,13 @@ def classify_modified_server(
     head_hc = _has_hardcoded_cred(head)
     if head_hc and not base_hc:
         return Severity.CRITICAL
+    if (
+        _possible_flag_cred(head)
+        and not _possible_flag_cred(base)
+        and not head_hc
+        and not base_hc
+    ):
+        return Severity.HIGH
 
     # HIGH: new external endpoint
     base_urls = set(_extract_external_urls(base))
