@@ -43,6 +43,17 @@ instruction file you load into your agent on every session.  Published attacks
 | Prompt templates | GitHub Copilot | `.github/prompts/*.prompt.md` |
 | User subagents | Claude Code | `~/.claude/agents/**/*.md` (files with frontmatter) |
 | Project subagents | Claude Code | `.claude/agents/**/*.md` (project, files with frontmatter) |
+| Local memory | Claude Code | `CLAUDE.local.md` (project) |
+| Rules | Claude Code | `~/.claude/rules/**/*.md`, `.claude/rules/**/*.md` (any depth) |
+| AGENTS.md | Codex, Cursor, Copilot, Claude Code 2.1.277+ and other [agents.md](https://agents.md/) readers | `AGENTS.md` in any project directory, `.claude/AGENTS.md` |
+| AGENTS.override.md | Codex | `AGENTS.override.md` in any project directory, `~/.codex/AGENTS.md`, `~/.codex/AGENTS.override.md` |
+| Workspace files | OpenClaw | `~/.openclaw/workspace/{AGENTS,SOUL,USER,MEMORY}.md`; `SOUL.md`, `USER.md`, `MEMORY.md` in any project directory |
+| Heartbeat checklist | OpenClaw | `~/.openclaw/workspace/HEARTBEAT.md`; `HEARTBEAT.md` in any project directory |
+| Imported and referenced files | Claude Code (imports); any agent (references) | whatever the files above pull in; see "Imports and references" |
+
+Every file in the last seven rows, and the `CLAUDE.md` tiers, is a memory
+surface: always loaded, so it gets the conservative MEM-001/002 rule set
+(STORY-0098).
 
 Hook analysis covers `~/.claude.json`, `.claude/settings.json`, and
 `.claude/settings.local.json` (all Claude Code config files that can contain
@@ -96,6 +107,77 @@ Fires on the **restricted** pattern subset for memory:
 
 Exfiltration, cross-tool, and excessive-length patterns are **excluded** to
 control false-positive rate on legitimate project context files.
+
+### MEM-003 (MEDIUM / LOW): import from outside the project, or of an ignored file
+
+A Claude Code `@path` import in a project instruction file (`CLAUDE.md`,
+`.claude/CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/**/*.md`, `AGENTS.md`,
+`.claude/AGENTS.md`, or any file they import) resolves to:
+
+- an existing file **outside the scanned folder**: MEDIUM. Claude Code calls
+  this an external import and asks once per project to approve it; an
+  `AGENTS.md` it reads directly loads it with no prompt once approved. The
+  imported text is not in the repository, so a review never sees it, and it
+  differs on every machine. mcp-audit does not read the target. **LOW** when
+  the target is a Markdown file under `~/.claude/`: Claude Code's memory docs
+  suggest `@~/.claude/my-project-instructions.md` for personal instructions
+  shared across worktrees.
+- a file **matched by `.gitignore`**: MEDIUM. It is normally never committed,
+  so its text reaches every session without appearing in review or `git diff`,
+  and anything that can write it changes the agent's instructions with no
+  trace. Decided from `.gitignore` files alone (git is never run).
+
+"Outside the project" follows Claude Code's own rule, outside the working
+directory the scan was started from. Running from a monorepo subdirectory
+therefore reports `@../../docs/x.md`, which lives in the same repository.
+Parenthesised forms such as `(@~/x.md)` are not imports in Claude Code and are
+not reported. A target that is a network path (`//host/share/x.md`, `/net/…`,
+`/Network/…`) is reported from its text alone: it is never stat-ed or read, so
+a scan cannot trigger an SMB or automount connection. An import written inside
+a file that is itself ignored (for example under `.claude/worktrees/`, which
+the project walk also skips) is not reported as an ignored import. Every cap
+reached (raw `@` tokens, resolved imports per file, reference verbs, the 20
+Markdown files taken from a referenced directory) is listed in the scan's
+errors; the cap counts resolved imports, so a flood of `@user` mentions cannot
+push a real external import out of view.
+
+A missing target produces nothing (Claude Code skips it too). User-scope
+files (`~/.claude/CLAUDE.md`, `~/.claude/rules/`) never produce MEM-003:
+Claude Code loads their imports without a prompt, as your own configuration.
+
+### MEM-004 (HIGH): heartbeat file hides what the agent does
+
+OpenClaw runs `HEARTBEAT.md` on a timer (every 30 minutes by default; the
+default prompt is "Read HEARTBEAT.md if it exists ... If nothing needs
+attention, reply HEARTBEAT_OK") and drops a reply that starts or ends with
+`HEARTBEAT_OK` when at most 300 characters remain. Newer releases use
+`NO_REPLY`, and tool-capable runs `heartbeat_respond` with `notify: false`.
+Agent Commander (Embrace The Red, 2026) wrote a recurring step into
+`HEARTBEAT.md` and kept its result from the owner with exactly these replies.
+
+MEM-004 fires when a non-negated suppression instruction ("reply
+HEARTBEAT_OK", "respond with NO_REPLY", "notify: false"; not "don't just
+reply HEARTBEAT_OK") is:
+
+1. **forced**: always / regardless / no matter / whatever / even if / every
+   time / instead of reporting, with no "nothing to report" condition;
+2. **paired with hiding**: the file also says, with no condition, not to
+   mention / tell / report / reveal *this step*, *it* or *what you did*, or to
+   keep something secret or from the user, or the reply is "so the user does
+   not see"; or the suppression has no condition at all and the file has any
+   unconditional not-to-mention line;
+3. **after an action, unconditionally**: no if / unless / otherwise / when
+   (but "when done" counts as no condition), and the same paragraph orders a
+   run, execute, download, install, upload, forward or transfer, pipes into a
+   shell, or names a URL and says to follow, obey or execute it.
+
+The documented conditional form, quiet-hours rules ("late at night unless
+urgent"), and relevance filters ("don't mention it unless it will rain") stay
+silent. Measured on OpenClaw 2026.6.6's 13 workspace templates, its runtime
+`HEARTBEAT.md` template and its gateway heartbeat page: zero MEM-004 (and
+zero MEM-001/002). Only `HEARTBEAT.md` files are checked. Newer OpenClaw releases no
+longer read `HEARTBEAT.md` at runtime; `openclaw doctor --fix` imports its
+tasks into automation jobs.
 
 ### POISON-041 (HIGH) / POISON-042 (LOW): concealment channels
 
@@ -297,7 +379,7 @@ mcp-audit agent-files discover --project /path/to/repo
 ### Integrated with full scan
 
 ```bash
-# Additive — default scan is byte-identical without this flag
+# Adds the content rules; MEM-003/MEM-004 already run in a default scan
 mcp-audit scan --include-agent-files
 
 # Combined with project-level scan
@@ -305,6 +387,55 @@ mcp-audit scan --project /path/to/repo --include-agent-files
 ```
 
 ---
+
+## Imports and references (STORY-0098)
+
+Instruction files pull other files into the agent's context, and mcp-audit
+follows them:
+
+- **`@path` imports**, as Claude Code documents them
+  ([memory docs](https://code.claude.com/docs/en/memory#import-additional-files)):
+  relative to the importing file; `~/` is your home; absolute paths allowed;
+  the path ends at the first unescaped space (`\ ` escapes one); a quoted
+  path is not an import; code spans, fenced code blocks and HTML comments are
+  skipped; four hops deep. Followed from the Claude Code memory files and
+  `AGENTS.md`, and from every file they import.
+- **Prose references**: an order to read a `.md`/`.mdc`/`.markdown`/`.txt`
+  path or a backticked directory, i.e. read / re-read / load / follow /
+  consult / review / study / obey at the start of a clause, optionally after
+  "always", "first", "you must", "before ...," and the like (Bad Memory's
+  shape: "Read the files in `knowledge/` before recommending anything").
+  "See `x.md`" and a mid-sentence "read more in x.md" are cross-references,
+  not orders, and are not followed: counting "see" pulled 33 ordinary docs
+  into this repository's own scan. Followed from every memory surface,
+  inside the scanned folder only, relative to the file and then to the
+  folder, and never a source of MEM-003 (the agent opens them at its own
+  discretion).
+
+A reached file is scanned with the importing file's rules (MEM-001/002,
+POISON-041/042) and its findings say which file it was reached from; text
+matching a known secret pattern is redacted from them. Where Markdown and
+plain text read an `@` differently, mcp-audit takes the reading that follows
+more (`**@x.md**`, `(@x.md)`, `@x.md.`, an indented code block); every
+candidate must exist as a file before it counts.
+
+Safety rules: nothing is executed or fetched; a target outside the scanned
+folder is never read; a symlink anywhere between the folder and a target
+(the file or a directory on the way) stops the edge and is reported (TRUST-002
+for project files, TRUST-004 for your own); an instruction file that is itself
+a symlink is not followed; each file is read once (cycles end), at most 4 MiB
+of it (the size above which Claude Code skips a memory file); 500 followed
+files / 32 MiB per scan, 5,000 discovered files / 128 MiB, 200 imports and
+references per file. Every limit reached is listed in the scan's `errors`.
+
+**Where it runs:** a default `scan`/`check` reads the instruction files at
+the top of the working directory that Claude Code expands imports in, plus
+`HEARTBEAT.md` there and in `~/.openclaw/workspace` (MEM-003/MEM-004 only; the
+working directory is skipped when it is `$HOME`). `scan --project` does the
+same for every directory of the walk. `scan --include-agent-files` and
+`mcp-audit agent-files scan` also run the content rules on every reached
+file. On the first two paths only a symlink that leaves the folder is
+reported, so the documented `ln -s AGENTS.md CLAUDE.md` raises nothing.
 
 ## Known limitations
 
@@ -321,6 +452,17 @@ mcp-audit scan --project /path/to/repo --include-agent-files
   reads only the current directory's `.claude/agents/`, not the ones between
   it and the repository root (use `--project`); agents passed with `--agents`
   or the SDK are not files and are not seen. See `GAPS.md`.
+- **Imports (STORY-0098)**: `.gitignore` coverage is read from `.gitignore`
+  files under the scanned folder only (not `.git/info/exclude`,
+  `core.excludesFile` or the index), so a force-added file still counts as
+  ignored; matching is case-insensitive. Gemini CLI's own `GEMINI.md` import
+  processor, Cursor `@file` mentions in rules, managed-policy `CLAUDE.md`, and
+  `--add-dir` directories are not followed. OpenClaw workspaces outside
+  `~/.openclaw/workspace` (`OPENCLAW_PROFILE`, `OPENCLAW_WORKSPACE_DIR`,
+  `agents.defaults.workspace`) are not read.
+- **MEM-004** checks `HEARTBEAT.md` only, in English, with the reply tokens
+  OpenClaw documents; NanoClaw scheduled tasks and Claude Code
+  `.claude/scheduled_tasks.json` prompts are not read.
 - **SKILL-004** lists a skill's bundled `scripts/` filenames only — it never
   reads script contents and never executes them. A malicious script that a
   skill's prose merely *references* by name (without the file being present)
@@ -365,3 +507,13 @@ or one of its ancestors, or to a folder with no skill in it, is still
 - CVE-2026-30615 — Claude Code hook injection via config file write
 - CVE-2025-59536 — Claude Code hook section command injection
 - Adversa AI TrustFall (May 2026) — project-level instruction file attacks
+- Bad Memory (arXiv 2607.14611) — payloads in files referenced from
+  CLAUDE.md/AGENTS.md persist across sessions
+- Embrace The Red, "Agent Commander" (2026-03-16) — HEARTBEAT.md command and
+  control with `HEARTBEAT_OK` / `NO_REPLY` suppression
+- [Claude Code memory](https://code.claude.com/docs/en/memory),
+  [agents.md](https://agents.md/),
+  [Codex AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md),
+  [Cursor rules](https://cursor.com/docs/context/rules),
+  [OpenClaw agent workspace](https://docs.openclaw.ai/concepts/agent-workspace),
+  [OpenClaw heartbeat](https://docs.openclaw.ai/gateway/heartbeat)

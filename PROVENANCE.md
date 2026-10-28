@@ -586,6 +586,74 @@ The **new** patterns specific to the agent-file surface are:
    instruction file attacks via freshly-cloned repositories.  Source for the
    `--project` / `--include-agent-files` cloned-repo threat model.
 
+## Instruction-file reach (MEM-003, MEM-004, agent_files/imports.py, gitignore.py, heartbeat.py — STORY-0098)
+
+Every surface, import rule and reply token below was confirmed from the
+vendor's own documentation on 2026-10-25; the incidents and research say why
+each matters. All parsing and detection code is original; fixtures are
+written for this project (no code or fixtures copied from a signal source).
+
+- **Claude Code memory and imports** — [code.claude.com/docs/en/memory](https://code.claude.com/docs/en/memory):
+  `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `~/.claude/CLAUDE.md`,
+  `.claude/rules/**/*.md` and `~/.claude/rules/`; `AGENTS.md` and
+  `.claude/AGENTS.md` read directly from 2.1.277; "Imported files can
+  recursively import other files, with a maximum depth of four hops";
+  relative paths resolve against the importing file; "the path ends at the
+  first space" unless escaped; "A path wrapped in quotes isn't imported at
+  all"; "Import parsing skips Markdown code spans and fenced code blocks";
+  block-level HTML comments are stripped; an import outside the working
+  directory is "external" and needs a one-time approval; user-scope files'
+  imports load without it; "Claude Code skips a file over 4 MiB". The
+  published 2.1.100 npm package (read, never run) agrees on the token rule
+  (`@` at the start or after whitespace, path to the first unescaped
+  whitespace, `#` fragment, accepted starts `./`, `~/`, `/`,
+  `[A-Za-z0-9._-]`) and on skipping comments; MEM-003's import parser is an
+  original implementation of those documented rules.
+- **AGENTS.md** — [agents.md](https://agents.md/) ("the closest one takes
+  precedence"; readers include Codex, Cursor, Copilot, Gemini CLI, Jules, Zed
+  and others); Codex ([AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md):
+  `~/.codex` `AGENTS.override.md` then `AGENTS.md`, project root down to the
+  working directory, one file per directory, `project_doc_max_bytes` 32 KiB,
+  no import syntax); Cursor ([rules](https://cursor.com/docs/context/rules):
+  "AGENTS.md in the project root and subdirectories"); GitHub Copilot
+  ([repository instructions](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions):
+  "one or more AGENTS.md files, stored anywhere within the repository").
+- **OpenClaw workspace** — [agent workspace](https://docs.openclaw.ai/concepts/agent-workspace)
+  (default `~/.openclaw/workspace`; `AGENTS.md`, `SOUL.md`, `USER.md` loaded
+  every session, `MEMORY.md` in the main session, `HEARTBEAT.md` the heartbeat
+  checklist) and [heartbeat](https://docs.openclaw.ai/gateway/heartbeat) as
+  shipped in openclaw 2026.6.6 (`docs/gateway/heartbeat.md`: default `30m`;
+  prompt "Read HEARTBEAT.md if it exists ... If nothing needs attention, reply
+  HEARTBEAT_OK"; "The token is stripped and the reply is dropped if the
+  remaining content is ≤ ackMaxChars (default: 300)"; `heartbeat_respond`
+  with `notify: false`). Current docs: runtime no longer reads `HEARTBEAT.md`;
+  `openclaw doctor --fix` imports it into automation jobs, which "Return
+  NO_REPLY when a check has no visible update".
+- **Agent Commander** (Embrace The Red, 2026-03-16,
+  [embracethered.com](https://embracethered.com/blog/posts/2026/agent-commander-your-agent-works-for-me-now/))
+  — prompt injection wrote a recurring step into `HEARTBEAT.md`; "Responses
+  to the user can be suppressed with HEARTBEAT_OK" and "There is also a
+  NO_REPLY option to suppress info." The write-up does not publish the
+  injected text, so MEM-004's three shapes (forced, paired with hiding, after
+  an action) are derived from the documented reply contract.
+- **Bad Memory** (Gadgil, Alexander, Sunku, Roesner; [arXiv 2607.14611](https://arxiv.org/html/2607.14611))
+  — payloads in files referenced from CLAUDE.md/AGENTS.md ("Read the files in
+  `knowledge/` ... before recommending anything substantive"; "Read this file
+  at the start of every conversation alongside `identity.md`"); Opus left a
+  payload in place 96.7% (same attack) and 93.3% (different attack) of the
+  time; recommends explicit review of changes to CLAUDE.md, AGENTS.md and
+  behaviour files. Source for following prose references and for MEM-003's
+  ignored-file case (instructions that never reach review).
+- **gitignore semantics** — [git-scm.com/docs/gitignore](https://git-scm.com/docs/gitignore)
+  (pattern format, precedence, "It is not possible to re-include a file if a
+  parent directory of that file is excluded"); git 2.32 release notes (a
+  symlinked `.gitignore` is not followed).
+- **Context:** the 2026-10-25 research scan §A8 (Marcus,
+  products/mcp-audit/discovery/briefs/2026-10-25-research-scan.md):
+  AutoRedClaw's inject phase writes AGENTS.md/MEMORY.md/USER.md/SOUL.md (54.7–81.3%
+  on OpenClaw, unverified against the paper); Snyk ToxicSkills advises
+  reviewing `SOUL.md`/`MEMORY.md` for unauthorised changes.
+
 ## Harness posture (HARNESS-001..004, analyzers/config_hygiene.py — STORY-0079)
 
 - **HarnessSecurity-Bench** — Zhu, Huang, Ji et al., "HarnessSecurity-Bench: Do

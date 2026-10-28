@@ -1509,6 +1509,30 @@
       "notes": "Fires on restricted memory pattern subset: POISON-010/011/040/060 only. Exfiltration and length patterns excluded to control FP rate. Severity capped at MEDIUM. CWE-74. Analyzer: agent_files."
     },
     {
+      "finding_id": "MEM-003",
+      "finding_title": "Instruction file imports a file from outside the project / a .gitignore'd file",
+      "owasp_codes": [
+        "MCP10"
+      ],
+      "owasp_names": [
+        "Context Injection and Over-sharing"
+      ],
+      "notes": "Fires when a Claude Code @path import in a project instruction file (CLAUDE.md, .claude/CLAUDE.md, CLAUDE.local.md, .claude/rules/**/*.md, AGENTS.md, .claude/AGENTS.md, or a file they import, up to four hops) resolves to an existing file outside the scanned folder (Claude Code's 'external import', approved once per project; the target is never read) or to a file matched by .gitignore (normally never committed or reviewed; decided from .gitignore files only, git is never run). MEDIUM; LOW for a Markdown file under ~/.claude/ (the personal-instructions import Claude Code's memory docs suggest). Runs in a default scan/check (cwd root), scan --project (tree walk) and the agent-file scan. Source: Bad Memory (arXiv 2607.14611), code.claude.com/docs/en/memory. CWE-829. Analyzer: agent_files (STORY-0098)."
+    },
+    {
+      "finding_id": "MEM-004",
+      "finding_title": "Heartbeat file hides what the agent does",
+      "owasp_codes": [
+        "MCP06",
+        "MCP08"
+      ],
+      "owasp_names": [
+        "Intent Flow Subversion",
+        "Lack of Audit and Telemetry"
+      ],
+      "notes": "Fires on an OpenClaw HEARTBEAT.md (~/.openclaw/workspace or any project directory) that tells the agent to answer with the suppression reply (HEARTBEAT_OK, NO_REPLY, notify: false) unconditionally, while also being told to keep a step from the owner, or straight after running, downloading, installing, uploading, forwarding or transferring something, or after fetching a URL and following it. The documented conditional form ('If nothing needs attention, reply HEARTBEAT_OK') and negated forms stay silent. HIGH. Source: Embrace The Red, Agent Commander (2026-03-16); OpenClaw gateway heartbeat docs. CWE-223. Analyzer: agent_files (STORY-0098)."
+    },
+    {
       "finding_id": "STDIO-002a",
       "finding_title": "Hidden (dotfile) launcher binary",
       "owasp_codes": [

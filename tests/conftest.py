@@ -91,6 +91,11 @@ def _isolate_claude_plugins(
         "mcp_audit.agent_files.skill_package._skills_home",
         lambda: tmp_path_factory.getbasetemp() / "no-skills-home",
     )
+    # A default scan also reads ~/.openclaw/workspace/HEARTBEAT.md (MEM-004,
+    # STORY-0098); keep a contributor's own OpenClaw workspace out of it.
+    monkeypatch.setattr(
+        "mcp_audit.agent_files.reach._user_heartbeat_files", lambda errors: []
+    )
 
 
 @pytest.fixture(autouse=True)

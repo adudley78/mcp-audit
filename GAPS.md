@@ -1086,7 +1086,11 @@ surfaces in `agent_files/discovery.py`: Claude Code commands
 (`~/.claude/skills/**/SKILL.md`, `.claude/skills/**/SKILL.md`, added
 2026-09-08 — see the dedicated section below), Claude Code memory (`CLAUDE.md`
 tiers), Cursor rules (`~/.cursor/rules/`, `.cursor/rules/`), GitHub Copilot
-workspace instructions, scoped instructions, and prompt templates.
+workspace instructions, scoped instructions, and prompt templates; since
+STORY-0098 also `CLAUDE.local.md`, `.claude/rules/`, `AGENTS.md` /
+`AGENTS.override.md` / `.claude/AGENTS.md`, `~/.codex/AGENTS*.md`, OpenClaw
+workspace files, and the files their imports and "read X" references reach
+(see the dedicated section below).
 Hook analysis (`HOOK-001`, `HOOK-002`) extends `ConfigHygieneAnalyzer`.
 Known limitations per finding:
 
@@ -1129,6 +1133,73 @@ discovery or analysis code for unconfirmed paths — add them to
   + MCP07 (Insufficient Auth); MEM-001/002 → MCP03.
 
 ---
+
+### Instruction-file reach: imports, AGENTS.md, OpenClaw files (MEM-003, MEM-004 — STORY-0098)
+
+**Shipped 2026-10-25.** What it does not cover, measured or decided:
+
+- **`.gitignore` only.** MEM-003's "ignored" case reads `.gitignore` files
+  under the scanned folder; `.git/info/exclude`, `core.excludesFile`,
+  `.gitignore` files above the scanned folder and the index are not read, so
+  a force-added (tracked) file still counts as ignored. Matching is
+  case-insensitive (git's default on macOS and Windows; on Linux a
+  differently-cased pattern is reported as ignored when git would not).
+- **External targets must exist on this machine.** An external import whose
+  file is missing here is not reported (Claude Code skips it too), so
+  `@~/.claude/x.md` is machine-dependent and `@/tmp/x.md` planted later is
+  missed until it exists. Chosen over reporting every `@/…` token because
+  bare `@/components/...` path aliases are common in CLAUDE.md prose.
+- **Not followed:** Gemini CLI's `GEMINI.md` and its own `@` import
+  processor; Cursor `@file` mentions in `.mdc` rules (read by the agent on
+  demand, never inlined); managed-policy `CLAUDE.md`; `--add-dir`
+  directories; ancestor `CLAUDE.md` files above the scanned folder; imports
+  out of an instruction file that is itself a symlink (Claude Code resolves
+  them against the link's target); "see X" cross-references (counting "see"
+  pulled 33 ordinary docs into this repository's own scan).
+- **Markdown parsing is approximate.** Fenced blocks (backtick and tilde,
+  up to 3 spaces of indent), code spans per paragraph and complete HTML
+  comments are skipped; indented code blocks, unclosed comments and fences
+  indented inside list items are scanned (the stricter reading). Emphasis,
+  link and parenthesis wrappers and trailing punctuation are tried as
+  variants. Every candidate must exist, which bounds the cost of the
+  stricter reading.
+- **Windows junctions.** A junction is not a symlink to `lstat`, so the walk
+  to an import target does not stop at one. Git cannot create junctions, so a
+  cloned repository cannot plant one; a local one is read as a plain directory.
+- **Markdown parity is measured, not proven.** The masking was compared with
+  the `marked` lexer (gfm off) on about 2,000 random constructs plus this
+  repository's docs: no difference on the docs and the five reported shapes
+  are tests. A random run with deliberately hostile mixes (`<?php ?>`, CDATA,
+  backslash-backtick inside comments inside list items) still found 3 cases of
+  1,000 where an import Claude Code reads is hidden here; none is a shape found
+  in real files. Every other difference over-reports.
+- **MEM-004 hiding never overrides the documented condition.** A suppression
+  sentence that carries its own condition ("if nothing needs attention, reply
+  HEARTBEAT_OK") stays silent whatever else the file says about notifying or
+  keeping things quiet; a file that first hides a step and then adds the
+  condition for a different reason is not reported.
+- **MEM-001 on AGENTS.md:** the POISON-012 branch `do not (mention|tell|…)`
+  fires on ordinary instruction prose. Measured on 10 `AGENTS.md` files in
+  public skill/plugin repositories: 1 MEM-001 (trailofbits/skills, "Do not
+  tell a reviewer to pre-filter"). The same branch already fires on
+  `CLAUDE.md`; STORY-0099 re-measures secrecy directives with a precision gate.
+  POISON-012 itself is unchanged here (its precision/recall fingerprint is
+  pinned by STORY-0088).
+- **MEM-004 scope:** `HEARTBEAT.md` only, English phrasing, the reply tokens
+  OpenClaw documents (`HEARTBEAT_OK`, `NO_REPLY`, `notify: false`). Not read:
+  NanoClaw scheduled tasks (no documented file), Claude Code
+  `.claude/scheduled_tasks.json` prompts (TRUST-008 names the file), OpenClaw
+  `BOOT.md`, suppression instructions placed in `AGENTS.md` instead of the
+  heartbeat file, and OpenClaw workspaces outside `~/.openclaw/workspace`
+  (`OPENCLAW_PROFILE`, `OPENCLAW_WORKSPACE_DIR`, `agents.defaults.workspace`).
+  Nanobot also documents a heartbeat file; not added until a primary source
+  is confirmed. Measured on OpenClaw 2026.6.6's 13 workspace templates and
+  its heartbeat docs: zero MEM-004 and zero MEM-001/002.
+- **Version facts are not read from the machine.** Claude Code reads
+  `AGENTS.md` directly only from 2.1.277 and only when no `CLAUDE.md` is
+  present (or the setting says both); MEM-003 on an `AGENTS.md` import is
+  reported regardless, since an `@AGENTS.md` import or a later setting change
+  loads it.
 
 ### Windsurf — skill/memory/hook files
 
