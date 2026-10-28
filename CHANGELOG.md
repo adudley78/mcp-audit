@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The weekly registry advisory check now hands over the proposed malicious-package list too (STORY-0109).** When `registry-advisory-sync.yml` fails, its artifact used to carry only the proposed `known-servers.json`; the proposed `known-malicious.json` (the OSV `MAL-*` mirror behind SC-008 and `vet`) was listed by name in the job summary but never uploaded, so a reviewer could not see the records before running `--write`. The job now passes `--malicious-out`, uploads both files, and its read-only guard checks that neither committed file changed. Permissions and secrets are unchanged.
+
 ---
 
 ## [0.22.0] - 2026-10-27
