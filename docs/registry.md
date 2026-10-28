@@ -88,6 +88,7 @@ Each entry follows this schema:
 | `last_verified` | ISO date | Date the entry was last reviewed |
 | `known_versions` | list | Pinned versions (empty = all versions accepted) |
 | `tags` | list | Descriptive labels, e.g. `official`, `database`, `remote` |
+| `semver_resumed_at` | string \| null | Optional (STORY-0105). The first semantic version a package released after it used calendar versions, e.g. `"1.0.0"` for `@modelcontextprotocol/server-filesystem` (0.6.2, then 2025.1.14 … 2026.8.31, then 1.0.0 on 2026-10-11). SC-004 uses it to order a pin against a fix recorded in the other scheme. Set it only from the package registry's own publish times. |
 
 ## Current Coverage
 

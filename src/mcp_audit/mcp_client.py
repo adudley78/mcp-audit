@@ -239,48 +239,53 @@ async def _enumerate_stdio(
     # (b) we can surface it in --verbose mode.
     # We use a TemporaryFile (real fd) because asyncio's subprocess machinery
     # requires an object with a valid fileno().
-    captured_stderr: str | None = None
+    raw_stderr: bytes = b""
+    failure: Exception | None = None
+    result: ServerEnumeration | None = None
     with tempfile.TemporaryFile(mode="w+b") as stderr_buf:
         try:
-            async with (
-                stdio_client_fn(params, errlog=stderr_buf) as (read, write),
-                client_session_cls(read, write) as session,
-            ):
-                result = await _collect(session)
-        except TypeError:
-            # SDK version does not support the errlog parameter — fall back to
-            # capturing via StdioServerParameters.stderr when available, otherwise
-            # accept that stderr may briefly appear in the terminal.
-            try:
-                import subprocess  # noqa: PLC0415
+            result = await _run_stdio_session(
+                server,
+                env,
+                params,
+                params_cls,
+                client_session_cls,
+                stdio_client_fn,
+                stderr_buf,
+            )
+        except Exception as exc:  # noqa: BLE001
+            # A server that dies during the handshake surfaces here, wrapped
+            # in anyio's TaskGroup ExceptionGroup (Q-014).  Keep it, so the
+            # captured stderr below can say why.
+            failure = exc
+        finally:
+            # Read whatever the subprocess wrote to stderr (may be empty),
+            # also when the handshake failed: that is when it matters most.
+            raw_stderr = _read_stderr_tail(stderr_buf)
 
-                params_with_pipe = params_cls(
-                    command=server.command,
-                    args=server.args,
-                    env=env,
-                    stderr=subprocess.PIPE,
-                )
-                async with (
-                    stdio_client_fn(params_with_pipe) as (read, write),
-                    client_session_cls(read, write) as session,
-                ):
-                    result = await _collect(session)
-            except Exception:  # noqa: BLE001
-                # Last resort: call without any stderr override.
-                async with (
-                    stdio_client_fn(params) as (read, write),
-                    client_session_cls(read, write) as session,
-                ):
-                    result = await _collect(session)
+    captured_stderr = (
+        redact_server_text(
+            raw_stderr.decode("utf-8", errors="replace").strip(),
+            server.env.values(),
+            server.args,
+        )
+        if raw_stderr
+        else None
+    )
 
-        # Read whatever the subprocess wrote to stderr (may be empty).
-        try:
-            stderr_buf.seek(0)
-            raw_bytes = stderr_buf.read()
-            if raw_bytes:
-                captured_stderr = raw_bytes.decode("utf-8", errors="replace").strip()
-        except Exception:  # noqa: BLE001, S110
-            pass
+    if failure is not None or result is None:
+        reason = (
+            redact_server_text(
+                describe_exception(failure), server.env.values(), server.args
+            )
+            if failure is not None
+            else "no result"
+        )
+        error = f"Enumeration failed: {reason}"
+        last = _last_line(captured_stderr)
+        if last:
+            error += f" (server stderr: {last})"
+        return ServerEnumeration(error=error, server_stderr=captured_stderr or None)
 
     return ServerEnumeration(
         tools=result.tools,
@@ -290,6 +295,153 @@ async def _enumerate_stdio(
         server_stderr=captured_stderr or None,
         tools_error=result.tools_error,
     )
+
+
+async def _run_stdio_session(
+    server: ServerConfig,
+    env: dict[str, str],
+    params: Any,
+    params_cls: Any,
+    client_session_cls: Any,
+    stdio_client_fn: Any,
+    stderr_buf: Any,
+) -> ServerEnumeration:
+    """Open the stdio session (with the SDK-version fallbacks) and collect."""
+    try:
+        async with (
+            stdio_client_fn(params, errlog=stderr_buf) as (read, write),
+            client_session_cls(read, write) as session,
+        ):
+            return await _collect(session)
+    except TypeError:
+        # SDK version does not support the errlog parameter — fall back to
+        # capturing via StdioServerParameters.stderr when available, otherwise
+        # accept that stderr may briefly appear in the terminal.
+        try:
+            import subprocess  # noqa: PLC0415
+
+            params_with_pipe = params_cls(
+                command=server.command,
+                args=server.args,
+                env=env,
+                stderr=subprocess.PIPE,
+            )
+            async with (
+                stdio_client_fn(params_with_pipe) as (read, write),
+                client_session_cls(read, write) as session,
+            ):
+                return await _collect(session)
+        except Exception:  # noqa: BLE001
+            # Last resort: call without any stderr override.
+            async with (
+                stdio_client_fn(params) as (read, write),
+                client_session_cls(read, write) as session,
+            ):
+                return await _collect(session)
+
+
+# Most server stderr kept for an error message or --verbose (the tail: the
+# reason a server exits is usually its last words).
+_MAX_STDERR_BYTES = 64 * 1024
+# Longest stderr line quoted inside a connect error message.
+_MAX_STDERR_LINE = 300
+_REDACTED = "[REDACTED]"
+# An env value shorter than this is not redacted by value: "1", "true" or
+# "dev" would blank out ordinary words.  Real secrets are longer.
+_MIN_REDACTED_ENV_VALUE = 8
+
+
+def _read_stderr_tail(stderr_buf: Any) -> bytes:
+    """Return at most the last ``_MAX_STDERR_BYTES`` written to *stderr_buf*."""
+    try:
+        size = stderr_buf.seek(0, os.SEEK_END)
+        stderr_buf.seek(max(0, size - _MAX_STDERR_BYTES))
+        data = stderr_buf.read()
+    except (OSError, ValueError):
+        return b""
+    return data if isinstance(data, bytes) else b""
+
+
+def describe_exception(exc: BaseException) -> str:
+    """Return a readable message for *exc*, unwrapping exception groups.
+
+    The MCP SDK runs the stdio transport in an anyio TaskGroup, so a server
+    that exits during the handshake reaches us as "unhandled errors in a
+    TaskGroup (1 sub-exception)" (Q-014).  The first leaf exception is the
+    one that says what happened.
+
+    Args:
+        exc: The exception raised while connecting.
+
+    Returns:
+        ``"<Type>: <message>"`` for the first non-group exception, or just
+        the type name when it has no message.
+    """
+    leaf: BaseException = exc
+    for _ in range(32):  # groups nest; never loop on a pathological chain
+        if isinstance(leaf, BaseExceptionGroup) and leaf.exceptions:
+            leaf = leaf.exceptions[0]
+        else:
+            break
+    message = str(leaf).strip()
+    return f"{type(leaf).__name__}: {message}" if message else type(leaf).__name__
+
+
+def redact_server_text(
+    text: str, env_values: Any = (), args: list[str] | None = None
+) -> str:
+    """Redact secrets from text a server process produced (stderr, errors).
+
+    Server output is shown to the user and written into scan results, and a
+    server that fails to start often prints the value it rejected.  Passes,
+    each linear: the server's own secrets first, by value (every ``env``
+    value and every value of a secret-named flag in its ``args``,
+    ``supply_chain.secret_arg_values``, at least ``_MIN_REDACTED_ENV_VALUE``
+    characters long), so a pattern match cannot leave part of one behind;
+    then every ``SECRET_PATTERNS`` match; then the userinfo of every
+    ``scheme://user:pass@host`` on each line.
+
+    Args:
+        text: The text to clean.
+        env_values: The values of the server's configured ``env``.
+        args: The server's launch arguments.
+
+    Returns:
+        The text with secrets replaced by ``[REDACTED]``.
+    """
+    # Imported lazily: the analyzers are not otherwise needed by the client.
+    from mcp_audit.analyzers.credentials import SECRET_PATTERNS  # noqa: PLC0415
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        _redact_userinfo,
+        secret_arg_values,
+    )
+
+    candidates = [v for v in env_values if isinstance(v, str)]
+    candidates.extend(secret_arg_values(list(args or [])))
+    values = sorted(
+        {v for v in candidates if len(v) >= _MIN_REDACTED_ENV_VALUE},
+        key=len,
+        reverse=True,
+    )
+    cleaned = text
+    for value in values:
+        cleaned = cleaned.replace(value, _REDACTED)
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        cleaned = pattern.sub(_REDACTED, cleaned)
+    return "\n".join(_redact_userinfo(line) for line in cleaned.split("\n"))
+
+
+def _last_line(text: str | None) -> str:
+    """Return the last non-empty line of *text*, truncated for an error message."""
+    if not text:
+        return ""
+    for line in reversed(text.splitlines()):
+        line = line.strip()
+        if line:
+            if len(line) > _MAX_STDERR_LINE:
+                return line[:_MAX_STDERR_LINE] + "..."
+            return line
+    return ""
 
 
 async def _enumerate_sse(

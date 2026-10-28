@@ -574,6 +574,27 @@ record gives `fixed_in` for a CVE, that CVE is dropped if the pinned version is 
 or above the fix.  If every CVE is dropped, no SC-004 fires.  A CVE with no
 `fixed_in`, or a version that won't parse, is kept.
 
+**Across a numbering-scheme switch** (STORY-0105).  Some packages switch between
+calendar and semantic versions: `@modelcontextprotocol/server-filesystem` published
+`0.6.2` (2024-12), then `2025.1.14` … `2026.8.31`, then `1.0.0` on 2026-10-11 and
+`2.0.0` on 2026-10-19 (npm `time` field).  Numerically `2.0.0` is below the recorded
+fix `2025.7.1`, although it was published fifteen months later.  When a pinned
+version and a CVE's `fixed_in` are in different schemes (one has a first number of
+1000 or more, the other doesn't):
+
+- if the registry entry records `semver_resumed_at` (the first semantic version after
+  the calendar releases; `1.0.0` for server-filesystem), a semantic pin below it is
+  affected (SC-004 HIGH: `0.6.2`), and one at or above it is past the fix (no
+  finding: `2.0.0`).  A calendar pin against a semantic fix is ordered the same way.
+- without it, a `0.x` semantic pin against a calendar fix is affected (SC-004 HIGH,
+  as before: `mcp-server-git==0.6.2`); any other cross-scheme pair is undecidable and
+  reported as **SC-009 (INFO)**, listing the advisories and how to compare release
+  dates (`npm view <pkg> time`).  If other CVEs are still affected, SC-004 stays HIGH
+  for them and names the set-aside ones.
+
+The registry carries no publish dates, so without `semver_resumed_at` an offline scan
+cannot decide the order; `--check-vulns` (OSV.dev, network) can.
+
 **What it still can't do:** mcp-audit never resolves ranges, so a range
 (`pkg@^1.4.0`, `pkg>=0.21`) or no version at all is treated as unpinned and every
 recorded CVE is reported.  Use `scan --check-vulns` for a network lookup against

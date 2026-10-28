@@ -166,6 +166,22 @@ match:
 
 This fires for every server whose command is **not** `node`.
 
+A negated condition reports the whole field it inspected as `{matched_value}`.
+When that field can carry secrets or per-host text (launch `args`, `env`), add
+`report:` with a fixed label to report instead (STORY-0105; COMM-010 does this):
+
+```yaml
+- field: args
+  pattern: '^(?:-\S*\s+)*\S+@\d+\.\d+\.\d+(?:\s|$)'
+  type: regex
+  negate: true
+  report: "first package argument has no exact version"
+```
+
+Matched values are also redacted before they reach a finding (URL userinfo,
+values of `--api-key`/`--token`-style flags, `SECRET_PATTERNS`), but a label keeps
+paths and other host-specific text out of findings and advisories too.
+
 ---
 
 ## Compound rules
@@ -247,8 +263,10 @@ exempt_known_servers: true
 
 When the rule engine is constructed with a registry (the default scan
 pipeline does this automatically), servers whose `command`, any `arg`, or
-`server_name` matches a registry entry are skipped **before** match
-evaluation. Servers that do not resolve to a registry entry still evaluate
+`server_name` matches a registry entry, or whose launch command installs a
+registry package (`npx -y @scope/name@1.2.3`, `uvx pkg==1.0`, resolved by
+`supply_chain.resolve_launch_entry`, the same resolver TRANSPORT-003 uses), are
+skipped **before** match evaluation. Servers that do not resolve to a registry entry still evaluate
 against the rule normally.
 
 Use this when:

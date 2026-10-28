@@ -1,17 +1,34 @@
 id: COMM-010
 name: npx used without pinned version
 description: >
-  Server uses npx as its binary without a pinned package version. npx without
-  a version pin fetches the latest published package on every execution, which
-  is a supply chain risk — a malicious publisher can push a new version that
-  executes with MCP client permissions.
+  Server uses npx as its binary and the package it runs (the first argument
+  that is not a flag) carries no exact version, e.g. `npx -y pkg` or
+  `npx -y pkg@^1.2.0` rather than `npx -y pkg@1.2.3`.  npx without an exact
+  version pin fetches whatever the registry resolves on each execution,
+  which is a supply chain risk: a malicious publisher can push a new version
+  that executes with MCP client permissions.  An exact pin
+  (`pkg@1.2.3` or `@scope/pkg@1.2.3`, optionally with a pre-release or build
+  suffix) does not fire.  Before STORY-0105 this rule matched every npx server,
+  pinned or not (top-100 npm scan, queue item Q-011).
 severity: LOW
 category: supply-chain
 match:
-  field: command
-  pattern: "npx"
-  type: exact
-message: "Server '{server_name}' uses npx without a pinned version — supply chain risk"
+  operator: and
+  conditions:
+    - field: command
+      pattern: "npx"
+      type: exact
+    # Fire when the first non-flag argument is NOT an exact pin.  Anchored at
+    # the start of the space-joined args; each flag token is consumed once,
+    # so the match is linear in the argument length.
+    - field: args
+      pattern: '^(?:-\S*\s+)*(?:@[A-Za-z0-9._~-]+/)?[A-Za-z0-9._~-]+@\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?(?:\s|$)'
+      type: regex
+      negate: true
+      # Report a fixed label, not the arguments: they can carry tokens and
+      # home paths that must not reach findings or the advisory feed.
+      report: "first package argument has no exact version"
+message: "Server '{server_name}' runs a package with npx without an exact version pin — supply chain risk"
 tags:
   - supply-chain
 enabled: true
