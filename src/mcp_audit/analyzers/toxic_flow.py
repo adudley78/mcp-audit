@@ -109,6 +109,12 @@ class KeywordRule:
 
     keywords: tuple[str, ...]
     capabilities: frozenset[Capability]
+    # When True, args that look like a local path or a connection string are
+    # left out of the text searched (STORY-0101): a directory such as
+    # /Users/dev/code/discord-bot or a database such as
+    # postgres://localhost/webhooks names the user's own data, not what the
+    # server does.
+    skip_path_args: bool = False
 
 
 # ── Known server registry ─────────────────────────────────────────────────────
@@ -170,6 +176,36 @@ KNOWN_SERVERS: dict[str, frozenset[Capability]] = {
 # whose package name or server name contains "postgres".  Verified 2026-04-23:
 #   r.get("@modelcontextprotocol/server-postgres").capabilities == ["database"]
 #   r.get("mcp-server-postgres") is None  →  keyword "postgres" fires instead
+
+
+def _anchored_platform_keywords(*names: str) -> tuple[str, ...]:
+    """Return anchored search forms for platform *names* (STORY-0101).
+
+    A bare substring such as ``slack`` matches ``blackslack`` and any path or
+    database name containing it.  Each name is instead matched as a whole
+    token (``" slack "``) or as a package-name fragment (``slack-mcp``,
+    ``mcp-slack``, ``server-slack``, ``@scope/slack``).
+    """
+    out: list[str] = []
+    for n in names:
+        out.extend((f" {n} ", f"{n}-mcp", f"mcp-{n}", f"server-{n}", f"/{n} "))
+    return tuple(out)
+
+
+def _looks_like_path_or_uri(arg: str) -> bool:
+    """Return True when *arg* is a local path or a connection string."""
+    value = arg.split("=", 1)[1] if arg.startswith("-") and "=" in arg else arg
+    if "://" in value:
+        return True
+    if value.startswith(("/", "~", ".", "\\")):
+        return True
+    return (
+        len(value) > 2
+        and value[0].isalpha()
+        and value[1] == ":"
+        and (value[2] in "\\/")
+    )
+
 
 KEYWORD_RULES: list[KeywordRule] = [
     KeywordRule(
@@ -272,26 +308,31 @@ KEYWORD_RULES: list[KeywordRule] = [
             " bitbucket ",
             "bitbucket-mcp",
             "mcp-bitbucket",
-            "atlassian",
-            "confluence",
             " jira ",
             "jira-mcp",
             "mcp-jira",
-            "azure-devops",
-            "slack",
-            "discord",
-            "telegram",
-            "mattermost",
-            "rocketchat",
-            "msteams",
-            "ms-teams",
+            "@azure-devops/",
             "teams-mcp",
             "mcp-teams",
-            "webhook",
-            "twitter",
-            "tweet",
-            "mastodon",
-            "bluesky",
+            # Platform names are anchored: the whole token, or a package-name
+            # fragment (<name>-mcp, mcp-<name>, server-<name>).
+            *_anchored_platform_keywords(
+                "atlassian",
+                "confluence",
+                "azure-devops",
+                "slack",
+                "discord",
+                "telegram",
+                "mattermost",
+                "rocketchat",
+                "msteams",
+                "ms-teams",
+                "webhook",
+                "twitter",
+                "tweet",
+                "mastodon",
+                "bluesky",
+            ),
             "add_issue_comment",
             "create_issue",
             "create_pull_request",
@@ -303,6 +344,7 @@ KEYWORD_RULES: list[KeywordRule] = [
             "add_comment",
         ),
         capabilities=frozenset({Capability.COMMS_OUT}),
+        skip_path_args=True,
     ),
 ]
 
@@ -438,10 +480,13 @@ TOXIC_PAIRS: list[ToxicPair] = [
     # ── COMMS_OUT sinks (STORY-0101) ──────────────────────────────────────
     # The same four sources as TOXIC-001/003/005/006, with a sink that posts
     # to a shared destination instead of making an arbitrary request. All
-    # four are CRITICAL; the measurement and the reasoning (published,
-    # confirmed attacks through exactly this sink; egress allowlists don't
-    # apply; the attacker reads the result without running anything) are in
-    # docs/severity-framework.md and GAPS.md "comms_out (STORY-0101)".
+    # four are CRITICAL only where shell execution or a credential store is
+    # involved (TOXIC-009, TOXIC-011); TOXIC-008 and TOXIC-010 are HIGH, the
+    # same as TOXIC-001/005, because the published attacks through this
+    # sink class are mostly single-server and a developer machine has no
+    # egress allowlist for the sink to get around. The measurement and the
+    # reasoning are in docs/severity-framework.md and GAPS.md
+    # "comms_out (STORY-0101)".
     # Registry entries that already declared NETWORK_OUT keep it, so on those
     # servers a TOXIC-008..011 finding is reported beside its TOXIC-001/003/
     # 005/006 twin for the same server pair, the way TOXIC-004 and INTEG-001
@@ -453,7 +498,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
         source=Capability.FILE_READ,
         sink=Capability.COMMS_OUT,
         finding_id="TOXIC-008",
-        severity=Severity.CRITICAL,
+        severity=Severity.HIGH,
         title="File read + comms posting exfiltration path",
         description=(
             "One server can read local files while another can post to a "
@@ -470,7 +515,8 @@ TOXIC_PAIRS: list[ToxicPair] = [
             "them: restrict the file server to the directories the task needs "
             "and scope the posting server's token to the repositories or "
             "channels it must write to (for GitHub, a fine-grained token "
-            "without access to private repositories)."
+            "without access to private repositories, or the server's "
+            "--read-only mode / GITHUB_READ_ONLY=1 where it has one)."
         ),
         cwe="CWE-200",
         owasp_mcp_top_10=("MCP05", "MCP10"),
@@ -499,7 +545,7 @@ TOXIC_PAIRS: list[ToxicPair] = [
         source=Capability.DATABASE,
         sink=Capability.COMMS_OUT,
         finding_id="TOXIC-010",
-        severity=Severity.CRITICAL,
+        severity=Severity.HIGH,
         title="Database access + comms posting exfiltration path",
         description=(
             "One server can query databases while another can post to a "
@@ -817,15 +863,22 @@ def tag_server(
             caps.update(KNOWN_SERVERS[token])
 
     # Layer 2 — keyword matching on the full token string.
-    search_text = (
-        " "
-        + " ".join(
-            t for t in [server.command or "", server.name, *server.args] if t
-        ).lower()
-        + " "
-    )
+    def _text(skip_paths: bool) -> str:
+        args = [
+            a for a in server.args if not (skip_paths and _looks_like_path_or_uri(a))
+        ]
+        return (
+            " "
+            + " ".join(
+                t for t in [server.command or "", server.name, *args] if t
+            ).lower()
+            + " "
+        )
+
+    texts = {False: _text(False), True: _text(True)}
 
     for rule in KEYWORD_RULES:
+        search_text = texts[rule.skip_path_args]
         for kw in rule.keywords:
             if kw in search_text:
                 caps.update(rule.capabilities)

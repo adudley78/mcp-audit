@@ -1133,6 +1133,95 @@ class TestCommsOutKeywords:
         caps = tag_server(_server("local-tools", command="node", args=args))
         assert Capability.COMMS_OUT not in caps
 
+    _PLATFORMS = (
+        "slack",
+        "discord",
+        "telegram",
+        "webhook",
+        "twitter",
+        "tweet",
+        "mattermost",
+        "rocketchat",
+        "msteams",
+        "atlassian",
+        "confluence",
+        "azure-devops",
+        "mastodon",
+        "bluesky",
+    )
+
+    @pytest.mark.parametrize("platform", _PLATFORMS)
+    def test_platform_name_in_a_path_arg_is_silent(self, platform: str) -> None:
+        """A directory named after a platform is the user's data, not a poster."""
+        for arg in (
+            f"/Users/dev/code/{platform}-bot",
+            f"~/projects/{platform}",
+            f"./{platform}-notes",
+            f"C:\\Users\\dev\\{platform}",
+            f"--root=/srv/{platform}",
+        ):
+            caps = tag_server(_server("srv", args=["-y", "some-tool", arg]))
+            assert Capability.COMMS_OUT not in caps, arg
+
+    @pytest.mark.parametrize("platform", _PLATFORMS)
+    def test_platform_name_in_a_db_name_is_silent(self, platform: str) -> None:
+        for arg in (
+            f"postgres://localhost/{platform}",
+            f"--connection-string=mysql://u@h/{platform}s",
+            f"sqlite:///data/{platform}.db",
+        ):
+            caps = tag_server(
+                _server(
+                    "db",
+                    args=["-y", "@modelcontextprotocol/server-postgres", arg],
+                )
+            )
+            assert Capability.COMMS_OUT not in caps, arg
+
+    def test_pinned_filesystem_with_platform_named_directory_is_silent(
+        self,
+    ) -> None:
+        """No registry hit on a pinned launch, so heuristics run: the
+        directory argument must not make the file server a poster."""
+        server = _server(
+            "fs",
+            args=[
+                "-y",
+                "@modelcontextprotocol/server-filesystem@2025.1.14",
+                "/Users/dev/code/discord-bot",
+            ],
+        )
+        findings = ToxicFlowAnalyzer().analyze_all([server, _gitlab()])
+        assert Capability.COMMS_OUT not in tag_server(server)
+        # The only comms pair possible here would be fs + gitlab (TOXIC-008),
+        # which is correct; the fs server itself must not self-pair.
+        assert not [f for f in findings if f.server == "fs"]
+
+    def test_platform_named_database_gives_no_attack_path(self) -> None:
+        """summarize_attack_paths tags with no registry; a database called
+        'webhooks' must not become a CRITICAL/HIGH comms path."""
+        from mcp_audit.analyzers.attack_paths import summarize_attack_paths
+
+        db = _server(
+            "db",
+            args=[
+                "-y",
+                "@modelcontextprotocol/server-postgres",
+                "postgres://localhost/webhooks",
+            ],
+        )
+        findings = ToxicFlowAnalyzer().analyze_all([db])
+        summary = summarize_attack_paths([db], findings)
+        assert [p for p in summary.paths if p.sink_capability == "comms_out"] == []
+        assert not [f for f in findings if f.id.startswith("TOXIC-0")]
+
+    @pytest.mark.parametrize("platform", _PLATFORMS)
+    def test_platform_substring_inside_other_word_is_silent(
+        self, platform: str
+    ) -> None:
+        caps = tag_server(_server("srv", args=["-y", f"xx{platform}yy-tool"]))
+        assert Capability.COMMS_OUT not in caps
+
     def test_github_path_still_implies_git(self) -> None:
         """The GIT keyword rule is unchanged by the COMMS_OUT rule."""
         caps = tag_server(
@@ -1196,6 +1285,14 @@ class TestCommsOutKeywords:
         assert Capability.COMMS_OUT not in tag_server(server)
 
 
+_COMMS_SEVERITY = {
+    "TOXIC-008": Severity.HIGH,
+    "TOXIC-009": Severity.CRITICAL,
+    "TOXIC-010": Severity.HIGH,
+    "TOXIC-011": Severity.CRITICAL,
+}
+
+
 class TestCommsOutPairs:
     """TOXIC-008..011: a data source next to a server that posts somewhere shared."""
 
@@ -1215,7 +1312,7 @@ class TestCommsOutPairs:
         hits = [f for f in findings if f.id == finding_id]
         assert len(hits) == 1
         f = hits[0]
-        assert f.severity == Severity.CRITICAL
+        assert f.severity == _COMMS_SEVERITY[finding_id]
         assert f.analyzer == "toxic_flow"
         assert f.server == f"{source().name} + gitlab"
         assert "'comms_out'" in f.evidence
@@ -1294,7 +1391,7 @@ class TestCommsPairsDefinition:
             tp = by_id[finding_id]
             assert tp.source == source
             assert tp.sink == Capability.COMMS_OUT
-            assert tp.severity == Severity.CRITICAL
+            assert tp.severity == _COMMS_SEVERITY[finding_id]
 
     def test_comms_pairs_live_in_toxic_pairs_not_integrity_pairs(self) -> None:
         assert not any(tp.sink == Capability.COMMS_OUT for tp in INTEGRITY_PAIRS)
@@ -1318,3 +1415,38 @@ class TestCommsPairsDefinition:
         assert not any(
             t.capability == Capability.COMMS_OUT for t in KNOWN_TAG_ONLY_CAPABILITIES
         )
+
+
+class TestOfficialServersFixtureStaysBelowCritical:
+    """scripts/smoke_test.py check 5 scans this fixture at the critical
+    threshold and expects exit 0; filesystem + github is TOXIC-008 at HIGH."""
+
+    def test_official_fixture_has_comms_pair_but_no_critical(self) -> None:
+        import json as _json
+
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        fixture = (
+            Path(__file__).parent
+            / "fixtures"
+            / "real_servers"
+            / "official_mcp_servers.json"
+        )
+        res = CliRunner().invoke(
+            app, ["scan", "--path", str(fixture), "--format", "json"]
+        )
+        data = _json.loads(res.stdout[res.stdout.index("{") :])
+        by_id = {f["id"]: f["severity"].upper() for f in data["findings"]}
+        assert by_id.get("TOXIC-008") == "HIGH"
+        assert "CRITICAL" not in {
+            f["severity"].upper()
+            for f in data["findings"]
+            if f["id"].startswith("TOXIC-")
+        }
+        crit = CliRunner().invoke(
+            app,
+            ["scan", "--path", str(fixture), "--severity-threshold", "critical"],
+        )
+        assert crit.exit_code == 0

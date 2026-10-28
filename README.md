@@ -415,9 +415,9 @@ Server A reads files. Server B makes HTTP requests. Neither is malicious alone â
 | TOXIC-005 | Database access + outbound network | HIGH |
 | TOXIC-006 | Shell execution + outbound network | CRITICAL |
 | TOXIC-007 | Git repository access + outbound network | MEDIUM |
-| TOXIC-008 | File read + posting to a shared service (issue/PR comment, git push, chat) | CRITICAL |
+| TOXIC-008 | File read + posting to a shared service (issue/PR comment, git push, chat) | HIGH |
 | TOXIC-009 | Secret store access + posting to a shared service | CRITICAL |
-| TOXIC-010 | Database access + posting to a shared service | CRITICAL |
+| TOXIC-010 | Database access + posting to a shared service | HIGH |
 | TOXIC-011 | Shell execution + posting to a shared service | CRITICAL |
 | INTEG-001 | File write + shell execution ("plant-then-execute") | HIGH |
 
@@ -490,7 +490,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research â€” no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-5,960 tests validate detection accuracy and guard against regressions.
+6,105 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -716,7 +716,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 5,960 tests
+uv run pytest                        # Run all 6,105 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

@@ -149,8 +149,8 @@ Risk is scored per-server against single-server toxic flow pairs:
 
 | Risk | Example |
 |------|---------|
-| `CRITICAL` | `shell_exec + network_out`, `secrets + network_out`, or `file_read`, `secrets`, `database` or `shell_exec` + `comms_out` (a server that posts to a shared service, e.g. `mcp-atlassian`) |
-| `HIGH` | `database + network_out`, `file_read + network_out` |
+| `CRITICAL` | `shell_exec + network_out`, `secrets + network_out`, or `secrets` or `shell_exec` + `comms_out` (a server that posts to a shared service) |
+| `HIGH` | `database + network_out`, `file_read + network_out`, `file_read` or `database` + `comms_out` |
 | `MEDIUM` | `git + network_out` |
 | `LOW` | Capabilities present, no toxic pair |
 | `INFO` | Registry-verified server with no capabilities |

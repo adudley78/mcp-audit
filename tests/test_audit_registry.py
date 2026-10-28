@@ -331,7 +331,7 @@ class TestUndeclaredCapabilities:
         # STORY-0101: the reference Slack server declared only network_out.
         # The comms keyword rule now infers comms_out from "slack", so the
         # pre-change entry is exactly what this check must catch.
-        entries = [{**_entry("acme-slack-bridge"), "capabilities": ["network_out"]}]
+        entries = [{**_entry("@acme/slack-mcp"), "capabilities": ["network_out"]}]
         hits = mod.find_undeclared_capabilities(entries)
         assert len(hits) == 1
         assert hits[0]["missing"] == ["comms_out"]

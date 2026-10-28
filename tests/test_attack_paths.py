@@ -494,9 +494,12 @@ class TestCommsOutInAttackGraph:
         assert (Capability.GIT, Capability.COMMS_OUT) not in CAPABILITY_FLOWS
         assert (Capability.BROWSER, Capability.COMMS_OUT) not in CAPABILITY_FLOWS
 
-    def test_path_severity_file_to_comms_is_critical(self) -> None:
+    def test_path_severity_comms_follows_the_pair_severity(self) -> None:
         assert (
-            _path_severity(Capability.FILE_READ, Capability.COMMS_OUT)
+            _path_severity(Capability.FILE_READ, Capability.COMMS_OUT) == Severity.HIGH
+        )
+        assert (
+            _path_severity(Capability.SHELL_EXEC, Capability.COMMS_OUT)
             == Severity.CRITICAL
         )
 
@@ -504,28 +507,27 @@ class TestCommsOutInAttackGraph:
         """A graph endpoint pair with no TOXIC pair uses the sink heuristic."""
         assert _path_severity(Capability.GIT, Capability.COMMS_OUT) == Severity.HIGH
 
-    def test_filesystem_and_gitlab_give_a_critical_comms_path(self) -> None:
+    def test_filesystem_and_gitlab_give_a_high_comms_path(self) -> None:
         servers = [_filesystem_server(), _gitlab_server()]
         findings = ToxicFlowAnalyzer().analyze_all(servers)
         summary = summarize_attack_paths(servers, findings)
         path = next(p for p in summary.paths if p.hops == ["filesystem", "gitlab"])
-        assert path.severity == Severity.CRITICAL
+        assert path.severity == Severity.HIGH
         assert path.sink_capability == "comms_out"
         assert "comms posting" in path.title
 
-    def test_github_pair_path_takes_the_comms_pair_not_the_network_twin(
+    def test_github_pair_has_one_path_and_a_tie_keeps_the_network_twin(
         self,
     ) -> None:
-        """filesystem + github fires TOXIC-001 (HIGH) and TOXIC-008 (CRITICAL)
-        for the same two servers; the path is the more severe one."""
+        """filesystem + github fires TOXIC-001 and TOXIC-008, both HIGH, for
+        the same two servers: one path, and the tie keeps the first listed."""
         servers = [_filesystem_server(), _github_server()]
         findings = ToxicFlowAnalyzer().analyze_all(servers)
         assert {"TOXIC-001", "TOXIC-008"} <= {f.id for f in findings}
         summary = summarize_attack_paths(servers, findings)
         paths = [p for p in summary.paths if p.hops == ["filesystem", "github"]]
         assert len(paths) == 1
-        assert paths[0].severity == Severity.CRITICAL
-        assert paths[0].sink_capability == "comms_out"
+        assert paths[0].severity == Severity.HIGH
 
     def test_gitlab_alone_has_no_path(self) -> None:
         summary = summarize_attack_paths([_gitlab_server()], [])
@@ -535,7 +537,7 @@ class TestCommsOutInAttackGraph:
 class TestCandidateDedupKeepsMostSevere:
     def test_more_severe_finding_for_same_hops_replaces_earlier(self) -> None:
         f1 = _toxic_finding("TOXIC-001", "filesystem + github", Severity.HIGH)
-        f2 = _toxic_finding("TOXIC-008", "filesystem + github", Severity.CRITICAL)
+        f2 = _toxic_finding("TOXIC-011", "filesystem + github", Severity.CRITICAL)
         candidates = _candidates_from_toxic_findings([f1, f2])
         assert len(candidates) == 1
         assert candidates[0].sink_cap == Capability.COMMS_OUT
@@ -557,7 +559,7 @@ class TestCandidateDedupKeepsMostSevere:
     def test_position_of_the_replaced_candidate_is_kept(self) -> None:
         f1 = _toxic_finding("TOXIC-001", "a + b", Severity.HIGH)
         f2 = _toxic_finding("TOXIC-001", "c + d", Severity.HIGH)
-        f3 = _toxic_finding("TOXIC-008", "a + b", Severity.CRITICAL)
+        f3 = _toxic_finding("TOXIC-011", "a + b", Severity.CRITICAL)
         candidates = _candidates_from_toxic_findings([f1, f2, f3])
         assert [c.hops for c in candidates] == [("a", "b"), ("c", "d")]
         assert candidates[0].sink_cap == Capability.COMMS_OUT

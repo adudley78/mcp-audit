@@ -198,7 +198,7 @@ class TestServerAdded:
 
     def test_added_posting_server_creates_comms_pair(self) -> None:
         """STORY-0101: adding GitLab next to a file server is a TOXIC-008
-        change (CRITICAL), with no TOXIC-001 (GitLab has no network_out)."""
+        change (HIGH), with no TOXIC-001 (GitLab has no network_out)."""
         gitlab = _server("gitlab", args=["-y", "@modelcontextprotocol/server-gitlab"])
         base = [_filesystem_server()]
         head = [_filesystem_server(), gitlab]
@@ -209,7 +209,7 @@ class TestServerAdded:
             if c.entity_type == EntityType.CAPABILITY and c.after
         }
         assert "TOXIC-008" in pairs
-        assert pairs["TOXIC-008"].severity == Severity.CRITICAL
+        assert pairs["TOXIC-008"].severity == Severity.HIGH
         assert "TOXIC-001" not in pairs
 
 
