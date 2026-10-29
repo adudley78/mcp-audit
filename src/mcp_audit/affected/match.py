@@ -84,11 +84,28 @@ VERSION_OUTSIDE = "version-outside"
 UNREADABLE = "unreadable-config"
 EXTRA_PACKAGES = "extra-packages"
 NOT_REACHABLE = "not-reachable"
+# --transitive (STORY-0131): a dependency is the affected package; the
+# dependency tree could not be read for an otherwise clean-looking server.
+DEPENDENCY = "dependency"
+DEPS_UNCHECKED = "dependencies-unchecked"
 # A row with one of these reasons (or none) means a server really runs the
 # advisory's package.
 RAN_THE_PACKAGE = frozenset(
     {None, VERSION_OUTSIDE, VERSION_UNKNOWN, UNDECIDABLE, UNEVALUABLE, NOT_REACHABLE}
 )
+
+
+@dataclass(frozen=True)
+class Dependency:
+    """The package in a server's dependency tree that an advisory covers."""
+
+    ecosystem: str
+    name: str
+    version: str
+    #: deps.dev's word for the node: ``direct`` or ``indirect``.
+    relation: str
+    #: ``server-package@version → dep@version (INDIRECT)``.
+    path: str
 
 
 @dataclass(frozen=True)
@@ -106,6 +123,14 @@ class Row:
     reason: str | None = None
     #: Every version the advisory says fixes this, for ``affected --fix``.
     fixes: tuple[str, ...] = ()
+    #: Set when the affected package is a dependency of the server (--transitive).
+    dependency: Dependency | None = None
+    #: The machine a ``--fleet`` row came from (``None`` for this machine).
+    machine: str | None = None
+
+    def label(self) -> str:
+        """The subject, led by the machine for ``--fleet`` rows."""
+        return f"{self.machine}: {self.subject}" if self.machine else self.subject
 
 
 @dataclass(frozen=True)
@@ -133,6 +158,10 @@ class Report:
     exploit: dict | None = None
     #: A ``respond.Respond`` per AFFECTED server (STORY-0126).
     respond: list[Any] = field(default_factory=list)
+    #: ``--transitive`` was used: dependency trees came from deps.dev.
+    transitive: bool = False
+    #: ``--fleet`` was used: the scan files that were read.
+    fleet: list[str] = field(default_factory=list)
 
     def count(self, status: Status) -> int:
         """Rows with *status*."""
@@ -212,8 +241,15 @@ class LockIndex:
     """``resolved_version`` lookups: ``--lock`` files, then the nearest lock."""
 
     def __init__(
-        self, explicit: Iterable[Path] = (), errors: list[str] | None = None
+        self,
+        explicit: Iterable[Path] = (),
+        errors: list[str] | None = None,
+        *,
+        nearest: bool = True,
     ) -> None:
+        # ``nearest=False`` for --fleet: a config path from another machine
+        # must never be looked up on this one.
+        self._use_nearest = nearest
         self._explicit: list[tuple[Path, dict]] = []
         self._by_config: dict[Path, tuple[Path, dict] | None] = {}
         self._errors = errors if errors is not None else []
@@ -240,7 +276,7 @@ class LockIndex:
         """``(version, source)`` the lock recorded for this server, or ``None``."""
         key = f"{server.client}/{server.name}"
         sources = list(self._explicit)
-        nearest = self._nearest(server.config_path)
+        nearest = self._nearest(server.config_path) if self._use_nearest else None
         if nearest is not None:
             sources.append(nearest)
         for path, doc in sources:

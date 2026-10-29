@@ -66,9 +66,16 @@ def purl(package: str, version: str | None) -> str | None:
 
 def statement(advisory: str, row: Row) -> dict | None:
     """The OpenVEX statement for one row, or ``None`` when it says nothing."""
-    if row.package is None or row.reason not in RAN_THE_PACKAGE:
+    if row.dependency is not None:
+        # --transitive: the affected product is the dependency, not the server.
+        product = purl(
+            f"{row.dependency.ecosystem}:{row.dependency.name}",
+            row.dependency.version,
+        )
+    elif row.package is None or row.reason not in RAN_THE_PACKAGE:
         return None
-    product = purl(row.package, row.version)
+    else:
+        product = purl(row.package, row.version)
     if product is None:
         return None
     out: dict = {
