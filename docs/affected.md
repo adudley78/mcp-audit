@@ -39,7 +39,7 @@ An ID that none of these knows is an error (exit `2`); it does not produce a col
 
 ## Research records
 
-A research record is about products (Claude Code, Codex...), not MCP servers, so the rows are per product. mcp-audit does not yet read which Claude Code or Codex version is installed, so every product row is **COULDN'T CHECK**, with what the write-up says about that product's fix. The checks the record names (for Plugin4Shell, PLUGIN-003 and PLUGIN-004) are run too; a HIGH or CRITICAL result is an AFFECTED row, and a milder one is listed as COULDN'T CHECK. Those checks look at Claude Code's plugin directory only, only for installs that kept their `.git`, and are not run with `--path`. No research record ever produces NOT AFFECTED.
+A research record is about products (Claude Code, Codex...), not MCP servers, so the rows are per product. mcp-audit does not yet read which Claude Code or Codex version is installed, so every product row is **COULDN'T CHECK**, with what the write-up says about that product's fix. The checks the record names (for Plugin4Shell, PLUGIN-003 and PLUGIN-004) are run too; a HIGH or CRITICAL result is an AFFECTED row, and a milder one is listed as COULDN'T CHECK. Those checks look at Claude Code's plugin directory only, only for installs that kept their `.git`, and are not run with `--path`. No research record ever produces NOT AFFECTED. A record with no checks (ContextCrush, `x_MCPRS-32fc646f6f96`: the flaw was in Context7's service, fixed server-side) runs nothing and says so; its one product row is COULDN'T CHECK with the write-up's statement. It does not look at your servers, so it does not say whether a config launches `@upstash/context7-mcp`.
 
 ## Launches it will not call clean
 

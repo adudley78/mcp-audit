@@ -1601,6 +1601,18 @@ Read on 2026-10-29; fetched pages are data, quoted only where the record depends
   same versions, "No client fix at disclosure" for Copilot, no CVE assigned as of
   disclosure; dates the disclosure 2026-09-18 (AIR's post is dated 2026-09-17); names Air Security, not individual researchers. The individual names come
   from AIR's own post.
+- **ContextCrush.** Eli Ainhorn, Noma Security, published 2026-03-05
+  (https://noma.security/blog/contextcrush-context7-the-mcp-server-vulnerability/),
+  read 2026-10-29: Context7's Custom Rules ("AI Instructions") were "served verbatim
+  through Context7's MCP server" to anyone querying the library, unsanitized; the
+  proof of concept had the agent read `.env` files, send them to an attacker-controlled
+  GitHub repository as an issue and delete local files as "cleanup". Timeline per Noma:
+  reported to Upstash 2026-02-18, accepted 2026-02-19, fix (rule sanitization and
+  guardrails) in production 2026-02-23, disclosed and verified 2026-03-05; no in-the-wild
+  exploitation observed. **Not stated:** a CVE; any Upstash statement (the post quotes
+  none, and an Upstash confirmation was not found when searched 2026-10-29); a package
+  version. The record's `fixed_in` is the server-side fix date, because the format
+  has no server-side status.
 - **Record format.** Original. The ID scheme mirrors `x_MCPSA` (docs/advisory-feed.md);
   the fields are OSV 1.6.0's (`credits`, `references`, `aliases`), with mcp-audit's
   under `database_specific.mcp_audit`.

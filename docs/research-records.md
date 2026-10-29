@@ -39,6 +39,7 @@ A malformed record is skipped and reported, and a file that cannot be read gives
 | ID | Finding | Credited to |
 |---|---|---|
 | `x_MCPRS-4ad8c07d80d7` | **Plugin4Shell** (2026-09-17): a plugin's pinned commit replaced by a branch named like the SHA, or by `FETCH_HEAD`. Fixed in Claude Code 2.1.179 and Codex 0.146.0; not fixed in GitHub Copilot; Google will not fix Gemini CLI (deprecated). PLUGIN-003 and PLUGIN-004 test the condition, but only on Claude Code's plugin directory and only for installs that kept their `.git`; they do not examine the other three. | Or Nevo, Dor Granat and Niv Hoffman, [AIR Security](https://www.air.security/blog-posts/plugin4shell) |
+| `x_MCPRS-32fc646f6f96` | **ContextCrush** (2026-03-05): Context7's Custom Rules ("AI Instructions") were served verbatim to agents by the Context7 MCP server, so a library owner's text reached every user's agent as documentation. Noma's proof of concept had the agent read `.env` files, post them to an attacker's GitHub issue and delete files. Noma reports a server-side fix on 2026-02-23; Upstash's own confirmation was not found. No CVE. No client version is affected, so no local version shows exposure, and no mcp-audit check tests the condition (`checks` is empty). The format has no status for a server-side fix: the record uses `fixed` with `fixed_in` = `2026-02-23 (server-side)`, a date, not a version. | Eli Ainhorn, [Noma Security](https://noma.security/blog/contextcrush-context7-the-mcp-server-vulnerability/) |
 
 ## Adding one
 
