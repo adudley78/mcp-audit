@@ -244,23 +244,46 @@ def _annotate_exploit_signals(result: ScanResult) -> ScanResult:
     return result
 
 
-def _write_vex(result: ScanResult, path: Path, con: Console) -> None:
-    """Write the scan's servers as an OpenVEX document (STORY-0125)."""
+def _write_vex(
+    result: ScanResult,
+    path: Path,
+    con: Console,
+    registry: Path | None = None,
+    offline_registry: bool = False,
+) -> None:
+    """Write the scan's servers as an OpenVEX document (STORY-0125).
+
+    Uses the registry the scan itself used (``--registry`` / ``--offline-registry``).
+    Nothing is written when there is nothing to state; an unwritable path is an
+    error (exit 2).
+    """
     from mcp_audit.affected import vex as vex_mod  # noqa: PLC0415
     from mcp_audit.affected.match import LockIndex  # noqa: PLC0415
     from mcp_audit.registry.loader import load_registry  # noqa: PLC0415
 
     problems: list[str] = []
     pairs = vex_mod.pairs_for_servers(
-        result.servers, load_registry(), LockIndex([], problems)
+        result.servers,
+        load_registry(registry, offline_registry),
+        LockIndex([], problems),
     )
     document = vex_mod.build(pairs)
-    _write_output(path, vex_mod.render(document))
+    for problem in problems:
+        con.print(f"[yellow]WARN[/yellow] --vex: {problem}")
+    if not document["statements"]:
+        con.print(
+            "[yellow]WARN[/yellow] --vex: no discovered server runs a package with "
+            "a bundled advisory, so no file was written"
+        )
+        return
+    try:
+        _write_output(path, vex_mod.render(document))
+    except OSError as exc:
+        con.print(f"[red]Error:[/red] --vex: could not write {path}: {exc.strerror}")
+        raise typer.Exit(2) from exc
     con.print(
         f"[dim]Wrote {len(document['statements'])} OpenVEX statement(s) to {path}[/dim]"
     )
-    for problem in problems:
-        con.print(f"[yellow]WARN[/yellow] --vex: {problem}")
 
 
 def apply_live_signals(result: ScanResult, con: Console) -> ScanResult:
@@ -2117,7 +2140,7 @@ def scan(
     )
 
     if vex is not None:
-        _write_vex(result, vex, con)
+        _write_vex(result, vex, con, registry, offline_registry)
 
     result = _apply_severity_threshold(result, severity_threshold, con)
     if result.exploit_data and not any(f.cve for f in result.findings):

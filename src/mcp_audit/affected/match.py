@@ -344,8 +344,17 @@ class RegistryRule:
         return self.entry_name
 
     def decide(self, launch: Launch) -> Decision:
-        """AFFECTED below the recorded fix, NOT AFFECTED at or above it."""
-        if launch.stdio and self.off_stdio is not None:
+        """AFFECTED below the recorded fix, NOT AFFECTED at or above it.
+
+        A verified transport tag clears a provably-stdio server unless the
+        version already shows it fixed (that answer is the stronger one).
+        """
+        by_version = self._by_version(launch)
+        if (
+            launch.stdio
+            and self.off_stdio is not None
+            and by_version.status is not Status.NOT_AFFECTED
+        ):
             return Decision(
                 Status.NOT_AFFECTED,
                 f"{self.advisory} is in {self.entry_name}'s "
@@ -355,6 +364,9 @@ class RegistryRule:
                 NOT_REACHABLE,
                 self.fixed_in,
             )
+        return by_version
+
+    def _by_version(self, launch: Launch) -> Decision:
         version = launch.version
         if version is None:
             return _NO_VERSION

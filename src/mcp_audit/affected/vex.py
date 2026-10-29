@@ -82,15 +82,23 @@ def statement(advisory: str, row: Row) -> dict | None:
             if row.fixed_in
             else "No fixed version is recorded; remove the server or watch it."
         )
-    elif row.status is Status.NOT_AFFECTED and row.reason == NOT_REACHABLE:
+    elif (
+        row.status is Status.NOT_AFFECTED
+        and row.reason == NOT_REACHABLE
+        and row.version
+    ):
+        # Only for a known version: a versionless purl would claim every
+        # release, and this is one machine's launch, not the product.
         out["status"] = "not_affected"
         out["justification"] = JUSTIFICATION
         out["impact_statement"] = row.evidence
     elif row.status is Status.NOT_AFFECTED and row.reason == VERSION_OUTSIDE:
         out["status"] = "fixed"
-    elif row.status is Status.COULDNT_CHECK:
+    elif row.status is Status.COULDNT_CHECK or row.reason == NOT_REACHABLE:
         out["status"] = "under_investigation"
         out["status_notes"] = row.evidence
+        if row.reason == NOT_REACHABLE:
+            out["status_notes"] += " (no version is known, so no claim is made)"
     else:
         return None
     return out
@@ -120,7 +128,7 @@ def build(
     return {
         "@context": CONTEXT,
         "@id": "urn:uuid:" + str(uuid.uuid5(uuid.NAMESPACE_URL, body)),
-        "author": f"mcp-audit {__version__}",
+        "author": "mcp-audit",
         "timestamp": stamp.isoformat().replace("+00:00", "Z"),
         "version": 1,
         "tooling": f"mcp-audit {__version__}",
@@ -144,14 +152,15 @@ def pairs_for_servers(
     """
     malicious = load_known_malicious()
     research = load_research_records()
-    ids = sorted(
-        {
+    found: set[str] = set()
+    for e in registry.entries:
+        found.update(str(c) for c in e.known_vulnerabilities or [] if c)
+        found.update(
             str(r["cve"])
-            for e in registry.entries
-            for r in (e.known_vulns or [])
+            for r in e.known_vulns or []
             if isinstance(r, dict) and r.get("cve")
-        }
-    )
+        )
+    ids = sorted(found)
     pairs: list[tuple[str, Row]] = []
     for advisory in ids:
         rules = [

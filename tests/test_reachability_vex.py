@@ -367,7 +367,7 @@ class TestShippedRegistry:
         entries = json.loads(
             (REPO / "registry" / "known-servers.json").read_text(encoding="utf-8")
         )["entries"]
-        assert audit_registry.count_tagged_advisories(entries) == 6
+        assert audit_registry.count_tagged_advisories(entries) == 5
 
     def test_registry_loads_with_tagged_records(self) -> None:
         reg = load_registry()
@@ -383,3 +383,100 @@ class TestAuditCheck:
             ]
         )
         assert [h["cve"] for h in hits] == [CVE]
+
+
+class TestReviewFixes:
+    """Cases the independent review of #223 found."""
+
+    @pytest.mark.parametrize(
+        "kw",
+        [
+            {"raw": {"envFile": "/x/.env"}},
+            {"raw": {"cwd": "/srv"}},
+            {"raw": {"type": "http"}},
+            {"env": {"MODE": "sse"}},
+        ],
+    )
+    def test_env_file_cwd_type_and_values_defeat_the_proof(self, kw: dict) -> None:
+        assert not r.provably_stdio(_server(**kw))
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ("--env-file", "/x/.env"),
+            ("-p", "9000"),
+            ("--port9000",),
+            ("streamableHttp",),
+        ],
+    )
+    def test_more_launch_spellings(self, args: tuple) -> None:
+        assert not r.provably_stdio(_server(*args))
+
+    def test_fixed_stdio_server_is_fixed_not_unreachable(self) -> None:
+        rule = RegistryRule("mcp-atlassian", CVE, "0.22.0", r.excludes_stdio(_tag()))
+        d = rule.decide(Launch("pypi", "mcp-atlassian", "0.22.0", "pin", None, True))
+        assert d.reason == VERSION_OUTSIDE
+
+    def test_unversioned_clearance_is_not_a_not_affected_statement(self) -> None:
+        s = vex.statement(CVE, _row(Status.NOT_AFFECTED, NOT_REACHABLE, version=None))
+        assert s is not None
+        assert s["status"] == "under_investigation"
+
+    def test_flat_list_cves_are_in_scan_vex(self) -> None:
+        from mcp_audit.affected.match import LockIndex
+
+        reg = load_registry()
+        entry = next(e for e in reg.entries if e.name == "mcp-atlassian")
+        entry.known_vulnerabilities = [*entry.known_vulnerabilities, "CVE-2099-7"]
+        pairs = vex.pairs_for_servers(
+            [_server("mcp-atlassian==0.21.0", "--transport", "sse")],
+            reg,
+            LockIndex([], []),
+        )
+        assert "CVE-2099-7" in {adv for adv, _ in pairs}
+
+    def test_scan_vex_unwritable_path_exits_2(self, tmp_path: Path) -> None:
+        cfg = _config(tmp_path, {"a": ATLASSIAN_HTTP})
+        res = runner.invoke(
+            app, ["scan", "--path", str(cfg), "--offline", "--vex", str(tmp_path)]
+        )
+        assert res.exit_code == 2
+
+    def test_scan_vex_with_nothing_to_state_writes_no_file(
+        self, tmp_path: Path
+    ) -> None:
+        cfg = _config(tmp_path, {"x": {"command": "npx", "args": ["-y", "left-pad"]}})
+        out = tmp_path / "v.json"
+        runner.invoke(app, ["scan", "--path", str(cfg), "--offline", "--vex", str(out)])
+        assert not out.exists()
+
+    def test_scan_vex_uses_the_scans_registry(self, tmp_path: Path) -> None:
+        reg = json.loads((REPO / "registry" / "known-servers.json").read_text())
+        for e in reg["entries"]:
+            if e["name"] == "mcp-atlassian":
+                e["known_vulns"].append({"cve": "CVE-2099-1", "fixed_in": "9.0.0"})
+        rp = tmp_path / "reg.json"
+        rp.write_text(json.dumps(reg))
+        cfg = _config(tmp_path, {"b": ATLASSIAN_HTTP})
+        out = tmp_path / "v.json"
+        runner.invoke(
+            app,
+            ["scan", "--path", str(cfg), "--registry", str(rp), "--vex", str(out)],
+        )
+        names = {
+            s["vulnerability"]["name"]
+            for s in json.loads(out.read_text())["statements"]
+        }
+        assert "CVE-2099-1" in names
+
+    def test_audit_flags_duplicate_and_mixed_records(self) -> None:
+        hits = audit_registry.find_bad_reachability_tags(
+            [
+                {
+                    "name": "p",
+                    "known_vulnerabilities": [CVE],
+                    "known_vulns": [_tag(), {"cve": CVE.lower()}],
+                }
+            ]
+        )
+        assert len(hits) >= 1

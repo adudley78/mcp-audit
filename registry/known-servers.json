@@ -985,7 +985,8 @@
           "description": "Auth bypass in the HTTP transport: any non-empty token is accepted, exposing the operator's credentials.",
           "fixed_in": "0.22.0",
           "affected_transports": [
-            "http"
+            "http",
+            "sse"
           ],
           "requires_auth": false,
           "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
@@ -1008,7 +1009,8 @@
           "description": "Unauthenticated local file read via upload_attachment in the multi-user streamable-HTTP deployment.",
           "fixed_in": "0.22.0",
           "affected_transports": [
-            "http"
+            "http",
+            "sse"
           ],
           "requires_auth": false,
           "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
@@ -1137,11 +1139,7 @@
           "cve": "CVE-2026-77257",
           "cvss": null,
           "description": "MCP Atlassian: HTTP upload tools accept arbitrary server-local file paths",
-          "fixed_in": "0.22.0",
-          "affected_transports": [
-            "http"
-          ],
-          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
+          "fixed_in": "0.22.0"
         },
         {
           "cve": "CVE-2026-77262",

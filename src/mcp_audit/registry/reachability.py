@@ -8,8 +8,8 @@ HTTP session bug is not there when the server speaks stdio.  A registry
     A list drawn from ``stdio``, ``http``, ``sse``: the transports the
     vulnerable code runs on.
 ``requires_auth``
-    ``true`` or ``false``, only when the advisory states it.  Shown, never
-    used to downgrade anything.
+    ``true`` or ``false``, only when the advisory states it.  Recorded for
+    readers of the registry; it changes no verdict.
 ``verified_by``
     Who checked the tag and against what (e.g. ``"Adam Dudley 2026-10-29,
     GHSA text"``).  A tag without it is ignored.
@@ -35,11 +35,15 @@ JUSTIFICATION = "vulnerable_code_not_in_execute_path"
 
 # Arguments that can switch a server off stdio.
 _TRANSPORT_ARG = re.compile(
-    r"^(?:-t|--transport|--port|--host|--sse|--http|--streamable[-_]http|--listen|"
-    r"--bind)(?:[=:].*)?$",
+    r"^(?:-t|-p|--transport|--port|--host|--sse|--http|--streamable[-_]?http|"
+    r"--listen|--bind|--env-file|--envfile)(?:[=:].*)?$|^--(?:port|host)\d",
     re.IGNORECASE,
 )
-_TRANSPORT_WORDS = frozenset({"sse", "http", "streamable-http", "streamable_http"})
+_TRANSPORT_WORDS = frozenset(
+    {"sse", "http", "streamable-http", "streamable_http", "streamablehttp"}
+)
+# Keys that can load more environment (and so a transport) from a file.
+_ENV_FILE_KEYS = ("envFile", "env_file", "cwd")
 _TRANSPORT_ENV = re.compile(r"(?:^|_)(?:TRANSPORT|PORT|HOST|BIND|LISTEN)(?:_|$)")
 
 
@@ -96,8 +100,10 @@ def tag_problems(record: dict) -> list[str]:
 def provably_stdio(server: ServerConfig) -> bool:
     """True only when nothing in the config can put the server on a network.
 
-    A command launch, no URL, a stdio transport, and no argument or
-    environment variable that selects a transport or a listening address.
+    A command launch, no URL, a stdio transport, no argument or environment
+    variable that selects a transport or a listening address, and nothing
+    that loads more environment from a file (``envFile``, ``--env-file``,
+    ``cwd``).
     """
     if server.transport is not TransportType.STDIO or server.url or not server.command:
         return False
@@ -105,6 +111,12 @@ def provably_stdio(server: ServerConfig) -> bool:
         text = str(arg)
         if _TRANSPORT_ARG.match(text) or text.lower() in _TRANSPORT_WORDS:
             return False
+    if any(server.raw.get(k) for k in _ENV_FILE_KEYS):
+        return False
+    if str(server.raw.get("type", "stdio")).lower() != "stdio":
+        return False
+    if any(str(v).strip().lower() in _TRANSPORT_WORDS for v in server.env.values()):
+        return False
     return not any(_TRANSPORT_ENV.search(k.upper()) for k in server.env)
 
 

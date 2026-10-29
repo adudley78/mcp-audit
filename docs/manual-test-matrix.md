@@ -2187,7 +2187,7 @@ mcp-audit scan --path /tmp/t.json --offline --vex /tmp/t.vex.json
 
 **Expected:** `a` is NOT AFFECTED (stdio; the evidence names the tag's source), `b` is AFFECTED (0.22.0).
 The OpenVEX output has one statement for `pkg:pypi/mcp-atlassian@0.21.0`, `affected` (the more cautious
-of the two). `scan` writes the file and lists SC-004 for `b` only.
+of the two). `scan` writes the file; SC-004 fires for both servers (for `a` it names the HTTP-only CVEs it did not count).
 
 ## Exploit signals (STORY-0124)
 

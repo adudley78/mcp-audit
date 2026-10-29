@@ -965,10 +965,17 @@ def find_bad_reachability_tags(entries: list[dict]) -> list[dict]:
 
     hits: list[dict] = []
     for entry in entries:
+        seen: dict[str, bool] = {}
         for record in entry.get("known_vulns") or []:
             if not isinstance(record, dict):
                 continue
             problems = tag_problems(record)
+            cve = str(record.get("cve") or "").upper()
+            tagged = "affected_transports" in record
+            if cve in seen and (seen[cve] or tagged):
+                problems.append("the CVE is listed twice and one copy is tagged")
+            if cve:
+                seen[cve] = seen.get(cve, False) or tagged
             if problems:
                 hits.append(
                     {

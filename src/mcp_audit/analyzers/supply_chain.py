@@ -713,7 +713,8 @@ def _emit_known_cve_findings(
             cves.append(cve_id)
         if record.get("fixed_in"):
             fixed_in[cve_id] = str(record["fixed_in"])
-    cves = [c for c in cves if c not in cleared]
+    gone = {c.upper() for c in cleared}
+    cves = [c for c in cves if c.upper() not in gone]
     if not cves:
         return []
 
