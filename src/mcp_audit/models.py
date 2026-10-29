@@ -339,6 +339,9 @@ class Finding(BaseModel):
     # Empty list = no CVE cross-reference. Populated by analyzers and the rule
     # engine for findings that map to a named, public vulnerability.
     cve: list[str] = Field(default_factory=list)
+    # Exploitability signals per CVE (CISA KEV, FIRST EPSS, public PoC), set by
+    # mcp_audit.exploit.signals.annotate. Empty = no CVE or nothing known.
+    exploit: dict[str, dict] = Field(default_factory=dict)
 
 
 class AttackPath(BaseModel):
@@ -493,6 +496,9 @@ class ScanResult(BaseModel):
     registry_stats: RegistryStats | None = None
     feed_status: FeedStatus = Field(default_factory=FeedStatus)
     lock_status: LockStatus = Field(default_factory=LockStatus)
+    # As-of dates and origin of the exploit signals shown on CVE findings
+    # (mcp_audit.exploit.signals); None when no finding carries a CVE.
+    exploit_data: dict | None = None
     findings_below_threshold: int = 0
     active_severity_threshold: str | None = None
     # Captured stderr from stdio MCP server subprocesses launched during --connect.

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from rich.console import Console
+from rich.markup import escape
 from rich.rule import Rule
 
+from mcp_audit.exploit import signals
 from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS
 from mcp_audit.models import Finding, ScanResult, Severity
 from mcp_audit.registration.models import RegistrationConfig
@@ -595,9 +597,10 @@ def print_check_results(
         console.print()
 
     # ── Findings list ─────────────────────────────────────────────────────────
+    # KEV first, then severity, then EPSS (STORY-0124); stable otherwise.
     sorted_findings = sorted(
         result.findings,
-        key=lambda f: _SEVERITY_ORDER.index(f.severity),
+        key=lambda f: signals.priority_key(f, _SEVERITY_ORDER.index(f.severity)),
     )
 
     total = len(sorted_findings)
@@ -616,7 +619,8 @@ def print_check_results(
         color = _SEVERITY_COLORS[finding.severity]
         sev_badge = f"[{color}]{finding.severity.value}[/{color}]"
         hint = _remediation_hint(finding)
-        console.print(f"  {i}. [{sev_badge}] {finding.title}")
+        exploited = " [bold red]KEV[/bold red]" if signals.is_kev(finding) else ""
+        console.print(f"  {i}. [{sev_badge}]{exploited} {finding.title}")
         console.print(f"     → {hint}")
         console.print()
 
@@ -625,6 +629,19 @@ def print_check_results(
             f"  [dim]… and {remainder} more — run [bold]mcp-audit scan[/bold]"
             " to see all.[/dim]"
         )
+        console.print()
+
+    # ── Known-exploited line ──────────────────────────────────────────────────
+    kev_cves = sorted(
+        {c for f in result.findings for c, s in f.exploit.items() if s.get("kev")}
+    )
+    if kev_cves:
+        console.print(
+            "  [bold red]Known exploited:[/bold red] "
+            f"{', '.join(kev_cves)} on CISA's KEV list."
+        )
+        if result.exploit_data:
+            console.print(f"  [dim]{escape(result.exploit_data['line'])}[/dim]")
         console.print()
 
     # ── Fix summary line ──────────────────────────────────────────────────────

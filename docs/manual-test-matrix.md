@@ -2170,3 +2170,18 @@ ls mcp-lock.tools.json && git diff --stat mcp-lock.json
 timestamps. Change a tool description on the server, then `mcp-audit lock --verify --connect`:
 `LOCK-008` shows `[-old-] {+new+}`, exit 1. Edit `mcp-lock.tools.json` by hand and re-run: a "out of
 step" note, no diff, same exit code. `--format pr-comment` prints before/after in code fences.
+
+---
+
+## Exploit signals (STORY-0124)
+
+```bash
+mcp-audit affected CVE-2025-6514
+mcp-audit affected CVE-2025-6514 --format json | python3 -c "import json,sys;print(json.load(sys.stdin)['exploit'])"
+mcp-audit scan --live --offline; echo "exit $?"
+```
+
+**Expected:** the first prints the CVE's EPSS and "not on CISA KEV" and a line `Exploit signals
+(bundled): KEV <date>, EPSS <date>`; the second a `signals` object; the third refuses with exit 2.
+`mcp-audit scan --live` (network) prints `Exploit signals (live)`. With a server whose registry entry
+lists a CVE, `scan` shows the `[EPSS ..%]` badge and sorts it above lower-EPSS findings of its severity.

@@ -258,6 +258,29 @@ def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _exploit_date_line() -> str:
+    from mcp_audit.exploit import signals  # noqa: PLC0415
+
+    return signals.load().date_line()
+
+
+def _exploit_note(cve: str) -> str:
+    """KEV / EPSS / PoC for *cve* from the bundled data, or an empty string."""
+    from mcp_audit.exploit import signals  # noqa: PLC0415
+
+    sig = signals.load().for_cve(cve) if cve.upper().startswith("CVE-") else None
+    if not sig:
+        return ""
+    bits = []
+    if sig.get("kev"):
+        bits.append(f"on CISA KEV (added {sig.get('kev_added')})")
+    if "epss" in sig:
+        bits.append(f"EPSS {sig['epss'] * 100:.1f}%")
+    if sig.get("public_poc"):
+        bits.append("public PoC linked")
+    return ", ".join(bits)
+
+
 def _vuln_items(verdict: dict[str, Any]) -> list[dict[str, Any]]:
     """The verdict's ``known_vulnerabilities`` as dicts, for rendering.
 
@@ -494,10 +517,15 @@ def _print_known_verdict(
             }.get(str(v.get("status")), "")
             t.append_text(Text.from_markup(f"    [red]{cve}[/red]"))
             t.append(f" — {status}\n" if status else "\n")
+            exploit = _exploit_note(str(cve))
+            if exploit:
+                t.append(f"    {exploit}\n", style="bold red")
             t.append(f"    {fixed_str}\n", style="dim")
             if v.get("link"):
                 t.append(f"    {v['link']}\n", style="dim")
             t.append("\n")
+        if any(_exploit_note(str(v.get("cve", ""))) for v in vulns):
+            t.append(f"    {_exploit_date_line()}\n", style="dim")
     elif vulns:
         if unfixed:
             heading = (

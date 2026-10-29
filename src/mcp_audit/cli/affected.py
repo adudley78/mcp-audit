@@ -15,6 +15,7 @@ Exit codes: 0 nothing affected, 1 something affected (or, with
 from __future__ import annotations
 
 import logging
+import re
 from enum import StrEnum
 from pathlib import Path
 
@@ -37,7 +38,7 @@ from mcp_audit.affected.match import (
     rules_for_advisory,
     rules_for_range,
 )
-from mcp_audit.affected.query import QueryError, parse_query
+from mcp_audit.affected.query import Query, QueryError, parse_query
 from mcp_audit.affected.render import render_json, render_sarif, render_terminal
 from mcp_audit.cli import app
 from mcp_audit.cli._helpers import _write_output
@@ -111,6 +112,28 @@ def _plugin_check_findings(errors: list[str]) -> list[Finding]:
     except Exception as exc:  # noqa: BLE001 — a failed check is reported, not fatal
         errors.append(f"plugin checkout check error: {type(exc).__name__}: {exc}")
         return []
+
+
+def _attach_exploit(report: Report, parsed: Query, live: bool) -> None:
+    """Add KEV/EPSS/PoC for a CVE query (bundled data, or current with --live)."""
+    from mcp_audit.exploit import signals  # noqa: PLC0415
+
+    cve = (parsed.advisory_id or "").upper()
+    if parsed.kind != "advisory" or not re.match(r"^CVE-\d{4}-\d{4,}$", cve):
+        return
+    index = signals.load()
+    if live:
+        try:
+            index = signals.fetch_live([cve])
+        except (OSError, ValueError, RecursionError):
+            report.errors.append(
+                "exploit signals: could not refresh them live; using the bundled data"
+            )
+    report.exploit = {
+        "cve": cve,
+        "signals": index.for_cve(cve),
+        "line": index.date_line(),
+    }
 
 
 def _live_rules(advisory_id: str, report: Report) -> RuleSet:
@@ -242,6 +265,8 @@ def affected(
                 f"No discovered server runs {names}. If you meant another "
                 "package, check the spelling."
             )
+
+    _attach_exploit(report, parsed, live)
 
     if format_ is _Format.TERMINAL:
         render_terminal(report, Console(), show_all=show_all)

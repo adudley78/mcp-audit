@@ -68,6 +68,22 @@ def render_terminal(report: Report, console: Console, *, show_all: bool) -> None
         console.print(f"[dim]Data: {escape('; '.join(report.sources))}[/dim]")
     if report.live:
         console.print("[dim]--live: the advisory was fetched from OSV.dev.[/dim]")
+    if report.exploit:
+        sig = report.exploit["signals"] or {}
+        bits = []
+        if sig.get("kev"):
+            bits.append(f"[bold red]on CISA KEV[/] (added {sig.get('kev_added')})")
+        elif "kev" in sig:
+            bits.append("not on CISA KEV")
+        if "epss" in sig:
+            bits.append(
+                f"EPSS {sig['epss'] * 100:.1f}% (p{sig['epss_percentile']:.2f})"
+            )
+        if sig.get("public_poc"):
+            bits.append("public PoC linked from OSV")
+        if bits:
+            console.print(f"{escape(report.exploit['cve'])}: " + ", ".join(bits))
+        console.print(f"[dim]{escape(report.exploit['line'])}[/dim]")
     for status in (Status.AFFECTED, Status.COULDNT_CHECK, Status.NOT_AFFECTED):
         rows = [r for r in report.rows if r.status is status]
         visible = [r for r in rows if show_all or not _hidden(r)]
@@ -144,6 +160,7 @@ def render_json(report: Report) -> str:
         },
         "sources": report.sources,
         "live": report.live,
+        "exploit": report.exploit,
         "notes": [_scrub(n) for n in report.notes],
         "errors": [_scrub(e) for e in report.errors],
         "results": [_row_dict(r) for r in report.rows],
@@ -181,6 +198,8 @@ def render_sarif(report: Report) -> str:
                 },
             }
         )
+    if report.exploit and report.exploit.get("signals"):
+        rule["properties"] = {"exploit": report.exploit["signals"]}
     doc = {
         "$schema": _SCHEMA,
         "version": "2.1.0",

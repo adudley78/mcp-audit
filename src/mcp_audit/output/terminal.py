@@ -9,6 +9,7 @@ from rich.rule import Rule
 from rich.text import Text
 
 from mcp_audit import __version__
+from mcp_audit.exploit import signals
 from mcp_audit.models import (
     AttackPathSummary,
     FeedStatus,
@@ -219,8 +220,10 @@ def print_results(
     console.print()
 
     # Individual findings
+    # KEV first, then severity, then EPSS (highest first); stable otherwise.
     sorted_findings = sorted(
-        result.findings, key=lambda f: list(Severity).index(f.severity)
+        result.findings,
+        key=lambda f: signals.priority_key(f, list(Severity).index(f.severity)),
     )
     for finding in sorted_findings:
         color = SEVERITY_COLORS[finding.severity]
@@ -236,6 +239,9 @@ def print_results(
         if finding.cve:
             cve_ids = ", ".join(finding.cve)
             cve_badge = f"  [dim red]\\[{cve_ids}][/dim red]"
+            exploit_text = signals.badge(finding)
+            if exploit_text:
+                cve_badge += f"  [bold red]\\[{exploit_text}][/bold red]"
 
         # Finding text can carry what a scanned server sent (tool names, live
         # descriptions): escape it so "[/dim]" in it is shown, not parsed as
@@ -250,6 +256,10 @@ def print_results(
         console.print(f"   {escape(finding.title)}")
         console.print(f"   [dim]→ {escape(finding.evidence)}[/dim]")
         console.print(f"   [italic]ℹ {escape(finding.remediation)}[/italic]")
+        console.print()
+
+    if result.exploit_data:
+        console.print(f"[dim]{escape(result.exploit_data['line'])}[/dim]")
         console.print()
 
     # Policy violations panel — distinct from security findings

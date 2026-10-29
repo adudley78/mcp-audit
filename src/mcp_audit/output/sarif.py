@@ -242,6 +242,11 @@ def _build_result(finding: Finding, rule_index: int) -> dict:
         ],
     }
 
+    if finding.exploit:
+        # SARIF 2.1.0 §3.27.8: a result's propertyBag. Per CVE: kev, kev_added,
+        # epss, epss_percentile, epss_date, public_poc (omitted when unknown).
+        result["properties"] = {"exploit": finding.exploit}
+
     return result
 
 

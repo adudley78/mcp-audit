@@ -1617,3 +1617,15 @@ Python's `difflib.SequenceMatcher`; the field-level diff is a plain recursive wa
 definition that `lock/tool_digests.py` already digests (RFC 8785 canonical form, as in ADR-0005), and is
 trusted only when it hashes to the lock's digest. Size figures in `docs/lock.md` come from
 `docs/poisoning.md` (the 2026-10-22 top-100 scan: 60 servers, 1,611 tools, about 6 MB).
+
+## Exploit signals: KEV, EPSS, public PoC (STORY-0124)
+
+Original code; no code copied. Data: the CISA Known Exploited Vulnerabilities catalog
+(https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json, public domain US
+government work, fields `cveID`, `dateAdded`, `knownRansomwareCampaignUse`, `dateReleased`); FIRST EPSS
+(https://api.first.org/data/v1/epss, free to use with attribution to FIRST: "EPSS is provided by FIRST");
+OSV.dev records (https://api.osv.dev/v1/vulns/<CVE>, reference type `EVIDENCE` from the OSV schema,
+https://ossf.github.io/osv-schema/). First sync 2026-10-29: KEV 1,762 entries (catalog 2026.10.28), EPSS
+1,942, PoC checked for 175 registry CVEs (0 with evidence). CVE-2026-59822 (LiteLLM MCP endpoint, added to
+KEV 2026-09-02) is confirmed in the catalog. The "public PoC = OSV EVIDENCE" definition is narrow by design
+and documented as such.
