@@ -47,6 +47,7 @@ from mcp_audit.registry.malicious import (
     assess,
     load_known_malicious,
 )
+from mcp_audit.registry.reachability import not_reachable
 from mcp_audit.registry.twins import Twin, TwinIndex
 
 # Commands that download and execute npm packages at runtime.
@@ -694,6 +695,7 @@ def _emit_known_cve_findings(
     """
     cves: list[str] = []
     fixed_in: dict[str, str] = {}
+    cleared: list[str] = []
     for cve_id in entry.known_vulnerabilities or []:
         if cve_id and cve_id not in cves:
             cves.append(cve_id)
@@ -701,10 +703,18 @@ def _emit_known_cve_findings(
         cve_id = record.get("cve") if isinstance(record, dict) else None
         if not cve_id:
             continue
+        if not_reachable(record, server) is not None:
+            # A verified tag says this advisory is not in stdio code and the
+            # server is provably stdio (STORY-0125).
+            if cve_id not in cleared:
+                cleared.append(cve_id)
+            continue
         if cve_id not in cves:
             cves.append(cve_id)
         if record.get("fixed_in"):
             fixed_in[cve_id] = str(record["fixed_in"])
+    gone = {c.upper() for c in cleared}
+    cves = [c for c in cves if c.upper() not in gone]
     if not cves:
         return []
 
@@ -762,6 +772,12 @@ def _emit_known_cve_findings(
                 "latest release may still be affected."
             )
             severity = Severity.HIGH
+
+    if cleared:
+        version_note += (
+            f" Not counted: {', '.join(cleared)} (in HTTP or SSE transport code "
+            "only; this server is launched over stdio)."
+        )
 
     if len(affected) == 1:
         cve_id = affected[0]

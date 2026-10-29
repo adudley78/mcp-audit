@@ -51,6 +51,7 @@ from mcp_audit.registry.malicious import (
     _range_covers,
     _same_version,
 )
+from mcp_audit.registry.reachability import Tags, excludes_stdio, provably_stdio
 from mcp_audit.registry.research import ResearchRecord
 
 MAX_LOCK_BYTES = 8 * 1024 * 1024
@@ -82,10 +83,11 @@ OTHER_PACKAGE = "other-package"
 VERSION_OUTSIDE = "version-outside"
 UNREADABLE = "unreadable-config"
 EXTRA_PACKAGES = "extra-packages"
+NOT_REACHABLE = "not-reachable"
 # A row with one of these reasons (or none) means a server really runs the
 # advisory's package.
 RAN_THE_PACKAGE = frozenset(
-    {None, VERSION_OUTSIDE, VERSION_UNKNOWN, UNDECIDABLE, UNEVALUABLE}
+    {None, VERSION_OUTSIDE, VERSION_UNKNOWN, UNDECIDABLE, UNEVALUABLE, NOT_REACHABLE}
 )
 
 
@@ -293,6 +295,8 @@ class Launch:
     version: str | None
     source: str | None
     entry: RegistryEntry | None
+    #: The launch is provably stdio (see ``registry.reachability``).
+    stdio: bool = False
 
 
 _COMPARE: dict[str, Callable[[Version, Version], bool]] = {
@@ -328,6 +332,8 @@ class RegistryRule:
     entry_name: str
     advisory: str
     fixed_in: str | None
+    #: Set when a verified tag says the advisory does not reach stdio servers.
+    off_stdio: Tags | None = None
 
     def matches(self, launch: Launch) -> bool:
         """The launch resolves to this registry entry."""
@@ -338,7 +344,29 @@ class RegistryRule:
         return self.entry_name
 
     def decide(self, launch: Launch) -> Decision:
-        """AFFECTED below the recorded fix, NOT AFFECTED at or above it."""
+        """AFFECTED below the recorded fix, NOT AFFECTED at or above it.
+
+        A verified transport tag clears a provably-stdio server unless the
+        version already shows it fixed (that answer is the stronger one).
+        """
+        by_version = self._by_version(launch)
+        if (
+            launch.stdio
+            and self.off_stdio is not None
+            and by_version.status is not Status.NOT_AFFECTED
+        ):
+            return Decision(
+                Status.NOT_AFFECTED,
+                f"{self.advisory} is in {self.entry_name}'s "
+                f"{'/'.join(sorted(self.off_stdio.transports))} transport code, "
+                "and this server is launched over stdio with nothing selecting "
+                f"another transport (tag verified by {self.off_stdio.verified_by})",
+                NOT_REACHABLE,
+                self.fixed_in,
+            )
+        return by_version
+
+    def _by_version(self, launch: Launch) -> Decision:
         version = launch.version
         if version is None:
             return _NO_VERSION
@@ -530,16 +558,18 @@ def rules_for_advisory(
         out.sources.append("research records")
     for entry in registry.entries:
         fixed: dict[str, str | None] = {}
+        off: dict[str, Tags | None] = {}
         for item in entry.known_vulns or []:
             cve = item.get("cve") if isinstance(item, dict) else None
             if isinstance(cve, str) and cve.upper() == wanted:
                 fx = item.get("fixed_in")
                 fixed[cve] = str(fx) if fx else None
+                off[cve] = excludes_stdio(item)
         for cve in entry.known_vulnerabilities or []:
             if isinstance(cve, str) and cve.upper() == wanted:
                 fixed.setdefault(cve, None)
         for cve, fixed_in in fixed.items():
-            out.rules.append(RegistryRule(entry.name, cve, fixed_in))
+            out.rules.append(RegistryRule(entry.name, cve, fixed_in, off.get(cve)))
     if any(isinstance(r, RegistryRule) for r in out.rules):
         out.sources.append(f"registry (updated {registry.last_updated})")
     mal = [
@@ -683,7 +713,7 @@ def decide_server(
             reason=OTHER_PACKAGE,
         )
     version, source = server_version(server, ecosystem, package, locks)
-    launch = Launch(ecosystem, package, version, source, entry)
+    launch = Launch(ecosystem, package, version, source, entry, provably_stdio(server))
     decisions = sorted(
         (r.decide(launch) for r in applicable), key=lambda d: _RANK[d.status]
     )

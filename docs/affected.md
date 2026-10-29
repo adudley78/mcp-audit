@@ -56,7 +56,13 @@ By default the terminal output lists AFFECTED, COULDN'T CHECK and the NOT AFFECT
 
 ## Output
 
-`--format terminal` (default), `--format json`, `--format sarif`, with `-o FILE`. SARIF has one result per AFFECTED server and the query as the rule ID. JSON and SARIF paths are redacted like every other output that leaves the machine.
+`--format terminal` (default), `--format json`, `--format sarif`, `--format openvex`, with `-o FILE`. SARIF has one result per AFFECTED server and the query as the rule ID. JSON and SARIF paths are redacted like every other output that leaves the machine.
+
+## Transport tags and OpenVEX
+
+A registry advisory can say which transports its vulnerable code runs on (`affected_transports`: `stdio`, `http`, `sse`), with `verified_by` naming who checked it and against what. A server is cleared of a tagged advisory only when it is *provably* stdio: a command launch, no URL, no `--transport`, `-t`, `--port`, `-p`, `--host`, `--sse`, `--http` or similar argument, no `sse`/`http` word in the arguments, no `envFile`, `--env-file` or `cwd` (they can load a transport), and no environment variable named `TRANSPORT`, `PORT`, `HOST`, `BIND` or `LISTEN`. Then the row reads NOT AFFECTED with the tag's source in the evidence, and `scan`'s `SC-004` leaves the CVE out and names it. Everything else keeps the advisory: untagged advisories, a tag without `verified_by`, remote URLs, a launch that could select another transport. `requires_auth` is recorded where the advisory states it and changes no verdict. Five advisories carry a tag today; `scripts/audit_registry.py` prints the count and fails on a tag it cannot use.
+
+`--format openvex` (an advisory ID; not a range) and `scan --vex PATH` write an [OpenVEX](https://openvex.dev) 0.2.0 document. Each statement is one package URL and one advisory: `affected` (with the fix as the action), `fixed`, `not_affected` with `vulnerable_code_not_in_execute_path`, or `under_investigation` for COULDN'T CHECK. Servers on other packages say nothing. Config paths, server names and environment values are never written. When two servers run the same package and version and disagree (one stdio, one HTTP), the document carries the more cautious status, because a VEX statement is about the product. `not_affected` is written only when the version is known (a versionless package URL would claim every release); otherwise the statement is `under_investigation`. `scan --vex` states every advisory in the registry the scan used against the servers it found, offline; with nothing to state it writes no file.
 
 ## `--live`
 
