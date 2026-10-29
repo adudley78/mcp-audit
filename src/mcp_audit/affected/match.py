@@ -124,6 +124,8 @@ class Report:
     notes: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     live: bool = False
+    #: ``{"cve", "signals", "line"}`` when the query is a CVE (KEV/EPSS/PoC).
+    exploit: dict | None = None
 
     def count(self, status: Status) -> int:
         """Rows with *status*."""

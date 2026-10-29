@@ -200,6 +200,27 @@ def get_default_analyzers() -> list[BaseAnalyzer]:
     ]
 
 
+def apply_exploit_signals(result: ScanResult, index: object | None = None) -> None:
+    """Attach KEV/EPSS/PoC to *result*'s CVE findings and record the data dates.
+
+    Uses the bundled data unless *index* (a ``SignalIndex``, e.g. from
+    ``--live``) is given. Does nothing when no finding carries a CVE.
+    """
+    from mcp_audit.exploit import signals  # noqa: PLC0415
+
+    if not any(f.cve for f in result.findings):
+        result.exploit_data = None
+        return
+    idx = index if index is not None else signals.load()
+    signals.annotate(result.findings, idx)  # type: ignore[arg-type]
+    result.exploit_data = {
+        "source": "live" if idx.live else "bundled",  # type: ignore[attr-defined]
+        "kev_date": idx.kev_date,  # type: ignore[attr-defined]
+        "epss_date": idx.epss_date,  # type: ignore[attr-defined]
+        "line": idx.date_line(),  # type: ignore[attr-defined]
+    }
+
+
 def _run_static_pipeline(
     result: ScanResult,
     all_servers: list[ServerConfig],
@@ -391,6 +412,9 @@ def _run_static_pipeline(
                 result.errors,
             )
         )
+
+    # ── 5b. Exploit signals (KEV / EPSS / public PoC) on CVE findings ─────────
+    apply_exploit_signals(result)
 
     # ── 6. Scoring ────────────────────────────────────────────────────────────
     result.score = calculate_score(

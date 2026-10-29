@@ -16,6 +16,7 @@ from mcp_audit.output.check import print_check_results
 from mcp_audit.output.terminal import print_results
 from mcp_audit.registration import client as _reg_client
 from mcp_audit.registration import manager as _reg_manager
+from mcp_audit.scanner import apply_exploit_signals
 from mcp_audit.scoring import calculate_score
 
 # Severity order for exit-code threshold check (descending priority).
@@ -206,6 +207,8 @@ def check(
         raise typer.Exit(2) from None
 
     result = _apply_lock_verification(result, no_lock, console)
+    # check stays offline: bundled KEV/EPSS data, its date shown in the verdict.
+    apply_exploit_signals(result)
 
     # ── No configs found ──────────────────────────────────────────────────────
     # Only when nothing at all was found: a repository with no MCP config can

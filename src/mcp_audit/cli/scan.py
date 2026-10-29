@@ -199,6 +199,7 @@ def _preflight_checks(
     check_vulns: bool = False,
     connect: bool = False,
     vuln_registry: str | None = None,
+    live: bool = False,
 ) -> None:
     """Validate incompatible flag combinations and user-supplied paths.
 
@@ -214,6 +215,7 @@ def _preflight_checks(
         verify_signatures=verify_signatures,
         check_vulns=check_vulns,
         connect=connect,
+        live=live,
     )
     require_offline_compatible(policy, offline)
 
@@ -233,6 +235,36 @@ def _preflight_checks(
             "[red]Error:[/red] --vuln-registry must be an http:// or https:// URL"
         )
         raise typer.Exit(2)
+
+
+def _annotate_exploit_signals(result: ScanResult) -> ScanResult:
+    from mcp_audit.scanner import apply_exploit_signals  # noqa: PLC0415
+
+    apply_exploit_signals(result)
+    return result
+
+
+def apply_live_signals(result: ScanResult, con: Console) -> ScanResult:
+    """Replace the bundled exploit signals on *result* with current ones.
+
+    On any network or parse failure the bundled data stays and one line says so.
+    """
+    from mcp_audit.exploit import signals  # noqa: PLC0415
+    from mcp_audit.scanner import apply_exploit_signals  # noqa: PLC0415
+
+    cves = signals.finding_cves(result.findings)
+    if not cves:
+        return result
+    try:
+        index = signals.fetch_live(cves)
+    except (OSError, ValueError, RecursionError) as exc:
+        con.print(
+            f"[yellow]WARN[/yellow] --live: could not refresh exploit signals "
+            f"({type(exc).__name__}); using the bundled data."
+        )
+        return result
+    apply_exploit_signals(result, index)
+    return result
 
 
 def _print_owasp_report(result: ScanResult, con: Console) -> None:
@@ -1810,6 +1842,15 @@ def scan(
             "(requires network access)."
         ),
     ),
+    live: bool = typer.Option(  # noqa: B008
+        False,
+        "--live",
+        help=(
+            "Refresh CISA KEV, FIRST EPSS and OSV public-PoC data for the CVEs "
+            "in this scan at run time (network). Without it the bundled data "
+            "is used and its date is printed. Cannot be combined with --offline."
+        ),
+    ),
     vuln_registry: str | None = typer.Option(  # noqa: B008
         None,
         "--vuln-registry",
@@ -1939,6 +1980,7 @@ def scan(
         check_vulns=check_vulns,
         connect=connect,
         vuln_registry=vuln_registry,
+        live=live,
     )
 
     analyzers = _build_custom_analyzers(registry, offline_registry)
@@ -2036,6 +2078,12 @@ def scan(
         con,
         scoring_weights=scoring_weights,
         scoring_weights_source=scoring_weights_source,
+    )
+
+    # Every CVE finding is in by now (extensions and project scans add some):
+    # attach KEV/EPSS/PoC once, from live data when asked.
+    result = (
+        apply_live_signals(result, con) if live else _annotate_exploit_signals(result)
     )
 
     result = _apply_severity_threshold(result, severity_threshold, con)
