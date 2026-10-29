@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -495,10 +496,13 @@ class TestCli:
         result = _run("litellm@==1.107.0", "-p", str(cfg))
         assert result.exit_code == 1 and "AFFECTED" in result.output
 
-    def test_remote_server_never_fails_the_unknown_gate(self, tmp_path: Path) -> None:
+    def test_remote_server_is_couldnt_check_and_trips_the_unknown_gate(
+        self, tmp_path: Path
+    ) -> None:
         cfg = _config(tmp_path, {"remote": {"url": "https://example.test/mcp"}})
-        result = _run("litellm@<2", "-p", str(cfg), "--fail-on-unknown")
-        assert result.exit_code == 0 and "launch no package" in result.output
+        assert _run("litellm@<2", "-p", str(cfg)).exit_code == 0
+        gated = _run("litellm@<2", "-p", str(cfg), "--fail-on-unknown")
+        assert gated.exit_code == 1 and "launch no package" in gated.output
 
     def test_json_shape(self, tmp_path: Path) -> None:
         cfg = _config(tmp_path, {"filesystem": _npx(f"{FS}@2025.1.14")})
@@ -514,10 +518,28 @@ class TestCli:
         assert row["status"] == "AFFECTED" and row["version_source"] == "config pin"
         assert row["fixed_in"] == "2025.7.1" and row["package"].startswith("npm:")
 
-    def test_json_paths_are_not_absolute_home_paths(self, tmp_path: Path) -> None:
-        cfg = _config(tmp_path, {"filesystem": _npx(f"{FS}@2025.1.14")})
-        doc = json.loads(_run("CVE-2025-53109", "-p", str(cfg), "-f", "json").output)
-        assert str(Path.home()) not in doc["results"][0]["config_path"]
+    def test_json_and_sarif_never_carry_the_home_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home" / "someone"
+        proj = home / "proj"
+        proj.mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("USERPROFILE", str(home))
+        monkeypatch.chdir(proj)
+        cfg = _config(proj, {"filesystem": _npx(f"{FS}@2025.1.14")})
+        (proj / "broken.json").write_text("{nope", encoding="utf-8")
+        for fmt in ("json", "sarif"):
+            out = _run(
+                "CVE-2025-53109",
+                "-p",
+                str(cfg),
+                "-p",
+                str(proj / "broken.json"),
+                "-f",
+                fmt,
+            ).output
+            assert "someone" not in out, fmt
 
     def test_sarif_is_valid_and_has_one_result_per_affected_server(
         self, tmp_path: Path
@@ -644,3 +666,206 @@ class TestCli:
         )
         result = _run("GHSA-live-test-0002", "--live")
         assert result.exit_code == 2 and "404" in result.output
+
+
+# ── Review findings (PR #220) ──────────────────────────────────────────────────
+
+
+class TestHostileInputs:
+    def test_unparsable_config_is_a_couldnt_check_row_not_silence(
+        self, tmp_path: Path
+    ) -> None:
+        cfg = _config(
+            tmp_path,
+            {
+                "good": {"command": "uvx", "args": ["litellm==1.107.0"]},
+                "bad": {"command": None, "args": "notalist"},
+            },
+        )
+        result = _run("litellm@==1.107.0", "-p", str(cfg), "--fail-on-unknown")
+        assert result.exit_code == 1
+        assert "could not be parsed" in result.output
+
+    def test_broken_json_config_trips_the_unknown_gate(self, tmp_path: Path) -> None:
+        bad = tmp_path / "bad.json"
+        bad.write_text("{nope", encoding="utf-8")
+        result = _run("litellm@<2", "-p", str(bad), "--fail-on-unknown")
+        assert result.exit_code == 1 and "COULDN'T CHECK" in result.output
+
+    @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="POSIX only")
+    def test_a_fifo_lock_does_not_hang(self, tmp_path: Path) -> None:
+        fifo = tmp_path / "mcp-lock.json"
+        os.mkfifo(fifo)
+        errors: list[str] = []
+        assert m.read_lock_document(fifo, errors) is None
+        assert errors and "not a regular file" in errors[0]
+
+    @pytest.mark.skipif(not Path("/dev/zero").exists(), reason="POSIX only")
+    def test_a_lock_that_is_a_symlink_to_dev_zero_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        link = tmp_path / "mcp-lock.json"
+        link.symlink_to("/dev/zero")
+        errors: list[str] = []
+        assert m.read_lock_document(link, errors) is None
+        assert errors
+
+    def test_oversized_lock_is_refused(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(m, "MAX_LOCK_BYTES", 16)
+        path = tmp_path / "mcp-lock.json"
+        path.write_text(json.dumps({"servers": {"a": "x" * 100}}), encoding="utf-8")
+        errors: list[str] = []
+        assert m.read_lock_document(path, errors) is None
+        assert "over" in errors[0]
+
+    @pytest.mark.parametrize("raw", [b"\xff\xfe{", b"[]", b"[" * 100_000])
+    def test_odd_lock_contents_are_reported_not_raised(
+        self, tmp_path: Path, raw: bytes
+    ) -> None:
+        path = tmp_path / "mcp-lock.json"
+        path.write_bytes(raw)
+        errors: list[str] = []
+        assert m.read_lock_document(path, errors) is None
+        assert errors
+
+    def test_a_control_character_version_in_a_lock_is_ignored(
+        self, tmp_path: Path
+    ) -> None:
+        lock = _lock(tmp_path, "1.0.0\x1b[31m")
+        locks = LockIndex([lock])
+        assert m.server_version(_server(tmp_path), "npm", FS, locks) == (None, None)
+
+
+class TestVersionEdges:
+    def _rule(self, text: str) -> RangeRule:
+        return RangeRule("pkg", SpecifierSet(text), f"pkg@{text}")
+
+    @pytest.mark.parametrize("pre", ["2.0rc1", "2.0.0.dev1", "2.0a1"])
+    def test_prereleases_of_the_bound_are_below_it(self, pre: str) -> None:
+        assert self._rule("<2.0").decide(_plain(pre)).status is Status.AFFECTED
+        assert self._rule("<=2.0").decide(_plain(pre)).status is Status.AFFECTED
+
+    def test_wildcard_and_compatible_release_still_work(self) -> None:
+        assert self._rule("==1.2.*").decide(_plain("1.2.7")).status is Status.AFFECTED
+        assert self._rule("~=1.4").decide(_plain("1.9")).status is Status.AFFECTED
+        assert self._rule("~=1.4").decide(_plain("2.0")).status is (Status.NOT_AFFECTED)
+
+    def test_not_equal(self) -> None:
+        assert self._rule("!=1.0").decide(_plain("1.1")).status is Status.AFFECTED
+
+    def test_record_rule_orders_across_numbering_schemes_or_says_it_cannot(
+        self,
+    ) -> None:
+        # fixed in a calendar version: a semantic pin cannot be ordered offline
+        rec = _rec(versions=(), ranges=((("introduced", "0"), ("fixed", "2025.7.1")),))
+        d = RecordRule(rec, False).decide(_plain("2.0.0"))
+        assert d.status is Status.COULDNT_CHECK and d.reason == m.UNDECIDABLE
+        # fixed in a semantic version: a calendar pin cannot be ordered either
+        rec2 = _rec(versions=(), ranges=((("introduced", "0"), ("fixed", "1.5.0")),))
+        assert RecordRule(rec2, False).decide(_plain("2025.8.1")).status is (
+            Status.COULDNT_CHECK
+        )
+
+    def test_record_rule_same_scheme_still_decides(self) -> None:
+        rec = _rec(versions=(), ranges=((("introduced", "0"), ("fixed", "2025.7.1")),))
+        assert RecordRule(rec, False).decide(_plain("2025.1.1")).status is (
+            Status.AFFECTED
+        )
+        assert RecordRule(rec, False).decide(_plain("2025.9.9")).status is (
+            Status.NOT_AFFECTED
+        )
+
+    @pytest.mark.parametrize("text", ["x@===1.0", "x@<1,,", "x@,<1", "x@<1,"])
+    def test_malformed_ranges_are_refused(self, text: str) -> None:
+        with pytest.raises(QueryError):
+            parse_query(text)
+
+
+class TestLaunchForms:
+    def _row(self, tmp_path: Path, command: str, args: list[str]) -> m.Row:
+        from mcp_audit.registry.loader import load_registry  # noqa: PLC0415
+
+        server = ServerConfig(
+            name="s", client="c", config_path=tmp_path / "x", command=command, args=args
+        )
+        return m.decide_server(
+            server,
+            [RangeRule("litellm", SpecifierSet("==1.107.0"), "litellm@==1.107.0")],
+            load_registry(offline=True),
+            LockIndex(),
+            "q",
+        )
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            ("uvx", ["--with", "litellm==1.107.0", "other-tool"]),
+            ("uvx", ["--with=litellm==1.107.0", "other-tool"]),
+            ("npx", ["-y", "-p", "litellm@1.107.0", "runner"]),
+            ("npx", ["-y", "--package=litellm@1.107.0", "runner"]),
+        ],
+    )
+    def test_extra_installed_packages_are_never_a_clean_bill(
+        self, tmp_path: Path, command: str, args: list[str]
+    ) -> None:
+        row = self._row(tmp_path, command, args)
+        assert row.status is Status.COULDNT_CHECK and row.reason == m.EXTRA_PACKAGES
+
+    def test_a_server_flag_after_the_package_is_not_an_install_flag(
+        self, tmp_path: Path
+    ) -> None:
+        row = self._row(tmp_path, "uvx", ["other-tool", "-p", "8080"])
+        assert row.status is Status.NOT_AFFECTED
+
+    def test_extras_in_a_pypi_pin_are_read(self, tmp_path: Path) -> None:
+        row = self._row(tmp_path, "uvx", ["litellm[proxy]==1.107.0"])
+        assert row.status is Status.AFFECTED and row.version == "1.107.0"
+
+    def test_a_package_nobody_runs_gets_a_note(self, tmp_path: Path) -> None:
+        cfg = _config(tmp_path, {"s": {"command": "uvx", "args": ["other==1.0"]}})
+        result = _run("litlem@==1.0", "-p", str(cfg))
+        assert result.exit_code == 0 and "No discovered server runs" in result.output
+
+
+class TestDiscoveryWithoutPath:
+    def test_servers_are_found_without_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        home = tmp_path / "home"
+        (home / ".cursor").mkdir(parents=True)
+        (home / ".cursor" / "mcp.json").write_text(
+            json.dumps(
+                {"mcpServers": {"gw": {"command": "uvx", "args": ["litellm==1.107.0"]}}}
+            ),
+            encoding="utf-8",
+        )
+        work = tmp_path / "work"
+        work.mkdir()
+        for var in ("HOME", "USERPROFILE"):
+            monkeypatch.setenv(var, str(home))
+        monkeypatch.chdir(work)
+        result = _run("litellm@==1.107.0")
+        assert result.exit_code == 1 and "cursor" in result.output.lower()
+
+
+class TestNoNetworkByDefault:
+    def test_nothing_resolves_or_opens_a_url(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import socket  # noqa: PLC0415
+        import urllib.request  # noqa: PLC0415
+
+        def boom(*a: Any, **k: Any) -> None:
+            raise AssertionError("network used")
+
+        for owner, name in (
+            (socket, "getaddrinfo"),
+            (socket, "create_connection"),
+            (urllib.request, "urlopen"),
+        ):
+            monkeypatch.setattr(owner, name, boom)
+        cfg = _config(tmp_path, {"filesystem": _npx(f"{FS}@2025.1.14")})
+        for q in ("CVE-2025-53109", "litellm@<2", PLUGIN4SHELL):
+            _run(q, "-p", str(cfg))

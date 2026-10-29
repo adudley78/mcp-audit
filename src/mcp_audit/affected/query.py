@@ -91,6 +91,10 @@ def parse_query(text: str) -> Query:
             "'^' and '~' ranges are not evaluated; write the bounds, e.g. "
             "'>=1.2.0,<2' (comma means and)"
         )
+    if "===" in spec or any(not part.strip() for part in spec.split(",")):
+        raise QueryError(
+            f"{spec!r} is not a version range (no '===' and no empty clauses)"
+        )
     if _BARE_VERSION_RE.match(spec):
         spec = f"=={spec}"
     try:

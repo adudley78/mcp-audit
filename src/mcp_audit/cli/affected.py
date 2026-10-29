@@ -23,10 +23,14 @@ from rich.console import Console
 
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
 from mcp_audit.affected.match import (
+    RAN_THE_PACKAGE,
+    UNREADABLE,
     LockIndex,
     RecordRule,
     Report,
+    Row,
     RuleSet,
+    Status,
     decide_servers,
     records_from_osv,
     research_rows,
@@ -59,8 +63,14 @@ def _fail(message: str) -> typer.Exit:
     return typer.Exit(2)
 
 
-def _discover(paths: list[Path], errors: list[str]) -> list[ServerConfig]:
-    """Every server mcp-audit can find (or the ones in the given files)."""
+def _discover(
+    paths: list[Path], errors: list[str], unreadable: list[Row]
+) -> list[ServerConfig]:
+    """Every server mcp-audit can find (or the ones in the given files).
+
+    A config that cannot be parsed hides all of its servers, so it becomes a
+    COULDN'T CHECK row in *unreadable* as well as a warning.
+    """
     for path in paths:
         if not path.exists():
             raise _fail(f"path does not exist: {path}")
@@ -74,7 +84,18 @@ def _discover(paths: list[Path], errors: list[str]) -> list[ServerConfig]:
         try:
             servers.extend(parse_config(config))
         except ValueError as exc:
-            errors.append(str(exc))
+            first = (str(exc).splitlines() or [type(exc).__name__])[0]
+            errors.append(f"{config.path}: {first}")
+            unreadable.append(
+                Row(
+                    f"{config.client_name}: {config.path.name}",
+                    Status.COULDNT_CHECK,
+                    "this config could not be parsed, so none of its servers were "
+                    "checked",
+                    config_path=str(config.path),
+                    reason=UNREADABLE,
+                )
+            )
         errors.extend(config.parse_warnings)
     return servers
 
@@ -210,11 +231,17 @@ def affected(
         )
         report.rows.extend(research_rows(ruleset.research, fetch, report.notes))
     if ruleset.rules:
-        servers = _discover(path, report.errors)
+        unreadable: list[Row] = []
+        servers = _discover(path, report.errors, unreadable)
         locks = LockIndex(lock, report.errors)
-        report.rows.extend(
-            decide_servers(servers, ruleset, registry, locks, parsed.label)
-        )
+        rows = decide_servers(servers, ruleset, registry, locks, parsed.label)
+        report.rows.extend(rows + unreadable)
+        if servers and not any(r.reason in RAN_THE_PACKAGE for r in rows):
+            names = ", ".join(sorted({r.describes() for r in ruleset.rules}))
+            report.notes.append(
+                f"No discovered server runs {names}. If you meant another "
+                "package, check the spelling."
+            )
 
     if format_ is _Format.TERMINAL:
         render_terminal(report, Console(), show_all=show_all)

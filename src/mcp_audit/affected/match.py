@@ -15,6 +15,10 @@ semver range is resolved and no package manager is run.
 
 from __future__ import annotations
 
+import json
+import os
+import re
+import stat
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -32,7 +36,6 @@ from mcp_audit.analyzers.supply_chain import (
     resolve_launch_entry,
 )
 from mcp_audit.lock.discovery import find_lock_for
-from mcp_audit.lock.writer import load_existing as load_lock
 from mcp_audit.models import Finding, ServerConfig, Severity
 from mcp_audit.registry.loader import (
     KnownServerRegistry,
@@ -51,6 +54,12 @@ from mcp_audit.registry.malicious import (
 from mcp_audit.registry.research import ResearchRecord
 
 MAX_LOCK_BYTES = 8 * 1024 * 1024
+# What a recorded version may look like; anything else (control characters,
+# spaces, absurd length) is ignored rather than printed.
+_VERSION_TEXT = re.compile(r"[0-9A-Za-z][0-9A-Za-z.+!_\-]{0,63}")
+_PYPI_PIN_RE = re.compile(
+    r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._\-]*)(?:\[[^\]]*\])?==(?P<ver>[^=<>!~,;\s]+)$"
+)
 
 
 class Status(StrEnum):
@@ -61,9 +70,8 @@ class Status(StrEnum):
     COULDNT_CHECK = "COULDN'T CHECK"
 
 
-# Reasons a row is COULDN'T CHECK / NOT AFFECTED.  ``NO_PACKAGE`` is the one
-# unknown that never fails ``--fail-on-unknown``: the launch names no package,
-# so there is nothing to compare.
+# Reasons a row is COULDN'T CHECK / NOT AFFECTED.  ``NO_PACKAGE`` rows are
+# collapsed into a count in the terminal listing unless ``--all``.
 VERSION_UNKNOWN = "version-unknown"
 UNDECIDABLE = "undecidable"
 UNEVALUABLE = "unevaluable"
@@ -72,6 +80,13 @@ HARNESS_VERSION = "harness-version"
 POSTURE_ONLY = "posture-only"
 OTHER_PACKAGE = "other-package"
 VERSION_OUTSIDE = "version-outside"
+UNREADABLE = "unreadable-config"
+EXTRA_PACKAGES = "extra-packages"
+# A row with one of these reasons (or none) means a server really runs the
+# advisory's package.
+RAN_THE_PACKAGE = frozenset(
+    {None, VERSION_OUTSIDE, VERSION_UNKNOWN, UNDECIDABLE, UNEVALUABLE}
+)
 
 
 @dataclass(frozen=True)
@@ -115,12 +130,8 @@ class Report:
         return sum(1 for r in self.rows if r.status is status)
 
     def blocking_unknown(self) -> int:
-        """COULDN'T CHECK rows where a package was identified (gate material)."""
-        return sum(
-            1
-            for r in self.rows
-            if r.status is Status.COULDNT_CHECK and r.reason != NO_PACKAGE
-        )
+        """Every COULDN'T CHECK row (what ``--fail-on-unknown`` gates on)."""
+        return self.count(Status.COULDNT_CHECK)
 
     def needs_version(self) -> int:
         """COULDN'T CHECK rows that a pin or a lock would settle."""
@@ -150,10 +161,50 @@ def _name_key(ecosystem: str, name: str) -> str:
     return normalize_pypi_name(name) if ecosystem == "pypi" else name.lower()
 
 
+def read_lock_document(path: Path, errors: list[str]) -> dict | None:
+    """Read a lock file defensively; problems go to *errors*, never raise.
+
+    ``st_size`` cannot be trusted (``/dev/zero`` and a FIFO report 0), so the
+    file is opened without blocking, must be a regular file, and at most
+    ``MAX_LOCK_BYTES + 1`` bytes are read.
+    """
+    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        errors.append(f"lock {path.name} could not be read: {exc.strerror}")
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            errors.append(f"lock {path.name} is not a regular file; skipped")
+            return None
+        with os.fdopen(fd, "rb", closefd=False) as handle:
+            blob = handle.read(MAX_LOCK_BYTES + 1)
+    except OSError as exc:
+        errors.append(f"lock {path.name} could not be read: {exc.strerror}")
+        return None
+    finally:
+        os.close(fd)
+    if len(blob) > MAX_LOCK_BYTES:
+        errors.append(f"lock {path.name} is over {MAX_LOCK_BYTES} bytes; skipped")
+        return None
+    try:
+        doc = json.loads(blob.decode("utf-8"))
+    except (ValueError, RecursionError, MemoryError):
+        errors.append(f"lock {path.name} is not valid JSON; skipped")
+        return None
+    if not isinstance(doc, dict):
+        errors.append(f"lock {path.name} is not a lock file; skipped")
+        return None
+    return doc
+
+
 class LockIndex:
     """``resolved_version`` lookups: ``--lock`` files, then the nearest lock."""
 
-    def __init__(self, explicit: Iterable[Path] = (), errors: list[str] | None = None):
+    def __init__(
+        self, explicit: Iterable[Path] = (), errors: list[str] | None = None
+    ) -> None:
         self._explicit: list[tuple[Path, dict]] = []
         self._by_config: dict[Path, tuple[Path, dict] | None] = {}
         self._errors = errors if errors is not None else []
@@ -163,16 +214,8 @@ class LockIndex:
                 self._explicit.append((path, doc))
 
     def _read(self, path: Path) -> dict | None:
-        try:
-            if path.stat().st_size > MAX_LOCK_BYTES:
-                self._errors.append(f"lock {path.name} is over {MAX_LOCK_BYTES} bytes")
-                return None
-        except OSError as exc:
-            self._errors.append(f"lock {path.name} could not be read: {exc.strerror}")
-            return None
-        doc = load_lock(path)
-        if doc is None:
-            self._errors.append(f"lock {path.name} is not a readable lock file")
+        """Read a lock without trusting it: regular file, bounded, never blocking."""
+        doc = read_lock_document(path, self._errors)
         return doc
 
     def _nearest(self, config_path: Path) -> tuple[Path, dict] | None:
@@ -199,7 +242,7 @@ class LockIndex:
                 continue
             version = pkg.get("resolved_version")
             name = pkg.get("name")
-            if not isinstance(version, str) or not version:
+            if not isinstance(version, str) or not _VERSION_TEXT.fullmatch(version):
                 continue
             if isinstance(name, str) and _name_key(ecosystem, name) != _name_key(
                 ecosystem, package
@@ -209,11 +252,27 @@ class LockIndex:
         return None
 
 
+def _pypi_pin_with_extras(server: ServerConfig, package: str) -> str | None:
+    """``pkg[extra]==1.2.3``: a pin ``_pinned_version`` does not read."""
+    for arg in server.args:
+        hit = _PYPI_PIN_RE.match(arg)
+        if (
+            hit
+            and normalize_pypi_name(hit["name"]) == normalize_pypi_name(package)
+            and _VERSION_TEXT.fullmatch(hit["ver"])
+            and _parses(hit["ver"])
+        ):
+            return hit["ver"]
+    return None
+
+
 def server_version(
     server: ServerConfig, ecosystem: str, package: str, locks: LockIndex
 ) -> tuple[str | None, str | None]:
     """The version this launch installs, and where that came from."""
     pinned = _pinned_version(server)
+    if pinned is None and ecosystem == "pypi":
+        pinned = _pypi_pin_with_extras(server, package)
     if pinned is not None:
         return pinned, "config pin"
     found = locks.resolved(server, ecosystem, package)
@@ -233,6 +292,15 @@ class Launch:
     source: str | None
     entry: RegistryEntry | None
 
+
+_COMPARE: dict[str, Callable[[Version, Version], bool]] = {
+    "<": lambda a, b: a < b,
+    "<=": lambda a, b: a <= b,
+    ">": lambda a, b: a > b,
+    ">=": lambda a, b: a >= b,
+    "==": lambda a, b: a == b,
+    "!=": lambda a, b: a != b,
+}
 
 _NO_VERSION = Decision(
     Status.COULDNT_CHECK,
@@ -341,6 +409,9 @@ class RecordRule:
                 Status.AFFECTED,
                 f"{version} ({launch.source}) is a version {record.id} lists",
             )
+        for _kind, bound in (e for r in ranges for e in r):
+            if bound != "0" and _parses(bound) and _schemes_differ(version, bound):
+                return _unorderable(version, bound)
         results = [_range_covers(r, version) for r in ranges]
         if any(r is True for r in results):
             return Decision(
@@ -389,16 +460,22 @@ class RangeRule:
         resumed = launch.entry.semver_resumed_at if launch.entry else None
         holds = True
         for spec in self.specifier:
-            bound = spec.version
-            if _parses(bound.replace(".*", "")) and _schemes_differ(
-                version, bound.replace(".*", "")
-            ):
-                if spec.operator not in ("<", "<="):
+            op, bound = spec.operator, spec.version
+            wildcard = bound.endswith(".*")
+            base = bound[:-2] if wildcard else bound
+            if not _parses(base):
+                return _unorderable(version, bound)
+            if _schemes_differ(version, base):
+                if op not in ("<", "<=") or wildcard:
                     return _unorderable(version, bound)
-                status = _fix_status(version, bound, resumed)
+                status = _fix_status(version, base, resumed)
                 if status == "undecidable":
                     return _unorderable(version, bound)
                 holds = holds and status == "affected"
+            elif op in _COMPARE and not wildcard:
+                # Compared directly so `<2.0` includes 2.0rc1 (a pre-release
+                # sorts below the release; SpecifierSet.contains skips it).
+                holds = holds and _COMPARE[op](Version(version), Version(base))
             else:
                 holds = holds and spec.contains(version, prereleases=True)
         if holds:
@@ -515,6 +592,40 @@ def records_from_osv(osv: dict[str, Any]) -> list[MaliciousRecord]:
     return out
 
 
+_EXTRA_PACKAGE_FLAGS = frozenset(
+    {"--with", "--with-editable", "--with-requirements", "-p", "--package"}
+)
+
+
+def _installs_extra_packages(
+    server: ServerConfig, ecosystem: str, package: str
+) -> bool:
+    """True when the launch installs more than the package it runs.
+
+    ``uvx --with litellm==1.107.0 other-tool`` and ``npx -p litellm-js runner``
+    install a second package that ``launch_package`` does not name.  Only the
+    arguments before the named package are read, so a ``-p 8080`` that belongs
+    to the server does not count.
+    """
+    args = list(server.args)
+    wanted = _name_key(ecosystem, package)
+    stop = len(args)
+    for i, arg in enumerate(args):
+        if arg.startswith("-"):
+            continue
+        bare = re.split(r"==|\[", arg, maxsplit=1)[0]
+        if ecosystem == "npm":
+            bare = bare.rsplit("@", 1)[0] if bare.rfind("@") > 0 else bare
+        if _name_key(ecosystem, bare) == wanted:
+            stop = i
+            break
+    for arg in args[:stop]:
+        flag = arg.split("=", 1)[0]
+        if flag in _EXTRA_PACKAGE_FLAGS:
+            return True
+    return False
+
+
 # ── Servers ────────────────────────────────────────────────────────────────────
 
 _RANK = {Status.AFFECTED: 0, Status.COULDNT_CHECK: 1, Status.NOT_AFFECTED: 2}
@@ -549,6 +660,16 @@ def decide_server(
     plain = Launch(ecosystem, package, None, None, entry)
     applicable = [r for r in rules if r.matches(plain)]
     pkg_id = f"{ecosystem}:{package}"
+    if not applicable and _installs_extra_packages(server, ecosystem, package):
+        return Row(
+            subject,
+            Status.COULDNT_CHECK,
+            f"runs {pkg_id} and also installs packages through --with / -p / "
+            "--package, which mcp-audit does not read",
+            config_path=where,
+            package=pkg_id,
+            reason=EXTRA_PACKAGES,
+        )
     if not applicable:
         concerns = ", ".join(sorted({r.describes() for r in rules})) or "other packages"
         return Row(

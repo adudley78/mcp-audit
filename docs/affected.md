@@ -18,7 +18,7 @@ It reads every MCP server mcp-audit discovers (all supported clients, Codex and 
 | **NOT AFFECTED** | mcp-audit can show why: the server runs the package at a version the advisory does not cover (at or above the fix, or outside the listed range), or it runs a different package. |
 | **COULDN'T CHECK** | mcp-audit cannot tell. The row says why. This is never reported as not affected. |
 
-Exit code: `0` nothing affected, `1` something affected, `2` error. `--fail-on-unknown` also exits `1` when a server that runs the package could not be checked.
+Exit code: `0` nothing affected, `1` something affected, `2` error. `--fail-on-unknown` also exits `1` when anything is COULDN'T CHECK, including a remote server or a config file that could not be parsed.
 
 ## Where the version comes from
 
@@ -41,9 +41,18 @@ An ID that none of these knows is an error (exit `2`); it does not produce a col
 
 A research record is about products (Claude Code, Codex...), not MCP servers, so the rows are per product. mcp-audit does not yet read which Claude Code or Codex version is installed, so every product row is **COULDN'T CHECK**, with what the write-up says about that product's fix. The checks the record names (for Plugin4Shell, PLUGIN-003 and PLUGIN-004) are run too; a HIGH or CRITICAL result is an AFFECTED row, and a milder one is listed as COULDN'T CHECK. Those checks look at Claude Code's plugin directory only, only for installs that kept their `.git`, and are not run with `--path`. No research record ever produces NOT AFFECTED.
 
+## Launches it will not call clean
+
+- A config file that cannot be parsed hides all its servers, so it appears as one COULDN'T CHECK row (and a warning) instead of silence.
+- A launch that installs extra packages (`uvx --with pkg==1.2`, `npx -p pkg`, `--package`) is COULDN'T CHECK when its main package is not the one asked about, because the extra package is installed too and mcp-audit does not read it.
+- A pin with extras (`litellm[proxy]==1.107.0`) is read as a pin.
+- If no discovered server runs the package you named, the output says so (check the spelling) rather than printing a column of NOT AFFECTED.
+- Lock files are read defensively: a regular file only, at most 8 MiB, never blocking on a FIFO or device.
+- `package@<2.0` includes `2.0rc1` and `2.0.dev1`: a pre-release sorts below its release, and a security answer should not skip it.
+
 ## What it lists
 
-By default the terminal output lists AFFECTED, COULDN'T CHECK and the NOT AFFECTED rows that run the package. Servers on other packages, and servers whose launch names no package mcp-audit can read (a remote URL, a local script), are counted in one line; `--all` lists them. A server with no readable package is COULDN'T CHECK, but never fails `--fail-on-unknown`, because there is no package to compare.
+By default the terminal output lists AFFECTED, COULDN'T CHECK and the NOT AFFECTED rows that run the package. Servers on other packages, and servers whose launch names no package mcp-audit can read (a remote URL, a local script), are counted in one line; `--all` lists them. A server with no readable package is COULDN'T CHECK and does trip `--fail-on-unknown`; a gate that must ignore remote servers should not use that flag.
 
 ## Output
 
@@ -58,6 +67,7 @@ By default the terminal output lists AFFECTED, COULDN'T CHECK and the NOT AFFECT
 The comparison itself is exact (PEP 440 ordering, OSV event order). The error is in the data, and these are the counts today:
 
 - **Registry:** 14 packages carry advisories, in 180 structured records. 17 of them record no fixed version, so a pinned server on one of those is AFFECTED ("no fixed version recorded") and can never be shown as fixed.
+- **Numbering schemes:** a version range or fix that mixes calendar and semantic numbering is COULDN'T CHECK, except where the registry records `semver_resumed_at` for the package.
 - **Malicious mirror:** 217 records; 150 list explicit versions and 99 carry a blanket "every version" range. For a package in the registry, the blanket range is ignored when the record also lists versions (the SC-008 rule).
 - **Coverage:** an advisory the registry, the mirror and the research records do not hold is not answered offline. The registry's CVE history is curated, not NVD; a package missing a CVE here is not evidence that it has none.
 - **Version:** a version mcp-audit cannot parse, or order against the fix, is COULDN'T CHECK. An unpinned launch is COULDN'T CHECK; the floating spec's installed version can differ from a lock's if the lock is stale.

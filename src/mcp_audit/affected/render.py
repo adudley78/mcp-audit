@@ -35,6 +35,12 @@ _SCHEMA = (
 )
 
 
+def _scrub(text: str) -> str:
+    """Replace the reader's home directory with ``~`` in text that leaves the host."""
+    home = str(Path.home())
+    return text.replace(home, "~") if len(home) > 3 else text
+
+
 def _path(row: Row) -> str | None:
     if not row.config_path:
         return None
@@ -113,9 +119,9 @@ def render_terminal(report: Report, console: Console, *, show_all: bool) -> None
 
 def _row_dict(row: Row) -> dict[str, Any]:
     return {
-        "subject": row.subject,
+        "subject": _scrub(row.subject),
         "status": row.status.value,
-        "evidence": row.evidence,
+        "evidence": _scrub(row.evidence),
         "config_path": _path(row),
         "package": row.package,
         "version": row.version,
@@ -138,8 +144,8 @@ def render_json(report: Report) -> str:
         },
         "sources": report.sources,
         "live": report.live,
-        "notes": report.notes,
-        "errors": report.errors,
+        "notes": [_scrub(n) for n in report.notes],
+        "errors": [_scrub(e) for e in report.errors],
         "results": [_row_dict(r) for r in report.rows],
     }
     return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
@@ -164,7 +170,7 @@ def render_sarif(report: Report) -> str:
             {
                 "ruleId": label,
                 "level": "error",
-                "message": {"text": f"{row.subject}: {row.evidence}"},
+                "message": {"text": _scrub(f"{row.subject}: {row.evidence}")},
                 "locations": [{"physicalLocation": {"artifactLocation": {"uri": uri}}}],
                 "properties": {
                     "status": row.status.value,
