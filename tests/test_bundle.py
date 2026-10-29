@@ -137,6 +137,34 @@ class TestVerify:
         assert "exploit-signals.json: missing, or not a regular file" in text
         assert "extra.json: present but not in" in text
 
+    def test_files_are_read_from_a_private_copy(
+        self, trusted: None, made: Path
+    ) -> None:
+        b = bundle_mod.verify_bundle(made, _config())
+        assert made not in b.path("known-malicious.json").parents
+        (made / "data" / "known-malicious.json").write_text("{}")  # after the check
+        assert "bundle-only-pkg" in b.path("known-malicious.json").read_text()
+
+    def test_failed_bundle_does_not_advance_the_rollback_record(
+        self, monkeypatch, made: Path, tmp_path: Path
+    ) -> None:
+        def feed_ok(root, config, *, now, state_path):
+            state_path.write_text('{"seen": 9}')  # what verify_feed records on success
+            return _report()
+
+        monkeypatch.setattr(bundle_mod, "verify_feed", feed_ok)
+        monkeypatch.setattr(bundle_mod, "verify_path", lambda *a, **k: None)
+        (made / "data" / "known-servers.json").write_text("{}")  # breaks a digest
+        state = tmp_path / "seen.json"
+        with pytest.raises(bundle_mod.BundleError):
+            bundle_mod.verify_bundle(made, _config(), state_path=state)
+        assert not state.exists()
+        (made / "data" / "known-servers.json").write_bytes(
+            (REPO / "registry" / "known-servers.json").read_bytes()
+        )
+        bundle_mod.verify_bundle(made, _config(), state_path=state)
+        assert state.exists()
+
     def test_missing_directory(self, tmp_path: Path) -> None:
         with pytest.raises(bundle_mod.BundleError, match="not found"):
             bundle_mod.verify_bundle(tmp_path / "nope", _config())
@@ -167,6 +195,22 @@ class TestCli:
         result = runner.invoke(app, ["scan", str(cfg), "--bundle", str(made)])
         assert "Signed bundle 2026-10-29" in result.output
         assert "MAL-2099-0001" in result.output
+
+    def test_scan_with_bundle_keeps_the_config_hygiene_checks(
+        self, trusted: None, made: Path
+    ) -> None:
+        demo = str(REPO / "demo" / "configs")
+        online = runner.invoke(app, ["scan", demo, "-f", "json"])
+        bundled = runner.invoke(
+            app, ["scan", demo, "-f", "json", "--bundle", str(made)]
+        )
+
+        def analyzers(out: str) -> set[str]:
+            doc = json.loads(out[out.index("{") :])
+            return {f.get("analyzer") for f in doc["findings"]}
+
+        assert "config_hygiene" in analyzers(online.output)
+        assert "config_hygiene" in analyzers(bundled.output)
 
     def test_failed_bundle_stops_the_run(self, tmp_path: Path) -> None:
         result = runner.invoke(
@@ -222,5 +266,11 @@ def test_real_minisign_round_trip(tmp_path: Path) -> None:
     b = bundle_mod.verify_bundle(out, config, state_path=state)
     assert b.published_at
     (out / "data" / "known-malicious.json").write_text("{}")
-    with pytest.raises(bundle_mod.BundleError):
+    with pytest.raises(bundle_mod.BundleError, match="does not match the digest"):
         bundle_mod.verify_bundle(out, config, state_path=state)
+    out2 = build_bundle.build(feed, tmp_path / "bundle2", config)
+    manifest = json.loads((out2 / "bundle.json").read_text())
+    manifest["created_at"] = "2000-01-01T00:00:00Z"
+    (out2 / "bundle.json").write_text(json.dumps(manifest))
+    with pytest.raises(bundle_mod.BundleError, match="bundle.json"):
+        bundle_mod.verify_bundle(out2, config, state_path=state)

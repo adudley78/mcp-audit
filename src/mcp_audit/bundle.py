@@ -26,13 +26,17 @@ the registry path is returned by :meth:`Bundle.path` for call sites to pass.
 
 from __future__ import annotations
 
+import atexit
 import hashlib
 import json
+import shutil
 import stat
+import tempfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from mcp_audit.advisory.freshness import default_seen_path
 from mcp_audit.advisory.sign import (
     SigningConfig,
     SigningError,
@@ -117,6 +121,26 @@ def _regular_inside(root: Path, rel: str) -> Path | None:
     return resolved
 
 
+def _snapshot(root: Path) -> Path:
+    """Copy the bundle into a private directory and return the copy.
+
+    Everything is verified, and later read by the loaders, from this copy, so
+    nobody who can write to *root* can change a file between its check and its
+    use.  Symlinks are copied as links (and then refused by the checks).  The
+    copy is removed when the process exits.
+    """
+    private = Path(tempfile.mkdtemp(prefix="mcp-audit-bundle-"))
+    private.chmod(0o700)
+    atexit.register(shutil.rmtree, private, ignore_errors=True)
+    for name in ("index.json", "index.json.sig", MANIFEST, MANIFEST + ".sig"):
+        if (root / name).is_file() and not (root / name).is_symlink():
+            shutil.copy2(root / name, private / name)
+    for sub in ("advisories", DATA_DIR):
+        if (root / sub).is_dir() and not (root / sub).is_symlink():
+            shutil.copytree(root / sub, private / sub, symlinks=True)
+    return private
+
+
 def verify_bundle(
     root: Path,
     config: SigningConfig,
@@ -126,6 +150,10 @@ def verify_bundle(
 ) -> Bundle:
     """Verify the bundle at *root* and return it.
 
+    The bundle is copied to a private directory first; the returned
+    :class:`Bundle` points into that copy.  The rollback record
+    (``seen.json``) is advanced only when the whole bundle verified.
+
     Raises:
         BundleError: with every failure found.  Unsigned, expired, rolled back,
             tampered, or missing a data file all fail.
@@ -134,7 +162,24 @@ def verify_bundle(
     if not root.is_dir():
         raise BundleError([f"bundle directory not found: {root}"])
     now = now or datetime.now(UTC)
+    real_state = state_path or default_seen_path()
+    private = _snapshot(root)
+    scratch_state = private / "seen.json"
+    if real_state.is_file():
+        shutil.copyfile(real_state, scratch_state)
+    bundle = _verify_snapshot(private, config, now, scratch_state)
+    if scratch_state.is_file():
+        try:
+            real_state.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(scratch_state, real_state)
+        except OSError:
+            pass  # rollback memory is best-effort, as it is for `feed verify`
+    return bundle
 
+
+def _verify_snapshot(
+    root: Path, config: SigningConfig, now: datetime, state_path: Path
+) -> Bundle:
     report = verify_feed(root, config, now=now, state_path=state_path)
     failures = list(report.failures)
     if report.ok and not report.signed:

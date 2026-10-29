@@ -24,6 +24,7 @@ from mcp_audit import cli as _cli
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
 from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers.auth import AuthAnalyzer
+from mcp_audit.analyzers.config_hygiene import ConfigHygieneAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import (
@@ -429,8 +430,13 @@ def _print_owasp_report(result: ScanResult, con: Console) -> None:
 def _build_custom_analyzers(
     registry: Path | None,
     offline_registry: bool,
+    keep_hygiene: bool = False,
 ) -> list | None:
     """Build a custom analyzer list when a registry override is requested.
+
+    ``keep_hygiene`` keeps the config-hygiene analyzer in the list, as the
+    default list has it; ``--bundle`` sets it so an air-gapped scan runs the
+    same checks as an online one.  (``--registry`` alone still omits it.)
 
     Returns ``None`` when the default scanner analyzers should be used (i.e.
     neither ``--registry`` nor ``--offline-registry`` was supplied).
@@ -441,11 +447,13 @@ def _build_custom_analyzers(
         registry_path=registry,
         offline_registry=offline_registry,
     )
+    hygiene = [ConfigHygieneAnalyzer()] if keep_hygiene else []
     return [
         PoisoningAnalyzer(),
         CredentialsAnalyzer(),
         TransportAnalyzer(registry=supply_chain.registry),
         supply_chain,
+        *hygiene,
         AuthAnalyzer(),
     ]
 
@@ -2071,7 +2079,9 @@ def scan(
             raise typer.Exit(2)
         registry = open_bundle(bundle, bundle_key, con).path("known-servers.json")
 
-    analyzers = _build_custom_analyzers(registry, offline_registry)
+    analyzers = _build_custom_analyzers(
+        registry, offline_registry, keep_hygiene=bundle is not None
+    )
     extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, con)
 
     # Load the governance policy early so we can extract custom scoring weights

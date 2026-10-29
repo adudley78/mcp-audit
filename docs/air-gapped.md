@@ -42,8 +42,11 @@ Every run starts with a line such as `Signed bundle 2026-10-29, 2 days old, feed
 
 `scripts/build_bundle.py --feed ./feed --out ./bundle --private-key KEY --public-key KEY.pub` copies a signed feed and the four data files from a checkout and signs the manifest. Today that needs the feed's signing key, which lives only in the publisher workflow, so mcp-audit does not publish bundles yet; adding it to `advisory-feed-publish.yml` is a held change. Until then, a bundle you assemble and sign with your own key is verified with `--bundle-key your.pub`.
 
+The bundle is copied to a private temporary directory before anything is checked, and both the checks and the scan use that copy, so changing the original while a command runs has no effect.
+
 ## Limits
 
 - minisign only. A feed signed with cosign keyless is not supported here.
+- Within one feed snapshot nothing orders two bundles: the manifest names the feed index, not a data version, so how current the data files are is up to whoever signs the bundle. `created_at` in `bundle.json` says when it was made.
 - A bundle is as old as its feed. `scan` and `affected` print the date; read it.
 - The bundle replaces the four data files only. `lock`, `vet` and the other commands still read the installed copies.
