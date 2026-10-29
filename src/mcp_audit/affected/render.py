@@ -214,7 +214,7 @@ def _row_dict(row: Row) -> dict[str, Any]:
         "config_path": _path(row),
         "package": row.package,
         "version": row.version,
-        "version_source": _scrub(row.version_source)
+        "version_source": _scrub(row.version_source).replace("\\", "/")
         if row.version_source
         else row.version_source,
         "fixed_in": row.fixed_in,
@@ -273,7 +273,7 @@ def render_sarif(report: Report) -> str:
                     "package": row.package,
                     "version": row.version,
                     "versionSource": (
-                        _scrub(row.version_source)
+                        _scrub(row.version_source).replace("\\", "/")
                         if row.version_source
                         else row.version_source
                     ),

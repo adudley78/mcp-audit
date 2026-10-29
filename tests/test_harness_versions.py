@@ -307,8 +307,11 @@ def test_json_and_sarif_carry_no_home_path(
     _pkg(pfx / "lib" / "node_modules", "claude-code", "2.1.100")
     monkeypatch.setenv("npm_config_prefix", str(pfx))
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))  # Path.home() on Windows
     for fmt in ("json", "sarif"):
         res = CliRunner().invoke(app, ["affected", PLUGIN4SHELL, "--format", fmt])
         assert res.exit_code == 1, res.output
         assert str(home) not in res.output
+        assert str(home).replace("\\", "/") not in res.output
+        assert json.dumps(str(home))[1:-1] not in res.output
         assert "~/pfx" in res.output
