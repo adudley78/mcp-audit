@@ -368,6 +368,8 @@ lock time) — never confirmed against the registry
 | `--allow-unverified` | off | With `--verify`, waive unresolved entries and populated foreign sections from the exit code (restores exit 0), printing exactly what was waived. Never waives an actual LOCK-001/002/004/005 finding. See "Unverified state now fails the exit code" above. |
 | `--accept` | off | Re-write the lock from the current state, preserving each surviving entry's `first_locked` — the explicit "I reviewed the drift" step after a failed `--verify` |
 | `--connect` | off | Start each configured server and list its tools. Writing: record a digest of every tool definition in `tools`. With `--verify`: report `LOCK-006`..`LOCK-009`. Needs the `mcp` extra (`pip install 'mcp-audit-scanner[mcp]'`); not available in the standalone binary. Cannot be combined with `--offline`. |
+| `--save-tool-text` | off | With `--connect`: also write the tool definitions to `mcp-lock.tools.json` beside the lock. `mcp-lock.json` is unchanged. See [Saved tool text](#saved-tool-text---save-tool-text). |
+| `--tool-text-path` | `<lock dir>/mcp-lock.tools.json` | Where the tool-text file is written (with `--save-tool-text`) or read (with `--verify --connect`) |
 | `--connect-token` | none | Bearer token sent to remote (SSE/HTTP) servers during `--connect`. Never stored or logged. |
 | `--include-user` | off | Also lock user-global configs (for dotfiles repositories) |
 | `--offline` | off | Never touch the network while writing the lock |
@@ -485,6 +487,48 @@ does not pass `--connect`; whether CI should start MCP servers is your call, mad
 your own workflow step.
 
 ---
+
+## Saved tool text (`--save-tool-text`)
+
+The tools section stores digests, so `LOCK-007` and `LOCK-008` can say that a tool changed but not
+what changed. `lock --connect --save-tool-text` also writes the definitions themselves to
+`mcp-lock.tools.json` next to the lock:
+
+```bash
+mcp-audit lock --connect --save-tool-text        # writes mcp-lock.json and mcp-lock.tools.json
+mcp-audit lock --verify --connect                # reads the second file when it is there
+mcp-audit lock --verify --connect --format pr-comment
+```
+
+What verify shows with the file:
+
+| Finding | Added detail |
+|---|---|
+| `LOCK-006` | The new tool's description (shown even without the file; it was just listed) |
+| `LOCK-007` | One line per changed path: `read: annotations.readOnlyHint: true → false` |
+| `LOCK-008` | A word diff of the description or title: `Read a note [-from disk-] {+and send it to evil.example+}` |
+
+The poisoning checks run over the **added words only**. A match is named in the evidence; the finding's severity is the same with or without the file. The terminal view is capped per tool (eight field changes, about 700 characters of
+word diff); `--format json` has the full diff under `tool_diffs`, and `--format pr-comment` prints
+each changed description before and after in code fences (capped at 4,000 characters each, 60,000 for the comment), since tool text comes from the server. Credentials found in tool text are redacted in every display; the file itself stores the text as sent, and `lock` warns when a description looks like it holds one. A very long changed stretch (over 1,500 words) is reported as "too long to align" instead of diffed.
+
+**It is a companion, not part of the lock.** `mcp-lock.json` is the same with or without it, its
+checksum does not cover it, and no verdict depends on it. Each stored definition is shown only if it
+hashes to the digest the lock holds for that tool. If any does not (hand edit, or the file is from an
+older run), verify prints a note that the file is out of step with the lock, shows no diff for that
+server, and the exit code is whatever the digests say. A name collision (two tools under one name)
+is never shown as a single definition. The file is never overwritten if it is not one mcp-audit wrote, and `--tool-text-path` alone writes nothing (it needs `--save-tool-text`). Without the file, `--verify --connect` prints what it always
+did plus one line saying `--save-tool-text` would show the change.
+
+**What is in it.** The definition each tool is digested from: name, title, description,
+`inputSchema`, `outputSchema`, `annotations`. It never sees your server's `env` or `headers`. It does
+contain every tool description the server sent, so review it like the lock before committing. A
+`WARN` prints when the file passes 1 MB; the 2026-10-22 top-100 corpus held about 6 MB of definitions
+across 60 servers that answered (about 100 KB per server on average; the corpus does not commit the
+definitions, so a median and maximum are not published). Re-run with `--save-tool-text` to refresh
+it; a server that could not be listed keeps its previous text.
+
+Not to be confused with `mcp-audit snapshot`, which is the forensic export.
 
 ## CI usage
 
