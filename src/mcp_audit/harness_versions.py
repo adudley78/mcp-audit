@@ -170,6 +170,22 @@ def _node_module_roots(
     return roots
 
 
+def _same_entry(target: Path, entry: Path) -> bool:
+    """Whether the launcher's link target names *entry*.
+
+    Compares by file identity (``stat``, never opening or running anything)
+    so Windows' ``\\\\?\\`` long-path prefix from ``os.readlink`` and 8.3 short
+    names don't hide a match; falls back to normalised paths when either
+    side can't be stat'ed.
+    """
+    try:
+        return os.path.samefile(target, entry)
+    except OSError:
+        return os.path.normcase(os.path.normpath(target)) == os.path.normcase(
+            os.path.normpath(entry)
+        )
+
+
 def _native_installs(home: Path, skipped: list[str]) -> list[HarnessInstall]:
     """Claude Code's native installer: version-named entries and the launcher."""
     versions = home / ".local" / "share" / "claude" / "versions"
@@ -190,9 +206,7 @@ def _native_installs(home: Path, skipped: list[str]) -> list[HarnessInstall]:
             Version(name)
         except InvalidVersion:
             continue
-        pointed = target is not None and os.path.normpath(target) == os.path.normpath(
-            entry
-        )
+        pointed = target is not None and _same_entry(target, entry)
         found.append(
             HarnessInstall(
                 "claude-code",
