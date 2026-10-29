@@ -87,6 +87,23 @@ A registry advisory can say which transports its vulnerable code runs on (`affec
 
 `--live` fetches an advisory that is not bundled from OSV.dev (`/v1/vulns/{id}`, the endpoint `scan --check-vulns` already uses) and evaluates its npm and PyPI ranges. It is refused with `--offline`. Without it, nothing leaves the machine.
 
+## `--transitive`: the dependency tree (STORY-0131)
+
+`affected <ID or range> --live --transitive` also checks what each server pulls in. For every server whose exact version is known (a launch pin or a lock's `resolved_version`), it reads the dependency graph from deps.dev (the client `scan --check-vulns` uses; no new endpoint) and evaluates the advisory's rules against every dependency in it.
+
+- A dependency hit is AFFECTED, with the path in the terminal output, `results[].dependency` in JSON and `properties.dependency` in SARIF: `wrapper@1.0.0 -> leftpad@1.3.0 (INDIRECT)`. deps.dev reports each node's relation (DIRECT or INDIRECT) but not the chain between, so the path is the server, the dependency and the relation. `--format openvex` names the dependency's package URL, not the server's.
+- A graph that could not be read (HTTP 404, network error, over 8 MiB, malformed) or that deps.dev flags as incomplete is COULDN'T CHECK, never NOT AFFECTED. A hit in an incomplete graph is still AFFECTED.
+- A server with no exact version has no graph to look up, so it is COULDN'T CHECK too. This includes servers on other packages: with `--transitive`, a floating `npx -y other-pkg` is COULDN'T CHECK because its tree is unknown.
+- A dependency whose version cannot be ordered against the advisory counts as COULDN'T CHECK for the server.
+- Each distinct package version is looked up once per run, and at most 100 lookups are made; the rest are COULDN'T CHECK.
+- It needs `--live` (exit 2 otherwise) and is refused with `--offline` or `--bundle`. `--fix` does not pin a server affected only through a dependency, because pinning the wrapper does not change the dependency.
+
+## `--fleet`: other machines' scans (STORY-0131)
+
+`affected <ID or range> --fleet a.json --fleet b.json` answers from `mcp-audit scan --format json` files instead of this machine's configs, one row per machine and server. The machine is `machine_info.asset_id`, else `hostname`; two files with the same name are kept apart by file name. The scan JSON already carries each server's launch command and arguments, so no field was added; a version comes from the launch pin. Lock files are not read: a config path in a scan file belongs to another machine, so a floating launch is COULDN'T CHECK. `mcp-audit merge` output keeps findings but not servers, so it is reported as such, with a pointer to the per-machine files. The Respond block, `--policy-out`, `--fix` and `--path` read or change this machine and are refused or skipped with `--fleet`. A research-record ID (`x_MCPRS-…`) is answered from this machine's harness installs, so `--fleet` refuses it (exit 2). `--fleet` combines with `--live --transitive`.
+
+The files are untrusted: each is opened without blocking, must be a regular file, is read up to 64 MiB, and is parsed defensively (at most 1,000 files and 10,000 servers per file). An unreadable, oversized, malformed or non-scan file becomes a COULDN'T CHECK row and a warning; a server entry that does not parse is counted and skipped.
+
 ## Measured error
 
 The comparison itself is exact (PEP 440 ordering, OSV event order). The error is in the data, and these are the counts today:
@@ -99,7 +116,7 @@ The comparison itself is exact (PEP 440 ordering, OSV event order). The error is
 
 ## Not in this version
 
-- `--transitive` (walking the dependency graph) and `--fleet` (reading `merge` reports) are queued; the `merge` JSON does not carry per-server launch versions today.
+- `--transitive` shows the server, the dependency and its relation, not the full chain between them (deps.dev's graph call used here does not return edges), and `--fleet` cannot use a lock's `resolved_version` (the scan JSON does not carry it).
 - Reading the installed version of Claude Code, Codex and the other harnesses, so a research record's product rows can be answered.
 - Fixing (`affected --fix`), exploit signals, reachability and VEX output come in later EPIC-0008 stories.
 

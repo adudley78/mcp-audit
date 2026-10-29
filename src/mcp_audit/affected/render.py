@@ -68,6 +68,16 @@ def render_terminal(report: Report, console: Console, *, show_all: bool) -> None
         console.print(f"[dim]Data: {escape('; '.join(report.sources))}[/dim]")
     if report.live:
         console.print("[dim]--live: the advisory was fetched from OSV.dev.[/dim]")
+    if report.transitive:
+        console.print(
+            "[dim]--transitive: dependency trees were read from deps.dev "
+            "(path shown is server, dependency and relation).[/dim]"
+        )
+    if report.fleet:
+        console.print(
+            f"[dim]--fleet: answers come from {len(report.fleet)} scan file(s), "
+            "not from this machine.[/dim]"
+        )
     if report.exploit:
         sig = report.exploit["signals"] or {}
         bits = []
@@ -97,8 +107,10 @@ def render_terminal(report: Report, console: Console, *, show_all: bool) -> None
                 if row.package
                 else ""
             )
-            console.print(f"  {escape(row.subject)}{pkg}")
+            console.print(f"  {escape(row.label())}{pkg}")
             console.print(f"    {escape(row.evidence)}")
+            if row.dependency:
+                console.print(f"    path: {escape(row.dependency.path)}")
             if row.config_path:
                 console.print(f"    [dim]{escape(_display_path(row))}[/dim]")
     _print_respond(report, console)
@@ -180,8 +192,22 @@ def _respond_dict(item: Any) -> dict[str, Any]:
     }
 
 
+def _dependency_dict(row: Row) -> dict[str, Any] | None:
+    dep = row.dependency
+    if dep is None:
+        return None
+    return {
+        "ecosystem": dep.ecosystem,
+        "name": dep.name,
+        "version": dep.version,
+        "relation": dep.relation.upper(),
+        "path": _scrub(dep.path),
+    }
+
+
 def _row_dict(row: Row) -> dict[str, Any]:
     return {
+        "machine": _scrub(row.machine) if row.machine else None,
         "subject": _scrub(row.subject),
         "status": row.status.value,
         "evidence": _scrub(row.evidence),
@@ -191,6 +217,7 @@ def _row_dict(row: Row) -> dict[str, Any]:
         "version_source": row.version_source,
         "fixed_in": row.fixed_in,
         "reason": row.reason,
+        "dependency": _dependency_dict(row),
     }
 
 
@@ -207,6 +234,8 @@ def render_json(report: Report) -> str:
         },
         "sources": report.sources,
         "live": report.live,
+        "transitive": report.transitive,
+        "fleet": [_scrub(f) for f in report.fleet],
         "exploit": report.exploit,
         "notes": [_scrub(n) for n in report.notes],
         "errors": [_scrub(e) for e in report.errors],
@@ -235,7 +264,7 @@ def render_sarif(report: Report) -> str:
             {
                 "ruleId": label,
                 "level": "error",
-                "message": {"text": _scrub(f"{row.subject}: {row.evidence}")},
+                "message": {"text": _scrub(f"{row.label()}: {row.evidence}")},
                 "locations": [{"physicalLocation": {"artifactLocation": {"uri": uri}}}],
                 "properties": {
                     "status": row.status.value,
@@ -243,6 +272,8 @@ def render_sarif(report: Report) -> str:
                     "version": row.version,
                     "versionSource": row.version_source,
                     "fixedIn": row.fixed_in,
+                    "machine": _scrub(row.machine) if row.machine else None,
+                    "dependency": _dependency_dict(row),
                 },
             }
         )
