@@ -43,6 +43,70 @@ _REGISTRY_CONTRIBUTION_URL = "https://mcp-audit.dev/contribute"
 # Matches @scope/name (npm scoped packages).
 _SCOPED_RE = re.compile(r"^@([^/]+)/(.+)$")
 
+# What counts as an exact version in `vet pkg@1.2.3` / `vet pkg==1.2.3`.
+_PINNED_VERSION_RE = re.compile(r"^[vV]?(\d[0-9A-Za-z.+_!-]*)$")
+
+
+def split_package_spec(spec: str) -> tuple[str, str | None]:
+    """Split ``name@version`` / ``@scope/name@version`` / ``name==version``.
+
+    Registry lookups use the bare name; the version is reported against the
+    recorded CVE ranges.  Only an exact version (starts with a digit, optional
+    ``v``) counts as a pin.  A dist-tag (``@latest``) or a range (``@^1.2``) is
+    dropped without a pin: it names no single release.
+
+    Args:
+        spec: The package argument as typed.
+
+    Returns:
+        ``(name, version)``; *version* is ``None`` when none was given.
+    """
+    spec = spec.strip()
+    if "==" in spec:
+        name, _, rest = spec.partition("==")
+        match = _PINNED_VERSION_RE.match(rest.strip())
+        return name.strip(), match.group(1) if match else None
+    at = spec.rfind("@")
+    if at <= 0:
+        return spec, None
+    name, rest = spec[:at], spec[at + 1 :]
+    match = _PINNED_VERSION_RE.match(rest)
+    return name, match.group(1) if match else None
+
+
+def with_pinned_version(
+    verdict: dict[str, Any], version: str | None, semver_resumed_at: str | None
+) -> dict[str, Any]:
+    """Record a pinned *version* on *verdict* and judge each CVE against it.
+
+    Adds ``package.version`` and, per ``known_vulnerabilities`` item, a
+    ``status`` of ``affected`` (no recorded fix, or *version* is below it),
+    ``fixed`` or ``undecidable`` (the fix uses a different numbering scheme,
+    calendar versus semantic, and nothing offline orders them: the same rule
+    as SC-004/SC-009).  A verdict without a version is returned unchanged.
+
+    Args:
+        verdict: A verdict document (modified in place and returned).
+        version: The exact version asked about, or ``None``.
+        semver_resumed_at: The registry entry's ``semver_resumed_at``, if any.
+
+    Returns:
+        *verdict*.
+    """
+    if version is None:
+        return verdict
+    from mcp_audit.analyzers.supply_chain import _fix_status  # noqa: PLC0415
+
+    verdict["package"]["version"] = version
+    for item in verdict.get("known_vulnerabilities") or []:
+        if not isinstance(item, dict):
+            continue
+        fixed = item.get("fixed_in")
+        item["status"] = (
+            _fix_status(version, str(fixed), semver_resumed_at) if fixed else "affected"
+        )
+    return verdict
+
 
 # ── Public helpers ─────────────────────────────────────────────────────────────
 
@@ -201,6 +265,7 @@ def build_verdict(
     typosquat_basis: str | None = None,
     malicious: list[dict[str, Any]] | None = None,
     other_ecosystem_malicious: list[dict[str, Any]] | None = None,
+    pinned_version: str | None = None,
 ) -> dict[str, Any]:
     """Build a v1 verdict document from registry data.
 
@@ -268,7 +333,7 @@ def build_verdict(
         tags = []
         repo = None
 
-    return {
+    document = {
         "schema_version": SCHEMA_VERSION,
         "generated_at": now_iso,
         "package": {
@@ -289,3 +354,6 @@ def build_verdict(
             "verdict_page": verdict_page_url(ecosystem, name),
         },
     }
+    return with_pinned_version(
+        document, pinned_version, entry.semver_resumed_at if entry else None
+    )

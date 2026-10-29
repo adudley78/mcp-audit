@@ -7,7 +7,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from mcp_audit import __version__
 from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS as _GATEWAY_CLIENTS
@@ -395,6 +395,17 @@ class FeedStatus(BaseModel):
     age_days: int | None = None
 
 
+def printable_text(value: str) -> str:
+    """Return *value* with lone UTF-16 surrogates written as ``\\udXXX`` escapes.
+
+    A JSON key or a non-UTF-8 file name can carry a lone surrogate; it is a
+    valid ``str`` but cannot be encoded, so it would crash every serialiser.
+    """
+    if value.isascii():
+        return value
+    return value.encode("utf-8", errors="backslashreplace").decode("utf-8")
+
+
 class LockStatus(BaseModel):
     """Result of automatic ``mcp-lock.json`` verification during ``check``/``scan``.
 
@@ -439,6 +450,19 @@ class LockStatus(BaseModel):
     #: the count lets the ``Lock:`` line say so instead of reading as fully
     #: verified.
     tools_recorded: int = 0
+
+    @field_validator(
+        "lock_paths",
+        "unresolved_entries",
+        "unverified_sections",
+        "outside_root",
+        "not_covered",
+        mode="after",
+    )
+    @classmethod
+    def _printable_names(cls, names: list[str]) -> list[str]:
+        """Escape lone surrogates (lock key names, odd file names)."""
+        return [printable_text(n) for n in names]
 
 
 class ScanResult(BaseModel):

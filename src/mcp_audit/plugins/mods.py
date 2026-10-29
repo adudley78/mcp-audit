@@ -210,9 +210,12 @@ def _read_text(path: Path) -> str | None:
 
 
 def _load_json(path: Path) -> Any:
+    """Read a small JSON file; ``None`` when unreadable, oversized or too nested."""
     try:
+        if path.stat().st_size > _MAX_SOURCE_BYTES:
+            return None
         return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):
         return None
 
 

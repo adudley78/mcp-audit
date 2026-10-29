@@ -63,7 +63,7 @@ def is_lock_file(path: Path) -> bool:
         return True
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+    except (OSError, UnicodeDecodeError, ValueError, RecursionError):
         return False
     return isinstance(data, dict) and "lock_version" in data
 

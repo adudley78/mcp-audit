@@ -67,7 +67,7 @@ def load_existing(path: Path) -> dict | None:
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (ValueError, OSError, RecursionError):
         return None
     return data if isinstance(data, dict) else None
 

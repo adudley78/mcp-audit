@@ -37,6 +37,7 @@ plugin's name.
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -133,15 +134,24 @@ def settings_scope(path: Path) -> str:
 
     Returns:
         ``"global"`` for ``~/.claude.json``; ``"local"`` for any
-        ``settings.local.json``; ``"user"`` for ``~/.claude/settings.json``;
-        ``"project"`` otherwise (a repository's ``.claude/settings.json``).
+        ``settings.local.json``; ``"user"`` for ``~/.claude/settings.json``, or
+        ``$CLAUDE_CONFIG_DIR/settings.json`` when that variable is set (the
+        settings doc: Claude Code "then stores your settings ... there
+        instead"; ``~/.claude`` stays "user" too, it is still the user's own
+        folder, never a repository's); ``"project"`` otherwise (a repository's
+        ``.claude/settings.json``).
     """
     if path.name == ".claude.json":
         return "global"
     if path.name == "settings.local.json":
         return "local"
     try:
-        if path.parent.resolve() == (Path.home() / ".claude").resolve():
+        parent = path.parent.resolve()
+        user_dirs = [Path.home() / ".claude"]
+        override = os.environ.get("CLAUDE_CONFIG_DIR")
+        if override:
+            user_dirs.append(Path(override).expanduser())
+        if any(parent == d.resolve() for d in user_dirs):
             return "user"
     except OSError:
         pass
