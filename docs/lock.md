@@ -508,17 +508,16 @@ What verify shows with the file:
 | `LOCK-007` | One line per changed path: `read: annotations.readOnlyHint: true → false` |
 | `LOCK-008` | A word diff of the description or title: `Read a note [-from disk-] {+and send it to evil.example+}` |
 
-The poisoning checks run over the **added words only**. A match is named and raises `LOCK-008` from
-MEDIUM to HIGH. The terminal view is capped per tool (eight field changes, about 700 characters of
+The poisoning checks run over the **added words only**. A match is named in the evidence; the finding's severity is the same with or without the file. The terminal view is capped per tool (eight field changes, about 700 characters of
 word diff); `--format json` has the full diff under `tool_diffs`, and `--format pr-comment` prints
-each changed description before and after in code fences, since tool text comes from the server.
+each changed description before and after in code fences (capped at 4,000 characters each, 60,000 for the comment), since tool text comes from the server. Credentials found in tool text are redacted in every display; the file itself stores the text as sent, and `lock` warns when a description looks like it holds one. A very long changed stretch (over 1,500 words) is reported as "too long to align" instead of diffed.
 
 **It is a companion, not part of the lock.** `mcp-lock.json` is the same with or without it, its
 checksum does not cover it, and no verdict depends on it. Each stored definition is shown only if it
 hashes to the digest the lock holds for that tool. If any does not (hand edit, or the file is from an
 older run), verify prints a note that the file is out of step with the lock, shows no diff for that
 server, and the exit code is whatever the digests say. A name collision (two tools under one name)
-is never shown as a single definition. Without the file, `--verify --connect` prints what it always
+is never shown as a single definition. The file is never overwritten if it is not one mcp-audit wrote, and `--tool-text-path` alone writes nothing (it needs `--save-tool-text`). Without the file, `--verify --connect` prints what it always
 did plus one line saying `--save-tool-text` would show the change.
 
 **What is in it.** The definition each tool is digested from: name, title, description,

@@ -764,18 +764,10 @@ def _tool_findings(
             )
         )
     if diff.text_changed:
-        poisoned = sorted(
-            {
-                pid
-                for n in diff.text_changed
-                if n in details.changes
-                for pid in details.changes[n].poison
-            }
-        )
         findings.append(
             Finding(
                 id="LOCK-008",
-                severity=Severity.HIGH if poisoned else Severity.MEDIUM,
+                severity=Severity.MEDIUM,
                 analyzer="lock",
                 client=server.client,
                 server=server.name,
@@ -1148,13 +1140,34 @@ def _fence(text: str) -> str:
     return f"{ticks}\n{text}\n{ticks}"
 
 
+def _code(text: str) -> str:
+    """Inline code span for *text*, on one line, safe whatever it contains."""
+    flat = " ".join(str(text).split())
+    longest = max((len(r) for r in re.findall(r"`+", flat)), default=0)
+    ticks = "`" * (longest + 1)
+    return f"{ticks} {flat} {ticks}"
+
+
+def _shown(text: str, limit: int | None = None) -> str:
+    """Server-supplied text for a fence: credentials redacted, length capped."""
+    clean = tool_text_mod.redact(text)
+    cap = limit or tool_text_mod.MAX_COMMENT_TEXT
+    return clean if len(clean) <= cap else clean[: cap - 1] + "…"
+
+
+_COMMENT_LIMIT = 60_000
+
+
 def render_pr_comment(result: VerifyResult) -> str:
     """Render *result* as GitHub-flavored Markdown for a pull-request comment.
 
     Tool changes with saved text show before and after; without it they show
-    the finding's evidence. Tool text is server-supplied, so every piece of it
-    is in a code fence: it cannot render as Markdown, mention anyone, or
-    break out of the comment.
+    the finding's evidence. Everything a server or a config can influence (a
+    server or tool name, a schema path, a description, a note) goes in a code
+    fence or an inline code span longer than any backtick run it contains, so
+    it cannot render as Markdown, mention anyone, or break out. Credentials in
+    tool text are redacted and long text is capped; the comment as a whole
+    stays under GitHub's limit.
     """
     if result.tampered or result.unsupported_version is not None:
         detail = (
@@ -1163,31 +1176,38 @@ def render_pr_comment(result: VerifyResult) -> str:
             else f"lock_version {result.unsupported_version} is newer than this "
             "mcp-audit can verify; nothing was checked."
         )
-        return f"## mcp-audit lock\n\n{_fence(detail)}\n"
+        return f"## mcp-audit lock\n\n{_fence(_shown(detail))}\n"
     lines = ["## mcp-audit lock"]
     if not result.findings and not result.unverified:
         lines.append(f"\n{result.checked_servers} server(s) verified.")
         return "\n".join(lines) + "\n"
     for finding in result.findings:
-        lines.append(f"\n### {finding.id} · {finding.severity.value} · {finding.title}")
-        lines.append(finding.description)
+        lines.append(f"\n### {finding.id} · {finding.severity.value}")
+        lines.append(_fence(_shown(f"{finding.title}\n{finding.description}")))
         head = finding.evidence.split("\n", 1)[0]
-        lines.append(f"\n{_fence(head)}")
+        lines.append(_fence(_shown(head)))
     for key, changes in sorted(result.tool_diffs.items()):
         for change in changes:
-            lines.append(f"\n#### `{key}` · tool `{change['tool']}`")
+            lines.append(f"\n#### {_code(key)} · tool {_code(change['tool'])}")
             for fc in change["fields"][: tool_text_mod.MAX_CHANGES_PER_TOOL]:
-                lines.append(f"\n`{fc['path']}`")
-                lines.append(_fence(f"- {fc['old']}\n+ {fc['new']}"))
+                lines.append(f"\n{_code(fc['path'])}")
+                lines.append(_fence(_shown(f"- {fc['old']}\n+ {fc['new']}", 1000)))
             for text_field in change["words"]:
                 before = (change["before"] or {}).get(text_field) or ""
                 after = (change["after"] or {}).get(text_field) or ""
-                lines.append(f"\n**{text_field}, before**\n{_fence(before)}")
-                lines.append(f"**{text_field}, after**\n{_fence(after)}")
+                lines.append(f"\n**{text_field}, before**\n{_fence(_shown(before))}")
+                lines.append(f"**{text_field}, after**\n{_fence(_shown(after))}")
             if change["poison"]:
                 lines.append("\nThe added text matches: " + ", ".join(change["poison"]))
     for item in result.unverified:
-        lines.append(f"\n- not verified: {item.kind} `{item.name}`: {item.reason}")
+        lines.append(f"\n- not verified: {item.kind} {_code(item.name)}")
+        lines.append(_fence(_shown(item.reason, 500)))
     for note in result.tool_text_notes:
-        lines.append(f"\n- {note}")
-    return "\n".join(lines) + "\n"
+        lines.append("\n" + _fence(_shown(note, 500)))
+    out = "\n".join(lines) + "\n"
+    if len(out) > _COMMENT_LIMIT:
+        out = (
+            out[:_COMMENT_LIMIT]
+            + "\n\n(comment truncated; use --format json for the rest)\n"
+        )
+    return out

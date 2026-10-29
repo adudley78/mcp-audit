@@ -36,10 +36,11 @@ import difflib
 import json
 import os
 import stat
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from mcp_audit.advisory.canonical import canonicalize
+from mcp_audit.advisory.canonical import CanonicalError, canonicalize
 from mcp_audit.lock import tool_digests
 from mcp_audit.models import ToolInfo
 
@@ -57,6 +58,10 @@ MAX_CHANGES_PER_TOOL = 8
 MAX_VALUE_CHARS = 120
 MAX_WORD_DIFF_CHARS = 700
 _WORD_CONTEXT = 5
+#: Largest changed stretch (words, old plus new) that is aligned word by word.
+MAX_DIFF_WORDS = 1500
+#: Longest before/after text shown in a pull-request comment.
+MAX_COMMENT_TEXT = 4000
 
 
 # ── storing ─────────────────────────────────────────────────────────────────
@@ -114,11 +119,24 @@ def serialize(doc: dict) -> bytes:
 
 
 def write(path: Path, doc: dict) -> int:
-    """Write *doc* atomically to *path*; return the byte count."""
+    """Write *doc* atomically to *path*; return the byte count.
+
+    The temporary file is created with a random name and ``O_EXCL`` in the
+    same directory, so a planted ``<name>.tmp`` symlink is never followed,
+    and it is removed if anything fails.
+    """
     data = serialize(doc)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_bytes(data)
-    os.replace(tmp, path)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=path.name + ".", suffix=".tmp", dir=path.parent
+    )
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+        os.chmod(tmp_name, 0o644)
+        os.replace(tmp_name, path)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
     return len(data)
 
 
@@ -141,8 +159,8 @@ def load(path: Path) -> tuple[dict | None, str | None]:
         return None, f"{path.name} is larger than {MAX_READ_BYTES // 1_000_000} MB"
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        return None, f"{path.name} is not readable JSON: {exc}"
+    except (OSError, ValueError, RecursionError) as exc:
+        return None, f"{path.name} is not readable JSON: {type(exc).__name__}"
     if (
         not isinstance(doc, dict)
         or doc.get("_producer") != TOOL_TEXT_PRODUCER
@@ -166,10 +184,22 @@ def stored_definition(doc: dict | None, key: str, tool: str) -> object | None:
 
 
 def _definition_digest(stored: object) -> str | None:
-    if isinstance(stored, dict):
-        return tool_digests.digest(stored)
-    if isinstance(stored, list) and stored and all(isinstance(d, dict) for d in stored):
-        return tool_digests.digest(sorted(stored, key=canonicalize))
+    """Digest of a stored definition, or ``None`` if it cannot be digested.
+
+    The file is untrusted: nesting past the canonical encoder's limit, a lone
+    surrogate or an oversized value is "does not match", never an exception.
+    """
+    try:
+        if isinstance(stored, dict):
+            return tool_digests.digest(stored)
+        if (
+            isinstance(stored, list)
+            and stored
+            and all(isinstance(d, dict) for d in stored)
+        ):
+            return tool_digests.digest(sorted(stored, key=canonicalize))
+    except (CanonicalError, TypeError, ValueError, RecursionError):
+        return None
     return None
 
 
@@ -244,13 +274,25 @@ class ToolChange:
         """Return the full, uncapped diff for ``--format json``."""
         return {
             "tool": self.tool,
-            "fields": [vars(c) for c in self.fields],
-            "words": self.words,
-            "added_text": self.added_text,
+            "fields": [
+                {"path": c.path, "old": redact(c.old), "new": redact(c.new)}
+                for c in self.fields
+            ],
+            "words": {k: redact(v) for k, v in self.words.items()},
+            "added_text": redact(self.added_text),
             "poison": self.poison,
-            "before": self.before,
-            "after": self.after,
+            "before": _redacted(self.before),
+            "after": _redacted(self.after),
         }
+
+
+def _redacted(definition: dict | None) -> dict | None:
+    if definition is None:
+        return None
+    return {
+        k: redact(v) if k in tool_digests.TEXT_FIELDS and isinstance(v, str) else v
+        for k, v in definition.items()
+    }
 
 
 def _show(value: object) -> str:
@@ -295,6 +337,24 @@ def word_diff(old: str, new: str) -> tuple[str, str]:
     stretches are trimmed to a few words of context.
     """
     a, b = old.split(), new.split()
+    # Trim the common head and tail, then refuse to align what is left if it
+    # is large: SequenceMatcher is superlinear and the text is server-supplied.
+    head = 0
+    while head < min(len(a), len(b)) and a[head] == b[head]:
+        head += 1
+    tail = 0
+    while (
+        tail < min(len(a), len(b)) - head
+        and a[len(a) - 1 - tail] == b[len(b) - 1 - tail]
+    ):
+        tail += 1
+    mid_a, mid_b = a[head : len(a) - tail], b[head : len(b) - tail]
+    if len(mid_a) + len(mid_b) > MAX_DIFF_WORDS:
+        return (
+            f"(changed: {len(mid_a)} words became {len(mid_b)} words; "
+            "too long to align, full text in --format json)",
+            " ".join(mid_b),
+        )
     matcher = difflib.SequenceMatcher(a=a, b=b, autojunk=False)
     parts: list[str] = []
     added: list[str] = []
@@ -357,6 +417,21 @@ def diff_tool(name: str, before: dict, after: dict) -> ToolChange:
 # ── rendering ───────────────────────────────────────────────────────────────
 
 
+def redact(text: str) -> str:
+    """Redact credentials in server-supplied *text* for display."""
+    from mcp_audit.analyzers.poisoning import redact_evidence  # noqa: PLC0415
+
+    return redact_evidence(text)
+
+
+def secret_in(definitions: list[dict]) -> bool:
+    """Whether any stored text looks like a credential (warn on save)."""
+    from mcp_audit.analyzers.credentials import SECRET_PATTERNS  # noqa: PLC0415
+
+    blob = json.dumps(definitions, ensure_ascii=False)
+    return any(p.search(blob) for _l, p, _p in SECRET_PATTERNS)
+
+
 def _clip(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
@@ -368,7 +443,8 @@ def describe(change: ToolChange) -> list[str]:
     for c in shown:
         lines.append(
             f"{change.tool}: {c.path}: "
-            f"{_clip(c.old, MAX_VALUE_CHARS)} → {_clip(c.new, MAX_VALUE_CHARS)}"
+            f"{_clip(redact(c.old), MAX_VALUE_CHARS)} → "
+            f"{_clip(redact(c.new), MAX_VALUE_CHARS)}"
         )
     if len(change.fields) > len(shown):
         lines.append(
@@ -376,7 +452,7 @@ def describe(change: ToolChange) -> list[str]:
             "change(s); the full diff is in --format json"
         )
     for text_field, rendered in change.words.items():
-        clipped = _clip(rendered, MAX_WORD_DIFF_CHARS)
+        clipped = _clip(redact(rendered), MAX_WORD_DIFF_CHARS)
         suffix = "" if clipped == rendered else " (clipped; full diff in --format json)"
         lines.append(f"{change.tool}: {text_field}: {clipped}{suffix}")
     if change.poison:
@@ -391,4 +467,4 @@ def describe_added(name: str, definition: dict) -> str:
     text = (
         definition.get("description") or definition.get("title") or "(no description)"
     )
-    return f"{name}: {_clip(' '.join(str(text).split()), MAX_WORD_DIFF_CHARS)}"
+    return f"{name}: {_clip(redact(' '.join(str(text).split())), MAX_WORD_DIFF_CHARS)}"

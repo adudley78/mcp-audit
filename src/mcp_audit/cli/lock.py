@@ -20,6 +20,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 
 from mcp_audit import cli as _cli
 from mcp_audit import mcp_client as _mcp_client
@@ -333,7 +334,7 @@ def lock(
         accept=accept,
         connect=connect,
         connect_token=connect_token,
-        tool_text_file=text_path if (save_tool_text or tool_text_path) else None,
+        tool_text_file=text_path if save_tool_text else None,
     )
 
 
@@ -470,18 +471,36 @@ def _write_tool_text(path: Path, records: dict[str, dict], keep: set[str]) -> No
     """Write the tool-text companion file (``--save-tool-text``)."""
     existing, problem = tool_text.load(path)
     if problem:
-        console.print(f"[yellow]WARN[/yellow] {problem}; starting it over.")
+        # Never overwrite a file this command did not write.
+        console.print(
+            f"[yellow]WARN[/yellow] tool text not saved: {escape(problem)}. "
+            "Remove it or choose another --tool-text-path."
+        )
+        return
     try:
         size = tool_text.write(path, tool_text.merge(existing, records, keep))
     except OSError as exc:
         console.print(f"[yellow]WARN[/yellow] tool text not saved: {exc}")
         return
     console.print(f"Tool text saved for {len(records)} server(s).  → {path}")
+    if tool_text.secret_in([d for r in records.values() for d in _flat(r)]):
+        console.print(
+            "[yellow]WARN[/yellow] a tool description looks like it contains a "
+            "credential; it is stored as the server sent it. Review "
+            f"{path.name} before committing it."
+        )
     if size > tool_text.WARN_BYTES:
         console.print(
             f"[yellow]WARN[/yellow] {path.name} is {size / 1_000_000:.1f} MB; "
             "consider keeping it out of version control (see docs/lock.md)."
         )
+
+
+def _flat(record: dict) -> list[dict]:
+    out: list[dict] = []
+    for stored in record.get("tools", {}).values():
+        out.extend(stored if isinstance(stored, list) else [stored])
+    return out
 
 
 def _run_verify(
@@ -606,8 +625,8 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
 
     for finding in result.findings:
         color = _SEVERITY_COLOR.get(finding.severity, "white")
-        console.print(f"[{color}]{finding.id}[/{color}]  {finding.title}")
-        console.print(f"  {finding.evidence}")
+        console.print(f"[{color}]{finding.id}[/{color}]  {escape(finding.title)}")
+        console.print(f"  {escape(finding.evidence)}", highlight=False)
 
     if not result.findings and not result.unverified:
         console.print(
@@ -646,7 +665,7 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
         )
 
     for note in result.tool_text_notes:
-        console.print(f"[yellow]WARN[/yellow] {note}")
+        console.print(f"[yellow]WARN[/yellow] {escape(note)}")
 
     if result.outside_root:
         console.print(

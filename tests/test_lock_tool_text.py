@@ -91,7 +91,9 @@ class TestDiffs:
         ]
         result = _verify(lock, server, new, tt.load(text)[0])
         f = next(f for f in result.findings if f.id == "LOCK-008")
-        assert f.severity.value.upper() == "HIGH"
+        assert (
+            f.severity.value.upper() == "MEDIUM"
+        )  # severity never depends on the file
         assert "POISON" in f.evidence
 
     def test_clean_edit_stays_medium(self, tmp_path: Path) -> None:
@@ -209,7 +211,7 @@ class TestCaps:
             {"name": "t", "description": "a"},
             {"name": "t", "description": " ".join(["word"] * 2000)},
         )
-        assert "full diff in --format json" in tt.describe(change)[0]
+        assert "--format json" in tt.describe(change)[0]
         assert len(tt.describe(change)[0]) < tt.MAX_WORD_DIFF_CHARS + 120
 
 
@@ -292,7 +294,15 @@ class TestCli:
         root, state = cli_env
         custom = root / "elsewhere.json"
         runner.invoke(
-            app, ["lock", str(root), "--connect", "--tool-text-path", str(custom)]
+            app,
+            [
+                "lock",
+                str(root),
+                "--connect",
+                "--save-tool-text",
+                "--tool-text-path",
+                str(custom),
+            ],
         )
         assert custom.exists()
         state["tools"] = [_tool("read", "Read a note from disk, quietly."), BASE[1]]
@@ -355,3 +365,141 @@ def _stable(lock: Path) -> dict:
         return value
 
     return strip(json.loads(lock.read_text()))
+
+
+class TestHostile:
+    def _stale_doc(self, tmp_path: Path, mutate) -> tuple:  # noqa: ANN001
+        lock, text, server = _setup(tmp_path, BASE)
+        doc = json.loads(text.read_text())
+        mutate(doc["servers"][KEY]["tools"]["read"])
+        text.write_text(json.dumps(doc))
+        return lock, text, server
+
+    @pytest.mark.parametrize(
+        "mutate",
+        [
+            lambda d: d.update(inputSchema=_deep(100)),
+            lambda d: d.update(inputSchema={"a": list(range(200_000))}),
+            lambda d: d.update(description="\ud800"),
+        ],
+    )
+    def test_undigestable_stored_text_is_out_of_step_not_a_crash(
+        self, tmp_path: Path, mutate
+    ) -> None:
+        lock, text, server = self._stale_doc(tmp_path, mutate)
+        new = [_tool("read", "Changed."), BASE[1]]
+        result = _verify(lock, server, new, tt.load(text)[0])
+        assert result.exit_code == 1
+        assert any("out of step" in n for n in result.tool_text_notes)
+
+    def test_deeply_nested_file_is_reported(self, tmp_path: Path) -> None:
+        f = tmp_path / "t.json"
+        f.write_text("[" * 200_000 + "]" * 200_000)
+        assert tt.load(f)[1] is not None
+
+    def test_huge_description_diff_is_bounded(self) -> None:
+        import time
+
+        old = {
+            "name": "t",
+            "description": " ".join(f"w{i % 50}" for i in range(20_000)),
+        }
+        new = {
+            "name": "t",
+            "description": " ".join(f"w{(i * 7) % 50}" for i in range(20_000)),
+        }
+        start = time.monotonic()
+        change = tt.diff_tool("t", old, new)
+        assert time.monotonic() - start < 5
+        assert "too long to align" in change.words["description"]
+
+    def test_rich_markup_in_tool_text_does_not_crash_the_terminal(
+        self, cli_env
+    ) -> None:
+        root, state = cli_env
+        runner.invoke(app, ["lock", str(root), "--connect", "--save-tool-text"])
+        state["tools"] = [_tool("read", "Read it. [/foo] [bold red]x"), BASE[1]]
+        r = runner.invoke(app, ["lock", str(root), "--verify", "--connect"])
+        assert r.exit_code == 1
+        assert "[/foo]" in r.output
+        assert r.exception is None or isinstance(r.exception, SystemExit)
+
+    def test_pr_comment_neutralises_names_and_secrets(self, tmp_path: Path) -> None:
+        evil = "x` @everyone [click](http://evil) <img src=x> `"
+        tools = [_tool(evil, "Read.")]
+        lock, text, server = _setup(tmp_path, tools)
+        new = [_tool(evil, "Read. key ghp_" + "a" * 36)]
+        out = render_pr_comment(_verify(lock, server, new, tt.load(text)[0]))
+        assert "ghp_" + "a" * 36 not in out
+        fence = None
+        for line in out.splitlines():
+            if fence is None and line.startswith("```"):
+                fence = len(line) - len(line.lstrip("`"))
+            elif fence is not None:
+                if line.strip("`") == "" and len(line) >= fence:
+                    fence = None
+            elif "@everyone" in line:
+                # outside a fence: inside an inline span longer than its backticks
+                assert line.count("``") >= 2, line
+        assert len(out) < 65_000
+
+    def test_pr_comment_is_capped(self, tmp_path: Path) -> None:
+        lock, text, server = _setup(tmp_path, BASE)
+        new = [_tool("read", "x" * 1_000_000), BASE[1]]
+        out = render_pr_comment(_verify(lock, server, new, tt.load(text)[0]))
+        assert len(out) < 65_000
+
+
+class TestWriting:
+    def test_planted_tmp_symlink_is_not_followed(self, tmp_path: Path) -> None:
+        victim = tmp_path / "victim.txt"
+        victim.write_text("keep")
+        (tmp_path / "t.json.tmp").symlink_to(victim)
+        tt.write(tmp_path / "t.json", tt.build({}))
+        assert victim.read_text() == "keep"
+
+    def test_failed_write_leaves_no_tmp(self, tmp_path: Path) -> None:
+        target = tmp_path / "dir"
+        target.mkdir()
+        with pytest.raises(OSError):
+            tt.write(target, tt.build({}))
+        assert [p.name for p in tmp_path.iterdir()] == ["dir"]
+
+    def test_foreign_file_is_never_overwritten(self, cli_env) -> None:
+        root, _ = cli_env
+        other = root / "package.json"
+        other.write_text('{"name": "x"}')
+        r = runner.invoke(
+            app,
+            [
+                "lock",
+                str(root),
+                "--connect",
+                "--save-tool-text",
+                "--tool-text-path",
+                str(other),
+            ],
+        )
+        assert other.read_text() == '{"name": "x"}'
+        assert "not saved" in r.output
+
+    def test_path_without_save_flag_writes_nothing(self, cli_env) -> None:
+        root, _ = cli_env
+        custom = root / "t.json"
+        runner.invoke(
+            app, ["lock", str(root), "--connect", "--tool-text-path", str(custom)]
+        )
+        assert not custom.exists()
+
+    def test_credential_in_a_description_warns_on_save(self, cli_env) -> None:
+        root, state = cli_env
+        state["tools"] = [_tool("read", "Use ghp_" + "a" * 36)]
+        r = runner.invoke(app, ["lock", str(root), "--connect", "--save-tool-text"])
+        assert "credential" in r.output
+
+
+def _deep(n: int) -> dict:
+    node: dict = {}
+    for _ in range(n):
+        node = {"a": node}
+    return node
