@@ -498,17 +498,19 @@ addresses, defanged hosts; the test refangs them in a temp copy).
 | `.env` read and POSTed to a webhook (bundled script) | no (gap) | no | no | no |
 
 Before STORY-0133 the two prose-only rows were missed. Two narrow literal
-shapes now report as SKILL-005 HIGH: a line naming one of the two paste
-services a report names (`glot.io`, `rentry.co`) within two lines of
-"paste", "copy", "run", "execute", "Terminal" or "shell"; and "password
-protected" next to zip/archive/7z/rar within two lines of "extract", "open",
-"run", "launch", "execute" or "install". False positives: 0 on
-`demo/configs/`, 0 on the committed top-100 npm data
-(`docs/research/2026-10-29-top100-npm/`, 5 files), 0 on every benign skill
-fixture; across the 694 text files of this repository, 10 lines match, all
-documentation or source that names paste sites or archives (for example the
-SANDBOX-003 host list), none a skill. The 1,129-skill benign corpus behind the
-SKILL-005 calibration is not in the repository and was not re-run. The `.env`
+shapes now report as SKILL-005 HIGH: a paste service a report names
+(`glot.io`, `rentry.co`, `rentry.org`) in the same sentence (read across a
+line break) as "paste", "copy", "run" or "execute" *and* a place to run it
+(Terminal, Command Prompt, PowerShell, bash, zsh, cmd, `curl` or a code
+span); and "password protected" next to zip/archive/7z/rar within two lines
+of a stated password ("Password: …") or an executable name (`.exe`, `.msi`,
+`.bat`, `.cmd`, `.scr`). Neither fires in a sentence that advises against it
+("never", "do not", "avoid", ...), and a skill that merely handles protected
+archives, or links notes on a paste site, is not flagged (tested).
+`demo/configs/`, the committed top-100 npm data and the benign skill fixtures
+contain no candidate text, so they say nothing about precision either way;
+the 1,129-skill benign corpus behind the SKILL-005 calibration is not in the
+repository and was not re-run. The `.env`
 exfiltration shape is not detected: see GAPS.md.
 
 ---

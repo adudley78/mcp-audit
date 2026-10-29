@@ -2100,6 +2100,6 @@ SKILL-005..008 finding: reading a file and making an HTTP request are each
 ordinary, and a narrow literal shape that separates the two was not found. It is
 reported when the destination is a public IP address (`endpoint is a raw IP
 address`), not when it is a named host. The paste-service rule matches only
-`glot.io` and `rentry.co` (the two a report names); other paste services
+`glot.io`, `rentry.co` and `rentry.org` (the two services a report names); other paste services
 (pastebin.com and similar) are not matched. Typosquatted ClawHub CLI names are
 a ClawHub-side matter and not checked.

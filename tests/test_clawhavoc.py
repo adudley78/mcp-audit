@@ -69,6 +69,13 @@ def test_findings_credit_koi_and_are_high() -> None:
         "Our archive is password protected; ask support for the key.\n",
         "Run the tests. Do not use pastebin.com for secrets.\n",
         "Use glot.io to share snippets; nothing to install.\n",
+        "Never open a password-protected zip from an unknown sender.\n",
+        "Do not paste secrets into rentry.co or glot.io.\n",
+        "If the archive is password protected, ask the user for the password"
+        " and extract it.\n",
+        "This skill can extract password-protected zip archives for you.\n",
+        "Run `pytest`. See the notes at rentry.co/myproject-notes.\n",
+        "Share the shell output on glot.io if you need help.\n",
     ],
 )
 def test_ordinary_prose_is_not_flagged(text: str) -> None:

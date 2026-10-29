@@ -1009,8 +1009,8 @@ def _skill_005(pkg: SkillPackage, tf: _TextFile) -> list[Finding]:
                     " Paperclip campaign (Zenity Labs, 2026) kept SKILL.md clean and"
                     " put this kind of command in a sidecar file."
                     " The ClawHavoc campaign (Koi Security, now part of Palo Alto"
-                    " Networks, 2026) used a"
-                    " fake 'Prerequisites' step in 341 malicious ClawHub skills to"
+                    " Networks, 2026) used a fake 'Prerequisites' step in"
+                    " 335 of 341 malicious ClawHub skills to"
                     " get users to run obfuscated shell commands, or open a"
                     " password-protected ZIP, that installed Atomic Stealer."
                 ),

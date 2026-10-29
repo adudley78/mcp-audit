@@ -378,22 +378,71 @@ _ARCHIVE_PASSWORD_RE = re.compile(
 #: ClawHavoc (Koi Security, 2026): a skill's "Prerequisites" told macOS users
 #: to copy a script from a public paste service into Terminal, and Windows
 #: users to open a password-protected archive.  Only the two paste services a
-#: report names are matched (PolySwarm: glot.io, rentry.co), only beside an
-#: instruction to copy, paste or run, and the archive shape only when the
-#: sentence asks the reader to extract or run what is inside.
+#: report names are matched (PolySwarm: glot.io, rentry), only in a sentence
+#: that says to paste or run it in a terminal, and the archive shape only when
+#: the password (or an executable) is stated beside it.
 _PASTE_HOST_RE = re.compile(
     r"(?i)(?<![\w.-])(?:glot\.io|rentry\.(?:co|org))(?![\w-])/?[^\s)>\"'`]{0,200}"
 )
-_PASTE_CUE_RE = re.compile(
-    r"(?i)\b(?:paste|copy|terminal|shell|command prompt|powershell|run|execute)\b"
+#: An instruction to run what the paste page holds, in the same sentence.
+_PASTE_CUE_RE = re.compile(r"(?i)\b(?:paste|copy|run|execute)\b")
+_PASTE_SINK_RE = re.compile(
+    r"(?i)\b(?:terminal|command\s+prompt|powershell|bash|zsh|cmd)\b|\bcurl\b|`"
 )
 _PROTECTED_ARCHIVE_RE = re.compile(
     r"(?i)\bpassword[- ]protected\b[^\n]{0,40}?\b(?:zip|archive|7z|rar)\b"
     r"|\b(?:zip|archive|7z|rar)\b[^\n]{0,60}?\bis\s+password[- ]protected\b"
 )
-_ARCHIVE_RUN_CUE_RE = re.compile(
-    r"(?i)\b(?:extract|unzip|unpack|open|run|launch|execute|install)\b"
+#: The lure states the password (or names an executable to run), which a
+#: skill that merely handles protected archives does not.
+_ARCHIVE_LURE_RE = re.compile(
+    r"(?i)\bpassword\s{0,3}(?:is|:)\s{0,3}[`'\"]?[^\s`'\"]{3,}"
+    r"|\.(?:exe|msi|bat|cmd|scr)\b"
 )
+#: Any advice against the action, for the two ClawHavoc prose shapes.
+_PROSE_NEGATION_RE = re.compile(
+    r"(?i)\b(?:never|don'?t|do\s+not|avoid|must\s+not|should\s+not|shouldn'?t)\b"
+)
+_SENTENCE_END_RE = re.compile(r"[.!?](?=\s|$)")
+
+
+def _sentence_at(text: str, start: int, end: int) -> str:
+    """The sentence of *text* that holds ``text[start:end]``."""
+    head = 0
+    for m in _SENTENCE_END_RE.finditer(text, 0, start):
+        head = m.end()
+    tail = _SENTENCE_END_RE.search(text, end)
+    return text[head : tail.end() if tail else len(text)]
+
+
+def _prose_hits(
+    lines: list[tuple[int, str]],
+    shape: re.Pattern[str],
+    cues: tuple[re.Pattern[str], ...],
+    span: int,
+) -> list[int]:
+    """Lines where *shape* sits in a sentence holding every cue, not negated.
+
+    The sentence is read across *span* lines on each side, so prose wrapped
+    over several lines still counts as one sentence.
+    """
+    out: list[int] = []
+    for i, (num, text) in enumerate(lines):
+        m = shape.search(text)
+        if m is None:
+            continue
+        before = " ".join(t for _n, t in lines[max(0, i - span) : i])
+        after = " ".join(t for _n, t in lines[i + 1 : i + span + 1])
+        joined = f"{before} {text} {after}"
+        offset = len(before) + 1
+        sentence = _sentence_at(joined, offset + m.start(), offset + m.end())
+        if _PROSE_NEGATION_RE.search(sentence):
+            continue
+        if all(c.search(sentence) for c in cues):
+            out.append(num)
+    return out
+
+
 _DNS_TXT_RE = re.compile(
     r"(?i)\bdig\b[^\n]{0,200}?\btxt\b"
     r"|\bnslookup\b[^\n]{0,200}?-(?:type|q|querytype)=txt\b"
@@ -1208,7 +1257,9 @@ def install_step_hits(rel: str, text: str) -> list[Hit]:
         for num in _window_hits(lines, _DNS_TXT_RE, _EXEC_SINK_RE, 5):
             add(num, Severity.HIGH, "a DNS TXT record is fetched and executed")
     if "paste" in active:
-        for num in _window_hits(lines, _PASTE_HOST_RE, _PASTE_CUE_RE, 2):
+        for num in _prose_hits(
+            lines, _PASTE_HOST_RE, (_PASTE_CUE_RE, _PASTE_SINK_RE), 1
+        ):
             add(
                 num,
                 Severity.HIGH,
@@ -1216,7 +1267,11 @@ def install_step_hits(rel: str, text: str) -> list[Hit]:
                 " macOS lure, Koi Security)",
             )
     if "protected_archive" in active:
-        for num in _window_hits(lines, _PROTECTED_ARCHIVE_RE, _ARCHIVE_RUN_CUE_RE, 2):
+        for num in _window_hits(lines, _PROTECTED_ARCHIVE_RE, _ARCHIVE_LURE_RE, 2):
+            if _PROSE_NEGATION_RE.search(
+                original[num - 1] if num <= len(original) else ""
+            ):
+                continue
             add(
                 num,
                 Severity.HIGH,
