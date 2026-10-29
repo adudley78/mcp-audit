@@ -172,6 +172,7 @@ class TestHostile:
         scan = _scan(tmp_path / "h", env)
         assert not self._mine(scan, tmp_path)
 
+    @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="no FIFOs on Windows")
     def test_fifo_is_not_read(self, tmp_path: Path) -> None:
         root, env = self._env(tmp_path)
         d = root / PKG["codex"]
