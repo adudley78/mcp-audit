@@ -165,7 +165,11 @@ def _run_fix(
     apply: bool,
 ) -> None:
     """Pin AFFECTED servers to the advisory's fixed version (STORY-0127)."""
-    from mcp_audit.affected.fixplan import Pin, choose  # noqa: PLC0415
+    from mcp_audit.affected.fixplan import (  # noqa: PLC0415
+        Pin,
+        candidates,
+        crosses_major,
+    )
     from mcp_audit.affected.match import would_close  # noqa: PLC0415
     from mcp_audit.fixer.fixer import run_pins  # noqa: PLC0415
 
@@ -176,37 +180,49 @@ def _run_fix(
         if row.status is not Status.AFFECTED or not row.package:
             continue
         package = row.package.split(":", 1)[1]
-        target, why = choose(row.version, row.fixes)
+        found, why = candidates(row.version, row.fixes)
+        target = None
+        for option in found:
+            if would_close(server, rules, registry, option):  # type: ignore[arg-type]
+                target = option
+                break
+        if target is None and found:
+            why = (
+                "pinning to a fixed version would not clear every rule for this package"
+            )
         pin = Pin(
             row.subject, str(server.config_path), server.name, package, row.version
         )
-        if target is not None and not would_close(server, rules, registry, target):  # type: ignore[arg-type]
-            target, why = (
-                None,
-                (f"pinning to {target} would not clear every rule for this package"),
-            )
         if target is None:
             skipped.append(
                 Pin(**{**pin.__dict__, "skipped": why})  # type: ignore[arg-type]
             )
             continue
+        if crosses_major(row.version, target):
+            con.print(
+                f"[yellow]note[/yellow] {escape(row.subject)}: {row.version} → "
+                f"{target} is a major-version change; check the release notes"
+            )
         by_config.setdefault(pin.config_path, []).append((server.name, package, target))
     if not by_config and not skipped:
         con.print("\n[dim]--fix: no AFFECTED server to pin.[/dim]")
         return
     for config_path, pins in by_config.items():
         path = Path(config_path)
+        con.print(f"\n[bold]{escape(str(path))}[/bold]")
         try:
             result = run_pins(path, pins, apply=apply)
         except (OSError, ValueError) as exc:
-            raise _fail(f"--fix: {path}: {exc}") from exc
-        con.print(f"\n[bold]{escape(str(path))}[/bold]")
+            # One unreadable, TOML or commented config must not stop the rest.
+            first = (str(exc).splitlines() or [type(exc).__name__])[0]
+            con.print(f"  [yellow]not pinned[/yellow] {escape(first)}")
+            continue
         for line in result.fixes_applied:
             con.print(f"  {'✓' if apply else '~'} {escape(line)}")
         for line in result.skipped:
-            con.print(f"  [yellow]skipped[/yellow] {escape(line)}")
+            con.print(f"  [yellow]not pinned[/yellow] {escape(line)}")
         if result.diff and not apply:
-            con.print(escape(result.diff), highlight=False)
+            con.print(escape(result.diff), highlight=False, soft_wrap=True)
         if apply and result.backup_path:
             con.print(f"  [dim]backup: {escape(str(result.backup_path))}[/dim]")
     for pin in skipped:

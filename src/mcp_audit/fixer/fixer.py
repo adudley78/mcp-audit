@@ -20,6 +20,7 @@ from __future__ import annotations
 import difflib
 import json
 import os
+import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -214,19 +215,39 @@ def _finish(
     if not os.access(config_path, os.W_OK):
         raise PermissionError(f"Config file is read-only: {config_path}")
 
-    # 1. Write backup of original content first (before any modification).
-    bak_path = config_path.with_suffix(config_path.suffix + ".bak")
-    bak_path.write_text(original_text, encoding="utf-8")
+    # A symlinked config (dotfile managers) is edited where it lives, and the
+    # file keeps its permission bits: the original may hold MCP env secrets.
+    target = config_path.resolve()
+    mode = stat.S_IMODE(target.stat().st_mode)
+
+    # 1. Write backup of original content first (before any modification).  An
+    # earlier backup is never overwritten: the first one is the real original.
+    bak_path = target.with_suffix(target.suffix + ".bak")
+    n = 0
+    while bak_path.exists():
+        n += 1
+        bak_path = target.with_suffix(f"{target.suffix}.bak.{n}")
+    _write_private(bak_path, original_text, mode)
     result.backup_path = bak_path
 
     # 2. Write new content to a temp file.
-    tmp_path = config_path.with_suffix(config_path.suffix + ".tmp")
-    tmp_path.write_text(new_text, encoding="utf-8")
+    tmp_path = target.with_suffix(target.suffix + ".tmp")
+    _write_private(tmp_path, new_text, mode)
 
-    # 3. Atomic rename: replaces config_path in one syscall on POSIX.
-    tmp_path.replace(config_path)
+    # 3. Atomic rename: replaces the config in one syscall on POSIX.
+    tmp_path.replace(target)
 
     return result
+
+
+def _write_private(path: Path, text: str, mode: int) -> None:
+    """Write *text* to *path* with permission bits *mode* (never wider)."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+    finally:
+        os.chmod(path, mode)
 
 
 def run_pins(

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mcp_audit.affected.fixplan import choose
+from mcp_audit.affected.fixplan import candidates, choose, crosses_major
 from mcp_audit.cli import app
 from mcp_audit.fixer.fixer import run_pins
 from mcp_audit.fixer.strategies.pinning import pin_exact
@@ -218,30 +218,123 @@ class TestCli:
         assert res.exit_code == 0
         assert "no AFFECTED server" in res.output
 
-    def test_no_fixed_version_is_not_pinned(self, tmp_path: Path) -> None:
-        # an advisory with no recorded fix in the registry
-        from mcp_audit.registry.loader import load_registry
-
-        reg = load_registry()
-        target = next(
-            (
-                (e.name, v["cve"])
-                for e in reg.entries
-                for v in e.known_vulns
-                if isinstance(v, dict)
-                and v.get("cve")
-                and not v.get("fixed_in")
-                and e.source == "pip"
-            ),
-            None,
+    def test_toml_config_does_not_stop_the_others(self, tmp_path: Path) -> None:
+        good = tmp_path / "a"
+        good.mkdir()
+        cfg = _cfg(good, {"a": {"command": "uvx", "args": SSE}})
+        toml = tmp_path / "config.toml"
+        toml.write_text(
+            '[mcp_servers.a]\ncommand = "uvx"\n'
+            'args = ["mcp-atlassian==0.21.0", "--transport", "sse"]\n'
         )
-        if target is None:
-            pytest.skip("no PyPI advisory without a fix in the registry")
-        name, cve = target
-        cfg = _cfg(tmp_path, {"a": {"command": "uvx", "args": [f"{name}==0.0.1"]}})
-        before = cfg.read_text()
         res = runner.invoke(
-            app, ["affected", cve, "--path", str(cfg), "--fix", "--apply"]
+            app,
+            [
+                "affected",
+                CVE,
+                "--path",
+                str(toml),
+                "--path",
+                str(cfg),
+                "--fix",
+                "--apply",
+            ],
         )
-        assert cfg.read_text() == before
-        assert "not pinned" in res.output
+        assert res.exit_code == 1
+        assert "mcp-atlassian==0.22.0" in cfg.read_text()
+        assert "TOML" in res.output
+
+    def test_record_rule_fixes_come_from_ranges_even_for_listed_versions(self) -> None:
+        from mcp_audit.affected.match import Launch, RecordRule, Status
+        from mcp_audit.registry.malicious import MaliciousRecord
+
+        rec = MaliciousRecord(
+            id="GHSA-x",
+            ecosystem="npm",
+            name="left-pad",
+            versions=("1.0.0", "1.1.0", "1.2.0"),
+            ranges=((("introduced", "0"), ("fixed", "1.3.0")),),
+        )
+        d = RecordRule(rec, curated=False).decide(
+            Launch("npm", "left-pad", "1.2.0", "config pin", None)
+        )
+        assert d.status is Status.AFFECTED
+        assert d.fixes == ("1.3.0",)
+
+    def test_union_of_fixes_across_overlapping_ranges(self) -> None:
+        # [1.0.0 -> fixed 1.5.0] and [0 -> fixed 1.3.0]; current 1.2.0
+        assert candidates("1.2.0", ("1.3.0", "1.5.0"))[0] == ["1.3.0", "1.5.0"]
+
+    def test_cross_major_is_flagged(self) -> None:
+        assert crosses_major("1.20.0", "2.2.0")
+        assert not crosses_major("1.20.0", "1.30.0")
+
+    def test_cross_major_pin_prints_a_note(self, tmp_path: Path) -> None:
+        cfg = _cfg(
+            tmp_path,
+            {"a": {"command": "uvx", "args": ["mcp==1.20.0", "--transport", "http"]}},
+        )
+        res = runner.invoke(
+            app, ["affected", "CVE-2026-59951", "--path", str(cfg), "--fix"]
+        )
+        assert "major-version change" in res.output
+
+
+class TestWritePath:
+    def test_permissions_are_kept_on_file_and_backup(self, tmp_path: Path) -> None:
+        path = _cfg(tmp_path, {"s": {"command": "uvx", "args": ["pkg==1.0"]}})
+        path.chmod(0o600)
+        result = run_pins(path, [("s", "pkg", "1.1")], apply=True)
+        assert (path.stat().st_mode & 0o777) == 0o600
+        assert result.backup_path is not None
+        assert (result.backup_path.stat().st_mode & 0o777) == 0o600
+
+    def test_symlinked_config_is_edited_where_it_lives(self, tmp_path: Path) -> None:
+        real = _cfg(tmp_path, {"s": {"command": "uvx", "args": ["pkg==1.0"]}})
+        link = tmp_path / "link.json"
+        link.symlink_to(real)
+        run_pins(link, [("s", "pkg", "1.1")], apply=True)
+        assert link.is_symlink()
+        assert "pkg==1.1" in real.read_text()
+
+    def test_first_backup_is_never_overwritten(self, tmp_path: Path) -> None:
+        path = _cfg(tmp_path, {"s": {"command": "uvx", "args": ["pkg==1.0"]}})
+        original = path.read_text()
+        first = run_pins(path, [("s", "pkg", "1.1")], apply=True)
+        second = run_pins(path, [("s", "pkg", "1.2")], apply=True)
+        assert first.backup_path is not None and second.backup_path is not None
+        assert first.backup_path != second.backup_path
+        assert first.backup_path.read_text() == original
+
+
+class TestLaunchForms:
+    def _c(self, command: str, args: list[str]) -> dict:
+        return {"mcpServers": {"s": {"command": command, "args": args}}}
+
+    def test_pipx_run(self) -> None:
+        new, _ = pin_exact(self._c("pipx", ["run", "pkg==1.0"]), "s", "pkg", "1.1")
+        assert new["mcpServers"]["s"]["args"] == ["run", "pkg==1.1"]
+
+    def test_absolute_path_launcher(self) -> None:
+        new, _ = pin_exact(
+            self._c("/usr/local/bin/uvx", ["pkg==1.0"]), "s", "pkg", "1.1"
+        )
+        assert new["mcpServers"]["s"]["args"] == ["pkg==1.1"]
+
+    def test_cmd_c_wrapper_keeps_the_prefix(self) -> None:
+        new, _ = pin_exact(
+            self._c("cmd", ["/c", "npx", "-y", "pkg@1.0.0"]), "s", "pkg", "1.1.0"
+        )
+        assert new["mcpServers"]["s"]["args"] == ["/c", "npx", "-y", "pkg@1.1.0"]
+
+    def test_with_equals_form_is_refused(self) -> None:
+        with pytest.raises(ValueError):
+            pin_exact(self._c("uvx", ["--with=httpx", "pkg==1.0"]), "s", "pkg", "1.1")
+
+    def test_name_under_both_root_keys_is_refused(self) -> None:
+        cfg = {
+            "servers": {"s": {"command": "uvx", "args": ["pkg==1.0"]}},
+            "mcpServers": {"s": {"command": "uvx", "args": ["pkg==1.2"]}},
+        }
+        with pytest.raises(ValueError, match="both"):
+            pin_exact(cfg, "s", "pkg", "1.3")

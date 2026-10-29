@@ -35,33 +35,43 @@ def _version(text: str) -> Version | None:
         return None
 
 
-def choose(current: str | None, fixes: tuple[str, ...]) -> tuple[str | None, str]:
-    """``(version, "")`` to pin to, or ``(None, reason)``.
+def crosses_major(current: str | None, target: str) -> bool:
+    """Does pinning to *target* move to a different major version?"""
+    a, b = (_version(current) if current else None), _version(target)
+    return a is not None and b is not None and a.major != b.major
 
-    The lowest fixed version above *current* (a release, not a pre-release),
-    so a backport on the server's own line wins over a newer major.  With no
-    known current version only a single fix is unambiguous.
+
+def candidates(current: str | None, fixes: tuple[str, ...]) -> tuple[list[str], str]:
+    """Fixed versions to try, lowest first, or ``([], reason)``.
+
+    Fixed releases above *current* (pre-releases only when no release exists).
+    With no known current version only a single fix is unambiguous.
     """
     if not fixes:
-        return None, "the advisory records no fixed version"
-    parsed = [(v, _version(v)) for v in fixes]
-    usable = [(raw, ver) for raw, ver in parsed if ver is not None]
+        return [], "the advisory records no fixed version"
+    usable = [(raw, v) for raw in fixes if (v := _version(raw)) is not None]
     if not usable:
-        return None, "none of the advisory's fixed versions can be ordered"
+        return [], "none of the advisory's fixed versions can be ordered"
     releases = [(r, v) for r, v in usable if not v.is_prerelease] or usable
     if current is None:
         if len(releases) == 1:
-            return releases[0][0], ""
-        return None, "no version is known and the advisory lists several fixes"
+            return [releases[0][0]], ""
+        return [], "no version is known and the advisory lists several fixes"
     here = _version(current)
     if here is None:
-        return None, f"{current} cannot be ordered against the fixed versions"
+        return [], f"{current} cannot be ordered against the fixed versions"
     if any(_schemes_differ(current, raw) for raw, _ in releases):
-        return None, (
+        return [], (
             "the fixed version uses a different numbering scheme (calendar versus "
             "semantic), so it cannot be ordered offline"
         )
     above = sorted((v, raw) for raw, v in releases if v > here)
     if not above:
-        return None, f"no fixed version is above {current}"
-    return above[0][1], ""
+        return [], f"no fixed version is above {current}"
+    return [raw for _v, raw in above], ""
+
+
+def choose(current: str | None, fixes: tuple[str, ...]) -> tuple[str | None, str]:
+    """``(version, "")`` to pin to (the lowest candidate), or ``(None, reason)``."""
+    found, why = candidates(current, fixes)
+    return (found[0], "") if found else (None, why)

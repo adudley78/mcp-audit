@@ -444,6 +444,14 @@ class RecordRule:
             return Decision(
                 Status.AFFECTED,
                 f"{version} ({launch.source}) is a version {record.id} lists",
+                fixes=tuple(
+                    dict.fromkeys(
+                        value
+                        for events in ranges
+                        for kind, value in events
+                        if kind == "fixed"
+                    )
+                ),
             )
         for _kind, bound in (e for r in ranges for e in r):
             if bound != "0" and _parses(bound) and _schemes_differ(version, bound):
@@ -744,7 +752,11 @@ def decide_server(
         version_source=source,
         fixed_in=best.fixed_in,
         reason=best.reason,
-        fixes=best.fixes,
+        fixes=tuple(
+            dict.fromkeys(
+                f for d in decisions if d.status is best.status for f in d.fixes
+            )
+        ),
     )
 
 
