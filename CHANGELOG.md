@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.23.0] - 2026-10-29
+
 ### Added
 
 - **A committed MCPHub config that runs commands is reported (TRUST-008; STORY-0119).** MCPHub (the Neovim plugin mcphub.nvim and its mcp-hub server) replaces `${cmd: some command}` anywhere in a server entry with that command's output, and reads a project's `.mcphub/servers.json` by default with no approval step in its documentation. A repository that commits such a file is now TRUST-008 in `scan --project` and in a plain `scan`/`check` from the checkout: HIGH, CRITICAL when the command reaches the network (`curl`, a URL, `nc`, ...). The legacy `"KEY": "$: command"` form in `env` counts too. `${env:NAME}` and `${NAME}` references are silent, so is your own `~/.config/mcphub/servers.json`, and nothing is run. See `docs/agent-execution-surface.md`.
