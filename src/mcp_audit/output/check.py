@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rich.console import Console
+from rich.markup import escape
 from rich.rule import Rule
 
 from mcp_audit.exploit import signals
@@ -640,7 +641,7 @@ def print_check_results(
             f"{', '.join(kev_cves)} on CISA's KEV list."
         )
         if result.exploit_data:
-            console.print(f"  [dim]{result.exploit_data['line']}[/dim]")
+            console.print(f"  [dim]{escape(result.exploit_data['line'])}[/dim]")
         console.print()
 
     # ── Fix summary line ──────────────────────────────────────────────────────

@@ -262,6 +262,7 @@ def apply_live_signals(result: ScanResult, con: Console) -> ScanResult:
             f"[yellow]WARN[/yellow] --live: could not refresh exploit signals "
             f"({type(exc).__name__}); using the bundled data."
         )
+        apply_exploit_signals(result)
         return result
     apply_exploit_signals(result, index)
     return result
@@ -2087,6 +2088,8 @@ def scan(
     )
 
     result = _apply_severity_threshold(result, severity_threshold, con)
+    if result.exploit_data and not any(f.cve for f in result.findings):
+        result.exploit_data = None  # no CVE finding left to date
     result = _apply_advisory_feed(result, advisory_feed, con)
 
     # Suppress score for formatters when --no-score is requested.  The scanner

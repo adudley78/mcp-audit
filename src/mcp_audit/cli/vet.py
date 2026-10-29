@@ -258,6 +258,12 @@ def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _exploit_date_line() -> str:
+    from mcp_audit.exploit import signals  # noqa: PLC0415
+
+    return signals.load().date_line()
+
+
 def _exploit_note(cve: str) -> str:
     """KEV / EPSS / PoC for *cve* from the bundled data, or an empty string."""
     from mcp_audit.exploit import signals  # noqa: PLC0415
@@ -518,6 +524,8 @@ def _print_known_verdict(
             if v.get("link"):
                 t.append(f"    {v['link']}\n", style="dim")
             t.append("\n")
+        if any(_exploit_note(str(v.get("cve", ""))) for v in vulns):
+            t.append(f"    {_exploit_date_line()}\n", style="dim")
     elif vulns:
         if unfixed:
             heading = (
