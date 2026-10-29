@@ -455,7 +455,11 @@
           "cve": "CVE-2025-53365",
           "cvss": null,
           "description": "MCP Python SDK has Unhandled Exception in Streamable HTTP Transport, Leading to Denial of Service",
-          "fixed_in": "1.10.0"
+          "fixed_in": "1.10.0",
+          "affected_transports": [
+            "http"
+          ],
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
         },
         {
           "cve": "CVE-2025-53366",
@@ -473,7 +477,12 @@
           "cve": "CVE-2026-52869",
           "cvss": null,
           "description": "MCP Python SDK: HTTP transports serve session requests without verifying the authenticated principal",
-          "fixed_in": "1.27.2"
+          "fixed_in": "1.27.2",
+          "affected_transports": [
+            "http",
+            "sse"
+          ],
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
         },
         {
           "cve": "CVE-2026-52870",
@@ -491,7 +500,11 @@
           "cve": "CVE-2026-59951",
           "cvss": null,
           "description": "MCP Python SDK: Unbounded Session Accumulation in StreamableHTTP Transport Enables Resource Exhaustion",
-          "fixed_in": "2.2.0"
+          "fixed_in": "2.2.0",
+          "affected_transports": [
+            "http"
+          ],
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
         }
       ]
     },
@@ -970,7 +983,12 @@
           "cve": "CVE-2026-77244",
           "cvss": null,
           "description": "Auth bypass in the HTTP transport: any non-empty token is accepted, exposing the operator's credentials.",
-          "fixed_in": "0.22.0"
+          "fixed_in": "0.22.0",
+          "affected_transports": [
+            "http"
+          ],
+          "requires_auth": false,
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
         },
         {
           "cve": "CVE-2026-77246",
@@ -988,7 +1006,12 @@
           "cve": "CVE-2026-77248",
           "cvss": null,
           "description": "Unauthenticated local file read via upload_attachment in the multi-user streamable-HTTP deployment.",
-          "fixed_in": "0.22.0"
+          "fixed_in": "0.22.0",
+          "affected_transports": [
+            "http"
+          ],
+          "requires_auth": false,
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
         },
         {
           "cve": "CVE-2026-77249",
@@ -1114,7 +1137,11 @@
           "cve": "CVE-2026-77257",
           "cvss": null,
           "description": "MCP Atlassian: HTTP upload tools accept arbitrary server-local file paths",
-          "fixed_in": "0.22.0"
+          "fixed_in": "0.22.0",
+          "affected_transports": [
+            "http"
+          ],
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
         },
         {
           "cve": "CVE-2026-77262",

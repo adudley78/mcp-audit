@@ -244,6 +244,25 @@ def _annotate_exploit_signals(result: ScanResult) -> ScanResult:
     return result
 
 
+def _write_vex(result: ScanResult, path: Path, con: Console) -> None:
+    """Write the scan's servers as an OpenVEX document (STORY-0125)."""
+    from mcp_audit.affected import vex as vex_mod  # noqa: PLC0415
+    from mcp_audit.affected.match import LockIndex  # noqa: PLC0415
+    from mcp_audit.registry.loader import load_registry  # noqa: PLC0415
+
+    problems: list[str] = []
+    pairs = vex_mod.pairs_for_servers(
+        result.servers, load_registry(), LockIndex([], problems)
+    )
+    document = vex_mod.build(pairs)
+    _write_output(path, vex_mod.render(document))
+    con.print(
+        f"[dim]Wrote {len(document['statements'])} OpenVEX statement(s) to {path}[/dim]"
+    )
+    for problem in problems:
+        con.print(f"[yellow]WARN[/yellow] --vex: {problem}")
+
+
 def apply_live_signals(result: ScanResult, con: Console) -> ScanResult:
     """Replace the bundled exploit signals on *result* with current ones.
 
@@ -1852,6 +1871,16 @@ def scan(
             "is used and its date is printed. Cannot be combined with --offline."
         ),
     ),
+    vex: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--vex",
+        help=(
+            "Write an OpenVEX document to this path: for every bundled advisory "
+            "on a package a discovered server runs, affected, fixed, "
+            "not_affected (transport-tagged advisories on stdio servers) or "
+            "under_investigation. Offline."
+        ),
+    ),
     vuln_registry: str | None = typer.Option(  # noqa: B008
         None,
         "--vuln-registry",
@@ -2086,6 +2115,9 @@ def scan(
     result = (
         apply_live_signals(result, con) if live else _annotate_exploit_signals(result)
     )
+
+    if vex is not None:
+        _write_vex(result, vex, con)
 
     result = _apply_severity_threshold(result, severity_threshold, con)
     if result.exploit_data and not any(f.cve for f in result.findings):

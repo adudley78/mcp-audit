@@ -2173,6 +2173,22 @@ step" note, no diff, same exit code. `--format pr-comment` prints before/after i
 
 ---
 
+## Transport tags and OpenVEX (STORY-0125)
+
+```bash
+cat > /tmp/t.json <<'J'
+{"mcpServers":{"a":{"command":"uvx","args":["mcp-atlassian==0.21.0"]},
+"b":{"command":"uvx","args":["mcp-atlassian==0.21.0","--transport","streamable-http"]}}}
+J
+mcp-audit affected CVE-2026-77244 --path /tmp/t.json
+mcp-audit affected CVE-2026-77244 --path /tmp/t.json --format openvex
+mcp-audit scan --path /tmp/t.json --offline --vex /tmp/t.vex.json
+```
+
+**Expected:** `a` is NOT AFFECTED (stdio; the evidence names the tag's source), `b` is AFFECTED (0.22.0).
+The OpenVEX output has one statement for `pkg:pypi/mcp-atlassian@0.21.0`, `affected` (the more cautious
+of the two). `scan` writes the file and lists SC-004 for `b` only.
+
 ## Exploit signals (STORY-0124)
 
 ```bash

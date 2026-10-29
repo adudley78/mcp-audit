@@ -57,6 +57,7 @@ class _Format(StrEnum):
     TERMINAL = "terminal"
     JSON = "json"
     SARIF = "sarif"
+    OPENVEX = "openvex"
 
 
 def _fail(message: str) -> typer.Exit:
@@ -154,6 +155,21 @@ def _live_rules(advisory_id: str, report: Report) -> RuleSet:
     return RuleSet(rules=list(rules), sources=["OSV.dev (--live)"])
 
 
+def _openvex_text(report: Report, parsed: Query) -> str:
+    """The report as an OpenVEX document (advisory queries only)."""
+    from mcp_audit.affected import vex  # noqa: PLC0415
+
+    if parsed.kind != "advisory" or not parsed.advisory_id:
+        raise _fail("--format openvex needs an advisory ID, not a package range")
+    document = vex.build((parsed.advisory_id, row) for row in report.rows)
+    if not document["statements"]:
+        raise _fail(
+            "no discovered server runs a package this advisory covers, so there "
+            "is nothing to state"
+        )
+    return vex.render(document)
+
+
 @app.command("affected")
 def affected(
     query: str = typer.Argument(  # noqa: B008
@@ -178,7 +194,7 @@ def affected(
         ),
     ),
     format_: _Format = typer.Option(  # noqa: B008
-        _Format.TERMINAL, "--format", "-f", help="terminal, json or sarif."
+        _Format.TERMINAL, "--format", "-f", help="terminal, json, sarif or openvex."
     ),
     output: Path | None = typer.Option(  # noqa: B008
         None, "--output", "-o", help="Write json/sarif here instead of stdout."
@@ -212,7 +228,7 @@ def affected(
         if not lock_path.is_file():
             raise _fail(f"lock file does not exist: {lock_path}")
     if output is not None and format_ is _Format.TERMINAL:
-        raise _fail("--output needs --format json or sarif")
+        raise _fail("--output needs --format json, sarif or openvex")
 
     report = Report(query=parsed)
     try:
@@ -271,7 +287,12 @@ def affected(
     if format_ is _Format.TERMINAL:
         render_terminal(report, Console(), show_all=show_all)
     else:
-        text = render_json(report) if format_ is _Format.JSON else render_sarif(report)
+        if format_ is _Format.OPENVEX:
+            text = _openvex_text(report, parsed)
+        elif format_ is _Format.JSON:
+            text = render_json(report)
+        else:
+            text = render_sarif(report)
         if output is not None:
             _write_output(output, text)
         else:

@@ -954,6 +954,44 @@ def find_entirely_tag_only_entries(entries: list[dict]) -> list[dict]:
     return hits
 
 
+def find_bad_reachability_tags(entries: list[dict]) -> list[dict]:
+    """``known_vulns`` records whose transport tag is unusable (STORY-0125).
+
+    An unusable tag is silently ignored by the scanner (the advisory stays in
+    force), so this is where a typo in ``affected_transports`` or a missing
+    ``verified_by`` gets caught.
+    """
+    from mcp_audit.registry.reachability import tag_problems  # noqa: PLC0415
+
+    hits: list[dict] = []
+    for entry in entries:
+        for record in entry.get("known_vulns") or []:
+            if not isinstance(record, dict):
+                continue
+            problems = tag_problems(record)
+            if problems:
+                hits.append(
+                    {
+                        "name": entry["name"],
+                        "cve": record.get("cve"),
+                        "problems": problems,
+                    }
+                )
+    return hits
+
+
+def count_tagged_advisories(entries: list[dict]) -> int:
+    """How many ``known_vulns`` records carry a valid transport tag."""
+    from mcp_audit.registry.reachability import tags_of  # noqa: PLC0415
+
+    return sum(
+        1
+        for entry in entries
+        for record in entry.get("known_vulns") or []
+        if tags_of(record) is not None
+    )
+
+
 def _print_capability_checks(
     unknown_hits: list[dict],
     undeclared_hits: list[dict],
@@ -1285,6 +1323,19 @@ def main() -> None:
     _print_capability_checks(
         unknown_cap_hits, undeclared_cap_hits, dead_cap_report, entirely_tag_only_hits
     )
+
+    bad_tags = find_bad_reachability_tags(entries)
+    print(
+        f"Transport-tagged advisories: {count_tagged_advisories(entries)}",
+        file=sys.stderr,
+    )
+    for hit in bad_tags:
+        print(
+            f"  BAD TAG {hit['name']} {hit['cve']}: {'; '.join(hit['problems'])}",
+            file=sys.stderr,
+        )
+    if bad_tags:
+        sys.exit(1)
 
     results = audit_registry(args.registry, args.cache, args.refresh)
 
