@@ -34,8 +34,13 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import bench_poisoning as bench  # noqa: E402
 
 RESULTS = json.loads(bench.RESULTS_PATH.read_text(encoding="utf-8"))
-SUMMARY = json.loads(bench.SUMMARY_PATH.read_text(encoding="utf-8"))
-LABELS = json.loads(bench.LABELS_PATH.read_text(encoding="utf-8"))
+# The 2026-10-22 measurement (661 findings) is the fixture most tests use: it
+# has every label shape (committed evidence, POISON-060, POISON-020).
+SUMMARY = json.loads(bench.ARCHIVE_SUMMARY_PATH.read_text(encoding="utf-8"))
+LABELS = json.loads(bench.ARCHIVE_LABELS_PATH.read_text(encoding="utf-8"))
+# The current measurement (Q-045, 2026-10-29), pinned in results.json.
+NEW_SUMMARY = json.loads(bench.SUMMARY_PATH.read_text(encoding="utf-8"))
+NEW_LABELS = json.loads(bench.LABELS_PATH.read_text(encoding="utf-8"))
 
 RERUN = (
     "re-run `uv run python scripts/bench_poisoning.py precision --write` and "
@@ -63,11 +68,27 @@ class TestTop100Precision:
     """The measured precision on the published corpus, pinned."""
 
     def test_measured_precision_is_the_committed_number(self) -> None:
-        fresh = bench.measure_precision(SUMMARY, LABELS)
+        fresh = bench.measure_precision(NEW_SUMMARY, NEW_LABELS)
         pinned = {k: v for k, v in RESULTS["top100"].items() if k != "replay"}
         assert fresh == pinned, RERUN
 
     def test_current_numbers(self) -> None:
+        """Q-045 (2026-10-29, 0.23.0): 1 of 46 findings real, 3.3 per 100 tools."""
+        fresh = bench.measure_precision(NEW_SUMMARY, NEW_LABELS)
+        assert fresh["findings"] == 46
+        assert fresh["true_positive"] == 1
+        assert {k: v["findings"] for k, v in fresh["by_id"].items()} == {
+            "POISON-012": 2,
+            "POISON-030": 12,
+            "POISON-050": 32,
+        }
+        assert fresh["by_id"]["POISON-050"]["true_positive"] == 1
+        assert fresh["tools_scanned"] == 1402
+        assert fresh["findings_per_100_tools"] == 3.3
+        assert fresh["findings_high_or_above"] == 2
+        assert fresh["true_positive_high_or_above"] == 0
+
+    def test_2026_10_22_numbers(self) -> None:
         """0 of 661 findings were real; 488 of the labels rest on committed text."""
         fresh = bench.measure_precision(SUMMARY, LABELS)
         assert fresh["findings"] == 661
@@ -92,8 +113,13 @@ class TestTop100Precision:
         A new ID firing on a known-benign fragment is a precision regression; a
         pattern that stops firing is an improvement that must be re-measured.
         """
-        fresh = bench.replay_evidence(SUMMARY)
+        fresh = bench.replay_evidence(NEW_SUMMARY)
         assert fresh == RESULTS["top100"]["replay"], RERUN
+
+    def test_2026_10_22_replay_is_pinned(self) -> None:
+        """The 10-22 fragments are known-benign text; a new firing is a regression."""
+        fresh = bench.replay_evidence(SUMMARY)
+        assert fresh == RESULTS["top100_2026_10_22_replay"], RERUN
 
     def test_replay_reaches_the_analyzer(self) -> None:
         """The replay runs the current analyzer over every committed fragment.
@@ -123,11 +149,11 @@ class TestTop100Precision:
     def test_labelled_fingerprint_is_recorded(self) -> None:
         """The labels name the code they describe, and results.json carries it.
 
-        It is deliberately not compared with today's fingerprint: the labels are
-        a fixed measurement of the 0.21.x code, and a later pattern change makes
-        them STALE (printed), not wrong.
+        It is deliberately not compared with today's fingerprint here: the
+        labels are a fixed measurement, and a later pattern change makes them
+        STALE (printed), not wrong.
         """
-        labelled = LABELS["labelled_patterns_fingerprint"]
+        labelled = NEW_LABELS["labelled_patterns_fingerprint"]
         assert labelled.startswith("sha256:") and len(labelled) == 71
         assert RESULTS["top100"]["labelled_patterns_fingerprint"] == labelled
 
@@ -144,7 +170,9 @@ class TestTop100Precision:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         bench.main(["precision"])
-        stale = LABELS["labelled_patterns_fingerprint"] != bench.patterns_fingerprint()
+        stale = (
+            NEW_LABELS["labelled_patterns_fingerprint"] != bench.patterns_fingerprint()
+        )
         assert ("STALE" in capsys.readouterr().out) == stale
 
 
@@ -1021,3 +1049,45 @@ def test_local_mcptox_matches_pinned_results() -> None:
     files = bench.load_mcptox(os.environ["MCP_AUDIT_MCPTOX_DIR"])
     fresh = bench.measure_recall(files)
     assert fresh == RESULTS["mcptox"], RERUN
+
+
+class TestTruePositiveCount:
+    """A false_positive group may carry a few real findings (Q-045, POISON-050)."""
+
+    def test_count_must_fit_the_group(self) -> None:
+        import copy
+
+        labels = copy.deepcopy(NEW_LABELS)
+        p050 = next(x for x in labels["labels"] if x["id"] == "POISON-050")
+        p050["true_positive_count"] = 33
+        with pytest.raises(bench.BenchError, match="exceeds"):
+            bench.measure_precision(NEW_SUMMARY, labels)
+
+    def test_count_only_on_false_positive_labels(self) -> None:
+        import copy
+
+        labels = copy.deepcopy(NEW_LABELS)
+        p050 = next(x for x in labels["labels"] if x["id"] == "POISON-050")
+        p050["label"] = "true_positive"
+        with pytest.raises(bench.BenchError, match="true_positive_count"):
+            bench.measure_precision(NEW_SUMMARY, labels)
+
+    def test_count_needs_a_single_group(self) -> None:
+        import copy
+
+        labels = copy.deepcopy(NEW_LABELS)
+        p030 = next(
+            x
+            for x in labels["labels"]
+            if x["id"] == "POISON-030" and x["evidence"] == ["first call"]
+        )
+        p030["evidence"] = ["first call", "instead of call"]
+        p030["count"] = 7
+        p030["true_positive_count"] = 1
+        labels["labels"] = [
+            x
+            for x in labels["labels"]
+            if not (x["id"] == "POISON-030" and x["evidence"] == ["instead of call"])
+        ]
+        with pytest.raises(bench.BenchError, match="one group"):
+            bench.measure_precision(NEW_SUMMARY, labels)

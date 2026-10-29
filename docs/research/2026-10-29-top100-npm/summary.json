@@ -1,0 +1,105 @@
+{
+ "corpus": {
+  "n": 100,
+  "weekly_downloads_total": 16185843,
+  "top": "chrome-devtools-mcp",
+  "top_weekly": 3281478,
+  "cutoff_weekly": 22683,
+  "attested": 64,
+  "zero_major": 48,
+  "scoped": 67,
+  "in_registry": 12
+ },
+ "connect": {
+  "attempted": 100,
+  "connected": 61,
+  "connected_default_invocation": 46,
+  "connected_adjusted_invocation": 15,
+  "failed": 39,
+  "failure_classes": {
+   "cli-wrapper": 1,
+   "no-handshake": 24,
+   "credential-gated": 12,
+   "needs-project": 1,
+   "install-failed": 1
+  },
+  "classification_method": "automatic, from each failure message (the 10-22 run classified by hand)"
+ },
+ "tools": {
+  "total": 1402,
+  "per_server_median": 13,
+  "per_server_mean": 23.0,
+  "ge50": 6,
+  "desc_chars_total": 497365,
+  "desc_median": 150.0,
+  "desc_ge2000": 29,
+  "def_json_bytes_total": 3269927,
+  "with_annotations": 842
+ },
+ "collisions": {
+  "count": 20,
+  "by_severity": {
+   "MEDIUM": 10,
+   "HIGH": 10
+  }
+ },
+ "poisoning": {
+  "total": 46,
+  "by_id": {
+   "POISON-050": 32,
+   "POISON-030": 12,
+   "POISON-012": 2
+  },
+  "by_id_sev": {
+   "POISON-050": "LOW",
+   "POISON-030": "MEDIUM",
+   "POISON-012": "HIGH"
+  },
+  "servers_with_findings": 16,
+  "p060_evidence_sample": [],
+  "p030_evidence": {
+   "instead of call": 4,
+   "first call": 3,
+   "Instead use": 1,
+   "After calling this": 2,
+   "First call": 2
+  },
+  "p012_p020": [
+   [
+    "POISON-012",
+    "Matched: Override default"
+   ],
+   [
+    "POISON-012",
+    "Matched: Override default"
+   ]
+  ],
+  "p050_servers": 14
+ },
+ "static": {
+  "findings": 560,
+  "score": 7,
+  "grade": "F",
+  "by_id": {
+   "TRANSPORT-003": 96,
+   "CFHYG-001": 100,
+   "CFHYG-002": 100,
+   "SC-004": 1,
+   "SC-002": 1,
+   "TOXIC-004": 4,
+   "INTEG-001": 4,
+   "TOXIC-008": 8,
+   "TOXIC-001": 10,
+   "TOXIC-002": 2,
+   "TOXIC-011": 8,
+   "TOXIC-006": 10,
+   "TOXIC-010": 4,
+   "TOXIC-009": 4,
+   "TOXIC-007": 10,
+   "TOXIC-005": 5,
+   "TOXIC-003": 5,
+   "COMM-004": 88,
+   "COMM-013": 100
+  }
+ }
+}

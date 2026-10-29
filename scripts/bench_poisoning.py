@@ -96,7 +96,15 @@ from mcp_audit.models import (
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS_PATH = ROOT / "docs" / "research" / "poisoning-benchmark" / "results.json"
 LABELS_PATH = ROOT / "docs" / "research" / "poisoning-benchmark" / "top100-labels.json"
-SUMMARY_PATH = ROOT / "docs" / "research" / "2026-10-top100-npm" / "summary.json"
+SUMMARY_PATH = ROOT / "docs" / "research" / "2026-10-29-top100-npm" / "summary.json"
+# The 2026-10-22 measurement (mcp-audit 0.21.0, 661 findings), kept as a fixed
+# record and as test fixtures.
+ARCHIVE_LABELS_PATH = (
+    ROOT / "docs" / "research" / "poisoning-benchmark" / "top100-labels-2026-10-22.json"
+)
+ARCHIVE_SUMMARY_PATH = (
+    ROOT / "docs" / "research" / "2026-10-top100-npm" / "summary.json"
+)
 
 MCPTOX_DEFAULT_SOURCE = "https://anonymous.4open.science/api/repo/AAAI26-7C02/file/"
 MCPTOX_FILES = ("response_all.json", "pure_tool.json")
@@ -989,6 +997,14 @@ def _validate_labels(labels: Any) -> list[dict[str, Any]]:
             )
         if not isinstance(lab.get("evidence", []), list):
             raise BenchError(f"label {i} ({lab['id']}): evidence must be a list")
+        tpc = lab.get("true_positive_count")
+        if tpc is not None and (
+            not isinstance(tpc, int) or tpc < 0 or lab["label"] != "false_positive"
+        ):
+            raise BenchError(
+                f"label {i} ({lab['id']}): true_positive_count must be a "
+                "non-negative integer on a false_positive label"
+            )
     return entries
 
 
@@ -1031,6 +1047,18 @@ def measure_precision(
         )
     for lab in entries:
         n = sum(groups[k] for k, v in covered.items() if v is lab)
+        if int(lab.get("true_positive_count") or 0) > n:
+            raise BenchError(
+                f"{lab['id']} {lab.get('evidence')}: true_positive_count exceeds "
+                f"the {n} findings it labels"
+            )
+        if (
+            lab.get("true_positive_count")
+            and sum(1 for v in covered.values() if v is lab) != 1
+        ):
+            raise BenchError(
+                f"{lab['id']}: true_positive_count needs a label that covers one group"
+            )
         if "count" in lab and int(lab["count"]) != n:
             raise BenchError(
                 f"{lab['id']} {lab.get('evidence')}: "
@@ -1039,12 +1067,20 @@ def measure_precision(
 
     per_id: dict[str, dict[str, Any]] = {}
     for (fid, ev), n in sorted(groups.items()):
-        label = covered[(fid, ev)]["label"]
+        lab = covered[(fid, ev)]
+        # A group labelled false_positive may still hold a few real findings
+        # (one long description among many): true_positive_count says how many.
+        tp_n = (
+            n
+            if lab["label"] == "true_positive"
+            else int(lab.get("true_positive_count") or 0)
+        )
         cell = per_id.setdefault(
             fid, {"findings": 0, "true_positive": 0, "false_positive": 0}
         )
         cell["findings"] += n
-        cell[label] += n
+        cell["true_positive"] += tp_n
+        cell["false_positive"] += n - tp_n
     for cell in per_id.values():
         cell["precision"] = _rate(cell["true_positive"], cell["findings"])
     tp = sum(c["true_positive"] for c in per_id.values())
@@ -1060,7 +1096,7 @@ def measure_precision(
     high_total = sum(c["findings"] for c in high)
     high_tp = sum(c["true_positive"] for c in high)
     return {
-        "corpus": "docs/research/2026-10-top100-npm/summary.json",
+        "corpus": labels.get("corpus", "docs/research/2026-10-top100-npm/summary.json"),
         "labels": "docs/research/poisoning-benchmark/top100-labels.json",
         "scanner_version": labels.get("scanner_version"),
         "labelled_patterns_fingerprint": labels["labelled_patterns_fingerprint"],
@@ -1264,7 +1300,7 @@ def _print_precision(section: dict[str, Any]) -> None:
         print(
             "STALE: the top-100 labels describe different POISON-* code "
             f"(labelled {section['labelled_patterns_fingerprint']}, current "
-            f"{replay['patterns_fingerprint']}). The 0-of-661 precision is a "
+            f"{replay['patterns_fingerprint']}). The precision is a "
             "fixed measurement of the old code; re-measuring it needs a fresh "
             "enumeration of the corpus (runs third-party servers, never in CI). "
             "The precision checks that do re-run: this replay and the MCPTox "
@@ -1303,6 +1339,14 @@ def run_precision(args: argparse.Namespace) -> int:
         status = _finish(*compare_precision(pinned, section), "precision")
     if args.write:
         _write_unless_regressed(status, args.results, "top100", section)
+        # The 2026-10-22 fragments stay pinned too: a pattern that starts
+        # firing on one of them is a precision regression on known-benign text.
+        if not status:
+            _write_section(
+                args.results,
+                "top100_2026_10_22_replay",
+                replay_evidence(_read_json(ARCHIVE_SUMMARY_PATH)),
+            )
     return status
 
 
