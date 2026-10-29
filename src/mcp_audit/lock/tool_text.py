@@ -132,7 +132,6 @@ def write(path: Path, doc: dict) -> int:
     try:
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
-        os.chmod(tmp_name, 0o644)
         os.replace(tmp_name, path)
     except BaseException:
         Path(tmp_name).unlink(missing_ok=True)
