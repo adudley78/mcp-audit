@@ -61,6 +61,17 @@
 # Scrolling the branch history still shows at a glance which weeks changed
 # advisory content vs. which weeks only pushed the expiry forward.
 #
+# Q-058 / Q-055: the feed branch is also an air-gapped bundle (STORY-0129,
+# docs/air-gapped.md). The signing step adds `data/` (the registry, the
+# known-malicious mirror, research records and KEV/EPSS signals from this
+# checkout) and a manifest `bundle.json` signed with the same key, so
+# `git clone --branch feed` gives `scan --bundle` / `affected --bundle` a
+# directory they verify offline. KEV/EPSS are fetched fresh for the bundle
+# each week (best effort: an outage or a thinner result falls back to the
+# committed copy, so a source outage never stops the publish or the TTL).
+# Nothing here writes the repository: the committed data still changes only
+# by reviewed PR.
+#
 # The freshness canary in advisory-feed-freshness-canary.yml — a separate,
 # independently-scheduled, read-only workflow — is what detects "the
 # publisher stopped running" instead of "expires froze" being the first
@@ -135,6 +146,14 @@ jobs:
             echo "No feed branch on origin yet; this will be the first publish."
           fi
 
+      - name: Fetch current exploit signals for the bundle (best effort)
+        # Network, read-only; writes under RUNNER_TEMP only. A failure is not
+        # fatal: build_bundle.py falls back to the committed file.
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          python scripts/sync_exploit_signals.py --out "${RUNNER_TEMP}/exploit-signals.json"
+
       - name: Write and sign the candidate feed
         env:
           MCP_AUDIT_FEED_SIGNING_KEY: ${{ secrets.MCP_AUDIT_FEED_SIGNING_KEY }}
@@ -164,6 +183,16 @@ jobs:
           fi
           mcp-audit advise "${ARGS[@]}"
 
+          # The air-gapped bundle (Q-058): data/ and a signed bundle.json
+          # added to the feed directory itself, signed with the same keyfile
+          # in this same step (the only step that can read the secret).
+          BUNDLE_ARGS=(--feed "${RUNNER_TEMP}/feed" --in-place
+                       --private-key "$KEYFILE" --public-key keys/mcp-audit-feed.pub)
+          if [ -f "${RUNNER_TEMP}/exploit-signals.json" ]; then
+            BUNDLE_ARGS+=(--exploit-signals "${RUNNER_TEMP}/exploit-signals.json")
+          fi
+          python scripts/build_bundle.py "${BUNDLE_ARGS[@]}"
+
       - name: Verify the candidate feed before it is ever uploaded
         # A feed that fails its own verification must fail this workflow
         # before `publish` ever sees it — no bad signature reaches the
@@ -172,6 +201,8 @@ jobs:
         run: |
           mcp-audit feed verify "${RUNNER_TEMP}/feed" \
             --key-alt minisign --public-key keys/mcp-audit-feed.pub
+          python scripts/build_bundle.py --verify "${RUNNER_TEMP}/feed" \
+            --public-key keys/mcp-audit-feed.pub
 
       - name: Classify this publish against the currently-published feed
         # Informational only (R31) — feeds the commit message, never a gate.
@@ -226,10 +257,14 @@ jobs:
         # it — see docs/advisory-feed.md.
         run: |
           rm -rf advisories osv index.json index.json.sig
+          rm -rf data bundle.json bundle.json.sig
           cp -r new_feed/advisories advisories
           cp -r new_feed/osv osv
           cp new_feed/index.json index.json
           cp new_feed/index.json.sig index.json.sig
+          cp -r new_feed/data data
+          cp new_feed/bundle.json bundle.json
+          cp new_feed/bundle.json.sig bundle.json.sig
           rm -rf new_feed
 
       - name: Commit and push

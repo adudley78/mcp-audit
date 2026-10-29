@@ -276,3 +276,41 @@ def test_documents_the_public_feed_url() -> None:
     assert (
         "https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json" in text
     )
+
+
+def test_bundle_is_built_in_the_signing_step_and_verified_before_upload() -> None:
+    """Q-058: the feed branch is an air-gapped bundle, signed with the same key."""
+    steps = _steps(_load()["jobs"]["build"])
+    sign_step = next(s for s in steps if _has_secret_env(s))
+    run = str(sign_step["run"])
+    assert "scripts/build_bundle.py" in run
+    assert "--in-place" in run
+    assert '--private-key "$KEYFILE"' in run
+    names = [s.get("name", "") for s in steps]
+    verify_idx = next(
+        i
+        for i, s in enumerate(steps)
+        if "build_bundle.py --verify" in str(s.get("run", ""))
+    )
+    upload_idx = next(
+        i for i, s in enumerate(steps) if str(s.get("uses", "")).startswith(UPLOAD)
+    )
+    assert names.index(sign_step["name"]) < verify_idx < upload_idx
+
+
+def test_signal_refresh_is_best_effort_and_keyless() -> None:
+    """Q-055: a KEV/EPSS outage must never stop the publish (the TTL depends on it)."""
+    steps = _steps(_load()["jobs"]["build"])
+    fetch = next(s for s in steps if "sync_exploit_signals.py" in str(s.get("run", "")))
+    assert fetch.get("continue-on-error") is True
+    assert not _has_secret_env(fetch)
+    assert "--out" in str(fetch["run"]) and "--write" not in str(fetch["run"])
+
+
+def test_publish_copies_the_bundle_files() -> None:
+    steps = _steps(_load()["jobs"]["publish"])
+    run_text = _run_text(steps)
+    assert "rm -rf data bundle.json bundle.json.sig" in run_text
+    assert "cp -r new_feed/data data" in run_text
+    assert "cp new_feed/bundle.json bundle.json" in run_text
+    assert "cp new_feed/bundle.json.sig bundle.json.sig" in run_text

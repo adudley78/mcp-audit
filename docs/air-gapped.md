@@ -38,9 +38,20 @@ Every run starts with a line such as `Signed bundle 2026-10-29, 2 days old, feed
 
 `--bundle` cannot be combined with `--registry`, `--live`, `--check-vulns`, `--verify-hashes`, `--verify-signatures` or `--connect`: it is the no-network path, and mixing in a network flag would make "no network" untrue.
 
-## Making a bundle
+## Getting the published bundle
 
-`scripts/build_bundle.py --feed ./feed --out ./bundle --private-key KEY --public-key KEY.pub` copies a signed feed and the four data files from a checkout and signs the manifest. Today that needs the feed's signing key, which lives only in the publisher workflow, so mcp-audit does not publish bundles yet; adding it to `advisory-feed-publish.yml` is a held change. Until then, a bundle you assemble and sign with your own key is verified with `--bundle-key your.pub`.
+The weekly signed feed is also a bundle: every publish adds `data/` and a signed `bundle.json` to the `feed` branch, signed with mcp-audit's project key (the one `--bundle` uses by default). On a connected machine:
+
+```bash
+git clone --depth 1 --branch feed https://github.com/adudley78/mcp-audit.git bundle
+mcp-audit affected CVE-2026-59822 --bundle ./bundle     # check it before you carry it
+```
+
+Then carry the `bundle` folder across. The registry, malicious list and research records are the ones on `main` when the feed was published; KEV and EPSS are fetched fresh at publish time, falling back to the committed copy when a source is down or returns less than it holds. A feed expires 14 days after it is published, so fetch a new one at least that often.
+
+## Making your own
+
+`scripts/build_bundle.py --feed ./feed --out ./bundle --private-key KEY --public-key KEY.pub` copies a signed feed and the four data files from a checkout and signs the manifest (`--in-place` adds them to the feed directory instead). `scripts/build_bundle.py --verify ./bundle --public-key KEY.pub` checks one. A bundle signed with your own key is verified with `--bundle-key your.pub`.
 
 The bundle is copied to a private temporary directory before anything is checked, and both the checks and the scan use that copy, so changing the original while a command runs has no effect.
 
@@ -48,5 +59,5 @@ The bundle is copied to a private temporary directory before anything is checked
 
 - minisign only. A feed signed with cosign keyless is not supported here.
 - Within one feed snapshot nothing orders two bundles: the manifest names the feed index, not a data version, so how current the data files are is up to whoever signs the bundle. `created_at` in `bundle.json` says when it was made.
-- A bundle is as old as its feed. `scan` and `affected` print the date; read it.
+- A bundle is as old as its feed; the published one is refreshed weekly. `scan` and `affected` print the date; read it.
 - The bundle replaces the four data files only. `lock`, `vet` and the other commands still read the installed copies.

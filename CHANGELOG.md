@@ -28,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`scan --bundle` and `affected --bundle`: current data with no network (STORY-0129).** A signed bundle directory (the advisory feed plus the registry, known-malicious list, research records and KEV/EPSS signals, with a signed manifest) can be carried across an air gap and read with `mcp-audit scan --bundle DIR` or `mcp-audit affected <ID> --bundle DIR`. It is verified like `feed verify` (signed, unexpired, not rolled back, digests match) plus the manifest and each data file, or the run stops with exit 2 and every reason; there is no `--allow-expired` and no fallback to the installed data. Each run prints the bundle's date. It cannot be combined with `--registry` or any network flag. `scripts/build_bundle.py` assembles and signs one; publishing bundles from the feed workflow is a held change. See `docs/air-gapped.md`.
 
+- **The weekly signed feed is now also an air-gapped bundle (Q-058, Q-055).** Each publish adds `data/` (registry, known-malicious list, research records, KEV/EPSS) and a `bundle.json` signed with the feed key to the `feed` branch, so `git clone --depth 1 --branch feed https://github.com/adudley78/mcp-audit.git` gives `scan --bundle` and `affected --bundle` a directory they verify with no extra key. KEV and EPSS are fetched fresh for each publish, falling back to the committed copy if a source is down or returns less than it holds. `scripts/build_bundle.py` gains `--in-place`, `--exploit-signals` and `--verify`; `scripts/sync_exploit_signals.py` gains `--out`. The committed KEV/EPSS data is refreshed (2026-10-29), adding the LiteLLM CVEs. See `docs/air-gapped.md`.
+
 ---
 
 ## [0.23.0] - 2026-10-29
