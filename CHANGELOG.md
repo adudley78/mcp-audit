@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- SC-004 and `vet` now credit Yarden Porat (Cyata) for CVE-2025-68143, CVE-2025-68144 and CVE-2025-68145 in Anthropic's Git MCP server (STORY-0130).
+
 ---
 
 ## [0.24.0] - 2026-10-29
