@@ -155,3 +155,30 @@ class TestRugPull:
         an.analyze_all([_srv(tmp_path, f"https://u:{SECRET}@a.example/m?t={SECRET}")])
         assert SECRET not in state.read_text()
         assert "a.example" in state.read_text()
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "expected"),
+    [
+        (BASE, "http://a.example/mcp", "remote scheme changed from https to http"),
+        (BASE, "wss://a.example/mcp", "remote scheme changed from https to wss"),
+        ("https://a.example./mcp", BASE, None),
+        ("https://BÜCHER.example/m", "https://xn--bcher-kva.example/m", None),
+        ("https://${HOST}/mcp", BASE, None),
+    ],
+)
+def test_scheme_and_equivalent_hosts(old: str, new: str, expected: str | None) -> None:
+    got = describe_remote_move(old, new)
+    if expected is None:
+        assert got is None
+    else:
+        assert got is not None and got.startswith(expected)
+        assert "None" not in got
+
+
+def test_pr_comment_note_is_code_span() -> None:
+    a = _srv(Path("/x"), BASE)
+    b = _srv(Path("/x"), "https://b<img src=x>.example/mcp")
+    out = render_pr_comment(compare([a], [b]), "base", "head")
+    note_lines = [ln for ln in out.splitlines() if "remote host changed" in ln]
+    assert note_lines and all(ln.startswith("> `") for ln in note_lines)

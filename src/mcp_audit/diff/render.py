@@ -288,7 +288,8 @@ def render_pr_comment(
         elif sc.change_type == ChangeType.CHANGED and (sc.command_diff or sc.note):
             cd = sc.command_diff or {}
             if sc.note:
-                lines.append(f"> {sc.note}")
+                note = sc.note.replace("`", "")
+                lines.append(f"> `{note}`")
                 lines.append("")
             if sc.command_diff:
                 lines.append("| Field | Before | After |")

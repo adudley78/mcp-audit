@@ -14,6 +14,7 @@ labels for the same path — see the module's own R61 note on :func:`match_key`.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -78,18 +79,31 @@ def canonicalize_url(url: str) -> str:
 
 
 def _host_port(url: str) -> tuple[str, int | None] | None:
-    """Return ``(hostname, effective port)`` of *url*, or ``None`` if unparseable."""
+    """Return ``(hostname, effective port)`` of *url*, or ``None`` if unparseable.
+
+    A placeholder host (``${HOST}``) is ``None``: it names no host.
+    """
+    hp = _scheme_host_port(url)
+    return (hp[1], hp[2]) if hp else None
+
+
+def _scheme_host_port(url: str) -> tuple[str, str, int | None] | None:
     try:
         parts = urlsplit(url)
         port = parts.port
     except ValueError:
         return None
     host = (parts.hostname or "").lower()
-    if not host:
+    if not host or "${" in host or "$" in host:
         return None
+    if host.endswith("."):
+        host = host[:-1]
+    with contextlib.suppress(UnicodeError):
+        host = host.encode("idna").decode("ascii")
+    scheme = parts.scheme.lower()
     if port is None:
-        port = _DEFAULT_PORTS.get(parts.scheme.lower())
-    return host, port
+        port = _DEFAULT_PORTS.get(scheme)
+    return scheme, host, port
 
 
 def remote_host(url: str | None) -> str | None:
@@ -115,13 +129,15 @@ def describe_remote_move(old_url: str | None, new_url: str | None) -> str | None
     """
     if not old_url or not new_url:
         return None
-    old, new = _host_port(old_url), _host_port(new_url)
+    old, new = _scheme_host_port(old_url), _scheme_host_port(new_url)
     if old is None or new is None:
         return None
-    if old[0] != new[0]:
-        return f"remote host changed from {old[0]} to {new[0]}"
     if old[1] != new[1]:
-        return f"remote port changed from {old[1]} to {new[1]} on host {old[0]}"
+        return f"remote host changed from {old[1]} to {new[1]}"
+    if old[0] != new[0]:
+        return f"remote scheme changed from {old[0]} to {new[0]} on host {old[1]}"
+    if old[2] != new[2] and old[2] is not None and new[2] is not None:
+        return f"remote port changed from {old[2]} to {new[2]} on host {old[1]}"
     return None
 
 
