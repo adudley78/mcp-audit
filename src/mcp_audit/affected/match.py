@@ -79,6 +79,7 @@ UNDECIDABLE = "undecidable"
 UNEVALUABLE = "unevaluable"
 NO_PACKAGE = "no-package"
 HARNESS_VERSION = "harness-version"
+NOT_LAUNCHER_TARGET = "not-launcher-target"
 POSTURE_ONLY = "posture-only"
 OTHER_PACKAGE = "other-package"
 VERSION_OUTSIDE = "version-outside"
@@ -810,13 +811,31 @@ _PRODUCT_STATUS = {
 def _harness_rows(p: Any, found: list[Any], state: str) -> list[Row]:
     """One row per installed copy of product *p* compared with its fix."""
     out: list[Row] = []
+    # A native install keeps older versions on disk; when the launcher points
+    # at one of them, the others are not what ``claude`` runs.
+    has_target = any(
+        i.kind == "native" and getattr(i, "launcher_target", False) for i in found
+    )
     for inst in found:
         try:
             below = Version(inst.version) < Version(p.fixed_in)
         except InvalidVersion:
             below = None
+        reason = HARNESS_VERSION if below is None else None
+        retained = (
+            has_target
+            and inst.kind == "native"
+            and not getattr(inst, "launcher_target", False)
+        )
         if below is None:
             status, verdict = Status.COULDNT_CHECK, "cannot be ordered against"
+        elif below and retained:
+            status, verdict = (
+                Status.COULDNT_CHECK,
+                "is below (an older copy kept on disk; the launcher points at "
+                "another version, so this one is not what `claude` runs)",
+            )
+            reason = NOT_LAUNCHER_TARGET
         elif below:
             status, verdict = Status.AFFECTED, "is below"
         else:
@@ -832,7 +851,7 @@ def _harness_rows(p: Any, found: list[Any], state: str) -> list[Row]:
                 version=inst.version,
                 version_source=inst.source,
                 fixed_in=p.fixed_in,
-                reason=HARNESS_VERSION if below is None else None,
+                reason=reason,
             )
         )
     return out

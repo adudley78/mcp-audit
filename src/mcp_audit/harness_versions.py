@@ -12,8 +12,9 @@ Layouts read (see ``docs/affected.md``):
   Prefixes: ``npm_config_prefix``, ``~/.nvm/versions/node/*`` (and ``NVM_DIR``),
   ``/opt/homebrew``, ``/usr/local``, ``/usr``, ``~/.npm-global``, ``%APPDATA%\\npm``.
 * Claude Code's native installer: version-named entries under
-  ``~/.local/share/claude/versions/`` (Anthropic's setup page: the launcher
-  ``~/.local/bin/claude`` is a symlink into that directory).  The launcher's
+  ``~/.local/share/claude/versions/``.  Anthropic's setup page says the launcher
+  ``~/.local/bin/claude`` is a symlink into that directory
+  (https://code.claude.com/docs/en/setup#auto-updates).  The launcher's
   target is read with ``readlink`` only, never followed or executed.
 
 Which install is first on ``PATH`` cannot be known without executing, so every

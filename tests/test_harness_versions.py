@@ -270,3 +270,45 @@ def test_cli_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     data = json.loads(res.output[res.output.index("{") :])
     rows = [r for r in data["results"] if r.get("version") == "2.1.100"]
     assert rows and rows[0]["status"] == "AFFECTED"
+
+
+def test_retained_native_copy_is_not_affected_when_launcher_is_fixed() -> None:
+    rec = load_research_records().lookup(PLUGIN4SHELL)
+    assert rec is not None
+    scan = HarnessScan(
+        installs=[
+            hv.HarnessInstall(
+                "claude-code", "Claude Code", "2.1.100", "/v/old", "native"
+            ),
+            hv.HarnessInstall(
+                "claude-code",
+                "Claude Code",
+                "2.1.200",
+                "/v/new",
+                "native",
+                launcher_target=True,
+            ),
+        ]
+    )
+    rows = [r for r in m.research_rows(rec, lambda: [], [], scan) if r.package]
+    assert [r.status for r in rows] == [Status.COULDNT_CHECK, Status.NOT_AFFECTED]
+    assert rows[0].reason == m.NOT_LAUNCHER_TARGET
+
+
+def test_json_and_sarif_carry_no_home_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from typer.testing import CliRunner
+
+    from mcp_audit.cli import app
+
+    home = tmp_path / "home"
+    pfx = home / "pfx"
+    _pkg(pfx / "lib" / "node_modules", "claude-code", "2.1.100")
+    monkeypatch.setenv("npm_config_prefix", str(pfx))
+    monkeypatch.setenv("HOME", str(home))
+    for fmt in ("json", "sarif"):
+        res = CliRunner().invoke(app, ["affected", PLUGIN4SHELL, "--format", fmt])
+        assert res.exit_code == 1, res.output
+        assert str(home) not in res.output
+        assert "~/pfx" in res.output
