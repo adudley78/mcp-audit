@@ -30,6 +30,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The weekly signed feed is now also an air-gapped bundle (Q-058, Q-055).** Each publish adds `data/` (registry, known-malicious list, research records, KEV/EPSS) and a `bundle.json` signed with the feed key to the `feed` branch, so `git clone --depth 1 --branch feed https://github.com/adudley78/mcp-audit.git` gives `scan --bundle` and `affected --bundle` a directory they verify with no extra key. KEV and EPSS are fetched fresh for each publish, falling back to the committed copy if a source is down or returns less than it holds. `scripts/build_bundle.py` gains `--in-place`, `--exploit-signals` and `--verify`; `scripts/sync_exploit_signals.py` gains `--out`. The committed KEV/EPSS data is refreshed (2026-10-29), adding the LiteLLM CVEs. See `docs/air-gapped.md`.
 
+### Fixed
+
+- **`scan --registry` and `--offline-registry` no longer drop the config-hygiene checks (Q-059).** A registry override built a shorter analyzer list without the config-hygiene analyzer, so CFHYG, HOOK, HARNESS, PERM and SANDBOX findings silently disappeared and the grade improved. It now uses the default list with only the registry swapped. A scan with either flag can report more findings than before; that is the fix.
+
 ---
 
 ## [0.23.0] - 2026-10-29
