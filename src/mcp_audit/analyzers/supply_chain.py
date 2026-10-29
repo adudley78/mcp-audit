@@ -1288,6 +1288,8 @@ def redact_header_arg(arg: str) -> str:
 
 _KV_NAME_AT_RE = re.compile(r"(?<![^\s;'\",(=])(-{0,2}[A-Za-z][A-Za-z0-9_.-]{0,63})=")
 _KV_VALUE_END_RE = re.compile(r"[;\s]")
+#: Longest stretch searched for the end of one value (see redact_kv_secrets).
+_KV_WINDOW = 4096
 
 
 def redact_kv_secrets(text: str) -> str:
@@ -1315,26 +1317,33 @@ def redact_kv_secrets(text: str) -> str:
             continue
         name, vstart = m.group(1), m.end()
         bare = name.lstrip("-")
+        if not _is_secret_flag_name(bare):
+            continue  # also ``--env=NAME=v``: the inner pair is matched next
         password_class = any(t in _PASSWORD_TOKENS for t in _flag_name_tokens(bare))
+        # The value is looked for inside a bounded window, so a long run of
+        # ``key=`` pairs costs O(window) each, never the rest of the text.  A
+        # value that runs past the window is redacted to the end of the text
+        # (over-redaction, never a leaked tail).
+        wend = min(n, vstart + _KV_WINDOW)
         if vstart < n and text[vstart] in "'\"":
-            close = text.find(text[vstart], vstart + 1)
-            vend = n if close == -1 else close + 1
+            close = text.find(text[vstart], vstart + 1, wend)
+            vend = n if close == -1 and wend < n else wend if close == -1 else close + 1
         else:
-            stop = _KV_VALUE_END_RE.search(text, vstart)
-            vend = stop.start() if stop else n
-            if password_class and stop and text[vend] != ";":
-                semi = text.find(";", vend)
-                if semi != -1:
-                    vend = semi
+            stop = _KV_VALUE_END_RE.search(text, vstart, wend)
+            if stop:
+                vend = stop.start()
+                if password_class and text[vend] != ";":
+                    semi = text.find(";", vend, wend)
+                    if semi != -1:
+                        vend = semi
+            else:
+                vend = n if wend < n else wend
         value = text[vstart:vend]
         bare_value = value.strip("'\"")
-        if name.startswith("-") and "=" in value and not _is_secret_flag_name(bare):
-            continue  # ``--env=NAME=v``: the inner pair is matched next
         if (
             not bare_value
             or bare_value.startswith("[REDACTED")
             or _looks_like_reference(bare_value)
-            or not _is_secret_flag_name(bare)
             or not (
                 _short_password_value(bare, bare_value)
                 or _is_secret_flag_value(bare_value)

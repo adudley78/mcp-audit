@@ -111,8 +111,13 @@ def _hostname(url: str) -> str | None:
         return None
 
 
-def _extract_external_urls(server: ServerConfig) -> list[str]:
-    """Extract non-localhost HTTP/HTTPS URLs from a server's url and args."""
+def _extract_external_urls(server: ServerConfig, redact: bool = True) -> list[str]:
+    """Extract non-localhost HTTP/HTTPS URLs from a server's url and args.
+
+    With *redact* the URLs are read in redacted form (what a scan file holds);
+    pass ``False`` to compare two unredacted inputs, where a rotated query
+    token is a change.  Output that prints a URL redacts it itself.
+    """
     urls: list[str] = []
     candidates: list[str] = []
 
@@ -121,7 +126,8 @@ def _extract_external_urls(server: ServerConfig) -> list[str]:
     candidates.extend(server.args)
     # Redacted first, so a directory and its own scan file give the same set
     # (and no URL printed from here carries a credential).
-    candidates = redact_args([str(c) for c in candidates])
+    if redact:
+        candidates = redact_args([str(c) for c in candidates])
 
     for candidate in candidates:
         for match in _URL_RE.findall(candidate):
@@ -144,6 +150,43 @@ def _extract_external_urls(server: ServerConfig) -> list[str]:
 def _redacted_env(server: ServerConfig) -> dict[str, str]:
     """``server.env`` as a scan file holds it, so both inputs compare alike."""
     return redact_env_values(server.env)
+
+
+def _has_marker(server: ServerConfig) -> bool:
+    """True when *server* came from a scan file that redacted a credential."""
+    text = " ".join(
+        [
+            server.command or "",
+            server.url or "",
+            *map(str, server.args),
+            *map(str, server.env.values()),
+        ]
+    )
+    return REDACTION_MARKER in text or FLAG_REDACTION_MARKER in text
+
+
+def mixed_inputs(base: ServerConfig, head: ServerConfig) -> bool:
+    """True when exactly one side holds redaction markers (a scan file vs a directory).
+
+    Only then are the two compared in redacted form (STORY-0118); two
+    unredacted inputs are compared as written so a rotated credential is a
+    change, and two scan files already agree on the markers.
+    """
+    return _has_marker(base) != _has_marker(head)
+
+
+def comparison_view(
+    server: ServerConfig, redacted: bool
+) -> tuple[str, list[str], str, dict]:
+    """Command, args, URL and env as compared: redacted, or as written."""
+    if redacted:
+        return _launch_view(server)
+    return (
+        server.command or "",
+        [str(a) for a in server.args],
+        server.url or "",
+        dict(server.env),
+    )
 
 
 def _launch_view(server: ServerConfig) -> tuple[str, list[str], str, dict]:
@@ -388,7 +431,8 @@ def _changes_for_modified_server(
 
     # ── Command / args diff ───────────────────────────────────────────────
     cmd_diff: dict | None = None
-    base_view, head_view = _launch_view(base), _launch_view(head)
+    mixed = mixed_inputs(base, head)
+    base_view, head_view = comparison_view(base, mixed), comparison_view(head, mixed)
     if base_view[:2] != head_view[:2]:
         cmd_diff = {
             "before_command": redact_url(base.command),
@@ -472,8 +516,8 @@ def _changes_for_modified_server(
         changes.append(cred)
 
     # ── Sub-change: new external endpoint ────────────────────────────────
-    base_endpoints = set(_extract_external_urls(base))
-    head_endpoints = set(_extract_external_urls(head))
+    base_endpoints = set(_extract_external_urls(base, mixed))
+    head_endpoints = set(_extract_external_urls(head, mixed))
     for url in head_endpoints - base_endpoints:
         changes.append(
             Change(

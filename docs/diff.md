@@ -184,17 +184,21 @@ for a setting rather than a secret (`--auth-type`, `--keys-dir`,
 `--api-key-file`) and values such as `none`, `oauth`, paths, URLs and `$VAR`
 references are left alone. What a scan file can no longer show:
 
-- **Rotation is invisible.** Two different secrets both read `[REDACTED]`, so
-  replacing one credential with another is not a change between two scan files.
+- **Rotation is invisible between two scan files.** Two different secrets both
+  read `[REDACTED]`, so replacing one credential with another is not a change.
   Compare directories or git refs to see it.
 - **Scans from before and after the change don't compare cleanly.** A scan file
   written by an older mcp-audit has the secret in clear; diffing it against a
   newer one reports the argument as changed. Re-run the older scan, or compare
   config directories.
-- Comparing a scan file with a directory reports a server whose args hold a
-  credential as modified, because one side is redacted and the other is not.
-  Don't mix the two input kinds: compare two directories (or git refs), or
-  two scan files.
+- **Scan file against a directory** (or git ref): when exactly one side holds
+  redaction markers, `diff` compares both sides in their redacted form, so an
+  unchanged config reads as unchanged. A credential rotated in that pairing is
+  not visible, as with two scan files.
+- **Directory against directory, or git ref against git ref**: neither side
+  holds markers, so values are compared as written and a rotated credential
+  (argument, connection string, environment variable, URL query) is reported
+  as a change. The report prints redacted before/after values.
 - User info is redacted when it has a password (`user:pass@`) or when the user
   name is not a plain account name (a token such as `https://ghp_…@github.com`
   or `glpat-…@`). A plain account name such as `git@` in
@@ -214,8 +218,8 @@ references are left alone. What a scan file can no longer show:
   recognised only in the shapes above.
 - `--format pr-comment`, `--format json` and the terminal output redact
   `command`, `args` and URLs for every input kind (directories, git refs and
-  scan files) before they print or truncate them (STORY-0118). Where an input
-  is a directory, the underlying comparison still uses the real values.
+  scan files) before they print or truncate them (STORY-0118). Where neither
+  input is a scan file, the comparison itself uses the real values.
 
 ## Severity classification
 

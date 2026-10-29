@@ -739,3 +739,126 @@ def test_directory_vs_its_own_scan_file_is_no_change(tmp_path: Path) -> None:
     )
     assert compare(load_input(str(d)), load_input(str(scan))) == []
     assert compare(load_input(str(scan)), load_input(str(d))) == []
+
+
+# ── Re-review fixes ──────────────────────────────────────────────────────────
+
+_N = 200_000
+_QUADRATIC_SHAPES = {
+    "A=": "A=" * (_N // 2),
+    "--env=": "--env=" * (_N // 6),
+    "--e=": "--e=" * (_N // 4),
+    "-e ": "-e " * (_N // 3),
+    "quoted": "A='" * (_N // 3),
+    "key=": "key=" * (_N // 4),
+    "password=": "password=" * (_N // 9),
+    "password-quoted": "password='" * (_N // 10),
+    "password-space": "password= " * (_N // 10),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_QUADRATIC_SHAPES))
+def test_assignment_shapes_are_linear_on_200kb(name: str) -> None:
+    text = _QUADRATIC_SHAPES[name]
+    for call in (
+        lambda: redact_args([text]),
+        lambda: redact_command_text(text),
+        lambda: redact_url(text),
+        lambda: redact_env_values({"X": text, text[:40]: "value"}),
+    ):
+        start = time.perf_counter()
+        call()
+        assert time.perf_counter() - start < 1.0, name
+
+
+def test_secret_value_longer_than_the_search_window_leaks_no_tail() -> None:
+    tail = "TAILSECRET" * 3
+    out = redact_args(["password=" + "x" * 10_000 + tail])[0]
+    assert tail not in out
+    assert out == "password=[REDACTED]"
+
+
+def _two_dirs(tmp_path: Path, base: dict, head: dict) -> tuple[Path, Path]:
+    return (
+        _dir_with(tmp_path, "rbase", base),
+        _dir_with(tmp_path, "rhead", head),
+    )
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        (
+            {"command": "npx", "args": ["p", "--api-key", "oldvalue1234"]},
+            {"command": "npx", "args": ["p", "--api-key", "newvalue5678"]},
+        ),
+        (
+            {"command": "npx", "args": ["p", "Server=h;Password=oldpass1"]},
+            {"command": "npx", "args": ["p", "Server=h;Password=newpass2"]},
+        ),
+        (
+            {
+                "command": "npx",
+                "args": ["p"],
+                "env": {"GITHUB_TOKEN": "ghp_" + "a" * 36},
+            },
+            {
+                "command": "npx",
+                "args": ["p"],
+                "env": {"GITHUB_TOKEN": "ghp_" + "b" * 36},
+            },
+        ),
+        (
+            {"command": "npx", "args": ["p", "https://h.example/x?token=oldtoken123"]},
+            {"command": "npx", "args": ["p", "https://h.example/x?token=newtoken456"]},
+        ),
+        (
+            {"url": "https://h.example/mcp?token=oldtoken123"},
+            {"url": "https://h.example/mcp?token=newtoken456"},
+        ),
+    ],
+)
+def test_dir_vs_dir_rotation_is_still_a_change(
+    tmp_path: Path, before: dict, after: dict
+) -> None:
+    base, head = _two_dirs(tmp_path, {"s": before}, {"s": after})
+    changes = compare(load_input(str(base)), load_input(str(head)))
+    assert changes, "a rotated credential is a change between two directories"
+    blob = json.dumps(
+        [(c.before, c.after, c.command_diff, c.entity_name) for c in changes],
+        default=str,
+    )
+    for secret in (
+        "oldvalue1234",
+        "newvalue5678",
+        "oldpass1",
+        "newpass2",
+        "oldtoken123",
+        "newtoken456",
+        "a" * 36,
+        "b" * 36,
+    ):
+        assert secret not in blob
+    out = runner.invoke(app, ["diff", str(base), str(head), "--format", "json"])
+    assert out.output.strip() not in ("", "[]")
+
+
+def test_scan_json_vs_dir_with_changed_command_is_reported(tmp_path: Path) -> None:
+    base = _dir_with(
+        tmp_path,
+        "mbase",
+        {"s": {"command": "npx", "args": ["p", "--api-key", "secretvalue99"]}},
+    )
+    scan = tmp_path / "m.json"
+    scan.write_text(
+        run_scan(extra_paths=[base], skip_rug_pull=True).model_dump_json(),
+        encoding="utf-8",
+    )
+    head = _dir_with(
+        tmp_path,
+        "mhead",
+        {"s": {"command": "uvx", "args": ["p", "--api-key", "secretvalue99"]}},
+    )
+    changes = compare(load_input(str(scan)), load_input(str(head)))
+    assert any(c.entity_type == EntityType.SERVER for c in changes)
+    assert compare(load_input(str(scan)), load_input(str(base))) == []

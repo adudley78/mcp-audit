@@ -139,8 +139,11 @@ def classify_modified_server(
         return Severity.HIGH
 
     # HIGH: new external endpoint
-    base_urls = set(_extract_external_urls(base))
-    head_urls = set(_extract_external_urls(head))
+    from mcp_audit.diff.comparator import mixed_inputs  # noqa: PLC0415
+
+    mixed = mixed_inputs(base, head)
+    base_urls = set(_extract_external_urls(base, mixed))
+    head_urls = set(_extract_external_urls(head, mixed))
     if head_urls - base_urls:
         return Severity.HIGH
 
@@ -148,9 +151,9 @@ def classify_modified_server(
     base_env = set(base.env.keys())
     head_env = set(head.env.keys())
     new_keys = head_env - base_env
-    from mcp_audit.diff.comparator import _redacted_env  # noqa: PLC0415
+    from mcp_audit.diff.comparator import comparison_view  # noqa: PLC0415
 
-    b_env, h_env = _redacted_env(base), _redacted_env(head)
+    b_env, h_env = comparison_view(base, mixed)[3], comparison_view(head, mixed)[3]
     changed_keys = {k for k in base_env & head_env if b_env[k] != h_env[k]}
     for key in new_keys | changed_keys:
         is_hv, _ = _classify_env_key(key)
