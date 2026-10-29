@@ -294,7 +294,7 @@ class TestBuilder:
         self, tmp_path: Path
     ) -> None:
         committed = build_bundle.SOURCES["exploit-signals.json"]
-        old_date, old_count = build_bundle._kev(committed)
+        old_date, old_count, _, _ = build_bundle._shape(committed)
         good = self._signals(tmp_path, "2099-01-01", old_count)
         thin = self._signals(tmp_path, "2099-01-01", old_count - 1)
         stale = self._signals(tmp_path, "2000-01-01", old_count)
@@ -305,6 +305,13 @@ class TestBuilder:
         assert build_bundle.choose_signals(stale, committed) == committed
         assert build_bundle.choose_signals(broken, committed) == committed
         assert build_bundle.choose_signals(None, committed) == committed
+        epss_thin = json.loads(good.read_text())
+        epss_thin["epss"]["entries"] = dict(
+            list(epss_thin["epss"]["entries"].items())[:5]
+        )
+        thin_epss = tmp_path / "thin-epss.json"
+        thin_epss.write_text(json.dumps(epss_thin))
+        assert build_bundle.choose_signals(thin_epss, committed) == committed
 
     def test_in_place_adds_data_and_manifest_to_the_feed(self, tmp_path: Path) -> None:
         feed = tmp_path / "feed"

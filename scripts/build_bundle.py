@@ -26,9 +26,12 @@ re-sign it.
 
 ``--exploit-signals FILE`` takes a freshly fetched KEV/EPSS file instead of
 the committed one, but only when it looks complete: it parses, its KEV
-catalog date is not older than the committed file's, and it lists at least as
-many KEV entries.  Otherwise the committed file is used and a warning printed,
-so a source outage never ships thinner data or stops the publish.
+catalog date is not older than the committed file's, and its KEV, EPSS and
+public-PoC lists each hold at least as many entries.  Otherwise the committed
+file is used and a warning printed, so a source outage never ships thinner
+data or stops the publish.  If a source shrinks for good (CISA removes KEV
+entries), the fresh file is refused every week until the committed file is
+refreshed by PR; the build log says so.
 """
 
 from __future__ import annotations
@@ -69,30 +72,42 @@ SOURCES = {
 }
 
 
-def _kev(path: Path) -> tuple[str, int]:
+def _shape(path: Path) -> tuple[str, int, int, int]:
+    """KEV catalog date and the KEV, EPSS and public-PoC entry counts."""
     doc = json.loads(path.read_text(encoding="utf-8"))
-    kev = doc["kev"]
-    return str(kev.get("date_released") or ""), len(kev["entries"])
+    return (
+        str(doc["kev"].get("date_released") or ""),
+        len(doc["kev"]["entries"]),
+        len(doc["epss"]["entries"]),
+        len(doc["public_poc"]["entries"]),
+    )
 
 
 def choose_signals(fresh: Path | None, committed: Path) -> Path:
-    """*fresh* if it is at least as complete as *committed*, else *committed*."""
+    """*fresh* if it is at least as complete as *committed*, else *committed*.
+
+    At least as complete: the KEV catalog date is not older, and the KEV,
+    EPSS and public-PoC lists each hold at least as many entries.
+    """
     if fresh is None:
         return committed
     try:
-        fresh_date, fresh_count = _kev(fresh)
-        old_date, old_count = _kev(committed)
-    except (OSError, ValueError, KeyError, TypeError) as exc:
+        new = _shape(fresh)
+        old = _shape(committed)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         print(
             f"warning: fresh exploit signals unreadable ({exc}); "
             "using the committed file"
         )
         return committed
-    if not fresh_date or fresh_date < old_date or fresh_count < old_count:
+    if (
+        not new[0]
+        or new[0] < old[0]
+        or any(n < o for n, o in zip(new[1:], old[1:], strict=True))
+    ):
         print(
-            f"warning: fresh exploit signals look incomplete (KEV {fresh_date}, "
-            f"{fresh_count} entries vs committed {old_date}, {old_count}); "
-            "using the committed file"
+            f"warning: fresh exploit signals look incomplete (KEV date, KEV, EPSS, "
+            f"PoC = {new} vs committed {old}); using the committed file"
         )
         return committed
     return fresh
