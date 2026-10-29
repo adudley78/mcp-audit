@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`scan --bundle` and `affected --bundle`: current data with no network (STORY-0129).** A signed bundle directory (the advisory feed plus the registry, known-malicious list, research records and KEV/EPSS signals, with a signed manifest) can be carried across an air gap and read with `mcp-audit scan --bundle DIR` or `mcp-audit affected <ID> --bundle DIR`. It is verified like `feed verify` (signed, unexpired, not rolled back, digests match) plus the manifest and each data file, or the run stops with exit 2 and every reason; there is no `--allow-expired` and no fallback to the installed data. Each run prints the bundle's date. It cannot be combined with `--registry` or any network flag. `scripts/build_bundle.py` assembles and signs one; publishing bundles from the feed workflow is a held change. See `docs/air-gapped.md`.
 
+### Fixed
+
+- **`scan --registry` and `--offline-registry` no longer drop the config-hygiene checks (Q-059).** A registry override built a shorter analyzer list without the config-hygiene analyzer, so CFHYG, HOOK, HARNESS, PERM and SANDBOX findings silently disappeared and the grade improved. It now uses the default list with only the registry swapped. A scan with either flag can report more findings than before; that is the fix.
+
 ---
 
 ## [0.23.0] - 2026-10-29
