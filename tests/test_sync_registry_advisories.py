@@ -136,14 +136,22 @@ class TestMissingForEntry:
         )
         assert new == []
 
-    def test_malware_advisories_are_skipped_not_recorded_as_cves(self) -> None:
-        # STORY-0128: OSV's PYSEC copy of a MAL record, and GitHub's CWE-506
-        # advisory, would otherwise be recorded with no fix and flag every version.
+    def test_malware_and_bounded_only_advisories_are_not_recorded(self) -> None:
+        # STORY-0128: a PYSEC copy of a MAL record, and a record that only ever
+        # bounded an old line (last_affected, no fix), would be stored with no
+        # fix and flag every version, the newest release included.
         pysec = _vuln("PYSEC-2026-2", aliases=["MAL-2026-2144"])
-        ghsa = _vuln("GHSA-5mg7-485q-xm76")
-        ghsa["database_specific"] = {"cwe_ids": ["CWE-506"]}
-        new, _ = sync_mod.missing_for_entry(_entry(), [pysec, ghsa])
+        bounded = _vuln(
+            "GHSA-bounded",
+            events=[[{"introduced": "1.0.0"}, {"last_affected": "1.2.0"}]],
+        )
+        new, _ = sync_mod.missing_for_entry(_entry(), [pysec, bounded])
         assert new == []
+
+    def test_open_ended_advisory_is_still_recorded(self) -> None:
+        open_ended = _vuln("GHSA-open", events=[[{"introduced": "0"}]])
+        new, _ = sync_mod.missing_for_entry(_entry(), [open_ended])
+        assert [r["cve"] for r in new] == ["GHSA-open"]
 
     def test_fills_a_missing_fixed_in_on_an_existing_record(self) -> None:
         entry = _entry(

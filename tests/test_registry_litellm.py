@@ -66,6 +66,15 @@ class TestRegistryEntry:
         )
         assert not ids & {"GHSA-5mg7-485q-xm76", "PYSEC-2026-2"}
 
+    def test_current_release_is_clean_of_every_recorded_advisory(self) -> None:
+        # Every record needs a fix at or below the latest release (1.106.6,
+        # PyPI 2026-10-29); one without would flag every litellm user.
+        from packaging.version import Version
+
+        for rec in _entry()["known_vulns"]:
+            assert rec.get("fixed_in"), rec["cve"]
+            assert Version(rec["fixed_in"]) <= Version("1.106.6"), rec["cve"]
+
     def test_malicious_mirror_lists_the_compromised_versions(self) -> None:
         data = json.loads((REPO / "registry" / "known-malicious.json").read_text())
         rec = next(e for e in data["entries"] if e["id"] == "MAL-2026-2144")

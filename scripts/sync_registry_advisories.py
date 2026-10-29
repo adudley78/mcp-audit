@@ -223,19 +223,38 @@ def describe(vuln: dict[str, Any]) -> str:
 def is_skipped(vuln: dict[str, Any]) -> bool:
     """True for records that are not CVE-class findings about a package.
 
-    Withdrawn records, ``MAL-*`` malicious-package records, their aliases
-    (OSV's ``PYSEC-`` copy of a ``MAL-`` record), and GitHub malware advisories
-    (CWE-506, "embedded malicious code") are skipped.  A malicious release is
-    matched by ``known-malicious.json`` on its exact versions; recorded here
-    with no fix it would flag every version of the package (STORY-0128:
-    litellm 1.82.7/1.82.8, GHSA-5mg7-485q-xm76 and PYSEC-2026-2).
+    Withdrawn records, ``MAL-*`` malicious-package records and their aliases
+    (OSV's ``PYSEC-`` copy of a ``MAL-`` record) are skipped: a malicious
+    release is matched by ``known-malicious.json`` on its exact versions.
     """
     if vuln.get("withdrawn") or str(vuln.get("id", "")).startswith("MAL-"):
         return True
-    if any(str(a).startswith("MAL-") for a in vuln.get("aliases") or []):
-        return True
-    cwes = (vuln.get("database_specific") or {}).get("cwe_ids") or []
-    return "CWE-506" in cwes
+    return any(str(a).startswith("MAL-") for a in vuln.get("aliases") or [])
+
+
+def only_bounded(vuln: dict[str, Any], name: str, ecosystem: str) -> bool:
+    """True when every range for this package ends in ``last_affected``.
+
+    The registry stores only ``fixed_in``; with none, the matcher reports
+    every version affected, the newest release included.  An advisory that
+    only ever bounded an old line (``last_affected`` and no fix) cannot be
+    expressed, so it is not recorded (STORY-0128: 12 LiteLLM records, and the
+    two malware advisories GHSA-5mg7-485q-xm76 and PYSEC-2026-2).
+    """
+    saw = False
+    for affected in vuln.get("affected") or []:
+        if not _same_package(affected, name, ecosystem):
+            continue
+        for rng in affected.get("ranges") or []:
+            if rng.get("type") not in ("ECOSYSTEM", "SEMVER"):
+                continue
+            events = rng.get("events") or []
+            if any(e.get("fixed") for e in events):
+                return False
+            if not any(e.get("last_affected") for e in events):
+                return False
+            saw = True
+    return saw
 
 
 # ── Diff and merge ─────────────────────────────────────────────────────────────
@@ -266,6 +285,8 @@ def missing_for_entry(
             continue
         ids = all_ids(vuln)
         fix = fixed_version(vuln, name, ecosystem)
+        if fix is None and only_bounded(vuln, name, ecosystem):
+            continue
         present = ids & listed
         if present:
             for pid in present & no_fix:
