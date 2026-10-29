@@ -102,3 +102,7 @@ The comparison itself is exact (PEP 440 ordering, OSV event order). The error is
 - `--transitive` (walking the dependency graph) and `--fleet` (reading `merge` reports) are queued; the `merge` JSON does not carry per-server launch versions today.
 - Reading the installed version of Claude Code, Codex and the other harnesses, so a research record's product rows can be answered.
 - Fixing (`affected --fix`), exploit signals, reachability and VEX output come in later EPIC-0008 stories.
+
+## LiteLLM and other gateways
+
+LiteLLM's MCP gateway is in the registry (not `verified`). A launch such as `uvx litellm[proxy]==1.83.0` is read as a pin and compared with `CVE-2026-59822` (fixed in 1.84.0). A config that only points at a gateway by URL is COULDN'T CHECK: the version it runs is not in your config. `affected MAL-2026-2144` matches the compromised releases (1.82.7, 1.82.8, 1.107.0) by exact version only; every other version is NOT AFFECTED by that record. The registry takes on a gateway or SDK only when a discovered MCP config can reach it. Advisories are stored with their highest fixed version only, so a release on an older backport branch, or one older than the advisory's first affected version, can read AFFECTED when it is not.

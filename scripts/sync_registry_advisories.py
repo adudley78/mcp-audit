@@ -83,7 +83,9 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = REPO_ROOT / "registry" / "known-servers.json"
 OSV_QUERY_URL = "https://api.osv.dev/v1/query"
-OSV_EXPORT_URL = "https://osv-vulnerabilities.storage.googleapis.com/{ecosystem}/all.zip"
+OSV_EXPORT_URL = (
+    "https://osv-vulnerabilities.storage.googleapis.com/{ecosystem}/all.zip"
+)
 MALICIOUS_FILENAME = "known-malicious.json"
 MALICIOUS_ECOSYSTEMS = ("npm", "PyPI")
 _ECOSYSTEMS = {"npm": "npm", "pip": "PyPI", "pypi": "PyPI"}
@@ -219,7 +221,40 @@ def describe(vuln: dict[str, Any]) -> str:
 
 
 def is_skipped(vuln: dict[str, Any]) -> bool:
-    return bool(vuln.get("withdrawn")) or str(vuln.get("id", "")).startswith("MAL-")
+    """True for records that are not CVE-class findings about a package.
+
+    Withdrawn records, ``MAL-*`` malicious-package records and their aliases
+    (OSV's ``PYSEC-`` copy of a ``MAL-`` record) are skipped: a malicious
+    release is matched by ``known-malicious.json`` on its exact versions.
+    """
+    if vuln.get("withdrawn") or str(vuln.get("id", "")).startswith("MAL-"):
+        return True
+    return any(str(a).startswith("MAL-") for a in vuln.get("aliases") or [])
+
+
+def only_bounded(vuln: dict[str, Any], name: str, ecosystem: str) -> bool:
+    """True when every range for this package ends in ``last_affected``.
+
+    The registry stores only ``fixed_in``; with none, the matcher reports
+    every version affected, the newest release included.  An advisory that
+    only ever bounded an old line (``last_affected`` and no fix) cannot be
+    expressed, so it is not recorded (STORY-0128: 12 LiteLLM records, and the
+    two malware advisories GHSA-5mg7-485q-xm76 and PYSEC-2026-2).
+    """
+    saw = False
+    for affected in vuln.get("affected") or []:
+        if not _same_package(affected, name, ecosystem):
+            continue
+        for rng in affected.get("ranges") or []:
+            if rng.get("type") not in ("ECOSYSTEM", "SEMVER"):
+                continue
+            events = rng.get("events") or []
+            if any(e.get("fixed") for e in events):
+                return False
+            if not any(e.get("last_affected") for e in events):
+                return False
+            saw = True
+    return saw
 
 
 # ── Diff and merge ─────────────────────────────────────────────────────────────
@@ -250,6 +285,8 @@ def missing_for_entry(
             continue
         ids = all_ids(vuln)
         fix = fixed_version(vuln, name, ecosystem)
+        if fix is None and only_bounded(vuln, name, ecosystem):
+            continue
         present = ids & listed
         if present:
             for pid in present & no_fix:
@@ -394,7 +431,9 @@ def package_selector(registry: dict[str, Any]) -> Keep:
 def _record_matches(record: dict[str, Any], ecosystem: str, keep: Keep) -> bool:
     for affected in record.get("affected") or []:
         pkg = affected.get("package") or {}
-        if pkg.get("ecosystem") == ecosystem and keep(ecosystem, str(pkg.get("name", ""))):
+        if pkg.get("ecosystem") == ecosystem and keep(
+            ecosystem, str(pkg.get("name", ""))
+        ):
             return True
     return False
 
@@ -425,7 +464,9 @@ def fetch_malicious_export(
                         raise RuntimeError(f"OSV export for {ecosystem} is too large")
                     fh.write(chunk)
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"OSV export download failed for {ecosystem}: {exc}") from exc
+            raise RuntimeError(
+                f"OSV export download failed for {ecosystem}: {exc}"
+            ) from exc
         try:
             with zipfile.ZipFile(path) as archive:
                 for info in archive.infolist():
@@ -438,7 +479,9 @@ def fetch_malicious_export(
                     if _record_matches(record, ecosystem, keep):
                         kept.append(record)
         except (zipfile.BadZipFile, json.JSONDecodeError, KeyError, OSError) as exc:
-            raise RuntimeError(f"OSV export for {ecosystem} is unreadable: {exc}") from exc
+            raise RuntimeError(
+                f"OSV export for {ecosystem} is unreadable: {exc}"
+            ) from exc
     return kept
 
 
@@ -458,7 +501,11 @@ def malicious_entries(
         for affected in record.get("affected") or []:
             pkg = affected.get("package") or {}
             name = str(pkg.get("name", ""))
-            if pkg.get("ecosystem") != ecosystem or not name or not keep(ecosystem, name):
+            if (
+                pkg.get("ecosystem") != ecosystem
+                or not name
+                or not keep(ecosystem, name)
+            ):
                 continue
             entry: dict[str, Any] = {
                 "id": rid,
@@ -549,7 +596,9 @@ def write_malicious(path: Path, entries: list[dict[str, Any]], today: str) -> No
         "entry_count": len(entries),
         "entries": entries,
     }
-    path.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
 
 
 def render_malicious_summary(diff: dict[str, list[str]], total: int) -> str:
@@ -596,7 +645,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--out", type=Path, help="write the proposed registry here")
     parser.add_argument(
-        "--malicious-out", type=Path, help="write the proposed known-malicious file here"
+        "--malicious-out",
+        type=Path,
+        help="write the proposed known-malicious file here",
     )
     parser.add_argument("--summary", type=Path, help="append a markdown summary here")
     parser.add_argument("--today", default=dt.date.today().isoformat())
@@ -612,8 +663,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    summary = render_summary(changes) + "\n" + render_malicious_summary(
-        mal_diff, len(mal_entries)
+    summary = (
+        render_summary(changes)
+        + "\n"
+        + render_malicious_summary(mal_diff, len(mal_entries))
     )
     print(summary)
     if args.summary:
