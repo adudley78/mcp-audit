@@ -277,6 +277,8 @@ job, not an edit to anything mcp-audit owns or verifies.
 | always | mcp-audit's own owned-section `checksum`, and `tools._checksum` when `tools` is populated, against their recomputed values | none | `LOCK-005` (mcp-audit's own record — header + `servers`, or the `tools` section — tampered or hand-edited) — short-circuits all other checks, exit 2 |
 | always, version-2 lock | `section_digests` against each section; the file's bytes against their canonical form | none | `LOCK-011` (a section changed without its digest, HIGH), `LOCK-012` (file reformatted, LOW) |
 
+**Remote host moves (STORY-0135).** When a remote server's canonical URL changes, LOCK-001's evidence leads with what moved: `remote host changed from a.example to b.example`, or `remote port changed from 443 to 8443 on host a.example` when only the port differs (the default port for the scheme counts as the port). A path-only change is still LOCK-001 but names no host; a change confined to userinfo, query string or fragment is not drift at all, because the lock records none of them. Only the hostname and port are ever quoted. No lock format change: the sentence is derived from the locked `identity.url` and the current config.
+
 `lock --verify`'s exit code and message vocabulary are permanently scoped to what it can see offline
 unless `--resolve` is passed. A green default `--verify` never implies the registry was consulted.
 A green result never implies a foreign section (`trees`, or any other) was checked — the summary

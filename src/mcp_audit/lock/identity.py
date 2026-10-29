@@ -77,6 +77,54 @@ def canonicalize_url(url: str) -> str:
     return urlunsplit((scheme, netloc, path, "", ""))
 
 
+def _host_port(url: str) -> tuple[str, int | None] | None:
+    """Return ``(hostname, effective port)`` of *url*, or ``None`` if unparseable."""
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError:
+        return None
+    host = (parts.hostname or "").lower()
+    if not host:
+        return None
+    if port is None:
+        port = _DEFAULT_PORTS.get(parts.scheme.lower())
+    return host, port
+
+
+def remote_host(url: str | None) -> str | None:
+    """Return the lowercase hostname of *url* (never userinfo, port or query)."""
+    hp = _host_port(url) if url else None
+    return hp[0] if hp else None
+
+
+def describe_remote_move(old_url: str | None, new_url: str | None) -> str | None:
+    """Name a change of a remote server's host or port, or ``None``.
+
+    Only the hostname and port are quoted, so userinfo and query tokens in
+    either URL can never reach the text (STORY-0135).  A path-only,
+    query-only or userinfo-only change returns ``None``.
+
+    Args:
+        old_url: The previously recorded URL (raw or canonical).
+        new_url: The URL now configured.
+
+    Returns:
+        e.g. ``"remote host changed from a.example to b.example"``, or a
+        port sentence when only the port moved, else ``None``.
+    """
+    if not old_url or not new_url:
+        return None
+    old, new = _host_port(old_url), _host_port(new_url)
+    if old is None or new is None:
+        return None
+    if old[0] != new[0]:
+        return f"remote host changed from {old[0]} to {new[0]}"
+    if old[1] != new[1]:
+        return f"remote port changed from {old[1]} to {new[1]} on host {old[0]}"
+    return None
+
+
 def build_identity(server: ServerConfig) -> dict[str, str | list[str]]:
     """Return the ``identity`` sub-object for *server* (ADR-0005 §9).
 
