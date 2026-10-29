@@ -1817,6 +1817,17 @@
       "notes": "lock_version 2 only (STORY-0116). mcp-lock.json's bytes differ from the RFC 8785 encoding of its own content (ADR-0005 \u00a72): a tool or editor reformatted it. Content still matches its checksums. LOW, does not fail the exit code. Not an advisory."
     },
     {
+      "finding_id": "LOCK-013",
+      "finding_title": "Launch arguments carry a credential",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit lock --verify, scan and check, when a locked server's command or arguments carry a credential (STORY-0118). `mcp-audit lock` records that launch with the value replaced by [REDACTED] so it never reaches the committed lock file; the lock therefore cannot see the credential's value change. LOW, does not fail the exit code. Not an advisory."
+    },
+    {
       "finding_id": "PERM-001",
       "finding_title": "Permission rules that Claude Code ignores or never matches",
       "owasp_codes": [

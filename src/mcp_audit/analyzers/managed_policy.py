@@ -45,7 +45,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from mcp_audit.analyzers.supply_chain import redact_args
+from mcp_audit.analyzers.supply_chain import (
+    redact_args,
+    redact_assignment,
+    redact_auth_scheme,
+    redact_query_secrets,
+)
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 ANALYZER = "managed_policy"
@@ -191,90 +196,6 @@ class _Verdict:
 # ── Reading the managed directory ─────────────────────────────────────────────
 
 
-_SECRET_WORDS = (
-    "key",
-    "token",
-    "secret",
-    "password",
-    "passwd",
-    "pwd",
-    "auth",
-    "credential",
-)
-# Matched as whole name tokens only (``X-Amz-Signature``, ``sig``), so a name
-# like ``DESIGN_DIR`` is not caught by ``sig``.
-_SECRET_TOKENS = frozenset({"sig", "signature"})
-_NAME_SPLIT = re.compile(r"[^A-Za-z0-9]+")
-_CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
-_SCHEME_WORDS = ("bearer ", "basic ")
-
-
-def _is_secret_name(name: str) -> bool:
-    """True when a parameter or variable *name* is named for a secret value."""
-    lowered = name.lower()
-    if any(word in lowered for word in _SECRET_WORDS):
-        return True
-    tokens = _NAME_SPLIT.split(_CAMEL.sub("-", name).lower())
-    return any(token in _SECRET_TOKENS for token in tokens)
-
-
-def _redact_pairs(text: str) -> str:
-    """Redact the value of each secret-named ``name=value`` pair split on ``&``."""
-    pairs: list[str] = []
-    for pair in text.split("&"):
-        name, eq, _value = pair.partition("=")
-        pairs.append(f"{name}=[REDACTED]" if eq and _is_secret_name(name) else pair)
-    return "&".join(pairs)
-
-
-def _redact_query(text: str) -> str:
-    """Redact secret-named parameters in a URL's query string and fragment.
-
-    ``?sig=…``, ``X-Amz-Signature=…``, ``#access_token=…`` (the OAuth
-    implicit-flow fragment).
-    """
-    head, hash_, fragment = text.partition("#")
-    base, mark, query = head.partition("?")
-    out = base + (mark + _redact_pairs(query) if mark else "")
-    return out + (hash_ + _redact_pairs(fragment) if hash_ else "")
-
-
-def _redact_assignment(part: str) -> str:
-    """``NAME=value`` (``-e GITHUB_TOKEN=…``, ``--env=API_KEY=…``): redact value.
-
-    The name is the text before the last ``=`` ahead of the value, without
-    leading dashes; a part whose ``=`` follows a ``://`` URL is left to
-    :func:`_redact_query`.
-    """
-    eq = part.find("=")
-    if eq <= 0 or "://" in part[:eq]:
-        return part
-    name_end = eq
-    # --env=API_KEY=value: the variable name is between the two '='.
-    second = part.find("=", eq + 1)
-    if part.startswith("-") and second != -1:
-        name = part[eq + 1 : second]
-        name_end = second
-    else:
-        name = part[:eq].lstrip("-")
-    if _is_secret_name(name):
-        return part[: name_end + 1] + "[REDACTED]"
-    return part
-
-
-def _redact_auth_schemes(part: str) -> str:
-    """Redact what follows ``Authorization:``, ``Bearer `` or ``Basic ``."""
-    lowered = part.lower()
-    idx = lowered.find("authorization:")
-    if idx != -1:
-        return part[: idx + len("authorization:")] + " [REDACTED]"
-    for word in _SCHEME_WORDS:
-        idx = lowered.find(word)
-        if idx != -1:
-            return part[: idx + len(word)] + "[REDACTED]"
-    return part
-
-
 def _redact_parts(parts: list[str]) -> str:
     """Join a command (or one URL) for finding text with secrets removed.
 
@@ -297,7 +218,7 @@ def _redact_parts(parts: list[str]) -> str:
             hide_next = True
             pre.append(part)
             continue
-        pre.append(_redact_auth_schemes(_redact_assignment(_redact_query(part))))
+        pre.append(redact_auth_scheme(redact_assignment(redact_query_secrets(part))))
     cleaned = " ".join(p for p in redact_args(pre) if p)
     if len(cleaned) > 300:
         cleaned = cleaned[:300] + "…"

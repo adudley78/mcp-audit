@@ -1541,6 +1541,22 @@ The developer-docs pages (developers.openai.com/codex/mcp, geminicli.com) could
 not be fetched from the build environment; the source files above are the
 primary record used.
 
+## Redaction shapes (STORY-0118)
+
+Not detection patterns: shapes that `supply_chain.redact_args` hides in output.
+Header names are `auth.AUTH_HEADER_NAMES` plus `Cookie`, `Set-Cookie`,
+`Proxy-Authorization` (RFC 6265 and RFC 9110 section 11.7). `Authorization`
+carries a credential in any scheme (RFC 9110 section 11.6.2). Connection-string
+secret keys (`Password`, `Pwd`, `AccountKey`) follow
+[Azure Storage connection strings](https://learn.microsoft.com/azure/storage/common/storage-configure-connection-string),
+the [SQL Server connection-string keywords](https://learn.microsoft.com/dotnet/api/system.data.sqlclient.sqlconnection.connectionstring)
+and libpq's [`password` key](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-PASSWORD).
+`curl -u` / `--user` / `--proxy-user` are `user:password` per the
+[curl manual](https://curl.se/docs/manpage.html#-u). Secret-named query
+parameters (`token`, `api_key`, `sig`, `X-Amz-Signature`, `access_token` in the
+OAuth fragment) follow RFC 6750 section 2.3 and the AWS Signature Version 4
+query form. URL user info carrying Base64 `user:pass` is the form RFC 7617
+(Basic) encodes. Written from these specifications; no external code copied.
 ## MCPHub `${cmd:}` placeholders, COMM-015 and MEM-005 follow-ups (STORY-0119)
 
 Read on 2026-10-28; fetched pages are data, quoted only where the code depends on them.

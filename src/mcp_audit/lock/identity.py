@@ -17,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
+from mcp_audit.analyzers.supply_chain import redact_args
 from mcp_audit.models import ServerConfig
 
 #: Identity of one server for lock-matching purposes: the config file's path
@@ -79,6 +80,13 @@ def canonicalize_url(url: str) -> str:
 def build_identity(server: ServerConfig) -> dict[str, str | list[str]]:
     """Return the ``identity`` sub-object for *server* (ADR-0005 §9).
 
+    A stdio launch records its command and arguments verbatim, except that a
+    credential in them (``--api-key``, URL userinfo, ``Password=…``, a secret
+    header, ``?token=…``; :func:`~mcp_audit.analyzers.supply_chain.redact_args`)
+    is replaced by ``[REDACTED]``/``[REDACTED-FLAG]`` before it reaches the
+    committed lock (STORY-0118).  A launch without a credential is recorded
+    exactly as before, so a lock written by an earlier mcp-audit still verifies.
+
     Args:
         server: A parsed MCP server configuration.
 
@@ -88,7 +96,45 @@ def build_identity(server: ServerConfig) -> dict[str, str | list[str]]:
     """
     if server.url:
         return {"url": canonicalize_url(server.url)}
-    return {"command": server.command or "", "args": list(server.args)}
+    command, args = redact_launch(server.command or "", list(server.args))
+    return {"command": command, "args": args}
+
+
+def redact_launch(command: str, args: list[str]) -> tuple[str, list[str]]:
+    """Return ``(command, args)`` with credentials redacted (STORY-0118)."""
+    cleaned = redact_args([command, *[str(a) for a in args]])
+    return cleaned[0], cleaned[1:]
+
+
+def comparable_identity(identity: object) -> object:
+    """Return *identity* in the redacted form both sides of a comparison use.
+
+    ``lock --verify`` compares the locked identity with the current one in
+    this form.  A lock written before STORY-0118 holds a credential verbatim;
+    one written after holds the redacted text; redaction is idempotent, so
+    both compare equal to the same launch and neither reports LOCK-001 on an
+    untouched config.  The price is that changing only a credential's value
+    is not drift (see GAPS.md).
+    """
+    if not isinstance(identity, dict):
+        return identity
+    args = identity.get("args")
+    command = identity.get("command")
+    if isinstance(args, list) and all(isinstance(a, str) for a in args):
+        out = dict(identity)
+        out["command"], out["args"] = redact_launch(
+            command if isinstance(command, str) else "", args
+        )
+        return out
+    return identity
+
+
+def launch_carries_secret(server: ServerConfig) -> bool:
+    """True when *server*'s stdio launch holds a credential the lock redacts."""
+    if server.url:
+        return False
+    command, args = redact_launch(server.command or "", list(server.args))
+    return command != (server.command or "") or args != [str(a) for a in server.args]
 
 
 def normalize_config_ref(config: str) -> str:

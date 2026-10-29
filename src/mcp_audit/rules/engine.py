@@ -238,18 +238,37 @@ def _redact_matched_value(value: str, server: ServerConfig) -> str:
     from mcp_audit.analyzers.credentials import SECRET_PATTERNS  # noqa: PLC0415
     from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
         _REDACTED,
-        _redact_userinfo,
+        redact_args,
+        redact_env_values,
+        redact_header_values,
         secret_arg_values,
     )
 
     for secret in sorted(set(secret_arg_values(server.args)), key=len, reverse=True):
         if len(secret) >= 4:
             value = value.replace(secret, _REDACTED)
+    # Each field a rule can quote, replaced by its redacted form one value at a
+    # time (a URL never spans two arguments): URL userinfo and query secrets,
+    # credential headers, ``password=`` pairs (STORY-0118), env and header values.
+    pairs: list[tuple[str, str]] = []
     for raw in (*server.args, server.url or "", server.command or ""):
-        if raw and "://" in raw:
-            redacted = _redact_userinfo(raw)
-            if redacted != raw:
-                value = value.replace(raw, redacted)
+        if raw:
+            pairs.append((raw, redact_args([raw])[0]))
+    for field, redactor in (
+        (server.env, redact_env_values),
+        (server.headers, redact_header_values),
+    ):
+        redacted_map = redactor(field)
+        pairs.extend(
+            (str(field[k]), str(redacted_map[k]))
+            for k in field
+            if isinstance(field[k], str)
+        )
+    for raw, redacted in sorted(pairs, key=lambda p: len(p[0]), reverse=True):
+        if redacted != raw and len(raw) >= 4:
+            value = value.replace(raw, redacted)
+    # What a regex matched can be a piece of a field (``token=abc`` from a URL).
+    value = redact_args([value])[0]
     for _label, pattern, _provider in SECRET_PATTERNS:
         value = pattern.sub(_REDACTED, value)
     return value

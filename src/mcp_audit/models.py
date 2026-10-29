@@ -114,7 +114,10 @@ class ServerConfig(BaseModel):
     # userinfo and SECRET_PATTERNS matches replaced with ``[REDACTED]``
     # (``supply_chain.redact_args``).  The in-memory object is unchanged, so
     # analyzers, lock and rug-pull hashing still see the real values.  ``env``
-    # values are not touched here (GAPS.md).  Header values are
+    # values (and ``raw["env"]``) go through ``supply_chain.redact_env_values``
+    # for every client (STORY-0118): references and plainly benign settings are
+    # kept, a credential becomes ``[REDACTED]`` / ``[REDACTED-FLAG]``.
+    # Header values are
     # (``supply_chain.redact_header_values``), and so are the secret-only keys
     # of Codex and Gemini CLI entries in ``raw`` (STORY-0110).
 
@@ -135,8 +138,6 @@ class ServerConfig(BaseModel):
 
     @field_serializer("env", when_used="json")
     def _serialize_env(self, env: dict[str, str]) -> dict[str, str]:
-        if self.client not in _GATEWAY_CLIENTS:
-            return env
         from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
             redact_env_values,
         )
@@ -178,6 +179,12 @@ class ServerConfig(BaseModel):
             if isinstance(value, str):
                 out[key] = redact_url(value)
         out = _redact_raw_secrets(out)
+        if isinstance(out.get("env"), dict):
+            from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+                redact_env_values as _redact_env,
+            )
+
+            out["env"] = _redact_env(out["env"])
         if self.client in _GATEWAY_CLIENTS:
             from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
                 redact_env_values,
