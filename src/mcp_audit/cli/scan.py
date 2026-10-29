@@ -430,13 +430,13 @@ def _print_owasp_report(result: ScanResult, con: Console) -> None:
 def _build_custom_analyzers(
     registry: Path | None,
     offline_registry: bool,
-    keep_hygiene: bool = False,
 ) -> list | None:
     """Build a custom analyzer list when a registry override is requested.
 
-    ``keep_hygiene`` keeps the config-hygiene analyzer in the list, as the
-    default list has it; ``--bundle`` sets it so an air-gapped scan runs the
-    same checks as an online one.  (``--registry`` alone still omits it.)
+    The list is the default one (``scanner.get_default_analyzers``) with only
+    the registry swapped, config-hygiene included: without it ``--registry``,
+    ``--offline-registry`` and ``--bundle`` silently dropped the CFHYG, HOOK,
+    HARNESS, PERM and SANDBOX checks (Q-059).
 
     Returns ``None`` when the default scanner analyzers should be used (i.e.
     neither ``--registry`` nor ``--offline-registry`` was supplied).
@@ -447,13 +447,12 @@ def _build_custom_analyzers(
         registry_path=registry,
         offline_registry=offline_registry,
     )
-    hygiene = [ConfigHygieneAnalyzer()] if keep_hygiene else []
     return [
         PoisoningAnalyzer(),
         CredentialsAnalyzer(),
         TransportAnalyzer(registry=supply_chain.registry),
         supply_chain,
-        *hygiene,
+        ConfigHygieneAnalyzer(),
         AuthAnalyzer(),
     ]
 
@@ -2079,9 +2078,7 @@ def scan(
             raise typer.Exit(2)
         registry = open_bundle(bundle, bundle_key, con).path("known-servers.json")
 
-    analyzers = _build_custom_analyzers(
-        registry, offline_registry, keep_hygiene=bundle is not None
-    )
+    analyzers = _build_custom_analyzers(registry, offline_registry)
     extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, con)
 
     # Load the governance policy early so we can extract custom scoring weights
