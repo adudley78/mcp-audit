@@ -20,6 +20,7 @@ from __future__ import annotations
 import difflib
 import json
 import os
+import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -172,6 +173,17 @@ def run_fix(
     # Collect warnings from the pinning strategy.
     result.skipped.extend(pinning_strategy.warnings)
 
+    return _finish(result, config_path, original_text, current_config, apply)
+
+
+def _finish(
+    result: FixResult,
+    config_path: Path,
+    original_text: str,
+    current_config: dict,
+    apply: bool,
+) -> FixResult:
+    """Serialize, diff and (with *apply*) atomically write *current_config*."""
     # Serialize the modified config.
     new_text = json.dumps(current_config, indent=2, ensure_ascii=False) + "\n"
 
@@ -203,16 +215,86 @@ def run_fix(
     if not os.access(config_path, os.W_OK):
         raise PermissionError(f"Config file is read-only: {config_path}")
 
-    # 1. Write backup of original content first (before any modification).
-    bak_path = config_path.with_suffix(config_path.suffix + ".bak")
-    bak_path.write_text(original_text, encoding="utf-8")
+    # A symlinked config (dotfile managers) is edited where it lives, and the
+    # file keeps its permission bits: the original may hold MCP env secrets.
+    target = config_path.resolve()
+    mode = stat.S_IMODE(target.stat().st_mode)
+
+    # 1. Write backup of original content first (before any modification).  An
+    # earlier backup is never overwritten: the first one is the real original.
+    bak_path = target.with_suffix(target.suffix + ".bak")
+    n = 0
+    while bak_path.exists():
+        n += 1
+        bak_path = target.with_suffix(f"{target.suffix}.bak.{n}")
+    _write_private(bak_path, original_text, mode)
     result.backup_path = bak_path
 
     # 2. Write new content to a temp file.
-    tmp_path = config_path.with_suffix(config_path.suffix + ".tmp")
-    tmp_path.write_text(new_text, encoding="utf-8")
+    tmp_path = target.with_suffix(target.suffix + ".tmp")
+    _write_private(tmp_path, new_text, mode)
 
-    # 3. Atomic rename: replaces config_path in one syscall on POSIX.
-    tmp_path.replace(config_path)
+    # 3. Atomic rename: replaces the config in one syscall on POSIX.
+    tmp_path.replace(target)
 
     return result
+
+
+def _write_private(path: Path, text: str, mode: int) -> None:
+    """Write *text* to *path* with permission bits *mode* (never wider)."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+    finally:
+        os.chmod(path, mode)
+
+
+def run_pins(
+    config_path: Path,
+    pins: list[tuple[str, str, str]],
+    *,
+    apply: bool = False,
+) -> FixResult:
+    """Pin servers to exact versions an advisory names (STORY-0127).
+
+    Args:
+        config_path: The MCP config JSON file.
+        pins: ``(server_name, package, version)`` triples.
+        apply: Write the file atomically with a ``.bak`` backup; otherwise
+            return the diff only.
+
+    Returns:
+        A :class:`FixResult`. A pin that cannot be applied cleanly is listed in
+        ``skipped`` and the file is left as the other pins make it; nothing is
+        ever half-written for one server.
+
+    Raises:
+        FileNotFoundError, PermissionError, ValueError: as :func:`run_fix`.
+    """
+    from mcp_audit.fixer.strategies.pinning import pin_exact  # noqa: PLC0415
+
+    result = FixResult(config_path=config_path)
+    if config_path.suffix.lower() == ".toml":
+        raise ValueError(
+            f"{config_path} is a TOML file (Codex). mcp-audit edits JSON MCP "
+            "configs only; apply the pin in this file by hand."
+        )
+    original_text = config_path.read_text(encoding="utf-8")
+    try:
+        config = json.loads(original_text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Config file is not valid JSON: {config_path}: {exc}"
+        ) from exc
+    untouched = json.loads(original_text)
+    for server_name, package, version in pins:
+        try:
+            config, description = pin_exact(config, server_name, package, version)
+            result.fixes_applied.append(description)
+        except ValueError as exc:
+            result.skipped.append(f"Skipped {server_name!r}: {exc}")
+    if config == untouched:
+        # Nothing changed: leave the file (and its formatting) alone.
+        return result
+    return _finish(result, config_path, original_text, config, apply)

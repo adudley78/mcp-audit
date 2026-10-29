@@ -2173,6 +2173,19 @@ step" note, no diff, same exit code. `--format pr-comment` prints before/after i
 
 ---
 
+## affected --fix (STORY-0127)
+
+```bash
+cp /tmp/t.json /tmp/t2.json
+mcp-audit affected CVE-2026-77244 --path /tmp/t2.json --fix
+mcp-audit affected CVE-2026-77244 --path /tmp/t2.json --fix --apply
+mcp-audit affected CVE-2026-77244 --path /tmp/t2.json
+ls /tmp/t2.json.bak
+```
+
+**Expected:** the first prints a diff pinning `mcp-atlassian==0.21.0` to `==0.22.0` and "Dry run"; the second
+writes it and a `.bak`; the third reports 0 affected.
+
 ## Respond and --policy-out (STORY-0126)
 
 ```bash

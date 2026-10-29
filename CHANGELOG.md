@@ -22,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`affected` says what to rotate and writes the policy entry that shuts the server off (STORY-0126).** For each AFFECTED server, a **Respond** block lists the environment, header and flag *names* it could read (no values), other servers in the same config that share them, which well-known credential files exist on the machine (stat only, never opened), and how many tool definitions were saved for it (`--format json` has the same under `respond`). `--policy-out FILE` writes Claude Code managed-policy JSON (`deniedMcpServers`) with the exact launch of each AFFECTED server, but only when the command cannot hold a secret (the package and launcher or transport words only); otherwise that server gets no entry and a note says so. It never writes a name entry, never overwrites a file, never writes into the managed-settings directory, and enforces nothing. See `docs/affected.md`.
 
+- **`affected <ID> --fix` pins affected servers to the advisory's fixed version (STORY-0127).** A dry-run diff by default; `--apply` writes atomically with a `.bak`, like `mcp-audit fix`. The version comes from the advisory (no network): the lowest fixed version above the one the server runs, checked against the advisory's own rules before anything is written, so re-running `affected` reports NOT AFFECTED. A server is left alone, with the reason printed, when no fix is recorded, versions cannot be ordered, the launch uses `--from`/`--with`, or the config is TOML. See `docs/affected.md`.
+
 ---
 
 ## [0.23.0] - 2026-10-29

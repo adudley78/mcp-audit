@@ -343,6 +343,89 @@ class PackagePinningStrategy(BaseFixStrategy):
         )
 
 
+_SPEC_RE: re.Pattern[str] = re.compile(
+    r"^(?P<name>@[^/@\s]+/[^@=\s\[]+|[^@=\s\[]+)(?P<extras>\[[^\]]*\])?"
+    r"(?:(?P<sep>==|@)[^\s]*)?$"
+)
+
+
+def _norm(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+_NO_REWRITE_FLAGS = frozenset({"--from", "-p", "--package", "--with"})
+
+
+def pin_exact(
+    config: dict, server_name: str, package: str, version: str
+) -> tuple[dict, str]:
+    """Pin *server_name*'s launch to ``package`` at exactly *version* (STORY-0127).
+
+    Used by ``affected --fix`` with a version taken from the advisory. Rewrites
+    only the package token, keeps ``npm pkg@x`` / ``pkg==x`` / ``pkg@x`` style
+    and any extras, and raises :class:`ValueError` (nothing changed) when the
+    launch is one it does not rewrite: not npx/uvx-style, ``--from``, a token
+    that is not the named package, or a line it cannot read.
+
+    Returns:
+        ``(new_config, description)``; the description says "(already fixed)"
+        and the config is unchanged when the pin is already in place.
+    """
+    from mcp_audit.analyzers.supply_chain import normalize_launch  # noqa: PLC0415
+
+    server_dict, root_key = find_server_section(config, server_name)
+    if server_dict is None or root_key is None:
+        raise ValueError(f"server {server_name!r} not found in the config")
+    if (
+        sum(
+            1
+            for k in ("mcpServers", "servers")
+            if isinstance(config.get(k), dict) and server_name in config[k]
+        )
+        > 1
+    ):
+        raise ValueError(
+            f"{server_name!r} is under both mcpServers and servers; edit it by hand"
+        )
+    launcher, rest = normalize_launch(
+        server_dict.get("command", ""), list(server_dict.get("args", []))
+    )
+    is_npm = launcher in _NPX_LIKE
+    if not is_npm and launcher not in _PYPI_LIKE:
+        raise ValueError(
+            f"command {server_dict.get('command', '')!r} is not one mcp-audit "
+            "rewrites (npx, bunx, pnpx, uvx, pipx)"
+        )
+    args: list[str] = list(server_dict.get("args", []))
+    offset = len(args) - len(rest)
+    if offset < 0 or args[offset:] != rest:
+        raise ValueError("the launch is wrapped in a way that is not rewritten")
+    if any(a.split("=", 1)[0] in _NO_REWRITE_FLAGS for a in rest):
+        raise ValueError(
+            "the launch uses --from/--with/--package, which is not rewritten"
+        )
+    skip = 1 if launcher == "pipx" and rest[:1] == ["run"] else 0
+    token = _find_package_arg(rest[skip:])
+    match = _SPEC_RE.match(token) if token else None
+    if token is None or match is None:
+        raise ValueError("the package argument could not be read")
+    if _norm(match.group("name")) != _norm(package):
+        raise ValueError(f"the launch names {match.group('name')!r}, not {package!r}")
+    extras = match.group("extras") or ""
+    if is_npm:
+        pinned = f"{match.group('name')}@{version}"
+    else:
+        sep = "@" if match.group("sep") == "@" else "=="
+        pinned = f"{match.group('name')}{extras}{sep}{version}"
+    if token == pinned:
+        return config, f"{server_name!r} already pinned to {pinned} (already fixed)"
+    new_args = list(args)
+    new_args[offset + skip + rest[skip:].index(token)] = pinned
+    new_config = copy.deepcopy(config)
+    new_config[root_key][server_name]["args"] = new_args
+    return new_config, f"Replaced {token!r} → {pinned!r} in {server_name!r}"
+
+
 def _find_package_arg(args: list[str]) -> str | None:
     """Return the first non-flag positional token from an npx/uvx args list.
 

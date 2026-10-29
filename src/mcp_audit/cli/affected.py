@@ -22,6 +22,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
 from mcp_audit.affected import respond
@@ -157,6 +158,87 @@ def _live_rules(advisory_id: str, report: Report) -> RuleSet:
     return RuleSet(rules=list(rules), sources=["OSV.dev (--live)"])
 
 
+def _run_fix(
+    pairs: list[tuple[ServerConfig, Row]],
+    rules: list,
+    registry: object,
+    apply: bool,
+) -> None:
+    """Pin AFFECTED servers to the advisory's fixed version (STORY-0127)."""
+    from mcp_audit.affected.fixplan import (  # noqa: PLC0415
+        Pin,
+        candidates,
+        crosses_major,
+    )
+    from mcp_audit.affected.match import would_close  # noqa: PLC0415
+    from mcp_audit.fixer.fixer import run_pins  # noqa: PLC0415
+
+    con = Console()
+    by_config: dict[str, list[tuple[str, str, str]]] = {}
+    skipped: list[Pin] = []
+    for server, row in pairs:
+        if row.status is not Status.AFFECTED or not row.package:
+            continue
+        package = row.package.split(":", 1)[1]
+        found, why = candidates(row.version, row.fixes)
+        target = None
+        for option in found:
+            if would_close(server, rules, registry, option):  # type: ignore[arg-type]
+                target = option
+                break
+        if target is None and found:
+            why = (
+                "pinning to a fixed version would not clear every rule for this package"
+            )
+        pin = Pin(
+            row.subject, str(server.config_path), server.name, package, row.version
+        )
+        if target is None:
+            skipped.append(
+                Pin(**{**pin.__dict__, "skipped": why})  # type: ignore[arg-type]
+            )
+            continue
+        if crosses_major(row.version, target):
+            con.print(
+                f"[yellow]note[/yellow] {escape(row.subject)}: {row.version} → "
+                f"{target} is a major-version change; check the release notes"
+            )
+        by_config.setdefault(pin.config_path, []).append((server.name, package, target))
+    if not by_config and not skipped:
+        con.print("\n[dim]--fix: no AFFECTED server to pin.[/dim]")
+        return
+    for config_path, pins in by_config.items():
+        path = Path(config_path)
+        con.print(f"\n[bold]{escape(str(path))}[/bold]")
+        try:
+            result = run_pins(path, pins, apply=apply)
+        except (OSError, ValueError) as exc:
+            # One unreadable, TOML or commented config must not stop the rest.
+            first = (str(exc).splitlines() or [type(exc).__name__])[0]
+            con.print(f"  [yellow]not pinned[/yellow] {escape(first)}")
+            continue
+        for line in result.fixes_applied:
+            con.print(f"  {'✓' if apply else '~'} {escape(line)}")
+        for line in result.skipped:
+            con.print(f"  [yellow]not pinned[/yellow] {escape(line)}")
+        if result.diff and not apply:
+            con.print(escape(result.diff), highlight=False, soft_wrap=True)
+        if apply and result.backup_path:
+            con.print(f"  [dim]backup: {escape(str(result.backup_path))}[/dim]")
+    for pin in skipped:
+        con.print(
+            f"\n[yellow]not pinned[/yellow] {escape(pin.subject)} "
+            f"({escape(str(pin.current))}): {escape(pin.skipped or '')}"
+        )
+    if apply:
+        con.print(
+            "\n[dim]Pinned. Re-run `mcp-audit affected` to confirm, and "
+            "`mcp-audit lock` to record the new version in your lock.[/dim]"
+        )
+    elif by_config:
+        con.print("\n[dim]Dry run, no files modified. Pass --apply to write.[/dim]")
+
+
 def _write_policy(
     path: Path,
     servers: list[ServerConfig],
@@ -266,6 +348,19 @@ def affected(
             "never writes into the managed-settings directory."
         ),
     ),
+    fix: bool = typer.Option(  # noqa: B008
+        False,
+        "--fix",
+        help=(
+            "Show the diff that pins each AFFECTED npx/uvx server to the "
+            "advisory's fixed version (dry run; nothing is written)."
+        ),
+    ),
+    apply: bool = typer.Option(  # noqa: B008
+        False,
+        "--apply",
+        help="With --fix, write the pins (atomic rename, .bak backup beside each).",
+    ),
     live: bool = typer.Option(  # noqa: B008
         False,
         "--live",
@@ -295,10 +390,17 @@ def affected(
         and policy_out.resolve() == output.resolve()
     ):
         raise _fail("--policy-out and --output must be different files")
+    if apply and not fix:
+        raise _fail("--apply needs --fix")
+    if fix and format_ is not _Format.TERMINAL:
+        raise _fail("--fix prints a diff; use the terminal format")
     if output is not None and format_ is _Format.TERMINAL:
         raise _fail("--output needs --format json, sarif or openvex")
 
     report = Report(query=parsed)
+    fix_pairs: list[tuple[ServerConfig, Row]] = []
+    fix_rules: list = []
+    fix_registry = None
     policy_msgs: list[str] = []
     try:
         registry = load_registry()
@@ -362,6 +464,10 @@ def affected(
             report.respond = [
                 respond.build(s, servers, stores) for s in affected_servers
             ]
+        if fix:
+            fix_pairs = list(zip(servers, rows, strict=True))
+            fix_rules = ruleset.rules
+            fix_registry = registry
         if policy_out is not None:
             unchecked = sum(
                 1
@@ -389,6 +495,8 @@ def affected(
 
     if format_ is _Format.TERMINAL:
         render_terminal(report, Console(), show_all=show_all)
+        if fix:
+            _run_fix(fix_pairs, fix_rules, fix_registry, apply)
     else:
         if format_ is _Format.OPENVEX:
             text = _openvex_text(report, parsed)
