@@ -16,9 +16,7 @@
   "@hasna/skills": "skills library",
   "@hasna/connectors": "connector library",
   "@minecraft/creator-tools": "CLI toolset",
-  "agent-blackboard": "client library",
   "@juspay/neurolink": "provider abstraction layer",
-  "kordoc": "document parser",
   "context-mode": "context plugin",
   "claude-cup": "contest tracker, not described as an MCP server",
   "agent-install": "installer",
@@ -1632,6 +1630,36 @@
    "attestations": true
   },
   {
+   "name": "agent-blackboard",
+   "version": "0.7.0",
+   "description": "Client library, CLI, and MCP server for Agent Blackboard session entries.",
+   "keywords": [],
+   "weekly": 113600,
+   "monthly": 146927,
+   "links": {
+    "homepage": "https://github.com/jonathanong/agent-blackboard#readme",
+    "repository": "git+https://github.com/jonathanong/agent-blackboard.git",
+    "bugs": "https://github.com/jonathanong/agent-blackboard/issues",
+    "npm": "https://www.npmjs.com/package/agent-blackboard"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-17T07:46:05.295Z",
+   "latest": "0.7.0",
+   "bin": {
+    "agent-blackboard": "dist/cli/index.mjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/jonathanong/agent-blackboard.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-17T07:46:05.295Z",
+   "version_count": 12,
+   "dist_integrity": "sha512-5bdwJ5Kpg9y1+8MK4ALk+PYP7Uwshk8EC0jVSOKJep13Nh7W2A1tNivp63easQaIF0c1GpcLu4wGKvY9+EA/XQ==",
+   "attestations": true
+  },
+  {
    "name": "xcodebuildmcp",
    "version": "2.7.0",
    "description": "XcodeBuildMCP is a Model Context Protocol server that provides tools for Xcode project management, simulator management, and app utilities.",
@@ -2475,6 +2503,67 @@
    "version_count": 19,
    "dist_integrity": "sha512-RXXsQ7DggdRTostQT6ePOmDnfTrozq8yqvsdbHHEVUG07YEH5UGf+n2rhYMsXfwBdLiwLWtcEv1pWl5inhjuvg==",
    "attestations": true
+  },
+  {
+   "name": "kordoc",
+   "version": "4.24.21",
+   "description": "Parse Korean documents (HWP3-5, HWPX, HWPML, PDF, XLS(X), DOCX) to Markdown \u2014 CLI + MCP server with lossless patch/roundtrip, form-filler, document diff, print & layout-preserving SVG renderer",
+   "keywords": [
+    "hwp",
+    "hwpx",
+    "hancom",
+    "hangul",
+    "korean",
+    "document",
+    "parser",
+    "pdf",
+    "xls",
+    "xlsx",
+    "biff8",
+    "docx",
+    "markdown",
+    "converter",
+    "ocr",
+    "mcp",
+    "model-context-protocol",
+    "print",
+    "puppeteer",
+    "hwp-to-markdown",
+    "pdf-to-markdown",
+    "rag",
+    "mcp-server"
+   ],
+   "weekly": 55978,
+   "monthly": 168643,
+   "links": {
+    "homepage": "https://github.com/chrisryugj/kordoc#readme",
+    "repository": "git+https://github.com/chrisryugj/kordoc.git",
+    "bugs": "https://github.com/chrisryugj/kordoc/issues",
+    "npm": "https://www.npmjs.com/package/kordoc"
+   },
+   "publisher": "chrisryugj",
+   "date": "2026-10-29T12:05:07.256Z",
+   "latest": "4.24.21",
+   "bin": {
+    "kordoc": "dist/cli.js",
+    "kordoc-mcp": "dist/mcp.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/chrisryugj/kordoc.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@xmldom/xmldom",
+    "cfb",
+    "commander",
+    "jszip",
+    "markdown-it",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-29T12:05:07.256Z",
+   "version_count": 240,
+   "dist_integrity": "sha512-jpFuOQL3dTi/6247PbTAecSpLCEskTC5rgSFri0hLqrkn3iF2n4rTiJ49aXJ3i9zQO/QgN8i7X3nJQGvi9PSow==",
+   "attestations": false
   },
   {
    "name": "figma-console-mcp",
@@ -4483,119 +4572,7 @@
    "version_count": 8,
    "dist_integrity": "sha512-ImC3hJZCqqKL7oxvdLJv+W9zS63D1Viu1E/htFWIlT4U7osoJftQrkquyMeouPoT4M9n2nNo0E65+J7IwPMA8g==",
    "attestations": true
-  },
-  {
-   "name": "@taazkareem/clickup-mcp-server",
-   "version": "0.14.6",
-   "description": "ClickUp MCP Server - Powering AI Agents with full ClickUp task, document, and chat management capabilities.",
-   "keywords": [
-    "clickup",
-    "mcp",
-    "plugin",
-    "connector",
-    "ai",
-    "tasks",
-    "project-management",
-    "model-context-protocol",
-    "mcp-server",
-    "claude",
-    "claude-desktop",
-    "gemini",
-    "gemini-cli",
-    "cursor",
-    "cursor-ide",
-    "n8n",
-    "cline",
-    "windsurf",
-    "zed",
-    "supermaven",
-    "clickup-server",
-    "clickup-mcp-server",
-    "task-management",
-    "productivity",
-    "automation",
-    "workflow",
-    "team-collaboration",
-    "artificial-intelligence",
-    "project-tracking",
-    "task-tracking",
-    "project-planning",
-    "clickup-integration",
-    "clickup-api",
-    "clickup-automation",
-    "task-organization",
-    "project-organization"
-   ],
-   "weekly": 22016,
-   "monthly": 104070,
-   "links": {
-    "homepage": "https://github.com/taazkareem/clickup-mcp-server",
-    "repository": "git+https://github.com/taazkareem/clickup-mcp-server.git",
-    "bugs": "https://github.com/taazkareem/clickup-mcp-server/issues",
-    "npm": "https://www.npmjs.com/package/@taazkareem/clickup-mcp-server"
-   },
-   "publisher": "taazkareem",
-   "date": "2026-10-07T16:48:12.918Z",
-   "latest": "0.14.6",
-   "bin": {
-    "clickup-mcp-server": "build/index.js"
-   },
-   "deprecated": false,
-   "repository": "git+https://github.com/taazkareem/clickup-mcp-server.git",
-   "dependencies": [
-    "@modelcontextprotocol/inspector",
-    "@modelcontextprotocol/sdk",
-    "axios",
-    "chrono-node",
-    "cookie-parser",
-    "cors",
-    "dotenv",
-    "express",
-    "express-rate-limit",
-    "marked",
-    "mcp-auth",
-    "zod"
-   ],
-   "has_mcp_sdk_dep": true,
-   "time_latest": "2026-10-07T16:48:12.918Z",
-   "version_count": 129,
-   "dist_integrity": "sha512-OdqBMqKPwZz7zS3RKyvJCWLpItoLB6gJztcIhu6bUBHm+gP7mkWks1zw1hilYqPncpfMmQCWQnN4pKwxscm8yA==",
-   "attestations": false
-  },
-  {
-   "name": "@stripe/mcp",
-   "version": "0.3.3",
-   "description": "A command line tool for setting up Stripe MCP server",
-   "keywords": [
-    "mcp",
-    "modelcontextprotocol",
-    "stripe"
-   ],
-   "weekly": 21738,
-   "monthly": 72931,
-   "links": {
-    "homepage": "https://github.com/stripe/ai/tree/main/tools/modelcontextprotocol",
-    "repository": "git+https://github.com/stripe/ai.git",
-    "bugs": "https://github.com/stripe/ai/issues",
-    "npm": "https://www.npmjs.com/package/@stripe/mcp"
-   },
-   "publisher": "GitHub Actions",
-   "date": "2026-03-24T14:23:17.263Z",
-   "latest": "0.3.3",
-   "bin": {
-    "mcp": "dist/index.js"
-   },
-   "deprecated": false,
-   "repository": "git+https://github.com/stripe/ai.git",
-   "dependencies": [
-    "@modelcontextprotocol/sdk",
-    "colors"
-   ],
-   "has_mcp_sdk_dep": true,
-   "time_latest": "2026-03-24T14:23:17.263Z",
-   "version_count": 15,
-   "dist_integrity": "sha512-Ra7keWg5GKDQ7RUIDa8L3ClKMsmhsJVAXG2/rYeaICEHjyMHYhD9KL2BWVqOqr1IjQwhnA8qbf+Tnb4x09DLyQ==",
-   "attestations": true
   }
- ]
+ ],
+ "rule": "Kept: ships a bin and its npm description says it is (or ships) an MCP server. Excluded: templates and hello-world servers, frameworks and SDKs, clients, inspectors and proxies, installers and config tools, agent harnesses, test fixtures, platform-binary duplicates, and packages whose description does not say MCP server (unless the package name does)."
 }

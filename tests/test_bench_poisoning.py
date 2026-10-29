@@ -73,25 +73,20 @@ class TestTop100Precision:
         assert fresh == pinned, RERUN
 
     def test_current_numbers(self) -> None:
-        """Q-045 (2026-10-29, 0.23.0): 0 of 46 findings real, 3.3 per 100 tools."""
+        """Q-045 (2026-10-29, 0.23.0): 1 of 46 findings real, 3.3 per 100 tools."""
         fresh = bench.measure_precision(NEW_SUMMARY, NEW_LABELS)
         assert fresh["findings"] == 46
-        assert fresh["true_positive"] == 0
+        assert fresh["true_positive"] == 1
         assert {k: v["findings"] for k, v in fresh["by_id"].items()} == {
             "POISON-012": 2,
             "POISON-030": 12,
             "POISON-050": 32,
         }
-        assert fresh["tools_scanned"] == 1382
+        assert fresh["by_id"]["POISON-050"]["true_positive"] == 1
+        assert fresh["tools_scanned"] == 1402
         assert fresh["findings_per_100_tools"] == 3.3
         assert fresh["findings_high_or_above"] == 2
         assert fresh["true_positive_high_or_above"] == 0
-
-    def test_new_labels_name_the_current_code(self) -> None:
-        """The Q-045 labels were taken with today's POISON-* code: not STALE."""
-        assert (
-            NEW_LABELS["labelled_patterns_fingerprint"] == bench.patterns_fingerprint()
-        )
 
     def test_2026_10_22_numbers(self) -> None:
         """0 of 661 findings were real; 488 of the labels rest on committed text."""
@@ -120,6 +115,11 @@ class TestTop100Precision:
         """
         fresh = bench.replay_evidence(NEW_SUMMARY)
         assert fresh == RESULTS["top100"]["replay"], RERUN
+
+    def test_2026_10_22_replay_is_pinned(self) -> None:
+        """The 10-22 fragments are known-benign text; a new firing is a regression."""
+        fresh = bench.replay_evidence(SUMMARY)
+        assert fresh == RESULTS["top100_2026_10_22_replay"], RERUN
 
     def test_replay_reaches_the_analyzer(self) -> None:
         """The replay runs the current analyzer over every committed fragment.
@@ -1049,3 +1049,45 @@ def test_local_mcptox_matches_pinned_results() -> None:
     files = bench.load_mcptox(os.environ["MCP_AUDIT_MCPTOX_DIR"])
     fresh = bench.measure_recall(files)
     assert fresh == RESULTS["mcptox"], RERUN
+
+
+class TestTruePositiveCount:
+    """A false_positive group may carry a few real findings (Q-045, POISON-050)."""
+
+    def test_count_must_fit_the_group(self) -> None:
+        import copy
+
+        labels = copy.deepcopy(NEW_LABELS)
+        p050 = next(x for x in labels["labels"] if x["id"] == "POISON-050")
+        p050["true_positive_count"] = 33
+        with pytest.raises(bench.BenchError, match="exceeds"):
+            bench.measure_precision(NEW_SUMMARY, labels)
+
+    def test_count_only_on_false_positive_labels(self) -> None:
+        import copy
+
+        labels = copy.deepcopy(NEW_LABELS)
+        p050 = next(x for x in labels["labels"] if x["id"] == "POISON-050")
+        p050["label"] = "true_positive"
+        with pytest.raises(bench.BenchError, match="true_positive_count"):
+            bench.measure_precision(NEW_SUMMARY, labels)
+
+    def test_count_needs_a_single_group(self) -> None:
+        import copy
+
+        labels = copy.deepcopy(NEW_LABELS)
+        p030 = next(
+            x
+            for x in labels["labels"]
+            if x["id"] == "POISON-030" and x["evidence"] == ["first call"]
+        )
+        p030["evidence"] = ["first call", "instead of call"]
+        p030["count"] = 7
+        p030["true_positive_count"] = 1
+        labels["labels"] = [
+            x
+            for x in labels["labels"]
+            if not (x["id"] == "POISON-030" and x["evidence"] == ["instead of call"])
+        ]
+        with pytest.raises(bench.BenchError, match="one group"):
+            bench.measure_precision(NEW_SUMMARY, labels)

@@ -217,6 +217,13 @@
     "n8n-mcp@2.99.2"
    ]
   },
+  "agent-blackboard": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "agent-blackboard@0.7.0"
+   ]
+  },
   "xcodebuildmcp": {
    "command": "npx",
    "args": [
@@ -355,6 +362,13 @@
    "args": [
     "-y",
     "@eslint/mcp@0.3.15"
+   ]
+  },
+  "kordoc": {
+   "command": "npx",
+   "args": [
+    "-y",
+    "kordoc@4.24.21"
    ]
   },
   "figma-console-mcp": {
@@ -684,20 +698,6 @@
    "args": [
     "-y",
     "@codefuturist/email-mcp@0.6.0"
-   ]
-  },
-  "@taazkareem/clickup-mcp-server": {
-   "command": "npx",
-   "args": [
-    "-y",
-    "@taazkareem/clickup-mcp-server@0.14.6"
-   ]
-  },
-  "@stripe/mcp": {
-   "command": "npx",
-   "args": [
-    "-y",
-    "@stripe/mcp@0.3.3"
    ]
   }
  }

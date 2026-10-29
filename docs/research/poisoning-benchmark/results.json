@@ -5,13 +5,13 @@
     "scanner_version": "mcp-audit 0.23.0 (main at 91120b0)",
     "labelled_patterns_fingerprint": "sha256:19a92910828a7f784d568ab28ee955577917540087342340495f86fb1e86de96",
     "findings": 46,
-    "true_positive": 0,
-    "false_positive": 46,
-    "precision": 0.0,
+    "true_positive": 1,
+    "false_positive": 45,
+    "precision": 0.0217,
     "findings_high_or_above": 2,
     "true_positive_high_or_above": 0,
     "precision_high_or_above": 0.0,
-    "tools_scanned": 1382,
+    "tools_scanned": 1402,
     "findings_per_100_tools": 3.3,
     "label_basis": {
       "review": 46
@@ -33,9 +33,9 @@
       },
       "POISON-050": {
         "findings": 32,
-        "true_positive": 0,
-        "false_positive": 32,
-        "precision": 0.0,
+        "true_positive": 1,
+        "false_positive": 31,
+        "precision": 0.0312,
         "severity": "LOW"
       }
     },
@@ -1826,5 +1826,120 @@
         "DELEG-003": "HIGH"
       }
     }
+  },
+  "top100_2026_10_22_replay": {
+    "patterns_fingerprint": "sha256:19a92910828a7f784d568ab28ee955577917540087342340495f86fb1e86de96",
+    "findings_reproduced_from_committed_text": 32,
+    "groups": [
+      {
+        "id": "POISON-012",
+        "count": 2,
+        "fragments": [
+          {
+            "text": "Override default",
+            "fires": [
+              "POISON-012"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "POISON-020",
+        "count": 2,
+        "fragments": [
+          {
+            "text": "Base64 encode",
+            "fires": []
+          }
+        ]
+      },
+      {
+        "id": "POISON-030",
+        "count": 3,
+        "fragments": [
+          {
+            "text": "After calling this",
+            "fires": [
+              "POISON-030"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "POISON-030",
+        "count": 3,
+        "fragments": [
+          {
+            "text": "First call",
+            "fires": [
+              "POISON-030"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "POISON-030",
+        "count": 1,
+        "fragments": [
+          {
+            "text": "Instead use",
+            "fires": [
+              "POISON-030"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "POISON-030",
+        "count": 22,
+        "fragments": [
+          {
+            "text": "first call",
+            "fires": [
+              "POISON-030"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "POISON-030",
+        "count": 1,
+        "fragments": [
+          {
+            "text": "instead of call",
+            "fires": [
+              "POISON-030"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "POISON-050",
+        "count": 139,
+        "fragments": []
+      },
+      {
+        "id": "POISON-060",
+        "count": 488,
+        "fragments": [
+          {
+            "text": "（",
+            "fires": []
+          },
+          {
+            "text": "，",
+            "fires": []
+          },
+          {
+            "text": "：",
+            "fires": []
+          },
+          {
+            "text": "；",
+            "fires": []
+          }
+        ]
+      }
+    ]
   }
 }

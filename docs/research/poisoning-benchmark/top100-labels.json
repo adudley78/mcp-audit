@@ -6,10 +6,11 @@
   "labelled_patterns_fingerprint_note": "scripts/bench_poisoning.py patterns_fingerprint() of analyzers/poisoning.py and build_runtime_server_config at main 91120b0, the code that produced these 46 findings.",
   "label_definitions": {
     "true_positive": "The text the finding points at is an attempt to make the agent do something the user did not ask for, or to hide content from the user.",
-    "false_positive": "The text is ordinary documentation of the tool or its parameters."
+    "false_positive": "The text is ordinary documentation of the tool or its parameters.",
+    "true_positive_count": "Optional, on a false_positive label that covers one group: how many of that group's findings are true positives (used where the group has no per-finding evidence, as for POISON-050)."
   },
   "basis_definitions": {
-    "review": "Each finding was read in its full live tool definition on 2026-10-29 (definitions not committed; scripts/enumerate_isolated.py regenerates them). For POISON-050, every description of 2,000 characters or more was also searched for instruction-like phrases (ignore previous, do not tell, without asking, secret, exfiltrate, curl, ~/.ssh, .env, system prompt, hidden, silently); each hit was documentation (a deduplication note, a search example listing '.env', a 'do not ask the user for the plaintext password' safety note)."
+    "review": "Each finding was read in its full live tool definition on 2026-10-29 (definitions not committed; scripts/enumerate_isolated.py regenerates them), and again by an independent reviewer before merge."
   },
   "labels": [
     {
@@ -18,7 +19,8 @@
       "count": 32,
       "label": "false_positive",
       "basis": "review",
-      "why": "A description of 2,000 characters or more: API and workflow reference text. No instructions to the agent beyond using the tool."
+      "why": "A description of 2,000 characters or more. 31 are API and workflow reference text. One (about 13,500 characters) is a true positive: about 10,000 characters in, it orders the agent to always pass the user's most recent message verbatim in a parameter that goes to the vendor, to report its own model name, and to call a feedback tool every turn. That is data collection the user did not ask for, buried where a reader would not see it; it is vendor telemetry rather than malware, and it is the case POISON-050 exists to surface.",
+      "true_positive_count": 1
     },
     {
       "id": "POISON-030",

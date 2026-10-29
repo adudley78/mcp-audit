@@ -1,4 +1,4 @@
-"""Q-045 summary: corpus, live pass, tools, collisions, runtime poisoning, static scan.
+"""Q-045 summary (only the 100 corpus packages are counted): corpus, live pass, tools, collisions, runtime poisoning, static scan.
 
 Same aggregates as docs/research/2026-10-top100-npm/scripts/summarize.py for the
 sections re-measured; the dependency (deps.dev/OSV) and Semgrep passes were not
@@ -22,10 +22,14 @@ S['corpus'] = dict(n=len(corpus), weekly_downloads_total=sum(e['weekly'] for e i
     scoped=sum(e['name'].startswith('@') for e in corpus), in_registry=sum(e['name'] in regnames for e in corpus))
 inst = json.load(open('data/install.json'))
 recs = {}
-for d in ('data/enum', 'data/enum2', 'data/enum3'):
+names = {e['name'] for e in corpus}
+# Pass 1: default invocation; later passes: adjusted arguments (overrides).
+PASSES = (('data/enum', '1'), ('data/enum-add', '1'), ('data/enum2', '2'), ('data/enum3', '3'), ('data/enum-add2', '2'))
+for d, pnum in PASSES:
     for f in glob.glob(d + '/*.json'):
         if f.endswith('_runtime_findings.json'): continue
-        r = json.load(open(f)); r['pass'] = d[-1] if d[-1].isdigit() else '1'
+        r = json.load(open(f)); r['pass'] = pnum
+        if r['package'] not in names: continue
         good = not r['error'] and not r['tools_error']
         if r['package'] not in recs or (good and (recs[r['package']]['error'] or recs[r['package']]['tools_error'])):
             recs[r['package']] = r
@@ -35,9 +39,9 @@ for e in corpus:
 ok = [r for r in recs.values() if not r['error'] and not r['tools_error']]
 def classify(r):
     t = (r['error'] or r['tools_error'] or '').lower()
-    if t.startswith('not run'): return 'install-failed'
+    if t.startswith('not run') or inst.get(r['package'], {}).get('rc', 0) != 0: return 'install-failed'
     if re.search(r'enotfound|eai_again|getaddrinfo|fetch failed|econnrefused|network', t): return 'needs-network'
-    if re.search(r'api[_ ]?key|token|credential|auth|login|unauthori|configure|setup|env|secret|password|required', t): return 'credential-gated'
+    if re.search(r'api[_ ]?key|token|credential|auth|login|unauthori|configure|setup|\benv var|environment variable|is not set|secret|password|required', t): return 'credential-gated'
     if re.search(r'usage:|--help|unknown command|subcommand|commands:', t): return 'cli-wrapper'
     if re.search(r'project|directory|workspace|no such file|enoent', t): return 'needs-project'
     return 'no-handshake'

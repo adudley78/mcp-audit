@@ -1,44 +1,45 @@
 {
  "corpus": {
   "n": 100,
-  "weekly_downloads_total": 16060019,
+  "weekly_downloads_total": 16185843,
   "top": "chrome-devtools-mcp",
   "top_weekly": 3281478,
-  "cutoff_weekly": 21738,
+  "cutoff_weekly": 22683,
   "attested": 64,
-  "zero_major": 49,
-  "scoped": 69,
+  "zero_major": 48,
+  "scoped": 67,
   "in_registry": 12
  },
  "connect": {
   "attempted": 100,
-  "connected": 60,
+  "connected": 61,
   "connected_default_invocation": 46,
-  "connected_adjusted_invocation": 14,
-  "failed": 40,
+  "connected_adjusted_invocation": 15,
+  "failed": 39,
   "failure_classes": {
    "cli-wrapper": 1,
-   "no-handshake": 25,
+   "no-handshake": 24,
    "credential-gated": 12,
-   "needs-project": 2
+   "needs-project": 1,
+   "install-failed": 1
   },
   "classification_method": "automatic, from each failure message (the 10-22 run classified by hand)"
  },
  "tools": {
-  "total": 1382,
-  "per_server_median": 13.0,
+  "total": 1402,
+  "per_server_median": 13,
   "per_server_mean": 23.0,
   "ge50": 6,
-  "desc_chars_total": 491329,
+  "desc_chars_total": 497365,
   "desc_median": 150.0,
   "desc_ge2000": 29,
-  "def_json_bytes_total": 3194813,
+  "def_json_bytes_total": 3269927,
   "with_annotations": 842
  },
  "collisions": {
-  "count": 19,
+  "count": 20,
   "by_severity": {
-   "MEDIUM": 9,
+   "MEDIUM": 10,
    "HIGH": 10
   }
  },
@@ -76,7 +77,7 @@
   "p050_servers": 14
  },
  "static": {
-  "findings": 660,
+  "findings": 560,
   "score": 7,
   "grade": "F",
   "by_id": {
@@ -85,7 +86,6 @@
    "CFHYG-002": 100,
    "SC-004": 1,
    "SC-002": 1,
-   "RUGPULL-000": 100,
    "TOXIC-004": 4,
    "INTEG-001": 4,
    "TOXIC-008": 8,
