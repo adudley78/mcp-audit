@@ -2226,3 +2226,19 @@ mcp-audit scan --live --offline; echo "exit $?"
 (bundled): KEV <date>, EPSS <date>`; the second a `signals` object; the third refuses with exit 2.
 `mcp-audit scan --live` (network) prints `Exploit signals (live)`. With a server whose registry entry
 lists a CVE, `scan` shows the `[EPSS ..%]` badge and sorts it above lower-EPSS findings of its severity.
+
+## Air-gapped bundle (STORY-0129)
+
+Needs `minisign` and a signed feed (any directory `feed verify --key-alt minisign` accepts).
+
+```bash
+minisign -G -W -p /tmp/b.pub -s /tmp/b.key
+python scripts/build_bundle.py --feed ./feed --out /tmp/bundle --private-key /tmp/b.key --public-key /tmp/b.pub
+mcp-audit affected CVE-2026-59822 --bundle /tmp/bundle --bundle-key /tmp/b.pub; echo "exit $?"
+echo '{}' > /tmp/bundle/data/known-malicious.json
+mcp-audit affected CVE-2026-59822 --bundle /tmp/bundle --bundle-key /tmp/b.pub; echo "exit $?"
+```
+
+**Expected:** the first prints `Signed bundle <date> … (verified, no network)` and the usual answer; the
+second prints `did not verify` with `known-malicious.json: content does not match the digest` and exits 2.
+`--bundle … --live` and `scan --bundle … --registry FILE` each exit 2.

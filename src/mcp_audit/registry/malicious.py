@@ -328,6 +328,10 @@ def load_known_malicious(path: Path | None = None) -> KnownMaliciousPackages:
     Returns:
         A :class:`KnownMaliciousPackages` index.
     """
+    from mcp_audit import bundle  # noqa: PLC0415
+
+    if path is None:
+        path = bundle.override("known-malicious.json")
     resolved: Path | None = None
     try:
         resolved = path.resolve() if path is not None else _resolve_bundled_path()
