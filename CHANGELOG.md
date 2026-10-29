@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Research records: credited, machine-readable copies of agent-stack research that has no CVE (STORY-0122).** Plugin4Shell, the plugin pin-replacement attack AIR Security published on 2026-09-17, is the first: which products it affected, where each was fixed (Claude Code 2.1.179, Codex 0.146.0; not Copilot; Gemini CLI is deprecated), and that PLUGIN-003 and PLUGIN-004 test the condition. The record is credited to AIR Security's Or Nevo, Dor Granat and Niv Hoffman. It is data that later commands read offline; no scan output changes yet. See `docs/research-records.md`.
+
 ---
 
 ## [0.23.0] - 2026-10-29
