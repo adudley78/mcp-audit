@@ -269,7 +269,7 @@ Add `mcp-audit fix` as an auto-remediation step after a failing scan gate:
 
 ```yaml
 - name: Scan MCP configs
-  uses: adudley78/mcp-audit@v0.23.0
+  uses: adudley78/mcp-audit@v0.24.0
   with:
     severity-threshold: high
     fail-on-findings: 'true'
