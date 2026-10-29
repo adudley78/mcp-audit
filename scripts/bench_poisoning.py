@@ -96,7 +96,15 @@ from mcp_audit.models import (
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS_PATH = ROOT / "docs" / "research" / "poisoning-benchmark" / "results.json"
 LABELS_PATH = ROOT / "docs" / "research" / "poisoning-benchmark" / "top100-labels.json"
-SUMMARY_PATH = ROOT / "docs" / "research" / "2026-10-top100-npm" / "summary.json"
+SUMMARY_PATH = ROOT / "docs" / "research" / "2026-10-29-top100-npm" / "summary.json"
+# The 2026-10-22 measurement (mcp-audit 0.21.0, 661 findings), kept as a fixed
+# record and as test fixtures.
+ARCHIVE_LABELS_PATH = (
+    ROOT / "docs" / "research" / "poisoning-benchmark" / "top100-labels-2026-10-22.json"
+)
+ARCHIVE_SUMMARY_PATH = (
+    ROOT / "docs" / "research" / "2026-10-top100-npm" / "summary.json"
+)
 
 MCPTOX_DEFAULT_SOURCE = "https://anonymous.4open.science/api/repo/AAAI26-7C02/file/"
 MCPTOX_FILES = ("response_all.json", "pure_tool.json")
@@ -1060,7 +1068,7 @@ def measure_precision(
     high_total = sum(c["findings"] for c in high)
     high_tp = sum(c["true_positive"] for c in high)
     return {
-        "corpus": "docs/research/2026-10-top100-npm/summary.json",
+        "corpus": labels.get("corpus", "docs/research/2026-10-top100-npm/summary.json"),
         "labels": "docs/research/poisoning-benchmark/top100-labels.json",
         "scanner_version": labels.get("scanner_version"),
         "labelled_patterns_fingerprint": labels["labelled_patterns_fingerprint"],
@@ -1264,7 +1272,7 @@ def _print_precision(section: dict[str, Any]) -> None:
         print(
             "STALE: the top-100 labels describe different POISON-* code "
             f"(labelled {section['labelled_patterns_fingerprint']}, current "
-            f"{replay['patterns_fingerprint']}). The 0-of-661 precision is a "
+            f"{replay['patterns_fingerprint']}). The precision is a "
             "fixed measurement of the old code; re-measuring it needs a fresh "
             "enumeration of the corpus (runs third-party servers, never in CI). "
             "The precision checks that do re-run: this replay and the MCPTox "

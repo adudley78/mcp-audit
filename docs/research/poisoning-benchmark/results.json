@@ -1,21 +1,20 @@
 {
   "top100": {
-    "corpus": "docs/research/2026-10-top100-npm/summary.json",
+    "corpus": "docs/research/2026-10-29-top100-npm/summary.json",
     "labels": "docs/research/poisoning-benchmark/top100-labels.json",
-    "scanner_version": "mcp-audit 0.21.0 (src/mcp_audit/analyzers/poisoning.py and mcp_client.build_runtime_server_config are unchanged from v0.21.0 to main at f9ba1ff)",
-    "labelled_patterns_fingerprint": "sha256:21b594ccad7f3b2b411dece244e22310377c570407650e178f9f5ece70ac659d",
-    "findings": 661,
+    "scanner_version": "mcp-audit 0.23.0 (main at 91120b0)",
+    "labelled_patterns_fingerprint": "sha256:19a92910828a7f784d568ab28ee955577917540087342340495f86fb1e86de96",
+    "findings": 46,
     "true_positive": 0,
-    "false_positive": 661,
+    "false_positive": 46,
     "precision": 0.0,
-    "findings_high_or_above": 492,
+    "findings_high_or_above": 2,
     "true_positive_high_or_above": 0,
     "precision_high_or_above": 0.0,
-    "tools_scanned": 1611,
-    "findings_per_100_tools": 41.0,
+    "tools_scanned": 1382,
+    "findings_per_100_tools": 3.3,
     "label_basis": {
-      "committed_evidence": 488,
-      "review": 173
+      "review": 46
     },
     "by_id": {
       "POISON-012": {
@@ -25,38 +24,24 @@
         "precision": 0.0,
         "severity": "HIGH"
       },
-      "POISON-020": {
-        "findings": 2,
-        "true_positive": 0,
-        "false_positive": 2,
-        "precision": 0.0,
-        "severity": "HIGH"
-      },
       "POISON-030": {
-        "findings": 30,
+        "findings": 12,
         "true_positive": 0,
-        "false_positive": 30,
+        "false_positive": 12,
         "precision": 0.0,
         "severity": "MEDIUM"
       },
       "POISON-050": {
-        "findings": 139,
+        "findings": 32,
         "true_positive": 0,
-        "false_positive": 139,
+        "false_positive": 32,
         "precision": 0.0,
         "severity": "LOW"
-      },
-      "POISON-060": {
-        "findings": 488,
-        "true_positive": 0,
-        "false_positive": 488,
-        "precision": 0.0,
-        "severity": "HIGH"
       }
     },
     "replay": {
       "patterns_fingerprint": "sha256:19a92910828a7f784d568ab28ee955577917540087342340495f86fb1e86de96",
-      "findings_reproduced_from_committed_text": 32,
+      "findings_reproduced_from_committed_text": 14,
       "groups": [
         {
           "id": "POISON-012",
@@ -71,18 +56,8 @@
           ]
         },
         {
-          "id": "POISON-020",
-          "count": 2,
-          "fragments": [
-            {
-              "text": "Base64 encode",
-              "fires": []
-            }
-          ]
-        },
-        {
           "id": "POISON-030",
-          "count": 3,
+          "count": 2,
           "fragments": [
             {
               "text": "After calling this",
@@ -94,7 +69,7 @@
         },
         {
           "id": "POISON-030",
-          "count": 3,
+          "count": 2,
           "fragments": [
             {
               "text": "First call",
@@ -118,7 +93,7 @@
         },
         {
           "id": "POISON-030",
-          "count": 22,
+          "count": 3,
           "fragments": [
             {
               "text": "first call",
@@ -130,7 +105,7 @@
         },
         {
           "id": "POISON-030",
-          "count": 1,
+          "count": 4,
           "fragments": [
             {
               "text": "instead of call",
@@ -142,30 +117,8 @@
         },
         {
           "id": "POISON-050",
-          "count": 139,
+          "count": 32,
           "fragments": []
-        },
-        {
-          "id": "POISON-060",
-          "count": 488,
-          "fragments": [
-            {
-              "text": "（",
-              "fires": []
-            },
-            {
-              "text": "，",
-              "fires": []
-            },
-            {
-              "text": "：",
-              "fires": []
-            },
-            {
-              "text": "；",
-              "fires": []
-            }
-          ]
         }
       ]
     }

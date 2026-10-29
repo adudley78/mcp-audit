@@ -34,8 +34,13 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import bench_poisoning as bench  # noqa: E402
 
 RESULTS = json.loads(bench.RESULTS_PATH.read_text(encoding="utf-8"))
-SUMMARY = json.loads(bench.SUMMARY_PATH.read_text(encoding="utf-8"))
-LABELS = json.loads(bench.LABELS_PATH.read_text(encoding="utf-8"))
+# The 2026-10-22 measurement (661 findings) is the fixture most tests use: it
+# has every label shape (committed evidence, POISON-060, POISON-020).
+SUMMARY = json.loads(bench.ARCHIVE_SUMMARY_PATH.read_text(encoding="utf-8"))
+LABELS = json.loads(bench.ARCHIVE_LABELS_PATH.read_text(encoding="utf-8"))
+# The current measurement (Q-045, 2026-10-29), pinned in results.json.
+NEW_SUMMARY = json.loads(bench.SUMMARY_PATH.read_text(encoding="utf-8"))
+NEW_LABELS = json.loads(bench.LABELS_PATH.read_text(encoding="utf-8"))
 
 RERUN = (
     "re-run `uv run python scripts/bench_poisoning.py precision --write` and "
@@ -63,11 +68,32 @@ class TestTop100Precision:
     """The measured precision on the published corpus, pinned."""
 
     def test_measured_precision_is_the_committed_number(self) -> None:
-        fresh = bench.measure_precision(SUMMARY, LABELS)
+        fresh = bench.measure_precision(NEW_SUMMARY, NEW_LABELS)
         pinned = {k: v for k, v in RESULTS["top100"].items() if k != "replay"}
         assert fresh == pinned, RERUN
 
     def test_current_numbers(self) -> None:
+        """Q-045 (2026-10-29, 0.23.0): 0 of 46 findings real, 3.3 per 100 tools."""
+        fresh = bench.measure_precision(NEW_SUMMARY, NEW_LABELS)
+        assert fresh["findings"] == 46
+        assert fresh["true_positive"] == 0
+        assert {k: v["findings"] for k, v in fresh["by_id"].items()} == {
+            "POISON-012": 2,
+            "POISON-030": 12,
+            "POISON-050": 32,
+        }
+        assert fresh["tools_scanned"] == 1382
+        assert fresh["findings_per_100_tools"] == 3.3
+        assert fresh["findings_high_or_above"] == 2
+        assert fresh["true_positive_high_or_above"] == 0
+
+    def test_new_labels_name_the_current_code(self) -> None:
+        """The Q-045 labels were taken with today's POISON-* code: not STALE."""
+        assert (
+            NEW_LABELS["labelled_patterns_fingerprint"] == bench.patterns_fingerprint()
+        )
+
+    def test_2026_10_22_numbers(self) -> None:
         """0 of 661 findings were real; 488 of the labels rest on committed text."""
         fresh = bench.measure_precision(SUMMARY, LABELS)
         assert fresh["findings"] == 661
@@ -92,7 +118,7 @@ class TestTop100Precision:
         A new ID firing on a known-benign fragment is a precision regression; a
         pattern that stops firing is an improvement that must be re-measured.
         """
-        fresh = bench.replay_evidence(SUMMARY)
+        fresh = bench.replay_evidence(NEW_SUMMARY)
         assert fresh == RESULTS["top100"]["replay"], RERUN
 
     def test_replay_reaches_the_analyzer(self) -> None:
@@ -123,11 +149,11 @@ class TestTop100Precision:
     def test_labelled_fingerprint_is_recorded(self) -> None:
         """The labels name the code they describe, and results.json carries it.
 
-        It is deliberately not compared with today's fingerprint: the labels are
-        a fixed measurement of the 0.21.x code, and a later pattern change makes
-        them STALE (printed), not wrong.
+        It is deliberately not compared with today's fingerprint here: the
+        labels are a fixed measurement, and a later pattern change makes them
+        STALE (printed), not wrong.
         """
-        labelled = LABELS["labelled_patterns_fingerprint"]
+        labelled = NEW_LABELS["labelled_patterns_fingerprint"]
         assert labelled.startswith("sha256:") and len(labelled) == 71
         assert RESULTS["top100"]["labelled_patterns_fingerprint"] == labelled
 
@@ -144,7 +170,9 @@ class TestTop100Precision:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         bench.main(["precision"])
-        stale = LABELS["labelled_patterns_fingerprint"] != bench.patterns_fingerprint()
+        stale = (
+            NEW_LABELS["labelled_patterns_fingerprint"] != bench.patterns_fingerprint()
+        )
         assert ("STALE" in capsys.readouterr().out) == stale
 
 

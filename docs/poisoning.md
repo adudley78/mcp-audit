@@ -14,7 +14,7 @@ Recall is reported twice. **Any severity** is what a plain `mcp-audit scan` exit
 | Recall, cases with no keyword wrapper | MCPTox, 435 of those cases | **23.7%** (P1 35.4%, P2 39.3%, P3 5.2%) | **7.4%** (P1 12.3%, P2 7.9%, P3 5.2%) |
 | Recall, poisoned descriptions as released without wrappers | MCPTox `pure_tool.json`, 485 | **25.4%** (P1 41.6%, P2 41.5%, P3 6.7%) | **7.2%** (P1 10.4%, P2 7.1%, P3 6.2%) |
 | Real tools flagged | MCPTox's 353 clean tools from 45 real servers | **2** (0.6%): 2 `POISON-050` (was 18 before STORY-0107) | **0** (was 16) |
-| Precision: share of findings that were real | Live tools of the 100 most-downloaded npm MCP servers: 661 findings on 1,611 tools (mcp-audit 0.21.0) | **0 of 661** (0.0%) | 0 of 492 |
+| Precision: share of findings that were real | Live tools of the 100 most-downloaded npm MCP servers, re-measured 2026-10-29: 46 findings on 1,382 tools (mcp-audit 0.23.0; was 661 on 1,611 with 0.21.0) | **0 of 46** (0.0%) | 0 of 2 |
 
 MCPTox's three attack paradigms: **P1** explicit trigger, function hijacking (a tool that mimics a common function); **P2** implicit trigger, function hijacking (a tool posing as a check another tool must run first); **P3** implicit trigger, parameter tampering (a tool telling the agent to change another tool's arguments).
 
@@ -67,6 +67,10 @@ MCPTox is a benchmark of tool poisoning on 45 live MCP servers and 353 real tool
 - **How a case is scored.** Each record's `Tool: / Description: / Arguments:` text becomes one tool definition (argument lines become input-schema descriptions) and goes through `build_runtime_server_config` and `PoisoningAnalyzer`, the path `scan --connect` uses. A case counts as detected when at least one `POISON-*` finding fires; the HIGH-or-above column counts only HIGH and CRITICAL findings.
 
 ### The top-100 npm corpus (precision)
+
+**Re-measured 2026-10-29 on mcp-audit 0.23.0 (Q-045, [`docs/research/2026-10-29-top100-npm/`](research/2026-10-29-top100-npm/README.md)).** A fresh enumeration of the 100 most-downloaded MCP servers on npm (80 the same as on 10-22): 60 answered a live handshake and exposed 1,382 tools. The runtime poisoning check produced **46 findings, 3.3 per 100 tools (was 41)**: 32 POISON-050 (LOW, long descriptions), 12 POISON-030 (MEDIUM, workflow wording such as "first call" and "instead of calling"), 2 POISON-012 (HIGH, "Override default result limit"). Each was read in its full live definition: **none was an attack (0 of 46; 0 of 2 at HIGH)**. POISON-060 no longer fires on this corpus. The labels in `top100-labels.json` carry the current code's fingerprint, so `bench_poisoning.py precision` is no longer STALE. Measured error: precision has no true positive to estimate from, so 0 of 46 bounds it only loosely; the run had no network at runtime (see the corpus README), which may have kept a few network-dependent servers from connecting.
+
+The section below describes the 2026-10-22 measurement, kept as a fixed record (`top100-labels-2026-10-22.json`).
 
 The corpus is the 2026-10-22 scan of the 100 most-downloaded MCP servers on npm, published in [`docs/research/2026-10-top100-npm/`](research/2026-10-top100-npm/README.md). 60 servers answered a live handshake and exposed 1,611 tools; mcp-audit 0.21.0's runtime poisoning check produced 661 findings on them, 492 of them HIGH (488 POISON-060, 2 POISON-012, 2 POISON-020).
 
