@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **A tool whose label contradicts its own schema (ANNOT-001, STORY-0136).** MCP tool annotations are hints, not enforcement: "a server can claim `readOnlyHint: true` and delete your files anyway" (MCP blog, 2026-03-16), and actlint found 4 of 31 popular servers whose labels the schema contradicted. ANNOT-001 (LOW) fires on a tool annotated `readOnlyHint: true`, or `destructiveHint: false`, whose input schema has a parameter that runs commands (`command`, `script`, `shell`), runs SQL that writes, deletes or overwrites, or takes content to write beside a path. A bare `path` or `url` never counts. It runs on `scan --connect` and over `mcp-lock.tools.json` (saved tool text) in the working directory, and only ever adds a finding. Measured on the top-100 npm corpus (48 servers, 989 tools, 732 annotated): 6 hits, 5 true by hand label, on 3 servers. That is under the 10 hits the rule needs for MEDIUM, so it ships at LOW. See `docs/annotations.md`.
+
 ---
 
 ## [0.24.0] - 2026-10-29

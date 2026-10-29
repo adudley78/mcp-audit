@@ -588,6 +588,14 @@ declare tool names.
 
 ---
 
+### Tool annotations vs. schema (`analyzers/annotations.py`, finding ID `ANNOT-001`, STORY-0136)
+
+Runs with `--connect` and over saved tool text (`mcp-lock.tools.json` in the working directory). MCP annotations are hints, not enforcement. ANNOT-001 flags a tool annotated `readOnlyHint: true` (or `destructiveHint: false`) whose input schema has a parameter that runs commands or writes. Measured in [annotations.md](annotations.md).
+
+| Finding ID | Severity | OWASP MCP Top 10 | Rationale |
+|------------|----------|------------------|-----------|
+| ANNOT-001  | LOW      | MCP03 + MCP06 | Command-running, write-SQL, delete/overwrite or content-to-path parameter on a tool that claims to be read-only (or non-destructive: commands, destructive SQL, delete/overwrite only). A bare `path` or `url` never counts. LOW because the rule allows MEDIUM only with measured precision of at least 50% on at least 10 hits; the top-100 npm corpus gave 6 hits (5 true by hand label, 3 servers). CWE-451. |
+
 ### Cross-tool delegation (`analyzers/delegation.py`, finding IDs `DELEG-001..003`, STORY-0100)
 
 Runs with `--connect`, right after COLLIDE-001, over the tool definitions every

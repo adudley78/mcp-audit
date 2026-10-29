@@ -354,6 +354,14 @@ detection logic.
 
 ---
 
+## Annotation contradictions (ANNOT-001, STORY-0136)
+
+Ships at LOW: the top-100 npm corpus gave 6 hits (5 true by hand label, 3 servers), under the 10 hits needed to measure precision well enough for MEDIUM; MCPTox was not available. Precision on a larger corpus is unmeasured.
+
+**Known limits:** name and description tokens only, so a data field called `command` fires and a write behind a neutral name does not; `$ref` is not followed; `idempotentHint`/`openWorldHint` are not checked; needs `--connect` or saved tool text. Details: [`docs/annotations.md`](docs/annotations.md).
+
+---
+
 ## Cross-tool delegation (DELEG-001..003, STORY-0100)
 
 Measured before shipping (2026-10-26; method and every number in
