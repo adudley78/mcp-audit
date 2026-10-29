@@ -25,7 +25,9 @@ from rich.console import Console
 from rich.markup import escape
 
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
+from mcp_audit.affected import fleet as fleet_mod
 from mcp_audit.affected import respond
+from mcp_audit.affected import transitive as transitive_mod
 from mcp_audit.affected.match import (
     RAN_THE_PACKAGE,
     UNREADABLE,
@@ -180,6 +182,19 @@ def _run_fix(
     for server, row in pairs:
         if row.status is not Status.AFFECTED or not row.package:
             continue
+        if row.dependency is not None:
+            skipped.append(
+                Pin(
+                    row.subject,
+                    str(server.config_path),
+                    server.name,
+                    row.package,
+                    row.version,
+                    skipped="the affected package is a dependency of this server; "
+                    "pinning the server cannot change it",
+                )
+            )
+            continue
         package = row.package.split(":", 1)[1]
         found, why = candidates(row.version, row.fixes)
         target = None
@@ -286,6 +301,39 @@ def _write_policy(
     out.extend(notes)
 
 
+def _decide_fleet(
+    files: list[Path],
+    ruleset: RuleSet,
+    registry: object,
+    label: str,
+    report: Report,
+    locks: LockIndex,
+) -> tuple[list[ServerConfig], list[Row], list[Row]]:
+    """One row per machine x server from the scan files (STORY-0131).
+
+    Returns the servers (parallel to the rows), the rows, and the rows for
+    files that could not be read.  Locks are not consulted: a config path in a
+    scan file belongs to another machine.
+    """
+    from dataclasses import replace  # noqa: PLC0415
+
+    machines, problems = fleet_mod.load_machines(files, report.errors)
+    report.fleet = [
+        fleet_mod.display_name(f) for f in files[: fleet_mod.MAX_FLEET_FILES]
+    ]
+    report.notes.append(
+        "--fleet: answers come from the scan files. The Respond block and the "
+        "plugin checks read this machine, so they are not run."
+    )
+    servers: list[ServerConfig] = []
+    rows: list[Row] = []
+    for machine in machines:
+        decided = decide_servers(machine.servers, ruleset, registry, locks, label)  # type: ignore[arg-type]
+        servers.extend(machine.servers)
+        rows.extend(replace(r, machine=machine.machine_id) for r in decided)
+    return servers, rows, problems
+
+
 def _openvex_text(report: Report, parsed: Query) -> str:
     """The report as an OpenVEX document (advisory queries only)."""
     from mcp_audit.affected import vex  # noqa: PLC0415
@@ -385,12 +433,49 @@ def affected(
             "or $MCP_AUDIT_SIGNING_PUBKEY)."
         ),
     ),
+    transitive: bool = typer.Option(  # noqa: B008
+        False,
+        "--transitive",
+        help=(
+            "With --live, also check each server's dependency tree (deps.dev). A "
+            "dependency hit is AFFECTED, with the path; a tree that cannot be "
+            "read is COULDN'T CHECK."
+        ),
+    ),
+    fleet: list[Path] = typer.Option(  # noqa: B008
+        [],
+        "--fleet",
+        help=(
+            "Answer from this `scan --format json` file instead of this machine's "
+            "configs (repeatable, one per machine): one row per machine and server."
+        ),
+    ),
     offline: bool = typer.Option(  # noqa: B008
         False, "--offline", help="Refuse any network flag (this command is offline)."
     ),
 ) -> None:
     """Is this advisory (or package range) in any MCP server on this machine?"""
     require_offline_compatible(NetworkPolicy(live=live), offline)
+    if transitive and not live:
+        raise _fail(
+            "--transitive reads dependency trees from deps.dev, a network lookup; "
+            "add --live"
+        )
+    if fleet:
+        if path or lock:
+            raise _fail("--fleet answers from the scan files; drop --path / --lock")
+        if fix or apply or policy_out is not None:
+            raise _fail(
+                "--fix, --apply and --policy-out change this machine; "
+                "they cannot be combined with --fleet"
+            )
+        for scan_file in fleet:
+            if not scan_file.exists():
+                raise _fail(f"fleet file does not exist: {scan_file}")
+            if scan_file.is_dir():
+                raise _fail(
+                    f"--fleet takes scan JSON files, not a directory: {scan_file}"
+                )
     try:
         parsed = parse_query(query)
     except QueryError as exc:
@@ -416,7 +501,7 @@ def affected(
     if output is not None and format_ is _Format.TERMINAL:
         raise _fail("--output needs --format json, sarif or openvex")
 
-    report = Report(query=parsed)
+    report = Report(query=parsed, transitive=transitive)
     registry_path = None
     if bundle is not None:
         if live:
@@ -458,7 +543,22 @@ def affected(
             )
         report.sources.extend(ruleset.sources)
 
-    if ruleset.research is not None:
+    if fleet and ruleset.research is not None and not ruleset.rules:
+        raise _fail(
+            "research records are answered from this machine's harness installs, "
+            "not from scan files; drop --fleet"
+        )
+    if transitive and not ruleset.rules:
+        report.notes.append(
+            "--transitive: this advisory names no package, so there was no "
+            "dependency tree to walk"
+        )
+    if ruleset.research is not None and fleet:
+        report.notes.append(
+            "--fleet: the research-record rows were not answered; they read this "
+            "machine's harness installs, not the scan files"
+        )
+    elif ruleset.research is not None:
         check_ids = ruleset.research.checks
         fetch = (
             (lambda: _plugin_check_findings(report.errors))
@@ -468,16 +568,31 @@ def affected(
         report.rows.extend(research_rows(ruleset.research, fetch, report.notes))
     if ruleset.rules:
         unreadable: list[Row] = []
-        servers = _discover(path, report.errors, unreadable)
-        locks = LockIndex(lock, report.errors)
-        rows = decide_servers(servers, ruleset, registry, locks, parsed.label)
+        if fleet:
+            locks = LockIndex(nearest=False)
+            servers, rows, unreadable = _decide_fleet(
+                fleet, ruleset, registry, parsed.label, report, locks
+            )
+        else:
+            servers = _discover(path, report.errors, unreadable)
+            locks = LockIndex(lock, report.errors)
+            rows = decide_servers(servers, ruleset, registry, locks, parsed.label)
+        if transitive:
+            rows = transitive_mod.check_dependencies(
+                servers,
+                rows,
+                ruleset.rules,
+                registry,
+                transitive_mod.GraphSource(),
+                locks,
+            )
         report.rows.extend(rows + unreadable)
         affected_servers = [
             s
             for s, row in zip(servers, rows, strict=True)
             if row.status is Status.AFFECTED
         ]
-        if affected_servers:
+        if affected_servers and not fleet:
             try:
                 home: Path | None = Path.home()
                 cwd: Path | None = None if path else Path.cwd()
@@ -501,7 +616,9 @@ def affected(
                 if r.status is Status.COULDNT_CHECK and r.reason in RAN_THE_PACKAGE
             )
             _write_policy(policy_out, affected_servers, report, unchecked, policy_msgs)
-        if servers and not any(r.reason in RAN_THE_PACKAGE for r in rows):
+        if servers and not any(
+            r.reason in RAN_THE_PACKAGE or r.dependency for r in rows
+        ):
             names = ", ".join(sorted({r.describes() for r in ruleset.rules}))
             report.notes.append(
                 f"No discovered server runs {names}. If you meant another "
