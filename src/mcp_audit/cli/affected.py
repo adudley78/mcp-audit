@@ -14,6 +14,7 @@ Exit codes: 0 nothing affected, 1 something affected (or, with
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from enum import StrEnum
@@ -23,6 +24,7 @@ import typer
 from rich.console import Console
 
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
+from mcp_audit.affected import respond
 from mcp_audit.affected.match import (
     RAN_THE_PACKAGE,
     UNREADABLE,
@@ -155,6 +157,27 @@ def _live_rules(advisory_id: str, report: Report) -> RuleSet:
     return RuleSet(rules=list(rules), sources=["OSV.dev (--live)"])
 
 
+def _write_policy(path: Path, servers: list[ServerConfig], report: Report) -> None:
+    """Write the deniedMcpServers file, or say why nothing was written."""
+    if not servers:
+        report.notes.append(
+            "--policy-out: no server is AFFECTED, so no file was written"
+        )
+        return
+    document, notes = respond.policy_document(servers)
+    try:
+        _write_output(path, json.dumps(document, indent=2) + "\n")
+    except OSError as exc:
+        raise _fail(f"--policy-out: could not write {path}: {exc.strerror}") from exc
+    report.notes.append(
+        f"Wrote {len(document['deniedMcpServers'])} deniedMcpServers entr"
+        f"{'y' if len(document['deniedMcpServers']) == 1 else 'ies'} to {path}. "
+        "Deploy it as a managed-settings drop-in "
+        "(https://code.claude.com/docs/en/managed-mcp); mcp-audit does not."
+    )
+    report.notes.extend(notes)
+
+
 def _openvex_text(report: Report, parsed: Query) -> str:
     """The report as an OpenVEX document (advisory queries only)."""
     from mcp_audit.affected import vex  # noqa: PLC0415
@@ -209,6 +232,15 @@ def affected(
         "--fail-on-unknown",
         help="Exit 1 when a server running the package could not be checked.",
     ),
+    policy_out: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--policy-out",
+        help=(
+            "Write Claude Code managed-policy JSON (deniedMcpServers) for the "
+            "AFFECTED servers to this file, for an admin to deploy. mcp-audit "
+            "never writes into the managed-settings directory."
+        ),
+    ),
     live: bool = typer.Option(  # noqa: B008
         False,
         "--live",
@@ -227,6 +259,11 @@ def affected(
     for lock_path in lock:
         if not lock_path.is_file():
             raise _fail(f"lock file does not exist: {lock_path}")
+    if policy_out is not None and respond.inside_managed_dir(policy_out):
+        raise _fail(
+            "--policy-out will not write into Claude Code's managed-settings "
+            "directory; write it elsewhere and deploy it yourself"
+        )
     if output is not None and format_ is _Format.TERMINAL:
         raise _fail("--output needs --format json, sarif or openvex")
 
@@ -275,6 +312,18 @@ def affected(
         locks = LockIndex(lock, report.errors)
         rows = decide_servers(servers, ruleset, registry, locks, parsed.label)
         report.rows.extend(rows + unreadable)
+        affected_servers = [
+            s
+            for s, row in zip(servers, rows, strict=True)
+            if row.status is Status.AFFECTED
+        ]
+        if affected_servers:
+            stores = respond.credential_files(Path.home(), Path.cwd(), report.errors)
+            report.respond = [
+                respond.build(s, servers, stores) for s in affected_servers
+            ]
+        if policy_out is not None:
+            _write_policy(policy_out, affected_servers, report)
         if servers and not any(r.reason in RAN_THE_PACKAGE for r in rows):
             names = ", ".join(sorted({r.describes() for r in ruleset.rules}))
             report.notes.append(

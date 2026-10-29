@@ -1618,6 +1618,10 @@ definition that `lock/tool_digests.py` already digests (RFC 8785 canonical form,
 trusted only when it hashes to the lock's digest. Size figures in `docs/lock.md` come from
 `docs/poisoning.md` (the 2026-10-22 top-100 scan: 60 servers, 1,611 tools, about 6 MB).
 
+## Respond and policy-out (STORY-0126)
+
+Original code; no code copied. `deniedMcpServers` entry forms (`serverName`, `serverCommand`, `serverUrl`) and the rule that a denylist match cannot be overridden are from Anthropic, "Control MCP server access for your organization" (https://code.claude.com/docs/en/managed-mcp); entries are checked with the same `entry_matches` evaluator MANAGED-001..005 use. Credential-file list is REACH's (STORY-0114) plus `~/.claude.json` and `~/.codex/config.toml`, which Claude Code and Codex document as holding MCP server `env` and headers.
+
 ## Transport tags and OpenVEX (STORY-0125)
 
 Original code; no code copied. OpenVEX 0.2.0 (https://github.com/openvex/spec, Apache-2.0; statuses `not_affected`, `affected`, `fixed`, `under_investigation`; justification `vulnerable_code_not_in_execute_path`) and the package URL spec (https://github.com/package-url/purl-spec). Tags read from OSV.dev records on 2026-10-29: CVE-2025-53365 (Streamable HTTP, fixed 1.10.0), CVE-2026-52869 (SSE and stateful Streamable HTTP, fixed 1.27.2), CVE-2026-59951 (stateful Streamable HTTP; the record says stateless HTTP, stdio and SSE are not affected; fixed 2.2.0), CVE-2026-77244 and CVE-2026-77248 (mcp-atlassian HTTP transports, fixed 0.22.0; both describe unauthenticated access, hence `requires_auth: false`). CVE-2026-77257 (mcp-atlassian upload tools accept arbitrary file paths) is deliberately not tagged: the flaw is in the tool, which stdio exposes too. CVE-2026-111768 had no OSV record and CVE-2026-59950 (WebSocket) is outside the vocabulary, so neither is tagged. The tags were read by an automated run, not yet by a maintainer; `verified_by` says so.

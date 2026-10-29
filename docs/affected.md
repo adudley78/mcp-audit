@@ -58,6 +58,19 @@ By default the terminal output lists AFFECTED, COULDN'T CHECK and the NOT AFFECT
 
 `--format terminal` (default), `--format json`, `--format sarif`, `--format openvex`, with `-o FILE`. SARIF has one result per AFFECTED server and the query as the rule ID. JSON and SARIF paths are redacted like every other output that leaves the machine.
 
+## Respond: what to rotate, and the policy entry (STORY-0126)
+
+For each AFFECTED server the terminal output (and `--format json`, under `respond`) adds a **Respond** block:
+
+- **could read:** the *names* of its environment variables, configured headers and credential-looking flags (`--token`, `--api-key`). No value is read into the output.
+- **also set on:** other servers in the same config file that set any of those names, because one rotated secret is often shared.
+- **credential file here:** which well-known credential files exist on this machine (the REACH-001..003 list, plus `~/.claude.json` and `~/.codex/config.toml`, and `.env` files in the working directory). Files are only `stat()`-ed, never opened.
+- **saved tool text:** how many tool definitions `lock --connect --save-tool-text` saved for the server (never the text); `lock --verify --connect` shows what changed.
+
+If an affected version ran, treat what it could read as exposed.
+
+`--policy-out FILE` writes `{"deniedMcpServers": [...]}` for the AFFECTED servers only, in the shape Claude Code's managed settings read ([Control MCP server access](https://code.claude.com/docs/en/managed-mcp)). Each server gets the first of a `serverUrl` (scheme, host, port and path; userinfo and query left off), a `serverCommand` (the exact command and arguments), or a `serverName` entry that the same evaluator `scan` uses for MANAGED-001..005 says matches it. A command with a credential-looking flag or a `${VAR}` falls back to the name so no secret lands in a file an admin deploys; a name entry is weaker (a renamed server escapes it) and the output says so. mcp-audit writes only the file you name, refuses a path inside the managed-settings directory, and writes nothing when no server is AFFECTED. Deploying the file is the admin's step.
+
 ## Transport tags and OpenVEX
 
 A registry advisory can say which transports its vulnerable code runs on (`affected_transports`: `stdio`, `http`, `sse`), with `verified_by` naming who checked it and against what. A server is cleared of a tagged advisory only when it is *provably* stdio: a command launch, no URL, no `--transport`, `-t`, `--port`, `-p`, `--host`, `--sse`, `--http` or similar argument, no `sse`/`http` word in the arguments, no `envFile`, `--env-file` or `cwd` (they can load a transport), and no environment variable named `TRANSPORT`, `PORT`, `HOST`, `BIND` or `LISTEN`. Then the row reads NOT AFFECTED with the tag's source in the evidence, and `scan`'s `SC-004` leaves the CVE out and names it. Everything else keeps the advisory: untagged advisories, a tag without `verified_by`, remote URLs, a launch that could select another transport. `requires_auth` is recorded where the advisory states it and changes no verdict. Five advisories carry a tag today; `scripts/audit_registry.py` prints the count and fails on a tag it cannot use.

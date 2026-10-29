@@ -128,6 +128,8 @@ class Report:
     live: bool = False
     #: ``{"cve", "signals", "line"}`` when the query is a CVE (KEV/EPSS/PoC).
     exploit: dict | None = None
+    #: A ``respond.Respond`` per AFFECTED server (STORY-0126).
+    respond: list[Any] = field(default_factory=list)
 
     def count(self, status: Status) -> int:
         """Rows with *status*."""

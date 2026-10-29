@@ -101,6 +101,7 @@ def render_terminal(report: Report, console: Console, *, show_all: bool) -> None
             console.print(f"    {escape(row.evidence)}")
             if row.config_path:
                 console.print(f"    [dim]{escape(_display_path(row))}[/dim]")
+    _print_respond(report, console)
     hidden = [r for r in report.rows if _hidden(r)]
     if hidden and not show_all:
         other = sum(1 for r in hidden if r.reason == OTHER_PACKAGE)
@@ -131,6 +132,50 @@ def render_terminal(report: Report, console: Console, *, show_all: bool) -> None
             "[dim]COULDN'T CHECK is not 'not affected'. Pin the version, run "
             "`mcp-audit lock`, or pass a lock with --lock.[/dim]"
         )
+
+
+def _print_respond(report: Report, console: Console) -> None:
+    """The Respond block: names to rotate, never values."""
+    if not report.respond:
+        return
+    console.print(
+        "\n[bold]Respond[/bold] [dim](if an affected version ran, treat what it "
+        "could read as exposed; names only, no values were read)[/dim]"
+    )
+    for item in report.respond:
+        names = item.names()
+        console.print(f"  {escape(item.subject)}")
+        console.print(
+            "    could read: "
+            + (escape(", ".join(names)) if names else "no env, header or key flag set")
+        )
+        for other, common in item.shared.items():
+            console.print(
+                f"    also set on {escape(other)} (same config): "
+                f"{escape(', '.join(common))}"
+            )
+        for path, label in item.stores:
+            console.print(f"    credential file here: {escape(path)} - {escape(label)}")
+        if item.tool_text:
+            count, name = item.tool_text
+            console.print(
+                f"    saved tool text: {count} tool(s) in {escape(name)}; "
+                "`mcp-audit lock --verify --connect` shows what changed"
+            )
+
+
+def _respond_dict(item: Any) -> dict[str, Any]:
+    return {
+        "subject": _scrub(item.subject),
+        "could_read": item.names(),
+        "also_set_on": item.shared,
+        "credential_files": [{"path": p, "holds": h} for p, h in item.stores],
+        "saved_tool_text": (
+            {"tools": item.tool_text[0], "file": item.tool_text[1]}
+            if item.tool_text
+            else None
+        ),
+    }
 
 
 def _row_dict(row: Row) -> dict[str, Any]:
@@ -164,6 +209,7 @@ def render_json(report: Report) -> str:
         "notes": [_scrub(n) for n in report.notes],
         "errors": [_scrub(e) for e in report.errors],
         "results": [_row_dict(r) for r in report.rows],
+        "respond": [_respond_dict(i) for i in report.respond],
     }
     return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
 
