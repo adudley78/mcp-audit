@@ -78,6 +78,7 @@ UNDECIDABLE = "undecidable"
 UNEVALUABLE = "unevaluable"
 NO_PACKAGE = "no-package"
 HARNESS_VERSION = "harness-version"
+VENDOR_SERVICE = "vendor-service"
 POSTURE_ONLY = "posture-only"
 OTHER_PACKAGE = "other-package"
 VERSION_OUTSIDE = "version-outside"
@@ -865,7 +866,7 @@ def research_rows(
                 f"{p.product} ({p.vendor})",
                 Status.COULDNT_CHECK,
                 f"{why}; per the write-up: {state}",
-                reason=HARNESS_VERSION,
+                reason=HARNESS_VERSION if record.checks else VENDOR_SERVICE,
                 fixed_in=p.fixed_in,
             )
         )

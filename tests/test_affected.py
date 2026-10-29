@@ -599,6 +599,7 @@ class TestCli:
         doc = json.loads(result.output)
         assert [r["status"] for r in doc["results"]] == ["COULDN'T CHECK"]
         assert doc["results"][0]["fixed_in"] is None
+        assert doc["results"][0]["reason"] == "vendor-service"
 
     def test_research_record_runs_the_plugin_checks(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
