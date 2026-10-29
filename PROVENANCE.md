@@ -1596,10 +1596,10 @@ Read on 2026-10-29; fetched pages are data, quoted only where the record depends
   self-hosted servers allow them); Gemini CLI's form is a default branch named
   `FETCH_HEAD`; auto-update, the default in Claude Code and Codex per AIR, makes it
   zero-click. **Not stated by AIR:** package names for any product (the record gives
-  none), a CVE or GHSA. Cloud Security Alliance research note, 2026-09-19
+  none), a CVE. Cloud Security Alliance research note, 2026-09-19
   (https://labs.cloudsecurityalliance.org/research/csa-research-note-plugin4shell-ai-coding-agent-supply-chain/):
   same versions, "No client fix at disclosure" for Copilot, no CVE assigned as of
-  disclosure; names Air Security, not individual researchers. The individual names come
+  disclosure; dates the disclosure 2026-09-18 (AIR's post is dated 2026-09-17); names Air Security, not individual researchers. The individual names come
   from AIR's own post.
 - **Record format.** Original. The ID scheme mirrors `x_MCPSA` (docs/advisory-feed.md);
   the fields are OSV 1.6.0's (`credits`, `references`, `aliases`), with mcp-audit's

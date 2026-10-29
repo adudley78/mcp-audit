@@ -96,8 +96,20 @@ class TestShippedFile:
         assert "@anthropic-ai" not in text
         assert "@openai" not in text
 
-    def test_record_validates_as_osv_when_jsonschema_is_present(self) -> None:
-        pytest.importorskip("jsonschema")
+    def test_references_are_the_two_sources_the_facts_come_from(self) -> None:
+        rec = load_research_records().lookup(PLUGIN4SHELL)
+        assert rec is not None
+        urls = [u for _, u in rec.references]
+        assert "https://www.air.security/blog-posts/plugin4shell" in urls
+        assert len(urls) == 2
+
+    def test_details_do_not_claim_commands_that_do_not_exist_yet(self) -> None:
+        rec = load_research_records().lookup(PLUGIN4SHELL)
+        assert rec is not None
+        assert "on this machine" not in rec.details
+        assert "GHSA" not in rec.details
+
+    def test_record_validates_as_osv(self) -> None:
         from mcp_audit.advisory.validate import validate_osv  # noqa: PLC0415
 
         for raw in json.loads(SHIPPED.read_text(encoding="utf-8"))["entries"]:
@@ -181,8 +193,109 @@ class TestTolerantLoader:
         assert len(index) == 0 and len(index.skipped) == 1
 
     def test_entry_cap_is_reported(self, tmp_path: Path) -> None:
-        index = load_research_records(_write(tmp_path, [{}] * (MAX_ENTRIES + 1)))
+        entries = [_entry()] * (MAX_ENTRIES + 1)
+        index = load_research_records(_write(tmp_path, entries))
         assert index.load_error and "limit" in index.load_error
+        assert len(index) == 0
+
+    @pytest.mark.parametrize("field", ["credits", "references", "aliases"])
+    def test_wrongly_typed_top_level_lists_skip_not_raise(
+        self, tmp_path: Path, field: str
+    ) -> None:
+        index = load_research_records(
+            _write(
+                tmp_path, [_entry(**{field: "oops"}), _entry(id="x_MCPRS-000000000002")]
+            )
+        )
+        assert len(index) == 1 and len(index.skipped) == 1
+
+    @pytest.mark.parametrize("bad", ["oops", 7, {"a": 1}])
+    def test_wrongly_typed_checks_and_products_skip_not_raise(
+        self, tmp_path: Path, bad: object
+    ) -> None:
+        for key in ("checks", "products"):
+            entry = _entry()
+            meta = {"kind": "research", "products": [], "checks": []}
+            meta[key] = bad
+            entry["database_specific"] = {"mcp_audit": meta}
+            index = load_research_records(_write(tmp_path, [entry]))
+            assert len(index) == 0 and len(index.skipped) == 1, key
+
+    def test_non_object_product_rows_skip_the_record(self, tmp_path: Path) -> None:
+        entry = _entry()
+        entry["database_specific"] = {
+            "mcp_audit": {"kind": "research", "products": [1, 2]}
+        }
+        index = load_research_records(_write(tmp_path, [entry]))
+        assert len(index) == 0 and len(index.skipped) == 1
+
+    @pytest.mark.parametrize("db", ["oops", 7, [], {"mcp_audit": "x"}])
+    def test_wrongly_typed_database_specific_is_not_a_research_record(
+        self, tmp_path: Path, db: object
+    ) -> None:
+        index = load_research_records(_write(tmp_path, [_entry(database_specific=db)]))
+        assert len(index) == 0 and len(index.skipped) == 1
+
+    @pytest.mark.parametrize(
+        "rid",
+        ["x_MCPRS-", "x_MCPRS-XYZ", "x_MCPRS-0000000000012", "x_MCPRS-00000000000G", 5],
+    )
+    def test_malformed_id_shape_is_skipped(self, tmp_path: Path, rid: object) -> None:
+        index = load_research_records(_write(tmp_path, [_entry(id=rid)]))
+        assert len(index) == 0 and len(index.skipped) == 1
+
+    def test_deeply_nested_json_is_a_load_error_not_a_crash(
+        self, tmp_path: Path
+    ) -> None:
+        p = tmp_path / "r.json"
+        p.write_text("[" * 100_000 + "]" * 100_000, encoding="utf-8")
+        index = load_research_records(p)
+        assert len(index) == 0 and index.load_error
+
+    def test_non_utf8_file_is_a_load_error(self, tmp_path: Path) -> None:
+        p = tmp_path / "r.json"
+        p.write_bytes(b"\xff\xfe\x00{")
+        assert load_research_records(p).load_error
+
+    def test_oversized_file_is_refused(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import mcp_audit.registry.research as mod  # noqa: PLC0415
+
+        monkeypatch.setattr(mod, "MAX_FILE_BYTES", 10)
+        p = _write(tmp_path, [_entry()])
+        index = load_research_records(p)
+        assert index.load_error and "over" in index.load_error
+
+    def test_duplicate_ids_keep_the_first_and_report(self, tmp_path: Path) -> None:
+        index = load_research_records(
+            _write(tmp_path, [_entry(summary="first"), _entry(summary="second")])
+        )
+        assert len(index) == 1
+        assert index.records["x_MCPRS-000000000001"].summary == "first"
+        assert any("duplicate" in s for s in index.skipped)
+
+    def test_alias_collision_is_reported_and_first_wins(self, tmp_path: Path) -> None:
+        index = load_research_records(
+            _write(
+                tmp_path,
+                [
+                    _entry(aliases=["A-1"]),
+                    _entry(id="x_MCPRS-000000000002", aliases=["a-1"]),
+                ],
+            )
+        )
+        rec = index.lookup("A-1")
+        assert rec is not None and rec.id == "x_MCPRS-000000000001"
+        assert any("alias" in s for s in index.skipped)
+
+    def test_withdrawn_id_is_remembered_apart_from_unknown(
+        self, tmp_path: Path
+    ) -> None:
+        index = load_research_records(
+            _write(tmp_path, [_entry(withdrawn="2026-01-01T00:00:00Z")])
+        )
+        assert index.withdrawn == {"x_MCPRS-000000000001": "2026-01-01T00:00:00Z"}
 
     def test_alias_lookup_is_case_insensitive(self, tmp_path: Path) -> None:
         index = load_research_records(
@@ -203,6 +316,10 @@ class TestBundling:
                 "(os.path.join(root, 'src/mcp_audit/data'), 'mcp_audit/data')" in text
             ), spec.name
         assert SHIPPED.parent.name == "data"
+
+    def test_wheel_packaging_covers_the_package_data_directory(self) -> None:
+        text = (REPO / "pyproject.toml").read_text(encoding="utf-8")
+        assert 'packages = ["src/mcp_audit"]' in text
 
     def test_loader_default_path_is_the_shipped_file(self) -> None:
         from mcp_audit.registry.research import _resolve_bundled_path  # noqa: PLC0415
