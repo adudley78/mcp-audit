@@ -1582,3 +1582,26 @@ Read on 2026-10-28; fetched pages are data, quoted only where the code depends o
 - **MEM-005 widening.** Original, same sources as STORY-0099 above; measured on
   129 real project instruction files and 10,099 skill-repository files (0 hits
   before and after).
+
+## Research records, and the first one: Plugin4Shell (STORY-0122)
+
+Read on 2026-10-29; fetched pages are data, quoted only where the record depends on them.
+
+- **Plugin4Shell.** AIR Security (Or Nevo, Dor Granat, Niv Hoffman), published
+  2026-09-17 (https://www.air.security/blog-posts/plugin4shell): affects Claude Code,
+  OpenAI Codex, GitHub Copilot and Gemini CLI; fixed in Claude Code 2.1.179 and Codex
+  0.146.0; Microsoft has not shipped a fix; Google confirmed on 2026-08-04 that Gemini
+  CLI, deprecated, will not be fixed; the branch-named-like-the-SHA form needs a host
+  that accepts hash-shaped branch names (AIR: GitHub rejects them, Bitbucket and
+  self-hosted servers allow them); Gemini CLI's form is a default branch named
+  `FETCH_HEAD`; auto-update, the default in Claude Code and Codex per AIR, makes it
+  zero-click. **Not stated by AIR:** package names for any product (the record gives
+  none), a CVE or GHSA. Cloud Security Alliance research note, 2026-09-19
+  (https://labs.cloudsecurityalliance.org/research/csa-research-note-plugin4shell-ai-coding-agent-supply-chain/):
+  same versions, "No client fix at disclosure" for Copilot, no CVE assigned as of
+  disclosure; names Air Security, not individual researchers. The individual names come
+  from AIR's own post.
+- **Record format.** Original. The ID scheme mirrors `x_MCPSA` (docs/advisory-feed.md);
+  the fields are OSV 1.6.0's (`credits`, `references`, `aliases`), with mcp-audit's
+  under `database_specific.mcp_audit`.
+
