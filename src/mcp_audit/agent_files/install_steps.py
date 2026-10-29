@@ -375,6 +375,25 @@ _ARCHIVE_PASSWORD_RE = re.compile(
     r"|\.setpassword\s{0,3}\("
     r"|\b(?:extractall|extract|open)\s{0,3}\([^)\n]{0,200}?\bpwd\s{0,3}="
 )
+#: ClawHavoc (Koi Security, 2026): a skill's "Prerequisites" told macOS users
+#: to copy a script from a public paste service into Terminal, and Windows
+#: users to open a password-protected archive.  Only the two paste services a
+#: report names are matched (PolySwarm: glot.io, rentry.co), only beside an
+#: instruction to copy, paste or run, and the archive shape only when the
+#: sentence asks the reader to extract or run what is inside.
+_PASTE_HOST_RE = re.compile(
+    r"(?i)(?<![\w.-])(?:glot\.io|rentry\.(?:co|org))(?![\w-])/?[^\s)>\"'`]{0,200}"
+)
+_PASTE_CUE_RE = re.compile(
+    r"(?i)\b(?:paste|copy|terminal|shell|command prompt|powershell|run|execute)\b"
+)
+_PROTECTED_ARCHIVE_RE = re.compile(
+    r"(?i)\bpassword[- ]protected\b[^\n]{0,40}?\b(?:zip|archive|7z|rar)\b"
+    r"|\b(?:zip|archive|7z|rar)\b[^\n]{0,60}?\bis\s+password[- ]protected\b"
+)
+_ARCHIVE_RUN_CUE_RE = re.compile(
+    r"(?i)\b(?:extract|unzip|unpack|open|run|launch|execute|install)\b"
+)
 _DNS_TXT_RE = re.compile(
     r"(?i)\bdig\b[^\n]{0,200}?\btxt\b"
     r"|\bnslookup\b[^\n]{0,200}?-(?:type|q|querytype)=txt\b"
@@ -691,6 +710,8 @@ _GATE_LITERALS: dict[str, tuple[str, ...]] = {
     "reverse": ("/dev/tcp", "/bin/", ">&", "socat"),
     "url": ("://",),
     "dns": ("txt",),
+    "paste": ("glot.io", "rentry."),
+    "protected_archive": ("protected",),
     "py_decode": ("decode", "unhexlify", "fromhex", "decompress", "a2b_"),
     "code_fetch": (
         "urlopen",
@@ -704,7 +725,9 @@ _GATE_LITERALS: dict[str, tuple[str, ...]] = {
 }
 _ALL_GATES = frozenset(_GATE_LITERALS)
 #: Gates used by the window rules rather than the per-line rules.
-_WINDOW_GATES = frozenset({"dns", "py_decode", "code_fetch"})
+_WINDOW_GATES = frozenset(
+    {"dns", "py_decode", "code_fetch", "paste", "protected_archive"}
+)
 #: Off only in the parity test.
 _GATING = True
 
@@ -1184,6 +1207,22 @@ def install_step_hits(rel: str, text: str) -> list[Hit]:
     if "dns" in active:
         for num in _window_hits(lines, _DNS_TXT_RE, _EXEC_SINK_RE, 5):
             add(num, Severity.HIGH, "a DNS TXT record is fetched and executed")
+    if "paste" in active:
+        for num in _window_hits(lines, _PASTE_HOST_RE, _PASTE_CUE_RE, 2):
+            add(
+                num,
+                Severity.HIGH,
+                "code is fetched from a public paste service (the ClawHavoc"
+                " macOS lure, Koi Security)",
+            )
+    if "protected_archive" in active:
+        for num in _window_hits(lines, _PROTECTED_ARCHIVE_RE, _ARCHIVE_RUN_CUE_RE, 2):
+            add(
+                num,
+                Severity.HIGH,
+                "the reader is told to open a password-protected archive (the"
+                " ClawHavoc Windows lure, Koi Security)",
+            )
     if "py_decode" in active:
         for num in _window_hits(lines, _PY_DECODE_RE, _PY_EXEC_RE, 3):
             add(num, Severity.HIGH, "decoded data passed to exec/eval/compile")

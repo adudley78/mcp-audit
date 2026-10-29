@@ -469,6 +469,50 @@ is replaced with `[REDACTED]`.
 
 ---
 
+## ClawHavoc shapes against SKILL-005..008 (STORY-0133)
+
+Koi Security (now part of Palo Alto Networks) reported ClawHavoc on 2026-02-03:
+an audit of 2,857 ClawHub skills for OpenClaw found 341 malicious, 335 of them
+one campaign. Koi's own post now redirects to a Palo Alto Networks page, so the
+technique below is recorded from the secondary reports listed in
+[PROVENANCE.md](../PROVENANCE.md), which this project read; no sample, skill
+package, paste or archive was fetched. Each skill had a "Prerequisites" section:
+on Windows a password-protected ZIP hosted on GitHub; on macOS a script copied
+from a public paste service into Terminal (obfuscated, said to decode to a
+`curl` that fetches a second-stage shell script), ending in Atomic Stealer
+(AMOS). A few other skills hid a reverse shell in working code or sent a local
+`.env` to a webhook.
+
+`tests/fixtures/clawhavoc/` holds one synthetic skill per shape (RFC 5737
+addresses, defanged hosts; the test refangs them in a temp copy).
+`tests/test_clawhavoc.py` pins the measurement:
+
+| Fixture (shape) | SKILL-005 | SKILL-006 | SKILL-007 | SKILL-008 |
+|---|---|---|---|---|
+| macOS: `echo <b64> \| base64 -D \| bash` | HIGH | no | no | no (no bundled code) |
+| macOS: `bash -c "$(curl … http://<ip>/…)"` second stage | HIGH | no | no | no |
+| macOS: prose only, "copy the script from <paste service> into Terminal" | HIGH (new) | no | no | no |
+| Windows: prose only, "password-protected" ZIP to extract and run | HIGH (new) | no | no | no |
+| Windows: `7z x … -p<password>` then run the exe | HIGH | no | no | no |
+| Reverse shell in a bundled script (`/dev/tcp`) | HIGH | no | no | HIGH |
+| `.env` read and POSTed to a webhook (bundled script) | no (gap) | no | no | no |
+
+Before STORY-0133 the two prose-only rows were missed. Two narrow literal
+shapes now report as SKILL-005 HIGH: a line naming one of the two paste
+services a report names (`glot.io`, `rentry.co`) within two lines of
+"paste", "copy", "run", "execute", "Terminal" or "shell"; and "password
+protected" next to zip/archive/7z/rar within two lines of "extract", "open",
+"run", "launch", "execute" or "install". False positives: 0 on
+`demo/configs/`, 0 on the committed top-100 npm data
+(`docs/research/2026-10-29-top100-npm/`, 5 files), 0 on every benign skill
+fixture; across the 694 text files of this repository, 10 lines match, all
+documentation or source that names paste sites or archives (for example the
+SANDBOX-003 host list), none a skill. The 1,129-skill benign corpus behind the
+SKILL-005 calibration is not in the repository and was not re-run. The `.env`
+exfiltration shape is not detected: see GAPS.md.
+
+---
+
 ## Usage
 
 ### Standalone scan

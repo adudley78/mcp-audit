@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **ClawHavoc credited and measured against the skill checks (STORY-0133).** Koi Security (now part of Palo Alto Networks) reported 341 malicious ClawHub skills whose "Prerequisites" section sent users to a password-protected ZIP (Windows) or a script pasted from a public paste service into Terminal (macOS), ending in Atomic Stealer. Synthetic fixtures for each published shape are in `tests/fixtures/clawhavoc/`; SKILL-005 already caught the command forms and the bundled reverse shell (with SKILL-008). Two prose-only forms were missed and are now SKILL-005 HIGH: naming `glot.io` or `rentry.co` beside an instruction to paste or run, and a "password-protected" archive the reader is told to extract or run. 0 false positives on `demo/configs/`, the top-100 npm data and the benign skill fixtures. A skill that sends `.env` to a webhook is still not detected (GAPS.md). SKILL-005 text now cites the research. See `docs/agent-files.md`.
+
 ---
 
 ## [0.24.0] - 2026-10-29
