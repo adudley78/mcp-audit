@@ -291,6 +291,10 @@ def load_research_records(path: Path | None = None) -> ResearchIndex:
         unparseable or wrongly shaped file gives an empty index with
         ``load_error`` explaining why.
     """
+    from mcp_audit import bundle  # noqa: PLC0415
+
+    if path is None:
+        path = bundle.override("research-records.json")
     target = path if path is not None else _resolve_bundled_path()
     index = ResearchIndex()
     try:

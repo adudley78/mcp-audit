@@ -44,6 +44,7 @@ from mcp_audit.affected.match import (
 from mcp_audit.affected.query import Query, QueryError, parse_query
 from mcp_audit.affected.render import render_json, render_sarif, render_terminal
 from mcp_audit.cli import app
+from mcp_audit.cli._bundle import open_bundle
 from mcp_audit.cli._helpers import _write_output
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
@@ -366,6 +367,24 @@ def affected(
         "--live",
         help="Fetch an advisory that is not bundled from OSV.dev (network).",
     ),
+    bundle: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--bundle",
+        help=(
+            "Read the registry, known-malicious list, research records and exploit "
+            "signals from this signed bundle directory (no network). Verified like "
+            "`feed verify`; an unsigned, expired or altered bundle stops the run. "
+            "See docs/air-gapped.md."
+        ),
+    ),
+    bundle_key: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--bundle-key",
+        help=(
+            "Minisign public key for --bundle (default: mcp-audit's project key, "
+            "or $MCP_AUDIT_SIGNING_PUBKEY)."
+        ),
+    ),
     offline: bool = typer.Option(  # noqa: B008
         False, "--offline", help="Refuse any network flag (this command is offline)."
     ),
@@ -398,12 +417,19 @@ def affected(
         raise _fail("--output needs --format json, sarif or openvex")
 
     report = Report(query=parsed)
+    registry_path = None
+    if bundle is not None:
+        if live:
+            raise _fail("--bundle reads no network; it cannot be combined with --live")
+        opened = open_bundle(bundle, bundle_key, err_console)
+        registry_path = opened.path("known-servers.json")
+        report.sources.append(opened.line())
     fix_pairs: list[tuple[ServerConfig, Row]] = []
     fix_rules: list = []
     fix_registry = None
     policy_msgs: list[str] = []
     try:
-        registry = load_registry()
+        registry = load_registry(registry_path)
     except RegistryLoadError as exc:
         raise _fail(f"the registry could not be loaded: {exc}") from exc
     malicious = load_known_malicious()

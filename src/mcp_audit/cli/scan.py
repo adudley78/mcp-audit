@@ -24,6 +24,7 @@ from mcp_audit import cli as _cli
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
 from mcp_audit.analyzers import git_exec as _git_exec
 from mcp_audit.analyzers.auth import AuthAnalyzer
+from mcp_audit.analyzers.config_hygiene import ConfigHygieneAnalyzer
 from mcp_audit.analyzers.credentials import CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import PoisoningAnalyzer
 from mcp_audit.analyzers.rug_pull import (
@@ -43,6 +44,7 @@ from mcp_audit.analyzers.transport import TransportAnalyzer
 from mcp_audit.attestation import verifier as _attestation_verifier
 from mcp_audit.baselines.manager import BaselineManager
 from mcp_audit.cli import app, console
+from mcp_audit.cli._bundle import open_bundle
 from mcp_audit.cli._helpers import _write_output
 from mcp_audit.discovery import (
     AGENT_DEFINITION_CLIENT,
@@ -428,8 +430,13 @@ def _print_owasp_report(result: ScanResult, con: Console) -> None:
 def _build_custom_analyzers(
     registry: Path | None,
     offline_registry: bool,
+    keep_hygiene: bool = False,
 ) -> list | None:
     """Build a custom analyzer list when a registry override is requested.
+
+    ``keep_hygiene`` keeps the config-hygiene analyzer in the list, as the
+    default list has it; ``--bundle`` sets it so an air-gapped scan runs the
+    same checks as an online one.  (``--registry`` alone still omits it.)
 
     Returns ``None`` when the default scanner analyzers should be used (i.e.
     neither ``--registry`` nor ``--offline-registry`` was supplied).
@@ -440,11 +447,13 @@ def _build_custom_analyzers(
         registry_path=registry,
         offline_registry=offline_registry,
     )
+    hygiene = [ConfigHygieneAnalyzer()] if keep_hygiene else []
     return [
         PoisoningAnalyzer(),
         CredentialsAnalyzer(),
         TransportAnalyzer(registry=supply_chain.registry),
         supply_chain,
+        *hygiene,
         AuthAnalyzer(),
     ]
 
@@ -1894,6 +1903,25 @@ def scan(
             "is used and its date is printed. Cannot be combined with --offline."
         ),
     ),
+    bundle: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--bundle",
+        help=(
+            "Read the registry, known-malicious list, research records and exploit "
+            "signals from this signed bundle directory instead of the installed "
+            "copies (no network). The bundle is verified like `feed verify` "
+            "(signed, unexpired, not rolled back) or the scan stops. See "
+            "docs/air-gapped.md."
+        ),
+    ),
+    bundle_key: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--bundle-key",
+        help=(
+            "Minisign public key for --bundle (default: mcp-audit's project key, "
+            "or $MCP_AUDIT_SIGNING_PUBKEY)."
+        ),
+    ),
     vex: Path | None = typer.Option(  # noqa: B008
         None,
         "--vex",
@@ -2036,7 +2064,24 @@ def scan(
         live=live,
     )
 
-    analyzers = _build_custom_analyzers(registry, offline_registry)
+    if bundle is not None:
+        if registry is not None:
+            con.print(
+                "[red]Error:[/red] --bundle supplies the registry; drop --registry."
+            )
+            raise typer.Exit(2)
+        if live or check_vulns or verify_hashes or verify_signatures or connect:
+            con.print(
+                "[red]Error:[/red] --bundle reads no network; it cannot be combined "
+                "with --live, --check-vulns, --verify-hashes, --verify-signatures "
+                "or --connect."
+            )
+            raise typer.Exit(2)
+        registry = open_bundle(bundle, bundle_key, con).path("known-servers.json")
+
+    analyzers = _build_custom_analyzers(
+        registry, offline_registry, keep_hygiene=bundle is not None
+    )
     extra_rules_dirs = _collect_extra_rules_dirs(rules_dir, con)
 
     # Load the governance policy early so we can extract custom scoring weights
