@@ -30,12 +30,15 @@ def test_offline_registry_also_keeps_hygiene() -> None:
     assert any(isinstance(a, ConfigHygieneAnalyzer) for a in custom)
 
 
-def _hygiene_ids(args: list[str]) -> set[str]:
+def _hygiene_ids(args: list[str]) -> list[str]:
     out = runner.invoke(
         app, ["scan", str(REPO / "demo" / "configs"), "-f", "json", *args]
     ).output
     doc = json.loads(out[out.index("{") :])
-    return {f["id"] for f in doc["findings"] if f.get("analyzer") == "config_hygiene"}
+    # A sorted list, not a set, so a duplicated finding would show.
+    return sorted(
+        f["id"] for f in doc["findings"] if f.get("analyzer") == "config_hygiene"
+    )
 
 
 def test_scan_with_registry_reports_the_same_hygiene_findings() -> None:
