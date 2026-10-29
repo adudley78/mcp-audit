@@ -47,6 +47,11 @@ def _clean(text: str, limit: int = 100) -> str:
     return _UNSAFE.sub("?", text)[:limit]
 
 
+def display_name(path: Path) -> str:
+    """The file name as it appears in output (no directories, printable)."""
+    return _clean(path.name)
+
+
 def _read(path: Path) -> tuple[dict | None, str | None]:
     """The file as a JSON object, or ``(None, why)``; never raises."""
     flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
@@ -134,11 +139,12 @@ def load_machines(
         if not isinstance(raw, list):
             problems.append(
                 Row(
-                    f"{machine_id}",
+                    f"scan file {name}",
                     Status.COULDNT_CHECK,
                     "the scan file has no `servers` list (an older mcp-audit, or "
                     "not a scan file), so none of its servers were checked",
                     reason=NO_SERVER_DATA,
+                    machine=machine_id,
                 )
             )
             errors.append(f"fleet file {name} has no servers list")
@@ -160,11 +166,12 @@ def load_machines(
             errors.append(f"fleet file {name}: {bad} server entr(ies) skipped")
             problems.append(
                 Row(
-                    f"{machine_id}",
+                    f"scan file {name}",
                     Status.COULDNT_CHECK,
                     f"{bad} server entr{'y' if bad == 1 else 'ies'} in the scan "
                     "file could not be read, so they were not checked",
                     reason=UNREADABLE,
+                    machine=machine_id,
                 )
             )
         machines.append(Machine(machine_id, name, servers))

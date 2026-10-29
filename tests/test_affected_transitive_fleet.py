@@ -407,6 +407,32 @@ class TestFleet:
         r = _run(QUERY, "--fleet", str(m), "-f", "json")
         assert "merge" in _json(r)["results"][0]["evidence"]
 
+    def test_research_record_with_fleet_is_refused(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.cli import affected as cli_affected
+
+        called: list[bool] = []
+        monkeypatch.setattr(
+            cli_affected,
+            "_plugin_check_findings",
+            lambda *a, **k: called.append(True) or [],
+        )
+        a = _write(tmp_path, "a.json", _scan([_srv("lp", "leftpad@1.0.0")]))
+        r = _run("x_MCPRS-4ad8c07d80d7", "--fleet", str(a), "-f", "json")
+        assert r.exit_code == 2
+        assert not called
+
+    def test_fleet_list_counts_each_file_once(self, tmp_path: Path) -> None:
+        weird = _write(
+            tmp_path, "w.json", _scan([5, _srv("ok", "leftpad@3.0.0")], "hostX")
+        )
+        r = _run(QUERY, "--fleet", str(weird), "-f", "json")
+        doc = _json(r)
+        assert doc["fleet"] == ["w.json"]
+        problem = [x for x in doc["results"] if x["status"] == "COULDN'T CHECK"]
+        assert problem and problem[0]["machine"] == "hostX"
+
     def test_incompatible_flags(self, tmp_path: Path) -> None:
         a = _write(tmp_path, "a.json", _scan([_srv("lp", "leftpad@1.0.0")]))
         cfg = _cfg(tmp_path, {"w": _wrapper()})

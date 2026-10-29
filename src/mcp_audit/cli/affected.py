@@ -318,8 +318,8 @@ def _decide_fleet(
     from dataclasses import replace  # noqa: PLC0415
 
     machines, problems = fleet_mod.load_machines(files, report.errors)
-    report.fleet = [m.source for m in machines] + [
-        p.subject.removeprefix("scan file ") for p in problems
+    report.fleet = [
+        fleet_mod.display_name(f) for f in files[: fleet_mod.MAX_FLEET_FILES]
     ]
     report.notes.append(
         "--fleet: answers come from the scan files. The Respond block and the "
@@ -543,7 +543,22 @@ def affected(
             )
         report.sources.extend(ruleset.sources)
 
-    if ruleset.research is not None:
+    if fleet and ruleset.research is not None and not ruleset.rules:
+        raise _fail(
+            "research records are answered from this machine's harness installs, "
+            "not from scan files; drop --fleet"
+        )
+    if transitive and not ruleset.rules:
+        report.notes.append(
+            "--transitive: this advisory names no package, so there was no "
+            "dependency tree to walk"
+        )
+    if ruleset.research is not None and fleet:
+        report.notes.append(
+            "--fleet: the research-record rows were not answered; they read this "
+            "machine's harness installs, not the scan files"
+        )
+    elif ruleset.research is not None:
         check_ids = ruleset.research.checks
         fetch = (
             (lambda: _plugin_check_findings(report.errors))

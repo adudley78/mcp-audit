@@ -113,7 +113,7 @@ def _scan_dependencies(
             registry.get_npm(dep.name) if eco == "npm" else registry.get_pypi(dep.name)
         )
         source = f"dependency of {server_pkg}@{server_version} (deps.dev)"
-        launch = Launch(eco, dep.name, dep.version, source, entry)
+        launch = Launch(eco, _clean(dep.name), _clean(dep.version), source, entry)
         for rule in rules:
             if not rule.matches(launch):
                 continue
