@@ -20,6 +20,7 @@ class NetworkPolicy:
     verify_signatures: bool = False
     check_vulns: bool = False
     connect: bool = False
+    live: bool = False
 
     @property
     def any_network(self) -> bool:
@@ -30,6 +31,7 @@ class NetworkPolicy:
                 self.verify_signatures,
                 self.check_vulns,
                 self.connect,
+                self.live,
             )
         )
 
@@ -53,6 +55,8 @@ def require_offline_compatible(policy: NetworkPolicy, offline: bool) -> None:
         conflicts.append("--check-vulns")
     if policy.connect:
         conflicts.append("--connect")
+    if policy.live:
+        conflicts.append("--live")
 
     if conflicts:
         flags = ", ".join(conflicts)
