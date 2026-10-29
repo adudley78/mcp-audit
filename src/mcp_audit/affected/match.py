@@ -803,6 +803,7 @@ _PRODUCT_STATUS = {
     "fixed": "fixed in {fixed_in}",
     "unfixed": "not fixed at disclosure",
     "wontfix": "not going to be fixed (vendor statement)",
+    "fixed-server-side": "fixed in the vendor's service (no client update)",
 }
 
 

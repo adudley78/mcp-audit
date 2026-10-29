@@ -587,7 +587,7 @@ class TestCli:
         assert result.exit_code == 0
         out = " ".join(result.output.split())
         assert "COULDN'T CHECK" in out and "Context7 MCP (Upstash)" in out
-        assert "fixed in 2026-02-23 (server-side)" in out
+        assert "fixed in the vendor's service (no client update)" in out
         assert "No mcp-audit check tests this condition" in out
         # The plugin-directory wording belongs to Plugin4Shell only.
         assert "plugin" not in out.lower()
@@ -598,7 +598,7 @@ class TestCli:
         assert result.exit_code == 0
         doc = json.loads(result.output)
         assert [r["status"] for r in doc["results"]] == ["COULDN'T CHECK"]
-        assert doc["results"][0]["fixed_in"] == "2026-02-23 (server-side)"
+        assert doc["results"][0]["fixed_in"] is None
 
     def test_research_record_runs_the_plugin_checks(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

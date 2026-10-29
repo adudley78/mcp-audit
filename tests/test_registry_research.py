@@ -146,8 +146,13 @@ class TestContextCrush:
     def test_one_product_fixed_server_side_and_no_checks(self) -> None:
         rec = self._rec()
         (p,) = rec.products  # type: ignore[attr-defined]
-        assert (p.product, p.vendor, p.status) == ("Context7 MCP", "Upstash", "fixed")
-        assert p.fixed_in is not None and "server-side" in p.fixed_in
+        assert (p.product, p.vendor, p.status) == (
+            "Context7 MCP",
+            "Upstash",
+            "fixed-server-side",
+        )
+        assert p.fixed_in is None
+        assert "2026-02-23" in p.note
         assert "not confirmed by Upstash" in p.note
         assert rec.checks == ()  # type: ignore[attr-defined]
 

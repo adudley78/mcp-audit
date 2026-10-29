@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Research record: ContextCrush (STORY-0134).** Eli Ainhorn of Noma Security showed on 2026-03-05 that Context7's Custom Rules were served verbatim by the Context7 MCP server to every user's agent, so a library owner's text acted as trusted documentation; the proof of concept read `.env` files, posted them to an attacker's GitHub issue and deleted files. Noma reports a server-side fix on 2026-02-23; Upstash's confirmation was not found. No CVE, no client version, and no mcp-audit check tests it, so `mcp-audit affected x_MCPRS-32fc646f6f96` answers COULDN'T CHECK with that statement and says nothing was run. A "third-party content into context" source pair was measured and not added (GAPS.md, `docs/severity-framework.md`).
+- **Research record: ContextCrush (STORY-0134).** Eli Ainhorn of Noma Security showed on 2026-03-05 that Context7's Custom Rules were served verbatim by the Context7 MCP server to every user's agent, so a library owner's text acted as trusted documentation; the proof of concept read `.env` files, posted them to an attacker's GitHub issue and deleted files. Noma reports a server-side fix on 2026-02-23; Upstash's confirmation was not found. No CVE, no client version, and no mcp-audit check tests it, so `mcp-audit affected x_MCPRS-32fc646f6f96` answers COULDN'T CHECK with that statement and says nothing was run. Research records gain a product status, `fixed-server-side`, for a fix made in the vendor's own service (`fixed_in` stays null); an older mcp-audit skips such a record and reports it in its errors. A "third-party content into context" source pair was measured and not added (GAPS.md, `docs/severity-framework.md`).
 
 ---
 

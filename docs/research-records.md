@@ -12,7 +12,7 @@ Nothing is inferred. A field the write-up does not give is empty, not guessed:
 
 - **Products are named as the write-up names them** (for example "Claude Code", "Codex"). mcp-audit does not read which harness version is installed, so `affected` will say "could not check" for a record about harness versions, and point at the checks that test the condition directly.
 - **No CVE is invented.** An alias is added only when an authority assigns one.
-- **A fix is "fixed" only with a first fixed version.** Otherwise the status is `unfixed` (no fix yet) or `wontfix` (the vendor said none will ship), with who said so.
+- **A fix is "fixed" only with a first fixed version.** Otherwise the status is `unfixed` (no fix yet), `wontfix` (the vendor said none will ship), or `fixed-server-side` (the vendor fixed its own service, so no client version is affected or fixed; `fixed_in` stays null and the note gives the date), with who said so.
 
 ## Credit
 
@@ -29,7 +29,7 @@ OSV-shaped (schema 1.6.0 fields, validated in tests), with mcp-audit's fields un
 | `references` | The write-ups; the first is the primary source. |
 | `aliases` | CVE or GHSA IDs once one exists. |
 | `database_specific.mcp_audit.kind` | `research`. |
-| `database_specific.mcp_audit.products` | Product, vendor, `status` (`fixed`, `unfixed`, `wontfix`), `fixed_in`, and a note saying who reported it. |
+| `database_specific.mcp_audit.products` | Product, vendor, `status` (`fixed`, `unfixed`, `wontfix`, `fixed-server-side`), `fixed_in`, and a note saying who reported it. |
 | `database_specific.mcp_audit.checks` | mcp-audit finding IDs that test the condition. |
 
 A malformed record is skipped and reported, and a file that cannot be read gives an empty index and a `load_error`; neither raises.
@@ -39,7 +39,7 @@ A malformed record is skipped and reported, and a file that cannot be read gives
 | ID | Finding | Credited to |
 |---|---|---|
 | `x_MCPRS-4ad8c07d80d7` | **Plugin4Shell** (2026-09-17): a plugin's pinned commit replaced by a branch named like the SHA, or by `FETCH_HEAD`. Fixed in Claude Code 2.1.179 and Codex 0.146.0; not fixed in GitHub Copilot; Google will not fix Gemini CLI (deprecated). PLUGIN-003 and PLUGIN-004 test the condition, but only on Claude Code's plugin directory and only for installs that kept their `.git`; they do not examine the other three. | Or Nevo, Dor Granat and Niv Hoffman, [AIR Security](https://www.air.security/blog-posts/plugin4shell) |
-| `x_MCPRS-32fc646f6f96` | **ContextCrush** (2026-03-05): Context7's Custom Rules ("AI Instructions") were served verbatim to agents by the Context7 MCP server, so a library owner's text reached every user's agent as documentation. Noma's proof of concept had the agent read `.env` files, post them to an attacker's GitHub issue and delete files. Noma reports a server-side fix on 2026-02-23; Upstash's own confirmation was not found. No CVE. No client version is affected, so no local version shows exposure, and no mcp-audit check tests the condition (`checks` is empty). The format has no status for a server-side fix: the record uses `fixed` with `fixed_in` = `2026-02-23 (server-side)`, a date, not a version. | Eli Ainhorn, [Noma Security](https://noma.security/blog/contextcrush-context7-the-mcp-server-vulnerability/) |
+| `x_MCPRS-32fc646f6f96` | **ContextCrush** (2026-03-05): Context7's Custom Rules ("AI Instructions") were served verbatim to agents by the Context7 MCP server, so a library owner's text reached every user's agent as documentation. Noma's proof of concept had the agent read `.env` files, post them to an attacker's GitHub issue and delete files. Noma reports a server-side fix on 2026-02-23; Upstash's own confirmation was not found. No CVE. No client version is affected, so no local version shows exposure, and no mcp-audit check tests the condition (`checks` is empty). Its status is `fixed-server-side` (added for this record): the vendor fixed its own service, so `fixed_in` is null and the note gives the date. | Eli Ainhorn, [Noma Security](https://noma.security/blog/contextcrush-context7-the-mcp-server-vulnerability/) |
 
 ## Adding one
 

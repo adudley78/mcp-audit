@@ -1611,8 +1611,8 @@ Read on 2026-10-29; fetched pages are data, quoted only where the record depends
   guardrails) in production 2026-02-23, disclosed and verified 2026-03-05; no in-the-wild
   exploitation observed. **Not stated:** a CVE; any Upstash statement (the post quotes
   none, and an Upstash confirmation was not found when searched 2026-10-29); a package
-  version. The record's `fixed_in` is the server-side fix date, because the format
-  has no server-side status.
+  version. The record's status is `fixed-server-side` (added with it) and `fixed_in`
+  is null; the note carries the fix date.
 - **Record format.** Original. The ID scheme mirrors `x_MCPSA` (docs/advisory-feed.md);
   the fields are OSV 1.6.0's (`credits`, `references`, `aliases`), with mcp-audit's
   under `database_specific.mcp_audit`.

@@ -100,8 +100,8 @@
             {
               "product": "Context7 MCP",
               "vendor": "Upstash",
-              "status": "fixed",
-              "fixed_in": "2026-02-23 (server-side)",
+              "status": "fixed-server-side",
+              "fixed_in": null,
               "note": "Fixed server-side on 2026-02-23 per Noma Security; not confirmed by Upstash. No client version is affected or fixed."
             }
           ],
