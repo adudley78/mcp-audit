@@ -2156,3 +2156,17 @@ query lists all three servers (two NOT AFFECTED on other packages, one COULDN'T
 CHECK with no package); the research record lists four COULDN'T CHECK product rows
 and never NOT AFFECTED; the unknown ID exits 2 and suggests `--live`.
 
+
+---
+
+## `lock --save-tool-text` (STORY-0123)
+
+```bash
+mcp-audit lock . --connect --save-tool-text
+ls mcp-lock.tools.json && git diff --stat mcp-lock.json
+```
+
+**Expected:** both files written; `mcp-lock.json` differs from a plain `lock --connect` only in
+timestamps. Change a tool description on the server, then `mcp-audit lock --verify --connect`:
+`LOCK-008` shows `[-old-] {+new+}`, exit 1. Edit `mcp-lock.tools.json` by hand and re-run: a "out of
+step" note, no diff, same exit code. `--format pr-comment` prints before/after in code fences.

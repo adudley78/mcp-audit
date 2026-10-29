@@ -28,10 +28,10 @@ from mcp_audit.analyzers.rug_pull import server_key
 from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
 from mcp_audit.cli import app, console
 from mcp_audit.discovery import discover_project_configs
-from mcp_audit.lock import tool_digests
+from mcp_audit.lock import tool_digests, tool_text
 from mcp_audit.lock.identity import launch_carries_secret
 from mcp_audit.lock.model import LOCK_FILENAME
-from mcp_audit.lock.verifier import servers_to_connect
+from mcp_audit.lock.verifier import render_pr_comment, servers_to_connect
 from mcp_audit.lock.verifier import verify as verify_lock
 from mcp_audit.lock.writer import (
     LockWriteError,
@@ -214,7 +214,7 @@ def lock(
         "terminal",
         "--format",
         "-f",
-        help="Output format for --verify: terminal, json, sarif",
+        help="Output format for --verify: terminal, json, sarif, pr-comment",
     ),
     connect: bool = typer.Option(  # noqa: B008
         False,
@@ -233,6 +233,25 @@ def lock(
         help=(
             "Bearer token sent to remote (SSE/HTTP) servers during --connect. "
             "Never stored or logged."
+        ),
+    ),
+    save_tool_text: bool = typer.Option(  # noqa: B008
+        False,
+        "--save-tool-text",
+        help=(
+            "With --connect: also write the tool definitions themselves to "
+            "mcp-lock.tools.json beside the lock, so `--verify --connect` can "
+            "show what changed in a tool, not only that it did. mcp-lock.json "
+            "is unchanged."
+        ),
+    ),
+    tool_text_path: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--tool-text-path",
+        help=(
+            "Where the tool-text file is written (with --save-tool-text) or "
+            "read (with --verify --connect). Default: mcp-lock.tools.json "
+            "beside the lock."
         ),
     ),
     if_present: bool = typer.Option(  # noqa: B008
@@ -269,6 +288,19 @@ def lock(
 
     lock_path = output.resolve() if output else root / LOCK_FILENAME
 
+    if (save_tool_text or tool_text_path) and not connect:
+        console.print(
+            "[red]Error:[/red] --save-tool-text and --tool-text-path need --connect."
+        )
+        raise typer.Exit(2)
+    if save_tool_text and verify:
+        console.print(
+            "[red]Error:[/red] --save-tool-text writes; it cannot be used "
+            "with --verify."
+        )
+        raise typer.Exit(2)
+    text_path = tool_text.tool_text_path(lock_path, tool_text_path)
+
     if connect:
         require_offline_compatible(NetworkPolicy(connect=True), offline)
         problem = _sdk_problem()
@@ -288,6 +320,7 @@ def lock(
             allow_unverified=allow_unverified,
             connect=connect,
             connect_token=connect_token,
+            tool_text_file=text_path,
         )
         return
 
@@ -300,6 +333,7 @@ def lock(
         accept=accept,
         connect=connect,
         connect_token=connect_token,
+        tool_text_file=text_path if (save_tool_text or tool_text_path) else None,
     )
 
 
@@ -313,6 +347,7 @@ def _run_write(
     accept: bool,
     connect: bool = False,
     connect_token: str | None = None,
+    tool_text_file: Path | None = None,
 ) -> None:
     """Handle plain ``lock`` and ``lock --accept`` (same regeneration)."""
     servers = _discover_lock_servers(root, include_user, console)
@@ -332,6 +367,7 @@ def _run_write(
     existing_doc = load_existing(lock_path)
     tool_records: dict[str, dict] | None = None
     tool_failures: list[tuple[str, str]] = []
+    text_records: dict[str, dict] = {}
     discarded = False
     if connect:
         try:
@@ -351,6 +387,7 @@ def _run_write(
             tool_records[server_key(server)] = tool_digests.server_record(
                 enumeration.tools
             )
+            text_records[server_key(server)] = tool_text.server_text(enumeration.tools)
 
     registry = None if offline else _load_registry(registry_path, console)
     try:
@@ -399,6 +436,9 @@ def _run_write(
                 "cannot see it change. Move it to an environment variable."
             )
 
+    if connect and tool_text_file is not None:
+        _write_tool_text(tool_text_file, text_records, set(doc["servers"]))
+
     if connect:
         if discarded:
             console.print(
@@ -426,6 +466,24 @@ def _run_write(
         console.print(f"  {finding.evidence}")
 
 
+def _write_tool_text(path: Path, records: dict[str, dict], keep: set[str]) -> None:
+    """Write the tool-text companion file (``--save-tool-text``)."""
+    existing, problem = tool_text.load(path)
+    if problem:
+        console.print(f"[yellow]WARN[/yellow] {problem}; starting it over.")
+    try:
+        size = tool_text.write(path, tool_text.merge(existing, records, keep))
+    except OSError as exc:
+        console.print(f"[yellow]WARN[/yellow] tool text not saved: {exc}")
+        return
+    console.print(f"Tool text saved for {len(records)} server(s).  → {path}")
+    if size > tool_text.WARN_BYTES:
+        console.print(
+            f"[yellow]WARN[/yellow] {path.name} is {size / 1_000_000:.1f} MB; "
+            "consider keeping it out of version control (see docs/lock.md)."
+        )
+
+
 def _run_verify(
     root: Path,
     lock_path: Path,
@@ -438,6 +496,7 @@ def _run_verify(
     allow_unverified: bool = False,
     connect: bool = False,
     connect_token: str | None = None,
+    tool_text_file: Path | None = None,
 ) -> None:
     """Handle ``lock --verify`` (and ``--verify --resolve`` / ``--connect``).
 
@@ -452,7 +511,7 @@ def _run_verify(
     see :func:`mcp_audit.lock.verifier.verify`'s ``allow_unverified`` param.
     """
     # Machine-readable formats own stdout; every other line goes to stderr.
-    con = console if output_format not in ("json", "sarif") else _stderr
+    con = console if output_format not in ("json", "sarif", "pr-comment") else _stderr
     if not lock_path.exists():
         if if_present:
             con.print(
@@ -477,6 +536,11 @@ def _run_verify(
         else None
     )
 
+    saved_text, text_problem = (
+        tool_text.load(tool_text_file)
+        if connect and tool_text_file is not None
+        else (None, None)
+    )
     result = verify_lock(
         lock_path,
         servers,
@@ -484,6 +548,8 @@ def _run_verify(
         registry=registry,
         allow_unverified=allow_unverified,
         tool_enumerations=enumerations,
+        tool_text=saved_text,
+        tool_text_problem=text_problem,
     )
 
     if output_format == "json":
@@ -499,6 +565,8 @@ def _run_verify(
             "waived": result.waived,
             "tools_recorded": result.tools_recorded,
             "tools_compared": result.tools_compared,
+            "tool_diffs": result.tool_diffs,
+            "tool_text_notes": result.tool_text_notes,
             "findings": [f.model_dump(mode="json") for f in result.findings],
             "exit_code": result.exit_code,
         }
@@ -507,6 +575,8 @@ def _run_verify(
         # `reason`) exceeds it — R56 surfaced this once `reason` strings
         # got long enough to trigger it.
         typer.echo(json.dumps(payload, indent=2))
+    elif output_format == "pr-comment":
+        typer.echo(render_pr_comment(result))
     elif output_format == "sarif":
         from mcp_audit.models import ScanResult  # noqa: PLC0415
 
@@ -574,6 +644,9 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
             f"[dim]Tool definitions are recorded for {result.tools_recorded} "
             "server(s) but were not compared (add --connect).[/dim]"
         )
+
+    for note in result.tool_text_notes:
+        console.print(f"[yellow]WARN[/yellow] {note}")
 
     if result.outside_root:
         console.print(

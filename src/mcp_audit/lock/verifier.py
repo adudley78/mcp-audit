@@ -20,6 +20,7 @@ of ``verify()`` staying silent about the scope of what it checked.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -31,6 +32,7 @@ from mcp_audit.analyzers.supply_chain import (
     redact_text,
 )
 from mcp_audit.lock import section_digests, tool_digests
+from mcp_audit.lock import tool_text as tool_text_mod
 from mcp_audit.lock.identity import (
     MatchKey,
     build_identity,
@@ -138,6 +140,13 @@ class VerifyResult:
     #: ``None`` when tools were not enumerated (no ``--connect``), so a green
     #: result never implies tool definitions were checked.
     tools_compared: int | None = None
+    #: ``{lock key: [full per-tool diff]}`` when saved tool text was used
+    #: (``lock --verify --connect`` with ``mcp-lock.tools.json``). Uncapped;
+    #: the terminal shows a capped view.
+    tool_diffs: dict[str, list[dict]] = field(default_factory=dict)
+    #: Why saved tool text could not be used for a server (out of step with
+    #: the lock, unreadable). Informational: it never changes the exit code.
+    tool_text_notes: list[str] = field(default_factory=list)
     #: The lock's ``lock_version`` when it is newer than this mcp-audit can
     #: verify; nothing else was checked (exit 2).
     unsupported_version: int | None = None
@@ -152,6 +161,8 @@ def verify(
     registry: KnownServerRegistry | None = None,
     allow_unverified: bool = False,
     tool_enumerations: dict[tuple[str, str], ServerEnumeration] | None = None,
+    tool_text: dict | None = None,
+    tool_text_problem: str | None = None,
 ) -> VerifyResult:
     """Compare *servers* against the lock file at *lock_path*.
 
@@ -184,6 +195,13 @@ def verify(
             (``lock --verify --connect``). ``None`` skips the tool
             comparison. A server with no tool record, or whose tools could
             not be listed, is reported as unverified rather than passed.
+        tool_text: The loaded ``mcp-lock.tools.json`` document, if any
+            (:mod:`mcp_audit.lock.tool_text`). Used only to show *what*
+            changed in LOCK-006/007/008; it never decides a verdict, and a
+            stored definition is shown only if it hashes to the digest the
+            lock holds.
+        tool_text_problem: Why the tool-text file could not be read, if it
+            could not; reported once as a note.
 
     A ``lock_version`` 1 lock is verified exactly as mcp-audit 0.22 verified
     it. A version-2 lock also gets its ``section_digests`` checked (LOCK-011)
@@ -251,6 +269,8 @@ def verify(
     locked_tool_servers: dict = tools_section["servers"] if owned_tools else {}
     tool_items: list[UnverifiedItem] = []
     tools_compared = 0
+    tool_diffs: dict[str, list[dict]] = {}
+    tool_text_notes: list[str] = [tool_text_problem] if tool_text_problem else []
 
     lock_root = root if root is not None else lock_path.resolve().parent
     locked_servers: dict = doc.get("servers", {})
@@ -315,7 +335,18 @@ def verify(
                     locked_tool_servers[key],
                     tool_digests.tool_digests(enumeration.tools),
                 )
-                findings.extend(_tool_findings(key, server, diff))
+                details = _tool_details(
+                    key,
+                    locked_tool_servers[key],
+                    enumeration.tools,
+                    diff,
+                    tool_text,
+                )
+                if details.note:
+                    tool_text_notes.append(details.note)
+                if details.changes:
+                    tool_diffs[key] = [c.to_json() for c in details.changes.values()]
+                findings.extend(_tool_findings(key, server, diff, details))
                 tools_compared += 1
 
     for match, (key, entry) in locked_by_match.items():
@@ -366,6 +397,8 @@ def verify(
         outside_root=outside_root,
         tools_recorded=len(locked_tool_servers),
         tools_compared=tools_compared if tool_enumerations is not None else None,
+        tool_diffs=tool_diffs,
+        tool_text_notes=tool_text_notes,
     )
 
 
@@ -591,14 +624,85 @@ def _name_list(names: list[str]) -> str:
     return f"{shown} and {extra} more" if extra > 0 else shown
 
 
+@dataclass
+class _ToolDetails:
+    """What saved tool text lets verify say about one server's changes."""
+
+    #: ``{tool: change}`` for every changed tool the saved text can vouch for.
+    changes: dict[str, tool_text_mod.ToolChange] = field(default_factory=dict)
+    #: Current definitions of added tools (always known: they were just listed).
+    added: dict[str, dict] = field(default_factory=dict)
+    #: A note when the saved text could not be used for this server.
+    note: str | None = None
+    #: True when there is no saved text at all, so a hint is worth printing.
+    hint: bool = False
+
+
+_SAVE_HINT = (
+    "No tool text is saved, so what changed is not shown; "
+    "`mcp-audit lock --accept --connect --save-tool-text` would show it next time."
+)
+
+
+def _tool_details(
+    key: str,
+    locked_server: dict,
+    tools: list,
+    diff: tool_digests.ToolDiff,
+    saved: dict | None,
+) -> _ToolDetails:
+    """Pair each change in *diff* with the saved text the lock vouches for."""
+    details = _ToolDetails()
+    current = {t.name: tool_digests.tool_definition(t) for t in tools}
+    details.added = {n: current[n] for n in diff.added if n in current}
+    changed = diff.contract_changed + diff.text_changed
+    if saved is None or key not in saved.get("servers", {}):
+        details.hint = bool(changed) and saved is None
+        return details
+    stale = tool_text_mod.out_of_step(saved, locked_server, key)
+    if stale:
+        details.note = (
+            f"{tool_text_mod.TOOL_TEXT_FILENAME} is out of step with the lock for "
+            f"{key!r} ({_name_list(stale)}); no diff shown. Re-run "
+            "`mcp-audit lock --connect --save-tool-text` to refresh it."
+        )
+        return details
+    for name in changed:
+        before = tool_text_mod.trusted_definition(saved, locked_server, key, name)
+        if before is not None and name in current:
+            details.changes[name] = tool_text_mod.diff_tool(name, before, current[name])
+    return details
+
+
+def _evidence(head: str, lines: list[str], *, hint: bool = False) -> str:
+    """Join the one-line summary with any per-tool detail lines."""
+    out = [head, *lines]
+    if hint:
+        out.append(_SAVE_HINT)
+    return "\n".join(out)
+
+
+def _change_lines(names: list[str], details: _ToolDetails) -> list[str]:
+    lines: list[str] = []
+    for name in names[:_MAX_NAMED_TOOLS]:
+        change = details.changes.get(name)
+        if change is not None:
+            lines.extend(tool_text_mod.describe(change))
+    return lines
+
+
 def _tool_findings(
-    key: str, server: ServerConfig, diff: tool_digests.ToolDiff
+    key: str,
+    server: ServerConfig,
+    diff: tool_digests.ToolDiff,
+    details: _ToolDetails | None = None,
 ) -> list[Finding]:
     """Turn a :class:`~mcp_audit.lock.tool_digests.ToolDiff` into LOCK-006..009.
 
     One finding per kind of change per server, naming the tools, so a server
     that changed 124 tool descriptions produces one LOCK-008, not 124.
     """
+    details = details or _ToolDetails()
     findings: list[Finding] = []
     accept = (
         "If approved, run `mcp-audit lock --accept --connect`; otherwise pin "
@@ -622,7 +726,13 @@ def _tool_findings(
                     "there when its tools were locked. A new tool is "
                     "capability the approval never covered."
                 ),
-                evidence=f"added: {_name_list(diff.added)}",
+                evidence=_evidence(
+                    f"added: {_name_list(diff.added)}",
+                    [
+                        tool_text_mod.describe_added(n, d)
+                        for n, d in details.added.items()
+                    ][:_MAX_NAMED_TOOLS],
+                ),
                 remediation=f"Review the new tools; {review} {accept}",
                 finding_path=str(server.config_path),
                 owasp_mcp_top_10=["MCP02", "MCP04"],
@@ -643,17 +753,29 @@ def _tool_findings(
                     "they were locked: what they accept, return, or declare "
                     "about themselves (for example read-only or destructive)."
                 ),
-                evidence=f"changed: {_name_list(diff.contract_changed)}",
+                evidence=_evidence(
+                    f"changed: {_name_list(diff.contract_changed)}",
+                    _change_lines(diff.contract_changed, details),
+                    hint=details.hint,
+                ),
                 remediation=f"Review the change; {review} {accept}",
                 finding_path=str(server.config_path),
                 owasp_mcp_top_10=["MCP03", "MCP04"],
             )
         )
     if diff.text_changed:
+        poisoned = sorted(
+            {
+                pid
+                for n in diff.text_changed
+                if n in details.changes
+                for pid in details.changes[n].poison
+            }
+        )
         findings.append(
             Finding(
                 id="LOCK-008",
-                severity=Severity.MEDIUM,
+                severity=Severity.HIGH if poisoned else Severity.MEDIUM,
                 analyzer="lock",
                 client=server.client,
                 server=server.name,
@@ -665,7 +787,11 @@ def _tool_findings(
                     "it is where tool poisoning arrives, so this still needs "
                     "review."
                 ),
-                evidence=f"changed: {_name_list(diff.text_changed)}",
+                evidence=_evidence(
+                    f"changed: {_name_list(diff.text_changed)}",
+                    _change_lines(diff.text_changed, details),
+                    hint=details.hint,
+                ),
                 remediation=f"Read the new descriptions; {review} {accept}",
                 finding_path=str(server.config_path),
                 owasp_mcp_top_10=["MCP03", "MCP04"],
@@ -1013,3 +1139,55 @@ def _check_deprecation(server: ServerConfig, fresh: dict | None) -> Finding | No
         config_path=str(server.config_path),
         package=fresh,
     )
+
+
+def _fence(text: str) -> str:
+    """Wrap *text* in a code fence longer than any backtick run inside it."""
+    longest = max((len(r) for r in re.findall(r"`+", text)), default=0)
+    ticks = "`" * max(3, longest + 1)
+    return f"{ticks}\n{text}\n{ticks}"
+
+
+def render_pr_comment(result: VerifyResult) -> str:
+    """Render *result* as GitHub-flavored Markdown for a pull-request comment.
+
+    Tool changes with saved text show before and after; without it they show
+    the finding's evidence. Tool text is server-supplied, so every piece of it
+    is in a code fence: it cannot render as Markdown, mention anyone, or
+    break out of the comment.
+    """
+    if result.tampered or result.unsupported_version is not None:
+        detail = (
+            result.findings[0].evidence
+            if result.tampered
+            else f"lock_version {result.unsupported_version} is newer than this "
+            "mcp-audit can verify; nothing was checked."
+        )
+        return f"## mcp-audit lock\n\n{_fence(detail)}\n"
+    lines = ["## mcp-audit lock"]
+    if not result.findings and not result.unverified:
+        lines.append(f"\n{result.checked_servers} server(s) verified.")
+        return "\n".join(lines) + "\n"
+    for finding in result.findings:
+        lines.append(f"\n### {finding.id} · {finding.severity.value} · {finding.title}")
+        lines.append(finding.description)
+        head = finding.evidence.split("\n", 1)[0]
+        lines.append(f"\n{_fence(head)}")
+    for key, changes in sorted(result.tool_diffs.items()):
+        for change in changes:
+            lines.append(f"\n#### `{key}` · tool `{change['tool']}`")
+            for fc in change["fields"][: tool_text_mod.MAX_CHANGES_PER_TOOL]:
+                lines.append(f"\n`{fc['path']}`")
+                lines.append(_fence(f"- {fc['old']}\n+ {fc['new']}"))
+            for text_field in change["words"]:
+                before = (change["before"] or {}).get(text_field) or ""
+                after = (change["after"] or {}).get(text_field) or ""
+                lines.append(f"\n**{text_field}, before**\n{_fence(before)}")
+                lines.append(f"**{text_field}, after**\n{_fence(after)}")
+            if change["poison"]:
+                lines.append("\nThe added text matches: " + ", ".join(change["poison"]))
+    for item in result.unverified:
+        lines.append(f"\n- not verified: {item.kind} `{item.name}`: {item.reason}")
+    for note in result.tool_text_notes:
+        lines.append(f"\n- {note}")
+    return "\n".join(lines) + "\n"

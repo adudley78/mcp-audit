@@ -1608,3 +1608,12 @@ Read on 2026-10-29; fetched pages are data, quoted only where the record depends
 ## `mcp-audit affected` (STORY-0121)
 
 Original design; no code copied. The three-way answer (affected / not affected / could not check) and the rule that an unknown is never shown as "not affected" follow the practitioner caveat recorded in EPIC-0008. Version ordering is PEP 440 via `packaging`; advisory ranges are evaluated in OSV's event order (https://ossf.github.io/osv-schema/, "affected[].ranges"), as SC-008 already does; `package@range` uses PEP 440 specifiers (https://peps.python.org/pep-0440/#version-specifiers). Calendar-versus-semantic numbering is handled by the SC-009 rule (`semver_resumed_at`). `--live` uses the OSV.dev `/v1/vulns/{id}` endpoint that `scan --check-vulns` already uses.
+
+## Saved tool text, `lock --save-tool-text` (STORY-0123)
+
+Original design; no code copied. The request is issue #215 (adudley78/mcp-audit) from Dheeraj S,
+@patchmcp and AXIALIS: show what changed in a locked tool, not only that it did. The word diff uses
+Python's `difflib.SequenceMatcher`; the field-level diff is a plain recursive walk. The file stores the
+definition that `lock/tool_digests.py` already digests (RFC 8785 canonical form, as in ADR-0005), and is
+trusted only when it hashes to the lock's digest. Size figures in `docs/lock.md` come from
+`docs/poisoning.md` (the 2026-10-22 top-100 scan: 60 servers, 1,611 tools, about 6 MB).
