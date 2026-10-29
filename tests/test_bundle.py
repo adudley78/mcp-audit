@@ -33,7 +33,11 @@ CONFIG = {"mcpServers": {"s": {"command": "uvx", "args": ["bundle-only-pkg==1.0.
 
 
 @pytest.fixture(autouse=True)
-def _reset() -> None:
+def _reset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    # Hermetic: never touch the real rollback record.
+    monkeypatch.setattr(
+        bundle_mod, "default_seen_path", lambda: tmp_path / "seen-default.json"
+    )
     yield
     bundle_mod.activate(None)
 

@@ -165,8 +165,11 @@ def verify_bundle(
     real_state = state_path or default_seen_path()
     private = _snapshot(root)
     scratch_state = private / "seen.json"
-    if real_state.is_file():
-        shutil.copyfile(real_state, scratch_state)
+    try:
+        if real_state.is_file():
+            shutil.copyfile(real_state, scratch_state)
+    except OSError:
+        pass  # unreadable memory is treated as none, as `feed verify` does
     bundle = _verify_snapshot(private, config, now, scratch_state)
     if scratch_state.is_file():
         try:
