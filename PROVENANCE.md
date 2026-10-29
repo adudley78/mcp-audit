@@ -1620,7 +1620,7 @@ trusted only when it hashes to the lock's digest. Size figures in `docs/lock.md`
 
 ## Respond and policy-out (STORY-0126)
 
-Original code; no code copied. `deniedMcpServers` entry forms (`serverName`, `serverCommand`, `serverUrl`) and the rule that a denylist match cannot be overridden are from Anthropic, "Control MCP server access for your organization" (https://code.claude.com/docs/en/managed-mcp); entries are checked with the same `entry_matches` evaluator MANAGED-001..005 use. Credential-file list is REACH's (STORY-0114) plus `~/.claude.json` and `~/.codex/config.toml`, which Claude Code and Codex document as holding MCP server `env` and headers.
+Original code; no code copied. `deniedMcpServers` entry forms (`serverName`, `serverCommand`, `serverUrl`) and the rule that a denylist match cannot be overridden are from Anthropic, "Control MCP server access for your organization" (https://code.claude.com/docs/en/managed-mcp); entries are exact `serverCommand` values only and are checked with the same `entry_matches` evaluator MANAGED-001..005 use. Credential-file list is REACH's (STORY-0114) plus `~/.claude.json` and `~/.codex/config.toml`, which Claude Code and Codex document as holding MCP server `env` and headers.
 
 ## Transport tags and OpenVEX (STORY-0125)
 

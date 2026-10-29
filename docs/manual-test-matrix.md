@@ -2182,8 +2182,8 @@ mcp-audit affected CVE-2026-77244 --path /tmp/t.json --policy-out "/Library/Appl
 ```
 
 **Expected:** a Respond block under the AFFECTED server naming env/header names (no values); `/tmp/policy.json`
-has one `deniedMcpServers` entry per AFFECTED server (a `serverCommand` with the exact launch, or a
-`serverName` when the command carries a credential flag); the last command exits 2 and writes nothing.
+has one `serverCommand` entry per AFFECTED server whose launch is only the package and launcher words
+(none for a launch carrying a credential flag or URL; a note says so); the last command exits 2 and writes nothing.
 
 ## Transport tags and OpenVEX (STORY-0125)
 

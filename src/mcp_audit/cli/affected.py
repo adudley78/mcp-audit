@@ -157,25 +157,50 @@ def _live_rules(advisory_id: str, report: Report) -> RuleSet:
     return RuleSet(rules=list(rules), sources=["OSV.dev (--live)"])
 
 
-def _write_policy(path: Path, servers: list[ServerConfig], report: Report) -> None:
-    """Write the deniedMcpServers file, or say why nothing was written."""
+def _write_policy(
+    path: Path,
+    servers: list[ServerConfig],
+    report: Report,
+    unchecked: int,
+    out: list[str],
+) -> None:
+    """Write the deniedMcpServers file, or say why nothing was written.
+
+    Messages go to *out* (printed with the report, or to stderr for formats
+    that cannot carry them).  An existing file is never overwritten.
+    """
     if not servers:
-        report.notes.append(
-            "--policy-out: no server is AFFECTED, so no file was written"
-        )
+        out.append("--policy-out: no server is AFFECTED, so no file was written")
         return
     document, notes = respond.policy_document(servers)
+    entries = document["deniedMcpServers"]
+    if not entries:
+        out.extend(["--policy-out: no file written."] + notes)
+        return
     try:
-        _write_output(path, json.dumps(document, indent=2) + "\n")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(document, indent=2) + "\n")
+    except FileExistsError as exc:
+        raise _fail(
+            f"--policy-out: {path} already exists; remove it or choose another path"
+        ) from exc
     except OSError as exc:
         raise _fail(f"--policy-out: could not write {path}: {exc.strerror}") from exc
-    report.notes.append(
-        f"Wrote {len(document['deniedMcpServers'])} deniedMcpServers entr"
-        f"{'y' if len(document['deniedMcpServers']) == 1 else 'ies'} to {path}. "
-        "Deploy it as a managed-settings drop-in "
+    out.append(
+        f"Wrote {len(entries)} deniedMcpServers entr"
+        f"{'y' if len(entries) == 1 else 'ies'} to {path}. Each is the exact launch "
+        "of an AFFECTED server, so it does not block the same package launched "
+        "another way, and Claude Code is the only client that reads it. Deploy it "
+        "as a managed-settings drop-in "
         "(https://code.claude.com/docs/en/managed-mcp); mcp-audit does not."
     )
-    report.notes.extend(notes)
+    if unchecked:
+        out.append(
+            f"--policy-out: {unchecked} more server(s) run an advisory package but "
+            "could not be checked (COULDN'T CHECK); they are not in the file."
+        )
+    out.extend(notes)
 
 
 def _openvex_text(report: Report, parsed: Query) -> str:
@@ -264,10 +289,17 @@ def affected(
             "--policy-out will not write into Claude Code's managed-settings "
             "directory; write it elsewhere and deploy it yourself"
         )
+    if (
+        policy_out is not None
+        and output is not None
+        and policy_out.resolve() == output.resolve()
+    ):
+        raise _fail("--policy-out and --output must be different files")
     if output is not None and format_ is _Format.TERMINAL:
         raise _fail("--output needs --format json, sarif or openvex")
 
     report = Report(query=parsed)
+    policy_msgs: list[str] = []
     try:
         registry = load_registry()
     except RegistryLoadError as exc:
@@ -318,12 +350,25 @@ def affected(
             if row.status is Status.AFFECTED
         ]
         if affected_servers:
-            stores = respond.credential_files(Path.home(), Path.cwd(), report.errors)
+            try:
+                home: Path | None = Path.home()
+                cwd: Path | None = None if path else Path.cwd()
+                stores = respond.credential_files(home, cwd, report.errors)
+            except (OSError, RuntimeError) as exc:
+                report.errors.append(
+                    f"credential files: not listed ({type(exc).__name__})"
+                )
+                stores = []
             report.respond = [
                 respond.build(s, servers, stores) for s in affected_servers
             ]
         if policy_out is not None:
-            _write_policy(policy_out, affected_servers, report)
+            unchecked = sum(
+                1
+                for r in rows
+                if r.status is Status.COULDNT_CHECK and r.reason in RAN_THE_PACKAGE
+            )
+            _write_policy(policy_out, affected_servers, report, unchecked, policy_msgs)
         if servers and not any(r.reason in RAN_THE_PACKAGE for r in rows):
             names = ", ".join(sorted({r.describes() for r in ruleset.rules}))
             report.notes.append(
@@ -331,7 +376,16 @@ def affected(
                 "package, check the spelling."
             )
 
+    if policy_out is not None and not ruleset.rules:
+        policy_msgs.append(
+            "--policy-out: this query names no servers, so no file was written"
+        )
     _attach_exploit(report, parsed, live)
+    if format_ is _Format.TERMINAL:
+        report.notes.extend(policy_msgs)
+    else:
+        for msg in policy_msgs:
+            err_console.print(msg)
 
     if format_ is _Format.TERMINAL:
         render_terminal(report, Console(), show_all=show_all)

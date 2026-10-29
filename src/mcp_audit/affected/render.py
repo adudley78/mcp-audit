@@ -167,8 +167,10 @@ def _print_respond(report: Report, console: Console) -> None:
 def _respond_dict(item: Any) -> dict[str, Any]:
     return {
         "subject": _scrub(item.subject),
-        "could_read": item.names(),
-        "also_set_on": item.shared,
+        "could_read": [_scrub(n) for n in item.names()],
+        "also_set_on": {
+            _scrub(k): [_scrub(n) for n in v] for k, v in item.shared.items()
+        },
         "credential_files": [{"path": p, "holds": h} for p, h in item.stores],
         "saved_tool_text": (
             {"tools": item.tool_text[0], "file": item.tool_text[1]}

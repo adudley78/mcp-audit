@@ -106,47 +106,42 @@ class TestBuild:
 
 class TestPolicyEntry:
     def test_command_entry_matches_the_server(self) -> None:
-        s = _srv()
-        entry, note = respond.policy_entry(s)
+        entry, note = respond.policy_entry(_srv())
         assert entry == {"serverCommand": ["uvx", "mcp-atlassian==0.21.0"]}
         assert note is None
 
-    def test_remote_server_gets_a_url_entry_without_secrets(self) -> None:
+    def test_transport_words_and_yes_flag_are_allowed(self) -> None:
         s = _srv(
-            command=None,
-            args=[],
-            transport=TransportType.SSE,
-            url="https://mcp.example.com:8443/sse?api_key=abc123",
+            command="npx", args=["-y", "mcp-atlassian@0.21.0", "--transport", "sse"]
         )
         entry, _ = respond.policy_entry(s)
-        assert entry == {"serverUrl": "https://mcp.example.com:8443/sse"}
-        assert entry_matches(PolicyEntry("serverUrl", entry["serverUrl"], Path("x")), s)
-
-    def test_url_with_userinfo_falls_back_to_name(self) -> None:
-        s = _srv(
-            command=None,
-            args=[],
-            transport=TransportType.SSE,
-            url="https://user:pw@mcp.example.com/sse",
-        )
-        entry, note = respond.policy_entry(s)
-        assert "pw" not in json.dumps(entry)
-        assert note is not None
+        assert entry is not None
 
     @pytest.mark.parametrize(
         "args",
         [
-            ["x", "--token=abc"],
-            ["x", "--api-key", "abc"],
-            ["x", "${HOME}/y"],
+            ["mcp-atlassian==0.21.0", "--token=abc"],
+            ["mcp-atlassian==0.21.0", "--api-key", "abc"],
+            ["mcp-atlassian==0.21.0", "${HOME}/y"],
+            ["mcp-atlassian==0.21.0", "--bearer", "X"],
+            ["mcp-atlassian==0.21.0", "--cookie", "session=X"],
+            ["mcp-atlassian==0.21.0", "-u", "user:X"],
+            ["mcp-atlassian==0.21.0", "SECRETPOSITIONAL123"],
+            ["mcp-atlassian==0.21.0", "https://h.example/api/s/PATHSECRET/mcp"],
+            ["other-pkg==1.0", "mcp-atlassian==0.21.0"],
         ],
     )
-    def test_secret_or_variable_commands_fall_back_to_name(self, args: list) -> None:
-        s = _srv("named", args=args)
-        entry, note = respond.policy_entry(s)
-        assert entry == {"serverName": "named"}
-        assert note is not None and "name only" in note
-        assert "abc" not in json.dumps(entry)
+    def test_anything_that_might_be_a_secret_writes_no_entry(self, args: list) -> None:
+        entry, note = respond.policy_entry(_srv("named", args=args))
+        assert entry is None
+        assert note is not None and "by hand" in note
+
+    def test_no_name_entries_are_ever_written(self) -> None:
+        doc, notes = respond.policy_document(
+            [_srv("jira", args=["x", "--jira-token", "t"])]
+        )
+        assert doc == {"deniedMcpServers": []}
+        assert notes
 
     def test_document_deduplicates(self) -> None:
         doc, notes = respond.policy_document([_srv("a"), _srv("b")])
@@ -156,12 +151,53 @@ class TestPolicyEntry:
         assert notes == []
 
     def test_every_written_entry_matches_its_server(self) -> None:
-        servers = [_srv("a"), _srv("b", args=["--token=z"])]
+        servers = [
+            _srv("a"),
+            _srv("b", command="pipx", args=["run", "mcp-atlassian==0.21.0"]),
+        ]
         doc, _ = respond.policy_document(servers)
-        for server, entry in zip(servers, doc["deniedMcpServers"], strict=False):
-            ((kind, value),) = entry.items()
-            value = tuple(value) if isinstance(value, list) else value
-            assert entry_matches(PolicyEntry(kind, value, Path("x")), server) in (True,)  # type: ignore[arg-type]
+        assert len(doc["deniedMcpServers"]) == len(servers)
+        for server, entry in zip(servers, doc["deniedMcpServers"], strict=True):
+            value = tuple(entry["serverCommand"])
+            assert (
+                entry_matches(PolicyEntry("serverCommand", value, Path("x")), server)
+                is True
+            )
+
+
+class TestFlagNames:
+    @pytest.mark.parametrize(
+        ("arg", "name"),
+        [
+            ("--api-key:sk-ant-api03-abcdef0123456789", "--api-key"),
+            ("--token=abc", "--token"),
+            ("-HAuthorization: Bearer ghp_aBcD1234567890", "-H"),
+            ("--header=X-Key: v", "--header"),
+        ],
+    )
+    def test_value_never_survives(self, arg: str, name: str) -> None:
+        item = respond.build(_srv(args=[arg]), [_srv(args=[arg])], [])
+        assert item.names() == [name]
+
+    def test_json_names_are_scrubbed(self, tmp_path: Path) -> None:
+        cfg = _config(
+            tmp_path,
+            {
+                "a": {
+                    "command": "uvx",
+                    "args": [
+                        "mcp-atlassian==0.21.0",
+                        "--transport",
+                        "sse",
+                        "-HAuthorization: Bearer ghp_aBcD1234567890",
+                        "--api-key:sk-ant-api03-zzzz",
+                    ],
+                }
+            },
+        )
+        res = runner.invoke(app, ["affected", CVE, "--path", str(cfg), "-f", "json"])
+        assert "ghp_" not in res.output and "sk-ant" not in res.output
+        assert json.loads(res.output)["respond"][0]["could_read"] == ["--api-key", "-H"]
 
 
 class TestCli:
@@ -242,3 +278,107 @@ class TestCli:
             app, ["affected", CVE, "--path", str(cfg), "--policy-out", str(tmp_path)]
         )
         assert res.exit_code == 2
+
+
+class TestPolicyFileSafety:
+    def _cfg(self, tmp_path: Path) -> Path:
+        return _config(
+            tmp_path,
+            {
+                "a": {
+                    "command": "uvx",
+                    "args": ["mcp-atlassian==0.21.0", "--transport", "sse"],
+                }
+            },
+        )
+
+    def test_existing_file_is_never_overwritten(self, tmp_path: Path) -> None:
+        out = tmp_path / "keep.json"
+        out.write_text("precious")
+        res = runner.invoke(
+            app,
+            [
+                "affected",
+                CVE,
+                "--path",
+                str(self._cfg(tmp_path)),
+                "--policy-out",
+                str(out),
+            ],
+        )
+        assert res.exit_code == 2
+        assert out.read_text() == "precious"
+
+    def test_same_path_as_output_is_refused(self, tmp_path: Path) -> None:
+        out = tmp_path / "same.json"
+        res = runner.invoke(
+            app,
+            [
+                "affected",
+                CVE,
+                "--path",
+                str(self._cfg(tmp_path)),
+                "-f",
+                "json",
+                "-o",
+                str(out),
+                "--policy-out",
+                str(out),
+            ],
+        )
+        assert res.exit_code == 2
+
+    def test_note_reaches_stderr_for_machine_formats(self, tmp_path: Path) -> None:
+        out = tmp_path / "p.json"
+        res = runner.invoke(
+            app,
+            [
+                "affected",
+                CVE,
+                "--path",
+                str(self._cfg(tmp_path)),
+                "-f",
+                "sarif",
+                "--policy-out",
+                str(out),
+            ],
+        )
+        assert "deniedMcpServers" in res.output
+        assert json.loads(out.read_text())["deniedMcpServers"]
+
+    def test_research_query_says_no_file(self, tmp_path: Path) -> None:
+        out = tmp_path / "r.json"
+        res = runner.invoke(
+            app,
+            [
+                "affected",
+                "x_MCPRS-4ad8c07d80d7",
+                "--policy-out",
+                str(out),
+                "-f",
+                "json",
+            ],
+        )
+        assert not out.exists()
+        assert "no servers" in res.output
+
+    def test_managed_dir_check_ignores_case(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_audit.plugins import mods
+
+        managed = tmp_path / "Managed"
+        managed.mkdir()
+        monkeypatch.setattr(mods, "managed_settings_dir", lambda: managed)
+        assert respond.inside_managed_dir(tmp_path / "MANAGED" / "x.json")
+
+    def test_deleted_cwd_does_not_crash(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def boom() -> Path:
+            raise FileNotFoundError("cwd gone")
+
+        monkeypatch.setattr(Path, "cwd", staticmethod(boom))
+        res = runner.invoke(app, ["affected", CVE, "--path", str(self._cfg(tmp_path))])
+        assert res.exit_code == 1
+        assert "Traceback" not in res.output

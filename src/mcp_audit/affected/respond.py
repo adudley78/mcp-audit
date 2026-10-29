@@ -14,10 +14,10 @@ inside Claude Code's managed-settings directory: deploying is the admin's job.
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from mcp_audit.analyzers.managed_policy import PolicyEntry, entry_matches
 from mcp_audit.analyzers.supply_chain import redact_args
@@ -25,10 +25,12 @@ from mcp_audit.models import ServerConfig
 
 #: Flags whose *value* is probably a credential; only the flag name is kept.
 _SECRET_FLAG = re.compile(
-    r"^--?[A-Za-z0-9_.-]*(token|key|secret|password|passwd|auth|credential)"
-    r"[A-Za-z0-9_.-]*",
+    r"^--?[A-Za-z0-9_.-]*(token|key|secret|password|passwd|auth|credential|header|"
+    r"cookie|bearer|login|user)[A-Za-z0-9_.-]*",
     re.IGNORECASE,
 )
+_SHORT_SECRET_FLAGS = frozenset({"-H", "-u", "-b", "-e", "-p"})
+_LONG_NAME = re.compile(r"^--[A-Za-z0-9][A-Za-z0-9_-]*")
 
 #: Beyond REACH's fixed list: files that hold MCP env and header values.
 _EXTRA_STORES: tuple[tuple[str, str], ...] = (
@@ -58,13 +60,23 @@ class Respond:
         return sorted({*self.env_names, *self.header_names, *self.flag_names})
 
 
+def _flag_name(arg: str) -> str | None:
+    """The flag's own name when *arg* looks like a credential flag, else ``None``.
+
+    The value is never kept, however it is attached (``--k=v``, ``--k:v``,
+    ``-Hv``).
+    """
+    if not arg.startswith("-") or arg == "-":
+        return None
+    if arg.startswith("--"):
+        match = _LONG_NAME.match(arg)
+        name = match.group(0) if match else None
+        return name if name and _SECRET_FLAG.match(name) else None
+    return arg[:2] if arg[:2] in _SHORT_SECRET_FLAGS else None
+
+
 def _flag_names(args: list[str]) -> list[str]:
-    out: set[str] = set()
-    for arg in args:
-        text = str(arg)
-        if text.startswith("-") and _SECRET_FLAG.match(text):
-            out.add(text.split("=", 1)[0])
-    return sorted(out)
+    return sorted({n for a in args if (n := _flag_name(str(a))) is not None})
 
 
 def _tilde(path: Path, home: Path) -> str:
@@ -74,7 +86,9 @@ def _tilde(path: Path, home: Path) -> str:
         return path.name
 
 
-def credential_files(home: Path, cwd: Path, errors: list[str]) -> list[tuple[str, str]]:
+def credential_files(
+    home: Path, cwd: Path | None, errors: list[str]
+) -> list[tuple[str, str]]:
     """Well-known credential files that exist (``stat()`` only; never opened)."""
     from mcp_audit.analyzers import secret_reach as sr  # noqa: PLC0415
     from mcp_audit.plugins import mods  # noqa: PLC0415
@@ -87,11 +101,18 @@ def credential_files(home: Path, cwd: Path, errors: list[str]) -> list[tuple[str
         path = sr._home_store_rel(store, home, config_dir)  # noqa: SLF001
         if sr._stat_store(path) is not None:  # noqa: SLF001
             found.append((_tilde(path, home), store.label))
-    for rel, label in _EXTRA_STORES:
-        path = home / rel
-        if sr._stat_store(path) is not None:  # noqa: SLF001
+    codex_home = Path(os.environ.get("CODEX_HOME") or home / ".codex")
+    extras = (
+        (home / ".claude.json", _EXTRA_STORES[0][1]),
+        (config_dir / ".claude.json", _EXTRA_STORES[0][1]),
+        (codex_home / "config.toml", _EXTRA_STORES[1][1]),
+    )
+    shown = {p for p, _ in found}
+    for path, label in extras:
+        if sr._stat_store(path) is not None and _tilde(path, home) not in shown:  # noqa: SLF001
             found.append((_tilde(path, home), label))
-    if cwd.resolve() != home.resolve():
+            shown.add(_tilde(path, home))
+    if cwd is not None and cwd.resolve() != home.resolve():
         found.extend(
             (path.name + " (working directory)", "environment file")
             for path in sr._env_files(cwd, errors)  # noqa: SLF001
@@ -144,55 +165,69 @@ def build(
 
 # ── Managed-policy entries ────────────────────────────────────────────────────
 
-
-def _candidates(server: ServerConfig) -> list[PolicyEntry]:
-    src = Path("policy-out")
-    out: list[PolicyEntry] = []
-    if server.url:
-        parts = urlsplit(server.url)
-        host = parts.hostname or ""
-        # Userinfo makes matching uncertain, so that falls back to the name;
-        # a query string (where tokens live) is simply left off.
-        if parts.scheme and host and parts.username is None and parts.password is None:
-            netloc = host + (f":{parts.port}" if parts.port else "")
-            out.append(
-                PolicyEntry("serverUrl", f"{parts.scheme}://{netloc}{parts.path}", src)
-            )
-    if server.command:
-        command = [server.command, *server.args]
-        # A secret-looking flag may carry its value anywhere in the argument
-        # list, and the policy file is deployed: use the command only when no
-        # such flag is present at all.
-        if (
-            redact_args(list(command)) == command
-            and not _flag_names(server.args)
-            and not any("${" in part for part in command)
-        ):
-            out.append(PolicyEntry("serverCommand", tuple(command), src))
-    out.append(PolicyEntry("serverName", server.name, src))
-    return out
+#: Arguments a launcher takes that cannot carry a secret.
+_SAFE_ARGS = frozenset(
+    {"-y", "--yes", "-q", "--quiet", "run", "dlx", "--transport", "stdio", "sse",
+     "http", "streamable-http"}
+)  # fmt: skip
+_SPEC = re.compile(
+    r"^(?P<name>@?[A-Za-z0-9][A-Za-z0-9._/-]*?)(?:(?:==|@)[0-9A-Za-z.+!-]+)?$"
+)
 
 
-def policy_entry(server: ServerConfig) -> tuple[dict, str | None]:
-    """The ``deniedMcpServers`` entry for *server*, and a note when it is weak.
+def _safe_command(server: ServerConfig) -> tuple[str, ...] | None:
+    """The launch as a ``serverCommand`` value, only if it cannot hold a secret.
 
-    The first of URL, command, name that carries no secret *and* that the
-    managed-policy evaluator (``entry_matches``) says matches this server.
-    A name entry is the fallback: it works in a denylist but a renamed server
-    escapes it, which the note says.
+    The policy file is deployed to other machines, so the command is written
+    only when every argument is the package itself (name, optionally with a
+    version) or a launcher/transport word from a short list.  A URL, a path, a
+    positional value or any other flag could be a secret and stops it.
     """
-    for entry in _candidates(server):
-        if entry_matches(entry, server) is not True:
+    from mcp_audit.analyzers.supply_chain import launch_package  # noqa: PLC0415
+
+    found = launch_package(server)
+    if found is None or not server.command:
+        return None
+    package = found[1].lower().replace("_", "-")
+    spec_seen = False
+    for arg in server.args:
+        text = str(arg)
+        if text in _SAFE_ARGS:
             continue
-        value = list(entry.value) if isinstance(entry.value, tuple) else entry.value
-        note = None
-        if entry.kind == "serverName":
-            note = (
-                f"{server.name!r}: matched by name only (a server renamed in a "
-                "user's config is not caught)"
-            )
-        return {entry.kind: value}, note
-    raise AssertionError("the name entry always matches")  # pragma: no cover
+        match = _SPEC.match(text)
+        if (
+            match
+            and not spec_seen
+            and "://" not in text
+            and match.group("name").lower().replace("_", "-") == package
+        ):
+            spec_seen = True
+            continue
+        return None
+    command = (server.command, *server.args)
+    if not spec_seen or redact_args(list(command)) != list(command):
+        return None
+    return command
+
+
+def policy_entry(server: ServerConfig) -> tuple[dict | None, str | None]:
+    """The ``deniedMcpServers`` entry for *server*, or why there is none.
+
+    Only an exact ``serverCommand`` that the managed-policy evaluator
+    (``entry_matches``) says matches this server.  A name entry is never
+    written: it would deny every server of that name on every machine the
+    file reaches, patched ones included.
+    """
+    command = _safe_command(server)
+    if command is not None:
+        entry = PolicyEntry("serverCommand", command, Path("policy-out"))
+        if entry_matches(entry, server) is True:
+            return {"serverCommand": list(command)}, None
+    return None, (
+        f"{server.name!r}: no entry written. Its launch carries arguments that "
+        "might be secrets, so no exact command entry is safe to deploy; add an "
+        "entry for it by hand"
+    )
 
 
 def policy_document(servers: list[ServerConfig]) -> tuple[dict, list[str]]:
@@ -203,7 +238,8 @@ def policy_document(servers: list[ServerConfig]) -> tuple[dict, list[str]]:
     notes: list[str] = []
     for server in servers:
         entry, note = policy_entry(server)
-        seen.setdefault(json.dumps(entry, sort_keys=True), entry)
+        if entry is not None:
+            seen.setdefault(json.dumps(entry, sort_keys=True), entry)
         if note and note not in notes:
             notes.append(note)
     return {"deniedMcpServers": list(seen.values())}, notes
@@ -214,8 +250,8 @@ def inside_managed_dir(path: Path) -> bool:
     from mcp_audit.plugins import mods  # noqa: PLC0415
 
     try:
-        target = path.resolve()
-        root = mods.managed_settings_dir().resolve()
+        target = Path(str(path.resolve()).casefold())
+        root = Path(str(mods.managed_settings_dir().resolve()).casefold())
     except (OSError, RuntimeError):
         return False
     return target == root or root in target.parents
