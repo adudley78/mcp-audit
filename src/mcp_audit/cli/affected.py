@@ -14,6 +14,7 @@ Exit codes: 0 nothing affected, 1 something affected (or, with
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from enum import StrEnum
@@ -23,6 +24,7 @@ import typer
 from rich.console import Console
 
 from mcp_audit._network import NetworkPolicy, require_offline_compatible
+from mcp_audit.affected import respond
 from mcp_audit.affected.match import (
     RAN_THE_PACKAGE,
     UNREADABLE,
@@ -155,6 +157,52 @@ def _live_rules(advisory_id: str, report: Report) -> RuleSet:
     return RuleSet(rules=list(rules), sources=["OSV.dev (--live)"])
 
 
+def _write_policy(
+    path: Path,
+    servers: list[ServerConfig],
+    report: Report,
+    unchecked: int,
+    out: list[str],
+) -> None:
+    """Write the deniedMcpServers file, or say why nothing was written.
+
+    Messages go to *out* (printed with the report, or to stderr for formats
+    that cannot carry them).  An existing file is never overwritten.
+    """
+    if not servers:
+        out.append("--policy-out: no server is AFFECTED, so no file was written")
+        return
+    document, notes = respond.policy_document(servers)
+    entries = document["deniedMcpServers"]
+    if not entries:
+        out.extend(["--policy-out: no file written."] + notes)
+        return
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(document, indent=2) + "\n")
+    except FileExistsError as exc:
+        raise _fail(
+            f"--policy-out: {path} already exists; remove it or choose another path"
+        ) from exc
+    except OSError as exc:
+        raise _fail(f"--policy-out: could not write {path}: {exc.strerror}") from exc
+    out.append(
+        f"Wrote {len(entries)} deniedMcpServers entr"
+        f"{'y' if len(entries) == 1 else 'ies'} to {path}. Each is the exact launch "
+        "of an AFFECTED server, so it does not block the same package launched "
+        "another way, and Claude Code is the only client that reads it. Deploy it "
+        "as a managed-settings drop-in "
+        "(https://code.claude.com/docs/en/managed-mcp); mcp-audit does not."
+    )
+    if unchecked:
+        out.append(
+            f"--policy-out: {unchecked} more server(s) run an advisory package but "
+            "could not be checked (COULDN'T CHECK); they are not in the file."
+        )
+    out.extend(notes)
+
+
 def _openvex_text(report: Report, parsed: Query) -> str:
     """The report as an OpenVEX document (advisory queries only)."""
     from mcp_audit.affected import vex  # noqa: PLC0415
@@ -209,6 +257,15 @@ def affected(
         "--fail-on-unknown",
         help="Exit 1 when a server running the package could not be checked.",
     ),
+    policy_out: Path | None = typer.Option(  # noqa: B008
+        None,
+        "--policy-out",
+        help=(
+            "Write Claude Code managed-policy JSON (deniedMcpServers) for the "
+            "AFFECTED servers to this file, for an admin to deploy. mcp-audit "
+            "never writes into the managed-settings directory."
+        ),
+    ),
     live: bool = typer.Option(  # noqa: B008
         False,
         "--live",
@@ -227,10 +284,22 @@ def affected(
     for lock_path in lock:
         if not lock_path.is_file():
             raise _fail(f"lock file does not exist: {lock_path}")
+    if policy_out is not None and respond.inside_managed_dir(policy_out):
+        raise _fail(
+            "--policy-out will not write into Claude Code's managed-settings "
+            "directory; write it elsewhere and deploy it yourself"
+        )
+    if (
+        policy_out is not None
+        and output is not None
+        and policy_out.resolve() == output.resolve()
+    ):
+        raise _fail("--policy-out and --output must be different files")
     if output is not None and format_ is _Format.TERMINAL:
         raise _fail("--output needs --format json, sarif or openvex")
 
     report = Report(query=parsed)
+    policy_msgs: list[str] = []
     try:
         registry = load_registry()
     except RegistryLoadError as exc:
@@ -275,6 +344,31 @@ def affected(
         locks = LockIndex(lock, report.errors)
         rows = decide_servers(servers, ruleset, registry, locks, parsed.label)
         report.rows.extend(rows + unreadable)
+        affected_servers = [
+            s
+            for s, row in zip(servers, rows, strict=True)
+            if row.status is Status.AFFECTED
+        ]
+        if affected_servers:
+            try:
+                home: Path | None = Path.home()
+                cwd: Path | None = None if path else Path.cwd()
+                stores = respond.credential_files(home, cwd, report.errors)
+            except (OSError, RuntimeError) as exc:
+                report.errors.append(
+                    f"credential files: not listed ({type(exc).__name__})"
+                )
+                stores = []
+            report.respond = [
+                respond.build(s, servers, stores) for s in affected_servers
+            ]
+        if policy_out is not None:
+            unchecked = sum(
+                1
+                for r in rows
+                if r.status is Status.COULDNT_CHECK and r.reason in RAN_THE_PACKAGE
+            )
+            _write_policy(policy_out, affected_servers, report, unchecked, policy_msgs)
         if servers and not any(r.reason in RAN_THE_PACKAGE for r in rows):
             names = ", ".join(sorted({r.describes() for r in ruleset.rules}))
             report.notes.append(
@@ -282,7 +376,16 @@ def affected(
                 "package, check the spelling."
             )
 
+    if policy_out is not None and not ruleset.rules:
+        policy_msgs.append(
+            "--policy-out: this query names no servers, so no file was written"
+        )
     _attach_exploit(report, parsed, live)
+    if format_ is _Format.TERMINAL:
+        report.notes.extend(policy_msgs)
+    else:
+        for msg in policy_msgs:
+            err_console.print(msg)
 
     if format_ is _Format.TERMINAL:
         render_terminal(report, Console(), show_all=show_all)

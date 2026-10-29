@@ -2173,6 +2173,18 @@ step" note, no diff, same exit code. `--format pr-comment` prints before/after i
 
 ---
 
+## Respond and --policy-out (STORY-0126)
+
+```bash
+mcp-audit affected CVE-2026-77244 --path /tmp/t.json --policy-out /tmp/policy.json
+cat /tmp/policy.json
+mcp-audit affected CVE-2026-77244 --path /tmp/t.json --policy-out "/Library/Application Support/ClaudeCode/x.json"; echo "exit $?"
+```
+
+**Expected:** a Respond block under the AFFECTED server naming env/header names (no values); `/tmp/policy.json`
+has one `serverCommand` entry per AFFECTED server whose launch is only the package and launcher words
+(none for a launch carrying a credential flag or URL; a note says so); the last command exits 2 and writes nothing.
+
 ## Transport tags and OpenVEX (STORY-0125)
 
 ```bash
