@@ -2122,3 +2122,37 @@ mcp-audit lock "$L/proj" --connect --offline; echo "exit: $?"
 rm -rf "$SCRATCH"
 echo "Scratch cleaned up."
 ```
+
+---
+
+## Section 62 — affected (is this advisory in my agent stack?)
+
+```bash
+cat > /tmp/affected-demo.json <<'JSON'
+{"mcpServers": {
+  "old":   {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem@2025.1.14", "/srv/data"]},
+  "float": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/srv/data"]},
+  "web":   {"url": "https://example.test/mcp"}
+}}
+JSON
+mcp-audit affected CVE-2025-53109 --path /tmp/affected-demo.json
+echo "exit: $?"
+```
+
+**Expected:** `old` listed under AFFECTED with "2025.1.14 (config pin) is below
+CVE-2025-53109's fixed version 2025.7.1 (registry)"; `float` under COULDN'T CHECK
+("pins no exact version ... pin it or run `mcp-audit lock`"); `web` counted in the
+"Not listed" line, not as NOT AFFECTED; exit 1.
+
+```bash
+mcp-audit affected CVE-2025-53109 --path /tmp/affected-demo.json --fail-on-unknown --format json
+mcp-audit affected 'litellm@<2' --path /tmp/affected-demo.json --all
+mcp-audit affected x_MCPRS-4ad8c07d80d7
+mcp-audit affected CVE-2099-0001; echo "exit: $?"
+```
+
+**Expected:** JSON has `summary` and one `results` row per server; the `litellm`
+query lists all three servers (two NOT AFFECTED on other packages, one COULDN'T
+CHECK with no package); the research record lists four COULDN'T CHECK product rows
+and never NOT AFFECTED; the unknown ID exits 2 and suggests `--live`.
+

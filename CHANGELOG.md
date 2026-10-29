@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`mcp-audit affected <ID or pkg@range>`: is this advisory in my agent stack? (STORY-0121).** Give it a CVE, GHSA, OSV `MAL-*` or research-record ID, or a package and range (`litellm@==1.107.0`), and it answers for every MCP server it discovers: AFFECTED, NOT AFFECTED, or COULDN'T CHECK, each with the evidence, the version it compared, and where the version came from (the launch command's pin, or a lock's `resolved_version` via `--lock`). A floating `npx -y pkg` with no lock is COULDN'T CHECK, never NOT AFFECTED. Terminal, `--format json` and `--format sarif`; exit `1` if anything is affected, `--fail-on-unknown` to also fail on COULDN'T CHECK. Offline by default; `--live` fetches an advisory that is not bundled from OSV.dev. For the Plugin4Shell record it lists each product (Claude Code, Codex, Copilot, Gemini CLI) and runs PLUGIN-003/004; mcp-audit does not yet read installed harness versions, so those rows read COULDN'T CHECK. See `docs/affected.md`.
+
 - **Research records: credited, machine-readable copies of agent-stack research that has no CVE (STORY-0122).** Plugin4Shell, the plugin pin-replacement attack AIR Security published on 2026-09-17, is the first: which products it affected, where each was fixed (Claude Code 2.1.179, Codex 0.146.0; not Copilot; Gemini CLI is deprecated), and that PLUGIN-003 and PLUGIN-004 test the condition. The record is credited to AIR Security's Or Nevo, Dor Granat and Niv Hoffman. It is data that later commands read offline; no scan output changes yet. See `docs/research-records.md`.
 
 ---

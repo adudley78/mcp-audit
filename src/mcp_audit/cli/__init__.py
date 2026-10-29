@@ -150,6 +150,7 @@ def main() -> None:
 # defined.  Ordering among submodules does not matter.
 from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports register commands
     advise,
+    affected,
     agent_files,
     baseline,
     check,
