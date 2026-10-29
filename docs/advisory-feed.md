@@ -72,6 +72,8 @@ neither `--public-key` nor `$MCP_AUDIT_SIGNING_PUBKEY` is given. Pass either
 explicitly to verify against a different key instead — an explicit value always wins
 over the bundled default.
 
+The `feed` branch is also an air-gapped bundle: `data/` and a signed `bundle.json` sit beside the feed for `scan --bundle` and `affected --bundle` (see `docs/air-gapped.md`); `feed verify` ignores them.
+
 `osv/` (for `osv-scanner`) is not needed by `feed verify`; fetch it the same
 way from `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/osv/…`
 if you want the osv-scanner-compatible export.

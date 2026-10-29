@@ -278,3 +278,72 @@ def test_real_minisign_round_trip(tmp_path: Path) -> None:
     (out2 / "bundle.json").write_text(json.dumps(manifest))
     with pytest.raises(bundle_mod.BundleError, match="bundle.json"):
         bundle_mod.verify_bundle(out2, config, state_path=state)
+
+
+class TestBuilder:
+    def _signals(self, tmp_path: Path, date: str, count: int) -> Path:
+        committed = json.loads(build_bundle.SOURCES["exploit-signals.json"].read_text())
+        committed["kev"]["date_released"] = date
+        entries = dict(list(committed["kev"]["entries"].items())[:count])
+        committed["kev"]["entries"] = entries
+        path = tmp_path / f"signals-{date}-{count}.json"
+        path.write_text(json.dumps(committed))
+        return path
+
+    def test_fresh_signals_are_used_only_when_at_least_as_complete(
+        self, tmp_path: Path
+    ) -> None:
+        committed = build_bundle.SOURCES["exploit-signals.json"]
+        old_date, old_count, _, _ = build_bundle._shape(committed)
+        good = self._signals(tmp_path, "2099-01-01", old_count)
+        thin = self._signals(tmp_path, "2099-01-01", old_count - 1)
+        stale = self._signals(tmp_path, "2000-01-01", old_count)
+        broken = tmp_path / "broken.json"
+        broken.write_text("{")
+        assert build_bundle.choose_signals(good, committed) == good
+        assert build_bundle.choose_signals(thin, committed) == committed
+        assert build_bundle.choose_signals(stale, committed) == committed
+        assert build_bundle.choose_signals(broken, committed) == committed
+        assert build_bundle.choose_signals(None, committed) == committed
+        epss_thin = json.loads(good.read_text())
+        epss_thin["epss"]["entries"] = dict(
+            list(epss_thin["epss"]["entries"].items())[:5]
+        )
+        thin_epss = tmp_path / "thin-epss.json"
+        thin_epss.write_text(json.dumps(epss_thin))
+        assert build_bundle.choose_signals(thin_epss, committed) == committed
+
+    def test_in_place_adds_data_and_manifest_to_the_feed(self, tmp_path: Path) -> None:
+        feed = tmp_path / "feed"
+        shutil.copytree(REPO / "examples" / "feed", feed)
+        build_bundle.build(feed, None, None)
+        assert (feed / "bundle.json").is_file()
+        assert {p.name for p in (feed / "data").iterdir()} == set(bundle_mod.DATA_FILES)
+        with pytest.raises(SystemExit):
+            build_bundle.build(feed, None, None)  # never overwrites
+
+
+@pytest.mark.skipif(
+    shutil.which("minisign") is None, reason="minisign is not installed"
+)
+def test_in_place_signed_feed_verifies_as_a_bundle(tmp_path: Path) -> None:
+    """The weekly publish path: sign a feed, add the bundle in place, verify."""
+    import subprocess
+
+    from mcp_audit.advisory.sign import sign_feed
+
+    priv, pub = tmp_path / "k.key", tmp_path / "k.pub"
+    subprocess.run(  # noqa: S603
+        [shutil.which("minisign"), "-G", "-W", "-p", str(pub), "-s", str(priv)],
+        check=True,
+        capture_output=True,
+        timeout=120,
+    )
+    config = SigningConfig(backend="minisign", private_key=priv, public_key=pub)
+    feed = tmp_path / "feed"
+    shutil.copytree(REPO / "examples" / "feed", feed)
+    sign_feed(feed, config)
+    build_bundle.build(feed, None, config)
+    assert build_bundle.main(["--verify", str(feed), "--public-key", str(pub)]) == 0
+    (feed / "bundle.json.sig").unlink()
+    assert build_bundle.main(["--verify", str(feed), "--public-key", str(pub)]) == 1
