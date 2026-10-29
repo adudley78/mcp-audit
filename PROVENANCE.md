@@ -1618,6 +1618,10 @@ definition that `lock/tool_digests.py` already digests (RFC 8785 canonical form,
 trusted only when it hashes to the lock's digest. Size figures in `docs/lock.md` come from
 `docs/poisoning.md` (the 2026-10-22 top-100 scan: 60 servers, 1,611 tools, about 6 MB).
 
+## LiteLLM registry entry (STORY-0128)
+
+Data only; no code copied. Sources, all read 2026-10-29: OSV.dev records for CVE-2026-59822 (fixed 1.84.0, GHSA-7488-6r32-c95q) and MAL-2026-2144 (litellm 1.82.7, 1.82.8, 1.107.0; https://osv.dev/MAL-2026-2144); NVD for CVE-2026-59822 (status Analyzed, CISA KEV added 2026-09-02, CPE `versionEndExcluding` 1.84.0, CVSS 4.0 8.8 from the GitHub CNA, not copied into the entry); CISA KEV via the bundled exploit-signals file; PyPI JSON (1.107.0 no longer listed; latest 1.106.6; first upload 2023-07-27). The 1.107.0 write-up is Datadog Security Labs'. The entry is `verified: false`: nobody has read the repository or the maintainer's own notice. The other LiteLLM advisories came from `scripts/sync_registry_advisories.py --write`.
+
 ## affected --fix (STORY-0127)
 
 Original code; no code copied. The fix version is read from the advisory (registry `fixed_in`, or `fixed` events in an OSV range), ordered with PEP 440 (`packaging`). Pin syntax follows npm (`pkg@x.y.z`) and PEP 508/uv (`pkg==x.y.z`, `pkg@x.y.z`).

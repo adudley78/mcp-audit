@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`affected <ID> --fix` pins affected servers to the advisory's fixed version (STORY-0127).** A dry-run diff by default; `--apply` writes atomically with a `.bak`, like `mcp-audit fix`. The version comes from the advisory (no network): the lowest fixed version above the one the server runs, checked against the advisory's own rules before anything is written, so re-running `affected` reports NOT AFFECTED. A server is left alone, with the reason printed, when no fix is recorded, versions cannot be ordered, the launch uses `--from`/`--with`, or the config is TOML. See `docs/affected.md`.
 
+- **LiteLLM's MCP gateway is in the registry (STORY-0128).** LiteLLM is an AI gateway that exposes MCP servers to agents, so a config that launches it, or points at one, is part of the agent stack. `affected CVE-2026-59822` (MCP authentication bypass, fixed in 1.84.0; on CISA KEV since 2026-09-02) now answers for `uvx litellm[proxy]==...` launches, and `affected MAL-2026-2144` flags the compromised 1.107.0 release (and 1.82.7, 1.82.8) by exact version. A client pointed at a LiteLLM URL stays COULDN'T CHECK: mcp-audit cannot read the version a remote gateway runs. The entry is not marked `verified`. Registry sync now skips malware advisories (OSV `PYSEC-` copies of a `MAL-` record, GitHub CWE-506) so they are never recorded as a vulnerability with no fix, which would flag every version. The sync also added LiteLLM's other 43 OSV advisories and 4 for `mcp`, `mcp-server-kubernetes` and `@modelcontextprotocol/sdk`.
+
 ---
 
 ## [0.23.0] - 2026-10-29

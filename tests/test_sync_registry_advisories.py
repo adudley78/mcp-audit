@@ -136,6 +136,15 @@ class TestMissingForEntry:
         )
         assert new == []
 
+    def test_malware_advisories_are_skipped_not_recorded_as_cves(self) -> None:
+        # STORY-0128: OSV's PYSEC copy of a MAL record, and GitHub's CWE-506
+        # advisory, would otherwise be recorded with no fix and flag every version.
+        pysec = _vuln("PYSEC-2026-2", aliases=["MAL-2026-2144"])
+        ghsa = _vuln("GHSA-5mg7-485q-xm76")
+        ghsa["database_specific"] = {"cwe_ids": ["CWE-506"]}
+        new, _ = sync_mod.missing_for_entry(_entry(), [pysec, ghsa])
+        assert new == []
+
     def test_fills_a_missing_fixed_in_on_an_existing_record(self) -> None:
         entry = _entry(
             known_vulnerabilities=["CVE-2026-1"],

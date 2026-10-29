@@ -2,8 +2,8 @@
   "schema_version": "1.0",
   "description": "OSV malicious-package (MAL-*) records for npm and PyPI packages whose name contains 'mcp' or that registry/known-servers.json lists. Matched offline by exact name (SC-008, mcp-audit vet). Written by scripts/sync_registry_advisories.py --write; do not edit by hand.",
   "source": "https://osv.dev (OpenSSF malicious-packages, via OSV's bulk export)",
-  "last_updated": "2026-10-25",
-  "entry_count": 217,
+  "last_updated": "2026-10-29",
+  "entry_count": 218,
   "entries": [
     {
       "id": "MAL-2026-2669",
@@ -334,6 +334,22 @@
           ]
         }
       ]
+    },
+    {
+      "id": "MAL-2026-2144",
+      "ecosystem": "PyPI",
+      "name": "litellm",
+      "aliases": [
+        "PYSEC-2026-2"
+      ],
+      "summary": "Malicious code in litellm (PyPI)",
+      "published": "2026-03-24T11:15:14Z",
+      "versions": [
+        "1.82.7",
+        "1.82.8",
+        "1.107.0"
+      ],
+      "ranges": []
     },
     {
       "id": "MAL-2026-16250",

@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-10-27",
-  "entry_count": 55,
+  "last_updated": "2026-10-29",
+  "entry_count": 56,
   "entries": [
     {
       "name": "@modelcontextprotocol/server-filesystem",
@@ -339,7 +339,8 @@
         "CVE-2026-111767",
         "CVE-2026-111768",
         "CVE-2026-111769",
-        "CVE-2026-111771"
+        "CVE-2026-111771",
+        "GHSA-f897-62hf-6gxq"
       ],
       "known_vulns": [
         {
@@ -389,6 +390,12 @@
           "cvss": null,
           "description": "MCP TypeScript SDK: Server bearer authentication accepted tokens issued for another service",
           "fixed_in": "1.32.0"
+        },
+        {
+          "cve": "GHSA-f897-62hf-6gxq",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: HTTP server transports and handlers did not limit request body size or JSON-RPC batch length",
+          "fixed_in": "1.30.1"
         }
       ]
     },
@@ -448,7 +455,10 @@
         "CVE-2026-52869",
         "CVE-2026-52870",
         "CVE-2026-59950",
-        "CVE-2026-59951"
+        "CVE-2026-59951",
+        "CVE-2026-116684",
+        "CVE-2026-116685",
+        "CVE-2026-116686"
       ],
       "known_vulns": [
         {
@@ -505,6 +515,24 @@
             "http"
           ],
           "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
+        },
+        {
+          "cve": "CVE-2026-116684",
+          "cvss": null,
+          "description": "Model Context Protocol Python SDK: Server bearer-token authentication accepts tokens issued for a different resource server",
+          "fixed_in": "2.2.0"
+        },
+        {
+          "cve": "CVE-2026-116685",
+          "cvss": null,
+          "description": "Model Context Protocol Python SDK: HTTP client transports followed cross-origin redirects carrying custom headers and bodies",
+          "fixed_in": "2.2.0"
+        },
+        {
+          "cve": "CVE-2026-116686",
+          "cvss": null,
+          "description": "Model Context Protocol Python SDK: Client fetched server-chosen $ref URLs while validating tool results against output schemas",
+          "fixed_in": "2.2.0"
         }
       ]
     },
@@ -650,7 +678,8 @@
         "CVE-2025-66404",
         "CVE-2026-39884",
         "CVE-2026-46519",
-        "CVE-2026-47250"
+        "CVE-2026-47250",
+        "CVE-2026-61459"
       ],
       "known_vulns": [
         {
@@ -682,6 +711,12 @@
           "cvss": null,
           "description": "MCP Server Kubernetes: kubectl-generic flag injection enables Kubernetes bearer token exfiltration",
           "fixed_in": "3.7.0"
+        },
+        {
+          "cve": "CVE-2026-61459",
+          "cvss": null,
+          "description": "mcp-server-kubernetes argument injection can expose Kubernetes cluster credentials",
+          "fixed_in": "3.9.0"
         }
       ]
     },
@@ -2434,6 +2469,336 @@
       "weekly_downloads": 1158,
       "publisher_history": null,
       "attestation_expected": false
+    },
+    {
+      "name": "litellm",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/BerriAI/litellm",
+      "maintainer": "BerriAI",
+      "verified": false,
+      "last_verified": "2026-10-29",
+      "known_versions": [],
+      "tags": [
+        "gateway",
+        "proxy",
+        "remote",
+        "ai",
+        "community"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2023-07-27",
+      "weekly_downloads": 21689249,
+      "publisher_history": [
+        "BerriAI"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2024-10188",
+        "CVE-2024-2952",
+        "CVE-2024-4264",
+        "CVE-2024-4888",
+        "CVE-2024-4890",
+        "CVE-2024-5225",
+        "CVE-2024-5710",
+        "CVE-2024-5751",
+        "CVE-2024-6587",
+        "CVE-2024-6825",
+        "CVE-2024-8984",
+        "CVE-2024-9606",
+        "CVE-2025-0330",
+        "CVE-2025-0628",
+        "CVE-2026-114612",
+        "CVE-2026-12770",
+        "CVE-2026-12771",
+        "CVE-2026-12772",
+        "CVE-2026-12773",
+        "CVE-2026-12795",
+        "CVE-2026-12796",
+        "CVE-2026-12797",
+        "CVE-2026-12798",
+        "CVE-2026-12799",
+        "CVE-2026-35029",
+        "CVE-2026-35030",
+        "CVE-2026-37004",
+        "CVE-2026-40217",
+        "CVE-2026-42203",
+        "CVE-2026-42208",
+        "CVE-2026-42271",
+        "CVE-2026-47101",
+        "CVE-2026-47102",
+        "CVE-2026-49468",
+        "CVE-2026-59819",
+        "CVE-2026-59820",
+        "CVE-2026-59821",
+        "CVE-2026-59822",
+        "CVE-2026-59823",
+        "CVE-2026-84377",
+        "GHSA-69x8-hrgq-fjj8",
+        "GHSA-g5ff-637f-6q2m",
+        "GHSA-hhww-mrg2-969h"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2024-10188",
+          "cvss": null,
+          "description": "LiteLLM Vulnerable to Denial of Service (DoS)",
+          "fixed_in": "1.53.1.dev1"
+        },
+        {
+          "cve": "CVE-2024-2952",
+          "cvss": null,
+          "description": "LiteLLM has Server-Side Template Injection vulnerability in /completions endpoint",
+          "fixed_in": "1.34.42"
+        },
+        {
+          "cve": "CVE-2024-4264",
+          "cvss": null,
+          "description": "litellm passes untrusted data to `eval` function without sanitization",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-4888",
+          "cvss": null,
+          "description": "Arbitrary file deletion in litellm",
+          "fixed_in": "1.35.36"
+        },
+        {
+          "cve": "CVE-2024-4890",
+          "cvss": null,
+          "description": "SQL injection in litellm",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-5225",
+          "cvss": null,
+          "description": "SQL injection in litellm",
+          "fixed_in": "1.40.0"
+        },
+        {
+          "cve": "CVE-2024-5710",
+          "cvss": null,
+          "description": "litellm vulnerable to improper access control in team management",
+          "fixed_in": "1.40.15"
+        },
+        {
+          "cve": "CVE-2024-5751",
+          "cvss": null,
+          "description": "litellm vulnerable to remote code execution based on using eval unsafely",
+          "fixed_in": "1.40.16"
+        },
+        {
+          "cve": "CVE-2024-6587",
+          "cvss": null,
+          "description": "LiteLLM Server-Side Request Forgery (SSRF) vulnerability",
+          "fixed_in": "1.44.8"
+        },
+        {
+          "cve": "CVE-2024-6825",
+          "cvss": null,
+          "description": "LiteLLM Vulnerable to Remote Code Execution (RCE)",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-8984",
+          "cvss": null,
+          "description": "LiteLLM Vulnerable to Denial of Service (DoS) via Crafted HTTP Request",
+          "fixed_in": "1.56.2"
+        },
+        {
+          "cve": "CVE-2024-9606",
+          "cvss": null,
+          "description": "LiteLLM Reveals Portion of API Key via a Logging File",
+          "fixed_in": "1.44.12"
+        },
+        {
+          "cve": "CVE-2025-0330",
+          "cvss": null,
+          "description": "LiteLLM Has a Leakage of Langfuse API Keys",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-0628",
+          "cvss": null,
+          "description": "LiteLLM Has an Improper Authorization Vulnerability",
+          "fixed_in": "1.61.15"
+        },
+        {
+          "cve": "CVE-2026-114612",
+          "cvss": null,
+          "description": "LiteLLM: Privilege Escalation to Proxy Admin via Cross-Domain Reuse of the Salt Key",
+          "fixed_in": "1.104.0rc2"
+        },
+        {
+          "cve": "CVE-2026-12770",
+          "cvss": null,
+          "description": "LiteLLM: Admin Key Handler Has Improper Authorization",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-12771",
+          "cvss": null,
+          "description": "LiteLLM: M2M JWT Handler Has Improper Authorization",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-12772",
+          "cvss": null,
+          "description": "LiteLLM: PROXY_ADMIN database API Key Generator Has Insufficient Session Expiration",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-12773",
+          "cvss": null,
+          "description": "LiteLLM: MCP Proxy Has Improper Authentication",
+          "fixed_in": "1.84.0"
+        },
+        {
+          "cve": "CVE-2026-12795",
+          "cvss": null,
+          "description": "LiteLLM: SSO Debug Flow Has Improper Authentication",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-12796",
+          "cvss": null,
+          "description": "BerriAI litellm: SSO Login Does Not Invalidate Previous UI Session Tokens",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-12797",
+          "cvss": null,
+          "description": "BerriAI litellm has Security Feature Bypass in BannedKeywords and AzureContentSafety Guardrails via call_type Mismatch on Async Endpoints",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-12798",
+          "cvss": null,
+          "description": "BerriAI litellm has SSRF via Unvalidated spec_path URL in MCP OpenAPI Spec Loader",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-12799",
+          "cvss": null,
+          "description": "BerriAI litellm: UI User Enumeration leads to System-Wide Information Disclosure",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-35029",
+          "cvss": null,
+          "description": "LiteLLM: Privilege escalation via unrestricted proxy configuration endpoint",
+          "fixed_in": "1.83.0"
+        },
+        {
+          "cve": "CVE-2026-35030",
+          "cvss": null,
+          "description": "LiteLLM: Authentication bypass via OIDC userinfo cache key collision",
+          "fixed_in": "1.83.0"
+        },
+        {
+          "cve": "CVE-2026-37004",
+          "cvss": null,
+          "description": "LiteLLM vulnerable to server-side template injection in the /prompts/test endpoint",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-40217",
+          "cvss": null,
+          "description": "LiteLLM has a sandbox escape in custom-code guardrail",
+          "fixed_in": "1.83.10"
+        },
+        {
+          "cve": "CVE-2026-42203",
+          "cvss": null,
+          "description": "LiteLLM: Server-Side Template Injection in /prompts/test endpoint",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-42208",
+          "cvss": null,
+          "description": "LiteLLM has SQL Injection in Proxy API key verification",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-42271",
+          "cvss": null,
+          "description": "LiteLLM: Authenticated command execution via MCP stdio test endpoints",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-47101",
+          "cvss": null,
+          "description": "LiteLLM allows an authenticated internal_user to create API keys with access to routes that their role does not permit",
+          "fixed_in": "1.83.14"
+        },
+        {
+          "cve": "CVE-2026-47102",
+          "cvss": null,
+          "description": "LiteLLM allows a user to modify their own user_role via the /user/update endpoint",
+          "fixed_in": "1.83.10"
+        },
+        {
+          "cve": "CVE-2026-49468",
+          "cvss": null,
+          "description": "LiteLLM: Authentication Bypass via Host Header Injection",
+          "fixed_in": "1.84.0"
+        },
+        {
+          "cve": "CVE-2026-59819",
+          "cvss": null,
+          "description": "LiteLLM: Local file read via request-supplied OIDC file references",
+          "fixed_in": "1.83.10"
+        },
+        {
+          "cve": "CVE-2026-59820",
+          "cvss": null,
+          "description": "LiteLLM: Arbitrary file write via path traversal in Skills archive extraction",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-59821",
+          "cvss": null,
+          "description": "LiteLLM: Custom Code Guardrails production endpoints bypass code safety checks",
+          "fixed_in": "1.82.0"
+        },
+        {
+          "cve": "CVE-2026-59822",
+          "cvss": null,
+          "description": "LiteLLM: MCP Authentication Bypass via OAuth2 Passthrough Fallback",
+          "fixed_in": "1.84.0"
+        },
+        {
+          "cve": "CVE-2026-59823",
+          "cvss": null,
+          "description": "LiteLLM Proxy has server-side request forgery via the `user_config` request parameter",
+          "fixed_in": "1.83.9"
+        },
+        {
+          "cve": "CVE-2026-84377",
+          "cvss": null,
+          "description": "LiteLLM: Authenticated SSRF and provider-credential exfiltration via unvalidated request-body routing parameters",
+          "fixed_in": "1.96.2"
+        },
+        {
+          "cve": "GHSA-69x8-hrgq-fjj8",
+          "cvss": null,
+          "description": "LiteLLM: Password hash exposure and pass-the-hash authentication bypass",
+          "fixed_in": "1.83.0"
+        },
+        {
+          "cve": "GHSA-g5ff-637f-6q2m",
+          "cvss": null,
+          "description": "LiteLLM: internal_user_viewer arbitrary local file read via `vertex_ai_credentials`",
+          "fixed_in": "1.95.0"
+        },
+        {
+          "cve": "GHSA-hhww-mrg2-969h",
+          "cvss": null,
+          "description": "LiteLLM vulnerable to reflected XSS in /sso/debug/callback",
+          "fixed_in": "1.85.0"
+        }
+      ]
     }
   ]
 }

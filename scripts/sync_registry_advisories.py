@@ -83,7 +83,9 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = REPO_ROOT / "registry" / "known-servers.json"
 OSV_QUERY_URL = "https://api.osv.dev/v1/query"
-OSV_EXPORT_URL = "https://osv-vulnerabilities.storage.googleapis.com/{ecosystem}/all.zip"
+OSV_EXPORT_URL = (
+    "https://osv-vulnerabilities.storage.googleapis.com/{ecosystem}/all.zip"
+)
 MALICIOUS_FILENAME = "known-malicious.json"
 MALICIOUS_ECOSYSTEMS = ("npm", "PyPI")
 _ECOSYSTEMS = {"npm": "npm", "pip": "PyPI", "pypi": "PyPI"}
@@ -219,7 +221,21 @@ def describe(vuln: dict[str, Any]) -> str:
 
 
 def is_skipped(vuln: dict[str, Any]) -> bool:
-    return bool(vuln.get("withdrawn")) or str(vuln.get("id", "")).startswith("MAL-")
+    """True for records that are not CVE-class findings about a package.
+
+    Withdrawn records, ``MAL-*`` malicious-package records, their aliases
+    (OSV's ``PYSEC-`` copy of a ``MAL-`` record), and GitHub malware advisories
+    (CWE-506, "embedded malicious code") are skipped.  A malicious release is
+    matched by ``known-malicious.json`` on its exact versions; recorded here
+    with no fix it would flag every version of the package (STORY-0128:
+    litellm 1.82.7/1.82.8, GHSA-5mg7-485q-xm76 and PYSEC-2026-2).
+    """
+    if vuln.get("withdrawn") or str(vuln.get("id", "")).startswith("MAL-"):
+        return True
+    if any(str(a).startswith("MAL-") for a in vuln.get("aliases") or []):
+        return True
+    cwes = (vuln.get("database_specific") or {}).get("cwe_ids") or []
+    return "CWE-506" in cwes
 
 
 # ── Diff and merge ─────────────────────────────────────────────────────────────
@@ -394,7 +410,9 @@ def package_selector(registry: dict[str, Any]) -> Keep:
 def _record_matches(record: dict[str, Any], ecosystem: str, keep: Keep) -> bool:
     for affected in record.get("affected") or []:
         pkg = affected.get("package") or {}
-        if pkg.get("ecosystem") == ecosystem and keep(ecosystem, str(pkg.get("name", ""))):
+        if pkg.get("ecosystem") == ecosystem and keep(
+            ecosystem, str(pkg.get("name", ""))
+        ):
             return True
     return False
 
@@ -425,7 +443,9 @@ def fetch_malicious_export(
                         raise RuntimeError(f"OSV export for {ecosystem} is too large")
                     fh.write(chunk)
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"OSV export download failed for {ecosystem}: {exc}") from exc
+            raise RuntimeError(
+                f"OSV export download failed for {ecosystem}: {exc}"
+            ) from exc
         try:
             with zipfile.ZipFile(path) as archive:
                 for info in archive.infolist():
@@ -438,7 +458,9 @@ def fetch_malicious_export(
                     if _record_matches(record, ecosystem, keep):
                         kept.append(record)
         except (zipfile.BadZipFile, json.JSONDecodeError, KeyError, OSError) as exc:
-            raise RuntimeError(f"OSV export for {ecosystem} is unreadable: {exc}") from exc
+            raise RuntimeError(
+                f"OSV export for {ecosystem} is unreadable: {exc}"
+            ) from exc
     return kept
 
 
@@ -458,7 +480,11 @@ def malicious_entries(
         for affected in record.get("affected") or []:
             pkg = affected.get("package") or {}
             name = str(pkg.get("name", ""))
-            if pkg.get("ecosystem") != ecosystem or not name or not keep(ecosystem, name):
+            if (
+                pkg.get("ecosystem") != ecosystem
+                or not name
+                or not keep(ecosystem, name)
+            ):
                 continue
             entry: dict[str, Any] = {
                 "id": rid,
@@ -549,7 +575,9 @@ def write_malicious(path: Path, entries: list[dict[str, Any]], today: str) -> No
         "entry_count": len(entries),
         "entries": entries,
     }
-    path.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
 
 
 def render_malicious_summary(diff: dict[str, list[str]], total: int) -> str:
@@ -596,7 +624,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--out", type=Path, help="write the proposed registry here")
     parser.add_argument(
-        "--malicious-out", type=Path, help="write the proposed known-malicious file here"
+        "--malicious-out",
+        type=Path,
+        help="write the proposed known-malicious file here",
     )
     parser.add_argument("--summary", type=Path, help="append a markdown summary here")
     parser.add_argument("--today", default=dt.date.today().isoformat())
@@ -612,8 +642,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    summary = render_summary(changes) + "\n" + render_malicious_summary(
-        mal_diff, len(mal_entries)
+    summary = (
+        render_summary(changes)
+        + "\n"
+        + render_malicious_summary(mal_diff, len(mal_entries))
     )
     print(summary)
     if args.summary:
