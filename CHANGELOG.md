@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`affected` reads the installed Claude Code, Codex and Gemini CLI versions, without running them (STORY-0132).** For a research record with per-product fixes (Plugin4Shell: Claude Code 2.1.179, Codex 0.146.0), each install found is now AFFECTED (below the fix, with the path the version was read from) or NOT AFFECTED (at or above it) instead of COULDN'T CHECK. Versions come from npm global `package.json` files (`npm_config_prefix`, nvm, Homebrew, `/usr/local`, `%APPDATA%\npm`) and Claude Code's native `~/.local/share/claude/versions/` directory; no subprocess is ever started. Every install is listed because the one first on `PATH` cannot be known without running it. Oversized, malformed or looping files are skipped and named in the notes. No install found: COULDN'T CHECK, as before. HARNESS-001 and the other version-dependent findings are unchanged. See `docs/affected.md`.
+
 ---
 
 ## [0.24.0] - 2026-10-29
