@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.24.0] - 2026-10-29
+
 ### Added
 
 - **`mcp-audit affected <ID or pkg@range>`: is this advisory in my agent stack? (STORY-0121).** Give it a CVE, GHSA, OSV `MAL-*` or research-record ID, or a package and range (`litellm@==1.107.0`), and it answers for every MCP server it discovers: AFFECTED, NOT AFFECTED, or COULDN'T CHECK, each with the evidence, the version it compared, and where the version came from (the launch command's pin, or a lock's `resolved_version` via `--lock`). A floating `npx -y pkg` with no lock is COULDN'T CHECK, never NOT AFFECTED. Terminal, `--format json` and `--format sarif`; exit `1` if anything is affected, `--fail-on-unknown` to also fail on COULDN'T CHECK. Offline by default; `--live` fetches an advisory that is not bundled from OSV.dev. For the Plugin4Shell record it lists each product (Claude Code, Codex, Copilot, Gemini CLI) and runs PLUGIN-003/004; mcp-audit does not yet read installed harness versions, so those rows read COULDN'T CHECK. See `docs/affected.md`.
