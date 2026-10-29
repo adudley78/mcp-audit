@@ -6,6 +6,8 @@ mcp-audit is an offline security scanner and committable lock for the MCP server
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Open VSX](https://img.shields.io/open-vsx/v/mcp-audit/mcp-audit-vscode)](https://open-vsx.org/extension/mcp-audit/mcp-audit-vscode)
 
+[![mcp-audit in 58 seconds: why agent files are a risk, how a scan works, and what it checks](docs/media/explainer-thumb.jpg)](https://mcp-audit.dev/assets/mcp-audit-explainer.mp4)
+
 ```bash
 pip install mcp-audit-scanner
 ```
