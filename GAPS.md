@@ -481,6 +481,33 @@ by arXiv 2605.22333 are out of scope for static analysis (require live
   like Claude Code reads it. On WSL `/etc/claude-code` is user-writable; that is not
   reported.
 
+## claude.ai connectors (account-level MCP servers)
+
+- **Not discovered or scanned.** When Claude Code is signed in with a claude.ai
+  subscription, it fetches the MCP servers added at claude.ai/customize/connectors
+  and loads them beside the configured ones. They live in the account, not in a file
+  on disk, so `scan`, `check`, `shadow`, `lock` and `--connect` never see them, and
+  toxic-flow and attack-path results are computed without their capabilities. A
+  project that scans clean can still run with every connector on the account. A
+  reader of the top-100 npm write-up reported (2026-10-28) that a Claude Code test
+  run without `--strict-mcp-config` loaded about 150 extra connector tools.
+- **The documented switches are not checked.** Claude Code skips the connectors it
+  fetches when `disableClaudeAiConnectors` is `true` in any settings scope (any
+  source wins, so a committed project `.claude/settings.json` can opt a repository
+  out), when `ENABLE_CLAUDEAI_MCP_SERVERS=false` is set, when the active sign-in is
+  not a claude.ai subscription (API key, `apiKeyHelper`, a third-party provider,
+  a `claude setup-token` token), or under `--strict-mcp-config`. Single connectors
+  can be denied in `deniedMcpServers` by name (`"claude.ai Slack"`) or URL pattern.
+  Cloud sessions and the desktop app's local and SSH sessions get connectors another
+  way, and these switches don't apply there. mcp-audit reads `deniedMcpServers` for
+  MANAGED-001..005 but never matches it against connectors, and reads none of the
+  others. Source: https://code.claude.com/docs/en/mcp ("Use MCP servers from
+  claude.ai").
+- **Closing it.** An offline scan can't list an account's connectors. It could report,
+  from settings files it already reads, whether connectors are switched off for the
+  project. Not built: saying "connectors load here" correctly needs the sign-in
+  precedence above, which mcp-audit doesn't model.
+
 ## Detection quality
 
 **Measured POISON-* recall and precision (2026-10-25, STORY-0088).** Full method and caveats: [`docs/poisoning.md`](docs/poisoning.md); numbers: `docs/research/poisoning-benchmark/results.json`.
