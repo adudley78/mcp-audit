@@ -38,6 +38,45 @@ def _detect_transport(server_data: dict) -> TransportType:
     return TransportType.UNKNOWN
 
 
+MAX_CONFIG_DEPTH = 64
+"""Deepest nesting of arrays/objects accepted in a config file.
+
+Real configs are three or four levels deep.  A file nested hundreds of levels
+(plantable in a cloned repository) parses, but later breaks recursive code and
+JSON serialisation of the scan result, so it is refused at parse time and
+reported in ``ScanResult.errors`` instead.
+"""
+
+
+def check_config_depth(value: object, path: object) -> None:
+    """Raise ``ValueError`` when ``value`` nests deeper than ``MAX_CONFIG_DEPTH``.
+
+    Iterative, so the check itself cannot hit the recursion limit.
+
+    Args:
+        value: A parsed JSON/TOML value.
+        path: The file it came from (used in the message only).
+
+    Raises:
+        ValueError: The structure is nested too deeply.
+    """
+    stack: list[tuple[object, int]] = [(value, 1)]
+    while stack:
+        item, depth = stack.pop()
+        if isinstance(item, dict):
+            children: list[object] = list(item.values())
+        elif isinstance(item, list):
+            children = list(item)
+        else:
+            continue
+        if depth > MAX_CONFIG_DEPTH:
+            raise ValueError(
+                f"{path} is nested more than {MAX_CONFIG_DEPTH} levels deep; "
+                "not analysed"
+            )
+        stack.extend((child, depth + 1) for child in children)
+
+
 def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
     """Parse a discovered config file into a list of ServerConfig objects.
 
@@ -76,8 +115,9 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
 
     try:
         data = json.loads(raw_text)
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, RecursionError) as e:
         raise ValueError(f"Invalid JSON in {config.path}: {e}") from e
+    check_config_depth(data, config.path)
 
     if not isinstance(data, dict):
         raise ValueError(
@@ -327,6 +367,7 @@ def _parse_codex_config(config: DiscoveredConfig) -> list[ServerConfig]:
         data = tomllib.loads(text)
     except (tomllib.TOMLDecodeError, RecursionError) as e:
         raise ValueError(f"Invalid TOML in {config.path}: {e}") from e
+    check_config_depth(data, config.path)
     config.raw = _json_safe(data)  # type: ignore[assignment]
     tables = data.get(CODEX_ROOT_KEY)
     if not isinstance(tables, dict):
@@ -441,6 +482,7 @@ def _parse_gemini_settings(config: DiscoveredConfig) -> list[ServerConfig]:
         data = json.loads(_strip_json_comments(text))
     except (json.JSONDecodeError, RecursionError) as e:
         raise ValueError(f"Invalid JSON in {config.path}: {e}") from e
+    check_config_depth(data, config.path)
     if not isinstance(data, dict):
         raise ValueError(
             f"Expected JSON object in {config.path}, got {type(data).__name__}"

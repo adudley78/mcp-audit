@@ -199,7 +199,7 @@ def load_state(state_path: Path) -> dict:
         if not isinstance(data, dict):
             return {"version": _STATE_VERSION, "servers": {}}
         return data
-    except (json.JSONDecodeError, OSError):
+    except (ValueError, OSError, RecursionError):
         return {"version": _STATE_VERSION, "servers": {}}
 
 

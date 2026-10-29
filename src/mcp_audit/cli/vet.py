@@ -63,7 +63,9 @@ from mcp_audit.verdict import (
     build_verdict,
     malicious_item,
     name_to_slug,
+    split_package_spec,
     verdict_page_url,
+    with_pinned_version,
 )
 
 # ── Types ──────────────────────────────────────────────────────────────────────
@@ -462,8 +464,41 @@ def _print_known_verdict(
     t.append(f"  Sigstore attestation expected: {att_note}\n\n")
 
     # CVEs.
-    unfixed = [v for v in vulns if not v.get("fixed_in")]
-    if vulns:
+    unfixed = _open_vulns(verdict, vulns)
+    pinned = pkg.get("version")
+    if pinned is not None:
+        t.append(f"  Version asked about: {pinned}\n\n")
+    if vulns and pinned is not None:
+        if unfixed:
+            heading = (
+                f"  [red bold]Known vulnerabilities: {len(vulns)} "
+                f"({len(unfixed)} affect or may affect {pinned})[/red bold]\n\n"
+            )
+        else:
+            heading = (
+                f"  [yellow bold]Known vulnerabilities: {len(vulns)} "
+                f"(all fixed in or before {pinned})[/yellow bold]\n\n"
+            )
+        t.append_text(Text.from_markup(heading))
+        for v in vulns:
+            cve = v.get("cve", "unknown")
+            fixed = v.get("fixed_in")
+            fixed_str = f"fixed in {fixed}" if fixed else "no fix available"
+            status = {
+                "affected": f"{pinned} is affected",
+                "fixed": f"{pinned} includes the fix",
+                "undecidable": (
+                    f"cannot tell offline whether {pinned} includes the fix "
+                    "(calendar versus semantic version numbering)"
+                ),
+            }.get(str(v.get("status")), "")
+            t.append_text(Text.from_markup(f"    [red]{cve}[/red]"))
+            t.append(f" — {status}\n" if status else "\n")
+            t.append(f"    {fixed_str}\n", style="dim")
+            if v.get("link"):
+                t.append(f"    {v['link']}\n", style="dim")
+            t.append("\n")
+    elif vulns:
         if unfixed:
             heading = (
                 f"  [red bold]Known vulnerabilities: {len(vulns)} "
@@ -753,6 +788,21 @@ def print_verdict(
 # ── Exit code logic ────────────────────────────────────────────────────────────
 
 
+def _open_vulns(
+    verdict: dict[str, Any], vulns: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The vulnerabilities that count against the verdict.
+
+    Without a pinned version: those with no recorded fix.  With one
+    (``vet pkg@1.2.3``): those the pinned version is still affected by
+    (``status`` ``affected``) or cannot be ruled out (``undecidable``: an
+    unsure answer is not a clean one).
+    """
+    if _as_dict(verdict.get("package")).get("version") is None:
+        return [v for v in vulns if not v.get("fixed_in")]
+    return [v for v in vulns if v.get("status", "affected") != "fixed"]
+
+
 def _verdict_exit_code(verdict: dict[str, Any], strict: bool) -> int:
     """Map a verdict dict to the appropriate process exit code.
 
@@ -773,7 +823,7 @@ def _verdict_exit_code(verdict: dict[str, Any], strict: bool) -> int:
     vulns = _vuln_items(verdict)
     typosquat = verdict.get("typosquat_of")
     listed = _as_dict(verdict.get("registry")).get("listed", False)
-    unfixed = [v for v in vulns if not v.get("fixed_in")]
+    unfixed = _open_vulns(verdict, vulns)
     malicious_latest = [
         m
         for m in _as_list(verdict.get("malicious"))
@@ -796,7 +846,8 @@ def vet(
         ...,
         help=(
             "Package name to vet (npm: '@scope/name' or 'name'; "
-            "pypi: 'package-name'). Use --ecosystem to disambiguate."
+            "pypi: 'package-name'); add @1.2.3 (or ==1.2.3) to judge one version. "
+            "Use --ecosystem to disambiguate."
         ),
     ),
     ecosystem: _StrOpt = typer.Option(  # noqa: B008
@@ -855,13 +906,20 @@ def vet(
         mcp-audit vet @modelcontextprotocol/server-filesystem
         mcp-audit vet mcp-atlassian --ecosystem pypi
         mcp-audit vet @azure/mcp --format json
+        mcp-audit vet mcp-remote@0.1.30
         mcp-audit vet @scope/name --badge
         mcp-audit vet @scope/name --online
     """
     console = Console()
 
     # ── Input validation ──────────────────────────────────────────────────────
-    pkg_name = package.strip() if package else ""
+    pkg_name, pinned_version = split_package_spec(package if package else "")
+    raw_spec = (package or "").strip()
+    if pinned_version is None and pkg_name != raw_spec:
+        Console(stderr=True).print(
+            f"[dim]No version applied: {raw_spec[len(pkg_name) :]!r} names no "
+            "single release.[/dim]"
+        )
     if not pkg_name:
         console.print("[red]Error:[/red] Package name must not be empty.")
         raise typer.Exit(2)
@@ -912,6 +970,12 @@ def vet(
             # verdict must never hide a record the offline one would report.
             online_verdict = _with_local_malicious(
                 online_verdict, pkg_name, eco, registry
+            )
+            local_entry = _lookup(pkg_name, eco, registry)
+            online_verdict = with_pinned_version(
+                online_verdict,
+                pinned_version,
+                local_entry.semver_resumed_at if local_entry else None,
             )
             # Emit and exit.  We have no typosquat_entry for online verdicts
             # (the server computed it), so pass None.
@@ -975,6 +1039,7 @@ def vet(
         typosquat_basis=basis,
         malicious=[malicious_item(m) for m in malicious],
         other_ecosystem_malicious=[malicious_item(m) for m in other_malicious],
+        pinned_version=pinned_version,
     )
 
     # ── Emit output ───────────────────────────────────────────────────────────

@@ -26,6 +26,10 @@ mcp-audit vet @azure/mcp --format json
 # Shields.io badge for your README
 mcp-audit vet @modelcontextprotocol/server-filesystem --badge
 
+# A specific version (STORY-0117): judged against each recorded CVE's fix
+mcp-audit vet @modelcontextprotocol/server-filesystem@2025.1.14
+mcp-audit vet mcp-remote==0.1.30
+
 # Live verdict from mcp-audit.dev (requires network)
 mcp-audit vet @scope/name --online
 
@@ -225,6 +229,15 @@ Fields added by STORY-0097 (the schema allows additional properties):
 | `typosquat_basis` | `"edit-distance"` or `"unscoped-twin"` when `typosquat_of` is set, else `null` |
 | `malicious` | OSV `MAL-*` records for this package in this ecosystem: `id`, `ecosystem`, `aliases`, `summary`, `versions`, `ranges` (OSV events), `latest_affected`, `blanket_range_ignored`, `link`, `note` |
 | `other_ecosystem_malicious` | The same, for the other registry's package of this name (only without `--ecosystem`); never changes the exit code |
+
+Fields added by STORY-0117, only when a version is given (`vet pkg@1.2.3`, `vet @scope/pkg@1.2.3`, `vet pkg==1.2.3`):
+
+| Field | Meaning |
+|---|---|
+| `package.version` | The exact version asked about. The name is looked up without it. A dist-tag (`@latest`) or range (`@^1.2`) names no single release and is dropped, with no `version` field |
+| `known_vulnerabilities[].status` | `affected` (no recorded fix, or the version is below it), `fixed`, or `undecidable` (the fix uses a different numbering scheme, calendar versus semantic, and `semver_resumed_at` does not order them: the SC-004/SC-009 rule) |
+
+With a version, the exit code is 1 when any CVE is `affected` or `undecidable` (an unsure answer is not a clean one); 0 only when every recorded CVE is `fixed` at that version. Without one, the rule is unchanged: 1 when a recorded CVE has no fix. The OSV `MAL-*` check is by package name, not by version.
 
 ---
 
