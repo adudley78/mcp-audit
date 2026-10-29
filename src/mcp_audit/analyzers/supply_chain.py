@@ -1292,6 +1292,9 @@ _KV_VALUE_END_RE = re.compile(r"[;\s]")
 _KV_WINDOW = 4096
 
 
+_KV_NEXT_PAIR_RE = re.compile(r"\s[A-Za-z_][A-Za-z0-9_.-]{0,63}=")
+
+
 def redact_kv_secrets(text: str) -> str:
     """Redact ``password=…``-style pairs in connection strings and commands.
 
@@ -1312,6 +1315,7 @@ def redact_kv_secrets(text: str) -> str:
     out: list[str] = []
     pos = 0
     n = len(text)
+    semi_at = -1
     for m in _KV_NAME_AT_RE.finditer(text):
         if m.start() < pos:
             continue
@@ -1333,9 +1337,17 @@ def redact_kv_secrets(text: str) -> str:
             if stop:
                 vend = stop.start()
                 if password_class and text[vend] != ";":
-                    semi = text.find(";", vend, wend)
-                    if semi != -1:
-                        vend = semi
+                    # A spaced password runs to the next ``;`` anywhere (or
+                    # the end of the text): fail toward redacting more.  The
+                    # position is cached, so the scan stays linear.
+                    if semi_at < vend:
+                        semi_at = text.find(";", vend)
+                        if semi_at == -1:
+                            # libpq style (``password=a dbname=x``): stop at
+                            # the next ``name=`` word, else the end.
+                            nk = _KV_NEXT_PAIR_RE.search(text, vend)
+                            semi_at = nk.start() if nk else n + 1
+                    vend = min(semi_at, n)
             else:
                 vend = n if wend < n else wend
         value = text[vstart:vend]

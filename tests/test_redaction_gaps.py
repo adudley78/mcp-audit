@@ -862,3 +862,29 @@ def test_scan_json_vs_dir_with_changed_command_is_reported(tmp_path: Path) -> No
     changes = compare(load_input(str(scan)), load_input(str(head)))
     assert any(c.entity_type == EntityType.SERVER for c in changes)
     assert compare(load_input(str(scan)), load_input(str(base))) == []
+
+
+@pytest.mark.parametrize("key", ["Password", "Pwd", "secret"])
+@pytest.mark.parametrize("gap", [100, 4090, 5000, 20000])
+@pytest.mark.parametrize("semi", [True, False])
+def test_spaced_password_never_leaks_tail_past_window(
+    key: str, gap: int, semi: bool
+) -> None:
+    text = f"Server=h;{key}=sec rot pass" + "X" * gap + (";Database=d" if semi else "")
+    out = redact_args([text])[0]
+    assert "rot" not in out and "XXXX" not in out
+    assert out.startswith(f"Server=h;{key}=[REDACTED]")
+    if semi:
+        assert out.endswith(";Database=d")
+
+
+def test_quoted_spaced_password_past_window() -> None:
+    out = redact_args(["Password='sec rot " + "X" * 6000 + "';Database=d"])[0]
+    assert "XXXX" not in out and "rot" not in out
+
+
+def test_many_spaced_passwords_without_semicolon_is_linear() -> None:
+    text = "password=a b " * 15000
+    start = time.perf_counter()
+    redact_args([text])
+    assert time.perf_counter() - start < 1.0
