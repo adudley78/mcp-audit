@@ -1618,6 +1618,10 @@ definition that `lock/tool_digests.py` already digests (RFC 8785 canonical form,
 trusted only when it hashes to the lock's digest. Size figures in `docs/lock.md` come from
 `docs/poisoning.md` (the 2026-10-22 top-100 scan: 60 servers, 1,611 tools, about 6 MB).
 
+## affected --fix (STORY-0127)
+
+Original code; no code copied. The fix version is read from the advisory (registry `fixed_in`, or `fixed` events in an OSV range), ordered with PEP 440 (`packaging`). Pin syntax follows npm (`pkg@x.y.z`) and PEP 508/uv (`pkg==x.y.z`, `pkg@x.y.z`).
+
 ## Respond and policy-out (STORY-0126)
 
 Original code; no code copied. `deniedMcpServers` entry forms (`serverName`, `serverCommand`, `serverUrl`) and the rule that a denylist match cannot be overridden are from Anthropic, "Control MCP server access for your organization" (https://code.claude.com/docs/en/managed-mcp); entries are exact `serverCommand` values only and are checked with the same `entry_matches` evaluator MANAGED-001..005 use. Credential-file list is REACH's (STORY-0114) plus `~/.claude.json` and `~/.codex/config.toml`, which Claude Code and Codex document as holding MCP server `env` and headers.

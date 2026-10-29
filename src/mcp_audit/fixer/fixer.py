@@ -172,6 +172,17 @@ def run_fix(
     # Collect warnings from the pinning strategy.
     result.skipped.extend(pinning_strategy.warnings)
 
+    return _finish(result, config_path, original_text, current_config, apply)
+
+
+def _finish(
+    result: FixResult,
+    config_path: Path,
+    original_text: str,
+    current_config: dict,
+    apply: bool,
+) -> FixResult:
+    """Serialize, diff and (with *apply*) atomically write *current_config*."""
     # Serialize the modified config.
     new_text = json.dumps(current_config, indent=2, ensure_ascii=False) + "\n"
 
@@ -216,3 +227,53 @@ def run_fix(
     tmp_path.replace(config_path)
 
     return result
+
+
+def run_pins(
+    config_path: Path,
+    pins: list[tuple[str, str, str]],
+    *,
+    apply: bool = False,
+) -> FixResult:
+    """Pin servers to exact versions an advisory names (STORY-0127).
+
+    Args:
+        config_path: The MCP config JSON file.
+        pins: ``(server_name, package, version)`` triples.
+        apply: Write the file atomically with a ``.bak`` backup; otherwise
+            return the diff only.
+
+    Returns:
+        A :class:`FixResult`. A pin that cannot be applied cleanly is listed in
+        ``skipped`` and the file is left as the other pins make it; nothing is
+        ever half-written for one server.
+
+    Raises:
+        FileNotFoundError, PermissionError, ValueError: as :func:`run_fix`.
+    """
+    from mcp_audit.fixer.strategies.pinning import pin_exact  # noqa: PLC0415
+
+    result = FixResult(config_path=config_path)
+    if config_path.suffix.lower() == ".toml":
+        raise ValueError(
+            f"{config_path} is a TOML file (Codex). mcp-audit edits JSON MCP "
+            "configs only; apply the pin in this file by hand."
+        )
+    original_text = config_path.read_text(encoding="utf-8")
+    try:
+        config = json.loads(original_text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Config file is not valid JSON: {config_path}: {exc}"
+        ) from exc
+    untouched = json.loads(original_text)
+    for server_name, package, version in pins:
+        try:
+            config, description = pin_exact(config, server_name, package, version)
+            result.fixes_applied.append(description)
+        except ValueError as exc:
+            result.skipped.append(f"Skipped {server_name!r}: {exc}")
+    if config == untouched:
+        # Nothing changed: leave the file (and its formatting) alone.
+        return result
+    return _finish(result, config_path, original_text, config, apply)

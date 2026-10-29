@@ -104,6 +104,8 @@ class Row:
     version_source: str | None = None
     fixed_in: str | None = None
     reason: str | None = None
+    #: Every version the advisory says fixes this, for ``affected --fix``.
+    fixes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -114,6 +116,7 @@ class Decision:
     evidence: str
     reason: str | None = None
     fixed_in: str | None = None
+    fixes: tuple[str, ...] = ()
 
 
 @dataclass
@@ -392,6 +395,7 @@ class RegistryRule:
                 f"{version} ({launch.source}) is below {self.advisory}'s fixed "
                 f"version {self.fixed_in} (registry)",
                 fixed_in=self.fixed_in,
+                fixes=(self.fixed_in,),
             )
         return Decision(
             Status.NOT_AFFECTED,
@@ -446,9 +450,19 @@ class RecordRule:
                 return _unorderable(version, bound)
         results = [_range_covers(r, version) for r in ranges]
         if any(r is True for r in results):
+            fixes = tuple(
+                dict.fromkeys(
+                    value
+                    for events, covers in zip(ranges, results, strict=True)
+                    if covers is True
+                    for kind, value in events
+                    if kind == "fixed"
+                )
+            )
             return Decision(
                 Status.AFFECTED,
                 f"{version} ({launch.source}) is inside a range {record.id} lists",
+                fixes=fixes,
             )
         if any(r is None for r in results):
             return Decision(
@@ -730,6 +744,33 @@ def decide_server(
         version_source=source,
         fixed_in=best.fixed_in,
         reason=best.reason,
+        fixes=best.fixes,
+    )
+
+
+def would_close(
+    server: ServerConfig,
+    rules: list[Rule],
+    registry: KnownServerRegistry,
+    version: str,
+) -> bool:
+    """Would *server* pinned to *version* be clear of every rule? (``--fix`` check)
+
+    True only when each rule that concerns the package says NOT AFFECTED; an
+    AFFECTED or COULDN'T CHECK answer means the pin would not close the advisory.
+    """
+    found = launch_package(server)
+    if found is None:
+        return False
+    ecosystem, package = found
+    entry = resolve_launch_entry(server, registry)
+    plain = Launch(ecosystem, package, None, None, entry)
+    launch = Launch(
+        ecosystem, package, version, "the fixed pin", entry, provably_stdio(server)
+    )
+    applicable = [r for r in rules if r.matches(plain)]
+    return bool(applicable) and all(
+        r.decide(launch).status is Status.NOT_AFFECTED for r in applicable
     )
 
 

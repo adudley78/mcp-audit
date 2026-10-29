@@ -58,6 +58,12 @@ By default the terminal output lists AFFECTED, COULDN'T CHECK and the NOT AFFECT
 
 `--format terminal` (default), `--format json`, `--format sarif`, `--format openvex`, with `-o FILE`. SARIF has one result per AFFECTED server and the query as the rule ID. JSON and SARIF paths are redacted like every other output that leaves the machine.
 
+## `--fix` and `--apply`: pin to the advisory's fix (STORY-0127)
+
+`affected <ID> --fix` prints the diff that pins each AFFECTED `npx`/`bunx`/`pnpx`/`uvx`/`pipx` server to a fixed version taken from the advisory itself, so it needs no network. Nothing is written. `--fix --apply` writes each config atomically with a `.bak` beside it, the same contract as `mcp-audit fix`. Re-run `affected` afterwards: the server reads NOT AFFECTED. A pin changes the config, not your lock, so run `mcp-audit lock` to record the new version.
+
+The version is the **lowest fixed version above the one the server runs** (a release, not a pre-release), so a fix on the server's own line wins over a newer major. Before anything is written, the advisory's own rules are run against the chosen version; if they would not all say NOT AFFECTED, the server is not pinned. A server is **not pinned, with the reason printed**, when the advisory records no fix, none can be ordered (calendar versus semantic numbering), no fix is above the current version, the version is unknown and several fixes are listed, the launch uses `--from`/`--with`/`--package`, the command is not one of the launchers above, or the config is TOML (Codex). The existing style is kept (`pkg==1.0` stays `==`, `pkg@1.0` stays `@`, extras are kept). A config where no pin applies is not rewritten. `--fix` works with the terminal format only. Like `fix`, a rewritten file is re-serialised as indented JSON.
+
 ## Respond: what to rotate, and the policy entry (STORY-0126)
 
 For each AFFECTED server the terminal output (and `--format json`, under `respond`) adds a **Respond** block:

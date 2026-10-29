@@ -343,6 +343,67 @@ class PackagePinningStrategy(BaseFixStrategy):
         )
 
 
+_SPEC_RE: re.Pattern[str] = re.compile(
+    r"^(?P<name>@[^/@\s]+/[^@=\s\[]+|[^@=\s\[]+)(?P<extras>\[[^\]]*\])?"
+    r"(?:(?P<sep>==|@)[^\s]*)?$"
+)
+
+
+def _norm(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def pin_exact(
+    config: dict, server_name: str, package: str, version: str
+) -> tuple[dict, str]:
+    """Pin *server_name*'s launch to ``package`` at exactly *version* (STORY-0127).
+
+    Used by ``affected --fix`` with a version taken from the advisory. Rewrites
+    only the package token, keeps ``npm pkg@x`` / ``pkg==x`` / ``pkg@x`` style
+    and any extras, and raises :class:`ValueError` (nothing changed) when the
+    launch is one it does not rewrite: not npx/uvx-style, ``--from``, a token
+    that is not the named package, or a line it cannot read.
+
+    Returns:
+        ``(new_config, description)``; the description says "(already fixed)"
+        and the config is unchanged when the pin is already in place.
+    """
+    server_dict, root_key = find_server_section(config, server_name)
+    if server_dict is None or root_key is None:
+        raise ValueError(f"server {server_name!r} not found in the config")
+    command = server_dict.get("command", "")
+    is_npm = command in _NPX_LIKE
+    if not is_npm and command not in _PYPI_LIKE:
+        raise ValueError(
+            f"command {command!r} is not one mcp-audit rewrites (npx, bunx, pnpx, "
+            "uvx, pipx)"
+        )
+    args: list[str] = list(server_dict.get("args", []))
+    if any(a in ("--from", "-p", "--package", "--with") for a in args):
+        raise ValueError(
+            "the launch uses --from/--with/--package, which is not rewritten"
+        )
+    token = _find_package_arg(args)
+    match = _SPEC_RE.match(token) if token else None
+    if token is None or match is None:
+        raise ValueError("the package argument could not be read")
+    if _norm(match.group("name")) != _norm(package):
+        raise ValueError(f"the launch names {match.group('name')!r}, not {package!r}")
+    extras = match.group("extras") or ""
+    if is_npm:
+        pinned = f"{match.group('name')}@{version}"
+    else:
+        sep = "@" if match.group("sep") == "@" else "=="
+        pinned = f"{match.group('name')}{extras}{sep}{version}"
+    if token == pinned:
+        return config, f"{server_name!r} already pinned to {pinned} (already fixed)"
+    new_args = list(args)
+    new_args[args.index(token)] = pinned
+    new_config = copy.deepcopy(config)
+    new_config[root_key][server_name]["args"] = new_args
+    return new_config, f"Replaced {token!r} → {pinned!r} in {server_name!r}"
+
+
 def _find_package_arg(args: list[str]) -> str | None:
     """Return the first non-flag positional token from an npx/uvx args list.
 
