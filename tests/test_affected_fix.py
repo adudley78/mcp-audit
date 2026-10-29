@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -281,6 +282,7 @@ class TestCli:
 
 
 class TestWritePath:
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission bits")
     def test_permissions_are_kept_on_file_and_backup(self, tmp_path: Path) -> None:
         path = _cfg(tmp_path, {"s": {"command": "uvx", "args": ["pkg==1.0"]}})
         path.chmod(0o600)
