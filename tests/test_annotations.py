@@ -327,6 +327,16 @@ class TestSavedToolText:
             ("cursor", "srv", "sh")
         ]
 
+    def test_hostile_server_key_is_cleaned(self, tmp_path: Path) -> None:
+        doc = self._doc()
+        doc["servers"] = {
+            "\x1b[31mcl/\x1b[31mevil" + "x" * 5000: doc["servers"]["cursor/srv"]
+        }
+        found = a.findings_from_tool_text(doc, tmp_path / "t.json")
+        assert found
+        assert "\x1b" not in found[0].server and "\x1b" not in found[0].client
+        assert len(found[0].server) <= a.MAX_NAME_CHARS
+
     def test_garbage_documents(self, tmp_path: Path) -> None:
         for doc in (
             None,

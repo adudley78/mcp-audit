@@ -439,8 +439,8 @@ def findings_from_tool_text(doc: object, source: Path) -> list[Finding]:
                 if not isinstance(definition, dict):
                     continue
                 f = analyze_definition(
-                    client=client if server else "lock",
-                    server=server or client,
+                    client=_clean(client) if server else "lock",
+                    server=_clean(server or client),
                     finding_path=str(source),
                     name=tool_name,
                     annotations=definition.get("annotations"),

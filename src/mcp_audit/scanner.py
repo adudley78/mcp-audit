@@ -876,7 +876,16 @@ async def run_scan_async(
             )
 
             try:
-                result.findings.extend(detect_annotation_contradictions(connect_pairs))
+                live = detect_annotation_contradictions(connect_pairs)
+                # The saved-tool-text pass may already have reported the same
+                # tool; the live enumeration is the fresher copy, so keep it.
+                seen = {(f.server, f.tool) for f in live}
+                result.findings = [
+                    f
+                    for f in result.findings
+                    if not (f.id == "ANNOT-001" and (f.server, f.tool) in seen)
+                ]
+                result.findings.extend(live)
             except Exception as e:  # noqa: BLE001
                 result.errors.append(f"annotations error: {e}")
 
