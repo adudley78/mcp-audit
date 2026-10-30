@@ -10,7 +10,7 @@ A record states what the write-up reported: who found it, which products it affe
 
 Nothing is inferred. A field the write-up does not give is empty, not guessed:
 
-- **Products are named as the write-up names them** (for example "Claude Code", "Codex"). mcp-audit does not read which harness version is installed, so `affected` will say "could not check" for a record about harness versions, and point at the checks that test the condition directly.
+- **Products are named as the write-up names them** (for example "Claude Code", "Codex"). `affected` reads installed Claude Code, Codex and Gemini CLI versions from files (`harness_versions.py`, never executing them) and compares them with a product's `fixed_in`; with no install found it says "could not check" and points at the checks that test the condition directly.
 - **No CVE is invented.** An alias is added only when an authority assigns one.
 - **A fix is "fixed" only with a first fixed version.** Otherwise the status is `unfixed` (no fix yet) or `wontfix` (the vendor said none will ship), with who said so.
 
