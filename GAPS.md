@@ -2115,4 +2115,5 @@ address`), not when it is a named host. The paste-service rule matches only
 `glot.io`, `rentry.co` and `rentry.org` (the two services a report names); other paste services
 (pastebin.com and similar) are not matched. Typosquatted ClawHub CLI names are
 a ClawHub-side matter and not checked.
+
 **Registry-side host check not built (STORY-0135).** The brief's SC-006 idea (flag a remote server whose host differs from the one the registry knows for that name) needs a remote-endpoint field on registry entries, and `registry/known-servers.json` carries none as of 2026-10-29; adding one is out of scope. A host move is therefore reported only relative to the user's own lock, rug-pull state or `diff` base, never relative to a published canonical host. A first-ever configuration pointing at an unexpected host is not flagged by this change. Rug-pull state written before STORY-0135 has no recorded host, so the first move after upgrading is reported as RUGPULL-001 without the old host named.
