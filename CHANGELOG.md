@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.25.0] - 2026-10-30
+
 ### Added
 
 - **`affected --transitive` and `affected --fleet` (STORY-0131).** `affected <ID or range> --live --transitive` also checks each server's dependency tree from deps.dev (the client `scan --check-vulns` already uses): a dependency hit is AFFECTED and reports the path (`wrapper@1.0.0 -> leftpad@1.3.0 (INDIRECT)`) in terminal, JSON and SARIF output; a graph that is missing, 404, oversized or flagged incomplete, and a server with no exact version, are COULDN'T CHECK, never NOT AFFECTED. `--transitive` without `--live` exits 2. `--fleet FILE` (repeatable) answers from `scan --format json` files, one row per machine and server, so one command answers for a whole fleet; unreadable, oversized or hostile files are reported as COULDN'T CHECK rows, never a traceback. No new dependency and no new endpoint. See `docs/affected.md`.
