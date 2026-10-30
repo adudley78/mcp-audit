@@ -1667,3 +1667,37 @@ Read on 2026-10-29; fetched pages are data, quoted only where the registry depen
   registry record's description ending ` - reported by Yarden Porat (Cyata)`; SC-004
   and `vet` read it from there. CVE-2026-27735 has a different reporter and carries
   no credit. Cyata's own post no longer resolves, so it is not linked.
+
+## ClawHavoc (SKILL-005 prose shapes, STORY-0133)
+
+Credit: Koi Security (now part of Palo Alto Networks) for the ClawHavoc research.
+Koi's own post (koi.ai/blog/clawhavoc-...) now redirects to a Palo Alto Networks
+product page, so the technique is recorded from these reports, all read 2026-10-29;
+no sample, skill or archive was fetched.
+
+- The Hacker News, "Researchers Find 341 Malicious ClawHub Skills"
+  (https://thehackernews.com/2026/02/researchers-find-341-malicious-clawhub.html):
+  Koi "audited 2,857 skills"; 341 malicious, 335 delivering Atomic Stealer through
+  fake prerequisites; "there's a 'Prerequisites' section that says you need to
+  install something first" (attributed to Koi researcher Oren Yomtov). Windows:
+  a password-protected archive from a GitHub repository. macOS: a script copied
+  from a paste site into Terminal, obfuscated shell fetching a second-stage script
+  and a universal Mach-O consistent with AMOS. Also reverse-shell backdoors in
+  working code and `.env` credentials sent to a webhook service.
+- eSecurity Planet (Ken Underhill, 2026-02-03,
+  https://esecurityplanet.com/threats/hundreds-of-malicious-skills-found-in-openclaws-clawhub):
+  "install a required 'prerequisite' before using any features"; the macOS command
+  decoded a base64-encoded script; the archive password let it evade scanners.
+- CyberInsider (https://cyberinsider.com/?p=303257): Prerequisites section
+  "instructing users to download a password-protected ZIP file or run an obfuscated
+  shell script"; shell snippets on a public code-sharing site; AMOS Mach-O.
+- SC Media (https://www.scworld.com/news/openclaw-agents-targeted-with-341-malicious-clawhub-skills):
+  macOS users told to run a snippet from a public paste site containing a
+  base64-encoded script that "fetches and runs a second-stage shell script".
+- PolySwarm, "The ClawHavoc Campaign" (https://blog.polyswarm.io/the-clawhavoc-campaign):
+  names the paste services "glot[.]io or rentry[.]co" and GitHub-hosted
+  password-protected ZIP archives "to bypass scans"; the only source for those
+  two host names, which are the hosts the new rule matches.
+
+None of the reports names the file as `SKILL.md`; they say "Prerequisites" or the
+skill's documentation. Original implementation; fixtures written for this repo.
