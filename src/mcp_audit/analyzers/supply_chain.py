@@ -658,6 +658,37 @@ def _advisory_url(advisory_id: str) -> str:
     return f"https://osv.dev/vulnerability/{advisory_id}"
 
 
+_CREDIT_MARKER = " - reported by "
+
+
+def split_credit(description: str) -> tuple[str, str | None]:
+    """Split a registry advisory description into ``(text, reporter)``.
+
+    A record credits its reporter by ending the description with
+    `` - reported by <name>`` (STORY-0130).  *reporter* is ``None`` when the
+    description carries no credit.
+    """
+    text, sep, credit = description.rpartition(_CREDIT_MARKER)
+    if not sep or not credit.strip():
+        return description, None
+    return text, credit.strip()
+
+
+def _credit_note(entry: RegistryEntry, affected: list[str]) -> str:
+    """Return a sentence crediting reporters of the *affected* CVEs, or ``""``."""
+    by_reporter: dict[str, list[str]] = {}
+    for record in entry.known_vulns or []:
+        if not isinstance(record, dict) or record.get("cve") not in affected:
+            continue
+        _, reporter = split_credit(str(record.get("description") or ""))
+        if reporter:
+            by_reporter.setdefault(reporter, []).append(str(record["cve"]))
+    if not by_reporter:
+        return ""
+    parts = [f"{who} ({', '.join(cves)})" for who, cves in by_reporter.items()]
+    return " Reported by " + "; ".join(parts) + "."
+
+
 def _emit_known_cve_findings(
     server: ServerConfig,
     entry: RegistryEntry,
@@ -804,6 +835,7 @@ def _emit_known_cve_findings(
             "https://nvd.nist.gov/vuln/detail/<CVE-ID>."
         )
         evidence = f"package: {entry.name} | cves: {listed}"
+    description += _credit_note(entry, affected)
     if pinned is not None:
         evidence += f" | pinned: {pinned}"
     if highest_fix:

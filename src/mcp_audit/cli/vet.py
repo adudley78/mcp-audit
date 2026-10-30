@@ -41,6 +41,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from mcp_audit.analyzers.supply_chain import split_credit
 from mcp_audit.cli import app
 from mcp_audit.registry.loader import (
     KnownServerRegistry,
@@ -540,7 +541,7 @@ def _print_known_verdict(
         t.append_text(Text.from_markup(heading))
         for v in vulns:
             cve = v.get("cve", "unknown")
-            desc = v.get("description") or ""
+            desc, reporter = split_credit(v.get("description") or "")
             fixed = v.get("fixed_in")
             fixed_str = f"fixed in {fixed}" if fixed else "no fix available"
             link = v.get("link", "")
@@ -548,6 +549,8 @@ def _print_known_verdict(
             if desc:
                 short_desc = desc[:80] + ("…" if len(desc) > 80 else "")
                 t.append(f" — {short_desc}")
+            if reporter:
+                t.append(f" - reported by {reporter}")
             t.append("\n")
             t.append(f"    {fixed_str}\n", style="dim")
             if link:
