@@ -1736,3 +1736,32 @@ no sample, skill or archive was fetched.
 
 None of the reports names the file as `SKILL.md`; they say "Prerequisites" or the
 skill's documentation. Original implementation; fixtures written for this repo.
+
+## Known-bad extension: Anthropic.claude-code 2.1.313 from Cursor's marketplace
+
+Data only; no code or sample was fetched. Sources, all read 2026-10-30:
+
+- Cursor, "Security notice — malicious version of Anthropic.claude-code (2.1.313)
+  identified in the Cursor Extension Marketplace"
+  (https://cursor.com/blog/claude-code-extension-security-notice): the version, "not
+  developed by Anthropic", the window (about 2:27am to 1:35pm PT, 2026-10-29), "at
+  most 5,000" users, darwin-arm64 and win32-x64 builds, the `svc-telemetry` key, the
+  `com.apple.sysmond` LaunchAgent, the `SysMon` scheduled task, the address
+  134.209.82[.]225, the check commands and the remediation scripts. It names no
+  fixed version.
+- StepSecurity, "Trojanized Claude Code Extension Delivered Persistent SSH Backdoor
+  to Developer Machines" (https://www.stepsecurity.io/blog/claude-code-extension-trojanized):
+  2.1.312 and 2.1.314 clean, the Microsoft marketplace returns 404 for 2.1.313,
+  `@reboot` cron persistence, hashes.
+- The Hacker News (https://thehackernews.com/2026/10/official-claude-code-vs-code-extension.html):
+  2.1.314 published by Anthropic as the fix; its correction that Open VSX was not
+  the source, which conflicts with StepSecurity, so the entry names only Cursor's
+  marketplace.
+- Help Net Security (https://www.helpnetsecurity.com/2026/10/30/claude-code-extension-ssh-backdoor/):
+  the Visual Studio Marketplace never carried it; "Uninstalling the extension won't
+  remove the backdoor."
+
+Reports differ on who found it (Cursor's notice names no one; Help Net Security
+credits Phorion, The Hacker News credits OpenSourceMalware and Paul McCarty), so the
+entry credits no finder.
+

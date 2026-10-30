@@ -496,7 +496,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-8,354 tests validate detection accuracy and guard against regressions.
+8,361 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -619,9 +619,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run mcp-audit
-        uses: adudley78/mcp-audit@v0.25.0
+        uses: adudley78/mcp-audit@v0.25.1
         with:
-          version: v0.25.0
+          version: v0.25.1
           severity-threshold: high
           upload-sarif: 'true'
 ```
@@ -683,7 +683,7 @@ Add this to your `.pre-commit-config.yaml` (`rev` is the current release; `pre-c
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.25.0
+    rev: v0.25.1
     hooks:
       - id: mcp-audit
 ```
@@ -723,7 +723,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 8,354 tests
+uv run pytest                        # Run all 8,361 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

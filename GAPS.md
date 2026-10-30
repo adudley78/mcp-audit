@@ -1170,6 +1170,17 @@ tuple comparison only).  Ranges like `">=1.0.0 <2.0.0"`, `"^1.0.0"`, `"~1.2.3"`,
 compound expressions are not parsed and will not match.  Track this as a future task if
 the vuln registry grows entries with complex version constraints.
 
+**The known-bad list only sees what is installed now.** An entry such as
+`anthropic.claude-code` 2.1.313 (the malicious build Cursor's marketplace served on
+2026-10-29) matches only while that version's folder is still on disk. The backdoor it
+planted (an `svc-telemetry` key in `authorized_keys`, a LaunchAgent, scheduled task or
+cron entry) survives an update or uninstall, and mcp-audit does not look for it: it
+reads extension manifests, never `authorized_keys`, persistence locations or the
+extension's code. A machine that updated to 2.1.314 scans clean and may still be
+backdoored; use Cursor's check
+(https://cursor.com/blog/claude-code-extension-security-notice). The list ships with
+each release; `update-registry` does not refresh it.
+
 **Discovery paths are hardcoded per-client and may not cover all configurations.**
 The paths in `EXTENSION_PATHS` were validated on macOS with VS Code and Cursor; Windsurf
 and Augment paths were not found on the build machine.  Paths may differ by:

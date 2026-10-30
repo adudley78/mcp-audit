@@ -1,6 +1,6 @@
 {
   "schema_version": "1",
-  "last_updated": "2026-04-16",
+  "last_updated": "2026-10-30",
   "entries": [
     {
       "extension_id": "ritwickdey.liveserver",
@@ -51,6 +51,17 @@
       "description": "VSCodeVim versions prior to 1.27.0 may execute arbitrary commands via vim modelines in opened files.",
       "reference": "https://github.com/VSCodeVim/Vim/security/advisories",
       "reported_date": "2024-07-01"
+    },
+    {
+      "extension_id": "anthropic.claude-code",
+      "affected_versions": "2.1.313",
+      "cve": null,
+      "severity": "critical",
+      "title": "Claude Code extension 2.1.313: malicious build from Cursor's marketplace (SSH backdoor)",
+      "description": "A tampered build of Anthropic.claude-code 2.1.313 was served by Cursor's extension marketplace on 2026-10-29, about 09:27 to 20:35 UTC (darwin-arm64 and win32-x64 builds; Cursor estimates at most 5,000 users). Cursor says it was not developed by Anthropic; the Microsoft marketplace did not carry it. When the editor loads it, it adds an attacker SSH key with the comment svc-telemetry to authorized_keys, installs persistence (macOS LaunchAgent com.apple.sysmond, Windows scheduled task SysMon, a cron @reboot entry), opens a reverse SSH tunnel to 134.209.82[.]225 and reports host details and the names of credential-like environment variables. Uninstalling or updating the extension does not remove the backdoor.",
+      "reference": "https://cursor.com/blog/claude-code-extension-security-notice",
+      "reported_date": "2026-10-29",
+      "remediation": "Treat this machine as compromised. Check for the key: grep svc-telemetry ~/.ssh/authorized_keys (Windows: %USERPROFILE%\\.ssh\\authorized_keys and C:\\ProgramData\\ssh\\administrators_authorized_keys). Collect evidence, then remove the key and the persistence with Cursor's remediate-macos.sh or remediate-windows.ps1, update the extension to 2.1.314 or later, and rotate credentials reachable from this machine from a known-clean one. See: https://cursor.com/blog/claude-code-extension-security-notice"
     }
   ]
 }

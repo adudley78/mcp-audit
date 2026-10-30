@@ -388,6 +388,78 @@ class TestKnownVulnCheck:
         findings = check_known_vulns(ext, [vuln])
         assert len(findings) == 1
 
+    def test_exact_version_matches_only_that_version(self) -> None:
+        vuln = _make_vuln_entry(affected_versions="2.1.313")
+        hits = {
+            v: len(check_known_vulns(_make_manifest(version=v), [vuln]))
+            for v in ("2.1.312", "2.1.313", "2.1.314")
+        }
+        assert hits == {"2.1.312": 0, "2.1.313": 1, "2.1.314": 0}
+
+    def test_entry_remediation_replaces_default(self) -> None:
+        vuln = _make_vuln_entry()
+        vuln.remediation = "Treat this machine as compromised."
+        findings = check_known_vulns(_make_manifest(), [vuln])
+        assert findings[0].remediation == "Treat this machine as compromised."
+
+    def test_default_remediation_without_entry_text(self) -> None:
+        findings = check_known_vulns(_make_manifest(), [_make_vuln_entry()])
+        assert findings[0].remediation.startswith("Update publisher.name")
+
+
+class TestCursorClaudeCodeTrojan:
+    """Anthropic.claude-code 2.1.313 from Cursor's marketplace (2026-10-29).
+
+    Source: https://cursor.com/blog/claude-code-extension-security-notice
+    """
+
+    def _installed(self, tmp_path: Path, version: str) -> ExtensionManifest:
+        folder = (
+            tmp_path
+            / ".cursor"
+            / "extensions"
+            / f"anthropic.claude-code-{version}-darwin-arm64"
+        )
+        folder.mkdir(parents=True)
+        manifest = folder / "package.json"
+        manifest.write_text(
+            _pkg_json(name="claude-code", publisher="Anthropic", version=version)
+        )
+        parsed = parse_manifest(manifest, "cursor")
+        assert parsed is not None
+        return parsed
+
+    def _bundled(self) -> list[ExtensionVulnEntry]:
+        repo_root = Path(__file__).parent.parent
+        return load_vuln_registry(
+            path=repo_root / "registry" / "known-extension-vulns.json"
+        )
+
+    def test_bad_build_is_critical(self, tmp_path: Path) -> None:
+        findings = check_known_vulns(
+            self._installed(tmp_path, "2.1.313"), self._bundled()
+        )
+        assert len(findings) == 1
+        assert findings[0].severity == Severity.CRITICAL
+        assert findings[0].client == "cursor"
+        assert "svc-telemetry" in findings[0].remediation
+        assert "does not remove the backdoor" in findings[0].description
+
+    @pytest.mark.parametrize("version", ["2.1.312", "2.1.314"])
+    def test_neighbouring_versions_are_clean(
+        self, tmp_path: Path, version: str
+    ) -> None:
+        assert (
+            check_known_vulns(self._installed(tmp_path, version), self._bundled()) == []
+        )
+
+    def test_entry_defangs_the_address(self) -> None:
+        entry = next(
+            e for e in self._bundled() if e.extension_id == "anthropic.claude-code"
+        )
+        assert "134.209.82.225" not in entry.description
+        assert "134.209.82[.]225" in entry.description
+
 
 # ── TestPermissionCheck ────────────────────────────────────────────────────────
 
@@ -715,13 +787,13 @@ class TestLoadVulnRegistry:
         entries = load_vuln_registry(path=p)
         assert entries == []
 
-    def test_bundled_registry_loads_five_entries(self) -> None:
-        """The shipped known-extension-vulns.json has exactly 5 entries."""
+    def test_bundled_registry_loads_six_entries(self) -> None:
+        """The shipped known-extension-vulns.json has exactly 6 entries."""
         # Resolve from repo root (dev environment)
         repo_root = Path(__file__).parent.parent
         registry_path = repo_root / "registry" / "known-extension-vulns.json"
         entries = load_vuln_registry(path=registry_path)
-        assert len(entries) == 5
+        assert len(entries) == 6
 
 
 # ── TestAnalyzeExtensions ──────────────────────────────────────────────────────

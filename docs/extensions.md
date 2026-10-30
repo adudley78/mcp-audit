@@ -22,6 +22,14 @@ Two recent incidents illustrate the risk:
   publisher verification, allowing attackers to claim well-known publisher namespaces
   and serve backdoored extensions under familiar names.
 
+- **Claude Code 2.1.313 from Cursor's marketplace** (2026-10-29): a tampered build of
+  `Anthropic.claude-code` was served for about 11 hours and planted an SSH key
+  (`svc-telemetry`), persistence and a reverse tunnel. It is in the known-bad list, so
+  `mcp-audit extensions scan` reports it as CRITICAL where 2.1.313 is still installed.
+  The backdoor outlives the extension: a machine that has since updated needs
+  Cursor's own check (`grep svc-telemetry ~/.ssh/authorized_keys`). See
+  [Cursor's notice](https://cursor.com/blog/claude-code-extension-security-notice).
+
 mcp-audit's extension scanner performs static manifest analysis to surface these
 issues before they are exploited.
 
@@ -144,7 +152,8 @@ Compares each extension's `publisher.name` ID and installed version against
 - Remediation link to the advisory
 
 **Version matching** uses a simplified `<X.Y.Z` prefix comparison (see Limitations).
-`"*"` in `affected_versions` matches any installed version.
+`"*"` in `affected_versions` matches any installed version, and any other value must
+equal the installed version exactly (`"2.1.313"`).
 
 ### 2. Dangerous capability combinations
 
@@ -237,9 +246,13 @@ entry follows this schema:
   "title": "Short human-readable title",
   "description": "Full description of the vulnerability and impact.",
   "reference": "https://link-to-advisory",
-  "reported_date": "YYYY-MM-DD"
+  "reported_date": "YYYY-MM-DD",
+  "remediation": "Optional. Replaces the default \"update to a patched version\" text."
 }
 ```
+
+Set `remediation` when updating is not the fix, for example a malicious build that
+leaves a backdoor behind.
 
 To add a new entry:
 

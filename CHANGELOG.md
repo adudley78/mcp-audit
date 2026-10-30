@@ -10,6 +10,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.25.1] - 2026-10-30
+
+### Security
+
+- **`mcp-audit extensions scan` reports the malicious Claude Code extension build Cursor's marketplace served on 2026-10-29.** A tampered `Anthropic.claude-code` 2.1.313 (darwin-arm64 and win32-x64; "not developed by Anthropic", at most 5,000 users, per [Cursor's notice](https://cursor.com/blog/claude-code-extension-security-notice)) planted an SSH key with the comment `svc-telemetry`, persistence and a reverse tunnel. Where 2.1.313 is still installed in Cursor or VS Code, the finding is CRITICAL and says what to do: treat the machine as compromised, check `authorized_keys` for `svc-telemetry`, run Cursor's cleanup script, update to 2.1.314 or later and rotate credentials. 2.1.312 and 2.1.314 are not flagged. Limit: the backdoor outlives the extension, and mcp-audit reads manifests only, so a machine that has already updated scans clean; use Cursor's check there (GAPS.md). `mcp-audit merge` rolls `scan --include-extensions --format json` results up across machines.
+
+### Changed
+
+- A `known-extension-vulns.json` entry can carry its own `remediation`, which replaces the default "update to a patched version" text, and `affected_versions` documents the exact-version match it already supported.
+
+---
+
 ## [0.25.0] - 2026-10-30
 
 ### Added

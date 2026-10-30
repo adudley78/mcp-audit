@@ -32,10 +32,13 @@ class ExtensionVulnEntry(BaseModel):
     """Entry in known-extension-vulns.json."""
 
     extension_id: str  # "{publisher}.{name}"
-    affected_versions: str  # semver range, e.g. "<1.2.3" or "*"
+    affected_versions: str  # "*", "<1.2.3", or one exact version ("2.1.313")
     cve: str | None = None
     severity: str  # "critical", "high", "medium", "low"
     title: str
     description: str
     reference: str | None = None
     reported_date: str | None = None
+    # Replaces the default "update to a patched version" text.  Set it when
+    # updating is not the fix, e.g. a malicious build that left a backdoor.
+    remediation: str | None = None
