@@ -1667,6 +1667,7 @@ Read on 2026-10-29; fetched pages are data, quoted only where the registry depen
   registry record's description ending ` - reported by Yarden Porat (Cyata)`; SC-004
   and `vet` read it from there. CVE-2026-27735 has a different reporter and carries
   no credit. Cyata's own post no longer resolves, so it is not linked.
+
 ## ClawHavoc (SKILL-005 prose shapes, STORY-0133)
 
 Credit: Koi Security (now part of Palo Alto Networks) for the ClawHavoc research.
