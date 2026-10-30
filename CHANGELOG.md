@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`affected` reads the installed Claude Code, Codex and Gemini CLI versions, without running them (STORY-0132).** For a research record with per-product fixes (Plugin4Shell: Claude Code 2.1.179, Codex 0.146.0), each install found is now AFFECTED (below the fix, with the path the version was read from) or NOT AFFECTED (at or above it) instead of COULDN'T CHECK. Versions come from npm global `package.json` files (`npm_config_prefix`, nvm, Homebrew, `/usr/local`, `%APPDATA%\npm`) and Claude Code's native `~/.local/share/claude/versions/` directory; no subprocess is ever started. Every install is listed because the one first on `PATH` cannot be known without running it. Oversized, malformed or looping files are skipped and named in the notes. No install found: COULDN'T CHECK, as before. HARNESS-001 and the other version-dependent findings are unchanged. See `docs/affected.md`.
 - **Research record: ContextCrush (STORY-0134).** Eli Ainhorn of Noma Security showed on 2026-03-05 that Context7's Custom Rules were served verbatim by the Context7 MCP server to every user's agent, so a library owner's text acted as trusted documentation; the proof of concept read `.env` files, posted them to an attacker's GitHub issue and deleted files. Noma reports a server-side fix on 2026-02-23; Upstash's confirmation was not found. No CVE, no client version, and no mcp-audit check tests it, so `mcp-audit affected x_MCPRS-32fc646f6f96` answers COULDN'T CHECK with that statement and says nothing was run. Research records gain a product status, `fixed-server-side`, for a fix made in the vendor's own service (`fixed_in` stays null); an older mcp-audit skips such a record and reports it in its errors. A "third-party content into context" source pair was measured and not added (GAPS.md, `docs/severity-framework.md`).
 
+### Changed
+
+- SC-004 and `vet` now credit Yarden Porat (Cyata) for CVE-2025-68143, CVE-2025-68144 and CVE-2025-68145 in Anthropic's Git MCP server (STORY-0130).
+
 ---
 
 ## [0.24.0] - 2026-10-29
