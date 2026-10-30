@@ -39,7 +39,16 @@ An ID that none of these knows is an error (exit `2`); it does not produce a col
 
 ## Research records
 
-A research record is about products (Claude Code, Codex...), not MCP servers, so the rows are per product. mcp-audit does not yet read which Claude Code or Codex version is installed, so every product row is **COULDN'T CHECK**, with what the write-up says about that product's fix. The checks the record names (for Plugin4Shell, PLUGIN-003 and PLUGIN-004) are run too; a HIGH or CRITICAL result is an AFFECTED row, and a milder one is listed as COULDN'T CHECK. Those checks look at Claude Code's plugin directory only, only for installs that kept their `.git`, and are not run with `--path`. No research record ever produces NOT AFFECTED.
+A research record is about products (Claude Code, Codex...), not MCP servers, so the rows are per product. mcp-audit reads which Claude Code, Codex and Gemini CLI versions are installed from files only (it never runs them; see below). A product with a recorded fix and an install found is **AFFECTED** (installed version below the fix, with the path it was read from) or **NOT AFFECTED** (at or above it). With no install found, no recorded fix (Copilot, Gemini CLI), or `--path`, the row is **COULDN'T CHECK**, with what the write-up says about that product's fix. The checks the record names (for Plugin4Shell, PLUGIN-003 and PLUGIN-004) are run too; a HIGH or CRITICAL result is an AFFECTED row, and a milder one is listed as COULDN'T CHECK. Those checks look at Claude Code's plugin directory only, only for installs that kept their `.git`, and are not run with `--path`. The plugin checks themselves never produce NOT AFFECTED; only an installed version at or above the fix does.
+
+### Installed harness versions (STORY-0132)
+
+`src/mcp_audit/harness_versions.py` reads files only, no subprocess. It looks at:
+
+- npm global installs: `<prefix>/lib/node_modules/{@anthropic-ai/claude-code,@openai/codex,@google/gemini-cli}/package.json` (also `<prefix>/node_modules/...` for Windows) under `npm_config_prefix`, `~/.nvm/versions/node/*` (and `$NVM_DIR`), `/opt/homebrew`, `/usr/local`, `/usr`, `~/.npm-global` and `%APPDATA%\npm`.
+- Claude Code's native installer: version-named entries under `~/.local/share/claude/versions/`. Anthropic's [setup page](https://code.claude.com/docs/en/setup#auto-updates) says the native installer manages the launcher `~/.local/bin/claude` as a symlink into that directory, and keeps older versions there (the launcher's target, any running version and the two newest). The target is read with `readlink` to mark which version it points at; an older copy kept beside it is COULDN'T CHECK (`not-launcher-target`), not AFFECTED, because it is not what `claude` runs.
+
+Every install found is listed, one row each. Which one is first on `PATH` cannot be known without running it, so a note says so when there is more than one. A `package.json` over 1 MiB, not JSON, not an object, of a different package name, with a non-string or unparsable `version`, a symlink loop or a non-regular file is skipped and named in the output's notes. Homebrew casks, WinGet, apt/dnf/apk packages and the Windows native installer's layout are not read. Not run with `--path`.
 
 ## Launches it will not call clean
 
@@ -117,7 +126,7 @@ The comparison itself is exact (PEP 440 ordering, OSV event order). The error is
 ## Not in this version
 
 - `--transitive` shows the server, the dependency and its relation, not the full chain between them (deps.dev's graph call used here does not return edges), and `--fleet` cannot use a lock's `resolved_version` (the scan JSON does not carry it).
-- Reading the installed version of Claude Code, Codex and the other harnesses, so a research record's product rows can be answered.
+- Installed versions of GitHub Copilot and other harnesses (no recorded fix to compare with, or no documented file layout), and package-manager or Windows-native installs of the three above.
 - Fixing (`affected --fix`), exploit signals, reachability and VEX output come in later EPIC-0008 stories.
 
 ## LiteLLM and other gateways
