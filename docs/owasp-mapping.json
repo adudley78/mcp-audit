@@ -339,9 +339,13 @@
     {
       "finding_id": "VULN-UNPINNED",
       "finding_title": "Unpinned version (scan --check-vulns)",
-      "owasp_codes": [],
-      "owasp_names": [],
-      "notes": "LOW. Emitted only under --check-vulns when a server launches a package with no exact version (or a floating specifier): the lookup used the latest published version, which may not be what runs. `mcp-audit fix` pins it (pinning strategy). The finding carries no OWASP MCP code today (docs/severity-framework.md, Vulnerability lookups); listed here so the validator audits it."
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "LOW. Emitted only under --check-vulns when a server launches a package with no exact version (or a floating specifier): the lookup used the latest published version, which may not be what runs. `mcp-audit fix` pins it (pinning strategy)."
     },
     {
       "finding_id": "VULN-UNRESOLVED",
@@ -2154,6 +2158,19 @@
       "notes": "An always-loaded instruction file (CLAUDE.md tiers, .claude/rules, AGENTS.md, OpenClaw workspace and heartbeat files) has a sentence with an if/when clause (or a leading date) holding an unusual trigger (deferred user cue, root/sudo/admin, hostname or production host, date, off-hours, nobody watching), a consequence that opens with an action verb, and, unless nobody is watching, a payload in the consequence (URL, curl/wget, secret-bearing object, backups, remote endpoint, silently). Default scan, scan --project and agent-file scans. MEDIUM. CWE-511. Sources: arXiv 2602.06547 §3.5 and Appendix B.1. Analyzer: agent_files (STORY-0099)."
     },
     {
+      "finding_id": "MEM-006",
+      "finding_title": "Instruction file tells the agent to send secrets out",
+      "owasp_codes": [
+        "MCP03",
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "HIGH in a repository file, MEDIUM in the user's own. An always-applied instruction file (CLAUDE.md tiers, rules, AGENTS.md, OpenClaw files, Cursor rules, Copilot instruction files) has one sentence with a send verb (not negated), a bulk or local secret object (environment variables, .env, ~/.ssh, ~/.aws, id_rsa, .netrc, private keys, all/every ... secrets/tokens/keys) and a destination (URL, IP, email address, a named server/endpoint/webhook). CWE-200. 0 of 486 project instruction files and 0 of 3,083 skill-repository files fire (docs/research/mem006/results.json)."
+    },
+    {
       "finding_id": "INSTR-001",
       "finding_title": "Instruction file changed since the last scan",
       "owasp_codes": [
@@ -2351,9 +2368,12 @@
       "analyzer": "vuln",
       "source_file": "src/mcp_audit/vulnerability/scanner.py",
       "description": "Known-vulnerability finding from scan --check-vulns (network, opt-in). Id is VULN-<OSV-ID> (e.g. VULN-GHSA-xxxx-xxxx-xxxx, VULN-CVE-2025-12345, VULN-MAL-2026-1234). VULN-UNPINNED and VULN-UNRESOLVED are static IDs mapped above.",
-      "owasp_codes": [],
-      "owasp_names": [],
-      "notes": "The finding carries no OWASP MCP code today (docs/severity-framework.md, Vulnerability lookups)."
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ]
     }
   ],
   "unmapped": [],

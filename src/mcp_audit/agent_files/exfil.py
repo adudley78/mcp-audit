@@ -11,7 +11,9 @@ agent treats as standing orders.  One sentence is enough:
 asked to pipe his ``.env`` into ``curl``).  The same week JFrog Security
 Research reported 42 real GitHub repositories armed with agent config files
 (Guy Korolevski, Yair Benamou, 2026-10-26) and SafeDep a worm variant that
-plants ``CLAUDE.md`` and ``AGENTS.md`` (Kunal Singh, 2026-10-22).  Memory
+plants ``CLAUDE.md`` and ``AGENTS.md`` (Kunal Singh, 2026-10-22).  Those
+campaigns' files make the agent run a loader (``.github/init.js``); MEM-006
+covers the other shape, a sentence that sends the secrets itself.  Memory
 files get only a restricted set of the tool-description patterns (GAPS.md,
 2026-06-14 phase decisions), so nothing caught this sentence before MEM-006.
 

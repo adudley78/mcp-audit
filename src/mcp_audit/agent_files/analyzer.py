@@ -69,6 +69,14 @@ MEM-005 (MEDIUM)
     an action verb, and a payload cue in it.  Runs with MEM-003/004 (default scan).  See
     :mod:`mcp_audit.agent_files.sleeper`.  STORY-0099.
 
+MEM-006 (HIGH in a project file, MEDIUM in the user's own)
+    An always-applied instruction file (the MEM-005 files plus Cursor rules
+    and Copilot instruction files) tells the agent, in one sentence, to send
+    environment variables, ``.env``, SSH or cloud credential files, or "all
+    the secrets / tokens / keys" to a URL, IP address, email address or a
+    named server / endpoint / webhook.  Runs with MEM-003/004/005.  See
+    :mod:`mcp_audit.agent_files.exfil`.
+
 Imported and referenced files (``AgentFile.imported_from`` set) are scanned
 with the importing file's rule set; secrets matching ``SECRET_PATTERNS`` are
 redacted from their findings' text.
@@ -127,6 +135,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from mcp_audit.agent_files.exfil import find_exfil_directives
 from mcp_audit.agent_files.heartbeat import find_suppression
 from mcp_audit.agent_files.models import MEMORY_SURFACES, AgentFile, AgentFileSurface
 from mcp_audit.agent_files.sleeper import find_sleepers
@@ -396,6 +405,62 @@ def _mem005_findings(af: AgentFile) -> list[Finding]:
     return findings
 
 
+#: Always-applied instruction files MEM-006 reads: the memory surfaces plus
+#: Cursor rules and Copilot instruction files, which a repository can plant
+#: the same way (JFrog's testmetest repositories planted ``.cursor/rules``).
+_MEM006_SURFACES: frozenset[AgentFileSurface] = MEMORY_SURFACES | frozenset(
+    {
+        AgentFileSurface.CURSOR_RULE,
+        AgentFileSurface.COPILOT_INSTRUCTION,
+        AgentFileSurface.COPILOT_SCOPED,
+    }
+)
+
+
+def _mem006_findings(af: AgentFile) -> list[Finding]:
+    """MEM-006: an instruction file tells the agent to send secrets somewhere."""
+    if af.surface not in _MEM006_SURFACES:
+        return []
+    repository = af.scope == "project"
+    severity = Severity.HIGH if repository else Severity.MEDIUM
+    whose = (
+        "a repository file, so anyone who could change the repository wrote it"
+        if repository
+        else "one of your own instruction files"
+    )
+    findings: list[Finding] = []
+    for hit in find_exfil_directives(af.body):
+        findings.append(
+            _redacted(
+                _skill_finding(
+                    af,
+                    "MEM-006",
+                    severity,
+                    "Instruction file tells the agent to send secrets out",
+                    (
+                        f"Line {hit.line} of '{af.path.name}' tells the agent to send"
+                        " environment variables, a .env file, SSH or cloud credentials,"
+                        " or all of some kind of secret to a URL, address or named"
+                        " server. The agent reads this file as standing orders in"
+                        f" every session; this is {whose}. With auto-approval on, the"
+                        " send runs without a prompt. Planting instruction files in"
+                        " repositories was part of campaigns reported in October 2026"
+                        " (JFrog Security Research; SafeDep)."
+                    ),
+                    f"Line {hit.line}: {redacted_snippet(hit.sentence, 160)!r}",
+                    (
+                        "Do not run an agent in this folder until the line is removed,"
+                        " and never with auto-approval. If an agent already ran here,"
+                        " rotate the credentials it could read."
+                    ),
+                    owasp_mcp_top_10=["MCP03", "MCP01"],
+                    cwe="CWE-200",
+                )
+            )
+        )
+    return findings
+
+
 def _mem004_findings(af: AgentFile) -> list[Finding]:
     if af.surface != AgentFileSurface.HEARTBEAT:
         return []
@@ -441,7 +506,7 @@ def _mem004_findings(af: AgentFile) -> list[Finding]:
 def analyze_instruction_reach(
     files: list[AgentFile], home: Path | None = None
 ) -> list[Finding]:
-    """MEM-003, MEM-004 and MEM-005 only: the checks the default scan runs.
+    """MEM-003, MEM-004, MEM-005 and MEM-006 only: the checks the default scan runs.
 
     Args:
         files: Agent files with their import edges filled in by discovery.
@@ -449,8 +514,9 @@ def analyze_instruction_reach(
 
     Returns:
         MEM-003 findings for each external or ``.gitignore``'d import of a
-        project file, MEM-004 findings for heartbeat files, and MEM-005
-        findings for sleeper triggers in always-loaded instruction files.
+        project file, MEM-004 findings for heartbeat files, MEM-005
+        findings for sleeper triggers in always-loaded instruction files, and
+        MEM-006 findings for directives that send secrets out.
     """
     home = home if home is not None else Path.home()
     findings: list[Finding] = []
@@ -466,6 +532,7 @@ def analyze_instruction_reach(
             continue
         seen_bodies.add(key)
         findings.extend(_mem005_findings(af))
+        findings.extend(_mem006_findings(af))
     return findings
 
 

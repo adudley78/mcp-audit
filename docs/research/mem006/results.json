@@ -1,0 +1,1127 @@
+{
+  "check": "MEM-006",
+  "measured": "2026-10-30",
+  "detector_commit": "6379261",
+  "project_instruction_files": {
+    "description": "Instruction files at the default branch root of the 900 most-starred GitHub repositories (search API: stars:>30000, 15000..30000, 8000..15000; 3 pages of 100 each, 2026-10-30), fetched from raw.githubusercontent.com: CLAUDE.md, AGENTS.md, .github/copilot-instructions.md, .cursorrules, CLAUDE.local.md, .claude/CLAUDE.md, GEMINI.md. Contents not committed.",
+    "repositories": 299,
+    "files": 486,
+    "hits": 0,
+    "in_sample_note": "Partly in-sample: the first run of the development version hit 2 sentences (home-assistant/core AGENTS.md and copilot-instructions.md, the same line: 'If uv reports ... the environment is running an outdated version of uv; upgrade it with curl ... https://...'). The bare 'the environment' secret object was removed after it; the frozen version hits 0.",
+    "index": {
+      "AndyMik90/Aperant": [
+        "CLAUDE.md"
+      ],
+      "App-vNext/Polly": [
+        "AGENTS.md"
+      ],
+      "ArchiveBox/ArchiveBox": [
+        "AGENTS.md"
+      ],
+      "BeyondDimension/SteamTools": [
+        ".github/copilot-instructions.md"
+      ],
+      "BloopAI/vibe-kanban": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "Budibase/budibase": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "Chalarangelo/30-seconds-of-code": [
+        ".github/copilot-instructions.md"
+      ],
+      "Comfy-Org/ComfyUI": [
+        "AGENTS.md"
+      ],
+      "Devolutions/UniGetUI": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "DietrichGebert/ponytail": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "Egonex-AI/Understand-Anything": [
+        "CLAUDE.md"
+      ],
+      "FaridSafi/react-native-gifted-chat": [
+        ".github/copilot-instructions.md"
+      ],
+      "Fission-AI/OpenSpec": [
+        "AGENTS.md"
+      ],
+      "FlashML-org/FreeToken": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "FujiwaraChoki/MoneyPrinter": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "GitbookIO/gitbook": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "Graphify-Labs/graphify": [
+        "AGENTS.md"
+      ],
+      "Intervention/image": [
+        "AGENTS.md"
+      ],
+      "JimLiu/baoyu-skills": [
+        "CLAUDE.md"
+      ],
+      "JuliusBrussee/caveman": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "Kilo-Org/kilocode": [
+        "AGENTS.md"
+      ],
+      "Molunerfinn/PicGo": [
+        "AGENTS.md"
+      ],
+      "MonoGame/MonoGame": [
+        "CLAUDE.md"
+      ],
+      "NVIDIA/TensorRT-LLM": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "NevaMind-AI/memU": [
+        "AGENTS.md"
+      ],
+      "NousResearch/hermes-agent": [
+        "AGENTS.md"
+      ],
+      "OI-wiki/OI-wiki": [
+        "CLAUDE.md"
+      ],
+      "Open-LLM-VTuber/Open-LLM-VTuber": [
+        ".github/copilot-instructions.md",
+        "CLAUDE.md"
+      ],
+      "OpenCut-app/OpenCut": [
+        ".github/copilot-instructions.md"
+      ],
+      "OpenHands/OpenHands": [
+        "AGENTS.md"
+      ],
+      "OpenZeppelin/openzeppelin-contracts": [
+        "CLAUDE.md"
+      ],
+      "Orchestra-Research/AI-Research-SKILLs": [
+        "CLAUDE.md"
+      ],
+      "OthmanAdi/planning-with-files": [
+        "AGENTS.md"
+      ],
+      "OtterMind/Chat2DB": [
+        "AGENTS.md"
+      ],
+      "PrefectHQ/fastmcp": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "Qloapps/QloApps": [
+        "AGENTS.md"
+      ],
+      "QwenLM/qwen-code": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "SFTtech/openage": [
+        "AGENTS.md"
+      ],
+      "Schniz/fnm": [
+        "AGENTS.md"
+      ],
+      "Significant-Gravitas/AutoGPT": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "Stirling-Tools/Stirling-PDF": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "SubtitleEdit/subtitleedit": [
+        ".github/copilot-instructions.md"
+      ],
+      "TanStack/table": [
+        "AGENTS.md"
+      ],
+      "The-Art-of-Hacking/h4cker": [
+        ".github/copilot-instructions.md"
+      ],
+      "TheAlgorithms/Python": [
+        "AGENTS.md"
+      ],
+      "Vendicated/Vencord": [
+        "AGENTS.md"
+      ],
+      "Wox-launcher/Wox": [
+        "AGENTS.md"
+      ],
+      "Z-Siqi/Clash-for-Windows_Chinese": [
+        "AGENTS.md"
+      ],
+      "abi/screenshot-to-code": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "abpframework/abp": [
+        ".cursorrules",
+        ".github/copilot-instructions.md"
+      ],
+      "ace-step/ACE-Step-1.5": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "actualbudget/actual": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "addyosmani/agent-skills": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "affaan-m/ECC": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "agentskills/agentskills": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "akitaonrails/ai-memory": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "alibaba/druid": [
+        "AGENTS.md"
+      ],
+      "alibaba/hooks": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "alibaba/page-agent": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "alirezarezvani/claude-skills": [
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "amir20/dozzle": [
+        "CLAUDE.md"
+      ],
+      "analysis-tools-dev/static-analysis": [
+        ".cursorrules",
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "angular/angular": [
+        "AGENTS.md"
+      ],
+      "angular/angular-cli": [
+        "AGENTS.md"
+      ],
+      "anomalyco/opencode": [
+        "AGENTS.md"
+      ],
+      "anomalyco/sst": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "ansible/ansible": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "ant-design/ant-design": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "anthropics/claude-code": [
+        "CLAUDE.md"
+      ],
+      "apache/dolphinscheduler": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "apache/flink": [
+        "AGENTS.md"
+      ],
+      "apache/superset": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "apolloconfig/apollo": [
+        "AGENTS.md"
+      ],
+      "astral-sh/uv": [
+        "AGENTS.md"
+      ],
+      "avelino/awesome-go": [
+        ".cursorrules",
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "axios/axios": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "bagisto/bagisto": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "benbjohnson/litestream": [
+        ".cursorrules",
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "browser-use/browser-use": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "bytebase/bytebase": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "bytedance/deer-flow": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "caddyserver/caddy": [
+        "AGENTS.md"
+      ],
+      "calesthio/OpenMontage": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "callstack/react-native-paper": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "career-ops-hq/career-ops": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "carla-simulator/carla": [
+        "AGENTS.md"
+      ],
+      "casdoor/casdoor": [
+        "CLAUDE.md"
+      ],
+      "celery/celery": [
+        ".github/copilot-instructions.md"
+      ],
+      "charmbracelet/crush": [
+        "AGENTS.md"
+      ],
+      "cheaper-inference/OmniRoute": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "chroma-core/chroma": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "clash-verge-rev/clash-verge-rev": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "cline/cline": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "code-yeongyu/oh-my-openagent": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "colbymchenry/codegraph": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "coturn/coturn": [
+        "CLAUDE.md"
+      ],
+      "dair-ai/Prompt-Engineering-Guide": [
+        "CLAUDE.md"
+      ],
+      "davisking/dlib": [
+        "AGENTS.md"
+      ],
+      "debpalash/VoiceStudio": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "deepseek-ai/deepseek-harness": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "deepset-ai/haystack": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "denoland/deno": [
+        ".github/copilot-instructions.md",
+        "CLAUDE.md"
+      ],
+      "django/django": [
+        ".github/copilot-instructions.md"
+      ],
+      "docling-project/docling": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "dotnet/efcore": [
+        ".github/copilot-instructions.md"
+      ],
+      "e2b-dev/E2B": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "earendil-works/pi": [
+        "AGENTS.md"
+      ],
+      "eclipse-vertx/vert.x": [
+        "AGENTS.md"
+      ],
+      "elastic/elasticsearch": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "elastic/logstash": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "electron-userland/electron-builder": [
+        "CLAUDE.md"
+      ],
+      "electron/electron": [
+        ".github/copilot-instructions.md",
+        "CLAUDE.md"
+      ],
+      "element-plus/element-plus": [
+        "AGENTS.md"
+      ],
+      "elixir-lang/elixir": [
+        "AGENTS.md"
+      ],
+      "envoyproxy/envoy": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "eslint/eslint": [
+        "AGENTS.md"
+      ],
+      "eternity4719/HowToLiveBetter": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "excalidraw/excalidraw": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "eyaltoledano/claude-task-master": [
+        "CLAUDE.md"
+      ],
+      "f/prompts.chat": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "fatedier/frp": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "fathah/hermes-desktop": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "fffaraz/awesome-cpp": [
+        ".github/copilot-instructions.md"
+      ],
+      "firecrawl/firecrawl": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "floci-io/floci": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "formatjs/formatjs": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "freeCodeCamp/freeCodeCamp": [
+        ".github/copilot-instructions.md"
+      ],
+      "garrytan/gstack": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "gastownhall/beads": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "ggml-org/llama.cpp": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "github/spec-kit": [
+        "AGENTS.md"
+      ],
+      "gohugoio/hugo": [
+        "AGENTS.md"
+      ],
+      "google-gemini/gemini-cli": [
+        "GEMINI.md"
+      ],
+      "google/ax": [
+        "AGENTS.md"
+      ],
+      "grafana/grafana": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "grafana/loki": [
+        "AGENTS.md"
+      ],
+      "h4ckf0r0day/obscura": [
+        "AGENTS.md"
+      ],
+      "hashcat/hashcat": [
+        "AGENTS.md"
+      ],
+      "hcengineering/platform": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "headroomlabs-ai/headroom": [
+        ".github/copilot-instructions.md"
+      ],
+      "heygen-com/hyperframes": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "hiyouga/LlamaFactory": [
+        ".github/copilot-instructions.md",
+        "CLAUDE.md"
+      ],
+      "home-assistant/core": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "hrydgard/ppsspp": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "huggingface/lerobot": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "huggingface/transformers": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "hugohe3/ppt-master": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "humanlayer/12-factor-agents": [
+        "CLAUDE.md"
+      ],
+      "icsharpcode/ILSpy": [
+        "AGENTS.md"
+      ],
+      "idank/explainshell": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "iluwatar/java-design-patterns": [
+        "AGENTS.md"
+      ],
+      "immich-app/immich": [
+        "AGENTS.md"
+      ],
+      "infiniflow/ragflow": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "invoke-ai/InvokeAI": [
+        "AGENTS.md"
+      ],
+      "isl-org/Open3D": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "jackc/pgx": [
+        "CLAUDE.md"
+      ],
+      "jarrodwatts/claude-hud": [
+        "CLAUDE.md"
+      ],
+      "jesseduffield/lazygit": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "juice-shop/juice-shop": [
+        ".claude/CLAUDE.md",
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "juicedata/juicefs": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "keepassxreboot/keepassxc": [
+        ".github/copilot-instructions.md"
+      ],
+      "kekingcn/kkFileView": [
+        "AGENTS.md"
+      ],
+      "koala73/worldmonitor": [
+        "AGENTS.md"
+      ],
+      "koodo-reader/koodo-reader": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "kopia/kopia": [
+        ".github/copilot-instructions.md"
+      ],
+      "ktorio/ktor": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "kubernetes/kubernetes": [
+        "AGENTS.md"
+      ],
+      "kysely-org/kysely": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "labring/FastGPT": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "langchain-ai/langchain": [
+        "AGENTS.md"
+      ],
+      "langflow-ai/langflow": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "langgenius/dify": [
+        "AGENTS.md"
+      ],
+      "laravel/laravel": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "libretro/RetroArch": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "lobehub/lobehub": [
+        "AGENTS.md",
+        "GEMINI.md"
+      ],
+      "localsend/localsend": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "locustio/locust": [
+        "AGENTS.md"
+      ],
+      "logto-io/logto": [
+        "AGENTS.md"
+      ],
+      "louislam/uptime-kuma": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "manaflow-ai/cmux": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "marko-js/marko": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "marmelab/react-admin": [
+        "CLAUDE.md"
+      ],
+      "mastra-ai/mastra": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "matteocrippa/awesome-swift": [
+        ".github/copilot-instructions.md"
+      ],
+      "mattpocock/skills": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "mbadolato/iTerm2-Color-Schemes": [
+        "AGENTS.md"
+      ],
+      "microsoft/AI-For-Beginners": [
+        "AGENTS.md"
+      ],
+      "microsoft/ML-For-Beginners": [
+        "AGENTS.md"
+      ],
+      "microsoft/PowerToys": [
+        ".claude/CLAUDE.md",
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "microsoft/TypeScript": [
+        ".github/copilot-instructions.md"
+      ],
+      "microsoft/Web-Dev-For-Beginners": [
+        "AGENTS.md"
+      ],
+      "microsoft/agent-framework": [
+        ".github/copilot-instructions.md"
+      ],
+      "microsoft/ai-agents-for-beginners": [
+        "AGENTS.md"
+      ],
+      "microsoft/generative-ai-for-beginners": [
+        "AGENTS.md"
+      ],
+      "microsoft/playwright": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "microsoft/playwright-cli": [
+        "CLAUDE.md"
+      ],
+      "microsoft/terminal": [
+        "AGENTS.md"
+      ],
+      "microsoft/vcpkg": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "microsoft/vscode": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "microsoft/winget-cli": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "mihomo-party-org/clash-party": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "ml-explore/mlx": [
+        "AGENTS.md"
+      ],
+      "mlflow/mlflow": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "moby/moby": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "modelcontextprotocol/servers": [
+        "AGENTS.md"
+      ],
+      "mongodb/mongo": [
+        ".github/copilot-instructions.md"
+      ],
+      "moonD4rk/HackBrowserData": [
+        "CLAUDE.md"
+      ],
+      "morluto/rea": [
+        "AGENTS.md"
+      ],
+      "mui/material-ui": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "multica-ai/andrej-karpathy-skills": [
+        "CLAUDE.md"
+      ],
+      "n8n-io/n8n": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "nanobrowser/nanobrowser": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "nektos/act": [
+        "AGENTS.md"
+      ],
+      "neovim/neovim": [
+        "AGENTS.md"
+      ],
+      "netdata/netdata": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "nextlevelbuilder/ui-ux-pro-max-skill": [
+        "CLAUDE.md"
+      ],
+      "nexu-io/open-design": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "nodejs/node": [
+        "AGENTS.md"
+      ],
+      "nrwl/nx": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "nvm-sh/nvm": [
+        "AGENTS.md"
+      ],
+      "obra/superpowers": [
+        "AGENTS.md",
+        "GEMINI.md"
+      ],
+      "ollama/ollama": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "onlook-dev/onlook": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "openai/openai-cookbook": [
+        "AGENTS.md"
+      ],
+      "openclaw/openclaw": [
+        "AGENTS.md"
+      ],
+      "opendatalab/MinerU": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "oven-sh/bun": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "palmier-io/palmier-pro": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "paperclipai/paperclip": [
+        "AGENTS.md"
+      ],
+      "papers-we-love/papers-we-love": [
+        "AGENTS.md"
+      ],
+      "pbakaus/impeccable": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "phpstan/phpstan": [
+        "CLAUDE.md"
+      ],
+      "phuryn/pm-skills": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "pmndrs/react-spring": [
+        "CLAUDE.md"
+      ],
+      "promptfoo/promptfoo": [
+        "AGENTS.md"
+      ],
+      "pydantic/pydantic": [
+        "AGENTS.md"
+      ],
+      "pyodide/pyodide": [
+        ".cursorrules",
+        "AGENTS.md"
+      ],
+      "python-telegram-bot/python-telegram-bot": [
+        ".github/copilot-instructions.md"
+      ],
+      "python/cpython": [
+        "AGENTS.md"
+      ],
+      "pytorch/pytorch": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "qgis/QGIS": [
+        "AGENTS.md"
+      ],
+      "quasarframework/quasar": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "react/react": [
+        "CLAUDE.md"
+      ],
+      "react/react-native": [
+        "AGENTS.md"
+      ],
+      "realworld-apps/realworld": [
+        "CLAUDE.md"
+      ],
+      "recharts/recharts": [
+        "AGENTS.md"
+      ],
+      "reflex-dev/reflex": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "remotion-dev/remotion": [
+        "AGENTS.md"
+      ],
+      "requarks/wiki": [
+        "CLAUDE.md"
+      ],
+      "ripienaar/free-for-dev": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "rohitg00/ai-engineering-from-scratch": [
+        "AGENTS.md"
+      ],
+      "rommapp/romm": [
+        "AGENTS.md"
+      ],
+      "rstacruz/cheatsheets": [
+        "AGENTS.md"
+      ],
+      "rtk-ai/rtk": [
+        ".github/copilot-instructions.md",
+        "CLAUDE.md"
+      ],
+      "rust-lang/rust": [
+        "AGENTS.md"
+      ],
+      "rustdesk/rustdesk": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ],
+      "ruvnet/RuView": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "ruvnet/ruflo": [
+        "AGENTS.md",
+        "CLAUDE.local.md",
+        "CLAUDE.md"
+      ],
+      "sampotts/plyr": [
+        "AGENTS.md"
+      ],
+      "scala/scala": [
+        "AGENTS.md"
+      ],
+      "semaphoreui/semaphore": [
+        ".claude/CLAUDE.md",
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "simstudioai/sim": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "siteboon/claudecodeui": [
+        "AGENTS.md"
+      ],
+      "slymnoyann/hey.xyz": [
+        ".cursorrules",
+        "AGENTS.md"
+      ],
+      "srbhr/Resume-Matcher": [
+        ".claude/CLAUDE.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "stablyai/orca": [
+        "AGENTS.md"
+      ],
+      "storybookjs/storybook": [
+        ".cursorrules",
+        "AGENTS.md"
+      ],
+      "storytold/photocraft": [
+        "AGENTS.md"
+      ],
+      "strapi/strapi": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "supabase/supabase": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "sveltejs/svelte": [
+        "AGENTS.md"
+      ],
+      "swagger-api/swagger-ui": [
+        "CLAUDE.md"
+      ],
+      "tamagui/tamagui": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "tesseract-ocr/tesseract": [
+        ".github/copilot-instructions.md"
+      ],
+      "thedaviddias/Front-End-Checklist": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "thedotmack/claude-mem": [
+        ".github/copilot-instructions.md",
+        "CLAUDE.md"
+      ],
+      "thunderbird/thunderbird-android": [
+        "AGENTS.md"
+      ],
+      "torvalds/linux": [
+        "AGENTS.md"
+      ],
+      "tt-a1i/archify": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "tw93/Mole": [
+        "AGENTS.md"
+      ],
+      "twbs/bootstrap": [
+        "AGENTS.md"
+      ],
+      "ultraworkers/claw-code": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "usestrix/strix": [
+        "AGENTS.md"
+      ],
+      "valkey-io/valkey": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md"
+      ],
+      "vercel/ai": [
+        "AGENTS.md"
+      ],
+      "vercel/next.js": [
+        "AGENTS.md"
+      ],
+      "viatsko/awesome-vscode": [
+        "CLAUDE.md"
+      ],
+      "vinta/awesome-python": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "virattt/dexter": [
+        "AGENTS.md"
+      ],
+      "visgl/deck.gl": [
+        "AGENTS.md"
+      ],
+      "vitejs/vite": [
+        ".github/copilot-instructions.md"
+      ],
+      "vllm-project/vllm": [
+        "AGENTS.md"
+      ],
+      "wanghongenpin/proxypin": [
+        "AGENTS.md"
+      ],
+      "xcanwin/KeepChatGPT": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "xtool-org/xtool": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "yamadashy/repomix": [
+        ".github/copilot-instructions.md",
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
+      "yangshun/tech-interview-handbook": [
+        "AGENTS.md"
+      ],
+      "yikart/AiToEarn": [
+        "AGENTS.md"
+      ],
+      "zed-industries/zed": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md"
+      ]
+    }
+  },
+  "skill_repository_files": {
+    "description": "Every .md, .mdc and .txt file in shallow clones of the skill repositories STORY-0095 used. Contents not committed.",
+    "repositories": {
+      "anthropics/skills": "ca45fc4",
+      "anthropics/claude-code": "d4dfed4",
+      "ComposioHQ/awesome-claude-skills": "be2a406",
+      "huggingface/skills": "25910b3",
+      "obra/superpowers": "2ce8aa1",
+      "openai/skills": "49f948f",
+      "trailofbits/skills": "2be6433",
+      "vercel-labs/agent-skills": "1a2c79d"
+    },
+    "files": 3083,
+    "hits": 0
+  },
+  "hand_written": {
+    "development": {
+      "file": "tests/fixtures/exfil/development.json",
+      "malicious": "12 of 12",
+      "benign": "0 of 15",
+      "note": "in-sample"
+    },
+    "heldout": {
+      "file": "tests/fixtures/exfil/heldout.json",
+      "malicious": "12 of 15",
+      "benign": "0 of 15",
+      "note": "written after the regexes were frozen; misses: a pronoun object ('collect every environment variable and send them to ...'), a possessive destination ('the project's validation endpoint'), files listed before the verb ('Gather .netrc ... and post them to the registry host')"
+    }
+  }
+}

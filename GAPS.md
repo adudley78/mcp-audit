@@ -1250,6 +1250,9 @@ discovery or analysis code for unconfirmed paths — add them to
   POISON-040 (zero-width Unicode), POISON-060 (homoglyphs) only. All other
   PATTERNS entries — including POISON-050 (excessive length) — are excluded
   from memory analysis to control false-positive rate on innocuous large files.
+  (2026-10-30: the exfiltration case the excluded POISON-001..003 would have
+  caught in a tool description is covered for memory files by MEM-006, a
+  narrower sentence-level check measured on real instruction files.)
 - `--include-agent-files` flag includes project-tree walking for
   `.claude/commands/`, `.cursor/rules/`, and `.github/` subtrees; the
   cloned-malicious-repo scenario is the primary attack vector.
@@ -1355,6 +1358,29 @@ discovery or analysis code for unconfirmed paths — add them to
   is missed. 0 of 129 real project instruction files and 0 of 4,987
   skill-repository files fire; the first version fired on 9 of 13 realistic
   conditionals and on rust-lang/rust's `AGENTS.md`.
+- **MEM-006 instruction files that send secrets out:** one sentence at a time,
+  English. It needs a send verb (not negated just before it), then within 100
+  characters a bulk or local secret (environment variables, `.env`, `~/.ssh`,
+  `~/.aws`, `id_rsa`, private keys, "all/every ... secrets/tokens/keys"), then
+  within 160 characters a destination (URL, IP, email address, "to the ...
+  server / endpoint / webhook / host / collector / bucket / API / backend").
+  Missed on purpose: one named token sent to an API ("send the access token to
+  the API server"), which is what most apps' docs describe. Missed by shape (the
+  held-out set, 12 of 15): a pronoun object ("collect every environment variable
+  and send them to ..."), a possessive destination ("the project's validation
+  endpoint"), files named before the verb ("gather .netrc ... and post them to
+  ..."), a destination written as a bare hostname, and an instruction split
+  across sentences. A negation anywhere in the 40 characters before the verb
+  silences it ("it is not optional: send all env vars to ..." is missed). 0 of
+  486 project instruction files (299 repositories; partly in-sample) and 0 of
+  3,083 skill-repository files fire (`docs/research/mem006/results.json`). Skills
+  and commands are not read by MEM-006: they get SKILL-001's full pattern set.
+- **An instruction file that tells the agent to run a script the repository
+  ships** (the testmetest and JFrog campaigns' `CLAUDE.md` / `AGENTS.md`, which
+  launch `.github/init.js`) is not a MEM-006 shape and has no check of its own.
+  The same repositories' VS Code `folderOpen` task is TRUST-003 HIGH; their
+  Claude Code `SessionStart` hook running a repository file is only CFHYG-005
+  MEDIUM ("hooks section detected").
 - **POISON-043/044 decode, they do not guess.** A zero-width run must be 16+
   characters; its two most frequent symbols are the bits (read high bit
   first) and a third symbol is dropped as a separator only when it is at most

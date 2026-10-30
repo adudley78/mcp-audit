@@ -277,8 +277,8 @@ registry-submission template is unchanged.
 
 | Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
 |------------|----------|----------------------|------------------|-----------|
-| VULN-&lt;OSV-ID&gt; | from the advisory | ASI10 | — | Read from the advisory's own OSV record (STORY-0106): CVSS v3 base score, else `database_specific.severity`, else CRITICAL for an OSV `MAL-*` record, else INFO with the reason. mcp-audit does not re-rate a published advisory. |
-| VULN-UNPINNED | LOW | ASI10 | — | The launch floats; the lookup used the latest release, which may not be what runs. |
+| VULN-&lt;OSV-ID&gt; | from the advisory | ASI10 | MCP04 | Read from the advisory's own OSV record (STORY-0106): CVSS v3 base score, else `database_specific.severity`, else CRITICAL for an OSV `MAL-*` record, else INFO with the reason. mcp-audit does not re-rate a published advisory. |
+| VULN-UNPINNED | LOW | ASI10 | MCP04 | The launch floats; the lookup used the latest release, which may not be what runs. |
 | VULN-UNRESOLVED | INFO | — | MCP04 | A lookup could not run (STORY-0106). INFO because it asserts nothing about the package; it exists so a partial check never reads as clean. Not an advisory. |
 
 ### Attestation (`attestation/`)
@@ -402,7 +402,7 @@ PERM-007 runs as pipeline step 5b. Each rule's basis is quoted in
 | PERM-006    | MEDIUM   | ASI03, ASI04 | MCP07, MCP05 | Bare `Bash`/`Bash(*)` ask rule with the sandbox on and `autoAllowBashIfSandboxed` at its default: skipped for every sandboxed command, so commands the author meant to review run unreviewed inside the sandbox. CWE-693 |
 | PERM-007    | HIGH     | ASI03, ASI10 | MCP02, MCP07 | Whole-server `mcp__<server>[__*]` allow on a Claude Code server with a HIGH/CRITICAL poisoning, rug-pull or supply-chain finding (SC-004 only for a known-affected configured version): that server's tools run without a prompt. Matched by whole normalized name (Claude Code 2.1.299); paired across the default and project scans under `--project`. CWE-862 |
 
-### Instruction-file reach (`agent_files/`, MEM-003/MEM-004/MEM-005, STORY-0098, STORY-0099)
+### Instruction-file reach (`agent_files/`, MEM-003/MEM-004/MEM-005/MEM-006, STORY-0098, STORY-0099)
 
 All three run in a default `scan`/`check` (the working directory's top-level
 instruction files and `~/.openclaw/workspace/HEARTBEAT.md`), under
@@ -414,6 +414,7 @@ See `docs/agent-files.md` ("Imports and references", "Heartbeat files").
 | MEM-003    | MEDIUM / LOW | ASI08 | MCP10 | A Claude Code `@path` import in a project instruction file (CLAUDE.md, .claude/CLAUDE.md, CLAUDE.local.md, .claude/rules/**/*.md, AGENTS.md, .claude/AGENTS.md, or a file they import, four hops deep) resolves to an existing file outside the scanned folder (Claude Code's "external import", approved once per project; the target is never read) or to a file matched by `.gitignore` (normally never committed, so never reviewed; decided from `.gitignore` files only). LOW for a Markdown file under `~/.claude/`, the personal-instructions import Claude Code's memory docs suggest. Bad Memory (arXiv 2607.14611) kept payloads in referenced files and the strongest model left them in place 93–97% of the time. CWE-829. |
 | MEM-004    | HIGH     | ASI01, ASI08 | MCP06, MCP08 | An OpenClaw `HEARTBEAT.md` (run on a timer, every 30 minutes by default) tells the agent to answer with the suppression reply (`HEARTBEAT_OK`, `NO_REPLY`, `notify: false`) unconditionally, while also being told to keep a step from the owner, or straight after running, downloading, installing, uploading, forwarding or transferring something or following a fetched URL. The documented conditional form ("if nothing needs attention, reply HEARTBEAT_OK") stays silent. Agent Commander (Embrace The Red, 2026) used exactly this to run a recurring step whose output the owner never saw. HIGH because a hidden, recurring, unattended step is the C2 shape. CWE-223. |
 | MEM-005    | MEDIUM   | ASI01, ASI08 | MCP03, MCP06 | Conditional sleeper trigger (STORY-0099) in an always-loaded instruction file (CLAUDE.md tiers, .claude/rules, AGENTS.md, OpenClaw workspace and heartbeat files): one sentence with an if/when clause (or leading date) holding an unusual trigger (deferred user cue, root/sudo/admin, hostname or production host, date, off-hours, nobody watching), a consequence that opens with an action verb, and, unless nobody is watching, a payload in the consequence (URL, curl/wget, secret-bearing object, backups, remote endpoint, silently). arXiv 2602.06547: conditional triggers are 18.4% of confirmed-malicious skills' shadow features. 0 of 129 real project instruction files and 0 of 4,987 skill-repository files fire. Runs where MEM-003/004 run. CWE-511. |
+| MEM-006    | HIGH (repository) / MEDIUM (own) | ASI01, ASI06 | MCP03, MCP01 | An always-applied instruction file (MEM-005's files plus Cursor rules and Copilot instruction files) tells the agent, in one sentence, to send a bulk or local secret (environment variables, `.env`, `~/.ssh`, `~/.aws`, `id_rsa`, private keys, all/every ... secrets/tokens/keys) to a URL, IP, email address or named server/endpoint/webhook; the verb not negated. HIGH in a project file because anyone who could change the repository wrote it and the agent obeys it in every session; MEDIUM in the user's own. 0 of 486 project instruction files and 0 of 3,083 skill-repository files fire; 12 of 15 held-out malicious sentences. CWE-200. |
 
 ### Instruction-file drift (`agent_files/drift.py`, INSTR-001/INSTR-002, STORY-0113)
 
