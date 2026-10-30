@@ -154,7 +154,7 @@ class TestLoader:
         assert len(index) == 3
         assert "5 entries" in (index.load_error or "")
 
-    @pytest.mark.parametrize("method", ["read_text", "stat"])
+    @pytest.mark.parametrize("method", ["open", "stat"])
     def test_permission_error_does_not_raise(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, method: str
     ) -> None:

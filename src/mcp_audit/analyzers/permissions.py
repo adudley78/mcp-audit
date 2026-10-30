@@ -82,11 +82,6 @@ class PermissionRule:
     tool: str
     specifier: str | None
 
-    @property
-    def is_bare(self) -> bool:
-        """True for a rule with no specifier, such as ``Bash`` or ``mcp__github``."""
-        return self.specifier is None
-
 
 def parse_permission_rule(text: object, list_name: str) -> PermissionRule | None:
     """Split one permission rule string into its tool name and specifier.

@@ -76,7 +76,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **Tool poisoning detection** — 18 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with zero false positives on our published 22-server benchmark (a regression test over config entries, which hold no tool descriptions). Measured on tool descriptions it is much weaker ([docs/poisoning.md](docs/poisoning.md)): it flags 74.7% of MCPTox's 1,312 poisoned descriptions but 23.7% of those without an `<IMPORTANT>` or "ignore the previous instructions" wrapper (69.3% and 7.4% at HIGH or above, the threshold `check` and the pre-commit hook fail on), and on the 100 most-downloaded npm MCP servers it raised 46 findings on 1,402 live tools, 1 of them real (an order buried in a long description to send the user's message to the vendor; re-measured 2026-10-29 on 0.23.0; it was 661 on 0.21.0, 488 of them POISON-060 on full-width CJK punctuation, which no longer fires; MCPTox's clean tools flagged fell from 18 of 353 to 2 with no MCPTox detection lost — MCPTox is in-sample for that check). Six patterns for orders that hide ("do not mention this to the user", "do not ask for permission", banning the ask-the-user tool, threats, run-on-startup, fetch-a-URL-and-follow-it; POISON-070..075) caught 23 of 45 hand-written orders held out from their design and 0 of 45 look-alike ordinary sentences, and flag none of MCPTox's 353 real tools; zero-width and variation-selector text is decoded and rescanned (POISON-043/044)
 - **Credential exposure** — 17 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
-- **Supply chain** — typosquatting detection via Levenshtein distance against 55 known MCP servers; offline CVE advisory check (`SC-004`) against the bundled registry (`known_vulnerabilities`); SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
+- **Supply chain** — typosquatting detection via Levenshtein distance against 56 known MCP servers; offline CVE advisory check (`SC-004`) against the bundled registry (`known_vulnerabilities`); SHA-256 hash verification; Sigstore SLSA provenance verification; transitive-dependency CVE lookup via OSV.dev; CycloneDX SBOM generation
 - **Rug-pull detection** — stateful SHA-256 comparison of each server's configuration entry (command, arguments, environment variable names, raw entry) across scans. Live tool definitions are pinned separately, by `lock --connect` ([docs/lock.md](docs/lock.md#tool-definitions---connect))
 - **Cross-server toxic flows** — capability tagging and 12 dangerous pair patterns detecting multi-server attack paths (file-read + network, secrets + network, shell-exec + network, a data source next to a server that posts to GitHub, GitLab, Slack or Jira, etc.)
 - **Attack path engine** — multi-hop path detection with greedy hitting set algorithm (minimum set of servers to remove to break all attack paths)
@@ -496,7 +496,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-8,361 tests validate detection accuracy and guard against regressions.
+8,365 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -506,17 +506,17 @@ Every command is available to every user — no tier, no license required.
 
 | Command | Key flags | Description |
 |---------|-----------|-------------|
-| `mcp-audit affected <ID or pkg@range>` | `--path`, `--lock`, `--format json\|sarif`, `--fail-on-unknown`, `--live` | Is this advisory in my agent stack? AFFECTED, NOT AFFECTED or COULDN'T CHECK per server, with the evidence. Offline by default |
+| `mcp-audit affected <ID or pkg@range>` | `--path`, `--lock`, `--format json\|sarif\|openvex`, `--output`, `--all`, `--fail-on-unknown`, `--policy-out`, `--fix`, `--apply`, `--live`, `--transitive`, `--fleet`, `--bundle`, `--bundle-key` | Is this advisory in my agent stack? AFFECTED, NOT AFFECTED or COULDN'T CHECK per server, with the evidence. Offline by default |
 | `mcp-audit vet <package>` | `--ecosystem`, `--format json`, `--badge`, `--online`, `--strict` | Pre-install verdict: verification status, known CVEs, capabilities. Ask before you install. Offline by default |
 | `mcp-audit check` | `--path`, `--verbose`, `--json`, `--no-lock` | One-command security verdict: grade, top findings, fix hints. Auto-verifies `mcp-lock.json` when present. Recommended entry point for new users |
 | `mcp-audit fix` | `--path`, `--input`, `--apply`, `--fix-type`, `--offline` | Apply safe remediations (credential redaction, transport upgrade, package pinning — including pinning a floating version from `mcp-lock.json`) directly to config files; dry-run by default |
-| `mcp-audit scan` | `--connect`, `--format`, `--output`, `--severity-threshold`, `--asset-prefix`, `--baseline`, `--policy`, `--verify-hashes`, `--no-score`, `--registry`, `--offline-registry`, `--rules-dir`, `--sast`, `--include-extensions`, `--no-lock` | Run all analyzers and report findings. Auto-verifies `mcp-lock.json` when present |
+| `mcp-audit scan` | `--connect`, `--format`, `--output`, `--severity-threshold`, `--asset-prefix`, `--baseline`, `--policy`, `--verify-hashes`, `--check-vulns`, `--vex`, `--bundle`, `--no-score`, `--registry`, `--offline-registry`, `--rules-dir`, `--sast`, `--project`, `--include-extensions`, `--include-agent-files`, `--no-lock` | Run all analyzers and report findings. Auto-verifies `mcp-lock.json` when present |
 | `mcp-audit dashboard` | `--path`, `--port`, `--connect`, `--no-open` | Generate and open the interactive attack graph dashboard |
 | `mcp-audit watch` | `--path`, `--format`, `--severity-threshold`, `--connect` | Monitor config files and re-scan on any change |
 | `mcp-audit discover` | — | List all detected MCP clients and their configured servers |
 | `mcp-audit pin` | — | Record current server state as a trusted baseline |
-| `mcp-audit diff` | — | Show configuration changes since the last `pin` |
-| `mcp-audit lock` | `--verify`, `--resolve`, `--accept`, `--include-user`, `--offline`, `--output`, `--format` | Write or verify a committable `mcp-lock.json` of approved MCP servers for code review and CI drift detection. `EXPERIMENTAL` in v0.17.0 |
+| `mcp-audit diff <base> <head>` | `--format terminal\|json\|pr-comment`, `--severity-threshold`, `--output-file` | MCP-aware diff of two configuration states (directories, scan JSON files or git refs) for PR review and CI gates |
+| `mcp-audit lock` | `--verify`, `--resolve`, `--accept`, `--include-user`, `--connect`, `--save-tool-text`, `--if-present`, `--allow-unverified`, `--offline`, `--output`, `--format` | Write or verify a committable `mcp-lock.json` of approved MCP servers (and, with `--connect`, their tool definitions) for code review and CI drift detection |
 | `mcp-audit verify` | `<package\|config-path>` | Verify server hashes: pass a package name (`@scope/pkg`), a config file path, or `--all` |
 | `mcp-audit version` | — | Print version string |
 | `mcp-audit update-registry` | — | Fetch the latest known-server registry from upstream |
@@ -529,7 +529,7 @@ Every command is available to every user — no tier, no license required.
 | `mcp-audit baseline delete NAME` | `--yes` | Delete a saved baseline |
 | `mcp-audit baseline export NAME` | `--output-file` | Write a baseline as raw JSON to stdout or a file |
 | `mcp-audit rule validate` | `<file>` | Validate a rule file without running a scan |
-| `mcp-audit rule test` | `<rule> <config>` | Test a rule file against a specific MCP config file |
+| `mcp-audit rule test` | `<file> --against <config>` | Test a rule file against a specific MCP config file |
 | `mcp-audit rule list` | — | List all currently loaded rules (bundled + user-local) |
 | `mcp-audit policy validate` | `<file>` | Validate a governance policy YAML file |
 | `mcp-audit policy init` | — | Scaffold a new governance policy file |
@@ -540,6 +540,10 @@ Every command is available to every user — no tier, no license required.
 | `mcp-audit agent-files scan` | `--project PATH`, `--format` | Scan agent instruction/memory files for injection, obfuscation, and hook exploits |
 | `mcp-audit plugins discover` | `--format` | Inventory installed Claude Code plugins, their source pin, and what they ship |
 | `mcp-audit plugins scan` | `--format` | Check plugin pin integrity and scan the skills and MCP servers plugins ship |
+| `mcp-audit shadow` | `--allowlist`, `--continuous`, `--format`, `--path`, `--output-file` | Sweep every MCP config on the host and classify each server as sanctioned or shadow; daemon mode emits change events |
+| `mcp-audit killchain` | `--input`, `--path`, `--top`, `--patch yaml\|pr`, `--format`, `--output-file` | The few configuration changes that cut the most attack paths, with a what-if simulation |
+| `mcp-audit sbom` | `--format`, `--output`, `--offline` | CycloneDX 1.5 SBOM of the configured MCP servers |
+| `mcp-audit register` | `--clear`, `--status` | Optional, interactive opt-in to share contact details for project updates; after that each `check` sends only the version and grade (see `docs/privacy.md`) |
 | `mcp-audit snapshot` | `--output`, `--format`, `--sign`, `--stream`, `--rehydrate`, `--input` | Time-stamped forensic export — CycloneDX 1.5 AI/ML-BOM (default) or native JSON; sigstore-signed; NDJSON stream for SIEM/EDR |
 | `mcp-audit advise` | `--out`, `--input`, `--sign`, `--key`, `--key-alt`, `--severity-threshold`, `--observation`, `--published-at` | Convert findings into signed OSV 1.6.0 advisory records and write a publishable feed |
 | `mcp-audit feed verify` | `<dir>`, `--key-alt`, `--public-key`, `--identity`, `--oidc-issuer` | Re-canonicalize and verify every advisory signature, the index signature, and each recorded digest |
@@ -723,7 +727,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 8,361 tests
+uv run pytest                        # Run all 8,365 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```

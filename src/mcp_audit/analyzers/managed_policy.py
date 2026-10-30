@@ -395,6 +395,25 @@ def _lock_value(value: object) -> tuple[bool, bool]:
     return (True, True)
 
 
+def list_dropins(dropins: Path) -> list[Path]:
+    """Return the drop-in files Claude Code reads from *dropins*, in load order.
+
+    Every ``*.json`` file in ``managed-settings.d/``, alphabetical, hidden files
+    skipped (managed-settings "Split policy across drop-in files").  Shared by
+    the managed-policy and secret-reach readers so they load the same files.
+
+    Raises:
+        OSError: when the directory cannot be listed.
+    """
+    if not dropins.is_dir():
+        return []
+    return sorted(
+        p
+        for p in dropins.iterdir()
+        if p.name.endswith(".json") and not p.name.startswith(".")
+    )
+
+
 def read_managed_policy(
     directory: Path | None = None, errors: list[str] | None = None
 ) -> ManagedPolicy:
@@ -427,11 +446,7 @@ def read_managed_policy(
     dropins = directory / "managed-settings.d"
     try:
         if dropins.is_dir():
-            names = sorted(
-                p
-                for p in dropins.iterdir()
-                if p.name.endswith(".json") and not p.name.startswith(".")
-            )
+            names = list_dropins(dropins)
             if len(names) > MAX_DROPINS:
                 errs.append(
                     f"managed policy: {dropins} has {len(names)} files; only the"

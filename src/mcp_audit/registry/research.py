@@ -155,11 +155,6 @@ class ResearchRecord:
         """The primary write-up (the first reference), if any."""
         return self.references[0][1] if self.references else None
 
-    @property
-    def credit_line(self) -> str:
-        """``"Name (Org), Name (Org)"`` for output, or an empty string."""
-        return ", ".join(c.name for c in self.credits)
-
 
 @dataclass
 class ResearchIndex:

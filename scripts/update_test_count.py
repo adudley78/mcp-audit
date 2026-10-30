@@ -175,6 +175,13 @@ _SUBSTITUTIONS: list[tuple[str, str, str]] = [
         r"\d+-entry curated dataset of legitimate MCP servers",
         "{registry_count}-entry curated dataset of legitimate MCP servers",
     ),
+    # --- registry entry count — README feature list ("Levenshtein distance
+    # against N known MCP servers"); said 55 while the registry had 56 ---
+    (
+        "README.md",
+        r"against \d+ known MCP servers",
+        "against {registry_count} known MCP servers",
+    ),
     # --- analyzer count — "N analyzers:" list item (CLAUDE.md) ---
     (
         "CLAUDE.md",

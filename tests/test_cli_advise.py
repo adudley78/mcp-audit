@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -505,6 +506,23 @@ class TestFeedVerifyBundledKeyDefault:
 # ── examples/feed drift detection ────────────────────────────────────────────
 
 
+def _artifact(path: Path) -> object:
+    """What must match for a feed file: its bytes, or a zip's members.
+
+    Deflate output depends on the host's zlib build (zlib-ng, the default in
+    some Linux Pythons, compresses differently from classic zlib), so a zip is
+    compared by member name, timestamp, compression method and uncompressed
+    bytes. The advisory JSON inside is still compared byte for byte.
+    """
+    if path.suffix != ".zip":
+        return path.read_bytes()
+    with zipfile.ZipFile(path) as archive:
+        return [
+            (i.filename, i.date_time, i.compress_type, archive.read(i))
+            for i in archive.infolist()
+        ]
+
+
 @pytest.mark.skipif(
     os.name == "nt",
     reason=(
@@ -562,7 +580,7 @@ class TestExamplesFeedIsCurrent:
         mismatched = sorted(
             str(rel)
             for rel in committed_files
-            if (committed / rel).read_bytes() != (fresh / rel).read_bytes()
+            if _artifact(committed / rel) != _artifact(fresh / rel)
         )
         assert not mismatched, (
             f"examples/feed/ is stale relative to current code for: {mismatched}. "

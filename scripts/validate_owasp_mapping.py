@@ -32,11 +32,22 @@ RULES_DIR = REPO_ROOT / "rules" / "community"
 # Anchored to word boundaries to avoid matching within variable names or comments
 _STATIC_ID_RE = re.compile(r"""["']([A-Z]{2,9}-\d{3,4})["']""")
 
+# Matches IDs with a word suffix: "VULN-UNPINNED", "VULN-UNRESOLVED", "SCAN-ERR".
+# The numeric pattern above never sees these, so before this pattern existed they
+# were never audited (and VULN-UNRESOLVED was reported as a stale mapping).
+# Always static, so the dynamic-prefix skip below does not apply to them.
+_WORD_ID_RE = re.compile(r"""["']([A-Z]{2,9}-[A-Z][A-Z_]{2,20})["']""")
+
+# Quoted strings the word pattern matches that are not finding IDs.
+_NOT_FINDING_IDS: frozenset[str] = frozenset(
+    {"NON-NEGOTIABLE"}  # a coercion phrase quoted in analyzers/poisoning.py
+)
+
 # These prefixes are generated dynamically at runtime and cannot be enumerated
 # from source constants.  They are instead documented in the "dynamic_patterns"
 # array of the mapping file.
 _DYNAMIC_PREFIXES: frozenset[str] = frozenset(
-    {"ATT-", "EXT-", "SAST-", "DRIFT-", "GOV-"}
+    {"ATT-", "EXT-", "SAST-", "DRIFT-", "GOV-", "VULN-"}
 )
 
 # IDs that look like finding IDs but are not — exclude them from the audit.
@@ -72,6 +83,9 @@ def _collect_source_ids() -> set[str]:
             if any(candidate.startswith(p) for p in _EXCLUDED_PREFIXES):
                 continue
             ids.add(candidate)
+        for match in _WORD_ID_RE.finditer(text):
+            if match.group(1) not in _NOT_FINDING_IDS:
+                ids.add(match.group(1))
 
     # Community YAML rules — their `id:` field is the finding ID.
     # Not restricted to COMM-NNN: STORY-0067 added STDIO-001/002a/002b, whose

@@ -24,6 +24,7 @@ from mcp_audit.lock.writer import regenerate
 from mcp_audit.models import LockStatus, ServerConfig
 from mcp_audit.plugins.mods import read_guard_state
 from mcp_audit.verdict import split_package_spec
+from tests.conftest import split_runner
 
 runner = CliRunner()
 
@@ -187,12 +188,14 @@ class TestSurrogateLockKey:
     ) -> None:
         self._project(tmp_path)
         monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, args)
+        # stdout only: with no MCP client on the machine, `check --json` prints
+        # "No MCP config files found" to stderr after the JSON document.
+        result = split_runner().invoke(app, args)
         assert "Traceback" not in result.output
         assert not (
             result.exception and not isinstance(result.exception, SystemExit)
         ), result.exception
-        json.loads(result.output[result.output.index("{") :])
+        json.loads(result.stdout[result.stdout.index("{") :])
 
 
 # ── R4: empty managed settings file ───────────────────────────────────────────

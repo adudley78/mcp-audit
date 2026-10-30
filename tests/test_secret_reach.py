@@ -228,6 +228,20 @@ def test_managed_settings_and_dropins_count(tmp_path: Path) -> None:
     assert "REACH-001" not in _ids(findings)
 
 
+def test_hidden_managed_dropin_does_not_count(tmp_path: Path) -> None:
+    """Claude Code skips hidden drop-ins, so their deny rules protect nothing."""
+    home, cwd, config = _layout(tmp_path)
+    managed = tmp_path / "managed"
+    _write(home / ".netrc")
+    _settings(
+        managed / "managed-settings.d" / ".10-netrc.json",
+        {"permissions": {"deny": ["Read(~/.netrc)"]}},
+    )
+    findings = _run(tmp_path, home, cwd, config, managed=managed)
+    assert "REACH-001" in _ids(findings)
+    assert ".netrc" in _reach1(findings).evidence
+
+
 def test_block_reads_outside_working_directories_covers(tmp_path: Path) -> None:
     home, cwd, config = _layout(tmp_path)
     _write(home / ".aws" / "credentials")

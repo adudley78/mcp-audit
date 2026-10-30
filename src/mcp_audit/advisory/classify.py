@@ -107,6 +107,8 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # package until its precision is measured high enough to defend
         "VULN-UNRESOLVED",  # --check-vulns lookup that could not run
         # (STORY-0106) — operational note, asserts nothing about the package
+        "SCAN-ERR",  # an analyzer crashed on one server — operational,
+        # asserts nothing about the package
     }
 )
 

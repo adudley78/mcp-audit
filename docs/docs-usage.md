@@ -124,15 +124,15 @@ Shows all MCP config files found on the machine without running any analysis —
 mcp-audit pin
 ```
 
-Captures the current hashes of all configured MCP servers. Run `mcp-audit diff` later to detect changes.
+Captures the current hashes of all configured MCP servers. Each later `mcp-audit scan` compares every entry with that state and flags a changed one as RUGPULL-001.
 
-### Compare current state to a previous pin
+### Compare two configuration states
 
 ```bash
-mcp-audit diff
+mcp-audit diff main HEAD          # git refs, directories, or scan JSON files
 ```
 
-Detects rug-pull risk: servers that have changed since the last `pin`.
+MCP-aware diff for PR review and CI gates: added, removed and changed servers, capabilities, endpoints and credentials, with a risk level. See [diff.md](diff.md).
 
 ### View the interactive attack graph dashboard
 
@@ -292,14 +292,14 @@ mcp-audit scan --offline-registry
 
 ## Custom Detection Rules
 
-Community detection rules (COMM-001 through COMM-013) run automatically for all users. You can also write your own rules in YAML.
+The bundled community detection rules (`rules/community/`) run automatically for all users. You can also write your own rules in YAML.
 
 ```bash
 # Validate a custom rule file
 mcp-audit rule validate ./my-rule.yml
 
 # Test a rule against a fixture config
-mcp-audit rule test ./my-rule.yml --config ./test-config.json
+mcp-audit rule test ./my-rule.yml --against ./test-config.json
 
 # Run a scan with a custom rules directory
 mcp-audit scan --rules-dir ./custom-rules/
@@ -427,7 +427,7 @@ The hook exits `0` cleanly when no MCP configs are present in the repo.
 | `mcp-audit scan` | Run a full security scan |
 | `mcp-audit discover` | Discover MCP config files without scanning |
 | `mcp-audit pin` | Pin current server hashes |
-| `mcp-audit diff` | Compare to pinned hashes |
+| `mcp-audit diff BASE HEAD` | MCP-aware diff of two configuration states |
 | `mcp-audit verify` | Verify server hashes against registry |
 | `mcp-audit watch` | Watch configs for changes and re-scan |
 | `mcp-audit baseline save NAME` | Save current scan as a named baseline |
@@ -436,7 +436,7 @@ The hook exits `0` cleanly when no MCP configs are present in the repo.
 | `mcp-audit baseline delete NAME` | Delete a baseline |
 | `mcp-audit baseline export NAME` | Export a baseline to JSON |
 | `mcp-audit rule validate FILE` | Validate a custom rule YAML |
-| `mcp-audit rule test FILE` | Test a rule against a config |
+| `mcp-audit rule test FILE --against CONFIG` | Test a rule against a config |
 | `mcp-audit rule list` | List currently loaded rules |
 | `mcp-audit policy validate FILE` | Validate a governance policy file |
 | `mcp-audit policy init` | Generate a starter governance policy |

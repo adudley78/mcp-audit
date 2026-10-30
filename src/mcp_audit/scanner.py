@@ -276,6 +276,8 @@ def _run_static_pipeline(
        a change brought a MEDIUM+ finding.  Skipped with ``skip_rug_pull`` or
        when *instruction_files* is ``None``; the record sits beside the
        rug-pull state (:func:`~mcp_audit.agent_files.drift.state_path_for`).
+    5d. Exploit signals (STORY-0124): :func:`apply_exploit_signals` adds KEV,
+       EPSS and public-PoC data to CVE findings before scoring.
     6. :func:`~mcp_audit.scoring.calculate_score` over the final finding list.
     7. ``result.registry_stats`` attached from the SupplyChainAnalyzer.
 
@@ -413,7 +415,7 @@ def _run_static_pipeline(
             )
         )
 
-    # ── 5b. Exploit signals (KEV / EPSS / public PoC) on CVE findings ─────────
+    # ── 5d. Exploit signals (KEV / EPSS / public PoC) on CVE findings ─────────
     apply_exploit_signals(result)
 
     # ── 6. Scoring ────────────────────────────────────────────────────────────

@@ -341,7 +341,15 @@ def load_known_malicious(path: Path | None = None) -> KnownMaliciousPackages:
                 source=resolved,
                 load_error=f"file is {size} bytes, over the {MAX_FILE_BYTES}-byte cap",
             )
-        data = json.loads(resolved.read_text(encoding="utf-8"))
+        # Bounded read: the file can change between stat() and open().
+        with resolved.open("rb") as handle:
+            raw = handle.read(MAX_FILE_BYTES + 1)
+        if len(raw) > MAX_FILE_BYTES:
+            return KnownMaliciousPackages(
+                source=resolved,
+                load_error=f"file is over the {MAX_FILE_BYTES}-byte cap",
+            )
+        data = json.loads(raw.decode("utf-8"))
     except (OSError, ValueError, RuntimeError) as exc:
         # RuntimeError: Path.resolve() on a symlink loop (Python < 3.13).
         return KnownMaliciousPackages(source=resolved, load_error=str(exc))
