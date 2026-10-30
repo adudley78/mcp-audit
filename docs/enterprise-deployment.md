@@ -86,7 +86,7 @@ pip install mcp-audit-scanner
 Pin to a specific version in production:
 
 ```bash
-pip install mcp-audit-scanner==0.25.0
+pip install mcp-audit-scanner==0.25.1
 ```
 
 ### Option C — Source install

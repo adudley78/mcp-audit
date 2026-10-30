@@ -85,8 +85,10 @@ def check_known_vulns(
     """Compare extension ID and version against the known-vuln registry.
 
     ID matching is case-insensitive.  Version matching: ``"*"`` matches any
-    version; otherwise a simple ``<`` prefix comparison is used (full semver
-    range parsing is out of scope — see GAPS.md).
+    version, ``"<X.Y.Z"`` is a simple numeric comparison, and anything else
+    must equal the installed version exactly (full semver range parsing is out
+    of scope — see GAPS.md).  An entry's own ``remediation`` replaces the
+    default "update" text.
     """
     findings: list[Finding] = []
     ext_id_lower = extension.extension_id.lower()
@@ -118,9 +120,12 @@ def check_known_vulns(
                 description=entry.description,
                 evidence=evidence,
                 remediation=(
-                    f"Update {extension.extension_id} to a patched version. "
-                    + (f"See: {entry.reference}" if entry.reference else "")
-                ).strip(),
+                    entry.remediation
+                    or (
+                        f"Update {extension.extension_id} to a patched version. "
+                        + (f"See: {entry.reference}" if entry.reference else "")
+                    ).strip()
+                ),
                 cwe=None,
                 finding_path=extension.manifest_path or None,
             )
