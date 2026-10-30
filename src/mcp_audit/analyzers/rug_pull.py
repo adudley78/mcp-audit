@@ -31,6 +31,7 @@ from rich.console import Console
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, DiscoveredConfig
 from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS
+from mcp_audit.lock.identity import remote_host
 from mcp_audit.models import Finding, ServerConfig, Severity
 
 _STATE_DIR: Path = Path(user_config_dir("mcp-audit")) / "state"
@@ -231,12 +232,16 @@ def build_state_entry(server: ServerConfig, first_seen: str | None = None) -> di
         A dict ready to be stored under the server's key in the state file.
     """
     now = datetime.now(UTC).isoformat()
-    return {
+    entry = {
         "config_path": str(server.config_path),
         "first_seen": first_seen or now,
         "last_seen": now,
         "hashes": compute_hashes(server),
     }
+    host = remote_host(server.url)
+    if host:
+        entry["remote_host"] = host
+    return entry
 
 
 # ── Analyzer ──────────────────────────────────────────────────────────────────
@@ -323,7 +328,12 @@ class RugPullAnalyzer(BaseAnalyzer):
                         for f in ("command", "args", "env_keys", "raw")
                         if current_hashes.get(f) != stored_hashes.get(f)
                     ]
-                    findings.append(self._changed_finding(srv, key, changed))
+                    old_host = stored[key].get("remote_host")
+                    new_host = remote_host(srv.url)
+                    moved = None
+                    if isinstance(old_host, str) and new_host and old_host != new_host:
+                        moved = f"remote host changed from {old_host} to {new_host}"
+                    findings.append(self._changed_finding(srv, key, changed, moved))
 
         # ── Detect removed servers ─────────────────────────────────────────────
         for key, entry in stored.items():
@@ -337,12 +347,8 @@ class RugPullAnalyzer(BaseAnalyzer):
         now = datetime.now(UTC).isoformat()
         for key, srv in current.items():
             first_seen = stored.get(key, {}).get("first_seen", now)
-            stored[key] = {
-                "config_path": str(srv.config_path),
-                "first_seen": first_seen,
-                "last_seen": now,
-                "hashes": compute_hashes(srv),
-            }
+            stored[key] = build_state_entry(srv, first_seen)
+            stored[key]["last_seen"] = now
         save_state(state, self._state_path)
 
         return findings
@@ -392,8 +398,15 @@ class RugPullAnalyzer(BaseAnalyzer):
         )
 
     def _changed_finding(
-        self, srv: ServerConfig, key: str, changed_fields: list[str]
+        self,
+        srv: ServerConfig,
+        key: str,
+        changed_fields: list[str],
+        host_move: str | None = None,
     ) -> Finding:
+        evidence = f"Changed hash fields: {', '.join(changed_fields)}"
+        if host_move:
+            evidence = f"{host_move}; {evidence}"
         return Finding(
             id="RUGPULL-001",
             severity=Severity.HIGH,
@@ -407,7 +420,7 @@ class RugPullAnalyzer(BaseAnalyzer):
                 "tool descriptions or parameters are silently modified after initial "
                 "trust is established."
             ),
-            evidence=f"Changed hash fields: {', '.join(changed_fields)}",
+            evidence=evidence,
             remediation=(
                 "Inspect the current tool descriptions for malicious instructions. "
                 "If the change was intentional, run 'mcp-audit pin' to update the "

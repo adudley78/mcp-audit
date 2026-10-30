@@ -128,6 +128,9 @@ def render_terminal(
             )
         )
 
+        if sc.note:
+            con.print(f"      [yellow]{sc.note}[/yellow]")
+
         if sc.command_diff:
             cd = sc.command_diff
             if cd.get("before_command") != cd.get("after_command"):
@@ -185,6 +188,8 @@ def render_json(changes: list[Change]) -> str:
             record["parent_server"] = c.parent_server
         if c.command_diff is not None:
             record["command_diff"] = c.command_diff
+        if c.note is not None:
+            record["note"] = c.note
         records.append(record)
     return json.dumps(records, indent=2, default=str)
 
@@ -280,10 +285,15 @@ def render_pr_comment(
             if after.get("url"):
                 lines.append(f"| URL | `{after['url']}` |")
 
-        elif sc.change_type == ChangeType.CHANGED and sc.command_diff:
-            cd = sc.command_diff
-            lines.append("| Field | Before | After |")
-            lines.append("|-------|--------|-------|")
+        elif sc.change_type == ChangeType.CHANGED and (sc.command_diff or sc.note):
+            cd = sc.command_diff or {}
+            if sc.note:
+                note = sc.note.replace("`", "")
+                lines.append(f"> `{note}`")
+                lines.append("")
+            if sc.command_diff:
+                lines.append("| Field | Before | After |")
+                lines.append("|-------|--------|-------|")
             if cd.get("before_command") != cd.get("after_command"):
                 lines.append(
                     f"| command | `{cd['before_command']}` | `{cd['after_command']}` |"

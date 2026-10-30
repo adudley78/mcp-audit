@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - SC-004 and `vet` now credit Yarden Porat (Cyata) for CVE-2025-68143, CVE-2025-68144 and CVE-2025-68145 in Anthropic's Git MCP server (STORY-0130).
+- **A remote server's host or port move is named (STORY-0135).** arXiv 2609.14119 found 370 of 21,643 registry servers (4.16%) moving their remote endpoint to another host under the same name, which the protocol never surfaces. The three places that already noticed a changed URL now say what moved: `lock --verify` LOCK-001 evidence opens with `remote host changed from a.example to b.example` (or a scheme or port sentence, e.g. `remote scheme changed from https to http on host a.example`); RUGPULL-001 evidence names a host change, not a port or scheme change (the rug-pull state file gains an additive `remote_host` key holding the lowercase hostname only; older state files still work, they just cannot name the old host); `diff` adds a `note` to the changed server (terminal, `--format json` when set, PR comment). Only hostnames and ports are quoted, so URL userinfo and query tokens never reach a finding. Finding IDs and severities are unchanged, and the lock file format is unchanged (v1 and v2 locks verify as before).
 
 ---
 

@@ -16,6 +16,7 @@ from mcp_audit.analyzers.supply_chain import (
     redact_env_values,
     redact_url,
 )
+from mcp_audit.lock.identity import describe_remote_move
 from mcp_audit.models import ServerConfig, Severity
 
 
@@ -51,6 +52,8 @@ class Change(BaseModel):
     owasp_mcp_top_10: list[str] = Field(default_factory=list)
     # Populated for command/args changes on server entities.
     command_diff: dict | None = None
+    # Plain-language note, e.g. a remote host move (STORY-0135).
+    note: str | None = None
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -444,6 +447,7 @@ def _changes_for_modified_server(
 
     if base_view[2] != head_view[2]:
         field_changes.append("url")
+    host_note = describe_remote_move(base.url, head.url)
 
     # ── Env-var changes ───────────────────────────────────────────────────
     base_keys = set(base.env.keys())
@@ -488,6 +492,7 @@ def _changes_for_modified_server(
             severity=server_severity,
             owasp_mcp_top_10=_owasp_for_modified(field_changes),
             command_diff=cmd_diff,
+            note=host_note,
         )
     )
 
