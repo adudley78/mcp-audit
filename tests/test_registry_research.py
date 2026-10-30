@@ -16,6 +16,7 @@ from mcp_audit.registry.research import (
 REPO = Path(__file__).resolve().parent.parent
 SHIPPED = REPO / "src" / "mcp_audit" / "data" / "research-records.json"
 PLUGIN4SHELL = "x_MCPRS-4ad8c07d80d7"
+CONTEXTCRUSH = "x_MCPRS-32fc646f6f96"
 
 
 def _write(tmp_path: Path, entries: list[object]) -> Path:
@@ -124,6 +125,42 @@ class TestShippedFile:
         for rec in load_research_records().records.values():
             for check in rec.checks:
                 assert f'"{check}"' in src or f"'{check}'" in src, check
+
+
+class TestContextCrush:
+    """STORY-0134: a vendor-service flaw with no client version and no check."""
+
+    def _rec(self) -> object:
+        rec = load_research_records().lookup(CONTEXTCRUSH)
+        assert rec is not None
+        return rec
+
+    def test_loads_credited_to_noma_with_the_post_as_primary_source(self) -> None:
+        rec = self._rec()
+        assert [c.name for c in rec.credits] == ["Eli Ainhorn (Noma Security)"]  # type: ignore[attr-defined]
+        assert rec.source_url == (  # type: ignore[attr-defined]
+            "https://noma.security/blog/contextcrush-context7-the-mcp-server-vulnerability/"
+        )
+        assert rec.aliases == ()  # type: ignore[attr-defined]
+
+    def test_one_product_fixed_server_side_and_no_checks(self) -> None:
+        rec = self._rec()
+        (p,) = rec.products  # type: ignore[attr-defined]
+        assert (p.product, p.vendor, p.status) == (
+            "Context7 MCP",
+            "Upstash",
+            "fixed-server-side",
+        )
+        assert p.fixed_in is None
+        assert "2026-02-23" in p.note
+        assert "not confirmed by Upstash" in p.note
+        assert rec.checks == ()  # type: ignore[attr-defined]
+
+    def test_details_say_no_local_version_shows_exposure_and_no_cve(self) -> None:
+        d = self._rec().details  # type: ignore[attr-defined]
+        assert "no local version shows" in d
+        assert "No CVE was assigned" in d
+        assert "Upstash's own confirmation" in d
 
 
 class TestId:

@@ -31,6 +31,7 @@ REPO = Path(__file__).resolve().parent.parent
 runner = CliRunner()
 FS = "@modelcontextprotocol/server-filesystem"
 PLUGIN4SHELL = "x_MCPRS-4ad8c07d80d7"
+CONTEXTCRUSH = "x_MCPRS-32fc646f6f96"
 
 
 def _entry(**over: Any) -> RegistryEntry:
@@ -405,6 +406,15 @@ class TestResearchRows:
         assert {r.status for r in rows} == {Status.COULDNT_CHECK}
         assert len(rows) == 4 and notes
 
+    def test_record_without_checks_has_its_own_note_and_row_text(self) -> None:
+        rec = load_research_records().lookup(CONTEXTCRUSH)
+        assert rec is not None
+        notes: list[str] = []
+        rows = m.research_rows(rec, None, notes)
+        assert [r.status for r in rows] == [Status.COULDNT_CHECK]
+        assert "no installed version shows exposure" in rows[0].evidence
+        assert len(notes) == 1 and "No mcp-audit check tests" in notes[0]
+
     def test_high_check_result_is_affected(self) -> None:
         finding = Finding(
             id="PLUGIN-003",
@@ -570,6 +580,26 @@ class TestCli:
         result = _run(PLUGIN4SHELL, "-p", str(cfg))
         assert result.exit_code == 0
         assert "were not run" in result.output and "Claude Code" in result.output
+
+    def test_record_without_checks_says_nothing_was_run(self, tmp_path: Path) -> None:
+        cfg = _config(tmp_path, {"context7": _npx("@upstash/context7-mcp@4.4.4")})
+        result = _run(CONTEXTCRUSH, "-p", str(cfg))
+        assert result.exit_code == 0
+        out = " ".join(result.output.split())
+        assert "COULDN'T CHECK" in out and "Context7 MCP (Upstash)" in out
+        assert "fixed in the vendor's service (no client update)" in out
+        assert "No mcp-audit check tests this condition" in out
+        # The plugin-directory wording belongs to Plugin4Shell only.
+        assert "plugin" not in out.lower()
+        assert "AFFECTED" not in out.replace("0 affected", "")
+
+    def test_record_without_checks_json_has_one_couldnt_check_row(self) -> None:
+        result = _run(CONTEXTCRUSH, "-f", "json")
+        assert result.exit_code == 0
+        doc = json.loads(result.output)
+        assert [r["status"] for r in doc["results"]] == ["COULDN'T CHECK"]
+        assert doc["results"][0]["fixed_in"] is None
+        assert doc["results"][0]["reason"] == "vendor-service"
 
     def test_research_record_runs_the_plugin_checks(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

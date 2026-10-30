@@ -79,6 +79,7 @@ UNDECIDABLE = "undecidable"
 UNEVALUABLE = "unevaluable"
 NO_PACKAGE = "no-package"
 HARNESS_VERSION = "harness-version"
+VENDOR_SERVICE = "vendor-service"
 NOT_LAUNCHER_TARGET = "not-launcher-target"
 POSTURE_ONLY = "posture-only"
 OTHER_PACKAGE = "other-package"
@@ -841,6 +842,7 @@ _PRODUCT_STATUS = {
     "fixed": "fixed in {fixed_in}",
     "unfixed": "not fixed at disclosure",
     "wontfix": "not going to be fixed (vendor statement)",
+    "fixed-server-side": "fixed in the vendor's service (no client update)",
 }
 
 
@@ -924,9 +926,15 @@ def research_rows(
                 reason=None if severe else POSTURE_ONLY,
             )
         )
-    if check_findings is None:
+    if not record.checks:
         notes.append(
-            f"The {'/'.join(record.checks) or 'record'} checks were not run "
+            "No mcp-audit check tests this condition, so nothing was run. "
+            "Exposure depended on the vendor's service, which no local "
+            "configuration or installed version shows."
+        )
+    elif check_findings is None:
+        notes.append(
+            f"The {'/'.join(record.checks)} checks were not run "
             "(they read Claude Code's plugin directory; not run with --path)."
         )
     elif not any(r.status is Status.AFFECTED for r in rows):
@@ -947,13 +955,17 @@ def research_rows(
                     "each is listed."
                 )
             continue
+        why = (
+            f"mcp-audit does not read which {p.product} version is installed"
+            if record.checks
+            else f"no installed version shows exposure to this ({p.vendor}'s service)"
+        )
         rows.append(
             Row(
                 f"{p.product} ({p.vendor})",
                 Status.COULDNT_CHECK,
-                f"mcp-audit does not read which {p.product} version is "
-                f"installed; per the write-up: {state}",
-                reason=HARNESS_VERSION,
+                f"{why}; per the write-up: {state}",
+                reason=HARNESS_VERSION if record.checks else VENDOR_SERVICE,
                 fixed_in=p.fixed_in,
             )
         )

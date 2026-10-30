@@ -48,9 +48,14 @@ __all__ = [
     "research_id",
 ]
 
-ProductStatus = Literal["fixed", "unfixed", "wontfix"]
+ProductStatus = Literal["fixed", "unfixed", "wontfix", "fixed-server-side"]
 
-_STATUSES: Final[tuple[str, ...]] = ("fixed", "unfixed", "wontfix")
+_STATUSES: Final[tuple[str, ...]] = (
+    "fixed",
+    "unfixed",
+    "wontfix",
+    "fixed-server-side",
+)
 _ID_PREFIX: Final = "x_MCPRS-"
 _ID_RE: Final = re.compile(r"x_MCPRS-[0-9a-f]{12}")
 
@@ -101,8 +106,11 @@ class AffectedProduct:
     Attributes:
         product: The product name, e.g. ``"Claude Code"``.
         vendor: The vendor, e.g. ``"Anthropic"``.
-        status: ``fixed`` (``fixed_in`` is set), ``unfixed`` (no fix yet), or
-            ``wontfix`` (the vendor said none will ship).
+        status: ``fixed`` (``fixed_in`` is set), ``unfixed`` (no fix yet),
+            ``wontfix`` (the vendor said none will ship), or
+            ``fixed-server-side`` (fixed in the vendor's own service, so no
+            client version is affected or fixed; ``fixed_in`` is null and
+            the note says when and who reported it).
         fixed_in: The first fixed version, only when ``status`` is ``fixed``.
         note: Who said so, in a sentence.
     """
