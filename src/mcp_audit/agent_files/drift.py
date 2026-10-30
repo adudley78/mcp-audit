@@ -340,11 +340,6 @@ def _read_state(state_path: Path) -> tuple[str, dict[str, dict]]:
     }
 
 
-def load_records(state_path: Path, errors: list[str]) -> dict[str, dict]:
-    """Read the per-file records; problems are noted in *errors*."""
-    return _load(state_path, errors)[1]
-
-
 def _load(state_path: Path, errors: list[str]) -> tuple[str, dict[str, dict]]:
     status, records = _read_state(state_path)
     if status == _CORRUPT:

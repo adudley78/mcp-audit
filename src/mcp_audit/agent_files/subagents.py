@@ -66,7 +66,7 @@ from typing import Any
 
 import yaml
 
-from mcp_audit.analyzers.credentials import SECRET_PATTERNS
+from mcp_audit.analyzers.credentials import redact_secret_patterns
 from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.models import Finding, Severity
 
@@ -132,9 +132,7 @@ _THIRD_PARTY_NOTE = (
 
 def redact_secrets(text: str) -> str:
     """Replace anything matching a known credential pattern with ``[REDACTED]``."""
-    for _label, pattern, _provider in SECRET_PATTERNS:
-        text = pattern.sub(_REDACTED, text)
-    return text
+    return redact_secret_patterns(text)
 
 
 # ── YAML loading with budgets ─────────────────────────────────────────────────

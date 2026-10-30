@@ -125,16 +125,6 @@ def _reset_scoped_state(extra_paths: list[Path] | None, con: Console) -> None:
         con.print(f"[dim]No state file to reset ({scoped.name}).[/dim]\n")
 
 
-def _newest_last_seen(stored: dict) -> str:
-    """Return the most recent last_seen timestamp across all stored servers."""
-    timestamps = [
-        entry.get("last_seen", "")
-        for entry in stored.values()
-        if entry.get("last_seen")
-    ]
-    return max(timestamps) if timestamps else ""
-
-
 def _drift_to_findings(
     drift: list,  # list[DriftFinding]
 ) -> list[Finding]:

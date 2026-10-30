@@ -78,43 +78,32 @@ def _capture_owasp_report(result: ScanResult) -> str:
 
 
 def _collect_source_static_ids() -> set[str]:
-    """Collect static finding IDs from Python source and community rules.
+    """Collect static finding IDs exactly as scripts/validate_owasp_mapping.py does.
 
-    This mirrors the logic in scripts/validate_owasp_mapping.py so tests
-    catch the same gaps that CI catches.
+    Imports the CI script's own collector rather than mirroring it: the mirror
+    drifted (numeric IDs only, COMM-only rule IDs) and missed what CI audits.
     """
-    static_id_re = re.compile(r"""["']([A-Z]{2,9}-\d{3,4})["']""")
-    dynamic_prefixes = frozenset({"ATT-", "EXT-", "SAST-", "DRIFT-", "GOV-"})
-    excluded_prefixes = frozenset({"CWE-", "CVE-", "ASI", "PATH-", "KS-", "BL-0"})
+    return _validator()._collect_source_ids()
 
-    ids: set[str] = set()
-    for py_file in SRC_DIR.rglob("*.py"):
-        if "__pycache__" in py_file.parts:
-            continue
-        text = py_file.read_text(encoding="utf-8", errors="replace")
-        for match in static_id_re.finditer(text):
-            candidate = match.group(1)
-            if any(candidate.startswith(p) for p in dynamic_prefixes):
-                continue
-            if any(candidate.startswith(p) for p in excluded_prefixes):
-                continue
-            ids.add(candidate)
 
-    if RULES_DIR.exists():
-        for yaml_file in RULES_DIR.glob("*.yml"):
-            text = yaml_file.read_text(encoding="utf-8", errors="replace")
-            m = re.search(r"^id:\s*(COMM-\d{3})\b", text, re.MULTILINE)
-            if m:
-                ids.add(m.group(1))
+def _validator():  # noqa: ANN202
+    """Import scripts/validate_owasp_mapping.py as a module."""
+    import importlib.util  # noqa: PLC0415
 
-    for py_file in SRC_DIR.rglob("*.py"):
-        if "__pycache__" in py_file.parts:
-            continue
-        if '"BL-001"' in py_file.read_text(encoding="utf-8", errors="replace"):
-            ids.add("BL-001")
-            break
+    path = REPO_ROOT / "scripts" / "validate_owasp_mapping.py"
+    spec = importlib.util.spec_from_file_location("validate_owasp_mapping", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
-    return ids
+
+def test_word_suffix_ids_are_audited() -> None:
+    """IDs with a word suffix (VULN-UNPINNED, SCAN-ERR) are collected and mapped."""
+    ids = _collect_source_static_ids()
+    assert {"VULN-UNPINNED", "VULN-UNRESOLVED", "SCAN-ERR"} <= ids
+    assert "NON-NEGOTIABLE" not in ids
+    assert "VULN-" in {p["id_prefix"] for p in _load_mapping()["dynamic_patterns"]}
 
 
 # ── Schema tests ──────────────────────────────────────────────────────────────

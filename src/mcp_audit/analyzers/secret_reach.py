@@ -73,6 +73,7 @@ from dataclasses import dataclass, field
 from fnmatch import fnmatchcase
 from pathlib import Path, PurePosixPath
 
+from mcp_audit.analyzers.managed_policy import list_dropins
 from mcp_audit.analyzers.permissions import parse_permission_rule
 from mcp_audit.models import Finding, Severity
 
@@ -275,11 +276,8 @@ def load_settings_sources(
         add(managed_dir / "managed-settings.json", "managed")
         dropin_dir = managed_dir / "managed-settings.d"
         try:
-            dropins = (
-                sorted(p for p in dropin_dir.glob("*.json"))
-                if dropin_dir.is_dir()
-                else []
-            )
+            # Same files, same order as Claude Code: hidden drop-ins are skipped.
+            dropins = list_dropins(dropin_dir)
         except OSError as exc:
             errors.append(
                 f"secret reach: cannot list managed-settings.d: {type(exc).__name__}"

@@ -64,6 +64,21 @@ _ENV_REF_RE: re.Pattern[str] = re.compile(
 )
 
 
+REDACTION_TEXT = "[REDACTED]"
+
+
+def redact_secret_patterns(text: str) -> str:
+    """Replace every ``SECRET_PATTERNS`` match in *text* with ``[REDACTED]``.
+
+    The one shared copy of this loop for finding text (agent files, subagent
+    definitions, git config).  ``advisory/feed.py::redact`` keeps its own copy
+    on purpose: advisory bytes are a published contract.
+    """
+    for _label, pattern, _provider in SECRET_PATTERNS:
+        text = pattern.sub(REDACTION_TEXT, text)
+    return text
+
+
 def _is_env_reference(value: str) -> bool:
     """Return True if *value* is an environment-variable reference, not a literal."""
     return bool(_ENV_REF_RE.search(value))

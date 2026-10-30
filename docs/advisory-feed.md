@@ -221,6 +221,12 @@ SOURCE_DATE_EPOCH=1769817600 mcp-audit advise ./configs --out ./feed --no-sign
 Anyone can then rebuild the feed from the same inputs and diff it against what you
 published. Signatures are not reproducible; the payloads they cover are.
 
+One exception: the compressed bytes of the `osv/` ZIP files depend on the host's
+zlib build. zlib-ng, which some Linux Pythons ship instead of classic zlib,
+deflates differently, so the archives can differ while every member (name,
+timestamp and uncompressed JSON) is identical. The ZIPs are not covered by
+`index.json` digests or signatures; compare their members, not the archive bytes.
+
 ## Feed freshness
 
 TUF's timestamp and snapshot roles are collapsed into `index.json`. There is one

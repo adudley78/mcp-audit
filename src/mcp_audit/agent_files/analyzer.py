@@ -130,7 +130,7 @@ from typing import TYPE_CHECKING
 from mcp_audit.agent_files.heartbeat import find_suppression
 from mcp_audit.agent_files.models import MEMORY_SURFACES, AgentFile, AgentFileSurface
 from mcp_audit.agent_files.sleeper import find_sleepers
-from mcp_audit.analyzers.credentials import SECRET_PATTERNS
+from mcp_audit.analyzers.credentials import redact_secret_patterns
 from mcp_audit.analyzers.poisoning import (
     PATTERNS,
     DetectionPattern,
@@ -239,15 +239,9 @@ def _is_memory_surface(af: AgentFile) -> bool:
     return af.surface in MEMORY_SURFACES
 
 
-_REDACTED = "[REDACTED]"
-
-
 def redact_secrets(text: str) -> str:
     """Replace anything matching ``SECRET_PATTERNS`` (as ``advisory.feed.redact``)."""
-    cleaned = text
-    for _label, pattern, _provider in SECRET_PATTERNS:
-        cleaned = pattern.sub(_REDACTED, cleaned)
-    return cleaned
+    return redact_secret_patterns(text)
 
 
 def _redacted(finding: Finding) -> Finding:

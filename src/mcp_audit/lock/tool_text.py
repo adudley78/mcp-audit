@@ -154,10 +154,16 @@ def load(path: Path) -> tuple[dict | None, str | None]:
         return None, f"cannot read {path.name}: {exc.strerror or exc}"
     if not stat.S_ISREG(st.st_mode):
         return None, f"{path.name} is not a regular file"
+    too_large = f"{path.name} is larger than {MAX_READ_BYTES // 1_000_000} MB"
     if st.st_size > MAX_READ_BYTES:
-        return None, f"{path.name} is larger than {MAX_READ_BYTES // 1_000_000} MB"
+        return None, too_large
     try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
+        # Bounded read: the file can change between lstat() and open().
+        with path.open("rb") as handle:
+            raw = handle.read(MAX_READ_BYTES + 1)
+        if len(raw) > MAX_READ_BYTES:
+            return None, too_large
+        doc = json.loads(raw.decode("utf-8"))
     except (OSError, ValueError, RecursionError) as exc:
         return None, f"{path.name} is not readable JSON: {type(exc).__name__}"
     if (

@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **REACH-001 no longer counts deny rules in hidden managed drop-ins.** Claude Code skips hidden files in `managed-settings.d/`; the secret-reach reader did not, so a `Read` deny rule in a file Claude Code never loads made a credential file look protected. Both readers now list drop-ins through one function (`managed_policy.list_dropins`).
+- **`scan --bundle` / `affected --bundle` write the rollback record (`seen.json`) at 0o600 in a 0o700 directory**, like `feed verify`; it was a plain copy with default permissions.
+- **`scripts/validate_owasp_mapping.py` now audits finding IDs with a word suffix** (`VULN-UNPINNED`, `VULN-UNRESOLVED`, `SCAN-ERR`). It saw only numeric IDs, so two emitted IDs had no mapping and `VULN-UNRESOLVED` was reported as stale. `VULN-<OSV-ID>` is documented as a dynamic pattern. `SCAN-ERR` (an analyzer crash) is excluded from advisories.
+
+### Changed
+
+- Tool-text and known-malicious files are read with a bounded read, not a size check followed by an unbounded one.
+- One shared `SECRET_PATTERNS` redaction helper for agent-file, subagent and git-config findings (`credentials.redact_secret_patterns`); the advisory feed keeps its own copy.
+- Removed unused code: `drift.load_records`, `ResearchRecord.credit_line`, `models.MCPClient`, `PermissionRule.is_bare`, `cli/scan._newest_last_seen`, `ConfigHygieneAnalyzer._load_raw_config`.
+- Tests: `check --json` robustness reads stdout only (it failed on machines with no MCP client); the `examples/feed/` drift test compares ZIP members, not deflate bytes, which differ under zlib-ng.
+- Docs: README command table (`diff`, `rule test`, `lock`, `affected` and `scan` flags; rows for `shadow`, `killchain`, `sbom`, `register`), `docs/docs-usage.md`, CLAUDE.md (layout, pipeline, runner, command count), GAPS.md and `docs/advisory-feed.md` (ZIP bytes depend on the host's zlib).
+
 ---
 
 ## [0.25.1] - 2026-10-30

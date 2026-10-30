@@ -27,6 +27,7 @@ the registry path is returned by :meth:`Bundle.path` for call sites to pass.
 from __future__ import annotations
 
 import atexit
+import contextlib
 import hashlib
 import json
 import shutil
@@ -36,7 +37,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from mcp_audit.advisory.freshness import default_seen_path
+from mcp_audit.advisory.freshness import default_seen_path, load_seen, save_seen
 from mcp_audit.advisory.sign import (
     SigningConfig,
     SigningError,
@@ -172,11 +173,10 @@ def verify_bundle(
         pass  # unreadable memory is treated as none, as `feed verify` does
     bundle = _verify_snapshot(private, config, now, scratch_state)
     if scratch_state.is_file():
-        try:
-            real_state.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(scratch_state, real_state)
-        except OSError:
-            pass  # rollback memory is best-effort, as it is for `feed verify`
+        # Best-effort, as it is for `feed verify`.  save_seen writes 0o700 dir /
+        # 0o600 file (the user-config-dir rule); a plain copy did not.
+        with contextlib.suppress(OSError):
+            save_seen(real_state, load_seen(scratch_state))
     return bundle
 
 

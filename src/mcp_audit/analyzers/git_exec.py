@@ -49,7 +49,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from mcp_audit.analyzers.credentials import SECRET_PATTERNS
+from mcp_audit.analyzers.credentials import redact_secret_patterns
 from mcp_audit.models import Finding, Severity
 
 __all__ = [
@@ -1778,9 +1778,6 @@ def _annotate_parse_errors(
 # ══ Findings ══════════════════════════════════════════════════════════════════
 
 
-_REDACTED = "[REDACTED]"
-
-
 def _redact(text: str) -> str:
     """Scrub credential-shaped substrings (``SECRET_PATTERNS``) from report text.
 
@@ -1788,10 +1785,7 @@ def _redact(text: str) -> str:
     password, a URL with userinfo); findings go to terminals, JSON, SARIF and
     PR comments, so they never carry them.
     """
-    cleaned = text
-    for _label, pattern, _provider in SECRET_PATTERNS:
-        cleaned = pattern.sub(_REDACTED, cleaned)
-    return cleaned
+    return redact_secret_patterns(text)
 
 
 def _finding(**fields: object) -> Finding:

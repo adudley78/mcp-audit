@@ -1201,9 +1201,10 @@ real Windows host is a manual step deferred to pre-launch.
 Malicious extensions that hide capabilities inside their JS bundle (e.g. deferred
 imports, obfuscated network calls) will not be detected by this approach.
 
-**Fleet extension inventory via `merge` not yet implemented.**  The `fleet_extensions`
-feature key is reserved but `mcp-audit merge` does not yet aggregate extension findings
-across machines (post-launch roadmap).
+**Fleet extension inventory via `merge` not yet implemented.**  `mcp-audit merge`
+does not build a cross-machine inventory of installed extensions (post-launch roadmap).
+Extension findings in a scan made with `--include-extensions` are merged like any other
+finding.
 
 ## Agent-file surface coverage (skills, memory, hooks)
 

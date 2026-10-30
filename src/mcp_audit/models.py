@@ -71,14 +71,6 @@ class TransportType(StrEnum):
     UNKNOWN = "unknown"
 
 
-class MCPClient(BaseModel):
-    """A supported MCP client application."""
-
-    name: str
-    config_paths: list[Path]
-    root_key: str = "mcpServers"  # VS Code uses "servers"
-
-
 class ServerConfig(BaseModel):
     """A parsed MCP server configuration."""
 

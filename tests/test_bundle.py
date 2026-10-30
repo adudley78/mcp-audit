@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import stat
 import sys
 from pathlib import Path
 
@@ -168,6 +170,22 @@ class TestVerify:
         )
         bundle_mod.verify_bundle(made, _config(), state_path=state)
         assert state.exists()
+
+    @pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
+    def test_rollback_record_is_written_private(
+        self, monkeypatch, made: Path, tmp_path: Path
+    ) -> None:
+        def feed_ok(root, config, *, now, state_path):
+            state_path.write_text('{"versions": {"key-mode\\nminisign": 9}}')
+            return _report()
+
+        monkeypatch.setattr(bundle_mod, "verify_feed", feed_ok)
+        monkeypatch.setattr(bundle_mod, "verify_path", lambda *a, **k: None)
+        state = tmp_path / "state-dir" / "seen.json"
+        bundle_mod.verify_bundle(made, _config(), state_path=state)
+        assert stat.S_IMODE(state.stat().st_mode) == 0o600
+        assert stat.S_IMODE(state.parent.stat().st_mode) == 0o700
+        assert json.loads(state.read_text()) == {"versions": {"key-mode\nminisign": 9}}
 
     def test_missing_directory(self, tmp_path: Path) -> None:
         with pytest.raises(bundle_mod.BundleError, match="not found"):

@@ -728,6 +728,12 @@ Rules from code.claude.com/docs/en/permissions, sandboxing, settings-reference a
 
 Measured on six benign machine profiles (`docs/secret-reach.md`): 0 MEDIUM+; REACH-001 LOW on the three with credential stores and no protection, silent on the two configured as Anthropic's docs show.
 
+### Scanner (`scanner.py`)
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| SCAN-ERR | HIGH | — | — | An analyzer raised an unexpected exception on one server, so its findings for that server are missing (`scanner._analyzer_crash_finding`). HIGH so a crafted config that trips an analyzer cannot pass as clean. Operational; not an advisory. |
+
 ## How to assign severity to a new finding
 
 When adding a new analyzer or detection pattern, use this decision tree:

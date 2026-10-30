@@ -1120,15 +1120,6 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
 
         return []
 
-    def _load_raw_config(self, config_path: Path) -> dict | None:
-        """Read and parse *config_path* as JSON, returning ``None`` on any failure."""
-        try:
-            with config_path.open(encoding="utf-8") as fh:
-                return json.loads(fh.read())
-        except Exception:
-            logger.debug("config_hygiene: failed to parse JSON from %s", config_path)
-            return None
-
     # ── Hook helpers ──────────────────────────────────────────────────────────
 
     @staticmethod
