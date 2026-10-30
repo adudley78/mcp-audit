@@ -10,7 +10,7 @@ A record states what the write-up reported: who found it, which products it affe
 
 Nothing is inferred. A field the write-up does not give is empty, not guessed:
 
-- **Products are named as the write-up names them** (for example "Claude Code", "Codex"). mcp-audit does not read which harness version is installed, so `affected` will say "could not check" for a record about harness versions, and point at the checks that test the condition directly.
+- **Products are named as the write-up names them** (for example "Claude Code", "Codex"). `affected` reads installed Claude Code, Codex and Gemini CLI versions from files (`harness_versions.py`, never executing them) and compares them with a product's `fixed_in`; with no install found it says "could not check" and points at the checks that test the condition directly.
 - **No CVE is invented.** An alias is added only when an authority assigns one.
 - **A fix is "fixed" only with a first fixed version.** Otherwise the status is `unfixed` (no fix yet), `wontfix` (the vendor said none will ship), or `fixed-server-side` (the vendor fixed its own service, so no client version is affected or fixed; `fixed_in` stays null and the note gives the date), with who said so.
 - **`status` can gain values.** `fixed-server-side` was added in 0.25.0; read the field tolerantly. mcp-audit's own loader before 0.25.0 skips a record with a status it does not know rather than failing the file. In `affected`, a product row of a record with no checks carries `reason: vendor-service` (no local version or check can answer it).
