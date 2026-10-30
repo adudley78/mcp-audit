@@ -104,6 +104,7 @@ src/mcp_audit/
 │   ├── toxic_flow.py   # Cross-server capability tagging and dangerous pair detection (TOXIC-001..011, INTEG-001; COMMS_OUT sinks TOXIC-008..011, STORY-0101)
 │   ├── auth.py         # Remote server authentication checks (AUTH-001, AUTH-002)
 │   ├── collision.py    # Tool-name collision detection across --connect servers (COLLIDE-001)
+│   ├── annotations.py  # ANNOT-001 (LOW, non-advisory, STORY-0136): readOnlyHint true on a tool whose input schema runs commands or writes; detect_annotation_contradictions() runs in run_scan_async after DELEG-* (needs --connect), findings_from_tool_text() reads cwd mcp-lock.tools.json in scanner._discover_and_parse (no explicit path); live hit replaces the saved-text hit for the same tool; bounded schema walk, $ref never followed, names cleaned
 │   ├── delegation.py   # Cross-tool delegation in live tool descriptions (DELEG-001..003, STORY-0100): names another
 │   │                   #   server's tool / trigger + action its server lacks / rewrite another tool's arguments;
 │   │                   #   token-based, budgets shared fairly per server, redacted evidence; runs in run_scan_async
