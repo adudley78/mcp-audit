@@ -544,6 +544,29 @@ was read for measurement only and is not committed (no stated licence).
 
 ---
 
+## Tool annotations vs. schema (analyzers/annotations.py, ANNOT-001, STORY-0136)
+
+Original implementation: a token-based matcher with a closed vocabulary written
+for mcp-audit. No detector, rule or fixture was copied.
+
+- **Tool Annotations as Risk Vocabulary: What Hints Can and Can't Do**
+  (Ola Hungerford, Sam Morrow, Luca Chang; MCP blog, 2026-03-16,
+  [link](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/)):
+  "Every property is a hint", "They aren't enforcement", and "A server can claim
+  `readOnlyHint: true` and delete your files anyway". Annotations from a server
+  that is not trusted are advice, so the check only raises findings and never
+  suppresses one.
+- **Are your MCP servers' safety labels honest?** (Dilan Srilal, Formael, DEV
+  Community, [link](https://dev.to/formael/are-your-mcp-servers-safety-labels-honest-a-one-command-check-and-what-it-found-on-31-popular-1ml3)):
+  actlint compares a tool's annotations with its name, description and input
+  schema and found 4 of 31 servers (541 tools) with a label that denies what the
+  schema says the tool can do. The idea of the check and the "under-declared is
+  the serious direction" framing; its code was not read or used.
+- Severity: the STORY-0136 rule (LOW unless precision is measured at 50% or
+  more on 10 or more hits), measured in `docs/annotations.md`.
+
+---
+
 ## Agent-file scanner (SKILL-001/002/003, MEM-001/002, HOOK-001/002)
 
 Added 2026-06-14. Original implementation based on the research below.

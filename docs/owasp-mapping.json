@@ -1166,6 +1166,19 @@
       "notes": "Requires --connect (live enumeration). Fires when >=2 distinct servers advertise the same tool name (case-sensitive). MEDIUM by default; HIGH when one claimant is registry-verified and another is not (unknown server shadowing a trusted tool). NSA CSI item 5. CWE-694."
     },
     {
+      "finding_id": "ANNOT-001",
+      "finding_title": "Tool annotation contradicts the tool's own input schema",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Requires tool definitions: scan --connect, or saved tool text (mcp-lock.tools.json in the working directory). A tool annotated readOnlyHint: true (or destructiveHint: false) whose input schema has a parameter that runs commands, runs SQL that writes, or writes/deletes. A bare path or url never counts. MCP annotations are hints, not enforcement (MCP blog, 2026-03-16); a server can claim readOnlyHint and delete files. LOW: precision is measured in docs/annotations.md. Not published as an advisory. CWE-451."
+    },
+    {
       "finding_id": "DELEG-001",
       "finding_title": "Tool description names another server's tool",
       "owasp_codes": [

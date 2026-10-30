@@ -647,6 +647,24 @@ def _discover_and_parse(
         except Exception as exc:  # noqa: BLE001 — never fail the scan over CI files
             result.errors.append(f"ci_workflows: workflow scan failed: {exc}")
 
+        # Saved tool text (STORY-0136): ``lock --connect --save-tool-text`` keeps
+        # the tool definitions beside the lock; ANNOT-001 reads their
+        # annotations against their schemas.  Read-only; no server is started.
+        try:
+            from mcp_audit.analyzers.annotations import (  # noqa: PLC0415
+                findings_from_tool_text,
+            )
+            from mcp_audit.lock import tool_text as _tool_text  # noqa: PLC0415
+
+            _tt_path = Path.cwd() / _tool_text.TOOL_TEXT_FILENAME
+            _tt_doc, _tt_problem = _tool_text.load(_tt_path)
+            if _tt_problem:
+                result.errors.append(f"annotations: {_tt_problem}")
+            elif _tt_doc is not None:
+                result.findings.extend(findings_from_tool_text(_tt_doc, _tt_path))
+        except Exception as exc:  # noqa: BLE001 — never fail the scan over a companion file
+            result.errors.append(f"annotations: saved tool text scan failed: {exc}")
+
     all_servers: list[ServerConfig] = []
     # A file that is both an auto-run file and an MCP config (Codex's
     # .codex/config.toml, Gemini CLI's .gemini/settings.json; STORY-0110) is
@@ -848,6 +866,28 @@ async def run_scan_async(
                 )
             except Exception as e:  # noqa: BLE001
                 result.errors.append(f"delegation error: {e}")
+
+        # ── Annotation contradictions (ANNOT-001, STORY-0136) ────────────────
+        # A tool annotated read-only whose input schema runs commands or writes.
+        # Reads the same enumerations; a hint from a server only ever raises.
+        if connect_pairs:
+            from mcp_audit.analyzers.annotations import (  # noqa: PLC0415
+                detect_annotation_contradictions,
+            )
+
+            try:
+                live = detect_annotation_contradictions(connect_pairs)
+                # The saved-tool-text pass may already have reported the same
+                # tool; the live enumeration is the fresher copy, so keep it.
+                seen = {(f.server, f.tool) for f in live}
+                result.findings = [
+                    f
+                    for f in result.findings
+                    if not (f.id == "ANNOT-001" and (f.server, f.tool) in seen)
+                ]
+                result.findings.extend(live)
+            except Exception as e:  # noqa: BLE001
+                result.errors.append(f"annotations error: {e}")
 
     return _run_static_pipeline(
         result=result,

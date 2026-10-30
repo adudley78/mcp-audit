@@ -102,6 +102,9 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         "REACH-003",  # .env files with no Read deny rule (STORY-0114) — all
         # three describe one machine's files, never a package; a home-directory
         # inventory must never become a published advisory
+        "ANNOT-001",  # annotation contradicts the tool's own schema (STORY-0136) —
+        # a heuristic label check, LOW; not published as an advisory against a
+        # package until its precision is measured high enough to defend
         "VULN-UNRESOLVED",  # --check-vulns lookup that could not run
         # (STORY-0106) — operational note, asserts nothing about the package
     }
