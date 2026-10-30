@@ -431,6 +431,10 @@ _HINTS: dict[str, str] = {
         "Open the file at the line shown: remove a conditional rule you didn't"
         " write, and check whether its condition (date, host, root) already held."
     ),
+    "MEM-006": (
+        "Don't run an agent in this folder until the line that sends secrets out is"
+        " removed; if one already ran here, rotate what it could read."
+    ),
     "POISON-043": (
         "Remove the invisible zero-width characters; decoded, they spell text."
     ),

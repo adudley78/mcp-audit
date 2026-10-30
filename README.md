@@ -85,7 +85,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 - **Project-level config scan** — `scan --project <dir>` walks a cloned repo for project-level MCP config files and emits `TRUST-001` (HIGH) before you click "Trust this folder" in your AI editor (Adversa TrustFall / CVE-2026-30615); also flags repo-planted IDE auto-execution files — `.vscode/tasks.json` tasks that run on folder open and command-bearing `.vscode/settings.json` keys (`TRUST-003`, HIGH/CRITICAL) — the persistence mechanism used by the Keyv npm worm and Shai-Hulud "V.A.P.E" (2026); and other harnesses' auto-run files — Gemini CLI hooks and `.gemini/.env`, Codex `config.toml`/`hooks.json` (`notify`, `approval_policy = "never"`, `danger-full-access`, hooks), Claude Code scheduled tasks and workflows (`TRUST-008`); and project settings whose `env` sends API traffic to another host (`CFHYG-007`, CVE-2026-21852). A plain `scan`/`check` reads the `TRUST-003` and `TRUST-008` files at the root of the folder it runs in. See [`docs/agent-execution-surface.md`](docs/agent-execution-surface.md)
 - **SAST rule pack** — 91 Semgrep rules (47 Python, 44 TypeScript) across 6 categories for MCP server source code
 - **IDE extension scanner** — known-vuln registry, dangerous capability combos, wildcard activation, unknown publisher, sideloaded VSIX, stale AI extensions
-- **Agent-file scanner** — scans the other instruction surfaces the AI agent reads: Claude Code custom commands, Cursor rules, GitHub Copilot instruction/prompt files, and CLAUDE.md memory files; also detects network-egress and config-persistence patterns in Claude Code hook commands (CVE-2026-30615); `mcp-audit agent-files scan` or `mcp-audit scan --include-agent-files`
+- **Agent-file scanner** — scans the other instruction surfaces the AI agent reads: Claude Code custom commands, Cursor rules, GitHub Copilot instruction/prompt files, and CLAUDE.md memory files; a plain `scan` also flags a repository's CLAUDE.md or AGENTS.md that tells the agent to send your environment variables, `.env` or keys to a server (MEM-006); also detects network-egress and config-persistence patterns in Claude Code hook commands (CVE-2026-30615); `mcp-audit agent-files scan` or `mcp-audit scan --include-agent-files`
 - **Claude Code plugins** — inventories installed plugins, flags a plugin whose recorded version is not the commit its marketplace currently pins (`PLUGIN-001`, a pin-drift check that compares records and does not hash plugin files) or that follows a branch with no pin (`PLUGIN-002`), and runs the skills and MCP servers plugins ship through the existing checks; audits Claude Code **mods** (plugins that run code inside Claude Code) against Anthropic's own review checklist: a mod that can approve tool calls before the permission prompt (`MOD-001`), read secrets and send data out (`MOD-002`), rewrite what Claude reads (`MOD-003`) or start programs (`MOD-004`), read statically, never run; a default `scan` includes plugin MCP servers, the pin checks and mods (`mcp-audit plugins scan` for the plugin-only view)
 - **Signed advisory feed** — there is no CVE/OSV/NVD equivalent for MCP servers, so `mcp-audit advise` publishes one: findings become OSV 1.6.0 records with OWASP MCP Top 10 metadata, canonicalized (RFC 8785) and signed with the project minisign key (since 2026-09-07; the record format is still experimental); `mcp-audit feed verify` checks the whole feed; a weekly signed build is published to `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json` — see [`docs/advisory-feed.md`](docs/advisory-feed.md) — alongside the committed unsigned [`examples/feed/`](examples/feed/) fixture
 - **Config hygiene** — `ConfigHygieneAnalyzer` detects missing descriptions, duplicate tool names, and other structural config issues
@@ -496,7 +496,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-8,365 tests validate detection accuracy and guard against regressions.
+8,386 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -727,7 +727,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 8,365 tests
+uv run pytest                        # Run all 8,386 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
