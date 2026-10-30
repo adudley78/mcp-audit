@@ -50,6 +50,7 @@ from mcp_audit.cli._bundle import open_bundle
 from mcp_audit.cli._helpers import _write_output
 from mcp_audit.config_parser import parse_config
 from mcp_audit.discovery import discover_configs
+from mcp_audit.harness_versions import find_harness_versions
 from mcp_audit.models import Finding, ServerConfig
 from mcp_audit.registry.loader import RegistryLoadError, load_registry
 from mcp_audit.registry.malicious import load_known_malicious
@@ -565,7 +566,15 @@ def affected(
             if not path and any(c.startswith("PLUGIN-") for c in check_ids)
             else None
         )
-        report.rows.extend(research_rows(ruleset.research, fetch, report.notes))
+        harness = None
+        if not path:
+            harness = find_harness_versions()
+            report.notes.extend(
+                f"harness versions: skipped {s}" for s in harness.skipped
+            )
+        report.rows.extend(
+            research_rows(ruleset.research, fetch, report.notes, harness)
+        )
     if ruleset.rules:
         unreadable: list[Row] = []
         if fleet:

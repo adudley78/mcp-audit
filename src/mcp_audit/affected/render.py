@@ -214,7 +214,9 @@ def _row_dict(row: Row) -> dict[str, Any]:
         "config_path": _path(row),
         "package": row.package,
         "version": row.version,
-        "version_source": row.version_source,
+        "version_source": _scrub(row.version_source).replace("\\", "/")
+        if row.version_source
+        else row.version_source,
         "fixed_in": row.fixed_in,
         "reason": row.reason,
         "dependency": _dependency_dict(row),
@@ -270,7 +272,11 @@ def render_sarif(report: Report) -> str:
                     "status": row.status.value,
                     "package": row.package,
                     "version": row.version,
-                    "versionSource": row.version_source,
+                    "versionSource": (
+                        _scrub(row.version_source).replace("\\", "/")
+                        if row.version_source
+                        else row.version_source
+                    ),
                     "fixedIn": row.fixed_in,
                     "machine": _scrub(row.machine) if row.machine else None,
                     "dependency": _dependency_dict(row),

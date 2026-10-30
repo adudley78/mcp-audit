@@ -35,6 +35,7 @@ from mcp_audit.analyzers.supply_chain import (
     launch_package,
     resolve_launch_entry,
 )
+from mcp_audit.harness_versions import HarnessScan
 from mcp_audit.lock.discovery import find_lock_for
 from mcp_audit.models import Finding, ServerConfig, Severity
 from mcp_audit.registry.loader import (
@@ -78,6 +79,7 @@ UNDECIDABLE = "undecidable"
 UNEVALUABLE = "unevaluable"
 NO_PACKAGE = "no-package"
 HARNESS_VERSION = "harness-version"
+NOT_LAUNCHER_TARGET = "not-launcher-target"
 POSTURE_ONLY = "posture-only"
 OTHER_PACKAGE = "other-package"
 VERSION_OUTSIDE = "version-outside"
@@ -842,20 +844,71 @@ _PRODUCT_STATUS = {
 }
 
 
+def _harness_rows(p: Any, found: list[Any], state: str) -> list[Row]:
+    """One row per installed copy of product *p* compared with its fix."""
+    out: list[Row] = []
+    # A native install keeps older versions on disk; when the launcher points
+    # at one of them, the others are not what ``claude`` runs.
+    has_target = any(
+        i.kind == "native" and getattr(i, "launcher_target", False) for i in found
+    )
+    for inst in found:
+        try:
+            below = Version(inst.version) < Version(p.fixed_in)
+        except InvalidVersion:
+            below = None
+        reason = HARNESS_VERSION if below is None else None
+        retained = (
+            has_target
+            and inst.kind == "native"
+            and not getattr(inst, "launcher_target", False)
+        )
+        if below is None:
+            status, verdict = Status.COULDNT_CHECK, "cannot be ordered against"
+        elif below and retained:
+            status, verdict = (
+                Status.COULDNT_CHECK,
+                "is below (an older copy kept on disk; the launcher points at "
+                "another version, so this one is not what `claude` runs)",
+            )
+            reason = NOT_LAUNCHER_TARGET
+        elif below:
+            status, verdict = Status.AFFECTED, "is below"
+        else:
+            status, verdict = Status.NOT_AFFECTED, "is at or above"
+        out.append(
+            Row(
+                f"{p.product} ({p.vendor}) {inst.version}",
+                status,
+                f"{p.product} {inst.version} ({inst.kind} install, read from "
+                f"{inst.source}) {verdict} the fix {p.fixed_in}; per the "
+                f"write-up: {state}",
+                package=p.product,
+                version=inst.version,
+                version_source=inst.source,
+                fixed_in=p.fixed_in,
+                reason=reason,
+            )
+        )
+    return out
+
+
 def research_rows(
     record: ResearchRecord,
     check_findings: Callable[[], list[Finding]] | None,
     notes: list[str],
+    harness: HarnessScan | None = None,
 ) -> list[Row]:
-    """Rows for a research record: check results, then one row per product.
+    """Rows for a research record: check results, then rows per product.
 
-    A record about harness versions cannot be answered per product, because
-    mcp-audit does not read which Claude Code or Codex is installed (queued
-    behind this epic), so every product row is COULDN'T CHECK.  The named
-    checks run where they can; a HIGH-or-worse hit is AFFECTED, anything
-    milder is listed as COULDN'T CHECK (posture only).  No check result ever
-    produces NOT AFFECTED: the checks cover Claude Code's plugin directory
-    only.
+    With ``harness`` (installed versions read from files, STORY-0132), a
+    product that has a ``fixed_in`` gets one row per install found: below the
+    fix is AFFECTED, at or above is NOT AFFECTED, a version that will not
+    order is COULDN'T CHECK.  A product with no install found, no fix, or no
+    ``harness`` stays COULDN'T CHECK.  The named checks run where they can; a
+    HIGH-or-worse hit is AFFECTED, anything milder is COULDN'T CHECK (posture
+    only).  No check result ever produces NOT AFFECTED: the checks cover
+    Claude Code's plugin directory only.
     """
     rows: list[Row] = []
     findings = check_findings() if check_findings is not None else []
@@ -884,6 +937,16 @@ def research_rows(
         )
     for p in record.products:
         state = _PRODUCT_STATUS[p.status].format(fixed_in=p.fixed_in)
+        found = harness.for_product(p.product) if harness is not None else []
+        if found and p.fixed_in:
+            rows.extend(_harness_rows(p, found, state))
+            if len(found) > 1:
+                notes.append(
+                    f"{len(found)} {p.product} installs found; which one is "
+                    "first on PATH cannot be known without running it, so "
+                    "each is listed."
+                )
+            continue
         rows.append(
             Row(
                 f"{p.product} ({p.vendor})",
