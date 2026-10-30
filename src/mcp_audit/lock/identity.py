@@ -14,6 +14,7 @@ labels for the same path — see the module's own R61 note on :func:`match_key`.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -75,6 +76,69 @@ def canonicalize_url(url: str) -> str:
 
     # Query and fragment are always dropped — see docstring.
     return urlunsplit((scheme, netloc, path, "", ""))
+
+
+def _host_port(url: str) -> tuple[str, int | None] | None:
+    """Return ``(hostname, effective port)`` of *url*, or ``None`` if unparseable.
+
+    A placeholder host (``${HOST}``) is ``None``: it names no host.
+    """
+    hp = _scheme_host_port(url)
+    return (hp[1], hp[2]) if hp else None
+
+
+def _scheme_host_port(url: str) -> tuple[str, str, int | None] | None:
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError:
+        return None
+    host = (parts.hostname or "").lower()
+    if not host or "${" in host or "$" in host:
+        return None
+    if host.endswith("."):
+        host = host[:-1]
+    with contextlib.suppress(UnicodeError):
+        host = host.encode("idna").decode("ascii")
+    scheme = parts.scheme.lower()
+    if port is None:
+        port = _DEFAULT_PORTS.get(scheme)
+    return scheme, host, port
+
+
+def remote_host(url: str | None) -> str | None:
+    """Return the lowercase hostname of *url* (never userinfo, port or query)."""
+    hp = _host_port(url) if url else None
+    return hp[0] if hp else None
+
+
+def describe_remote_move(old_url: str | None, new_url: str | None) -> str | None:
+    """Name a change of a remote server's host or port, or ``None``.
+
+    Only the hostname and port are quoted, so userinfo and query tokens in
+    either URL can never reach the text (STORY-0135).  A path-only,
+    query-only or userinfo-only change returns ``None``.
+
+    Args:
+        old_url: The previously recorded URL (raw or canonical).
+        new_url: The URL now configured.
+
+    Returns:
+        e.g. ``"remote host changed from a.example to b.example"``, or a
+        port sentence when only the port moved, else ``None``.
+    """
+    if not old_url or not new_url:
+        return None
+    old, new = _scheme_host_port(old_url), _scheme_host_port(new_url)
+    if old is None or new is None:
+        return None
+    if old[1] != new[1]:
+        return f"remote host changed from {old[1]} to {new[1]}"
+    if old[0] != new[0]:
+        return f"remote scheme changed from {old[0]} to {new[0]} on host {old[1]}"
+    if old[2] != new[2] and old[2] is not None and new[2] is not None:
+        return f"remote port changed from {old[2]} to {new[2]} on host {old[1]}"
+    return None
 
 
 def build_identity(server: ServerConfig) -> dict[str, str | list[str]]:

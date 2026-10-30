@@ -123,9 +123,12 @@ Each record has:
   "command_diff": null | {
     "before_command": ..., "after_command": ...,
     "before_args": ..., "after_args": ...
-  }
+  },
+  "note": "string (only when set)"
 }
 ```
+
+`note` is present on a changed server whose remote host or port moved, e.g. `remote host changed from a.example to b.example` (STORY-0135). Only the hostname and port are quoted, never userinfo or query strings.
 
 ## Other output formats
 

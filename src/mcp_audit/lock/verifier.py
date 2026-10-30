@@ -37,6 +37,7 @@ from mcp_audit.lock.identity import (
     MatchKey,
     build_identity,
     comparable_identity,
+    describe_remote_move,
     launch_carries_secret,
     match_key,
     normalize_config_ref,
@@ -950,7 +951,14 @@ def _check_drift(key: str, server: ServerConfig, locked_entry: dict) -> Finding 
     # credential verbatim still matches, and evidence never quotes one.
     current_identity = comparable_identity(current_identity)
     locked_identity = comparable_identity(locked_identity)
+    moved = None
     if current_identity != locked_identity:
+        if isinstance(locked_identity, dict) and isinstance(current_identity, dict):
+            moved = describe_remote_move(
+                locked_identity.get("url"), current_identity.get("url")
+            )
+        if moved:
+            diffs.append(moved)
         diffs.append(f"identity: locked={locked_identity!r} now={current_identity!r}")
     if current_env != locked_env:
         diffs.append(f"env_keys: locked={locked_env!r} now={current_env!r}")
@@ -970,6 +978,12 @@ def _check_drift(key: str, server: ServerConfig, locked_entry: dict) -> Finding 
         description=(
             f"{key!r}'s launch identity, environment variable names, or "
             "header names changed since it was locked."
+            + (
+                f" The remote endpoint moved ({moved}); the protocol itself "
+                "never surfaces this."
+                if moved
+                else ""
+            )
         ),
         evidence="; ".join(diffs),
         remediation=(

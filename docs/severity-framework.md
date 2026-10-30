@@ -227,6 +227,52 @@ Recorded as a known, measured gap in GAPS.md — not silently dropped, and not
 a deliberate deferral like `CLOUD` (see toxic_flow.py's module docstring and
 `INTEGRITY_PAIRS` comment for the full measurement).
 
+**Third-party content into context: measured, not shipped (STORY-0134).**
+ContextCrush (Noma Security, 2026-03-05; research record `x_MCPRS-32fc646f6f96`)
+put attacker text into an agent through the documentation channel of a trusted
+server. The question was whether a source capability, "returns text a third
+party wrote", paired with `shell_exec`, `file_write`, `network_out` or
+`comms_out` adds signal beyond TOXIC-* and INTEG-*. Measured 2026-10-29 with a
+hypothetical `untrusted_content` source, tagged by hand from registry tags
+(`search`, `scraping`, `browser`, `docs`, `github`, `gitlab`, `slack`,
+`project-management`, `productivity`, `http`), a `browser` or `email`
+capability, plus `server-gdrive`, `server-everything`, `mcp-server-fetch`.
+Registry-first tagging, each entry run as one server; pair counted as "new"
+when no existing TOXIC-* or INTEG-* pair joins the two servers in either
+direction.
+
+| Corpus | Servers | Tagged as source | Unordered server pairs | Already fire today | Would fire, any of 4 sinks | New only |
+|---|---|---|---|---|---|---|
+| Registry, 56 entries | 56 | 22 (39%) | 1,540 | 421 (27.3%) | 502 (32.6%) | 284 (18.4%) |
+| Registry, sinks `shell_exec` + `file_write` only | 56 | 22 | 1,540 | 421 | 148 (9.6%) | 52 (3.4%) |
+| Top-100 npm corpus, any sink | 100 | 10 (10%) | 4,950 | 56 (1.1%) | 104 (2.1%) | 86 (1.7%) |
+| Top-100 npm corpus, `shell_exec` + `file_write` only | 100 | 10 | 4,950 | 56 | 29 (0.6%) | 19 (0.4%) |
+
+Of the 430 new directed pairs in the registry, 321 (75%) end in `network_out`,
+which 26 of 56 entries declare; 51 end in `comms_out`, 34 in `file_write`, 24
+in `shell_exec`. The 19 new top-100 shell/write pairs are one shape: any of six
+content servers (`chrome-devtools-mcp`, `@upstash/context7-mcp`, Notion,
+`@browsermcp/mcp`, `@browserstack/mcp-server`, `exa-mcp-server`) next to
+`server-filesystem`, `desktop-commander` or `server-everything`, which is an
+ordinary developer setup.
+
+**Decision: not shipped.** (1) The all-sinks form is the R37 trap: it adds a
+finding to one server pair in five in the registry, dominated by
+`network_out`, where "a web or docs server next to something that can reach the
+network" is what the setup is for. (2) The narrow form (`shell_exec` and
+`file_write`) fires on one real shape, a content server next to a filesystem
+or shell server, with one severity for a scratch directory and for
+`~/.claude/CLAUDE.md`; there is no data to calibrate it. (3) The source tag
+needs a judgement the config does not carry: 80 of the top-100 servers have no
+capabilities at all, so 10 of 100 could be tagged from registry tags, and the
+rest are unmeasurable. (4) Context7 itself has empty capabilities under both
+registry and keywords; the Noma attack's danger sat in service-side content the
+scan cannot see, and its file read was the agent's own, which mcp-audit does
+not model. The exfiltration step (an issue posted to GitHub) is already
+`comms_out`, covered by TOXIC-008 to TOXIC-011 where a source is present.
+Recorded as a measured gap in GAPS.md. No `Capability` member was added, so the
+registry-submission template is unchanged.
+
 ### Vulnerability lookups (`vulnerability/`, `scan --check-vulns`)
 
 | Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
