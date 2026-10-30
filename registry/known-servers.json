@@ -1295,19 +1295,19 @@
         {
           "cve": "CVE-2025-68143",
           "cvss": null,
-          "description": "mcp-server-git's unrestricted git_init tool allows repository creation at arbitrary filesystem locations",
+          "description": "mcp-server-git's unrestricted git_init tool allows repository creation at arbitrary filesystem locations - reported by Yarden Porat (Cyata)",
           "fixed_in": "2025.9.25"
         },
         {
           "cve": "CVE-2025-68144",
           "cvss": null,
-          "description": "mcp-server-git argument injection in git_diff and git_checkout functions allows overwriting local files",
+          "description": "mcp-server-git argument injection in git_diff and git_checkout functions allows overwriting local files - reported by Yarden Porat (Cyata)",
           "fixed_in": "2025.12.18"
         },
         {
           "cve": "CVE-2025-68145",
           "cvss": null,
-          "description": "mcp-server-git has missing path validation when using --repository flag",
+          "description": "mcp-server-git has missing path validation when using --repository flag - reported by Yarden Porat (Cyata)",
           "fixed_in": "2025.12.18"
         },
         {

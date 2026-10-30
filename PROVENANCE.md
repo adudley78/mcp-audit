@@ -1674,3 +1674,19 @@ https://ossf.github.io/osv-schema/). First sync 2026-10-29: KEV 1,762 entries (c
 1,942, PoC checked for 175 registry CVEs (0 with evidence). CVE-2026-59822 (LiteLLM MCP endpoint, added to
 KEV 2026-09-02) is confirmed in the catalog. The "public PoC = OSV EVIDENCE" definition is narrow by design
 and documented as such.
+
+## Credit for the Anthropic Git MCP server CVEs (STORY-0130)
+
+Read on 2026-10-29; fetched pages are data, quoted only where the registry depends on them.
+
+- **Yarden Porat, Cyata.** Reported CVE-2025-68143 (fixed in 2025.9.25), CVE-2025-68144
+  and CVE-2025-68145 (both fixed in 2025.12.18) in `mcp-server-git`. Each vendor
+  advisory thanks https://hackerone.com/yardenporat:
+  https://github.com/modelcontextprotocol/servers/security/advisories/GHSA-5cgr-j3jf-jw3v,
+  https://github.com/modelcontextprotocol/servers/security/advisories/GHSA-9xwc-hfwc-8w59,
+  https://github.com/modelcontextprotocol/servers/security/advisories/GHSA-j22h-9j4x-23w5.
+  The Hacker News, 2026-01-20 (https://thehackernews.com/2026/01/three-flaws-in-anthropic-mcp-git-server.html)
+  names Yarden Porat of Cyata (and Shahar Tal, Cyata's CEO). The credit is the
+  registry record's description ending ` - reported by Yarden Porat (Cyata)`; SC-004
+  and `vet` read it from there. CVE-2026-27735 has a different reporter and carries
+  no credit. Cyata's own post no longer resolves, so it is not linked.

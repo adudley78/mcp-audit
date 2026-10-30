@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`affected` reads the installed Claude Code, Codex and Gemini CLI versions, without running them (STORY-0132).** For a research record with per-product fixes (Plugin4Shell: Claude Code 2.1.179, Codex 0.146.0), each install found is now AFFECTED (below the fix, with the path the version was read from) or NOT AFFECTED (at or above it) instead of COULDN'T CHECK. Versions come from npm global `package.json` files (`npm_config_prefix`, nvm, Homebrew, `/usr/local`, `%APPDATA%\npm`) and Claude Code's native `~/.local/share/claude/versions/` directory; no subprocess is ever started. Every install is listed because the one first on `PATH` cannot be known without running it. Oversized, malformed or looping files are skipped and named in the notes. No install found: COULDN'T CHECK, as before. HARNESS-001 and the other version-dependent findings are unchanged. See `docs/affected.md`.
 - **A tool whose label contradicts its own schema (ANNOT-001, STORY-0136).** MCP tool annotations are hints, not enforcement: "a server can claim `readOnlyHint: true` and delete your files anyway" (MCP blog, 2026-03-16), and actlint found 4 of 31 popular servers whose labels the schema contradicted. ANNOT-001 (LOW) fires on a tool annotated `readOnlyHint: true`, or `destructiveHint: false`, whose input schema has a parameter that runs commands (`command`, `script`, `shell`), runs SQL that writes, deletes or overwrites, or takes content to write beside a path. A bare `path` or `url` never counts. It runs on `scan --connect` and over `mcp-lock.tools.json` (saved tool text) in the working directory, and only ever adds a finding. Measured on the top-100 npm corpus (48 servers, 989 tools, 732 annotated): 6 hits, 5 true by hand label, on 3 servers. That is under the 10 hits the rule needs for MEDIUM, so it ships at LOW. See `docs/annotations.md`.
 
+### Changed
+
+- SC-004 and `vet` now credit Yarden Porat (Cyata) for CVE-2025-68143, CVE-2025-68144 and CVE-2025-68145 in Anthropic's Git MCP server (STORY-0130).
+
 ---
 
 ## [0.24.0] - 2026-10-29
