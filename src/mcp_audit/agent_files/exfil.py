@@ -24,7 +24,8 @@ needs, in one sentence:
    email, submit, report, leak, pipe, curl or wget, not negated by a
    ``never`` / ``do not`` / ``must not`` / ``avoid`` just before it;
 2. after it, within 100 characters, a **bulk or local secret object**:
-   environment variables, env vars, the environment, ``.env`` (file,
+   environment variables, env vars, "the local / shell environment", the
+   output of ``env`` / ``printenv``, ``.env`` (file,
    contents), ``~/.ssh``, ``~/.aws``, ``id_rsa``, ``.netrc``, a private key,
    a credentials file, "all / every / any ... secret(s), token(s), key(s),
    credential(s), password(s)", or "your / local / the user's ... secrets,
@@ -61,8 +62,8 @@ _NEGATION_RE = re.compile(
 
 _SECRET_RE = re.compile(
     r"\benv(?:ironment)?\s+var(?:iable)?s\b"
-    r"|\b(?:the|your|all|local|their|his|her)\s+(?:local\s+|shell\s+|process\s+)?"
-    r"environment\b(?!\s+(?:name|type|setup|file\s+example))"
+    r"|\b(?:the|your|their)\s+(?:local|shell|process)\s+environment\b"
+    r"|\b(?:dump|output|contents)\s+of\s+`?(?:env|printenv|set)\b"
     r"|(?<![\w.])\.env\b(?!\.(?:example|sample|template|dist))"
     r"|~/\.(?:ssh|aws|netrc|gnupg|kube|docker)\b|\bid_(?:rsa|ed25519|ecdsa)\b"
     r"|\.netrc\b|\bprivate\s+keys?\b|\bcredentials?\s+files?\b"
