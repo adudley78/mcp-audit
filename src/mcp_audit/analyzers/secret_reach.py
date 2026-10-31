@@ -638,9 +638,9 @@ class Protection:
         ``bypassPermissions``, where the Read tool needs no approval anywhere,
         sandbox entries don't count.  With ``sandbox.allowNestedUserNamespaces``
         on in user or managed settings, on Linux, they don't count either
-        (Claude Code 2.1.305 CHANGELOG: the setting lets such commands get
-        around the sandbox's file protections); *ignore_nested* answers as if
-        it were off.
+        (Claude Code 2.1.305 CHANGELOG: "this lets them get around the
+        sandbox's file protections"); *ignore_nested* answers as if it were
+        off.
         """
         if self.nested_userns and _ON_LINUX and not ignore_nested:
             return False
@@ -906,10 +906,10 @@ def _finding(
 
 _NESTED_NOTE = (
     " sandbox.allowNestedUserNamespaces is on, so on Linux a sandbox denyRead or"
-    " credentials deny entry is not counted as protection: Claude Code 2.1.305's"
-    " CHANGELOG says the setting lets commands get around the sandbox's file"
-    " protections ('so sandboxed commands on Linux can create user"
-    " namespaces')."
+    " credentials deny entry is not counted as protection. Claude Code 2.1.305"
+    " CHANGELOG: 'so sandboxed commands on Linux can create user namespaces"
+    " (Chromium, rootless podman); this lets them get around the sandbox's file"
+    " protections'."
 )
 
 
