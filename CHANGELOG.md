@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.26.0] - 2026-10-31
+
 ### Added
 
 - **REACH-001 now covers Gemini CLI and GitHub Copilot CLI files, and stops trusting a sandbox read-deny when nested user namespaces are on.** It lists `~/.gemini/.env` and Copilot CLI's `config.json` (`~/.copilot`, or `$COPILOT_HOME`) when a Claude Code session could read them without asking (paths from each vendor's docs; stat only, never opened; Codex's `auth.json` is left out until OpenAI's page can be quoted, see GAPS.md). With `sandbox.allowNestedUserNamespaces` on in user or managed settings on Linux, a sandbox `denyRead` / credentials deny no longer counts as protection (Claude Code 2.1.305's CHANGELOG: "this lets them get around the sandbox's file protections"); a project file's `true` is ignored, as Claude Code ignores it. A machine with these files may see REACH-001 newly (LOW). Thanks to Check Point Research, whose Aokigahara infostealer write-up lists these files as stealer targets.

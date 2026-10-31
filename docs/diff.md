@@ -254,7 +254,7 @@ Add `mode: diff` to the existing action — no separate workflow needed:
 
 ```yaml
 - name: MCP diff
-  uses: adudley78/mcp-audit@v0.25.1
+  uses: adudley78/mcp-audit@v0.26.0
   with:
     mode: diff
     severity-threshold: medium
