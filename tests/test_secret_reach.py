@@ -18,6 +18,7 @@ from mcp_audit.models import Severity
 def _sandbox_platform(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exercise the sandbox rules on every CI OS; one test turns the platform off."""
     monkeypatch.setattr(sr, "_SANDBOX_SUPPORTED", True)
+    monkeypatch.delenv("COPILOT_HOME", raising=False)
 
 
 def _layout(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -565,6 +566,8 @@ def test_credential_stores_are_never_opened(
         _write(home / ".aws" / "credentials"),
         _write(config / ".credentials.json"),
         _write(cwd / ".env"),
+        _write(home / ".gemini" / ".env"),
+        _write(home / ".copilot" / "config.json"),
     ]
     _settings(config / "settings.json", {})
     opened: list[str] = []
@@ -931,3 +934,124 @@ def test_hostile_sandbox_globs_are_fast(tmp_path: Path) -> None:
     start = time.monotonic()
     _run(tmp_path, home, cwd, config)
     assert time.monotonic() - start < 2
+
+
+# ── Other coding agents' stores and nested user namespaces (STORY-0137) ───────
+
+
+def test_gemini_and_copilot_stores_are_listed(tmp_path: Path) -> None:
+    home, cwd, config = _layout(tmp_path)
+    _write(home / ".gemini" / ".env")
+    _write(home / ".copilot" / "config.json")
+    _settings(config / "settings.json", {})
+    evidence = _reach1(_run(tmp_path, home, cwd, config)).evidence
+    assert "~/.gemini/.env (Gemini CLI env file" in evidence
+    assert "~/.copilot/config.json (GitHub Copilot CLI state" in evidence
+
+
+def test_new_stores_absent_or_directory_or_empty_not_listed(tmp_path: Path) -> None:
+    home, cwd, config = _layout(tmp_path)
+    (home / ".gemini" / ".env").mkdir(parents=True)  # a directory
+    _write(home / ".copilot" / "config.json", "")  # empty
+    _settings(config / "settings.json", {})
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_new_stores_covered_by_read_deny(tmp_path: Path) -> None:
+    home, cwd, config = _layout(tmp_path)
+    _write(home / ".gemini" / ".env")
+    _write(home / ".copilot" / "config.json")
+    _settings(
+        config / "settings.json",
+        {"permissions": {"deny": ["Read(~/.gemini/**)", "Read(~/.copilot/**)"]}},
+    )
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_copilot_home_is_honoured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home, cwd, config = _layout(tmp_path)
+    other = tmp_path / "elsewhere"
+    _write(other / "config.json")
+    _write(home / ".copilot" / "config.json")
+    _settings(config / "settings.json", {})
+    monkeypatch.setenv("COPILOT_HOME", str(other))
+    f = _reach1(_run(tmp_path, home, cwd, config))
+    assert f.finding_path == str(other / "config.json")
+    assert "~/.copilot/config.json" not in f.evidence
+
+
+_NESTED_SB = {
+    "enabled": True,
+    "filesystem": {"denyRead": ["~/.aws/credentials"]},
+}
+
+
+def _nested_case(tmp_path: Path, user: dict, project: dict | None = None):
+    home, cwd, config = _layout(tmp_path)
+    _write(home / ".aws" / "credentials")
+    _settings(config / "settings.json", user)
+    if project is not None:
+        _settings(cwd / ".claude" / "settings.json", project)
+    return home, cwd, config
+
+
+@pytest.fixture
+def _linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sr, "_ON_LINUX", True)
+
+
+def test_nested_namespaces_user_true_uncovers_sandbox_deny(
+    tmp_path: Path, _linux: None
+) -> None:
+    home, cwd, config = _nested_case(
+        tmp_path, {"sandbox": {**_NESTED_SB, "allowNestedUserNamespaces": True}}
+    )
+    f = _reach1(_run(tmp_path, home, cwd, config))
+    assert "~/.aws/credentials" in f.evidence
+    assert "allowNestedUserNamespaces" in f.evidence
+    assert "2.1.305" in f.description
+
+
+@pytest.mark.parametrize("value", [False, None])
+def test_nested_namespaces_off_keeps_sandbox_cover(
+    tmp_path: Path, _linux: None, value: object
+) -> None:
+    sandbox = dict(_NESTED_SB)
+    if value is not None:
+        sandbox["allowNestedUserNamespaces"] = value
+    home, cwd, config = _nested_case(tmp_path, {"sandbox": sandbox})
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_nested_namespaces_managed_true_counts(tmp_path: Path, _linux: None) -> None:
+    home, cwd, config = _nested_case(tmp_path, {"sandbox": _NESTED_SB})
+    managed = tmp_path / "managed"
+    _settings(
+        managed / "managed-settings.json",
+        {"sandbox": {"allowNestedUserNamespaces": True}},
+    )
+    f = _reach1(_run(tmp_path, home, cwd, config, managed=managed))
+    assert "allowNestedUserNamespaces" in f.evidence
+
+
+def test_nested_namespaces_in_project_file_is_ignored(
+    tmp_path: Path, _linux: None
+) -> None:
+    home, cwd, config = _nested_case(
+        tmp_path,
+        {"sandbox": _NESTED_SB},
+        {"sandbox": {"allowNestedUserNamespaces": True}},
+    )
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_nested_namespaces_not_linux_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sr, "_ON_LINUX", False)
+    home, cwd, config = _nested_case(
+        tmp_path, {"sandbox": {**_NESTED_SB, "allowNestedUserNamespaces": True}}
+    )
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))

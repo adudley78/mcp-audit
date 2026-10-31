@@ -166,6 +166,15 @@ HOME_STORES: tuple[SecretStore, ...] = (
     SecretStore(
         ".config/gh/hosts.yml", "GitHub CLI hosts (may hold a token)", False, "posix"
     ),
+    # Other coding agents (STORY-0137).  Gemini CLI authentication doc: "Create a
+    # .gemini/.env file in your project directory or home directory" for API keys.
+    SecretStore(".gemini/.env", "Gemini CLI env file (may hold an API key)", False),
+    # GitHub Docs, Copilot CLI config directory reference: config.json "Stores
+    # internal application state ... including authentication data"; the
+    # directory is ~/.copilot unless COPILOT_HOME is set.
+    SecretStore(
+        ".copilot/config.json", "GitHub Copilot CLI state (may hold auth data)", False
+    ),
 )
 
 #: ``.env`` file names at the cwd root; template suffixes never hold secrets.
@@ -179,6 +188,10 @@ _ON_WINDOWS = sys.platform.startswith("win")
 #: The sandbox runs on macOS, Linux and WSL2 (sandboxing doc); a native Windows
 #: session has none, so sandbox settings protect nothing there.
 _SANDBOX_SUPPORTED = not _ON_WINDOWS
+
+#: ``sandbox.allowNestedUserNamespaces`` is Linux-only (Claude Code 2.1.305
+#: CHANGELOG: "so sandboxed commands on Linux can create user namespaces").
+_ON_LINUX = sys.platform.startswith("linux")
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
@@ -550,6 +563,11 @@ def _sandbox_disabled_value(data: dict) -> bool | None:
     return value if isinstance(value, bool) else None
 
 
+def _nested_userns_value(data: dict) -> bool | None:
+    value = _dict(data.get("sandbox")).get("allowNestedUserNamespaces")
+    return value if isinstance(value, bool) else None
+
+
 def _default_mode(data: dict) -> str | None:
     mode = _dict(data.get("permissions")).get("defaultMode")
     return mode if isinstance(mode, str) else None
@@ -581,6 +599,7 @@ class Protection:
     sandbox_wildcards: int = 0
     sandbox_deny: list[_SandboxEntry] = field(default_factory=list)
     sandbox_allow: list[_SandboxEntry] = field(default_factory=list)
+    nested_userns: bool = False
 
     def read_rule_covers(self, target: PurePosixPath) -> bool:
         """A ``Read`` deny rule covers *target* and no ``!`` rule reopens it.
@@ -606,7 +625,9 @@ class Protection:
                 return True
         return False
 
-    def sandbox_covers(self, target: PurePosixPath) -> bool:
+    def sandbox_covers(
+        self, target: PurePosixPath, *, ignore_nested: bool = False
+    ) -> bool:
         """The sandbox is on and stops sandboxed Bash commands reading *target*.
 
         Sandboxing doc: the sandbox runs on macOS, Linux and WSL2 only; "When
@@ -615,8 +636,14 @@ class Protection:
         or wildcard ``denyRead`` holds inside a wider ``allowRead``).  It covers
         Bash only ("A ``denyRead`` entry doesn't stop the Read tool"), so under
         ``bypassPermissions``, where the Read tool needs no approval anywhere,
-        sandbox entries don't count.
+        sandbox entries don't count.  With ``sandbox.allowNestedUserNamespaces``
+        on in user or managed settings, on Linux, they don't count either
+        (Claude Code 2.1.305 CHANGELOG: "this lets them get around the
+        sandbox's file protections"); *ignore_nested* answers as if it were
+        off.
         """
+        if self.nested_userns and _ON_LINUX and not ignore_nested:
+            return False
         if (
             not _SANDBOX_SUPPORTED
             or self.sandbox_over_budget
@@ -728,6 +755,11 @@ def build_protection(
             f" (or {MAX_SANDBOX_WILDCARDS} with wildcards) in the settings files;"
             " sandbox settings were not counted as protection"
         )
+    # Settings reference (already quoted in sandbox.py ``_IGNORED_KEYS``): a
+    # repository's settings can't switch this on, so only user and managed count.
+    protection.nested_userns = (
+        _highest(sources, _nested_userns_value, ("managed", "user")) is True
+    )
     protection.bypass_mode = (
         _highest(sources, _default_mode, ("managed", "user")) == "bypassPermissions"
     )
@@ -768,9 +800,14 @@ def _store_applies(store: SecretStore) -> bool:
 
 
 def _home_store_rel(store: SecretStore, home: Path, config_dir: Path) -> Path:
-    """The store's path; Claude Code's own login store follows ``CLAUDE_CONFIG_DIR``."""
+    """The store's path; Claude Code, Copilot CLI honour their own home variables."""
     if store.rel == ".claude/.credentials.json":
         return config_dir / ".credentials.json"
+    if store.rel == ".copilot/config.json":
+        # GitHub Docs: "set the COPILOT_HOME environment variable".
+        override = os.environ.get("COPILOT_HOME", "").strip()
+        if override:
+            return Path(override).expanduser() / "config.json"
     return home / store.rel
 
 
@@ -867,12 +904,47 @@ def _finding(
     )
 
 
+_NESTED_NOTE = (
+    " sandbox.allowNestedUserNamespaces is on, so on Linux a sandbox denyRead or"
+    " credentials deny entry is not counted as protection. Claude Code 2.1.305"
+    " CHANGELOG: 'so sandboxed commands on Linux can create user namespaces"
+    " (Chromium, rootless podman); this lets them get around the sandbox's file"
+    " protections'."
+)
+
+
+def _nested_exposed(
+    hits: list[tuple[SecretStore, Path]], protection: Protection | None
+) -> list[Path]:
+    """Hit paths a sandbox entry would cover but for allowNestedUserNamespaces."""
+    if protection is None or not (protection.nested_userns and _ON_LINUX):
+        return []
+    return [
+        path
+        for _store, path in hits
+        if protection.sandbox_covers(_posix(path), ignore_nested=True)
+    ]
+
+
 def _reach_001(
-    hits: list[tuple[SecretStore, Path]], home: Path, user_settings: Path
+    hits: list[tuple[SecretStore, Path]],
+    home: Path,
+    user_settings: Path,
+    protection: Protection | None = None,
 ) -> Finding:
     labels = [f"{_label(path, home)} ({store.label})" for store, path in hits]
     certain = sum(1 for store, _ in hits if store.certain)
     deny = ", ".join(f'"Read({_label(path, home)})"' for _, path in hits[:3])
+    exposed = _nested_exposed(hits, protection)
+    note = ""
+    evidence = "; ".join(labels)
+    if exposed:
+        note = _NESTED_NOTE
+        evidence += (
+            "; sandbox.allowNestedUserNamespaces: true (sandbox deny not counted for "
+            + ", ".join(_label(p, home) for p in exposed)
+            + ")"
+        )
     return _finding(
         "REACH-001",
         Severity.LOW,
@@ -885,8 +957,8 @@ def _reach_001(
         f" entry covers {len(hits)} file(s) that hold or commonly hold"
         f" credentials ({certain} exist only to hold one), so a prompt-injected"
         " session can read them without a prompt. Found with stat() only;"
-        " mcp-audit never opens these files.",
-        "; ".join(labels),
+        " mcp-audit never opens these files." + note,
+        evidence,
         "Add Read deny rules for them to your user settings"
         f" ({_label(user_settings, home)}), e.g. permissions.deny: [{deny}], or"
         ' set "permissions": {"blockReadsOutsideWorkingDirectories": true}. With'
@@ -1050,7 +1122,7 @@ def _secret_reach_findings(
     findings: list[Finding] = []
     hits = _uncovered_home_stores(protection, cwd, home, config_dir)
     if hits:
-        findings.append(_reach_001(hits, home, user_settings))
+        findings.append(_reach_001(hits, home, user_settings, protection))
     reach_002 = _reach_002(config_dir / ".credentials.json", home)
     if reach_002 is not None:
         findings.append(reach_002)
