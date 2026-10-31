@@ -623,9 +623,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run mcp-audit
-        uses: adudley78/mcp-audit@v0.25.1
+        uses: adudley78/mcp-audit@v0.26.0
         with:
-          version: v0.25.1
+          version: v0.26.0
           severity-threshold: high
           upload-sarif: 'true'
 ```
@@ -687,7 +687,7 @@ Add this to your `.pre-commit-config.yaml` (`rev` is the current release; `pre-c
 ```yaml
 repos:
   - repo: https://github.com/adudley78/mcp-audit
-    rev: v0.25.1
+    rev: v0.26.0
     hooks:
       - id: mcp-audit
 ```
