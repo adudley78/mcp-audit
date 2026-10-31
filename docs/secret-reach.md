@@ -87,7 +87,19 @@ SSH default private keys (`~/.ssh/id_rsa`, `id_ecdsa`, `id_ecdsa_sk`,
 default credentials, `~/.git-credentials`, `~/.netrc` (and `_netrc` on
 Windows), `~/.pypirc`, Claude Code's `.credentials.json`; and, labelled "may
 hold", `~/.npmrc`, `~/.docker/config.json`, `~/.kube/config`,
-`~/.config/gh/hosts.yml`.
+`~/.config/gh/hosts.yml`, Gemini CLI's `~/.gemini/.env` and GitHub Copilot
+CLI's `config.json` (`~/.copilot/config.json`, or `$COPILOT_HOME/config.json`).
+Other coding agents' login files are not listed unless the vendor's own
+documentation names them (see GAPS.md).
+
+**Nested user namespaces (Linux).** A sandbox `denyRead` or
+`sandbox.credentials` `deny` entry is not counted as protection when
+`sandbox.allowNestedUserNamespaces` is `true` in your user settings or in
+managed settings, on Linux: Claude Code 2.1.305's CHANGELOG says the setting
+lets sandboxed commands get around the sandbox's file protections. REACH-001
+then lists the store and its evidence names the key. A `true` in a project or
+local settings file is ignored by Claude Code and by this check; macOS and
+Windows are unchanged. `Read` deny rules still count.
 
 ## Exit code
 
