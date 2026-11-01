@@ -7,6 +7,10 @@ instructs the model to exfiltrate tokens. Maybe a server command pointing at
 This guide shows you how to turn that observation into a community rule that
 protects everyone — in about 30 minutes.
 
+No time to write YAML? Open a [rule submission](https://github.com/adudley78/mcp-audit/issues/new?template=rule-submission.yml)
+issue with the pattern, a source and two example configs, and the maintainer
+will write the rule and credit you.
+
 ---
 
 ## What are community rules?
@@ -16,7 +20,7 @@ mcp-audit installation and run automatically on every `mcp-audit scan` — no
 flags required. Each rule describes a single attack pattern and produces a
 `Finding` when that pattern is present in an MCP server configuration.
 
-There are currently 30 bundled community rules (COMM-001 through COMM-030).
+Run `mcp-audit rule list` to see the bundled rules.
 Every accepted contributor is named in [docs/contributors.md](contributors.md).
 The first 50 contributors whose rules are accepted get additional recognition —
 see [rules/community/BOUNTY.md](../rules/community/BOUNTY.md).
@@ -219,5 +223,8 @@ For the first 50 accepted contributors, see the full commitment in
 
 ## Questions?
 
-Open a GitHub issue with the label `community-rules`, or start a thread in
-GitHub Discussions. The maintainer (Adam) reviews rule PRs within 7 days.
+Open a [rule submission](https://github.com/adudley78/mcp-audit/issues/new?template=rule-submission.yml)
+issue. You can describe the pattern without writing any YAML; the maintainer
+(Adam) reviews rule submissions and rule PRs within 7 days. Issues labelled
+[`good first issue`](https://github.com/adudley78/mcp-audit/labels/good%20first%20issue)
+are rule ideas with a source and example configs already written down.
