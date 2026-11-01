@@ -202,7 +202,7 @@ Pattern: <one sentence describing what the rule detects>
 
 This is a hard requirement. Rules without a citation are not accepted.
 
-### Step 6b — Update the two files CI checks
+### Step 6b — Update the files CI checks
 
 A new rule ID must also appear in:
 
@@ -213,6 +213,11 @@ A new rule ID must also appear in:
 - `docs/manual-test-matrix.md`, Section 15 — bump the rule count and the
   `COMM-001`–`COMM-NNN` range (and the footer line).
   `tests/test_manual_test_matrix.py` checks it.
+- The community rule counts in `README.md` and `CLAUDE.md`. Run
+  `python scripts/update_test_count.py` and commit only the community-rule
+  lines it changes; leave its test-count changes out, since that number
+  depends on which optional extras you have installed. CI runs the same
+  script with `--check`.
 
 ### Step 6c — Run the full test suite
 
@@ -222,7 +227,7 @@ uv run pytest
 python scripts/validate_owasp_mapping.py
 ```
 
-Run the whole suite, not a subset: the two checks above live in test
+Run the whole suite, not a subset: the checks above live in test
 files a rules-only run skips.
 
 ---
