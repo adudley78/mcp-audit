@@ -14,6 +14,7 @@ full bounty program terms.
 | Contributor | Rule ID | Rule Name | Accepted |
 |---|---|---|---|
 | Adam Dudley ([@adudley78](https://github.com/adudley78)) | COMM-001–COMM-030 | Founding rule pack | 2026-05-17 |
+| B Sainath Reddy ([@Sainath-Reddy7](https://github.com/Sainath-Reddy7)) | COMM-035 | TLS certificate checking disabled by environment variable ([#254](https://github.com/adudley78/mcp-audit/pull/254)) | 2026-11-01 |
 
 ---
 

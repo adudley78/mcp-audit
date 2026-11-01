@@ -33,8 +33,9 @@ def test_owasp_table_lists_every_code() -> None:
 
 
 def test_guide_names_the_files_ci_checks() -> None:
-    """The guide tells contributors about both doc files a new rule ID must touch."""
+    """The guide names every file and script CI checks for a new rule ID."""
     text = DOC.read_text(encoding="utf-8")
     assert "docs/owasp-mapping.json" in text
     assert "docs/manual-test-matrix.md" in text
     assert "uv run pytest" in text
+    assert "scripts/update_test_count.py" in text
