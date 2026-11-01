@@ -1,0 +1,29 @@
+id: COMM-035
+name: TLS certificate checking disabled by environment variable
+description: >
+  Detects environment variable key names that turn off TLS certificate
+  validation: NODE_TLS_REJECT_UNAUTHORIZED (Node.js, value of 0 disables
+  checking), PYTHONHTTPSVERIFY (Python) and GIT_SSL_NO_VERIFY (git). With
+  checking disabled, anyone on the network path can read or modify the
+  server's traffic, including tokens it sends. These keys are commonly
+  pasted into configs to get past a corporate proxy and never removed;
+  NODE_EXTRA_CA_CERTS is the correct way to trust a corporate CA. The rule
+  engine matches env key names only, never values, so the rule fires when
+  the key is present — setting these keys to a value that keeps checking
+  on is rare. Sources: Node.js CLI docs (NODE_TLS_REJECT_UNAUTHORIZED) and
+  the git documentation for http.sslVerify (GIT_SSL_NO_VERIFY).
+severity: MEDIUM
+category: transport
+match:
+  field: env
+  pattern: '\b(NODE_TLS_REJECT_UNAUTHORIZED|PYTHONHTTPSVERIFY|GIT_SSL_NO_VERIFY)\b'
+  type: regex
+message: >-
+  Server '{server_name}' sets '{matched_value}', which disables TLS
+  certificate checking — trust a custom CA with NODE_EXTRA_CA_CERTS instead
+tags:
+  - transport
+  - tls
+enabled: true
+owasp_mcp_top_10:
+  - MCP01

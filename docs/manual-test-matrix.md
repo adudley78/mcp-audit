@@ -336,15 +336,15 @@ mcp-audit rule list
 echo "exit: $?"
 ```
 
-**Expected:** lists 37 rule(s) total: 33 real `COMM-NNN` community rules
-(`COMM-001`–`COMM-034`; `COMM-032` is intentionally reserved/unissued — a static
+**Expected:** lists 38 rule(s) total: 34 real `COMM-NNN` community rules
+(`COMM-001`–`COMM-035`; `COMM-032` is intentionally reserved/unissued — a static
 rule cannot detect `COLLIDE-001`'s live tool-collision signal; see
 `PROVENANCE.md`), plus `STDIO-001`, `STDIO-002a`, and `STDIO-002b` (launch-command
 trust boundary; `STDIO-001` loads but ships `enabled: false` — see
 `docs/writing-rules.md` and `GAPS.md`), plus the bundled `TEMPLATE.yml` itself,
 which loads as rule `COMM-000` ("Template rule — replace before submitting") and
 is guaranteed by `tests/test_rules.py` to never fire on a real config. Footer
-line reads "37 bundled community rule(s)"; exit 0.
+line reads "38 bundled community rule(s)"; exit 0.
 
 ---
 
