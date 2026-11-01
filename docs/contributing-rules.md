@@ -134,14 +134,22 @@ match:
 
 ### OWASP MCP Top 10 quick reference
 
-| Pattern type | Suggested code |
-|---|---|
-| Prompt injection / poisoning | `MCP01` |
-| Credential / secret exposure | `MCP02` |
-| Supply chain / package integrity | `MCP04` |
-| Server misconfiguration | `MCP05` |
-| Transport security | `MCP06` |
-| Shadow / unauthorised server | `MCP09` |
+Codes and names come from `src/mcp_audit/owasp_mcp.py`, the project's single
+source of truth (`tests/test_contributing_rules_doc.py` keeps this table in
+step with it).
+
+| Code | Name | Typical rule patterns |
+|---|---|---|
+| `MCP01` | Token Mismanagement and Secret Exposure | Hardcoded secrets, credentials in args or env, TLS checking turned off so tokens cross the network readable |
+| `MCP02` | Privilege Escalation via Scope Creep | Over-broad credential scope, admin or root keys |
+| `MCP03` | Tool Poisoning | Hidden instructions in tool descriptions |
+| `MCP04` | Software Supply Chain Attacks | Unpinned or look-alike packages, non-default package indexes |
+| `MCP05` | Command Injection and Execution | Shell metacharacters, inline scripts, privileged launchers |
+| `MCP06` | Intent Flow Subversion | Prompt injection that redirects what the agent is doing |
+| `MCP07` | Insufficient Authentication and Authorization | Remote servers with no auth |
+| `MCP08` | Lack of Audit and Telemetry | Logging or audit switched off |
+| `MCP09` | Shadow MCP Servers | Unnamed, unregistered or repo-planted servers |
+| `MCP10` | Context Injection and Over-sharing | Servers handed more context or data than they need |
 
 ---
 
@@ -194,6 +202,29 @@ Pattern: <one sentence describing what the rule detects>
 
 This is a hard requirement. Rules without a citation are not accepted.
 
+### Step 6b — Update the two files CI checks
+
+A new rule ID must also appear in:
+
+- `docs/owasp-mapping.json` — add an entry with the same shape as the
+  others (`finding_id`, `finding_title`, `owasp_codes`, `owasp_names`,
+  `notes`). `python scripts/validate_owasp_mapping.py` and
+  `tests/test_owasp_mapping.py` fail without it.
+- `docs/manual-test-matrix.md`, Section 15 — bump the rule count and the
+  `COMM-001`–`COMM-NNN` range (and the footer line).
+  `tests/test_manual_test_matrix.py` checks it.
+
+### Step 6c — Run the full test suite
+
+```bash
+uv sync --extra dev
+uv run pytest
+python scripts/validate_owasp_mapping.py
+```
+
+Run the whole suite, not a subset: the two checks above live in test
+files a rules-only run skips.
+
 ---
 
 ## Step 7 — Open a pull request
@@ -206,6 +237,7 @@ In the PR description, include:
 - The research source (same as your PROVENANCE.md entry)
 - The config you tested against (you can paste the relevant snippet)
 - Output of `mcp-audit rule validate` (should be "✓ Valid")
+- Confirmation that the full `uv run pytest` passed
 
 ---
 
