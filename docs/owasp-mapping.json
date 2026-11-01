@@ -487,7 +487,7 @@
         "Command Injection and Execution",
         "Context Injection and Over-sharing"
       ],
-      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-001)."
+      "notes": "STORY-0101: the sink is comms_out — a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-001)."
     },
     {
       "finding_id": "TOXIC-009",
@@ -500,7 +500,7 @@
         "Token Mismanagement and Secret Exposure",
         "Context Injection and Over-sharing"
       ],
-      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-003)."
+      "notes": "STORY-0101: the sink is comms_out — a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-003)."
     },
     {
       "finding_id": "TOXIC-010",
@@ -513,7 +513,7 @@
         "Command Injection and Execution",
         "Context Injection and Over-sharing"
       ],
-      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-005)."
+      "notes": "STORY-0101: the sink is comms_out — a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-005)."
     },
     {
       "finding_id": "TOXIC-011",
@@ -526,7 +526,7 @@
         "Command Injection and Execution",
         "Context Injection and Over-sharing"
       ],
-      "notes": "STORY-0101: the sink is comms_out \u2014 a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-006)."
+      "notes": "STORY-0101: the sink is comms_out — a server that posts to a shared service (issue or PR comment, git push, chat message, webhook). Same OWASP codes as its network_out twin (TOXIC-006)."
     },
     {
       "finding_id": "INTEG-001",
@@ -1162,6 +1162,17 @@
         "Intent Flow Subversion"
       ],
       "notes": "Detects credential SCOPE via env var key name heuristics (fully offline). Three condition tiers: (1) ADMIN/ROOT/MASTER/SUPERUSER segment in key name; (2) Kubernetes cluster credentials (KUBE_TOKEN, KUBECONFIG, K8S_TOKEN, KUBERNETES_SERVICE_ACCOUNT_TOKEN); (3) org-scoped GitHub tokens (GITHUB_TOKEN, GH_TOKEN, GITHUB_PAT, GH_PAT). A god key amplifies every other finding in the scan. CWE-250 (Execution with Unnecessary Privileges). Reference: CIS Controls v8.1; CoSAI RSAC 2026 Agentic IAM paper; Security Boulevard \"Addressing the God Key Challenge\" (March 2026)."
+    },
+    {
+      "finding_id": "COMM-035",
+      "finding_title": "TLS certificate checking disabled by environment variable",
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "Community rule. Env key names that turn off TLS certificate validation (NODE_TLS_REJECT_UNAUTHORIZED, PYTHONHTTPSVERIFY, GIT_SSL_NO_VERIFY); key names only, never values. Disabling validation exposes the tokens a server sends to anyone on the network path. MEDIUM severity, transport category."
     },
     {
       "finding_id": "COLLIDE-001",
@@ -1838,7 +1849,7 @@
       "owasp_names": [
         "Software Supply Chain Attacks"
       ],
-      "notes": "lock_version 2 only (STORY-0116). mcp-lock.json's bytes differ from the RFC 8785 encoding of its own content (ADR-0005 \u00a72): a tool or editor reformatted it. Content still matches its checksums. LOW, does not fail the exit code. Not an advisory."
+      "notes": "lock_version 2 only (STORY-0116). mcp-lock.json's bytes differ from the RFC 8785 encoding of its own content (ADR-0005 §2): a tool or editor reformatted it. Content still matches its checksums. LOW, does not fail the exit code. Not an advisory."
     },
     {
       "finding_id": "LOCK-013",

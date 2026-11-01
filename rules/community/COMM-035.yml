@@ -26,4 +26,4 @@ tags:
   - tls
 enabled: true
 owasp_mcp_top_10:
-  - MCP05
+  - MCP01
