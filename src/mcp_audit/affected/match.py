@@ -926,11 +926,18 @@ def research_rows(
                 reason=None if severe else POSTURE_ONLY,
             )
         )
-    if not record.checks:
+    service_only = all(p.status == "fixed-server-side" for p in record.products)
+    if not record.checks and service_only:
         notes.append(
             "No mcp-audit check tests this condition, so nothing was run. "
             "Exposure depended on the vendor's service, which no local "
             "configuration or installed version shows."
+        )
+    elif not record.checks:
+        notes.append(
+            "No mcp-audit check tests this condition, so nothing was run. "
+            "Whether a setup is affected depends on how the product behaves, "
+            "which a static scan of its configuration does not show."
         )
     elif check_findings is None:
         notes.append(
@@ -955,17 +962,26 @@ def research_rows(
                     "each is listed."
                 )
             continue
-        why = (
-            f"mcp-audit does not read which {p.product} version is installed"
-            if record.checks
-            else f"no installed version shows exposure to this ({p.vendor}'s service)"
-        )
+        vendor_service = p.status == "fixed-server-side"
+        if found and not p.fixed_in and not vendor_service:
+            # An install was read, but with no fixed version there is nothing
+            # to order it against, and the write-up gives no first affected
+            # version that mcp-audit could use instead (none is invented).
+            versions = ", ".join(sorted({i.version for i in found}))
+            why = (
+                f"{p.product} {versions} is installed, but the write-up gives "
+                "no fixed version to compare it with"
+            )
+        elif vendor_service:
+            why = f"no installed version shows exposure to this ({p.vendor}'s service)"
+        else:
+            why = f"mcp-audit does not read which {p.product} version is installed"
         rows.append(
             Row(
                 f"{p.product} ({p.vendor})",
                 Status.COULDNT_CHECK,
                 f"{why}; per the write-up: {state}",
-                reason=HARNESS_VERSION if record.checks else VENDOR_SERVICE,
+                reason=VENDOR_SERVICE if vendor_service else HARNESS_VERSION,
                 fixed_in=p.fixed_in,
             )
         )

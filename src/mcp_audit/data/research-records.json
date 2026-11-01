@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-10-29",
-  "entry_count": 2,
+  "last_updated": "2026-11-01",
+  "entry_count": 3,
   "entries": [
     {
       "id": "x_MCPRS-4ad8c07d80d7",
@@ -103,6 +103,41 @@
               "status": "fixed-server-side",
               "fixed_in": null,
               "note": "Fixed server-side on 2026-02-23 per Noma Security; not confirmed by Upstash. No client version is affected or fixed."
+            }
+          ],
+          "checks": []
+        }
+      }
+    },
+    {
+      "id": "x_MCPRS-c83726dd3047",
+      "modified": "2026-11-01T00:00:00Z",
+      "published": "2026-10-21T00:00:00Z",
+      "summary": "Claude Code (reported): in bypassPermissions mode a PreToolUse hook's \"ask\" is overridden when the same call writes into .git/ or .claude/",
+      "details": "As reported by sergvss in anthropics/claude-code issue 103994 (opened 2026-10-21; labels bug, has repro, area:security, area:hooks, area:permissions, platform:windows). This is a reported bug, not behaviour Claude Code's documentation describes: the vendor documentation says permission rules of type ask still prompt in these modes, and the reporter treats the case below as an exception. The reporter writes: \"In `bypassPermissions` mode, a `PreToolUse` hook that returns `permissionDecision: \\\"ask\\\"` is normally turned into a denial when there is no one to prompt (`claude -p`). That is the safe behavior, and it is what happens for most commands.\" The exception is a call that also writes into `.git/` or `.claude/`: \"It looks like Claude Code's own protected-path check for those directories is auto-approved by `bypassPermissions`, and that approval wins over the hook's `\\\"ask\\\"` for the whole call.\" In the reporter's reproduction a probe hook on Bash returns ask when the command contains a marker; a plain command that writes a marker file is denied, while the same marker command chained after a write to `.git/info/exclude` runs anyway; the same commands are blocked in `default` and `acceptEdits` modes, and the Write tool shows the same behaviour for `.claude/` paths. So a hook an organisation uses to turn selected commands into a human decision is bypassed whenever the call also touches `.git/` or `.claude/`, which is where a repository's hooks, settings and commit hooks live. Version: the reporter ran Claude Code 2.1.302 on Windows 11 (Git Bash) with `claude -p ... --permission-mode bypassPermissions`; no earlier version or other platform was reported on. The issue was open when read on 2026-11-01, and Claude Code's CHANGELOG through 2.1.316 (read the same day) has no entry that addresses it, so no fixed version is recorded. No CVE was assigned. Coverage in mcp-audit: no check tests this condition, so `checks` is empty. HARNESS-001 reports `permissions.defaultMode: bypassPermissions` in a settings file, which is a precondition and not the bug (the bug also needs a PreToolUse hook that returns ask, and a call that touches `.git/` or `.claude/`); it is not named in `checks` because a hit would not show that the condition holds, and it cannot see the `--permission-mode` flag the reporter used. `affected` therefore reports Claude Code as COULDN'T CHECK: with no fixed version there is nothing to order an installed version against.",
+      "aliases": [],
+      "credits": [
+        {
+          "name": "sergvss",
+          "type": "FINDER"
+        }
+      ],
+      "references": [
+        {
+          "type": "REPORT",
+          "url": "https://github.com/anthropics/claude-code/issues/103994"
+        }
+      ],
+      "database_specific": {
+        "mcp_audit": {
+          "kind": "research",
+          "products": [
+            {
+              "product": "Claude Code",
+              "vendor": "Anthropic",
+              "status": "unfixed",
+              "fixed_in": null,
+              "note": "Open as of 2026-11-01 and not addressed in Claude Code's CHANGELOG through 2.1.316; reported against 2.1.302 on Windows 11 (sergvss). A reported bug, not vendor-documented behaviour."
             }
           ],
           "checks": []

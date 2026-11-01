@@ -163,6 +163,53 @@ class TestContextCrush:
         assert "Upstash's own confirmation" in d
 
 
+BYPASS_ASK = "x_MCPRS-c83726dd3047"
+BYPASS_ASK_URL = "https://github.com/anthropics/claude-code/issues/103994"
+
+
+class TestBypassAskOverridden:
+    """STORY-0139: a reported client bug, unfixed, no CVE, no check."""
+
+    def _rec(self) -> object:
+        rec = load_research_records().lookup(BYPASS_ASK)
+        assert rec is not None
+        return rec
+
+    def test_id_is_the_hash_of_the_issue_and_product(self) -> None:
+        assert research_id(BYPASS_ASK_URL, ["Claude Code"]) == BYPASS_ASK
+
+    def test_credited_to_the_reporter_with_the_issue_as_source(self) -> None:
+        rec = self._rec()
+        assert [(c.name, c.type) for c in rec.credits] == [("sergvss", "FINDER")]  # type: ignore[attr-defined]
+        assert rec.source_url == BYPASS_ASK_URL  # type: ignore[attr-defined]
+        assert rec.aliases == ()  # type: ignore[attr-defined]
+
+    def test_one_product_unfixed_with_no_fix_version_and_no_checks(self) -> None:
+        rec = self._rec()
+        (p,) = rec.products  # type: ignore[attr-defined]
+        assert (p.product, p.vendor, p.status) == (
+            "Claude Code",
+            "Anthropic",
+            "unfixed",
+        )
+        assert p.fixed_in is None
+        assert "2.1.302" in p.note and "2.1.316" in p.note
+        assert rec.checks == ()  # type: ignore[attr-defined]
+
+    def test_text_says_reported_bug_quotes_the_reporter_and_names_no_cve(self) -> None:
+        d = self._rec().details  # type: ignore[attr-defined]
+        assert "This is a reported bug, not behaviour" in d
+        assert "ask still prompt" in d  # the documented behaviour is kept
+        assert "In `bypassPermissions` mode, a `PreToolUse` hook" in d
+        assert "protected-path check for those directories" in d
+        assert ".git/" in d and ".claude/" in d
+        assert "No CVE was assigned" in d
+        assert "HARNESS-001" in d and "precondition" in d
+
+    def test_summary_says_reported(self) -> None:
+        assert "(reported)" in self._rec().summary  # type: ignore[attr-defined]
+
+
 class TestId:
     def test_order_of_products_does_not_matter(self) -> None:
         assert research_id("https://x.test", ["B", "A"]) == research_id(

@@ -32,6 +32,7 @@ runner = CliRunner()
 FS = "@modelcontextprotocol/server-filesystem"
 PLUGIN4SHELL = "x_MCPRS-4ad8c07d80d7"
 CONTEXTCRUSH = "x_MCPRS-32fc646f6f96"
+BYPASS_ASK = "x_MCPRS-c83726dd3047"
 
 
 def _entry(**over: Any) -> RegistryEntry:
@@ -592,6 +593,36 @@ class TestCli:
         # The plugin-directory wording belongs to Plugin4Shell only.
         assert "plugin" not in out.lower()
         assert "AFFECTED" not in out.replace("0 affected", "")
+
+    def test_client_bug_record_is_couldnt_check_not_vendor_service(self) -> None:
+        result = _run(BYPASS_ASK, "-f", "json")
+        assert result.exit_code == 0
+        doc = json.loads(result.output)
+        (row,) = doc["results"]
+        assert row["status"] == "COULDN'T CHECK"
+        assert row["fixed_in"] is None
+        assert row["reason"] == "harness-version"
+        assert "Claude Code (Anthropic)" in row["subject"]
+        assert "service" not in row["evidence"]
+        out = " ".join(_run(BYPASS_ASK).output.split())
+        assert "No mcp-audit check tests this condition" in out
+        assert "vendor's service" not in out and "plugin" not in out.lower()
+
+    def test_client_bug_record_with_an_install_is_still_couldnt_check(self) -> None:
+        from mcp_audit import harness_versions as hv  # noqa: PLC0415
+
+        rec = load_research_records().lookup(BYPASS_ASK)
+        assert rec is not None
+        scan = hv.HarnessScan(
+            installs=[
+                hv.HarnessInstall("claude-code", "Claude Code", "2.1.302", "/a", "npm")
+            ]
+        )
+        rows = m.research_rows(rec, None, [], scan)
+        assert [r.status for r in rows] == [Status.COULDNT_CHECK]
+        assert "2.1.302 is installed" in rows[0].evidence
+        assert "no fixed version" in rows[0].evidence
+        assert rows[0].reason == "harness-version"
 
     def test_record_without_checks_json_has_one_couldnt_check_row(self) -> None:
         result = _run(CONTEXTCRUSH, "-f", "json")
