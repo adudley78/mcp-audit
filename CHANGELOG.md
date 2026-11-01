@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **REACH-001 now lists Codex CLI's login cache, `~/.codex/auth.json` (or `$CODEX_HOME/auth.json`).** OpenAI's authentication page says "Codex caches login details locally in a plaintext file at `~/.codex/auth.json` or in your OS-specific credential store", so a Claude Code session that can read your home directory without a prompt can read your Codex login unless a `Read` deny rule, `blockReadsOutsideWorkingDirectories` or a sandbox deny covers it. Stat only, never opened; a machine that keeps Codex credentials in the OS keyring has no such file and sees nothing. Thanks to Check Point Research, whose Aokigahara infostealer write-up lists `.codex\auth.json` as a stealer target.
+
 ---
 
 ## [0.26.0] - 2026-10-31

@@ -19,6 +19,7 @@ def _sandbox_platform(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exercise the sandbox rules on every CI OS; one test turns the platform off."""
     monkeypatch.setattr(sr, "_SANDBOX_SUPPORTED", True)
     monkeypatch.delenv("COPILOT_HOME", raising=False)
+    monkeypatch.delenv("CODEX_HOME", raising=False)  # conftest points it at a stub
 
 
 def _layout(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -980,6 +981,44 @@ def test_copilot_home_is_honoured(
     f = _reach1(_run(tmp_path, home, cwd, config))
     assert f.finding_path == str(other / "config.json")
     assert "~/.copilot/config.json" not in f.evidence
+
+
+def test_codex_auth_json_is_listed(tmp_path: Path) -> None:
+    home, cwd, config = _layout(tmp_path)
+    _write(home / ".codex" / "auth.json")
+    _settings(config / "settings.json", {})
+    evidence = _reach1(_run(tmp_path, home, cwd, config)).evidence
+    assert "~/.codex/auth.json (Codex CLI login cache" in evidence
+
+
+def test_codex_auth_json_absent_or_empty_not_listed(tmp_path: Path) -> None:
+    home, cwd, config = _layout(tmp_path)
+    _write(home / ".codex" / "auth.json", "")
+    _settings(config / "settings.json", {})
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_codex_auth_json_covered_by_read_deny(tmp_path: Path) -> None:
+    home, cwd, config = _layout(tmp_path)
+    _write(home / ".codex" / "auth.json")
+    _settings(
+        config / "settings.json", {"permissions": {"deny": ["Read(~/.codex/**)"]}}
+    )
+    assert "REACH-001" not in _ids(_run(tmp_path, home, cwd, config))
+
+
+def test_codex_home_is_honoured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home, cwd, config = _layout(tmp_path)
+    other = tmp_path / "elsewhere"
+    _write(other / "auth.json")
+    _write(home / ".codex" / "auth.json")
+    _settings(config / "settings.json", {})
+    monkeypatch.setenv("CODEX_HOME", str(other))
+    f = _reach1(_run(tmp_path, home, cwd, config))
+    assert f.finding_path == str((other / "auth.json").resolve())
+    assert "~/.codex/auth.json" not in f.evidence
 
 
 _NESTED_SB = {
