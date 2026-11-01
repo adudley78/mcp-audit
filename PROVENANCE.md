@@ -1633,6 +1633,30 @@ Read on 2026-10-29; fetched pages are data, quoted only where the record depends
   same versions, "No client fix at disclosure" for Copilot, no CVE assigned as of
   disclosure; dates the disclosure 2026-09-18 (AIR's post is dated 2026-09-17); names Air Security, not individual researchers. The individual names come
   from AIR's own post.
+- **Claude Code `bypassPermissions` / PreToolUse `ask` (STORY-0139).** sergvss,
+  GitHub issue https://github.com/anthropics/claude-code/issues/103994 (opened
+  2026-10-21; open when read 2026-11-01; labels bug, has repro, area:security,
+  area:hooks, area:permissions, platform:windows; environment Claude Code 2.1.302,
+  Windows 11, Git Bash, `claude -p ... --permission-mode bypassPermissions`).
+  Quoted: "In `bypassPermissions` mode, a `PreToolUse` hook that returns
+  `permissionDecision: "ask"` is normally turned into a denial when there is no
+  one to prompt (`claude -p`). That is the safe behavior, and it is what happens
+  for most commands." and "It looks like Claude Code's own protected-path check
+  for those directories is auto-approved by `bypassPermissions`, and that approval
+  wins over the hook's `"ask"` for the whole call." (the directories are `.git/`
+  and `.claude/`). The reproduction (probe hook on Bash; plain command denied,
+  the same marker chained after a `.git/info/exclude` write runs; blocked in
+  `default` and `acceptEdits`; Write tool the same for `.claude/`) is the
+  reporter's. Claude Code CHANGELOG (https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md,
+  read 2026-11-01): versions 2.1.302 through 2.1.316 contain no entry that
+  mentions the issue, `permissionDecision` or protected paths; the file does hold
+  an older entry, "Fixed `.git`, `.claude`, and other protected directories being
+  writable without a prompt in `bypassPermissions` mode", which is a different
+  report. **Not stated:** a CVE; any Anthropic statement; a version before 2.1.302
+  or another platform being affected or not. The record has `status: unfixed`,
+  `fixed_in: null`, and no `checks`: HARNESS-001 (`permissions.defaultMode` is
+  `bypassPermissions`, read from settings files) tests a precondition, not the
+  override, and cannot see a `--permission-mode` flag.
 - **ContextCrush.** Eli Ainhorn, Noma Security, published 2026-03-05
   (https://noma.security/blog/contextcrush-context7-the-mcp-server-vulnerability/),
   read 2026-10-29: Context7's Custom Rules ("AI Instructions") were "served verbatim
