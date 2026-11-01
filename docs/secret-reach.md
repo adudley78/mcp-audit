@@ -88,9 +88,12 @@ default credentials, `~/.git-credentials`, `~/.netrc` (and `_netrc` on
 Windows), `~/.pypirc`, Claude Code's `.credentials.json`; and, labelled "may
 hold", `~/.npmrc`, `~/.docker/config.json`, `~/.kube/config`,
 `~/.config/gh/hosts.yml`, Gemini CLI's `~/.gemini/.env` and GitHub Copilot
-CLI's `config.json` (`~/.copilot/config.json`, or `$COPILOT_HOME/config.json`).
-Other coding agents' login files are not listed unless the vendor's own
-documentation names them (see GAPS.md).
+CLI's `config.json` (`~/.copilot/config.json`, or `$COPILOT_HOME/config.json`)
+and Codex CLI's `auth.json` (`~/.codex/auth.json`, or `$CODEX_HOME/auth.json`;
+OpenAI: "Codex caches login details locally in a plaintext file at
+`~/.codex/auth.json` or in your OS-specific credential store", so the file may
+not exist on a machine that uses the keyring). Other coding agents' login files
+are not listed unless the vendor's own documentation names them (see GAPS.md).
 
 **Nested user namespaces (Linux).** A sandbox `denyRead` or
 `sandbox.credentials` `deny` entry is not counted as protection when

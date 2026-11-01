@@ -175,6 +175,10 @@ HOME_STORES: tuple[SecretStore, ...] = (
     SecretStore(
         ".copilot/config.json", "GitHub Copilot CLI state (may hold auth data)", False
     ),
+    # OpenAI Codex authentication doc: "Codex caches login details locally in a
+    # plaintext file at ~/.codex/auth.json or in your OS-specific credential
+    # store"; CODEX_HOME moves it.  The file may be absent (keyring store).
+    SecretStore(".codex/auth.json", "Codex CLI login cache (may hold tokens)", False),
 )
 
 #: ``.env`` file names at the cwd root; template suffixes never hold secrets.
@@ -800,7 +804,7 @@ def _store_applies(store: SecretStore) -> bool:
 
 
 def _home_store_rel(store: SecretStore, home: Path, config_dir: Path) -> Path:
-    """The store's path; Claude Code, Copilot CLI honour their own home variables."""
+    """The store's path; Claude Code, Copilot CLI, Codex honour their home variables."""
     if store.rel == ".claude/.credentials.json":
         return config_dir / ".credentials.json"
     if store.rel == ".copilot/config.json":
@@ -808,6 +812,15 @@ def _home_store_rel(store: SecretStore, home: Path, config_dir: Path) -> Path:
         override = os.environ.get("COPILOT_HOME", "").strip()
         if override:
             return Path(override).expanduser() / "config.json"
+    if store.rel == ".codex/auth.json":
+        # Same rule as discovery.codex_user_config_path(): CODEX_HOME when set
+        # and non-empty, resolved like any user path.
+        override = os.environ.get("CODEX_HOME", "").strip()
+        if override:
+            try:
+                return Path(override).expanduser().resolve() / "auth.json"
+            except (OSError, RuntimeError):
+                return Path(override).expanduser() / "auth.json"
     return home / store.rel
 
 
