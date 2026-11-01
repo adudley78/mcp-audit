@@ -1,0 +1,17 @@
+{
+  "story": "STORY-0138",
+  "check": "HOOK-003",
+  "measured": "2026-11-01",
+  "corpus": "public GitHub repositories' .claude/settings.json and .claude/settings.local.json files, taken from GitHub code search (query: \"hooks\" \"command\" path:.claude filename:settings.json), first 500 results, 355 unique, fetched at the indexed commit from raw.githubusercontent.com; search-ranked, not star-ranked, and not committed to this repository",
+  "files_parsed": 293,
+  "files_with_command_hooks": 285,
+  "hook_commands": 891,
+  "files_firing": 184,
+  "commands_matched": 569,
+  "matcher_misfires_found_and_fixed": [
+    "case-pattern word `*rg\\ *)` taken as a command (glob characters now rejected)",
+    "`2>/dev/null` after a subshell taken as a command (redirections now rejected)"
+  ],
+  "reading": "Every remaining match that was read is a script the repository ships (a formatter, guard, notifier or session helper, commonly under .claude/hooks/ or $CLAUDE_PROJECT_DIR); none of the 285 files is known to be malicious. HOOK-003 cannot tell a team's own hook script from a planted loader, so this is the share of ordinary hook-using repositories it reports, not a measured false-positive rate against attacks.",
+  "reproduce": "Fetch the files, place each at <dir>/.claude/settings.json and run ConfigHygieneAnalyzer().analyze_config on it; count HOOK-003."
+}

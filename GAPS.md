@@ -1231,6 +1231,30 @@ Known limitations per finding:
 - **HOOK-001** pattern may fire on local test scripts that contain `nc` (netcat)
   as a tool invocation if the argument structure matches. Edge case; no known FP
   in the current benchmark.
+- **HOOK-003 (STORY-0138) cannot tell a team's own hook script from a planted
+  loader.** It fires when a project or local settings hook runs a file inside
+  the project (relative path or `$CLAUDE_PROJECT_DIR`, directly or as an
+  interpreter's script), which is also exactly how Claude Code's documentation
+  shows a project's style checker (`${CLAUDE_PROJECT_DIR}/.claude/hooks/check-style.sh`).
+  Measured 2026-11-01 on 293 `.claude/settings*.json` files from public GitHub
+  repositories (search-ranked sample, not committed; `docs/research/hook003/results.json`):
+  184 of the 285 files that define command hooks fire (569 of 891 hook
+  commands), and every match read was a repository's own formatter, guard,
+  notifier or session helper, none known malicious. Two matcher misfires seen
+  in that sample (a `case` pattern and a `2>/dev/null` redirection read as
+  commands) were fixed and are pinned by tests. The severity is the brief's
+  (HIGH, like TRUST-003); the figure above is why `--severity-threshold` and a
+  reviewed-hooks workflow matter, and a tiering by location (a script under
+  `.claude/hooks/` versus elsewhere) was not tried. Not covered: the script a
+  hook reaches indirectly (`npm run x`, `make`, a `package.json` script, a
+  binary on `PATH`); `../` paths; a path built at run time; hooks in subagent,
+  skill or plugin frontmatter (AGENT-003 and PLUGIN checks apply); a
+  `$CLAUDE_PROJECT_DIR` used only as an argument (`prettier --write
+  $CLAUDE_PROJECT_DIR/src`) is correctly not a hit, and neither is `npx
+  prettier`, which runs a registry package. The scan never reads the script, so
+  it cannot say what it does; HOOK-001 on the hook command is unchanged. A
+  user-scope file (`~/.claude/settings.json`, `$CLAUDE_CONFIG_DIR`) is the
+  user's own and never fires.
 - **MEM-002** (zero-width Unicode, POISON-040) fires even on CLAUDE.md files
   that have copy-pasted content from a source that embedded invisible Unicode.
   Inspect with `cat -A` or a Unicode hex dump to confirm.
@@ -1379,8 +1403,8 @@ discovery or analysis code for unconfirmed paths — add them to
   ships** (the testmetest and JFrog campaigns' `CLAUDE.md` / `AGENTS.md`, which
   launch `.github/init.js`) is not a MEM-006 shape and has no check of its own.
   The same repositories' VS Code `folderOpen` task is TRUST-003 HIGH; their
-  Claude Code `SessionStart` hook running a repository file is only CFHYG-005
-  MEDIUM ("hooks section detected").
+  Claude Code `SessionStart` hook running a repository file was only CFHYG-005
+  MEDIUM ("hooks section detected") until HOOK-003 (STORY-0138, below).
 - **POISON-043/044 decode, they do not guess.** A zero-width run must be 16+
   characters; its two most frequent symbols are the bits (read high bit
   first) and a third symbol is dropped as a separator only when it is at most

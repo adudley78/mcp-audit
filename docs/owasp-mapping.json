@@ -1363,6 +1363,19 @@
       "notes": "Fires when a Claude Code hook command references an MCP/agent config file path (CVE-2026-30615 persistence channel). Severity HIGH. CWE-78. Analyzer: config_hygiene (extends CFHYG-005)."
     },
     {
+      "finding_id": "HOOK-003",
+      "finding_title": "Project hook runs a script shipped in the repository",
+      "owasp_codes": [
+        "MCP05",
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution",
+        "Shadow MCP Servers"
+      ],
+      "notes": "STORY-0138. Fires for a hook command in a project-scoped Claude Code settings file (`.claude/settings.json`, `.claude/settings.local.json`; never `~/.claude/settings.json`, `$CLAUDE_CONFIG_DIR` or `~/.claude.json`) that runs a file inside the project: a relative path (`./x`, `.github/x`, `scripts/x.sh`) or one rooted at `$CLAUDE_PROJECT_DIR`, run directly or as the script of an interpreter (node, bun, deno, python, bash, pwsh, ruby, perl, npx tsx, uv run, ...), as a `node -r` preload, or inside `sh -c`. HIGH: the hook runs when its event fires (SessionStart: before the first prompt) and the script is committed with the settings file, the loader shape of the testmetest / Miasma-family worms. Mapped by analogy to TRUST-003 (repo-planted auto-execution: MCP05 command execution, MCP09 untrusted project origin), not to HOOK-001/002 (MCP07, authentication, does not describe a repository-supplied command). CWE-829. Analyzer: config_hygiene."
+    },
+    {
       "finding_id": "HARNESS-001",
       "finding_title": "Claude Code sessions start with permission prompts skipped",
       "owasp_codes": [

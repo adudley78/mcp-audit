@@ -61,7 +61,9 @@ from mcp_audit.agent_files.subagents import (
 from mcp_audit.analyzers import permissions as _permissions
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS, CredentialsAnalyzer
+from mcp_audit.analyzers.hook_scripts import find_project_script
 from mcp_audit.analyzers.poisoning import normalize_for_detection
+from mcp_audit.analyzers.supply_chain import redact_command_text
 from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.discovery import (
     SIBLING_HARNESS_AUTOEXEC_KINDS as _SIBLING_HARNESS_CHECKS,
@@ -1136,19 +1138,16 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         return _permissions.is_claude_code_settings_file(config_path)
 
     @staticmethod
-    def _extract_hook_commands(hooks: dict) -> list[str]:
-        """Flatten a Claude Code ``hooks`` dict into a list of command strings.
+    def _extract_hook_entries(hooks: dict) -> list[tuple[str, str]]:
+        """Flatten a Claude Code ``hooks`` dict into ``(event, command)`` pairs.
 
         The hooks dict looks like:
         ``{"PreToolUse": [{"hooks": [{"type": "command", "command": "..."}]}]}``
-
-        Returns:
-            All ``"command"`` values found at any nesting depth.
         """
-        commands: list[str] = []
+        entries: list[tuple[str, str]] = []
         if not isinstance(hooks, dict):
-            return commands
-        for _event, hook_groups in hooks.items():
+            return entries
+        for event, hook_groups in hooks.items():
             if not isinstance(hook_groups, list):
                 continue
             for group in hook_groups:
@@ -1158,27 +1157,97 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     if isinstance(hook, dict) and hook.get("type") == "command":
                         cmd = hook.get("command")
                         if isinstance(cmd, str) and cmd.strip():
-                            commands.append(cmd)
-        return commands
+                            entries.append((str(event), cmd))
+        return entries
+
+    @staticmethod
+    def _extract_hook_commands(hooks: dict) -> list[str]:
+        """Flatten a Claude Code ``hooks`` dict into a list of command strings.
+
+        Returns:
+            All ``"command"`` values found at any nesting depth.
+        """
+        return [
+            cmd for _event, cmd in ConfigHygieneAnalyzer._extract_hook_entries(hooks)
+        ]
+
+    def _hook_003(self, hooks: dict, config_path: Path, client: str) -> list[Finding]:
+        """HOOK-003: a project hook runs a file the repository ships (STORY-0138).
+
+        Called only for project and local settings (the caller checks the
+        scope); one finding per file, naming the first hook and the count.
+        """
+        hits: list[tuple[str, str, str]] = []
+        for event, cmd in self._extract_hook_entries(hooks):
+            path = find_project_script(normalize_for_detection(cmd))
+            if path is not None:
+                hits.append((event, cmd, path))
+        if not hits:
+            return []
+        event, cmd, path = hits[0]
+        more = f" (+{len(hits) - 1} more hook command(s))" if len(hits) > 1 else ""
+        return [
+            Finding(
+                id="HOOK-003",
+                severity=Severity.HIGH,
+                analyzer=self.name,
+                client=client,
+                server="(hook)",
+                title="Project hook runs a script shipped in the repository",
+                description=(
+                    f"A {event} hook in '{config_path.name}' runs a file inside"
+                    " the project. Claude Code runs a settings hook's command on"
+                    " your machine when the event fires (SessionStart runs when"
+                    " the session opens, before you have typed anything), and the"
+                    " script it points at is part of the same repository, so"
+                    " whoever can commit to the repository chooses what runs."
+                    " This is the loader shape of the testmetest / Miasma-family"
+                    " worms: a committed `.claude/settings.json` hook that runs a"
+                    " committed script (`.github/init.js`), re-infecting every"
+                    " machine that opens the repository. A project's own"
+                    " formatter or lint hook has the same shape; read the script"
+                    " before trusting the folder."
+                ),
+                evidence=(
+                    f"{event}: "
+                    + redact_command_text(cmd)[:160]
+                    + f" | runs project file: {redact_command_text(path)[:120]}"
+                    + more
+                ),
+                remediation=(
+                    "Read the script the hook runs and everything it calls before"
+                    " you trust this folder, and check git history for who added"
+                    " it. Remove the hook if you did not expect it. mcp-audit does"
+                    " not modify this file."
+                ),
+                cwe="CWE-829",
+                owasp_mcp_top_10=["MCP05", "MCP09"],
+            )
+        ]
 
     def _check_hook_commands(
         self,
         hooks: dict,
         config_path: Path,
         client: str,
+        scope: str | None = None,
     ) -> list[Finding]:
-        """HOOK-001 and HOOK-002: inspect hook command strings for risky patterns.
+        """HOOK-001..003: inspect hook command strings for risky patterns.
 
         Args:
             hooks: The ``hooks`` dict from the parsed config file.
             config_path: Filesystem path to the config file (for evidence context).
             client: Client name from the discovered config.
+            scope: The settings layer (:func:`permissions.settings_scope`);
+                HOOK-003 runs only for ``"project"`` and ``"local"``.
 
         Returns:
-            List of HOOK-001/002 findings.
+            List of HOOK-001/002/003 findings.
         """
         commands = self._extract_hook_commands(hooks)
         findings: list[Finding] = []
+        if scope in ("project", "local"):
+            findings.extend(self._hook_003(hooks, config_path, client))
         seen_ids: set[str] = set()
 
         for cmd in commands:
@@ -1274,6 +1343,8 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         - **HOOK-001**: hook command contains network-egress primitives.
         - **HOOK-002**: hook command references an agent config file path
           (CVE-2026-30615 persistence channel).
+        - **HOOK-003**: a hook in project or local settings runs a file the
+          repository ships (:mod:`mcp_audit.analyzers.hook_scripts`, STORY-0138).
         - **HARNESS-001..007**: settings that switch Claude Code's human approval
           off (bypassPermissions default mode, auto-approved project MCP servers,
           skipped bypass confirmation, blanket shell allow rules), and the
@@ -1354,8 +1425,12 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             )
         )
 
-        # HOOK-001/002: inspect individual hook commands for risky patterns
-        findings.extend(self._check_hook_commands(hooks, config_path, client))
+        # HOOK-001/002/003: inspect individual hook commands for risky patterns
+        findings.extend(
+            self._check_hook_commands(
+                hooks, config_path, client, _permissions.settings_scope(config_path)
+            )
+        )
         return findings
 
     def analyze_agent_definition(

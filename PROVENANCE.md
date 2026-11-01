@@ -1773,6 +1773,37 @@ credits Phorion, The Hacker News credits OpenSourceMalware and Paul McCarty), so
 entry credits no finder.
 
 
+## Project hook runs a repository file (HOOK-003, analyzers/hook_scripts.py, STORY-0138)
+
+Original implementation; no code copied. The shell reading (simple-command
+split, wrappers, interpreter script slot) is written for this project and is
+linear-time. Sources, read 2026-11-01:
+
+- **JFrog Security Research, "Beyond testmetest: Native Addon Camouflage and 42
+  Armed GitHub Repositories Reveal a Hidden npm Publisher"**, Guy Korolevski and
+  Yair Benamou, 2026-10-26
+  (https://research.jfrog.com/post/beyond-testmetest-42-hijacked-github-repos/):
+  armed repositories carry agent config files that launch a committed loader.
+- **SafeDep, "testmetest npm Packages Carry a Miasma-Family Worm Malware"**,
+  Kunal Singh, 2026-10-22
+  (https://safedep.io/testmetest-npm-worm-miasma-variant/): the worm commits
+  `.claude/settings.json` (with a hook), `.cursor/mcp.json`, `CLAUDE.md`,
+  `AGENTS.md` and `.vscode/tasks.json` with a `.github/init.js` loader; "The
+  agent files infect the host again."
+- **Claude Code hooks reference** (https://code.claude.com/docs/en/hooks):
+  "`${CLAUDE_PROJECT_DIR}`: the project root where the session started", with the
+  example `"command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/check-style.sh"`;
+  hook locations `~/.claude/settings.json` ("All your projects", "No, local to
+  your machine"), `.claude/settings.json` ("Single project", "Yes, can be
+  committed to the repo"), `.claude/settings.local.json` ("Single project",
+  "No, gitignored when Claude Code saves a setting to it"); structure: event,
+  matcher group, `hooks` array of handlers with `"type": "command"`;
+  "SessionStart runs on every session". Scope uses `permissions.settings_scope`,
+  as HARNESS-001 and PERM-* do. The page's workspace-trust section was not
+  read in full; HOOK-003's text does not rely on it.
+
+Measurement: `docs/research/hook003/results.json`; limits in GAPS.md.
+
 ## Instruction files that send secrets out (MEM-006, agent_files/exfil.py)
 
 Original implementation; regexes written for this project, and the phrase sets

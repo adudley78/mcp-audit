@@ -388,6 +388,29 @@ This matches the CVE-2026-30615 persistence pattern: a hook that modifies
 another agent config file can inject new servers or hooks that survive
 user-initiated configuration resets.
 
+### HOOK-003 (HIGH): project hook runs a script the repository ships
+
+Fires when a hook command in a **project-scoped** Claude Code settings file
+(`.claude/settings.json` or `.claude/settings.local.json` in a repository) runs
+a file inside the project: a relative path (`./x.sh`, `.github/init.js`,
+`scripts/x.sh`) or one rooted at `$CLAUDE_PROJECT_DIR` / `${CLAUDE_PROJECT_DIR}`,
+either directly or as the script of an interpreter (`node`, `bun`, `deno`,
+`python`, `bash`, `pwsh`, `ruby`, `perl`, `npx tsx`, `uv run`, ...), as a
+`node -r` preload, or inside `sh -c "..."`. It does not fire for your own
+`~/.claude/settings.json`, absolute system binaries (`/usr/bin/say`), package
+runners that fetch a registry package (`npx prettier`), inline code
+(`node -e`, `python -c`), or `../` paths.
+
+A hook runs on your machine when its event fires, and `SessionStart` fires when
+the session opens. The script is committed beside the settings file, so whoever
+can commit chooses what runs; the testmetest and Miasma-family npm worms (JFrog
+Security Research, SafeDep, October 2026) commit a `.claude/settings.json` hook
+that runs a committed `.github/init.js` loader. A team's own formatter or guard
+hook has the same shape and also fires: read the script before trusting the
+folder. One finding per file; it names the first hook and counts the rest.
+`package.json` scripts (`npm run x`), `make` targets and binaries on `PATH` are
+not followed (GAPS.md).
+
 ### HARNESS-001..006: settings that switch human approval off, and what replaced it
 
 Claude Code settings files (`~/.claude/settings.json`, a project's
