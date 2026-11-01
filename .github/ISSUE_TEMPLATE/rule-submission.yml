@@ -1,0 +1,113 @@
+---
+name: Rule submission — propose a detection rule
+description: Describe an attack pattern you have seen in an MCP server config. You don't need to write the YAML; a pattern, a source and two example configs are enough.
+title: "Rule submission: [short description of the pattern]"
+labels: ["rule-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sending a rule! Every rule ships with every mcp-audit install and runs on every scan, so one good pattern protects everyone who uses it.
+
+        **You can stop at the description.** If you only fill in the pattern, the source and the two example configs, the maintainer can write the rule. If you want to write it yourself, copy [`rules/community/TEMPLATE.yml`](https://github.com/adudley78/mcp-audit/blob/main/rules/community/TEMPLATE.yml) and follow [docs/contributing-rules.md](https://github.com/adudley78/mcp-audit/blob/main/docs/contributing-rules.md) (about 30 minutes).
+
+        Accepted contributors are named in [docs/contributors.md](https://github.com/adudley78/mcp-audit/blob/main/docs/contributors.md); see [BOUNTY.md](https://github.com/adudley78/mcp-audit/blob/main/rules/community/BOUNTY.md) for the first 50.
+
+        **Before you start:** run `mcp-audit rule list` to check that an existing rule doesn't already cover it.
+
+  - type: textarea
+    id: pattern
+    attributes:
+      label: What should the rule catch?
+      description: "One or two sentences, in plain words. Example: \"An MCP server launched with `docker run --privileged`, which gives the container control of the host.\""
+    validations:
+      required: true
+
+  - type: input
+    id: source
+    attributes:
+      label: Source
+      description: A link to the research, advisory, incident write-up or vendor documentation that shows why this is a risk. Rules without a source are not accepted (see PROVENANCE.md).
+      placeholder: "https://..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: field
+    attributes:
+      label: Which part of the config does it look at?
+      description: Rules match one or more of these fields of a server entry. Pick the main one; use the notes for the rest.
+      options:
+        - command
+        - args
+        - env
+        - server_name
+        - url
+        - transport
+        - capabilities
+        - config_path
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: should_fire
+    attributes:
+      label: A config that should fire
+      description: A minimal server entry (JSON) the rule should flag. Use fake values; never paste a real secret.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: should_not_fire
+    attributes:
+      label: A similar config that should NOT fire
+      description: The closest legitimate setup that the rule must leave alone. This is how we keep false positives down.
+      render: json
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Suggested severity
+      description: "CRITICAL = definite compromise if present. HIGH = strong attack indicator or serious misconfiguration. MEDIUM = suspicious, worth a look. LOW = hygiene. INFO = informational, never blocks CI. The maintainer may adjust it."
+      options:
+        - CRITICAL
+        - HIGH
+        - MEDIUM
+        - LOW
+        - INFO
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: rule_yaml
+    attributes:
+      label: Rule YAML (optional)
+      description: If you wrote the rule, paste it here, or open a pull request and link it. `mcp-audit rule validate <file>` should pass.
+      render: yaml
+    validations:
+      required: false
+
+  - type: input
+    id: author
+    attributes:
+      label: Credit
+      description: The name or GitHub handle to credit in the rule's `author` field and in docs/contributors.md. Leave blank to use your GitHub handle.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      options:
+        - label: "The example configs contain no real credentials or private hostnames."
+          required: true
+        - label: "I checked `mcp-audit rule list` and no existing rule covers this."
+          required: true
+        - label: "I agree my contribution is licensed under Apache 2.0, like the rest of mcp-audit."
+          required: true
