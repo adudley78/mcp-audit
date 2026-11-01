@@ -1242,9 +1242,13 @@ Known limitations per finding:
   commands), and every match read was a repository's own formatter, guard,
   notifier or session helper, none known malicious. Two matcher misfires seen
   in that sample (a `case` pattern and a `2>/dev/null` redirection read as
-  commands) were fixed and are pinned by tests. The severity is the brief's
-  (HIGH, like TRUST-003); the figure above is why `--severity-threshold` and a
-  reviewed-hooks workflow matter, and a tiering by location (a script under
+  commands) were fixed and are pinned by tests. HOOK-003 is therefore
+  LOW, not HIGH like TRUST-003: precision against planted loaders in this
+  sample is about zero (65% of hook-using files fire, none known malicious),
+  and the repo's rule (ANNOT-001) allows MEDIUM only at 50% measured precision
+  on 10+ hits. The finding is kept because it names the exact script that runs
+  on session start, which CFHYG-005 does not; its text says to review the
+  script and does not call it malicious. A tiering by location (a script under
   `.claude/hooks/` versus elsewhere) was not tried. Not covered: the script a
   hook reaches indirectly (`npm run x`, `make`, a `package.json` script, a
   binary on `PATH`); `../` paths; a path built at run time; hooks in subagent,

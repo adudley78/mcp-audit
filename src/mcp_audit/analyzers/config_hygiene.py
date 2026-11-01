@@ -1189,7 +1189,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
         return [
             Finding(
                 id="HOOK-003",
-                severity=Severity.HIGH,
+                severity=Severity.LOW,
                 analyzer=self.name,
                 client=client,
                 server="(hook)",
@@ -1198,15 +1198,14 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     f"A {event} hook in '{config_path.name}' runs a file inside"
                     " the project. Claude Code runs a settings hook's command on"
                     " your machine when the event fires (SessionStart runs when"
-                    " the session opens, before you have typed anything), and the"
-                    " script it points at is part of the same repository, so"
-                    " whoever can commit to the repository chooses what runs."
-                    " This is the loader shape of the testmetest / Miasma-family"
-                    " worms: a committed `.claude/settings.json` hook that runs a"
-                    " committed script (`.github/init.js`), re-infecting every"
-                    " machine that opens the repository. A project's own"
-                    " formatter or lint hook has the same shape; read the script"
-                    " before trusting the folder."
+                    " the session opens), and the script it points at is part of"
+                    " the same repository, so whoever can commit to the"
+                    " repository chooses what runs. Most project hooks are a"
+                    " team's own formatter or guard script, and this finding does"
+                    " not say this one is harmful; it names the script so you can"
+                    " review it before trusting the repo. The testmetest /"
+                    " Miasma-family worms use the same shape for a committed"
+                    " loader (`.github/init.js`)."
                 ),
                 evidence=(
                     f"{event}: "
@@ -1215,9 +1214,9 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     + more
                 ),
                 remediation=(
-                    "Read the script the hook runs and everything it calls before"
-                    " you trust this folder, and check git history for who added"
-                    " it. Remove the hook if you did not expect it. mcp-audit does"
+                    "Review this script, and anything it calls, before trusting"
+                    " the repo, and check git history for who added the hook."
+                    " Remove the hook if you did not expect it. mcp-audit does"
                     " not modify this file."
                 ),
                 cwe="CWE-829",

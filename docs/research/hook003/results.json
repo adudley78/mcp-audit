@@ -13,5 +13,7 @@
     "`2>/dev/null` after a subshell taken as a command (redirections now rejected)"
   ],
   "reading": "Every remaining match that was read is a script the repository ships (a formatter, guard, notifier or session helper, commonly under .claude/hooks/ or $CLAUDE_PROJECT_DIR); none of the 285 files is known to be malicious. HOOK-003 cannot tell a team's own hook script from a planted loader, so this is the share of ordinary hook-using repositories it reports, not a measured false-positive rate against attacks.",
-  "reproduce": "Fetch the files, place each at <dir>/.claude/settings.json and run ConfigHygieneAnalyzer().analyze_config on it; count HOOK-003."
+  "reproduce": "Fetch the files, place each at <dir>/.claude/settings.json and run ConfigHygieneAnalyzer().analyze_config on it; count HOOK-003.",
+  "shipped_severity": "LOW",
+  "severity_reason": "65% of hook-bearing files fire and none is known malicious; precision against planted loaders in this sample is about zero."
 }

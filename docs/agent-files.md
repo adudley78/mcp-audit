@@ -388,7 +388,7 @@ This matches the CVE-2026-30615 persistence pattern: a hook that modifies
 another agent config file can inject new servers or hooks that survive
 user-initiated configuration resets.
 
-### HOOK-003 (HIGH): project hook runs a script the repository ships
+### HOOK-003 (LOW): project hook runs a script the repository ships
 
 Fires when a hook command in a **project-scoped** Claude Code settings file
 (`.claude/settings.json` or `.claude/settings.local.json` in a repository) runs
@@ -406,8 +406,9 @@ the session opens. The script is committed beside the settings file, so whoever
 can commit chooses what runs; the testmetest and Miasma-family npm worms (JFrog
 Security Research, SafeDep, October 2026) commit a `.claude/settings.json` hook
 that runs a committed `.github/init.js` loader. A team's own formatter or guard
-hook has the same shape and also fires: read the script before trusting the
-folder. One finding per file; it names the first hook and counts the rest.
+hook has the same shape and also fires: 65% of real hook files do (GAPS.md), so
+the finding is LOW, names the script, and asks you to review it before trusting
+the repo; it does not say the script is harmful. One finding per file; it names the first hook and counts the rest.
 `package.json` scripts (`npm run x`), `make` targets and binaries on `PATH` are
 not followed (GAPS.md).
 

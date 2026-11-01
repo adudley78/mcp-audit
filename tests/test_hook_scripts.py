@@ -174,13 +174,17 @@ def _home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return home
 
 
-def test_project_settings_hook_is_high(tmp_path: Path) -> None:
+def test_project_settings_hook_is_low(tmp_path: Path) -> None:
     findings = _run(
         tmp_path / "repo" / ".claude" / "settings.json",
         _settings("node .github/init.js"),
     )
     f = next(f for f in findings if f.id == "HOOK-003")
-    assert f.severity == Severity.HIGH
+    assert f.severity == Severity.LOW
+    assert "review" in f.description.lower()
+    assert "malicious" not in f.description.lower().replace(
+        "not say this one is harmful", ""
+    )
     assert f.cwe == "CWE-829"
     assert f.owasp_mcp_top_10 == ["MCP05", "MCP09"]
     assert "SessionStart" in f.evidence
@@ -189,7 +193,7 @@ def test_project_settings_hook_is_high(tmp_path: Path) -> None:
     assert "CFHYG-005" in _ids(findings)
 
 
-def test_local_settings_hook_is_high(tmp_path: Path) -> None:
+def test_local_settings_hook_is_low(tmp_path: Path) -> None:
     findings = _run(
         tmp_path / "repo" / ".claude" / "settings.local.json",
         _settings('python "$CLAUDE_PROJECT_DIR/.claude/hooks/a.py"', "PreToolUse"),
