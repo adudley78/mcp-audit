@@ -1,0 +1,2720 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-10-29",
+  "entry_count": 56,
+  "entries": [
+    {
+      "name": "@modelcontextprotocol/server-filesystem",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "filesystem",
+        "local"
+      ],
+      "known_hashes": {
+        "2026.1.14": "sha256:e5635c070c21c4f5017260d2fb74df423d3339c2fa2eede862e5731aebf69eac"
+      },
+      "capabilities": [
+        "file_read",
+        "file_write"
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 42800,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-53109",
+        "CVE-2025-53110"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-53109",
+          "cvss": null,
+          "description": "@modelcontextprotocol/server-filesystem allows for path validation bypass via prefix matching and symlink handling",
+          "fixed_in": "2025.7.1"
+        },
+        {
+          "cve": "CVE-2025-53110",
+          "cvss": null,
+          "description": "@modelcontextprotocol/server-filesystem vulnerability allows for path validation bypass via colliding path prefix",
+          "fixed_in": "2025.7.1"
+        }
+      ],
+      "semver_resumed_at": "1.0.0"
+    },
+    {
+      "name": "@modelcontextprotocol/server-github",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "github",
+        "remote"
+      ],
+      "known_hashes": {
+        "2025.4.8": "sha256:1d5b1bca9305adf0c8055131f2286514c9bea6eb31100460899a1ed9ffece5c1"
+      },
+      "capabilities": [
+        "git",
+        "network_out",
+        "comms_out"
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 38100,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-gitlab",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "gitlab",
+        "remote"
+      ],
+      "capabilities": [
+        "git",
+        "comms_out"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-google-maps",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "google",
+        "remote"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-slack",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "slack",
+        "remote"
+      ],
+      "capabilities": [
+        "network_out",
+        "comms_out"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-postgres",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "database",
+        "local"
+      ],
+      "known_hashes": {
+        "0.6.2": "sha256:af55200a01b13ae31949fb4a8864ee6043b891d00ff83330d1779b18aa5ba26f"
+      },
+      "capabilities": [
+        "database"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-puppeteer",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "browser",
+        "local"
+      ],
+      "capabilities": [
+        "browser",
+        "network_out"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-brave-search",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "search",
+        "remote"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 11200,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-everart",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "image",
+        "remote"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-memory",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "memory",
+        "local"
+      ],
+      "capabilities": [],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 19400,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
+    },
+    {
+      "name": "@modelcontextprotocol/server-aws-kb-retrieval",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "aws",
+        "remote"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-everything",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "demo"
+      ],
+      "capabilities": [
+        "file_read",
+        "file_write",
+        "network_out",
+        "shell_exec"
+      ],
+      "attestation_expected": true
+    },
+    {
+      "name": "@modelcontextprotocol/server-sequential-thinking",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "reasoning",
+        "local"
+      ],
+      "capabilities": [],
+      "attestation_expected": true
+    },
+    {
+      "name": "@modelcontextprotocol/server-gdrive",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "google",
+        "remote"
+      ],
+      "capabilities": [
+        "file_read",
+        "network_out"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/server-redis",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "database",
+        "local"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@modelcontextprotocol/sdk",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/typescript-sdk",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "sdk"
+      ],
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-66414",
+        "CVE-2026-0621",
+        "CVE-2026-104850",
+        "CVE-2026-25536",
+        "CVE-2026-111767",
+        "CVE-2026-111768",
+        "CVE-2026-111769",
+        "CVE-2026-111771",
+        "GHSA-f897-62hf-6gxq"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-66414",
+          "cvss": null,
+          "description": "Model Context Protocol (MCP) TypeScript SDK does not enable DNS rebinding protection by default",
+          "fixed_in": "1.24.0"
+        },
+        {
+          "cve": "CVE-2026-0621",
+          "cvss": null,
+          "description": "Anthropic's MCP TypeScript SDK has a ReDoS vulnerability",
+          "fixed_in": "1.25.2"
+        },
+        {
+          "cve": "CVE-2026-104850",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server",
+          "fixed_in": "1.31.0"
+        },
+        {
+          "cve": "CVE-2026-25536",
+          "cvss": null,
+          "description": "@modelcontextprotocol/sdk has cross-client data leak via shared server/transport instance reuse",
+          "fixed_in": "1.26.0"
+        },
+        {
+          "cve": "CVE-2026-111767",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: Experimental tasks were not tied to the session that created them",
+          "fixed_in": "1.32.0"
+        },
+        {
+          "cve": "CVE-2026-111768",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: One HTTP request within the default size limit could exhaust server memory during validation",
+          "fixed_in": "1.32.0"
+        },
+        {
+          "cve": "CVE-2026-111769",
+          "cvss": null,
+          "description": "MCP TypeScript client SDK: HTTP client transports and OAuth requests followed cross-origin redirects and re-sent custom headers and request bodies",
+          "fixed_in": "1.32.0"
+        },
+        {
+          "cve": "CVE-2026-111771",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: Server bearer authentication accepted tokens issued for another service",
+          "fixed_in": "1.32.0"
+        },
+        {
+          "cve": "GHSA-f897-62hf-6gxq",
+          "cvss": null,
+          "description": "MCP TypeScript SDK: HTTP server transports and handlers did not limit request body size or JSON-RPC batch length",
+          "fixed_in": "1.30.1"
+        }
+      ]
+    },
+    {
+      "name": "@modelcontextprotocol/inspector",
+      "source": "npm",
+      "repo": "https://github.com/modelcontextprotocol/inspector",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "dev-tools"
+      ],
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-49596",
+        "CVE-2025-58444"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-49596",
+          "cvss": null,
+          "description": "MCP Inspector proxy server lacks authentication between the Inspector client and proxy",
+          "fixed_in": "0.14.1"
+        },
+        {
+          "cve": "CVE-2025-58444",
+          "cvss": null,
+          "description": "MCP Inspector is Vulnerable to Potential Command Execution via XSS When Connecting to an Untrusted MCP Server",
+          "fixed_in": "0.16.6"
+        }
+      ]
+    },
+    {
+      "name": "mcp",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/modelcontextprotocol/python-sdk",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "sdk"
+      ],
+      "known_hashes": {
+        "1.27.0": "sha256:d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83"
+      },
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-53365",
+        "CVE-2025-53366",
+        "CVE-2025-66416",
+        "CVE-2026-52869",
+        "CVE-2026-52870",
+        "CVE-2026-59950",
+        "CVE-2026-59951",
+        "CVE-2026-116684",
+        "CVE-2026-116685",
+        "CVE-2026-116686"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-53365",
+          "cvss": null,
+          "description": "MCP Python SDK has Unhandled Exception in Streamable HTTP Transport, Leading to Denial of Service",
+          "fixed_in": "1.10.0",
+          "affected_transports": [
+            "http"
+          ],
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
+        },
+        {
+          "cve": "CVE-2025-53366",
+          "cvss": null,
+          "description": "MCP Python SDK vulnerability in the FastMCP Server causes validation error, leading to DoS",
+          "fixed_in": "1.9.4"
+        },
+        {
+          "cve": "CVE-2025-66416",
+          "cvss": null,
+          "description": "Model Context Protocol (MCP) Python SDK does not enable DNS rebinding protection by default",
+          "fixed_in": "1.23.0"
+        },
+        {
+          "cve": "CVE-2026-52869",
+          "cvss": null,
+          "description": "MCP Python SDK: HTTP transports serve session requests without verifying the authenticated principal",
+          "fixed_in": "1.27.2",
+          "affected_transports": [
+            "http",
+            "sse"
+          ],
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
+        },
+        {
+          "cve": "CVE-2026-52870",
+          "cvss": null,
+          "description": "MCP Python SDK: Experimental task handlers allow any client to access and cancel other clients' tasks",
+          "fixed_in": "1.27.2"
+        },
+        {
+          "cve": "CVE-2026-59950",
+          "cvss": null,
+          "description": "MCP Python SDK: WebSocket server transport does not support Host/Origin validation",
+          "fixed_in": "1.28.1"
+        },
+        {
+          "cve": "CVE-2026-59951",
+          "cvss": null,
+          "description": "MCP Python SDK: Unbounded Session Accumulation in StreamableHTTP Transport Enables Resource Exhaustion",
+          "fixed_in": "2.2.0",
+          "affected_transports": [
+            "http"
+          ],
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
+        },
+        {
+          "cve": "CVE-2026-116684",
+          "cvss": null,
+          "description": "Model Context Protocol Python SDK: Server bearer-token authentication accepts tokens issued for a different resource server",
+          "fixed_in": "2.2.0"
+        },
+        {
+          "cve": "CVE-2026-116685",
+          "cvss": null,
+          "description": "Model Context Protocol Python SDK: HTTP client transports followed cross-origin redirects carrying custom headers and bodies",
+          "fixed_in": "2.2.0"
+        },
+        {
+          "cve": "CVE-2026-116686",
+          "cvss": null,
+          "description": "Model Context Protocol Python SDK: Client fetched server-chosen $ref URLs while validating tool results against output schemas",
+          "fixed_in": "2.2.0"
+        }
+      ]
+    },
+    {
+      "name": "mcp-server-fetch",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "http",
+        "local"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "known_hashes": {
+        "2025.4.7": "sha256:56279e3c55cb1e506b958ca9bb23ed4413944a6f230bca21e044aee51734fe47"
+      },
+      "first_published": "2024-11-14",
+      "weekly_downloads": 21300,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true
+    },
+    {
+      "name": "@upstash/context7-mcp",
+      "source": "npm",
+      "repo": "https://github.com/upstash/context7",
+      "maintainer": "Upstash",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "docs",
+        "remote"
+      ]
+    },
+    {
+      "name": "@mintlify/mcp",
+      "source": "npm",
+      "repo": "https://github.com/mintlify/mcp",
+      "maintainer": "Mintlify",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "docs",
+        "remote"
+      ]
+    },
+    {
+      "name": "@supabase/mcp-server-supabase",
+      "source": "npm",
+      "repo": "https://github.com/supabase/mcp",
+      "maintainer": "Supabase",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "database",
+        "remote"
+      ]
+    },
+    {
+      "name": "@cloudflare/mcp-server-cloudflare",
+      "source": "npm",
+      "repo": "https://github.com/cloudflare/mcp-server-cloudflare",
+      "maintainer": "Cloudflare",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "cloud",
+        "remote"
+      ]
+    },
+    {
+      "name": "@stripe/agent-toolkit",
+      "source": "npm",
+      "repo": "https://github.com/stripe/ai",
+      "maintainer": "Stripe",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "payments",
+        "remote"
+      ],
+      "first_published": "2024-12-05",
+      "weekly_downloads": 8900,
+      "publisher_history": [
+        "stripe-bot",
+        "stripe"
+      ]
+    },
+    {
+      "name": "@browserbasehq/mcp",
+      "source": "npm",
+      "repo": "https://github.com/browserbase/mcp-server-browserbase",
+      "maintainer": "Browserbase",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "browser",
+        "remote"
+      ]
+    },
+    {
+      "name": "mcp-server-docker",
+      "source": "npm",
+      "repo": "https://github.com/adamdude828/mcp-server-docker",
+      "maintainer": "aholsinger",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "docker",
+        "local"
+      ]
+    },
+    {
+      "name": "mcp-server-kubernetes",
+      "source": "npm",
+      "repo": "https://github.com/Flux159/mcp-server-kubernetes",
+      "maintainer": "flux159",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "kubernetes",
+        "local"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2025-53355",
+        "CVE-2025-66404",
+        "CVE-2026-39884",
+        "CVE-2026-46519",
+        "CVE-2026-47250",
+        "CVE-2026-61459"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-53355",
+          "cvss": null,
+          "description": "MCP Server Kubernetes vulnerable to command injection in several tools",
+          "fixed_in": "2.5.0"
+        },
+        {
+          "cve": "CVE-2025-66404",
+          "cvss": null,
+          "description": "mcp-server-kubernetes has potential security issue in exec_in_pod tool",
+          "fixed_in": "2.9.8"
+        },
+        {
+          "cve": "CVE-2026-39884",
+          "cvss": null,
+          "description": "MCP Server Kubernetes has an Argument Injection in port_forward tool via space-splitting",
+          "fixed_in": "3.5.0"
+        },
+        {
+          "cve": "CVE-2026-46519",
+          "cvss": null,
+          "description": "MCP Server Kubernetes: Tool Access Control Bypass via Presentation-Layer Filtering Without Execution-Layer Enforcement",
+          "fixed_in": "3.6.0"
+        },
+        {
+          "cve": "CVE-2026-47250",
+          "cvss": null,
+          "description": "MCP Server Kubernetes: kubectl-generic flag injection enables Kubernetes bearer token exfiltration",
+          "fixed_in": "3.7.0"
+        },
+        {
+          "cve": "CVE-2026-61459",
+          "cvss": null,
+          "description": "mcp-server-kubernetes argument injection can expose Kubernetes cluster credentials",
+          "fixed_in": "3.9.0"
+        }
+      ]
+    },
+    {
+      "name": "mcp-server-linear",
+      "source": "npm",
+      "repo": "https://github.com/dvcrn/mcp-server-linear",
+      "maintainer": "dvcrn",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "project-management",
+        "remote"
+      ]
+    },
+    {
+      "name": "mcp-server-mysql",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "database",
+        "local"
+      ]
+    },
+    {
+      "name": "@notionhq/notion-mcp-server",
+      "source": "npm",
+      "repo": "https://github.com/makenotion/notion-mcp-server",
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "productivity",
+        "remote"
+      ]
+    },
+    {
+      "name": "mcp-server-terraform",
+      "source": "npm",
+      "repo": null,
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "cloud",
+        "local"
+      ]
+    },
+    {
+      "name": "exa-mcp-server",
+      "source": "npm",
+      "repo": "https://github.com/exa-labs/exa-mcp-server",
+      "maintainer": "Exa",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "search",
+        "remote"
+      ],
+      "first_published": "2025-02-18",
+      "weekly_downloads": 3100,
+      "publisher_history": [
+        "exa-ai"
+      ]
+    },
+    {
+      "name": "@playwright/mcp",
+      "source": "npm",
+      "repo": "https://github.com/microsoft/playwright-mcp",
+      "maintainer": "Microsoft",
+      "verified": false,
+      "last_verified": "2026-08-20",
+      "known_versions": [],
+      "tags": [
+        "browser",
+        "automation",
+        "local"
+      ],
+      "capabilities": [
+        "browser",
+        "network_out"
+      ],
+      "first_published": "2025-04-01",
+      "weekly_downloads": 22400,
+      "publisher_history": [
+        "playwright-bot",
+        "microsoft"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2025-9611"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-9611",
+          "cvss": null,
+          "description": "Microsoft Playwright MCP Server vulnerable to DNS Rebinding Attack; Allows Attackers Access to All Server Tools",
+          "fixed_in": "0.0.40"
+        }
+      ]
+    },
+    {
+      "name": "tavily-mcp",
+      "source": "npm",
+      "repo": "https://github.com/tavily-ai/tavily-mcp",
+      "maintainer": "Tavily",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "search",
+        "remote"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2025-02-10",
+      "weekly_downloads": 9700,
+      "publisher_history": [
+        "tavily-ai"
+      ]
+    },
+    {
+      "name": "firecrawl-mcp",
+      "source": "npm",
+      "repo": "https://github.com/firecrawl/firecrawl-mcp-server",
+      "maintainer": "hello_sideguide",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "scraping",
+        "browser",
+        "remote"
+      ],
+      "capabilities": [
+        "browser",
+        "network_out"
+      ],
+      "first_published": "2025-02-28",
+      "weekly_downloads": 7300,
+      "publisher_history": [
+        "mendableai"
+      ]
+    },
+    {
+      "name": "mcp-server-qdrant",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/qdrant/mcp-server-qdrant",
+      "maintainer": "Qdrant",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "database",
+        "vector-search",
+        "local"
+      ],
+      "capabilities": [
+        "database",
+        "network_out"
+      ],
+      "first_published": "2025-03-05",
+      "weekly_downloads": 3800,
+      "publisher_history": [
+        "qdrant"
+      ]
+    },
+    {
+      "name": "@neondatabase/mcp-server-neon",
+      "source": "npm",
+      "repo": "https://github.com/neondatabase/mcp-server-neon",
+      "maintainer": "Neon",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "database",
+        "postgres",
+        "remote"
+      ],
+      "capabilities": [
+        "database",
+        "network_out"
+      ],
+      "first_published": "2025-03-12",
+      "weekly_downloads": 5100,
+      "publisher_history": [
+        "neondatabase"
+      ]
+    },
+    {
+      "name": "@shopify/dev-mcp",
+      "source": "npm",
+      "repo": "https://github.com/Shopify/dev-mcp",
+      "maintainer": "Shopify",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "ecommerce",
+        "dev-tools",
+        "remote"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2025-04-10",
+      "weekly_downloads": 4200,
+      "publisher_history": [
+        "shopify-bot"
+      ]
+    },
+    {
+      "name": "mcp-atlassian",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/sooperset/mcp-atlassian",
+      "maintainer": "community",
+      "verified": false,
+      "last_verified": "2026-10-11",
+      "known_versions": [],
+      "tags": [
+        "project-management",
+        "docs",
+        "remote"
+      ],
+      "capabilities": [
+        "file_read",
+        "file_write",
+        "network_out",
+        "comms_out"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2026-27826",
+        "CVE-2026-73498",
+        "CVE-2026-77243",
+        "CVE-2026-77244",
+        "CVE-2026-77246",
+        "CVE-2026-77247",
+        "CVE-2026-77248",
+        "CVE-2026-77249",
+        "CVE-2026-77250",
+        "CVE-2026-77251",
+        "CVE-2026-77253",
+        "CVE-2026-77255",
+        "CVE-2026-77258",
+        "CVE-2026-77259",
+        "CVE-2026-77260",
+        "CVE-2026-77261",
+        "CVE-2026-77265",
+        "CVE-2026-77266",
+        "CVE-2026-77267",
+        "CVE-2026-77268",
+        "CVE-2026-77269",
+        "CVE-2026-77271",
+        "CVE-2026-77272",
+        "CVE-2026-77274",
+        "CVE-2026-27825",
+        "CVE-2026-73496",
+        "CVE-2026-73497",
+        "CVE-2026-77257",
+        "CVE-2026-77262",
+        "CVE-2026-77270"
+      ],
+      "first_published": "2025-02-15",
+      "weekly_downloads": 2900,
+      "publisher_history": [
+        "sooperset"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2026-27826",
+          "cvss": null,
+          "description": "SSRF: unauthenticated callers can make the server request arbitrary URLs through the Jira/Confluence URL headers.",
+          "fixed_in": "0.17.0"
+        },
+        {
+          "cve": "CVE-2026-73498",
+          "cvss": null,
+          "description": "confluence_upload_attachment opens a caller-supplied file_path with no path validation (arbitrary file read).",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77243",
+          "cvss": null,
+          "description": "ENABLED_TOOLS / TOOLSETS filters are enforced only at tools/list time, so filtered tools stay callable.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77244",
+          "cvss": null,
+          "description": "Auth bypass in the HTTP transport: any non-empty token is accepted, exposing the operator's credentials.",
+          "fixed_in": "0.22.0",
+          "affected_transports": [
+            "http",
+            "sse"
+          ],
+          "requires_auth": false,
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
+        },
+        {
+          "cve": "CVE-2026-77246",
+          "cvss": null,
+          "description": "Attachment upload tools open arbitrary server-side paths, enabling local file exfiltration.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77247",
+          "cvss": null,
+          "description": "Jira and Confluence upload tools read caller-controlled local paths before uploading them.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77248",
+          "cvss": null,
+          "description": "Unauthenticated local file read via upload_attachment in the multi-user streamable-HTTP deployment.",
+          "fixed_in": "0.22.0",
+          "affected_transports": [
+            "http",
+            "sse"
+          ],
+          "requires_auth": false,
+          "verified_by": "Claude run, OSV.dev record text, 2026-10-29"
+        },
+        {
+          "cve": "CVE-2026-77249",
+          "cvss": null,
+          "description": "Incomplete fix for CVE-2026-27826: SSRF via redirects in the Jira permission lookup.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77250",
+          "cvss": null,
+          "description": "OAuth tokens are always written to a plaintext fallback file under ~/.mcp-atlassian/.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77251",
+          "cvss": null,
+          "description": "Filter settings allow access to Jira/Confluence content that should be forbidden.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77253",
+          "cvss": null,
+          "description": "Jira and Confluence upload tools upload arbitrary local files to Atlassian.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77255",
+          "cvss": null,
+          "description": "Confused deputy: Jira update_issue can read and exfiltrate arbitrary host files.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77258",
+          "cvss": null,
+          "description": "Confluence upload_attachment reads and uploads local files without validate_safe_path().",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77259",
+          "cvss": null,
+          "description": "Missing path validation in confluence_upload_attachment lets clients read and exfiltrate server files.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77260",
+          "cvss": null,
+          "description": "Arbitrary local file read via file_path in the Jira and Confluence upload tools.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77261",
+          "cvss": null,
+          "description": "SSRF redirect protection is missing in the basic-auth and OAuth branches.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77265",
+          "cvss": null,
+          "description": "SSRF protection for header-based auth is vulnerable to DNS rebinding (validate-then-use).",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77266",
+          "cvss": null,
+          "description": "Jira and Confluence upload_attachment open user-controlled paths without validate_safe_path().",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77267",
+          "cvss": null,
+          "description": "Incomplete SSRF remediation: X-Atlassian-*-Url headers reach API clients without SSRF validation.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77268",
+          "cvss": null,
+          "description": "OAuth token files are created with default (group-readable) permissions.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77269",
+          "cvss": null,
+          "description": "Path traversal in confluence_upload_attachment(s); incomplete fix for CVE-2026-27825.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77271",
+          "cvss": null,
+          "description": "Incomplete path traversal fix allows module overwrite and code execution.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77272",
+          "cvss": null,
+          "description": "Reflected XSS in the OAuth setup wizard's local callback server.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77274",
+          "cvss": null,
+          "description": "SSRF protection bypass in validate_url_for_ssrf() on the header-based auth flow.",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-27825",
+          "cvss": null,
+          "description": "MCP Atlassian has an arbitrary file write leading to arbitrary code execution via unconstrained download_path in confluence_download_attachment",
+          "fixed_in": "0.17.0"
+        },
+        {
+          "cve": "CVE-2026-73496",
+          "cvss": null,
+          "description": "mcp-atlassian: Arbitrary server-side file read via attachment upload",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-73497",
+          "cvss": null,
+          "description": "MCP Atlassian: DNS-rebinding TOCTOU bypass of the SSRF fix (CVE-2026-27826)",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77257",
+          "cvss": null,
+          "description": "MCP Atlassian: HTTP upload tools accept arbitrary server-local file paths",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77262",
+          "cvss": null,
+          "description": "MCP Atlassian: Path Traversal / Arbitrary File Read in confluence_upload_attachment MCP tool (incomplete fix of GHSA-xjgw-4wvw-rgm4)",
+          "fixed_in": "0.22.0"
+        },
+        {
+          "cve": "CVE-2026-77270",
+          "cvss": null,
+          "description": "MCP Atlassian: Arbitrary File Read via Upload Attachment Tools",
+          "fixed_in": "0.22.0"
+        }
+      ]
+    },
+    {
+      "name": "@agentdeskai/browser-tools-mcp",
+      "source": "npm",
+      "repo": "https://github.com/AgentDeskAI/browser-tools-mcp",
+      "maintainer": "AgentDesk",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "browser",
+        "dev-tools",
+        "local"
+      ],
+      "capabilities": [
+        "browser",
+        "network_out"
+      ],
+      "first_published": "2025-01-20",
+      "weekly_downloads": 18600,
+      "publisher_history": [
+        "agentdeskai"
+      ]
+    },
+    {
+      "name": "@azure/mcp",
+      "source": "npm",
+      "repo": "https://github.com/microsoft/mcp",
+      "maintainer": "Microsoft",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "cloud",
+        "azure",
+        "remote"
+      ],
+      "capabilities": [
+        "cloud",
+        "network_out"
+      ],
+      "first_published": "2025-04-15",
+      "weekly_downloads": 6800,
+      "publisher_history": [
+        "azure-sdk"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2026-26118"
+      ]
+    },
+    {
+      "name": "langchain-mcp-adapters",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/langchain-ai/langchain-mcp-adapters",
+      "maintainer": "LangChain",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "sdk",
+        "adapter",
+        "local"
+      ],
+      "capabilities": null,
+      "first_published": "2025-03-25",
+      "weekly_downloads": 11400,
+      "publisher_history": [
+        "langchain-bot",
+        "langchain"
+      ]
+    },
+    {
+      "name": "mcp-server-git",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/modelcontextprotocol/servers",
+      "maintainer": "Anthropic",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "official",
+        "git",
+        "local"
+      ],
+      "capabilities": [
+        "git"
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 14200,
+      "publisher_history": [
+        "anthropic-bot",
+        "modelcontextprotocol"
+      ],
+      "attestation_expected": true,
+      "known_vulnerabilities": [
+        "CVE-2025-68143",
+        "CVE-2025-68144",
+        "CVE-2025-68145",
+        "CVE-2026-27735"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2025-68143",
+          "cvss": null,
+          "description": "mcp-server-git's unrestricted git_init tool allows repository creation at arbitrary filesystem locations - reported by Yarden Porat (Cyata)",
+          "fixed_in": "2025.9.25"
+        },
+        {
+          "cve": "CVE-2025-68144",
+          "cvss": null,
+          "description": "mcp-server-git argument injection in git_diff and git_checkout functions allows overwriting local files - reported by Yarden Porat (Cyata)",
+          "fixed_in": "2025.12.18"
+        },
+        {
+          "cve": "CVE-2025-68145",
+          "cvss": null,
+          "description": "mcp-server-git has missing path validation when using --repository flag - reported by Yarden Porat (Cyata)",
+          "fixed_in": "2025.12.18"
+        },
+        {
+          "cve": "CVE-2026-27735",
+          "cvss": null,
+          "description": "mcp-server-git : Path traversal in git_add allows staging files outside repository boundaries",
+          "fixed_in": "2026.1.14"
+        }
+      ]
+    },
+    {
+      "name": "mcp-server-postgres",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": null,
+      "maintainer": "unknown — publisher does not match declared Anthropic attribution",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "database",
+        "local"
+      ],
+      "capabilities": [
+        "database"
+      ],
+      "first_published": "2024-11-14",
+      "weekly_downloads": 9800,
+      "publisher_history": null,
+      "attestation_expected": false
+    },
+    {
+      "name": "@mcpjam/inspector",
+      "source": "npm",
+      "repo": "https://github.com/MCPJam/inspector",
+      "maintainer": "MCPJam",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "dev-tools",
+        "inspector",
+        "local"
+      ],
+      "capabilities": [
+        "network_out",
+        "shell_exec"
+      ],
+      "first_published": "2025-07-01",
+      "weekly_downloads": null,
+      "publisher_history": [
+        "mcpjam"
+      ],
+      "attestation_expected": false,
+      "known_vulnerabilities": [
+        "CVE-2026-23744"
+      ]
+    },
+    {
+      "name": "gemini-mcp-tool",
+      "source": "npm",
+      "repo": "https://github.com/jamubc/gemini-mcp-tool",
+      "maintainer": "filecrop",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "ai",
+        "gemini",
+        "local"
+      ],
+      "capabilities": [
+        "shell_exec"
+      ],
+      "first_published": "2025-06-01",
+      "weekly_downloads": null,
+      "publisher_history": [],
+      "attestation_expected": false,
+      "known_vulnerabilities": [
+        "CVE-2026-0755"
+      ]
+    },
+    {
+      "name": "flowise",
+      "source": "npm",
+      "repo": "https://github.com/FlowiseAI/Flowise",
+      "maintainer": "FlowiseAI",
+      "verified": false,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "ai",
+        "workflow",
+        "local"
+      ],
+      "capabilities": [
+        "network_out",
+        "shell_exec"
+      ],
+      "first_published": "2023-06-01",
+      "weekly_downloads": null,
+      "publisher_history": [
+        "flowiseai"
+      ],
+      "attestation_expected": false,
+      "known_vulnerabilities": [
+        "CVE-2025-59528",
+        "CVE-2024-31621",
+        "CVE-2024-36420",
+        "CVE-2024-36421",
+        "CVE-2024-36422",
+        "CVE-2024-36423",
+        "CVE-2024-37145",
+        "CVE-2024-37146",
+        "CVE-2024-58351",
+        "CVE-2024-8181",
+        "CVE-2024-8182",
+        "CVE-2024-9148",
+        "CVE-2025-26319",
+        "CVE-2025-29192",
+        "CVE-2025-34267",
+        "CVE-2025-50538",
+        "CVE-2025-55346",
+        "CVE-2025-57164",
+        "CVE-2025-58434",
+        "CVE-2025-59527",
+        "CVE-2025-61687",
+        "CVE-2025-61913",
+        "CVE-2025-71324",
+        "CVE-2025-71327",
+        "CVE-2025-71331",
+        "CVE-2025-71332",
+        "CVE-2025-71333",
+        "CVE-2025-71334",
+        "CVE-2025-71335",
+        "CVE-2025-71336",
+        "CVE-2025-71338",
+        "CVE-2025-8943",
+        "CVE-2026-30820",
+        "CVE-2026-30821",
+        "CVE-2026-30822",
+        "CVE-2026-30823",
+        "CVE-2026-30824",
+        "CVE-2026-31829",
+        "CVE-2026-40933",
+        "CVE-2026-41137",
+        "CVE-2026-41138",
+        "CVE-2026-41264",
+        "CVE-2026-41265",
+        "CVE-2026-41266",
+        "CVE-2026-41267",
+        "CVE-2026-41268",
+        "CVE-2026-41269",
+        "CVE-2026-41270",
+        "CVE-2026-41271",
+        "CVE-2026-41272",
+        "CVE-2026-41273",
+        "CVE-2026-41274",
+        "CVE-2026-41275",
+        "CVE-2026-41276",
+        "CVE-2026-41277",
+        "CVE-2026-41278",
+        "CVE-2026-41279",
+        "CVE-2026-42861",
+        "CVE-2026-42862",
+        "CVE-2026-42863",
+        "CVE-2026-43995",
+        "CVE-2026-46440",
+        "CVE-2026-46441",
+        "CVE-2026-46442",
+        "CVE-2026-46443",
+        "CVE-2026-46444",
+        "CVE-2026-46475",
+        "CVE-2026-46476",
+        "CVE-2026-46477",
+        "CVE-2026-46478",
+        "CVE-2026-46479",
+        "CVE-2026-46480",
+        "CVE-2026-56267",
+        "CVE-2026-56268",
+        "CVE-2026-56269",
+        "CVE-2026-56270",
+        "CVE-2026-56271",
+        "CVE-2026-56272",
+        "CVE-2026-56273",
+        "CVE-2026-56274",
+        "CVE-2026-56275",
+        "CVE-2026-56276",
+        "CVE-2026-56277",
+        "CVE-2026-56278",
+        "CVE-2026-69250",
+        "CVE-2026-69251",
+        "CVE-2026-69252",
+        "CVE-2026-69253",
+        "CVE-2026-69254",
+        "CVE-2026-69255",
+        "CVE-2026-69256",
+        "CVE-2026-69257",
+        "CVE-2026-69258",
+        "CVE-2026-69259",
+        "CVE-2026-69262",
+        "CVE-2026-69263",
+        "CVE-2026-69264",
+        "CVE-2026-70470",
+        "CVE-2026-70471",
+        "CVE-2026-70472",
+        "CVE-2026-70473",
+        "CVE-2026-70474",
+        "CVE-2026-70475",
+        "CVE-2026-70476",
+        "CVE-2026-70477",
+        "CVE-2026-70478",
+        "CVE-2026-73483",
+        "CVE-2026-73487",
+        "CVE-2026-73488",
+        "CVE-2026-73603",
+        "CVE-2026-73604",
+        "CVE-2026-8026",
+        "GHSA-88pr-878c-24wf",
+        "GHSA-j44m-5v8f-gc9c"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2024-31621",
+          "cvss": null,
+          "description": "Flowise vulnerable to code injection via api/v1",
+          "fixed_in": "1.8.1"
+        },
+        {
+          "cve": "CVE-2024-36420",
+          "cvss": null,
+          "description": "Flowise Path Injection at /api/v1/openai-assistants-file",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-36421",
+          "cvss": null,
+          "description": "Flowise Cors Misconfiguration in packages/server/src/index.ts",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-36422",
+          "cvss": null,
+          "description": "Flowise Cross-site Scripting in api/v1/chatflows/id",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-36423",
+          "cvss": null,
+          "description": "Flowise Cross-site Scripting in /api/v1/public-chatflows/id",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-37145",
+          "cvss": null,
+          "description": "Flowise Cross-site Scripting in /api/v1/chatflows-streaming/id",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-37146",
+          "cvss": null,
+          "description": "Flowise Cross-site Scripting in/api/v1/credentials/id",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-58351",
+          "cvss": null,
+          "description": "Flowise OverrideConfig security vulnerability",
+          "fixed_in": "2.1.4"
+        },
+        {
+          "cve": "CVE-2024-8181",
+          "cvss": null,
+          "description": "Flowise Authentication Bypass vulnerability",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-8182",
+          "cvss": null,
+          "description": "Flowise Unauthenticated Denial of Service (DoS) vulnerability",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2024-9148",
+          "cvss": null,
+          "description": "Flowise and Flowise Chat Embed vulnerable to Stored Cross-site Scripting",
+          "fixed_in": "2.1.1"
+        },
+        {
+          "cve": "CVE-2025-26319",
+          "cvss": null,
+          "description": "FlowiseAI Flowise arbitrary file upload vulnerability",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-29192",
+          "cvss": null,
+          "description": "Flowise Stored XSS vulnerability through logs in chatbot",
+          "fixed_in": "3.0.5"
+        },
+        {
+          "cve": "CVE-2025-34267",
+          "cvss": null,
+          "description": "Flowise: Authenticated Command Execution and Sandbox Bypass via Puppeteer and Playwright Packages",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-50538",
+          "cvss": null,
+          "description": "Flowise is vulnerable to stored XSS via \"View Messages\" allows credential theft in FlowiseAI admin panel",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-55346",
+          "cvss": null,
+          "description": "Flowise vulnerable to RCE via Dynamic function constructor injection",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-57164",
+          "cvss": null,
+          "description": "FlowiseAI Pre-Auth Arbitrary Code Execution",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-58434",
+          "cvss": null,
+          "description": "Flowise Cloud and Local Deployments have Unauthenticated Password Reset Token Disclosure that Leads to Account Takeover",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-59527",
+          "cvss": null,
+          "description": "FlowiseAI/Flowise has Server-Side Request Forgery (SSRF) vulnerability",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-61687",
+          "cvss": null,
+          "description": "FlowiseAI/Flosise has File Upload vulnerability",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-61913",
+          "cvss": null,
+          "description": "Flowise is vulnerable to arbitrary file write through its WriteFileTool",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-71324",
+          "cvss": null,
+          "description": "Flowise has an Arbitrary File Read",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-71327",
+          "cvss": null,
+          "description": "Flowise has Authentication Bypass Using Unprotected Registration Endpoint (/register)",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-71331",
+          "cvss": null,
+          "description": "Flowise vulnerable to XSS",
+          "fixed_in": "3.0.8"
+        },
+        {
+          "cve": "CVE-2025-71332",
+          "cvss": null,
+          "description": "FlowiseDB vulnerable to SQL Injection by authenticated users",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-71333",
+          "cvss": null,
+          "description": "Flowise Pre-auth Arbitrary File Upload",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-71334",
+          "cvss": null,
+          "description": "Flowise has arbitrary file access due to missing chat flow id validation",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-71335",
+          "cvss": null,
+          "description": "Flowise Fails to Invalidate Existing Sessions After Password Changes",
+          "fixed_in": "3.0.10"
+        },
+        {
+          "cve": "CVE-2025-71336",
+          "cvss": null,
+          "description": "Flowise has unsandboxed remote code execution via Custom MCP",
+          "fixed_in": "3.0.6"
+        },
+        {
+          "cve": "CVE-2025-71338",
+          "cvss": null,
+          "description": "Flowise allows arbitrary file write to RCE",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-8943",
+          "cvss": null,
+          "description": "Flowise OS command remote code execution",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2026-30820",
+          "cvss": null,
+          "description": "Flowise has Authorization Bypass via Spoofed x-request-from Header",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-30821",
+          "cvss": null,
+          "description": "Flowise has Arbitrary File Upload via MIME Spoofing",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-30822",
+          "cvss": null,
+          "description": "Flowise Allows Mass Assignment in `/api/v1/leads` Endpoint",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-30823",
+          "cvss": null,
+          "description": "Flowise has IDOR leading to Account Takeover and Enterprise Feature Bypass via SSO Configuration",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-30824",
+          "cvss": null,
+          "description": "Flowise Missing Authentication on NVIDIA NIM Endpoints",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-31829",
+          "cvss": null,
+          "description": "Flowise affected by Server-Side Request Forgery (SSRF) in HTTP Node Leading to Internal Network Access",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-40933",
+          "cvss": null,
+          "description": "Flowise: Authenticated RCE Via MCP Adapters",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41137",
+          "cvss": null,
+          "description": "Flowise: Code Injection in CSVAgent leads to Authenticated RCE",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41138",
+          "cvss": null,
+          "description": "Flowise: Remote code execution vulnerability in AirtableAgent.ts caused by lack of input verification when using `Pandas`.",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41264",
+          "cvss": null,
+          "description": "Flowise: CSV Agent Prompt Injection Remote Code Execution Vulnerability",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41265",
+          "cvss": null,
+          "description": "Flowise: Airtable_Agent Code Injection Remote Code Execution Vulnerability",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41266",
+          "cvss": null,
+          "description": "Flowise: Sensitive Data Leak in public-chatbotConfig",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41267",
+          "cvss": null,
+          "description": "Flowise: Improper Mass Assignment in Account Registration Enables Unauthorized Organization Association",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41268",
+          "cvss": null,
+          "description": "Flowise: Parameter Override Bypass Remote Command Execution",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41269",
+          "cvss": null,
+          "description": "Flowise: File Upload Validation Bypass in createAttachment",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41270",
+          "cvss": null,
+          "description": "Flowise: SSRF Protection Bypass via Unprotected Built-in HTTP Modules in Custom Function Sandbox",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41271",
+          "cvss": null,
+          "description": "Flowise:  APIChain Prompt Injection SSRF in GET/POST API Chains",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41272",
+          "cvss": null,
+          "description": "Flowise: SSRF Protection Bypass (TOCTOU & Default Insecure)",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41273",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated OAuth 2.0 Access Token Disclosure via Public Chatflow in Flowise",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41274",
+          "cvss": null,
+          "description": "Flowise: Cypher Injection in GraphCypherQAChain",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41275",
+          "cvss": null,
+          "description": "Flowise: Password Reset Link Sent Over Unsecured HTTP",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41276",
+          "cvss": null,
+          "description": "Flowise: resetPassword Authentication Bypass Vulnerability",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41277",
+          "cvss": null,
+          "description": "Flowise: Mass Assignment in DocumentStore Create Endpoint Leads to Cross-Workspace Object Takeover (IDOR)",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41278",
+          "cvss": null,
+          "description": "Flowise: Public chatflow endpoints return unsanitized flowData including plaintext API keys, passwords, and credential IDs",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-41279",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated TTS endpoint accepts arbitrary credential IDs — enables API credit abuse via stored credentials",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-42861",
+          "cvss": null,
+          "description": "FlowiseAI has Mass Assignment in Variable Update Endpoint that Allows Cross-Workspace Resource Reassignment",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-42862",
+          "cvss": null,
+          "description": "FlowiseAI has Mass Assignment in Tool Update Endpoint that Allows Cross-Workspace Resource Reassignment",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-42863",
+          "cvss": null,
+          "description": "FlowiseAI has Mass Assignment in Chatflow Update Endpoint that Allows Cross-Workspace AgentFlow Reassignment",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-43995",
+          "cvss": null,
+          "description": "Flowise: SSRF Protection Bypass via Direct node-fetch / axios Usage (Patch Enforcement Failure)",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-46440",
+          "cvss": null,
+          "description": "FlowiseAI Exposes Basic Auth Credentials via API",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46441",
+          "cvss": null,
+          "description": "FlowiseAI has Mass Assignment in Assistant Update Endpoint that Allows Cross-Workspace Resource Reassignment",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46442",
+          "cvss": null,
+          "description": "FlowiseAI: Authenticated Host RCE via POST /api/v1/node-custom-function and NodeVM Sandbox Escape",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46443",
+          "cvss": null,
+          "description": "FlowiseAI Vulnerable to Credential Data Leak",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46444",
+          "cvss": null,
+          "description": "FlowiseAI: Vector Store No Permission Checks",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46475",
+          "cvss": null,
+          "description": "FlowiseAI: Assistant create+update mass-assignment allows cross-workspace assistant takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46476",
+          "cvss": null,
+          "description": "FlowiseAI: CustomTemplate create+update mass-assignment allows cross-workspace template takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46477",
+          "cvss": null,
+          "description": "FlowiseAI: Dataset create+update mass-assignment allows cross-workspace dataset takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46478",
+          "cvss": null,
+          "description": "FlowiseAI: DatasetRow create+update mass-assignment allows cross-workspace row takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46479",
+          "cvss": null,
+          "description": "FlowiseAI: Evaluation create+update mass-assignment allows cross-workspace evaluation takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-46480",
+          "cvss": null,
+          "description": "FlowiseAI: Evaluator create+update mass-assignment allows cross-workspace evaluator takeover",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56267",
+          "cvss": null,
+          "description": "Flowise Vulnerable to PII Disclosure on Unauthenticated Forgot Password Endpoint",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-56268",
+          "cvss": null,
+          "description": "Flowise: Cross-Workspace Chatflow Disclosure via chatflows/apikey Endpoint Returns All Unprotected Chatflows",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56269",
+          "cvss": null,
+          "description": "Flowise: Weak Default Token Hash Secret",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56270",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated Information Disclosure of OAuth Secrets (Cleartext) via GET Request",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56271",
+          "cvss": null,
+          "description": "Flowise: Weak Default JWT Secrets",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56272",
+          "cvss": null,
+          "description": "Flowise has Insufficient Password Salt Rounds",
+          "fixed_in": "3.0.13"
+        },
+        {
+          "cve": "CVE-2026-56273",
+          "cvss": null,
+          "description": "Flowise: Path Traversal in Vector Store basePath",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56274",
+          "cvss": null,
+          "description": "Flowise has an MCP Security Bypass that Enables RCE",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56275",
+          "cvss": null,
+          "description": "Flowise Execute Flow function has an SSRF vulnerability",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-56276",
+          "cvss": null,
+          "description": "Flowise: Mass Assignment in PUT /api/v1/user Allows Authenticated Users to Override Password Hash and Bypass Password Change Verification",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56277",
+          "cvss": null,
+          "description": "Flowise: Hardcoded CORS wildcard on TTS endpoint enables cross-origin credential abuse from any webpage",
+          "fixed_in": "3.1.2"
+        },
+        {
+          "cve": "CVE-2026-56278",
+          "cvss": null,
+          "description": "Flowise: Weak Default Express Session Secret",
+          "fixed_in": "3.1.0"
+        },
+        {
+          "cve": "CVE-2026-69250",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated OAuth2 Refresh Enables Non-Blind SSRF and Secret Exfiltration",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69251",
+          "cvss": null,
+          "description": "Flowise RCE via TypeORM DataSource",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69252",
+          "cvss": null,
+          "description": "Flowise: Missing authorization on `/api/v1/files` allows low-privileged API keys to list and delete files across workspaces within the same organization",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69253",
+          "cvss": null,
+          "description": "Flowise Sandbox Escape to RCE",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69254",
+          "cvss": null,
+          "description": "Flowise: RCE via NodeVM Sandbox Escape in executeJavaScriptCode() nodeVMOptions Override",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69255",
+          "cvss": null,
+          "description": "Flowise: CSV Agent Remote Code Execution via Pyodide Code Injection — Root Shell Verified",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69256",
+          "cvss": null,
+          "description": "Flowise: Remote Code Execution Vulnerability in CSVAgent",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69257",
+          "cvss": null,
+          "description": "Flowise: SSRF Protection Bypass via IPv4-Mapped IPv6 Addresses",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69258",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated Property Injection into Flow Execution Context via Ungated `overrideConfig` Spread in Prediction API",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69259",
+          "cvss": null,
+          "description": "Flowise RCE via SQLite Record Manager Node",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69262",
+          "cvss": null,
+          "description": "Flowise: `DELETE /api/v1/chatflows/:id` does not validate resource type, allowing `agentflows:delete` and `chatflows:delete` to delete each other’s flow type",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69263",
+          "cvss": null,
+          "description": "Flowise: CVE-2025-8943 Patch Bypass: npm_config_yes bypasses MCP environment variable blocklist (Unauthenticated RCE)",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-69264",
+          "cvss": null,
+          "description": "Flowise: RCE via CSVAgent csvFile data URI base64 segment is interpolated into Python source without validation",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70470",
+          "cvss": null,
+          "description": "Flowise: Pyodide validator Unicode homoglyph bypass leads to RCE",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70471",
+          "cvss": null,
+          "description": "Flowise: RBAC Bypass Leading to Unauthorized Workspace Variables Disclosure",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70472",
+          "cvss": null,
+          "description": "Flowise: Cross-workspace credential IDOR in openai-assistants-vector-store",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70473",
+          "cvss": null,
+          "description": "Flowise: Information Disclosure in GET /api/v1/upsert-history returns the entire server-wide upsert history",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70474",
+          "cvss": null,
+          "description": "Flowise: Cross-Workspace OAuth2 Credential Metadata Leak",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70475",
+          "cvss": null,
+          "description": "Flowise: Missing Authorization on Execution Update Endpoint",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70476",
+          "cvss": null,
+          "description": "Flowise: Broken Access Control in Stripe Subscription Endpoints Allows Cross-Tenant Billing Manipulation",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70477",
+          "cvss": null,
+          "description": "Flowise: CSV Agent Prompt Injection Remote Code Execution Vulnerability",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-70478",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated OAuth2 token refresh endpoint returns access tokens — enables token theft for any connected service",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-73483",
+          "cvss": null,
+          "description": "Flowise NodeVM sandbox escape via puppeteer allowlist - authenticated RCE and arbitrary file read via Chromium",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-73487",
+          "cvss": null,
+          "description": "Flowise Prompt Injection to RCE and SSRF via CSV/Airtable Agent Python Validator Bypass",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-73488",
+          "cvss": null,
+          "description": "Flowise: IDOR vulnerability exists at the GET /api/v1/organization/customer-default-source endpoint",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-73603",
+          "cvss": null,
+          "description": "Flowise: Unauthenticated Credential Abuse via Text-to-Speech Endpoint Allows Unauthorized Use of Private Chatflow TTS Credentials",
+          "fixed_in": "3.1.4"
+        },
+        {
+          "cve": "CVE-2026-73604",
+          "cvss": null,
+          "description": "Flowise: Incomplete Credential Redaction Exposes Secrets via API",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "CVE-2026-8026",
+          "cvss": null,
+          "description": "Flowise: Bcrypt Password Hash Exposure",
+          "fixed_in": null
+        },
+        {
+          "cve": "GHSA-88pr-878c-24wf",
+          "cvss": null,
+          "description": "Flowise: Authenticated arbitrary file write in the `S3 Directory` document loader via unsanitized S3 object keys",
+          "fixed_in": "3.1.3"
+        },
+        {
+          "cve": "GHSA-j44m-5v8f-gc9c",
+          "cvss": null,
+          "description": "Flowise is vulnerable to arbitrary file exposure through its ReadFileTool",
+          "fixed_in": "3.0.8"
+        }
+      ]
+    },
+    {
+      "name": "screenpipe-mcp",
+      "source": "npm",
+      "package_ecosystem": "npm",
+      "repo": "https://github.com/screenpipe/screenpipe",
+      "maintainer": "screenpipe",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "community",
+        "local",
+        "search",
+        "memory",
+        "productivity"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2026-01-22",
+      "weekly_downloads": null,
+      "publisher_history": [
+        "louis030195"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@palisadeemail/mcp",
+      "source": "npm",
+      "package_ecosystem": "npm",
+      "repo": "https://github.com/palisadeemail/palisade-mcp",
+      "maintainer": "Palisade",
+      "verified": true,
+      "last_verified": "2026-08-22",
+      "known_versions": [],
+      "tags": [
+        "community",
+        "remote",
+        "cloud",
+        "email"
+      ],
+      "capabilities": [
+        "email",
+        "network_out"
+      ],
+      "first_published": "2026-07-29",
+      "weekly_downloads": null,
+      "publisher_history": [
+        "ianbussieres"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "docpull",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/raintree-technology/docpull",
+      "maintainer": "Raintree Technology",
+      "verified": true,
+      "last_verified": "2026-09-07",
+      "known_versions": [],
+      "tags": [
+        "community",
+        "docs",
+        "scraping",
+        "local"
+      ],
+      "capabilities": [
+        "network_out",
+        "file_write"
+      ],
+      "first_published": "2025-11-14",
+      "weekly_downloads": 549,
+      "publisher_history": [
+        "raintree-technology"
+      ],
+      "attestation_expected": true
+    },
+    {
+      "name": "hol-guard",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/hashgraph-online/hol-guard",
+      "maintainer": "HOL (Hashgraph Online)",
+      "verified": true,
+      "last_verified": "2026-10-06",
+      "known_versions": [],
+      "tags": [
+        "community",
+        "local",
+        "dev-tools"
+      ],
+      "capabilities": [
+        "file_read"
+      ],
+      "first_published": "2026-06-11",
+      "weekly_downloads": 14936,
+      "publisher_history": null,
+      "attestation_expected": true
+    },
+    {
+      "name": "@autoposting.ai/cli",
+      "source": "npm",
+      "package_ecosystem": "npm",
+      "repo": "https://github.com/Autoposting-ai/autoposting-cli",
+      "maintainer": "Autoposting-ai",
+      "verified": true,
+      "last_verified": "2026-10-06",
+      "known_versions": [],
+      "tags": [
+        "community",
+        "cloud",
+        "automation"
+      ],
+      "capabilities": [
+        "network_out",
+        "comms_out"
+      ],
+      "first_published": "2026-05-13",
+      "weekly_downloads": 921,
+      "publisher_history": [
+        "uditgoenka"
+      ],
+      "attestation_expected": false
+    },
+    {
+      "name": "@toolbox-sdk/server",
+      "source": "npm",
+      "package_ecosystem": "npm",
+      "repo": "https://github.com/googleapis/mcp-toolbox",
+      "maintainer": "Google",
+      "verified": false,
+      "last_verified": "2026-10-11",
+      "known_versions": [],
+      "tags": [
+        "database",
+        "google"
+      ],
+      "capabilities": [
+        "database",
+        "network_out"
+      ],
+      "first_published": "2025-11-28",
+      "weekly_downloads": 63326,
+      "publisher_history": [
+        "google-wombot"
+      ],
+      "attestation_expected": false,
+      "known_vulnerabilities": [
+        "CVE-2026-14540"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2026-14540",
+          "cvss": null,
+          "description": "SSRF: the generic HTTP source and tool follow redirects with no target-IP validation.",
+          "fixed_in": "1.5.0"
+        }
+      ]
+    },
+    {
+      "name": "mcp-remote",
+      "source": "npm",
+      "repo": "https://github.com/punkpeye/mcp-remote",
+      "maintainer": "punkpeye (from 0.2.5, 2026-08-26; earlier releases geelen/mcp-remote)",
+      "verified": false,
+      "last_verified": "2026-10-13",
+      "known_versions": [],
+      "tags": [
+        "proxy",
+        "remote",
+        "oauth"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2025-03-17",
+      "weekly_downloads": 614534,
+      "publisher_history": [
+        "punkpeye",
+        "threepointone",
+        "geelen"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2026-51994",
+        "CVE-2026-51995",
+        "CVE-2026-51996",
+        "CVE-2026-51997",
+        "CVE-2026-52001",
+        "CVE-2026-108716",
+        "CVE-2025-6514"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2026-51994",
+          "cvss": null,
+          "description": "SSRF via the resource_metadata URL in a remote server's WWW-Authenticate header (0.1.32–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-51995",
+          "cvss": null,
+          "description": "Information disclosure through authorization-server metadata handling (0.1.32–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-51996",
+          "cvss": null,
+          "description": "Remote code execution through getServerUrlHash in src/lib/utils.ts (0.1.16–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-51997",
+          "cvss": null,
+          "description": "Remote code execution through open() handling (0.1.16–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-52001",
+          "cvss": null,
+          "description": "Information disclosure through the SSE transport's eventSourceInit fetch wrapper (0.1.18–0.1.38; first unaffected release 0.1.39).",
+          "fixed_in": "0.1.39"
+        },
+        {
+          "cve": "CVE-2026-108716",
+          "cvss": null,
+          "description": "Cleartext transmission in 0.8.0 through 0.14.3; no patched version recorded (GHSA-jrvg-vw6c-rp59).",
+          "fixed_in": null
+        },
+        {
+          "cve": "CVE-2025-6514",
+          "cvss": null,
+          "description": "mcp-remote exposed to OS command injection via untrusted MCP server connections",
+          "fixed_in": "0.1.16"
+        }
+      ]
+    },
+    {
+      "name": "mcptoon",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/activeing123/mcptoon",
+      "maintainer": "activeing123",
+      "verified": true,
+      "last_verified": "2026-10-25",
+      "known_versions": [],
+      "tags": [
+        "community",
+        "proxy",
+        "dev-tools"
+      ],
+      "capabilities": [
+        "file_read",
+        "network_out"
+      ],
+      "first_published": "2026-08-11",
+      "weekly_downloads": 1158,
+      "publisher_history": null,
+      "attestation_expected": false
+    },
+    {
+      "name": "litellm",
+      "source": "pip",
+      "package_ecosystem": "pypi",
+      "repo": "https://github.com/BerriAI/litellm",
+      "maintainer": "BerriAI",
+      "verified": false,
+      "last_verified": "2026-10-29",
+      "known_versions": [],
+      "tags": [
+        "gateway",
+        "proxy",
+        "remote",
+        "ai",
+        "community"
+      ],
+      "capabilities": [
+        "network_out"
+      ],
+      "first_published": "2023-07-27",
+      "weekly_downloads": 21689249,
+      "publisher_history": [
+        "BerriAI"
+      ],
+      "known_vulnerabilities": [
+        "CVE-2024-10188",
+        "CVE-2024-2952",
+        "CVE-2024-4888",
+        "CVE-2024-5225",
+        "CVE-2024-5710",
+        "CVE-2024-5751",
+        "CVE-2024-6587",
+        "CVE-2024-8984",
+        "CVE-2024-9606",
+        "CVE-2025-0628",
+        "CVE-2026-114612",
+        "CVE-2026-12773",
+        "CVE-2026-35029",
+        "CVE-2026-35030",
+        "CVE-2026-37004",
+        "CVE-2026-40217",
+        "CVE-2026-42203",
+        "CVE-2026-42208",
+        "CVE-2026-42271",
+        "CVE-2026-47101",
+        "CVE-2026-47102",
+        "CVE-2026-49468",
+        "CVE-2026-59819",
+        "CVE-2026-59820",
+        "CVE-2026-59821",
+        "CVE-2026-59822",
+        "CVE-2026-59823",
+        "CVE-2026-84377",
+        "GHSA-69x8-hrgq-fjj8",
+        "GHSA-g5ff-637f-6q2m",
+        "GHSA-hhww-mrg2-969h"
+      ],
+      "known_vulns": [
+        {
+          "cve": "CVE-2024-10188",
+          "cvss": null,
+          "description": "LiteLLM Vulnerable to Denial of Service (DoS)",
+          "fixed_in": "1.53.1.dev1"
+        },
+        {
+          "cve": "CVE-2024-2952",
+          "cvss": null,
+          "description": "LiteLLM has Server-Side Template Injection vulnerability in /completions endpoint",
+          "fixed_in": "1.34.42"
+        },
+        {
+          "cve": "CVE-2024-4888",
+          "cvss": null,
+          "description": "Arbitrary file deletion in litellm",
+          "fixed_in": "1.35.36"
+        },
+        {
+          "cve": "CVE-2024-5225",
+          "cvss": null,
+          "description": "SQL injection in litellm",
+          "fixed_in": "1.40.0"
+        },
+        {
+          "cve": "CVE-2024-5710",
+          "cvss": null,
+          "description": "litellm vulnerable to improper access control in team management",
+          "fixed_in": "1.40.15"
+        },
+        {
+          "cve": "CVE-2024-5751",
+          "cvss": null,
+          "description": "litellm vulnerable to remote code execution based on using eval unsafely",
+          "fixed_in": "1.40.16"
+        },
+        {
+          "cve": "CVE-2024-6587",
+          "cvss": null,
+          "description": "LiteLLM Server-Side Request Forgery (SSRF) vulnerability",
+          "fixed_in": "1.44.8"
+        },
+        {
+          "cve": "CVE-2024-8984",
+          "cvss": null,
+          "description": "LiteLLM Vulnerable to Denial of Service (DoS) via Crafted HTTP Request",
+          "fixed_in": "1.56.2"
+        },
+        {
+          "cve": "CVE-2024-9606",
+          "cvss": null,
+          "description": "LiteLLM Reveals Portion of API Key via a Logging File",
+          "fixed_in": "1.44.12"
+        },
+        {
+          "cve": "CVE-2025-0628",
+          "cvss": null,
+          "description": "LiteLLM Has an Improper Authorization Vulnerability",
+          "fixed_in": "1.61.15"
+        },
+        {
+          "cve": "CVE-2026-114612",
+          "cvss": null,
+          "description": "LiteLLM: Privilege Escalation to Proxy Admin via Cross-Domain Reuse of the Salt Key",
+          "fixed_in": "1.104.0rc2"
+        },
+        {
+          "cve": "CVE-2026-12773",
+          "cvss": null,
+          "description": "LiteLLM: MCP Proxy Has Improper Authentication",
+          "fixed_in": "1.84.0"
+        },
+        {
+          "cve": "CVE-2026-35029",
+          "cvss": null,
+          "description": "LiteLLM: Privilege escalation via unrestricted proxy configuration endpoint",
+          "fixed_in": "1.83.0"
+        },
+        {
+          "cve": "CVE-2026-35030",
+          "cvss": null,
+          "description": "LiteLLM: Authentication bypass via OIDC userinfo cache key collision",
+          "fixed_in": "1.83.0"
+        },
+        {
+          "cve": "CVE-2026-37004",
+          "cvss": null,
+          "description": "LiteLLM vulnerable to server-side template injection in the /prompts/test endpoint",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-40217",
+          "cvss": null,
+          "description": "LiteLLM has a sandbox escape in custom-code guardrail",
+          "fixed_in": "1.83.10"
+        },
+        {
+          "cve": "CVE-2026-42203",
+          "cvss": null,
+          "description": "LiteLLM: Server-Side Template Injection in /prompts/test endpoint",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-42208",
+          "cvss": null,
+          "description": "LiteLLM has SQL Injection in Proxy API key verification",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-42271",
+          "cvss": null,
+          "description": "LiteLLM: Authenticated command execution via MCP stdio test endpoints",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-47101",
+          "cvss": null,
+          "description": "LiteLLM allows an authenticated internal_user to create API keys with access to routes that their role does not permit",
+          "fixed_in": "1.83.14"
+        },
+        {
+          "cve": "CVE-2026-47102",
+          "cvss": null,
+          "description": "LiteLLM allows a user to modify their own user_role via the /user/update endpoint",
+          "fixed_in": "1.83.10"
+        },
+        {
+          "cve": "CVE-2026-49468",
+          "cvss": null,
+          "description": "LiteLLM: Authentication Bypass via Host Header Injection",
+          "fixed_in": "1.84.0"
+        },
+        {
+          "cve": "CVE-2026-59819",
+          "cvss": null,
+          "description": "LiteLLM: Local file read via request-supplied OIDC file references",
+          "fixed_in": "1.83.10"
+        },
+        {
+          "cve": "CVE-2026-59820",
+          "cvss": null,
+          "description": "LiteLLM: Arbitrary file write via path traversal in Skills archive extraction",
+          "fixed_in": "1.83.7"
+        },
+        {
+          "cve": "CVE-2026-59821",
+          "cvss": null,
+          "description": "LiteLLM: Custom Code Guardrails production endpoints bypass code safety checks",
+          "fixed_in": "1.82.0"
+        },
+        {
+          "cve": "CVE-2026-59822",
+          "cvss": null,
+          "description": "LiteLLM: MCP Authentication Bypass via OAuth2 Passthrough Fallback",
+          "fixed_in": "1.84.0"
+        },
+        {
+          "cve": "CVE-2026-59823",
+          "cvss": null,
+          "description": "LiteLLM Proxy has server-side request forgery via the `user_config` request parameter",
+          "fixed_in": "1.83.9"
+        },
+        {
+          "cve": "CVE-2026-84377",
+          "cvss": null,
+          "description": "LiteLLM: Authenticated SSRF and provider-credential exfiltration via unvalidated request-body routing parameters",
+          "fixed_in": "1.96.2"
+        },
+        {
+          "cve": "GHSA-69x8-hrgq-fjj8",
+          "cvss": null,
+          "description": "LiteLLM: Password hash exposure and pass-the-hash authentication bypass",
+          "fixed_in": "1.83.0"
+        },
+        {
+          "cve": "GHSA-g5ff-637f-6q2m",
+          "cvss": null,
+          "description": "LiteLLM: internal_user_viewer arbitrary local file read via `vertex_ai_credentials`",
+          "fixed_in": "1.95.0"
+        },
+        {
+          "cve": "GHSA-hhww-mrg2-969h",
+          "cvss": null,
+          "description": "LiteLLM vulnerable to reflected XSS in /sso/debug/callback",
+          "fixed_in": "1.85.0"
+        }
+      ]
+    }
+  ]
+}

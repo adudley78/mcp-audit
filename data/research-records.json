@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-11-01",
+  "entry_count": 3,
+  "entries": [
+    {
+      "id": "x_MCPRS-4ad8c07d80d7",
+      "modified": "2026-10-29T00:00:00Z",
+      "published": "2026-09-17T00:00:00Z",
+      "summary": "Plugin4Shell: a plugin's pinned commit can be replaced by a branch named like it (Claude Code, Codex, GitHub Copilot) or FETCH_HEAD (Gemini CLI)",
+      "details": "As reported by AIR Security. These coding agents install a plugin by checking out a commit that the marketplace pins by SHA, but do not verify what the checkout resolved to. An attacker who controls the plugin's repository creates a branch whose name is the 40-character pinned SHA and makes it the default branch; git prefers the branch over the commit of the same name (it only warns that the name is ambiguous), so the code the user approved is replaced by the attacker's. Gemini CLI fetches the pinned commit and then runs 'git checkout FETCH_HEAD'; a default branch named FETCH_HEAD wins over the fetched commit. The branch-name form needs a host that accepts hash-shaped branch names (AIR reports that GitHub rejects them while Bitbucket and self-hosted servers allow them). Auto-update, the default in Claude Code and Codex per AIR, re-runs the checkout when a marketplace bumps the pin, which makes the attack zero-click. No CVE had been assigned at disclosure (CSA). Coverage in mcp-audit: PLUGIN-003 and PLUGIN-004 test this condition only on Claude Code's plugin directory (~/.claude/plugins, or CLAUDE_CODE_PLUGIN_CACHE_DIR), and only for installs that kept their .git; they do not examine Codex, GitHub Copilot or Gemini CLI plugin checkouts. mcp-audit does not read which harness version is installed, so a later command will report a harness-version question as 'could not check'.",
+      "aliases": [],
+      "credits": [
+        {
+          "name": "Or Nevo (AIR Security)",
+          "type": "FINDER"
+        },
+        {
+          "name": "Dor Granat (AIR Security)",
+          "type": "FINDER"
+        },
+        {
+          "name": "Niv Hoffman (AIR Security)",
+          "type": "FINDER"
+        }
+      ],
+      "references": [
+        {
+          "type": "ARTICLE",
+          "url": "https://www.air.security/blog-posts/plugin4shell"
+        },
+        {
+          "type": "ARTICLE",
+          "url": "https://labs.cloudsecurityalliance.org/research/csa-research-note-plugin4shell-ai-coding-agent-supply-chain/"
+        }
+      ],
+      "database_specific": {
+        "mcp_audit": {
+          "kind": "research",
+          "products": [
+            {
+              "product": "Claude Code",
+              "vendor": "Anthropic",
+              "status": "fixed",
+              "fixed_in": "2.1.179",
+              "note": "Anthropic confirmed the fix on 2026-06-17 (AIR Security)."
+            },
+            {
+              "product": "Codex",
+              "vendor": "OpenAI",
+              "status": "fixed",
+              "fixed_in": "0.146.0",
+              "note": "OpenAI's fix verified on 2026-08-12 (AIR Security)."
+            },
+            {
+              "product": "GitHub Copilot",
+              "vendor": "Microsoft",
+              "status": "unfixed",
+              "fixed_in": null,
+              "note": "No client fix at disclosure (AIR Security, CSA)."
+            },
+            {
+              "product": "Gemini CLI",
+              "vendor": "Google",
+              "status": "wontfix",
+              "fixed_in": null,
+              "note": "Google confirmed on 2026-08-04 that no fix will ship because the product is deprecated (AIR Security)."
+            }
+          ],
+          "checks": [
+            "PLUGIN-003",
+            "PLUGIN-004"
+          ]
+        }
+      }
+    },
+    {
+      "id": "x_MCPRS-32fc646f6f96",
+      "modified": "2026-10-29T00:00:00Z",
+      "published": "2026-03-05T00:00:00Z",
+      "summary": "ContextCrush: Context7's Custom Rules were served verbatim to agents by the Context7 MCP server, so a library owner's text reached every user's agent as trusted documentation",
+      "details": "As reported by Noma Security. Context7 lets a library owner attach Custom Rules (also called AI Instructions) to a library. The Context7 MCP server served those rules verbatim, through the same channel as the library's documentation, to anyone whose agent asked about that library, with no sanitization or filtering, so the agent could not tell an attacker's instructions from documentation. Noma's proof of concept, published as a library on Context7, told the agent to find and read all .env files in the project root, to send their contents to an attacker-controlled GitHub repository as an issue, and to delete local files and folders as 'cleanup'. Noma reports it sent the report and proof of concept to Upstash on 2026-02-18, that Upstash accepted the findings the next day, and that a fix (rule sanitization and guardrails) reached production on 2026-02-23; Noma made the finding public and verified the fix on 2026-03-05 and reports no in-the-wild exploitation. The flaw was in the vendor's service, not in a package version: the fix is server-side, so there is no client version to upgrade to and no local version shows whether a machine was exposed. The fixed_in value is therefore null; the note gives Noma's fix date (2026-02-23). Upstash's own confirmation of the fix date was not found (searched 2026-10-29); the date is Noma's. No CVE was assigned at disclosure. Coverage in mcp-audit: no check tests this condition. The rule text lives on Context7's servers and is fetched at tool-call time, so a static scan of a configuration cannot see it, and mcp-audit does not model the agent's built-in file reads that the proof of concept used. The wider pattern, a server that returns third-party text into an agent that also holds file, shell or posting tools, was measured and is not detected (GAPS.md, 'third-party content into context (STORY-0134)'). A configuration that launches @upstash/context7-mcp uses the affected service.",
+      "aliases": [],
+      "credits": [
+        {
+          "name": "Eli Ainhorn (Noma Security)",
+          "type": "FINDER"
+        }
+      ],
+      "references": [
+        {
+          "type": "ARTICLE",
+          "url": "https://noma.security/blog/contextcrush-context7-the-mcp-server-vulnerability/"
+        }
+      ],
+      "database_specific": {
+        "mcp_audit": {
+          "kind": "research",
+          "products": [
+            {
+              "product": "Context7 MCP",
+              "vendor": "Upstash",
+              "status": "fixed-server-side",
+              "fixed_in": null,
+              "note": "Fixed server-side on 2026-02-23 per Noma Security; not confirmed by Upstash. No client version is affected or fixed."
+            }
+          ],
+          "checks": []
+        }
+      }
+    },
+    {
+      "id": "x_MCPRS-c83726dd3047",
+      "modified": "2026-11-01T00:00:00Z",
+      "published": "2026-10-21T00:00:00Z",
+      "summary": "Claude Code (reported): in bypassPermissions mode a PreToolUse hook's \"ask\" is overridden when the same call writes into .git/ or .claude/",
+      "details": "As reported by sergvss in anthropics/claude-code issue 103994 (opened 2026-10-21; labels bug, has repro, area:security, area:hooks, area:permissions, platform:windows). This is a reported bug, not behaviour Claude Code's documentation describes: the vendor documentation says permission rules of type ask still prompt in these modes, and the reporter treats the case below as an exception. The reporter writes: \"In `bypassPermissions` mode, a `PreToolUse` hook that returns `permissionDecision: \\\"ask\\\"` is normally turned into a denial when there is no one to prompt (`claude -p`). That is the safe behavior, and it is what happens for most commands.\" The exception is a call that also writes into `.git/` or `.claude/`: \"It looks like Claude Code's own protected-path check for those directories is auto-approved by `bypassPermissions`, and that approval wins over the hook's `\\\"ask\\\"` for the whole call.\" In the reporter's reproduction a probe hook on Bash returns ask when the command contains a marker; a plain command that writes a marker file is denied, while the same marker command chained after a write to `.git/info/exclude` runs anyway; the same commands are blocked in `default` and `acceptEdits` modes, and the Write tool shows the same behaviour for `.claude/` paths. So a hook an organisation uses to turn selected commands into a human decision is bypassed whenever the call also touches `.git/` or `.claude/`, which is where a repository's hooks, settings and commit hooks live. Version: the reporter ran Claude Code 2.1.302 on Windows 11 (Git Bash) with `claude -p ... --permission-mode bypassPermissions`; no earlier version or other platform was reported on. The issue was open when read on 2026-11-01, and Claude Code's CHANGELOG through 2.1.316 (read the same day) has no entry that addresses it, so no fixed version is recorded. No CVE was assigned. Coverage in mcp-audit: no check tests this condition, so `checks` is empty. HARNESS-001 reports `permissions.defaultMode: bypassPermissions` in a settings file, which is a precondition and not the bug (the bug also needs a PreToolUse hook that returns ask, and a call that touches `.git/` or `.claude/`); it is not named in `checks` because a hit would not show that the condition holds, and it cannot see the `--permission-mode` flag the reporter used. `affected` therefore reports Claude Code as COULDN'T CHECK: with no fixed version there is nothing to order an installed version against.",
+      "aliases": [],
+      "credits": [
+        {
+          "name": "sergvss",
+          "type": "FINDER"
+        }
+      ],
+      "references": [
+        {
+          "type": "REPORT",
+          "url": "https://github.com/anthropics/claude-code/issues/103994"
+        }
+      ],
+      "database_specific": {
+        "mcp_audit": {
+          "kind": "research",
+          "products": [
+            {
+              "product": "Claude Code",
+              "vendor": "Anthropic",
+              "status": "unfixed",
+              "fixed_in": null,
+              "note": "Open as of 2026-11-01 and not addressed in Claude Code's CHANGELOG through 2.1.316; reported against 2.1.302 on Windows 11 (sergvss). A reported bug, not vendor-documented behaviour."
+            }
+          ],
+          "checks": []
+        }
+      }
+    }
+  ]
+}

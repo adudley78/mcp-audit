@@ -1,0 +1,24 @@
+{
+  "kind": "mcp-audit-data-bundle",
+  "schema_version": 1,
+  "created_at": "2026-11-01T18:38:37Z",
+  "feed_index_sha256": "46b3ff52e11420340add80a60a40175f4f530a3ef3b68ac91fd6ea2cf2f4863f",
+  "files": {
+    "data/known-servers.json": {
+      "sha256": "832f408312673f2fa24baf3d2f732704895b4a97724fc23b180c9cf8ead63f8f",
+      "bytes": 83120
+    },
+    "data/known-malicious.json": {
+      "sha256": "0053b960303b1672f0ed5eb9c4a71c284dbaa38485fd2d57786e0647902a6a4d",
+      "bytes": 90825
+    },
+    "data/research-records.json": {
+      "sha256": "e7431cc2c584e647698b3661e82cbea7e45452a446764604579bb362b7898e9e",
+      "bytes": 10444
+    },
+    "data/exploit-signals.json": {
+      "sha256": "dc7365b3fa55541cfab0889b2d2c2a9dbb74ea748581a8552b914682610466e5",
+      "bytes": 217817
+    }
+  }
+}

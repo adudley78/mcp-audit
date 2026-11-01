@@ -1,4 +1,0 @@
-untrusted comment: signature from minisign secret key
-RUTh0En+mVEKuKwZ5zaoLc8QgN8Y6DYpw2T6Qq6MpWOa7b5nLDJNHA6yhNGMkeqUYz5lDwYByd2Qvsehb/o6YyROJPvzgBujTgI=
-trusted comment: timestamp:1792948610	file:payload.jcs.json	hashed
-ozDjdkUTOfl4SXMiwveIyOED2+z8kxa5cp+nFjVkOOo1wbi9tS0s9NQ1COOeBsBKN3CHOZnyyWw+5dt5jalrCg==
