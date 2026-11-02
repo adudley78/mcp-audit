@@ -1,0 +1,38 @@
+id: COMM-036
+name: Container launched with host takeover flags
+description: >
+  Detects an MCP server launched with `docker run` or `podman run` and given
+  control of the host: `--privileged` (all capabilities and host devices),
+  a mounted container-engine socket (`docker.sock` or `podman.sock`, which
+  lets the container start further containers and so control the host), or
+  `--pid=host` (the host's process namespace). Many MCP servers ship as
+  containers, and these flags undo the isolation that is the reason to run
+  one in a container. `--privileged=false` is not matched. Sources: Docker,
+  "Docker daemon attack surface" (control of the daemon is control of the
+  host; a container can alter the host filesystem through shared
+  directories), https://docs.docker.com/engine/security/#docker-daemon-attack-surface
+  and Docker, runtime privilege flags,
+  https://docs.docker.com/engine/containers/run/
+severity: HIGH
+category: hygiene
+match:
+  operator: and
+  conditions:
+    - field: command
+      pattern: '(?:^|(?<=/))(?:docker|podman)(?:\.exe)?$'
+      type: regex
+    - field: args
+      pattern: '(?<!\S)--privileged(?:=true)?(?!\S)|\b(?:docker|podman)\.sock\b|(?<!\S)--pid[= ]host(?!\S)'
+      type: regex
+message: >-
+  Server '{server_name}' runs a container with host access ({matched_value}),
+  which removes the container isolation. Drop the flag or mount only the
+  paths the server needs.
+tags:
+  - hygiene
+  - container
+  - docker
+enabled: true
+owasp_mcp_top_10:
+  - MCP05
+author: rafayet-git

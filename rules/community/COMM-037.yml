@@ -1,0 +1,36 @@
+id: COMM-037
+name: Container launched on the host network
+description: >
+  Detects an MCP server launched with `docker run` or `podman run` and
+  `--network=host` (or `--net=host`), which shares the host's network stack:
+  the server can reach anything bound to the host's localhost, including
+  local databases and admin interfaces, and can listen on the host's ports.
+  Unlike `--privileged`, a mounted container-engine socket or `--pid=host`
+  (COMM-036), host networking does not give the server control of the host
+  itself, so this rule is MEDIUM. `--network=none` and `--network bridge`
+  are not matched. Source: Docker, runtime privilege and network flags,
+  https://docs.docker.com/engine/containers/run/
+severity: MEDIUM
+category: hygiene
+match:
+  operator: and
+  conditions:
+    - field: command
+      pattern: '(?:^|(?<=/))(?:docker|podman)(?:\.exe)?$'
+      type: regex
+    - field: args
+      pattern: '(?<!\S)--(?:network|net)[= ]host(?!\S)'
+      type: regex
+message: >-
+  Server '{server_name}' runs a container on the host network
+  ({matched_value}), so it can reach services bound to the host's localhost.
+  Use a user-defined bridge network and publish only the ports it needs.
+tags:
+  - hygiene
+  - container
+  - docker
+  - network
+enabled: true
+owasp_mcp_top_10:
+  - MCP05
+author: rafayet-git
