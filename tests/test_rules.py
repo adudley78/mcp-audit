@@ -2200,6 +2200,183 @@ class TestComm034GodKey:
         assert "COMM-034" in rule_ids
 
 
+# ── COMM-036 / COMM-037: container launched with host access (issue #251) ─────
+
+_DOCKER_IMAGE = "ghcr.io/example/mcp-server"
+
+
+def _ids(rule_id: str, community_rules_dir: Path, **server_kwargs: object) -> list[str]:
+    """IDs of the findings a single rule produces for one server.
+
+    Asserting on this rule's own finding, never the full finding list, keeps the
+    tests independent of other analyzers that fire on the same fixture (e.g.
+    TOXIC-007 on any ``--network=...`` flag).
+    """
+    rule = _load_rule(rule_id, community_rules_dir)
+    findings = RuleEngine([rule]).match_server(_make_server(**server_kwargs))
+    return [f.id for f in findings]
+
+
+class TestComm036HostTakeoverFlags:
+    """COMM-036 (HIGH): docker/podman launched with a flag that hands over the host."""
+
+    def test_rule_loads_with_expected_metadata(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-036", community_rules_dir)
+        assert rule.severity == Severity.HIGH
+        assert "MCP05" in rule.owasp_mcp_top_10
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            # The issue's "should fire" example: Docker socket mounted.
+            [
+                "run",
+                "-i",
+                "--rm",
+                "-v",
+                "/var/run/docker.sock:/var/run/docker.sock",
+                _DOCKER_IMAGE,
+            ],
+            ["run", "--privileged", _DOCKER_IMAGE],
+            ["run", "--privileged=true", _DOCKER_IMAGE],
+            ["run", "--pid=host", _DOCKER_IMAGE],
+            ["run", "--pid", "host", _DOCKER_IMAGE],
+            [
+                "run",
+                "--mount",
+                "type=bind,source=/var/run/docker.sock,target=/x",
+                _DOCKER_IMAGE,
+            ],
+        ],
+    )
+    def test_fires_on_each_host_takeover_flag(
+        self, community_rules_dir: Path, args: list[str]
+    ) -> None:
+        assert _ids("COMM-036", community_rules_dir, command="docker", args=args) == [
+            "COMM-036"
+        ]
+
+    def test_fires_for_podman_socket(self, community_rules_dir: Path) -> None:
+        args = [
+            "run",
+            "--volume=/run/podman/podman.sock:/run/podman/podman.sock",
+            "img",
+        ]
+        assert _ids("COMM-036", community_rules_dir, command="podman", args=args) == [
+            "COMM-036"
+        ]
+
+    def test_fires_for_full_path_to_docker(self, community_rules_dir: Path) -> None:
+        assert _ids(
+            "COMM-036",
+            community_rules_dir,
+            command="/usr/bin/docker",
+            args=["run", "--privileged", _DOCKER_IMAGE],
+        ) == ["COMM-036"]
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            # The issue's "should not fire" example.
+            [
+                "run",
+                "-i",
+                "--rm",
+                "-e",
+                "GITHUB_PERSONAL_ACCESS_TOKEN",
+                "ghcr.io/github/github-mcp-server",
+            ],
+            ["run", "--privileged=false", _DOCKER_IMAGE],
+            ["run", "--network=none", _DOCKER_IMAGE],
+            ["run", "--network", "bridge", _DOCKER_IMAGE],
+            ["run", "-v", "/data/docker.socket:/x", _DOCKER_IMAGE],
+        ],
+    )
+    def test_silent_on_safe_docker_args(
+        self, community_rules_dir: Path, args: list[str]
+    ) -> None:
+        assert _ids("COMM-036", community_rules_dir, command="docker", args=args) == []
+
+    def test_silent_when_command_is_not_a_container_engine(
+        self, community_rules_dir: Path
+    ) -> None:
+        """The flags alone do not fire the rule: the command must be docker/podman."""
+        assert (
+            _ids(
+                "COMM-036",
+                community_rules_dir,
+                command="node",
+                args=["server.js", "--privileged", "--pid=host", "docker.sock"],
+            )
+            == []
+        )
+
+    def test_host_network_alone_is_comm_037_not_comm_036(
+        self, community_rules_dir: Path
+    ) -> None:
+        args = ["run", "--network=host", _DOCKER_IMAGE]
+        assert _ids("COMM-036", community_rules_dir, command="docker", args=args) == []
+
+
+class TestComm037HostNetwork:
+    """COMM-037 (MEDIUM): docker/podman launched on the host network."""
+
+    def test_rule_loads_with_expected_metadata(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-037", community_rules_dir)
+        assert rule.severity == Severity.MEDIUM
+        assert "MCP05" in rule.owasp_mcp_top_10
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["run", "--network=host", _DOCKER_IMAGE],
+            ["run", "--net=host", _DOCKER_IMAGE],
+            ["run", "--network", "host", _DOCKER_IMAGE],
+        ],
+    )
+    def test_fires_on_host_network(
+        self, community_rules_dir: Path, args: list[str]
+    ) -> None:
+        assert _ids("COMM-037", community_rules_dir, command="docker", args=args) == [
+            "COMM-037"
+        ]
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["run", "--network=none", _DOCKER_IMAGE],
+            ["run", "--network", "bridge", _DOCKER_IMAGE],
+            ["run", "--network=my-net", _DOCKER_IMAGE],
+            ["run", "--privileged", "--pid=host", _DOCKER_IMAGE],
+            [
+                "run",
+                "-i",
+                "--rm",
+                "-e",
+                "GITHUB_PERSONAL_ACCESS_TOKEN",
+                "ghcr.io/github/github-mcp-server",
+            ],
+        ],
+    )
+    def test_silent_on_other_networks_and_flags(
+        self, community_rules_dir: Path, args: list[str]
+    ) -> None:
+        assert _ids("COMM-037", community_rules_dir, command="docker", args=args) == []
+
+    def test_silent_when_command_is_not_a_container_engine(
+        self, community_rules_dir: Path
+    ) -> None:
+        assert (
+            _ids(
+                "COMM-037",
+                community_rules_dir,
+                command="node",
+                args=["server.js", "--network=host"],
+            )
+            == []
+        )
+
+
 # ── STORY-0067: STDIO-001 / STDIO-002a / STDIO-002b — launch-command trust
 # boundary. See humans/decisions/2026-09-09-stdio-001-002-design.md (marcus
 # repo) for the full design, including the amendment dropping the
