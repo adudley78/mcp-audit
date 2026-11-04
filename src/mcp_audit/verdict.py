@@ -307,6 +307,9 @@ def build_verdict(
             "maintainer": entry.maintainer,
             "entry_updated": entry.last_verified,
             "registry_updated": registry.last_updated,
+            "archived": entry.archived,
+            "archive_notice": entry.archive_notice,
+            "successor": entry.successor,
         }
         vulns = _normalise_vulns(entry)
         capabilities = entry.capabilities or []
@@ -323,6 +326,9 @@ def build_verdict(
             "maintainer": None,
             "entry_updated": None,
             "registry_updated": registry.last_updated,
+            "archived": False,
+            "archive_notice": None,
+            "successor": None,
         }
         vulns = []
         capabilities = []

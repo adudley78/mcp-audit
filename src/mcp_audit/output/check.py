@@ -64,6 +64,10 @@ _HINTS: dict[str, str] = {
         "Check the pinned release's date against the fix on the package "
         "registry (npm: `npm view <pkg> time`); if it predates the fix, upgrade."
     ),
+    "SC-010": (
+        "Archived upstream: move to the successor the finding names, or to a "
+        "maintained server for the same service."
+    ),
     "SC-008": (
         "OSV lists malicious releases of this package; follow the finding: "
         "remove it, or pin a release the record does not list."

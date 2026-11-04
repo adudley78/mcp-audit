@@ -149,8 +149,10 @@ class TestSupplyChainAnalyzer:
         assert _non_advisory(self.analyzer.analyze(server)) == []
 
     def test_exact_match_github(self) -> None:
+        # No name finding; server-github is archived upstream, so SC-010 only
+        # (STORY-0140).
         server = _make_server(args=["-y", "@modelcontextprotocol/server-github"])
-        assert self.analyzer.analyze(server) == []
+        assert [f.id for f in self.analyzer.analyze(server)] == ["SC-010"]
 
     def test_exact_match_memory(self) -> None:
         server = _make_server(args=["-y", "@modelcontextprotocol/server-memory"])
