@@ -1,4 +1,4 @@
-"""Installed versions of Claude Code, Codex and Gemini CLI, read from files only.
+"""Installed versions of Claude Code, Codex, Gemini CLI and OpenCode (files only).
 
 STORY-0132.  Nothing here runs a harness binary or any other program: a version
 comes from a ``package.json`` or from the name of a file or directory the
@@ -8,7 +8,8 @@ Layouts read (see ``docs/affected.md``):
 
 * npm global installs: ``<prefix>/lib/node_modules/<pkg>/package.json`` (and
   ``<prefix>/node_modules/<pkg>/package.json`` for Windows' ``%APPDATA%\\npm``)
-  for ``@anthropic-ai/claude-code``, ``@openai/codex``, ``@google/gemini-cli``.
+  for ``@anthropic-ai/claude-code``, ``@openai/codex``, ``@google/gemini-cli``,
+  ``opencode-ai`` (STORY-0142).
   Prefixes: ``npm_config_prefix``, ``~/.nvm/versions/node/*`` (and ``NVM_DIR``),
   ``/opt/homebrew``, ``/usr/local``, ``/usr``, ``~/.npm-global``, ``%APPDATA%\\npm``.
 * Claude Code's native installer: version-named entries under
@@ -16,6 +17,11 @@ Layouts read (see ``docs/affected.md``):
   ``~/.local/bin/claude`` is a symlink into that directory
   (https://code.claude.com/docs/en/setup#auto-updates).  The launcher's
   target is read with ``readlink`` only, never followed or executed.
+
+* OpenCode's own installer: ``~/.opencode/bin/opencode`` (``opencode.exe`` on
+  Windows).  It keeps no version file, so it is reported as an install with
+  **no version** (``kind="installer"``, ``version=None``); the file is only
+  ``stat``-ed, never opened or run.
 
 Which install is first on ``PATH`` cannot be known without executing, so every
 install found is returned.
@@ -42,7 +48,11 @@ HARNESSES: dict[str, tuple[str, str]] = {
     "claude-code": ("Claude Code", "@anthropic-ai/claude-code"),
     "codex": ("Codex", "@openai/codex"),
     "gemini-cli": ("Gemini CLI", "@google/gemini-cli"),
+    "opencode": ("OpenCode", "opencode-ai"),
 }
+
+#: OpenCode's installer location under the home directory, and the file names.
+OPENCODE_INSTALLER_NAMES = ("opencode", "opencode.exe")
 
 _VERSION_NAME = re.compile(
     r"^\d{1,6}(?:\.\d{1,6}){1,3}(?:[-+.][0-9A-Za-z.\-+]{1,40})?$"
@@ -56,15 +66,16 @@ class HarnessInstall:
     Attributes:
         harness: Key of ``HARNESSES``.
         product: Product name as research records spell it.
-        version: The version string as the file states it.
+        version: The version string as the file states it, or ``None`` when
+            the install keeps no version file (``kind="installer"``).
         source: Path of the file or directory it was read from.
-        kind: ``npm`` or ``native``.
+        kind: ``npm``, ``native`` or ``installer``.
         launcher_target: ``True`` when ``~/.local/bin/claude`` points here.
     """
 
     harness: str
     product: str
-    version: str
+    version: str | None
     source: str
     kind: str
     launcher_target: bool = False
@@ -221,10 +232,34 @@ def _native_installs(home: Path, skipped: list[str]) -> list[HarnessInstall]:
     return found
 
 
+def _installer_installs(home: Path, skipped: list[str]) -> list[HarnessInstall]:
+    """OpenCode's installer: ``~/.opencode/bin/opencode[.exe]``, stat only."""
+    found: list[HarnessInstall] = []
+    bindir = home / ".opencode" / "bin"
+    for name in OPENCODE_INSTALLER_NAMES:
+        path = bindir / name
+        try:
+            mode = os.stat(path).st_mode
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            skipped.append(f"{path}: not readable ({type(exc).__name__})")
+            continue
+        if not stat.S_ISREG(mode):
+            skipped.append(f"{path}: not a regular file")
+            continue
+        found.append(
+            HarnessInstall(
+                "opencode", HARNESSES["opencode"][0], None, str(path), "installer"
+            )
+        )
+    return found
+
+
 def find_harness_versions(
     home: Path | None = None, env: dict[str, str] | None = None
 ) -> HarnessScan:
-    """Find installed Claude Code, Codex and Gemini CLI versions, reading files only.
+    """Find installed Claude Code, Codex, Gemini CLI and OpenCode versions.
 
     Never executes anything.  A hostile or malformed file is skipped with a
     reason in ``HarnessScan.skipped``; this function does not raise on bad
@@ -262,4 +297,5 @@ def find_harness_versions(
                 HarnessInstall(key, product, version, str(pkg_json), "npm")
             )
     scan.installs.extend(_native_installs(home_dir, scan.skipped))
+    scan.installs.extend(_installer_installs(home_dir, scan.skipped))
     return scan

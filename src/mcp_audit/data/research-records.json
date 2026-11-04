@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-11-01",
-  "entry_count": 3,
+  "last_updated": "2026-11-04",
+  "entry_count": 4,
   "entries": [
     {
       "id": "x_MCPRS-4ad8c07d80d7",
@@ -138,6 +138,45 @@
               "status": "unfixed",
               "fixed_in": null,
               "note": "Open as of 2026-11-01 and not addressed in Claude Code's CHANGELOG through 2.1.316; reported against 2.1.302 on Windows 11 (sergvss). A reported bug, not vendor-documented behaviour."
+            }
+          ],
+          "checks": []
+        }
+      }
+    },
+    {
+      "id": "x_MCPRS-3a7e475c087d",
+      "modified": "2026-11-04T00:00:00Z",
+      "summary": "OpenCode (Windows and WSL): a remote MCP server could make OpenCode run a PowerShell command during the OAuth sign-in flow",
+      "details": "As reported by Eilon Cohen (Pillar Security), with no CVE assigned: a remote MCP server could make OpenCode run a PowerShell command during the MCP OAuth sign-in flow. The npm package opencode-ai is affected from 1.0.137 through 1.18.32 on Windows and WSL only, and fixed in 1.18.33 (published to npm on 2026-09-28). macOS and Linux hosts are not affected. Coverage in mcp-audit: no check tests the OAuth sign-in flow, so `checks` is empty and `affected` answers from the installed version and the host platform alone. It reads opencode-ai from npm global installs; an install made by OpenCode's own installer (~/.opencode/bin) keeps no version file, so `affected` reports it as COULDN'T CHECK.",
+      "aliases": [],
+      "credits": [
+        {
+          "name": "Eilon Cohen (Pillar Security)",
+          "type": "FINDER"
+        }
+      ],
+      "references": [
+        {
+          "type": "ARTICLE",
+          "url": "https://www.pillar.security/blog/open-and-shut-remote-code-execution-in-opencode-via-mcp-oauth"
+        }
+      ],
+      "database_specific": {
+        "mcp_audit": {
+          "kind": "research",
+          "products": [
+            {
+              "product": "OpenCode",
+              "vendor": "opencode project",
+              "status": "fixed",
+              "fixed_in": "1.18.33",
+              "introduced": "1.0.137",
+              "platforms": [
+                "windows",
+                "wsl"
+              ],
+              "note": "Affected 1.0.137 through 1.18.32 on Windows and WSL only; fixed in 1.18.33, published to npm 2026-09-28 (Pillar Security; npm registry time)."
             }
           ],
           "checks": []

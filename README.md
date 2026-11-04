@@ -72,7 +72,7 @@ MCP (Model Context Protocol) servers give AI agents access to your tools, files,
 
 ## Features
 
-- **Auto-discovers** MCP configs across 10 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code, GitHub Copilot CLI, Augment Code, Amazon Q Developer, Codex, Gemini CLI), user-level and project-level; see [docs/clients.md](docs/clients.md)
+- **Auto-discovers** MCP configs across 11 clients (Claude Desktop, Cursor, VS Code, Windsurf, Claude Code, GitHub Copilot CLI, Augment Code, Amazon Q Developer, Codex, Gemini CLI, OpenCode), user-level and project-level; see [docs/clients.md](docs/clients.md)
 - **Tool poisoning detection** — 18 regex patterns across 5 severity tiers, validated against 6 published exploit PoCs (Invariant Labs, CrowdStrike, CyberArk) with zero false positives on our published 22-server benchmark (a regression test over config entries, which hold no tool descriptions). Measured on tool descriptions it is much weaker ([docs/poisoning.md](docs/poisoning.md)): it flags 74.7% of MCPTox's 1,312 poisoned descriptions but 23.7% of those without an `<IMPORTANT>` or "ignore the previous instructions" wrapper (69.3% and 7.4% at HIGH or above, the threshold `check` and the pre-commit hook fail on), and on the 100 most-downloaded npm MCP servers it raised 46 findings on 1,402 live tools, 1 of them real (an order buried in a long description to send the user's message to the vendor; re-measured 2026-10-29 on 0.23.0; it was 661 on 0.21.0, 488 of them POISON-060 on full-width CJK punctuation, which no longer fires; MCPTox's clean tools flagged fell from 18 of 353 to 2 with no MCPTox detection lost — MCPTox is in-sample for that check). Six patterns for orders that hide ("do not mention this to the user", "do not ask for permission", banning the ask-the-user tool, threats, run-on-startup, fetch-a-URL-and-follow-it; POISON-070..075) caught 23 of 45 hand-written orders held out from their design and 0 of 45 look-alike ordinary sentences, and flag none of MCPTox's 353 real tools; zero-width and variation-selector text is decoded and rescanned (POISON-043/044)
 - **Credential exposure** — 17 patterns covering AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, and database URLs
 - **Transport security** — unencrypted connections, elevated privileges (`sudo`/`doas`/`pkexec`/`su`/`run0`), wildcard bindings (`0.0.0.0`, `::`), runtime package fetching
@@ -370,6 +370,7 @@ See [`docs/diff.md`](docs/diff.md) for input formats, severity table, and edge c
 | Amazon Q Developer (project) | `.amazonq/mcp.json` (project root; `scan --project` only) |
 | Codex | `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`); `.codex/config.toml` (project) — TOML `[mcp_servers.<name>]` |
 | Gemini CLI | `~/.gemini/settings.json`; `.gemini/settings.json` (project) — `mcpServers`, comments allowed |
+| OpenCode | `~/.config/opencode/opencode.json(c)`, `$OPENCODE_CONFIG`; `opencode.json(c)` (project) — `mcp`, JSONC |
 
 Paths, keys and how each file is read: [docs/clients.md](docs/clients.md).
 

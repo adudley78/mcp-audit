@@ -36,6 +36,7 @@ from mcp_audit.analyzers.supply_chain import (
     resolve_launch_entry,
 )
 from mcp_audit.harness_versions import HarnessScan
+from mcp_audit.host_platform import detect_host_platform
 from mcp_audit.lock.discovery import find_lock_for
 from mcp_audit.models import Finding, ServerConfig, Severity
 from mcp_audit.registry.loader import (
@@ -80,6 +81,9 @@ UNEVALUABLE = "unevaluable"
 NO_PACKAGE = "no-package"
 HARNESS_VERSION = "harness-version"
 VENDOR_SERVICE = "vendor-service"
+# A product the write-up limits to some platforms (STORY-0142).
+PLATFORM_OUTSIDE = "platform-outside"
+PLATFORM_UNKNOWN = "platform-unknown"
 NOT_LAUNCHER_TARGET = "not-launcher-target"
 POSTURE_ONLY = "posture-only"
 OTHER_PACKAGE = "other-package"
@@ -846,8 +850,52 @@ _PRODUCT_STATUS = {
 }
 
 
-def _harness_rows(p: Any, found: list[Any], state: str) -> list[Row]:
-    """One row per installed copy of product *p* compared with its fix."""
+def _install_label(inst: Any) -> str:
+    """``1.2.3``, or ``(no version file)`` for an install that keeps none."""
+    return inst.version if inst.version is not None else "(version unknown)"
+
+
+def _below(version: str, bound: str) -> bool | None:
+    """Whether *version* orders below *bound*; ``None`` if either will not parse."""
+    try:
+        return Version(version) < Version(bound)
+    except InvalidVersion:
+        return None
+
+
+def _platform_row(p: Any, host: str | None) -> tuple[Status, str, str] | None:
+    """The row for an install on a host a platform-limited product may not cover.
+
+    Returns ``(status, verdict, reason)``, or ``None`` when the product
+    has no platform limit or the host is one the write-up names.
+    """
+    if not p.platforms:
+        return None
+    named = "/".join(p.platforms)
+    if host is None:
+        return (
+            Status.COULDNT_CHECK,
+            f"is affected on {named} only, and this host's platform could not be "
+            "determined",
+            PLATFORM_UNKNOWN,
+        )
+    if host in p.platforms:
+        return None
+    return (
+        Status.NOT_AFFECTED,
+        f"is not affected on {host} (the write-up covers {named} only)",
+        PLATFORM_OUTSIDE,
+    )
+
+
+def _harness_rows(
+    p: Any, found: list[Any], state: str, host: str | None = None
+) -> list[Row]:
+    """One row per installed copy of product *p* compared with its fix.
+
+    *host* is the platform of this machine; it is only consulted for a product
+    whose record limits ``platforms``.
+    """
     out: list[Row] = []
     # A native install keeps older versions on disk; when the launcher points
     # at one of them, the others are not what ``claude`` runs.
@@ -855,36 +903,56 @@ def _harness_rows(p: Any, found: list[Any], state: str) -> list[Row]:
         i.kind == "native" and getattr(i, "launcher_target", False) for i in found
     )
     for inst in found:
-        try:
-            below = Version(inst.version) < Version(p.fixed_in)
-        except InvalidVersion:
-            below = None
-        reason = HARNESS_VERSION if below is None else None
-        retained = (
-            has_target
-            and inst.kind == "native"
-            and not getattr(inst, "launcher_target", False)
-        )
-        if below is None:
-            status, verdict = Status.COULDNT_CHECK, "cannot be ordered against"
-        elif below and retained:
-            status, verdict = (
-                Status.COULDNT_CHECK,
-                "is below (an older copy kept on disk; the launcher points at "
-                "another version, so this one is not what `claude` runs)",
+        label = _install_label(inst)
+        subject = f"{p.product} ({p.vendor}) {inst.version}"
+        if inst.version is None:
+            subject = f"{p.product} ({p.vendor}) installer"
+        where = f"{p.product} {label} ({inst.kind} install, read from {inst.source})"
+        tail = f"; per the write-up: {state}"
+        limited = _platform_row(p, host)
+        status: Status
+        if limited is not None:
+            status, verdict, reason = limited
+            evidence = f"{where} {verdict}{tail}"
+        elif inst.version is None:
+            status, reason = Status.COULDNT_CHECK, HARNESS_VERSION
+            evidence = (
+                f"{p.product} is installed by the {p.product} installer at "
+                f"{inst.source}, which keeps no version file, so it cannot be "
+                f"ordered against the fix {p.fixed_in}{tail}"
             )
-            reason = NOT_LAUNCHER_TARGET
-        elif below:
-            status, verdict = Status.AFFECTED, "is below"
+        elif p.introduced and _below(inst.version, p.introduced):
+            status, reason = Status.NOT_AFFECTED, VERSION_OUTSIDE
+            evidence = (
+                f"{where} is below the first affected version {p.introduced}{tail}"
+            )
         else:
-            status, verdict = Status.NOT_AFFECTED, "is at or above"
+            below = _below(inst.version, p.fixed_in)
+            reason = HARNESS_VERSION if below is None else None
+            retained = (
+                has_target
+                and inst.kind == "native"
+                and not getattr(inst, "launcher_target", False)
+            )
+            if below is None:
+                status, verdict = Status.COULDNT_CHECK, "cannot be ordered against"
+            elif below and retained:
+                status, verdict = (
+                    Status.COULDNT_CHECK,
+                    "is below (an older copy kept on disk; the launcher points at "
+                    "another version, so this one is not what `claude` runs)",
+                )
+                reason = NOT_LAUNCHER_TARGET
+            elif below:
+                status, verdict = Status.AFFECTED, "is below"
+            else:
+                status, verdict = Status.NOT_AFFECTED, "is at or above"
+            evidence = f"{where} {verdict} the fix {p.fixed_in}{tail}"
         out.append(
             Row(
-                f"{p.product} ({p.vendor}) {inst.version}",
+                subject,
                 status,
-                f"{p.product} {inst.version} ({inst.kind} install, read from "
-                f"{inst.source}) {verdict} the fix {p.fixed_in}; per the "
-                f"write-up: {state}",
+                evidence,
                 package=p.product,
                 version=inst.version,
                 version_source=inst.source,
@@ -900,6 +968,7 @@ def research_rows(
     check_findings: Callable[[], list[Finding]] | None,
     notes: list[str],
     harness: HarnessScan | None = None,
+    host_platform: Callable[[], str | None] | None = None,
 ) -> list[Row]:
     """Rows for a research record: check results, then rows per product.
 
@@ -911,6 +980,13 @@ def research_rows(
     HIGH-or-worse hit is AFFECTED, anything milder is COULDN'T CHECK (posture
     only).  No check result ever produces NOT AFFECTED: the checks cover
     Claude Code's plugin directory only.
+
+    A product may also carry ``introduced`` (an install below it is NOT
+    AFFECTED) and ``platforms`` (a host outside the list is NOT AFFECTED, an
+    undeterminable host COULDN'T CHECK); ``host_platform`` returns this host's
+    platform (default: :func:`mcp_audit.host_platform.detect_host_platform`)
+    and is only called for a product that limits platforms.  An install that
+    keeps no version file (``version`` is ``None``) is COULDN'T CHECK.
     """
     rows: list[Row] = []
     findings = check_findings() if check_findings is not None else []
@@ -954,7 +1030,10 @@ def research_rows(
         state = _PRODUCT_STATUS[p.status].format(fixed_in=p.fixed_in)
         found = harness.for_product(p.product) if harness is not None else []
         if found and p.fixed_in:
-            rows.extend(_harness_rows(p, found, state))
+            host = None
+            if p.platforms:
+                host = (host_platform or detect_host_platform)()
+            rows.extend(_harness_rows(p, found, state, host))
             if len(found) > 1:
                 notes.append(
                     f"{len(found)} {p.product} installs found; which one is "
@@ -967,7 +1046,7 @@ def research_rows(
             # An install was read, but with no fixed version there is nothing
             # to order it against, and the write-up gives no first affected
             # version that mcp-audit could use instead (none is invented).
-            versions = ", ".join(sorted({i.version for i in found}))
+            versions = ", ".join(sorted({_install_label(i) for i in found}))
             why = (
                 f"{p.product} {versions} is installed, but the write-up gives "
                 "no fixed version to compare it with"

@@ -19,6 +19,10 @@ from mcp_audit.models import ServerConfig, TransportType
 #: ``DiscoveredConfig.dialect`` values (STORY-0110).
 CODEX_DIALECT = "codex"
 GEMINI_DIALECT = "gemini"
+OPENCODE_DIALECT = "opencode"
+
+#: File names read as OpenCode's JSONC config when only the path says so.
+OPENCODE_CONFIG_NAMES = frozenset({"opencode.json", "opencode.jsonc"})
 
 #: Largest Codex ``config.toml`` or Gemini CLI ``settings.json`` that is read.
 #: A larger file is reported in ``result.errors`` (not read), never skipped
@@ -81,8 +85,8 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
     """Parse a discovered config file into a list of ServerConfig objects.
 
     Handles the VS Code 'servers' vs 'mcpServers' key difference, Codex's
-    TOML ``config.toml`` and Gemini CLI's ``settings.json`` (see
-    :func:`config_dialect`).
+    TOML ``config.toml``, Gemini CLI's ``settings.json`` and OpenCode's JSONC
+    ``opencode.json`` (see :func:`config_dialect`).
 
     As a side effect, stores the top-level parsed JSON dict in
     ``config.raw`` so downstream pipeline steps (e.g. config-level
@@ -107,6 +111,8 @@ def parse_config(config: DiscoveredConfig) -> list[ServerConfig]:
         return _parse_codex_config(config)
     if dialect == GEMINI_DIALECT:
         return _parse_gemini_settings(config)
+    if dialect == OPENCODE_DIALECT:
+        return _parse_opencode_config(config)
 
     try:
         raw_text = config.path.read_text(encoding="utf-8")
@@ -248,12 +254,13 @@ def _servers_from_dict(
 
 
 def config_dialect(config: DiscoveredConfig) -> str | None:
-    """Return how *config* is read: ``"codex"``, ``"gemini"`` or ``None`` (JSON).
+    """Return how *config* is read: ``codex``, ``gemini``, ``opencode`` or ``None``.
 
     Discovery sets ``config.dialect`` for the files it finds.  For an explicit
     ``--path`` (client ``custom``) or a ``diff`` input, the path decides: any
     ``.toml`` file is read as Codex's ``config.toml``, and a ``settings.json``
-    whose directory is ``.gemini`` as Gemini CLI's settings.
+    whose directory is ``.gemini`` as Gemini CLI's settings, and a file named
+    ``opencode.json`` or ``opencode.jsonc`` as OpenCode's config (STORY-0142).
     """
     if config.dialect is not None:
         return config.dialect
@@ -261,6 +268,8 @@ def config_dialect(config: DiscoveredConfig) -> str | None:
         return CODEX_DIALECT
     if config.path.name == "settings.json" and config.path.parent.name == ".gemini":
         return GEMINI_DIALECT
+    if config.path.name.lower() in OPENCODE_CONFIG_NAMES:
+        return OPENCODE_DIALECT
     return None
 
 
@@ -462,6 +471,136 @@ def _strip_json_comments(text: str) -> str:
         out.append(ch)
         i += 1
     return "".join(out)
+
+
+def _strip_trailing_commas(text: str) -> str:
+    """Drop a ``,`` that is followed only by whitespace and ``}`` or ``]``.
+
+    Run after :func:`_strip_json_comments`, so no comment can sit between the
+    comma and its closer.  String-aware and linear: each comma looks ahead over
+    the whitespace run after it, and runs of different commas do not overlap.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    escape = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+        elif ch == '"':
+            in_string = True
+            out.append(ch)
+        elif ch == ",":
+            j = i + 1
+            while j < n and text[j] in " \t\r\n":
+                j += 1
+            if j >= n or text[j] not in "}]":
+                out.append(ch)
+        else:
+            out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _opencode_entry(
+    name: str, entry: object, config: DiscoveredConfig
+) -> tuple[ServerConfig | None, str | None]:
+    """Build one OpenCode ``mcp`` entry; return ``(server, reason it was skipped)``."""
+    if not isinstance(entry, dict):
+        return None, "the entry is not an object"
+    kind = entry.get("type")
+    if kind == "local":
+        argv = entry.get("command")
+        if not isinstance(argv, list) or not argv:
+            return None, "a local server needs a non-empty 'command' array"
+        parts = [_as_text(a) for a in argv]
+        if any(part is None for part in parts):
+            return None, "'command' holds a value that is not text"
+        texts = [part for part in parts if part is not None]
+        return (
+            _server(
+                name,
+                config,
+                transport=TransportType.STDIO,
+                command=texts[0],
+                args=texts[1:],
+                env=_text_dict(entry.get("environment")),
+                url=None,
+                headers={},
+                raw=entry,
+            ),
+            None,
+        )
+    if kind == "remote":
+        url = _as_text(entry.get("url"))
+        if not url:
+            return None, "a remote server needs a 'url'"
+        return (
+            _server(
+                name,
+                config,
+                transport=_detect_transport({"url": url}),
+                command=None,
+                args=[],
+                env={},
+                url=url,
+                headers=_text_dict(entry.get("headers")),
+                raw=entry,
+            ),
+            None,
+        )
+    return None, f"unknown type {str(kind)[:40]!r} (expected 'local' or 'remote')"
+
+
+def _parse_opencode_config(config: DiscoveredConfig) -> list[ServerConfig]:
+    """Parse OpenCode's ``opencode.json`` / ``opencode.jsonc`` (top-level ``mcp``).
+
+    The file is JSONC: ``//`` and ``/* */`` comments and trailing commas are
+    accepted.  A ``local`` entry's ``command`` is an argv array (first item the
+    program, the rest its arguments) and ``environment`` its env; a ``remote``
+    entry has ``url`` and ``headers``.  An entry with ``"enabled": false`` is
+    still analysed, as for Codex (a one-line edit turns it on).  An entry of
+    unknown ``type`` or the wrong shape is skipped and noted in
+    ``config.parse_warnings``; it never stops the other servers.
+
+    Raises:
+        ValueError: The file cannot be read or is not valid JSONC.
+    """
+    text = _read_settings_text(config.path)
+    try:
+        data = json.loads(_strip_trailing_commas(_strip_json_comments(text)))
+    except (json.JSONDecodeError, RecursionError) as e:
+        raise ValueError(f"Invalid JSON in {config.path}: {e}") from e
+    check_config_depth(data, config.path)
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Expected JSON object in {config.path}, got {type(data).__name__}"
+        )
+    config.raw = data
+    entries = data.get("mcp")
+    if not isinstance(entries, dict):
+        return []
+    servers: list[ServerConfig] = []
+    warnings: list[str] = []
+    for name, entry in entries.items():
+        server, reason = _opencode_entry(str(name), entry, config)
+        if server is None:
+            warnings.append(
+                f"{config.path}: OpenCode server {str(name)[:60]!r} was skipped: "
+                f"{reason}"
+            )
+            continue
+        servers.append(server)
+    config.parse_warnings = warnings
+    return servers
 
 
 def _parse_gemini_settings(config: DiscoveredConfig) -> list[ServerConfig]:
