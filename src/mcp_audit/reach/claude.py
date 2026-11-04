@@ -503,7 +503,7 @@ def connectors_possible(settings: Settings, env: Env) -> str:
     claude.ai"; settings reference): ``disableClaudeAiConnectors``,
     ``ENABLE_CLAUDEAI_MCP_SERVERS`` set false, a ``managed-mcp.json`` without
     the managed ``allowAllClaudeAiMcps``, or an API-key login
-    (``apiKeyHelper``, ``ANTHROPIC_API_KEY`` or ``ANTHROPIC_AUTH_TOKEN``).
+    (``apiKeyHelper`` or ``ANTHROPIC_AUTH_TOKEN``).
     """
     src = settings.sources
     off, _s = resolve(src, _key("disableClaudeAiConnectors"))
@@ -521,10 +521,11 @@ def connectors_possible(settings: Settings, env: Env) -> str:
     helper, _s = resolve(src, _key("apiKeyHelper"))
     if isinstance(helper, str) and helper.strip():
         return ""
-    for name in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
-        value, _s = resolve(src, _key("env", name))
-        if isinstance(value, str) and value.strip():
-            return ""
+    # ANTHROPIC_API_KEY is not on this list: Claude Code asks once to approve
+    # it in interactive mode, and a declined key falls back to the login.
+    value, _s = resolve(src, _key("env", "ANTHROPIC_AUTH_TOKEN"))
+    if isinstance(value, str) and value.strip():
+        return ""
     return (
         "claude.ai connectors (remote MCP servers from the account) are loaded at"
         " startup with a subscription login and are in no local file; none of"
@@ -667,6 +668,7 @@ def credential_question(
     unsandboxed_bash: bool = False,
     env_secrets: list[Fact] | None = None,
     outside: list[Fact] | None = None,
+    store_hits: list[Fact] | None = None,
     mcp_open: list[str] | None = None,
 ) -> tuple[Question, bool]:
     """Question 2 from REACH-001..003; the bool is "a store is readable".
@@ -715,6 +717,8 @@ def credential_question(
     secrets = env_secrets or []
     facts += secrets[:20]
     outside = outside or []
+    hits = store_hits or []
+    facts += hits[:20]
     mcp_open = mcp_open or []
     facts += outside[:20]
     facts += [
@@ -731,8 +735,13 @@ def credential_question(
     if r002:
         facts.append(Fact("login store mode", r002[0].evidence, None))
     refs = ["REACH-001"] if reach else []
-    if reach or bypassed or secrets:
+    if reach or bypassed or secrets or hits:
         bits = []
+        if hits:
+            bits.append(
+                f"{len(hits)} hook, apiKeyHelper or statusLine command(s) name a"
+                " credential store path and run outside the sandbox"
+            )
         if reach or bypassed:
             bits.append(
                 f"{len(readable) + len(bypassed)} credential store(s) readable"
@@ -801,22 +810,16 @@ _MAX_LISTED = 20
 
 _DEV_NET_RE = re.compile(r"/dev/(?:tcp|udp)\b", re.IGNORECASE)
 
-#: Programs that, run bare, only read or print local state.  A command is
-#: "known local" only when every segment starts with one of these (and has no
-#: substitution, interpreter flag or redirect to a network device); anything
-#: else, a script or interpreter included, could do anything.
+#: Programs that, run bare, only print or report local state.  The list is
+#: deliberately tiny.  ``git`` (``diff.external``, textconv, fsmonitor run
+#: programs a repository configures) and ``sort`` (``--compress-program``) are
+#: not on it, nor is anything that reads a file.
 _LOCAL_WORDS = frozenset(
-    {
-        "echo", "printf", "true", "false", "date", "pwd", "whoami", "hostname",
-        "basename", "dirname", "cat", "head", "tail", "wc", "sort", "uniq",
-        "cut", "tr", "jq", "test", "[", "sleep", "uname", "id", "ls", "grep",
-    }
-)  # fmt: skip
-_LOCAL_GIT = frozenset(
-    {"status", "diff", "log", "branch", "rev-parse", "show", "describe", "remote"}
+    {"echo", "printf", "true", "false", "date", "pwd", "whoami", "hostname", "uname"}
 )
-_SUBSTITUTION_RE = re.compile(r"\$\(|`|<\(|>\(")
-_SEGMENT_SPLIT_RE = re.compile(r"\|\||&&|[|;&\n]")
+#: Any of these makes a command something other than one bare program:
+#: substitution, redirection, pipes, lists, grouping, expansion, newlines.
+_SHELL_SYNTAX_RE = re.compile(r"[|&;<>$`(){}\n\r\\]")
 
 
 def _net_tool(command: str) -> str | None:
@@ -829,23 +832,17 @@ def _net_tool(command: str) -> str | None:
 
 
 def _known_local(command: str) -> bool:
-    """True only when *command* is positively a harmless local read or print."""
+    """True only when *command* is one bare, harmless, local printing program.
+
+    No leading ``VAR=`` assignment (``LD_PRELOAD=...``, ``PATH=...``), no
+    substitution, redirection, pipe or list, no path in the program name, and
+    the program is on :data:`_LOCAL_WORDS`.
+    """
     text = command.strip()
-    if not text or _SUBSTITUTION_RE.search(text):
+    if not text or _SHELL_SYNTAX_RE.search(text):
         return False
-    for raw in _SEGMENT_SPLIT_RE.split(text):
-        words = raw.strip().split()
-        while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=\S*", words[0]):
-            words = words[1:]  # leading VAR=value assignments
-        if not words:
-            continue
-        first = words[0].replace("\\", "/").rsplit("/", 1)[-1].lower()
-        if first == "git":
-            if len(words) < 2 or words[1] not in _LOCAL_GIT:
-                return False
-        elif first not in _LOCAL_WORDS:
-            return False
-    return True
+    first = text.split()[0]
+    return first in _LOCAL_WORDS
 
 
 def _settings_commands(
@@ -869,7 +866,71 @@ def _settings_commands(
         if isinstance(line, str):
             out.append(("statusLine", line, f"{ref}:statusLine.command"))
     out += plugin_commands(settings, env)
+    out += frontmatter_commands(env)
     return out
+
+
+_MAX_FRONTMATTER_FILES = 300
+
+
+def _frontmatter_files(base: Path, kind: str) -> list[Path]:
+    """``skills/*/SKILL.md`` or ``agents/**/*.md`` under *base*, capped."""
+    out: list[Path] = []
+    try:
+        candidates = base.glob("*/SKILL.md") if kind == "skill" else base.rglob("*.md")
+        for path in candidates:
+            out.append(path)
+            if len(out) >= _MAX_FRONTMATTER_FILES:
+                break
+    except OSError:
+        pass
+    return out
+
+
+def _frontmatter_hooks(path: Path) -> list[str]:
+    """Hook commands in one SKILL.md or agent file's ``hooks:`` frontmatter."""
+    from mcp_audit.agent_files.subagents import (  # noqa: PLC0415
+        parse_agent_frontmatter,
+    )
+
+    raw, _why = read_capped(path)
+    if raw is None:
+        return []
+    parsed = parse_agent_frontmatter(raw.decode("utf-8", errors="replace"))
+    out: list[str] = []
+    for reading in parsed.readings:
+        hooks = reading.get("hooks")
+        if isinstance(hooks, dict):
+            out += ConfigHygieneAnalyzer._extract_hook_commands(hooks)
+    return out
+
+
+def _frontmatter_in(
+    root: Path, label: str | None, env: Env
+) -> list[tuple[str, str, str]]:
+    """Hooks in the skills and agents under *root* (``None`` label: by kind)."""
+    out: list[tuple[str, str, str]] = []
+    for kind, folder in (("skill", "skills"), ("agent", "agents")):
+        for path in _frontmatter_files(root / folder, kind):
+            try:
+                commands = _frontmatter_hooks(path)
+            except Exception:  # noqa: BLE001 — an unreadable file adds nothing
+                commands = []
+            what = label or f"{kind} hook"
+            out += [(what, c, f"{env.mask(path)}:hooks") for c in commands]
+    return out
+
+
+def frontmatter_commands(env: Env) -> list[tuple[str, str, str]]:
+    """``(what, command, ref)`` for ``hooks:`` in user and project skills/agents.
+
+    Claude Code runs hooks declared in a skill's or subagent's frontmatter
+    (hooks doc, "Hooks in skills and agents") outside the sandbox like any
+    hook.  Plugin skills and agents are read by :func:`plugin_commands`.
+    """
+    return _frontmatter_in(env.config_dir, None, env) + _frontmatter_in(
+        env.cwd / ".claude", None, env
+    )
 
 
 _PLUGIN_UNSURE = "plugin hook (not known to be enabled)"
@@ -941,6 +1002,7 @@ def plugin_commands(settings: Settings, env: Env) -> list[tuple[str, str, str]]:
         for doc in docs:
             for command in ConfigHygieneAnalyzer._extract_hook_commands(doc):
                 out.append((what, command, ref))
+        out += _frontmatter_in(Path(plugin.install_path), what, env)
     return out
 
 
@@ -971,6 +1033,35 @@ def egress_commands(
         if f.id == "HOOK-001" and f.client in CLIENTS:
             where = env.mask(f.finding_path) if f.finding_path else f.client
             add("hook", "HOOK-001", where)
+    return out[:_MAX_LISTED]
+
+
+def _store_path_re() -> re.Pattern[str]:
+    names: set[str] = {".ssh", ".aws", ".gnupg"}
+    names |= {st.rel for st in secret_reach.HOME_STORES}
+    body = "|".join(
+        re.escape(n).replace("/", r"[/\\]")
+        for n in sorted(names, key=len, reverse=True)
+    )
+    return re.compile(rf"(?<![A-Za-z0-9_.-])(?:{body})(?![A-Za-z0-9_-])")
+
+
+_STORE_PATH_RE = _store_path_re()
+
+
+def store_commands(settings: Settings, findings: list[Finding], env: Env) -> list[Fact]:
+    """Hook, helper and status-line commands that name a credential store path.
+
+    These run outside the sandbox, so no deny rule applies to them; whatever
+    their other behaviour, naming ``~/.ssh`` or ``~/.aws/credentials`` is a
+    reach into REACH-001's list.  Names the event, never the command.
+    """
+    out: list[Fact] = []
+    seen: set[tuple[str, str]] = set()
+    for what, command, ref in _settings_commands(settings, findings, env):
+        if _STORE_PATH_RE.search(command) and (what, ref) not in seen:
+            seen.add((what, ref))
+            out.append(Fact(f"{what} names a credential store path", "", ref))
     return out[:_MAX_LISTED]
 
 
@@ -1518,6 +1609,7 @@ def assess(
     secrets = env_secrets(settings, env)
     egress = egress_commands(settings, findings, env)
     opaque = opaque_commands(settings, findings, env)
+    store_hits = store_commands(settings, findings, env)
     mcp_open = _mcp_allowed_unbounded(settings, facts, net)
     cred_q, creds_readable = credential_question(
         findings,
@@ -1527,6 +1619,7 @@ def assess(
         unsandboxed_bash=facts.unsandboxed_bash,
         env_secrets=secrets,
         outside=[*egress, *opaque],
+        store_hits=store_hits,
         mcp_open=mcp_open,
     )
     if cred_q.status is Status.UNKNOWN:
@@ -1538,6 +1631,14 @@ def assess(
             why.append(
                 "credential store(s) readable without a prompt (REACH-001): "
                 + readable[:300]
+            )
+        if store_hits:
+            why.append(
+                "a hook, apiKeyHelper or statusLine command names a credential"
+                " store path and runs outside the sandbox: "
+                + ", ".join(
+                    f"{f.key.split(' names')[0]} ({f.source})" for f in store_hits[:5]
+                )
             )
         if facts.unsandboxed_bash:
             why.append(

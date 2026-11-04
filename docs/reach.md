@@ -96,10 +96,16 @@ applying. A hook, `apiKeyHelper` or `statusLine` command that runs `curl`, `wget
 another HOOK-001 network tool or a `/dev/tcp` or `/dev/udp` redirect is a network
 fail in any settings file (only the tool name is shown), and **not safe to allow**
 when a credential store is readable. These commands run outside the sandbox, so
-any of them that is not positively known to be local (`echo`, `git status`,
-`date`, ... with no substitution; a script or interpreter such as
-`node ~/.claude/hooks/report.js` is not) makes the network answer `couldnt_check`,
+any of them that is not positively known to be local (one bare `echo`, `printf`,
+`true`, `false`, `date`, `pwd`, `whoami`, `hostname` or `uname`: no `VAR=`
+prefix, substitution, redirect, pipe or list; `git`, `sort`, scripts and
+interpreters are not) makes the network answer `couldnt_check`,
 and the credentials answer cannot be `pass` while one exists.
+
+Hooks declared in skill and agent frontmatter (user, project and plugin) follow
+the same rules. A hook, `apiKeyHelper` or `statusLine` command that names a
+credential store path (`~/.ssh`, `~/.aws/credentials`, the REACH-001 list) makes
+credentials a fail, known-local or not.
 
 Hooks that installed plugins ship (`hooks/hooks.json`, or `hooks` in `plugin.json`)
 follow the same rules when `enabledPlugins` is true for the plugin; a plugin
@@ -111,8 +117,8 @@ subscription login Claude Code fetches the account's connectors (remote MCP
 servers) at startup and they are in no local file. They are ruled out only by
 `disableClaudeAiConnectors`, `ENABLE_CLAUDEAI_MCP_SERVERS` set false in a
 settings `env` block, a `managed-mcp.json` without the managed
-`allowAllClaudeAiMcps`, or an API-key login (`apiKeyHelper`, or `ANTHROPIC_API_KEY`
-/ `ANTHROPIC_AUTH_TOKEN` in a settings `env` block). The process environment is
+`allowAllClaudeAiMcps`, or an API-key login (`apiKeyHelper`, or `ANTHROPIC_AUTH_TOKEN` in a
+settings `env` block; `ANTHROPIC_API_KEY` does not count, as a declined key falls back to the login). The process environment is
 not read. The state is also **open** when `sandbox.network.allowAllUnixSockets`
 is true or `allowUnixSockets` lists a docker, podman or containerd socket (the
 daemon runs outside the sandbox).

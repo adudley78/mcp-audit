@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from mcp_audit.analyzers import secret_reach
@@ -102,6 +104,58 @@ def _path_args(server: ServerConfig) -> list[str]:
     return [a for a in server.args if isinstance(a, str) and _PATH_ARG_RE.match(a)]
 
 
+def _real(text: str) -> str:
+    """*text* with symlinks resolved (``strict=False``); raises on failure."""
+    return str(Path(text).resolve(strict=False))
+
+
+def path_excludes_home(
+    raw: str,
+    *,
+    home: str,
+    stores: list[str],
+    cwd: str,
+    pm: Any = os.path,  # noqa: ANN401 — posixpath or ntpath
+    real: Callable[[str], str] = _real,
+) -> bool:
+    """True when the path argument *raw* stays out of *home* and every store.
+
+    Symlinks are resolved with *real* (a failure counts as not excluded), a
+    bare root (``/``, ``C:\\``) is never excluded, and every comparison is
+    normcased, so Windows case and separator differences cannot hide home.
+    A drive-less rooted path (``/``) belongs to the drive of *cwd*.
+    """
+    text = raw
+    if text.startswith(("$", "%")) or text in ("~", "~/", "~\\"):
+        return False
+    if text[:2] in ("~/", "~\\"):
+        text = pm.join(home, text[2:])
+    elif pm.splitdrive(text)[0] == "" and text[:1] in ("/", "\\"):
+        text = pm.splitdrive(cwd)[0] + text  # the cwd's drive on Windows
+    elif not pm.isabs(text):
+        text = pm.join(cwd, text)
+
+    def norm(value: str) -> str:
+        return pm.normcase(pm.normpath(value))
+
+    def covers(outer: str, inner: str) -> bool:
+        return inner == outer or inner.startswith(outer.rstrip(pm.sep) + pm.sep)
+
+    try:
+        protected = {norm(home), norm(real(home))}
+        for store in stores:
+            protected |= {norm(store), norm(real(store))}
+        candidates = {norm(text), norm(real(pm.normpath(text)))}
+    except (OSError, RuntimeError, ValueError):
+        return False
+    for cand in candidates:
+        if pm.splitdrive(cand)[1].strip("/\\") == "":
+            return False  # a bare root or drive root contains everything on it
+        if any(covers(cand, other) for other in protected):
+            return False
+    return True
+
+
 def _bounded(server: ServerConfig, caps: frozenset[Capability], env: Env) -> bool:
     """Do the server's path arguments all stay out of home and the stores?"""
     if Capability.SHELL_EXEC in caps:
@@ -109,25 +163,13 @@ def _bounded(server: ServerConfig, caps: frozenset[Capability], env: Env) -> boo
     paths = _path_args(server)
     if not paths:
         return False
-    home = os.path.normpath(env.home.as_posix())
     stores = [
-        os.path.normpath(Path(p).as_posix())
-        for _s, p in secret_reach.existing_home_stores(env.home, env.config_dir)
+        str(p) for _s, p in secret_reach.existing_home_stores(env.home, env.config_dir)
     ]
-    for raw in paths:
-        text = raw.replace("\\", "/")
-        if text.startswith(("$", "%")) or text in ("~", "~/"):
-            return False
-        if text.startswith("~/"):
-            text = home + text[1:]
-        elif not os.path.isabs(text) and not re.match(r"^[A-Za-z]:/", text):
-            text = os.path.join(env.cwd.as_posix(), text)
-        norm = os.path.normpath(text)
-        if home == norm or home.startswith(norm.rstrip("/") + "/") or norm == "/":
-            return False
-        if any(s == norm or s.startswith(norm.rstrip("/") + "/") for s in stores):
-            return False
-    return True
+    return all(
+        path_excludes_home(raw, home=str(env.home), stores=stores, cwd=str(env.cwd))
+        for raw in paths
+    )
 
 
 def _known_cap(value: str) -> bool:
