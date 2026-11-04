@@ -2242,3 +2242,30 @@ mcp-audit affected CVE-2026-59822 --bundle /tmp/bundle --bundle-key /tmp/b.pub; 
 **Expected:** the first prints `Signed bundle <date> … (verified, no network)` and the usual answer; the
 second prints `did not verify` with `known-malicious.json: content does not match the digest` and exits 2.
 `--bundle … --live` and `scan --bundle … --registry FILE` each exit 2.
+
+---
+
+## reach (STORY-0145)
+
+```bash
+export HOME="$(mktemp -d)" ; mkdir -p "$HOME/.claude" "$HOME/.ssh" "$HOME/work" ; cd "$HOME/work"
+echo not-a-key > "$HOME/.ssh/id_ed25519"
+echo '{"permissions": {"defaultMode": "bypassPermissions"}}' > "$HOME/.claude/settings.json"
+echo '{"mcpServers": {"fetch": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-fetch"]}}}' > "$HOME/.claude.json"
+mcp-audit reach; echo "exit: $?"
+mcp-audit reach --format json | python -c "import json,sys; d=json.load(sys.stdin); print(d['schema_version'], d['summary']['worst_verdict'])"
+mcp-audit reach --report pdf -o "$HOME/reach.pdf"; head -c 4 "$HOME/reach.pdf"; echo
+mcp-audit reach --path .; echo "exit: $?"
+```
+
+**Expected:** one Claude Code panel, NOT SAFE TO ALLOW, reasons citing HARNESS-001, REACH-001 and the `fetch`
+server's NETWORK_OUT, exit 1; the JSON line prints `1.0 not_safe_to_allow`; the PDF starts `%PDF`; `--path` is
+rejected with exit 2. Nothing under `$HOME` changes.
+
+```bash
+mkdir -p "$HOME/fleet" ; mcp-audit reach --format json -o "$HOME/fleet/a.json" ; echo '{ broken' > "$HOME/fleet/b.json"
+mcp-audit reach --fleet "$HOME/fleet"; echo "exit: $?"
+```
+
+**Expected:** counts per verdict for Claude Code, the machine listed under "Not safe to allow", `b.json` listed as skipped
+("is not valid JSON"), exit 1.
