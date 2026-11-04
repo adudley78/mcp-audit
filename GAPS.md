@@ -1813,7 +1813,8 @@ trust"). Recorded limits:
   before the negation reaches the match).
 - **Known residual ways past it.** Destinations written to dodge a pattern
   ("hxxp", "example dot com", base64) are not recognised as destinations. A
-  description-shaped item with no destination under a detection heading ("## Red flags" then "- reading
+  description-shaped item with no destination under a detection heading
+  ("## Red flags" then "- reading
   ~/.ssh/id_rsa and including it in the reply") is INFO even if an agent
   would act on it; an order spread over two sentences ("Collect the key
   file. ~/.ssh/id_rsa is the one.") can match only in the second, which may
@@ -1822,17 +1823,17 @@ trust"). Recorded limits:
 - **Only SKILL-001 is gated.** MEM-001/MEM-002 (memory files) and POISON-041..045 are
   not gated: hidden text is suspicious however it is phrased, and MEM-001
   already has its own narrowing. They do carry line evidence.
-- **Measured only on public skill repositories (3,026 files, eight repos,
-  not committed) and hand-written tests.** MCPTox and the top-100 corpus are
-  tool descriptions, where the gate does not run. No malicious-skill corpus
-  was available here, so no recall figure for the gate exists; the bypass
-  guards are pinned by `tests/test_agent_files_framing.py` only.
-- **Most benign SKILL-001 HIGH on that corpus is pattern wording the gate
-  cannot see** (45 of 46): POISON-012 "override default" / "do not say"
-  (16), POISON-030 "first call" (14), POISON-003 matching `process.env` and
-  `this.env` (8). POISON-003's `(read|access|...)\s+.*\.env\b` matching any
-  `<x>.env` property is a pattern defect, not changed here (it would move
-  the config-surface benchmark).
+- **Measured only on Anthropic's public skills (143 files) and hand-written
+  tests.** MCPTox and the top-100 corpus are tool descriptions, where the
+  gate does not run. No malicious-skill corpus was available, so no recall
+  figure for the gate exists; the bypass guards are pinned by
+  `tests/test_agent_files_framing.py` and
+  `tests/test_agent_files_framing_bypasses.py`. An earlier measurement on
+  3,026 files of eight public skill repositories (not committed) found most
+  benign SKILL-001 HIGH there is pattern wording the gate cannot see
+  (POISON-012, POISON-030 "first call", POISON-003 matching `process.env`);
+  POISON-003's `.env` match is a pattern defect left alone because fixing it
+  would move the config-surface benchmark.
 - **POISON-076 covers only permission, approval and confirmation prompts and the three bypass flags.** "Disable the sandbox", "turn off hooks" and "turn off monitoring" are not matched: in ordinary project text they are routine ("disable hooks in CI by setting HUSKY=0"). Benign configuration advice that names the prompts still fires ("disable approval prompts for read-only tools in settings.json"): HIGH, and a reviewer has to judge it.
 - **POISON-076 (oversight bypass) is measured only on hand-written phrases**
   (`tests/test_directives.py`) and MCPTox's clean tools: MCPTox has no

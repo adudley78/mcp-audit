@@ -194,6 +194,7 @@ def test_directive_fires(pid: str, text: str) -> None:
         "Ignore guardrails tests marked flaky.",
         "Use the useEffect hook; ignore hooks lint warnings for generated code.",
         "Skipping permission prompts is dangerous.",
+        "In the Docker image we run claude --dangerously-skip-permissions.",
     ],
 )
 def test_directive_near_misses_are_silent(text: str) -> None:

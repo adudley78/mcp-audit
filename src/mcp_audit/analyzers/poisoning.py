@@ -532,7 +532,10 @@ _OVR_NEGATION: str = (
     # A flag's purpose clause ("use --yes to skip the prompt", "pass -y to
     # bypass confirmation"), not an order to the agent.
     r"|(?:(?<![\w-])-{1,2}[A-Za-z][\w-]*|\bflags?|\boptions?|\bswitch)\b"
-    r"[^.;\n]{0,30}\bto\s*$)"
+    r"[^.;\n]{0,30}\bto\s*$"
+    # Scoped to a throwaway environment earlier in the clause ("In the Docker
+    # image we run claude --dangerously-skip-permissions").
+    r"|\b(?:docker|container|devcontainer|vm|virtual\s+machine|sandboxed)\b)"
 )
 _DIR_AUDIENCE: str = r"(?:the\s+|your\s+|any\s+|a\s+)?(?:user|human|operator|owner)s?\b"
 _DIR_APPROVAL: str = r"(?:permission|approval|consent|confirmation|authori[sz]ation)"
