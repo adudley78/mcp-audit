@@ -1175,6 +1175,28 @@
       "notes": "Community rule. Env key names that turn off TLS certificate validation (NODE_TLS_REJECT_UNAUTHORIZED, PYTHONHTTPSVERIFY, GIT_SSL_NO_VERIFY); key names only, never values. Disabling validation exposes the tokens a server sends to anyone on the network path. MEDIUM severity, transport category."
     },
     {
+      "finding_id": "COMM-036",
+      "finding_title": "Container launched with host takeover flags",
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ],
+      "notes": "Community rule. docker or podman launched with --privileged, a mounted docker.sock or podman.sock, or --pid=host; each gives the container control of the host and undoes the isolation that is the reason to run an MCP server in a container. Mapped to MCP05 (privileged launchers); the maintainer confirms the code on review."
+    },
+    {
+      "finding_id": "COMM-037",
+      "finding_title": "Container launched on the host network",
+      "owasp_codes": [
+        "MCP05"
+      ],
+      "owasp_names": [
+        "Command Injection and Execution"
+      ],
+      "notes": "Community rule. docker or podman launched with --network=host or --net=host, which shares the host network stack so the server can reach anything bound to the host localhost; MEDIUM because it does not give control of the host itself. Mapped to MCP05; the maintainer confirms the code on review."
+    },
+    {
       "finding_id": "COLLIDE-001",
       "finding_title": "Tool name collision: tool claimed by multiple servers",
       "owasp_codes": [
