@@ -2208,9 +2208,9 @@ _DOCKER_IMAGE = "ghcr.io/example/mcp-server"
 def _ids(rule_id: str, community_rules_dir: Path, **server_kwargs: object) -> list[str]:
     """IDs of the findings a single rule produces for one server.
 
-    Asserting on this rule's own finding, never the full finding list, keeps the
-    tests independent of other analyzers that fire on the same fixture (e.g.
-    TOXIC-007 on any ``--network=...`` flag).
+    Asserting on this rule's own finding keeps these tests independent of other
+    analyzers. The whole-pipeline finding list for the same docker shapes is
+    pinned in ``tests/test_toxic_flow.py::TestContainerNetworkFlagsFullScan``.
     """
     rule = _load_rule(rule_id, community_rules_dir)
     findings = RuleEngine([rule]).match_server(_make_server(**server_kwargs))

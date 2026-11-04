@@ -1467,3 +1467,129 @@ class TestOfficialServersFixtureStaysBelowCritical:
             ["scan", "--path", str(fixture), "--severity-threshold", "critical"],
         )
         assert crit.exit_code == 0
+
+
+# ── Container network flags are not a capability (STORY-0139, #260) ──────────
+
+_GH_IMAGE_ARGS = [
+    "run",
+    "-i",
+    "--rm",
+    "-e",
+    "GITHUB_PERSONAL_ACCESS_TOKEN",
+    "ghcr.io/github/github-mcp-server",
+]
+
+
+def _container(command: str, network_args: list[str]) -> ServerConfig:
+    """The GitHub MCP image run in a container, with *network_args* after ``--rm``."""
+    args = _GH_IMAGE_ARGS[:3] + network_args + _GH_IMAGE_ARGS[3:]
+    return _server("github", command=command, args=args)
+
+
+_NETWORK_FLAG_FORMS = [
+    ["--network=none"],
+    ["--network", "none"],
+    ["--network", "bridge"],
+    ["--network=host"],
+    ["--net=host"],
+    ["--net", "host"],
+    ["--NETWORK=none"],
+    ["--network="],
+    ["--network=$NET"],
+]
+
+
+class TestContainerNetworkFlags:
+    """A docker/podman ``--network``/``--net`` flag never adds a capability."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "docker",
+            "podman",
+            "/usr/local/bin/docker",
+            "docker.exe",
+            r"C:\bin\podman.exe",
+        ],
+    )
+    @pytest.mark.parametrize("flag", _NETWORK_FLAG_FORMS)
+    def test_flag_is_neutral(self, command: str, flag: list[str]) -> None:
+        control = tag_server(_container(command, []))
+        assert Capability.NETWORK_OUT not in control
+        assert tag_server(_container(command, flag)) == control
+
+    @pytest.mark.parametrize("flag", _NETWORK_FLAG_FORMS)
+    def test_no_toxic007_from_flag(self, flag: list[str]) -> None:
+        findings = ToxicFlowAnalyzer().analyze_all([_container("docker", flag)])
+        assert not any(f.id == "TOXIC-007" for f in findings)
+
+    def test_issue_260_repro(self) -> None:
+        """#260 / Q-074 repro on ee557b8: --network=none fired TOXIC-007."""
+        server = _container("docker", ["--network=none"])
+        assert Capability.GIT in tag_server(server)
+        assert ToxicFlowAnalyzer().analyze_all([server]) == []
+
+    def test_trailing_flag_without_value(self) -> None:
+        server = _server("box", command="docker", args=["run", "image", "--network"])
+        assert Capability.NETWORK_OUT not in tag_server(server)
+
+    def test_network_image_still_tagged(self) -> None:
+        server = _server(
+            "fetch", command="docker", args=["run", "-i", "--network=none", "mcp/fetch"]
+        )
+        assert Capability.NETWORK_OUT in tag_server(server)
+
+    def test_non_container_command_keeps_network_keyword(self) -> None:
+        server = _server("tools", args=["-y", "network-mcp", "--network=none"])
+        assert Capability.NETWORK_OUT in tag_server(server)
+
+    def test_container_name_containing_network_still_tagged(self) -> None:
+        server = _server("network-probe", command="docker", args=["run", "image"])
+        assert Capability.NETWORK_OUT in tag_server(server)
+
+    def test_tool_descriptions_unchanged(self) -> None:
+        server = _server(
+            "box",
+            command="docker",
+            args=["run", "--network=none", "image"],
+            raw={"tools": [{"name": "probe", "description": "Send a network request"}]},
+        )
+        assert Capability.NETWORK_OUT in tag_server(server)
+
+
+class TestContainerNetworkFlagsFullScan:
+    """Whole-pipeline finding list for container network flags (#260 step 3).
+
+    COMM-036/037's own tests assert per rule; this pins every server finding,
+    so a toxic-flow pair reappearing on a network flag fails here.
+    CFHYG-* (the temp file's own permissions and location) are left out.
+    """
+
+    @pytest.mark.parametrize(
+        ("flag", "expected"),
+        [
+            ([], {"COMM-004", "COMM-022"}),
+            (["--network=none"], {"COMM-004", "COMM-022"}),
+            (["--network", "bridge"], {"COMM-004", "COMM-022"}),
+            (["--network=host"], {"COMM-004", "COMM-022", "COMM-037"}),
+            (["--net=host"], {"COMM-004", "COMM-022", "COMM-037"}),
+        ],
+    )
+    def test_exact_findings(
+        self, tmp_path: Path, flag: list[str], expected: set[str]
+    ) -> None:
+        import json
+
+        from mcp_audit.scanner import run_scan
+
+        server = {
+            "command": "docker",
+            "args": _GH_IMAGE_ARGS[:3] + flag + _GH_IMAGE_ARGS[3:],
+            "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "${GH_TOKEN}"},
+        }
+        config = tmp_path / "mcp.json"
+        config.write_text(json.dumps({"mcpServers": {"github": server}}))
+        result = run_scan(extra_paths=[config], skip_rug_pull=True, offline=True)
+        ids = {f.id for f in result.findings if not f.id.startswith("CFHYG-")}
+        assert ids == expected
