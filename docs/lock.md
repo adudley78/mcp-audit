@@ -269,6 +269,8 @@ job, not an edit to anything mcp-audit owns or verifies.
 
 ## Guardrails section (STORY-0143)
 
+**Upgrade every place that runs `lock --verify` before committing a lock with a `guardrails` section.** An older mcp-audit than the one that wrote it reports the section as unverified (exit 1 unless `--allow-unverified`), never as tampering.
+
 `lock` also records the repository's own agent guardrail files in an mcp-audit-owned `guardrails`
 section: the project `.claude/settings.json`, `.codex/config.toml` and `.gemini/settings.json`
 (never `settings.local.json`, never a file in your home directory), as path to

@@ -1384,7 +1384,9 @@ def _apply_project_scan(
 
     result.findings.extend(
         _guardrails.guardrail_drift_findings(
-            _guardrails.project_guardrail_files(project_dir, result.errors),
+            _guardrails.project_guardrail_files(
+                project_dir, result.errors, _guardrails.state_path_for(None)
+            ),
             _guardrails.state_path_for(None),
             result.errors,
         )
@@ -2114,6 +2116,7 @@ def scan(
             scoring_weights=scoring_weights,
             scoring_weights_source=scoring_weights_source,
             include_plugins=not no_plugins,
+            guardrail_drift=True,
         )
     except RegistryLoadError as exc:
         con.print(f"[red]Error:[/red] {exc}")
@@ -2376,6 +2379,7 @@ def watch(
                 extra_paths=extra_paths,
                 connect=connect,
                 extra_rules_dirs=watch_extra_rules,
+                guardrail_drift=True,
             )
         except RegistryLoadError as exc:
             # For the initial (pre-loop) call this runs on the main thread and

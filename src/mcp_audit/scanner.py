@@ -520,16 +520,25 @@ def _default_instruction_files(
 
 
 def _default_guardrail_files(
-    extra_paths: list[Path] | None, skip_rug_pull: bool, errors: list[str]
+    extra_paths: list[Path] | None,
+    skip_rug_pull: bool,
+    errors: list[str],
+    enabled: bool = True,
 ) -> list[_guardrails.GuardrailFile] | None:
     """Settings files whose guardrail drift a default scan checks (STORY-0143).
 
     ``None`` (no check) for an explicit path and for ``pin``/``diff``, like
-    :func:`_default_instruction_files`.  Never raises.
+    :func:`_default_instruction_files`.  Also ``None`` unless *enabled*: only
+    commands that show findings (``scan``, ``check``, ``watch``) run the step,
+    so a command that discards them never consumes a loosening.  Never raises.
     """
-    if extra_paths or skip_rug_pull:
+    if not enabled or extra_paths or skip_rug_pull:
         return None
-    return _guardrails.guardrail_files(Path.cwd(), errors)
+    try:
+        return _guardrails.guardrail_files(Path.cwd(), errors)
+    except Exception as exc:  # noqa: BLE001 — a scan must never fail over this
+        errors.append(f"guardrail drift failed: {type(exc).__name__}")
+        return None
 
 
 def _cwd_instruction_reach_findings(errors: list[str]) -> list[Finding]:
@@ -764,6 +773,7 @@ async def run_scan_async(
     scoring_weights: ScoringWeights | None = None,
     scoring_weights_source: str = "default",
     include_plugins: bool = True,
+    guardrail_drift: bool = False,
 ) -> ScanResult:
     """Async scan entrypoint with optional live server enumeration.
 
@@ -801,6 +811,9 @@ async def run_scan_async(
             servers.  Never stored or logged.
         scoring_weights: Optional custom scoring weights from a governance policy.
         scoring_weights_source: Audit label for ``ScanScore.weights_source``.
+        guardrail_drift: Run pipeline step 5c2 (GUARD-001/002).  Off by default:
+            the step updates its record, so only a command that shows the
+            findings (``scan``, ``check``, ``watch``) may run it.
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
@@ -939,7 +952,7 @@ async def run_scan_async(
             extra_paths, skip_rug_pull, result.errors
         ),
         guardrail_files=_default_guardrail_files(
-            extra_paths, skip_rug_pull, result.errors
+            extra_paths, skip_rug_pull, result.errors, guardrail_drift
         ),
     )
 
@@ -956,6 +969,7 @@ def run_scan(
     scoring_weights: ScoringWeights | None = None,
     scoring_weights_source: str = "default",
     include_plugins: bool = True,
+    guardrail_drift: bool = False,
 ) -> ScanResult:
     """Run a complete scan: discover configs, parse them, analyze, return results.
 
@@ -989,6 +1003,9 @@ def run_scan(
             servers.  Never stored or logged.
         scoring_weights: Optional custom scoring weights from a governance policy.
         scoring_weights_source: Audit label for ``ScanScore.weights_source``.
+        guardrail_drift: Run pipeline step 5c2 (GUARD-001/002).  Off by default:
+            the step updates its record, so only a command that shows the
+            findings (``scan``, ``check``, ``watch``) may run it.
 
     Returns:
         :class:`~mcp_audit.models.ScanResult` with all findings.
@@ -1013,6 +1030,7 @@ def run_scan(
                 scoring_weights=scoring_weights,
                 scoring_weights_source=scoring_weights_source,
                 include_plugins=include_plugins,
+                guardrail_drift=guardrail_drift,
             )
         )
 
@@ -1038,6 +1056,6 @@ def run_scan(
             extra_paths, skip_rug_pull, result.errors
         ),
         guardrail_files=_default_guardrail_files(
-            extra_paths, skip_rug_pull, result.errors
+            extra_paths, skip_rug_pull, result.errors, guardrail_drift
         ),
     )

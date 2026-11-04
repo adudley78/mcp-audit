@@ -33,7 +33,7 @@ here runs for it.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from mcp_audit import guardrails
@@ -143,8 +143,9 @@ def current_entries(root: Path, existing: object, errors: list[str]) -> dict[str
             entries[rel] = entry(record)
         elif isinstance(record, str):
             errors.append(f"guardrails: {rel}: {record}")
-            if rel in previous:
-                entries[rel] = previous[rel]
+            kept = previous.get(rel)
+            if isinstance(kept, dict) and guardrails.valid_record(kept.get("record")):
+                entries[rel] = kept
     return entries
 
 
@@ -155,47 +156,125 @@ class Loosened:
     path: str
     diff: guardrails.Diff
     gone: bool = False
+    #: Not in the lock at all: a guardrail file that appeared after ``lock``.
+    new: bool = False
 
 
-def loosened(section: dict, root: Path, errors: list[str]) -> list[Loosened]:
-    """Compare every file in an owned, checksum-valid *section* with disk.
+@dataclass
+class Compared:
+    """Outcome of :func:`compare_section`."""
 
-    A file that is not in the lock is not looked at.  A locked file that is
-    gone counts only for what it alone held (a deny rule or a hook), as in
-    scans.  A locked file that cannot be read is reported in *errors* and
-    skipped: the exit code is not changed by what could not be read.
+    loosened: list[Loosened] = field(default_factory=list)
+    #: ``(path, reason)`` for files that could not be compared: unreadable,
+    #: replaced by a symlink, padded past the read cap, a malformed record, a
+    #: path the section may not name.  Fail closed: ``verify`` makes each an
+    #: unverified item (exit 1 unless ``--allow-unverified``).
+    unverified: list[tuple[str, str]] = field(default_factory=list)
+
+
+def _safe_path(base: Path, rel: str) -> tuple[Path, str] | str:
+    """``(path, agent)`` for a lock path under *base*, or why it is refused.
+
+    The path must be relative with no ``..``, name a repository guardrail file
+    (``.claude/settings.json``, ``.codex/config.toml``,
+    ``.gemini/settings.json``), pass through no symlink, and resolve under
+    *base*: a lock is data anyone can edit and must not make verify read
+    ``/etc`` or a file outside the repository (review N1).
     """
-    out: list[Loosened] = []
+    parts = Path(rel).parts
+    if not rel or Path(rel).is_absolute() or os.path.pardir in parts:
+        return "path is not relative to the repository"
+    path = base.joinpath(*parts)
+    agent = guardrails._is_project_file(path)
+    if agent is None or path.name not in _LOCKED_NAMES:
+        return "not a repository guardrail file"
+    cur = base
+    for part in parts:
+        cur = cur / part
+        if os.path.islink(cur):
+            return "reached through a symlink"
+    try:
+        resolved = path.resolve()
+    except (OSError, RuntimeError):
+        return "cannot be resolved"
+    if not resolved.is_relative_to(base):
+        return "resolves outside the repository"
+    return path, agent
+
+
+def _one(base: Path, rel: str, locked: object, out: Compared) -> None:
+    record = locked.get("record") if isinstance(locked, dict) else None
+    if not guardrails.valid_record(record) or record.get("agent") == guardrails.MANAGED:
+        out.unverified.append((rel, "the recorded entry is malformed"))
+        return
+    if locked.get("digest") != digest(record):  # type: ignore[union-attr]
+        out.unverified.append((rel, "the recorded digest does not match its record"))
+        return
+    safe = _safe_path(base, rel)
+    if isinstance(safe, str):
+        out.unverified.append((rel, safe))
+        return
+    path, agent = safe
+    if agent != record["agent"]:
+        out.unverified.append((rel, "the recorded agent does not match the file"))
+        return
+    item = guardrails.GuardrailFile(path, agent, "project", rel)
+    current = guardrails.read_record(item, [])
+    if isinstance(current, str):
+        out.unverified.append((rel, current))
+        return
+    if current is None:
+        diff = guardrails.vanished_diff(record, agent)
+        if diff.loosened:
+            out.loosened.append(Loosened(rel, diff, gone=True))
+        return
+    diff = guardrails.compare(record, current, agent)
+    if diff.loosened:
+        out.loosened.append(Loosened(rel, diff))
+
+
+def compare_section(section: dict, root: Path, errors: list[str]) -> Compared:
+    """Compare an owned, checksum-valid *section* with the files under *root*.
+
+    Every recorded file is read and compared with its record.  A recorded file
+    that is gone counts only for what it alone held (a deny rule or a hook).
+    A guardrail file under *root* that the lock does not record is compared
+    with an empty record (a file that appeared after ``lock`` and allows
+    anything is a loosening).  A file that cannot be read is reported in
+    :attr:`Compared.unverified`, never passed.  Never raises.
+    """
+    out = Compared()
     files = section.get("files")
     if not isinstance(files, dict):
         return out
     try:
         base = root.resolve()
     except (OSError, RuntimeError):
+        out.unverified.append(("<root>", "the repository root cannot be resolved"))
         return out
     for rel in sorted(files):
-        locked = files[rel]
-        record = locked.get("record") if isinstance(locked, dict) else None
-        if not isinstance(record, dict):
-            continue
-        agent = record.get("agent")
-        if agent not in (guardrails.CLAUDE, guardrails.CODEX, guardrails.GEMINI):
-            continue
-        path = base / rel
-        item = guardrails.GuardrailFile(path, agent, "project", rel)
-        if os.path.pardir in Path(rel).parts or Path(rel).is_absolute():
-            continue
-        notes: list[str] = []
-        current = guardrails.read_record(item, notes)
-        if isinstance(current, str):
-            errors.append(f"guardrails: {rel}: {current}")
-            continue
-        if current is None:
-            diff = guardrails.vanished_diff(record, agent)
-            if diff.loosened:
-                out.append(Loosened(rel, diff, gone=True))
-            continue
-        diff = guardrails.compare(record, current, agent)
-        if diff.loosened:
-            out.append(Loosened(rel, diff))
+        try:
+            _one(base, rel, files[rel], out)
+        except Exception as exc:  # noqa: BLE001 — one file never stops the rest
+            out.unverified.append((rel, f"cannot be compared: {type(exc).__name__}"))
+    try:
+        for rel, item in repo_files(root, errors):
+            if rel in files:
+                continue
+            try:
+                current = guardrails.read_record(item, [])
+                if isinstance(current, str):
+                    out.unverified.append((rel, f"not in the lock; {current}"))
+                elif isinstance(current, dict):
+                    diff = guardrails.compare(
+                        guardrails.empty_record(item.agent), current, item.agent
+                    )
+                    if diff.loosened:
+                        out.loosened.append(Loosened(rel, diff, new=True))
+            except Exception as exc:  # noqa: BLE001
+                out.unverified.append(
+                    (rel, f"cannot be compared: {type(exc).__name__}")
+                )
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"guardrails: listing files failed: {type(exc).__name__}")
     return out

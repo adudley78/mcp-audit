@@ -96,7 +96,7 @@ class UnverifiedItem:
     section/entry" (R56 Part 1, STEP 3) — rather than a bare count.
     """
 
-    kind: Literal["entry", "section"]
+    kind: Literal["entry", "section", "guardrail-file"]
     name: str
     reason: str
 
@@ -375,14 +375,22 @@ def verify(
     # ── STORY-0143: guardrail files looser than the lock records ────────────
     guard_errors: list[str] = []
     guards_recorded = 0
+    guard_items: list[UnverifiedItem] = []
     if owned_guards:
         guards_recorded = len(guards_section["files"])
-        findings.extend(
-            _lock_014(item)
-            for item in guardrail_section.loosened(
-                guards_section, lock_root, guard_errors
-            )
+        compared = guardrail_section.compare_section(
+            guards_section, lock_root, guard_errors
         )
+        findings.extend(_lock_014(item) for item in compared.loosened)
+        guard_items = [
+            UnverifiedItem(
+                kind="guardrail-file",
+                name=path,
+                reason=f"{reason}; a guardrail file mcp-audit could not compare "
+                "with the lock is never treated as unchanged",
+            )
+            for path, reason in compared.unverified
+        ]
 
     ids_present = {f.id for f in findings}
     has_drift = bool(ids_present & _DRIFT_IDS)
@@ -408,6 +416,7 @@ def verify(
         ]
         + digest_items
         + tool_items
+        + guard_items
     )
 
     if has_drift or (unverified_items and not allow_unverified):
@@ -975,7 +984,11 @@ def _lock_014(item: guardrail_section.Loosened) -> Finding:
     why = (
         f"{item.path} is gone and held guardrails nothing else holds"
         if item.gone
-        else f"{item.path} allows more than the lock records"
+        else (
+            f"{item.path} is not in the lock and allows more than an empty file"
+            if item.new
+            else f"{item.path} allows more than the lock records"
+        )
     )
     return Finding(
         id="LOCK-014",

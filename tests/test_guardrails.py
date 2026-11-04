@@ -378,6 +378,20 @@ _CASES: list[tuple[str, str, dict, dict, bool]] = [
     ),
     (
         g.CLAUDE,
+        "disableAllHooks",
+        _facts(g.CLAUDE, disableAllHooks=True),
+        _facts(g.CLAUDE),
+        True,
+    ),
+    (
+        g.GEMINI,
+        "hooksConfig.enabled",
+        _facts(g.GEMINI, **{"hooksConfig.enabled": False}),
+        _facts(g.GEMINI, **{"hooksConfig.enabled": True}),
+        False,
+    ),
+    (
+        g.CLAUDE,
         "enableAllProjectMcpServers",
         _facts(g.CLAUDE, enableAllProjectMcpServers=True),
         _facts(g.CLAUDE, enableAllProjectMcpServers=False),
@@ -1066,14 +1080,14 @@ def test_run_scan_reports_guard_001(
     monkeypatch.chdir(repo)
     rug = tmp_path / "rug" / "state.json"
     _claude(repo, {"permissions": {"deny": ["Read(~/.ssh/**)"]}})
-    first = run_scan(state_path=rug)
+    first = run_scan(state_path=rug, guardrail_drift=True)
     assert not [f for f in first.findings if f.id.startswith("GUARD-")]
     _claude(repo, {"permissions": {}})
-    second = run_scan(state_path=rug)
+    second = run_scan(state_path=rug, guardrail_drift=True)
     guard = [f for f in second.findings if f.id == "GUARD-001"]
     assert len(guard) == 1 and guard[0].severity == Severity.HIGH
     assert (rug.parent / "state.guardrails.json").exists()
-    third = run_scan(state_path=rug)
+    third = run_scan(state_path=rug, guardrail_drift=True)
     assert not [f for f in third.findings if f.id.startswith("GUARD-")]
 
 

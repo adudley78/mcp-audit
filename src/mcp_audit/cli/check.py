@@ -201,6 +201,7 @@ def check(
         result = run_scan(
             extra_paths=extra_paths,
             skip_rug_pull=False,
+            guardrail_drift=True,
         )
     except Exception as exc:  # noqa: BLE001
         con.print(f"[red]Scan error:[/red] {exc}")

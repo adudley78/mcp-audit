@@ -92,6 +92,7 @@ from mcp_audit.agent_files.discovery import _is_symlink
 from mcp_audit.agent_files.imports import READ_CAP_BYTES
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
 from mcp_audit.analyzers.permissions import load_claude_settings
+from mcp_audit.analyzers.supply_chain import redact_command_text
 from mcp_audit.models import Finding, Severity
 
 #: Where the per-file records live when the caller gives no rug-pull state path.
@@ -384,6 +385,16 @@ LOOSENING_TABLE: tuple[Row, ...] = (
     ),
     Row(
         CLAUDE,
+        "disableAllHooks",
+        ON,
+        f'{_SETTINGS}: disableAllHooks "Turn off hooks, a custom status line,'
+        ' and a custom @ file suggestion command at once" (scope: any file);'
+        " every hook, including a blocking one that takes precedence over allow"
+        f" rules ({_PERM}), stops running.",
+        high=True,
+    ),
+    Row(
+        CLAUDE,
         "enableAllProjectMcpServers",
         ON,
         f'{_SETTINGS}: "Approve every server in project .mcp.json files'
@@ -528,6 +539,13 @@ LOOSENING_TABLE: tuple[Row, ...] = (
     ),
     Row(
         GEMINI,
+        "hooksConfig.enabled",
+        LOCKED_OFF,
+        f'{_GEMINI_CFG}: hooksConfig.enabled "Canonical toggle for the hooks'
+        ' system. When disabled, no hooks will be executed." (default true).',
+    ),
+    Row(
+        GEMINI,
         "hooks",
         HOOKS,
         "analyzers/config_hygiene.py (TRUST-008): Gemini CLI fingerprints"
@@ -548,29 +566,95 @@ def _mask(text: str) -> str:
     """Replace every SECRET_PATTERNS match and URL user info with ``***``."""
     for _name, pattern, _provider in SECRET_PATTERNS:
         text = pattern.sub("***", text)
-    return re.sub(r"(?<=://)[^/@\s]+@", "***@", text)
+    text = re.sub(r"(?<=://)[^/@\s]+@", "***@", text)
+    # user:secret@host written without a scheme (``domain:user:tok@host``)
+    return re.sub(r"[^\s:/@()]+:[^\s/@()]+@(?=[A-Za-z0-9-]+\.[A-Za-z])", "***@", text)
+
+
+def _redact(text: str) -> str:
+    """Redact credentials in a settings string (STORY-0143 review B1).
+
+    :func:`~mcp_audit.analyzers.supply_chain.redact_command_text` first (inline
+    ``Bearer`` tokens, credential headers, ``curl -u user:pass``, ``password=``
+    and ``TOKEN=`` pairs, ``?token=`` parameters, URL userinfo), then
+    :func:`_mask`.  A pure function of the text, so the same value always
+    gives the same string and redaction itself never looks like a change.
+    """
+    return _mask(redact_command_text(text))
+
+
+#: Longest settings string redacted (and digested) in full.
+_MAX_FULL_CHARS = 65536
+_LABEL_RE = re.compile(r"[A-Za-z0-9_-]{16,}")
+
+
+def _mask_labels(text: str) -> str:
+    """Mask long mixed letter/digit runs in a host name (a token used as a label)."""
+
+    def _one(match: re.Match[str]) -> str:
+        word = match.group(0)
+        digits = sum(c.isdigit() for c in word)
+        has_case = word != word.lower() and word != word.upper()
+        if digits and (has_case or digits >= 3) and any(c.isalpha() for c in word):
+            return "***"
+        return word
+
+    return _LABEL_RE.sub(_one, text)
 
 
 def _text(value: object) -> str | None:
-    """A masked, length-capped string for a settings value, or ``None``."""
+    """A redacted, length-capped string for a settings value, or ``None``."""
     if not isinstance(value, str):
         return None
-    return _mask(value.strip()[: MAX_ENTRY_CHARS * 8])[:MAX_ENTRY_CHARS]
+    return _redact(value.strip()[: MAX_ENTRY_CHARS * 8])[:MAX_ENTRY_CHARS]
 
 
-def _strings(value: object, notes: list[str], what: str) -> list[str]:
-    """Sorted, unique, masked strings from a list value (non-strings dropped)."""
+def _set_digest(full: Iterable[str]) -> str:
+    """SHA-256 of a whole set of (redacted, untruncated) strings."""
+    body = json.dumps(sorted(set(full)), ensure_ascii=True).encode("ascii")
+    return hashlib.sha256(body).hexdigest()
+
+
+def _strings(
+    value: object,
+    notes: list[str],
+    key: str,
+    digests: dict[str, str],
+    *,
+    domains: bool = False,
+) -> list[str]:
+    """Sorted, unique, redacted strings from a list value (non-strings dropped).
+
+    Entries are cut at :data:`MAX_ENTRY_CHARS` and the list at
+    :data:`MAX_ENTRIES`.  When either cut hides anything, ``digests[key]`` gets
+    the SHA-256 of the whole untruncated set, so a change past the cut is still
+    noticed (review N3).
+    """
     if not isinstance(value, list):
         return []
-    out: set[str] = set()
+    full: set[str] = set()
+    shown: set[str] = set()
+    truncated = False
     for item in value:
-        text = _text(item)
-        if text:
-            out.add(text)
-    ordered = sorted(out)
+        if not isinstance(item, str):
+            continue
+        text = _redact(item.strip()[:_MAX_FULL_CHARS])
+        if domains:
+            text = _mask_labels(text)
+        if not text:
+            continue
+        full.add(text)
+        if len(text) > MAX_ENTRY_CHARS:
+            truncated = True
+            text = text[:MAX_ENTRY_CHARS]
+        shown.add(text)
+    ordered = sorted(shown)
     if len(ordered) > MAX_ENTRIES:
-        notes.append(f"{what}: {len(ordered)} entries; only {MAX_ENTRIES} recorded")
+        notes.append(f"{key}: {len(ordered)} entries; only {MAX_ENTRIES} recorded")
         ordered = ordered[:MAX_ENTRIES]
+        truncated = True
+    if truncated:
+        digests[key] = _set_digest(full)
     return ordered
 
 
@@ -636,7 +720,9 @@ def _hook_entries(hooks: object) -> list[list[str]]:
     return [list(item) for item in sorted(out)]
 
 
-def _claude_facts(raw: dict, path: Path, notes: list[str]) -> dict:
+def _claude_facts(
+    raw: dict, path: Path, notes: list[str], digests: dict[str, str]
+) -> dict:
     facts: dict = {}
     settings = load_claude_settings(raw, path)
     if settings is None:
@@ -646,12 +732,22 @@ def _claude_facts(raw: dict, path: Path, notes: list[str]) -> dict:
         _put(
             facts,
             f"permissions.{name}",
-            _strings([r.text for r in settings.rules_in(name)], notes, name),
+            _strings(
+                [r.text for r in settings.rules_in(name)],
+                notes,
+                f"permissions.{name}",
+                digests,
+            ),
         )
     _put(
         facts,
         "permissions.additionalDirectories",
-        _strings(perms.get("additionalDirectories"), notes, "additionalDirectories"),
+        _strings(
+            perms.get("additionalDirectories"),
+            notes,
+            "permissions.additionalDirectories",
+            digests,
+        ),
     )
     _put(facts, "permissions.defaultMode", _text(perms.get("defaultMode")))
     _put(
@@ -687,15 +783,26 @@ def _claude_facts(raw: dict, path: Path, notes: list[str]) -> dict:
         "filesystem.denyRead",
         "filesystem.denyWrite",
     ):
-        _put(facts, f"sandbox.{key}", _strings(_dig(sandbox, key), notes, key))
-    if isinstance(raw.get("enableAllProjectMcpServers"), bool):
-        facts["enableAllProjectMcpServers"] = raw["enableAllProjectMcpServers"]
+        _put(
+            facts,
+            f"sandbox.{key}",
+            _strings(
+                _dig(sandbox, key),
+                notes,
+                f"sandbox.{key}",
+                digests,
+                domains=key.endswith("Domains"),
+            ),
+        )
+    for key in ("enableAllProjectMcpServers", "disableAllHooks"):
+        if isinstance(raw.get(key), bool):
+            facts[key] = raw[key]
     for key in ("enabledMcpjsonServers", "disabledMcpjsonServers"):
-        _put(facts, key, _strings(raw.get(key), notes, key))
+        _put(facts, key, _strings(raw.get(key), notes, key, digests))
     return facts
 
 
-def _codex_facts(data: dict, notes: list[str]) -> dict:
+def _codex_facts(data: dict, notes: list[str], digests: dict[str, str]) -> dict:
     facts: dict = {}
     policy = data.get("approval_policy")
     if isinstance(policy, dict):
@@ -712,19 +819,24 @@ def _codex_facts(data: dict, notes: list[str]) -> dict:
         _strings(
             _dig(data, "sandbox_workspace_write.writable_roots"),
             notes,
-            "writable_roots",
+            "sandbox_workspace_write.writable_roots",
+            digests,
         ),
     )
     return facts
 
 
-def _gemini_facts(data: dict, notes: list[str]) -> dict:
+def _gemini_facts(data: dict, notes: list[str], digests: dict[str, str]) -> dict:
     facts: dict = {}
     _put(
-        facts, "tools.allowed", _strings(_dig(data, "tools.allowed"), notes, "allowed")
+        facts,
+        "tools.allowed",
+        _strings(_dig(data, "tools.allowed"), notes, "tools.allowed", digests),
     )
     _put(
-        facts, "tools.exclude", _strings(_dig(data, "tools.exclude"), notes, "exclude")
+        facts,
+        "tools.exclude",
+        _strings(_dig(data, "tools.exclude"), notes, "tools.exclude", digests),
     )
     sandbox = _dig(data, "tools.sandbox")
     if isinstance(sandbox, bool):
@@ -739,6 +851,7 @@ def _gemini_facts(data: dict, notes: list[str]) -> dict:
         "security.enablePermanentToolApproval",
         "security.autoAddToPolicyByDefault",
         "security.folderTrust.enabled",
+        "hooksConfig.enabled",
     ):
         value = _dig(data, key)
         if isinstance(value, bool):
@@ -767,18 +880,74 @@ def build_record(
         Only guardrail-relevant facts; strings masked; hook commands hashed.
     """
     notes = notes if notes is not None else []
+    digests: dict[str, str] = {}
     if agent == CLAUDE:
-        facts = _claude_facts(parsed, path, notes)
+        facts = _claude_facts(parsed, path, notes, digests)
     elif agent == CODEX:
-        facts = _codex_facts(parsed, notes)
+        facts = _codex_facts(parsed, notes, digests)
     else:
-        facts = _gemini_facts(parsed, notes)
-    return {"agent": agent, "facts": facts, "hooks": _hook_entries(parsed.get("hooks"))}
+        facts = _gemini_facts(parsed, notes, digests)
+    record: dict = {
+        "agent": agent,
+        "facts": facts,
+        "hooks": _hook_entries(parsed.get("hooks")),
+    }
+    if digests:
+        record["digests"] = dict(sorted(digests.items()))
+    return record
 
 
 def empty_record(agent: str) -> dict:
     """The record of a settings file that holds nothing."""
     return {"agent": agent, "facts": {}, "hooks": []}
+
+
+_KNOWN_AGENTS = frozenset({CLAUDE, CODEX, GEMINI, MANAGED})
+
+
+def valid_record(record: object, agent: str | None = None) -> bool:
+    """Whether *record* has the shape :func:`build_record` writes.
+
+    State files and lock files are data a person or a tool can edit; a record
+    that is not of this shape (a list where ``facts`` should be an object, a
+    hook that is not three strings) is never compared (review B4).
+    """
+    if not isinstance(record, dict):
+        return False
+    held = record.get("agent")
+    if held not in _KNOWN_AGENTS or (agent is not None and held != agent):
+        return False
+    if not isinstance(record.get("facts"), dict):
+        return False
+    hooks = record.get("hooks")
+    if not isinstance(hooks, list):
+        return False
+    for hook in hooks:
+        if (
+            not isinstance(hook, list)
+            or len(hook) != 3
+            or not all(isinstance(part, str) for part in hook)
+        ):
+            return False
+    digests = record.get("digests")
+    if digests is not None and not (
+        isinstance(digests, dict)
+        and all(isinstance(k, str) and isinstance(v, str) for k, v in digests.items())
+    ):
+        return False
+    sha = record.get("sha256")
+    return sha is None or isinstance(sha, str)
+
+
+def _full_digest(record: dict, key: str) -> tuple[str | None, bool]:
+    """``(digest of the whole set held under key, whether it was truncated)``."""
+    held = (record.get("digests") or {}).get(key)
+    if held is not None:
+        return held, True
+    value = (record.get("facts") or {}).get(key)
+    if isinstance(value, list):
+        return _set_digest(v for v in value if isinstance(v, str)), False
+    return None, False
 
 
 # ── Comparison ────────────────────────────────────────────────────────────────
@@ -883,6 +1052,8 @@ def compare(old: dict | None, new: dict | None, agent: str | None = None) -> Dif
     agent = agent or (new or old or {}).get("agent") or CLAUDE
     old = old or empty_record(agent)
     new = new or empty_record(agent)
+    if not valid_record(old) or not valid_record(new):
+        raise ValueError("malformed guardrail record")
     old_facts: dict = old.get("facts") or {}
     new_facts: dict = new.get("facts") or {}
     diff = Diff()
@@ -894,6 +1065,7 @@ def compare(old: dict | None, new: dict | None, agent: str | None = None) -> Dif
             _compare_hooks(row, old, new, diff)
         elif row.kind in (ADDED, REMOVED):
             was, now = _list(old_facts, row.key), _list(new_facts, row.key)
+            _before = len(diff.loosened)
             if row.kind == ADDED and now - was:
                 diff.loosened.append(
                     Loosening(
@@ -910,6 +1082,21 @@ def compare(old: dict | None, new: dict | None, agent: str | None = None) -> Dif
                         lost,
                     )
                 )
+            if len(diff.loosened) == _before:
+                # Past the recorded limits (list length, entry length) the
+                # visible part may not move while the whole does (review N3).
+                was_d, was_cut = _full_digest(old, row.key)
+                now_d, now_cut = _full_digest(new, row.key)
+                if (was_cut or now_cut) and was_d != now_d:
+                    diff.loosened.append(
+                        Loosening(
+                            row.key,
+                            f"{row.key} changed beyond the {MAX_ENTRIES} entries /"
+                            f" {MAX_ENTRY_CHARS} characters each that are shown"
+                            " (direction not judged)",
+                            False,
+                        )
+                    )
         elif row.kind == GAINED:
             if before is None and after is not None:
                 diff.loosened.append(
@@ -1072,11 +1259,20 @@ def guardrail_files(cwd: Path, errors: list[str]) -> list[GuardrailFile]:
     whether or not they exist, except managed files, so a deleted file can be
     noticed.  A project file that is a symlink or resolves outside *cwd* is
     skipped (TRUST-002 elsewhere).  A file reached twice is listed once.
-    Never raises.
+    Never raises (a failure is reported in *errors* and what was listed so far
+    is returned).
     """
+    out: list[GuardrailFile] = []
+    try:
+        _list_default_files(cwd, errors, out)
+    except Exception as exc:  # noqa: BLE001 — a scan must never fail over this
+        errors.append(f"{_LABEL}: listing files failed: {type(exc).__name__}")
+    return out
+
+
+def _list_default_files(cwd: Path, errors: list[str], out: list[GuardrailFile]) -> None:
     from mcp_audit import discovery as _discovery  # noqa: PLC0415
 
-    out: list[GuardrailFile] = []
     seen: set[str] = set()
     home = _home()
 
@@ -1107,7 +1303,7 @@ def guardrail_files(cwd: Path, errors: list[str]) -> list[GuardrailFile]:
     root = _drift._safe_resolve(cwd)
     home_resolved = _drift._safe_resolve(home)
     if root is None or (home_resolved is not None and root == home_resolved):
-        return out
+        return
     try:
         for rel in (
             ".claude/settings.json",
@@ -1127,11 +1323,10 @@ def guardrail_files(cwd: Path, errors: list[str]) -> list[GuardrailFile]:
             _add(path, agent, "project", root)
     except Exception as exc:  # noqa: BLE001
         errors.append(f"{_LABEL}: listing project files failed: {type(exc).__name__}")
-    return out
 
 
 def project_guardrail_files(
-    project_dir: Path, errors: list[str]
+    project_dir: Path, errors: list[str], state_path: Path | None = None
 ) -> list[GuardrailFile]:
     """The settings files of a project tree (``scan --project``, ``lock``).
 
@@ -1139,21 +1334,36 @@ def project_guardrail_files(
     already visits: every ``.claude/settings.json``, ``.claude/settings.local.json``,
     ``.codex/config.toml`` and ``.gemini/settings.json`` under *project_dir*.
     Symlinked files and the user's own Codex/Gemini files are not included.
-    Never raises.
+    With *state_path*, project files under *project_dir* that the record holds
+    as present but that the walk no longer finds are listed too, so a deleted
+    nested file is noticed (review N4).  Never raises.
     """
+    out: list[GuardrailFile] = []
+    try:
+        _list_project_files(project_dir, errors, state_path, out)
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"{_LABEL}: listing project files failed: {type(exc).__name__}")
+    return out
+
+
+def _list_project_files(
+    project_dir: Path,
+    errors: list[str],
+    state_path: Path | None,
+    out: list[GuardrailFile],
+) -> None:
     from mcp_audit import discovery as _discovery  # noqa: PLC0415
 
-    out: list[GuardrailFile] = []
     seen: set[str] = set()
     root = _drift._safe_resolve(project_dir)
     if root is None:
-        return out
+        return
     home = _home()
     try:
         configs = _discovery.discover_project_configs(root)
     except Exception as exc:  # noqa: BLE001
         errors.append(f"{_LABEL}: project walk failed: {type(exc).__name__}")
-        return out
+        return
     for config in configs:
         agent = _is_project_file(config.path)
         if agent is None or config.is_symlink:
@@ -1167,7 +1377,24 @@ def project_guardrail_files(
         seen.add(key)
         path = Path(os.path.abspath(config.path))
         out.append(GuardrailFile(path, agent, "project", _display(path, home, root)))
-    return out
+    if state_path is None:
+        return
+    status, records = _drift._read_state(state_path)
+    if status != _drift._OK:
+        return
+    listed = {os.path.normcase(str(item.path)) for item in out}
+    for key, record in records.items():
+        if record.get("absent") is True or record.get("scope") != "project":
+            continue
+        path = Path(key)
+        agent = _is_project_file(path)
+        if agent is None or agent != record.get("agent") or key in listed:
+            continue
+        if not path.is_absolute() or not path.is_relative_to(root):
+            continue
+        if os.path.lexists(path):
+            continue  # present but not walked (a symlink): not "deleted"
+        out.append(GuardrailFile(path, agent, "project", _display(path, home, root)))
 
 
 # ── Reading ───────────────────────────────────────────────────────────────────
@@ -1257,6 +1484,28 @@ def guardrail_drift_findings(
         return []
 
 
+def _prior(previous: object, item: GuardrailFile) -> dict | None:
+    """The previous valid record of *item*; ``None`` for none or a malformed one."""
+    if not isinstance(previous, dict):
+        return None
+    old = previous.get("record")
+    return old if valid_record(old, item.agent) else None
+
+
+def _entry(
+    item: GuardrailFile, record: dict, *, absent: bool, previous: object, now: str
+) -> dict:
+    first = previous.get("first_seen") if isinstance(previous, dict) else None
+    return {
+        "agent": item.agent,
+        "scope": item.scope,
+        "record": record,
+        "absent": absent,
+        "first_seen": first if isinstance(first, str) else now,
+        "last_seen": now,
+    }
+
+
 def _drift_findings(
     tracked: list[GuardrailFile], state_path: Path, errors: list[str]
 ) -> list[Finding]:
@@ -1279,46 +1528,57 @@ def _drift_findings(
     updates: dict[str, dict] = {}
     for key, (item, record) in current.items():
         previous = records.get(key)
-        old = previous.get("record") if isinstance(previous, dict) else None
-        if isinstance(old, dict):
-            if item.agent == MANAGED:
-                if old.get("sha256") != record.get("sha256"):
-                    out.append(_managed_finding(item, old, record))
-            else:
-                diff = compare(old, record, item.agent)
-                if diff.loosened:
-                    out.append(_loosened_finding(item, diff))
-        updates[key] = {
-            "agent": item.agent,
-            "scope": item.scope,
-            "record": record,
-            "absent": False,
-            "first_seen": (previous or {}).get("first_seen", now),
-            "last_seen": now,
-        }
+        old = _prior(previous, item)
+        try:
+            if old is not None:
+                if item.agent == MANAGED:
+                    if old.get("sha256") != record.get("sha256"):
+                        out.append(_managed_finding(item, old, record))
+                else:
+                    diff = compare(old, record, item.agent)
+                    if diff.loosened:
+                        out.append(_loosened_finding(item, diff))
+        except Exception as exc:  # noqa: BLE001 — one file never stops the rest
+            errors.append(
+                f"{_LABEL}: {item.display}: compare failed: {type(exc).__name__}"
+            )
+        updates[key] = _entry(item, record, absent=False, previous=previous, now=now)
     for item in missing:
         key = os.path.normcase(str(item.path))
         previous = records.get(key)
-        if not isinstance(previous, dict) or previous.get("absent"):
+        old = _prior(previous, item)
+        if old is None:
+            # Never seen (or a malformed record): remember that it is absent,
+            # so the file appearing later, already loose, is reported
+            # (review B2).  The scan that records it reports nothing.
+            if item.agent != MANAGED:
+                updates[key] = _entry(
+                    item,
+                    empty_record(item.agent),
+                    absent=True,
+                    previous=previous,
+                    now=now,
+                )
             continue
-        old = previous.get("record")
-        if isinstance(old, dict) and item.agent != MANAGED:
-            diff = vanished_diff(
-                old, item.agent, _held_by(item.agent, current.values())
-            )
-            if diff.loosened:
-                out.append(_loosened_finding(item, diff, vanished=True))
-                # Reported once: a file put back with the same content is not
-                # reported again.
-                old = _without_lost(old, diff)
+        if previous.get("absent") is True:  # type: ignore[union-attr]
+            continue
+        if item.agent != MANAGED:
+            try:
+                diff = vanished_diff(
+                    old, item.agent, _held_by(item.agent, current.values())
+                )
+                if diff.loosened:
+                    out.append(_loosened_finding(item, diff, vanished=True))
+                    # Reported once: a file put back with the same content is
+                    # not reported again.
+                    old = _without_lost(old, diff)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(
+                    f"{_LABEL}: {item.display}: compare failed: {type(exc).__name__}"
+                )
         # A tombstone keeps the last record, so a weaker file put back later is
         # still compared with what was there.
-        updates[key] = {
-            **previous,
-            "record": old,
-            "absent": True,
-            "last_seen": now,
-        }
+        updates[key] = _entry(item, old, absent=True, previous=previous, now=now)
     if status != _drift._UNREADABLE and updates:
         # Never write after a failed read: these updates were computed
         # without the history and would overwrite it.

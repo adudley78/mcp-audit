@@ -2184,6 +2184,8 @@ Items below were confirmed open at some point and have since been resolved. Each
 
 ## Guardrail drift (GUARD-001/002, LOCK-014, guardrails.py — STORY-0143)
 
+- Review-fix limits: a bare opaque token embedded in a path-like entry (for example a Codex `writable_roots` path) has no pattern to recognise and is stored as written; rule text, headers, `curl -u`, `KEY=value`, `?token=` and URL user info are redacted. Codex `approval_policy` and `sandbox_mode` document no default, so an absent value is not treated as a loosening. Claude `disableAllHooks` and Gemini `hooksConfig.enabled` are in the table. A repository with no guardrail files at lock time gets no `guardrails` section, so a file added later is not checked until `mcp-audit lock` is run again.
+
 - **No Gemini CLI settings-file key for YOLO or auto-accept is modelled.** Gemini CLI's configuration
   reference (github.com/google-gemini/gemini-cli, docs/reference/configuration.md, read 2026-11-04)
   says YOLO can only be enabled from the command line (`--yolo` / `--approval-mode=yolo`); there is no
