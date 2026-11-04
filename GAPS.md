@@ -1779,6 +1779,20 @@ Deliberate scope limits, recorded rather than smoothed over:
   out of scope for STORY-0068; tracked here rather than built without a
   request.
 
+## OpenCode MCP servers and version (STORY-0142)
+
+- **Only the user file, `$OPENCODE_CONFIG` and the project file are read.** OpenCode
+  also merges config from parent directories up to the repository root and from a
+  `.opencode/` directory, and expands `{env:VAR}` / `{file:path}`; none of that is
+  reproduced. Each file is analysed alone, and a server with `"enabled": false` is
+  still analysed.
+- **The `~/.opencode/bin` installer keeps no version file**, so `affected` cannot say
+  whether that install is in the affected range: COULDN'T CHECK. An npm global install
+  (`opencode-ai`) is read. Homebrew, Scoop and other package managers are not.
+- **`watch` does not react to OpenCode's files.** It does not follow `opencode.jsonc` or a project's `opencode.json` (the same as the Codex `config.toml` precedent); run `scan` for them. `fix` and `check` do not edit them either.
+- **No check tests the OpenCode OAuth flow** (`x_MCPRS-3a7e475c087d`), so the answer is
+  the installed version plus the host platform, nothing more.
+
 ## Codex and Gemini CLI MCP servers (STORY-0110)
 
 - **Only the user file and the project file are read.** Codex's system layer

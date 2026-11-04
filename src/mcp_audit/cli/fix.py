@@ -148,6 +148,9 @@ def fix(
         )
         raise typer.Exit(2)
     findings = [f for f in findings if f.client not in GATEWAY_UPSTREAM_CLIENTS]
+    # OpenCode's JSONC `mcp` files are never edited (STORY-0142): their
+    # findings are dropped so none is applied to a same-name server elsewhere.
+    findings = [f for f in findings if f.client not in ("opencode", "opencode-project")]
 
     # ── Load registry for pinning strategy ───────────────────────────────────
     registry = None

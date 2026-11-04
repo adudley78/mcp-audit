@@ -27,12 +27,17 @@ _KNOWN_GIT_RELATIVE_PATHS: list[tuple[str, str]] = [
     # copy's name no longer says which file it was.
     (".codex/config.toml", "mcp_servers"),
     (".gemini/settings.json", "mcpServers"),
+    # OpenCode (STORY-0142): JSONC, top-level ``mcp``.
+    ("opencode.json", "mcp"),
+    ("opencode.jsonc", "mcp"),
 ]
 
 #: Parser dialect for the known paths above whose format is not plain JSON.
 _GIT_PATH_DIALECT: dict[str, str] = {
     ".codex/config.toml": "codex",
     ".gemini/settings.json": "gemini",
+    "opencode.json": "opencode",
+    "opencode.jsonc": "opencode",
 }
 
 

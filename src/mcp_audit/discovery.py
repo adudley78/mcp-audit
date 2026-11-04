@@ -179,6 +179,17 @@ def _get_client_specs() -> list[ClientSpec]:
         )
     )
 
+    # OpenCode — top-level ``mcp`` object in ``~/.config/opencode/opencode.json``
+    # or ``.jsonc`` (JSONC), and in the file ``$OPENCODE_CONFIG`` names
+    # (STORY-0142).  A missing path is simply not there.
+    clients.append(
+        ClientSpec(
+            name=OPENCODE_CLIENT,
+            root_key=OPENCODE_ROOT_KEY,
+            config_paths=opencode_user_config_paths(),
+        )
+    )
+
     return clients
 
 
@@ -192,12 +203,22 @@ CODEX_CLIENT = "codex"
 GEMINI_CLIENT = "gemini-cli"
 CODEX_ROOT_KEY = "mcp_servers"
 
+#: OpenCode (STORY-0142): user and ``$OPENCODE_CONFIG`` files are client
+#: ``opencode``; ``opencode.json(c)`` at the working directory's root is
+#: ``opencode-project`` (a default scan), plain ``opencode`` in the
+#: ``--project`` walk, as for Codex and Gemini CLI.
+OPENCODE_CLIENT = "opencode"
+OPENCODE_ROOT_KEY = "mcp"
+OPENCODE_CONFIG_FILES = ("opencode.json", "opencode.jsonc")
+
 #: Parser dialect for each Codex / Gemini CLI client label.
 _HARNESS_DIALECT: dict[str, str] = {
     CODEX_CLIENT: "codex",
     f"{CODEX_CLIENT}-project": "codex",
     GEMINI_CLIENT: "gemini",
     f"{GEMINI_CLIENT}-project": "gemini",
+    OPENCODE_CLIENT: "opencode",
+    f"{OPENCODE_CLIENT}-project": "opencode",
 }
 
 
@@ -219,6 +240,21 @@ def codex_user_config_path() -> Path:
 def gemini_user_config_path() -> Path:
     """Gemini CLI's user settings file, ``~/.gemini/settings.json``."""
     return _home() / ".gemini" / "settings.json"
+
+
+def opencode_user_config_paths() -> list[Path]:
+    """OpenCode's user-level config files, in the order they are checked.
+
+    ``~/.config/opencode/opencode.json`` and ``.jsonc`` (OpenCode's global
+    config), then the file ``$OPENCODE_CONFIG`` names when it is set and
+    non-empty.  A path that does not exist is dropped by discovery without a
+    message; the variable is only ever used as a file path to read.
+    """
+    paths = [_home() / ".config" / "opencode" / name for name in OPENCODE_CONFIG_FILES]
+    override = os.environ.get("OPENCODE_CONFIG", "").strip()
+    if override:
+        paths.append(Path(override).expanduser())
+    return paths
 
 
 @dataclass
@@ -600,8 +636,16 @@ def discover_configs(
     if not skip_auto_discovery:
         # Check known client locations. User-global — info-shaped (TRUST-004)
         # if a symlink: this is exactly the path shape dotfile managers own.
+        opencode_seen: set[Path] = set()
         for spec in _get_client_specs():
             for config_path in spec.config_paths:
+                # ``$OPENCODE_CONFIG`` may name the global file itself: read
+                # each OpenCode file once (STORY-0142).
+                if spec.name == OPENCODE_CLIENT:
+                    key = _resolved_or_self(config_path)
+                    if key in opencode_seen:
+                        continue
+                    opencode_seen.add(key)
                 # An unreadable directory (PermissionError on ~/.codex) is
                 # "not there", never a crash of the whole scan (STORY-0110).
                 if _safe_is_symlink(config_path):
@@ -715,7 +759,11 @@ def discover_configs(
         # Codex and Gemini CLI project files at the working directory's root
         # (STORY-0110): their MCP servers, as <client>-project, so a repository
         # server never shares a rug-pull key with a same-named user server.
+        # OpenCode's ``opencode.json(c)`` is a *project* file only; a scan run
+        # from ``$HOME`` has no such file of its own, so it is skipped there.
         for rel, client_name, root_key, dialect in _HARNESS_CWD_SPECS:
+            if at_home and client_name == f"{OPENCODE_CLIENT}-project":
+                continue
             _add_cwd_candidate(rel, client_name, root_key, dialect)
 
         # A gateway's project config in the working directory (STORY-0111):
@@ -810,6 +858,8 @@ def discover_configs(
 _HARNESS_CWD_SPECS: tuple[tuple[str, str, str, str], ...] = (
     (".codex/config.toml", "codex-project", "mcp_servers", "codex"),
     (".gemini/settings.json", "gemini-cli-project", "mcpServers", "gemini"),
+    ("opencode.json", "opencode-project", "mcp", "opencode"),
+    ("opencode.jsonc", "opencode-project", "mcp", "opencode"),
 )
 
 
@@ -992,6 +1042,8 @@ _PROJECT_CONFIG_SPECS: list[tuple[str, str, str]] = [
     (".amazonq/mcp.json", "amazon-q", "mcpServers"),
     (".codex/config.toml", "codex", "mcp_servers"),
     (".gemini/settings.json", "gemini-cli", "mcpServers"),
+    ("opencode.json", "opencode", "mcp"),
+    ("opencode.jsonc", "opencode", "mcp"),
 ]
 
 # Non-MCP IDE auto-execution surfaces (TRUST-003). These files have no
@@ -1162,6 +1214,7 @@ def discover_project_configs(
                         is_project_scoped=True,
                         is_symlink=True,
                         symlink_root=root,
+                        dialect=_HARNESS_DIALECT.get(client_name),
                     )
                 )
                 continue
@@ -1172,6 +1225,7 @@ def discover_project_configs(
                         root_key=root_key,
                         path=candidate,
                         is_project_scoped=True,
+                        dialect=_HARNESS_DIALECT.get(client_name),
                     )
                 )
 
@@ -1199,10 +1253,11 @@ def discover_project_configs(
 
 
 def _is_user_harness_config(config: DiscoveredConfig) -> bool:
-    """True when a project-walk candidate is the user's own Codex/Gemini file.
+    """True when a project-walk candidate is the user's own Codex/Gemini/OpenCode file.
 
-    Walking ``$HOME`` (``scan --project ~``) reaches ``~/.codex/config.toml``
-    and ``~/.gemini/settings.json``, which are user-level config, not a
+    Walking ``$HOME`` (``scan --project ~``) reaches ``~/.codex/config.toml``,
+    ``~/.gemini/settings.json`` and ``~/.config/opencode/opencode.json(c)``
+    (or the file ``$OPENCODE_CONFIG`` names), which are user-level config, not a
     repository's.  Codex skips a ``.codex`` directory that is ``$CODEX_HOME``
     and Gemini CLI skips workspace settings that are the user settings, so
     the walk does the same instead of reporting the user's own servers as
@@ -1213,18 +1268,17 @@ def _is_user_harness_config(config: DiscoveredConfig) -> bool:
     repository's (TRUST-002).  With ``CODEX_HOME`` set elsewhere, ``~/.codex``
     is an ordinary project layer to Codex, and to the walk.
     """
-    user_paths = {
-        "codex": codex_user_config_path(),
-        "gemini-cli": gemini_user_config_path(),
+    user_paths: dict[str, list[Path]] = {
+        "codex": [codex_user_config_path()],
+        "gemini-cli": [gemini_user_config_path()],
+        OPENCODE_CLIENT: opencode_user_config_paths(),
     }
-    user_path = user_paths.get(config.client_name)
-    if user_path is None:
-        return False
-    return (
+    return any(
         config.path.name == user_path.name
         and config.path.parent.name == user_path.parent.name
         and _resolved_or_self(config.path.parent.parent)
         == _resolved_or_self(user_path.parent.parent)
+        for user_path in user_paths.get(config.client_name, [])
     )
 
 

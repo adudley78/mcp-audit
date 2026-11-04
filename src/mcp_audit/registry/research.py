@@ -5,7 +5,7 @@ write-up (a named attack, a bypass, a campaign) long before, or instead of, a
 CVE.  ``src/mcp_audit/data/research-records.json`` holds those findings as
 OSV-shaped records, credited to the people who found them, so a later command
 (``mcp-audit affected``, EPIC-0008) can answer for them like any other
-advisory.  Nothing reads this file yet.
+advisory.  ``affected`` reads it (STORY-0121).
 
 A record is **not** a finding.  It says what was reported, by whom, which
 products were affected and where they were fixed, and which mcp-audit checks
@@ -36,6 +36,10 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final, Literal
+
+from packaging.version import InvalidVersion, Version
+
+from mcp_audit.host_platform import PLATFORMS
 
 __all__ = [
     "MAX_ENTRIES",
@@ -113,6 +117,11 @@ class AffectedProduct:
             the note says when and who reported it).
         fixed_in: The first fixed version, only when ``status`` is ``fixed``.
         note: Who said so, in a sentence.
+        introduced: The first affected version (PEP 440), when the write-up
+            gives one.  An install below it is not affected.  ``None`` means
+            no floor is known (behaviour unchanged).
+        platforms: The platforms (``windows``, ``wsl``, ``macos``, ``linux``)
+            the write-up says are affected.  Empty means all (unchanged).
     """
 
     product: str
@@ -120,6 +129,8 @@ class AffectedProduct:
     status: ProductStatus
     fixed_in: str | None = None
     note: str = ""
+    introduced: str | None = None
+    platforms: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -213,6 +224,27 @@ def _parse_products(raw: Any) -> tuple[AffectedProduct, ...] | None:
             return None
         if status != "fixed" and fixed_in is not None:
             return None
+        introduced = item.get("introduced")
+        if introduced is not None:
+            if not isinstance(introduced, str):
+                return None
+            try:
+                Version(introduced)
+            except InvalidVersion:
+                return None
+        if isinstance(introduced, str) and isinstance(fixed_in, str):
+            try:
+                if Version(introduced) >= Version(fixed_in):
+                    return None
+            except InvalidVersion:
+                return None
+        platforms = item.get("platforms")
+        if platforms is not None and (
+            not isinstance(platforms, list)
+            or not platforms
+            or not all(isinstance(x, str) and x in PLATFORMS for x in platforms)
+        ):
+            return None
         out.append(
             AffectedProduct(
                 product=name,
@@ -220,6 +252,8 @@ def _parse_products(raw: Any) -> tuple[AffectedProduct, ...] | None:
                 status=status,
                 fixed_in=fixed_in if isinstance(fixed_in, str) else None,
                 note=str(item.get("note") or ""),
+                introduced=introduced,
+                platforms=tuple(dict.fromkeys(platforms)) if platforms else (),
             )
         )
     return tuple(out)

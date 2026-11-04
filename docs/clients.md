@@ -18,11 +18,13 @@ and the like) and reports every server it finds there as TRUST-001.
 | Amazon Q Developer | – | `.amazonq/mcp.json` (`--project` only) | `mcpServers` | JSON |
 | **Codex** | `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`) | `.codex/config.toml` | `[mcp_servers.<name>]` | TOML |
 | **Gemini CLI** | `~/.gemini/settings.json` | `.gemini/settings.json` | `mcpServers` | JSON with comments |
+| **OpenCode** | `~/.config/opencode/opencode.json` or `.jsonc`; the file `$OPENCODE_CONFIG` names | `opencode.json`, `opencode.jsonc` | `mcp` | JSONC (comments, trailing commas) |
 
 Client labels in findings and JSON output: a server from a user-level file
-carries the client name (`codex`, `gemini-cli`); one from the working
-directory's project file in a default scan carries `<client>-project`
-(`codex-project`, `gemini-cli-project`, like `claude-code-project`), so a
+carries the client name (`codex`, `gemini-cli`, `opencode`); one from the
+working directory's project file in a default scan carries `<client>-project`
+(`codex-project`, `gemini-cli-project`, `opencode-project`, like
+`claude-code-project`), so a
 repository server never shares a rug-pull identity with a user server of the
 same name. `scan --project` and `lock` use the plain client name.
 
@@ -86,6 +88,31 @@ Confirmed from Gemini CLI's docs and source (google-gemini/gemini-cli,
   `oauth`; `oauth.audiences` (a list with at least one non-wildcard value)
   counts as the audience binding for AUTH-002. `$VAR` / `${VAR}` references in `env` and `headers` are references,
   not literal secrets.
+
+## OpenCode (STORY-0142)
+
+- **Where.** User config `~/.config/opencode/opencode.json` or `.jsonc`;
+  `$OPENCODE_CONFIG` names one more file (a path that does not exist is
+  ignored without a message); a project's `opencode.json` / `opencode.jsonc`
+  at the root of the working directory (a default scan; skipped when that
+  directory is `$HOME`) and, with `scan --project`, in every directory of the
+  walk. The walk skips your own user files, like Codex's and Gemini CLI's.
+- **Format.** JSONC: `//` and `/* */` comments and trailing commas are read
+  (comment markers inside strings are kept). The servers are the top-level
+  `mcp` object.
+- **Entries.** `{"type": "local", "command": [<argv>], "environment": {...}}`:
+  `command[0]` is the command, the rest are its arguments, `environment` is the
+  env. `{"type": "remote", "url": "...", "headers": {...}}`: `url` and
+  `headers`, so TRANSPORT-001 and the credential-header checks apply as for any
+  client. An entry with `"enabled": false` is still analysed (one edit makes it
+  live), as for Codex. An entry with another `type`, no `type`, or the wrong
+  shape (an empty `command`, a remote without `url`) is skipped and named in
+  the scan's errors; the other servers are still read.
+- **Lock and rug-pull identity.** As for Codex and Gemini CLI: `opencode-project`
+  in a default scan, plain `opencode` in `scan --project` and `lock`.
+- **Not read.** `{env:VAR}` / `{file:path}` substitutions are not expanded, and
+  OpenCode's merge with config from parent directories and a `.opencode/`
+  directory is not reproduced; each file is analysed alone.
 
 ## Limits
 

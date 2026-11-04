@@ -463,7 +463,10 @@ _HINTS: dict[str, str] = {
 #: Clients whose configs ``fix`` never edits.
 #: MCP gateway upstreams (STORY-0111) live in the gateway's own file and
 #: format, which ``fix`` does not write.
-_NOT_FIXED_CLIENTS = frozenset({"claude-code-skill"}) | GATEWAY_UPSTREAM_CLIENTS
+_NOT_FIXED_CLIENTS = (
+    frozenset({"claude-code-skill", "opencode", "opencode-project"})
+    | GATEWAY_UPSTREAM_CLIENTS
+)
 
 
 def _is_auto_fixable(finding: Finding) -> bool:

@@ -1676,6 +1676,21 @@ Read on 2026-10-29; fetched pages are data, quoted only where the record depends
 - **Record format.** Original. The ID scheme mirrors `x_MCPSA` (docs/advisory-feed.md);
   the fields are OSV 1.6.0's (`credits`, `references`, `aliases`), with mcp-audit's
   under `database_specific.mcp_audit`.
+- **OpenCode MCP OAuth remote code execution, no CVE (STORY-0142).** Eilon Cohen,
+  Pillar Security (https://www.pillar.security/blog/open-and-shut-remote-code-execution-in-opencode-via-mcp-oauth),
+  facts verified by the maintainer on 2026-11-04 and not re-read for the record: npm
+  package `opencode-ai`, versions 1.0.137 through 1.18.32 affected on Windows and WSL
+  only, fixed in 1.18.33 (the npm registry's `time` for 1.18.33 is
+  2026-09-28T04:23:28Z), no CVE; a remote MCP server could make OpenCode run a
+  PowerShell command during the OAuth sign-in flow. The vendor field `opencode project`
+  is neutral wording, not the write-up's. **Not stated here:** the write-up's
+  publication date (the record has no `published`), a check that tests the OAuth
+  flow (none exists; `checks` is empty). OpenCode config locations (`~/.config/opencode/opencode.json`
+  or `.jsonc`, a project `opencode.json(c)`, `$OPENCODE_CONFIG`), the JSONC format, the
+  top-level `mcp` object and the `local` (`command` argv, `environment`) / `remote`
+  (`url`, `headers`) entry shapes are from the same verification; the `~/.opencode/bin`
+  installer keeps no version file. The platform rule (WSL = a Linux kernel that names
+  `microsoft`) uses the kernel's own `osrelease` / `version` text.
 
 ## `mcp-audit affected` (STORY-0121)
 

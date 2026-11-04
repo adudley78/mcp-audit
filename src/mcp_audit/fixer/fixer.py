@@ -67,6 +67,23 @@ class FixResult:
     no_fixable: bool = False
 
 
+def _refuse_opencode(config_path: Path) -> None:
+    """Refuse OpenCode's ``opencode.json(c)`` before reading or writing it.
+
+    Its servers live under ``mcp`` (not ``mcpServers``), the file is JSONC, and
+    rewriting it as JSON would drop the user's comments, so no fix strategy
+    applies (STORY-0142).  Keyed on the file name, not the suffix.
+    """
+    from mcp_audit.config_parser import OPENCODE_CONFIG_NAMES  # noqa: PLC0415
+
+    if config_path.name.lower() in OPENCODE_CONFIG_NAMES:
+        raise ValueError(
+            f"{config_path} is an OpenCode config (JSONC under `mcp`). mcp-audit"
+            " fix edits JSON MCP configs with an `mcpServers` or `servers` key"
+            " only; apply the remediation in this file by hand."
+        )
+
+
 def run_fix(
     findings: list[Finding],
     config_path: Path,
@@ -112,6 +129,7 @@ def run_fix(
     """
     result = FixResult(config_path=config_path)
 
+    _refuse_opencode(config_path)
     if config_path.suffix.lower() == ".toml":
         # Codex's config.toml (STORY-0110): fix writes JSON only, and
         # rewriting TOML would drop the user's comments and layout.
@@ -275,6 +293,7 @@ def run_pins(
     from mcp_audit.fixer.strategies.pinning import pin_exact  # noqa: PLC0415
 
     result = FixResult(config_path=config_path)
+    _refuse_opencode(config_path)
     if config_path.suffix.lower() == ".toml":
         raise ValueError(
             f"{config_path} is a TOML file (Codex). mcp-audit edits JSON MCP "

@@ -209,6 +209,37 @@ class TestCli:
         assert doc["results"][0]["status"] == "AFFECTED"
         assert any("Signed bundle 2026-10-29" in s for s in doc["sources"])
 
+    def test_affected_reads_the_bundles_research_record(
+        self,
+        trusted: None,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """STORY-0142: the OpenCode record comes from the bundle, not the install."""
+        opencode = "x_MCPRS-3a7e475c087d"
+        data = json.loads(
+            (REPO / "src/mcp_audit/data/research-records.json").read_text()
+        )
+        for entry in data["entries"]:
+            if entry["id"] == opencode:
+                entry["database_specific"]["mcp_audit"]["products"][0]["fixed_in"] = (
+                    "9.9.9"
+                )
+        patched = tmp_path / "research-records.json"
+        patched.write_text(json.dumps(data))
+        monkeypatch.setitem(build_bundle.SOURCES, "research-records.json", patched)
+        made = build_bundle.build(REPO / "examples" / "feed", tmp_path / "bundle", None)
+        home = tmp_path / "home"
+        home.mkdir()
+        monkeypatch.setenv("HOME", str(home))
+        result = runner.invoke(
+            app, ["affected", opencode, "--format", "json", "--bundle", str(made)]
+        )
+        assert result.exit_code in (0, 1), result.output
+        doc = json.loads(result.output[result.output.index("{") :])
+        rows = [r for r in doc["results"] if r["subject"].startswith("OpenCode")]
+        assert [r["fixed_in"] for r in rows] == ["9.9.9"]
+
     def test_scan_with_bundle_prints_date_and_flags_malicious_package(
         self, trusted: None, made: Path, tmp_path: Path
     ) -> None:
