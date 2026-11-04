@@ -31,7 +31,7 @@ from mcp_audit.analyzers.supply_chain import (
     build_deprecated_package_finding,
     redact_text,
 )
-from mcp_audit.lock import section_digests, tool_digests
+from mcp_audit.lock import guardrail_section, section_digests, tool_digests
 from mcp_audit.lock import tool_text as tool_text_mod
 from mcp_audit.lock.identity import (
     MatchKey,
@@ -68,6 +68,7 @@ _DRIFT_IDS = frozenset(
         "LOCK-007",
         "LOCK-008",
         "LOCK-011",
+        "LOCK-014",
     }
 )
 
@@ -95,7 +96,7 @@ class UnverifiedItem:
     section/entry" (R56 Part 1, STEP 3) — rather than a bare count.
     """
 
-    kind: Literal["entry", "section"]
+    kind: Literal["entry", "section", "guardrail-file"]
     name: str
     reason: str
 
@@ -148,6 +149,11 @@ class VerifyResult:
     #: Why saved tool text could not be used for a server (out of step with
     #: the lock, unreadable). Informational: it never changes the exit code.
     tool_text_notes: list[str] = field(default_factory=list)
+    #: Files in the lock's (mcp-audit-owned) ``guardrails`` section, STORY-0143.
+    guardrails_recorded: int = 0
+    #: Why a recorded guardrail file could not be compared (unreadable).
+    #: Informational: it never changes the exit code.
+    guardrail_notes: list[str] = field(default_factory=list)
     #: The lock's ``lock_version`` when it is newer than this mcp-audit can
     #: verify; nothing else was checked (exit 2).
     unsupported_version: int | None = None
@@ -267,6 +273,18 @@ def verify(
             ),
         )
         return VerifyResult(findings=[finding], exit_code=2, tampered=True)
+    guards_section = doc.get(guardrail_section.GUARDRAILS_KEY)
+    owned_guards = guardrail_section.is_owned(guards_section)
+    if owned_guards and not guardrail_section.checksum_ok(guards_section):
+        finding = _lock_005(
+            lock_path,
+            scope="the content of its `guardrails` section (`guardrails._checksum`)",
+            evidence=(
+                f"guardrails._checksum: found {guards_section.get('_checksum')!r}, "
+                "content does not match"
+            ),
+        )
+        return VerifyResult(findings=[finding], exit_code=2, tampered=True)
     locked_tool_servers: dict = tools_section["servers"] if owned_tools else {}
     tool_items: list[UnverifiedItem] = []
     tools_compared = 0
@@ -354,6 +372,26 @@ def verify(
         if match not in current:
             findings.append(_lock_003(key, entry))
 
+    # ── STORY-0143: guardrail files looser than the lock records ────────────
+    guard_errors: list[str] = []
+    guards_recorded = 0
+    guard_items: list[UnverifiedItem] = []
+    if owned_guards:
+        guards_recorded = len(guards_section["files"])
+        compared = guardrail_section.compare_section(
+            guards_section, lock_root, guard_errors
+        )
+        findings.extend(_lock_014(item) for item in compared.loosened)
+        guard_items = [
+            UnverifiedItem(
+                kind="guardrail-file",
+                name=path,
+                reason=f"{reason}; a guardrail file mcp-audit could not compare "
+                "with the lock is never treated as unchanged",
+            )
+            for path, reason in compared.unverified
+        ]
+
     ids_present = {f.id for f in findings}
     has_drift = bool(ids_present & _DRIFT_IDS)
 
@@ -378,6 +416,7 @@ def verify(
         ]
         + digest_items
         + tool_items
+        + guard_items
     )
 
     if has_drift or (unverified_items and not allow_unverified):
@@ -400,6 +439,8 @@ def verify(
         tools_compared=tools_compared if tool_enumerations is not None else None,
         tool_diffs=tool_diffs,
         tool_text_notes=tool_text_notes,
+        guardrails_recorded=guards_recorded,
+        guardrail_notes=guard_errors,
     )
 
 
@@ -934,6 +975,42 @@ def _lock_013(key: str, server: ServerConfig) -> Finding:
         ),
         finding_path=str(server.config_path),
         owasp_mcp_top_10=_OWASP,
+    )
+
+
+def _lock_014(item: guardrail_section.Loosened) -> Finding:
+    """LOCK-014: a repository guardrail file allows more than the lock records."""
+    lines = "; ".join(loosening.line for loosening in item.diff.loosened)
+    why = (
+        f"{item.path} is gone and held guardrails nothing else holds"
+        if item.gone
+        else (
+            f"{item.path} is not in the lock and allows more than an empty file"
+            if item.new
+            else f"{item.path} allows more than the lock records"
+        )
+    )
+    return Finding(
+        id="LOCK-014",
+        severity=Severity.HIGH,
+        analyzer="lock",
+        client="mcp-lock",
+        server=item.path,
+        title=f"Repository guardrail loosened since the lock: {item.path}",
+        description=(
+            f"{why}. mcp-lock.json's `guardrails` section records this file as"
+            " reviewed; the current file has a weaker permission rule, approval,"
+            " sandbox or hook setting. An agent or a contributor may have"
+            " written it. A tightening or neutral change is not reported."
+        ),
+        evidence=f"{item.path}: {lines}",
+        remediation=(
+            "Revert the change (`git diff`), or, if it was intended and"
+            " reviewed, run `mcp-audit lock --accept` to record it."
+        ),
+        cwe="CWE-693",
+        finding_path=item.path,
+        owasp_mcp_top_10=["MCP02"],
     )
 
 

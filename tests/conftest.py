@@ -108,6 +108,15 @@ def _isolate_claude_plugins(
         "mcp_audit.agent_files.drift.DEFAULT_STATE_PATH",
         base / "drift-state" / "instruction-files.json",
     )
+    # Guardrail drift (STORY-0143): same isolation for its home and record.
+    monkeypatch.setattr(
+        "mcp_audit.guardrails._home", lambda: base / "no-guardrail-home"
+    )
+    monkeypatch.setattr(
+        "mcp_audit.guardrails.DEFAULT_STATE_PATH",
+        base / "drift-state" / "guardrails.json",
+    )
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
     # MCP gateway configs (STORY-0111): ~/.mcptoon, ~/.config/1mcp,
     # ~/.config/mcphub and their environment overrides.  Point at nothing.
     monkeypatch.setattr(

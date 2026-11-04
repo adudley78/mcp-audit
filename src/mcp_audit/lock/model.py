@@ -218,6 +218,13 @@ def compute_checksum(doc: dict) -> str:
     return f"sha256:{digest}"
 
 
+def _owned_guardrails(section: object) -> bool:
+    """Whether *section* is mcp-audit's own ``guardrails`` section (STORY-0143)."""
+    from mcp_audit.lock import guardrail_section  # noqa: PLC0415
+
+    return guardrail_section.is_owned(section)
+
+
 def unverified_sections(doc: dict) -> list[str]:
     """Return top-level keys present in *doc* that mcp-audit does not verify.
 
@@ -250,6 +257,9 @@ def unverified_sections(doc: dict) -> list[str]:
             k == tool_digests.TOOLS_KEY
             and (doc[k] is None or tool_digests.is_owned(doc[k]))
         )
+        # STORY-0143: an owned `guardrails` section is mcp-audit's own record,
+        # integrity-checked by its `_checksum` on every verify.
+        and not (k == "guardrails" and _owned_guardrails(doc[k]))
     )
 
 

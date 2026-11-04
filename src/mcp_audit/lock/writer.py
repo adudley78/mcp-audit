@@ -26,7 +26,7 @@ from pathlib import Path
 from mcp_audit import __version__
 from mcp_audit.advisory.canonical import CanonicalError, canonicalize
 from mcp_audit.analyzers.rug_pull import compute_hashes, server_key
-from mcp_audit.lock import section_digests, tool_digests
+from mcp_audit.lock import guardrail_section, section_digests, tool_digests
 from mcp_audit.lock.identity import build_identity, relative_config_path
 from mcp_audit.lock.model import (
     LOCK_VERSION,
@@ -159,6 +159,7 @@ def regenerate(
     offline: bool,
     registry: KnownServerRegistry | None,
     tool_records: dict[str, dict] | None = None,
+    guardrail_entries: dict[str, dict] | None = None,
 ) -> dict:
     """Build the new full lock document from the current server list.
 
@@ -182,6 +183,11 @@ def regenerate(
         registry: The known-server registry.
         tool_records: ``{lock key: tool_digests.server_record(...)}`` from
             ``lock --connect``; ``None`` when tools were not enumerated.
+        guardrail_entries: ``{repo-relative path: guardrail_section.entry(...)}``
+            for the repository's own guardrail files (STORY-0143). An empty
+            dict drops an owned ``guardrails`` section; ``None`` leaves the
+            existing one as it is. Another producer's ``guardrails`` section
+            is never touched.
 
     Returns:
         The new full document, including a freshly computed ``checksum``
@@ -251,6 +257,16 @@ def regenerate(
         doc[tool_digests.TOOLS_KEY] = tool_digests.merge_section(
             existing_tools, tool_records or {}, keep_keys=set(new_servers)
         )
+
+    existing_guards = doc.get(guardrail_section.GUARDRAILS_KEY)
+    if guardrail_entries is not None and (
+        existing_guards is None or guardrail_section.is_owned(existing_guards)
+    ):
+        built = guardrail_section.build_section(guardrail_entries)
+        if built is None:
+            doc.pop(guardrail_section.GUARDRAILS_KEY, None)
+        else:
+            doc[guardrail_section.GUARDRAILS_KEY] = built
 
     doc["lock_version"] = LOCK_VERSION
     doc["generated_by"] = f"mcp-audit/{__version__}"

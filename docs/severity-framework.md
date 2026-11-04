@@ -431,6 +431,19 @@ See `docs/agent-files.md`.
 | INSTR-001  | INFO     | ASI06 | MCP10 | The file's bytes differ from the last scan's record for the same path. INFO: people edit these files all the time; reported because an agent (Claude edits CLAUDE.md on request, code.claude.com/docs/en/memory), a skill or a sync tool can write there too. A first sighting and a removal are not reported. CWE-345. |
 | INSTR-002  | MEDIUM   | ASI06 | MCP10, MCP03 | As INSTR-001, and the file now has a MEDIUM-or-higher finding ID from a check of its own content (MEM-/SKILL-/POISON-/AGENT-/HOOK-; never TRUST-*) that the previous record did not hold: the change brought the finding. For the user's own memory files the MEM-004/005 checks run in this step (their findings are not added to the scan). A version seen before (one of the last eight hashes) never escalates again. Fixed MEDIUM whatever the underlying finding's severity, which that finding keeps. CWE-345. |
 
+### Guardrail drift (`guardrails.py`, GUARD-001/GUARD-002, LOCK-014, STORY-0143)
+
+Every scan with no explicit path (`scan`, `check`, `scan --project`) records one normalised record per agent settings file
+(Claude Code, Codex, Gemini CLI, plus a hash of each managed settings file) beside the rug-pull state and compares it with the
+previous scan; `lock` also records the repository's own files. Only the rows of the loosening table in `docs/guardrail-drift.md`
+count; anything else is not a loosening. Not advisories (`NON_ADVISORY_IDS`).
+
+| Finding ID | Severity | OWASP Agentic Top 10 | OWASP MCP Top 10 | Rationale |
+|------------|----------|----------------------|------------------|-----------|
+| GUARD-001  | MEDIUM / HIGH | ASI03 | MCP02 | A guardrail got weaker since the last scan. HIGH when a change is bypass-equivalent: `bypassPermissions`, Codex `danger-full-access` or approval `never`, sandbox turned off, a deny rule or sandbox `denyRead` entry removed. Hook commands are never shown. CWE-693. |
+| GUARD-002  | INFO     | ASI03 | MCP02 | A managed settings file's SHA-256 changed; direction not judged. CWE-693. |
+| LOCK-014   | HIGH     | ASI03 | MCP02 | `lock --verify`: a repository guardrail file loosens what `mcp-lock.json`'s `guardrails` section recorded. Fails the exit code. |
+
 ### Sandbox settings (`analyzers/sandbox.py`, SANDBOX-001..005, STORY-0093)
 
 Claude Code `sandbox` keys that a repository's settings file uses to loosen the
