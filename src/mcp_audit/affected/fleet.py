@@ -64,6 +64,13 @@ def _read(path: Path) -> tuple[dict | None, str | None]:
     # on this machine, so it is not followed.
     if os.path.islink(path):
         return None, "is a symbolic link (not followed)"
+    # Checked before opening too: Windows refuses to open a directory with
+    # "Permission denied", which would hide the real reason.
+    try:
+        if not stat.S_ISREG(os.lstat(path).st_mode):
+            return None, "is not a regular file"
+    except OSError as exc:
+        return None, f"could not be read: {exc.strerror}"
     try:
         fd = os.open(path, flags)
     except OSError as exc:
