@@ -2182,6 +2182,38 @@ Items below were confirmed open at some point and have since been resolved. Each
 
 **MCP gateway upstreams (STORY-0111).** Implemented for mcptoon, 1MCP and MCPHub.nvim (`docs/gateways.md`). Not covered: *other gateways* — Docker MCP Gateway keeps profiles and catalogs "in a local database" (its README) managed through `docker mcp` commands, and its servers are container images; MetaMCP stores servers in PostgreSQL; sparfenyuk `mcp-proxy` (`--named-server-config`), TBXark `mcp-proxy` (`--config`) and `mcp-hub` run outside MCPHub.nvim (`--config`, required) read a file named on their command line, with no default location. Following such a path from the gateway's own launch arguments in a client config is possible but not built (a relative path depends on the gateway's working directory, which a scan cannot know). *Environment:* `MCPTOON_SERVERS` (servers in an environment variable) is not read and, after review for STORY-0119, will not be: mcptoon's own docs and README never mention it (it appears only in `config.py` as the highest-priority source and as the model for its test-isolation overrides), mcp-audit cannot see the environment of the process that starts mcptoon, and the one place a scan could read it, an `env` entry of the client's mcptoon server, would mean parsing JSON nested in a string that usually sits beside the upstreams' credentials, nor are mcptoon's `MCPTOON_CONFIG_FILE` / `MCPTOON_CONFIG_FILE_TOML` (single-file overrides its source describes for tests and CI). mcptoon's one config root is chosen as mcptoon chooses it (`MCPTOON_HOME`, else `$XDG_CONFIG_HOME/mcptoon` when set and it exists or `~/.mcptoon` does not, else `~/.mcptoon`), and `MCPTOON_HOME`, `XDG_CONFIG_HOME` and `ONE_MCP_CONFIG(_DIR)` are read from mcp-audit's own environment, which may differ from the gateway's; relative values are ignored. On Windows 1MCP's folder is `<home>\AppData\Roaming\1mcp` (its `getGlobalConfigDir()` uses `os.homedir()`, not `%APPDATA%`, though its docs say `%APPDATA%`); a moved `APPDATA` is not followed. *Merging:* mcptoon merges its files by server name (later overrides earlier) and 1MCP prefers a template over a same-name server; mcp-audit reports each file's servers separately (rug-pull tracks each gateway server per file, key `<client>/<name> @ <path>`), so a server overridden in another file is still analysed, and a server named the same in two gateway configs (or in a gateway and a client config) is paired by toxic flow like any two servers. *Disabled servers* (`disabled: true` in 1MCP and MCPHub) are analysed like enabled ones, as for every other client. *Placeholders:* MCPHub `${cmd: …}` values run a command when the hub loads the file, including a project's `.mcphub/servers.json`; mcp-audit keeps them literal, and since STORY-0119 a committed `.mcphub/servers.json` that holds one (or the legacy `"KEY": "$: cmd"` in an `env` object) is TRUST-008 (HIGH; CRITICAL when the command matches HOOK-001's network regex). Only the project file is reported: the user-level `~/.config/mcphub/servers.json` is the user's own, and the documentation does not say when MCPHub runs the command, so the finding says "runs", not "runs on open". The placeholder body is read up to the first `}`, so a command containing `}` is shown truncated. COMM-015 ("shell metacharacters in args") no longer fires on `${VAR}`, `${env:VAR}` or a `${cmd: …}` without a network primitive (STORY-0119). 1MCP Handlebars templates are analysed as written. *Other commands:* `mcp-audit fix` refuses a gateway config (exit 2) and drops gateway findings, and `check` never suggests `fix --apply` for them; `mcp-audit watch` re-scans when a user-level or working-directory gateway config changes (STORY-0119, matched by full path; a gateway file in a subdirectory or an `XDG_CONFIG_HOME`/`MCPTOON_HOME` set after `watch` started is not watched), and `--path` to a gateway config reads it as a generic config (an mcptoon list `command` fails to parse; a `.toml` file is read as a Codex `config.toml`, STORY-0110). *Output:* the `env` redaction in JSON output (and the redaction of every secret-named key in `raw`) applies to gateway upstream servers only; other clients' `env` values are still printed (header values are redacted for every client since STORY-0110) (see "Launch credentials in output").
 
+## Guardrail drift (GUARD-001/002, LOCK-014, guardrails.py — STORY-0143)
+
+- **No Gemini CLI settings-file key for YOLO or auto-accept is modelled.** Gemini CLI's configuration
+  reference (github.com/google-gemini/gemini-cli, docs/reference/configuration.md, read 2026-11-04)
+  says YOLO can only be enabled from the command line (`--yolo` / `--approval-mode=yolo`); there is no
+  `tools.autoAccept` or YOLO key in `settings.json`. `security.disableYoloMode` is tracked (true to
+  false/absent is a loosening), `general.defaultApprovalMode` is ranked `plan` < `default` <
+  `auto_edit`, and no Gemini setting is HIGH on its own except the sandbox keys. If Gemini documents a
+  settings-file auto-accept key, add a row and make it bypass-equivalent. Not seen: command-line flags.
+- **Orderings are the project's, not the vendors'.** The Claude Code permission-modes page, the Codex
+  config reference and the Gemini configuration reference list the values and say what each does;
+  none ranks them. `plan` < `default` < `acceptEdits` < `auto` < `bypassPermissions`,
+  `untrusted` < `on-request` < `on-failure` < `never` and `read-only` < `workspace-write` <
+  `danger-full-access` come from the story. Claude Code `dontAsk` is not placed in the order (a change
+  to or from it is reported as "not judged"). Codex marks `on-failure` deprecated and `untrusted`
+  unsupported; they are kept in the order so an old file moving to `never` still reads as a loosening.
+  A Codex `granular` approval policy is recorded as `granular` and never judged.
+- **Settings that are not files are not seen:** managed server-side settings, MDM and registry
+  policy, environment variables and command-line flags. Codex profiles (`[profiles.*]`) and
+  Claude Code `permissions.ask`-only moves between rules are not tracked beyond the keys in the table.
+- **Only the table counts.** Other changes (for example a model, an `env` entry, a Gemini
+  `tools.core` allowlist) are not loosenings, even when they weaken something. `tools.core` is not
+  tracked because the documentation describes it as an allowlist for built-in tools without saying
+  which direction is looser for every shape it accepts.
+- **A file changed and changed back between two scans shows nothing.** A hook "changed" is a
+  different command hash, not a judgement of the new command.
+- **`scan --project` reads every settings file the walk finds**, but the walk caps depth and skips
+  `node_modules` and `.git` like every other project walk.
+- **LOCK-014 is not LOCK-013.** The story named the new lock finding LOCK-013, which already means
+  "launch line carries a credential" (STORY-0118, LOW, with its own hint, mapping and docs). Two meanings
+  under one ID would break every consumer keyed on it, so the guardrail finding is LOCK-014.
+
 ## mcp-lock.json lock_version 2 (LOCK-010..012, lock/section_digests.py — STORY-0116)
 
 - **The digest field name is provisional.** `section_digests` was chosen without the confirmation

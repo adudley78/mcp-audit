@@ -29,7 +29,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from mcp_audit.advisory.canonical import CanonicalError, canonicalize
-from mcp_audit.lock import tool_digests
+from mcp_audit.lock import guardrail_section, tool_digests
 from mcp_audit.lock.model import SECTION_DIGESTS_KEY, STRUCTURAL_KEYS
 
 #: Top-level keys that are the envelope, not sections: never digested.
@@ -68,6 +68,10 @@ def owned_sections(doc: dict) -> list[str]:
     names = ["servers"]
     if tool_digests.is_owned(doc.get(tool_digests.TOOLS_KEY)):
         names.append(tool_digests.TOOLS_KEY)
+    # STORY-0143: only when mcp-audit's own guardrails section is present, so a
+    # lock without it digests exactly what it did before.
+    if guardrail_section.is_owned(doc.get(guardrail_section.GUARDRAILS_KEY)):
+        names.append(guardrail_section.GUARDRAILS_KEY)
     return names
 
 
@@ -95,6 +99,9 @@ def merge(existing: object, doc: dict) -> dict[str, str]:
     decided = {"servers"}
     if tools is None or tool_digests.is_owned(tools):
         decided.add(tool_digests.TOOLS_KEY)
+    guards = doc.get(guardrail_section.GUARDRAILS_KEY)
+    if guards is None or guardrail_section.is_owned(guards):
+        decided.add(guardrail_section.GUARDRAILS_KEY)
 
     merged: dict[str, str] = {}
     for key, value in (existing or {}).items():

@@ -29,7 +29,7 @@ from mcp_audit.analyzers.rug_pull import server_key
 from mcp_audit.analyzers.supply_chain import build_deprecated_package_finding
 from mcp_audit.cli import app, console
 from mcp_audit.discovery import discover_project_configs
-from mcp_audit.lock import tool_digests, tool_text
+from mcp_audit.lock import guardrail_section, tool_digests, tool_text
 from mcp_audit.lock.identity import launch_carries_secret
 from mcp_audit.lock.model import LOCK_FILENAME
 from mcp_audit.lock.verifier import render_pr_comment, servers_to_connect
@@ -352,7 +352,18 @@ def _run_write(
 ) -> None:
     """Handle plain ``lock`` and ``lock --accept`` (same regeneration)."""
     servers = _discover_lock_servers(root, include_user, console)
-    if not servers:
+    existing_doc = load_existing(lock_path)
+    # STORY-0143: the repository's own guardrail files (never home files,
+    # never settings.local.json), recorded beside the servers.
+    guard_errors: list[str] = []
+    guardrail_entries = guardrail_section.current_entries(
+        root,
+        (existing_doc or {}).get(guardrail_section.GUARDRAILS_KEY),
+        guard_errors,
+    )
+    for note in dict.fromkeys(guard_errors):
+        console.print(f"[yellow]WARN[/yellow] {escape(note)}")
+    if not servers and not guardrail_entries:
         configs = discover_project_configs(root)
         if not configs:
             console.print(
@@ -365,7 +376,6 @@ def _run_write(
             )
         return
 
-    existing_doc = load_existing(lock_path)
     tool_records: dict[str, dict] | None = None
     tool_failures: list[tuple[str, str]] = []
     text_records: dict[str, dict] = {}
@@ -399,6 +409,7 @@ def _run_write(
             offline=offline,
             registry=registry,
             tool_records=tool_records,
+            guardrail_entries=guardrail_entries,
         )
         write_lock(lock_path, doc)
     except LockWriteError as exc:
@@ -414,6 +425,11 @@ def _run_write(
     console.print(
         f"\n[bold green]{verb} {len(servers)} server(s).[/bold green]  → {lock_path}\n"
     )
+    if guardrail_entries:
+        console.print(
+            f"[dim]Guardrail files recorded: {', '.join(sorted(guardrail_entries))}"
+            "[/dim]\n"
+        )
     for key in sorted(doc["servers"]):
         entry = doc["servers"][key]
         pkg = entry.get("package")
@@ -586,6 +602,8 @@ def _run_verify(
             "tools_compared": result.tools_compared,
             "tool_diffs": result.tool_diffs,
             "tool_text_notes": result.tool_text_notes,
+            "guardrails_recorded": result.guardrails_recorded,
+            "guardrail_notes": result.guardrail_notes,
             "findings": [f.model_dump(mode="json") for f in result.findings],
             "exit_code": result.exit_code,
         }
@@ -665,6 +683,11 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
         )
 
     for note in result.tool_text_notes:
+        console.print(f"[yellow]WARN[/yellow] {escape(note)}")
+
+    if result.guardrails_recorded:
+        console.print(f"Guardrail files compared: {result.guardrails_recorded}.")
+    for note in result.guardrail_notes:
         console.print(f"[yellow]WARN[/yellow] {escape(note)}")
 
     if result.outside_root:

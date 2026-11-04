@@ -340,16 +340,23 @@ def _read_state(state_path: Path) -> tuple[str, dict[str, dict]]:
     }
 
 
-def _load(state_path: Path, errors: list[str]) -> tuple[str, dict[str, dict]]:
+def _load(
+    state_path: Path, errors: list[str], label: str = "instruction drift"
+) -> tuple[str, dict[str, dict]]:
+    """Read the record file and note a problem in *errors* (prefixed *label*).
+
+    *label* lets another record file with the same rules (guardrail drift,
+    :mod:`mcp_audit.guardrails`) reuse this reader; the default is unchanged.
+    """
     status, records = _read_state(state_path)
     if status == _CORRUPT:
         errors.append(
-            "instruction drift: state file is not a record file; it will be"
+            f"{label}: state file is not a record file; it will be"
             " kept as .corrupt and a new record started"
         )
     elif status == _UNREADABLE:
         errors.append(
-            "instruction drift: cannot read state; history kept, not updated this scan"
+            f"{label}: cannot read state; history kept, not updated this scan"
         )
     return status, records
 
@@ -440,7 +447,12 @@ class _Lock:
             self.held = False
 
 
-def _commit(updates: dict[str, dict], state_path: Path, errors: list[str]) -> None:
+def _commit(
+    updates: dict[str, dict],
+    state_path: Path,
+    errors: list[str],
+    label: str = "instruction drift",
+) -> None:
     """Merge *updates* into the record file under the lock and write it.
 
     The file is read again under the lock, so another scan's records for
@@ -451,11 +463,11 @@ def _commit(updates: dict[str, dict], state_path: Path, errors: list[str]) -> No
     try:
         state_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     except OSError as exc:
-        errors.append(f"instruction drift: cannot write state: {exc}")
+        errors.append(f"{label}: cannot write state: {exc}")
         return
     lock = _Lock(state_path)
     if not lock.acquire():
-        errors.append("instruction drift: state busy; not updated this scan")
+        errors.append(f"{label}: state busy; not updated this scan")
         return
     try:
         status, current = _read_state(state_path)
@@ -467,7 +479,7 @@ def _commit(updates: dict[str, dict], state_path: Path, errors: list[str]) -> No
         current.update(updates)
         save_records(current, state_path)
     except OSError as exc:
-        errors.append(f"instruction drift: cannot write state: {exc}")
+        errors.append(f"{label}: cannot write state: {exc}")
     finally:
         lock.release()
 

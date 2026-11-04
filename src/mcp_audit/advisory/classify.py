@@ -93,6 +93,11 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         "LOCK-012",  # lock file reformatted, content intact (STORY-0116)
         "LOCK-013",  # launch line carries a credential the lock redacts
         # (STORY-0118); a deployment note, not a vulnerability in a package
+        "GUARD-001",  # an agent guardrail got weaker since the last scan
+        # (STORY-0143) — local state about this machine, not a package defect
+        "GUARD-002",  # a managed settings file changed (STORY-0143) — INFO
+        "LOCK-014",  # a repository guardrail file got weaker than the lock
+        # records (STORY-0143) — deployment drift, not a package defect
         "MANAGED-001",  # managed MCP policy inventory (STORY-0112) — INFO
         "MANAGED-002",  # server the managed policy keeps from loading — dead
         # config, the policy working as intended, not a vulnerability

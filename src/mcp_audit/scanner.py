@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from platformdirs import user_config_dir
 
+from mcp_audit import guardrails as _guardrails
 from mcp_audit.agent_files import drift as _drift
 from mcp_audit.agent_files import skill_package as _skill_package
 from mcp_audit.analyzers import git_exec as _git_exec
@@ -232,6 +233,7 @@ def _run_static_pipeline(
     scoring_weights: ScoringWeights | None = None,
     scoring_weights_source: str = "default",
     instruction_files: list[_drift.InstructionFile] | None = None,
+    guardrail_files: list[_guardrails.GuardrailFile] | None = None,
 ) -> ScanResult:
     """Run the canonical static analysis pipeline against parsed servers.
 
@@ -276,6 +278,12 @@ def _run_static_pipeline(
        a change brought a MEDIUM+ finding.  Skipped with ``skip_rug_pull`` or
        when *instruction_files* is ``None``; the record sits beside the
        rug-pull state (:func:`~mcp_audit.agent_files.drift.state_path_for`).
+    5c2. Guardrail drift (GUARD-001/002, STORY-0143):
+       :func:`~mcp_audit.guardrails.guardrail_drift_findings` over
+       *guardrail_files* (a default scan's user-global and cwd-root agent
+       settings files plus managed settings hashes), right after 5c, with the
+       same skip rules; the record sits beside the rug-pull state
+       (:func:`~mcp_audit.guardrails.state_path_for`).
     5d. Exploit signals (STORY-0124): :func:`apply_exploit_signals` adds KEV,
        EPSS and public-PoC data to CVE findings before scoring.
     6. :func:`~mcp_audit.scoring.calculate_score` over the final finding list.
@@ -307,6 +315,8 @@ def _run_static_pipeline(
             Callers should pass ``"policy:<abs-path>"`` when custom weights are active.
         instruction_files: Instruction files to check for drift (step 5c);
             ``None`` skips the step.
+        guardrail_files: Agent settings files to check for guardrail drift
+            (step 5c2); ``None`` skips the step.
 
     Returns:
         The same :class:`~mcp_audit.models.ScanResult` passed in, now
@@ -415,6 +425,17 @@ def _run_static_pipeline(
             )
         )
 
+    # ── 5c2. Guardrail drift (GUARD-001/002, STORY-0143) ─────────────────────
+    # Same skip rules as 5c; never raises.
+    if guardrail_files is not None and not skip_rug_pull:
+        result.findings.extend(
+            _guardrails.guardrail_drift_findings(
+                guardrail_files,
+                _guardrails.state_path_for(state_path),
+                result.errors,
+            )
+        )
+
     # ── 5d. Exploit signals (KEV / EPSS / public PoC) on CVE findings ─────────
     apply_exploit_signals(result)
 
@@ -496,6 +517,19 @@ def _default_instruction_files(
     if extra_paths or skip_rug_pull:
         return None
     return _drift.instruction_files(Path.cwd(), errors)
+
+
+def _default_guardrail_files(
+    extra_paths: list[Path] | None, skip_rug_pull: bool, errors: list[str]
+) -> list[_guardrails.GuardrailFile] | None:
+    """Settings files whose guardrail drift a default scan checks (STORY-0143).
+
+    ``None`` (no check) for an explicit path and for ``pin``/``diff``, like
+    :func:`_default_instruction_files`.  Never raises.
+    """
+    if extra_paths or skip_rug_pull:
+        return None
+    return _guardrails.guardrail_files(Path.cwd(), errors)
 
 
 def _cwd_instruction_reach_findings(errors: list[str]) -> list[Finding]:
@@ -904,6 +938,9 @@ async def run_scan_async(
         instruction_files=_default_instruction_files(
             extra_paths, skip_rug_pull, result.errors
         ),
+        guardrail_files=_default_guardrail_files(
+            extra_paths, skip_rug_pull, result.errors
+        ),
     )
 
 
@@ -998,6 +1035,9 @@ def run_scan(
         scoring_weights=scoring_weights,
         scoring_weights_source=scoring_weights_source,
         instruction_files=_default_instruction_files(
+            extra_paths, skip_rug_pull, result.errors
+        ),
+        guardrail_files=_default_guardrail_files(
             extra_paths, skip_rug_pull, result.errors
         ),
     )

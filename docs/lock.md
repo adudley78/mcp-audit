@@ -267,6 +267,41 @@ job, not an edit to anything mcp-audit owns or verifies.
 
 ---
 
+## Guardrails section (STORY-0143)
+
+`lock` also records the repository's own agent guardrail files in an mcp-audit-owned `guardrails`
+section: the project `.claude/settings.json`, `.codex/config.toml` and `.gemini/settings.json`
+(never `settings.local.json`, never a file in your home directory), as path to
+`{digest, record}`. The record is the normalised guardrail record of
+[guardrail-drift.md](guardrail-drift.md): permission rules, modes, sandbox settings, approval policy,
+MCP approval, and each hook as the SHA-256 of its command. No secret value and no hook command is
+written to the lock.
+
+```json
+"guardrails": {
+  "_producer": "mcp-audit",
+  "_schema_version": 1,
+  "files": {".claude/settings.json": {"digest": "sha256:...", "record": {"agent": "claude-code", "facts": {}, "hooks": []}}},
+  "_checksum": "sha256:..."
+}
+```
+
+* Like `tools`, the section declares its producer and carries its own `_checksum`; the top-level
+  `checksum` still covers only `{lock_version, generated_by, servers}`, so a lock without the section
+  has the same bytes and checksum as before. A section whose `_checksum` does not match is LOCK-005.
+* `section_digests` gains a `guardrails` entry when the section is present (LOCK-011 applies as for
+  any owned section). A lock without the section verifies exactly as before, v1 or v2. A
+  `guardrails` section from another producer is foreign: left untouched and listed as unverified.
+* The section is written whenever the repository has such files, even with no MCP servers. A file
+  that exists but cannot be parsed keeps its previous entry; a deleted file's entry is dropped.
+* `lock --verify` compares each recorded file with disk and emits **LOCK-014** (HIGH, non-zero exit)
+  for each one that now allows more than its record, using the loosening table in
+  [guardrail-drift.md](guardrail-drift.md). A tightening or neutral change emits nothing. A recorded
+  file that is gone counts only when it alone held a deny rule or a hook. A file not in the lock is
+  not looked at. `lock --accept` re-records.
+
+---
+
 ## `mcp-audit lock --verify`
 
 | Mode | Compares lock against | Network | Finding IDs on drift |
@@ -274,6 +309,7 @@ job, not an edit to anything mcp-audit owns or verifies.
 | `lock --verify` (default) | current on-disk configs only: identity, env/header key names, presence/absence | none | `LOCK-001` (drifted), `LOCK-002` (unlocked server present), `LOCK-003` (locked server missing) |
 | `lock --verify --resolve` | the above, **plus** the current registry resolution of every floating/range spec vs. the locked `resolved_version`/`integrity` | npm/PyPI (same policy as `fix --fix-type pinning` / `vet`) | adds `LOCK-004` (resolution drifted; **CRITICAL** when the *same* version now hashes differently — a republished artifact), `SC-005` (MEDIUM; `latest` for the package is deprecated on npm) and, on a version-2 lock, `LOCK-010` (INFO; the recorded resolution context changed) |
 | `lock --verify --connect` | the above, **plus** each server's live tool list vs. the digests in `tools` | starts each configured server (same as `scan --connect`) | adds `LOCK-006` (tool added, HIGH), `LOCK-007` (schema or annotations changed, HIGH), `LOCK-008` (only the description or title changed, MEDIUM), `LOCK-009` (tool removed, LOW) |
+| `lock --verify` on a lock with a `guardrails` section | each recorded repository guardrail file vs. the file on disk (see [Guardrails section](#guardrails-section-story-0143)) | none | `LOCK-014` (file allows more than its record, **HIGH**, fails the exit code) |
 | always | mcp-audit's own owned-section `checksum`, and `tools._checksum` when `tools` is populated, against their recomputed values | none | `LOCK-005` (mcp-audit's own record — header + `servers`, or the `tools` section — tampered or hand-edited) — short-circuits all other checks, exit 2 |
 | always, version-2 lock | `section_digests` against each section; the file's bytes against their canonical form | none | `LOCK-011` (a section changed without its digest, HIGH), `LOCK-012` (file reformatted, LOW) |
 

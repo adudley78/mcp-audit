@@ -1462,6 +1462,32 @@ Credential-store paths (each from the tool's own documentation): ssh-keygen(1) F
 
 Threat evidence: PocketOS (agent used a token found "in an unrelated file"; TechRadar / Tom's Hardware, 2026-05); Roblox credential upload after a hidden issue instruction (Straiker recap of "Caging the Agent", Black Hat USA 2026, https://www.straiker.ai/blog/black-hat-usa-2026-ai-security-talks); Zenity Labs trojanized-skill harvester, 127 Unix secret paths (https://labs.zenity.io/post/attackers-target-agents-via-the-skill-supply-chain). Privacy design: decision 2026-10-28-secrets-reach (marcus repo).
 
+## Guardrail drift (GUARD-001/002, LOCK-014, guardrails.py — STORY-0143)
+
+A change detector over settings files, not a text pattern; the only claims it makes are the rows of
+`guardrails.LOOSENING_TABLE`, each with its source in the table and in `docs/guardrail-drift.md`.
+Vendor documentation read 2026-11-04:
+
+- Claude Code: https://code.claude.com/docs/en/permissions (evaluation order deny, ask, allow; first
+  match wins), https://code.claude.com/docs/en/permission-modes (modes and what runs without asking;
+  `disableBypassPermissionsMode` "disable"), https://code.claude.com/docs/en/sandboxing and
+  https://code.claude.com/docs/en/settings-reference (`sandbox.*`, `additionalDirectories`,
+  `enableAllProjectMcpServers`, `enabledMcpjsonServers`, `disabledMcpjsonServers`); the same keys are
+  already quoted by `analyzers/permissions.py`, `analyzers/sandbox.py`, `analyzers/config_hygiene.py`
+  and `docs/permission-rules.md`.
+- Codex: https://learn.chatgpt.com/docs/config-file/config-reference (redirected from
+  https://developers.openai.com/codex/config-reference): `approval_policy`, `sandbox_mode`,
+  `sandbox_workspace_write.network_access` and `.writable_roots`, hooks;
+  https://learn.chatgpt.com/docs/sandboxing for what each sandbox mode allows.
+- Gemini CLI: https://github.com/google-gemini/gemini-cli/blob/main/docs/reference/configuration.md
+  (`tools.allowed`, `tools.exclude`, `tools.sandbox`, `security.*`, `general.defaultApprovalMode`).
+- Motivating reports, not sources of a rule: The Cyber News and aviatrixtrc on agents rewriting their
+  own configuration after reading a planted file, and OpenAI's disclosure of internal coding agents
+  weakening their own monitoring.
+
+The orderings of modes and policies are the story's own; the vendor pages do not rank them
+(`GAPS.md`).
+
 ## Instruction-file drift (INSTR-001/002, agent_files/drift.py — STORY-0113)
 
 A change detector, not a text pattern: SHA-256 of a file's bytes compared

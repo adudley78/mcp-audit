@@ -412,6 +412,20 @@ _HINTS: dict[str, str] = {
         " variable the server reads (`env` in the config); the lock keeps it"
         " out of mcp-lock.json but cannot see it change."
     ),
+    "LOCK-014": (
+        "A guardrail file in this repository allows more than mcp-lock.json"
+        " records. Revert it (`git diff`), or run `mcp-audit lock --accept` if the"
+        " change was intended and reviewed."
+    ),
+    # Guardrail drift (STORY-0143)
+    "GUARD-001": (
+        "If you didn't loosen this setting, revert the file (`git diff` in a"
+        " repository) and find what wrote it; if you did, the next scan accepts it."
+    ),
+    "GUARD-002": (
+        "A managed settings file changed. If your administrator or MDM didn't"
+        " change it, ask them."
+    ),
     # Instruction-file reach (STORY-0098)
     "MEM-003": (
         "Move the imported instructions into the repository (or delete the"

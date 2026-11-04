@@ -1724,6 +1724,7 @@ class TestRunStaticPipeline:
             scoring_weights=None,  # noqa: ARG001
             scoring_weights_source: str = "default",  # noqa: ARG001
             instruction_files: list | None = None,  # noqa: ARG001
+            guardrail_files: list | None = None,  # noqa: ARG001
         ) -> ScanResult:
             sentinel.servers = all_servers
             # Stash the analyzer list on the sentinel so the test can assert.
@@ -1773,6 +1774,7 @@ class TestRunStaticPipeline:
             scoring_weights=None,  # noqa: ARG001
             scoring_weights_source: str = "default",  # noqa: ARG001
             instruction_files: list | None = None,  # noqa: ARG001
+            guardrail_files: list | None = None,  # noqa: ARG001
         ) -> ScanResult:
             sentinel.errors.append(f"servers={[s.name for s in all_servers]}")
             return sentinel

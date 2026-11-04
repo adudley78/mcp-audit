@@ -1376,6 +1376,20 @@ def _apply_project_scan(
         result, project_dir, skip_findings, project_configs
     )
 
+    # ── GUARD-001/002: guardrail drift in the project tree (STORY-0143) ──────
+    # The default scan's step 5c2 covered the user's files and the cwd root;
+    # this reads every settings file the project walk found.  A file both
+    # passes saw is compared once (the first pass updates its record).
+    from mcp_audit import guardrails as _guardrails  # noqa: PLC0415
+
+    result.findings.extend(
+        _guardrails.guardrail_drift_findings(
+            _guardrails.project_guardrail_files(project_dir, result.errors),
+            _guardrails.state_path_for(None),
+            result.errors,
+        )
+    )
+
     # ── TRUST-002: a discovered MCP config candidate that is itself a symlink ─
     # A Codex/Gemini CLI file is also an auto-run file (STORY-0110), so the
     # auto-run pass above may have reported the same link already.

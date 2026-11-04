@@ -1896,6 +1896,17 @@
       "notes": "mcp-audit lock --verify, scan and check, when a locked server's command or arguments carry a credential (STORY-0118). `mcp-audit lock` records that launch with the value replaced by [REDACTED] so it never reaches the committed lock file; the lock therefore cannot see the credential's value change. LOW, does not fail the exit code. Not an advisory."
     },
     {
+      "finding_id": "LOCK-014",
+      "finding_title": "Repository guardrail file loosened since the lock",
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "mcp-audit lock --verify (STORY-0143): the lock's guardrails section records the repository's own .claude/settings.json, .codex/config.toml and .gemini/settings.json as normalised records; the current file loosens one of them (same rows as GUARD-001). HIGH, fails the exit code. A tightening or neutral change emits nothing; lock --accept re-records. Home files and settings.local.json are never in the section. Non-advisory."
+    },
+    {
       "finding_id": "PERM-001",
       "finding_title": "Permission rules that Claude Code ignores or never matches",
       "owasp_codes": [
@@ -2237,6 +2248,28 @@
         "Token Mismanagement and Secret Exposure"
       ],
       "notes": "HIGH in a repository file, MEDIUM in the user's own. An always-applied instruction file (CLAUDE.md tiers, rules, AGENTS.md, OpenClaw files, Cursor rules, Copilot instruction files) has one sentence with a send verb (not negated), a bulk or local secret object (environment variables, .env, ~/.ssh, ~/.aws, id_rsa, .netrc, private keys, all/every ... secrets/tokens/keys) and a destination (URL, IP, email address, a named server/endpoint/webhook). CWE-200. 0 of 486 project instruction files and 0 of 3,083 skill-repository files fire (docs/research/mem006/results.json)."
+    },
+    {
+      "finding_id": "GUARD-001",
+      "finding_title": "Agent guardrail loosened since the last scan",
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "A Claude Code, Codex or Gemini CLI settings file (user-global, or at the working directory / --project tree) allows more than it did at the last scan: allow rule or additionalDirectories gained, deny/ask rule lost, defaultMode / approval_policy / sandbox_mode moved toward bypass, sandbox turned off or given an allowance, hook removed or its command changed, project MCP servers auto-approved (docs/guardrail-drift.md lists every row with its vendor citation). MEDIUM, HIGH when bypass-equivalent (bypassPermissions, danger-full-access, approval never, sandbox off, a deny rule or sandbox denyRead entry removed). Record holds normalised settings only, hook commands as SHA-256. MCP02 because the agent's scope grows without a person granting it (definition: Privilege Escalation via Scope Creep); MCP09 is not used, the subject is not an unsanctioned server. CWE-693. Non-advisory. Analyzer: guardrails (STORY-0143)."
+    },
+    {
+      "finding_id": "GUARD-002",
+      "finding_title": "Managed settings file changed since the last scan",
+      "owasp_codes": [
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "A Claude Code managed settings file (managed-settings.json, managed-settings.d/*.json, managed-mcp.json) has a different SHA-256 than the last scan recorded. INFO: direction is not judged, content is never stored. CWE-693. Non-advisory. Analyzer: guardrails (STORY-0143)."
     },
     {
       "finding_id": "INSTR-001",
