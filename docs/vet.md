@@ -326,7 +326,9 @@ See also:
 `registry.archived` is `true` when the upstream repository says the package is
 archived and gets no further fixes; `registry.archive_notice` is that notice's
 URL and `registry.successor` the replacement it names (`null` when it names
-none). The terminal panel prints "Archived upstream: no security fixes are
-coming" and turns yellow. The exit code does not change: archived is a
+none). The terminal panel's Registry line says "Archived, not maintained"
+instead of "Verified", prints "Archived upstream: no security fixes are
+coming" and turns yellow. `registry.verified` stays `true` in the JSON: it
+records that the publisher is genuine, which is still so. The exit code does not change: archived is a
 maintenance status, not a known flaw. `scan` reports the same condition as
 SC-010.

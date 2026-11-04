@@ -175,3 +175,28 @@ class TestVet:
         assert result.exit_code == 0, result.output
         assert "Archived upstream" in result.output
         assert "servers-archived" in result.output
+
+    def test_terminal_does_not_vouch_for_archived(self) -> None:
+        """The brief's ask: vet stops showing archived servers as verified."""
+        result = runner.invoke(
+            app,
+            ["vet", "@modelcontextprotocol/server-slack", "--offline-registry"],
+        )
+        assert result.exit_code == 0, result.output
+        registry_line = next(
+            line for line in result.output.splitlines() if "Registry:" in line
+        )
+        assert "Verified" not in registry_line
+        assert "Archived, not maintained" in registry_line
+
+    def test_terminal_still_verifies_maintained_reference_server(self) -> None:
+        result = runner.invoke(
+            app,
+            ["vet", "@modelcontextprotocol/server-filesystem", "--offline-registry"],
+        )
+        assert result.exit_code == 0, result.output
+        registry_line = next(
+            line for line in result.output.splitlines() if "Registry:" in line
+        )
+        assert "Verified" in registry_line
+        assert "Archived" not in result.output

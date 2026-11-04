@@ -456,11 +456,14 @@ def _print_known_verdict(
 
     t = Text()
 
-    verified_str = (
-        "[green]Verified[/green]"
-        if reg.get("verified")
-        else "[yellow]Unverified[/yellow]"
-    )
+    # STORY-0140: an archived entry keeps ``verified`` in the data (it is the
+    # real package), but the panel must not vouch for it in green.
+    if reg.get("archived"):
+        verified_str = "[yellow]Archived, not maintained[/yellow]"
+    elif reg.get("verified"):
+        verified_str = "[green]Verified[/green]"
+    else:
+        verified_str = "[yellow]Unverified[/yellow]"
     listed_str = (
         "[green]Listed[/green]" if reg.get("listed") else "[red]Not listed[/red]"
     )
