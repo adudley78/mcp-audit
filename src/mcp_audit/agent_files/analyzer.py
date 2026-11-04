@@ -132,9 +132,11 @@ master pattern list in ``poisoning.py`` automatically applies here.
 from __future__ import annotations
 
 import re
+from itertools import islice
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from mcp_audit.agent_files.describes import TextContext, describe_match
 from mcp_audit.agent_files.exfil import find_exfil_directives
 from mcp_audit.agent_files.heartbeat import find_suppression
 from mcp_audit.agent_files.models import MEMORY_SURFACES, AgentFile, AgentFileSurface
@@ -145,6 +147,7 @@ from mcp_audit.analyzers.poisoning import (
     DetectionPattern,
     build_concealment_finding,
     concealment_finding_id,
+    iter_pattern_matches,
     matched_pattern,
     memory_override_match,
     normalize_for_detection,
@@ -190,6 +193,18 @@ _EXTERNAL_URL_RE: re.Pattern[str] = re.compile(
 _DATA_URI_RE: re.Pattern[str] = re.compile(
     r"data:[a-z][a-z0-9.+-]*/[a-z0-9.+-]+[;,]", re.IGNORECASE
 )
+
+# Directive patterns: rule (e) of the describes-vs-directs gate never applies,
+# because their own meaning includes the negation (STORY-0141).
+_DIRECTIVE_IDS: frozenset[str] = frozenset(f"POISON-07{i}" for i in range(7))
+
+# Most matches of one pattern the gate reads.  A file with more, none of them
+# directed, is reported as directed rather than guessed at.
+_GATE_MATCH_CAP: int = 500
+
+# Longest matched line shown in evidence, and matched text beside it.
+_EVIDENCE_LINE_CAP: int = 160
+_EVIDENCE_MATCH_CAP: int = 80
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -554,8 +569,10 @@ def _skill_finding(
     remediation: str,
     owasp_mcp_top_10: list[str],
     cwe: str | None = None,
+    line: int | None = None,
 ) -> Finding:
     return Finding(
+        line=line,
         id=finding_id,
         severity=severity,
         analyzer="agent_files",
@@ -569,6 +586,108 @@ def _skill_finding(
         owasp_mcp_top_10=owasp_mcp_top_10,
         cwe=cwe,
     )
+
+
+def _lines_before(af: AgentFile, view: str) -> int:
+    """Return the number of lines in the file that come before *view*.
+
+    *view* is the body (or the body with its leading blank lines put back):
+    discovery strips the frontmatter and the newlines after it, so a line
+    number in the body is off by this many from the line in the file.  ``0``
+    when *view* is not the tail of the file's content.
+    """
+    raw = af.raw_content
+    if view and raw.endswith(view):
+        return raw.count("\n", 0, len(raw) - len(view))
+    return 0
+
+
+def _concealment_view(af: AgentFile) -> tuple[str, int]:
+    """Return the text to scan for concealment channels and its line base.
+
+    The body, with the blank lines discovery stripped between the
+    frontmatter and the body put back, so padding right under the
+    frontmatter is still a wall of blank lines.
+    """
+    body, raw = af.body, af.raw_content
+    if body and raw.endswith(body):
+        head = raw[: len(raw) - len(body)]
+        lead = len(head) - len(head.rstrip("\n"))
+        if lead > 1:
+            text = head[len(head) - lead :] + body
+            return text, raw.count("\n", 0, len(head) - lead)
+    return body, _lines_before(af, body)
+
+
+def _line_evidence(
+    text: str,
+    norm_text: str,
+    match: re.Match[str],
+    base: int,
+    note: str = "",
+) -> tuple[str, int]:
+    """Return ``(evidence, line)`` for *match*, found in *norm_text*.
+
+    *norm_text* is *text* after :func:`normalize_for_detection` (or *text*
+    itself for the obfuscation patterns); both have the same line breaks, so
+    the match's line number is read from *norm_text* and the line shown comes
+    from *text*, the attacker's original bytes.  The line is redacted before
+    it is cut to 160 characters; a longer line is shown from just before the
+    match.  *base* is the number of file lines before *text*.
+    """
+    idx = norm_text.count("\n", 0, match.start())
+    lines = text.split("\n")
+    line = (lines[idx] if idx < len(lines) else "").strip()
+    matched = match.group(0).split("\n", 1)[0]
+    pos = line.find(matched) if matched else -1
+    start = pos - 40 if pos > _EVIDENCE_LINE_CAP - 40 else 0
+    shown = redacted_snippet(line[start:], _EVIDENCE_LINE_CAP)
+    if pos >= 0:
+        how = f"matched {redacted_snippet(matched, _EVIDENCE_MATCH_CAP)!r}"
+    else:
+        how = "matched after Unicode normalization"
+    if note:
+        how = f"{how}; {note}"
+    return f"Line {base + idx + 1}: {shown!r} ({how})", base + idx + 1
+
+
+def _first_gated_match(
+    pat: DetectionPattern,
+    text: str,
+    norm_text: str,
+    ctx: TextContext | None,
+) -> tuple[re.Match[str], str | None] | None:
+    """Pick the match SKILL-001 reports for *pat*, and why it is only described.
+
+    Returns ``None`` when the pattern does not match.  Without *ctx* (the
+    gate is off) that is the first match.  With it, every match is judged
+    (up to :data:`_GATE_MATCH_CAP`): the first directed match wins and is
+    returned with ``None``; when all are described the first is returned with
+    the reason.  A pattern with more matches than the cap, none directed in
+    the part read, is reported as directed.
+    """
+    it = iter_pattern_matches(pat, text, norm_text)
+    if ctx is None:
+        first = next(it, None)
+        return None if first is None else (first, None)
+    first_described: tuple[re.Match[str], str] | None = None
+    seen = 0
+    for m in islice(it, _GATE_MATCH_CAP + 1):
+        seen += 1
+        if seen > _GATE_MATCH_CAP:
+            break
+        why = describe_match(
+            ctx, m.start(), m.end(), allow_negation=pat.id not in _DIRECTIVE_IDS
+        )
+        if why is None:
+            return m, None
+        if first_described is None:
+            first_described = (m, why.reason)
+    if first_described is None:
+        return None
+    if seen > _GATE_MATCH_CAP:
+        return first_described[0], None
+    return first_described
 
 
 # ── Skill/instruction analyzers ───────────────────────────────────────────────
@@ -589,6 +708,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     """
     findings: list[Finding] = []
     text = af.body
+    base = _lines_before(af, text)
     # Normalize once for matching (homoglyph/compat folding); evidence always
     # shows the original bytes via the raw-match fallback below.
     norm_text = normalize_for_detection(text)
@@ -599,6 +719,12 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
         if key not in seen:
             seen.add(key)
             findings.append(f)
+
+    # Concealment first: a file that hides text from its reader gets no
+    # benefit of the doubt from the describes-vs-directs gate (STORY-0141).
+    conceal_text, conceal_base = _concealment_view(af)
+    cmatches = scan_concealed_channels(conceal_text)
+    ctx = None if cmatches else TextContext(norm_text)
 
     for pat in PATTERNS:
         # Length pattern: only fire when the full body is long enough — use
@@ -630,16 +756,20 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
                 )
             continue
 
-        match = matched_pattern(pat, text, norm_text)
-        if not match:
+        picked = _first_gated_match(
+            pat, text, norm_text, None if pat.id in _OBFUSCATION_IDS else ctx
+        )
+        if picked is None:
             continue
-
-        # Evidence shows the attacker's ORIGINAL text: prefer the raw match;
-        # fall back to a body snippet when the pattern only matched after
-        # Unicode normalization.
-        raw_match = pat.pattern.search(text)
-        evidence_snippet = redacted_snippet(
-            raw_match.group(0) if raw_match else text.strip(), 120
+        match, described = picked
+        # Evidence shows the line holding the match, in the attacker's
+        # ORIGINAL bytes, and which line it is.
+        evidence_snippet, line_no = _line_evidence(
+            text,
+            text if pat.id in _OBFUSCATION_IDS else norm_text,
+            match,
+            base,
+            f"described, not directed: {described}" if described else "",
         )
 
         if pat.id in _OBFUSCATION_IDS:
@@ -657,36 +787,50 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
                         " techniques hide malicious instructions from human"
                         " reviewers while remaining readable to language models."
                     ),
-                    f"Matched: {evidence_snippet!r}",
+                    evidence_snippet,
                     "Investigate and remove obfuscating Unicode characters.",
                     owasp_mcp_top_10=["MCP03"],
                     cwe=pat.cwe or "CWE-116",
+                    line=line_no,
                 ),
             )
         else:
             # Injection / exfiltration pattern → SKILL-001 (HIGH, or the
-            # directive pattern's own skill_severity, STORY-0099)
+            # directive pattern's own skill_severity, STORY-0099; INFO when
+            # every match only describes the action, STORY-0141)
+            suffix = " (described, not directed)" if described else ""
             _emit(
                 "SKILL-001",
                 pat.id,
                 _skill_finding(
                     af,
                     "SKILL-001",
-                    pat.skill_severity or Severity.HIGH,
-                    f"Injection/exfiltration instruction in skill file ({pat.name})",
+                    Severity.INFO if described else pat.skill_severity or Severity.HIGH,
+                    "Injection/exfiltration instruction in skill file"
+                    f" ({pat.name}){suffix}",
                     (
-                        f"The file '{af.path.name}' contains an instruction"
-                        f" matching the pattern '{pat.name}': {pat.description}."
-                        " This pattern is associated with prompt injection or"
-                        " data exfiltration attacks."
+                        f"The file '{af.path.name}' contains text matching the"
+                        f" pattern '{pat.name}': {pat.description}. "
+                        + (
+                            f"Every match is {described}, so the file talks"
+                            " about the action without telling the agent to"
+                            " do it."
+                            if described
+                            else "This pattern is associated with prompt"
+                            " injection or data exfiltration attacks."
+                        )
                     ),
-                    f"Matched: {evidence_snippet!r}",
+                    evidence_snippet,
                     (
-                        "Review the file for malicious instructions. Remove any"
-                        " content you did not intentionally add."
+                        "No action needed unless the text is meant as an"
+                        " instruction; then review it."
+                        if described
+                        else "Review the file for malicious instructions. Remove"
+                        " any content you did not intentionally add."
                     ),
                     owasp_mcp_top_10=["MCP03", "MCP01"],
                     cwe=pat.cwe,
+                    line=line_no,
                 ),
             )
 
@@ -694,6 +838,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     url_match = _EXTERNAL_URL_RE.search(text)
     if url_match:
         url_snippet = redacted_snippet(url_match.group(0), 100)
+        url_evidence, url_line = _line_evidence(text, text, url_match, base)
         key = ("SKILL-003", "url")
         if key not in seen:
             seen.add(key)
@@ -710,7 +855,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
                         " inject malicious instructions via a compromised or"
                         " attacker-controlled external resource."
                     ),
-                    f"URL: {url_snippet!r}",
+                    url_evidence,
                     (
                         "Pin all referenced external resources to a specific,"
                         " verified commit or content hash. Prefer self-contained"
@@ -718,6 +863,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
                     ),
                     owasp_mcp_top_10=["MCP03", "MCP04"],
                     cwe="CWE-829",
+                    line=url_line,
                 )
             )
 
@@ -725,6 +871,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     data_match = _DATA_URI_RE.search(text)
     if data_match:
         data_snippet = redacted_snippet(data_match.group(0), 100)
+        data_evidence, data_line = _line_evidence(text, text, data_match, base)
         key = ("SKILL-003", "data")
         if key not in seen:
             seen.add(key)
@@ -741,7 +888,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
                         " decoded and executed at runtime, bypassing review of"
                         " externally-hosted content."
                     ),
-                    f"Data URI: {data_snippet!r}",
+                    data_evidence,
                     (
                         "Remove inline data: URIs from instruction files. If"
                         " external content is required, reference a pinned,"
@@ -749,6 +896,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
                     ),
                     owasp_mcp_top_10=["MCP03", "MCP04"],
                     cwe="CWE-829",
+                    line=data_line,
                 )
             )
 
@@ -756,7 +904,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     # comments). Shared builder with the config surface — see the module
     # docstring's "documented exception" note (analyzer="poisoning" here,
     # not "agent_files").
-    for cmatch in scan_concealed_channels(text):
+    for cmatch in cmatches:
         pat_key = cmatch.matched_pattern.id if cmatch.matched_pattern else "none"
         fid = concealment_finding_id(cmatch)
         _emit(
@@ -769,6 +917,9 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
                 surface_noun=f"the file '{af.path.name}'",
                 markdown_surface=True,
                 finding_path=str(af.path),
+                line=conceal_base
+                + conceal_text.count("\n", 0, cmatch.channel.start)
+                + 1,
             ),
         )
 
@@ -779,27 +930,24 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
 
 
 def _mem001_match(
-    text: str, norm_text: str, patterns_by_id: dict[str, DetectionPattern]
-) -> tuple[DetectionPattern, str] | None:
-    """Return the pattern and evidence MEM-001 reports for *text*, or ``None``.
+    norm_text: str, patterns_by_id: dict[str, DetectionPattern]
+) -> tuple[DetectionPattern, re.Match[str]] | None:
+    """Return the pattern and match MEM-001 reports for *norm_text*, or ``None``.
 
     POISON-012 counts as :func:`memory_override_match` reads it (a "do not
     tell <someone> to <verb>" instruction is not an override); a secrecy
-    directive counts when POISON-070 matches.  Evidence is the original text
-    when it matches, else a snippet.
+    directive counts when POISON-070 matches.  The match indexes *norm_text*.
     """
     override_pat = patterns_by_id.get(_MEM_OVERRIDE_ID)
     if override_pat is not None:
         m = memory_override_match(norm_text)
         if m is not None:
-            raw_m = memory_override_match(text)
-            snippet = raw_m.group(0) if raw_m else text.strip()
-            return override_pat, redacted_snippet(snippet, 120)
+            return override_pat, m
     secrecy_pat = patterns_by_id.get(_MEM_SECRECY_ID)
-    if secrecy_pat is not None and matched_pattern(secrecy_pat, text, norm_text):
-        raw_m = secrecy_pat.pattern.search(text)
-        snippet = raw_m.group(0) if raw_m else text.strip()
-        return secrecy_pat, redacted_snippet(snippet, 120)
+    if secrecy_pat is not None:
+        m = matched_pattern(secrecy_pat, norm_text, norm_text)
+        if m is not None:
+            return secrecy_pat, m
     return None
 
 
@@ -811,7 +959,10 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
     """
     findings: list[Finding] = []
     text = af.body
-    # Normalize once for matching; evidence shows original bytes (raw fallback).
+    base = _lines_before(af, text)
+    conceal_text, conceal_base = _concealment_view(af)
+    cmatches = scan_concealed_channels(conceal_text)
+    # Normalize once for matching; evidence shows the original line.
     norm_text = normalize_for_detection(text)
     seen: set[tuple[str, str]] = set()
 
@@ -828,9 +979,10 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
     # <someone> to <verb>") or a secrecy directive aimed at the user
     # (POISON-070).  STORY-0099: that shape fired on ordinary prose
     # ("Do not tell a reviewer to pre-filter", trailofbits/skills AGENTS.md).
-    hit = _mem001_match(text, norm_text, patterns_by_id)
+    hit = _mem001_match(norm_text, patterns_by_id)
     if hit is not None:
-        override_pat, evidence_snippet = hit
+        override_pat, hit_match = hit
+        evidence_snippet, hit_line = _line_evidence(text, norm_text, hit_match, base)
         _emit(
             "MEM-001",
             _MEM_OVERRIDE_ID,
@@ -846,7 +998,7 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
                     " injected into every session — a malicious override"
                     " instruction persists across all future interactions."
                 ),
-                f"Matched: {evidence_snippet!r}",
+                evidence_snippet,
                 (
                     "Review the memory file for instructions you did not"
                     " intentionally add. Remove any behavioral overrides."
@@ -855,6 +1007,7 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
                 ),
                 owasp_mcp_top_10=["MCP03"],
                 cwe="CWE-74",
+                line=hit_line,
             ),
         )
 
@@ -863,12 +1016,14 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
         pat = patterns_by_id.get(pat_id)
         if pat is None:
             continue
-        m = matched_pattern(pat, text, norm_text)
-        if not m:
+        m = next(
+            iter_pattern_matches(pat, text, norm_text),
+            None,
+        )
+        if m is None:
             continue
-        raw_m = pat.pattern.search(text)
-        evidence_snippet = redacted_snippet(
-            raw_m.group(0) if raw_m else text.strip(), 120
+        evidence_snippet, m_line = _line_evidence(
+            text, text if pat_id in _OBFUSCATION_IDS else norm_text, m, base
         )
         _emit(
             "MEM-002",
@@ -884,7 +1039,7 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
                     " loaded into every agent session, a single injected pattern"
                     " provides persistent control over the agent's behavior."
                 ),
-                f"Matched: {evidence_snippet!r}",
+                evidence_snippet,
                 (
                     "Inspect the memory file for content you did not add."
                     " Remove the offending pattern. Restrict write access to"
@@ -892,6 +1047,7 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
                 ),
                 owasp_mcp_top_10=["MCP03"],
                 cwe=pat.cwe or "CWE-74",
+                line=m_line,
             ),
         )
 
@@ -900,7 +1056,7 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
     # note). Applied to memory files too: a concealment channel is
     # anomalous on its own merit, independent of the restricted
     # _MEM_INJECTION_IDS subset used above for direct pattern matches.
-    for cmatch in scan_concealed_channels(text):
+    for cmatch in cmatches:
         pat_key = cmatch.matched_pattern.id if cmatch.matched_pattern else "none"
         fid = concealment_finding_id(cmatch)
         _emit(
@@ -913,6 +1069,9 @@ def _analyze_memory(af: AgentFile) -> list[Finding]:
                 surface_noun=f"the memory file '{af.path.name}'",
                 markdown_surface=True,
                 finding_path=str(af.path),
+                line=conceal_base
+                + conceal_text.count("\n", 0, cmatch.channel.start)
+                + 1,
             ),
         )
 

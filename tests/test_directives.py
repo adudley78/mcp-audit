@@ -177,6 +177,7 @@ def test_directive_severities_and_skill_severity() -> None:
         "POISON-073": Severity.LOW,
         "POISON-074": Severity.LOW,
         "POISON-075": Severity.LOW,
+        "POISON-076": Severity.HIGH,
     }
     for pid, sev in expected.items():
         assert PATTERNS[pid].severity == sev

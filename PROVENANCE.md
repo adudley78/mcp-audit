@@ -761,6 +761,35 @@ sentences, reserved hostnames). Sources were read on 2026-10-28.
   instructing-tell exclusion was written against it and checked on the
   public skill repositories listed under STORY-0095.
 
+## Findings you can trust (POISON-076, padding channel, describes-vs-directs, STORY-0141)
+
+All regexes and the gate are original implementations; the test phrases were written for this project. Sources, from the 2026-11-04 X deep dive (`products/mcp-audit/discovery/briefs/2026-11-04-x-differentiation.md` in the marcus repo, sections 2.1 and 2.4, queue row Q-079):
+
+- **arXiv study of 1.53M skills**, as summarised in a post by
+  [@i_am_Paddy_Sham](https://x.com/i_am_Paddy_Sham/status/2116600134851346704):
+  about 1 in 17 skills carries an oversight-loosening directive. Basis for
+  POISON-076 (skip, bypass or disable permission prompts, safety checks, the
+  sandbox, hooks, monitoring). **Not independently verified:** the paper itself
+  was not read; the figure is cited from the post.
+- **The Cyber News, 415K views**
+  ([post](https://x.com/The_Cyber_News/status/2114771540352893196)): a plain
+  text file in Downloads made Codex and Claude Code change their own settings.
+  Basis for treating `--dangerously-skip-permissions` / `bypassPermissions`
+  directives as HIGH.
+- **VirusTotal's skills analysis**, via
+  [@IntCyberDigest](https://x.com/IntCyberDigest/status/2113241709006192945):
+  of 35.8K skills, 90 hid instructions in invisible Unicode, HTML comments or
+  after up to 825 blank lines. Basis for the whitespace-padding channel
+  (40 blank lines or 200 spaces; the thresholds are this project's choice and
+  well under the reported 825). Cited from the post, not re-checked.
+- **Testers who reported the false positive:**
+  [@bosslu_ai](https://x.com/bosslu_ai/status/2116365901994094806) (a checklist
+  describing an attack matched as the attack; "show the code line") and
+  [@alfred_workloft](https://x.com/alfred_workloft/status/2117934956764868630)
+  (SkillSpector's 97.5% false positives on 276 high/critical findings). Basis
+  for `Finding.line` and the describes-vs-directs rules (a)-(e); the rules are
+  this project's reading of Markdown structure, not taken from either source.
+
 ## Harness posture (HARNESS-001..004, analyzers/config_hygiene.py — STORY-0079)
 
 - **HarnessSecurity-Bench** — Zhu, Huang, Ji et al., "HarnessSecurity-Bench: Do

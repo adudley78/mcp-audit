@@ -1350,6 +1350,17 @@ discovery or analysis code for unconfirmed paths — add them to
   missed. A conditional ban ("... if the user's prompt already makes their
   intent clear") is silent by design. POISON-075 on 200 KB of "read then "
   repeated takes about 2.4 s (bounded, not exponential).
+- **Describes vs directs (STORY-0141):** the SKILL-001 gate reads English
+  Markdown. Rule (c)'s cue words are broad ("like", "example"), so a directed
+  line with a backticked command and such a word reads as described (INFO);
+  an attacker who knows the rules can write that line, and only a
+  concealment finding switches the gate off. A pattern with over 500 matches
+  in one file, none directed, is reported as directed. POISON-076 matches
+  imperative forms and a fixed list of controls; "this hook skips approval
+  prompts" and paraphrase ("auto-approve everything") are missed. Padding
+  needs 40 blank lines or 200 spaces: shorter padding is silent. MCPTox has
+  no oversight-bypass cases, so POISON-076's recall is measured on 11
+  hand-written phrases only.
 - **MEM-005 sleeper triggers:** one sentence at a time, English. It needs an
   if/when/whenever/once/unless clause (or a leading date) closed by a comma,
   semicolon, colon or "then"; an action verb opening the consequence; and,

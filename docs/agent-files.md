@@ -70,7 +70,7 @@ other prose files. See [skill-packages.md](skill-packages.md).
 
 ## Finding IDs
 
-### SKILL-001 (HIGH): injection/exfiltration instruction in skill file
+### SKILL-001 (HIGH, or INFO when only described): injection/exfiltration instruction in skill file
 
 Fires when any of the standard poisoning patterns (XML injection markers,
 LLM format markers, behavioral override, data exfiltration references, etc.)
@@ -83,6 +83,10 @@ run-on-startup, fetch-a-URL-and-follow-it) report SKILL-001 at their own
 severity instead of HIGH: HIGH for secrecy, MEDIUM for banning the
 ask-the-user tool, LOW for the rest, since legitimate skills also say "do not
 ask for confirmation". See [poisoning.md](poisoning.md#orders-that-hide-story-0099).
+
+Every content finding (SKILL-001/002/003, MEM-001/002, POISON-041..044) names its line: `Finding.line` (SARIF `region.startLine`) and evidence like `Line 9: '- [ ] reads `~/.ssh/id_rsa` ...' (matched '.ssh/')`.
+
+A checklist or reference that *describes* an action is not an order to do it. Every match of a pattern in the file is judged; when each one sits in a task-list item, a blockquote, a quoted example, a list under a review heading ("Red flags"), or a negated sentence ("Never upload ~/.ssh keys"), SKILL-001 is INFO, titled "(described, not directed)", with the reason in its evidence. One directed match (any line outside those shapes, and anything in a fenced code block) keeps the pattern's normal severity and is the line reported. The judgement is off for a file with a concealment finding. POISON-076 (skipping permission prompts, switching off the sandbox or hooks) is HIGH here. See [poisoning.md](poisoning.md#findings-you-can-trust-story-0141).
 
 ### SKILL-002 (MEDIUM): obfuscated or oversized block
 
@@ -347,6 +351,10 @@ present to a language model reading the raw text:
   eight at a time as bits (STORY-0099; Reverse CAPTCHA, arXiv 2603.00164).
 - Two or more variation selectors in a row, read one byte each (STORY-0099;
   Paul Butler's emoji-smuggling layout).
+- Whitespace padding (STORY-0141): 40 or more blank lines, or 200 or more
+  spaces or tabs in one line, in front of more text. The text after it is
+  rescanned; a match is POISON-041 HIGH, and padding that hides nothing a
+  pattern recognises is silent (like an HTML comment).
 
 The concealed content is extracted into its own string and rescanned against
 the full poisoning `PATTERNS` list as an independent pass — it is never

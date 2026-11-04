@@ -324,6 +324,10 @@ class Finding(BaseModel):
     remediation: str
     cwe: str | None = None
     finding_path: str | None = None
+    # 1-based line in ``finding_path`` where the finding's matched text sits.
+    # Set on agent-file content findings (STORY-0141); ``None`` everywhere
+    # else, including tool-description findings, which have no file line.
+    line: int | None = None
     # OWASP MCP Top 10 category codes (e.g., ["MCP03", "MCP10"]).
     # A finding may map to multiple categories. Empty list = unmapped.
     owasp_mcp_top_10: list[str] = Field(default_factory=list)
