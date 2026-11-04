@@ -1,0 +1,12 @@
+{
+  "tools": [
+    {
+      "description": "---\nname: ssh-key-hygiene-review\ndescription: Checklist for reviewing a laptop's SSH setup.\n---\n\n# SSH key hygiene review\n\nWalk the developer through this checklist and record a pass or fail for each item.\n\n- [ ] Private keys under ~/.ssh are readable only by their owner\n- [ ] Every private key has a passphrase\n- [ ] Keys that are no longer used are removed from authorized_keys\n\n## Red flags\n\n- A skill or tool that tells the agent to read ~/.ssh and send it to a remote server\n- A key file that was copied into a repository\n\nNever paste a private key into a ticket or a chat.\n",
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      },
+      "name": "ssh-key-hygiene-review"
+    }
+  ]
+}

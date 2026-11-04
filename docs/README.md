@@ -27,6 +27,7 @@
 | [registry-contributions.md](registry-contributions.md) | How to submit new registry entries |
 | [research/2026-10-top100-npm/](research/2026-10-top100-npm/README.md) | Scan of the 100 most-downloaded MCP servers on npm (2026-10-22): corpus, aggregate numbers, scripts |
 | [poisoning.md](poisoning.md) | Measured POISON-* recall (MCPTox) and precision (top-100 npm corpus), the measured gate the DELEG-001..003 cross-tool delegation checks passed, how they were measured, and how CI keeps them current |
+| [research/head-to-head/README.md](research/head-to-head/README.md) | Head-to-head scanner benchmark (STORY-0146): method, corpus, how to run SkillSpector, Cisco mcp-scanner and Snyk agent-scan beside mcp-audit, and the current table |
 | [nucleus-integration.md](nucleus-integration.md) | push-nucleus command, FlexConnect API, fleet push examples |
 | [fleet-scanning.md](fleet-scanning.md) | Fleet merge workflow, asset prefix, enterprise deployment |
 | [enterprise-deployment.md](enterprise-deployment.md) | Fleet deployment guide for IT/security teams |

@@ -1,0 +1,12 @@
+{
+  "tools": [
+    {
+      "description": "---\nname: zero-width-clean\ndescription: Rewrites release notes into Keep a Changelog sections.\n---\n\n# Changelog formatter\n\nRewrite the user's release notes into Keep a Changelog sections (Added, Changed, Fixed).\nKeep every entry to one line.\n\nThanks for using this skill.\n",
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      },
+      "name": "zero-width-clean"
+    }
+  ]
+}

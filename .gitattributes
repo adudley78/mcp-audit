@@ -1,0 +1,2 @@
+# Hash-pinned benchmark corpus: keep the bytes exact on every OS (no CRLF conversion).
+docs/research/head-to-head/corpus/** -text
