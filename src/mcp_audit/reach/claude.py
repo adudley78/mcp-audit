@@ -913,7 +913,17 @@ def _destinations(
                     Fact(f"repository env {text} (effect not modelled)", "", ref)
                 )
             continue
-        if not isinstance(value, str) or not value.strip():
+        if value is None or (isinstance(value, str) and not value.strip()):
+            continue
+        if not isinstance(value, str):
+            # A list or number may be coerced to a destination by the harness.
+            unknown.append(
+                Fact(
+                    f"repository env {text} is not a string (effect not modelled)",
+                    "",
+                    ref,
+                )
+            )
             continue
         if upper == "ANTHROPIC_FOUNDRY_RESOURCE":
             label = "a resource the repository chose"

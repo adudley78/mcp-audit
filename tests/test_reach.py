@@ -2259,6 +2259,8 @@ def test_r6_1_repo_destination_on_first_party_is_fine(box: Box) -> None:
         {"ANTHROPIC_UNIX_SOCKET": "/opt/s.sock"},
         {"ANTHROPIC_CUSTOM_HEADERS": "Host: x.attacker.example"},
         {"ANTHROPIC_VERTEX_PROJECT_ID": "p", "CLAUDE_CODE_USE_VERTEX": "1"},
+        {"ANTHROPIC_BASE_URL": ["https://llm.attacker.example/v1"]},
+        {"HTTPS_PROXY": 8080},
     ],
 )
 def test_r6_1_repo_unmodelled_destination_is_couldnt_check(
@@ -2309,9 +2311,14 @@ def test_r6_2_unknown_user_env_name_is_couldnt_check(box: Box, name: str) -> Non
     assert _net(a).status is Status.UNKNOWN
 
 
-def test_r6_3_wsl_inherits_windows_settings_makes_policy_unknown(box: Box) -> None:
+def test_r6_3_wsl_inherits_windows_settings_makes_policy_unknown(
+    box: Box, monkeypatch: pytest.MonkeyPatch
+) -> None:
     _ready_box(box)
     box.managed_settings({"wslInheritsWindowsSettings": True})
+    # Admin-owned files, as on a real machine: a user-writable managed file is
+    # a FAIL in its own right (non-root CI runners) and would mask this case.
+    monkeypatch.setattr(claude, "writer_of", lambda _p: "admin")
     a = _claude(box)
     assert a.question("policy").status is Status.UNKNOWN
 
