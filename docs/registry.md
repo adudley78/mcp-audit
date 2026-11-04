@@ -89,6 +89,9 @@ Each entry follows this schema:
 | `known_versions` | list | Pinned versions (empty = all versions accepted) |
 | `tags` | list | Descriptive labels, e.g. `official`, `database`, `remote` |
 | `semver_resumed_at` | string \| null | Optional (STORY-0105). The first semantic version a package released after it used calendar versions, e.g. `"1.0.0"` for `@modelcontextprotocol/server-filesystem` (0.6.2, then 2025.1.14 … 2026.8.31, then 1.0.0 on 2026-10-11). SC-004 uses it to order a pin against a fix recorded in the other scheme. Set it only from the package registry's own publish times. |
+| `archived` | bool | Optional, default `false` (STORY-0140). The upstream repository says the package is archived and gets no further fixes. Drives SC-010 and the `vet` verdict. Set it only from the upstream notice, and record that notice in `archive_notice`. |
+| `archive_notice` | string \| null | Optional (STORY-0140). URL of the upstream notice that says the package is archived. |
+| `successor` | string \| null | Optional (STORY-0140). The replacement the upstream notice names, e.g. `github/github-mcp-server` for `@modelcontextprotocol/server-github`. Leave `null` when the notice names none; never fill it from our own judgement. |
 
 ## Current Coverage
 

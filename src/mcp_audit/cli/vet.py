@@ -456,11 +456,14 @@ def _print_known_verdict(
 
     t = Text()
 
-    verified_str = (
-        "[green]Verified[/green]"
-        if reg.get("verified")
-        else "[yellow]Unverified[/yellow]"
-    )
+    # STORY-0140: an archived entry keeps ``verified`` in the data (it is the
+    # real package), but the panel must not vouch for it in green.
+    if reg.get("archived"):
+        verified_str = "[yellow]Archived, not maintained[/yellow]"
+    elif reg.get("verified"):
+        verified_str = "[green]Verified[/green]"
+    else:
+        verified_str = "[yellow]Unverified[/yellow]"
     listed_str = (
         "[green]Listed[/green]" if reg.get("listed") else "[red]Not listed[/red]"
     )
@@ -474,6 +477,19 @@ def _print_known_verdict(
     )
     entry_updated = reg.get("entry_updated") or "n/a"
     t.append(f"  Entry updated: {entry_updated}\n\n", style="dim")
+    if reg.get("archived"):
+        # STORY-0140: listed and verified as the real package, but archived.
+        successor = reg.get("successor")
+        t.append_text(
+            Text.from_markup(
+                "  [yellow]Archived upstream: no security fixes are coming[/yellow]\n"
+            )
+        )
+        if reg.get("archive_notice"):
+            t.append(f"  Notice:        {reg['archive_notice']}\n", style="dim")
+        if successor:
+            t.append(f"  Successor:     {successor}\n", style="dim")
+        t.append("\n")
 
     # Capabilities.
     if caps:
@@ -569,7 +585,11 @@ def _print_known_verdict(
     border = (
         "red"
         if unfixed
-        else ("green" if reg.get("verified") and not vulns else "yellow")
+        else (
+            "green"
+            if reg.get("verified") and not vulns and not reg.get("archived")
+            else "yellow"
+        )
     )
     console.print(Panel(t, title="[bold]mcp-audit verdict[/bold]", border_style=border))
 

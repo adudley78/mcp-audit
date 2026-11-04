@@ -689,6 +689,85 @@ def _credit_note(entry: RegistryEntry, affected: list[str]) -> str:
     return " Reported by " + "; ".join(parts) + "."
 
 
+def _known_entry_findings(
+    server: ServerConfig, entry: RegistryEntry | None
+) -> list[Finding]:
+    """Findings for a launch that exactly matches a registry entry.
+
+    SC-004/SC-009 for recorded CVEs, then SC-010 when the entry is archived
+    (STORY-0140).  An archived package with CVEs gets both: the CVEs say what
+    is wrong today, SC-010 says no release will fix the next one.
+
+    Args:
+        server: The MCP server configuration to analyse.
+        entry: The exact-match registry entry, or ``None``.
+
+    Returns:
+        Zero or more findings.
+    """
+    if entry is None:
+        return []
+    findings: list[Finding] = []
+    if entry.known_vulnerabilities or entry.known_vulns:
+        findings.extend(_emit_known_cve_findings(server, entry))
+    if entry.archived:
+        findings.append(build_archived_finding(server, entry))
+    return findings
+
+
+def build_archived_finding(server: ServerConfig, entry: RegistryEntry) -> Finding:
+    """SC-010 (MEDIUM): the configured package is archived upstream.
+
+    The registry records ``archived`` only from the upstream repository's own
+    notice (``entry.archive_notice``), and a ``successor`` only when that
+    notice names one.  The package still installs and runs; the risk is that
+    nobody will patch it (STORY-0140).
+
+    Args:
+        server: The MCP server configuration that launches *entry*.
+        entry: The archived registry entry.
+
+    Returns:
+        The SC-010 finding.
+    """
+    notice = entry.archive_notice or entry.repo or "the package's repository"
+    if entry.successor:
+        replacement = (
+            f"The upstream notice names a successor, {entry.successor!r}: move to it."
+        )
+        remediation = (
+            f"Replace {entry.name!r} with {entry.successor!r}, the project the "
+            "archive notice points to, and re-run `mcp-audit scan`."
+        )
+    else:
+        replacement = "The upstream notice names no successor."
+        remediation = (
+            f"Replace {entry.name!r} with a maintained server for the same "
+            "service (the service's own MCP server where one exists), or remove "
+            "it. Until then, pin the version you reviewed."
+        )
+    return Finding(
+        id="SC-010",
+        severity=Severity.MEDIUM,
+        analyzer="supply_chain",
+        client=server.client,
+        server=server.name,
+        title=f"Archived MCP server, no security fixes coming: {entry.name}",
+        description=(
+            f"{entry.name!r} is archived upstream ({notice}). The archive says "
+            "these reference servers are no longer maintained and that no "
+            "security updates or bug fixes will be provided, so a vulnerability "
+            "found from now on stays open in every release. The package still "
+            f"installs and runs, which is why configs keep using it. {replacement}"
+        ),
+        evidence=f"package: {entry.name} | archived: {notice}",
+        remediation=remediation,
+        cwe="CWE-1104",
+        owasp_mcp_top_10=["MCP04"],
+        finding_path=str(server.config_path),
+    )
+
+
 def _emit_known_cve_findings(
     server: ServerConfig,
     entry: RegistryEntry,
@@ -2395,9 +2474,7 @@ class SupplyChainAnalyzer(BaseAnalyzer):
         """
         if self._registry.is_known_npm(package):
             entry = self._registry.get_npm(package)
-            if entry and (entry.known_vulnerabilities or entry.known_vulns):
-                return _emit_known_cve_findings(server, entry)
-            return []
+            return _known_entry_findings(server, entry)
 
         twins = self.twins.find(package, "npm")
         if twins:
@@ -2482,9 +2559,7 @@ class SupplyChainAnalyzer(BaseAnalyzer):
 
         if self._registry.is_known_pypi(package):
             entry = self._registry.get_pypi(package)
-            if entry and (entry.known_vulnerabilities or entry.known_vulns):
-                return _emit_known_cve_findings(server, entry)
-            return []
+            return _known_entry_findings(server, entry)
 
         twins = self.twins.find(package, "pypi")
         if twins:

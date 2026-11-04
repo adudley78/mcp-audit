@@ -202,7 +202,10 @@ Exit code: **0** (1 with `--strict`)
     "verified": true,
     "maintainer": "Anthropic",
     "entry_updated": "2026-04-15",
-    "registry_updated": "2026-05-30"
+    "registry_updated": "2026-05-30",
+    "archived": false,
+    "archive_notice": null,
+    "successor": null
   },
   "known_vulnerabilities": [],
   "capabilities": ["file_read", "file_write"],
@@ -317,3 +320,15 @@ See also:
 - [`mcp-audit check`](check.md) — one-command verdict on your installed configuration
 - [`mcp-audit fix`](fix.md) — apply safe remediations to MCP config files
 - [`mcp-audit scan`](docs-usage.md) — full scan with all analyzers
+
+## Archived packages (STORY-0140)
+
+`registry.archived` is `true` when the upstream repository says the package is
+archived and gets no further fixes; `registry.archive_notice` is that notice's
+URL and `registry.successor` the replacement it names (`null` when it names
+none). The terminal panel's Registry line says "Archived, not maintained"
+instead of "Verified", prints "Archived upstream: no security fixes are
+coming" and turns yellow. `registry.verified` stays `true` in the JSON: it
+records that the publisher is genuine, which is still so. The exit code does not change: archived is a
+maintenance status, not a known flaw. `scan` reports the same condition as
+SC-010.

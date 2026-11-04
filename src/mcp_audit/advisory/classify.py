@@ -72,6 +72,7 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # not itself a vulnerability
         "MOD-005",  # Claude Code mod inventory (STORY-0085) — neutral, not a defect
         "SC-009",  # pinned version not comparable with the recorded fix
+        "SC-010",  # archived upstream: a maintenance status, not a flaw (STORY-0140)
         # (STORY-0105) — INFO "undecidable", asserts no affected release
         "HARNESS-007",  # enabledMcpjsonServers inventory (STORY-0090) — INFO;
         # Claude Code writes it when you approve a server, not a defect by itself

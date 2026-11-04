@@ -315,6 +315,17 @@
       "notes": "Fires instead of SC-004 when the launch pins an exact version and every remaining recorded advisory's fixed_in uses a different version numbering scheme (calendar version such as 2025.7.1, first number >= 1000, versus semantic version such as 2.0.0) and the registry cannot order them: with the entry's semver_resumed_at the pair is ordered (SC-004 or no finding); without it a 0.x semantic pin against a calendar fix stays SC-004 HIGH, every other cross-scheme pair is SC-009. INFO. Not an advisory (classify.NON_ADVISORY_IDS). Offline (STORY-0105, top-100 scan Q-010)."
     },
     {
+      "finding_id": "SC-010",
+      "finding_title": "Archived MCP server, no security fixes coming",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Fires when a launch exactly matches a registry entry with archived: true. The registry sets archived only from the upstream repository's own notice (archive_notice) and names a successor only when that notice does. The eleven @modelcontextprotocol reference servers moved to modelcontextprotocol/servers-archived, whose README says no security updates or bug fixes will be provided. MEDIUM. Not an advisory (classify.NON_ADVISORY_IDS). Offline (STORY-0140)."
+    },
+    {
       "finding_id": "SC-007",
       "finding_title": "Unscoped twin of a known package",
       "owasp_codes": [

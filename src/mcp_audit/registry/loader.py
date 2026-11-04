@@ -208,6 +208,16 @@ class RegistryEntry(BaseModel):
     # other scheme.  ``None`` (the default) means no switch back is recorded.
     semver_resumed_at: str | None = None
 
+    # The upstream repository says the package is archived and gets no further
+    # fixes (STORY-0140).  The eleven reference servers moved to
+    # github.com/modelcontextprotocol/servers-archived, whose README says "No
+    # security updates or bug fixes will be provided".  ``archived`` drives
+    # SC-010 and the vet verdict; ``archive_notice`` is the URL that says so;
+    # ``successor`` names a replacement only when the upstream notice does.
+    archived: bool = False
+    archive_notice: str | None = None
+    successor: str | None = None
+
 
 # ── Registry class ─────────────────────────────────────────────────────────────
 
