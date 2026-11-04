@@ -232,6 +232,12 @@ def _parse_products(raw: Any) -> tuple[AffectedProduct, ...] | None:
                 Version(introduced)
             except InvalidVersion:
                 return None
+        if isinstance(introduced, str) and isinstance(fixed_in, str):
+            try:
+                if Version(introduced) >= Version(fixed_in):
+                    return None
+            except InvalidVersion:
+                return None
         platforms = item.get("platforms")
         if platforms is not None and (
             not isinstance(platforms, list)

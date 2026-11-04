@@ -1789,6 +1789,7 @@ Deliberate scope limits, recorded rather than smoothed over:
 - **The `~/.opencode/bin` installer keeps no version file**, so `affected` cannot say
   whether that install is in the affected range: COULDN'T CHECK. An npm global install
   (`opencode-ai`) is read. Homebrew, Scoop and other package managers are not.
+- **`watch` does not react to OpenCode's files.** It does not follow `opencode.jsonc` or a project's `opencode.json` (the same as the Codex `config.toml` precedent); run `scan` for them. `fix` and `check` do not edit them either.
 - **No check tests the OpenCode OAuth flow** (`x_MCPRS-3a7e475c087d`), so the answer is
   the installed version plus the host platform, nothing more.
 

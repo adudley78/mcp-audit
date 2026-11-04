@@ -98,9 +98,19 @@ class TestHostPlatform:
     def test_unknown_os_is_undeterminable(self) -> None:
         assert detect_host_platform("freebsd14") is None
 
-    def test_proc_read_is_capped_and_survives_a_missing_file(self) -> None:
-        # The default reader returns None on OSError, never raises.
-        assert detect_host_platform("linux") in {"linux", "wsl", None}
+    def test_proc_read_is_capped(self, tmp_path: Path) -> None:
+        from mcp_audit import host_platform  # noqa: PLC0415
+
+        big = tmp_path / "osrelease"
+        big.write_text("x" * (host_platform.MAX_PROC_BYTES + 10) + " microsoft")
+        text = host_platform._read_capped(str(big))
+        assert text is not None and len(text) == host_platform.MAX_PROC_BYTES
+        assert detect_host_platform("linux", lambda p: text) == "linux"
+
+    def test_missing_proc_file_reads_as_none(self, tmp_path: Path) -> None:
+        from mcp_audit import host_platform  # noqa: PLC0415
+
+        assert host_platform._read_capped(str(tmp_path / "absent")) is None
 
     def test_module_has_no_subprocess(self) -> None:
         from mcp_audit import host_platform  # noqa: PLC0415
@@ -269,7 +279,8 @@ class TestOpenCodePlatformAndInstaller:
         assert row.status is Status.COULDNT_CHECK
         assert row.reason == m.HARNESS_VERSION
         assert row.version is None
-        assert "installed by the OpenCode installer at" in row.evidence
+        assert "installed by the OpenCode installer at ~/.opencode/bin" in row.evidence
+        assert str(tmp_path) not in row.evidence
         assert "keeps no version file" in row.evidence
 
     def test_installer_on_macos_is_not_affected(self, tmp_path: Path) -> None:
@@ -331,17 +342,28 @@ class TestOpenCodeVersions:
     def test_installer_is_stat_only(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        import builtins  # noqa: PLC0415
+        import io  # noqa: PLC0415
+
         _write(tmp_path / "h" / ".opencode" / "bin" / "opencode", "bin")
-        real_open = os.open
-        opened: list[str] = []
+        seen: list[str] = []
 
-        def spy(path: Any, *a: Any, **k: Any) -> int:
-            opened.append(str(path))
-            return real_open(path, *a, **k)
+        def wrap(real: Any) -> Any:
+            def spy(*a: Any, **k: Any) -> Any:
+                seen.append(" ".join(str(x) for x in a))
+                return real(*a, **k)
 
-        monkeypatch.setattr(os, "open", spy)
-        find_harness_versions(tmp_path / "h", {})
-        assert not any(".opencode" in p for p in opened)
+            return spy
+
+        monkeypatch.setattr(os, "open", wrap(os.open))
+        monkeypatch.setattr(builtins, "open", wrap(builtins.open))
+        monkeypatch.setattr(io, "open", wrap(io.open))
+        monkeypatch.setattr(Path, "open", wrap(Path.open))
+        monkeypatch.setattr(Path, "read_bytes", wrap(Path.read_bytes))
+        monkeypatch.setattr(Path, "read_text", wrap(Path.read_text))
+        [inst] = find_harness_versions(tmp_path / "h", {}).for_product("OpenCode")
+        assert inst.kind == "installer"
+        assert not any(".opencode" in x for x in seen)
 
     def test_directory_named_opencode_is_skipped(self, tmp_path: Path) -> None:
         (tmp_path / "h" / ".opencode" / "bin" / "opencode").mkdir(parents=True)
@@ -413,6 +435,14 @@ class TestCli:
     ) -> None:
         fixed = self._run(tmp_path, monkeypatch, "wsl", "1.18.33")
         assert [r["status"] for r in fixed["rows"]] == ["NOT AFFECTED"]
+
+    def test_below_introduced_via_cli(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        old = self._run(tmp_path, monkeypatch, "windows", "1.0.136")
+        assert [r["status"] for r in old["rows"]] == ["NOT AFFECTED"]
+        assert old["rows"][0]["reason"] == "version-outside"
+        assert old["code"] == 0
 
     def test_macos_not_affected(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -775,3 +805,257 @@ class TestDiscovery:
         paths = {p for p, _ in loader._KNOWN_GIT_RELATIVE_PATHS}
         assert {"opencode.json", "opencode.jsonc"} <= paths
         assert loader._GIT_PATH_DIALECT["opencode.jsonc"] == "opencode"
+
+
+# ── Review fixes: unknown platform, unfixed products, loader, dedupe ──────────
+
+
+def _product(**over: Any) -> Any:
+    from mcp_audit.registry.research import AffectedProduct  # noqa: PLC0415
+
+    base: dict[str, Any] = {
+        "product": "Thing",
+        "vendor": "V",
+        "status": "fixed",
+        "fixed_in": "2.0",
+        "introduced": "1.0",
+        "platforms": ("windows",),
+    }
+    base.update(over)
+    return AffectedProduct(**base)
+
+
+def _record_for(p: Any) -> Any:
+    from mcp_audit.registry.research import ResearchRecord  # noqa: PLC0415
+
+    return ResearchRecord(
+        id="x_MCPRS-000000000000",
+        summary="s",
+        details="d",
+        published=None,
+        modified=None,
+        products=(p,),
+    )
+
+
+def _one(version: str | None, p: Any, host: str | None) -> m.Row:
+    kind = "npm" if version else "installer"
+    scan = HarnessScan(
+        installs=[hv.HarnessInstall("x", p.product, version, "/p/package.json", kind)]
+    )
+    [row] = m.research_rows(_record_for(p), None, [], scan, lambda: host)
+    return row
+
+
+class TestUnknownHost:
+    @pytest.mark.parametrize(
+        ("version", "status", "reason"),
+        [
+            ("2.0", Status.NOT_AFFECTED, None),  # at the fix: the version decides
+            ("2.5", Status.NOT_AFFECTED, None),
+            ("0.9", Status.NOT_AFFECTED, m.VERSION_OUTSIDE),  # below introduced
+            ("1.5", Status.COULDNT_CHECK, m.PLATFORM_UNKNOWN),  # in range
+            (None, Status.COULDNT_CHECK, m.PLATFORM_UNKNOWN),
+        ],
+    )
+    def test_version_decides_before_platform(
+        self, version: str | None, status: Status, reason: str | None
+    ) -> None:
+        row = _one(version, _product(), None)
+        assert (row.status, row.reason) == (status, reason)
+
+    def test_known_host_in_range_is_affected(self) -> None:
+        assert _one("1.5", _product(), "windows").status is Status.AFFECTED
+
+    def test_known_outside_host_beats_everything(self) -> None:
+        row = _one("1.5", _product(), "macos")
+        assert (row.status, row.reason) == (Status.NOT_AFFECTED, m.PLATFORM_OUTSIDE)
+        assert _one(None, _product(), "macos").reason == m.PLATFORM_OUTSIDE
+
+
+class TestUnfixedPlatformLimited:
+    def _unfixed(self) -> Any:
+        return _product(status="unfixed", fixed_in=None, introduced=None)
+
+    def test_other_platform_is_not_affected(self) -> None:
+        row = _one("1.5", self._unfixed(), "macos")
+        assert (row.status, row.reason) == (Status.NOT_AFFECTED, m.PLATFORM_OUTSIDE)
+
+    @pytest.mark.parametrize("host", ["windows", None])
+    def test_covered_or_unknown_host_stays_couldnt_check(
+        self, host: str | None
+    ) -> None:
+        row = _one("1.5", self._unfixed(), host)
+        assert row.status is Status.COULDNT_CHECK
+        assert row.reason == m.HARNESS_VERSION
+
+    def test_unlimited_unfixed_product_never_reads_the_host(self) -> None:
+        def boom() -> str | None:
+            raise AssertionError("platform must not be read")
+
+        p = _product(status="unfixed", fixed_in=None, introduced=None, platforms=())
+        scan = HarnessScan(installs=[hv.HarnessInstall("x", "Thing", "1", "/p", "npm")])
+        m.research_rows(_record_for(p), None, [], scan, boom)
+
+
+class TestLoaderOrdering:
+    @pytest.mark.parametrize(
+        ("introduced", "fixed_in", "ok"),
+        [("2.0", "2.0", False), ("3.0", "2.0", False), ("1.0", "2.0", True)],
+    )
+    def test_introduced_must_be_below_fixed_in(
+        self, tmp_path: Path, introduced: str, fixed_in: str, ok: bool
+    ) -> None:
+        index = load_research_records(
+            _record_file(tmp_path, introduced=introduced, fixed_in=fixed_in)
+        )
+        assert (len(index) == 1) is ok
+        if not ok:
+            assert len(index.skipped) == 1
+
+    def test_introduced_alone_on_an_unfixed_product_loads(self, tmp_path: Path) -> None:
+        index = load_research_records(
+            _record_file(tmp_path, status="unfixed", fixed_in=None, introduced="1.0")
+        )
+        assert len(index) == 1
+
+
+class TestDedupe:
+    def test_opencode_config_naming_the_global_file_scans_once(
+        self, home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        g = _write(home / ".config" / "opencode" / "opencode.json", OPENCODE_JSONC)
+        monkeypatch.setenv("OPENCODE_CONFIG", str(g))
+        work = tmp_path / "work"
+        work.mkdir()
+        monkeypatch.chdir(work)
+        found = [c for c in discover_configs() if c.client_name == "opencode"]
+        assert len(found) == 1
+        result = run_scan(skip_rug_pull=True)
+        names = [s.name for s in result.servers if s.client == "opencode"]
+        assert sorted(names) == ["files", "remote"]
+
+    def test_symlink_to_the_global_file_scans_once(
+        self, home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        g = _write(home / ".config" / "opencode" / "opencode.json", OPENCODE_JSONC)
+        link = tmp_path / "link.json"
+        try:
+            link.symlink_to(g)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not available")
+        monkeypatch.setenv("OPENCODE_CONFIG", str(link))
+        work = tmp_path / "work"
+        work.mkdir()
+        monkeypatch.chdir(work)
+        assert len([c for c in discover_configs() if c.client_name == "opencode"]) == 1
+
+
+# ── Secrets in output, and fix/check refusals ─────────────────────────────────
+
+SECRET_JSONC = """{
+  "mcp": {
+    "files": {
+      "type": "local",
+      "command": ["npx", "-y", "srv", "--api-key",
+                  "sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAA",
+                  "postgres://u:hunter2pass@db/x"],
+      "environment": {"GITHUB_TOKEN": "ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"},
+    },
+    "remote": {
+      "type": "remote",
+      "url": "https://u:hunter2pass@api.example.com/mcp?api_key=zzzzzzzzzzzz",
+      "headers": {"Authorization": "Bearer sk-ant-api03-BBBBBBBBBBBBBBBBBBBBBBBB"},
+    },
+  },
+}
+"""  # noqa: S105
+LEAKS = ("ghp_aBcDe", "sk-ant-api03-AAAA", "sk-ant-api03-BBBB", "hunter2pass")
+
+
+class TestSecretsInOutput:
+    @pytest.fixture()
+    def repo(self, home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        _write(home / ".config" / "opencode" / "opencode.jsonc", SECRET_JSONC)
+        work = tmp_path / "work"
+        work.mkdir()
+        monkeypatch.chdir(work)
+        return work
+
+    def test_model_dump_json_has_no_secret(self, repo: Path) -> None:
+        result = run_scan(skip_rug_pull=True)
+        assert any(s.client == "opencode" for s in result.servers)
+        out = result.model_dump_json()
+        for leak in LEAKS:
+            assert leak not in out, leak
+
+    def test_scan_json_has_no_secret(self, repo: Path) -> None:
+        res = runner.invoke(app, ["scan", "--format", "json"])
+        assert res.exit_code in (0, 1), res.output
+        assert "opencode" in res.output
+        for leak in LEAKS:
+            assert leak not in res.output, leak
+
+    def test_check_json_has_no_secret(self, repo: Path) -> None:
+        res = runner.invoke(app, ["check", "--json"])
+        assert res.exit_code in (0, 1), res.output
+        for leak in LEAKS:
+            assert leak not in res.output, leak
+
+    def test_in_memory_object_is_unchanged(self, repo: Path) -> None:
+        result = run_scan(skip_rug_pull=True)
+        files = next(s for s in result.servers if s.name == "files")
+        assert files.env["GITHUB_TOKEN"].startswith("ghp_")
+        assert files.raw["environment"]["GITHUB_TOKEN"].startswith("ghp_")
+
+
+class TestFixRefusesOpenCode:
+    def test_check_never_offers_fix_for_opencode(self) -> None:
+        from mcp_audit.models import Finding, Severity  # noqa: PLC0415
+        from mcp_audit.output.check import (  # noqa: PLC0415
+            _is_auto_fixable,
+            _remediation_hint,
+        )
+
+        for client, name in (
+            ("opencode", "opencode.jsonc"),
+            ("opencode-project", "opencode.json"),
+        ):
+            finding = Finding(
+                id="CRED-001",
+                severity=Severity.HIGH,
+                analyzer="credentials",
+                client=client,
+                server="files",
+                title="t",
+                description="d",
+                evidence="e",
+                remediation="r.",
+                finding_path=f"/home/u/{name}",
+            )
+            assert not _is_auto_fixable(finding)
+            assert "fix --apply" not in _remediation_hint(finding)
+
+    @pytest.mark.parametrize("name", ["opencode.json", "opencode.jsonc"])
+    def test_run_fix_and_run_pins_refuse_and_write_nothing(
+        self, tmp_path: Path, name: str
+    ) -> None:
+        from mcp_audit.fixer.fixer import run_fix, run_pins  # noqa: PLC0415
+
+        path = _write(tmp_path / name, SECRET_JSONC)
+        with pytest.raises(ValueError, match="OpenCode"):
+            run_fix([], path, apply=True)
+        with pytest.raises(ValueError, match="OpenCode"):
+            run_pins(path, [("files", "srv", "1.0.0")], apply=True)
+        assert path.read_text(encoding="utf-8") == SECRET_JSONC
+        assert sorted(p.name for p in tmp_path.iterdir()) == [name]
+
+    def test_fix_cli_apply_changes_nothing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = _write(tmp_path / "opencode.jsonc", SECRET_JSONC)
+        res = runner.invoke(app, ["fix", "--path", str(path), "--apply"])
+        assert res.exit_code == 2, res.output
+        assert path.read_text(encoding="utf-8") == SECRET_JSONC
+        assert sorted(p.name for p in tmp_path.iterdir()) == ["opencode.jsonc"]
+        assert "Config updated" not in res.output

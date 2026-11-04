@@ -171,6 +171,21 @@ class ServerConfig(BaseModel):
             if isinstance(value, str):
                 out[key] = redact_url(value)
         out = _redact_raw_secrets(out)
+        # OpenCode (STORY-0142): ``command`` is an argv list and the env table
+        # is ``environment``.
+        from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+            redact_env_values as _redact_environment,
+        )
+
+        command = out.get("command")
+        if isinstance(command, list):
+            out["command"] = [
+                redact_args([a])[0] if isinstance(a, str) else a for a in command
+            ]
+            if all(isinstance(a, str) for a in command):
+                out["command"] = redact_args(command)
+        if isinstance(out.get("environment"), dict):
+            out["environment"] = _redact_environment(out["environment"])
         if isinstance(out.get("env"), dict):
             from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
                 redact_env_values as _redact_env,

@@ -851,7 +851,7 @@ _PRODUCT_STATUS = {
 
 
 def _install_label(inst: Any) -> str:
-    """``1.2.3``, or ``(no version file)`` for an install that keeps none."""
+    """``1.2.3``, or ``(version unknown)`` for an install that keeps no version file."""
     return inst.version if inst.version is not None else "(version unknown)"
 
 
@@ -863,26 +863,16 @@ def _below(version: str, bound: str) -> bool | None:
         return None
 
 
-def _platform_row(p: Any, host: str | None) -> tuple[Status, str, str] | None:
-    """The row for an install on a host a platform-limited product may not cover.
+def _platform_outside(p: Any, host: str | None) -> tuple[str, str] | None:
+    """``(verdict, reason)`` when *host* is known and not one the write-up names.
 
-    Returns ``(status, verdict, reason)``, or ``None`` when the product
-    has no platform limit or the host is one the write-up names.
+    ``None`` when the product has no platform limit, the host is covered, or
+    the host is unknown (the caller decides what an unknown host means).
     """
-    if not p.platforms:
+    if not p.platforms or host is None or host in p.platforms:
         return None
     named = "/".join(p.platforms)
-    if host is None:
-        return (
-            Status.COULDNT_CHECK,
-            f"is affected on {named} only, and this host's platform could not be "
-            "determined",
-            PLATFORM_UNKNOWN,
-        )
-    if host in p.platforms:
-        return None
     return (
-        Status.NOT_AFFECTED,
         f"is not affected on {host} (the write-up covers {named} only)",
         PLATFORM_OUTSIDE,
     )
@@ -909,18 +899,28 @@ def _harness_rows(
             subject = f"{p.product} ({p.vendor}) installer"
         where = f"{p.product} {label} ({inst.kind} install, read from {inst.source})"
         tail = f"; per the write-up: {state}"
-        limited = _platform_row(p, host)
+        outside = _platform_outside(p, host)
+        unknown_host = bool(p.platforms) and host is None
         status: Status
-        if limited is not None:
-            status, verdict, reason = limited
+        if outside is not None:
+            verdict, reason = outside
+            status = Status.NOT_AFFECTED
             evidence = f"{where} {verdict}{tail}"
         elif inst.version is None:
-            status, reason = Status.COULDNT_CHECK, HARNESS_VERSION
+            if unknown_host:
+                status, reason = Status.COULDNT_CHECK, PLATFORM_UNKNOWN
+            else:
+                status, reason = Status.COULDNT_CHECK, HARNESS_VERSION
             evidence = (
                 f"{p.product} is installed by the {p.product} installer at "
-                f"{inst.source}, which keeps no version file, so it cannot be "
+                f"~/.opencode/bin, which keeps no version file, so it cannot be "
                 f"ordered against the fix {p.fixed_in}{tail}"
+                if inst.kind == "installer"
+                else f"{where} has no version to order against the fix "
+                f"{p.fixed_in}{tail}"
             )
+            if unknown_host:
+                evidence += "; this host's platform could not be determined"
         elif p.introduced and _below(inst.version, p.introduced):
             status, reason = Status.NOT_AFFECTED, VERSION_OUTSIDE
             evidence = (
@@ -948,6 +948,14 @@ def _harness_rows(
             else:
                 status, verdict = Status.NOT_AFFECTED, "is at or above"
             evidence = f"{where} {verdict} the fix {p.fixed_in}{tail}"
+            if unknown_host and status is Status.AFFECTED:
+                # In the affected version range, but only on some platforms:
+                # without the host's platform that is not an answer.
+                status, reason = Status.COULDNT_CHECK, PLATFORM_UNKNOWN
+                evidence += (
+                    f"; the write-up covers {'/'.join(p.platforms)} only and this "
+                    "host's platform could not be determined"
+                )
         out.append(
             Row(
                 subject,
@@ -1042,6 +1050,24 @@ def research_rows(
                 )
             continue
         vendor_service = p.status == "fixed-server-side"
+        if found and not p.fixed_in and not vendor_service and p.platforms:
+            outside = _platform_outside(p, (host_platform or detect_host_platform)())
+            if outside is not None:
+                for inst in found:
+                    rows.append(
+                        Row(
+                            f"{p.product} ({p.vendor}) {_install_label(inst)}",
+                            Status.NOT_AFFECTED,
+                            f"{p.product} {_install_label(inst)} ({inst.kind} "
+                            f"install, read from {inst.source}) {outside[0]}; per "
+                            f"the write-up: {state}",
+                            package=p.product,
+                            version=inst.version,
+                            version_source=inst.source,
+                            reason=outside[1],
+                        )
+                    )
+                continue
         if found and not p.fixed_in and not vendor_service:
             # An install was read, but with no fixed version there is nothing
             # to order it against, and the write-up gives no first affected

@@ -636,8 +636,16 @@ def discover_configs(
     if not skip_auto_discovery:
         # Check known client locations. User-global — info-shaped (TRUST-004)
         # if a symlink: this is exactly the path shape dotfile managers own.
+        opencode_seen: set[Path] = set()
         for spec in _get_client_specs():
             for config_path in spec.config_paths:
+                # ``$OPENCODE_CONFIG`` may name the global file itself: read
+                # each OpenCode file once (STORY-0142).
+                if spec.name == OPENCODE_CLIENT:
+                    key = _resolved_or_self(config_path)
+                    if key in opencode_seen:
+                        continue
+                    opencode_seen.add(key)
                 # An unreadable directory (PermissionError on ~/.codex) is
                 # "not there", never a crash of the whole scan (STORY-0110).
                 if _safe_is_symlink(config_path):
