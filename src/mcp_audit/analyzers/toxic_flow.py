@@ -33,6 +33,7 @@ Research basis:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -210,6 +211,36 @@ def _looks_like_path_or_uri(arg: str) -> bool:
         and value[1] == ":"
         and (value[2] in "\\/")
     )
+
+
+_CONTAINER_RUNNER_RE = re.compile(r"(?:^|[/\\])(?:docker|podman)(?:\.exe)?$", re.I)
+_CONTAINER_NETWORK_FLAGS = ("--network", "--net")
+
+
+def _drop_container_network_flags(command: str | None, args: list[str]) -> list[str]:
+    """Return *args* without a container runner's network flag (STORY-0139, #260).
+
+    ``docker``/``podman`` ``--network``/``--net`` (``=VALUE`` or ``VALUE`` as the
+    next argument) set the container's network mode. They say nothing about
+    what the server does, yet the bare ``network`` keyword read
+    ``--network=none`` as NETWORK_OUT. Host networking is reported by COMM-037;
+    the flag never adds or removes a capability. Other commands keep their
+    args unchanged.
+    """
+    if not command or not _CONTAINER_RUNNER_RE.search(command.strip()):
+        return list(args)
+    out: list[str] = []
+    skip_next = False
+    for arg in args:
+        if skip_next:
+            skip_next = False
+            continue
+        name = arg.split("=", 1)[0].lower()
+        if name in _CONTAINER_NETWORK_FLAGS:
+            skip_next = "=" not in arg
+            continue
+        out.append(arg)
+    return out
 
 
 KEYWORD_RULES: list[KeywordRule] = [
@@ -868,9 +899,11 @@ def tag_server(
             caps.update(KNOWN_SERVERS[token])
 
     # Layer 2 — keyword matching on the full token string.
+    keyword_args = _drop_container_network_flags(server.command, server.args)
+
     def _text(skip_paths: bool) -> str:
         args = [
-            a for a in server.args if not (skip_paths and _looks_like_path_or_uri(a))
+            a for a in keyword_args if not (skip_paths and _looks_like_path_or_uri(a))
         ]
         return (
             " "

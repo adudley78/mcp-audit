@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **REACH-001 now lists Codex CLI's login cache, `~/.codex/auth.json` (or `$CODEX_HOME/auth.json`).** OpenAI's authentication page says "Codex caches login details locally in a plaintext file at `~/.codex/auth.json` or in your OS-specific credential store", so a Claude Code session that can read your home directory without a prompt can read your Codex login unless a `Read` deny rule, `blockReadsOutsideWorkingDirectories` or a sandbox deny covers it. Stat only, never opened; a machine that keeps Codex credentials in the OS keyring has no such file and sees nothing. Thanks to Check Point Research, whose Aokigahara infostealer write-up lists `.codex\auth.json` as a stealer target.
 
+### Fixed
+
+- **A container's `--network` or `--net` flag no longer makes mcp-audit think the server can send data out.** The keyword `network` matched the flag itself, so `docker run --network=none ... ghcr.io/github/github-mcp-server` (a container cut off from the network) was reported as TOXIC-007, git access plus a way to exfiltrate. For `docker` and `podman` launches the flag and its value are now ignored when tagging capabilities: `none`, `bridge` and `host` alike. Host networking is still reported by COMM-037. Unknown packages and live tools that mention `network` are tagged as before. Reported by @rafayet-git while building COMM-036/037 ([#260](https://github.com/adudley78/mcp-audit/issues/260)).
+
 ---
 
 ## [0.26.0] - 2026-10-31
