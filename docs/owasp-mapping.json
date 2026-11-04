@@ -2355,6 +2355,63 @@
       "notes": "LOW: the managed allowedMcpServers list has serverName entries and no serverUrl (remote) and/or no serverCommand (stdio) entries, so that transport is admitted by a user-assigned label ('A serverName entry ... is not a security control'). CWE-284. Source: code.claude.com/docs/en/managed-mcp, managed-settings, settings-reference. Analyzer: managed_policy (STORY-0112)."
     },
     {
+      "finding_id": "MANAGED-006",
+      "finding_title": "Claude Code policy is set, not enforced",
+      "owasp_codes": [
+        "MCP09",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers",
+        "Insufficient Authentication and Authorization"
+      ],
+      "notes": "MEDIUM: the Claude Code policy in force is only in a place the user can change: the HKCU registry key with no admin document present (Anthropic: the HKCU registry is user-writable and isn't an admin source), or a managed settings file or directory the current non-root user can write or owns (POSIX; the file half is skipped on Windows and as root). The user can drop MCP restrictions (MCP09: unmanaged servers) because the policy is not backed by an authorization boundary (MCP07). Excluded from advisories. CWE-284 (HKCU) / CWE-732 (files). Source: code.claude.com/docs/en/managed-settings. Analyzer: managed_policy (STORY-0144)."
+    },
+    {
+      "finding_id": "MANAGED-007",
+      "finding_title": "Claude Code admin policy source is not a valid settings object",
+      "owasp_codes": [
+        "MCP09"
+      ],
+      "owasp_names": [
+        "Shadow MCP Servers"
+      ],
+      "notes": "INFO: a macOS managed-preferences plist or the HKLM Settings value is not a JSON object / valid plist; Claude Code refuses to start on an admin document it cannot parse, and mcp-audit builds no MCP verdict until it is fixed. Excluded from advisories. CWE-20. Source: code.claude.com/docs/en/managed-settings. Analyzer: managed_policy (STORY-0144)."
+    },
+    {
+      "finding_id": "EXTPOL-001",
+      "finding_title": "Editor extension allowlist inventory",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "INFO: inventory of an editor (VS Code, Cursor, Windsurf) AllowedExtensions allowlist that is enforced by policy (source named), with entry count and shape; emitted only when enforced, not scored. The allowlist is the control that limits which extensions (the editors' supply chain) can load, hence MCP04. Excluded from advisories. CWE-1188. Source: code.visualstudio.com/docs/enterprise/policies, docs.cursor.com/account/teams/enterprise-settings, docs.devin.ai/desktop/enterprise-policies. Analyzer: extension_policy (STORY-0144)."
+    },
+    {
+      "finding_id": "EXTPOL-002",
+      "finding_title": "Editor extension allowlist is set only in user settings",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "LOW: extensions.allowed is set in the user's settings.json and no documented AllowedExtensions policy source was found, so the user (or anything writing that file) can change the list; the policy overrides the setting at every level. Excluded from advisories. CWE-284. Source: see EXTPOL-001. Analyzer: extension_policy (STORY-0144)."
+    },
+    {
+      "finding_id": "EXTPOL-003",
+      "finding_title": "Editor extension allowlist policy allows everything",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "LOW: an enforced AllowedExtensions policy contains \"*\": true, so it allows every extension and restricts nothing. Excluded from advisories. CWE-284. Source: see EXTPOL-001. Analyzer: extension_policy (STORY-0144)."
+    },
+    {
       "finding_id": "REACH-001",
       "finding_title": "Credential files a Claude Code session can read without asking",
       "owasp_codes": [

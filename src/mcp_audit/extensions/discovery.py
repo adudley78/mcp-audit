@@ -49,8 +49,17 @@ EXTENSION_PATHS: dict[str, list[str]] = {
 }
 
 
-def _get_windows_paths() -> dict[str, list[str]]:
+def _get_windows_paths(
+    *,
+    platform: str | None = None,
+    appdata: str | None = None,
+    userprofile: str | None = None,
+) -> dict[str, list[str]]:
     """Return Windows extension paths resolved from environment variables.
+
+    The keyword arguments let ``extensions/policy.py`` (STORY-0144) resolve the
+    same paths for an injected platform and environment; omitted, they come
+    from ``sys.platform`` and ``os.environ``.
 
     Called at runtime inside :func:`discover_extensions` so that
     monkeypatching ``sys.platform`` and ``os.environ`` in tests takes effect
@@ -65,12 +74,14 @@ def _get_windows_paths() -> dict[str, list[str]]:
     - ``cursor``: ``%USERPROFILE%\\.cursor\\extensions``
     - ``windsurf``: ``%USERPROFILE%\\.windsurf\\extensions``
     """
-    if sys.platform != "win32":
+    if (platform if platform is not None else sys.platform) != "win32":
         return {}
 
     result: dict[str, list[str]] = {}
-    appdata = os.environ.get("APPDATA")
-    userprofile = os.environ.get("USERPROFILE")
+    appdata = appdata if appdata is not None else os.environ.get("APPDATA")
+    userprofile = (
+        userprofile if userprofile is not None else os.environ.get("USERPROFILE")
+    )
 
     if appdata:
         result["vscode"] = [

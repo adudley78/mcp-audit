@@ -1,0 +1,730 @@
+{
+ "allowlist_locked_denylist": {
+  "errors": [],
+  "findings": [
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code's managed files in <TMP>/managed set this MCP policy: allowedMcpServers has 1 entry (serverUrl), locked by allowManagedMcpServersOnly; deniedMcpServers has 2 entries. mcp-audit reads only the managed files in the system directory. An MDM profile, an HKLM registry policy or server-managed settings from the claude.ai console rank above these files and are not visible to it; under Claude Code's default first-wins rule a higher source that delivers any policy key replaces the files' allowlist (deniedMcpServers and allowManagedMcpServersOnly are still read from every admin source, Claude Code 2.1.273 or later; managed-mcp.json always applies).",
+    "evidence": "files: <TMP>/managed/managed-settings.json",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-001",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Confirm the policy is the one your organization intends. Run `/status` in Claude Code to see which managed source is in force, and `claude mcp list` to see what actually loads. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "INFO",
+    "title": "Managed MCP policy on this machine",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'evil' in .claude.json does not load under this machine's managed MCP policy: it matches the managed denylist entry serverName evil in managed-settings.json. A server that matches any denylist entry is blocked; nothing overrides a denylist match (Claude Code reads deniedMcpServers from every admin source, 2.1.273 or later). A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: evil (claude-code) | command evil-mcp | reason: denied | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "evil",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'corp' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a remote server must match a serverUrl entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: corp (claude-code) | url https://corp.example/mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "corp",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'other' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a remote server must match a serverUrl entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: other (claude-code) | url https://extra.example/mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "other",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'local' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a stdio server must match a serverCommand entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: local (claude-code) | command npx -y local-mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "local",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'a' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a stdio server must match a serverCommand entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: a (claude-code) | command a-mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "a",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   }
+  ]
+ },
+ "allowlist_unlocked": {
+  "errors": [],
+  "findings": [
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code's managed files in <TMP>/managed set this MCP policy: allowedMcpServers has 3 entries (serverCommand, serverName, serverUrl), not locked (other settings files can add to it). mcp-audit reads only the managed files in the system directory. An MDM profile, an HKLM registry policy or server-managed settings from the claude.ai console rank above these files and are not visible to it; under Claude Code's default first-wins rule a higher source that delivers any policy key replaces the files' allowlist (deniedMcpServers and allowManagedMcpServersOnly are still read from every admin source, Claude Code 2.1.273 or later; managed-mcp.json always applies).",
+    "evidence": "files: <TMP>/managed/managed-settings.json",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-001",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Confirm the policy is the one your organization intends. Run `/status` in Claude Code to see which managed source is in force, and `claude mcp list` to see what actually loads. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "INFO",
+    "title": "Managed MCP policy on this machine",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-284",
+    "description": "A repository's shared .claude/settings.json adds 1 entry to allowedMcpServers that the managed allowlist doesn't have. The managed settings set allowedMcpServers without allowManagedMcpServersOnly, and Anthropic documents that then 'allowlists from every settings scope merge, including a user's own ~/.claude/settings.json, so a user can broaden what your allowlist permits'. allowedMcpServers can be set in any settings file, so a repository's committed settings broaden it for everyone who opens the repository. mcp-audit reads only the managed files: Claude Code turns the lock on from a true in any admin source (2.1.273 or later), so an MDM profile or server-managed settings it can't read may already lock the list.",
+    "evidence": "file: <TMP>/repo/.claude/settings.json | added: serverUrl https://extra.example/*",
+    "exploit": {},
+    "finding_path": "<TMP>/repo/.claude/settings.json",
+    "id": "MANAGED-004",
+    "owasp_mcp_top_10": [
+     "MCP02",
+     "MCP09"
+    ],
+    "remediation": "Administrators: set allowManagedMcpServersOnly to true next to allowedMcpServers in managed settings. Repository owners: remove allowedMcpServers from committed settings. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "MEDIUM",
+    "title": "Settings file adds servers to an unlocked managed MCP allowlist",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'evil' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a stdio server must match a serverCommand entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). The allowlist isn't locked (allowManagedMcpServersOnly), so another project's settings file could still add this server; none mcp-audit read does. This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: evil (claude-code) | command evil-mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "evil",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'corp' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a remote server must match a serverUrl entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). The allowlist isn't locked (allowManagedMcpServersOnly), so another project's settings file could still add this server; none mcp-audit read does. This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: corp (claude-code) | url https://corp.example/mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "corp",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'local' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a stdio server must match a serverCommand entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). The allowlist isn't locked (allowManagedMcpServersOnly), so another project's settings file could still add this server; none mcp-audit read does. This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: local (claude-code) | command npx -y local-mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "local",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'a' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a stdio server must match a serverCommand entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). The allowlist isn't locked (allowManagedMcpServersOnly), so another project's settings file could still add this server; none mcp-audit read does. This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: a (claude-code) | command a-mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "a",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   }
+  ]
+ },
+ "dropins": {
+  "errors": [],
+  "findings": [
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code's managed files in <TMP>/managed set this MCP policy: deniedMcpServers has 2 entries. mcp-audit reads only the managed files in the system directory. An MDM profile, an HKLM registry policy or server-managed settings from the claude.ai console rank above these files and are not visible to it; under Claude Code's default first-wins rule a higher source that delivers any policy key replaces the files' allowlist (deniedMcpServers and allowManagedMcpServersOnly are still read from every admin source, Claude Code 2.1.273 or later; managed-mcp.json always applies).",
+    "evidence": "files: <TMP>/managed/managed-settings.json, <TMP>/managed/managed-settings.d/10-x.json",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-001",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Confirm the policy is the one your organization intends. Run `/status` in Claude Code to see which managed source is in force, and `claude mcp list` to see what actually loads. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "INFO",
+    "title": "Managed MCP policy on this machine",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'a' in .claude.json does not load under this machine's managed MCP policy: it matches the managed denylist entry serverName a in managed-settings.json. A server that matches any denylist entry is blocked; nothing overrides a denylist match (Claude Code reads deniedMcpServers from every admin source, 2.1.273 or later). A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: a (claude-code) | command a-mcp | reason: denied | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "a",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   }
+  ]
+ },
+ "exclusive": {
+  "errors": [],
+  "findings": [
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code's managed files in <TMP>/managed set this MCP policy: managed-mcp.json takes exclusive control with 1 server(s) (corp); no user, project or plugin server loads; deniedMcpServers has 1 entries. mcp-audit reads only the managed files in the system directory. An MDM profile, an HKLM registry policy or server-managed settings from the claude.ai console rank above these files and are not visible to it; under Claude Code's default first-wins rule a higher source that delivers any policy key replaces the files' allowlist (deniedMcpServers and allowManagedMcpServersOnly are still read from every admin source, Claude Code 2.1.273 or later; managed-mcp.json always applies).",
+    "evidence": "files: <TMP>/managed/managed-settings.json, <TMP>/managed/managed-mcp.json",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-001",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Confirm the policy is the one your organization intends. Run `/status` in Claude Code to see which managed source is in force, and `claude mcp list` to see what actually loads. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "INFO",
+    "title": "Managed MCP policy on this machine",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'evil' in .claude.json does not load under this machine's managed MCP policy: managed-mcp.json is deployed, and with it Claude Code loads only the servers that file defines, servers provided through managedMcpServers, and a few built-in ones. Users can't add, modify, or use any other MCP servers, including plugin-provided servers (Anthropic, managed-mcp: Exclusive control). A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: evil (claude-code) | command evil-mcp | reason: exclusive | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "evil",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'corp' in .claude.json does not load under this machine's managed MCP policy: managed-mcp.json is deployed, and with it Claude Code loads only the servers that file defines, servers provided through managedMcpServers, and a few built-in ones. Users can't add, modify, or use any other MCP servers, including plugin-provided servers (Anthropic, managed-mcp: Exclusive control). A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: corp (claude-code) | url https://corp.example/mcp | reason: exclusive | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "corp",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'other' in .claude.json does not load under this machine's managed MCP policy: managed-mcp.json is deployed, and with it Claude Code loads only the servers that file defines, servers provided through managedMcpServers, and a few built-in ones. Users can't add, modify, or use any other MCP servers, including plugin-provided servers (Anthropic, managed-mcp: Exclusive control). A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: other (claude-code) | url https://extra.example/mcp | reason: exclusive | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "other",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'local' in .claude.json does not load under this machine's managed MCP policy: managed-mcp.json is deployed, and with it Claude Code loads only the servers that file defines, servers provided through managedMcpServers, and a few built-in ones. Users can't add, modify, or use any other MCP servers, including plugin-provided servers (Anthropic, managed-mcp: Exclusive control). A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: local (claude-code) | command npx -y local-mcp | reason: exclusive | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "local",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'a' in .claude.json does not load under this machine's managed MCP policy: managed-mcp.json is deployed, and with it Claude Code loads only the servers that file defines, servers provided through managedMcpServers, and a few built-in ones. Users can't add, modify, or use any other MCP servers, including plugin-provided servers (Anthropic, managed-mcp: Exclusive control). A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: a (claude-code) | command a-mcp | reason: exclusive | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "a",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   }
+  ]
+ },
+ "name_only": {
+  "errors": [],
+  "findings": [
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code's managed files in <TMP>/managed set this MCP policy: allowedMcpServers has 1 entry (serverName), not locked (other settings files can add to it). mcp-audit reads only the managed files in the system directory. An MDM profile, an HKLM registry policy or server-managed settings from the claude.ai console rank above these files and are not visible to it; under Claude Code's default first-wins rule a higher source that delivers any policy key replaces the files' allowlist (deniedMcpServers and allowManagedMcpServersOnly are still read from every admin source, Claude Code 2.1.273 or later; managed-mcp.json always applies).",
+    "evidence": "files: <TMP>/managed/managed-settings.json",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-001",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Confirm the policy is the one your organization intends. Run `/status` in Claude Code to see which managed source is in force, and `claude mcp list` to see what actually loads. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "INFO",
+    "title": "Managed MCP policy on this machine",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-284",
+    "description": "The managed allowedMcpServers list admits remote (HTTP/SSE) servers and stdio servers by serverName, because it has no serverUrl or serverCommand entries. Anthropic: 'A serverName entry, in either list, is not a security control. The name is the label a user assigns when running claude mcp add or editing a config file, not the underlying server, so a user can call any server github.'",
+    "evidence": "serverName entries: github",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-005",
+    "owasp_mcp_top_10": [
+     "MCP09",
+     "MCP07"
+    ],
+    "remediation": "Add serverUrl entries for remote servers and serverCommand entries for stdio servers; once one exists, a name match no longer admits that transport. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "LOW",
+    "title": "Managed MCP allowlist admits servers by name only",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'evil' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a stdio server must match a serverCommand entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). The allowlist isn't locked (allowManagedMcpServersOnly), so another project's settings file could still add this server; none mcp-audit read does. This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: evil (claude-code) | command evil-mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "evil",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'corp' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a remote server must match a serverUrl entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). The allowlist isn't locked (allowManagedMcpServersOnly), so another project's settings file could still add this server; none mcp-audit read does. This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: corp (claude-code) | url https://corp.example/mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "corp",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'other' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a remote server must match a serverUrl entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). The allowlist isn't locked (allowManagedMcpServersOnly), so another project's settings file could still add this server; none mcp-audit read does. This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: other (claude-code) | url https://extra.example/mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "other",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'local' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a stdio server must match a serverCommand entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). The allowlist isn't locked (allowManagedMcpServersOnly), so another project's settings file could still add this server; none mcp-audit read does. This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: local (claude-code) | command npx -y local-mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "local",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'a' in .claude.json does not load under this machine's managed MCP policy: no managed allowlist entry matches it (a stdio server must match a serverCommand entry once the list has one); commands must match exactly, every argument in order, and URLs by pattern and port (Anthropic, managed-mcp: How a server is evaluated). The allowlist isn't locked (allowManagedMcpServersOnly), so another project's settings file could still add this server; none mcp-audit read does. This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: a (claude-code) | command a-mcp | reason: not-allowed | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "a",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   }
+  ]
+ },
+ "no_mcp_policy": {
+  "errors": [],
+  "findings": [
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code's managed files in <TMP>/managed set this MCP policy: no MCP policy keys. mcp-audit reads only the managed files in the system directory. An MDM profile, an HKLM registry policy or server-managed settings from the claude.ai console rank above these files and are not visible to it; under Claude Code's default first-wins rule a higher source that delivers any policy key replaces the files' allowlist (deniedMcpServers and allowManagedMcpServersOnly are still read from every admin source, Claude Code 2.1.273 or later; managed-mcp.json always applies).",
+    "evidence": "files: <TMP>/managed/managed-settings.json",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-001",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Confirm the policy is the one your organization intends. Run `/status` in Claude Code to see which managed source is in force, and `claude mcp list` to see what actually loads. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "INFO",
+    "title": "Managed MCP policy on this machine",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "This machine has Claude Code managed settings (managed-settings.json in <TMP>/managed) but they set none of allowedMcpServers, deniedMcpServers, allowManagedMcpServersOnly, managedMcpServers or strictPluginOnlyCustomization for MCP, and there is no managed-mcp.json. Anthropic: 'By default, anyone running Claude Code can connect any MCP server they choose', so the organization governs other settings here but not which MCP servers run. mcp-audit reads only the managed files in the system directory. An MDM profile, an HKLM registry policy or server-managed settings from the claude.ai console rank above these files and are not visible to it; under Claude Code's default first-wins rule a higher source that delivers any policy key replaces the files' allowlist (deniedMcpServers and allowManagedMcpServersOnly are still read from every admin source, Claude Code 2.1.273 or later; managed-mcp.json always applies).",
+    "evidence": "files: <TMP>/managed/managed-settings.json",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-003",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "If MCP servers should be governed, add deniedMcpServers, or allowedMcpServers with allowManagedMcpServersOnly, to managed settings, or deploy managed-mcp.json. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "LOW",
+    "title": "Managed settings are deployed but set no MCP policy",
+    "tool": null
+   }
+  ]
+ },
+ "plugin_only_provided": {
+  "errors": [],
+  "findings": [
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code's managed files in <TMP>/managed set this MCP policy: managedMcpServers provides corp; managedMcpServers entries Claude Code drops: bad name (name has characters other than letters, numbers, - and _); strictPluginOnlyCustomization locks MCP to plugin and managed sources. mcp-audit reads only the managed files in the system directory. An MDM profile, an HKLM registry policy or server-managed settings from the claude.ai console rank above these files and are not visible to it; under Claude Code's default first-wins rule a higher source that delivers any policy key replaces the files' allowlist (deniedMcpServers and allowManagedMcpServersOnly are still read from every admin source, Claude Code 2.1.273 or later; managed-mcp.json always applies).",
+    "evidence": "files: <TMP>/managed/managed-settings.json",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-001",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Confirm the policy is the one your organization intends. Run `/status` in Claude Code to see which managed source is in force, and `claude mcp list` to see what actually loads. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "INFO",
+    "title": "Managed MCP policy on this machine",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'evil' in .claude.json does not load under this machine's managed MCP policy: managed settings set strictPluginOnlyCustomization for MCP, so 'Users can't add servers through ~/.claude.json or .mcp.json; plugin servers still load' (Anthropic, managed-mcp: Choose a pattern; a value that is neither a boolean nor an array is treated as true, Claude Code 2.1.282 or later). This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: evil (claude-code) | command evil-mcp | reason: plugin-only | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "evil",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'corp' in .claude.json does not load under this machine's managed MCP policy: managed settings set strictPluginOnlyCustomization for MCP, so 'Users can't add servers through ~/.claude.json or .mcp.json; plugin servers still load' (Anthropic, managed-mcp: Choose a pattern; a value that is neither a boolean nor an array is treated as true, Claude Code 2.1.282 or later). This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: corp (claude-code) | url https://corp.example/mcp | reason: plugin-only | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "corp",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'other' in .claude.json does not load under this machine's managed MCP policy: managed settings set strictPluginOnlyCustomization for MCP, so 'Users can't add servers through ~/.claude.json or .mcp.json; plugin servers still load' (Anthropic, managed-mcp: Choose a pattern; a value that is neither a boolean nor an array is treated as true, Claude Code 2.1.282 or later). This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: other (claude-code) | url https://extra.example/mcp | reason: plugin-only | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "other",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'local' in .claude.json does not load under this machine's managed MCP policy: managed settings set strictPluginOnlyCustomization for MCP, so 'Users can't add servers through ~/.claude.json or .mcp.json; plugin servers still load' (Anthropic, managed-mcp: Choose a pattern; a value that is neither a boolean nor an array is treated as true, Claude Code 2.1.282 or later). This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: local (claude-code) | command npx -y local-mcp | reason: plugin-only | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "local",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   },
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code server 'a' in .claude.json does not load under this machine's managed MCP policy: managed settings set strictPluginOnlyCustomization for MCP, so 'Users can't add servers through ~/.claude.json or .mcp.json; plugin servers still load' (Anthropic, managed-mcp: Choose a pattern; a value that is neither a boolean nor an array is treated as true, Claude Code 2.1.282 or later). This holds when the managed settings files are the source Claude Code applies: an MDM profile or server-managed settings that deliver any policy key replace them, and mcp-audit can't read those. A server blocked this way disappears from /mcp and claude mcp list with no message saying policy is the reason.",
+    "evidence": "server: a (claude-code) | command a-mcp | reason: plugin-only | file: /h/.claude.json",
+    "exploit": {},
+    "finding_path": "/h/.claude.json",
+    "id": "MANAGED-002",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Remove the entry, or ask the policy owner to approve the server (add a serverUrl or serverCommand allowlist entry). Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "a",
+    "severity": "INFO",
+    "title": "Configured MCP server that the managed policy keeps from loading",
+    "tool": null
+   }
+  ]
+ },
+ "unparsable": {
+  "errors": [
+   "managed policy: <TMP>/managed/managed-settings.json is not valid JSON: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+  ],
+  "findings": [
+   {
+    "analyzer": "managed_policy",
+    "client": "claude-code-managed",
+    "cve": [],
+    "cwe": "CWE-1188",
+    "description": "Claude Code's managed files in <TMP>/managed set this MCP policy: verdicts withheld (no MANAGED-002/003/004/005): a managed settings file or the managed-settings.d directory could not be read or parsed, so mcp-audit can't tell what Claude Code enforces (it drops a source it can't read and refuses to start on a document it can't parse); unreadable or invalid managed settings file(s) (Claude Code refuses to start on a managed document it can't parse): managed-settings.json. mcp-audit reads only the managed files in the system directory. An MDM profile, an HKLM registry policy or server-managed settings from the claude.ai console rank above these files and are not visible to it; under Claude Code's default first-wins rule a higher source that delivers any policy key replaces the files' allowlist (deniedMcpServers and allowManagedMcpServersOnly are still read from every admin source, Claude Code 2.1.273 or later; managed-mcp.json always applies).",
+    "evidence": "files: <TMP>/managed/managed-settings.json",
+    "exploit": {},
+    "finding_path": "<TMP>/managed",
+    "id": "MANAGED-001",
+    "owasp_mcp_top_10": [
+     "MCP09"
+    ],
+    "remediation": "Confirm the policy is the one your organization intends. Run `/status` in Claude Code to see which managed source is in force, and `claude mcp list` to see what actually loads. Reference: https://code.claude.com/docs/en/managed-mcp",
+    "server": "managed-policy",
+    "severity": "INFO",
+    "title": "Managed MCP policy on this machine",
+    "tool": null
+   }
+  ]
+ }
+}

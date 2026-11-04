@@ -17,7 +17,7 @@ from mcp_audit.output.terminal import print_results
 from mcp_audit.registration import client as _reg_client
 from mcp_audit.registration import manager as _reg_manager
 from mcp_audit.scanner import apply_exploit_signals
-from mcp_audit.scoring import calculate_score
+from mcp_audit.scoring import INVENTORY_ONLY_IDS, calculate_score
 
 # Severity order for exit-code threshold check (descending priority).
 _SEVERITY_ORDER: list[Severity] = [
@@ -221,7 +221,7 @@ def check(
         result.clients_scanned == 0
         and result.servers_found == 0
         and not extra_paths
-        and not result.findings
+        and not [f for f in result.findings if f.id not in INVENTORY_ONLY_IDS]
     ):
         if json_flag:
             # Still one JSON document on stdout (zero servers), as scan does.

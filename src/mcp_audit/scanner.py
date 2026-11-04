@@ -755,6 +755,12 @@ def _discover_and_parse(
         from mcp_audit.analyzers import secret_reach as _secret_reach  # noqa: PLC0415
 
         result.findings.extend(_secret_reach.secret_reach_findings(result.errors))
+        # Editor extension allowlists (STORY-0144, EXTPOL-001..003): is the
+        # AllowedExtensions policy enforced, or only a user setting?  Reads the
+        # vendors' documented policy locations; read-only, never raises.
+        from mcp_audit.extensions import policy as _ext_policy  # noqa: PLC0415
+
+        result.findings.extend(_ext_policy.extension_policy_findings(result.errors))
 
     result.servers_found = len(all_servers)
     result.servers = all_servers

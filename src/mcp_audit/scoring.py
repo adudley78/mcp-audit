@@ -50,6 +50,13 @@ def _grade_for(score: int) -> str:
     return "F"
 
 
+#: Finding IDs that describe a state and are not a problem to fix: they do not
+#: lower the score and ``check`` leaves them out of its verdict, top findings and
+#: "no issues" decision (they still appear in ``scan``).  EXTPOL-001 (STORY-0144)
+#: is the inventory of an editor extension allowlist that is correctly enforced.
+INVENTORY_ONLY_IDS: frozenset[str] = frozenset({"EXTPOL-001"})
+
+
 def calculate_score(
     findings: list[Finding],
     weights: ScoringWeights | None = None,
@@ -102,6 +109,8 @@ def calculate_score(
     # ── Count by severity ─────────────────────────────────────────────────────
     counts: dict[Severity, int] = dict.fromkeys(effective_deductions, 0)
     for finding in findings:
+        if finding.id in INVENTORY_ONLY_IDS:
+            continue
         if finding.severity in counts:
             counts[finding.severity] += 1
 

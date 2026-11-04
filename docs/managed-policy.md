@@ -1,4 +1,4 @@
-# Managed MCP policy report (MANAGED-001..005)
+# Managed MCP policy report (MANAGED-001..007)
 
 An organization can decide which MCP servers Claude Code loads on its developers'
 machines. It deploys files to a system directory, and Claude Code reads them above
@@ -12,8 +12,8 @@ the servers it found, so you can see three things a developer normally can't:
   repository can widen, or an allowlist that trusts server names.
 
 The check runs in every default `scan` and `check`, and in `scan --project` for the
-repository's servers and settings files. It reads files only, makes no network call,
-and is skipped when you pass an explicit config path.
+repository's servers and settings files. It reads files, macOS managed preferences and the Windows registry (read-only), makes
+no network call, and is skipped when you pass an explicit config path.
 
 ## What is read
 
@@ -30,13 +30,59 @@ removed (including `strictPluginOnlyCustomization` arrays), a single value is re
 entry with the same name replaces the earlier one. Each file is capped at 1 MiB, the
 directory at 256 drop-ins and 8 MiB; anything skipped is listed in the scan's errors.
 
-**Not read:** an MDM configuration profile, the Windows HKLM/HKCU registry, and
-server-managed settings from the claude.ai console. Claude Code ranks those above the
-files, and under its default "first-wins" rule a higher source that delivers any
-policy key replaces the files' allowlist. `deniedMcpServers` and
-`allowManagedMcpServersOnly` are still read from every admin source (Claude Code
-2.1.273 or later), and `managed-mcp.json` always applies. Run `/status` in Claude Code
-to see which source is in force.
+## Which source is in force
+
+Claude Code takes admin policy from several places and ranks them (Anthropic,
+[Deploy managed settings](https://code.claude.com/docs/en/managed-settings)). mcp-audit
+reads every one it can and evaluates MANAGED-001..005 against the one Claude Code uses:
+
+| Rank | Source | Read how |
+|---|---|---|
+| 1 | Server-managed settings (claude.ai console) | **Not read**: there is no local copy. Run `/status` in Claude Code to see whether one is in force. |
+| 2 | **macOS** configuration profile, domain `com.anthropic.claudecode` | `/Library/Managed Preferences/com.anthropic.claudecode.plist` (device), then `/Library/Managed Preferences/<user>/com.anthropic.claudecode.plist` (the current user's profile), parsed with `plistlib`, files only. A symlink that leaves `/Library/Managed Preferences` is not followed. |
+| 2 | **Windows** `HKLM\SOFTWARE\Policies\ClaudeCode`, value `Settings` | `REG_SZ` / `REG_EXPAND_SZ` holding the same JSON as `managed-settings.json`, read with `winreg` (`KEY_READ` only; the value is not environment-expanded). |
+| 3 | Managed settings files | As in "What is read" above. |
+| 4 | **Windows** `HKCU\SOFTWARE\Policies\ClaudeCode`, value `Settings` | Used only when no admin document (rank 2 or 3) is present. |
+
+Plist and registry reads are capped at 1 MiB, never write, and never import `winreg`
+off Windows. A plist that expands to more than 100,000 nodes (a shared-reference binary
+plist can be a few hundred bytes) is reported as "plist too complex" and not read.
+
+**What counts as a source.** A *policy key* is any settings key other than the two
+control keys `wslInheritsWindowsSettings` and `managedSourcesBehavior`, with a value
+other than `null`. A plist, `HKLM` value or file that has none (`{}`, only control
+keys, only `null` values, an empty `managed-settings.json`) "doesn't count": it is not
+a source and not "present". A document is present when it sets a policy key or exists
+but can't be read. `HKCU` is used only when no admin document is present, and only if
+it has at least one policy key.
+
+**First-wins (the default `managedSourcesBehavior`).** The highest-ranked admin source
+that delivers a policy key is the one evaluated, and the other sources' values are
+ignored, except the keys Claude Code reads from every admin source (2.1.273 or later):
+`deniedMcpServers` (an entry in any admin source applies), `allowManagedMcpServersOnly`
+(a `true` in any admin source turns the lock on) and, "while the lock is on, the managed
+`allowedMcpServers` list comes from the highest-ranked admin source that sets one", so
+a lock in `HKLM` with the allowlist in the files evaluates the files' list.
+
+**Merge.** `managedSourcesBehavior: "merge"` is read from the highest-ranked source that
+carries the key or a policy key (a lower source can't opt itself in; an `HKLM` value
+holding only `"merge"` does merge). Then, per Anthropic's table: `deniedMcpServers`
+entries union; `allowedMcpServers`, a restriction allowlist, is taken whole from the
+highest-ranked source that sets it, with no entries added from lower sources; locks
+(`allowManagedMcpServersOnly`, `strictPluginOnlyCustomization`) take the strictest
+value; a `managedMcpServers` entry of the same name from a higher source wins. `HKCU`
+never merges. Evidence on every finding names the source
+(`source: HKLM registry`, `source: macOS configuration profile (device)`,
+`source: HKCU registry (user-writable)`, `source: merged admin sources (...)`); with only
+the managed files present the output is exactly what earlier versions printed, on every
+platform.
+
+The device plist is ranked before the current user's profile plist. Anthropic's page
+does not rank those two against each other; mcp-audit treats them as two admin documents
+of the same tier, device first.
+
+Not read: server-managed settings (above), and MDM profiles for any user other than the
+current one.
 
 ## How a server is evaluated
 
@@ -101,6 +147,9 @@ say it does.
 | MANAGED-004 | MEDIUM / LOW | The managed allowlist is not locked and a settings file adds entries it doesn't have. MEDIUM for a repository's shared `.claude/settings.json` (it widens the list for everyone who opens the repository), LOW for `.claude/settings.local.json` and `~/.claude/settings.json`. A file reached through a symlinked `.claude` directory is not attributed to the repository. |
 | MANAGED-005 | LOW | The managed allowlist has `serverName` entries and no `serverUrl` entries (remote servers) and/or no `serverCommand` entries (stdio servers): "A `serverName` entry, in either list, is not a security control." |
 
+| MANAGED-006 | MEDIUM | Policy exists only where the user can change it: **HKCU** with no admin document present (and at least one policy key), or managed policy files in a place the current non-root user can write. Probed: the managed directory, `managed-settings.d` (even empty: a user can add a drop-in), each settings file with policy keys and `managed-mcp.json`; a path counts when the current user owns it or `access(W_OK)` is true (the evidence says "owned" or "writable through group or other permission bits or an ACL"). Under WSL Anthropic notes "/etc/claude-code is user-writable as well", so policy files there count. Title "Claude Code policy is set, not enforced"; evidence names the source and the policy key names (each capped at 64 characters). Windows reports the HKCU half only, and a scan run as root skips the file half. Not an advisory. |
+| MANAGED-007 | INFO | An admin source Claude Code can't parse: a plist that is not a plist or whose top level is not a dictionary, or an `HKLM` value that is not a string, is empty, is not JSON or not an object. Claude Code "refuses to start" on it, even when another source delivers a valid policy, and MANAGED-002..005 are withheld. A source the operating system denied reading ("every session starts without that source's policies") or that failed for another reason (or hit mcp-audit's 1 MiB / complexity limit) is not reported as 007: MANAGED-001 says what happened. A malformed `HKCU` value never blocks launch and is ignored. Not an advisory. |
+
 Commands and URLs in finding text have secrets removed: the values of secret-named
 flags (`--api-key VALUE`, `--token=VALUE`) and assignments (`-e GITHUB_TOKEN=…`,
 `--env=API_KEY=…`), whatever follows `Authorization:`, `Bearer ` or `Basic `, URL
@@ -118,7 +167,7 @@ document it can't parse, so a verdict built from the remaining files would be a 
 
 - A `${VAR}` in a policy entry or a server's command or URL is not expanded; such a
   pair is never reported as blocked.
-- Whether an MDM profile or server-managed settings replace the files (see above).
+- Whether server-managed settings from the claude.ai console replace the source mcp-audit evaluated (see above).
 - Cursor and VS Code organization MCP controls are not checked. VS Code documents
   `ChatAllowedMcpServers`, `ChatDeniedMcpServers` and `ChatAllowManagedMcpServersOnly`
   policies but not, on the pages read for this story, the shape of their entries.
