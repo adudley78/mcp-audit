@@ -61,7 +61,7 @@ def _write_pdf(report, output_file: Path | None, org: str | None) -> Path:  # no
     target = target.resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     pdf = ReachPdfFormatter(report, org_name=_resolve_org_name(org)).generate()
-    fd = os.open(str(target), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+    fd = os.open(str(target), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
         os.write(fd, pdf)
     finally:

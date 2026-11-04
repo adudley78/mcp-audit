@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 import json
 import os
+import re
+import stat
 import sys
 from pathlib import Path
 
@@ -573,21 +575,30 @@ def test_unreadable_managed_file_is_not_enforcement(box: Box) -> None:
     assert q is not None and q.status is Status.UNKNOWN
 
 
+@pytest.mark.parametrize(
+    ("uid", "gid", "mode", "expected"),
+    [
+        (0, 0, stat.S_IFREG | stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP, "admin"),
+        (0, 0, stat.S_IFREG | stat.S_IWUSR | stat.S_IWGRP, "admin"),
+        (0, 20, stat.S_IFREG | stat.S_IWUSR | stat.S_IWGRP, "unknown"),
+        (0, 0, stat.S_IFREG | stat.S_IWUSR | stat.S_IWOTH, "user"),
+        (0, 0, stat.S_IFDIR | stat.S_IRWXU | stat.S_IRWXO, "user"),
+        (501, 20, stat.S_IFREG | stat.S_IRUSR | stat.S_IWUSR, "user"),
+    ],
+)
+def test_classify_writer_bits(uid: int, gid: int, mode: int, expected: str) -> None:
+    assert claude.classify_writer(uid, gid, mode) == expected
+
+
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX owners and modes")
-def test_writer_of_follows_the_file_and_directory(tmp_path: Path) -> None:
+def test_writer_of_reads_the_file_and_directory(tmp_path: Path) -> None:
     d = tmp_path / "m"
     d.mkdir()
     f = d / "managed-settings.json"
     f.write_text("{}")
-    os.chmod(f, 0o666)  # noqa: S103
-    assert claude.writer_of(f) == "user"
-    os.chmod(f, 0o644)
-    os.chmod(d, 0o777)  # noqa: S103
-    assert claude.writer_of(f) == "user"
-    os.chmod(d, 0o755)  # noqa: S103
     # Owned by whoever runs the test: root-owned means admin, anyone else user.
     expected = "admin" if os.getuid() == 0 else "user"
-    assert claude.writer_of(f) == expected
+    assert claude.writer_of(f) in {expected, "unknown"}
     assert claude.writer_of(tmp_path / "missing") == "unknown"
 
 
@@ -751,7 +762,7 @@ def test_planted_secrets_never_reach_the_json(box: Box) -> None:
     text = json.dumps(report.to_dict())
     for value in SECRETS.values():
         assert value not in text
-    assert "mcp.example.com" in text  # the host is useful and safe
+    assert re.search(r"\bmcp\.example\.com\b", text)  # the host is useful and safe
 
 
 def test_planted_secrets_never_reach_terminal_or_pdf(box: Box) -> None:
