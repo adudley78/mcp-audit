@@ -25,6 +25,11 @@ import bench_competitors as bc  # noqa: E402
 SENTINEL = "ZXQ-SENTINEL-NOT-MCPTOX-7731"
 
 
+_POSIX_ONLY = pytest.mark.skipif(
+    sys.platform.startswith("win"), reason="stand-in scanners are shebang scripts"
+)
+
+
 def _mcptox_fixture() -> dict[str, bytes]:
     """A tiny, invented MCPTox-shaped dataset (two poisoned cases, two clean tools)."""
     clean_prompt = (
@@ -345,6 +350,7 @@ def _run_cli(
 # ── running an external tool (a stand-in script, not a real scanner) ─────────
 
 
+@_POSIX_ONLY
 def test_run_competitor_with_a_stand_in_scanner(tmp_path: Path) -> None:
     fake = tmp_path / "fake-scan"
     fake.write_text(
@@ -379,6 +385,7 @@ def test_run_competitor_with_a_stand_in_scanner(tmp_path: Path) -> None:
     assert cells["benign_checklists"]["flagged"] == 0
 
 
+@_POSIX_ONLY
 def test_unparseable_output_is_an_error_not_clean(tmp_path: Path) -> None:
     fake = tmp_path / "broken"
     fake.write_text(f"#!{sys.executable}\nprint('garbage')\n", encoding="utf-8")
