@@ -4,6 +4,11 @@ Governance policies let organisations enforce security requirements across all
 MCP client configurations — Claude Desktop, Cursor, VS Code, Windsurf, Claude
 Code, Copilot CLI, and Augment — from a single YAML file.
 
+> Governance decides what a configuration may contain. To see what the agents
+> on a machine can actually touch (sandbox, credentials, network, managed
+> policy, logging) and whether the machine meets the sanctioned path, run
+> [`mcp-audit reach`](reach.md).
+
 ## Governance vs the Rule Engine
 
 | | Rule Engine | Governance |

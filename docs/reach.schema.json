@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adudley78/mcp-audit/blob/main/docs/reach.schema.json",
+  "title": "mcp-audit reach report",
+  "description": "Output of `mcp-audit reach --format json` (STORY-0145). One document per machine. Strings are redacted for credentials and the home directory is shown as ~. schema_version is 1.x; a new optional key is a minor bump, a removed or renamed key is a major bump.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool", "generated_at", "machine", "summary", "agents", "errors"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "mcp-audit" },
+        "version": { "type": "string" }
+      }
+    },
+    "generated_at": { "type": "string", "description": "ISO 8601, UTC." },
+    "machine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hostname", "os", "os_version", "asset_id"],
+      "properties": {
+        "hostname": { "type": "string" },
+        "os": { "type": "string" },
+        "os_version": { "type": "string" },
+        "asset_id": { "type": ["string", "null"] }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agents", "verdicts", "worst_verdict"],
+      "properties": {
+        "agents": { "type": "integer", "minimum": 0 },
+        "verdicts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ready", "needs_work", "not_safe_to_allow", "couldnt_check"],
+          "properties": {
+            "ready": { "type": "integer", "minimum": 0 },
+            "needs_work": { "type": "integer", "minimum": 0 },
+            "not_safe_to_allow": { "type": "integer", "minimum": 0 },
+            "couldnt_check": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "worst_verdict": {
+          "description": "not_safe_to_allow > needs_work > couldnt_check > ready; null when no agent was found.",
+          "enum": ["ready", "needs_work", "not_safe_to_allow", "couldnt_check", null]
+        }
+      }
+    },
+    "agents": { "type": "array", "items": { "$ref": "#/$defs/agent" } },
+    "errors": {
+      "type": "array",
+      "description": "Problems reading files (at most 50), redacted.",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "verdict": { "enum": ["ready", "needs_work", "not_safe_to_allow", "couldnt_check"] },
+    "status": {
+      "description": "pass and fail answer the question; couldnt_check means the answer is not known (never read it as fine); info is informational.",
+      "enum": ["pass", "fail", "couldnt_check", "info"]
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "kind", "verdict", "detected_in", "servers", "reasons", "questions"],
+      "properties": {
+        "id": { "type": "string", "description": "claude-code, codex, gemini-cli, opencode, or the discovered client name." },
+        "name": { "type": "string" },
+        "kind": { "enum": ["harness", "client"] },
+        "verdict": { "$ref": "#/$defs/verdict" },
+        "detected_in": { "type": "array", "items": { "type": "string" } },
+        "servers": { "type": "integer", "minimum": 0 },
+        "reasons": { "type": "array", "items": { "$ref": "#/$defs/reason" } },
+        "questions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["where_it_runs", "credentials", "network", "policy", "logging"],
+          "properties": {
+            "where_it_runs": { "$ref": "#/$defs/question" },
+            "credentials": { "$ref": "#/$defs/question" },
+            "network": { "$ref": "#/$defs/question" },
+            "policy": { "$ref": "#/$defs/question" },
+            "logging": { "$ref": "#/$defs/question" }
+          }
+        }
+      }
+    },
+    "reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "text", "refs"],
+      "properties": {
+        "kind": { "enum": ["not_safe", "needs_work", "unknown"] },
+        "text": { "type": "string" },
+        "refs": {
+          "type": "array",
+          "description": "Finding IDs (REACH-001), file:key pointers (~/.claude/settings.json:permissions.defaultMode) and server entries (~/.claude.json#fetch).",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "status", "summary", "facts", "refs"],
+      "properties": {
+        "title": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "summary": { "type": "string" },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "value", "source"],
+            "properties": {
+              "key": { "type": "string" },
+              "value": { "type": "string" },
+              "source": { "type": ["string", "null"], "description": "The file (home masked) or documentation URL the value came from." }
+            }
+          }
+        },
+        "refs": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

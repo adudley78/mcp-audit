@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adudley78/mcp-audit/blob/main/docs/reach-fleet.schema.json",
+  "title": "mcp-audit reach fleet roll-up",
+  "description": "Output of `mcp-audit reach --fleet DIR --format json` (STORY-0145): verdict counts per agent across the reach reports in DIR.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "machines", "per_agent", "not_safe_to_allow", "skipped", "truncated"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "kind": { "const": "fleet" },
+    "machines": { "type": "integer", "minimum": 0, "description": "Reports read." },
+    "per_agent": {
+      "type": "object",
+      "description": "Agent name to the number of machines at each verdict.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ready", "needs_work", "not_safe_to_allow", "couldnt_check"],
+        "properties": {
+          "ready": { "type": "integer", "minimum": 0 },
+          "needs_work": { "type": "integer", "minimum": 0 },
+          "not_safe_to_allow": { "type": "integer", "minimum": 0 },
+          "couldnt_check": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "not_safe_to_allow": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["machine", "agents"],
+        "properties": {
+          "machine": { "type": "string" },
+          "agents": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "skipped": {
+      "type": "array",
+      "description": "Files that were not read, and why.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "reason"],
+        "properties": { "file": { "type": "string" }, "reason": { "type": "string" } }
+      }
+    },
+    "truncated": { "type": "boolean", "description": "More files than the limit; the rest were not read." }
+  }
+}

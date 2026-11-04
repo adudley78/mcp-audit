@@ -372,7 +372,10 @@ class TestEditorsDoNotChangeTheVerdict:
 
     def test_calculate_score_skips_inventory_only_ids(self) -> None:
         from mcp_audit.models import Finding, Severity  # noqa: PLC0415
-        from mcp_audit.scoring import INVENTORY_ONLY_IDS, calculate_score  # noqa: PLC0415
+        from mcp_audit.scoring import (  # noqa: PLC0415
+            INVENTORY_ONLY_IDS,
+            calculate_score,
+        )
 
         assert "EXTPOL-001" in INVENTORY_ONLY_IDS
         f = Finding(

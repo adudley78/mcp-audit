@@ -858,6 +858,26 @@ def _uncovered_home_stores(
     return hits
 
 
+def existing_home_stores(
+    home: Path, config_dir: Path
+) -> list[tuple[SecretStore, Path]]:
+    """Well-known credential stores that exist under *home*, found with ``stat()``.
+
+    The inventory ``mcp-audit reach`` (STORY-0145) shows beside REACH-001, so a
+    store that a deny rule covers can be listed as covered rather than absent.
+    Same fixed list and platform rules as REACH-001; a store is never opened.
+    Never raises.
+    """
+    found: list[tuple[SecretStore, Path]] = []
+    for store in HOME_STORES:
+        if not _store_applies(store):
+            continue
+        path = _home_store_rel(store, home, config_dir)
+        if _stat_store(path) is not None:
+            found.append((store, path))
+    return found
+
+
 def _env_files(cwd: Path, errors: list[str]) -> list[Path]:
     """Non-empty ``.env`` files at the cwd root (names only; never opened)."""
     found: list[Path] = []
