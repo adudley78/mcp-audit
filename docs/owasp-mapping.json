@@ -1283,7 +1283,7 @@
         "Prompt Injection Attacks",
         "Token Mismanagement and Secret Exposure"
       ],
-      "notes": "Fires when any poisoning.py PATTERNS entry (except obfuscation/length sub-set) matches the body of a skill/command/instruction file (.claude/commands/*.md, .cursor/rules/*.mdc, .github/**). Severity capped at HIGH. Analyzer: agent_files."
+      "notes": "Fires when any poisoning.py PATTERNS entry (except obfuscation/length sub-set) matches the body of a skill/command/instruction file (.claude/commands/*.md, .cursor/rules/*.mdc, .github/**). Severity capped at HIGH (the directive patterns report at their own skill_severity). STORY-0141: every occurrence goes through the describes-vs-directs gate (agent_files/framing.py); when none directs the agent (negated, in the one block after a describing heading or lead-in, a code block under one, a blockquote, or a sentence that describes what to look for) the finding is INFO and says described, not directed. Evidence names the line and shows it. Analyzer: agent_files."
     },
     {
       "finding_id": "SKILL-002",
@@ -2111,6 +2111,17 @@
       "notes": "Two or more consecutive variation selectors (U+FE00-FE0F as bytes 0-15, U+E0100-E01EF as bytes 16-255) decode to mostly printable UTF-8 that matches no existing pattern (a match is POISON-041). A single selector after a character (an emoji's VS16, an ideographic variant) is ordinary and not read. FireTail (vendor, unquantified). MEDIUM. CWE-116. STORY-0099."
     },
     {
+      "finding_id": "POISON-045",
+      "finding_title": "Text hidden below blank-line padding",
+      "owasp_codes": [
+        "MCP03"
+      ],
+      "owasp_names": [
+        "Tool Poisoning"
+      ],
+      "notes": "Text of at least three words after a run of 20 or more blank lines (whitespace or zero-width characters only). VirusTotal (2026-10-21, 'How Some Malicious AI Skills Hide Instructions from Reviewers'): 56 of 6,637 malicious skills placed the payload after 78 to 825 blank lines, below the visible end of the file and past scanners that truncate long input. The longest blank run in 3,026 files of eight public skill repositories was 5. HIGH when the padded text matches a PATTERNS entry, MEDIUM otherwise; one finding per run (the content match is reported on its own as SKILL-001 / POISON-0xx). Config surface and agent files, analyzer=poisoning. CWE-451. STORY-0141."
+    },
+    {
       "finding_id": "POISON-070",
       "finding_title": "Secrecy directive",
       "owasp_codes": [
@@ -2121,7 +2132,7 @@
         "Tool Poisoning",
         "Intent Flow Subversion"
       ],
-      "notes": "Text tells the model to keep something from the user: do not mention/tell/reveal this (step) to the user, do not mention this in conversation or your reply, do not tell the user about this / that you ..., do not inform the user to avoid suspicion (a purpose clause), without informing the user, keep this hidden from the user, the user must not know. A named object ('never reveal API keys to the user') and 'tell <someone> to <verb>' do not match. HIGH. CWE-223. Source: arXiv 2602.06547 (accepted to USENIX Security 2026) §4.2/§5.3. STORY-0099."
+      "notes": "Text tells the model to keep something from the user: do not mention/tell/reveal this (step) to the user, do not mention this in conversation or your reply, do not tell the user about this / that you ..., do not inform the user to avoid suspicion (a purpose clause), without informing the user, keep this hidden from the user, the user must not know, the user / your human doesn't need to know (about) this / what you ran, don't let the user know (STORY-0141). A named object ('never reveal API keys to the user') and 'tell <someone> to <verb>' do not match. HIGH. CWE-223. Source: arXiv 2602.06547 (accepted to USENIX Security 2026) §4.2/§5.3. STORY-0099."
     },
     {
       "finding_id": "POISON-071",
@@ -2134,7 +2145,7 @@
         "Tool Poisoning",
         "Intent Flow Subversion"
       ],
-      "notes": "Text tells the model not to ask the user for permission, approval, consent or confirmation, or to act without it. LOW (ordinary project instructions use the same words). CWE-862. Source: arXiv 2602.06547 (USENIX Security 2026, 'Do Not Mention This to the User') §4.2/§5.3. STORY-0099."
+      "notes": "Text tells the model not to ask the user for permission, approval, consent or confirmation, or to act without it, or to skip or bypass the permission / approval / confirmation prompt (STORY-0141). LOW in a tool description (ordinary project instructions use the same words); HIGH as SKILL-001 in an agent instruction file since STORY-0141, where the describes-vs-directs gate reports a negated or described occurrence at INFO. CWE-862. Source: arXiv 2602.06547 (USENIX Security 2026, 'Do Not Mention This to the User') §4.2/§5.3. STORY-0099."
     },
     {
       "finding_id": "POISON-072",
