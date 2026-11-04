@@ -12,7 +12,6 @@ network question is COULDN'T CHECK for it, never "none".
 from __future__ import annotations
 
 import os
-import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -24,6 +23,7 @@ from mcp_audit.analyzers.supply_chain import resolve_launch_entry
 from mcp_audit.analyzers.toxic_flow import Capability, tag_server
 from mcp_audit.models import ServerConfig, TransportType
 from mcp_audit.reach.context import Env
+from mcp_audit.reach.surface import launch_tail, path_candidates, server_env_declared
 
 _NETWORK_CAPS = frozenset(
     {
@@ -97,13 +97,6 @@ def _host(url: str | None) -> str | None:
         return None
 
 
-_PATH_ARG_RE = re.compile(r"^(?:[/~.\\$%]|[A-Za-z]:[\\/])")
-
-
-def _path_args(server: ServerConfig) -> list[str]:
-    return [a for a in server.args if isinstance(a, str) and _PATH_ARG_RE.match(a)]
-
-
 def _real(text: str) -> str:
     """*text* with symlinks resolved (``strict=False``); raises on failure."""
     return str(Path(text).resolve(strict=False))
@@ -160,7 +153,10 @@ def _bounded(server: ServerConfig, caps: frozenset[Capability], env: Env) -> boo
     """Do the server's path arguments all stay out of home and the stores?"""
     if Capability.SHELL_EXEC in caps:
         return False
-    paths = _path_args(server)
+    tail = launch_tail(server.command, list(server.args))
+    if tail is None:
+        return False
+    paths = path_candidates(tail)
     if not paths:
         return False
     stores = [
@@ -189,6 +185,12 @@ def _launch_entry(server: ServerConfig, registry: object | None):  # noqa: ANN20
     counts.
     """
     if registry is None:
+        return None
+    # Only the one launch shape and a benign server env can claim a registry
+    # identity; anything else is not provably the registry's package.
+    if launch_tail(server.command, list(server.args)) is None:
+        return None
+    if not server_env_declared(getattr(server, "env", None)):
         return None
     try:
         entry = resolve_launch_entry(server, registry)  # type: ignore[arg-type]

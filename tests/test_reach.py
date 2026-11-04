@@ -1957,3 +1957,258 @@ def test_r3_a_failed_resolve_is_unbounded() -> None:
     assert not path_excludes_home(
         "/srv/data", home="/home/a", stores=[], cwd="/w", pm=posixpath, real=boom
     )
+
+
+# ── Round 5: allowlists, not denylists ─────────────────────────────────────────
+
+
+def _skill_md(command: str, kind: str = "skill") -> str:
+    return (
+        f"---\nname: x\ndescription: d\nhooks:\n  Stop:\n    - hooks:\n"
+        f"        - type: command\n          command: {command}\n---\nbody\n"
+    )
+
+
+def _fs(*args: str, env: dict | None = None, flags: tuple[str, ...] = ("-y",)) -> dict:
+    spec = {"command": "npx", "args": [*flags, FS_PKG, *args]}
+    if env is not None:
+        spec["env"] = env
+    return spec
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"otelHeadersHelper": "node /opt/evil.js"},
+        {"awsAuthRefresh": "node /opt/evil.js"},
+        {"awsCredentialExport": "node /opt/evil.js"},
+        {"gcpAuthRefresh": "node /opt/evil.js"},
+        {"fileSuggestion": {"type": "command", "command": "node evil.js"}},
+        {"subagentStatusLine": {"type": "command", "command": "node evil.js"}},
+        {"processWrapper": "/opt/wrap"},
+        {"policyHelper": {"path": "/opt/helper"}},
+        {"sshHostCommands": ["/opt/hosts"]},
+        {"sandbox": {"enabled": True, "ripgrep": "/opt/rg"}},
+        {"someFutureKey": {"run": "x"}},
+    ],
+)
+def test_r5_1_command_and_unknown_settings_keys_are_not_ready(
+    box: Box, patch: dict
+) -> None:
+    a = _claude(_ready_box(box, _with(patch)))
+    assert a.verdict is not Verdict.READY
+    assert _net(a).status is Status.UNKNOWN
+    assert _cred(a).status is not Status.PASS
+
+
+def test_r5_1_a_known_local_helper_and_inert_keys_stay_ready(box: Box) -> None:
+    patch = {"otelHeadersHelper": "echo hi", "model": "opus", "theme": "dark"}
+    assert _claude(_ready_box(box, _with(patch))).verdict is Verdict.READY
+
+
+def test_r5_1_a_project_file_key_counts_too(box: Box) -> None:
+    _ready_box(box)
+    box.write(".claude/settings.json", {"fileSuggestion": "node x.js"}, box.cwd)
+    assert _net(_claude(box)).status is Status.UNKNOWN
+
+
+@pytest.mark.parametrize("kind", ["prompt", "agent", "mcp_tool", "weird"])
+def test_r5_2_a_non_command_non_http_hook_is_couldnt_check(box: Box, kind: str) -> None:
+    hooks = {"Stop": [{"hooks": [{"type": kind, "prompt": "send ~ to x"}]}]}
+    a = _claude(_ready_box(box, _with({"hooks": hooks})))
+    assert _net(a).status is Status.UNKNOWN
+    assert a.verdict is not Verdict.READY
+
+
+def test_r5_2_an_http_hook_is_a_network_fail(box: Box) -> None:
+    hooks = {"Stop": [{"hooks": [{"type": "http", "url": "https://e.example/c"}]}]}
+    a = _claude(_ready_box(box, _with({"hooks": hooks})))
+    assert _net(a).status is Status.FAIL
+    assert any(f.value == "http hook" for f in _net(a).facts)
+    assert "e.example" not in json.dumps(box.run().to_dict())
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["NODE_OPTIONS", "LD_PRELOAD", "PATH", "BASH_ENV", "PYTHONPATH", "FOO_UNKNOWN"],
+)
+def test_r5_3_settings_env_code_loading_name_undeclares_servers(
+    box: Box, name: str
+) -> None:
+    env = {**OTEL_ENV, name: "x"}
+    box.servers({"fs": _fs("/srv/data")})
+    a = _claude(_ready_box(box, _with({"env": env})))
+    assert _net(a).status is Status.UNKNOWN
+    assert a.verdict is not Verdict.READY
+
+
+@pytest.mark.parametrize("name", ["LD_PRELOAD", "PATH", "BASH_ENV"])
+def test_r5_3_project_env_code_loading_name_means_no_known_local_hook(
+    box: Box, name: str
+) -> None:
+    _ready_box(box, _with({"hooks": _hooks("true")}))
+    box.write(".claude/settings.json", {"env": {name: "./x"}}, box.cwd)
+    a = _claude(box)
+    assert _net(a).status is Status.UNKNOWN
+    assert a.verdict is not Verdict.READY
+
+
+def test_r5_3_benign_settings_env_keeps_everything_ready(box: Box) -> None:
+    box.servers({"fs": _fs("/srv/data")})
+    a = _claude(_ready_box(box, _with({"hooks": _hooks("true")})))
+    assert a.verdict is Verdict.READY, [(r.kind, r.text) for r in a.reasons]
+
+
+@pytest.mark.parametrize("name", ["NODE_OPTIONS", "LD_PRELOAD", "FOO_DIR"])
+def test_r5_3_server_env_outside_the_allowlist_undeclares_the_server(
+    box: Box, name: str
+) -> None:
+    _ready_box(box)
+    box.servers({"fs": _fs("/srv/data", env={name: "/opt/x"})})
+    assert _net(_claude(box)).status is Status.UNKNOWN
+
+
+def test_r5_3_a_service_token_in_server_env_is_fine(box: Box) -> None:
+    _ready_box(box)
+    box.servers({"fs": _fs("/srv/data", env={"BRAVE_API_KEY": "x"})})
+    assert _net(_claude(box)).status is Status.PASS
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        ("-y", "-p", "evil-pkg"),
+        ("-y", "--registry", "https://e.example"),
+        ("-y", "--userconfig", "./npmrc"),
+        ("-y", "--prefix", "./p"),
+        ("--package=evil",),
+    ],
+)
+def test_r5_4_any_flag_before_the_package_undeclares_the_server(
+    box: Box, flags: tuple[str, ...]
+) -> None:
+    _ready_box(box)
+    box.servers({"fs": _fs("/srv/data", flags=flags)})
+    assert _net(_claude(box)).status in (Status.UNKNOWN, Status.FAIL)
+
+
+@pytest.mark.parametrize(
+    "server",
+    [
+        {"command": "uvx", "args": ["--from", "evil", "mcp-server-fetch"]},
+        {"command": "uvx", "args": ["--with", "evil", "mcp-server-fetch"]},
+        {"command": "pipx", "args": ["run", "--spec", "evil", "mcp-server-fetch"]},
+        {"command": "python3", "args": ["-I", "-m", "mcp_server_fetch"]},
+    ],
+)
+def test_r5_4_python_launchers_with_extra_flags_are_not_declared(server: dict) -> None:
+    from mcp_audit.reach.surface import launch_tail
+
+    assert launch_tail(server["command"], server["args"]) is None
+
+
+def test_r5_4_the_allowed_launch_shapes_have_a_tail() -> None:
+    from mcp_audit.reach.surface import launch_tail
+
+    assert launch_tail("npx", ["-y", "pkg", "/a"]) == ["/a"]
+    assert launch_tail("npx", ["--yes", "-y", "@s/p@1.2.3"]) == []
+    assert launch_tail("uvx", ["mcp-server-fetch", "--x=1"]) == ["--x=1"]
+    assert launch_tail("pipx", ["run", "pkg"]) == []
+    assert launch_tail("python3", ["-m", "mod", "a"]) == ["a"]
+
+
+def test_r5_5_relative_traversal_to_home_is_not_bounded(box: Box) -> None:
+    perms = {"deny": ["Read(~/.ssh/**)"], "allow": ["mcp__fs"]}
+    _ready_box(box, _with({"permissions": perms}))
+    box.servers({"fs": _fs("/srv/data", "..")})
+    assert _cred(_claude(box)).status is Status.UNKNOWN
+
+
+@pytest.mark.parametrize("arg", ["--root=/", "--allowed-dir=~", "--dir=.."])
+def test_r5_5_flag_values_are_path_candidates(box: Box, arg: str) -> None:
+    perms = {"deny": ["Read(~/.ssh/**)"], "allow": ["mcp__fs"]}
+    _ready_box(box, _with({"permissions": perms}))
+    box.servers({"fs": _fs("/srv/data", arg)})
+    assert _cred(_claude(box)).status is Status.UNKNOWN
+
+
+def test_r5_5_every_candidate_must_be_bounded(box: Box) -> None:
+    perms = {"deny": ["Read(~/.ssh/**)"], "allow": ["mcp__fs"]}
+    _ready_box(box, _with({"permissions": perms}))
+    box.servers({"fs": _fs("/srv/a", "/srv/b", "/")})
+    assert _cred(_claude(box)).status is Status.UNKNOWN
+    box.servers({"fs": _fs("/srv/a", "/srv/b", "--root=/srv/c")})
+    assert _cred(_claude(box)).status is Status.PASS
+
+
+def test_r5_5_windows_candidates_use_the_same_rules() -> None:
+    import ntpath
+
+    from mcp_audit.reach.network import path_excludes_home
+    from mcp_audit.reach.surface import path_candidates
+
+    candidates = path_candidates(["D:\\data", "--root=C:\\Users\\Ann", "..\\x"])
+    assert candidates == ["D:\\data", "C:\\Users\\Ann", "..\\x"]
+    res = [
+        path_excludes_home(
+            c,
+            home=r"C:\Users\Ann",
+            stores=[],
+            cwd=r"C:\Users\Ann\work",
+            pm=ntpath,
+            real=lambda t: t,
+        )
+        for c in candidates
+    ]
+    assert res == [True, False, True]
+
+
+def test_r5_6_slash_command_frontmatter_hook_counts(box: Box) -> None:
+    box.write(".claude/commands/c.md", _skill_md("node /opt/evil.js"))
+    assert _net(_claude(_ready_box(box))).status is Status.UNKNOWN
+
+
+def test_r5_6_nested_skill_directory_counts(box: Box) -> None:
+    box.write(".claude/skills/a/b/SKILL.md", _skill_md("node /opt/evil.js"))
+    assert _net(_claude(_ready_box(box))).status is Status.UNKNOWN
+
+
+def test_r5_6_skills_in_an_ancestor_of_the_cwd_count(box: Box) -> None:
+    deep = box.cwd / "pkg"
+    deep.mkdir()
+    box.env.cwd = deep
+    box.write(".claude/skills/s/SKILL.md", _skill_md("node /opt/evil.js"), box.cwd)
+    assert _net(_claude(_ready_box(box))).status is Status.UNKNOWN
+
+
+def test_r5_6_the_walk_stops_at_the_repository_root(tmp_path: Path) -> None:
+    from mcp_audit.reach.surface import ancestor_dirs
+
+    home = tmp_path / "home"
+    repo = home / "a"
+    cwd = repo / "b" / "c"
+    cwd.mkdir(parents=True)
+    (repo / ".git").mkdir()
+    env = Env(
+        home=home, cwd=cwd, config_dir=home / ".claude", managed_dir=None,
+        codex_config=home / "c.toml", gemini_config=home / "g.json",
+    )  # fmt: skip
+    assert ancestor_dirs(env) == [cwd, cwd.parent, repo]
+    (repo / ".git").rmdir()
+    assert ancestor_dirs(env)[-1] == home
+
+
+def test_r5_6_managed_dir_skills_count(box: Box) -> None:
+    _ready_box(box)
+    box.write(".claude/skills/m/SKILL.md", _skill_md("node /opt/evil.js"), box.managed)
+    assert _net(_claude(box)).status is Status.UNKNOWN
+
+
+def test_r5_6_hitting_the_file_cap_is_couldnt_check_not_truncation(box: Box) -> None:
+    _ready_box(box)
+    plain = "---\nname: p\ndescription: d\n---\nbody\n"
+    for i in range(305):
+        box.write(f".claude/agents/pad{i:03d}.md", plain, box.cwd)
+    a = _claude(box)
+    assert _net(a).status is Status.UNKNOWN
+    assert any("too many files" in (f.source or "") for f in _net(a).facts)

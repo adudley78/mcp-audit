@@ -233,6 +233,60 @@ It prints verdict counts per agent name and the machines that have an agent that
 is not safe to allow. The exit code is 1 when any machine has an agent that needs
 work or is not safe to allow; skipped files do not change it.
 
+## How reach decides
+
+`reach` is built on allowlists, not denylists. A fact can make an answer READY
+only when it is on an explicit list in `src/mcp_audit/reach/surface.py`.
+Anything it does not recognise is `couldnt_check`, never `pass`, so a new
+setting, hook type or variable name can only make the answer more cautious. If
+you get COULDN'T CHECK, the reason names the file and key.
+
+The allowlists:
+
+- **Settings keys.** Every top-level key in a managed, user, project or local
+  settings file must be one `reach` models (`permissions`, `sandbox`, `env`,
+  `hooks`, `enabledPlugins`, the managed MCP keys...) or one the
+  [settings reference](https://code.claude.com/docs/en/settings-reference) shows
+  to be inert for this question (model, theme, limits, switches). A key that runs a
+  command (`apiKeyHelper`, `otelHeadersHelper`, `awsAuthRefresh`,
+  `awsCredentialExport`, `gcpAuthRefresh`, `fileSuggestion`, `statusLine`,
+  `subagentStatusLine`, `processWrapper`, `policyHelper`, `sshHostCommands`,
+  `sandbox.ripgrep`, `sandbox.bwrapPath`, `sandbox.socatPath`) is classified like a
+  hook command. Any other key is unknown.
+- **Hooks.** A `command` hook follows the command rule below. An `http` hook is a
+  network route (fail). Any other type (`prompt`, `agent`, ...) is unknown. Hooks
+  are read from settings, enabled plugins, and `hooks:` frontmatter in skills,
+  agents and slash commands: user, project (the working directory and every
+  parent up to the repository root, or home when there is no `.git`), plugin and
+  the managed directory's `.claude`. Reading more than 300 such files in one
+  folder is unknown, never a silent cut-off.
+- **Commands.** Known local means one bare `echo`, `printf`, `true`, `false`,
+  `date`, `pwd`, `whoami`, `hostname` or `uname`, with no `VAR=` prefix,
+  substitution, redirect, pipe or list, and only while no settings `env` name
+  could load code. Everything else (scripts, interpreters, `git`, `sort`) is
+  unknown, and a network tool or `/dev/tcp` is a fail. Naming a credential store
+  path fails the credentials answer.
+- **Environment variables.** In a settings `env` block only the benign names
+  count: `OTEL_*`, `ANTHROPIC_*`, `DISABLE_*`, `ENABLE_*`, the Claude Code
+  `CLAUDE_CODE_{ENABLE,DISABLE,USE,MAX,SKIP}_*` switches, MCP and Bash timeouts and
+  limits, proxies and locale. Any other name, and especially `LD_*`, `DYLD_*`,
+  `NODE_OPTIONS`, `NODE_PATH`, `PYTHON*`, `PERL5*`, `RUBY*`, `JAVA_TOOL_OPTIONS`,
+  `_JAVA_OPTIONS`, `BASH_ENV`, `ENV`, `PATH` and `npm_config_*`, means no server
+  counts as declared and no command as known local. In a server's own `env` the
+  same benign names plus credential-shaped names (a service token) are allowed;
+  any other name makes the server undeclared.
+- **Server launch.** A server is declared only when it launches exactly
+  `<runner> [-y|--yes] <registry package>[@version] <args...>` (`npx`, `bunx`,
+  `pnpx`, `yarn dlx`, `uvx <pkg>`, `pipx run <pkg>`, `python -m <module>`) and the
+  package is in the registry with declared capabilities. Any other flag before
+  the package (`--registry`, `-p`, `--package`, `--userconfig`, `--prefix`,
+  `--from`, `--with`...) leaves it undeclared.
+- **Paths for file-reading servers.** With an `mcp__` allow rule, every argument
+  after the package and every `--flag=value` value is a path. Each is resolved from
+  the working directory and through symlinks, and the server counts as bounded only
+  when all of them exclude home and the credential stores (a bare root never
+  does). The same rules apply on Windows (drive roots, case, separators).
+
 ## What `reach` does not do
 
 - It does not read server-managed Claude Code settings,

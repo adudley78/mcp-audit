@@ -46,7 +46,6 @@ from pathlib import Path
 
 from mcp_audit.analyzers import secret_reach
 from mcp_audit.analyzers.config_hygiene import (
-    ConfigHygieneAnalyzer,
     _network_primitive,
 )
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
@@ -63,6 +62,19 @@ from mcp_audit.reach.common import Assessment, network_status
 from mcp_audit.reach.context import Env, read_capped
 from mcp_audit.reach.models import Fact, Question, Reason, Status
 from mcp_audit.reach.network import NetworkView
+from mcp_audit.reach.surface import (
+    COMMAND_KEYS,
+    SANDBOX_EXECUTABLE_KEYS,
+    SECRET_NAME_RE,
+    Cmd,
+    all_frontmatter_items,
+    command_texts,
+    frontmatter_items,
+    hook_items,
+    plugin_hook_tables,
+    settings_env_unsafe,
+    unknown_settings_keys,
+)
 
 SETTINGS_DOC = "https://code.claude.com/docs/en/settings-reference"
 SANDBOX_DOC = "https://code.claude.com/docs/en/sandboxing"
@@ -800,11 +812,7 @@ def credential_question(
 
 # ── Commands that run outside the sandbox, and secrets in env ──────────────────
 
-_SECRET_NAME_RE = re.compile(
-    r"(?:^|_)(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|ACCESS_?KEY|PRIVATE_?KEY"
-    r"|CREDENTIALS?|PAT)(?:$|_)",
-    re.IGNORECASE,
-)
+_SECRET_NAME_RE = SECRET_NAME_RE
 _MAX_LISTED = 20
 
 
@@ -845,142 +853,78 @@ def _known_local(command: str) -> bool:
     return first in _LOCAL_WORDS
 
 
-def _settings_commands(
-    settings: Settings, findings: list[Finding], env: Env
-) -> list[tuple[str, str, str]]:
-    """``(what, command, ref)`` for every command Claude Code runs unsandboxed."""
-    out: list[tuple[str, str, str]] = []
+@dataclass
+class Collected:
+    """Everything Claude Code runs outside the sandbox, and what is not understood.
+
+    ``cmds``: hooks (settings, plugins, skills, agents, commands), command-valued
+    keys, and one ``other`` item per settings key ``reach`` does not know.
+    ``env_unsafe``: names in a settings ``env`` block that are not on the
+    benign allowlist; any such name means no command counts as known local and
+    no server counts as declared (they may load code).
+    """
+
+    cmds: list[Cmd] = field(default_factory=list)
+    env_unsafe: list[tuple[str, str]] = field(default_factory=list)
+
+    @property
+    def code_loading(self) -> bool:
+        """A settings ``env`` name might load code into a command or server."""
+        return bool(self.env_unsafe)
+
+
+def _item(what: str, text: str, ref: str) -> Cmd:
+    return Cmd(what, text, ref, "other" if text == "?" else "command")
+
+
+def collect(settings: Settings, env: Env) -> Collected:
+    """Gather :class:`Collected` from every settings file, plugin and skill dir.
+
+    The allowlist principle (docs/reach.md, "How reach decides"): a settings
+    key that is neither understood nor known inert becomes an ``other`` item,
+    so it can only ever make an answer COULDN'T CHECK.
+    """
+    out = Collected()
     for source in settings.sources:
         ref = env.mask(source.path)
-        hooks = source.data.get("hooks")
-        commands = (
-            ConfigHygieneAnalyzer._extract_hook_commands(hooks)
-            if isinstance(hooks, dict)
-            else []
-        )
-        out += [("hook", c, f"{ref}:hooks") for c in commands]
-        helper = source.data.get("apiKeyHelper")
-        if isinstance(helper, str):
-            out.append(("apiKeyHelper", helper, f"{ref}:apiKeyHelper"))
-        line = _d(source.data.get("statusLine")).get("command")
-        if isinstance(line, str):
-            out.append(("statusLine", line, f"{ref}:statusLine.command"))
-    out += plugin_commands(settings, env)
-    out += frontmatter_commands(env)
+        data = source.data
+        if "hooks" in data:
+            out.cmds += hook_items(data["hooks"], "hook", f"{ref}:hooks")
+        for key in sorted(COMMAND_KEYS):
+            if key in data:
+                texts = command_texts(data[key]) or (
+                    ["?"] if data[key] not in (None, "", False, {}, []) else []
+                )
+                out.cmds += [_item(key, t, f"{ref}:{key}") for t in texts]
+        sandbox = _d(data.get("sandbox"))
+        for key in SANDBOX_EXECUTABLE_KEYS:
+            if key in sandbox:
+                out.cmds += [
+                    _item(f"sandbox.{key}", t, f"{ref}:sandbox.{key}")
+                    for t in command_texts(sandbox[key]) or ["?"]
+                ]
+        for key in unknown_settings_keys(data):
+            out.cmds.append(Cmd(f"setting {key}", "?", f"{ref}:{key}", "other"))
+        out.env_unsafe += [
+            (name, f"{ref}:env") for name in settings_env_unsafe(data.get("env"))
+        ]
+    out.cmds += plugin_commands(settings, env)
+    out.cmds += all_frontmatter_items(env)
     return out
-
-
-_MAX_FRONTMATTER_FILES = 300
-
-
-def _frontmatter_files(base: Path, kind: str) -> list[Path]:
-    """``skills/*/SKILL.md`` or ``agents/**/*.md`` under *base*, capped."""
-    out: list[Path] = []
-    try:
-        candidates = base.glob("*/SKILL.md") if kind == "skill" else base.rglob("*.md")
-        for path in candidates:
-            out.append(path)
-            if len(out) >= _MAX_FRONTMATTER_FILES:
-                break
-    except OSError:
-        pass
-    return out
-
-
-def _frontmatter_hooks(path: Path) -> list[str]:
-    """Hook commands in one SKILL.md or agent file's ``hooks:`` frontmatter."""
-    from mcp_audit.agent_files.subagents import (  # noqa: PLC0415
-        parse_agent_frontmatter,
-    )
-
-    raw, _why = read_capped(path)
-    if raw is None:
-        return []
-    parsed = parse_agent_frontmatter(raw.decode("utf-8", errors="replace"))
-    out: list[str] = []
-    for reading in parsed.readings:
-        hooks = reading.get("hooks")
-        if isinstance(hooks, dict):
-            out += ConfigHygieneAnalyzer._extract_hook_commands(hooks)
-    return out
-
-
-def _frontmatter_in(
-    root: Path, label: str | None, env: Env
-) -> list[tuple[str, str, str]]:
-    """Hooks in the skills and agents under *root* (``None`` label: by kind)."""
-    out: list[tuple[str, str, str]] = []
-    for kind, folder in (("skill", "skills"), ("agent", "agents")):
-        for path in _frontmatter_files(root / folder, kind):
-            try:
-                commands = _frontmatter_hooks(path)
-            except Exception:  # noqa: BLE001 — an unreadable file adds nothing
-                commands = []
-            what = label or f"{kind} hook"
-            out += [(what, c, f"{env.mask(path)}:hooks") for c in commands]
-    return out
-
-
-def frontmatter_commands(env: Env) -> list[tuple[str, str, str]]:
-    """``(what, command, ref)`` for ``hooks:`` in user and project skills/agents.
-
-    Claude Code runs hooks declared in a skill's or subagent's frontmatter
-    (hooks doc, "Hooks in skills and agents") outside the sandbox like any
-    hook.  Plugin skills and agents are read by :func:`plugin_commands`.
-    """
-    return _frontmatter_in(env.config_dir, None, env) + _frontmatter_in(
-        env.cwd / ".claude", None, env
-    )
 
 
 _PLUGIN_UNSURE = "plugin hook (not known to be enabled)"
 
 
-def _plugin_hook_docs(install: Path) -> list[dict]:
-    """The hook tables a plugin ships: ``hooks/hooks.json`` and ``plugin.json``."""
-    docs: list[dict] = []
-    manifest: dict = {}
-    raw, _why = read_capped(install / ".claude-plugin" / "plugin.json")
-    if raw is not None:
-        try:
-            loaded = json.loads(raw.decode("utf-8-sig", errors="replace"))
-            manifest = loaded if isinstance(loaded, dict) else {}
-        except (ValueError, RecursionError):
-            manifest = {}
-    paths: list[Path] = [install / "hooks" / "hooks.json"]
-    declared = manifest.get("hooks")
-    if isinstance(declared, dict):
-        docs.append(declared)
-    for item in [declared] if isinstance(declared, str) else _list(declared):
-        if isinstance(item, str) and item.strip():
-            target = Path(os.path.normpath(install / item))
-            if install in target.parents:
-                paths.append(target)
-        elif isinstance(item, dict):
-            docs.append(item)
-    for path in paths:
-        raw, _why = read_capped(path)
-        if raw is None:
-            continue
-        try:
-            doc = json.loads(raw.decode("utf-8-sig", errors="replace"))
-        except (ValueError, RecursionError):
-            continue
-        table = _d(doc).get("hooks")
-        docs.append(table if isinstance(table, dict) else _d(doc))
-    return docs
+def plugin_commands(settings: Settings, env: Env) -> list[Cmd]:
+    """Hooks, skills, agents and commands of installed plugins.
 
-
-def plugin_commands(settings: Settings, env: Env) -> list[tuple[str, str, str]]:
-    """``(what, command, ref)`` for the command hooks of installed plugins.
-
-    A plugin's hooks run outside the sandbox like any hook.  ``enabledPlugins``
-    false skips the plugin; true counts it as a hook; any other state is not
-    known to be enabled, and its commands are all treated as not known local.
+    ``enabledPlugins`` false skips the plugin; true counts it; any other state
+    is not known to be enabled, and everything it ships is not known local.
     """
     from mcp_audit.plugins.discovery import discover_installed_plugins  # noqa: PLC0415
 
-    out: list[tuple[str, str, str]] = []
+    out: list[Cmd] = []
     try:
         plugins = discover_installed_plugins(env.config_dir / "plugins")
     except Exception:  # noqa: BLE001 — unreadable plugin state adds nothing
@@ -994,28 +938,24 @@ def plugin_commands(settings: Settings, env: Env) -> list[tuple[str, str, str]]:
         if flag is False:
             continue
         what = "plugin hook" if flag is True else _PLUGIN_UNSURE
-        ref = f"{env.mask(Path(plugin.install_path))}:hooks"
+        install = Path(plugin.install_path)
+        ref = f"{env.mask(install)}:hooks"
         try:
-            docs = _plugin_hook_docs(Path(plugin.install_path))
-        except Exception:  # noqa: BLE001
-            docs = []
-        for doc in docs:
-            for command in ConfigHygieneAnalyzer._extract_hook_commands(doc):
-                out.append((what, command, ref))
-        out += _frontmatter_in(Path(plugin.install_path), what, env)
+            for table in plugin_hook_tables(install):
+                out += hook_items(table, what, ref)
+            out += frontmatter_items(install, what, env)
+        except Exception:  # noqa: BLE001 — an unreadable plugin is unknown
+            out.append(Cmd(what, "?", ref, "other"))
     return out
 
 
-def egress_commands(
-    settings: Settings, findings: list[Finding], env: Env
-) -> list[Fact]:
-    """Settings commands that run outside the sandbox and can reach the network.
+def egress_commands(col: Collected, findings: list[Finding], env: Env) -> list[Fact]:
+    """Commands and HTTP hooks that run outside the sandbox and reach the network.
 
-    Hooks, ``apiKeyHelper`` and ``statusLine`` commands are not sandboxed
-    (sandboxing doc: "Claude's file tools, MCP servers, and hooks run outside
-    it").  A hook with a network tool (or a ``/dev/tcp`` redirect) is a route
-    out in any settings file.  Only the tool name is reported, never the
-    command.
+    Hooks, helpers and status lines are not sandboxed (sandboxing doc:
+    "Claude's file tools, MCP servers, and hooks run outside it").  A network
+    tool (or a ``/dev/tcp`` redirect) in a command, or an ``http`` hook, is a
+    route out in any file.  Only the tool name is reported, never the command.
     """
     out: list[Fact] = []
     seen: set[tuple[str, str]] = set()
@@ -1025,10 +965,13 @@ def egress_commands(
             seen.add((what, ref))
             out.append(Fact(f"{what} runs a network tool", tool, ref))
 
-    for what, command, ref in _settings_commands(settings, findings, env):
-        tool = _net_tool(command)
-        if tool and what != _PLUGIN_UNSURE:
-            add(what, tool.lower(), ref)
+    for cmd in col.cmds:
+        if cmd.kind == "http":
+            add(cmd.what, "http hook", cmd.ref)
+        elif cmd.kind == "command" and cmd.what != _PLUGIN_UNSURE:
+            tool = _net_tool(cmd.text)
+            if tool:
+                add(cmd.what, tool.lower(), cmd.ref)
     for f in findings:
         if f.id == "HOOK-001" and f.client in CLIENTS:
             where = env.mask(f.finding_path) if f.finding_path else f.client
@@ -1049,8 +992,8 @@ def _store_path_re() -> re.Pattern[str]:
 _STORE_PATH_RE = _store_path_re()
 
 
-def store_commands(settings: Settings, findings: list[Finding], env: Env) -> list[Fact]:
-    """Hook, helper and status-line commands that name a credential store path.
+def store_commands(col: Collected) -> list[Fact]:
+    """Commands that name a credential store path.
 
     These run outside the sandbox, so no deny rule applies to them; whatever
     their other behaviour, naming ``~/.ssh`` or ``~/.aws/credentials`` is a
@@ -1058,33 +1001,40 @@ def store_commands(settings: Settings, findings: list[Finding], env: Env) -> lis
     """
     out: list[Fact] = []
     seen: set[tuple[str, str]] = set()
-    for what, command, ref in _settings_commands(settings, findings, env):
-        if _STORE_PATH_RE.search(command) and (what, ref) not in seen:
-            seen.add((what, ref))
-            out.append(Fact(f"{what} names a credential store path", "", ref))
+    for cmd in col.cmds:
+        if cmd.kind != "command" or (cmd.what, cmd.ref) in seen:
+            continue
+        if _STORE_PATH_RE.search(cmd.text):
+            seen.add((cmd.what, cmd.ref))
+            out.append(Fact(f"{cmd.what} names a credential store path", "", cmd.ref))
     return out[:_MAX_LISTED]
 
 
-def opaque_commands(
-    settings: Settings, findings: list[Finding], env: Env
-) -> list[Fact]:
-    """Unsandboxed settings commands that are neither a network tool nor known local.
+def opaque_commands(col: Collected) -> list[Fact]:
+    """Things that run outside the sandbox and are not known to be local.
 
-    ``node ~/.claude/hooks/report.js`` may do anything, and it runs outside
-    the sandbox: what it reaches is not known.  Names the event, never the
-    command.
+    Known local means: a command of the one allowed shape, with no settings
+    ``env`` name that could load code.  Everything else (an unclassifiable
+    hook type, an unknown settings key, a script, an interpreter) is opaque.
+    Names the event or key, never the command.
     """
     out: list[Fact] = []
     seen: set[tuple[str, str]] = set()
-    for what, command, ref in _settings_commands(settings, findings, env):
-        sure = what != _PLUGIN_UNSURE
-        if sure and (_net_tool(command) or _known_local(command)):
+    for cmd in col.cmds:
+        if cmd.kind == "http":
             continue
-        if (what, ref) in seen:
+        if cmd.kind == "command" and cmd.what != _PLUGIN_UNSURE:
+            if _net_tool(cmd.text):
+                continue
+            if _known_local(cmd.text) and not col.code_loading:
+                continue
+        if (cmd.what, cmd.ref) in seen:
             continue
-        seen.add((what, ref))
+        seen.add((cmd.what, cmd.ref))
         out.append(
-            Fact(f"{what} runs a command that is not known to be local", "", ref)
+            Fact(
+                f"{cmd.what} runs something that is not known to be local", "", cmd.ref
+            )
         )
     return out[:_MAX_LISTED]
 
@@ -1607,9 +1557,14 @@ def assess(
     # 2. Credentials.
     ran = env.config_dir.is_dir()
     secrets = env_secrets(settings, env)
-    egress = egress_commands(settings, findings, env)
-    opaque = opaque_commands(settings, findings, env)
-    store_hits = store_commands(settings, findings, env)
+    col = collect(settings, env)
+    egress = egress_commands(col, findings, env)
+    opaque = opaque_commands(col)
+    store_hits = store_commands(col)
+    if col.code_loading:
+        # A settings env name may load code into any server: none is declared.
+        net.unclassified += net.quiet
+        net.quiet = []
     mcp_open = _mcp_allowed_unbounded(settings, facts, net)
     cred_q, creds_readable = credential_question(
         findings,
@@ -1666,6 +1621,14 @@ def assess(
     net_facts += [
         Fact("server with no declared capabilities", v.name, v.ref)
         for v in net.unclassified
+    ]
+    net_facts += [
+        Fact(
+            "settings env name not on the benign list (no server counts as declared)",
+            n,
+            r,
+        )
+        for n, r in col.env_unsafe[:5]
     ]
     unknown_routes = list(opaque)
     connectors = connectors_possible(settings, env)
