@@ -1906,3 +1906,29 @@ The two campaigns' instruction files launch a loader rather than state an
 exfiltration sentence, so MEM-006 does not claim to detect them (GAPS.md); they
 are cited for the delivery route, a planted instruction file in a repository.
 Measurement: `docs/research/mem006/results.json`.
+
+## Policy that's actually enforced: policy sources and editor allowlists (MANAGED-006/007, EXTPOL-001..003, STORY-0144)
+
+Vendor documentation read on 2026-11-04; no code was copied from any scanner. Locations
+are only those the pages name.
+
+- **Deploy managed settings** (https://code.claude.com/docs/en/managed-settings) —
+  source ranking (server-managed > MDM/OS policy > managed files > HKCU), "Admin
+  source: one of the first three sources... The HKCU registry is user-writable and
+  isn't one", HKCU used only when no admin document is present, `managedSourcesBehavior`
+  `"first-wins"` (default) and `"merge"`, `HKLM\SOFTWARE\Policies\ClaudeCode` value
+  `Settings` (`REG_SZ`/`REG_EXPAND_SZ` JSON), the macOS `com.anthropic.claudecode`
+  managed-preferences domain, `/etc/claude-code` being user-writable on WSL, and
+  refusal to start on an admin document that cannot be parsed. MANAGED-006/007.
+- **VS Code enterprise policies** (https://code.visualstudio.com/docs/enterprise/policies)
+  — `AllowedExtensions` / `extensions.allowed`, registry `Software\Policies\Microsoft\VSCode`
+  (computer or user configuration, computer wins), Linux `/etc/vscode/policy.json`
+  (1.106+); macOS domain not named.
+- **Cursor enterprise settings** (https://docs.cursor.com/account/teams/enterprise-settings)
+  — `AllowedExtensions` since 1.2, JSON string of allowed publishers; registry path and
+  macOS domain not documented; Linux not supported.
+- **Windsurf, now Devin Desktop, enterprise policies** (https://docs.devin.ai/desktop/enterprise-policies)
+  — `AllowedExtensions`, Windows `Software\Policies\Windsurf\Devin`, Linux
+  `/etc/vscode/policy.json`; macOS domain not named.
+- Motivation: @swif_ai (HKCU registry key is writable without elevation), @WasafAbbasi
+  (do editors honour an extension allowlist) and Mercari's AI agent governance document.

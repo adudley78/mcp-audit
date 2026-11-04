@@ -205,3 +205,61 @@ def unwrapped(text: str) -> str:
     comment for the evidence.
     """
     return " ".join(text.split())
+
+
+@pytest.fixture(autouse=True)
+def _isolate_policy_sources(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the machine's real OS policy sources out of every test (STORY-0144).
+
+    Claude Code policy can come from macOS managed preferences or the Windows
+    registry, and MANAGED-006 probes file permissions.  Point the platform
+    readers at nothing and the file probe at a root-owned, unwritable view;
+    tests that exercise these inject their own readers and probes.
+    """
+    import os as _os  # noqa: PLC0415
+    from pathlib import Path as _Path  # noqa: PLC0415
+
+    from mcp_audit.analyzers import managed_policy as _mp  # noqa: PLC0415
+    from mcp_audit.policy_sources import PlatformSources  # noqa: PLC0415
+
+    monkeypatch.setattr(
+        "mcp_audit.analyzers.managed_policy.default_platform_sources",
+        lambda: PlatformSources(
+            "linux", None, _Path("/nonexistent-managed-prefs"), None
+        ),
+    )
+    monkeypatch.setattr(
+        "mcp_audit.analyzers.managed_policy.default_fs_probe",
+        lambda: _mp.FsProbe(
+            uid=0, stat=lambda p: _os.stat(p), access=lambda p, m: False
+        ),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_editor_policy(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep the machine's real editors and their policy out of every test.
+
+    A default scan reads each installed editor's extension allowlist
+    (EXTPOL-001..003, STORY-0144).  Point it at an empty home, no policy file
+    and no registry; tests/test_extension_policy.py injects its own.
+    """
+    from pathlib import Path as _Path  # noqa: PLC0415
+
+    from mcp_audit.extensions.policy import Environment  # noqa: PLC0415
+    from mcp_audit.policy_sources import PlatformSources  # noqa: PLC0415
+
+    base = tmp_path_factory.getbasetemp()
+    monkeypatch.setattr(
+        "mcp_audit.extensions.policy.default_environment",
+        lambda: Environment(
+            home=base / "no-editors-home",
+            platform="linux",
+            appdata=None,
+            userprofile=None,
+            sources=PlatformSources("linux", None, _Path("/nonexistent"), None),
+            linux_policy_file=base / "no-editors-home" / "policy.json",
+        ),
+    )

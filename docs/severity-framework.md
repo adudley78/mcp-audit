@@ -721,7 +721,7 @@ test instead.
 
 ---
 
-### Managed MCP policy (`analyzers/managed_policy.py`, MANAGED-001..005, STORY-0112)
+### Managed MCP policy (`analyzers/managed_policy.py`, MANAGED-001..007, STORY-0112, STORY-0144)
 
 Rules from code.claude.com/docs/en/managed-mcp and managed-settings; see `docs/managed-policy.md`.
 
@@ -732,6 +732,18 @@ Rules from code.claude.com/docs/en/managed-mcp and managed-settings; see `docs/m
 | MANAGED-003 | LOW | ASI03 | MCP09 | Managed settings deployed with no MCP key and no `managed-mcp.json`: "anyone running Claude Code can connect any MCP server they choose". LOW because an MDM or server-managed source mcp-audit can't see may carry the policy. Not an advisory. CWE-1188 |
 | MANAGED-004 | MEDIUM / LOW | ASI03, ASI09 | MCP02, MCP09 | Unlocked managed allowlist widened by another settings file ("allowlists from every settings scope merge"). MEDIUM when a repository's committed file does it for everyone who opens it; LOW for the user's own or local file. CWE-284 |
 | MANAGED-005 | LOW | ASI03 | MCP09, MCP07 | Managed allowlist admits a transport by `serverName` only, which Anthropic says "is not a security control". LOW: it needs a user who renames a server, and the list is the organization's choice. CWE-284 |
+| MANAGED-006 | MEDIUM | ASI03 | MCP09, MCP07 | Claude Code policy is only where the user can change it: the HKCU registry key with no admin document present, or a managed file or directory the current non-root user can write or owns. Anthropic: "The HKCU registry is user-writable and isn't" an admin source. MEDIUM, not LOW: the policy that is believed to be on can be switched off by the person it constrains, with no elevation; not HIGH because it needs that person (or malware running as them) to act. Not an advisory. CWE-284 / CWE-732 |
+| MANAGED-007 | INFO | ASI03 | MCP09 | A macOS profile plist or the HKLM `Settings` value is not a settings object; Claude Code refuses to start on it. Explains a broken install, asserts no exposure. Not an advisory. CWE-20 |
+
+### Editor extension allowlists (`extensions/policy.py`, EXTPOL-001..003, STORY-0144)
+
+Rules from the vendors' policy pages (VS Code, Cursor, Windsurf / Devin Desktop; `docs/extension-policy.md`). The allowlist limits which extensions an editor loads, so OWASP MCP04 (supply chain) is the closest category; none of the three findings is about an MCP server.
+
+| ID | Severity | OWASP Agentic | OWASP MCP | Rationale |
+|---|---|---|---|---|
+| EXTPOL-001 | INFO | ASI04 | MCP04 | Inventory of an editor allowlist that is enforced by policy (source, entry count and shape). Emitted only when enforced, not scored and left out of `check`'s verdict (`scoring.INVENTORY_ONLY_IDS`): an installed editor with no allowlist, or an undocumented policy location, produces no finding. Not an advisory. CWE-1188 |
+| EXTPOL-002 | LOW | ASI04 | MCP04 | `extensions.allowed` only in the user's `settings.json`; the policy overrides the setting at every level, so this is set, not enforced. LOW: it is the user's own file, and a policy at a location the vendor does not document cannot be ruled out. Not an advisory. CWE-284 |
+| EXTPOL-003 | LOW | ASI04 | MCP04 | An enforced `AllowedExtensions` policy with `"*": true` allows everything. LOW: the policy is on but empty of restriction, and the admin chose it. Not an advisory. CWE-284 |
 
 ### Secrets a Claude Code session can reach (`analyzers/secret_reach.py`, REACH-001..003, STORY-0114)
 

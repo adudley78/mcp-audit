@@ -9,9 +9,11 @@ deploys to a system directory (STORY-0112):
   ``allowedMcpServers``, ``deniedMcpServers``, ``allowManagedMcpServersOnly``
   and ``managedMcpServers``.
 
-This module reads those files (never MDM profiles, the Windows registry or
-server-managed settings, which have no file mcp-audit can read) and compares
-them with the Claude Code servers the scan found:
+This module reads those files and, since STORY-0144, the other places Claude
+Code reads administrator policy from (macOS managed preferences, Windows
+``HKLM``/``HKCU`` registry; never server-managed settings, which have no local
+copy), ranks them the way Claude Code does and compares the source in force with
+the Claude Code servers the scan found:
 
 * MANAGED-001 (INFO) — inventory of the managed MCP policy on this machine.
 * MANAGED-002 (INFO) — a configured server the policy keeps from loading
@@ -21,11 +23,17 @@ them with the Claude Code servers the scan found:
   repository or user settings file adds entries to it.
 * MANAGED-005 (LOW) — the managed allowlist admits a transport by
   ``serverName`` alone, which Anthropic says "is not a security control".
+* MANAGED-006 (MEDIUM) — policy found only in a place the user can write
+  (``HKCU`` with no admin document, or a managed file or directory the current
+  user can write): a default, not enforcement.
+* MANAGED-007 (INFO) — an admin source (plist or ``HKLM`` value) that is not a
+  JSON object; Claude Code refuses to start on it.
 
 Every rule is taken from Anthropic's documentation:
 https://code.claude.com/docs/en/managed-mcp (matching rules, evaluation order,
 exclusive control, provided servers), https://code.claude.com/docs/en/managed-settings
-(file locations, drop-in merge order, invalid entries) and
+(file locations, drop-in merge order, invalid entries, source ranking and
+``managedSourcesBehavior``, registry and macOS locations) and
 https://code.claude.com/docs/en/settings-reference (key scopes).
 
 Read-only and offline: the files are read as JSON with a per-file size cap and
@@ -39,9 +47,12 @@ server value that uses one is treated as undecidable and never produces a
 from __future__ import annotations
 
 import json
+import os
 import re
+import sys
 import unicodedata
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Literal
 
@@ -52,6 +63,12 @@ from mcp_audit.analyzers.supply_chain import (
     redact_query_secrets,
 )
 from mcp_audit.models import Finding, ServerConfig, Severity
+from mcp_audit.policy_sources import (
+    MAX_VALUE_BYTES,
+    PlatformSources,
+    default_platform_sources,
+    read_plist,
+)
 
 ANALYZER = "managed_policy"
 CLIENT = "claude-code-managed"
@@ -66,10 +83,17 @@ MAX_TOTAL_BYTES = 8 * 1024 * 1024
 _MAX_MATCH_LEN = 4096
 
 _DOCS = "https://code.claude.com/docs/en/managed-mcp"
+_MANAGED_SETTINGS_DOCS = "https://code.claude.com/docs/en/managed-settings"
 
 # Claude Code's documented name rules: allowlist names "letters, numbers,
 # hyphens, and underscores"; managedMcpServers names the same.
 _ALLOW_NAME = re.compile(r"[A-Za-z0-9_-]+")
+
+# Settings keys that steer how sources combine and are not policy themselves
+# (https://code.claude.com/docs/en/managed-settings: "Policy key: any settings
+# key other than the two control keys ... A managed settings file or MDM policy
+# that contains only those doesn't count").
+CONTROL_KEYS = frozenset({"wslInheritsWindowsSettings", "managedSourcesBehavior"})
 
 EntryKind = Literal["serverName", "serverCommand", "serverUrl"]
 _ENTRY_KINDS: tuple[EntryKind, ...] = ("serverName", "serverCommand", "serverUrl")
@@ -146,6 +170,35 @@ class ManagedPolicy:
     # The drop-in directory exists but couldn't be listed.
     dropins_unlisted: bool = False
     other_mcp_keys: list[str] = field(default_factory=list)
+    # ── STORY-0144: which source is in force ─────────────────────────────────
+    # Top-level keys the settings documents carry (names only).
+    doc_keys: list[str] = field(default_factory=list)
+    # The document's own ``managedSourcesBehavior`` value (last file wins).
+    sources_behavior: object = None
+    # Label of the source the verdicts are evaluated against; ``None`` when the
+    # managed files are the only source (the pre-STORY-0144 output, unchanged).
+    source_label: str | None = None
+    source_kind: Literal["files", "mdm", "hklm", "hkcu", "merged"] = "files"
+    # Platform sources found beside the files: (label, location, keys).
+    sources_found: list[SourceDoc] = field(default_factory=list)
+    # Present but not in force, as text for MANAGED-001.
+    ignored_sources: list[str] = field(default_factory=list)
+    # Why this source won (first-wins) or "merged".
+    selection_note: str | None = None
+    # An admin source (plist / HKLM value) that is not a JSON object.
+    malformed_sources: list[SourceDoc] = field(default_factory=list)
+    # The managed files take part in the evaluated policy.
+    files_in_force: bool = True
+    # The scan could read this platform's MDM / registry sources.
+    platform_sources_read: bool = False
+    # Keys the managed files themselves carry (MANAGED-006 evidence).
+    file_keys: list[str] = field(default_factory=list)
+    # ``managed-settings.d`` exists (MANAGED-006 probes its writability).
+    dropins_dir: Path | None = None
+    # A document carried the ``managedSourcesBehavior`` key (its value is
+    # ``sources_behavior``); Claude Code reads it from the highest-ranked source
+    # carrying it or a policy key.
+    behavior_key_present: bool = False
 
     @property
     def present(self) -> bool:
@@ -155,6 +208,8 @@ class ManagedPolicy:
             or self.unparsable_files
             or self.dropins_unlisted
             or self.mcp_file is not None
+            or self.sources_found
+            or self.malformed_sources
         )
 
     @property
@@ -164,7 +219,9 @@ class ManagedPolicy:
         Claude Code then drops the source or refuses to start, so verdicts
         built from the rest would be claims mcp-audit can't back.
         """
-        return bool(self.unparsable_files or self.dropins_unlisted)
+        return bool(
+            self.unparsable_files or self.dropins_unlisted or self.malformed_sources
+        )
 
     @property
     def exclusive(self) -> bool:
@@ -185,6 +242,29 @@ class ManagedPolicy:
             or self.strict_plugin_only_mcp
             or self.other_mcp_keys
         )
+
+
+@dataclass(frozen=True)
+class SourceDoc:
+    """One policy document read from a platform source (plist or registry).
+
+    Attributes:
+        label: Name used in evidence (``HKLM registry``).
+        kind: ``mdm`` (macOS profile), ``hklm`` or ``hkcu``.
+        location: The path or registry key it came from.
+        keys: Top-level policy keys it carries (names only).
+        problem: Why it is not a usable JSON object, else ``None``.
+        problem_kind: ``malformed`` (Claude Code refuses to start), ``denied``
+            (the OS refused the read: Claude Code starts without the source) or
+            ``unreadable`` (any other failure, or mcp-audit's own limits).
+    """
+
+    label: str
+    kind: Literal["mdm", "hklm", "hkcu"]
+    location: str
+    keys: tuple[str, ...] = ()
+    problem: str | None = None
+    problem_kind: Literal["malformed", "denied", "unreadable"] = "malformed"
 
 
 @dataclass(frozen=True)
@@ -414,6 +494,103 @@ def list_dropins(dropins: Path) -> list[Path]:
     )
 
 
+def policy_keys(doc: dict) -> list[str]:
+    """The policy keys of a settings document, in document order.
+
+    A policy key is any key other than the two control keys that is not
+    ``null``; a document with none "doesn't count" as a source.
+    """
+    return [str(k) for k, v in doc.items() if k not in CONTROL_KEYS and v is not None]
+
+
+@dataclass
+class _Acc:
+    """Running state while settings documents are applied in order."""
+
+    allowed: dict[tuple, PolicyEntry] | None = None
+    denied: dict[tuple, PolicyEntry] = field(default_factory=dict)
+    strict: object = None
+
+
+def _apply_document(
+    policy: ManagedPolicy, acc: _Acc, path: Path, data: dict[str, object]
+) -> None:
+    """Fold one settings document (a file, plist or registry value) into *policy*.
+
+    Documents are applied in load order: lists combine with duplicates removed,
+    a single value replaces, a later ``managedMcpServers`` entry of the same
+    name replaces the earlier one.
+    """
+    for key in policy_keys(data):
+        if key not in policy.doc_keys:
+            policy.doc_keys.append(key)
+    if "managedSourcesBehavior" in data:
+        policy.behavior_key_present = True
+        policy.sources_behavior = data["managedSourcesBehavior"]
+    if data.get("allowedMcpServers", 0) is None:
+        policy.allowed_null = True
+    elif "allowedMcpServers" in data:
+        raw_allowed = data["allowedMcpServers"]
+        acc.allowed = {} if acc.allowed is None else acc.allowed
+        if isinstance(raw_allowed, list):
+            for raw in raw_allowed:
+                entry = _parse_entry(raw, path, allowlist=True)
+                if entry is None:
+                    policy.stripped_entries += 1
+                else:
+                    acc.allowed.setdefault(entry.key(), entry)
+        else:
+            # "Enforced as an empty allowlist until the value is fixed."
+            policy.allowed_invalid_value = True
+    raw_denied = data.get("deniedMcpServers")
+    if isinstance(raw_denied, list):
+        for raw in raw_denied:
+            entry = _parse_entry(raw, path, allowlist=False)
+            if entry is None:
+                policy.stripped_entries += 1
+            else:
+                acc.denied.setdefault(entry.key(), entry)
+    if "allowManagedMcpServersOnly" in data:
+        raw_lock = data["allowManagedMcpServersOnly"]
+        if raw_lock is None:
+            policy.lock, policy.lock_invalid = (False, False)
+        else:
+            policy.lock, policy.lock_invalid = _lock_value(raw_lock)
+    provided = data.get("managedMcpServers")
+    if isinstance(provided, dict):
+        for name, entry in provided.items():
+            problem = _provided_problem(str(name), entry)
+            policy.provided.pop(str(name), None)
+            if problem is None and isinstance(entry, dict):
+                policy.provided[str(name)] = entry
+            else:
+                policy.provided_dropped.append(f"{name} ({problem})")
+    elif provided is not None:
+        policy.provided_dropped.append("managedMcpServers (not an object)")
+    if "strictPluginOnlyCustomization" in data:
+        value = data["strictPluginOnlyCustomization"]
+        # Drop-in rules: lists combine, a single value replaces.
+        if isinstance(value, list) and isinstance(acc.strict, list):
+            acc.strict = acc.strict + [v for v in value if v not in acc.strict]
+        else:
+            acc.strict = list(value) if isinstance(value, list) else value
+    for key in ("allowAllClaudeAiMcps", "allowClaudeInChromeWithManagedMcp"):
+        if key in data and key not in policy.other_mcp_keys:
+            policy.other_mcp_keys.append(key)
+
+
+def _finalize(policy: ManagedPolicy, acc: _Acc) -> None:
+    """Derive the summary fields once every document has been applied."""
+    policy.strict_plugin_only_mcp, policy.strict_plugin_only_blocks = (
+        _strict_plugin_only_mcp(acc.strict)
+    )
+    if acc.allowed is not None:
+        policy.allowed = (
+            [] if policy.allowed_invalid_value else list(acc.allowed.values())
+        )
+    policy.denied = list(acc.denied.values())
+
+
 def read_managed_policy(
     directory: Path | None = None, errors: list[str] | None = None
 ) -> ManagedPolicy:
@@ -446,6 +623,7 @@ def read_managed_policy(
     dropins = directory / "managed-settings.d"
     try:
         if dropins.is_dir():
+            policy.dropins_dir = dropins
             names = list_dropins(dropins)
             if len(names) > MAX_DROPINS:
                 errs.append(
@@ -457,9 +635,7 @@ def read_managed_policy(
         errs.append(f"managed policy: cannot list {dropins}: {type(exc).__name__}")
         policy.dropins_unlisted = True
 
-    allowed: dict[tuple, PolicyEntry] | None = None
-    denied: dict[tuple, PolicyEntry] = {}
-    strict: object = None
+    acc = _Acc()
     for path in candidates:
         exists, data = _read_json(path, budget, errs, empty_is_object=True)
         if not exists:
@@ -470,64 +646,9 @@ def read_managed_policy(
             policy.unparsable_files.append(path)
             continue
         policy.settings_files.append(path)
-
-        if data.get("allowedMcpServers", 0) is None:
-            policy.allowed_null = True
-        elif "allowedMcpServers" in data:
-            raw_allowed = data["allowedMcpServers"]
-            allowed = {} if allowed is None else allowed
-            if isinstance(raw_allowed, list):
-                for raw in raw_allowed:
-                    entry = _parse_entry(raw, path, allowlist=True)
-                    if entry is None:
-                        policy.stripped_entries += 1
-                    else:
-                        allowed.setdefault(entry.key(), entry)
-            else:
-                # "Enforced as an empty allowlist until the value is fixed."
-                policy.allowed_invalid_value = True
-        raw_denied = data.get("deniedMcpServers")
-        if isinstance(raw_denied, list):
-            for raw in raw_denied:
-                entry = _parse_entry(raw, path, allowlist=False)
-                if entry is None:
-                    policy.stripped_entries += 1
-                else:
-                    denied.setdefault(entry.key(), entry)
-        if "allowManagedMcpServersOnly" in data:
-            raw_lock = data["allowManagedMcpServersOnly"]
-            if raw_lock is None:
-                policy.lock, policy.lock_invalid = (False, False)
-            else:
-                policy.lock, policy.lock_invalid = _lock_value(raw_lock)
-        provided = data.get("managedMcpServers")
-        if isinstance(provided, dict):
-            for name, entry in provided.items():
-                problem = _provided_problem(str(name), entry)
-                policy.provided.pop(str(name), None)
-                if problem is None and isinstance(entry, dict):
-                    policy.provided[str(name)] = entry
-                else:
-                    policy.provided_dropped.append(f"{name} ({problem})")
-        elif provided is not None:
-            policy.provided_dropped.append("managedMcpServers (not an object)")
-        if "strictPluginOnlyCustomization" in data:
-            value = data["strictPluginOnlyCustomization"]
-            # Drop-in rules: lists combine, a single value replaces.
-            if isinstance(value, list) and isinstance(strict, list):
-                strict = strict + [v for v in value if v not in strict]
-            else:
-                strict = list(value) if isinstance(value, list) else value
-        for key in ("allowAllClaudeAiMcps", "allowClaudeInChromeWithManagedMcp"):
-            if key in data and key not in policy.other_mcp_keys:
-                policy.other_mcp_keys.append(key)
-
-    policy.strict_plugin_only_mcp, policy.strict_plugin_only_blocks = (
-        _strict_plugin_only_mcp(strict)
-    )
-    if allowed is not None:
-        policy.allowed = [] if policy.allowed_invalid_value else list(allowed.values())
-    policy.denied = list(denied.values())
+        _apply_document(policy, acc, path, data)
+    _finalize(policy, acc)
+    policy.file_keys = list(policy.doc_keys)
 
     mcp_path = directory / "managed-mcp.json"
     exists, data = _read_json(mcp_path, budget, errs)
@@ -543,6 +664,420 @@ def read_managed_policy(
                 else "has no mcpServers object"
             )
     return policy
+
+
+# ── Other sources and ranking (STORY-0144) ────────────────────────────────────
+#
+# Claude Code reads administrator policy from, highest first (managed-settings,
+# https://code.claude.com/docs/en/managed-settings): (1) server-managed settings
+# (no local copy: out of scope), (2) MDM/OS policy: a macOS configuration profile
+# in the ``com.anthropic.claudecode`` managed-preferences domain or Windows
+# ``HKLM\SOFTWARE\Policies\ClaudeCode`` value ``Settings``, (3) the managed
+# settings files, (4) ``HKCU\SOFTWARE\Policies\ClaudeCode`` value ``Settings``.
+# "Admin source: one of the first three sources... The HKCU registry is
+# user-writable and isn't one."  Default ``managedSourcesBehavior`` is
+# ``"first-wins"``; ``"merge"`` composes the admin sources.
+
+MDM_DOMAIN = "com.anthropic.claudecode"
+REGISTRY_SUBKEY = "SOFTWARE\\Policies\\ClaudeCode"
+REGISTRY_VALUE = "Settings"
+LABEL_FILES = "managed settings files"
+LABEL_HKLM = "HKLM registry"
+LABEL_HKCU = "HKCU registry (user-writable)"
+_MDM_LABELS = {
+    "device": "macOS configuration profile (device)",
+    "user": "macOS configuration profile (user-scoped)",
+}
+
+
+@dataclass
+class _PlatformDoc:
+    info: SourceDoc
+    data: dict | None
+    path: Path
+    policy: ManagedPolicy | None = None
+
+
+def _bad_doc(
+    label: str,
+    kind: Literal["mdm", "hklm", "hkcu"],
+    location: str,
+    problem: str,
+    problem_kind: str,
+    path: Path,
+    errors: list[str],
+) -> _PlatformDoc:
+    errors.append(f"managed policy: {location}: {problem}")
+    kind_t: Literal["malformed", "denied", "unreadable"] = (
+        "denied"
+        if problem_kind == "denied"
+        else "unreadable"
+        if problem_kind == "unreadable"
+        else "malformed"
+    )
+    return _PlatformDoc(
+        SourceDoc(label, kind, location, (), problem, kind_t), None, path
+    )
+
+
+def _registry_doc(
+    sources: PlatformSources,
+    hive: str,
+    label: str,
+    kind: Literal["hklm", "hkcu"],
+    errors: list[str],
+) -> _PlatformDoc | None:
+    """Read ``<hive>\\SOFTWARE\\Policies\\ClaudeCode`` value ``Settings``."""
+    if sources.registry is None or not sources.platform.startswith("win"):
+        return None
+    read = sources.registry(hive, REGISTRY_SUBKEY, REGISTRY_VALUE)
+    if not read.found:
+        return None
+    location = f"{hive}\\{REGISTRY_SUBKEY}\\{REGISTRY_VALUE}"
+    path = Path(label)
+    if read.problem is not None or read.text is None:
+        return _bad_doc(
+            label,
+            kind,
+            location,
+            read.problem or "value could not be read",
+            read.problem_kind,
+            path,
+            errors,
+        )
+    if len(read.text.encode("utf-8", "replace")) > MAX_VALUE_BYTES:
+        return _bad_doc(
+            label,
+            kind,
+            location,
+            f"over the {MAX_VALUE_BYTES}-byte limit",
+            "unreadable",
+            path,
+            errors,
+        )
+    try:
+        parsed = json.loads(read.text.lstrip("\ufeff"))
+    except (json.JSONDecodeError, RecursionError):
+        return _bad_doc(
+            label, kind, location, "value is not valid JSON", "malformed", path, errors
+        )
+    if not isinstance(parsed, dict):
+        return _bad_doc(
+            label,
+            kind,
+            location,
+            "value is not a JSON object",
+            "malformed",
+            path,
+            errors,
+        )
+    keys = tuple(sorted(policy_keys(parsed)))
+    return _PlatformDoc(SourceDoc(label, kind, location, keys), parsed, path)
+
+
+def _safe_user_dir(user: str | None) -> bool:
+    """A user name that is one plain path component (never ``..`` or a path)."""
+    if not user or user in (".", ".."):
+        return False
+    return not any(ch in user for ch in ("/", "\\", "\0"))
+
+
+def _plist_docs(sources: PlatformSources, errors: list[str]) -> list[_PlatformDoc]:
+    """Read the device and current-user ``com.anthropic.claudecode`` plists."""
+    if sources.platform != "darwin":
+        return []
+    root = sources.plist_root
+    candidates = [("device", root / f"{MDM_DOMAIN}.plist")]
+    if _safe_user_dir(sources.user):
+        candidates.append(("user", root / str(sources.user) / f"{MDM_DOMAIN}.plist"))
+    out: list[_PlatformDoc] = []
+    for scope, path in candidates:
+        read = read_plist(path, root)
+        if not read.found:
+            continue
+        label = _MDM_LABELS[scope]
+        if read.data is None:
+            out.append(
+                _bad_doc(
+                    label,
+                    "mdm",
+                    str(path),
+                    read.problem or "cannot read",
+                    read.problem_kind,
+                    path,
+                    errors,
+                )
+            )
+            continue
+        keys = tuple(sorted(policy_keys(read.data)))
+        out.append(
+            _PlatformDoc(SourceDoc(label, "mdm", str(path), keys), read.data, path)
+        )
+    return out
+
+
+def _policy_for_doc(directory: Path, doc: _PlatformDoc) -> ManagedPolicy:
+    assert doc.data is not None  # noqa: S101 — callers skip malformed docs
+    policy = ManagedPolicy(directory=directory)
+    acc = _Acc()
+    _apply_document(policy, acc, doc.path, doc.data)
+    _finalize(policy, acc)
+    return policy
+
+
+@dataclass
+class _Ranked:
+    label: str
+    kind: Literal["files", "mdm", "hklm"]
+    policy: ManagedPolicy
+
+
+def _highest_allowlist(ranked: list[_Ranked]) -> ManagedPolicy | None:
+    """The highest-ranked source that sets ``allowedMcpServers`` (``ranked`` is
+    highest first)."""
+    return next((r.policy for r in ranked if r.policy.allowed is not None), None)
+
+
+def _merge_policies(directory: Path, ranked: list[_Ranked]) -> ManagedPolicy:
+    """Compose admin sources the way ``managedSourcesBehavior: "merge"`` does.
+
+    Per Anthropic's table (managed-settings, "Compose every managed source"):
+    ``deniedMcpServers`` entries union; ``allowedMcpServers`` is a restriction
+    allowlist, "taken whole from the highest-ranked source that sets it,
+    without adding entries from lower sources"; locks take the strictest value;
+    a ``managedMcpServers`` entry of the same name from a higher source wins.
+    *ranked* is highest first.
+    """
+    merged = ManagedPolicy(directory=directory)
+    denied: dict[tuple, PolicyEntry] = {}
+    for item in ranked:
+        for entry in item.policy.denied:
+            denied.setdefault(entry.key(), entry)
+    for item in reversed(ranked):  # lowest first, so a higher source overrides
+        merged.provided.update(item.policy.provided)
+    setter = _highest_allowlist(ranked)
+    if setter is not None:
+        merged.allowed = list(setter.allowed or [])
+        merged.allowed_invalid_value = setter.allowed_invalid_value
+    else:
+        merged.allowed_null = ranked[0].policy.allowed_null
+    for item in ranked:
+        p = item.policy
+        merged.lock |= p.lock
+        merged.lock_invalid |= p.lock and p.lock_invalid
+        merged.strict_plugin_only_mcp |= p.strict_plugin_only_mcp
+        merged.strict_plugin_only_blocks |= p.strict_plugin_only_blocks
+        merged.stripped_entries += p.stripped_entries
+        merged.provided_dropped += p.provided_dropped
+        for key in p.other_mcp_keys:
+            if key not in merged.other_mcp_keys:
+                merged.other_mcp_keys.append(key)
+        for key in p.doc_keys:
+            if key not in merged.doc_keys:
+                merged.doc_keys.append(key)
+    merged.denied = list(denied.values())
+    merged.sources_behavior = "merge"
+    return merged
+
+
+def _read_platform_source(
+    what: str, errors: list[str], read: Callable[[], object], default: object
+) -> object:
+    """Run one platform reader; a crash costs only that source (never the files)."""
+    try:
+        return read()
+    except Exception as exc:  # noqa: BLE001 — isolate each source
+        errors.append(f"managed policy: {what}: {type(exc).__name__}: {exc}")
+        return default
+
+
+def read_effective_policy(
+    directory: Path | None = None,
+    errors: list[str] | None = None,
+    sources: PlatformSources | None = None,
+) -> ManagedPolicy:
+    """Read every Claude Code policy source and return the one in force.
+
+    The managed files are read with :func:`read_managed_policy`; on macOS the
+    ``com.anthropic.claudecode`` managed-preferences plists and on Windows the
+    ``HKLM`` and ``HKCU`` ``Settings`` values are read through *sources*
+    (injectable; read-only, 1 MiB cap).  Rules, all from
+    https://code.claude.com/docs/en/managed-settings:
+
+    * Ranking: plist / ``HKLM`` > managed files > ``HKCU``.  A *policy key* is
+      any key other than ``wslInheritsWindowsSettings`` and
+      ``managedSourcesBehavior`` with a non-null value; a source with none
+      "doesn't count".  ``HKCU`` is used only when no admin document is
+      present (one is present when it sets a policy key or exists but can't be
+      read).
+    * ``"first-wins"`` (default): the highest-ranked source that delivers a
+      policy key is evaluated, except ``deniedMcpServers`` (union),
+      ``allowManagedMcpServersOnly`` (a ``true`` anywhere turns it on) and, while
+      that lock is on, ``allowedMcpServers`` (from the highest-ranked admin
+      source that sets one), which come from every admin source.
+    * ``"merge"``, read from the highest-ranked source carrying that key or a
+      policy key: denylists union, ``allowedMcpServers`` is taken whole from
+      the highest-ranked source that sets it, locks take the strictest value.
+
+    With no platform source delivering policy the result is exactly
+    :func:`read_managed_policy`.  Never raises on unreadable input; problems go
+    to *errors*.
+    """
+    errs: list[str] = errors if errors is not None else []
+    files = read_managed_policy(directory, errs)
+    plat = sources if sources is not None else default_platform_sources()
+    mdm: list[_PlatformDoc] = _read_platform_source(  # type: ignore[assignment]
+        "macOS managed preferences", errs, lambda: _plist_docs(plat, errs), []
+    )
+    hklm: _PlatformDoc | None = _read_platform_source(  # type: ignore[assignment]
+        "HKLM registry",
+        errs,
+        lambda: _registry_doc(plat, "HKLM", LABEL_HKLM, "hklm", errs),
+        None,
+    )
+    hkcu: _PlatformDoc | None = _read_platform_source(  # type: ignore[assignment]
+        "HKCU registry",
+        errs,
+        lambda: _registry_doc(plat, "HKCU", LABEL_HKCU, "hkcu", errs),
+        None,
+    )
+    admin_docs = [*mdm, *([hklm] if hklm else [])]
+    bad = [d.info for d in admin_docs if d.data is None]
+    for d in admin_docs:
+        if d.data is not None:
+            d.policy = _policy_for_doc(files.directory, d)
+    # Highest rank first: macOS profile(s) / HKLM, then the managed files.
+    ranked_all = [
+        _Ranked(d.info.label, d.info.kind, d.policy)  # type: ignore[arg-type]
+        for d in admin_docs
+        if d.policy is not None
+    ]
+    ranked_all.append(_Ranked(LABEL_FILES, "files", files))
+    delivering = [r for r in ranked_all if r.policy.doc_keys]
+    files_present = bool(files.unparsable_files or files.dropins_unlisted)
+    hkcu_keys = policy_keys(hkcu.data) if hkcu is not None and hkcu.data else []
+
+    def base(of: ManagedPolicy) -> ManagedPolicy:
+        return replace(
+            of,
+            directory=files.directory,
+            settings_files=list(files.settings_files),
+            unparsable_files=list(files.unparsable_files),
+            dropins_unlisted=files.dropins_unlisted,
+            dropins_dir=files.dropins_dir,
+            mcp_file=files.mcp_file,
+            exclusive_servers=files.exclusive_servers,
+            mcp_file_problem=files.mcp_file_problem,
+            file_keys=list(files.file_keys),
+            sources_found=[],
+            malformed_sources=list(bad),
+            platform_sources_read=True,
+        )
+
+    def with_docs(eff: ManagedPolicy) -> ManagedPolicy:
+        infos = {d.info.label: d.info for d in admin_docs if d.data is not None}
+        eff.sources_found = [infos[r.label] for r in delivering if r.label in infos]
+        return eff
+
+    if (
+        not bad
+        and len(delivering) == 1
+        and delivering[0] is ranked_all[-1]
+        and not hkcu_keys
+    ):
+        return files  # nothing beyond the managed files: output is unchanged
+    if bad:
+        # An admin source that can't be parsed or read: no verdict is built
+        # (MANAGED-007 for a malformed one).
+        return with_docs(base(files))
+    if not delivering:
+        if files_present or not hkcu_keys:
+            return files
+        # No admin document is present: Claude Code uses the HKCU value, which
+        # the user can write without elevation.
+        assert hkcu is not None and hkcu.data is not None  # noqa: S101
+        eff = base(_policy_for_doc(files.directory, hkcu))
+        eff.sources_found = [hkcu.info]
+        eff.source_label = LABEL_HKCU
+        eff.source_kind = "hkcu"
+        eff.files_in_force = False
+        eff.selection_note = (
+            "no admin document is present, so Claude Code uses the HKCU value,"
+            " which the user can write without elevation"
+        )
+        return eff
+
+    decider = next(
+        (r for r in ranked_all if r.policy.behavior_key_present or r.policy.doc_keys),
+        None,
+    )
+    merge = (
+        decider is not None
+        and decider.policy.sources_behavior == "merge"
+        and len(delivering) > 1
+    )
+    top = delivering[0]
+    hkcu_ignored = (
+        [f"{LABEL_HKCU}: ignored, an admin document is present"] if hkcu_keys else []
+    )
+    if merge:
+        eff = with_docs(base(_merge_policies(files.directory, delivering)))
+        eff.source_label = (
+            "merged admin sources (" + " + ".join(r.label for r in delivering) + ")"
+        )
+        eff.source_kind = "merged"
+        eff.selection_note = (
+            f"{decider.label if decider else top.label} sets managedSourcesBehavior"  # type: ignore[union-attr]
+            ' "merge", so Claude Code composes the admin sources: denylists'
+            " union, allowedMcpServers is taken whole from the highest-ranked"
+            " source that sets it, locks take the strictest value, and a higher"
+            " source's managedMcpServers entry wins"
+        )
+        eff.files_in_force = any(r.kind == "files" for r in delivering)
+        eff.ignored_sources = hkcu_ignored
+        return eff
+
+    eff = with_docs(base(top.policy))
+    denied = {e.key(): e for e in top.policy.denied}
+    for other in delivering[1:]:
+        for entry in other.policy.denied:
+            denied.setdefault(entry.key(), entry)
+        eff.lock = eff.lock or other.policy.lock
+        eff.lock_invalid = eff.lock_invalid or (
+            other.policy.lock and other.policy.lock_invalid
+        )
+    eff.denied = list(denied.values())
+    if eff.lock:
+        # "While the lock is on, the managed allowedMcpServers list comes from
+        # the highest-ranked admin source that sets one."
+        setter = _highest_allowlist(delivering)
+        if setter is not None and setter is not top.policy:
+            eff.allowed = list(setter.allowed or [])
+            eff.allowed_invalid_value = setter.allowed_invalid_value
+            eff.allowed_null = False
+    eff.source_label = top.label
+    eff.source_kind = top.kind
+    # The files matter when they are the selected source or still contribute a
+    # key read from every admin source (denylist, lock, the locked allowlist).
+    eff.files_in_force = (
+        top.kind == "files"
+        or bool(files.denied)
+        or files.lock
+        or (eff.lock and eff.allowed is not None and files.allowed == eff.allowed)
+    )
+    eff.selection_note = (
+        f"{top.label} is the highest-ranked admin source that sets a policy"
+        " key, so under the default managedSourcesBehavior (first-wins) Claude"
+        " Code uses it and ignores the other sources' allowlists;"
+        " deniedMcpServers and allowManagedMcpServersOnly (and, while that lock"
+        " is on, allowedMcpServers) are still read from every admin source"
+        if len(delivering) > 1
+        else f"{top.label} is the admin source that sets policy keys"
+    )
+    eff.ignored_sources = [
+        f"{r.label}: outranked by {top.label}" for r in delivering[1:]
+    ] + hkcu_ignored
+    return eff
 
 
 # ── Matching (managed-mcp "How a server is evaluated") ───────────────────────
@@ -853,6 +1388,46 @@ _SOURCE_CAVEAT = (
     " allowManagedMcpServersOnly are still read from every admin source,"
     " Claude Code 2.1.273 or later; managed-mcp.json always applies)."
 )
+_SOURCE_CAVEAT_READ = (
+    " mcp-audit read the managed files and this platform's MDM / registry"
+    " sources and ranks them as Claude Code does. Server-managed settings from"
+    " the claude.ai console rank above all of them and have no local copy, so"
+    " they are not visible; under Claude Code's default first-wins rule a higher"
+    " source that delivers any policy key replaces the allowlist"
+    " (deniedMcpServers and allowManagedMcpServersOnly are still read from every"
+    " admin source, Claude Code 2.1.273 or later; managed-mcp.json always"
+    " applies)."
+)
+
+
+def _source_caveat(policy: ManagedPolicy) -> str:
+    return _SOURCE_CAVEAT_READ if policy.platform_sources_read else _SOURCE_CAVEAT
+
+
+def _src(policy: ManagedPolicy) -> str:
+    """Evidence prefix naming the source in force ('' for the files alone)."""
+    return f"source: {policy.source_label} | " if policy.source_label else ""
+
+
+def _inventory_lead(policy: ManagedPolicy) -> str:
+    if policy.source_label is None and not policy.malformed_sources:
+        return (
+            f"Claude Code's managed files in {policy.directory} set this MCP policy: "
+        )
+    return (
+        "Claude Code's managed policy"
+        + (f" (source in force: {policy.source_label})" if policy.source_label else "")
+        + " sets this MCP policy: "
+    )
+
+
+def _inventory_evidence(policy: ManagedPolicy, files: list[Path]) -> str:
+    base = _src(policy) + "files: " + ", ".join(str(p) for p in files)
+    extra = [
+        f"{d.label}: {d.location}"
+        for d in (*policy.sources_found, *policy.malformed_sources)
+    ]
+    return base + (" | " + "; ".join(extra) if extra else "")
 
 
 def _inventory(policy: ManagedPolicy) -> Finding:
@@ -926,19 +1501,55 @@ def _inventory(policy: ManagedPolicy) -> Finding:
             " mcp-audit can't decide (a quoted boolean or an object)"
         )
     if policy.incomplete:
-        parts.append(
-            "verdicts withheld (no MANAGED-002/003/004/005): a managed settings"
-            " file or the managed-settings.d directory could not be read or"
-            " parsed, so mcp-audit can't tell what Claude Code enforces (it"
-            " drops a source it can't read and refuses to start on a document"
-            " it can't parse)"
-        )
+        if not policy.malformed_sources:
+            parts.append(
+                "verdicts withheld (no MANAGED-002/003/004/005): a managed settings"
+                " file or the managed-settings.d directory could not be read or"
+                " parsed, so mcp-audit can't tell what Claude Code enforces (it"
+                " drops a source it can't read and refuses to start on a document"
+                " it can't parse)"
+            )
+        else:
+            causes = []
+            if policy.unparsable_files or policy.dropins_unlisted:
+                causes.append(
+                    "a managed settings file or the managed-settings.d directory"
+                )
+            causes.append("an admin policy source (macOS profile or registry value)")
+            parts.append(
+                "verdicts withheld (no MANAGED-002/003/004/005): "
+                + " and ".join(causes)
+                + " could not be read or parsed, so mcp-audit can't tell what"
+                " Claude Code enforces"
+            )
     if policy.unparsable_files:
         parts.append(
             "unreadable or invalid managed settings file(s) (Claude Code refuses"
             " to start on a managed document it can't parse): "
             + ", ".join(p.name for p in policy.unparsable_files)
         )
+    if policy.selection_note:
+        parts.append(policy.selection_note)
+    if policy.ignored_sources:
+        parts.append("not in force: " + "; ".join(policy.ignored_sources))
+    for kind, text in (
+        ("malformed", "an admin source Claude Code can't parse (it refuses to start)"),
+        (
+            "denied",
+            "an admin source the operating system denied reading (Claude Code"
+            " starts without that source's policies)",
+        ),
+        (
+            "unreadable",
+            "an admin source mcp-audit could not read (Claude Code may exit at"
+            " startup, or mcp-audit's own limit applied)",
+        ),
+    ):
+        group = [m for m in policy.malformed_sources if m.problem_kind == kind]
+        if group:
+            parts.append(
+                text + ": " + "; ".join(f"{m.label} ({m.problem})" for m in group)
+            )
     if not parts:
         parts.append("no MCP policy keys")
     files = [*policy.settings_files, *policy.unparsable_files]
@@ -949,12 +1560,8 @@ def _inventory(policy: ManagedPolicy) -> Finding:
         Severity.INFO,
         "managed-policy",
         "Managed MCP policy on this machine",
-        "Claude Code's managed files in "
-        f"{policy.directory} set this MCP policy: "
-        + "; ".join(parts)
-        + "."
-        + _SOURCE_CAVEAT,
-        "files: " + ", ".join(str(p) for p in files),
+        _inventory_lead(policy) + "; ".join(parts) + "." + _source_caveat(policy),
+        _inventory_evidence(policy, files),
         "Confirm the policy is the one your organization intends. Run `/status`"
         " in Claude Code to see which managed source is in force, and"
         " `claude mcp list` to see what actually loads. Reference: " + _DOCS,
@@ -968,6 +1575,11 @@ _VERDICT_CAVEAT = (
     " This holds when the managed settings files are the source Claude Code"
     " applies: an MDM profile or server-managed settings that deliver any policy"
     " key replace them, and mcp-audit can't read those."
+)
+_VERDICT_CAVEAT_READ = (
+    " This holds when the source named in the evidence is the one Claude Code"
+    " applies: server-managed settings from the claude.ai console rank above it,"
+    " and mcp-audit can't read those."
 )
 
 
@@ -1003,7 +1615,12 @@ def _verdict(
             " 'Users can't add servers through ~/.claude.json or .mcp.json;"
             " plugin servers still load' (Anthropic, managed-mcp: Choose a"
             " pattern; a value that is neither a boolean nor an array is treated"
-            " as true, Claude Code 2.1.282 or later)." + _VERDICT_CAVEAT,
+            " as true, Claude Code 2.1.282 or later)."
+            + (
+                _VERDICT_CAVEAT_READ
+                if policy.platform_sources_read
+                else _VERDICT_CAVEAT
+            ),
         )
     if policy.provided:
         for name, entry in policy.provided.items():
@@ -1022,7 +1639,12 @@ def _verdict(
                     f" this one through managedMcpServers ({name}), and a"
                     " provided server takes precedence, so Claude Code connects"
                     " the organization's definition instead (Claude Code 2.1.259"
-                    " or later)." + _VERDICT_CAVEAT,
+                    " or later)."
+                    + (
+                        _VERDICT_CAVEAT_READ
+                        if policy.platform_sources_read
+                        else _VERDICT_CAVEAT
+                    ),
                 )
     if policy.allowed is None or policy.allowed_null:
         return None
@@ -1060,7 +1682,9 @@ def _verdict(
         "not-allowed",
         f"{shown}; commands must match exactly, every argument in order, and"
         " URLs by pattern and port (Anthropic, managed-mcp: How a server is"
-        " evaluated)." + extra_note + _VERDICT_CAVEAT,
+        " evaluated)."
+        + extra_note
+        + (_VERDICT_CAVEAT_READ if policy.platform_sources_read else _VERDICT_CAVEAT),
     )
 
 
@@ -1072,7 +1696,9 @@ def _server_shown(server: ServerConfig) -> str:
     return "no command or url"
 
 
-def _dead_config(server: ServerConfig, verdict: _Verdict) -> Finding:
+def _dead_config(
+    server: ServerConfig, verdict: _Verdict, policy: ManagedPolicy
+) -> Finding:
     return _finding(
         "MANAGED-002",
         Severity.INFO,
@@ -1083,7 +1709,8 @@ def _dead_config(server: ServerConfig, verdict: _Verdict) -> Finding:
         " server blocked this way disappears from /mcp and claude mcp list"
         " with no message saying policy is the reason.",
         f"server: {server.name} ({server.client}) | {_server_shown(server)} |"
-        f" reason: {verdict.reason} | file: {server.config_path}",
+        f" reason: {verdict.reason} | file: {server.config_path}"
+        + (f" | source: {policy.source_label}" if policy.source_label else ""),
         "Remove the entry, or ask the policy owner to approve the server (add a"
         " serverUrl or serverCommand allowlist entry). Reference: " + _DOCS,
         server.config_path,
@@ -1118,11 +1745,22 @@ def _broadened(policy: ManagedPolicy, allowlist: SettingsAllowlist) -> Finding |
         " ~/.claude/settings.json, so a user can broaden what your allowlist"
         " permits'. allowedMcpServers can be set in any settings file, so a"
         " repository's committed settings broaden it for everyone who opens"
-        " the repository. mcp-audit reads only the managed files: Claude Code"
-        " turns the lock on from a true in any admin source (2.1.273 or"
-        " later), so an MDM profile or server-managed settings it can't read"
-        " may already lock the list.",
-        f"file: {allowlist.path} | added: {shown}",
+        " the repository. "
+        + (
+            "mcp-audit read the managed files and this platform's MDM/registry"
+            " sources, but not server-managed settings"
+            if policy.platform_sources_read
+            else "mcp-audit reads only the managed files"
+        )
+        + ": Claude Code turns the lock on from a true in any admin source"
+        " (2.1.273 or later), so "
+        + (
+            "server-managed settings"
+            if policy.platform_sources_read
+            else "an MDM profile or server-managed settings"
+        )
+        + " it can't read may already lock the list.",
+        _src(policy) + f"file: {allowlist.path} | added: {shown}",
         "Administrators: set allowManagedMcpServersOnly to true next to"
         " allowedMcpServers in managed settings. Repository owners: remove"
         " allowedMcpServers from committed settings. Reference: " + _DOCS,
@@ -1167,7 +1805,7 @@ def _name_only(policy: ManagedPolicy) -> Finding | None:
         " control. The name is the label a user assigns when running claude mcp"
         " add or editing a config file, not the underlying server, so a user can"
         " call any server github.'",
-        f"serverName entries: {_redact(names)}",
+        _src(policy) + f"serverName entries: {_redact(names)}",
         "Add serverUrl entries for remote servers and serverCommand entries for"
         " stdio servers; once one exists, a name match no longer admits that"
         " transport. Reference: " + _DOCS,
@@ -1184,20 +1822,192 @@ def _no_policy(policy: ManagedPolicy) -> Finding:
         "managed-policy",
         "Managed settings are deployed but set no MCP policy",
         "This machine has Claude Code managed settings ("
-        + ", ".join(p.name for p in policy.settings_files)
-        + f" in {policy.directory}) but they set none of allowedMcpServers,"
+        + (
+            policy.source_label
+            if policy.source_label and policy.source_kind != "files"
+            else ", ".join(p.name for p in policy.settings_files)
+            + f" in {policy.directory}"
+        )
+        + ") but they set none of allowedMcpServers,"
         " deniedMcpServers, allowManagedMcpServersOnly, managedMcpServers or"
         " strictPluginOnlyCustomization for MCP, and there is no"
         " managed-mcp.json. Anthropic: 'By default, anyone running Claude Code"
         " can connect any MCP server they choose', so the organization governs"
-        " other settings here but not which MCP servers run." + _SOURCE_CAVEAT,
-        "files: " + ", ".join(str(p) for p in policy.settings_files),
+        " other settings here but not which MCP servers run." + _source_caveat(policy),
+        _src(policy) + ("files: " + ", ".join(str(p) for p in policy.settings_files)),
         "If MCP servers should be governed, add deniedMcpServers, or"
         " allowedMcpServers with allowManagedMcpServersOnly, to managed settings,"
         " or deploy managed-mcp.json. Reference: " + _DOCS,
         policy.directory,
         ["MCP09"],
         "CWE-1188",
+    )
+
+
+@dataclass(frozen=True)
+class FsProbe:
+    """Injectable file-permission probe for MANAGED-006 (POSIX).
+
+    Attributes:
+        uid: The current user's effective uid; ``None`` on Windows (the file
+            half of MANAGED-006 is skipped there).
+        stat: ``Path -> os.stat_result``.
+        access: ``(Path, mode) -> bool``, like ``os.access``.
+        wsl: Running under WSL, where Anthropic notes ``/etc/claude-code`` is
+            user-writable.
+    """
+
+    uid: int | None
+    stat: Callable[[Path], os.stat_result]
+    access: Callable[[Path, int], bool]
+    wsl: bool = False
+
+
+def default_fs_probe() -> FsProbe:
+    """The real machine's probe (patched out in the test suite's conftest)."""
+    uid = os.geteuid() if hasattr(os, "geteuid") else None
+    wsl = False
+    if sys.platform.startswith("linux"):
+        try:
+            wsl = "microsoft" in Path("/proc/version").read_text().lower()
+        except OSError:
+            wsl = False
+    return FsProbe(uid, lambda p: p.stat(), lambda p, m: os.access(p, m), wsl)
+
+
+_WSL_DIR = Path("/etc/claude-code")
+
+
+def user_writable_paths(
+    policy: ManagedPolicy, probe: FsProbe | None
+) -> list[tuple[Path, str]]:
+    """Managed paths the current user can write, each with the reason.
+
+    Probed: the managed directory, ``managed-settings.d`` (even empty: a user
+    can add a drop-in that overrides the files), each settings file that
+    carries policy, and ``managed-mcp.json``.  A path counts when its owner is
+    the current user (reason ``owned``) or ``access(W_OK)`` is true (reason
+    ``group/other``: permission bits or an ACL).  On WSL, Anthropic: "On WSL,
+    /etc/claude-code is user-writable", so that directory counts when policy
+    files are there.  Root and Windows are skipped (``probe`` is ``None``,
+    ``uid`` is ``None`` or 0): the finding is about a non-privileged user
+    changing policy.
+    """
+    if probe is None or probe.uid is None or probe.uid == 0:
+        return []
+    files_part = policy.files_in_force and bool(policy.settings_files)
+    mcp_part = policy.mcp_file is not None
+    if not files_part and not mcp_part:
+        return []
+    targets: list[Path] = [policy.directory]
+    if files_part:
+        if policy.dropins_dir is not None:
+            targets.append(policy.dropins_dir)
+        targets.extend(policy.settings_files)
+    if mcp_part and policy.mcp_file is not None:
+        targets.append(policy.mcp_file)
+    out: list[tuple[Path, str]] = []
+    for path in dict.fromkeys(targets):
+        try:
+            if probe.stat(path).st_uid == probe.uid:
+                out.append((path, "owned by the current user"))
+            elif probe.access(path, os.W_OK):
+                out.append(
+                    (path, "writable through group or other permission bits or an ACL")
+                )
+        except OSError:
+            continue
+    if probe.wsl and policy.directory == _WSL_DIR and not out:
+        out.append(
+            (
+                policy.directory,
+                "WSL: Anthropic notes /etc/claude-code is user-writable",
+            )
+        )
+    return out
+
+
+def _keys_text(keys: list[str]) -> str:
+    shown = ", ".join((k if len(k) <= 64 else k[:64] + "…") for k in sorted(keys)[:20])
+    return shown + (f" (+{len(keys) - 20} more)" if len(keys) > 20 else "")
+
+
+def _not_enforced(policy: ManagedPolicy, probe: FsProbe | None) -> Finding | None:
+    """MANAGED-006: policy that exists only where the user can change it."""
+    if policy.source_kind == "hkcu":
+        keys = _keys_text(policy.doc_keys)
+        return _finding(
+            "MANAGED-006",
+            Severity.MEDIUM,
+            "managed-policy",
+            "Claude Code policy is set, not enforced",
+            "Claude Code policy is delivered only through the per-user registry"
+            f" key {LABEL_HKCU}, and no admin source (macOS profile, HKLM value or"
+            " managed settings file) is present. Anthropic: 'The HKCU registry is"
+            " user-writable and isn't' an admin source; it is used only when no"
+            " admin document is present above it. A user can change or delete the"
+            " value without elevation, so this is a default, not enforcement."
+            f" Keys it carries: {keys}.",
+            f"source: {LABEL_HKCU} | keys: {keys} | location: "
+            + ", ".join(d.location for d in policy.sources_found if d.kind == "hkcu"),
+            "Deploy the policy through MDM, the HKLM registry key"
+            " (HKLM\\SOFTWARE\\Policies\\ClaudeCode, value Settings) or a"
+            " root/Administrator-owned managed settings file. Reference: "
+            + _MANAGED_SETTINGS_DOCS,
+            None,
+            ["MCP09", "MCP07"],
+            "CWE-284",
+        )
+    writable = user_writable_paths(policy, probe)
+    if not writable:
+        return None
+    keys_list = list(policy.file_keys)
+    if policy.mcp_file is not None:
+        keys_list.append("managed-mcp.json (exclusive control)")
+    keys = _keys_text(keys_list)
+    shown = "; ".join(f"{p} ({why})" for p, why in writable[:10])
+    return _finding(
+        "MANAGED-006",
+        Severity.MEDIUM,
+        "managed-policy",
+        "Claude Code policy is set, not enforced",
+        "Claude Code's managed policy files are in a place the current non-root"
+        " user can write, so the user can edit, replace or add to the policy and"
+        f" it is a default, not enforcement. Keys the files carry: {keys}."
+        + (
+            " Anthropic: 'On WSL, /etc/claude-code is user-writable as well.'"
+            if any("WSL" in why for _, why in writable)
+            else ""
+        ),
+        _src(policy) + f"writable by the current user: {shown} | keys: {keys}",
+        "Deploy the policy through MDM, the HKLM registry key or files owned by"
+        " root (Windows: Administrator) in a directory only root can write."
+        " Reference: " + _MANAGED_SETTINGS_DOCS,
+        policy.directory,
+        ["MCP09", "MCP07"],
+        "CWE-732",
+    )
+
+
+def _malformed_finding(doc: SourceDoc) -> Finding:
+    """MANAGED-007: an admin source that isn't a JSON object."""
+    return _finding(
+        "MANAGED-007",
+        Severity.INFO,
+        "managed-policy",
+        "Claude Code admin policy source is not a valid settings object",
+        f"The admin policy source {doc.label} ({doc.location}) could not be used:"
+        f" {doc.problem}. Anthropic: Claude Code refuses to start on an admin"
+        " managed document it can't parse, so developers on this machine see"
+        " Claude Code fail to launch until the value is fixed. mcp-audit builds"
+        " no allowlist or denylist verdict while an admin source is unreadable.",
+        f"source: {doc.label} | location: {doc.location} | problem: {doc.problem}",
+        "Fix the profile or registry value so it holds a JSON object of settings"
+        " (the same shape as managed-settings.json). Reference: "
+        + _MANAGED_SETTINGS_DOCS,
+        None,
+        ["MCP09"],
+        "CWE-20",
     )
 
 
@@ -1209,6 +2019,7 @@ def analyze_managed_policy(
     root: Path | None,
     *,
     machine_findings: bool = True,
+    probe: FsProbe | None = None,
 ) -> list[Finding]:
     """Compare *policy* with the configured servers and settings files.
 
@@ -1220,12 +2031,12 @@ def analyze_managed_policy(
         home: Home directory (identifies the user settings file).
         root: The scan's project root (cwd for a default scan, the
             ``--project`` directory otherwise).
-        machine_findings: Emit MANAGED-001/003/005, which describe the
+        machine_findings: Emit MANAGED-001/003/005/006/007, which describe the
             machine rather than *servers*; ``scan --project`` passes False
             because the default scan already emitted them.
 
     Returns:
-        MANAGED-001..005 findings; empty when no managed file exists.
+        MANAGED-001..007 findings; empty when no policy source exists.
     """
     if not policy.present:
         return []
@@ -1233,10 +2044,26 @@ def analyze_managed_policy(
     if policy.incomplete:
         # A managed source Claude Code can't parse is dropped or stops it from
         # starting; nothing built from the remaining files can be backed.
-        return [_inventory(policy)] if machine_findings else []
+        if not machine_findings:
+            return []
+        return [
+            _inventory(policy),
+            *(
+                _malformed_finding(doc)
+                for doc in policy.malformed_sources
+                if doc.problem_kind == "malformed"
+            ),
+        ]
     if machine_findings:
         findings.append(_inventory(policy))
-        if not policy.has_mcp_policy and policy.settings_files:
+        not_enforced = _not_enforced(policy, probe)
+        if not_enforced is not None:
+            findings.append(not_enforced)
+        if (
+            not policy.has_mcp_policy
+            and (policy.settings_files or policy.sources_found)
+            and policy.source_kind != "hkcu"
+        ):
             findings.append(_no_policy(policy))
         name_only = _name_only(policy)
         if name_only is not None:
@@ -1264,7 +2091,7 @@ def analyze_managed_policy(
         seen.add(key)
         verdict = _verdict(policy, server, allowlists)
         if verdict is not None:
-            findings.append(_dead_config(server, verdict))
+            findings.append(_dead_config(server, verdict, policy))
     return findings
 
 
@@ -1285,8 +2112,10 @@ def managed_policy_findings(
     *,
     machine_findings: bool = True,
     directory: Path | None = None,
+    sources: PlatformSources | None = None,
+    probe: FsProbe | None = None,
 ) -> list[Finding]:
-    """Read the managed directory and return MANAGED-001..005 findings.
+    """Read every policy source and return MANAGED-001..007 findings.
 
     The entry point for ``scan`` / ``check`` (``scanner._discover_and_parse``)
     and ``scan --project`` (``cli/scan._apply_project_scan``).  Never raises:
@@ -1300,11 +2129,15 @@ def managed_policy_findings(
         errors: The scan's ``result.errors``.
         machine_findings: See :func:`analyze_managed_policy`.
         directory: Managed directory override (tests).
+        sources: Platform readers (registry, plist root); the real machine's
+            when omitted (tests inject fakes).
+        probe: File-permission probe for MANAGED-006; the real one when
+            omitted (tests inject fakes).
     """
     from mcp_audit.discovery import _home  # noqa: PLC0415
 
     try:
-        policy = read_managed_policy(directory, errors)
+        policy = read_effective_policy(directory, errors, sources)
         return analyze_managed_policy(
             policy,
             servers,
@@ -1312,6 +2145,7 @@ def managed_policy_findings(
             _home(),
             root,
             machine_findings=machine_findings,
+            probe=probe if probe is not None else default_fs_probe(),
         )
     except Exception as exc:  # noqa: BLE001 — never fail the scan over policy files
         errors.append(f"managed policy check error: {type(exc).__name__}: {exc}")

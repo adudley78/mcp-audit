@@ -103,6 +103,14 @@ NON_ADVISORY_IDS: Final[frozenset[str]] = frozenset(
         # config, the policy working as intended, not a vulnerability
         "MANAGED-003",  # managed settings without MCP policy — organisation
         # posture with no package or server to attach an advisory to
+        "MANAGED-006",  # Claude Code policy only where the user can change it
+        # (STORY-0144) — one machine's deployment, never a package
+        "MANAGED-007",  # admin policy source that is not a settings object
+        # (STORY-0144) — operational note about one machine
+        "EXTPOL-001",  # editor extension allowlist inventory (STORY-0144)
+        "EXTPOL-002",  # allowlist set only in user settings — one machine's
+        "EXTPOL-003",  # policy that allows everything — one machine's
+        # deployment posture, no package or server to attach an advisory to
         "REACH-001",  # credential files a Claude Code session can read
         "REACH-002",  # Claude Code login store readable by other accounts
         "REACH-003",  # .env files with no Read deny rule (STORY-0114) — all

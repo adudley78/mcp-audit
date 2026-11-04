@@ -10,6 +10,7 @@ from mcp_audit.exploit import signals
 from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS
 from mcp_audit.models import Finding, ScanResult, Severity
 from mcp_audit.registration.models import RegistrationConfig
+from mcp_audit.scoring import INVENTORY_ONLY_IDS
 
 # ── Severity colour map (Rich markup) ─────────────────────────────────────────
 
@@ -209,6 +210,27 @@ _HINTS: dict[str, str] = {
     "MANAGED-005": (
         "Add serverUrl and serverCommand allowlist entries; names alone admit"
         " any server."
+    ),
+    "MANAGED-006": (
+        "Deploy Claude Code policy through MDM, the HKLM registry key or a"
+        " root-owned managed settings file; HKCU and user-writable files can be"
+        " changed by the user."
+    ),
+    "MANAGED-007": (
+        "Fix the profile or HKLM value so it holds a JSON object of settings;"
+        " Claude Code won't start on it."
+    ),
+    "EXTPOL-001": (
+        "Check the editor's extension allowlist is the one you intend and is"
+        " deployed as the AllowedExtensions policy."
+    ),
+    "EXTPOL-002": (
+        "Deploy the allowlist as the AllowedExtensions policy (Group Policy, MDM"
+        " or /etc/vscode/policy.json); a user setting can be changed."
+    ),
+    "EXTPOL-003": (
+        'Replace "*": true in the AllowedExtensions policy with the publishers'
+        " you approve."
     ),
     "REACH-001": (
         "Add Read deny rules for these files to ~/.claude/settings.json, or set"
@@ -585,7 +607,10 @@ def print_check_results(
     console.print()
     console.print(Rule("[bold]mcp-audit — Security Check[/bold]"))
 
-    if not result.findings:
+    # Inventory-only findings (scoring.INVENTORY_ONLY_IDS) describe a state that
+    # is fine; they are not issues and stay out of the verdict.
+    reportable = [f for f in result.findings if f.id not in INVENTORY_ONLY_IDS]
+    if not reportable:
         console.print()
         console.print(
             f"  Grade: [{grade_style}]{grade}[/{grade_style}]  ✓ No issues found"
@@ -624,7 +649,7 @@ def print_check_results(
     # ── Findings list ─────────────────────────────────────────────────────────
     # KEV first, then severity, then EPSS (STORY-0124); stable otherwise.
     sorted_findings = sorted(
-        result.findings,
+        reportable,
         key=lambda f: signals.priority_key(f, _SEVERITY_ORDER.index(f.severity)),
     )
 
