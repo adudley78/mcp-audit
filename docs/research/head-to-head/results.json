@@ -4,11 +4,11 @@
   "tools": {
     "mcp-audit": {
       "status": "ran",
-      "version": "0.26.0",
-      "commit": "744a88f832585c75ebd6eaff6b7e6fff27e8f282",
+      "version": "0.27.0",
+      "commit": "59cb49b341dd4f23e84a8b623d4e70a0ed083892",
       "dirty_src_or_scripts": false,
       "commands": {
-        "tool_lists": "POISON-* analyzer over each tool definition (the code `scan --connect` runs; same calls as scripts/bench_poisoning.py)",
+        "tool_lists": "POISON-* analyzer over each tool definition (the code `scan --connect` runs; same calls as bench_poisoning.py)",
         "skills": "mcp-audit agent-files scan --project <dir> --format json (HOME set to an empty directory)"
       },
       "results": {
@@ -359,9 +359,9 @@
   "definitions": {
     "recall": "flagged / scored on the malicious or poisoned corpora",
     "clean_flag_rate": "flagged / scored on the clean, twin and benign corpora",
-    "flagged": "at least one finding at any severity (for Cisco: a non-SAFE analyzer severity)",
+    "flagged": "at least one finding at any severity (Cisco: non-SAFE severity)",
     "high": "at least one HIGH or CRITICAL finding",
-    "errors": "inputs that produced no usable verdict; excluded from rates, never counted as clean"
+    "errors": "no usable verdict; excluded from rates, never counted as clean"
   },
   "date": "2026-11-04"
 }

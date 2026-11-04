@@ -58,7 +58,7 @@ Severity scales differ between tools, so "any severity" is not a like-for-like n
 
 ## Current table
 
-Measured 2026-11-04 on mcp-audit 0.26.0 (commit `744a88f`, see `results.json` for the commit of the latest run). Competitor columns: not run.
+Measured 2026-11-04 on mcp-audit 0.27.0 (commit `59cb49b`; `results.json` records the commit of the latest run). Competitor columns: not run.
 
 | Corpus (basis) | mcp-audit, any severity | mcp-audit, HIGH or above | SkillSpector | Cisco mcp-scanner | Snyk agent-scan |
 |---|---|---|---|---|---|
