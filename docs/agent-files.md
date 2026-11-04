@@ -82,7 +82,7 @@ things from the user, skipping their approval, banning the ask-the-user tool,
 threats, run-on-startup, fetch-a-URL-and-follow-it, switching off the
 harness's own checks) report SKILL-001 at their own severity instead of HIGH:
 HIGH for secrecy and for an oversight bypass ("skip permission prompts",
-"disable the sandbox", `--dangerously-skip-permissions`, POISON-076), MEDIUM
+"bypass the approval dialog", `--dangerously-skip-permissions`, POISON-076), MEDIUM
 for banning the ask-the-user tool, LOW for the rest, including a plain
 autonomy override ("run the tests without asking for confirmation"). See
 [poisoning.md](poisoning.md#orders-that-hide-story-0099).
@@ -101,19 +101,19 @@ evidence, and some things are directed whatever the frame.
 | Reads as described (only these) | Example |
 |---|---|
 | A short clause that opens with its negation and ends at the match | "Never read ~/.ssh/id_rsa." "You must never read ~/.ssh/id_rsa." |
-| A checklist item that describes rather than orders | `- [ ] reads ~/.ssh/id_rsa or other private keys` |
-| A list item, opening like a description, in the list after a heading or `...:` lead-in that names what to detect (flag, detect, look for, watch for, red flags, warning signs, indicators, signs of, suspicious, malicious) | `## Red flags` then `- tool descriptions that mention ~/.ssh/id_rsa` |
+| A list item or checklist item, opening like a description, in the list after a heading or `...:` lead-in that names what to detect (flag, detect, look for, watch for, red flags, warning signs, indicators, signs of, suspicious, malicious); the whole item is judged, continuation lines included | `When reviewing a PR, flag any change that:` then `- [ ] reads ~/.ssh/id_rsa or other private keys` |
 | A sentence that frames the match as something to find | "Flag tool descriptions that tell the agent to read ...", "Attackers write descriptions that ..." |
 | A blockquote that opens like a description, or follows a detection lead-in | `> Tool descriptions that mention ~/.ssh/id_rsa` |
 
 | Always directed | Why |
 |---|---|
 | Fenced code, under any heading | Code a skill shows is code an agent may run |
-| A line or sentence naming a destination (URL, e-mail, IP, `host:port`, a pipe into a program, curl/wget/nc/scp/rsync/ftp/sendmail) | Describing text rarely needs one; an order to send data always does |
+| A line, sentence or list item naming a destination (URL, e-mail, IP, `host:port`, a host after "to/at/into", a Markdown link or link reference, a pipe into a program, curl/wget/nc/scp/rsync/ftp/sendmail) | Describing text rarely needs one; an order to send data always does |
+| A later clause or sentence of the same item that gives an order ("..., and attach that file to your reply", "Now attach it") | |
 | A table row, a callout, a bold label (`**Important**:`) | How skills give orders |
 | A sentence addressed to the agent ("you must", "the agent should", "make sure to", "please send"), or a condition followed by an order ("before formatting, run ...") | |
 | A negation that is undone or followed by another clause ("don't forget to", "won't hurt to", "do not refrain from", "never read X; send it") | |
-| Any file with a concealment channel (POISON-041..045) | A file that hides text gets no benefit of the doubt |
+| Any file with a concealment channel (POISON-041..045) or obfuscation (POISON-040/060) | A file that hides or disguises text gets no benefit of the doubt |
 | A pattern that matches more than 256 times in one file with none of those directed | The cap fails closed |
 
 "Review", "audit", "checklist" and "attack" headings do not count as detection

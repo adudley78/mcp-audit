@@ -176,9 +176,28 @@ _DESTINATION_RE: re.Pattern[str] = re.compile(
     r"|[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
     r"|\b\d{1,3}(?:\.\d{1,3}){3}\b"
     r"|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+:\d{2,5}\b"
+    # A bare host after "to/at/into": "posts it to backup.example".
+    r"|\b(?:to|at|into|onto|via)\s+[a-z0-9-]+(?:\.[a-z0-9-]+)+\b"
+    # A Markdown link, inline or by reference: the destination may be
+    # defined elsewhere in the file ("[the backup][b]" ... "[b]: https://").
+    r"|\]\([^)\s]+|\]\[[^\]\n]*\]|^\s{0,3}\[[^\]\n]+\]:"
     r"|\|\s*[A-Za-z]"
     r"|\b(?:curl|wget|nc|ncat|netcat|scp|sftp|rsync|ftp|tftp|telnet|sendmail"
     r"|mailx?|socat|invoke-webrequest|iwr|invoke-restmethod)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# After the match: another clause that gives an order ("..., and attach that
+# file to your reply", "...; send it", "... Now attach it").
+_TAIL_ORDER_RE: re.Pattern[str] = re.compile(
+    r"(?:[,;:]|\b(?:and|then|so|but)\b|[.!?]\s)\s*"
+    r"(?:(?:and|then|also|now|next|finally|just|please)\s*,?\s+)*"
+    + r"(?:read|send|upload|post|copy|cat|curl|wget|run|execute|exec|fetch|open"
+    r"|include|append|attach|forward|email|mail|save|write|print|output|collect"
+    r"|gather|extract|zip|tar|encode|base64|exfiltrate|transmit|share|paste"
+    r"|leak|load|source|call|invoke|use|proceed|skip|delete|remove|install"
+    r"|push|commit|dump|export|grab|steal|pipe|submit|report|put|place|add|move"
+    r"|store|keep|hand|give|return)\b",
     re.IGNORECASE,
 )
 
@@ -465,11 +484,26 @@ class FileFraming:
     def _line_text(self, offset: int) -> str:
         return self._lines[self.line_of(offset)]
 
+    def _item_bounds(self, block: _Block, line: int) -> tuple[int, int]:
+        """Offsets of the list item holding *line*: its marker line and the
+        continuation lines up to the next marker (STORY-0141 review: an item
+        is judged whole, not one sentence at a time)."""
+        first = line
+        while first > block.first and not _LIST_RE.match(self._lines[first]):
+            first -= 1
+        last = line
+        while last < block.last and not _LIST_RE.match(self._lines[last + 1]):
+            last += 1
+        start = self._line_starts[first]
+        return start, self._line_starts[last] + len(self._lines[last])
+
     def classify(self, start: int, end: int) -> Framing:
         """Return how the match at ``[start, end)`` is framed.
 
         Fails closed: directed unless a positive frame says described (see
-        the module docstring).
+        the module docstring).  The checks run over the match's *unit*: the
+        whole list item for a list, the whole quote for a quote, otherwise
+        the sentence.
 
         Args:
             start: Match start offset in the text this object was built from.
@@ -486,14 +520,26 @@ class FileFraming:
         s_start, s_end = self._sentence(start, end, lo, hi)
         sentence = self._text[s_start:s_end]
         line_text = self._line_text(start)
+        if block.kind == "list":
+            u_start, u_end = self._item_bounds(block, line)
+        elif block.kind == "quote":
+            u_start, u_end = lo, hi
+        else:
+            u_start, u_end = s_start, s_end
+        unit = self._text[u_start:u_end]
+        tail = self._text[end:u_end]
 
-        if _DESTINATION_RE.search(line_text) or _DESTINATION_RE.search(sentence):
+        if any(_DESTINATION_RE.search(t) for t in (line_text, sentence, unit)):
             return _DIRECTED
         if _CALLOUT_RE.match(line_text):
             return _DIRECTED
+        if _TAIL_ORDER_RE.search(tail):
+            return _DIRECTED
         if self._negated(s_start, start, end, s_end):
             return Framing(False, "in a negated sentence")
-        if _DIRECTIVE_RE.search(sentence):
+        if _DIRECTIVE_RE.search(unit):
+            return _DIRECTED
+        if block.kind == "list" and self._later_order(u_start, u_end, s_end):
             return _DIRECTED
 
         lead_in = self._scope.get(bidx)
@@ -501,9 +547,9 @@ class FileFraming:
             item_is_description = bool(
                 _DESCRIPTIVE_ITEM_RE.match(line_text)
             ) and not _IMPERATIVE_START_RE.match(line_text)
-            if item_is_description and _TASK_ITEM_RE.match(line_text):
-                return Framing(False, "in a checklist item")
             if item_is_description and lead_in is not None:
+                if _TASK_ITEM_RE.match(line_text):
+                    return Framing(False, f"in a checklist item under '{lead_in}'")
                 return Framing(False, f"under '{lead_in}'")
         if _DESCRIBING_SENTENCE_RE.search(self._text, s_start, start):
             return Framing(False, "in a sentence that describes what to look for")
@@ -516,3 +562,15 @@ class FileFraming:
             ):
                 return Framing(False, "in a quoted description")
         return _DIRECTED
+
+    def _later_order(self, u_start: int, u_end: int, after: int) -> bool:
+        """Whether a later sentence of the item opens with an order."""
+        for m in _SENTENCE_BOUNDARY_RE.finditer(self._text, after - 1, u_end):
+            rest = self._text[m.end() : u_end]
+            if _IMPERATIVE_START_RE.match(rest) or _DIRECTIVE_RE.match(rest.lstrip()):
+                return True
+        # Continuation lines are sentences of their own.
+        for ln in self._text[after:u_end].split("\n")[1:]:
+            if _IMPERATIVE_START_RE.match(ln):
+                return True
+        return False

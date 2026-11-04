@@ -375,6 +375,7 @@ class Finding(BaseModel):
             getattr(self, "line", 0) is None
             and getattr(self, "analyzer", None) in ("agent_files", "poisoning")
             and isinstance(evidence, str)
+            and getattr(self, "finding_path", None)
         ):
             m = _EVIDENCE_LINE_RE.match(evidence)
             if m is not None:

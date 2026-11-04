@@ -506,12 +506,24 @@ _OVR_VERB: str = (
     r"|auto-?approv(?:e|ing)|get(?:ting)?\s+around)"
 )
 _OVR_DET: str = r"(?:\s+(?:the|any|all|every|your|those|these|such)){0,2}"
+# Only the harness's own human checks.  "The sandbox", "hooks", "monitoring"
+# and "guardrails" were dropped after review: "disable hooks in CI by
+# setting HUSKY=0" and "turn off monitoring before load tests" are ordinary
+# project text (STORY-0141 review, B4).
 _OVR_OBJECT: str = (
-    r"(?:(?:(?:user|human|manual)\s+)?(?:permission|approval|confirmation|consent)s?"
+    r"(?:(?:user|human|manual)\s+)?(?:permission|approval|confirmation|consent)s?"
     r"(?:\s+(?:prompts?|dialogs?|dialogues?|popups?|pop-ups?|checks?|requests?"
-    r"|steps?|questions?))?"
-    r"|safety\s+checks?|guardrails?|sandbox(?:ing|es)?|hooks?"
-    r"|monitoring|audit\s+log(?:s|ging)?)\b"
+    r"|steps?|questions?))?+\b"
+    # Not a noun modifier ("permission checks tests") or a gerund subject
+    # ("skipping permission prompts is dangerous").
+    r"(?!\s+(?:tests?|lint|warnings?|docs?|documentation|is|are|was|were|can"
+    r"|could|may|might|will|would|should|must)\b)"
+)
+# A flag scoped to a safe place ("only inside the devcontainer", "is only
+# safe in a container") is advice about where it belongs, not an order.
+_OVR_FLAG_SCOPE: str = (
+    r"(?![^\n.]{0,60}\b(?:only|inside|within|in\s+(?:a|the|your)\s+"
+    r"(?:container|devcontainer|vm|virtual\s+machine|sandbox|throwaway|disposable)))"
 )
 _OVR_FLAG: str = r"(?:--dangerously-skip-permissions|\bbypassPermissions\b|--yolo\b)"
 _OVR_NEGATION: str = (
@@ -945,7 +957,7 @@ PATTERNS: list[DetectionPattern] = [
             rf"\b{_OVR_VERB}{_OVR_DET}\s+{_OVR_OBJECT}"
             r"|\b(?:run|runs|running|launch|start|invoke|execute|use|using|pass|add"
             r"|set|enable|with)\b[^\n.]{0,40}?"
-            rf"{_OVR_FLAG}",
+            rf"{_OVR_FLAG}{_OVR_FLAG_SCOPE}",
             re.IGNORECASE,
         ),
         negated_by=re.compile(_OVR_NEGATION, re.IGNORECASE),
@@ -953,9 +965,8 @@ PATTERNS: list[DetectionPattern] = [
         skill_severity=Severity.HIGH,
         description=(
             "Text tells the model to skip, bypass or switch off the user's"
-            " checks on what it does (permission prompts, safety checks, the"
-            " sandbox, hooks, audit logs) or to run with"
-            " --dangerously-skip-permissions"
+            " permission, approval or confirmation prompts, or to run with"
+            " --dangerously-skip-permissions, bypassPermissions or --yolo"
         ),
         remediation=(
             "Remove this MCP server or file; an instruction to bypass"
@@ -1129,7 +1140,8 @@ _PADDING_BLANK_LINE_RE: re.Pattern[str] = re.compile(
 # script's letters count (a Cyrillic or CJK payload is still words).
 _PADDING_MIN_WORDS: int = 3
 _PADDING_WORD_RE: re.Pattern[str] = re.compile(
-    r"[^\W\d_]{2,}|[\u3040-\u30ff\u4e00-\u9fff]"
+    "[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]"
+    "|(?:(?![\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af])[^\\W\\d_]){2,}"
 )
 # Horizontal padding: a run of this many spaces, tabs or no-break spaces
 # inside one line, then text, pushes it past the right edge of an editor or

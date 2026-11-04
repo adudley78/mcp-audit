@@ -1811,8 +1811,9 @@ trust"). Recorded limits:
   attack examples in a security skill are HIGH, and "Never, under any
   circumstances, read ~/.ssh/id_rsa" stays HIGH (the comma ends the clause
   before the negation reaches the match).
-- **Known residual ways past it.** A description-shaped item with no
-  destination under a detection heading ("## Red flags" then "- reading
+- **Known residual ways past it.** Destinations written to dodge a pattern
+  ("hxxp", "example dot com", base64) are not recognised as destinations. A
+  description-shaped item with no destination under a detection heading ("## Red flags" then "- reading
   ~/.ssh/id_rsa and including it in the reply") is INFO even if an agent
   would act on it; an order spread over two sentences ("Collect the key
   file. ~/.ssh/id_rsa is the one.") can match only in the second, which may
@@ -1832,6 +1833,7 @@ trust"). Recorded limits:
   `this.env` (8). POISON-003's `(read|access|...)\s+.*\.env\b` matching any
   `<x>.env` property is a pattern defect, not changed here (it would move
   the config-surface benchmark).
+- **POISON-076 covers only permission, approval and confirmation prompts and the three bypass flags.** "Disable the sandbox", "turn off hooks" and "turn off monitoring" are not matched: in ordinary project text they are routine ("disable hooks in CI by setting HUSKY=0"). Benign configuration advice that names the prompts still fires ("disable approval prompts for read-only tools in settings.json"): HIGH, and a reviewer has to judge it.
 - **POISON-076 (oversight bypass) is measured only on hand-written phrases**
   (`tests/test_directives.py`) and MCPTox's clean tools: MCPTox has no
   oversight-bypass cases, so it has no recall figure. POISON-071 stays LOW

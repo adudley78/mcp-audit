@@ -887,8 +887,16 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
             # every occurrence describes rather than directs (STORY-0141).
             if framing is None:
                 framing = FileFraming(norm_text)
-                # A file that hides text never gets the benefit of the doubt.
-                gate_off = bool(scan_concealed_channels(_concealment_text(af)[0]))
+                # A file that hides or disguises text never gets the benefit
+                # of the doubt: a concealment channel, or zero-width /
+                # homoglyph obfuscation (POISON-040/060), turns the gate off.
+                gate_off = bool(
+                    scan_concealed_channels(_concealment_text(af)[0])
+                ) or any(
+                    matched_pattern(p, text, norm_text)
+                    for p in PATTERNS
+                    if p.id in _OBFUSCATION_IDS
+                )
             _emit(
                 "SKILL-001",
                 pat.id,
