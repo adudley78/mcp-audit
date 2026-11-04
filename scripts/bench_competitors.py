@@ -90,6 +90,7 @@ import os
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
 from collections import defaultdict
 from collections.abc import Callable
@@ -788,9 +789,16 @@ def run_external(
 
 
 def mcp_audit_exe() -> str | None:
-    local = Path(sys.executable).parent / "mcp-audit"
-    if local.is_file():
-        return str(local)
+    """The ``mcp-audit`` entry point installed with this Python, else on PATH.
+
+    Checks the interpreter's directory and its scripts directory (on Windows
+    a system Python keeps ``mcp-audit.exe`` in ``Scripts\\``).
+    """
+    dirs = [Path(sys.executable).parent, Path(sysconfig.get_path("scripts"))]
+    for d in dirs:
+        for name in ("mcp-audit", "mcp-audit.exe"):
+            if (d / name).is_file():
+                return str(d / name)
     return shutil.which("mcp-audit")
 
 
