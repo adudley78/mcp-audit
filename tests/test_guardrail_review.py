@@ -348,7 +348,11 @@ def test_bad_state_record_heals_and_does_not_disable_the_step(
     )
     _scan(repo, state)
     data = json.loads(state.read_text())
-    key = next(k for k in data["files"] if k.endswith("repo/.claude/settings.json"))
+    key = next(
+        k
+        for k in data["files"]
+        if Path(k).as_posix().endswith("repo/.claude/settings.json")
+    )
     data["files"][key]["record"] = bad
     other = str(home / ".claude" / "settings.json")
     _w(home / ".claude" / "settings.json", {})
