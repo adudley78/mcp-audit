@@ -1,0 +1,12 @@
+{
+  "tools": [
+    {
+      "description": "---\nname: unicode-tags-flag-emoji-clean\ndescription: Rewrites release notes into Keep a Changelog sections.\n---\n\n# Changelog formatter\n\nRewrite the user's release notes into Keep a Changelog sections (Added, Changed, Fixed).\nKeep every entry to one line.\n\nWritten for teams in Scotland 🏴󠁧󠁢󠁳󠁣󠁴󠁿.\n",
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      },
+      "name": "unicode-tags-flag-emoji-clean"
+    }
+  ]
+}

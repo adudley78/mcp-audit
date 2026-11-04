@@ -1,0 +1,12 @@
+{
+  "tools": [
+    {
+      "description": "---\nname: incident-triage-notes\ndescription: Notes for triaging a suspected data leak from a developer machine.\n---\n\n# Incident triage notes\n\nWhen a leak is suspected, record the following in the incident ticket.\n\n1. What left the machine (file names, not contents)\n2. Which process sent it and at what time\n3. The destination host, written with the dot defanged\n4. Who was told, and when\n\nKeep the evidence. Deleting logs or files makes the review harder.\n",
+      "inputSchema": {
+        "properties": {},
+        "type": "object"
+      },
+      "name": "incident-triage-notes"
+    }
+  ]
+}
