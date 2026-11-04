@@ -74,47 +74,100 @@ SANDBOX_EXECUTABLE_KEYS = ("ripgrep", "bwrapPath", "socatPath")
 #: handled and not a command key is unknown.
 INERT_KEYS = frozenset(
     {
-        "advisorModel", "agent", "agentPushNotifEnabled", "alwaysThinkingEnabled",
-        "askUserQuestionTimeout", "attribution", "autoCompactEnabled",
-        "autoCompactWindow", "autoConnectIde", "autoContinueAtUsageLimit",
-        "autoInstallIdeExtension", "autoMemoryDirectory", "autoMemoryEnabled",
-        "autoScrollEnabled", "autoUpdatesChannel", "availableModels",
-        "availableModelsMatch", "awaySummaryEnabled", "axScreenReader",
-        "bashEditDiffEnabled", "bashOutputMaxChars", "channelsEnabled",
-        "claudeInChromeDefaultEnabled", "claudeMd", "claudeMdExcludes",
-        "cleanupPeriodDays", "companyAnnouncements", "copyFullResponse",
-        "copyOnSelect", "defaultToAgentsView", "deniedModels",
-        "desktopSessionCleanupPeriodDays", "dialogExpiry", "disableAgentView",
-        "disableAutoMode", "disableBundledSkills", "disableDeepLinkRegistration",
-        "disableMobileSimulatorTools", "disableSkillShellExecution",
-        "disableWorkflows", "editorMode", "effortLevel", "emojiCompletionEnabled",
-        "enforceAvailableModels", "externalEditorContext", "fallbackModel",
-        "fastMode", "fastModePerSessionOptIn", "feedbackDrafts",
-        "feedbackSurveyRate", "fileCheckpointingEnabled", "footerLinksRegexes",
-        "httpHookAllowedEnvVars", "allowedHttpHookUrls", "idleCompaction",
-        "includeCoAuthoredBy", "includeGitInstructions",
-        "inputNeededNotifEnabled", "keybindingFlavor", "language",
-        "leftArrowOpensAgents", "maxEffortLevel", "maxProseWidth", "minimumVersion",
-        "model", "modelOverrides", "modelPicker", "modelPricing", "modelSettings",
-        "outputStyle", "permissionExplainerEnabled", "plansDirectory",
-        "preferredNotifChannel", "prefersReducedMotion", "promptCacheTtl",
-        "promptSuggestionEnabled", "prStatusFooterEnabled", "prUrlTemplate",
-        "requiredMaximumVersion", "requiredMinimumVersion", "respectGitignore",
-        "respondToBashCommands", "showClearContextOnPlanAccept",
-        "showThinkingSummaries", "showTurnDuration", "skillListingBudgetFraction",
-        "skillListingMaxDescChars", "skillOverrides",
-        "skipAutoPermissionPrompt", "skipDangerousModePermissionPrompt",
-        "skipWebFetchPreflight", "spellcheck", "spinnerTipsEnabled",
-        "spinnerTipsOverride", "spinnerVerbs", "subagentPromptCacheTtl",
-        "switchModelsOnFlag", "syntaxHighlightingDisabled", "taskOutputMaxChars",
-        "teammateDefaultModel", "teammateMode", "terminalProgressBarEnabled",
-        "terminalTitleFromRename", "theme", "timeFormat", "timeZone", "tui",
-        "useAutoModeDuringPlan", "verbose", "viewMode", "vimInsertModeRemaps",
-        "voice", "voiceEnabled", "wheelScrollAccelerationEnabled",
-        "workflowKeywordTriggerEnabled", "workflowSizeGuideline",
-        "wslInheritsWindowsSettings", "$schema",
+        "$schema",
+        "advisorModel",
+        "agentPushNotifEnabled",
+        "alwaysThinkingEnabled",
+        "askUserQuestionTimeout",
+        "attribution",
+        "autoCompactEnabled",
+        "autoCompactWindow",
+        "autoConnectIde",
+        "autoInstallIdeExtension",
+        "autoMemoryEnabled",
+        "autoScrollEnabled",
+        "autoUpdatesChannel",
+        "availableModels",
+        "awaySummaryEnabled",
+        "axScreenReader",
+        "claudeMd",
+        "claudeMdExcludes",
+        "cleanupPeriodDays",
+        "copyFullResponse",
+        "copyOnSelect",
+        "defaultToAgentsView",
+        "desktopSessionCleanupPeriodDays",
+        "disableAgentView",
+        "disableAutoMode",
+        "disableBundledSkills",
+        "disableMobileSimulatorTools",
+        "disableWorkflows",
+        "editorMode",
+        "effortLevel",
+        "emojiCompletionEnabled",
+        "enforceAvailableModels",
+        "externalEditorContext",
+        "fallbackModel",
+        "fastMode",
+        "fastModePerSessionOptIn",
+        "feedbackDrafts",
+        "feedbackSurveyRate",
+        "fileCheckpointingEnabled",
+        "footerLinksRegexes",
+        "idleCompaction",
+        "includeCoAuthoredBy",
+        "includeGitInstructions",
+        "inputNeededNotifEnabled",
+        "keybindingFlavor",
+        "language",
+        "leftArrowOpensAgents",
+        "maxProseWidth",
+        "minimumVersion",
+        "model",
+        "modelPicker",
+        "modelSettings",
+        "outputStyle",
+        "permissionExplainerEnabled",
+        "prStatusFooterEnabled",
+        "preferredNotifChannel",
+        "prefersReducedMotion",
+        "promptCacheTtl",
+        "promptSuggestionEnabled",
+        "respectGitignore",
+        "showClearContextOnPlanAccept",
+        "showThinkingSummaries",
+        "showTurnDuration",
+        "skillListingBudgetFraction",
+        "skillListingMaxDescChars",
+        "skillOverrides",
+        "skipAutoPermissionPrompt",
+        "skipDangerousModePermissionPrompt",
+        "spellcheck",
+        "spinnerTipsEnabled",
+        "spinnerTipsOverride",
+        "spinnerVerbs",
+        "subagentPromptCacheTtl",
+        "switchModelsOnFlag",
+        "syntaxHighlightingDisabled",
+        "taskOutputMaxChars",
+        "teammateDefaultModel",
+        "teammateMode",
+        "terminalProgressBarEnabled",
+        "terminalTitleFromRename",
+        "theme",
+        "timeFormat",
+        "timeZone",
+        "tui",
+        "verbose",
+        "viewMode",
+        "vimInsertModeRemaps",
+        "voice",
+        "voiceEnabled",
+        "wheelScrollAccelerationEnabled",
+        "workflowKeywordTriggerEnabled",
+        "workflowSizeGuideline",
     }
-)  # fmt: skip
+)
 
 
 def unknown_settings_keys(data: dict) -> list[str]:
@@ -134,16 +187,67 @@ _CODE_LOADING_RE = re.compile(
     re.IGNORECASE,
 )
 
-#: Names known to be benign in a settings ``env`` block: Claude Code's own
-#: switches and limits, telemetry, proxies, locale.  Anything else is unknown.
+#: Names known to be benign in a settings ``env`` block: switches, limits,
+#: timeouts, locale.  Names that choose a destination (a URL, a proxy, a
+#: provider resource) are NOT here: see :data:`DESTINATION_NAMES`.
 _BENIGN_ENV_RE = re.compile(
-    r"^(?:OTEL_[A-Z0-9_]+|ANTHROPIC_[A-Z0-9_]+|DISABLE_[A-Z0-9_]+"
-    r"|ENABLE_[A-Z0-9_]+|CLAUDE_CODE_(?:ENABLE|DISABLE|USE|MAX|SKIP)_[A-Z0-9_]+"
+    r"^(?:DISABLE_[A-Z0-9_]+|ENABLE_[A-Z0-9_]+"
+    r"|CLAUDE_CODE_(?:ENABLE|DISABLE|MAX|SKIP)_[A-Z0-9_]+"
+    r"|CLAUDE_CODE_USE_(?:BEDROCK|VERTEX|FOUNDRY|ANTHROPIC_AWS|MANTLE)"
     r"|MAX_THINKING_TOKENS|MAX_MCP_OUTPUT_TOKENS|MCP_TIMEOUT|MCP_TOOL_TIMEOUT"
     r"|BASH_DEFAULT_TIMEOUT_MS|BASH_MAX_TIMEOUT_MS|BASH_MAX_OUTPUT_LENGTH"
-    r"|(?:HTTPS?|NO|ALL)_PROXY|TZ|LANG|LANGUAGE|LC_[A-Z]+|NO_COLOR|FORCE_COLOR)$",
+    r"|NO_PROXY|TZ|LANG|LANGUAGE|LC_[A-Z]+|NO_COLOR|FORCE_COLOR)$",
     re.IGNORECASE,
 )
+
+#: Telemetry names: logging is judged separately (OTEL is read from managed and
+#: user settings only), so the name itself is understood.
+_OTEL_ENV_RE = re.compile(r"^OTEL_[A-Z0-9_]+$")
+
+#: Model and credential names Claude Code reads; they choose no destination.
+UNDERSTOOD_ENV_NAMES = frozenset(
+    {
+        "ANTHROPIC_MODEL",
+        "ANTHROPIC_SMALL_FAST_MODEL",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+    }
+)
+
+#: Names that choose where traffic goes.  In a project or local file they are
+#: judged against the first-party host list (CFHYG-007's predicate); in a user
+#: or managed file they are shown as a fact.
+DESTINATION_NAMES = frozenset(
+    {
+        "ANTHROPIC_BASE_URL",
+        "ANTHROPIC_BEDROCK_BASE_URL",
+        "ANTHROPIC_VERTEX_BASE_URL",
+        "ANTHROPIC_FOUNDRY_BASE_URL",
+        "ANTHROPIC_FOUNDRY_RESOURCE",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "OPENAI_BASE_URL",
+        "GOOGLE_GEMINI_BASE_URL",
+        "GOOGLE_VERTEX_BASE_URL",
+    }
+)
+#: In project or local scope these make the network answer unknown.
+DESTINATION_UNKNOWN_NAMES = frozenset(
+    {"ANTHROPIC_UNIX_SOCKET", "ANTHROPIC_CUSTOM_HEADERS", "ANTHROPIC_VERTEX_PROJECT_ID"}
+)
+
+
+def is_destination(name: str) -> bool:
+    upper = name.upper()
+    return (
+        upper in DESTINATION_NAMES
+        or upper in DESTINATION_UNKNOWN_NAMES
+        or bool(re.match(r"^ANTHROPIC_[A-Z0-9_]*BASE_URL$", upper))
+    )
 
 
 def code_loading_name(name: str) -> bool:
@@ -154,6 +258,16 @@ def code_loading_name(name: str) -> bool:
 def benign_env_name(name: str) -> bool:
     """True for a name on the benign allowlist (and not code-loading)."""
     return not code_loading_name(name) and bool(_BENIGN_ENV_RE.match(name))
+
+
+def understood_env_name(name: str) -> bool:
+    """A benign, telemetry, model/credential or destination name: not unknown."""
+    return (
+        benign_env_name(name)
+        or bool(_OTEL_ENV_RE.match(name))
+        or name in UNDERSTOOD_ENV_NAMES
+        or is_destination(name)
+    )
 
 
 #: Credential-shaped variable names (a service token a server needs, or a
@@ -173,7 +287,7 @@ def settings_env_unsafe(env_block: object) -> list[str]:
     """
     if not isinstance(env_block, dict):
         return []
-    return sorted(str(n) for n in env_block if not benign_env_name(str(n)))[:10]
+    return sorted(str(n) for n in env_block if not understood_env_name(str(n)))[:10]
 
 
 def server_env_declared(env_block: object) -> bool:

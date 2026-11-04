@@ -41,9 +41,9 @@ def network_status(
     if unknown_routes:
         facts = facts + unknown_routes
         unknown_why.append(
-            f"{len(unknown_routes)} hook, apiKeyHelper or statusLine command(s)"
-            " run outside the sandbox and are not known to be local, so what"
-            " they reach is not known"
+            f"{len(unknown_routes)} hook, apiKeyHelper, statusLine command(s) or"
+            " destination setting(s) are not known to be local or first-party,"
+            " so what they reach is not known"
         )
     for why in unknown_why:
         reasons.append(

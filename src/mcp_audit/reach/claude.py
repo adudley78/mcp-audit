@@ -47,6 +47,7 @@ from pathlib import Path
 from mcp_audit.analyzers import secret_reach
 from mcp_audit.analyzers.config_hygiene import (
     _network_primitive,
+    _redirect_host,
 )
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
 from mcp_audit.analyzers.managed_policy import (
@@ -64,6 +65,7 @@ from mcp_audit.reach.models import Fact, Question, Reason, Status
 from mcp_audit.reach.network import NetworkView
 from mcp_audit.reach.surface import (
     COMMAND_KEYS,
+    DESTINATION_UNKNOWN_NAMES,
     SANDBOX_EXECUTABLE_KEYS,
     SECRET_NAME_RE,
     Cmd,
@@ -71,6 +73,7 @@ from mcp_audit.reach.surface import (
     command_texts,
     frontmatter_items,
     hook_items,
+    is_destination,
     plugin_hook_tables,
     settings_env_unsafe,
     unknown_settings_keys,
@@ -853,6 +856,89 @@ def _known_local(command: str) -> bool:
     return first in _LOCAL_WORDS
 
 
+def _host_of(value: object) -> str:
+    """The host in a URL-ish value (no userinfo, path or query), else ``(set)``."""
+    if not isinstance(value, str) or not value.strip():
+        return "(set)"
+    from urllib.parse import urlsplit  # noqa: PLC0415
+
+    try:
+        host = urlsplit(
+            value.strip() if "://" in value else f"//{value.strip()}"
+        ).hostname
+    except ValueError:
+        host = None
+    return host or "(set)"
+
+
+_PROXY_NAMES = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")
+
+
+def _destinations(
+    scope: str, block: object, all_env: dict, ref: str
+) -> tuple[list[Fact], list[Fact], list[Fact]]:
+    """``(routes, unknown, facts)`` for the destination names in one ``env`` block.
+
+    Project and local files are the repository's: a destination off the
+    first-party list (CFHYG-007's predicate) is a route out, and names whose
+    effect is not modelled are unknown.  User and managed files are the
+    user's own choice: shown as facts.
+    """
+    routes: list[Fact] = []
+    unknown: list[Fact] = []
+    facts: list[Fact] = []
+    if not isinstance(block, dict):
+        return routes, unknown, facts
+    repo = scope in ("project", "local")
+    for name, value in block.items():
+        text = str(name)
+        upper = text.upper()
+        if not is_destination(text):
+            continue
+        if not repo:
+            shown = (
+                "(set)"
+                if upper in DESTINATION_UNKNOWN_NAMES
+                else _host_of(value)
+                if upper != "ANTHROPIC_FOUNDRY_RESOURCE"
+                else str(value)[:64]
+            )
+            facts.append(Fact(f"API destination ({text})", shown, ref))
+            continue
+        if upper in DESTINATION_UNKNOWN_NAMES:
+            if upper != "ANTHROPIC_VERTEX_PROJECT_ID" or _truthy(
+                all_env.get("CLAUDE_CODE_USE_VERTEX")
+            ):
+                unknown.append(
+                    Fact(f"repository env {text} (effect not modelled)", "", ref)
+                )
+            continue
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if upper == "ANTHROPIC_FOUNDRY_RESOURCE":
+            label = "a resource the repository chose"
+        else:
+            # CFHYG-007 does not list ALL_PROXY (Node ignores it); reach asks
+            # the same predicate under the HTTPS_PROXY name, the stricter reading.
+            label = _redirect_host(
+                "HTTPS_PROXY"
+                if upper == "ALL_PROXY"
+                else upper
+                if upper in _PROXY_NAMES
+                else text,
+                value,
+            )
+        if label is not None:
+            routes.append(
+                Fact("repository env redirects API traffic", f"{text} -> {label}", ref)
+            )
+    return routes, unknown, facts
+
+
+def _truthy(value: object) -> bool:
+    return str(value).strip().lower() not in ("", "0", "false", "no", "off", "none")
+
+
 @dataclass
 class Collected:
     """Everything Claude Code runs outside the sandbox, and what is not understood.
@@ -866,6 +952,14 @@ class Collected:
 
     cmds: list[Cmd] = field(default_factory=list)
     env_unsafe: list[tuple[str, str]] = field(default_factory=list)
+    #: Repository env names that point API traffic off the first-party list.
+    dest_routes: list[Fact] = field(default_factory=list)
+    #: Repository env names whose network effect is not modelled.
+    dest_unknown: list[Fact] = field(default_factory=list)
+    #: The user's or admin's own destinations, shown as facts.
+    dest_facts: list[Fact] = field(default_factory=list)
+    #: Managed ``wslInheritsWindowsSettings`` is set: another policy chain.
+    wsl_inherits: bool = False
 
     @property
     def code_loading(self) -> bool:
@@ -908,6 +1002,25 @@ def collect(settings: Settings, env: Env) -> Collected:
         out.env_unsafe += [
             (name, f"{ref}:env") for name in settings_env_unsafe(data.get("env"))
         ]
+        merged = {
+            k: v for s2 in settings.sources for k, v in _d(s2.data.get("env")).items()
+        }
+        r, u, f = _destinations(source.scope, data.get("env"), merged, f"{ref}:env")
+        out.dest_routes += r
+        out.dest_unknown += u
+        out.dest_facts += f
+        if "wslInheritsWindowsSettings" in data:
+            if source.scope == "managed":
+                out.wsl_inherits = True
+            else:
+                out.cmds.append(
+                    Cmd(
+                        "setting wslInheritsWindowsSettings",
+                        "?",
+                        f"{ref}:wslInheritsWindowsSettings",
+                        "other",
+                    )
+                )
     out.cmds += plugin_commands(settings, env)
     out.cmds += all_frontmatter_items(env)
     return out
@@ -1374,11 +1487,17 @@ def logging_question(settings: Settings, env: Env) -> Question:
             _src(logs_proto_src or proto_src, env),
         ),
         Fact(
-            "OTLP endpoint",
-            "set" if (logs_endpoint or endpoint) else _NOT_SET,
+            "OTLP endpoint (host)",
+            _host_of(logs_endpoint or endpoint)
+            if (logs_endpoint or endpoint)
+            else _NOT_SET,
             _src(logs_endpoint_src or endpoint_src, env),
         ),
     ]
+    for name in ("OTEL_LOG_USER_PROMPTS", "OTEL_LOG_TOOL_DETAILS"):
+        value, value_src = _env_value(src, name, honoured)
+        if value is not None:
+            facts.append(Fact(name, value, _src(value_src, env)))
     facts.append(
         Fact(
             "read from",
@@ -1476,6 +1595,7 @@ def assess(
     settings = load_settings(env)
     facts = run_facts(settings, env, findings)
     reasons: list[Reason] = []
+    col = collect(settings, env)
 
     # 1. Where it runs.
     where_facts = facts.sandbox_facts + facts.approval_facts
@@ -1546,6 +1666,28 @@ def assess(
                 None,
             )
         )
+    if col.env_unsafe and where_status is Status.PASS:
+        names = ", ".join(n for n, _r in col.env_unsafe[:5])
+        where_status = Status.UNKNOWN
+        where_text += (
+            f"; settings env name(s) reach does not know ({names}) may change"
+            " how commands are launched"
+        )
+        reasons.append(
+            Reason(
+                "unknown",
+                f"settings env name(s) not on reach's lists: {names}",
+                [r for _n, r in col.env_unsafe[:5]],
+            )
+        )
+    if col.wsl_inherits and _on_wsl() and where_status is Status.PASS:
+        where_status = Status.UNKNOWN
+        where_text += "; WSL reads another policy chain (wslInheritsWindowsSettings)"
+        reasons.append(
+            Reason(
+                "unknown", "WSL inherits the Windows policy chain, not read here", []
+            )
+        )
     where_q = Question(
         "where_it_runs",
         where_status,
@@ -1557,7 +1699,6 @@ def assess(
     # 2. Credentials.
     ran = env.config_dir.is_dir()
     secrets = env_secrets(settings, env)
-    col = collect(settings, env)
     egress = egress_commands(col, findings, env)
     opaque = opaque_commands(col)
     store_hits = store_commands(col)
@@ -1630,16 +1771,42 @@ def assess(
         )
         for n, r in col.env_unsafe[:5]
     ]
-    unknown_routes = list(opaque)
+    net_facts += col.dest_facts
+    unknown_routes = list(opaque) + list(col.dest_unknown)
+    unknown_why: list[str] = []
     connectors = connectors_possible(settings, env)
+    if connectors:
+        unknown_why.append(connectors)
+    if col.env_unsafe:
+        names = ", ".join(n for n, _r in col.env_unsafe[:5])
+        unknown_why.append(
+            f"settings env name(s) reach does not know ({names}) may change"
+            " where traffic goes"
+        )
+    chrome, chrome_why = chrome_default(env)
+    if chrome is None:
+        unknown_why.append(f"Claude in Chrome default not readable: {chrome_why}")
+    elif chrome:
+        unknown_why.append(
+            "claudeInChromeDefaultEnabled is true in ~/.claude.json: the browser"
+            " extension can act on the network outside the sandbox"
+        )
+    else:
+        net_facts.append(
+            Fact(
+                "Claude in Chrome",
+                "can be enabled per session (not on by default)",
+                None,
+            )
+        )
     net_q, net_reasons = network_status(
         net,
         state,
         state_text,
         net_facts,
-        egress,
+        egress + list(col.dest_routes),
         unknown_routes=unknown_routes,
-        unknown_why=[connectors] if connectors else [],
+        unknown_why=unknown_why,
     )
     reasons.extend(net_reasons)
     if creds_readable and (net.reaching or egress):
@@ -1664,6 +1831,15 @@ def assess(
 
     # 4. Policy.
     policy_q = policy_question(managed_policy_source(env), env)
+    if col.wsl_inherits and policy_q.status is Status.PASS:
+        policy_q = Question(
+            "policy",
+            Status.UNKNOWN,
+            "wslInheritsWindowsSettings is set: on WSL the Windows policy chain"
+            " also applies and is not read here; " + policy_q.summary,
+            policy_q.facts,
+        )
+        reasons.append(Reason("unknown", "policy: " + policy_q.summary, []))
 
     # 5. Logging.
     log_q = logging_question(settings, env)
@@ -1675,6 +1851,33 @@ def assess(
         reasons.append(Reason("unknown", "logging: " + log_q.summary, []))
 
     return Assessment([where_q, cred_q, net_q, policy_q, log_q], reasons)
+
+
+def _on_wsl() -> bool:
+    """Is this host WSL (read from /proc, no subprocess)?"""
+    from mcp_audit.host_platform import detect_host_platform
+
+    return detect_host_platform() == "wsl"
+
+
+def chrome_default(env: Env) -> tuple[bool | None, str]:
+    """``claudeInChromeDefaultEnabled`` from ``~/.claude.json``.
+
+    Returns ``(True, "")`` when Chrome is on by default, ``(False, "")`` when it
+    is off or absent, and ``(None, reason)`` when the file cannot be read.
+    """
+    path = env.home / ".claude.json"
+    raw, why = read_capped(path, _CLAUDE_JSON_CAP)
+    if why is not None:
+        return None, f"{env.mask(path)} {why}"
+    if raw is None:
+        return False, ""
+    try:
+        doc = json.loads(raw.decode("utf-8-sig", errors="replace"))
+    except (ValueError, RecursionError):
+        return None, f"{env.mask(path)} is not valid JSON"
+    value = _d(doc).get("claudeInChromeDefaultEnabled")
+    return (value is True or _truthy(value)), ""
 
 
 def _ref_for(settings: Settings, env: Env, key: str) -> str:

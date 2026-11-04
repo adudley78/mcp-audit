@@ -267,14 +267,30 @@ The allowlists:
   unknown, and a network tool or `/dev/tcp` is a fail. Naming a credential store
   path fails the credentials answer.
 - **Environment variables.** In a settings `env` block only the benign names
-  count: `OTEL_*`, `ANTHROPIC_*`, `DISABLE_*`, `ENABLE_*`, the Claude Code
-  `CLAUDE_CODE_{ENABLE,DISABLE,USE,MAX,SKIP}_*` switches, MCP and Bash timeouts and
-  limits, proxies and locale. Any other name, and especially `LD_*`, `DYLD_*`,
-  `NODE_OPTIONS`, `NODE_PATH`, `PYTHON*`, `PERL5*`, `RUBY*`, `JAVA_TOOL_OPTIONS`,
-  `_JAVA_OPTIONS`, `BASH_ENV`, `ENV`, `PATH` and `npm_config_*`, means no server
-  counts as declared and no command as known local. In a server's own `env` the
-  same benign names plus credential-shaped names (a service token) are allowed;
-  any other name makes the server undeclared.
+  count: `DISABLE_*`, `ENABLE_*`, the Claude Code
+  `CLAUDE_CODE_{ENABLE,DISABLE,MAX,SKIP}_*` switches, `CLAUDE_CODE_USE_*` (alone),
+  MCP and Bash timeouts and limits, `NO_PROXY` and locale. Two groups are handled
+  by name. `OTEL_*` is judged by the logging answer. Destination names are judged
+  by where they point. In project or local settings, `ANTHROPIC_*BASE_URL`,
+  `ANTHROPIC_FOUNDRY_RESOURCE`, `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`,
+  `OPENAI_BASE_URL`, `GOOGLE_GEMINI_BASE_URL` and `GOOGLE_VERTEX_BASE_URL` make
+  network **fail** when they point off the vendor's own host (the same predicate
+  as CFHYG-007, so the two cannot drift); `ANTHROPIC_UNIX_SOCKET`,
+  `ANTHROPIC_CUSTOM_HEADERS` and `ANTHROPIC_VERTEX_PROJECT_ID` with
+  `CLAUDE_CODE_USE_VERTEX` make it **couldn't check**. In user or managed settings
+  the destination is shown as a fact and the verdict does not change, as are the
+  OTEL destination and `OTEL_LOG_USER_PROMPTS` / `OTEL_LOG_TOOL_DETAILS`. Any other
+  name in any scope (`CLAUDE_CODE_SHELL_PREFIX`, `CLAUDE_ENV_FILE`,
+  `NODE_TLS_REJECT_UNAUTHORIZED`, `LD_*`, `NODE_OPTIONS`, `PATH`...) makes where it
+  runs and network **couldn't check**, with no server counted as declared and no
+  command as known local. In a server's own `env` the same benign names plus
+  credential-shaped names (a service token) are allowed; any other name makes the
+  server undeclared.
+- **Other switches that are not inert.** `wslInheritsWindowsSettings` in managed
+  settings makes policy (and, on WSL, where it runs) couldn't check: a second
+  policy chain applies that is not read. `claudeInChromeDefaultEnabled: true` in
+  `~/.claude.json` makes network couldn't check; otherwise network shows a fact
+  that Chrome can be enabled per session.
 - **Server launch.** A server is declared only when it launches exactly
   `<runner> [-y|--yes] <registry package>[@version] <args...>` (`npx`, `bunx`,
   `pnpx`, `yarn dlx`, `uvx <pkg>`, `pipx run <pkg>`, `python -m <module>`) and the
