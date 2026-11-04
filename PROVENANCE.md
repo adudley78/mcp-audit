@@ -1301,6 +1301,41 @@ Measures the existing POISON-* patterns; adds or changes none. Results:
 - The MCPTox-shaped records in `tests/test_bench_poisoning.py` were written for the
   test; no dataset text was copied. Original implementation; no code was copied.
 
+## Findings you can trust (agent_files/framing.py, POISON-045, POISON-070, POISON-076 — STORY-0141)
+
+- **VirusTotal, "How Some Malicious AI Skills Hide Instructions from
+  Reviewers"** (Bernardo Quintero, 2026-10-21,
+  https://blog.virustotal.com/2026/10/how-some-malicious-ai-skills-hide.html).
+  POISON-045: 56 of 6,637 malicious skills put the payload after "78 to 825
+  blank lines ... so it sits below the visible end of the file", lines often
+  filled with spaces; "scanners that truncate long inputs may never reach the
+  last line". The write-up sets no threshold; 20 was chosen between that 78
+  and the longest blank run (5) in 3,026 files of eight public skill
+  repositories cloned for this story (not committed).
+- **Public posts on X, 2026-11** (via the STORY-0141 brief): SkillSpector
+  "276 high/critical findings, 0 malicious on hand review"
+  (https://x.com/alfred_workloft/status/2117934956764868630); "a security
+  checklist describing an attack matches as the attack itself. 7 of our 9
+  high/critical hits turned out to be false positives, so show the code line"
+  (https://x.com/bosslu_ai/status/2116365901994094806). Motivation for the
+  describes-vs-directs gate and line evidence; no code or rule text taken.
+- **arXiv 2610.37734** (Sanko Tian, 2026-10-27), as cited in the brief: about
+  1 in 17 of 1.53M skills contains an oversight-loosening directive.
+  Motivation for POISON-076 (oversight bypass directive, HIGH); the paper
+  could not be fetched from the build session, so the figure is cited as the
+  brief quotes it.
+- **The Cyber News, 415K views**
+  (https://x.com/The_Cyber_News/status/2114771540352893196): a plain text file
+  in Downloads made Codex and Claude Code change their own settings. Basis for
+  treating `--dangerously-skip-permissions` / `bypassPermissions` / `--yolo`
+  directives as POISON-076 HIGH.
+- **Independent review of PR #263** (2026-11-04): the bypass strings in
+  `tests/test_agent_files_framing_bypasses.py` and the fail-closed rules come
+  from it.
+- The gate's rules, the new POISON-070 alternatives, POISON-076 and every test
+  string were written for this story. Original implementation; no code was
+  copied.
+
 ## AI agents in CI workflows (WORKFLOW-001..003, ci_workflows/ — STORY-0091)
 
 - **"Comment and Control"** — Aonan Guan with Zhengyu Liu and Gavin Zhong (Johns

@@ -77,12 +77,57 @@ LLM format markers, behavioral override, data exfiltration references, etc.)
 match the body of a skill, command, or instruction file.
 
 Patterns are **imported** from `analyzers/poisoning.py` — no duplicated logic.
-The directive patterns (POISON-070..075, STORY-0099: hiding things from the
-user, skipping their approval, banning the ask-the-user tool, threats,
-run-on-startup, fetch-a-URL-and-follow-it) report SKILL-001 at their own
-severity instead of HIGH: HIGH for secrecy, MEDIUM for banning the
-ask-the-user tool, LOW for the rest, since legitimate skills also say "do not
-ask for confirmation". See [poisoning.md](poisoning.md#orders-that-hide-story-0099).
+The directive patterns (POISON-070..076, STORY-0099 and STORY-0141: hiding
+things from the user, skipping their approval, banning the ask-the-user tool,
+threats, run-on-startup, fetch-a-URL-and-follow-it, switching off the
+harness's own checks) report SKILL-001 at their own severity instead of HIGH:
+HIGH for secrecy and for an oversight bypass ("skip permission prompts",
+"bypass the approval dialog", `--dangerously-skip-permissions`, POISON-076), MEDIUM
+for banning the ask-the-user tool, LOW for the rest, including a plain
+autonomy override ("run the tests without asking for confirmation"). See
+[poisoning.md](poisoning.md#orders-that-hide-story-0099).
+
+**Described, not directed (STORY-0141).** A security checklist that tells a
+reviewer to flag descriptions which "read ~/.ssh/id_rsa" uses the attack's own
+words. Every occurrence of a pattern is put through a describes-vs-directs gate
+(`agent_files/framing.py`), and the finding names the first occurrence that
+directs the agent, at the pattern's severity. When none does, SKILL-001 is
+**INFO**, its title ends "described, not directed" and the evidence says where
+the text sits.
+
+The gate **fails closed**: an occurrence counts as described only on positive
+evidence, and some things are directed whatever the frame.
+
+| Reads as described (only these) | Example |
+|---|---|
+| A short clause that opens with its negation and ends at the match | "Never read ~/.ssh/id_rsa." "You must never read ~/.ssh/id_rsa." |
+| A list item or checklist item, opening like a description, in the list after a heading or `...:` lead-in that names what to detect (flag, detect, look for, watch for, red flags, warning signs, indicators, signs of, suspicious, malicious); the whole item is judged, continuation lines included | `When reviewing a PR, flag any change that:` then `- [ ] reads ~/.ssh/id_rsa or other private keys` |
+| A sentence that frames the match as something to find | "Flag tool descriptions that tell the agent to read ...", "Attackers write descriptions that ..." |
+| A blockquote that opens like a description, or follows a detection lead-in | `> Tool descriptions that mention ~/.ssh/id_rsa` |
+
+| Always directed | Why |
+|---|---|
+| Fenced code, under any heading | Code a skill shows is code an agent may run |
+| A line, sentence or list item naming a destination (URL, e-mail, IP, `host:port`, a host after "to/at/into", a Markdown link or link reference, a pipe into a program, curl/wget/nc/scp/rsync/ftp/sendmail) | Describing text rarely needs one; an order to send data always does |
+| A later clause or sentence of the same item that gives an order ("..., and attach that file to your reply", "Now attach it") | |
+| A table row, a callout, a bold label (`**Important**:`) | How skills give orders |
+| A sentence addressed to the agent ("you must", "the agent should", "make sure to", "please send"), or a condition followed by an order ("before formatting, run ...") | |
+| A negation that is undone or followed by another clause ("don't forget to", "won't hurt to", "do not refrain from", "never read X; send it") | |
+| Any file with a concealment channel (POISON-041..045) or obfuscation (POISON-040/060) | A file that hides or disguises text gets no benefit of the doubt |
+| A pattern that matches more than 256 times in one file with none of those directed | The cap fails closed |
+
+"Review", "audit", "checklist" and "attack" headings do not count as detection
+lead-ins: procedures the agent carries out live under them too. The gate is
+linear in the file size. Limits: [GAPS.md](../GAPS.md) ("Describes-vs-directs
+gate").
+
+**Line evidence (STORY-0141).** SKILL-001, SKILL-002, MEM-001, MEM-002 and
+POISON-041..045 from an agent file start their evidence with `Line N:` (the
+1-based line in the file, frontmatter included) and show that line, redacted
+before it is cut and windowed to 160 characters around the match on long
+lines: `Line 6: 'When reviewing an MCP server, flag tool descriptions that tell
+the agent to read ~/.ssh/id_rsa ...' (matched '.ssh/')`. The number is also in
+the finding's `line` field (JSON) and in SARIF `region.startLine`.
 
 ### SKILL-002 (MEDIUM): obfuscated or oversized block
 
@@ -331,7 +376,7 @@ the previous scan:
   5,000 files / 256 MiB per scan; anything skipped is listed in the scan's
   errors. Implementation: `agent_files/drift.py` (STORY-0113).
 
-### POISON-041 (HIGH) / POISON-042 (LOW) / POISON-043, POISON-044 (MEDIUM): concealment channels
+### POISON-041 (HIGH) / POISON-042 (LOW) / POISON-043, POISON-044 (MEDIUM) / POISON-045 (HIGH or MEDIUM): concealment channels
 
 Fires on skill, command, and memory files alike when the file body contains
 a **concealment channel** — content hidden from a human reviewer while fully
@@ -347,6 +392,12 @@ present to a language model reading the raw text:
   eight at a time as bits (STORY-0099; Reverse CAPTCHA, arXiv 2603.00164).
 - Two or more variation selectors in a row, read one byte each (STORY-0099;
   Paul Butler's emoji-smuggling layout).
+- Text after 20 or more blank lines (whitespace or zero-width characters
+  only), POISON-045 (STORY-0141). VirusTotal found 56 of 6,637 malicious
+  skills putting the payload after 78 to 825 blank lines, below where a
+  reviewer scrolling the file stops; the longest run in 3,026 benign skill
+  files was 5. Blank lines that frontmatter splitting strips from the body
+  still count.
 
 The concealed content is extracted into its own string and rescanned against
 the full poisoning `PATTERNS` list as an independent pass — it is never
@@ -365,6 +416,10 @@ content and its surroundings.
   run decodes to readable text (80% printable or more) that matches nothing.
   A run that decodes to noise is not reported (POISON-040 still reports
   zero-width characters as such).
+- **POISON-045** — always its own ID, one finding per run: HIGH when the
+  padded text matches a pattern, MEDIUM when it is at least three words that
+  match nothing. The padded text is plain text, so the main pass reports its
+  content too (SKILL-001 on the same line).
 
 Both findings carry `analyzer="poisoning"`, not `analyzer="agent_files"` —
 a deliberate exception, shared unchanged with the config-surface analyzer

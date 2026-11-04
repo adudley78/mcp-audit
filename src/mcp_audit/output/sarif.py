@@ -242,6 +242,12 @@ def _build_result(finding: Finding, rule_index: int) -> dict:
         ],
     }
 
+    if finding.line is not None and finding.line >= 1:
+        # SARIF 2.1.0 §3.30.5: the 1-based line the result sits on.
+        result["locations"][0]["physicalLocation"]["region"] = {
+            "startLine": finding.line
+        }
+
     if finding.exploit:
         # SARIF 2.1.0 §3.27.8: a result's propertyBag. Per CVE: kev, kev_added,
         # epss, epss_percentile, epss_date, public_poc (omitted when unknown).

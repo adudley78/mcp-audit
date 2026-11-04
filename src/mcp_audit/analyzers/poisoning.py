@@ -44,6 +44,12 @@ class DetectionPattern:
     # confirmation" also appear in legitimate skills, and a skill should not
     # get a HIGH for what a tool description gets a MEDIUM or LOW for.
     skill_severity: Severity | None = None
+    # When set, a match is vetoed if this regex matches the part of the
+    # match's own clause before it (back to ``. ! ? ;`` or a line break, at
+    # most ``_NEGATION_LOOKBACK`` characters): ``re`` has no variable-width
+    # lookbehind, so "never skip permission prompts" is excluded here rather
+    # than in the pattern (POISON-076, STORY-0141).
+    negated_by: re.Pattern[str] | None = None
 
 
 # ── Unicode normalization for detection (UTS #39 / NFKD) ───────────────────────
@@ -233,7 +239,8 @@ def matched_pattern(
     (:func:`normalize_for_detection`) so homoglyph / compatibility obfuscation
     cannot evade a literal pattern.  When the pattern declares
     ``requires_cooccurrence``, the match is vetoed unless a co-occurrence term
-    is near it.
+    is near it.  When it declares ``negated_by``, the first match whose own
+    clause does not negate it is returned.
 
     Args:
         pattern: The detection pattern to evaluate.
@@ -248,6 +255,10 @@ def matched_pattern(
         return pattern.pattern.search(raw_text)
     if norm_text is None:
         norm_text = normalize_for_detection(raw_text)
+    if pattern.negated_by is not None:
+        # The first match whose clause does not negate it (POISON-076).
+        found = iter_pattern_matches(pattern, raw_text, norm_text, limit=1)
+        return found[0] if found else None
     m = pattern.pattern.search(norm_text)
     if m is None:
         return None
@@ -256,6 +267,64 @@ def matched_pattern(
     ):
         return None
     return m
+
+
+_CLAUSE_END_RE: re.Pattern[str] = re.compile(r"[.!?;\n]")
+
+#: How far back a clause is read for ``DetectionPattern.negated_by``.
+_NEGATION_LOOKBACK: int = 120
+
+
+def _is_negated(pattern: DetectionPattern, text: str, match: re.Match[str]) -> bool:
+    """Return True when *pattern*'s ``negated_by`` veto applies to *match*."""
+    if pattern.negated_by is None:
+        return False
+    head = text[max(0, match.start() - _NEGATION_LOOKBACK) : match.start()]
+    ends = list(_CLAUSE_END_RE.finditer(head))
+    if ends:
+        head = head[ends[-1].end() :]
+    return pattern.negated_by.search(head) is not None
+
+
+def iter_pattern_matches(
+    pattern: DetectionPattern,
+    raw_text: str,
+    norm_text: str | None = None,
+    limit: int = 256,
+) -> list[re.Match[str]]:
+    """Return up to *limit* matches of *pattern*, each passing its own gates.
+
+    The same text :func:`matched_pattern` searches (original text for
+    POISON-040/060, normalized otherwise) and the same co-occurrence veto,
+    applied to every match rather than the first.  Callers that need to
+    judge each occurrence on its own (the agent-file describes-vs-directs
+    gate, STORY-0141) use this; whether a pattern fires at all is still
+    :func:`matched_pattern`'s decision.  Offsets are into the searched text.
+
+    Args:
+        pattern: The detection pattern to evaluate.
+        raw_text: Original (un-normalized) text.
+        norm_text: Pre-computed normalized text (optional).
+        limit: Most matches returned, so a hostile file costs a bounded pass.
+    """
+    if pattern.id in _OBFUSCATION_PATTERN_IDS:
+        searched = raw_text
+    else:
+        searched = (
+            norm_text if norm_text is not None else (normalize_for_detection(raw_text))
+        )
+    out: list[re.Match[str]] = []
+    for m in pattern.pattern.finditer(searched):
+        if pattern.requires_cooccurrence and not _has_cooccurrence(
+            searched, m, pattern.requires_cooccurrence
+        ):
+            continue
+        if _is_negated(pattern, searched, m):
+            continue
+        out.append(m)
+        if len(out) >= limit:
+            break
+    return out
 
 
 def _evidence_snippet(pattern: DetectionPattern, raw_text: str) -> str:
@@ -423,6 +492,51 @@ def memory_override_match(norm_text: str) -> re.Match[str] | None:
 # Precision is measured per pattern in docs/poisoning.md ("Directive family").
 
 _DIR_NEG: str = r"(?:do\s+not|don'?t|never|must\s+not|should\s+not|shall\s+not)"
+
+# POISON-076 (STORY-0141): an order to switch off the human's checks on what
+# the agent does.  The verb is imperative or an -ing form ("skip", "skipping";
+# "this hook skips prompts" describes a feature and is not matched); the
+# object is a named control.  A negation earlier in the clause vetoes the
+# match (``negated_by``), so "never skip permission prompts" stays silent;
+# a purpose clause about a flag ("use --yes to skip the prompt") is not an
+# order to the agent and is excluded by the "to" lookbehind.
+_OVR_VERB: str = (
+    r"(?:skip(?:ping)?|bypass(?:ing)?|disabl(?:e|ing)|turn(?:ing)?\s+off"
+    r"|switch(?:ing)?\s+off|suppress(?:ing)?|ignor(?:e|ing)|circumvent(?:ing)?"
+    r"|auto-?approv(?:e|ing)|get(?:ting)?\s+around)"
+)
+_OVR_DET: str = r"(?:\s+(?:the|any|all|every|your|those|these|such)){0,2}"
+# Only the harness's own human checks.  "The sandbox", "hooks", "monitoring"
+# and "guardrails" were dropped after review: "disable hooks in CI by
+# setting HUSKY=0" and "turn off monitoring before load tests" are ordinary
+# project text (STORY-0141 review, B4).
+_OVR_OBJECT: str = (
+    r"(?:(?:user|human|manual)\s+)?(?:permission|approval|confirmation|consent)s?"
+    r"(?:\s+(?:prompts?|dialogs?|dialogues?|popups?|pop-ups?|checks?|requests?"
+    r"|steps?|questions?))?+\b"
+    # Not a noun modifier ("permission checks tests") or a gerund subject
+    # ("skipping permission prompts is dangerous").
+    r"(?!\s+(?:tests?|lint|warnings?|docs?|documentation|is|are|was|were|can"
+    r"|could|may|might|will|would|should|must)\b)"
+)
+# A flag scoped to a safe place ("only inside the devcontainer", "is only
+# safe in a container") is advice about where it belongs, not an order.
+_OVR_FLAG_SCOPE: str = (
+    r"(?![^\n.]{0,60}\b(?:only|inside|within|in\s+(?:a|the|your)\s+"
+    r"(?:container|devcontainer|vm|virtual\s+machine|sandbox|throwaway|disposable)))"
+)
+_OVR_FLAG: str = r"(?:--dangerously-skip-permissions|\bbypassPermissions\b|--yolo\b)"
+_OVR_NEGATION: str = (
+    r"(?:\b(?:never|not|cannot|can'?t|won'?t|don'?t|doesn'?t|shouldn'?t|mustn'?t"
+    r"|avoid|refuse|refusing|without|instead\s+of|rather\s+than)\b|n['’]t\b"
+    # A flag's purpose clause ("use --yes to skip the prompt", "pass -y to
+    # bypass confirmation"), not an order to the agent.
+    r"|(?:(?<![\w-])-{1,2}[A-Za-z][\w-]*|\bflags?|\boptions?|\bswitch)\b"
+    r"[^.;\n]{0,30}\bto\s*$"
+    # Scoped to a throwaway environment earlier in the clause ("In the Docker
+    # image we run claude --dangerously-skip-permissions").
+    r"|\b(?:docker|container|devcontainer|vm|virtual\s+machine|sandboxed)\b)"
+)
 _DIR_AUDIENCE: str = r"(?:the\s+|your\s+|any\s+|a\s+)?(?:user|human|operator|owner)s?\b"
 _DIR_APPROVAL: str = r"(?:permission|approval|consent|confirmation|authori[sz]ation)"
 _DIR_AUDIENCE_ANY: str = (
@@ -651,7 +765,17 @@ PATTERNS: list[DetectionPattern] = [
             r"|\b(?:keep|hide)\s+(?:this|it|that|these)(?:\s+\w+)?\s+(?:hidden\s+|secret\s+)?"
             rf"from\s+{_DIR_AUDIENCE}"
             r"|\b(?:the|a)\s+user\s+(?:must|should|shall)\s+not\s+"
-            r"(?:know|find\s+out|be\s+(?:told|informed|notified|aware))",
+            r"(?:know|find\s+out|be\s+(?:told|informed|notified|aware))"
+            # STORY-0141: "your human doesn't need to know what you ran",
+            # "the user does not have to know about this", "don't let the
+            # user know".  Only a demonstrative, "what/that you ..." or the
+            # end of the clause after "know": "the user doesn't need to know
+            # the internal ticket IDs" names an object (redaction guidance).
+            r"|\b(?:the|your|a)\s+(?:user|human|operator|owner)s?\s+"
+            r"(?:doesn'?t|does\s+not|don'?t|do\s+not|needn'?t|need\s+not)\s+"
+            r"(?:(?:need|have)\s+to\s+)?(?:know|find\s+out|be\s+(?:told|informed|notified))"
+            rf"(?:\s+(?:about\s+)?{_DIR_THIS}|\s+(?:what|that)\s+you\b|(?=\s*(?:[.!;,)]|$)))"
+            rf"|\b{_DIR_NEG}\s+let\s+{_DIR_AUDIENCE_ANY}\s+(?:know|find\s+out|notice)\b",
             re.IGNORECASE | re.MULTILINE,
         ),
         severity=Severity.HIGH,
@@ -686,6 +810,9 @@ PATTERNS: list[DetectionPattern] = [
             re.IGNORECASE | re.MULTILINE,
         ),
         severity=Severity.LOW,
+        # LOW in a skill too: "run the tests without asking for confirmation"
+        # is ordinary project guidance.  Orders to switch the harness's own
+        # checks off are POISON-076 (HIGH), STORY-0141 review.
         skill_severity=Severity.LOW,
         description=(
             "Text tells the model not to ask the user for permission or"
@@ -819,6 +946,37 @@ PATTERNS: list[DetectionPattern] = [
             " time can change after you reviewed this file"
         ),
         cwe="CWE-829",
+        owasp_mcp_top_10=["MCP03", "MCP06"],
+    ),
+
+    DetectionPattern(
+        id="POISON-076",
+        name="Oversight bypass directive",
+        pattern=re.compile(
+            # Not in an option definition ("`--force` - Skip confirmation
+            # prompts", "| Skip confirmation prompts |"); a flag's purpose
+            # clause is vetoed by ``negated_by``.
+            r"(?<!` - )(?<!`: )(?<!` \u2014 )(?<!\| )"
+            rf"\b{_OVR_VERB}{_OVR_DET}\s+{_OVR_OBJECT}"
+            r"|\b(?:run|runs|running|launch|start|invoke|execute|use|using|pass|add"
+            r"|set|enable|with)\b[^\n.]{0,40}?"
+            rf"{_OVR_FLAG}{_OVR_FLAG_SCOPE}",
+            re.IGNORECASE,
+        ),
+        negated_by=re.compile(_OVR_NEGATION, re.IGNORECASE),
+        severity=Severity.HIGH,
+        skill_severity=Severity.HIGH,
+        description=(
+            "Text tells the model to skip, bypass or switch off the user's"
+            " permission, approval or confirmation prompts, or to run with"
+            " --dangerously-skip-permissions, bypassPermissions or --yolo"
+        ),
+        remediation=(
+            "Remove this MCP server or file; an instruction to bypass"
+            " permission prompts or other safeguards has no legitimate place"
+            " in a tool description or skill"
+        ),
+        cwe="CWE-862",
         owasp_mcp_top_10=["MCP03", "MCP06"],
     ),
 
@@ -964,9 +1122,41 @@ _MIN_PRINTABLE_SHARE: float = 0.8
 # here, so a hostile 200 KB run costs one bounded pass.
 _MAX_DECODE_RUN: int = 65_536
 
+# POISON-045 (STORY-0141): text placed after a run of blank lines.
+# VirusTotal ("How Some Malicious AI Skills Hide Instructions from
+# Reviewers", 2026-10-21) found 56 of 6,637 malicious skills putting the
+# payload after "78 to 825 blank lines ... so it sits below the visible end
+# of the file" (lines often filled with spaces), where "a reviewer scrolling
+# through the file can easily stop" and "scanners that truncate long inputs
+# may never reach the last line".  The longest blank run in 3,026 Markdown
+# and text files of eight public skill repositories was 5 (STORY-0141).
+# 20 sits between the two (about their geometric mean): four times the
+# benign maximum, under a third of the smallest attack, and short of one
+# editor screen, so a run that only just clears it still pushes text out of
+# view.  A line counts as blank when it holds only whitespace or zero-width
+# characters.
+_PADDING_MIN_BLANK_LINES: int = 20
+_PADDING_BLANK_LINE_RE: re.Pattern[str] = re.compile(
+    "[\\s\u200b\u200c\u200d\u2060\ufeff\u00ad\u2800\u3164]*"
+)
+# The text after the run must read as words, not a lone "---" or "}".  Any
+# script's letters count (a Cyrillic or CJK payload is still words).
+_PADDING_MIN_WORDS: int = 3
+_PADDING_WORD_RE: re.Pattern[str] = re.compile(
+    "[\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af]"
+    "|(?:(?![\u3040-\u30ff\u4e00-\u9fff\uac00-\ud7af])[^\\W\\d_]){2,}"
+)
+# Horizontal padding: a run of this many spaces, tabs or no-break spaces
+# inside one line, then text, pushes it past the right edge of an editor or
+# diff view (the same technique sideways).
+_PADDING_MIN_RUN_CHARS: int = 200
+# Maximal runs are found once each (a greedy ``+`` with finditer never
+# rescans a run), so a hostile all-space input stays linear.
+_PADDING_RUN_RE: re.Pattern[str] = re.compile(r"[ \t\u00a0]+")
 
-def _iter_html_comment_bodies(text: str) -> list[str]:
-    """Yield each ``<!-- ... -->`` comment body in *text* in one linear pass.
+
+def _iter_html_comments(text: str) -> list[tuple[int, str]]:
+    """``(offset of "<!--", body)`` for each HTML comment, in one linear pass.
 
     Deliberately NOT a ``<!--(.*?)-->`` regex with ``re.DOTALL``: on
     adversarial input with many unclosed ``<!--`` openers, a lazy-dot regex
@@ -979,7 +1169,7 @@ def _iter_html_comment_bodies(text: str) -> list[str]:
     ReDoS benchmarking already documented for the ``PATTERNS`` regexes in
     GAPS.md.
     """
-    bodies: list[str] = []
+    bodies: list[tuple[int, str]] = []
     pos = 0
     length = len(text)
     while pos < length:
@@ -989,9 +1179,57 @@ def _iter_html_comment_bodies(text: str) -> list[str]:
         end = text.find("-->", start + 4)
         if end == -1:
             break  # unterminated comment — nothing further to find
-        bodies.append(text[start + 4 : end])
+        bodies.append((start, text[start + 4 : end]))
         pos = end + 3
     return bodies
+
+
+def _iter_blank_padding(text: str) -> list[tuple[int, int, str]]:
+    """``(offset, blank lines, text)`` for text placed after a blank-line run.
+
+    One linear pass over the lines.  A run of at least
+    :data:`_PADDING_MIN_BLANK_LINES` blank lines followed by a line of words
+    (at least :data:`_PADDING_MIN_WORDS`) yields the offset of that line and
+    the text from it to the next qualifying run (or the end), capped at
+    :data:`_MAX_DECODE_RUN` characters.  Trailing blank lines with nothing
+    after them yield nothing.
+    """
+    hits: list[tuple[int, int]] = []  # (offset of the line after the run, run)
+    run = 0
+    pos = 0
+    length = len(text)
+    while pos <= length:
+        nl = text.find("\n", pos)
+        end = length if nl == -1 else nl
+        line = text[pos:end]
+        if _PADDING_BLANK_LINE_RE.fullmatch(line):
+            run += 1
+        else:
+            if run >= _PADDING_MIN_BLANK_LINES:
+                hits.append((pos, run))
+            run = 0
+        if nl == -1:
+            break
+        pos = nl + 1
+    out: list[tuple[int, int, str]] = []
+    for i, (start, blank) in enumerate(hits):
+        stop = hits[i + 1][0] if i + 1 < len(hits) else length
+        after = text[start : min(stop, start + _MAX_DECODE_RUN)].strip()
+        if len(_PADDING_WORD_RE.findall(after[:4096])) >= _PADDING_MIN_WORDS:
+            out.append((start, blank, after))
+    # Horizontal: a long run of spaces inside a line, then words.  Reported
+    # with a negative count (characters, not lines) so evidence can say so.
+    for m in _PADDING_RUN_RE.finditer(text):
+        if m.end() - m.start() < _PADDING_MIN_RUN_CHARS or m.end() >= length:
+            continue
+        if text[m.end()] in "\r\n":
+            continue
+        nl = text.find("\n", m.end())
+        after = text[m.end() : (length if nl == -1 else nl)][:_MAX_DECODE_RUN]
+        if len(_PADDING_WORD_RE.findall(after[:4096])) >= _PADDING_MIN_WORDS:
+            out.append((m.end(), -(m.end() - m.start()), after.strip()))
+    out.sort(key=lambda hit: hit[0])
+    return out
 
 
 def _printable_share(text: str) -> float:
@@ -1072,20 +1310,29 @@ class ConcealedChannel:
 
     Attributes:
         kind: ``"tag"`` (a contiguous Unicode TAG-block run),
-            ``"html_comment"``, ``"zero_width_binary"`` (POISON-043) or
-            ``"variation_selector"`` (POISON-044).
-        decoded: The decoded (``"tag"``) or extracted (``"html_comment"``)
-            ASCII content, ready to be rescanned against ``PATTERNS``.
-        char_count: Number of TAG characters in the run, or the length of
-            the HTML comment body.
+            ``"html_comment"``, ``"zero_width_binary"`` (POISON-043),
+            ``"variation_selector"`` (POISON-044) or ``"blank_padding"``
+            (POISON-045, text after a run of blank lines).
+        decoded: The decoded (``"tag"``) or extracted (``"html_comment"``,
+            ``"blank_padding"``) content, ready to be rescanned against
+            ``PATTERNS``.
+        char_count: Number of TAG characters in the run, the length of
+            the HTML comment body, or the number of blank lines.
         codepoint_range: ``(min, max)`` TAG codepoints observed in the run.
             ``None`` for ``"html_comment"``.
+        start: Offset in the scanned text where the channel begins (the run,
+            the ``<!--``, or the first line after the blank run), so a caller
+            can name the line (STORY-0141).
     """
 
     kind: str
     decoded: str
     char_count: int
     codepoint_range: tuple[int, int] | None = None
+    start: int | None = None
+    #: For ``"blank_padding"``: how many padded runs the text had in all (one
+    #: finding is reported per text, STORY-0141 review).
+    runs: int = 1
 
 
 def extract_concealed_channels(text: str) -> list[ConcealedChannel]:
@@ -1112,11 +1359,14 @@ def extract_concealed_channels(text: str) -> list[ConcealedChannel]:
                 decoded=_decode_tag_run(run),
                 char_count=len(run),
                 codepoint_range=(min(codepoints), max(codepoints)),
+                start=m.start(),
             )
         )
-    for body in _iter_html_comment_bodies(text):
+    for start, body in _iter_html_comments(text):
         channels.append(
-            ConcealedChannel(kind="html_comment", decoded=body, char_count=len(body))
+            ConcealedChannel(
+                kind="html_comment", decoded=body, char_count=len(body), start=start
+            )
         )
     for m in _ZW_RUN_RE.finditer(text):
         decoded = _decode_zero_width_run(m.group(0))
@@ -1126,6 +1376,7 @@ def extract_concealed_channels(text: str) -> list[ConcealedChannel]:
                     kind="zero_width_binary",
                     decoded=decoded,
                     char_count=len(m.group(0)),
+                    start=m.start(),
                 )
             )
     for m in _VS_RUN_RE.finditer(text):
@@ -1136,8 +1387,15 @@ def extract_concealed_channels(text: str) -> list[ConcealedChannel]:
                     kind="variation_selector",
                     decoded=decoded,
                     char_count=len(m.group(0)),
+                    start=m.start(),
                 )
             )
+    for start, blank, after in _iter_blank_padding(text):
+        channels.append(
+            ConcealedChannel(
+                kind="blank_padding", decoded=after, char_count=blank, start=start
+            )
+        )
     return channels
 
 
@@ -1179,11 +1437,20 @@ _KIND_LABELS: dict[str, str] = {
     "html_comment": "HTML comment",
     "zero_width_binary": "zero-width binary channel",
     "variation_selector": "variation-selector channel",
+    "blank_padding": "blank-line padding",
 }
+
+#: The padding channel (STORY-0141) is reported under its own ID whether or
+#: not its text matched a pattern: unlike a TAG run, the padded text is plain
+#: text the main pass already reads, so the finding is about where it sits.
+#: HIGH when the padded text matches a pattern, MEDIUM when it is only words.
+_PADDING_FINDING_ID: str = "POISON-045"
 
 
 def concealment_finding_id(cmatch: ConcealmentMatch) -> str:
     """Return the finding ID :func:`build_concealment_finding` gives *cmatch*."""
+    if cmatch.channel.kind == "blank_padding":
+        return _PADDING_FINDING_ID
     if cmatch.matched_pattern is not None:
         return "POISON-041"
     return _CONCEALMENT_ONLY_FINDING[cmatch.channel.kind][0]
@@ -1203,16 +1470,36 @@ def scan_concealed_channels(text: str) -> list[ConcealmentMatch]:
     Returns:
         One :class:`ConcealmentMatch` per (channel, matched pattern) pair,
         plus one no-match entry per channel whose ``kind`` is in
-        :data:`_CONCEALMENT_ONLY_KINDS` when nothing matched. Channels whose
-        decoded content is blank (e.g. an empty HTML comment) are skipped
-        entirely — there is nothing to scan or to report.
+        :data:`_CONCEALMENT_ONLY_KINDS` when nothing matched. A
+        ``"blank_padding"`` channel gets exactly one entry (its first matched
+        pattern, or none): it is one finding about where text sits. Channels
+        whose decoded content is blank (e.g. an empty HTML comment) are
+        skipped entirely — there is nothing to scan or to report.
     """
     results: list[ConcealmentMatch] = []
     candidate_patterns = [p for p in PATTERNS if not p.description_only]
+    padding: list[ConcealmentMatch] = []
     for channel in extract_concealed_channels(text):
         if not channel.decoded.strip():
             continue
         norm_decoded = normalize_for_detection(channel.decoded)
+        if channel.kind == "blank_padding":
+            first = next(
+                (
+                    (pat, m)
+                    for pat in candidate_patterns
+                    if (m := matched_pattern(pat, channel.decoded, norm_decoded))
+                ),
+                None,
+            )
+            padding.append(
+                ConcealmentMatch(
+                    channel=channel,
+                    matched_pattern=first[0] if first else None,
+                    match_text=first[1].group(0) if first else None,
+                )
+            )
+            continue
         matched_any = False
         for pat in candidate_patterns:
             m = matched_pattern(pat, channel.decoded, norm_decoded)
@@ -1227,6 +1514,13 @@ def scan_concealed_channels(text: str) -> list[ConcealmentMatch]:
             results.append(
                 ConcealmentMatch(channel=channel, matched_pattern=None, match_text=None)
             )
+    if padding:
+        # One finding per text however many runs it has (a 1.8 MB description
+        # of short padded runs would otherwise flood the output): the first
+        # run whose text matches a pattern, else the first run.
+        chosen = next((c for c in padding if c.matched_pattern), padding[0])
+        chosen.channel.runs = len(padding)
+        results.append(chosen)
     return results
 
 
@@ -1249,6 +1543,10 @@ def concealment_evidence(match: ConcealmentMatch) -> str:
     elif channel.kind == "variation_selector":
         source = f"{channel.char_count} variation selector(s) read as bytes"
         verb = "Decoded"
+    elif channel.kind == "blank_padding":
+        if channel.char_count < 0:
+            return f"After {-channel.char_count} spaces in one line: {snippet!r}"
+        return f"After {channel.char_count} blank lines: {snippet!r}"
     else:
         source = f"an HTML comment ({channel.char_count} char(s))"
         verb = "Extracted"
@@ -1286,6 +1584,21 @@ def concealment_visibility_note(kind: str, *, markdown_surface: bool) -> str:
             " variant of the character before it); read one byte each, a run"
             " of them spells text a model can be asked to decode."
         )
+    if kind == "blank_padding":
+        where = (
+            "A Markdown renderer collapses the run, so the rendered page is not"
+            " where it hides; the raw file is."
+            if markdown_surface
+            else "In a tool description it sits far below the text a reviewer"
+            " reads first."
+        )
+        return (
+            "A long run of blank lines puts the text below where a reviewer"
+            " scrolling the raw text sees it end, and past scanners that"
+            " truncate long input, while a model reads every line"
+            " (VirusTotal, 2026-10-21: 56 of 6,637 malicious skills, 78 to 825"
+            f" blank lines). {where}"
+        )
     if markdown_surface:
         return (
             "An HTML comment is invisible when this file is rendered as"
@@ -1309,7 +1622,7 @@ def build_concealment_finding(
     markdown_surface: bool,
     finding_path: str | None = None,
 ) -> Finding:
-    """Build the POISON-041 (matched) or POISON-042/043/044 (concealment-only) Finding.
+    """Build the POISON-041 (matched), POISON-042/043/044 or POISON-045 Finding.
 
     Shared by the config surface (:class:`PoisoningAnalyzer`) and the
     agent-file surface (``agent_files/analyzer.py``) so the two Finding-text
@@ -1337,12 +1650,55 @@ def build_concealment_finding(
         A POISON-041 (HIGH) finding when the decoded content matched a
         pattern; otherwise POISON-042 (LOW, TAG characters), POISON-043
         (MEDIUM, zero-width binary) or POISON-044 (MEDIUM, variation
-        selectors).
+        selectors).  Blank-line padding is always POISON-045: HIGH when the
+        padded text matched a pattern, MEDIUM otherwise (STORY-0141).
     """
     channel = cmatch.channel
     kind_label = _KIND_LABELS.get(channel.kind, channel.kind)
     note = concealment_visibility_note(channel.kind, markdown_surface=markdown_surface)
     evidence = concealment_evidence(cmatch)
+
+    if channel.kind == "blank_padding":
+        pat = cmatch.matched_pattern
+        what = (
+            f" The text matches the '{pat.name}' detection pattern: {pat.description}."
+            if pat is not None
+            else " The text matched no detection pattern; read it, because"
+            " nothing legitimate needs to sit this far below the rest."
+        )
+        return Finding(
+            id=_PADDING_FINDING_ID,
+            severity=Severity.HIGH if pat is not None else Severity.MEDIUM,
+            analyzer="poisoning",
+            client=client,
+            server=server,
+            title="Text hidden below blank-line padding",
+            description=(
+                f"{surface_noun[0].upper()}{surface_noun[1:]} has"
+                + (
+                    f" {channel.char_count} blank lines in a row"
+                    if channel.char_count >= 0
+                    else f" {-channel.char_count} spaces in a row inside one line"
+                )
+                + f" and then more text.{what}"
+                + (
+                    f" ({channel.runs} padded runs in all; this one is shown.)"
+                    if channel.runs > 1
+                    else ""
+                )
+                + f" {note}"
+            ),
+            evidence=evidence,
+            remediation=(
+                "Open the raw file, read everything after the blank lines, and"
+                " remove it unless you put it there."
+            ),
+            finding_path=finding_path,
+            cwe="CWE-451",
+            # The channel is the finding; the padded text's own match (POISON-0xx,
+            # SKILL-001) carries its own mapping.
+            owasp_mcp_top_10=["MCP03"],
+        )
 
     if cmatch.matched_pattern is not None:
         pat = cmatch.matched_pattern

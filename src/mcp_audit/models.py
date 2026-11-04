@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from mcp_audit import __version__
 from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS as _GATEWAY_CLIENTS
@@ -324,6 +332,9 @@ class ServerEnumeration(BaseModel):
     tools_error: str | None = None
 
 
+_EVIDENCE_LINE_RE = re.compile(r"Line (\d{1,9}): ")
+
+
 class Finding(BaseModel):
     """A security finding from an analyzer."""
 
@@ -349,6 +360,27 @@ class Finding(BaseModel):
     # Exploitability signals per CVE (CISA KEV, FIRST EPSS, public PoC), set by
     # mcp_audit.exploit.signals.annotate. Empty = no CVE or nothing known.
     exploit: dict[str, dict] = Field(default_factory=dict)
+    # 1-based line in ``finding_path`` where the matched text sits (STORY-0141).
+    # Set on agent-file content findings, whose evidence starts "Line N:";
+    # ``None`` everywhere else, including tool-description findings. SARIF
+    # puts it in ``region.startLine``.
+    line: int | None = None
+
+    @model_validator(mode="after")
+    def _line_from_evidence(self) -> Finding:
+        """Fill ``line`` from an agent-file finding's ``Line N:`` evidence."""
+        # getattr: tests pass MagicMock(spec=Finding) through ScanResult.
+        evidence = getattr(self, "evidence", None)
+        if (
+            getattr(self, "line", 0) is None
+            and getattr(self, "analyzer", None) in ("agent_files", "poisoning")
+            and isinstance(evidence, str)
+            and getattr(self, "finding_path", None)
+        ):
+            m = _EVIDENCE_LINE_RE.match(evidence)
+            if m is not None:
+                self.line = int(m.group(1))
+        return self
 
 
 class AttackPath(BaseModel):
