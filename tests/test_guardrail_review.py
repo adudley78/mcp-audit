@@ -116,7 +116,7 @@ def test_secret_shapes_never_reach_state_evidence_or_lock(
         "state": state.read_bytes().decode(),
         "findings": "\n".join(f.model_dump_json() for f in findings),
         "errors": "\n".join(errors),
-        "lock": (repo / "mcp-lock.json").read_text(),
+        "lock": (repo / "mcp-lock.json").read_text(encoding="utf-8"),
     }
     for where, blob in blobs.items():
         for name, token in TOKENS.items():
@@ -281,7 +281,9 @@ def test_no_section_is_written_for_a_repo_without_guardrail_files(repo: Path) ->
         json.dumps({"mcpServers": {"fs": {"command": "node", "args": ["x.js"]}}})
     )
     assert _lock(repo).exit_code == 0  # type: ignore[attr-defined]
-    assert "guardrails" not in json.loads((repo / "mcp-lock.json").read_text())
+    assert "guardrails" not in json.loads(
+        (repo / "mcp-lock.json").read_text(encoding="utf-8")
+    )
     _w(repo / ".claude" / "settings.json", {"permissions": {"allow": ["Bash(*)"]}})
     assert _verify(repo)[0] == 0  # no section: not looked at (documented limit)
 
@@ -308,7 +310,7 @@ def test_compare_refuses_malformed_records(bad: dict) -> None:
 
 def _forge(repo: Path, rel: str, entry: dict) -> None:
     path = repo / "mcp-lock.json"
-    doc = json.loads(path.read_text())
+    doc = json.loads(path.read_text(encoding="utf-8"))
     files = doc["guardrails"]["files"]
     files[rel] = entry
     doc["guardrails"] = gs.build_section(files)
@@ -347,7 +349,7 @@ def test_bad_state_record_heals_and_does_not_disable_the_step(
         repo / ".claude" / "settings.json", {"permissions": {"deny": ["Read(x)"]}}
     )
     _scan(repo, state)
-    data = json.loads(state.read_text())
+    data = json.loads(state.read_text(encoding="utf-8"))
     key = next(
         k
         for k in data["files"]
@@ -361,7 +363,9 @@ def test_bad_state_record_heals_and_does_not_disable_the_step(
     findings, errors = _scan(repo, state)  # must not raise; poisoned = no history
     assert findings == []
     assert not any("failed" in e for e in errors), errors
-    assert g.valid_record(json.loads(state.read_text())["files"][key]["record"])
+    assert g.valid_record(
+        json.loads(state.read_text(encoding="utf-8"))["files"][key]["record"]
+    )
     settings.write_text(json.dumps({"permissions": {"deny": []}}))
     assert [f.id for f in _scan(repo, state)[0]] == ["GUARD-001"]  # healed
 
@@ -564,5 +568,5 @@ def test_killchain_then_scan_still_reports(home: Path, repo: Path) -> None:
 def test_upgrade_note_is_documented() -> None:
     root = Path(__file__).resolve().parent.parent
     for name in ("docs/lock.md", "CHANGELOG.md"):
-        text = (root / name).read_text()
+        text = (root / name).read_text(encoding="utf-8")
         assert "older mcp-audit" in text.lower() and "guardrails" in text, name
