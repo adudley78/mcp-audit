@@ -1,0 +1,602 @@
+### none-installed / x_MCPRS-4ad8c07d80d7
+{
+  "query": "x_MCPRS-4ad8c07d80d7",
+  "kind": "advisory",
+  "summary": {
+    "checked": 4,
+    "affected": 0,
+    "not_affected": 0,
+    "couldnt_check": 4
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No PLUGIN-003/PLUGIN-004 result shows the swap on Claude Code's plugin checkouts; that is not a clean bill for the other harnesses or for installs that kept no .git."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Claude Code (Anthropic)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which Claude Code version is installed; per the write-up: fixed in 2.1.179",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": "2.1.179",
+      "reason": "harness-version",
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "Codex (OpenAI)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which Codex version is installed; per the write-up: fixed in 0.146.0",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": "0.146.0",
+      "reason": "harness-version",
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "GitHub Copilot (Microsoft)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which GitHub Copilot version is installed; per the write-up: not fixed at disclosure",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "Gemini CLI (Google)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which Gemini CLI version is installed; per the write-up: not going to be fixed (vendor statement)",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### none-installed / x_MCPRS-32fc646f6f96
+{
+  "query": "x_MCPRS-32fc646f6f96",
+  "kind": "advisory",
+  "summary": {
+    "checked": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "couldnt_check": 1
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No mcp-audit check tests this condition, so nothing was run. Exposure depended on the vendor's service, which no local configuration or installed version shows."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Context7 MCP (Upstash)",
+      "status": "COULDN'T CHECK",
+      "evidence": "no installed version shows exposure to this (Upstash's service); per the write-up: fixed in the vendor's service (no client update)",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "vendor-service",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### none-installed / x_MCPRS-c83726dd3047
+{
+  "query": "x_MCPRS-c83726dd3047",
+  "kind": "advisory",
+  "summary": {
+    "checked": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "couldnt_check": 1
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No mcp-audit check tests this condition, so nothing was run. Whether a setup is affected depends on how the product behaves, which a static scan of its configuration does not show."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Claude Code (Anthropic)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which Claude Code version is installed; per the write-up: not fixed at disclosure",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### below-the-fix / x_MCPRS-4ad8c07d80d7
+{
+  "query": "x_MCPRS-4ad8c07d80d7",
+  "kind": "advisory",
+  "summary": {
+    "checked": 4,
+    "affected": 2,
+    "not_affected": 0,
+    "couldnt_check": 2
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No PLUGIN-003/PLUGIN-004 result shows the swap on Claude Code's plugin checkouts; that is not a clean bill for the other harnesses or for installs that kept no .git."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Claude Code (Anthropic) 2.1.100",
+      "status": "AFFECTED",
+      "evidence": "Claude Code 2.1.100 (npm install, read from /fixture/claude-code/2.1.100) is below the fix 2.1.179; per the write-up: fixed in 2.1.179",
+      "config_path": null,
+      "package": "Claude Code",
+      "version": "2.1.100",
+      "version_source": "/fixture/claude-code/2.1.100",
+      "fixed_in": "2.1.179",
+      "reason": null,
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "Codex (OpenAI) 0.100.0",
+      "status": "AFFECTED",
+      "evidence": "Codex 0.100.0 (npm install, read from /fixture/codex/0.100.0) is below the fix 0.146.0; per the write-up: fixed in 0.146.0",
+      "config_path": null,
+      "package": "Codex",
+      "version": "0.100.0",
+      "version_source": "/fixture/codex/0.100.0",
+      "fixed_in": "0.146.0",
+      "reason": null,
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "GitHub Copilot (Microsoft)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which GitHub Copilot version is installed; per the write-up: not fixed at disclosure",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "Gemini CLI (Google)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which Gemini CLI version is installed; per the write-up: not going to be fixed (vendor statement)",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### below-the-fix / x_MCPRS-32fc646f6f96
+{
+  "query": "x_MCPRS-32fc646f6f96",
+  "kind": "advisory",
+  "summary": {
+    "checked": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "couldnt_check": 1
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No mcp-audit check tests this condition, so nothing was run. Exposure depended on the vendor's service, which no local configuration or installed version shows."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Context7 MCP (Upstash)",
+      "status": "COULDN'T CHECK",
+      "evidence": "no installed version shows exposure to this (Upstash's service); per the write-up: fixed in the vendor's service (no client update)",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "vendor-service",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### below-the-fix / x_MCPRS-c83726dd3047
+{
+  "query": "x_MCPRS-c83726dd3047",
+  "kind": "advisory",
+  "summary": {
+    "checked": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "couldnt_check": 1
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No mcp-audit check tests this condition, so nothing was run. Whether a setup is affected depends on how the product behaves, which a static scan of its configuration does not show."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Claude Code (Anthropic)",
+      "status": "COULDN'T CHECK",
+      "evidence": "Claude Code 2.1.100 is installed, but the write-up gives no fixed version to compare it with; per the write-up: not fixed at disclosure",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### at-or-above-the-fix / x_MCPRS-4ad8c07d80d7
+{
+  "query": "x_MCPRS-4ad8c07d80d7",
+  "kind": "advisory",
+  "summary": {
+    "checked": 4,
+    "affected": 0,
+    "not_affected": 2,
+    "couldnt_check": 2
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No PLUGIN-003/PLUGIN-004 result shows the swap on Claude Code's plugin checkouts; that is not a clean bill for the other harnesses or for installs that kept no .git."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Claude Code (Anthropic) 2.1.179",
+      "status": "NOT AFFECTED",
+      "evidence": "Claude Code 2.1.179 (npm install, read from /fixture/claude-code/2.1.179) is at or above the fix 2.1.179; per the write-up: fixed in 2.1.179",
+      "config_path": null,
+      "package": "Claude Code",
+      "version": "2.1.179",
+      "version_source": "/fixture/claude-code/2.1.179",
+      "fixed_in": "2.1.179",
+      "reason": null,
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "Codex (OpenAI) 0.146.0",
+      "status": "NOT AFFECTED",
+      "evidence": "Codex 0.146.0 (npm install, read from /fixture/codex/0.146.0) is at or above the fix 0.146.0; per the write-up: fixed in 0.146.0",
+      "config_path": null,
+      "package": "Codex",
+      "version": "0.146.0",
+      "version_source": "/fixture/codex/0.146.0",
+      "fixed_in": "0.146.0",
+      "reason": null,
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "GitHub Copilot (Microsoft)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which GitHub Copilot version is installed; per the write-up: not fixed at disclosure",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "Gemini CLI (Google)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which Gemini CLI version is installed; per the write-up: not going to be fixed (vendor statement)",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### at-or-above-the-fix / x_MCPRS-32fc646f6f96
+{
+  "query": "x_MCPRS-32fc646f6f96",
+  "kind": "advisory",
+  "summary": {
+    "checked": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "couldnt_check": 1
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No mcp-audit check tests this condition, so nothing was run. Exposure depended on the vendor's service, which no local configuration or installed version shows."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Context7 MCP (Upstash)",
+      "status": "COULDN'T CHECK",
+      "evidence": "no installed version shows exposure to this (Upstash's service); per the write-up: fixed in the vendor's service (no client update)",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "vendor-service",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### at-or-above-the-fix / x_MCPRS-c83726dd3047
+{
+  "query": "x_MCPRS-c83726dd3047",
+  "kind": "advisory",
+  "summary": {
+    "checked": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "couldnt_check": 1
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No mcp-audit check tests this condition, so nothing was run. Whether a setup is affected depends on how the product behaves, which a static scan of its configuration does not show."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Claude Code (Anthropic)",
+      "status": "COULDN'T CHECK",
+      "evidence": "Claude Code 2.1.179 is installed, but the write-up gives no fixed version to compare it with; per the write-up: not fixed at disclosure",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### native-launcher / x_MCPRS-4ad8c07d80d7
+{
+  "query": "x_MCPRS-4ad8c07d80d7",
+  "kind": "advisory",
+  "summary": {
+    "checked": 5,
+    "affected": 0,
+    "not_affected": 1,
+    "couldnt_check": 4
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No PLUGIN-003/PLUGIN-004 result shows the swap on Claude Code's plugin checkouts; that is not a clean bill for the other harnesses or for installs that kept no .git.",
+    "2 Claude Code installs found; which one is first on PATH cannot be known without running it, so each is listed."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Claude Code (Anthropic) 2.1.100",
+      "status": "COULDN'T CHECK",
+      "evidence": "Claude Code 2.1.100 (native install, read from /fixture/claude-code/2.1.100) is below (an older copy kept on disk; the launcher points at another version, so this one is not what `claude` runs) the fix 2.1.179; per the write-up: fixed in 2.1.179",
+      "config_path": null,
+      "package": "Claude Code",
+      "version": "2.1.100",
+      "version_source": "/fixture/claude-code/2.1.100",
+      "fixed_in": "2.1.179",
+      "reason": "not-launcher-target",
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "Claude Code (Anthropic) 2.1.200",
+      "status": "NOT AFFECTED",
+      "evidence": "Claude Code 2.1.200 (native install, read from /fixture/claude-code/2.1.200) is at or above the fix 2.1.179; per the write-up: fixed in 2.1.179",
+      "config_path": null,
+      "package": "Claude Code",
+      "version": "2.1.200",
+      "version_source": "/fixture/claude-code/2.1.200",
+      "fixed_in": "2.1.179",
+      "reason": null,
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "Codex (OpenAI)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which Codex version is installed; per the write-up: fixed in 0.146.0",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": "0.146.0",
+      "reason": "harness-version",
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "GitHub Copilot (Microsoft)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which GitHub Copilot version is installed; per the write-up: not fixed at disclosure",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    },
+    {
+      "machine": null,
+      "subject": "Gemini CLI (Google)",
+      "status": "COULDN'T CHECK",
+      "evidence": "mcp-audit does not read which Gemini CLI version is installed; per the write-up: not going to be fixed (vendor statement)",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### native-launcher / x_MCPRS-32fc646f6f96
+{
+  "query": "x_MCPRS-32fc646f6f96",
+  "kind": "advisory",
+  "summary": {
+    "checked": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "couldnt_check": 1
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No mcp-audit check tests this condition, so nothing was run. Exposure depended on the vendor's service, which no local configuration or installed version shows."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Context7 MCP (Upstash)",
+      "status": "COULDN'T CHECK",
+      "evidence": "no installed version shows exposure to this (Upstash's service); per the write-up: fixed in the vendor's service (no client update)",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "vendor-service",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
+### native-launcher / x_MCPRS-c83726dd3047
+{
+  "query": "x_MCPRS-c83726dd3047",
+  "kind": "advisory",
+  "summary": {
+    "checked": 1,
+    "affected": 0,
+    "not_affected": 0,
+    "couldnt_check": 1
+  },
+  "sources": [],
+  "live": false,
+  "transitive": false,
+  "fleet": [],
+  "exploit": null,
+  "notes": [
+    "No mcp-audit check tests this condition, so nothing was run. Whether a setup is affected depends on how the product behaves, which a static scan of its configuration does not show."
+  ],
+  "errors": [],
+  "results": [
+    {
+      "machine": null,
+      "subject": "Claude Code (Anthropic)",
+      "status": "COULDN'T CHECK",
+      "evidence": "Claude Code 2.1.100, 2.1.200 is installed, but the write-up gives no fixed version to compare it with; per the write-up: not fixed at disclosure",
+      "config_path": null,
+      "package": null,
+      "version": null,
+      "version_source": null,
+      "fixed_in": null,
+      "reason": "harness-version",
+      "dependency": null
+    }
+  ],
+  "respond": []
+}
