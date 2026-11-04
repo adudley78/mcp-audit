@@ -44,6 +44,12 @@ class DetectionPattern:
     # confirmation" also appear in legitimate skills, and a skill should not
     # get a HIGH for what a tool description gets a MEDIUM or LOW for.
     skill_severity: Severity | None = None
+    # When set, a match is vetoed if this regex matches the part of the
+    # match's own clause before it (back to ``. ! ? ;`` or a line break, at
+    # most ``_NEGATION_LOOKBACK`` characters): ``re`` has no variable-width
+    # lookbehind, so "never skip permission prompts" is excluded here rather
+    # than in the pattern (POISON-076, STORY-0141).
+    negated_by: re.Pattern[str] | None = None
 
 
 # ── Unicode normalization for detection (UTS #39 / NFKD) ───────────────────────
@@ -233,7 +239,8 @@ def matched_pattern(
     (:func:`normalize_for_detection`) so homoglyph / compatibility obfuscation
     cannot evade a literal pattern.  When the pattern declares
     ``requires_cooccurrence``, the match is vetoed unless a co-occurrence term
-    is near it.
+    is near it.  When it declares ``negated_by``, the first match whose own
+    clause does not negate it is returned.
 
     Args:
         pattern: The detection pattern to evaluate.
@@ -248,6 +255,10 @@ def matched_pattern(
         return pattern.pattern.search(raw_text)
     if norm_text is None:
         norm_text = normalize_for_detection(raw_text)
+    if pattern.negated_by is not None:
+        # The first match whose clause does not negate it (POISON-076).
+        found = iter_pattern_matches(pattern, raw_text, norm_text, limit=1)
+        return found[0] if found else None
     m = pattern.pattern.search(norm_text)
     if m is None:
         return None
@@ -256,6 +267,23 @@ def matched_pattern(
     ):
         return None
     return m
+
+
+_CLAUSE_END_RE: re.Pattern[str] = re.compile(r"[.!?;\n]")
+
+#: How far back a clause is read for ``DetectionPattern.negated_by``.
+_NEGATION_LOOKBACK: int = 120
+
+
+def _is_negated(pattern: DetectionPattern, text: str, match: re.Match[str]) -> bool:
+    """Return True when *pattern*'s ``negated_by`` veto applies to *match*."""
+    if pattern.negated_by is None:
+        return False
+    head = text[max(0, match.start() - _NEGATION_LOOKBACK) : match.start()]
+    ends = list(_CLAUSE_END_RE.finditer(head))
+    if ends:
+        head = head[ends[-1].end() :]
+    return pattern.negated_by.search(head) is not None
 
 
 def iter_pattern_matches(
@@ -290,6 +318,8 @@ def iter_pattern_matches(
         if pattern.requires_cooccurrence and not _has_cooccurrence(
             searched, m, pattern.requires_cooccurrence
         ):
+            continue
+        if _is_negated(pattern, searched, m):
             continue
         out.append(m)
         if len(out) >= limit:
@@ -462,6 +492,36 @@ def memory_override_match(norm_text: str) -> re.Match[str] | None:
 # Precision is measured per pattern in docs/poisoning.md ("Directive family").
 
 _DIR_NEG: str = r"(?:do\s+not|don'?t|never|must\s+not|should\s+not|shall\s+not)"
+
+# POISON-076 (STORY-0141): an order to switch off the human's checks on what
+# the agent does.  The verb is imperative or an -ing form ("skip", "skipping";
+# "this hook skips prompts" describes a feature and is not matched); the
+# object is a named control.  A negation earlier in the clause vetoes the
+# match (``negated_by``), so "never skip permission prompts" stays silent;
+# a purpose clause about a flag ("use --yes to skip the prompt") is not an
+# order to the agent and is excluded by the "to" lookbehind.
+_OVR_VERB: str = (
+    r"(?:skip(?:ping)?|bypass(?:ing)?|disabl(?:e|ing)|turn(?:ing)?\s+off"
+    r"|switch(?:ing)?\s+off|suppress(?:ing)?|ignor(?:e|ing)|circumvent(?:ing)?"
+    r"|auto-?approv(?:e|ing)|get(?:ting)?\s+around)"
+)
+_OVR_DET: str = r"(?:\s+(?:the|any|all|every|your|those|these|such)){0,2}"
+_OVR_OBJECT: str = (
+    r"(?:(?:(?:user|human|manual)\s+)?(?:permission|approval|confirmation|consent)s?"
+    r"(?:\s+(?:prompts?|dialogs?|dialogues?|popups?|pop-ups?|checks?|requests?"
+    r"|steps?|questions?))?"
+    r"|safety\s+checks?|guardrails?|sandbox(?:ing|es)?|hooks?"
+    r"|monitoring|audit\s+log(?:s|ging)?)\b"
+)
+_OVR_FLAG: str = r"(?:--dangerously-skip-permissions|\bbypassPermissions\b|--yolo\b)"
+_OVR_NEGATION: str = (
+    r"(?:\b(?:never|not|cannot|can'?t|won'?t|don'?t|doesn'?t|shouldn'?t|mustn'?t"
+    r"|avoid|refuse|refusing|without|instead\s+of|rather\s+than)\b|n['’]t\b"
+    # A flag's purpose clause ("use --yes to skip the prompt", "pass -y to
+    # bypass confirmation"), not an order to the agent.
+    r"|(?:(?<![\w-])-{1,2}[A-Za-z][\w-]*|\bflags?|\boptions?|\bswitch)\b"
+    r"[^.;\n]{0,30}\bto\s*$)"
+)
 _DIR_AUDIENCE: str = r"(?:the\s+|your\s+|any\s+|a\s+)?(?:user|human|operator|owner)s?\b"
 _DIR_APPROVAL: str = r"(?:permission|approval|consent|confirmation|authori[sz]ation)"
 _DIR_AUDIENCE_ANY: str = (
@@ -731,29 +791,14 @@ PATTERNS: list[DetectionPattern] = [
             r"|\bwithout\s+waiting\s+for\s+(?:the\s+)?(?:user|human)\s+to\s+"
             r"(?:approve|confirm|consent|agree)"
             r"|\b(?:do\s+not|don'?t)\s+need\s+(?:the\s+user'?s\s+|their\s+|any\s+)?"
-            + _DIR_APPROVAL
-            # STORY-0141: an order to get past the harness's own approval
-            # step ("skip permission prompts", "bypass the confirmation
-            # dialog"), not a purpose clause describing a flag ("use --yes
-            # to skip the confirmation prompt in CI", development set) or an
-            # option list's definition ("`--force` - Skip confirmation
-            # prompts", openai/skills netlify-deploy reference).
-            + r"|(?<![Tt]o )(?<!` - )(?<!`: )(?<!` \u2014 )"
-            r"\b(?:skip|bypass|disable|suppress|circumvent|get\s+around|turn\s+off)\s+"
-            r"(?:the\s+|any\s+|all\s+|every\s+)?(?:user\s+)?"
-            r"(?:permission|approval|confirmation|consent)\s+"
-            r"(?:prompts?|checks?|dialogs?|requests?|steps?|pop-?ups?|questions?)\b",
+            + _DIR_APPROVAL,
             re.IGNORECASE | re.MULTILINE,
         ),
         severity=Severity.LOW,
-        # HIGH in an agent instruction file (STORY-0141): a skill that tells
-        # the agent to stop asking removes the human check for everything it
-        # does next (about 1 in 17 of 1.53M skills carries such a directive,
-        # arXiv 2610.37734 as cited in STORY-0141).  The agent-file
-        # describes-vs-directs gate drops a described or negated occurrence
-        # ("never proceed without asking for approval") to INFO; a tool
-        # description keeps LOW.
-        skill_severity=Severity.HIGH,
+        # LOW in a skill too: "run the tests without asking for confirmation"
+        # is ordinary project guidance.  Orders to switch the harness's own
+        # checks off are POISON-076 (HIGH), STORY-0141 review.
+        skill_severity=Severity.LOW,
         description=(
             "Text tells the model not to ask the user for permission or"
             " confirmation (\"do not ask the user for confirmation\")"
@@ -886,6 +931,38 @@ PATTERNS: list[DetectionPattern] = [
             " time can change after you reviewed this file"
         ),
         cwe="CWE-829",
+        owasp_mcp_top_10=["MCP03", "MCP06"],
+    ),
+
+    DetectionPattern(
+        id="POISON-076",
+        name="Oversight bypass directive",
+        pattern=re.compile(
+            # Not in an option definition ("`--force` - Skip confirmation
+            # prompts", "| Skip confirmation prompts |"); a flag's purpose
+            # clause is vetoed by ``negated_by``.
+            r"(?<!` - )(?<!`: )(?<!` \u2014 )(?<!\| )"
+            rf"\b{_OVR_VERB}{_OVR_DET}\s+{_OVR_OBJECT}"
+            r"|\b(?:run|runs|running|launch|start|invoke|execute|use|using|pass|add"
+            r"|set|enable|with)\b[^\n.]{0,40}?"
+            rf"{_OVR_FLAG}",
+            re.IGNORECASE,
+        ),
+        negated_by=re.compile(_OVR_NEGATION, re.IGNORECASE),
+        severity=Severity.HIGH,
+        skill_severity=Severity.HIGH,
+        description=(
+            "Text tells the model to skip, bypass or switch off the user's"
+            " checks on what it does (permission prompts, safety checks, the"
+            " sandbox, hooks, audit logs) or to run with"
+            " --dangerously-skip-permissions"
+        ),
+        remediation=(
+            "Remove this MCP server or file; an instruction to bypass"
+            " permission prompts or other safeguards has no legitimate place"
+            " in a tool description or skill"
+        ),
+        cwe="CWE-862",
         owasp_mcp_top_10=["MCP03", "MCP06"],
     ),
 
@@ -1045,10 +1122,22 @@ _MAX_DECODE_RUN: int = 65_536
 # view.  A line counts as blank when it holds only whitespace or zero-width
 # characters.
 _PADDING_MIN_BLANK_LINES: int = 20
-_PADDING_BLANK_LINE_RE: re.Pattern[str] = re.compile(r"[\s​‌‍⁠﻿]*")
-# The text after the run must read as words, not a lone "---" or "}".
+_PADDING_BLANK_LINE_RE: re.Pattern[str] = re.compile(
+    "[\\s\u200b\u200c\u200d\u2060\ufeff\u00ad\u2800\u3164]*"
+)
+# The text after the run must read as words, not a lone "---" or "}".  Any
+# script's letters count (a Cyrillic or CJK payload is still words).
 _PADDING_MIN_WORDS: int = 3
-_PADDING_WORD_RE: re.Pattern[str] = re.compile(r"[A-Za-z]{2,}")
+_PADDING_WORD_RE: re.Pattern[str] = re.compile(
+    r"[^\W\d_]{2,}|[\u3040-\u30ff\u4e00-\u9fff]"
+)
+# Horizontal padding: a run of this many spaces, tabs or no-break spaces
+# inside one line, then text, pushes it past the right edge of an editor or
+# diff view (the same technique sideways).
+_PADDING_MIN_RUN_CHARS: int = 200
+# Maximal runs are found once each (a greedy ``+`` with finditer never
+# rescans a run), so a hostile all-space input stays linear.
+_PADDING_RUN_RE: re.Pattern[str] = re.compile(r"[ \t\u00a0]+")
 
 
 def _iter_html_comments(text: str) -> list[tuple[int, str]]:
@@ -1113,6 +1202,18 @@ def _iter_blank_padding(text: str) -> list[tuple[int, int, str]]:
         after = text[start : min(stop, start + _MAX_DECODE_RUN)].strip()
         if len(_PADDING_WORD_RE.findall(after[:4096])) >= _PADDING_MIN_WORDS:
             out.append((start, blank, after))
+    # Horizontal: a long run of spaces inside a line, then words.  Reported
+    # with a negative count (characters, not lines) so evidence can say so.
+    for m in _PADDING_RUN_RE.finditer(text):
+        if m.end() - m.start() < _PADDING_MIN_RUN_CHARS or m.end() >= length:
+            continue
+        if text[m.end()] in "\r\n":
+            continue
+        nl = text.find("\n", m.end())
+        after = text[m.end() : (length if nl == -1 else nl)][:_MAX_DECODE_RUN]
+        if len(_PADDING_WORD_RE.findall(after[:4096])) >= _PADDING_MIN_WORDS:
+            out.append((m.end(), -(m.end() - m.start()), after.strip()))
+    out.sort(key=lambda hit: hit[0])
     return out
 
 
@@ -1214,6 +1315,9 @@ class ConcealedChannel:
     char_count: int
     codepoint_range: tuple[int, int] | None = None
     start: int | None = None
+    #: For ``"blank_padding"``: how many padded runs the text had in all (one
+    #: finding is reported per text, STORY-0141 review).
+    runs: int = 1
 
 
 def extract_concealed_channels(text: str) -> list[ConcealedChannel]:
@@ -1359,6 +1463,7 @@ def scan_concealed_channels(text: str) -> list[ConcealmentMatch]:
     """
     results: list[ConcealmentMatch] = []
     candidate_patterns = [p for p in PATTERNS if not p.description_only]
+    padding: list[ConcealmentMatch] = []
     for channel in extract_concealed_channels(text):
         if not channel.decoded.strip():
             continue
@@ -1372,7 +1477,7 @@ def scan_concealed_channels(text: str) -> list[ConcealmentMatch]:
                 ),
                 None,
             )
-            results.append(
+            padding.append(
                 ConcealmentMatch(
                     channel=channel,
                     matched_pattern=first[0] if first else None,
@@ -1394,6 +1499,13 @@ def scan_concealed_channels(text: str) -> list[ConcealmentMatch]:
             results.append(
                 ConcealmentMatch(channel=channel, matched_pattern=None, match_text=None)
             )
+    if padding:
+        # One finding per text however many runs it has (a 1.8 MB description
+        # of short padded runs would otherwise flood the output): the first
+        # run whose text matches a pattern, else the first run.
+        chosen = next((c for c in padding if c.matched_pattern), padding[0])
+        chosen.channel.runs = len(padding)
+        results.append(chosen)
     return results
 
 
@@ -1417,6 +1529,8 @@ def concealment_evidence(match: ConcealmentMatch) -> str:
         source = f"{channel.char_count} variation selector(s) read as bytes"
         verb = "Decoded"
     elif channel.kind == "blank_padding":
+        if channel.char_count < 0:
+            return f"After {-channel.char_count} spaces in one line: {snippet!r}"
         return f"After {channel.char_count} blank lines: {snippet!r}"
     else:
         source = f"an HTML comment ({channel.char_count} char(s))"
@@ -1546,8 +1660,18 @@ def build_concealment_finding(
             title="Text hidden below blank-line padding",
             description=(
                 f"{surface_noun[0].upper()}{surface_noun[1:]} has"
-                f" {channel.char_count} blank lines in a row and then more"
-                f" text.{what} {note}"
+                + (
+                    f" {channel.char_count} blank lines in a row"
+                    if channel.char_count >= 0
+                    else f" {-channel.char_count} spaces in a row inside one line"
+                )
+                + f" and then more text.{what}"
+                + (
+                    f" ({channel.runs} padded runs in all; this one is shown.)"
+                    if channel.runs > 1
+                    else ""
+                )
+                + f" {note}"
             ),
             evidence=evidence,
             remediation=(

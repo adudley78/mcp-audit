@@ -446,7 +446,9 @@ class TestBlankLinePadding:
 
         text = ("\n" * 25 + "words words words\n") * 20000
         start = time.perf_counter()
-        assert len(self._ids(text)) == 20000
+        # One finding per text however many runs (STORY-0141 review: a long
+        # description of padded runs would otherwise flood the output).
+        assert len(self._ids(text)) == 1
         assert time.perf_counter() - start < 10.0
 
     def test_iter_pattern_matches_applies_cooccurrence_per_match(self) -> None:

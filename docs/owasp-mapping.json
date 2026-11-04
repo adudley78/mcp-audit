@@ -2200,6 +2200,19 @@
       "notes": "Text tells the model to fetch a URL and follow, obey or execute what it says; needs a URL, link or endpoint within 200 characters. LOW (ordinary project instructions use the same words). CWE-829. Source: research scan 2026-10-25 (A8); STORY-0099."
     },
     {
+      "finding_id": "POISON-076",
+      "finding_title": "Oversight bypass directive",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "Text tells the model to skip, bypass, disable, turn off, suppress or ignore permission or approval prompts, confirmation dialogs, safety checks, guardrails, the sandbox, hooks, or audit logs, or to run with --dangerously-skip-permissions, bypassPermissions or --yolo. A negation earlier in the same clause ('never skip permission prompts') vetoes the match. HIGH, also as SKILL-001 in an agent file. CWE-862. Source: arXiv study of 1.53M skills (about 1 in 17 carries an oversight-loosening directive) and the 415K-view settings-change report, discovery brief 2026-11-04 section 2.1/2.4. STORY-0141. Purpose clauses about a flag ('use --yes to skip the prompt') are vetoed too; review of PR #263 moved the skip/bypass forms here from POISON-071, which stays LOW."
+    },
+    {
       "finding_id": "MEM-005",
       "finding_title": "Instruction file holds a conditional sleeper trigger",
       "owasp_codes": [

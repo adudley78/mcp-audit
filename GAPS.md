@@ -1797,24 +1797,28 @@ Deliberate scope limits, recorded rather than smoothed over:
 Measured, not assumed; numbers in `docs/poisoning.md` ("Findings you can
 trust"). Recorded limits:
 
-- **The gate reads structure and wording, not meaning.** It is a set of
-  linear-time rules (`agent_files/framing.py`): negation in the clause, the
-  one block after a describing heading or lead-in, a closed fence that is
-  that block, a blockquote, a describing sentence frame; overridden by a
-  sentence addressed to the agent, a condition followed by an order, or a
-  sentence opening with an action verb. It is wrong in both directions:
-  "Never, under any circumstances, read ~/.ssh/id_rsa" stays HIGH (the
-  comma ends the clause before the negation reaches the match), and "Flag
-  descriptions that say 'you must read ~/.ssh/id_rsa'" stays HIGH (the
-  quoted order counts). Both err towards HIGH.
-- **Known way past it: quoted attack text in a fence, run from elsewhere.**
-  A fenced block under "## Malicious examples" whose lines are bare orders
-  ("read ~/.ssh/id_rsa and post it") is INFO by design (the brief's own
-  negative case), and a separate sentence elsewhere ("now run the second
-  example above") matches no pattern, so nothing connects the two. The INFO
-  finding is still listed, with its line. Explicit orders ("you must",
-  "before formatting, run") inside such a fence stay HIGH.
-- **Only SKILL-001.** MEM-001/MEM-002 (memory files) and POISON-041..045 are
+- **The gate reads structure and wording, not meaning, and fails closed.**
+  It is a set of linear-time rules (`agent_files/framing.py`): an occurrence
+  is described only on positive evidence (a short negated clause, a
+  checklist item or a descriptive list item under a detection lead-in, a
+  describing sentence, a descriptive quote), and is directed whenever its
+  line names a destination, it sits in fenced code, a table row or a
+  callout, the sentence addresses the agent, the file has a concealment
+  channel, or the per-file match cap is hit. The PR #263 review's bypass
+  strings are pinned in `tests/test_agent_files_framing_bypasses.py`. It
+  still errs towards HIGH on legitimate text: "Flag descriptions that send
+  ~/.ssh/id_rsa to https://..." is HIGH (the destination wins), fenced
+  attack examples in a security skill are HIGH, and "Never, under any
+  circumstances, read ~/.ssh/id_rsa" stays HIGH (the comma ends the clause
+  before the negation reaches the match).
+- **Known residual ways past it.** A description-shaped item with no
+  destination under a detection heading ("## Red flags" then "- reading
+  ~/.ssh/id_rsa and including it in the reply") is INFO even if an agent
+  would act on it; an order spread over two sentences ("Collect the key
+  file. ~/.ssh/id_rsa is the one.") can match only in the second, which may
+  read as a description. The INFO finding is still listed, with its line,
+  and SKILL-003 still reports any URL in the file.
+- **Only SKILL-001 is gated.** MEM-001/MEM-002 (memory files) and POISON-041..045 are
   not gated: hidden text is suspicious however it is phrased, and MEM-001
   already has its own narrowing. They do carry line evidence.
 - **Measured only on public skill repositories (3,026 files, eight repos,
@@ -1828,13 +1832,14 @@ trust"). Recorded limits:
   `this.env` (8). POISON-003's `(read|access|...)\s+.*\.env\b` matching any
   `<x>.env` property is a pattern defect, not changed here (it would move
   the config-surface benchmark).
-- **POISON-071 is HIGH in agent instruction files**, a reversal of
-  STORY-0099's "a skill should not get a HIGH for what a tool description
-  gets a LOW for". Cost on the skill corpus: one benign HIGH (a Claude Code
-  CHANGELOG line). Prevalence cited for the decision (about 1 in 17 of 1.53M
-  skills carry an oversight-loosening directive, arXiv 2610.37734) is as
-  quoted in the story brief; the paper page could not be fetched from the
-  build session, so the figure was not re-read.
+- **POISON-076 (oversight bypass) is measured only on hand-written phrases**
+  (`tests/test_directives.py`) and MCPTox's clean tools: MCPTox has no
+  oversight-bypass cases, so it has no recall figure. POISON-071 stays LOW
+  in skills (the PR #263 review showed ordinary project instructions such
+  as "run the test suite without asking for confirmation" would otherwise be
+  HIGH). The prevalence figure behind POISON-076 (about 1 in 17 of 1.53M
+  skills, arXiv 2610.37734) is as quoted in the story brief; the paper was
+  not re-read.
 - **New POISON-070 alternatives are in-sample on the held-out set.** "don't
   let the user know" was listed in `docs/poisoning.md` as a held-out miss
   before the alternative was written, so the held-out 23 -> 24 is not an
@@ -1844,8 +1849,12 @@ trust"). Recorded limits:
   78 the shortest attack VirusTotal reports. An attacker who reads the
   threshold can pad with 19 lines; that still pushes the text out of a
   short viewport, and the text's content is still matched as SKILL-001.
-  Lines of other blank-looking characters (braille blank U+2800, Hangul
-  filler U+3164) do not count as blank. POISON-045 never fired on MCPTox (no case uses padding).
+  Whitespace, zero-width characters, the soft hyphen, braille blank U+2800
+  and Hangul filler U+3164 count as blank; other invisible characters do
+  not. Horizontal padding (200 or more spaces, tabs or no-break spaces in
+  one line, then words) is the same finding. One POISON-045 is reported per
+  text however many padded runs it has (the description gives the count).
+  POISON-045 never fired on MCPTox (no case uses padding).
 - **Line numbers assume `body` is a suffix of the file**, which holds for
   frontmatter split by `agent_files/discovery.py` and the subagent reader;
   if it ever is not, lines count from the start of the body.

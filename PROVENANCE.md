@@ -1301,7 +1301,7 @@ Measures the existing POISON-* patterns; adds or changes none. Results:
 - The MCPTox-shaped records in `tests/test_bench_poisoning.py` were written for the
   test; no dataset text was copied. Original implementation; no code was copied.
 
-## Findings you can trust (agent_files/framing.py, POISON-045, POISON-070/071 — STORY-0141)
+## Findings you can trust (agent_files/framing.py, POISON-045, POISON-070, POISON-076 — STORY-0141)
 
 - **VirusTotal, "How Some Malicious AI Skills Hide Instructions from
   Reviewers"** (Bernardo Quintero, 2026-10-21,
@@ -1321,10 +1321,20 @@ Measures the existing POISON-* patterns; adds or changes none. Results:
   describes-vs-directs gate and line evidence; no code or rule text taken.
 - **arXiv 2610.37734** (Sanko Tian, 2026-10-27), as cited in the brief: about
   1 in 17 of 1.53M skills contains an oversight-loosening directive.
-  Motivation for POISON-071's HIGH skill severity; the paper could not be
-  fetched from the build session.
-- The gate's rules, the new POISON-070/071 alternatives and every test string
-  were written for this story. Original implementation; no code was copied.
+  Motivation for POISON-076 (oversight bypass directive, HIGH); the paper
+  could not be fetched from the build session, so the figure is cited as the
+  brief quotes it.
+- **The Cyber News, 415K views**
+  (https://x.com/The_Cyber_News/status/2114771540352893196): a plain text file
+  in Downloads made Codex and Claude Code change their own settings. Basis for
+  treating `--dangerously-skip-permissions` / `bypassPermissions` / `--yolo`
+  directives as POISON-076 HIGH.
+- **Independent review of PR #263** (2026-11-04): the bypass strings in
+  `tests/test_agent_files_framing_bypasses.py` and the fail-closed rules come
+  from it.
+- The gate's rules, the new POISON-070 alternatives, POISON-076 and every test
+  string were written for this story. Original implementation; no code was
+  copied.
 
 ## AI agents in CI workflows (WORKFLOW-001..003, ci_workflows/ — STORY-0091)
 

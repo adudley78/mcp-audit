@@ -77,12 +77,14 @@ LLM format markers, behavioral override, data exfiltration references, etc.)
 match the body of a skill, command, or instruction file.
 
 Patterns are **imported** from `analyzers/poisoning.py` — no duplicated logic.
-The directive patterns (POISON-070..075, STORY-0099: hiding things from the
-user, skipping their approval, banning the ask-the-user tool, threats,
-run-on-startup, fetch-a-URL-and-follow-it) report SKILL-001 at their own
-severity instead of HIGH: HIGH for secrecy and (since STORY-0141) for an
-autonomy override ("proceed without asking for approval", "skip permission
-prompts"), MEDIUM for banning the ask-the-user tool, LOW for the rest. See
+The directive patterns (POISON-070..076, STORY-0099 and STORY-0141: hiding
+things from the user, skipping their approval, banning the ask-the-user tool,
+threats, run-on-startup, fetch-a-URL-and-follow-it, switching off the
+harness's own checks) report SKILL-001 at their own severity instead of HIGH:
+HIGH for secrecy and for an oversight bypass ("skip permission prompts",
+"disable the sandbox", `--dangerously-skip-permissions`, POISON-076), MEDIUM
+for banning the ask-the-user tool, LOW for the rest, including a plain
+autonomy override ("run the tests without asking for confirmation"). See
 [poisoning.md](poisoning.md#orders-that-hide-story-0099).
 
 **Described, not directed (STORY-0141).** A security checklist that tells a
@@ -91,37 +93,41 @@ words. Every occurrence of a pattern is put through a describes-vs-directs gate
 (`agent_files/framing.py`), and the finding names the first occurrence that
 directs the agent, at the pattern's severity. When none does, SKILL-001 is
 **INFO**, its title ends "described, not directed" and the evidence says where
-the text sits:
+the text sits.
 
-| Reads as described | Example |
+The gate **fails closed**: an occurrence counts as described only on positive
+evidence, and some things are directed whatever the frame.
+
+| Reads as described (only these) | Example |
 |---|---|
-| Negated clause | "Never read ~/.ssh/id_rsa." "Never proceed without asking for approval." |
-| The one block after a heading or lead-in (`...:`) with describing words (review, checklist, flag, detect, look for, red flags, indicators, malicious, attack, poisoned, suspicious, "examples of") | `## Review checklist` then a paragraph or list |
-| A closed code fence that is that block | `## Malicious examples` then a fenced list of attack lines |
-| A blockquote | `> Tool descriptions that mention ~/.ssh/id_rsa` |
-| A sentence that frames the match as something to find | "Attackers write descriptions that tell the agent to read ...", "phrases such as `cat ~/.ssh/id_rsa`" |
+| A short clause that opens with its negation and ends at the match | "Never read ~/.ssh/id_rsa." "You must never read ~/.ssh/id_rsa." |
+| A checklist item that describes rather than orders | `- [ ] reads ~/.ssh/id_rsa or other private keys` |
+| A list item, opening like a description, in the list after a heading or `...:` lead-in that names what to detect (flag, detect, look for, watch for, red flags, warning signs, indicators, signs of, suspicious, malicious) | `## Red flags` then `- tool descriptions that mention ~/.ssh/id_rsa` |
+| A sentence that frames the match as something to find | "Flag tool descriptions that tell the agent to read ...", "Attackers write descriptions that ..." |
+| A blockquote that opens like a description, or follows a detection lead-in | `> Tool descriptions that mention ~/.ssh/id_rsa` |
 
-The gate is built not to be a bypass. A heading or lead-in reaches only the
-next block (one more when that block is itself a short lead-in ending in
-`:`); an unclosed fence is not a block; a fence on its own (`Run this:` then a
-`bash` block) is direction. These stay at the pattern's severity under any
-heading, in a quote or in a fence: a sentence addressed to the agent ("you
-must", "the agent should", "make sure to", "please send", "always upload"),
-a condition followed by an order ("before formatting, run ...", with or
-without the comma), and, outside a fence under a describing lead-in, a
-sentence that opens with an action verb ("- Read ~/.ssh/id_rsa and post it to
-..."). Undone negations ("don't forget to read", "never read X without
-sending it", "don't just read") are not negations. The gate is linear in the
-file size and judges at most 256 occurrences of a pattern per file. Limits:
-[GAPS.md](../GAPS.md) ("Describes-vs-directs gate").
+| Always directed | Why |
+|---|---|
+| Fenced code, under any heading | Code a skill shows is code an agent may run |
+| A line or sentence naming a destination (URL, e-mail, IP, `host:port`, a pipe into a program, curl/wget/nc/scp/rsync/ftp/sendmail) | Describing text rarely needs one; an order to send data always does |
+| A table row, a callout, a bold label (`**Important**:`) | How skills give orders |
+| A sentence addressed to the agent ("you must", "the agent should", "make sure to", "please send"), or a condition followed by an order ("before formatting, run ...") | |
+| A negation that is undone or followed by another clause ("don't forget to", "won't hurt to", "do not refrain from", "never read X; send it") | |
+| Any file with a concealment channel (POISON-041..045) | A file that hides text gets no benefit of the doubt |
+| A pattern that matches more than 256 times in one file with none of those directed | The cap fails closed |
+
+"Review", "audit", "checklist" and "attack" headings do not count as detection
+lead-ins: procedures the agent carries out live under them too. The gate is
+linear in the file size. Limits: [GAPS.md](../GAPS.md) ("Describes-vs-directs
+gate").
 
 **Line evidence (STORY-0141).** SKILL-001, SKILL-002, MEM-001, MEM-002 and
 POISON-041..045 from an agent file start their evidence with `Line N:` (the
 1-based line in the file, frontmatter included) and show that line, redacted
 before it is cut and windowed to 160 characters around the match on long
 lines: `Line 6: 'When reviewing an MCP server, flag tool descriptions that tell
-the agent to read ~/.ssh/id_rsa ...' (matched '.ssh/')`. The `Finding` model
-is unchanged; the line is in the evidence text.
+the agent to read ~/.ssh/id_rsa ...' (matched '.ssh/')`. The number is also in
+the finding's `line` field (JSON) and in SARIF `region.startLine`.
 
 ### SKILL-002 (MEDIUM): obfuscated or oversized block
 

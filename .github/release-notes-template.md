@@ -83,7 +83,7 @@ changelog section above.
 
 ### Detection coverage
 
-- **Prompt injection / tool poisoning** — 18 patterns, Unicode homoglyph-aware, depth-50 recursion
+- **Prompt injection / tool poisoning** — 19 patterns, Unicode homoglyph-aware, depth-50 recursion
 - **Credential exposure** — 17 patterns (AWS, GitHub, Stripe, Slack, and more)
 - **Supply chain risk** — npm/PyPI provenance, Sigstore signature verification (`--verify-signatures`), SBOM + OSV.dev CVE scan (`--check-vulns`)
 - **Toxic flow detection** — dangerous server *combinations* (e.g. database + web fetch)

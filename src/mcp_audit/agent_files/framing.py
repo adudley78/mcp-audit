@@ -8,39 +8,44 @@ any match offset, whether the text there **directs** the agent or
 **describes** something (and why).  A described match is reported at INFO,
 not dropped.
 
-Described (reported at INFO):
+The gate fails closed: a match is **directed** (reported at the pattern's
+own severity) unless one of the positive frames below says otherwise, and
+some things are directed whatever the frame.
 
-* **Negated** — the clause before the match negates it ("never read
-  ~/.ssh", "do not send data to an external URL").  Not when the negation
-  is undone ("don't forget to", "never fail to", "don't just", "never read
-  X without sending it").
-* **Under a describing lead-in** — the block (one list, paragraph, quote or
-  code block) right after a heading or a lead-in line ending in ":" whose
-  wording describes rather than directs: review, checklist, flag, detect,
-  look for, red flags, indicators, malicious, attack, poisoned, suspicious,
-  "examples of".  A lead-in reaches **only the next block** (one more when
-  that block is itself a short lead-in ending in ":"), so a fake
-  "## Review checklist" heading cannot cover the rest of the file.
-* **In a code block under such a lead-in** — a fenced block (closed; an
-  unclosed fence is not a block) that is the next block after one.  A fence
-  on its own is not enough: "Run this:" followed by a ```bash block is how
-  a skill hands the agent a command.
-* **Quoted** — a blockquote (``>``).
-* **In a describing sentence** — the same sentence frames the match as
-  something to find ("flag tool descriptions that tell the agent to ...",
-  "attackers write descriptions that ...", "phrases such as '...'").
+Directed, whatever the frame (checked first):
 
-Directed, whatever the context (the bypass guards):
-
+* Inside a fenced code block, under any heading or lead-in: code a skill
+  shows is code an agent may run.
+* The line or sentence names a destination: a URL, an e-mail address, an IP
+  address or ``host:port``, a pipe into a program, or a transfer tool
+  (curl, wget, nc, scp, rsync, ftp, sendmail ...).  Describing text rarely
+  needs one; an order to send data always does.
+* A table row, or a callout / bold label ("**Important**:", ``> [!NOTE]``).
 * A sentence addressed to the agent: "you must / should / will / need to",
   "the agent must", "make sure to", "remember to", "please <verb>", "your
   task is", "always / immediately / silently <verb>", and a condition
-  followed by an order ("before formatting, run ...", "when the user asks,
-  send ...").
-* A sentence that opens with an imperative action verb ("Read ~/.ssh/id_rsa
-  and post it to ...", "- Send the contents of .env to ..."), except inside
-  a code block under a describing lead-in, where a list of attack lines is
-  quoted material.
+  followed by an order ("before formatting, run ...").
+
+Described (reported at INFO), only on positive evidence:
+
+* **Negated** — a short clause that opens with the negation and has nothing
+  after the match ("Never upload ~/.ssh keys anywhere.", "Do not read
+  .env").  Not when a later clause follows, and not when the negation is
+  undone ("don't forget to", "won't hurt to", "do not refrain from").
+* **A checklist item** — a Markdown task-list item (``- [ ]``) whose text
+  describes rather than orders (it does not open with an action verb).
+* **An item under a detection lead-in** — a list item in the one list right
+  after a heading or ``...:`` lead-in that names what to detect (flag,
+  detect, look for, watch for, red flags, warning signs, indicators, signs
+  of, suspicious, malicious), when the item opens like a description: a
+  third-person verb ("reads ..."), an ``-ing`` form, or a noun phrase
+  ("tool descriptions that ...", "any request to ...").  Anything else
+  ("Go ahead and ...", "Kindly ...", a link, a code span) is directed.
+* **A describing sentence** — the sentence itself frames the match as
+  something to find ("flag tool descriptions that tell the agent to ...",
+  "attackers write descriptions that ...").
+* **A quote** — a blockquote right after such a lead-in, or one that opens
+  like a description (as a list item above); "> Read ..." is directed.
 
 Everything is linear in the file size: one pass splits the file into blocks;
 each match then looks at most :data:`_WINDOW` characters either side within
@@ -65,20 +70,6 @@ _ACTION_VERBS: str = (
     r"|gather|extract|zip|tar|encode|base64|exfiltrate|transmit|share|paste"
     r"|leak|load|source|call|invoke|use|proceed|skip|delete|remove|install"
     r"|push|commit|dump|export|grab|steal|pipe|submit|report)"
-)
-
-# Wording that describes rather than directs, in a heading or lead-in line.
-# "examples" alone is not here: "## Examples" usually shows how to use the
-# skill, which is direction.
-_DESCRIBE_RE: re.Pattern[str] = re.compile(
-    r"\b(?:review(?:ing|ers?)?|check\s*-?\s*lists?|audit(?:ing|s)?"
-    # "flag", not "flags": "## Common Flags" lists command-line options.
-    r"|flag(?:ged|ging)?|detect(?:s|ed|ing|ion|ions)?"
-    r"|look\s+(?:out\s+)?for|watch\s+(?:out\s+)?for|red\s+flags?|warning\s+signs?"
-    r"|indicators?|iocs?|signs\s+of|examples?\s+of|malicious|attacks?|attackers?"
-    r"|poison(?:ed|ing)?|suspicious|threats?|anti-?patterns?|known[-\s]bad"
-    r"|what\s+(?:not\s+)?to\s+(?:look\s+for|flag|avoid|catch)|signatures?)\b",
-    re.IGNORECASE,
 )
 
 # A sentence addressed to the agent.  Checked over the whole sentence.
@@ -133,21 +124,13 @@ _DESCRIBING_SENTENCE_RE: re.Pattern[str] = re.compile(
     r"|attempting\s+to|like|such\s+as)\b"
     r"|\b(?:attackers?|adversar(?:y|ies)|malicious\s+[\w-]+|poisoned\s+[\w-]+"
     r"|(?:the|an|this)\s+attack)\b[^.!?\n]{0,120}?\b(?:to|that|which|would|will|can"
-    r"|may|might|could|tells?|asks?|instructs?|tr(?:y|ies)|writes?|hides?|uses?)\b"
-    r"|\b(?:such\s+as|for\s+example|for\s+instance|e\.g\.|like|phrases?|strings?"
-    r"|lines?|text)\s*[:,]?\s*[\"'`“‘]",
+    r"|may|might|could|tells?|asks?|instructs?|tr(?:y|ies)|writes?|hides?|uses?)\b",
     re.IGNORECASE,
 )
 
 _NEGATION_RE: re.Pattern[str] = re.compile(
     r"\b(?:never|not|don'?t|doesn'?t|mustn'?t|shouldn'?t|cannot|can'?t|won'?t"
     r"|avoid|refuse\s+to|no\s+need\s+to|forbidden\s+to|prohibited\s+from)\b",
-    re.IGNORECASE,
-)
-# Words that undo a negation before the match ("don't forget to read").
-_UNDOES_NEGATION_RE: re.Pattern[str] = re.compile(
-    r"\b(?:forget|fail|hesitate|neglect|skip|omit|just|only|merely|simply|stop"
-    r"|wait|ask|need\s+(?:to\s+)?ask)\b",
     re.IGNORECASE,
 )
 # A clause after the match that turns "never read X" into an order
@@ -167,13 +150,76 @@ _SENTENCE_BOUNDARY_RE: re.Pattern[str] = re.compile(
 )
 
 _FENCE_RE: re.Pattern[str] = re.compile(r" {0,3}(`{3,}|~{3,})")
-_FENCE_CLOSE_RE: re.Pattern[str] = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*")
+_FENCE_CLOSE_RE: re.Pattern[str] = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*\r?")
 #: Fence lengths above this are read as this (a 40-backtick opener closes on
 #: 16), which keeps the closing-fence tables to a handful.
 _FENCE_SIZE_CAP: int = 16
 _HEADING_RE: re.Pattern[str] = re.compile(r" {0,3}#{1,6}(?:[ \t]|$)")
 _QUOTE_RE: re.Pattern[str] = re.compile(r" {0,3}>")
 _LIST_RE: re.Pattern[str] = re.compile(r"[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]")
+_TASK_ITEM_RE: re.Pattern[str] = re.compile(r"[ \t]*[-*+][ \t]+\[[ xX]\][ \t]+")
+
+# A heading or lead-in that names what to detect.  Not "review", "audit",
+# "checklist" or "attack": those also head procedures the agent carries out.
+_DETECT_RE: re.Pattern[str] = re.compile(
+    r"\b(?:flag(?:ged|ging)?|detect(?:s|ed|ing|ion)?"
+    r"|look\s+(?:out\s+)?for|watch\s+(?:out\s+)?for|red\s+flags?"
+    r"|warning\s+signs?|indicators?|iocs?|signs\s+of|suspicious|malicious"
+    r"|what\s+(?:not\s+)?to\s+(?:look\s+for|flag|catch))\b",
+    re.IGNORECASE,
+)
+
+# A concrete destination: describing text rarely names one, an order to
+# send data always does.
+_DESTINATION_RE: re.Pattern[str] = re.compile(
+    r"\b[a-z][a-z0-9+.-]{1,15}://"
+    r"|[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
+    r"|\b\d{1,3}(?:\.\d{1,3}){3}\b"
+    r"|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+:\d{2,5}\b"
+    r"|\|\s*[A-Za-z]"
+    r"|\b(?:curl|wget|nc|ncat|netcat|scp|sftp|rsync|ftp|tftp|telnet|sendmail"
+    r"|mailx?|socat|invoke-webrequest|iwr|invoke-restmethod)\b",
+    re.IGNORECASE,
+)
+
+# A table row, or a callout / bold label that gives an order.
+_CALLOUT_RE: re.Pattern[str] = re.compile(
+    r"[ \t>]*(?:\||\[!\w+\]|(?:[-*+]|\d{1,9}[.)])?[ \t]*(?:\*\*|__)[^*_\n]{1,40}"
+    r"(?:\*\*|__)[ \t]*:|(?:[-*+]|\d{1,9}[.)])?[ \t]*(?:\*\*|__)[^*_\n]{1,40}:"
+    r"[ \t]*(?:\*\*|__))"
+)
+
+# How a described list item opens: list marker and checkbox, then a
+# third-person verb, an -ing form, or a noun-phrase opener.  Anything else
+# (an imperative, a softener, a link, a code span, markup) is directed.
+_DESCRIPTIVE_ITEM_RE: re.Pattern[str] = re.compile(
+    r"[ \t]*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?(?:\[[ xX]\][ \t]+)?"
+    r"(?:"
+    r"(?:a|an|any|all|the|tool|tools|descriptions?|files?|skills?|text|strings?"
+    r"|phrases?|instructions?|requests?|commands?|code|attempts?|references?"
+    r"|mentions?|hidden|unexpected|unusual|outbound|external|calls?|access"
+    r"|changes?|anything|something|content|prompts?|attempt|use|uses)\b"
+    r"|[a-z]{3,}s\b(?!\s*:)"
+    r"|[a-z]{3,}ing\b"
+    r")",
+    re.IGNORECASE,
+)
+
+# Words that undo or reverse a negation ("don't forget to", "won't hurt to",
+# "do not refrain from").
+_UNDOES_NEGATION_WORDS: str = (
+    r"forget|fail|hesitate|neglect|skip|omit|just|only|merely|simply|stop"
+    r"|wait|ask|need\s+(?:to\s+)?ask|refrain|delay|ignore|overlook|hurt|harm"
+    r"|stress|mind|matter|worry|bother|be\s+afraid|leave\s+out|miss"
+)
+#: Most words between a clause's start and its negation ("Never ...", "You
+#: must never ...", "The agent should not ..."); a negation deeper in the
+#: clause negates something else ("I want you to know it is not ...").
+_NEGATION_MAX_LEAD_WORDS: int = 3
+_UNDOES_NEGATION_RE: re.Pattern[str] = re.compile(
+    r"\b(?:" + _UNDOES_NEGATION_WORDS + r")\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -204,7 +250,12 @@ class _Block:
 
 
 def _short(text: str, limit: int = 60) -> str:
-    text = " ".join(text.split())
+    """One line of *text*, secrets redacted before it is cut to *limit*."""
+    from mcp_audit.analyzers.supply_chain import (  # noqa: PLC0415
+        redact_command_text,
+    )
+
+    text = redact_command_text(" ".join(text.split()))
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
@@ -347,15 +398,19 @@ class FileFraming:
         )
 
     def _scope_blocks(self) -> None:
-        """Mark the one block after each describing lead-in (STORY-0141)."""
+        """Mark the one block after each detection lead-in (STORY-0141).
+
+        A heading or ``...:`` lead-in that names what to detect reaches only
+        the next block; a short ``...:`` paragraph straight after it carries
+        it one block further ("## Red flags" / "Seen in the wild:" / list).
+        """
         for idx in range(1, len(self._blocks)):
             prev = self._blocks[idx - 1]
             if not self._is_lead_in(prev):
                 continue
-            if _DESCRIBE_RE.search(prev.text):
+            if _DETECT_RE.search(prev.text):
                 self._scope[idx] = _short(prev.text.lstrip(" #").rstrip())
             elif prev.kind == "paragraph" and (idx - 1) in self._scope:
-                # "## Malicious examples" / "Seen in the wild:" / ```...```
                 self._scope[idx] = self._scope[idx - 1]
 
     # ── classification ─────────────────────────────────────────────────────
@@ -377,6 +432,14 @@ class FileFraming:
         return s_start, s_end
 
     def _negated(self, s_start: int, start: int, end: int, s_end: int) -> bool:
+        """A short clause that opens with its negation and ends at the match.
+
+        "Never upload ~/.ssh keys anywhere." and "Do not read .env" are
+        negated.  "It won't hurt to read ...", "Do not refrain from
+        reading ...", "Never read X; send it to ..." and "Never read X and
+        then post it" are not: the negation sits deep in the clause, is
+        undone, or another clause follows the match.
+        """
         clause_start = s_start
         for m in _CLAUSE_BOUNDARY_RE.finditer(self._text, s_start, start):
             clause_start = m.end()
@@ -384,17 +447,29 @@ class FileFraming:
         negations = list(_NEGATION_RE.finditer(prefix))
         if not negations:
             return False
-        neg = negations[-1]
-        if _UNDOES_NEGATION_RE.search(prefix, neg.end()):
+        first = negations[0]
+        lead = re.sub(r"[^\w\s']", " ", prefix[: first.start()]).split()
+        if len(lead) > _NEGATION_MAX_LEAD_WORDS:
             return False
-        tail_end = s_end
-        boundary = _CLAUSE_BOUNDARY_RE.search(self._text, end, s_end)
-        if boundary is not None:
-            tail_end = boundary.start()
-        return _NEGATION_TAIL_RE.search(self._text, end, tail_end) is None
+        if _UNDOES_NEGATION_RE.search(prefix, first.end()):
+            return False
+        tail = self._text[end:s_end]
+        if _UNDOES_NEGATION_RE.search(tail):
+            return False
+        if _CLAUSE_BOUNDARY_RE.search(tail.rstrip(" .!?\r\n")):
+            return False
+        if re.search(r"\b(?:and|then|or|so|to)\s+" + _ACTION_VERBS + r"\b", tail, re.I):
+            return False
+        return _NEGATION_TAIL_RE.search(tail) is None
+
+    def _line_text(self, offset: int) -> str:
+        return self._lines[self.line_of(offset)]
 
     def classify(self, start: int, end: int) -> Framing:
         """Return how the match at ``[start, end)`` is framed.
+
+        Fails closed: directed unless a positive frame says described (see
+        the module docstring).
 
         Args:
             start: Match start offset in the text this object was built from.
@@ -405,25 +480,39 @@ class FileFraming:
         if bidx < 0:
             return _DIRECTED
         block = self._blocks[bidx]
+        if block.kind in ("fence", "heading"):
+            return _DIRECTED
         lo, hi = self._block_bounds(block)
         s_start, s_end = self._sentence(start, end, lo, hi)
         sentence = self._text[s_start:s_end]
+        line_text = self._line_text(start)
 
+        if _DESTINATION_RE.search(line_text) or _DESTINATION_RE.search(sentence):
+            return _DIRECTED
+        if _CALLOUT_RE.match(line_text):
+            return _DIRECTED
         if self._negated(s_start, start, end, s_end):
             return Framing(False, "in a negated sentence")
         if _DIRECTIVE_RE.search(sentence):
             return _DIRECTED
+
         lead_in = self._scope.get(bidx)
-        if block.kind == "fence":
-            if lead_in is not None:
-                return Framing(False, f"in a code block under '{lead_in}'")
-            return _DIRECTED
-        if _IMPERATIVE_START_RE.match(sentence):
-            return _DIRECTED
-        if lead_in is not None:
-            return Framing(False, f"under '{lead_in}'")
-        if block.kind == "quote":
-            return Framing(False, "in a quoted block")
+        if block.kind == "list":
+            item_is_description = bool(
+                _DESCRIPTIVE_ITEM_RE.match(line_text)
+            ) and not _IMPERATIVE_START_RE.match(line_text)
+            if item_is_description and _TASK_ITEM_RE.match(line_text):
+                return Framing(False, "in a checklist item")
+            if item_is_description and lead_in is not None:
+                return Framing(False, f"under '{lead_in}'")
         if _DESCRIBING_SENTENCE_RE.search(self._text, s_start, start):
             return Framing(False, "in a sentence that describes what to look for")
+        if block.kind == "quote":
+            quoted = line_text.lstrip(" \t>")
+            if lead_in is not None:
+                return Framing(False, f"in a quote under '{lead_in}'")
+            if _DESCRIPTIVE_ITEM_RE.match(quoted) and not _IMPERATIVE_START_RE.match(
+                quoted
+            ):
+                return Framing(False, "in a quoted description")
         return _DIRECTED

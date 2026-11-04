@@ -136,7 +136,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mcp_audit.agent_files.exfil import find_exfil_directives
-from mcp_audit.agent_files.framing import FileFraming
+from mcp_audit.agent_files.framing import FileFraming, Framing
 from mcp_audit.agent_files.heartbeat import find_suppression
 from mcp_audit.agent_files.models import MEMORY_SURFACES, AgentFile, AgentFileSurface
 from mcp_audit.agent_files.sleeper import find_sleepers
@@ -285,7 +285,9 @@ def _with_concealment_line(
     if start is None:
         return finding
     line = scan_text.count("\n", 0, start) + 1 + first_line
-    return finding.model_copy(update={"evidence": f"Line {line}: {finding.evidence}"})
+    return finding.model_copy(
+        update={"evidence": f"Line {line}: {finding.evidence}", "line": line}
+    )
 
 
 def _is_skill_surface(af: AgentFile) -> bool:
@@ -676,6 +678,7 @@ def _skill001_finding(
     framing: FileFraming,
     lines: list[str],
     offset: int,
+    gate_off: bool = False,
 ) -> Finding:
     """SKILL-001 for *pat*: the first directed occurrence, else INFO.
 
@@ -685,17 +688,25 @@ def _skill001_finding(
     severity.  When none does, it names the first occurrence at INFO and
     says why it reads as described.  Evidence carries the line number and
     the matched line (STORY-0141).
+
+    The gate fails closed: with *gate_off* (the file has a concealment
+    channel) or when the pattern matches more than
+    :data:`_MAX_GATED_MATCHES` times with none of the judged ones directed,
+    the first occurrence is reported at the pattern's own severity.
     """
-    matches = iter_pattern_matches(pat, af.body, norm_text, _MAX_GATED_MATCHES) or [
+    matches = iter_pattern_matches(pat, af.body, norm_text, _MAX_GATED_MATCHES + 1) or [
         first
     ]
     chosen = matches[0]
     framed = framing.classify(chosen.start(), chosen.end())
-    for m in matches:
-        f = framing.classify(m.start(), m.end())
-        if f.directed:
-            chosen, framed = m, f
-            break
+    if gate_off or len(matches) > _MAX_GATED_MATCHES:
+        framed = Framing(directed=True)
+    else:
+        for m in matches:
+            f = framing.classify(m.start(), m.end())
+            if f.directed:
+                chosen, framed = m, f
+                break
     line_no, excerpt = _line_evidence(
         lines, framing.line_of(chosen.start()), offset, pat
     )
@@ -795,6 +806,7 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
     lines = text.split("\n")
     offset = af.raw_content.count("\n", 0, _body_start(af))
     framing: FileFraming | None = None
+    gate_off = False
 
     def _emit(fid: str, pat_id: str, f: Finding) -> None:
         key = (fid, pat_id)
@@ -875,10 +887,14 @@ def _analyze_skill(af: AgentFile, check_length: bool = True) -> list[Finding]:
             # every occurrence describes rather than directs (STORY-0141).
             if framing is None:
                 framing = FileFraming(norm_text)
+                # A file that hides text never gets the benefit of the doubt.
+                gate_off = bool(scan_concealed_channels(_concealment_text(af)[0]))
             _emit(
                 "SKILL-001",
                 pat.id,
-                _skill001_finding(af, pat, match, norm_text, framing, lines, offset),
+                _skill001_finding(
+                    af, pat, match, norm_text, framing, lines, offset, gate_off
+                ),
             )
 
     # SKILL-003: unpinned external URL
