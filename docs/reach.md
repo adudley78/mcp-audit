@@ -194,6 +194,21 @@ and does not fail on it, since that would make every default install unsafe.
 `1` any agent needs work or is not safe to allow. `2` error (bad option, a
 `--fleet` path that is not a directory, a failed scan).
 
+The default suits a person reading the cards. In CI or an admission gate it
+fails open: "couldn't check" and "no agent found" both exit 0, so a pipeline
+would read missing evidence as approval. Use `--fail-closed` there. It also
+exits `1` when:
+
+- no agent was found,
+- any agent's verdict is "couldn't check" (for example, ownership and ACL
+  checks that cannot run on Windows),
+- the scan recorded a collection error.
+
+With `--fleet`, it also exits `1` when no report was read, a file was skipped,
+the directory held more files than were read, a machine has no agents, or a
+machine's report lists collection errors. The reasons are printed to stderr;
+stdout (terminal cards or JSON) is unchanged.
+
 ## JSON
 
 `--format json` writes one document, validated in the test suite against
