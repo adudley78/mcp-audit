@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.28.0] - 2026-11-06
+
 ### Added
 
 - **`reach --fail-closed` for CI and admission gates.** By default `reach` exits 0 when every agent is ready or couldn't be checked, and when no agent is found, which suits a person reading the cards but lets an automated gate read missing evidence as approval. With `--fail-closed` it also exits 1 when no agent was found, when any agent's verdict is "couldn't check", or when the scan recorded a collection error, and prints the reasons to stderr. With `--fleet` it also fails on a skipped or unread file, more files than were read, a machine with no agents, and a machine whose report lists collection errors (the fleet reader now counts each report's `errors`). Interactive defaults are unchanged. Reported privately on 2026-11-06. See "Exit codes" in `docs/reach.md`.
