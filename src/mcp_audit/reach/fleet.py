@@ -47,6 +47,8 @@ class FleetMachine:
     machine: str
     source: str
     agents: list[tuple[str, Verdict]] = field(default_factory=list)
+    #: Collection errors the machine's own report listed.
+    errors: int = 0
 
 
 @dataclass
@@ -80,6 +82,44 @@ class FleetReport:
         """1 when any agent on any machine needs work or is not safe, else 0."""
         bad = (Verdict.NEEDS_WORK, Verdict.NOT_SAFE)
         return int(any(v in bad for m in self.machines for _n, v in m.agents))
+
+    def fail_closed_reasons(self) -> list[str]:
+        """Why ``reach --fleet --fail-closed`` refuses the fleet; empty = pass.
+
+        Missing evidence counts as a failure: no report read, a skipped or
+        unread file, a machine with no agents, an agent whose verdict is
+        "couldn't check", or a machine whose report lists collection errors.
+        """
+        reasons: list[str] = []
+        if not self.machines:
+            reasons.append("no reach report was read")
+        if self.skipped:
+            reasons.append(f"{len(self.skipped)} file(s) skipped")
+        if self.truncated:
+            reasons.append(f"more than {MAX_FILES} files; the rest were not read")
+        empty = [m.machine for m in self.machines if not m.agents]
+        if empty:
+            reasons.append("no agents found on: " + ", ".join(empty))
+        unchecked = sorted(
+            {
+                m.machine
+                for m in self.machines
+                for _n, v in m.agents
+                if v is Verdict.COULDNT_CHECK
+            }
+        )
+        if unchecked:
+            reasons.append("couldn't check an agent on: " + ", ".join(unchecked))
+        with_errors = [m.machine for m in self.machines if m.errors]
+        if with_errors:
+            reasons.append("collection errors on: " + ", ".join(with_errors))
+        return reasons
+
+    def gate_exit_code(self, *, fail_closed: bool = False) -> int:
+        """:attr:`exit_code`, or 1 under *fail_closed* when evidence is missing."""
+        if self.exit_code:
+            return self.exit_code
+        return 1 if fail_closed and self.fail_closed_reasons() else 0
 
     def to_dict(self) -> dict:
         """The fleet roll-up as JSON (``docs/reach-fleet.schema.json``)."""
@@ -199,5 +239,7 @@ def load_fleet(directory: Path) -> FleetReport:
         if machine in taken:
             machine = f"{machine} ({shown})"
         taken.add(machine)
-        report.machines.append(FleetMachine(machine, shown, agents))
+        raw_errors = doc.get("errors")
+        errors = len(raw_errors) if isinstance(raw_errors, list) else 0
+        report.machines.append(FleetMachine(machine, shown, agents, errors))
     return report

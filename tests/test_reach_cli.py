@@ -536,3 +536,87 @@ def test_n4_affected_fleet_does_not_follow_a_symlink_either(tmp_path: Path) -> N
     link.symlink_to(outside)
     doc, why = affected_fleet._read(link)
     assert doc is None and "symbolic link" in (why or "")
+
+
+# ── --fail-closed (missing evidence fails the gate) ───────────────────────────
+
+
+def test_fail_closed_refuses_couldnt_check_only(box: Box) -> None:
+    shutil.rmtree(box.home / ".claude")
+    box.write(".codex/config.toml", 'sandbox_mode = "read-only"\n')
+    assert RUNNER.invoke(app, ["reach"]).exit_code == 0
+    result = split_runner().invoke(app, ["reach", "--fail-closed"])
+    assert result.exit_code == 1, result.output
+    assert "Fail-closed" in result.stderr
+    assert "couldn't check: Codex" in result.stderr
+
+
+def test_fail_closed_refuses_a_machine_with_no_agents(box: Box) -> None:
+    shutil.rmtree(box.home / ".claude")
+    result = split_runner().invoke(app, ["reach", "--fail-closed", "-f", "json"])
+    assert result.exit_code == 1
+    assert json.loads(result.stdout)["agents"] == []
+    assert "no agents were found" in result.stderr
+
+
+def test_fail_closed_passes_a_ready_machine(box: Box) -> None:
+    _ready(box)
+    result = split_runner().invoke(app, ["reach", "--fail-closed"])
+    assert result.exit_code == 0, result.output
+    assert "Fail-closed" not in result.stderr
+
+
+def test_fail_closed_keeps_exit_1_for_unsafe(box: Box) -> None:
+    _unsafe(box)
+    assert RUNNER.invoke(app, ["reach", "--fail-closed"]).exit_code == 1
+
+
+def test_fail_closed_counts_collection_errors() -> None:
+    from mcp_audit.reach.models import MachineReach  # noqa: PLC0415
+
+    empty = MachineReach("x", "t", "h", "o", "v", None)
+    assert empty.gate_exit_code() == 0
+    assert empty.gate_exit_code(fail_closed=True) == 1
+    errored = MachineReach("x", "t", "h", "o", "v", None, errors=["boom"])
+    assert "1 collection error(s)" in errored.fail_closed_reasons()
+
+
+def test_fleet_fail_closed_refuses_couldnt_check_and_skipped(
+    box: Box, tmp_path: Path
+) -> None:
+    _ready(box)
+    box.write(".codex/config.toml", 'sandbox_mode = "read-only"\n')
+    doc = _machine_json(box, "a", "m1")
+    fleet = _fleet_dir(tmp_path, {"m1.json": doc, "bad.json": "{"})
+    assert RUNNER.invoke(app, ["reach", "--fleet", str(fleet)]).exit_code == 0
+    result = split_runner().invoke(
+        app, ["reach", "--fleet", str(fleet), "--fail-closed"]
+    )
+    assert result.exit_code == 1
+    assert "1 file(s) skipped" in result.stderr
+    assert "couldn't check an agent on: m1" in result.stderr
+
+
+def test_fleet_fail_closed_counts_errors_and_empty_machines(tmp_path: Path) -> None:
+    good = {
+        "schema_version": "1.0",
+        "machine": {"hostname": "ok"},
+        "agents": [{"name": "Claude Code", "verdict": "ready"}],
+        "errors": [],
+    }
+    errored = {**good, "machine": {"hostname": "err"}, "errors": ["x"]}
+    empty = {**good, "machine": {"hostname": "none"}, "agents": []}
+    report = load_fleet(
+        _fleet_dir(tmp_path, {"a.json": good, "b.json": errored, "c.json": empty})
+    )
+    assert report.gate_exit_code() == 0
+    assert report.gate_exit_code(fail_closed=True) == 1
+    reasons = report.fail_closed_reasons()
+    assert "no agents found on: none" in reasons
+    assert "collection errors on: err" in reasons
+
+
+def test_fleet_fail_closed_on_an_empty_directory(tmp_path: Path) -> None:
+    report = load_fleet(_fleet_dir(tmp_path, {}))
+    assert report.fail_closed_reasons() == ["no reach report was read"]
+    assert report.gate_exit_code(fail_closed=True) == 1

@@ -10,7 +10,9 @@ verdict against the sanctioned path.  Static and offline; nothing is executed.
 saved ``reach --format json`` files instead of scanning.
 
 Exit codes: 0 when every agent is ready or couldn't-check-only (or none was
-found), 1 when any agent needs work or is not safe to allow, 2 error.
+found), 1 when any agent needs work or is not safe to allow, 2 error.  With
+``--fail-closed`` (for CI and admission gates), missing evidence also exits 1:
+no agent found, an agent that couldn't be checked, or a collection error.
 """
 
 from __future__ import annotations
@@ -69,7 +71,18 @@ def _write_pdf(report, output_file: Path | None, org: str | None) -> Path:  # no
     return target
 
 
-def _run_fleet(fleet: Path, fmt: _Format, output_file: Path | None) -> None:
+def _fail_closed_exit(reasons: list[str], fail_closed: bool, code: int) -> None:
+    """Print why ``--fail-closed`` refused (stderr), then exit with *code*."""
+    if fail_closed and reasons and code:
+        err_console.print("[red]Fail-closed:[/red] missing evidence", highlight=False)
+        for reason in reasons:
+            err_console.print(f"  - {reason}", highlight=False, markup=False)
+    raise typer.Exit(code)
+
+
+def _run_fleet(
+    fleet: Path, fmt: _Format, output_file: Path | None, fail_closed: bool = False
+) -> None:
     from mcp_audit.reach.fleet import load_fleet  # noqa: PLC0415
 
     if not fleet.is_dir():
@@ -88,7 +101,11 @@ def _run_fleet(fleet: Path, fmt: _Format, output_file: Path | None) -> None:
             sys.stdout.write(text)
     else:
         print_fleet(roll_up, Console())
-    raise typer.Exit(roll_up.exit_code)
+    _fail_closed_exit(
+        roll_up.fail_closed_reasons(),
+        fail_closed,
+        roll_up.gate_exit_code(fail_closed=fail_closed),
+    )
 
 
 @app.command("reach")
@@ -121,18 +138,29 @@ def reach(
             " instead of scanning this machine."
         ),
     ),
+    fail_closed: bool = typer.Option(  # noqa: B008
+        False,
+        "--fail-closed",
+        help=(
+            "For CI and admission gates: also exit 1 when evidence is missing"
+            " (no agent found, an agent that couldn't be checked, or a"
+            " collection error). With --fleet: also a skipped file or a"
+            " machine with no agents."
+        ),
+    ),
 ) -> None:
     """What can the agents on this machine touch? One card per agent.
 
     Reads settings files and one default scan; never runs an agent. Exits 1
-    when any agent needs work or is not safe to allow.
+    when any agent needs work or is not safe to allow, and with --fail-closed
+    also when evidence is missing.
     """
     if report is not None and report.lower() != "pdf":
         raise _fail(f"unsupported --report format {report!r}. Currently supported: pdf")
     if fleet is not None:
         if report is not None:
             raise _fail("--report pdf is per machine; drop --fleet or --report")
-        _run_fleet(fleet, fmt, output_file)
+        _run_fleet(fleet, fmt, output_file, fail_closed)
 
     from mcp_audit.reach import build_machine_reach  # noqa: PLC0415
     from mcp_audit.scanner import get_default_analyzers  # noqa: PLC0415
@@ -162,4 +190,8 @@ def reach(
             sys.stdout.write(text)
     else:
         print_reach(machine, Console())
-    raise typer.Exit(machine.exit_code)
+    _fail_closed_exit(
+        machine.fail_closed_reasons(),
+        fail_closed,
+        machine.gate_exit_code(fail_closed=fail_closed),
+    )

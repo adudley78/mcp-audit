@@ -190,6 +190,28 @@ class MachineReach:
         bad = (Verdict.NEEDS_WORK, Verdict.NOT_SAFE)
         return 1 if any(a.verdict in bad for a in self.agents) else 0
 
+    def fail_closed_reasons(self) -> list[str]:
+        """Why ``reach --fail-closed`` refuses this machine; empty when it passes.
+
+        Fail-closed treats missing evidence as a failure: no agent found, an
+        agent whose verdict is "couldn't check", or a collection error.
+        """
+        reasons: list[str] = []
+        if not self.agents:
+            reasons.append("no agents were found")
+        unchecked = [a.name for a in self.agents if a.verdict is Verdict.COULDNT_CHECK]
+        if unchecked:
+            reasons.append("couldn't check: " + ", ".join(unchecked))
+        if self.errors:
+            reasons.append(f"{len(self.errors)} collection error(s)")
+        return reasons
+
+    def gate_exit_code(self, *, fail_closed: bool = False) -> int:
+        """:attr:`exit_code`, or 1 under *fail_closed* when evidence is missing."""
+        if self.exit_code:
+            return self.exit_code
+        return 1 if fail_closed and self.fail_closed_reasons() else 0
+
     def summary_line(self) -> str:
         """One line: how many agents, and how many per verdict."""
         if not self.agents:

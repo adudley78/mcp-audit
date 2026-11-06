@@ -497,7 +497,7 @@ Rug-pull state is stored per-config-set at `<user-config-dir>/mcp-audit/state/st
 
 All detection patterns are original implementations based on published security research — no code was copied from existing scanners. Sources include Invariant Labs' tool poisoning disclosure, CrowdStrike's MCP exfiltration research, CyberArk's agent attack demonstrations, the OWASP Agentic Top 10, and MITRE ATLAS agent-specific techniques. Supply chain patterns follow npm package naming conventions; credential patterns follow the publicly documented key formats from AWS, GitHub, OpenAI, Anthropic, Stripe, and others.
 
-9,488 tests validate detection accuracy and guard against regressions.
+9,496 tests validate detection accuracy and guard against regressions.
 
 See [PROVENANCE.md](PROVENANCE.md) for the full list of research sources, framework mappings, and contribution guidelines for new detection rules.
 
@@ -508,7 +508,7 @@ Every command is available to every user — no tier, no license required.
 | Command | Key flags | Description |
 |---------|-----------|-------------|
 | `mcp-audit affected <ID or pkg@range>` | `--path`, `--lock`, `--format json\|sarif\|openvex`, `--output`, `--all`, `--fail-on-unknown`, `--policy-out`, `--fix`, `--apply`, `--live`, `--transitive`, `--fleet`, `--bundle`, `--bundle-key` | Is this advisory in my agent stack? AFFECTED, NOT AFFECTED or COULDN'T CHECK per server, with the evidence. Offline by default |
-| `mcp-audit reach` | `--format terminal\|json`, `--report pdf`, `--output-file`, `--org`, `--fleet` | What can the agents on this machine touch? One card per agent (Claude Code, Codex, Gemini CLI, OpenCode, any client with an MCP config): where it runs, whose credentials it can read, what it reaches on the network, whether policy is enforced, whether activity is logged, and a verdict (ready, needs work, not safe to allow, couldn't check). Static and offline; no `--path` ([docs/reach.md](docs/reach.md)) |
+| `mcp-audit reach` | `--format terminal\|json`, `--report pdf`, `--output-file`, `--org`, `--fleet`, `--fail-closed` | What can the agents on this machine touch? One card per agent (Claude Code, Codex, Gemini CLI, OpenCode, any client with an MCP config): where it runs, whose credentials it can read, what it reaches on the network, whether policy is enforced, whether activity is logged, and a verdict (ready, needs work, not safe to allow, couldn't check). Static and offline; no `--path` ([docs/reach.md](docs/reach.md)) |
 | `mcp-audit vet <package>` | `--ecosystem`, `--format json`, `--badge`, `--online`, `--strict` | Pre-install verdict: verification status, known CVEs, capabilities. Ask before you install. Offline by default |
 | `mcp-audit check` | `--path`, `--verbose`, `--json`, `--no-lock` | One-command security verdict: grade, top findings, fix hints. Auto-verifies `mcp-lock.json` when present. Recommended entry point for new users |
 | `mcp-audit fix` | `--path`, `--input`, `--apply`, `--fix-type`, `--offline` | Apply safe remediations (credential redaction, transport upgrade, package pinning — including pinning a floating version from `mcp-lock.json`) directly to config files; dry-run by default |
@@ -729,7 +729,7 @@ git clone https://github.com/adudley78/mcp-audit.git
 cd mcp-audit
 uv sync --all-extras
 
-uv run pytest                        # Run all 9,488 tests
+uv run pytest                        # Run all 9,496 tests
 uv run ruff check src/ tests/        # Lint
 uv run bandit -r src/                # Security audit of the scanner itself
 ```
