@@ -1,0 +1,29 @@
+id: COMM-036
+name: Package installed from an extra package index
+description: >
+  Detects --extra-index-url in the install arguments of a server launched
+  with uvx, pip or pipx. The classic dependency-confusion setup: the
+  installer consults both indexes and can take the higher version from the
+  wrong one, so a name that exists on both silently resolves to the
+  attacker-controlled copy. Alex Birsan's "Dependency Confusion" research
+  (2021), which used exactly this flag against Apple, Microsoft and dozens
+  of other companies, calls --extra-index-url "insecure by design". Both
+  the separated form (--extra-index-url URL) and the joined form
+  (--extra-index-url=URL) fire; the regex matches the flag itself, never
+  the URL after it, so no index address reaches findings.
+severity: MEDIUM
+category: supply-chain
+match:
+  field: args
+  pattern: '(?:^|\s)--extra-index-url\b'
+  type: regex
+message: >-
+  Server '{server_name}' installs from an extra package index
+  ({matched_value}) — dependency-confusion setup; remove the extra index
+  or pin the exact package source
+tags:
+  - supply-chain
+  - dependency-confusion
+enabled: true
+owasp_mcp_top_10:
+  - MCP04

@@ -336,8 +336,8 @@ mcp-audit rule list
 echo "exit: $?"
 ```
 
-**Expected:** lists 38 rule(s) total: 34 real `COMM-NNN` community rules
-(`COMM-001`–`COMM-035`; `COMM-032` is intentionally reserved/unissued — a static
+**Expected:** lists 40 rule(s) total: 36 real `COMM-NNN` community rules
+(`COMM-001`–`COMM-037`; `COMM-032` is intentionally reserved/unissued — a static
 rule cannot detect `COLLIDE-001`'s live tool-collision signal; see
 `PROVENANCE.md`), plus `STDIO-001`, `STDIO-002a`, and `STDIO-002b` (launch-command
 trust boundary; `STDIO-001` loads but ships `enabled: false` — see

@@ -1175,6 +1175,28 @@
       "notes": "Community rule. Env key names that turn off TLS certificate validation (NODE_TLS_REJECT_UNAUTHORIZED, PYTHONHTTPSVERIFY, GIT_SSL_NO_VERIFY); key names only, never values. Disabling validation exposes the tokens a server sends to anyone on the network path. MEDIUM severity, transport category."
     },
     {
+      "finding_id": "COMM-036",
+      "finding_title": "Package installed from an extra package index",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Community rule. --extra-index-url in uvx/pip/pipx install arguments — the classic dependency-confusion setup; the installer consults both indexes and can take the higher version from the wrong one (Alex Birsan, Dependency Confusion, 2021). Matches the flag only, never the URL. MEDIUM severity, supply-chain category."
+    },
+    {
+      "finding_id": "COMM-037",
+      "finding_title": "Default package index replaced or custom npm registry configured",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Community rule. --index-url (uvx/pip/pipx) or --registry (npx/npm exec): the configured source replaces the default index and controls every package lookup — lower severity than COMM-036's mixed-index exposure. Matches the flag only, never the URL. LOW severity, supply-chain category."
+    },
+    {
       "finding_id": "COLLIDE-001",
       "finding_title": "Tool name collision: tool claimed by multiple servers",
       "owasp_codes": [

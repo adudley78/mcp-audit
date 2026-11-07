@@ -2660,3 +2660,67 @@ class TestReportOption:
             _make_server(args=["--api-key", "plainsecretvalue"])
         )
         assert "plainsecretvalue" not in finding.evidence
+
+
+class TestComm036ExtraIndexUrl:
+    def test_fires_on_separated_flag(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-036", community_rules_dir)
+        server = _make_server(
+            command="uvx",
+            args=["--extra-index-url", "https://pypi.example.internal/simple", "acme-mcp-server"],
+        )
+        findings = RuleEngine([rule]).match_server(server)
+        assert findings, "--extra-index-url should fire COMM-036"
+
+    def test_fires_on_joined_flag(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-036", community_rules_dir)
+        server = _make_server(
+            command="pipx", args=["--extra-index-url=https://pypi.example.internal/simple", "acme-mcp-server"]
+        )
+        findings = RuleEngine([rule]).match_server(server)
+        assert findings, "--extra-index-url=URL should fire COMM-036"
+
+    def test_does_not_fire_on_plain_install(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-036", community_rules_dir)
+        server = _make_server(command="uvx", args=["mcp-server-git", "--repository", "/path/to/repo"])
+        findings = RuleEngine([rule]).match_server(server)
+        assert not findings, "no extra index flag should not fire COMM-036"
+
+    def test_evidence_does_not_include_the_url(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-036", community_rules_dir)
+        (finding,) = RuleEngine([rule]).match_server(
+            _make_server(
+                command="uvx",
+                args=["--extra-index-url", "https://pypi.example.internal/simple", "acme-mcp-server"],
+            )
+        )
+        assert "pypi.example.internal" not in finding.evidence
+
+
+class TestComm037IndexUrlRegistry:
+    def test_fires_on_index_url(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-037", community_rules_dir)
+        server = _make_server(command="uvx", args=["--index-url", "https://internal.example/simple", "acme-server"])
+        findings = RuleEngine([rule]).match_server(server)
+        assert findings, "--index-url should fire COMM-037"
+
+    def test_fires_on_npm_registry(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-037", community_rules_dir)
+        server = _make_server(command="npx", args=["--registry", "https://npm.example.internal", "acme-server"])
+        findings = RuleEngine([rule]).match_server(server)
+        assert findings, "--registry should fire COMM-037"
+
+    def test_extra_index_does_not_fire_the_low_rule(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-037", community_rules_dir)
+        server = _make_server(
+            command="uvx",
+            args=["--extra-index-url", "https://pypi.example.internal/simple", "acme-mcp-server"],
+        )
+        findings = RuleEngine([rule]).match_server(server)
+        assert not findings, "--extra-index-url belongs to COMM-036, not COMM-037"
+
+    def test_does_not_fire_on_plain_install(self, community_rules_dir: Path) -> None:
+        rule = _load_rule("COMM-037", community_rules_dir)
+        server = _make_server(command="npx", args=["-y", "@modelcontextprotocol/server-git"])
+        findings = RuleEngine([rule]).match_server(server)
+        assert not findings, "no index/registry flag should not fire COMM-037"
