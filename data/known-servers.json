@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "last_updated": "2026-10-29",
+  "last_updated": "2026-11-04",
   "entry_count": 56,
   "entries": [
     {
@@ -53,10 +53,10 @@
     {
       "name": "@modelcontextprotocol/server-github",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
@@ -77,15 +77,18 @@
         "anthropic-bot",
         "modelcontextprotocol"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/github",
+      "successor": "github/github-mcp-server"
     },
     {
       "name": "@modelcontextprotocol/server-gitlab",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
@@ -96,30 +99,36 @@
         "git",
         "comms_out"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/gitlab",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/server-google-maps",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
         "google",
         "remote"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/google-maps",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/server-slack",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
@@ -130,15 +139,18 @@
         "network_out",
         "comms_out"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/slack",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/server-postgres",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
@@ -151,15 +163,18 @@
       "capabilities": [
         "database"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/postgres",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/server-puppeteer",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
@@ -170,15 +185,18 @@
         "browser",
         "network_out"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/puppeteer",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/server-brave-search",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
@@ -194,22 +212,28 @@
         "anthropic-bot",
         "modelcontextprotocol"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/brave-search",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/server-everart",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
         "image",
         "remote"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/everart",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/server-memory",
@@ -236,17 +260,20 @@
     {
       "name": "@modelcontextprotocol/server-aws-kb-retrieval",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
         "aws",
         "remote"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/aws-kb-retrieval-server",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/server-everything",
@@ -287,10 +314,10 @@
     {
       "name": "@modelcontextprotocol/server-gdrive",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
@@ -301,22 +328,28 @@
         "file_read",
         "network_out"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/gdrive",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/server-redis",
       "source": "npm",
-      "repo": "https://github.com/modelcontextprotocol/servers",
+      "repo": "https://github.com/modelcontextprotocol/servers-archived",
       "maintainer": "Anthropic",
       "verified": true,
-      "last_verified": "2026-08-22",
+      "last_verified": "2026-11-04",
       "known_versions": [],
       "tags": [
         "official",
         "database",
         "local"
       ],
-      "attestation_expected": false
+      "attestation_expected": false,
+      "archived": true,
+      "archive_notice": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/redis",
+      "successor": null
     },
     {
       "name": "@modelcontextprotocol/sdk",
