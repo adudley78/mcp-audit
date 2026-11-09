@@ -262,16 +262,16 @@ We don't accept detection patterns based on undisclosed or private research.
 
 ## Community rules (rules/community/)
 
-40 `.yml` files ship in `rules/community/`: 39 real (non-template) detection
+42 `.yml` files ship in `rules/community/`: 41 real (non-template) detection
 rules plus `TEMPLATE.yml` itself (loads as the always-inert `COMM-000`
 contribution template; `BOUNTY.md` ships alongside but is not a rule file).
-Of the 39 real rules, **38 run for every user automatically** and **1**
+Of the 41 real rules, **40 run for every user automatically** and **1**
 (`STDIO-001`) ships `enabled: false` with no governance-policy mechanism to
 turn it on (see `GAPS.md`) — a rule nobody can enable does not count toward
 a community-rule capability claim, so counts used for that purpose should
-read 38, not 39 or 40.
+read 40, not 41 or 42.
 (`COMM-032` is intentionally reserved and unissued; the next new numbered
-rule will be `COMM-038` (`COMM-036` and `COMM-037` were issued 2026-11-02; `COMM-035` was issued 2026-11-01; `COMM-034` already exists — see the god-key
+rule will be `COMM-040` (`COMM-038` and `COMM-039` were issued 2026-11-07; `COMM-036` and `COMM-037` were issued 2026-11-02; `COMM-035` was issued 2026-11-01; `COMM-034` already exists — see the god-key
 credential-scope entry in the table below).
 See the COLLIDE-001 section below for why `COMM-032` was skipped.)
 
@@ -312,6 +312,8 @@ See the COLLIDE-001 section below for why `COMM-032` was skipped.)
 | COMM-035 | TLS certificate checking disabled by environment variable | Original — env key names that disable TLS validation (`NODE_TLS_REJECT_UNAUTHORIZED`, `PYTHONHTTPSVERIFY`, `GIT_SSL_NO_VERIFY`), documented by the Node.js CLI docs and git's `http.sslVerify`; the engine matches key names only, never values. |
 | COMM-036 | Container launched with host takeover flags | Original — `docker`/`podman` launched with `--privileged`, a mounted `docker.sock`/`podman.sock`, or `--pid=host`, each of which gives the container control of the host. Docker, "Docker daemon attack surface" (control of the daemon is control of the host; a container can alter the host filesystem through shared directories), https://docs.docker.com/engine/security/#docker-daemon-attack-surface; Docker, runtime privilege flags, https://docs.docker.com/engine/containers/run/. OWASP MCP Top 10 MCP05. |
 | COMM-037 | Container launched on the host network | Original — `docker`/`podman` launched with `--network=host` or `--net=host`, which shares the host's network stack (reach to anything bound to the host's localhost) without giving control of the host itself, so MEDIUM. Docker, runtime privilege and network flags, https://docs.docker.com/engine/containers/run/. OWASP MCP Top 10 MCP05. |
+| COMM-038 | Package installed from an extra package index (`--extra-index-url`, uv `--index`) | Research — Alex Birsan, "Dependency Confusion: How I Hacked Into Apple, Microsoft and Dozens of Other Companies" (2021), which calls `--extra-index-url` "insecure by design": https://medium.com/@alex.birsan/dependency-confusion-4a5d60fec610 ; uv's default `first-index` strategy already stops the classic attack for uvx, noted in the rule description. |
+| COMM-039 | Default package index replaced or custom npm registry (`--index-url`, `-i`, uv `--default-index`, `--registry`) | Research — same dependency-confusion family (Birsan 2021): a replaced index or custom registry controls every package lookup, lower severity than mixing two indexes. |
 | STDIO-002a | Hidden (dotfile) launcher binary | Pillar Security "Deadbugz" MCP supply-chain campaign disclosure, 2026-08-12 (https://www.pillar.security/blog/deadbugz-currently-active-mcp-supply-chain-campaign) — four of 23 GitHub pull requests the campaign opened configured a local MCP server at `~/.config/.cache/.sys/.deadbug-mcp.py`; the leaf, not merely a containing directory, is hidden. OWASP MCP Top 10 MCP04/MCP05. |
 | STDIO-002b | Inline script launcher | Original — closes a gap COMM-015 (shell metacharacters) leaves open: an interpreter invoked with `-c`/`-e`/`--eval`/`-Command` executes code with no character in COMM-015's metacharacter class present and no file on disk to review. OWASP MCP Top 10 MCP05. |
 | STDIO-001 | Launcher binary not in allowlist | Original — policy-gated allowlist derived from this project's own demo/fixture corpus; ships `enabled: false` (see GAPS.md). OWASP MCP Top 10 MCP04/MCP09. |

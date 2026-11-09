@@ -1,0 +1,29 @@
+id: COMM-039
+name: Default package index replaced or custom npm registry configured
+description: >
+  Detects install arguments that replace the default package index rather
+  than mixing two: --index-url and its short form -i for pip/pipx/uvx, and
+  --default-index for uv, plus --registry for npx / npm exec. Unlike the
+  extra-index flags (COMM-038) these replace the default source, so the
+  exposure is the trustworthiness of the configured registry itself, not
+  version rivalry between indexes — hence the lower severity. A custom
+  index answers every package lookup, so its owner controls what the
+  server executes. Part of the dependency-confusion family documented in
+  Alex Birsan's 2021 research. Both the separated and joined
+  (--index-url=URL, --registry=URL) forms fire; the regex matches the flag
+  itself, never the URL after it.
+severity: LOW
+category: supply-chain
+match:
+  field: args
+  pattern: '(?:^|\s)(?:--index-url|--default-index|--registry|-i)(?![-\w])'
+  type: regex
+message: >-
+  Server '{server_name}' replaces the default package index or npm
+  registry ({matched_value}) — verify the configured source is trusted
+tags:
+  - supply-chain
+  - dependency-confusion
+enabled: true
+owasp_mcp_top_10:
+  - MCP04
