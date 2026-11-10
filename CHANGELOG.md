@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **Ten more malicious MCP packages are now caught offline.** `registry/known-malicious.json` adds the OSV malicious-package records published since 2026-10-29: PyPI `mcp-teamviewer` and `teamviewer-mcp-server`; npm `@ifasn/md-doc-mcp`, `@ifasn/mdd-doc-mcp`, `@ifasn/mmd-doc-mcp`, `@ifasn/mmdd-doc-mcp`, `@ifasn/ms-doc-mcp`, `@massnerder/x402-scraper-mcp`, `@bestcoolman/dev-mcp` and `mcp-contract-tester` (228 records, up from 218). A scan that launches one, or `vet` on one, now reports SC-008; before, all ten passed. The weekly advisory sync had found eight of them on 2026-11-09 and, being report-only, stopped there; `mcp-contract-tester` (MAL-2026-19082) was published on 2026-11-10. `@bestcoolman/dev-mcp` (MAL-2026-19052) is the repackaged Amazon SP-API server that Tamir Isaschar of Knostic reported on 2026-10-26 ([write-up](https://www.knostic.ai/blog/repackaged-amazon-sp-api-mcp-sends-app-secrets-to-an-undisclosed-ip)); the record's note credits him.
+
+### Changed
+
+- **SC-010's source now credits Glow Labs' own research.** `PROVENANCE.md` linked Glow Labs' MCPhantom finding only through a summary on X; it now links Nadav Claude Cohen's post and quotes it.
+
 ---
 
 ## [0.28.0] - 2026-11-06

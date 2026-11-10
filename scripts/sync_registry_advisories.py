@@ -103,7 +103,15 @@ _CANARY_NOTE = (
     "theinfosecguy/npx-canary as their repository "
     "(registry-audit-2026-08-18.md in the mcp-audit repository)."
 )
+_KNOSTIC_SP_API_NOTE = (
+    "Reported by Tamir Isaschar (Knostic), 2026-10-26: a repackaged Amazon "
+    'SP-API MCP server whose versions 0.0.1 to 0.0.7 by default "send the '
+    "client ID, client secret and refresh token to a hardcoded IP over "
+    'unencrypted HTTP" instead of Amazon. '
+    "https://www.knostic.ai/blog/repackaged-amazon-sp-api-mcp-sends-app-secrets-to-an-undisclosed-ip"
+)
 NOTES: dict[str, str] = {f"MAL-2026-{n}": _CANARY_NOTE for n in range(5476, 5486)}
+NOTES["MAL-2026-19052"] = _KNOSTIC_SP_API_NOTE
 
 
 # ── OSV access ─────────────────────────────────────────────────────────────────

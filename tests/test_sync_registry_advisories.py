@@ -697,9 +697,14 @@ class TestBundledMaliciousFile:
         assert len(keys) == len(set(keys))
 
     def test_canary_family_carries_the_note(self, doc: dict) -> None:
-        family = [e for e in doc["entries"] if e["id"] in sync_mod.NOTES]
+        noted = [e for e in doc["entries"] if e["id"] in sync_mod.NOTES]
+        family = [e for e in noted if sync_mod.NOTES[e["id"]] == sync_mod._CANARY_NOTE]
         assert len(family) == 10
-        assert all(e["note"] == sync_mod.NOTES[e["id"]] for e in family)
+        # STORY-0148: MAL-2026-19052 carries its own note (Knostic's report).
+        assert {e["id"] for e in noted} - {e["id"] for e in family} == {
+            "MAL-2026-19052"
+        }
+        assert all(e["note"] == sync_mod.NOTES[e["id"]] for e in noted)
         assert {e["name"] for e in family} >= {"mcp-server-github", "mcp-server-git"}
         assert not [
             e for e in doc["entries"] if "note" in e and e["id"] not in sync_mod.NOTES

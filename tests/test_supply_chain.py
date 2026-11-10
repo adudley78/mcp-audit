@@ -2685,3 +2685,21 @@ class TestSecretArgValues:
             "--auth-header=",
         ]
         assert secret_arg_values(args) == ["ctx7sk-abcdef123456", "tok-xyz-987654"]
+
+
+class TestSc008November2026Records:
+    """STORY-0148: a launch of a package added by the 2026-11-10 sync is SC-008."""
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            ("npx", ["-y", "@bestcoolman/dev-mcp"]),
+            ("npx", ["-y", "@ifasn/ms-doc-mcp@2.1.1"]),
+            ("uvx", ["mcp-teamviewer==0.0.1"]),
+        ],
+    )
+    def test_launch_is_sc_008(
+        self, bundled_analyzer: SupplyChainAnalyzer, command: str, args: list[str]
+    ) -> None:
+        out = bundled_analyzer.analyze(_srv(command, args))
+        assert ("SC-008", "CRITICAL") in _ids(out)
