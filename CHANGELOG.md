@@ -12,9 +12,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Ten more malicious MCP packages are now caught offline.** `registry/known-malicious.json` adds the OSV malicious-package records published since 2026-10-29: PyPI `mcp-teamviewer` and `teamviewer-mcp-server`; npm `@ifasn/md-doc-mcp`, `@ifasn/mdd-doc-mcp`, `@ifasn/mmd-doc-mcp`, `@ifasn/mmdd-doc-mcp`, `@ifasn/ms-doc-mcp`, `@massnerder/x402-scraper-mcp`, `@bestcoolman/dev-mcp` and `mcp-contract-tester` (228 records, up from 218). A scan that launches one, or `vet` on one, now reports SC-008; before, all ten passed. The weekly advisory sync had found eight of them on 2026-11-09 and, being report-only, stopped there; `mcp-contract-tester` (MAL-2026-19082) was published on 2026-11-10. `@bestcoolman/dev-mcp` (MAL-2026-19052) is the repackaged Amazon SP-API server that Tamir Isaschar of Knostic reported on 2026-10-26 ([write-up](https://www.knostic.ai/blog/repackaged-amazon-sp-api-mcp-sends-app-secrets-to-an-undisclosed-ip)); the record's note credits him.
 
+### Added
+
+- **CRED-004: secrets saved inside "don't ask again" permission rules.** When you choose "Yes, and don't ask again", Claude Code saves the approved command word for word as an allow rule in `.claude/settings.local.json`, so a command run with a token, password or connection string leaves the secret in the file. mcp-audit now checks every `permissions.allow`, `ask` and `deny` string in Claude Code settings files and reports the rules that hold one: HIGH when the file is committed or headed for git (a project `.claude/settings.json`, or a local file no ignore file covers), MEDIUM otherwise. Each rule is shown with the secret replaced by `[REDACTED]`, and the remediation says to rotate first. Before, a scan reported only that the file wasn't ignored (SANDBOX-005). Thanks to GitGuardian (Guillaume Valadon), who found 31,088 distinct secrets in public `settings.local.json` files, 5,343 still valid ([write-up](https://blog.gitguardian.com/claude-code-settings-local-json-secrets-docker-hub/)), and to Apiiro, whose research found a secret in 1,122 of 104,185 public copies, 215 of which gitleaks and TruffleHog both missed ([The Hacker News](https://thehackernews.com/2026/11/claude-codes-dont-ask-again-file.html)). STORY-0149.
+
 ### Changed
 
 - **SC-010's source now credits Glow Labs' own research.** `PROVENANCE.md` linked Glow Labs' MCPhantom finding only through a summary on X; it now links Nadav Claude Cohen's post and quotes it.
+
+### Fixed
+
+- **PERM-001..007, SANDBOX-002 and GUARD-001 no longer print a secret that sits inside a permission rule.** Their evidence quoted rules as written (SANDBOX-002 quotes the allow rule that overlaps a sandbox exclusion); a rule holding a token or password put it in terminal, JSON and SARIF output (and so in GitHub code scanning). They now quote through CRED-004's redactor. Guardrail drift records and digests are unchanged, so no existing record reads as a change.
 
 ---
 

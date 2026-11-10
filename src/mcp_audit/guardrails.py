@@ -92,6 +92,7 @@ from mcp_audit.agent_files.discovery import _is_symlink
 from mcp_audit.agent_files.imports import READ_CAP_BYTES
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS
 from mcp_audit.analyzers.permissions import load_claude_settings
+from mcp_audit.analyzers.rule_secrets import redact_rule
 from mcp_audit.analyzers.supply_chain import redact_command_text
 from mcp_audit.models import Finding, Severity
 
@@ -993,7 +994,9 @@ def _clip(text: str) -> str:
 
 def _quote(items: Iterable[str]) -> str:
     ordered = sorted(items)
-    shown = ", ".join(repr(_clip(i)) for i in ordered[:_QUOTE_ENTRIES])
+    # Display only: the stored (digested) strings keep their own redaction, so
+    # a record written by an older version never reads as a change.
+    shown = ", ".join(repr(_clip(redact_rule(i))) for i in ordered[:_QUOTE_ENTRIES])
     if len(ordered) > _QUOTE_ENTRIES:
         shown += f" (+{len(ordered) - _QUOTE_ENTRIES} more)"
     return shown
