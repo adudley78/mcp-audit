@@ -46,6 +46,14 @@ updates:
     labels:
       - dependencies
     groups:
+      # init/autobuild/analyze/upload-sarif are one release and
+      # tests/test_action_yaml.py requires one SHA across them. Under
+      # group-by: dependency-name each sub-action got its own PR, and each
+      # failed that test alone (#275, #277-#279). The first matching group
+      # wins, so this one must stay above github-actions.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
       github-actions:
         patterns:
           - "*"
