@@ -210,6 +210,17 @@
       ]
     },
     {
+      "finding_id": "CRED-004",
+      "finding_title": "Secret saved in a permission rule",
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "HIGH when the Claude Code settings file is committed or headed for git (a project .claude/settings.json in a work tree, or a .claude/settings.local.json no ignore file covers, or whose .claude is a symlink); MEDIUM otherwise (user settings, an ignored or out-of-repo local file, or unknown git state). A permissions.allow/ask/deny string holding a token, key, password or connection string, as Claude Code's \"Yes, and don't ask again\" saves the approved command word for word. Rules are quoted with the secret redacted. CWE-312. Source: code.claude.com/docs/en/permissions; GitGuardian (Guillaume Valadon, 2026-11-09); Apiiro via The Hacker News (2026-11-07). Pipeline step 0b (STORY-0149)."
+    },
+    {
       "finding_id": "TRANSPORT-001",
       "finding_title": "Unencrypted remote endpoint (HTTP)",
       "owasp_codes": [

@@ -344,6 +344,36 @@ overrode a user's `false` before 2.1.285), content hosts added through
 `WebFetch(domain:…)` allow rules, and managed-only keys outside the `sandbox`
 block.
 
+## Secrets saved in permission rules (CRED-004)
+
+The permissions doc: "When you choose "Yes, and don't ask again" and the
+approval saves permanently, such as for a Bash command or a WebFetch domain,
+Claude Code saves the rule to `.claude/settings.local.json` at the root of the
+git repository". The rule is the approved command word for word, so a command
+run with a token or password in it leaves that secret in the file. GitGuardian
+(Guillaume Valadon, 2026-11-09) found 31,088 distinct secrets in public
+`settings.local.json` files, 5,343 still valid, and 8,271 in `settings.json`;
+Apiiro (via The Hacker News, 2026-11-07) found a secret in 1,122 of 104,185
+public `settings.local.json` copies, and neither gitleaks nor TruffleHog
+flagged 215 of them.
+
+| ID | Severity | Fires when | Write instead |
+|---|---|---|---|
+| CRED-004 | HIGH | A `permissions.allow`, `ask` or `deny` string holds a credential in a settings file that is committed or headed for git: a project `.claude/settings.json` in a work tree, or a `.claude/settings.local.json` that no ignore file covers or whose `.claude` is a symlink | Rotate the secret, delete the rule, and re-approve the command with the secret in an environment variable (`Bash(psql "$DATABASE_URL" *)`) |
+| CRED-004 | MEDIUM | The same in your own settings (`~/.claude/settings.json`), a local file git ignores or that sits outside a work tree, or a file whose git state can't be read | Same; the file is still a plaintext copy of the secret |
+
+A credential is what mcp-audit's command redactor removes (URL userinfo, every
+`SECRET_PATTERNS` match, `Bearer`/`Basic`/`Token` values, credential headers,
+`curl -u user:pass`, `password=`-style pairs, `--api-key`-style flags and secret
+query parameters), plus upper-case `*PASSWORD*`/`*PASSWD*` assignments
+(`PGPASSWORD=…`), npm `_authToken=`/`_auth=` and npm access tokens. A value that
+is only an environment reference (`$VAR`, `${VAR}`, `%VAR%`), a `${{ … }}`
+template, a `*` wildcard or empty is not one. One finding per file lists each
+rule by location (`permissions.allow[3]`) with the secret replaced by
+`[REDACTED]`; the value is never printed. PERM-001..007 and GUARD-001 quote
+rules through the same redactor. It runs in step 0b with SANDBOX-001..005, in
+every scan that reads a Claude Code settings file.
+
 ## Limits
 
 See `GAPS.md`, "PERM-001..007 read rules, not the effective policy" and

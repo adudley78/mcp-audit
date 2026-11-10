@@ -46,6 +46,10 @@ _HINTS: dict[str, str] = {
     "CRED-001": "Run `mcp-audit fix --apply` to redact automatically.",
     "CRED-002": "Run `mcp-audit fix --apply` to redact automatically.",
     "CRED-003": "Run `mcp-audit fix --apply` to redact automatically.",
+    "CRED-004": (
+        "Rotate the secret, then delete the permission rule that holds it and"
+        " re-approve the command with the secret in an environment variable."
+    ),
     # Transport
     "TRANSPORT-001": "Run `mcp-audit fix --apply` to upgrade to HTTPS automatically.",
     "TRANSPORT-002": "Bind this server to 127.0.0.1 (localhost) instead of 0.0.0.0.",
