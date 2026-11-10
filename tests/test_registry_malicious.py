@@ -293,3 +293,44 @@ class TestAssess:
         assert _record(rid="MAL-2026-5479").link == (
             "https://osv.dev/vulnerability/MAL-2026-5479"
         )
+
+
+# ── The 2026-11-10 sync (STORY-0148) ──────────────────────────────────────────
+
+
+class TestNovember2026Records:
+    """The nine MAL-* records the 2026-11-09 sync run found missing."""
+
+    @pytest.mark.parametrize(
+        ("eco", "name", "rid"),
+        [
+            ("pypi", "mcp-teamviewer", "MAL-2026-18706"),
+            ("pypi", "teamviewer-mcp-server", "MAL-2026-18705"),
+            ("npm", "@ifasn/md-doc-mcp", "MAL-2026-18486"),
+            ("npm", "@ifasn/mdd-doc-mcp", "MAL-2026-18487"),
+            ("npm", "@ifasn/mmd-doc-mcp", "MAL-2026-18488"),
+            ("npm", "@ifasn/mmdd-doc-mcp", "MAL-2026-18489"),
+            ("npm", "@ifasn/ms-doc-mcp", "MAL-2026-18603"),
+            ("npm", "@massnerder/x402-scraper-mcp", "MAL-2026-18780"),
+            ("npm", "@bestcoolman/dev-mcp", "MAL-2026-19052"),
+        ],
+    )
+    def test_package_is_known_malicious(self, eco: str, name: str, rid: str) -> None:
+        records = load_known_malicious().lookup(eco, name)
+        assert rid in [r.id for r in records]
+
+    def test_knostic_record_credits_the_researcher(self) -> None:
+        (rec,) = load_known_malicious().lookup("npm", "@bestcoolman/dev-mcp")
+        assert rec.aliases == ("GHSA-vgx2-8w7x-xr8v",)
+        assert "Tamir Isaschar (Knostic)" in (rec.note or "")
+        assert "knostic.ai/blog/" in (rec.note or "")
+
+    def test_sync_script_carries_the_note(self) -> None:
+        sys.path.insert(0, str(ROOT / "scripts"))
+        try:
+            import sync_registry_advisories as sync  # noqa: PLC0415
+        finally:
+            sys.path.pop(0)
+        raw = json.loads(BUNDLED.read_text(encoding="utf-8"))
+        (entry,) = [e for e in raw["entries"] if e["id"] == "MAL-2026-19052"]
+        assert entry["note"] == sync.NOTES["MAL-2026-19052"]
