@@ -22,7 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **PERM-001..007 and GUARD-001 no longer print a secret that sits inside a permission rule.** Their evidence quoted rules as written; a rule holding a token or password put it in terminal, JSON and SARIF output (and so in GitHub code scanning). They now quote through CRED-004's redactor. Guardrail drift records and digests are unchanged, so no existing record reads as a change.
+- **PERM-001..007, SANDBOX-002 and GUARD-001 no longer print a secret that sits inside a permission rule.** Their evidence quoted rules as written (SANDBOX-002 quotes the allow rule that overlaps a sandbox exclusion); a rule holding a token or password put it in terminal, JSON and SARIF output (and so in GitHub code scanning). They now quote through CRED-004's redactor. Guardrail drift records and digests are unchanged, so no existing record reads as a change.
 
 ---
 

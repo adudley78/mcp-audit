@@ -241,6 +241,23 @@ class TestSeverityFollowsGit:
         assert "(+5 more)" in finding.evidence
 
 
+class TestSandboxQuotesAreRedacted:
+    """SANDBOX-002 quoted the overlapping allow rule as written (Ship review)."""
+
+    def test_sandbox_002_redacts_the_allow_rule(self, repo: Path) -> None:
+        raw = {
+            "sandbox": {"enabled": True, "excludedCommands": ["docker *"]},
+            "permissions": {"allow": [f"Bash(docker login -u me -p {GH_TOKEN})"]},
+        }
+        path = _write(repo / ".claude" / "settings.json", raw)
+        findings, _errors = sb.analyze_sandbox_files([_config(path, raw)])
+        sandbox = [f for f in findings if f.id == "SANDBOX-002"]
+        assert sandbox, "fixture should produce SANDBOX-002"
+        text = sandbox[0].model_dump_json()
+        assert GH_TOKEN not in text
+        assert "[REDACTED]" in text
+
+
 class TestPermQuotesAreRedacted:
     """PERM-* evidence quoted rules as written (fixed with STORY-0149)."""
 

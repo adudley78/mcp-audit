@@ -87,6 +87,7 @@ from mcp_audit.analyzers.permissions import (
 from mcp_audit.analyzers.rule_secrets import (
     MAX_RULE_CHARS,
     MAX_RULES_PER_LIST,
+    redact_rule,
     rule_secret_finding,
     rule_secret_hits,
 )
@@ -779,8 +780,8 @@ def _exclusion_severity(
     if allow is not None:
         return (
             Severity.HIGH,
-            f"; allow {allow!r} in this file approves it, so it runs outside the"
-            " sandbox with no prompt",
+            f"; allow {redact_rule(allow)!r} in this file approves it, so it runs"
+            " outside the sandbox with no prompt",
         )
     if user.default_mode == "bypassPermissions":
         return (

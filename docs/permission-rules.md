@@ -370,8 +370,8 @@ query parameters), plus upper-case `*PASSWORD*`/`*PASSWD*` assignments
 is only an environment reference (`$VAR`, `${VAR}`, `%VAR%`), a `${{ … }}`
 template, a `*` wildcard or empty is not one. One finding per file lists each
 rule by location (`permissions.allow[3]`) with the secret replaced by
-`[REDACTED]`; the value is never printed. PERM-001..007 and GUARD-001 quote
-rules through the same redactor. It runs in step 0b with SANDBOX-001..005, in
+`[REDACTED]`; the value is never printed. PERM-001..007, SANDBOX-002 and
+GUARD-001 quote rules through the same redactor. It runs in step 0b with SANDBOX-001..005, in
 every scan that reads a Claude Code settings file.
 
 ## Limits
