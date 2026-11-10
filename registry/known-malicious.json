@@ -3,7 +3,7 @@
   "description": "OSV malicious-package (MAL-*) records for npm and PyPI packages whose name contains 'mcp' or that registry/known-servers.json lists. Matched offline by exact name (SC-008, mcp-audit vet). Written by scripts/sync_registry_advisories.py --write; do not edit by hand.",
   "source": "https://osv.dev (OpenSSF malicious-packages, via OSV's bulk export)",
   "last_updated": "2026-11-10",
-  "entry_count": 227,
+  "entry_count": 228,
   "entries": [
     {
       "id": "MAL-2026-2669",
@@ -2797,6 +2797,27 @@
         "0.1.1"
       ],
       "ranges": []
+    },
+    {
+      "id": "MAL-2026-19082",
+      "ecosystem": "npm",
+      "name": "mcp-contract-tester",
+      "aliases": [
+        "GHSA-34p7-qcxm-gc39"
+      ],
+      "summary": "Malicious code in mcp-contract-tester (npm)",
+      "published": "2026-11-10T16:48:20Z",
+      "versions": [],
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "MAL-2026-4296",

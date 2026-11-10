@@ -299,7 +299,7 @@ class TestAssess:
 
 
 class TestNovember2026Records:
-    """The nine MAL-* records the 2026-11-09 sync run found missing."""
+    """The MAL-* records the 2026-11-09 sync run found missing, plus one since."""
 
     @pytest.mark.parametrize(
         ("eco", "name", "rid"),
@@ -313,6 +313,7 @@ class TestNovember2026Records:
             ("npm", "@ifasn/ms-doc-mcp", "MAL-2026-18603"),
             ("npm", "@massnerder/x402-scraper-mcp", "MAL-2026-18780"),
             ("npm", "@bestcoolman/dev-mcp", "MAL-2026-19052"),
+            ("npm", "mcp-contract-tester", "MAL-2026-19082"),
         ],
     )
     def test_package_is_known_malicious(self, eco: str, name: str, rid: str) -> None:
