@@ -8,6 +8,9 @@ jobs:
   test:
     name: Test (${{ matrix.os }}, ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    # Normal runs take 3-6 min on every OS. Without a limit a hang holds the
+    # runner for GitHub's 6-hour default (#274's Windows legs did exactly that).
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +50,7 @@ jobs:
   test-all-extras:
     name: Test all optional extras (ubuntu, 3.12)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
