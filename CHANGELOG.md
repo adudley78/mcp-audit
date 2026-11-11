@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **Guardrail drift records and lock `guardrails` records no longer store `PGPASSWORD=`-style secrets (STORY-0151).** `guardrails.json` and the `guardrails` section of `mcp-lock.json` now redact permission rules and other settings strings the way CRED-004 does (`PGPASSWORD=`/`DB_PASSWD=` values, npm `_authToken=`, `Authorization: token key:secret`, npm tokens); up to 0.29.0 they kept these in plain text. Upgrading reports nothing new: old and new records are compared in the new form, so an existing `guardrails.json` gives no GUARD-001/002 and an existing committed lock passes `lock --verify` with no LOCK-014 (checked against records 0.29.0 wrote). The next scan rewrites `guardrails.json`; run `mcp-audit lock` again to drop the values from a committed lock (only the records that held one change; the top-level checksum does not), and rotate the secret, since git history keeps the old lock. An older mcp-audit verifying a lock written by this version reports LOCK-014 for such rules: upgrade CI first. Limits: [GAPS.md](GAPS.md), [docs/guardrail-drift.md](docs/guardrail-drift.md).
+
 ---
 
 ## [0.29.0] - 2026-11-10

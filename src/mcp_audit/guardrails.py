@@ -30,7 +30,10 @@ drift):
 * Keeps one normalised record per file (:func:`build_record`): *only*
   guardrail-relevant facts, sorted, never a secret.  Hook commands are stored
   as the SHA-256 of the command string plus the event and matcher; permission
-  rules and other strings are masked with ``SECRET_PATTERNS`` and capped.
+  rules and other strings are masked with ``SECRET_PATTERNS``, then with
+  CRED-004's :func:`~mcp_audit.analyzers.rule_secrets.redact_rule`
+  (STORY-0151), and capped.  Records written by an older version are compared
+  in this form (:func:`stored_form`), so upgrading reports nothing.
 * Compares each record with the previous one for the same absolute path with
   :func:`compare`, which knows exactly the rows of :data:`LOOSENING_TABLE`.
   **A change that is not in the table is not a loosening.**
@@ -655,8 +658,66 @@ def _strings(
         ordered = ordered[:MAX_ENTRIES]
         truncated = True
     if truncated:
+        # Over the 0.29.0 form, so the digest of a list past the cut does not
+        # change on upgrade (STORY-0151).  A hash, never the text.
         digests[key] = _set_digest(full)
-    return ordered
+    if domains:
+        return ordered
+    return _rule_strings(ordered)
+
+
+def _rule_form(text: str) -> str:
+    """The stored form of one list string: :func:`redact_rule` over :func:`_redact`.
+
+    STORY-0151.  Records written up to 0.29.0 hold :func:`_redact` alone,
+    which misses ``PGPASSWORD=``-style values, ``_authToken=`` and
+    ``token key:secret``.  The stored form is the 0.29.0 form with CRED-004's
+    redaction applied on top, so applying :func:`_rule_form` to a string an
+    older version stored gives exactly what this version stores for the same
+    settings value (and it changes nothing it has already redacted).  That is
+    what lets :func:`compare` read old and new records alike: no drift is
+    reported just because a scan, a state file or a committed lock was
+    written by an older version.
+    """
+    return redact_rule(text)
+
+
+def _rule_strings(values: Iterable[str]) -> list[str]:
+    """*values* in their stored form, sorted and unique."""
+    return sorted({_rule_form(v) for v in values})
+
+
+#: Keys whose list strings are host names (masked by :func:`_mask_labels`
+#: instead): their stored form never changed.
+_DOMAIN_KEYS = frozenset(
+    {"sandbox.network.allowedDomains", "sandbox.network.deniedDomains"}
+)
+
+
+def stored_form(record: dict) -> dict:
+    """*record* with every list string in the stored form of this version.
+
+    A record written by 0.29.0 or earlier (a ``guardrails.json`` entry, a
+    committed ``mcp-lock.json`` ``guardrails`` record) becomes the record
+    this version writes for the same file; a current record is returned
+    unchanged.  Digests (lists past the cut) and hooks are kept as they are.
+    Never mutates *record*.
+    """
+    facts = record.get("facts")
+    if not isinstance(facts, dict):
+        return record
+    changed = False
+    out: dict = {}
+    for key, value in facts.items():
+        if isinstance(value, list) and key not in _DOMAIN_KEYS:
+            strings = [v for v in value if isinstance(v, str)]
+            if len(strings) == len(value):
+                new = _rule_strings(strings)
+                if new != value:
+                    changed = True
+                    value = new
+        out[key] = value
+    return {**record, "facts": out} if changed else record
 
 
 def _dig(block: object, dotted: str) -> object:
@@ -994,8 +1055,8 @@ def _clip(text: str) -> str:
 
 def _quote(items: Iterable[str]) -> str:
     ordered = sorted(items)
-    # Display only: the stored (digested) strings keep their own redaction, so
-    # a record written by an older version never reads as a change.
+    # Stored strings are already redacted (STORY-0151); this also covers a
+    # string quoted from a record an older version wrote.
     shown = ", ".join(repr(_clip(redact_rule(i))) for i in ordered[:_QUOTE_ENTRIES])
     if len(ordered) > _QUOTE_ENTRIES:
         shown += f" (+{len(ordered) - _QUOTE_ENTRIES} more)"
@@ -1057,6 +1118,8 @@ def compare(old: dict | None, new: dict | None, agent: str | None = None) -> Dif
     new = new or empty_record(agent)
     if not valid_record(old) or not valid_record(new):
         raise ValueError("malformed guardrail record")
+    # Records from an older version compare in this version's stored form.
+    old, new = stored_form(old), stored_form(new)
     old_facts: dict = old.get("facts") or {}
     new_facts: dict = new.get("facts") or {}
     diff = Diff()
@@ -1594,6 +1657,8 @@ def _without_lost(record: dict, diff: Diff) -> dict:
     lost: set[tuple[str, ...]] = set()
     for loosening in diff.loosened:
         lost |= loosening.lost
+    # ``lost`` holds stored-form strings (compare() normalises).
+    record = stored_form(record)
     facts = {}
     for key, value in (record.get("facts") or {}).items():
         if isinstance(value, list):
