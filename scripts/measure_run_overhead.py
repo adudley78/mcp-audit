@@ -7,7 +7,11 @@ wrapper, and prints the median of each and the difference. The result is
 published in ``docs/run.md``; CI's runtime job prints it on every PR.
 
 Usage:
-    python scripts/measure_run_overhead.py [--runs N] [--wrapper CMD ...]
+    python scripts/measure_run_overhead.py [--runs N] [--gate] [--wrapper CMD ...]
+
+``--gate`` also measures the launch gate (EPIC-0009 Story 1.3): it writes a
+config and a real ``mcp-lock.json`` for the trivial server in a temporary
+git-rooted directory and wraps it with ``--config``/``--server``.
 
 ``--wrapper`` defaults to ``<python> -m mcp_audit._entry`` (the pip install).
 Pass a frozen binary path to measure the PyInstaller build instead.
@@ -16,10 +20,13 @@ Pass a frozen binary path to measure the PyInstaller build instead.
 from __future__ import annotations
 
 import argparse
+import json
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
+from pathlib import Path
 
 SERVER = [
     sys.executable,
@@ -46,6 +53,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--runs", type=int, default=15)
     parser.add_argument(
+        "--gate", action="store_true", help="also measure run with the lock gate"
+    )
+    parser.add_argument(
         "--wrapper",
         nargs="+",
         default=[sys.executable, "-m", "mcp_audit._entry"],
@@ -65,6 +75,28 @@ def main() -> int:
     print(f"direct:    {d:7.1f} ms (median)")
     print(f"wrapped:   {w:7.1f} ms (median)")
     print(f"overhead:  {w - d:7.1f} ms")
+    if args.gate:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            config = root / ".mcp.json"
+            server = {"command": SERVER[0], "args": SERVER[1:]}
+            config.write_text(json.dumps({"mcpServers": {"bench": server}}))
+            subprocess.run(  # noqa: S603  # nosec B603 — fixed argv, shell=False
+                [*args.wrapper, "lock", str(root), "--offline"],
+                capture_output=True,
+                timeout=120,
+                check=True,
+            )
+            gated = [
+                *args.wrapper, "run", "--config", str(config), "--server", "bench",
+                "--mode", "enforce", "--", *SERVER,
+            ]  # fmt: skip
+            _time_once(gated)
+            gated_ms = [_time_once(gated) * 1000 for _ in range(args.runs)]
+        g = statistics.median(gated_ms)
+        print(f"gated:     {g:7.1f} ms (median, enforce mode)")
+        print(f"gate cost: {g - w:7.1f} ms over the plain relay")
     return 0
 
 

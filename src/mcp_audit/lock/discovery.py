@@ -20,58 +20,8 @@ single repo-wide file.
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from mcp_audit.lock.model import LOCK_FILENAME
-
-
-def _find_git_root(start: Path) -> Path | None:
-    """Walk parent directories until a ``.git`` entry is found.
-
-    Args:
-        start: Directory to begin the search from (already resolved).
-
-    Returns:
-        The directory containing ``.git``, or ``None`` if not found.
-    """
-    current = start
-    while True:
-        if (current / ".git").exists():
-            return current
-        parent = current.parent
-        if parent == current:
-            return None
-        current = parent
-
-
-def find_lock_for(config_path: Path) -> Path | None:
-    """Return the nearest ancestor ``mcp-lock.json`` for *config_path*, if any.
-
-    Args:
-        config_path: Path to an MCP config file (need not exist on disk —
-            only its parent directory is walked).
-
-    Returns:
-        The resolved path to the nearest ``mcp-lock.json``, or ``None`` if
-        none was found. Outside a git repository, only *config_path*'s own
-        directory is checked — see module docstring for the boundary
-        rationale.
-    """
-    start = config_path.resolve().parent
-    git_root = _find_git_root(start)
-
-    if git_root is None:
-        candidate = start / LOCK_FILENAME
-        return candidate if candidate.exists() else None
-
-    current = start
-    while True:
-        candidate = current / LOCK_FILENAME
-        if candidate.exists():
-            return candidate
-        if current == git_root:
-            return None
-        parent = current.parent
-        if parent == current:
-            return None
-        current = parent
+from mcp_audit.lock.core import (  # noqa: F401 — re-exported; one implementation
+    LOCK_FILENAME,
+    _find_git_root,
+    find_lock_for,
+)
