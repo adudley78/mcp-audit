@@ -100,6 +100,16 @@ class TestCheckLaunch:
         assert result.finding_id == "LOCK-001"
         assert "3 arguments; 2 were approved" in result.summary
 
+    def test_argument_count_is_grammatical(self, repo: Path) -> None:
+        config = _config(repo, {"srv": {"command": "my-server", "args": ["a"]}})
+        _lock(repo)
+        result = check_launch(
+            ["my-server", "a", "b"], config_path=config, server_name="srv"
+        )
+        assert "2 arguments; 1 was approved" in result.summary
+        result = check_launch(["my-server"], config_path=config, server_name="srv")
+        assert "0 arguments; 1 was approved" in result.summary
+
     def test_changed_command_is_lock_001(self, repo: Path) -> None:
         config = _config(repo, {"srv": {"command": "npx", "args": ["-y", "pkg"]}})
         _lock(repo)

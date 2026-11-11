@@ -20,6 +20,7 @@ from mcp_audit.governance.models import (
     TransportPolicy,
 )
 from mcp_audit.models import Finding, ScanResult, Severity, TransportType
+from mcp_audit.runtime.wrapping import WRAPPABLE_CLIENTS
 
 if TYPE_CHECKING:
     from mcp_audit.models import ServerConfig
@@ -652,6 +653,49 @@ def _check_finding_policy(
 # ── Public entry point ─────────────────────────────────────────────────────────
 
 
+def _check_wrap(servers: list[ServerConfig], policy: GovernancePolicy) -> list[Finding]:
+    """WRAP-001: a local server that doesn't launch through ``mcp-audit run``.
+
+    Only when the policy sets ``runtime.require_wrap``. Covers servers with a
+    command in the client configs ``mcp-audit wrap`` can rewrite
+    (:data:`~mcp_audit.runtime.wrapping.WRAPPABLE_CLIENTS`); remote servers and
+    other clients' configs are out of scope (EPIC-0009 Story 1.2).
+    """
+    runtime = policy.runtime
+    if runtime is None or not runtime.require_wrap:
+        return []
+    findings: list[Finding] = []
+    for server in servers:
+        if server.client not in WRAPPABLE_CLIENTS or not server.command:
+            continue
+        if server.wrapped:
+            continue
+        findings.append(
+            Finding(
+                id="WRAP-001",
+                severity=Severity.HIGH,
+                analyzer="governance",
+                client=server.client,
+                server=server.name,
+                title=f"Server not launched through mcp-audit run: {server.name}",
+                description=(
+                    f"The policy requires every local MCP server to launch through "
+                    f"`mcp-audit run` (runtime.require_wrap), and {server.name!r} "
+                    "launches directly, so the lock gate and tool check never see it."
+                ),
+                evidence=f"rule=runtime require_wrap=true server={server.name} "
+                "wrapped=false",
+                remediation=(
+                    f"Run `mcp-audit wrap --server {server.name}` (add --apply to "
+                    "write), then restart the client."
+                ),
+                finding_path=str(server.config_path),
+                owasp_mcp_top_10=["MCP04"],
+            )
+        )
+    return findings
+
+
 def evaluate_governance(
     servers: list[ServerConfig],
     policy: GovernancePolicy,
@@ -708,6 +752,9 @@ def evaluate_governance(
     # ── Registry policy (cross-client, one check per server) ──────────────
     if registry is not None and policy.registry_policy is not None:
         findings.extend(_check_registry(servers, policy, registry))
+
+    # ── Launch through mcp-audit run (EPIC-0009 Story 1.2) ────────────────
+    findings.extend(_check_wrap(servers, policy))
 
     # ── Finding policy (aggregate, one check across all clients) ──────────
     if scan_result is not None and policy.finding_policy is not None:

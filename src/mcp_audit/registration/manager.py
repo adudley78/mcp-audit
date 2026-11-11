@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from datetime import UTC, datetime
 from pathlib import Path
 
 from platformdirs import user_config_dir
 
+from mcp_audit._fs import atomic_write
 from mcp_audit.registration.models import RegistrationConfig
 
 logger = logging.getLogger(__name__)
@@ -75,11 +75,7 @@ def save_registration(
     _ensure_dir(path.parent)
 
     payload = config.model_dump_json(indent=2)
-    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        os.write(fd, payload.encode("utf-8"))
-    finally:
-        os.close(fd)
+    atomic_write(path, payload)
 
     return path
 

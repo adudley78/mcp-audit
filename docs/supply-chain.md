@@ -803,9 +803,43 @@ release 1.1.47 is `MAL-2026-5956`).
 
 **Keeping it current.** `scripts/sync_registry_advisories.py` reads OSV's bulk
 export for npm and PyPI (about 260 MB, read once per run) and keeps every `MAL-`
-record that is not withdrawn and names a package whose name contains `mcp` or
-that the registry lists. The substring test is deliberate: a match is by exact
-name, so an extra record can never cause a false positive. The file is a mirror,
+record that is not withdrawn and names a package whose name contains `mcp`,
+that the registry lists, or whose name belongs to the agent stack (below). The
+`mcp` substring test is deliberate: a match is by exact name, so an extra record
+can never cause a false positive.
+
+**The agent stack (STORY-0152).** A package name is split, lower-cased, on every
+character that is not a letter or digit (the npm scope included; two adjacent
+tokens also count, so `gemini-cli` is one). It is kept when a token names a
+coding agent whose configuration mcp-audit reads (`claude`, `cursor`,
+`windsurf`, `copilot`, `augment`, `augmentcode`, `amazon-q`, `amazonq`, `codex`,
+`gemini-cli`, `opencode`, `openclaw`) or an agent artifact (`skill`, `skills`,
+`subagent`, `subagents`): `AGENT_STACK_TOKENS` in the script. The cases were
+OSV's MAL-2026-18192 `agentic-awesome-skills` and MAL-2026-18193
+`opencode-skills-collection` (2026-10-22, both credited to Amazon Inspector).
+Measured on OSV's 2026-11-11 export (235,202 non-withdrawn npm and PyPI `MAL-*`
+records): the rule adds 106 records to the 228 MCP-named and registry-listed
+ones (plus one MCP-named record published 2026-11-10), 335 in all. Read by hand,
+about three quarters of the 106 name an agent, an agent's setup or integration,
+or a skill package (`@chatclub/claude-code`, `claude-desktop-setup`,
+`cursor-bypass`, `@ikyyofc/gemini-cli`, `@openclaw-cn/cli`); the rest are
+dependency-confusion names that happen to hold a token (`h2-codex`,
+`ts-relay-cursor-paging`, `@copilot-web-widgets/*`, `test-skill-zip`), which
+cost file size but cannot cause a false positive. Tokens, not substrings,
+because the substring forms are mostly spam (`skill` matches 49 names, 39 of
+them `skilled_<animal>`; `cline` matches `inclined_*`). Left out after the same
+measurement: `agent` (140 names, mostly HTTP agents), `plugin`/`plugins` (2,238,
+build-tool plugins), `gemini` alone (171, word salad), `prompts` (166), `openai`
+and `anthropic` (API SDK typosquats, not agent tooling).
+
+**Who reads the added records.** `scan` / `check` (SC-008, when an MCP config
+launches one through `npx`/`uvx` and the other launchers above), `vet <name>`,
+and `affected MAL-…` (found offline; a server is AFFECTED only when it launches
+the package). **Not read:** a skill collection installed by running
+`npx agentic-awesome-skills` in a shell leaves no record mcp-audit reads (it
+scans the skill files themselves); a Claude Code plugin whose marketplace
+source is `npm` is not checked against the mirror; a skill's install steps
+(SKILL-005) are not matched by package name. See GAPS.md. The file is a mirror,
 not additive: a record OSV withdraws is removed. The weekly
 `registry-advisory-sync.yml` check fails when the file has drifted and uploads
 the proposed `known-malicious.json` next to the proposed `known-servers.json`

@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import typer
 from rich.table import Table
 
 from mcp_audit import cli as _cli
+from mcp_audit._fs import atomic_write
 from mcp_audit.cli import baseline_app, console
 
 # ── baseline save ─────────────────────────────────────────────────────────────
@@ -243,11 +243,7 @@ def baseline_export(
     if output_file is not None:
         dest = Path(output_file).resolve()
         dest.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        try:
-            os.write(fd, raw.encode())
-        finally:
-            os.close(fd)
+        atomic_write(dest, raw)
         console.print(f"[green]Baseline exported to[/green] {dest}")
     else:
         typer.echo(raw)

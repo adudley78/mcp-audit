@@ -72,6 +72,7 @@ mcp-audit policy check
 | `registry_policy` | object | `null` | Known-Server Registry requirements |
 | `finding_policy` | object | `null` | Finding count limits |
 | `client_overrides` | map | `{}` | Per-client policy overrides |
+| `runtime` | object | `null` | What `mcp-audit run` does at runtime (see below) |
 
 ---
 
@@ -209,6 +210,27 @@ When a client override sets `approved_servers`, the override's `entries` list
 **replaces** the base entries for that client — it does not append to them. To
 include base-policy servers plus additional ones, repeat them in the override's
 `entries` or use the `additional` list in the base policy.
+
+---
+
+### `runtime`
+
+Settings for `mcp-audit run`, the wrapper that launches MCP servers
+([run.md](run.md)). Read by `run` only; `scan` ignores them.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `poison_threshold` | str | `critical` | Lowest POISON-* severity on a live tool's text that `run` acts on: reported in monitor mode, tool withheld in enforce mode. One of `off`, `critical`, `high`, `medium`, `low`, `info` (case-insensitive; a bare YAML `off` works) |
+| `require_wrap` | bool | `false` | Report every local server in a client config `mcp-audit wrap` supports that doesn't launch through `mcp-audit run` (WRAP-001, HIGH, from `scan`) |
+
+```yaml
+runtime:
+  poison_threshold: critical
+  require_wrap: true
+```
+
+`run` looks for the policy next to its `--config` file, then in that
+directory's git root, then in the user policy, unless `--policy` names one.
 
 ---
 

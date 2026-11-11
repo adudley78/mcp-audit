@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import os
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -14,6 +13,7 @@ from pydantic import ValidationError
 from rich.table import Table
 
 from mcp_audit import cli as _cli
+from mcp_audit._fs import atomic_write
 from mcp_audit.cli import app, console
 from mcp_audit.registry.loader import KnownServerRegistry, RegistryEntry
 
@@ -91,22 +91,9 @@ def _write_registry_cache_atomic(path: Path, raw: str) -> None:
             verbatim, unmodified, so the cached file is byte-identical to
             what was validated.
     """
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    tmp_path = path.with_name(path.name + ".tmp")
-    fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(raw)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(str(tmp_path), str(path))
-    except BaseException:
-        # Best-effort cleanup of the temp file on any failure (including a
-        # KeyboardInterrupt landing mid-write) — the destination is
-        # untouched either way, since only the line above ever mutates it.
-        with contextlib.suppress(OSError):
-            tmp_path.unlink(missing_ok=True)
-        raise
+    # R45 behaviour, now in the shared helper (random temp name, so a
+    # planted ``known-servers.json.tmp`` symlink is never followed).
+    atomic_write(path, raw, dir_mode=0o700)
 
 
 @app.command(name="update-registry")
@@ -226,7 +213,6 @@ def verify(
     Exit codes: 0 = all pass or unknown, 1 = hash mismatch detected, 2 = error.
     This command is free (Community tier) — verification is never paywalled.
     """
-    import contextlib  # noqa: PLC0415
 
     from mcp_audit.attestation.hasher import verify_package_hash  # noqa: PLC0415
     from mcp_audit.attestation.verifier import (

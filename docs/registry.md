@@ -224,8 +224,12 @@ a `MISSING` entry; do not stamp it.
 
 A second bundled data file, added by STORY-0097, sits next to the registry. It
 is a mirror of OSV's malicious-package (`MAL-*`) records for npm and PyPI
-packages whose name contains `mcp` or that `known-servers.json` lists, and it
-drives `SC-008` and the `malicious` block of `mcp-audit vet` (see
+packages whose name contains `mcp`, that `known-servers.json` lists, or whose
+name has a token naming a coding agent mcp-audit reads or an agent skill
+(STORY-0152: `claude`, `cursor`, `windsurf`, `copilot`, `augment`, `amazon-q`,
+`codex`, `gemini-cli`, `opencode`, `openclaw`, `skill(s)`, `subagent(s)`), and it
+drives `SC-008`, the `malicious` block of `mcp-audit vet` and `MAL-*` lookups in
+`mcp-audit affected` (see
 [docs/supply-chain.md](supply-chain.md#sc-008-known-malicious-packages)).
 It is a separate file, not new `known-servers.json` fields, because most of the
 packages it names are not (and never will be) registry entries, and the

@@ -62,6 +62,7 @@ from mcp_audit.analyzers import permissions as _permissions
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS, CredentialsAnalyzer
 from mcp_audit.analyzers.poisoning import normalize_for_detection
+from mcp_audit.config_parser import strip_json_comments, strip_trailing_commas
 from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, agent_definition_scope
 from mcp_audit.discovery import (
     SIBLING_HARNESS_AUTOEXEC_KINDS as _SIBLING_HARNESS_CHECKS,
@@ -189,57 +190,6 @@ def _is_absolute_outside_root(value: str, project_root: Path) -> bool:
     return False
 
 
-def _strip_jsonc_comments(text: str) -> str:
-    """Strip ``//`` and ``/* */`` comments from JSONC text, string-aware.
-
-    VS Code accepts JSONC (JSON with Comments and trailing commas) for both
-    ``tasks.json`` and ``settings.json``.  A naive regex would corrupt a
-    string value that legitimately contains ``//`` (e.g. a URL), so this
-    walks the text character-by-character and only strips comment tokens
-    that appear *outside* a string literal.
-    """
-    out: list[str] = []
-    i = 0
-    n = len(text)
-    in_string = False
-    escape = False
-    while i < n:
-        ch = text[i]
-        if in_string:
-            out.append(ch)
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == '"':
-                in_string = False
-            i += 1
-            continue
-        if ch == '"':
-            in_string = True
-            out.append(ch)
-            i += 1
-            continue
-        if ch == "/" and i + 1 < n and text[i + 1] == "/":
-            while i < n and text[i] not in ("\n", "\r"):
-                i += 1
-            continue
-        if ch == "/" and i + 1 < n and text[i + 1] == "*":
-            i += 2
-            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
-                i += 1
-            i += 2
-            continue
-        out.append(ch)
-        i += 1
-    return "".join(out)
-
-
-def _strip_trailing_commas(text: str) -> str:
-    """Remove trailing commas before a closing ``}``/``]`` (JSONC, not strict JSON)."""
-    return re.sub(r",(\s*[}\]])", r"\1", text)
-
-
 _SETTINGS_FLATTEN_MAX_DEPTH = 10
 
 
@@ -274,7 +224,7 @@ def parse_jsonc(text: str) -> dict | list | None:
     caller is responsible for logging).
     """
     try:
-        return json.loads(_strip_trailing_commas(_strip_jsonc_comments(text)))
+        return json.loads(strip_trailing_commas(strip_json_comments(text)))
     except (json.JSONDecodeError, RecursionError):
         return None
 

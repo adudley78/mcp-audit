@@ -104,6 +104,13 @@ class ServerConfig(BaseModel):
     # Used by _apply_project_scan() to emit TRUST-001.  Never set by the normal
     # user-level discovery path so default-scan behaviour is unchanged.
     is_project_scoped: bool = False
+    # True when the config entry launches the server through ``mcp-audit run``
+    # (EPIC-0009 Story 1.2). ``command``/``args`` then hold the wrapped
+    # server's own launch, so every analyzer, the lock and the launch gate see
+    # what actually runs; ``raw`` keeps the entry as written.
+    wrapped: bool = False
+    # The wrapper's ``--mode`` (``monitor`` or ``enforce``) when ``wrapped``.
+    wrap_mode: str | None = None
 
     # ── JSON serialisation: launch credentials never leave in clear (STORY-0108)
     #
