@@ -353,7 +353,7 @@ git repository". The rule is the approved command word for word, so a command
 run with a token or password in it leaves that secret in the file. GitGuardian
 (Guillaume Valadon, 2026-11-09) found 31,088 distinct secrets in public
 `settings.local.json` files, 5,343 still valid, and 8,271 in `settings.json`;
-Apiiro (via The Hacker News, 2026-11-07) found a secret in 1,122 of 104,185
+Apiiro (Shmulik Cohen and Matan Giladi, via The Hacker News, 2026-11-07) found a secret in 1,122 of 104,185
 public `settings.local.json` copies, and neither gitleaks nor TruffleHog
 flagged 215 of them.
 
