@@ -95,7 +95,7 @@ sbom = [
 ]
 
 [project.scripts]
-mcp-audit = "mcp_audit.cli:app"
+mcp-audit = "mcp_audit._entry:main"
 
 [project.urls]
 Homepage = "https://github.com/adudley78/mcp-audit"
