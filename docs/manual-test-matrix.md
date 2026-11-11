@@ -344,7 +344,7 @@ trust boundary; `STDIO-001` loads but ships `enabled: false` — see
 `docs/writing-rules.md` and `GAPS.md`), plus the bundled `TEMPLATE.yml` itself,
 which loads as rule `COMM-000` ("Template rule — replace before submitting") and
 is guaranteed by `tests/test_rules.py` to never fire on a real config. Footer
-line reads "40 bundled community rule(s)"; exit 0.
+line reads "42 bundled community rule(s)"; exit 0.
 
 ---
 

@@ -1227,7 +1227,7 @@
       "owasp_names": [
         "Software Supply Chain Attacks"
       ],
-      "notes": "Community rule. --extra-index-url (uvx/pip/pipx) or uv --index in install arguments — the classic dependency-confusion setup; the installer consults both indexes and can take the higher version from the wrong one (Alex Birsan, Dependency Confusion, 2021). uv's default first-index strategy already stops the classic attack for uvx; the rule still reports non-default indexes because every consulted source must be trusted. Matches the flag only, never the URL. MEDIUM severity, supply-chain category."
+      "notes": "Community rule. --extra-index-url (uvx/pip/pipx) or uv --index in install arguments — the classic dependency-confusion setup; the installer consults both indexes and can take the higher version from the wrong one (Alex Birsan, Dependency Confusion, 2021). uv's default first-index strategy already stops the classic attack for uvx; the rule still reports non-default indexes because every consulted source must be trusted. Only for installer launch commands (uvx, uv, pip, pipx, npx, npm). Matches the flag only, never the URL. MEDIUM severity, supply-chain category."
     },
     {
       "finding_id": "COMM-039",
@@ -1238,7 +1238,7 @@
       "owasp_names": [
         "Software Supply Chain Attacks"
       ],
-      "notes": "Community rule. --index-url or -i (pip/pipx/uvx), uv --default-index, or --registry (npx/npm exec): the configured source replaces the default index and controls every package lookup — lower severity than COMM-038's mixed-index exposure. Matches the flag only, never the URL. LOW severity, supply-chain category."
+      "notes": "Community rule. --index-url or -i (pip/pipx/uvx), uv --default-index, or --registry / --@scope:registry (npx/npm exec): the configured source replaces the default index and controls every package lookup — lower severity than COMM-038's mixed-index exposure. Only for installer launch commands (uvx, uv, pip, pipx, npx, npm); -i and --registry need a URL after them, so docker run -i never fires. Matches the flag only, never the URL. LOW severity, supply-chain category."
     },
     {
       "finding_id": "COLLIDE-001",

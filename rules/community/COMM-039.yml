@@ -1,23 +1,35 @@
 id: COMM-039
 name: Default package index replaced or custom npm registry configured
 description: >
-  Detects install arguments that replace the default package index rather
-  than mixing two: --index-url and its short form -i for pip/pipx/uvx, and
-  --default-index for uv, plus --registry for npx / npm exec. Unlike the
-  extra-index flags (COMM-038) these replace the default source, so the
-  exposure is the trustworthiness of the configured registry itself, not
-  version rivalry between indexes — hence the lower severity. A custom
-  index answers every package lookup, so its owner controls what the
-  server executes. Part of the dependency-confusion family documented in
-  Alex Birsan's 2021 research. Both the separated and joined
-  (--index-url=URL, --registry=URL) forms fire; the regex matches the flag
-  itself, never the URL after it.
+  Detects a server launched by a package installer (uvx, uv, pip, pipx, npx
+  or npm) with an argument that replaces the default package index rather
+  than mixing two: --index-url and its short form -i for pip, pipx and uv,
+  --default-index for uv, and --registry (or a scoped --@scope:registry)
+  for npx / npm exec. Unlike the extra-index flags (COMM-038) these replace
+  the default source, so the exposure is the trustworthiness of the
+  configured registry itself, not version rivalry between indexes — hence
+  the lower severity. A custom index answers every package lookup, so its
+  owner controls what the server executes. Part of the dependency-confusion
+  family documented in Alex Birsan's 2021 research. Both the separated and
+  joined (--index-url=URL, --registry=URL) forms fire. Other launch
+  commands are not matched, so `docker run -i` (interactive stdin, how most
+  container servers start) never fires. -i and --registry fire only when a
+  URL follows them, because servers often take flags with those names
+  themselves; a local index directory after -i is not matched. The regex
+  matches the flag itself, never the URL after it. Limit: the arguments are
+  read as one string, so --index-url or --default-index passed to the
+  server itself after the package name also fires.
 severity: LOW
 category: supply-chain
 match:
-  field: args
-  pattern: '(?:^|\s)(?:--index-url|--default-index|--registry|-i)(?![-\w])'
-  type: regex
+  operator: and
+  conditions:
+    - field: command
+      pattern: '(?i)(?:^|(?<=[/\\]))(?:uvx|uv|pipx|pip3?|npx|npm)(?:\.exe|\.cmd)?$'
+      type: regex
+    - field: args
+      pattern: '(?<![^\s=''"])(?:--index-url|--default-index)(?![-\w])|(?<![^\s=''"])(?:-i|--registry|--@[\w.-]+:registry)(?=[\s=]+\S*://)'
+      type: regex
 message: >-
   Server '{server_name}' replaces the default package index or npm
   registry ({matched_value}) — verify the configured source is trusted
