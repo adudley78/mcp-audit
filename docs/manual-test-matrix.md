@@ -2288,3 +2288,17 @@ python scripts/measure_run_overhead.py
 `exit: 127`; `['--help']` (flags after `--` reach the server, not the wrapper); an `initialize` result from the memory
 server, identical to running it without the wrapper; median direct and wrapped launch times. Ctrl-C while a wrapped
 server runs stops it and leaves no `node` process behind (`pgrep -f server-memory` prints nothing).
+
+```bash
+cd "$(mktemp -d)" && git init -q && printf '{"mcpServers":{"t":{"command":"python3","args":["-c","import sys; sys.exit(7)"]}}}' > .mcp.json
+mcp-audit lock . --offline >/dev/null
+mcp-audit run --config .mcp.json --server t --mode enforce -- python3 -c 'import sys; sys.exit(7)'; echo "exit: $?"
+mcp-audit run --config .mcp.json --server t --mode enforce -- python3 -c 'import sys; sys.exit(8)'; echo "exit: $?"
+mcp-audit run --config .mcp.json --server t -- python3 -c 'import sys; sys.exit(8)'; echo "exit: $?"
+mcp-audit run --config .mcp.json --server nope --mode enforce -- python3 -c 'pass'; echo "exit: $?"
+echo '{ broken' > mcp-lock.json; mcp-audit run --config .mcp.json --server t --mode enforce -- python3 -c 'pass'; echo "exit: $?"
+```
+
+**Expected:** `exit: 7` (locked launch runs); `refused: LOCK-001 … its arguments changed` and `exit: 78`;
+`monitor: LOCK-001 … (enforce mode would refuse to start it)` then `exit: 8`; `refused: LOCK-002` and `exit: 78`;
+`refused: RUN-002` and `exit: 78`.
