@@ -7,12 +7,13 @@ records stay stock OSV 1.6.0. See ``docs/advisory-feed.md``.
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from platformdirs import user_config_dir
+
+from mcp_audit._fs import atomic_write
 
 __all__ = [
     "DEFAULT_TTL_DAYS",
@@ -152,11 +153,10 @@ def load_seen(path: Path) -> dict[str, int]:
 
 def save_seen(path: Path, versions: dict[str, int]) -> None:
     """Write seen versions at 0o700 dir / 0o600 file."""
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     payload = json.dumps({"versions": versions}, indent=2, sort_keys=True) + "\n"
-    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(payload)
+    # Atomic: a crash mid-write must not leave an empty seen.json, which
+    # would silently reset rollback protection.
+    atomic_write(path, payload, dir_mode=0o700)
 
 
 def check_expiry(freshness: Freshness, now: datetime) -> None:

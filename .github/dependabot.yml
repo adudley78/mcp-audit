@@ -7,6 +7,12 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    # Wait a week before proposing a new release (version updates only;
+    # security updates are not delayed). Most 2026 registry worms
+    # (Shai-Hulud, TanStack, IronWorm) were caught and pulled within hours
+    # to days; a cooldown keeps them out of our lockfile.
+    cooldown:
+      default-days: 7
     labels:
       - dependencies
     ignore:
@@ -48,6 +54,12 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    # Wait a week before proposing a new release (version updates only;
+    # security updates are not delayed). Most 2026 registry worms
+    # (Shai-Hulud, TanStack, IronWorm) were caught and pulled within hours
+    # to days; a cooldown keeps them out of our lockfile.
+    cooldown:
+      default-days: 7
     labels:
       - dependencies
     groups:

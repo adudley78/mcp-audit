@@ -355,16 +355,23 @@ runs:
       # at import time with `TypeError: type 'Choice' is not subscriptable`.
       # `pipx` ships pre-installed on every GitHub-hosted Ubuntu runner and
       # puts the `semgrep` binary on PATH without touching our deps.
+      # Inputs go through env, never into the script text (2026-11): a
+      # caller that feeds a PR-controlled value into `sast-path` must not
+      # get shell injection on its runner.
+      env:
+        SAST_PATH: ${{ inputs.sast-path }}
       run: |
         pipx install semgrep
-        mcp-audit sast "${{ inputs.sast-path }}"
+        mcp-audit sast -- "$SAST_PATH"
 
     - name: Compare baseline
       if: inputs.baseline-name != '' && inputs.mode != 'diff'
       shell: bash
+      env:
+        BASELINE_NAME: ${{ inputs.baseline-name }}
       run: |
         # `baseline compare` takes the baseline name as a positional argument.
-        mcp-audit baseline compare "${{ inputs.baseline-name }}" | tee -a "$GITHUB_STEP_SUMMARY"
+        mcp-audit baseline compare -- "$BASELINE_NAME" | tee -a "$GITHUB_STEP_SUMMARY"
 
     - name: Upload SARIF to GitHub Code Scanning
       if: inputs.upload-sarif == 'true' && inputs.sarif-output != '' && inputs.mode != 'diff'

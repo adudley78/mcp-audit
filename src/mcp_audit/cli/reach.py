@@ -18,7 +18,6 @@ no agent found, an agent that couldn't be checked, or a collection error.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import date
 from enum import StrEnum
@@ -27,6 +26,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from mcp_audit._fs import atomic_write
 from mcp_audit.cli import app, run_scan
 from mcp_audit.cli._helpers import _write_output
 from mcp_audit.output.reach import print_fleet, print_reach
@@ -63,11 +63,7 @@ def _write_pdf(report, output_file: Path | None, org: str | None) -> Path:  # no
     target = target.resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     pdf = ReachPdfFormatter(report, org_name=_resolve_org_name(org)).generate()
-    fd = os.open(str(target), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        os.write(fd, pdf)
-    finally:
-        os.close(fd)
+    atomic_write(target, pdf)
     return target
 
 

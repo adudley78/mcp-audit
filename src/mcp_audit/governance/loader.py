@@ -15,6 +15,7 @@ import yaml
 from platformdirs import user_config_dir
 from pydantic import ValidationError
 
+from mcp_audit._paths import find_git_root as _find_git_root
 from mcp_audit.governance.models import GovernancePolicy
 
 POLICY_FILENAMES = [
@@ -24,25 +25,6 @@ POLICY_FILENAMES = [
 ]
 
 _USER_POLICY_PATH = Path(user_config_dir("mcp-audit")) / "policy.yml"
-
-
-def _find_git_root(start: Path) -> Path | None:
-    """Walk parent directories until a ``.git`` entry is found.
-
-    Args:
-        start: Directory to begin the search from.
-
-    Returns:
-        The directory containing ``.git``, or ``None`` if not found.
-    """
-    current = start.resolve()
-    while True:
-        if (current / ".git").exists():
-            return current
-        parent = current.parent
-        if parent == current:
-            return None
-        current = parent
 
 
 def _load_from_path(path: Path) -> GovernancePolicy:

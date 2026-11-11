@@ -302,7 +302,7 @@ class TestCheckReportPdfCli:
         assert out_file.exists()
 
     def test_pdf_file_permissions(self, tmp_path: Path) -> None:
-        """Generated PDF is written with 0o644 permissions (POSIX only).
+        """Generated PDF is written owner-only, 0o600 (POSIX only).
 
         Windows NTFS does not honour Unix permission bits — the assertion is
         skipped there to keep the test matrix green.
@@ -318,7 +318,7 @@ class TestCheckReportPdfCli:
         assert result.exit_code in (0, 1), result.output
         if sys.platform != "win32":
             mode = stat.S_IMODE(out_file.stat().st_mode)
-            assert mode == 0o644
+            assert mode == 0o600
 
     def test_org_name_from_flag(self, tmp_path: Path) -> None:
         """``--org`` flag sets the org name; it appears in the PDF bytes."""
