@@ -13,6 +13,11 @@ updates:
       # sigstore has breaking changes between minors — pin manually
       - dependency-name: sigstore
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      # watchdog 7 hangs the test suite on Windows (#274: both Windows legs
+      # ran to the 6-hour limit twice; Linux and macOS pass). Hold at <7
+      # until the Windows hang is understood.
+      - dependency-name: watchdog
+        update-types: ["version-update:semver-major"]
     # Version updates only bump packages named in pyproject.toml. Transitives
     # that exist only in uv.lock (pillow via reportlab, pyasn1 via sigstore)
     # generate Dependabot *alerts* but no version-update PRs. Repo-level
@@ -46,6 +51,14 @@ updates:
     labels:
       - dependencies
     groups:
+      # init/autobuild/analyze/upload-sarif are one release and
+      # tests/test_action_yaml.py requires one SHA across them. Under
+      # group-by: dependency-name each sub-action got its own PR, and each
+      # failed that test alone (#275, #277-#279). The first matching group
+      # wins, so this one must stay above github-actions.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
       github-actions:
         patterns:
           - "*"

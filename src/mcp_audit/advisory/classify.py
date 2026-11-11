@@ -149,6 +149,7 @@ _CLASS_BY_ID: Final[dict[str, str]] = {
     "CRED-001": "hardcoded-secret",
     "CRED-002": "hardcoded-secret",
     "CRED-003": "hardcoded-secret",
+    "CRED-004": "hardcoded-secret",
     "CFHYG-003": "hardcoded-secret",
     "COMM-008": "hardcoded-secret",
     "COMM-009": "hardcoded-secret",

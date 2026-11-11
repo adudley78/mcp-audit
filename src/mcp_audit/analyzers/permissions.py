@@ -308,8 +308,15 @@ def _capped(items: list[str], sep: str = "; ") -> str:
     return shown
 
 
+def _shown(text: str) -> str:
+    """A rule as quoted in a finding: secrets redacted (CRED-004's redactor)."""
+    from mcp_audit.analyzers.rule_secrets import redact_rule  # noqa: PLC0415
+
+    return repr(redact_rule(text))
+
+
 def _rule_ref(rule: PermissionRule) -> str:
-    return f"{rule.list_name} {rule.text!r}"
+    return f"{rule.list_name} {_shown(rule.text)}"
 
 
 @dataclass(frozen=True)
@@ -335,10 +342,13 @@ def _build(
 ) -> Finding:
     """One finding for every rule *check* flagged at *severity* in one file."""
     rules = _capped([_rule_ref(hit.rule) for hit in hits], ", ")
-    detail = _capped([f"{hit.rule.text!r}: {hit.why}" for hit in hits])
-    fixes = _capped([f"{hit.rule.text!r} → {hit.fix}" for hit in hits])
+    detail = _capped([f"{_shown(hit.rule.text)}: {hit.why}" for hit in hits])
+    fixes = _capped([f"{_shown(hit.rule.text)} → {hit.fix}" for hit in hits])
     evidence = f"{settings.path}: " + _capped(
-        [f"permissions.{hit.rule.list_name} contains {hit.rule.text!r}" for hit in hits]
+        [
+            f"permissions.{hit.rule.list_name} contains {_shown(hit.rule.text)}"
+            for hit in hits
+        ]
     )
     return Finding(
         id=check.finding_id,
@@ -891,7 +901,7 @@ def _bypass_forms_run_unprompted(settings: ClaudeSettings) -> str | None:
     for rule in settings.rules_in("allow"):
         if _approves_any_shell_form(rule):
             return (
-                f"allow {rule.text!r} approves those forms, so they run without a"
+                f"allow {_shown(rule.text)} approves those forms, so they run without a"
                 " prompt"
             )
     return None
@@ -1292,7 +1302,7 @@ def _flagged_allow_finding(
     shown = _capped(ids, ", ")
     critical = any(f.severity is Severity.CRITICAL for f in own)
     grade = "CRITICAL or HIGH" if critical else "HIGH"
-    quoted = _capped([repr(rule.text) for rule in rules], ", ")
+    quoted = _capped([_shown(rule.text) for rule in rules], ", ")
     return Finding(
         id=_PERM_007.finding_id,
         severity=Severity.HIGH,

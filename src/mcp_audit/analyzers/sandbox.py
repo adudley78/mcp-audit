@@ -84,6 +84,13 @@ from mcp_audit.analyzers.permissions import (
     load_claude_settings,
     settings_scope,
 )
+from mcp_audit.analyzers.rule_secrets import (
+    MAX_RULE_CHARS,
+    MAX_RULES_PER_LIST,
+    redact_rule,
+    rule_secret_finding,
+    rule_secret_hits,
+)
 from mcp_audit.models import Finding, Severity
 
 #: Analyzer label: the same family as PERM-* and HARNESS-*.
@@ -773,8 +780,8 @@ def _exclusion_severity(
     if allow is not None:
         return (
             Severity.HIGH,
-            f"; allow {allow!r} in this file approves it, so it runs outside the"
-            " sandbox with no prompt",
+            f"; allow {redact_rule(allow)!r} in this file approves it, so it runs"
+            " outside the sandbox with no prompt",
         )
     if user.default_mode == "bypassPermissions":
         return (
@@ -1613,6 +1620,7 @@ def _one_settings_file(
         analyzer=analyzer,
         context=SandboxContext(origin, user),
     )
+    findings.extend(_rule_secret_findings(config, path, scope, state, reader, analyzer))
     linked_file = getattr(config, "is_symlink", False) or path.is_symlink()
     if state is None or state.kind != _GIT_TRACKED or linked_file:
         return findings
@@ -1632,6 +1640,66 @@ def _one_settings_file(
     if paths:
         findings.append(_username_paths_finding(config, root, reader, paths, analyzer))
     return findings
+
+
+def _rule_secret_findings(
+    config: SettingsFileSource,
+    path: Path,
+    scope: str,
+    state: _GitState | None,
+    reader: IgnoreFileReader,
+    analyzer: str,
+) -> list[Finding]:
+    """CRED-004 for one settings file: HIGH when it is headed for git."""
+    scan = rule_secret_hits(config.raw)
+    if scan.truncated:
+        reader.errors.append(
+            f"'{path.parent.name}/{path.name}' was searched for secrets in"
+            f" permission rules only up to {MAX_RULES_PER_LIST} rules per list"
+            f" and {MAX_RULE_CHARS} characters per rule"
+        )
+    if not scan.hits:
+        return []
+    headed: bool | None
+    if state is None:
+        headed = False
+        note = (
+            "It is your own settings file, outside any repository's control, so"
+            " it is not headed for git by default; it is still a plaintext copy."
+        )
+    elif state.kind in (_GIT_TRACKED, _GIT_CLAUDE_LINK) and state.root is not None:
+        headed = True
+        note = _headed_for_git_note(state.root, reader)
+    elif state.kind in (_GIT_TRACKED, _GIT_CLAUDE_LINK):
+        headed = True
+        note = (
+            "Its .claude directory is a symlink, so Claude Code treats the file"
+            " as the repository's."
+        )
+    elif state.kind == _GIT_UNKNOWN:
+        headed = None
+        note = (
+            "Whether git ignores it could not be read (see the scan's errors), so"
+            " this is MEDIUM at most."
+        )
+    else:
+        headed = False
+        note = (
+            "Git ignores it, or it is outside a git work tree, so it is not"
+            " headed for a commit; it is still a plaintext copy."
+        )
+    if scope == "project" and headed is False and state is not None:
+        note = "It is a shared settings file. " + note
+    return [
+        rule_secret_finding(
+            config.path,
+            config.client_name,
+            scan.hits,
+            headed_for_git=headed,
+            git_note=note,
+            analyzer=analyzer,
+        )
+    ]
 
 
 def analyze_sandbox_files(
