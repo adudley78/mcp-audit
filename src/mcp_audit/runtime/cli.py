@@ -11,16 +11,28 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from mcp_audit.runtime.relay import mirror_exit, relay
 
-USAGE = "mcp-audit run -- <server command> [args...]"
+USAGE = (
+    "mcp-audit run [--config FILE --server NAME [--lock FILE] "
+    "[--mode monitor|enforce]] -- <server command> [args...]"
+)
 
 DESCRIPTION = (
     "Launch an MCP server through mcp-audit. The AI client runs this "
     "instead of the server; stdin, stdout and stderr are relayed unchanged, "
-    "and signals and the exit code pass through."
+    "and signals and the exit code pass through. With --config and --server, "
+    "the launch is first checked against mcp-lock.json: monitor mode (the "
+    "default) reports a problem on stderr and starts the server anyway; "
+    "enforce mode refuses to start it."
 )
+
+#: Exit status when enforce mode refuses a launch (sysexits EX_CONFIG).
+EXIT_REFUSED = 78
+#: Exit status for a usage error.
+EXIT_USAGE = 2
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -31,6 +43,26 @@ def build_parser() -> argparse.ArgumentParser:
         description=DESCRIPTION,
     )
     parser.add_argument(
+        "--config",
+        type=Path,
+        help="the MCP config file that declares this server",
+    )
+    parser.add_argument(
+        "--server",
+        help="the server's name in that config file",
+    )
+    parser.add_argument(
+        "--lock",
+        type=Path,
+        help="mcp-lock.json to check against (default: nearest above --config)",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("monitor", "enforce"),
+        default="monitor",
+        help="monitor (default): report and start; enforce: refuse to start",
+    )
+    parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
         help="the server's original command and arguments, after --",
@@ -38,29 +70,71 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def parse_command(argv: Sequence[str]) -> list[str] | None:
-    """Return the server command from *argv*, or ``None`` for help/usage.
+def parse(argv: Sequence[str]) -> tuple[argparse.Namespace, list[str]]:
+    """Return ``(wrapper options, server command)`` from *argv*.
 
     Everything after the first ``--`` is the server command, verbatim, so a
-    server flag such as ``--help`` or ``--version`` is never taken by the
+    server flag such as ``--help`` or ``--mode`` is never taken by the
     wrapper.
     """
     args = list(argv)
     if "--" in args:
         split = args.index("--")
-        own, command = args[:split], args[split + 1 :]
-        build_parser().parse_args(own)  # rejects unknown wrapper flags
-        return command
-    parsed = build_parser().parse_args(args)
-    command = list(parsed.command)
-    return command or None
+        options = build_parser().parse_args(args[:split])
+        return options, args[split + 1 :]
+    options = build_parser().parse_args(args)
+    return options, list(options.command)
+
+
+def parse_command(argv: Sequence[str]) -> list[str] | None:
+    """Return the server command from *argv*, or ``None`` when there is none."""
+    return parse(argv)[1] or None
+
+
+def _say(message: str) -> None:
+    sys.stderr.write(f"mcp-audit run: {message}\n")
+    sys.stderr.flush()
+
+
+def _gate(options: argparse.Namespace, command: list[str]) -> int | None:
+    """Run the launch gate; return an exit status to stop, or ``None`` to go on."""
+    if options.config is None and options.server is None:
+        if options.mode == "enforce":
+            _say("--mode enforce needs --config and --server")
+            return EXIT_USAGE
+        return None
+    if options.config is None or options.server is None:
+        _say("--config and --server go together")
+        return EXIT_USAGE
+
+    from mcp_audit.runtime.gate import check_launch
+
+    result = check_launch(
+        command,
+        config_path=options.config.expanduser().resolve(),
+        server_name=options.server,
+        lock_path=options.lock.expanduser().resolve() if options.lock else None,
+    )
+    if result.ok:
+        return None
+    if options.mode == "enforce":
+        _say(f"refused: {result.finding_id} {result.summary}. Fix: {result.fix}")
+        return EXIT_REFUSED
+    _say(
+        f"monitor: {result.finding_id} {result.summary} "
+        f"(enforce mode would refuse to start it). Fix: {result.fix}"
+    )
+    return None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run ``mcp-audit run`` and return (or die with) the server's exit status."""
     args = sys.argv[1:] if argv is None else argv
-    command = parse_command(args)
+    options, command = parse(args)
     if not command:
         sys.stderr.write(f"usage: {USAGE}\n")
-        return 2
+        return EXIT_USAGE
+    stop = _gate(options, command)
+    if stop is not None:
+        return stop
     return mirror_exit(relay(command))

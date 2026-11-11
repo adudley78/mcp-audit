@@ -21,15 +21,13 @@ from pydantic import BaseModel, Field
 
 from mcp_audit.advisory.canonical import canonicalize
 from mcp_audit.lock import tool_digests
-
-#: The ``lock_version`` this mcp-audit writes. Version 2 (STORY-0116, the
-#: ADR-0005 R59/R62 set agreed on #88) adds ``section_digests``, a per-entry
-#: ``resolution.resolution_context``, and records a bare spec as ``"*"``.
-LOCK_VERSION = 2
-#: Every ``lock_version`` this mcp-audit can verify. A version-1 lock is
-#: verified exactly as v0.22 verified it; anything newer is refused.
-SUPPORTED_LOCK_VERSIONS: frozenset[int] = frozenset({1, 2})
-LOCK_FILENAME = "mcp-lock.json"
+from mcp_audit.lock.core import (  # noqa: F401 — re-exported; one implementation
+    LOCK_FILENAME,
+    LOCK_VERSION,
+    SUPPORTED_LOCK_VERSIONS,
+    lock_version_of,
+    unsupported_version,
+)
 
 #: The version-2 top-level map of per-section digests (see
 #: :mod:`mcp_audit.lock.section_digests`). Part of the envelope of a v2 lock;
@@ -157,32 +155,10 @@ class LockFile(BaseModel):
     checksum: str
 
 
-def lock_version_of(doc: dict) -> object:
-    """Return *doc*'s ``lock_version`` value as written (may be anything)."""
-    return doc.get("lock_version")
-
-
 def is_version_2(doc: dict) -> bool:
     """Whether *doc* declares ``lock_version`` 2 (an int, not a bool)."""
     version = lock_version_of(doc)
     return isinstance(version, int) and not isinstance(version, bool) and version == 2
-
-
-def unsupported_version(doc: dict) -> int | None:
-    """Return *doc*'s ``lock_version`` when it is newer than this mcp-audit reads.
-
-    Only an integer above the highest supported version counts. A missing or
-    odd value is read as version 1, exactly as v0.22 (which never looked at
-    ``lock_version``) read it.
-    """
-    version = lock_version_of(doc)
-    if (
-        isinstance(version, int)
-        and not isinstance(version, bool)
-        and version > max(SUPPORTED_LOCK_VERSIONS)
-    ):
-        return version
-    return None
 
 
 def owned_subdocument(doc: dict) -> dict:
