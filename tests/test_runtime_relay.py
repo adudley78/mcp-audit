@@ -283,3 +283,82 @@ class TestSignals:
         assert out == b"last words\n"
         assert proc.returncode == 0
         assert time.monotonic() - start < 4
+
+
+class TestMonitorTapOrder:
+    """Monitor mode: the client tap sees a request before the server does.
+
+    ToolGuard.client_line records which ``tools/list`` id to check. If the
+    request reached the server first, a fast server's answer could arrive at
+    server_line before that record existed and pass unchecked, losing the
+    LOCK-006/007/008 report (the flake behind
+    test_runtime_tools.py::TestEndToEnd::test_monitor_reports_and_relays).
+    """
+
+    @pytest.mark.skipif(not POSIX, reason="non-blocking pipe reads")
+    def test_pump_tap_first_runs_before_forwarding(self) -> None:
+        from mcp_audit.runtime.relay import _pump
+
+        src_r, src_w = os.pipe()
+        dst_r, dst_w = os.pipe()
+        os.set_blocking(dst_r, False)
+        forwarded_at_tap: list[bytes] = []
+
+        def tap(_line: bytes) -> None:
+            try:
+                forwarded_at_tap.append(os.read(dst_r, 65536))
+            except BlockingIOError:
+                forwarded_at_tap.append(b"")
+
+        os.write(src_w, b'{"id": 1}\n{"id": 2}\n')
+        os.close(src_w)
+        _pump(src_r, dst_w, lambda: None, tap=tap, tap_first=True)
+        os.close(dst_w)
+        os.set_blocking(dst_r, True)
+        relayed = _read_all(dst_r)
+        os.close(src_r)
+        assert forwarded_at_tap == [b"", b""]
+        assert relayed == b'{"id": 1}\n{"id": 2}\n'  # still byte-exact
+
+    def test_monitor_guard_registers_before_server_answers(self) -> None:
+        # The tap is deliberately slow; the server answers at once. Only a
+        # relay that runs the client tap before forwarding sees the request
+        # registered when the answer comes back.
+        state = {"registered": False, "seen_at_answer": None}
+
+        class SlowGuard:
+            enforce = False
+
+            def client_line(self, line: bytes) -> tuple[bytes, None]:
+                if b"tools/list" in line:
+                    time.sleep(0.5)
+                    state["registered"] = True
+                return line, None
+
+            def server_line(self, line: bytes) -> bytes:
+                if state["seen_at_answer"] is None:
+                    state["seen_at_answer"] = state["registered"]
+                return line
+
+        in_r, in_w = os.pipe()
+        out_r, out_w = os.pipe()
+        result: dict[str, int] = {}
+
+        def _run() -> None:
+            result["code"] = relay(
+                [PY, "-c", MCP_SERVER],
+                stdin_fd=in_r,
+                stdout_fd=out_w,
+                guard=SlowGuard(),
+            )
+            os.close(out_w)
+
+        thread = threading.Thread(target=_run, daemon=True)
+        thread.start()
+        os.write(in_w, b'{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}\n')
+        os.close(in_w)
+        out = _read_all(out_r)
+        thread.join(timeout=30)
+        assert json.loads(out)["result"]["tools"][0]["name"] == "echo"
+        assert result["code"] == 0
+        assert state["seen_at_answer"] is True
