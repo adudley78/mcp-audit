@@ -93,6 +93,10 @@ runs:
       uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       with:
         version: "latest"
+        # No Actions cache: this composite builds the shipped binaries, and a
+        # cache entry is the one thing a less-trusted run can leave behind
+        # for a release run (TanStack, CVE-2026-45321, 2026-05).
+        enable-cache: false
 
     - name: Set up Python
       shell: bash
@@ -108,17 +112,21 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: uv sync --all-extras
-
-    - name: Install PyInstaller
-      shell: bash
-      run: uv pip install pyinstaller
+      # --locked: fail if uv.lock is stale instead of re-resolving to
+      # whatever the index serves today. PyInstaller comes from the `dev`
+      # extra in uv.lock (hash-pinned); a separate `uv pip install
+      # pyinstaller` step was removed in 2026-11 because it would have
+      # fetched an unpinned PyInstaller into every shipped binary had the
+      # extra ever dropped it.
+      run: uv sync --all-extras --locked
 
     - name: Build binary
       shell: bash
+      env:
+        SPEC: ${{ inputs.spec }}
       run: |
         set -euo pipefail
-        uv run pyinstaller ${{ inputs.spec }} --distpath dist/ 2>&1 | tee pyinstaller.log
+        uv run pyinstaller "$SPEC" --distpath dist/ 2>&1 | tee pyinstaller.log
         SHARED_LINE=$(grep "Using Python shared library:" pyinstaller.log | tail -n 1)
         echo "$SHARED_LINE"
         if [ -z "$SHARED_LINE" ]; then
@@ -136,7 +144,10 @@ runs:
 
     - name: Inspect frozen archive
       shell: bash
-      run: uv run python scripts/inspect_frozen_binary.py dist/${{ inputs.binary }} ${{ inputs.spec }}
+      env:
+        SPEC: ${{ inputs.spec }}
+        BINARY: ${{ inputs.binary }}
+      run: uv run python scripts/inspect_frozen_binary.py "dist/$BINARY" "$SPEC"
 
     - name: Generate CycloneDX SBOM
       # (b) PYZ ∩ build-venv versions. Syft sees zero Python packages in a
@@ -144,27 +155,35 @@ runs:
       # venv including excluded extras. Fail if pillow/reportlab are missing
       # or if a build-machine path leaked into the JSON.
       shell: bash
+      env:
+        BINARY: ${{ inputs.binary }}
+        TARGET: ${{ inputs.target }}
       run: |
         set -euo pipefail
         uv run python scripts/generate_release_sbom.py \
-          --binary dist/${{ inputs.binary }} \
-          --target ${{ inputs.target }} \
-          --output dist/mcp-audit-${{ inputs.target }}.cdx.json \
+          --binary "dist/$BINARY" \
+          --target "$TARGET" \
+          --output "dist/mcp-audit-$TARGET.cdx.json" \
           --schema tests/fixtures/cyclonedx-1.5.schema.json \
           --require pillow,reportlab
 
     - name: Run smoke test
       shell: bash
-      run: uv run python scripts/smoke_test.py dist/${{ inputs.binary }}
+      env:
+        BINARY: ${{ inputs.binary }}
+      run: uv run python scripts/smoke_test.py "dist/$BINARY"
 
     - name: Check binary size
       shell: bash
+      env:
+        BINARY_NAME: ${{ inputs.binary }}
+        TARGET: ${{ inputs.target }}
       run: |
-        BINARY="dist/${{ inputs.binary }}"
+        BINARY="dist/$BINARY_NAME"
         SIZE_BYTES=$(wc -c < "$BINARY" | tr -d ' ')
         # `bc` is not installed in Windows' Git Bash; awk is on every runner.
         SIZE_MB=$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.1f", b/1048576 }')
-        echo "Binary size: ${SIZE_MB} MB (${SIZE_BYTES} bytes) target=${{ inputs.target }}"
+        echo "Binary size: ${SIZE_MB} MB (${SIZE_BYTES} bytes) target=${TARGET}"
         if [ "$SIZE_BYTES" -gt 52428800 ]; then
           echo "ERROR: binary exceeds 50 MB hard limit (${SIZE_MB} MB)" >&2
           exit 1

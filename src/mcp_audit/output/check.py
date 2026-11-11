@@ -622,6 +622,7 @@ def print_check_results(
         if registration:
             _print_registered_as(console, registration)
         _print_lock_line(console, result)
+        _print_wrap_line(console, result)
         console.print()
         console.print("  Your MCP configuration looks clean.")
         console.print()
@@ -637,6 +638,7 @@ def print_check_results(
     if registration:
         _print_registered_as(console, registration)
     _print_lock_line(console, result)
+    _print_wrap_line(console, result)
     console.print()
 
     # ── Attack path warning ───────────────────────────────────────────────────
@@ -760,6 +762,24 @@ def _print_lock_line(console: Console, result: ScanResult) -> None:
             " from subagent definitions, skill folders or MCP gateway configs"
             " not covered by mcp-lock.json (AGENT-004, SKILL-006)."
         )
+
+
+def _print_wrap_line(console: Console, result: ScanResult) -> None:
+    """Print how many local servers launch through ``mcp-audit run``.
+
+    Silent until at least one server is wrapped (EPIC-0009 Story 1.2), so
+    nobody who hasn't used ``mcp-audit wrap`` sees a new line.
+    """
+    from mcp_audit.runtime.wrapping import wrap_status  # noqa: PLC0415
+
+    wrapped, local, modes = wrap_status(result.servers)
+    if not wrapped:
+        return
+    by_mode = ", ".join(f"{count} {mode}" for mode, count in sorted(modes.items()))
+    line = f"  [dim]Launch gate: {wrapped} of {local} local servers wrapped ({by_mode})"
+    if wrapped < local:
+        line += f"; {local - wrapped} not wrapped — `mcp-audit wrap`"
+    console.print(line + "[/dim]")
 
 
 def _print_registered_as(console: Console, registration: RegistrationConfig) -> None:

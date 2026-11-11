@@ -131,6 +131,40 @@ runs:
           exit 1
         }
 
+    # ── Step 4c: verify build provenance ─────────────────────────────────
+    # 2026-11 hardening. Every release after v0.29.0 carries a GitHub
+    # build-provenance attestation (release.yml `attest` job). Check it on
+    # every run, cache hit or not, so neither a swapped release asset nor a
+    # poisoned cache entry reaches PATH. Releases up to v0.29.0 predate
+    # attestations and are installed as before, with a notice.
+    - name: Verify build provenance
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        VERSION: ${{ steps.resolve.outputs.version }}
+        RUNNER_TEMP: ${{ runner.temp }}
+        RUNNER_OS: ${{ runner.os }}
+      run: |
+        set -euo pipefail
+        LAST_UNATTESTED="0.29.0"
+        V="${VERSION#v}"
+        if [ "$(printf '%s\n%s\n' "$LAST_UNATTESTED" "$V" | sort -V | tail -n 1)" = "$LAST_UNATTESTED" ]; then
+          echo "::notice::mcp-audit $VERSION predates build-provenance attestations; skipping verification."
+          exit 0
+        fi
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          TARGET="$RUNNER_TEMP/mcp-audit-bin/mcp-audit.exe"
+        else
+          TARGET="$RUNNER_TEMP/mcp-audit-bin/mcp-audit"
+        fi
+        if ! gh attestation verify "$TARGET" --repo adudley78/mcp-audit \
+            --signer-workflow adudley78/mcp-audit/.github/workflows/release.yml; then
+          echo "::error::mcp-audit $VERSION failed build-provenance verification." \
+            "The binary was not built by adudley78/mcp-audit's release workflow." \
+            "Do not run it; report this at https://github.com/adudley78/mcp-audit/security"
+          exit 1
+        fi
+
     # ── Step 5: add bin directory to PATH ─────────────────────────────────
     - name: Add mcp-audit to PATH (Linux / macOS)
       if: runner.os != 'Windows'
