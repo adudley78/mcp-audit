@@ -144,9 +144,9 @@ The one-file binary unpacks itself to a temporary directory on every start,
 which is almost all of its overhead. For wrapped servers, install with `pip`,
 `pipx` or `uv tool` until the binary build changes.
 
-The launch gate adds 9.9 ms on top of the relay on the same machine
-(`--gate`, enforce mode, a matching lock entry): its common path imports
-only the standard library.
+The launch gate and tool check add 23.5 ms on top of the relay on the same
+machine (`--gate`, enforce mode, a matching lock entry): their common path
+imports only the standard library.
 
 The CI `runtime` job prints the same measurement for Linux and macOS on every
 PR. To measure a PyInstaller binary, pass it as the wrapper:
