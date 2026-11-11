@@ -1820,6 +1820,23 @@ trust"). Recorded limits:
   file. ~/.ssh/id_rsa is the one.") can match only in the second, which may
   read as a description. The INFO finding is still listed, with its line,
   and SKILL-003 still reports any URL in the file.
+- **The state-checklist frame (STORY-0150) is a word list, and fails
+  closed.** A task-list item about a credential file is INFO only when it
+  reads as a condition (`is / are / has / does not`) and holds none of a
+  list of words that move, run, store or show data, name a place it could
+  go, or give an order (`agent_files/framing.py`, `_STATE_ITEM_VETO_RE`);
+  the pinned bypasses are in `tests/test_agent_files_framing_bypasses.py`.
+  A verb or place the list lacks would read as a condition. It applies only
+  to POISON-001/002 (a file name can be a condition's subject; "do not tell
+  the user" cannot). Measured on 240 public files from GitHub code search
+  holding a task-list item and an SSH or cloud credential path (2026-11-11,
+  not committed): 6 of 322 SKILL-001 findings moved from HIGH to INFO, all
+  benign checklist items (one of the six files is this repository's own
+  head-to-head corpus); 28 checklist-item findings stay HIGH, almost all
+  imperative steps ("Check ...", "Cover SSH keys: `**/.ssh/**`") or
+  "No `.env`, `id_rsa` ... committed" items, which the frame does not read
+  (commit is on the list). Anthropic's, Trail of Bits' and obra's public
+  skill repositories (1,109 Markdown files): no change.
 - **Only SKILL-001 is gated.** MEM-001/MEM-002 (memory files) and POISON-041..045 are
   not gated: hidden text is suspicious however it is phrased, and MEM-001
   already has its own narrowing. They do carry line evidence.

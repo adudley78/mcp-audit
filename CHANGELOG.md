@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **A checklist item that states a condition about a credential file is no longer reported as the attack it names (STORY-0150).** This lowers a class of SKILL-001 findings from HIGH to INFO, Adam's approved call (queue Q-084): a Markdown task-list item such as `- [ ] Keys that are no longer used are removed from authorized_keys` or `- [ ] Cloud credentials such as ~/.aws/credentials are not mounted into build containers` now reports SKILL-001 INFO "described, not directed (in a checklist item that states a condition)" instead of HIGH. It applies to the SSH-key and cloud-credential patterns only, and only when the item is a statement (`is / are / has / does not`) with no word that moves, runs, stores or shows data, names a place it could go, or gives an order; `- [ ] ~/.ssh/id_rsa is in the summary` and `- [ ] ~/.ssh/id_rsa is sent to the review bot` stay HIGH, and so does every string in the STORY-0141 bypass suite. The head-to-head benchmark's benign checklists go from 2 of 4 flagged HIGH to 0 of 4 (still listed at INFO); on 240 public files holding such checklists, 6 of 322 SKILL-001 findings moved to INFO, all benign. Limits: [GAPS.md](GAPS.md).
+
 ---
 
 ## [0.29.0] - 2026-11-10

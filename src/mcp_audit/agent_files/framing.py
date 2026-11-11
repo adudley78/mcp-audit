@@ -32,8 +32,21 @@ Described (reported at INFO), only on positive evidence:
   after the match ("Never upload ~/.ssh keys anywhere.", "Do not read
   .env").  Not when a later clause follows, and not when the negation is
   undone ("don't forget to", "won't hurt to", "do not refrain from").
-* **A checklist item** — a Markdown task-list item (``- [ ]``) whose text
-  describes rather than orders (it does not open with an action verb).
+* **A checklist item under a detection lead-in** — a Markdown task-list
+  item (``- [ ]``) whose text describes rather than orders (it does not open
+  with an action verb), in the list after such a lead-in (below).
+* **A checklist item that states a condition** (STORY-0150), for the
+  credential-file patterns only (:data:`STATE_ITEM_PATTERN_IDS`) — a task-list
+  item, under any heading, written as a statement to tick off rather than a
+  step: it has a subject and ``is / are / has / have / does / do`` ("Keys
+  that are no longer used are removed from authorized_keys", "Cloud
+  credentials such as ~/.aws/credentials are not mounted into build
+  containers").  Only when the item opens with no action verb, is at most
+  :data:`_STATE_ITEM_MAX_CHARS` long, and holds no word that moves or shows
+  data (send, copy, include, print, log, put, add ...), no word naming
+  somewhere it could go (reply, summary, comment, server, remote, endpoint
+  ...), no "to / onto / via", no "you" and no agent as its subject
+  (:data:`_STATE_ITEM_VETO_RE`).
 * **An item under a detection lead-in** — a list item in the one list right
   after a heading or ``...:`` lead-in that names what to detect (flag,
   detect, look for, watch for, red flags, warning signs, indicators, signs
@@ -231,6 +244,71 @@ _UNDOES_NEGATION_WORDS: str = (
     r"|wait|ask|need\s+(?:to\s+)?ask|refrain|delay|ignore|overlook|hurt|harm"
     r"|stress|mind|matter|worry|bother|be\s+afraid|leave\s+out|miss"
 )
+#: Patterns whose match is a credential file's name (POISON-001 SSH keys,
+#: POISON-002 cloud credentials), the only ones the state-checklist frame
+#: applies to (STORY-0150).
+STATE_ITEM_PATTERN_IDS: frozenset[str] = frozenset({"POISON-001", "POISON-002"})
+
+#: A state-checklist item longer than this is not a checklist item.
+_STATE_ITEM_MAX_CHARS: int = 240
+
+# A statement: a finite "is / are / has / have", or "does / do" with "not".
+_STATE_VERB_RE: re.Pattern[str] = re.compile(
+    r"\b(?:(?:is|are|was|were|has|have)(?:n't|n’t)?|(?:does|do)(?:n't|n’t|\s+not))\b",
+    re.IGNORECASE,
+)
+
+# Anything in a state-checklist item that could turn it into an order to move
+# or show data (STORY-0150).  Matched over the whole item, in any form, so
+# "~/.ssh/id_rsa is included in the reply" and "~/.aws/credentials are sent
+# to the review bot" stay directed.  Deleting and restricting are allowed:
+# they do not move data anywhere.
+_STATE_ITEM_VETO_WORDS: str = (
+    # Verbs that move, copy, run, store or show data.
+    r"send|sends|sent|sending|upload\w*|post|posts|posted|posting"
+    r"|cop(?:y|ies|ied|ying)|forward\w*|e-?mail\w*|mail\w*|attach\w*|includ\w*"
+    r"|past(?:e|es|ed|ing)|shar(?:e|es|ed|ing)|export\w*|transmi\w*|transfer\w*"
+    r"|pip(?:e|es|ed|ing)|submit\w*|exfiltrat\w*|leak\w*|print\w*|output\w*"
+    r"|dump\w*|collect\w*|gather\w*|fetch\w*|read|reads|reading|curl\w*|wget"
+    r"|cat|cats|run|runs|ran|running|execut\w*|exec\w*|load\w*"
+    r"|sourc(?:e|es|ed|ing)|sav(?:e|es|ed|ing)|writ(?:e|es|ten|ing)|wrote"
+    r"|stor(?:e|es|ed|ing)|archiv\w*|zip\w*|tar|encod\w*|base64|push\w*"
+    r"|append\w*|return\w*|hand(?:s|ed|ing)?|giv(?:e|es|en|ing)|gave"
+    r"|put|puts|putting|plac(?:e|es|ed|ing)|add|adds|added|adding|insert\w*"
+    r"|mov(?:e|es|ed|ing)|go|goes|went|gone|going|sync\w*|backs?\s+up"
+    r"|backed\s+up|backup\w*|mirror\w*|show\w*|display\w*|echo\w*"
+    r"|log|logs|logged|logging|quot(?:e|es|ed|ing)|list(?:s|ed|ing)?"
+    r"|report\w*|reveal\w*|disclos\w*|expos\w*|publish\w*|commit\w*"
+    r"|provid\w*|deliver\w*|emit\w*|leav(?:e|es|ing)|left|kept|keep\w*"
+    r"|grab\w*|steal\w*|stole\w*|tak(?:e|es|en|ing)|took|get|gets|got|getting"
+    r"|obtain\w*|retriev\w*|access\w*|open\w*|captur\w*|extract\w*|scrap\w*"
+    r"|harvest\w*|smuggl\w*|hid(?:e|es|den|ing)|conceal\w*|tell\w*|told"
+    r"|inform\w*|notif\w*|say|says|said|ask\w*|users?|human\w*"
+    # Somewhere the data could go.
+    r"|repl(?:y|ies)|response\w*|answer\w*|summar\w*|comment\w*|message\w*"
+    r"|ticket\w*|issue\w*|gist\w*|chat\w*|clipboard|channel\w*|webhook\w*"
+    r"|endpoint\w*|server\w*|remote\w*|external\w*|urls?|uri|hosts?|bucket\w*"
+    r"|cloud\s+storage|drive|inbox|attacker\w*"
+    # Direction, the reader, or the agent as the subject.
+    r"|to|onto|via|toward|towards|you|agent\w*|assistant\w*|model|claude|ai"
+    r"|bot|helper"
+    # Order and obligation words.
+    r"|step|steps|task|tasks|job|goal|next|then|now|first|finally|must|should"
+    r"|shall|will|would|need\w*|please|always|immediately|silently|secretly"
+    r"|quietly|automatically"
+)
+_STATE_ITEM_VETO_RE: re.Pattern[str] = re.compile(
+    # The gate's own action verbs veto too.
+    r"\b(?:"
+    + _STATE_ITEM_VETO_WORDS
+    + r"|"
+    + _ACTION_VERBS
+    # Words that undo a negation ("do not forget ~/.ssh/id_rsa").
+    + r"|forget|fail|hesitate|neglect|skip|omit|refrain|delay|ignore|overlook"
+    r"|miss|leave\s+out|stop|wait" + r")\b",
+    re.IGNORECASE,
+)
+
 #: Most words between a clause's start and its negation ("Never ...", "You
 #: must never ...", "The agent should not ..."); a negation deeper in the
 #: clause negates something else ("I want you to know it is not ...").
@@ -497,7 +575,7 @@ class FileFraming:
         start = self._line_starts[first]
         return start, self._line_starts[last] + len(self._lines[last])
 
-    def classify(self, start: int, end: int) -> Framing:
+    def classify(self, start: int, end: int, *, state_items: bool = False) -> Framing:
         """Return how the match at ``[start, end)`` is framed.
 
         Fails closed: directed unless a positive frame says described (see
@@ -508,6 +586,10 @@ class FileFraming:
         Args:
             start: Match start offset in the text this object was built from.
             end: Match end offset.
+            state_items: Allow the state-checklist frame (STORY-0150).  Only
+                for patterns that match a credential file's name
+                (:data:`STATE_ITEM_PATTERN_IDS`): a file can be the subject
+                of a condition, a phrase like "do not tell the user" cannot.
         """
         line = self.line_of(start)
         bidx = self._block_of_line[line] if line < len(self._block_of_line) else -1
@@ -551,6 +633,8 @@ class FileFraming:
                 if _TASK_ITEM_RE.match(line_text):
                     return Framing(False, f"in a checklist item under '{lead_in}'")
                 return Framing(False, f"under '{lead_in}'")
+            if state_items and self._states_a_condition(u_start, u_end):
+                return Framing(False, "in a checklist item that states a condition")
         if _DESCRIBING_SENTENCE_RE.search(self._text, s_start, start):
             return Framing(False, "in a sentence that describes what to look for")
         if block.kind == "quote":
@@ -562,6 +646,27 @@ class FileFraming:
             ):
                 return Framing(False, "in a quoted description")
         return _DIRECTED
+
+    def _states_a_condition(self, u_start: int, u_end: int) -> bool:
+        """Whether the task-list item ``[u_start, u_end)`` states a condition.
+
+        STORY-0150: "- [ ] Keys that are no longer used are removed from
+        authorized_keys" is a box to tick, not a step.  Fails closed: the
+        item must be a task-list item that opens with no action verb, be
+        short, hold a finite "is / are / has / does", and contain nothing
+        :data:`_STATE_ITEM_VETO_RE` names.
+        """
+        first = self.line_of(u_start)
+        first_line = self._lines[first]
+        if not _TASK_ITEM_RE.match(first_line) or _IMPERATIVE_START_RE.match(
+            first_line
+        ):
+            return False
+        item = self._text[u_start:u_end]
+        text = _TASK_ITEM_RE.sub("", item, count=1)
+        if len(text) > _STATE_ITEM_MAX_CHARS or not _STATE_VERB_RE.search(text):
+            return False
+        return _STATE_ITEM_VETO_RE.search(text) is None
 
     def _later_order(self, u_start: int, u_end: int, after: int) -> bool:
         """Whether a later sentence of the item opens with an order."""
