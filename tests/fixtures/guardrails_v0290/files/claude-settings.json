@@ -1,0 +1,54 @@
+{
+ "permissions": {
+  "allow": [
+   "Bash(PGPASSWORD=Zq7pW3xLm9 psql -h db -U app)",
+   "Bash(DB_PASSWD=Rk2vN8sYt4 ./migrate)",
+   "Bash(npm config set //registry.npmjs.org/:_authToken=aXt5Lq2Wp8Zr)",
+   "Bash(curl -H 'Authorization: token admin:9f8e7d6c5b4a' https://erp.example)",
+   "Bash(curl -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.c2VjcmV0.Vm2kq\" https://api.example)",
+   "Bash(PGPASSWORD=$PGPASS psql)",
+   "Bash(curl -H \"Authorization: Bearer ${{ secrets.TOKEN }}\" x)",
+   "Bash(npm run build)",
+   "Read(./src/**)",
+   "WebFetch(domain:docs.example.com)",
+   "Bash(PGPASSWORD=Rk2vN8sYt4 psql -c 'select 0' -c 'select 1' -c 'select 2' -c 'select 3' -c 'select 4' -c 'select 5' -c 'select 6' -c 'select 7' -c 'select 8' -c 'select 9' -c 'select 10' -c 'select 11' -c 'select 12' -c 'select 13' -c 'select 14' -c 'select 15' -c 'select 16' -c 'select 17' -c 'select 18' -c 'select 19' -c 'select 20' -c 'select 21' -c 'select 22' -c 'select 23' -c 'select 24' -c 'select 25' -c 'select 26' -c 'select 27' -c 'select 28' -c 'select 29' -c 'select 30' -c 'select 31' -c 'select 32' -c 'select 33' -c 'select 34' -c 'select 35' -c 'select 36' -c 'select 37' -c 'select 38' -c 'select 39' -c 'select 40' -c 'select 41' -c 'select 42' -c 'select 43' -c 'select 44' -c 'select 45' -c 'select 46' -c 'select 47' -c 'select 48' -c 'select 49' -c 'select 50' -c 'select 51' -c 'select 52' -c 'select 53' -c 'select 54' -c 'select 55' -c 'select 56' -c 'select 57' -c 'select 58' -c 'select 59')"
+  ],
+  "ask": [
+   "Bash(rm PGPASSWORD=Zq7pW3xLm9 *)"
+  ],
+  "deny": [
+   "Read(./.env)",
+   "Bash(mysql -pPASSWORD=Zq7pW3xLm9)"
+  ],
+  "additionalDirectories": [
+   "../shared"
+  ],
+  "defaultMode": "acceptEdits"
+ },
+ "sandbox": {
+  "enabled": true,
+  "excludedCommands": [
+   "PGPASSWORD=Zq7pW3xLm9 pg_dump",
+   "docker"
+  ],
+  "network": {
+   "allowedDomains": [
+    "api.example.com",
+    "*.npmjs.org"
+   ]
+  }
+ },
+ "hooks": {
+  "PreToolUse": [
+   {
+    "matcher": "Bash",
+    "hooks": [
+     {
+      "type": "command",
+      "command": "./guard.sh"
+     }
+    ]
+   }
+  ]
+ }
+}

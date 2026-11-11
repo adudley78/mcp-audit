@@ -136,7 +136,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mcp_audit.agent_files.exfil import find_exfil_directives
-from mcp_audit.agent_files.framing import FileFraming, Framing
+from mcp_audit.agent_files.framing import (
+    STATE_ITEM_PATTERN_IDS,
+    FileFraming,
+    Framing,
+)
 from mcp_audit.agent_files.heartbeat import find_suppression
 from mcp_audit.agent_files.models import MEMORY_SURFACES, AgentFile, AgentFileSurface
 from mcp_audit.agent_files.sleeper import find_sleepers
@@ -698,12 +702,13 @@ def _skill001_finding(
         first
     ]
     chosen = matches[0]
-    framed = framing.classify(chosen.start(), chosen.end())
+    state_items = pat.id in STATE_ITEM_PATTERN_IDS
+    framed = framing.classify(chosen.start(), chosen.end(), state_items=state_items)
     if gate_off or len(matches) > _MAX_GATED_MATCHES:
         framed = Framing(directed=True)
     else:
         for m in matches:
-            f = framing.classify(m.start(), m.end())
+            f = framing.classify(m.start(), m.end(), state_items=state_items)
             if f.directed:
                 chosen, framed = m, f
                 break

@@ -58,7 +58,7 @@ Severity scales differ between tools, so "any severity" is not a like-for-like n
 
 ## Current table
 
-Measured 2026-11-04 on mcp-audit 0.27.0 (commit `59cb49b`; `results.json` records the commit of the latest run). Competitor columns: not run.
+Measured 2026-11-04 on mcp-audit 0.27.0 (commit `59cb49b`), re-run 2026-11-11 on 0.29.0 with STORY-0150 (`results.json` records the commit of the latest run). Competitor columns: not run.
 
 | Corpus (basis) | mcp-audit, any severity | mcp-audit, HIGH or above | SkillSpector | Cisco mcp-scanner | Snyk agent-scan |
 |---|---|---|---|---|---|
@@ -66,7 +66,7 @@ Measured 2026-11-04 on mcp-audit 0.27.0 (commit `59cb49b`; `results.json` record
 | MCPTox clean: flag rate (353 tools) | 0.6% (2/353) | 0.0% (0/353) | not run | not run | not run: needs remote analysis |
 | Hiding techniques: recall (8 skills) | 100% (8/8) | 100% (8/8) | not run | not run | not run: needs remote analysis |
 | Hiding twins: flag rate (9 skills) | 55.6% (5/9) | 0.0% (0/9) | not run | not run | not run: needs remote analysis |
-| Benign checklists: flag rate (4 skills) | 50.0% (2/4) | 50.0% (2/4) | not run | not run | not run: needs remote analysis |
+| Benign checklists: flag rate (4 skills) | 50.0% (2/4) | 0.0% (0/4) | not run | not run | not run: needs remote analysis |
 
 The MCPTox rows reproduce `docs/research/poisoning-benchmark/results.json` (980/1312, 909/1312, 2/353), which is a check that this harness measures what `bench_poisoning.py` does.
 
@@ -75,7 +75,7 @@ The MCPTox rows reproduce `docs/research/poisoning-benchmark/results.json` (980/
 - All eight payloads are found at HIGH, in every hiding technique, on this corpus of eight.
 - **Padding twins are flagged.** POISON-045 reports text after 78 or more blank lines (or 200 or more spaces) at MEDIUM even when that text is harmless, so all three blank-line twins and the spaces twin are flagged at MEDIUM. That is by design (hidden text is worth a look) and it is a false alarm on these twins.
 - **The Scotland flag emoji is flagged** (POISON-042, LOW): its tag characters are decoded as a hidden channel.
-- **Two of four benign checklists are flagged at HIGH.** `ssh-key-hygiene-review` triggers SKILL-001 on a checklist line ("removed from authorized_keys") that describes a check; `secrets-in-ci-checklist` triggers it on a checklist line naming `~/.aws/credentials`. This is a false alarm that this benchmark found and that has not been fixed here; it is the case the describes-versus-directs gate (STORY-0141) misses.
+- **Two of four benign checklists are listed at INFO, none at HIGH.** On 0.27.0 `ssh-key-hygiene-review` (a checklist line "removed from authorized_keys") and `secrets-in-ci-checklist` (a checklist line naming `~/.aws/credentials`) were SKILL-001 HIGH: a false alarm this benchmark found. STORY-0150 reads a checklist item that states a condition about a credential file as described, so both are now SKILL-001 INFO "described, not directed" (still counted under "any severity").
 - The MCPTox rates are on tool descriptions; mcp-audit's weak spot there is poisoning with no wrapper (see `docs/poisoning.md`).
 
 ## How to run it

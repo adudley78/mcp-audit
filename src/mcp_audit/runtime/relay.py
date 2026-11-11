@@ -67,15 +67,31 @@ def _pump(
     on_done: Callable[[], None],
     *,
     tap: Callable[[bytes], object] | None = None,
+    tap_first: bool = False,
 ) -> None:
     """Copy bytes from *src_fd* to *dst_fd* until EOF or a broken pipe.
 
-    *tap*, when given, is shown every complete line after it has been
-    forwarded (monitor mode); it never changes what is relayed, and an
-    exception in it is ignored. *on_done* runs exactly once when copying
-    stops, for any reason.
+    *tap*, when given, is shown every complete line (monitor mode); it never
+    changes what is relayed, and an exception in it is ignored. By default it
+    sees a line after the chunk holding it has been forwarded. With
+    *tap_first* it sees the chunk's complete lines before the chunk is
+    forwarded: the client-to-server direction needs this, because the tap
+    records which ``tools/list`` request to check, and a server that answers
+    before that record exists would have its listing passed unchecked.
+    *on_done* runs exactly once when copying stops, for any reason.
     """
     pending = b""
+
+    def _show(chunk: bytes) -> None:
+        nonlocal pending
+        pending += chunk
+        *lines, pending = pending.split(b"\n")
+        for line in lines:
+            with contextlib.suppress(Exception):
+                tap(line + b"\n")  # type: ignore[misc]
+        if len(pending) > MAX_LINE:
+            pending = b""
+
     try:
         while True:
             try:
@@ -84,18 +100,14 @@ def _pump(
                 break
             if not chunk:
                 break
+            if tap is not None and tap_first:
+                _show(chunk)
             try:
                 _write_all(dst_fd, chunk)
             except OSError:
                 break
-            if tap is not None:
-                pending += chunk
-                *lines, pending = pending.split(b"\n")
-                for line in lines:
-                    with contextlib.suppress(Exception):
-                        tap(line + b"\n")
-                if len(pending) > MAX_LINE:
-                    pending = b""
+            if tap is not None and not tap_first:
+                _show(chunk)
     finally:
         on_done()
 
@@ -312,7 +324,9 @@ def relay(
         to_child = threading.Thread(
             target=_pump,
             args=(in_fd, child_in, _close_child_stdin),
-            kwargs={"tap": client_tap},
+            # The tap registers each tools/list request before the server
+            # can see it, so its answer is always checked.
+            kwargs={"tap": client_tap, "tap_first": True},
             daemon=True,
         )
         from_child = threading.Thread(

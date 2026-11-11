@@ -700,9 +700,12 @@ class TestBundledMaliciousFile:
         noted = [e for e in doc["entries"] if e["id"] in sync_mod.NOTES]
         family = [e for e in noted if sync_mod.NOTES[e["id"]] == sync_mod._CANARY_NOTE]
         assert len(family) == 10
-        # STORY-0148: MAL-2026-19052 carries its own note (Knostic's report).
+        # STORY-0148: MAL-2026-19052 carries its own note (Knostic's report);
+        # STORY-0152: MAL-2026-18489 and MAL-2026-18603 too (Knostic, 11-09).
         assert {e["id"] for e in noted} - {e["id"] for e in family} == {
-            "MAL-2026-19052"
+            "MAL-2026-19052",
+            "MAL-2026-18489",
+            "MAL-2026-18603",
         }
         assert all(e["note"] == sync_mod.NOTES[e["id"]] for e in noted)
         assert {e["name"] for e in family} >= {"mcp-server-github", "mcp-server-git"}
