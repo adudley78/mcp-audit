@@ -37,17 +37,18 @@ LAYOUT = {
     "mcp-lock.json": "mcp-lock.json",
 }
 
-PG = "Zq7pW3xLm9"  # noqa: S105 — synthetic
-SECRETS = {
-    "pg": PG,
-    "db": "Rk2vN8sYt4",
-    "auth": "aXt5Lq2Wp8Zr",
-    "erp": "9f8e7d6c5b4a",
-    "bearer": "eyJhbGciOiJIUzI1NiJ9.c2VjcmV0.Vm2kq",
+#: Synthetic stand-ins (random letters and digits, valid for nothing).
+V1 = "Zq7pW3xLm9"
+FAKE = {
+    "v1": V1,
+    "v2": "Rk2vN8sYt4",
+    "v3": "aXt5Lq2Wp8Zr",
+    "v4": "9f8e7d6c5b4a",
+    "v5": "eyJhbGciOiJIUzI1NiJ9.c2VjcmV0.Vm2kq",
 }
 LONG = (
     "Bash(PGPASSWORD="
-    + SECRETS["db"]
+    + FAKE["v2"]
     + " psql "
     + " ".join(f"-c 'select {i}'" for i in range(60))
     + ")"
@@ -55,14 +56,14 @@ LONG = (
 CLAUDE = {
     "permissions": {
         "allow": [
-            f"Bash(PGPASSWORD={PG} psql -h db -U app)",
-            f"Bash(DB_PASSWD={SECRETS['db']} ./migrate)",
-            f"Bash(npm config set //registry.npmjs.org/:_authToken={SECRETS['auth']})",
+            f"Bash(PGPASSWORD={V1} psql -h db -U app)",
+            f"Bash(DB_PASSWD={FAKE['v2']} ./migrate)",
+            f"Bash(npm config set //registry.npmjs.org/:_authToken={FAKE['v3']})",
             "Bash(curl -H 'Authorization: token admin:"
-            + SECRETS["erp"]
+            + FAKE["v4"]
             + "' https://erp.example)",
             'Bash(curl -H "Authorization: Bearer '
-            + SECRETS["bearer"]
+            + FAKE["v5"]
             + '" https://api.example)',
             "Bash(PGPASSWORD=$PGPASS psql)",
             'Bash(curl -H "Authorization: Bearer ${{ secrets.TOKEN }}" x)',
@@ -71,14 +72,14 @@ CLAUDE = {
             "WebFetch(domain:docs.example.com)",
             LONG,
         ],
-        "ask": [f"Bash(rm PGPASSWORD={PG} *)"],
-        "deny": ["Read(./.env)", f"Bash(mysql -pPASSWORD={PG})"],
+        "ask": [f"Bash(rm PGPASSWORD={V1} *)"],
+        "deny": ["Read(./.env)", f"Bash(mysql -pPASSWORD={V1})"],
         "additionalDirectories": ["../shared"],
         "defaultMode": "acceptEdits",
     },
     "sandbox": {
         "enabled": True,
-        "excludedCommands": [f"PGPASSWORD={PG} pg_dump", "docker"],
+        "excludedCommands": [f"PGPASSWORD={V1} pg_dump", "docker"],
         "network": {"allowedDomains": ["api.example.com", "*.npmjs.org"]},
     },
     "hooks": {
@@ -90,7 +91,7 @@ CLAUDE = {
 GEMINI = {
     "tools": {
         "allowed": [
-            f"run_shell_command(PGPASSWORD={PG} psql)",
+            f"run_shell_command(PGPASSWORD={V1} psql)",
             "run_shell_command(git status)",
         ]
         # 2,100 entries: past the 2,000-entry cut, so the record has a digest.
@@ -104,7 +105,7 @@ CODEX = (
     'sandbox_mode = "workspace-write"\n'
     "[sandbox_workspace_write]\n"
     "network_access = false\n"
-    f'writable_roots = ["/tmp/PGPASSWORD={PG}", "/srv/build"]\n'
+    f'writable_roots = ["/tmp/PGPASSWORD={V1}", "/srv/build"]\n'
 )
 
 
