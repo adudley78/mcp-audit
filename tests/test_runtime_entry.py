@@ -38,7 +38,11 @@ def test_run_path_imports_nothing_heavy() -> None:
         "print(json.dumps(sorted(sys.modules)))\n"
     )
     out = subprocess.run(  # noqa: S603
-        [sys.executable, "-c", probe], capture_output=True, text=True, timeout=60
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
     )
     loaded = json.loads(out.stdout.splitlines()[-1])
     offenders = [
@@ -52,6 +56,7 @@ def test_other_commands_still_dispatch_to_typer() -> None:
         [sys.executable, "-m", "mcp_audit._entry", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",  # Rich output is UTF-8; Windows defaults to cp1252
         timeout=60,
     )
     assert out.returncode == 0
@@ -69,7 +74,11 @@ def test_typer_run_command_forwards_to_lean_path() -> None:
         "app()\n"
     )
     out = subprocess.run(  # noqa: S603
-        [sys.executable, "-c", probe], capture_output=True, text=True, timeout=60
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
     )
     assert out.returncode == 4
     assert out.stdout.strip() == "['--help']"
