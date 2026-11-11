@@ -64,6 +64,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="governance policy for runtime settings (default: found from --config)",
     )
     parser.add_argument(
+        "--original-sha256",
+        help=argparse.SUPPRESS,  # written by `mcp-audit wrap` for `unwrap`
+    )
+    parser.add_argument(
         "--mode",
         choices=("monitor", "enforce"),
         default="monitor",

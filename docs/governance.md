@@ -221,10 +221,12 @@ Settings for `mcp-audit run`, the wrapper that launches MCP servers
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `poison_threshold` | str | `critical` | Lowest POISON-* severity on a live tool's text that `run` acts on: reported in monitor mode, tool withheld in enforce mode. One of `off`, `critical`, `high`, `medium`, `low`, `info` (case-insensitive; a bare YAML `off` works) |
+| `require_wrap` | bool | `false` | Report every local server in a client config `mcp-audit wrap` supports that doesn't launch through `mcp-audit run` (WRAP-001, HIGH, from `scan`) |
 
 ```yaml
 runtime:
   poison_threshold: critical
+  require_wrap: true
 ```
 
 `run` looks for the policy next to its `--config` file, then in that
