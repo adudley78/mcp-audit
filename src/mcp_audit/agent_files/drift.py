@@ -55,7 +55,7 @@ import os
 import stat
 import time
 import uuid
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -452,13 +452,17 @@ def _commit(
     state_path: Path,
     errors: list[str],
     label: str = "instruction drift",
+    normalise: Callable[[dict], dict] | None = None,
 ) -> None:
     """Merge *updates* into the record file under the lock and write it.
 
     The file is read again under the lock, so another scan's records for
     other paths survive.  An unreadable file is left alone (history is never
     wiped because of a transient error); a file that is not a record file is
-    kept as ``<name>.corrupt`` and a new one started.
+    kept as ``<name>.corrupt`` and a new one started.  *normalise*, when
+    given, is applied to every entry before the write, including entries
+    this scan did not touch (guardrail drift uses it to re-redact records an
+    older version wrote, STORY-0151).
     """
     try:
         state_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -477,6 +481,8 @@ def _commit(
             _replace(state_path, state_path.with_name(state_path.name + ".corrupt"))
             current = {}
         current.update(updates)
+        if normalise is not None:
+            current = {k: normalise(v) for k, v in current.items()}
         save_records(current, state_path)
     except OSError as exc:
         errors.append(f"{label}: cannot write state: {exc}")

@@ -301,6 +301,13 @@ written to the lock.
   [guardrail-drift.md](guardrail-drift.md). A tightening or neutral change emits nothing. A recorded
   file that is gone counts only when it alone held a deny rule or a hook. A file not in the lock is
   not looked at. `lock --accept` re-records.
+* **Locks written by 0.29.0 or earlier (STORY-0151).** Their records can hold `PGPASSWORD=`-style
+  values, npm `_authToken=` and `token key:secret` in plain text. `lock --verify` compares them in
+  this version's redacted form, so such a lock still verifies (no LOCK-014; its checksums and
+  `section_digests` are untouched, since `--verify` never rewrites the lock). Run `mcp-audit lock`
+  again to drop the values: only the records that held one change. An older mcp-audit verifying
+  the rewritten lock reports LOCK-014 for those rules, so upgrade CI first, and rotate the secret
+  (git history keeps the old lock).
 
 ---
 

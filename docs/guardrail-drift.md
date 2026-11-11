@@ -30,9 +30,26 @@ directory only the user files are read. A project file that is a symlink is not 
 reported as TRUST-002/TRUST-004 elsewhere).
 
 For each file mcp-audit keeps a normalised record of only the settings in the table below, as sorted
-sets. **No secret value is stored**: strings are masked with the credential patterns, a Gemini
-`tools.sandbox` command is stored only as "on", and each hook is stored as the event, the matcher and
-the SHA-256 of the command string, never the command.
+sets. **No secret value is stored**: strings are masked with the credential patterns and then
+with CRED-004's rule redaction (`PGPASSWORD=`-style values, npm `_authToken=`, `token key:secret`;
+STORY-0151), a Gemini `tools.sandbox` command is stored only as "on", and each hook is stored as the
+event, the matcher and the SHA-256 of the command string, never the command.
+
+**Upgrading is silent (STORY-0151).** Up to 0.29.0 the records used only the first of those two
+redactions, so `guardrails.json` and a committed `mcp-lock.json` can hold such values in plain text.
+This version compares every record in its own stored form: a string an older version stored is
+redacted the same way first, which gives exactly what this version stores for the same setting. So
+the first scan after upgrading reports no GUARD-001/002, `lock --verify` on an old lock reports no
+LOCK-014 (the lock's checksums and `section_digests` are over its bytes, which `--verify` never
+changes), and the next scan rewrites `guardrails.json` without the values: every entry, including
+tombstones and records of files that scan does not read (another repository's settings). Run `mcp-audit lock`
+again to drop them from a committed lock: only the records that held such a string change, the
+top-level checksum does not (its scope excludes this section), and the new lock verifies. The
+digest kept for a list longer than 2,000 entries or with an entry over 512 characters is over the
+older form on purpose, so it does not change on upgrade; it is a SHA-256, never the text. Domain
+lists keep their form. **An older mcp-audit verifying a lock written by this version** compares the
+redacted record with its own unredacted reading of the same file and reports LOCK-014 for every rule
+that holds such a value: upgrade CI before re-running `lock`.
 
 ## What counts as loosening
 
