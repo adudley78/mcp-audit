@@ -67,11 +67,23 @@ server as WRAP-001.
 
 ### What a refused server looks like in each client
 
-Not yet verified in each client. When enforce mode refuses a server, `run`
-exits 78 after writing one line to stderr, before the MCP handshake, so the
-client sees a server that failed to start. Where each client surfaces that
-(its MCP server list, a log file, or nowhere visible) is being checked client
-by client and will be recorded here.
+When enforce mode refuses a server, `run` exits 78 after writing one line to
+stderr, before the MCP handshake, so the client sees a server that failed to
+start. When it withholds a tool, the server starts and the tool is missing
+from its list.
+
+**Claude Code** (2.1.322, checked 2026-11-11 with the `demo/run/` server, a
+project `.mcp.json` wrapped in enforce mode):
+
+| Case | `/mcp` panel | `claude mcp list` | Where the mcp-audit line is |
+|---|---|---|---|
+| Launch refused (LOCK-001) | `✘ calculator`; detail view `Status: ✘ failed`, with Reconnect / Disable | `✗ Failed to connect — CONNECTION_CLOSED: Connection closed` | `claude mcp list` writes it to `~/.cache/claude-cli-nodejs/<project>/mcp-logs-<server>/*.jsonl` as `Server stderr: mcp-audit run: refused: LOCK-001 …`. An interactive session shows it only when started with `claude --debug` (the panel says so). |
+| Tool withheld (LOCK-008) | `⚠ calculator  no tools · connected` | `✓ Connected` | Same as above; the agent itself gets mcp-audit's JSON-RPC error if it calls the tool. |
+
+Claude Code doesn't show the reason in its main view, so after wrapping in
+enforce mode, check `/mcp` for `✘` or `no tools` and run `mcp-audit lock
+--verify --connect` to see the finding. Cursor, Claude Desktop and VS Code are
+not checked yet.
 
 ## Launch gate (Story 1.3)
 

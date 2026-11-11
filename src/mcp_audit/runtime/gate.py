@@ -137,7 +137,11 @@ def _describe_change(identity: object, argv: Sequence[str]) -> str:
         launched_cmd = _redacted([argv[0]])[0]
         return f"the command changed from {locked_cmd!r} to {launched_cmd!r}"
     if isinstance(args, list) and len(args) != len(argv) - 1:
-        return f"it now has {len(argv) - 1} arguments; {len(args)} were approved"
+        now, approved = len(argv) - 1, len(args)
+        return (
+            f"it now has {now} argument{'s' if now != 1 else ''}; "
+            f"{approved} {'was' if approved == 1 else 'were'} approved"
+        )
     return "its arguments changed"
 
 
