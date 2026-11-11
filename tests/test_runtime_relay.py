@@ -264,3 +264,22 @@ class TestSignals:
         assert proc.stdout is not None
         assert proc.stdout.read() == b"ping\n"
         assert proc.wait(timeout=30) == 0
+
+    def test_leftover_holding_stdout_does_not_delay_exit(self) -> None:
+        # The server writes, then exits while a grandchild still holds its
+        # stdout pipe open. The wrapper must deliver the output and exit
+        # promptly instead of waiting on the grandchild.
+        child = textwrap.dedent(
+            """
+            import os, subprocess, sys
+            subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"],
+                             stdin=subprocess.DEVNULL)
+            os.write(1, b"last words\\n")
+            """
+        )
+        start = time.monotonic()
+        proc = _wrapper("--", PY, "-c", child)
+        out, _ = proc.communicate(b"", timeout=30)
+        assert out == b"last words\n"
+        assert proc.returncode == 0
+        assert time.monotonic() - start < 4

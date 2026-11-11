@@ -204,10 +204,10 @@ def relay(
 
     try:
         returncode = proc.wait()
-        # Drain whatever the child wrote before exiting. A grandchild that
-        # still holds the pipe open would block this forever, so bound it,
-        # then clean up the group, which closes the pipe.
-        from_child.join(timeout=5)
+        # The server has exited; anything left in its group is a leftover
+        # (e.g. a grandchild still holding the stdout pipe open). Stop it
+        # now, then drain: bytes already in the pipe survive the writer, so
+        # nothing the server wrote is lost, and shutdown isn't held up.
         if _POSIX:
             _signal_group(proc, signal.SIGTERM)
         from_child.join(timeout=5)
