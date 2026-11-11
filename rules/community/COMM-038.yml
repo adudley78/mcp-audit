@@ -1,0 +1,41 @@
+id: COMM-038
+name: Package installed from an extra package index
+description: >
+  Detects a server launched by a package installer (uvx, uv, pip, pipx, npx
+  or npm) with an argument that adds an extra package index alongside the
+  default one: --extra-index-url for pip and uv (and for pipx through
+  --pip-args), and --index for uv. With pip and pipx this is the classic
+  dependency-confusion setup — the installer consults both indexes and can
+  take the higher version from the wrong one, which Alex Birsan's
+  "Dependency Confusion" research (2021), used against Apple, Microsoft and
+  dozens of other companies, calls "insecure by design". uv's default
+  first-index strategy already stops that version-rivalry attack for uvx,
+  so a uvx/--index finding is not the classic confusion setup; the rule
+  still reports it because every index the installer consults must itself
+  be trusted. Both the separated form (--extra-index-url URL, --index URL)
+  and the joined form (--extra-index-url=URL, --index=URL) fire. Other
+  launch commands (docker, node, python) are not matched. The regex matches
+  the flag itself, never the URL after it, so no index address reaches
+  findings. Limit: the arguments are read as one string, so the same flag
+  passed to the server itself after the package name also fires.
+severity: MEDIUM
+category: supply-chain
+match:
+  operator: and
+  conditions:
+    - field: command
+      pattern: '(?i)(?:^|(?<=[/\\]))(?:uvx|uv|pipx|pip3?|npx|npm)(?:\.exe|\.cmd)?$'
+      type: regex
+    - field: args
+      pattern: '(?<![^\s=''"])(?:--extra-index-url|--index)(?![-\w])'
+      type: regex
+message: >-
+  Server '{server_name}' installs from an extra package index
+  ({matched_value}) — dependency-confusion setup; remove the extra index
+  or pin the exact package source
+tags:
+  - supply-chain
+  - dependency-confusion
+enabled: true
+owasp_mcp_top_10:
+  - MCP04
