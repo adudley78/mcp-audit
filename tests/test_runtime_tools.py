@@ -312,7 +312,26 @@ WIRE_CASES = [
 
 
 @pytest.mark.parametrize("wire", WIRE_CASES, ids=lambda w: w["name"])
-def test_wire_digests_match_lock_connect(wire: dict) -> None:
+def test_unchanged_tool_matches_what_lock_connect_recorded(wire: dict) -> None:
+    """Whatever mcp SDK is installed, an unchanged tool is never reported."""
+    pytest.importorskip("mcp")
+    import mcp.types as types
+
+    from mcp_audit.mcp_client import _tool_info
+
+    record = server_record([_tool_info(types.Tool.model_validate(wire))])
+    guard, said = _guard(record, True)
+    assert _listed(guard, [wire]) == [wire["name"]]
+    assert said == []
+    assert guard.withheld == {}
+
+
+@pytest.mark.parametrize(
+    "wire",
+    [w for w in WIRE_CASES if "custom" not in w.get("annotations", {})],
+    ids=lambda w: w["name"],
+)
+def test_wire_digests_equal_sdk_digests(wire: dict) -> None:
     pytest.importorskip("mcp")
     import mcp.types as types
 
@@ -321,9 +340,51 @@ def test_wire_digests_match_lock_connect(wire: dict) -> None:
 
     sdk = tool_digests([_tool_info(types.Tool.model_validate(wire))])
     assert digests_of_definitions([wire_definition(wire)]) == sdk
-    assert server_record([_tool_info(types.Tool.model_validate(wire))]) == {
-        "tools": sdk
+
+
+class TestSdkAnnotationForms:
+    """mcp SDK 1.x keeps non-spec annotation keys in the lock; 2.x drops them."""
+
+    TOOL = {
+        "name": "t",
+        "inputSchema": {"type": "object"},
+        "annotations": {"readOnlyHint": True, "x-vendor": "v1"},
     }
+
+    def _record(self, spec_only: bool) -> dict:
+        return {
+            "tools": digests_of_definitions(
+                [wire_definition(self.TOOL, spec_annotations_only=spec_only)]
+            )
+        }
+
+    @pytest.mark.parametrize("spec_only", [False, True])
+    def test_either_lock_form_matches(self, spec_only: bool) -> None:
+        guard, said = _guard(self._record(spec_only), True)
+        assert _listed(guard, [self.TOOL]) == ["t"]
+        assert said == []
+
+    @pytest.mark.parametrize("spec_only", [False, True])
+    def test_spec_annotation_change_still_caught(self, spec_only: bool) -> None:
+        guard, _ = _guard(self._record(spec_only), True)
+        changed = {
+            **self.TOOL,
+            "annotations": {"readOnlyHint": False, "x-vendor": "v1"},
+        }
+        assert _listed(guard, [changed]) == []
+        assert guard.withheld == {"t": "LOCK-007"}
+
+    def test_vendor_key_change_caught_against_a_full_lock(self) -> None:
+        guard, _ = _guard(self._record(False), True)
+        changed = {**self.TOOL, "annotations": {"readOnlyHint": True, "x-vendor": "v2"}}
+        assert _listed(guard, [changed]) == []
+        assert guard.withheld == {"t": "LOCK-007"}
+
+    def test_vendor_key_change_invisible_to_a_spec_only_lock(self) -> None:
+        # A lock written under mcp SDK 2.x never saw the vendor key (GAPS.md).
+        guard, _ = _guard(self._record(True), True)
+        changed = {**self.TOOL, "annotations": {"readOnlyHint": True, "x-vendor": "v2"}}
+        assert _listed(guard, [changed]) == ["t"]
 
 
 # ── end to end ───────────────────────────────────────────────────────────────

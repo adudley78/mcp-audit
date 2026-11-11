@@ -102,6 +102,11 @@ whole: removed tools only once the last page has arrived.
 which the standalone binary doesn't include. Without a tool record, enforce
 mode withholds every tool (RUN-003).
 
+A lock written by `lock --connect` under `mcp` SDK 2.x digests only the
+annotation keys the MCP spec defines; SDK 1.x digests every key. `run` accepts
+a tool that matches either form, so an unchanged server never reports drift
+whichever SDK wrote the lock (see `GAPS.md`).
+
 A `tools` section that fails its own checksum is RUN-002 at the gate: enforce
 mode refuses to start the server.
 

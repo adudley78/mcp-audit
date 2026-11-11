@@ -181,6 +181,11 @@ class ToolGuard:
         valid = [t for t in tools if isinstance(t, dict)]
         definitions = [wire_definition(t) for t in valid]
         current = digests_of_definitions(definitions)
+        # The same tools as a lock written under mcp SDK 2.x digests them
+        # (non-spec annotation keys dropped); a match in either form counts.
+        spec_only = digests_of_definitions(
+            [wire_definition(t, spec_annotations_only=True) for t in valid]
+        )
         last_page = not result.get("nextCursor")
 
         with self._lock:
@@ -194,6 +199,12 @@ class ToolGuard:
                 diff = None
             else:
                 diff = compare(self.record, current)
+                alt = compare(self.record, spec_only)
+                alt_changed = set(alt.contract_changed) | set(alt.text_changed)
+                diff.contract_changed = [
+                    n for n in diff.contract_changed if n in alt_changed
+                ]
+                diff.text_changed = [n for n in diff.text_changed if n in alt_changed]
                 page_withheld = dict.fromkeys(diff.added, "LOCK-006")
                 page_withheld.update(dict.fromkeys(diff.contract_changed, "LOCK-007"))
                 page_withheld.update(dict.fromkeys(diff.text_changed, "LOCK-008"))
