@@ -110,6 +110,28 @@ whichever SDK wrote the lock (see `GAPS.md`).
 A `tools` section that fails its own checksum is RUN-002 at the gate: enforce
 mode refuses to start the server.
 
+### Poisoned tool text
+
+Every tool that passes the lock comparison also goes through the same
+POISON-* checks `scan --connect` runs, over the text the server actually sent.
+A tool whose worst match is at or above `runtime.poison_threshold` is reported
+in monitor mode and withheld in enforce mode, under its POISON-* ID. This
+catches a poisoned tool that was approved into the lock.
+
+```yaml
+# .mcp-audit-policy.yml (next to the MCP config, its git root, or the user policy)
+runtime:
+  poison_threshold: critical   # off | critical | high | medium | low | info
+```
+
+The default is `critical`. On the 100 most-downloaded MCP servers on npm
+(2026-10-29), POISON-* raised no CRITICAL findings, and both HIGH findings were
+false positives (`docs/research/2026-10-29-top100-npm/README.md`), so a lower
+threshold will withhold legitimate tools; raise it only after reading what it
+catches. `run --policy FILE` names a policy explicitly; otherwise it's looked
+for next to `--config`, then in that directory's git root, then in the user
+policy. An invalid policy is reported once and the default applies.
+
 ## The relay (Story 1.1)
 
 `run` changes nothing the client and server send each other:
@@ -149,9 +171,11 @@ The one-file binary unpacks itself to a temporary directory on every start,
 which is almost all of its overhead. For wrapped servers, install with `pip`,
 `pipx` or `uv tool` until the binary build changes.
 
-The launch gate and tool check add 23.5 ms on top of the relay on the same
-machine (`--gate`, enforce mode, a matching lock entry): their common path
-imports only the standard library.
+The launch gate and tool check add 43.6 ms on top of the relay on the same
+machine (`--gate`, enforce mode, a matching lock entry). The gate itself
+imports only the standard library; most of the cost is the poisoning check
+loading its analyzer and the policy on a background thread while the server
+starts.
 
 The CI `runtime` job prints the same measurement for Linux and macOS on every
 PR. To measure a PyInstaller binary, pass it as the wrapper:

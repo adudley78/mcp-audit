@@ -168,6 +168,43 @@ class ScoringWeights(BaseModel):
     )
 
 
+#: ``runtime.poison_threshold`` values, most to least strict about what counts.
+POISON_THRESHOLDS = ("off", "critical", "high", "medium", "low", "info")
+
+
+class RuntimePolicy(BaseModel):
+    """What ``mcp-audit run`` does at runtime (EPIC-0009).
+
+    ``poison_threshold``: the lowest POISON-* severity on a live tool
+    description that ``run`` acts on. Monitor mode reports such a tool;
+    enforce mode withholds it like a changed tool. ``off`` turns the check
+    off. The default, ``critical``, is the level at which the 2026-10-29
+    top-100 npm measurement found no false positives (it found no CRITICAL
+    findings at all; both HIGH findings were false positives) —
+    ``docs/research/2026-10-29-top100-npm/README.md``.
+    """
+
+    poison_threshold: str = "critical"
+
+    @field_validator("poison_threshold", mode="before")
+    @classmethod
+    def _known_threshold(cls, value: object) -> str:
+        # YAML 1.1 reads a bare ``off`` as boolean false; that is what a
+        # policy author means by it.
+        if value is False:
+            return "off"
+        if not isinstance(value, str):
+            raise ValueError(
+                f"poison_threshold must be one of {', '.join(POISON_THRESHOLDS)}"
+            )
+        lowered = value.strip().lower()
+        if lowered not in POISON_THRESHOLDS:
+            raise ValueError(
+                f"poison_threshold must be one of {', '.join(POISON_THRESHOLDS)}"
+            )
+        return lowered
+
+
 class GovernancePolicy(BaseModel):
     """Root governance policy document.
 
@@ -192,3 +229,5 @@ class GovernancePolicy(BaseModel):
     # the nested ``deductions`` and ``positive_signals`` blocks override those
     # constants for this scan.  Absent sub-keys fall back to their defaults.
     scoring: ScoringWeights | None = None
+    # ``mcp-audit run`` behaviour at runtime (EPIC-0009 Story 1.4).
+    runtime: RuntimePolicy | None = None
