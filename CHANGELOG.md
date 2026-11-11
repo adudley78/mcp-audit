@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **Malicious agent-skill collections and agent-tool packages are now caught offline, not only MCP-named ones (STORY-0152).** The known-malicious mirror (`registry/known-malicious.json`) now also keeps OSV malicious-package records whose name has a token naming a coding agent mcp-audit reads (`claude`, `cursor`, `windsurf`, `copilot`, `augment`, `amazon-q`, `codex`, `gemini-cli`, `opencode`, `openclaw`) or an agent skill (`skill`, `skills`, `subagent`, `subagents`): 107 more records, 335 in all, including MAL-2026-18192 `agentic-awesome-skills` and MAL-2026-18193 `opencode-skills-collection` (found by Amazon Inspector, 2026-10-22), `@chatclub/claude-code`, `@ikyyofc/gemini-cli` and `cursor-bypass`, plus one MCP-named record published 2026-11-10 (MAL-2026-19085 `@lemili9804/mcp-weather-server`). A config that launches one reports SC-008, `vet` shows the record, and `affected MAL-…` finds it offline. About a quarter of the added names are dependency-confusion packages that merely contain a token; matching is by exact name, so they cannot cause a false positive. Not covered: Claude Code plugins with an `npm` source, skill install steps, and skill collections installed from a shell (see [GAPS.md](GAPS.md)).
+
 ---
 
 ## [0.29.0] - 2026-11-10

@@ -3,7 +3,9 @@
 STORY-0097.  ``registry/known-malicious.json`` is a mirror of the OSV
 malicious-package records (OpenSSF ``malicious-packages`` project, served by
 OSV under ``MAL-*`` IDs) for npm and PyPI packages whose name contains
-``mcp`` or that the known-server registry lists.  It is written by
+``mcp``, that the known-server registry lists, or that has a token naming a
+coding agent or an agent skill (STORY-0152, ``AGENT_STACK_TOKENS`` in the
+sync script).  It is written by
 ``scripts/sync_registry_advisories.py --write`` and shipped inside the wheel
 and the PyInstaller binaries, so a plain ``scan`` or ``vet`` matches it with
 no network call.  Before this file, the only way to see these records was

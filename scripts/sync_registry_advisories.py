@@ -42,10 +42,28 @@ PyPI, about 260 MB together, read once per run) and keeps every record that:
 
 * has an ``MAL-`` ID and is not withdrawn, and
 * names an npm or PyPI package whose name contains ``mcp`` (any case), or
-  that ``known-servers.json`` lists.  The test is a plain substring on
-  purpose: a match is by exact package name, so an extra record can never
-  cause a false positive, and a token rule would drop real MCP names such as
-  ``timemcp`` and ``livemcp``.
+  that ``known-servers.json`` lists, or that belongs to the agent stack
+  (STORY-0152, below).  The ``mcp`` test is a plain substring on purpose: a
+  match is by exact package name, so an extra record can never cause a false
+  positive, and a token rule would drop real MCP names such as ``timemcp``
+  and ``livemcp``.
+
+The agent stack (STORY-0152): a name with a *token* (the name lower-cased and
+split on every character that is not a letter or digit, the npm scope
+included; two adjacent tokens also count as one, ``gemini-cli``) in
+:data:`AGENT_STACK_TOKENS`: the name of a coding agent whose configuration
+mcp-audit reads (docs/clients.md, docs/agent-files.md) or of an agent
+artifact (``skill``, ``skills``, ``subagent``, ``subagents``).  OSV's
+MAL-2026-18192 ``agentic-awesome-skills`` and MAL-2026-18193
+``opencode-skills-collection`` (2026-10-22, credited to Amazon Inspector)
+are the cases.  Tokens, not substrings, because the substring form of these
+words is mostly noise in OSV's data (2026-11-11 export: ``skill`` matches 49
+names, 39 of them ``skilled_<animal>`` spam; ``cline`` matches ``inclined_*``).
+Words measured and left out, because what they match is mostly not the agent
+stack: ``agent`` (140 names: HTTP agents, "superagent" word salad),
+``plugin``/``plugins`` (2,238: build-tool plugins), ``gemini`` alone (171:
+dependency-confusion word salad), ``prompts`` (166), ``openai`` and
+``anthropic`` (API SDK typosquats, not agent tooling).
 
 Unlike the CVE merge, this file is a mirror, not additive: a record OSV
 withdraws or deletes is removed, because keeping it would keep accusing the
@@ -411,8 +429,51 @@ def _fold(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
+#: Agent-stack name tokens (STORY-0152): coding agents whose configuration
+#: mcp-audit reads, and agent artifacts.  See the module docstring for the
+#: words measured and left out.
+AGENT_STACK_TOKENS: frozenset[str] = frozenset(
+    {
+        # Agents (docs/clients.md, docs/agent-files.md).
+        "claude",
+        "cursor",
+        "windsurf",
+        "copilot",
+        "augment",
+        "augmentcode",
+        "amazon-q",
+        "amazonq",
+        "codex",
+        "gemini-cli",
+        "opencode",
+        "openclaw",
+        # Agent artifacts.
+        "skill",
+        "skills",
+        "subagent",
+        "subagents",
+    }
+)
+_TOKEN_SPLIT_RE = re.compile(r"[^a-z0-9]+")
+
+
+def name_tokens(name: str) -> set[str]:
+    """The tokens of a package name, and each pair of adjacent tokens joined by ``-``.
+
+    ``@chatclub/claude-code`` gives ``chatclub``, ``claude``, ``code``,
+    ``chatclub-claude`` and ``claude-code``.
+    """
+    parts = [t for t in _TOKEN_SPLIT_RE.split(name.lower()) if t]
+    return set(parts) | {f"{a}-{b}" for a, b in zip(parts, parts[1:], strict=False)}
+
+
+def is_agent_stack_name(name: str) -> bool:
+    """Whether *name* has a token in :data:`AGENT_STACK_TOKENS`."""
+    return not AGENT_STACK_TOKENS.isdisjoint(name_tokens(name))
+
+
 def package_selector(registry: dict[str, Any]) -> Keep:
-    """Return ``keep(ecosystem, name)``: an MCP-named or registry-listed package.
+    """Return ``keep(ecosystem, name)``: MCP-named, agent-stack or registry-listed.
 
     Args:
         registry: Parsed ``known-servers.json``.
@@ -428,7 +489,7 @@ def package_selector(registry: dict[str, Any]) -> Keep:
             listed.add((eco, _fold(name) if eco == "PyPI" else name.lower()))
 
     def keep(ecosystem: str, name: str) -> bool:
-        if "mcp" in name.lower():
+        if "mcp" in name.lower() or is_agent_stack_name(name):
             return True
         key = _fold(name) if ecosystem == "PyPI" else name.lower()
         return (ecosystem, key) in listed
@@ -594,8 +655,10 @@ def write_malicious(path: Path, entries: list[dict[str, Any]], today: str) -> No
         "schema_version": "1.0",
         "description": (
             "OSV malicious-package (MAL-*) records for npm and PyPI packages "
-            "whose name contains 'mcp' or that registry/known-servers.json "
-            "lists. Matched offline by exact name (SC-008, mcp-audit vet). "
+            "whose name contains 'mcp', names a coding agent or an agent "
+            "skill (AGENT_STACK_TOKENS in the script), or that "
+            "registry/known-servers.json lists. Matched offline by exact name "
+            "(SC-008, mcp-audit vet, mcp-audit affected). "
             "Written by scripts/sync_registry_advisories.py --write; do not "
             "edit by hand."
         ),
