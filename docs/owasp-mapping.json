@@ -1219,6 +1219,28 @@
       "notes": "Community rule. docker or podman launched with --network=host or --net=host, which shares the host network stack so the server can reach anything bound to the host localhost; MEDIUM because it does not give control of the host itself. Mapped to MCP05; the maintainer confirms the code on review."
     },
     {
+      "finding_id": "COMM-038",
+      "finding_title": "Package installed from an extra package index",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Community rule. --extra-index-url (uvx/pip/pipx) or uv --index in install arguments — the classic dependency-confusion setup; the installer consults both indexes and can take the higher version from the wrong one (Alex Birsan, Dependency Confusion, 2021). uv's default first-index strategy already stops the classic attack for uvx; the rule still reports non-default indexes because every consulted source must be trusted. Only for installer launch commands (uvx, uv, pip, pipx, npx, npm). Matches the flag only, never the URL. MEDIUM severity, supply-chain category."
+    },
+    {
+      "finding_id": "COMM-039",
+      "finding_title": "Default package index replaced or custom npm registry configured",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Community rule. --index-url or -i (pip/pipx/uvx), uv --default-index, or --registry / --@scope:registry (npx/npm exec): the configured source replaces the default index and controls every package lookup — lower severity than COMM-038's mixed-index exposure. Only for installer launch commands (uvx, uv, pip, pipx, npx, npm); -i and --registry need a URL after them, so docker run -i never fires. Matches the flag only, never the URL. LOW severity, supply-chain category."
+    },
+    {
       "finding_id": "COLLIDE-001",
       "finding_title": "Tool name collision: tool claimed by multiple servers",
       "owasp_codes": [
