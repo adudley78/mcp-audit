@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from mcp_audit._paths import find_git_root as _find_git_root
+
 #: The lock file's name.
 LOCK_FILENAME = "mcp-lock.json"
 
@@ -155,25 +157,6 @@ def index_locked_entries(
         )
         indexed[match] = (key, entry)
     return indexed
-
-
-def _find_git_root(start: Path) -> Path | None:
-    """Walk parent directories until a ``.git`` entry is found.
-
-    Args:
-        start: Directory to begin the search from (already resolved).
-
-    Returns:
-        The directory containing ``.git``, or ``None`` if not found.
-    """
-    current = start
-    while True:
-        if (current / ".git").exists():
-            return current
-        parent = current.parent
-        if parent == current:
-            return None
-        current = parent
 
 
 def find_lock_for(config_path: Path) -> Path | None:

@@ -87,6 +87,7 @@ src/mcp_audit/
 ├── _paths.py          # data_dir() and resolve_bundled_resource() — shared helpers for locating bundled data in source, wheel, and PyInstaller frozen contexts
 ├── _network.py        # NetworkPolicy + require_offline_compatible() — centralised --offline mutual-exclusion enforcement for network-touching flags
 ├── _redact.py         # Local-path redaction for output that leaves the host (advisory feed, SARIF, Nucleus, snapshot)
+├── _fs.py             # atomic_write() (random-name temp + os.replace, mode set every write; never follows a planted `<name>.tmp`), create_exclusive() (O_EXCL, refuses dangling symlinks; fix's .bak), read_untrusted_json() (no symlinks, non-blocking, capped; affected/reach --fleet). Every persisted-state and in-place write goes through here (2026-11); tests/test_fs.py fails on any new O_TRUNC in src
 ├── bundle.py          # Signed air-gapped data bundle (STORY-0129): verify_bundle() checks bundle.json + the feed in a private copy, advances seen.json (0o600) only on success; override() points scan/affected at the bundle's data files
 ├── gateways.py        # MCP gateway upstreams (STORY-0111): mcptoon, 1MCP and MCPHub.nvim config files read as data, upstream servers join discovery as `<gateway>-upstream`; project files .mcptoon.json/.toml and .mcphub/servers.json under --project
 ├── keys/              # Package carrying the feed public key (mcp-audit-feed.pub), force-included by pyproject.toml
@@ -744,6 +745,16 @@ Key differences:
 
 ## Security hardening invariants
 
+**2026-11 supply-chain hardening (pinned by `tests/test_workflow_hardening.py` and `tests/test_fs.py`):**
+
+- **Writes go through `_fs.atomic_write` / `_fs.create_exclusive`.** No `os.open(... O_TRUNC ...)` and no fixed `<name>.tmp` in `src/` (a cloned repository can plant that name as a symlink; `lock` and `fix --apply` both wrote through one before).
+- **Git is queried through `diff/loader._git`:** list form, `GIT_TIMEOUT_SECONDS`, `core.fsmonitor=false`, `cat-file blob` (not `git show`, which runs a repository's textconv driver), and refs starting with `-` refused.
+- **Every workflow declares top-level `permissions`; every checkout sets `persist-credentials: false`** except the two jobs that push with git (`advisory-feed-publish` `publish`, `release` `tag-major`). No `pull_request_target`.
+- **The PyPI OIDC job runs no project code.** `build-dist` builds (no `id-token`), `publish-pypi` only downloads and uploads. `attest` signs binary provenance in its own job; `release` needs it. Release paths use no Actions cache (`enable-cache: false`), and `build-binary` installs only `uv sync --all-extras --locked`.
+- **Composite-action inputs reach scripts through `env:`**, never `${{ inputs.* }}` inside `run:`.
+- **setup-action verifies build provenance** (`gh attestation verify --signer-workflow .../release.yml`) on every run, cache hit or not, for releases after v0.29.0.
+- **Dependabot version updates wait 7 days** (`cooldown`); security updates do not.
+
 The following invariants were established during the pre-launch security hardening
 pass (2026-04-17) and **must be maintained** in all future changes:
 
@@ -820,7 +831,7 @@ What's built:
 - Scoped rug-pull state management (per-config-set hash isolation)
 - 11 supported MCP clients including Copilot CLI, Augment, Codex, Gemini CLI and OpenCode (docs/clients.md)
 - Demo environment producing 76 findings on a first scan of all demo configs (68 once rug-pull state exists; counted 2026-11-04 for v0.27.0, which added SC-010 on the demo's archived `@modelcontextprotocol/server-github` (STORY-0140); 75/67 counted 2026-10-28 for STORY-0099, which added POISON-070 on the demo's `evil-calculator` ("Do not mention this to the user"); 74/66 counted 2026-10-27 for STORY-0101, which added TOXIC-008 ×2 and TOXIC-010 (HIGH) and TOXIC-011 (CRITICAL) on the demo's `github` server, attack paths unchanged at 26 with 3 CRITICAL; 70/62 after STORY-0097, which added SC-007 + SC-008 on the demo's `npx -y mcp-server-postgres` — OSV MAL-2026-5481 since June 2026; it was 68/60 from v0.20.0 to v0.21.1) — older note: (16 per-config for `claude_desktop_config.json`; community rules + AUTH-001 + SC-004 analyzers included). Note: the full 3-config scan produces more findings than single-config scans because toxic_flow sees all 8 servers together and generates cross-config TOXIC-005 pairs (database+fetch, database+github) that don't appear when scanning claude_desktop_config.json alone. AUTH-001 fires on the remote server visible in the multi-config scan. Run `mcp-audit scan demo/configs/ --format json` to verify current count before each release.
-- 9653 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
+- 9689 tests passing; `ruff check src/ tests/` clean (zero errors); `ruff format src/ tests/` clean (zero files requiring reformatting) — verify with `uv run pytest --collect-only -q` before each release
 - scanner.py coverage raised from ~50% to **89%** (2026-04-18); 45 new tests in `tests/test_scanner.py` covering all 15 integration scenarios: clean scan, findings scan, baseline drift, verify-hashes, SAST, extensions, policy, no-score, severity-threshold, offline-registry, empty config, rules-dir, pipeline order, asset-prefix, and async code paths; only the live `--connect` MCP protocol block (lines 215-240) remains untested (requires running MCP server + optional SDK)
 - Security review completed — 6 vulnerabilities fixed (V-01 through V-06)
 - 31 top-level CLI commands: affected, vet, reach, check, fix, scan, discover, pin, diff, lock, dashboard, watch, version, update-registry, merge, verify, sast, sbom, push-nucleus, shadow, killchain, snapshot, register, advise, baseline (5 sub-commands: save, list, compare, delete, export), rule (3 sub-commands: validate, test, list), policy (3 sub-commands: validate, init, check), extensions (2 sub-commands: discover, scan), agent-files (2 sub-commands: discover, scan), plugins (2 sub-commands: discover, scan), feed (1 sub-command: verify) — verify with `mcp-audit --help` before each release

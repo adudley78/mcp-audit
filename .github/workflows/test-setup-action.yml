@@ -12,6 +12,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege by default (2026-11 hardening): jobs that need more
+# declare it themselves.
+permissions:
+  contents: read
+
 jobs:
   # ── Latest version ────────────────────────────────────────────────────────
   test-latest:
@@ -25,6 +30,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup mcp-audit (latest)
         id: setup
@@ -52,6 +59,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup mcp-audit (pinned)
         id: setup
@@ -82,6 +91,8 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Run scanner action (uses setup-action internally)
         uses: ./

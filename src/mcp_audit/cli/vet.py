@@ -28,7 +28,6 @@ which used a different URL shape and included letter grades.  See
 from __future__ import annotations
 
 import json
-import os
 import sys
 import urllib.error
 import urllib.request
@@ -41,6 +40,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from mcp_audit._fs import atomic_write
 from mcp_audit.analyzers.supply_chain import split_credit
 from mcp_audit.cli import app
 from mcp_audit.registry.loader import (
@@ -411,15 +411,7 @@ def _write_verdict_cache(
     cache[cache_key] = verdict
 
     try:
-        fd = os.open(
-            str(_VERDICT_CACHE_PATH),
-            os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
-            0o600,
-        )
-        try:
-            os.write(fd, json.dumps(cache, indent=2).encode("utf-8"))
-        finally:
-            os.close(fd)
+        atomic_write(_VERDICT_CACHE_PATH, json.dumps(cache, indent=2))
     except OSError as exc:
         console.print(f"[dim]Could not write verdict cache: {exc}[/dim]")
 

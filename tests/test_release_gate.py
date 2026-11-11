@@ -292,6 +292,15 @@ def test_release_gate_job_wiring() -> None:
     assert "--on-main true" not in run
     assert '--ref "$GITHUB_REF"' in run
     assert "--tags \"$(git tag -l 'v*.*.*')\"" in run
-    assert jobs["release"]["needs"] == ["build", "gate"]
-    assert jobs["publish-pypi"]["needs"] == ["build", "gate"]
-    assert jobs["tag-major"]["needs"] == ["build", "gate", "release", "publish-pypi"]
+    assert jobs["attest"]["needs"] == ["build", "gate"]
+    assert jobs["release"]["needs"] == ["build", "gate", "attest"]
+    assert jobs["build-dist"]["needs"] == ["build", "gate"]
+    assert jobs["publish-pypi"]["needs"] == ["build", "gate", "build-dist"]
+    assert jobs["tag-major"]["needs"] == [
+        "build",
+        "gate",
+        "attest",
+        "release",
+        "build-dist",
+        "publish-pypi",
+    ]

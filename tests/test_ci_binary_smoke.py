@@ -106,7 +106,7 @@ def test_shared_action_is_the_binary_recipe() -> None:
     assert "actions/setup-python@" not in uses
     assert "uv python install" in runs
     assert "uv sync --all-extras" in runs
-    assert "uv run pyinstaller ${{ inputs.spec }}" in runs
+    assert 'uv run pyinstaller "$SPEC"' in runs
     assert "scripts/inspect_frozen_binary.py" in runs
     assert "scripts/generate_release_sbom.py" in runs
     assert "scripts/smoke_test.py" in runs
@@ -122,7 +122,7 @@ def test_publish_pypi_installs_the_composite_python_pin() -> None:
     release = _load(RELEASE_YML)
     setup = next(
         s
-        for s in _steps(release["jobs"]["publish-pypi"])
+        for s in _steps(release["jobs"]["build-dist"])
         if s.get("name") == "Set up Python"
     )
     assert setup["run"].strip() == f"uv python install {pin}"
@@ -147,7 +147,7 @@ def test_release_and_wheel_check_emit_named_sboms() -> None:
         str(s.get("run", "")) for s in _load(BUILD_ACTION_YML)["runs"]["steps"]
     )
     assert "--require pillow,reportlab" in action_runs
-    assert "mcp-audit-${{ inputs.target }}.cdx.json" in action_runs
+    assert '"dist/mcp-audit-$TARGET.cdx.json"' in action_runs
     sh = (ROOT / "scripts" / "generate_wheel_sbom.sh").read_text(encoding="utf-8")
     assert pin in sh
 

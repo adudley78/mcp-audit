@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from mcp_audit import __version__
+from mcp_audit._fs import atomic_write
 from mcp_audit.advisory.canonical import CanonicalError, canonicalize
 from mcp_audit.analyzers.rug_pull import compute_hashes, server_key
 from mcp_audit.lock import guardrail_section, section_digests, tool_digests
@@ -361,15 +362,18 @@ def serialize(doc: dict) -> bytes:
 
 
 def write_atomic(path: Path, data: bytes) -> None:
-    """Write *data* to *path* atomically (``.tmp`` + rename), like ``fix --apply``.
+    """Write *data* to *path* atomically, like ``fix --apply``.
+
+    The lock lives in a repository, so the temporary file is never a fixed
+    ``<name>.tmp`` (a repo can plant that as a symlink); see
+    :func:`mcp_audit._fs.atomic_write`. The lock is meant to be committed,
+    so it is written 0o644.
 
     Args:
         path: Destination file path.
         data: Bytes to write.
     """
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    tmp_path.write_bytes(data)
-    tmp_path.replace(path)
+    atomic_write(path, data, mode=0o644)
 
 
 def write_lock(path: Path, doc: dict) -> None:

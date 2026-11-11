@@ -428,7 +428,7 @@ def _parse_codex_config(config: DiscoveredConfig) -> list[ServerConfig]:
     return servers
 
 
-def _strip_json_comments(text: str) -> str:
+def strip_json_comments(text: str) -> str:
     """Remove ``//`` and ``/* */`` comments outside strings, as Gemini CLI does.
 
     Gemini CLI reads ``settings.json`` with ``JSON.parse(stripJsonComments(
@@ -473,10 +473,10 @@ def _strip_json_comments(text: str) -> str:
     return "".join(out)
 
 
-def _strip_trailing_commas(text: str) -> str:
+def strip_trailing_commas(text: str) -> str:
     """Drop a ``,`` that is followed only by whitespace and ``}`` or ``]``.
 
-    Run after :func:`_strip_json_comments`, so no comment can sit between the
+    Run after :func:`strip_json_comments`, so no comment can sit between the
     comma and its closer.  String-aware and linear: each comma looks ahead over
     the whitespace run after it, and runs of different commas do not overlap.
     """
@@ -508,6 +508,14 @@ def _strip_trailing_commas(text: str) -> str:
             out.append(ch)
         i += 1
     return "".join(out)
+
+
+# The one JSONC reader (2026-11): analyzers/config_hygiene.py had its own
+# copy whose regex trailing-comma pass also rewrote commas inside strings,
+# so TRUST-003 analysed a different tasks.json than VS Code runs. Old
+# private names kept for existing imports.
+_strip_json_comments = strip_json_comments
+_strip_trailing_commas = strip_trailing_commas
 
 
 def _opencode_entry(
@@ -576,7 +584,7 @@ def _parse_opencode_config(config: DiscoveredConfig) -> list[ServerConfig]:
     """
     text = _read_settings_text(config.path)
     try:
-        data = json.loads(_strip_trailing_commas(_strip_json_comments(text)))
+        data = json.loads(strip_trailing_commas(strip_json_comments(text)))
     except (json.JSONDecodeError, RecursionError) as e:
         raise ValueError(f"Invalid JSON in {config.path}: {e}") from e
     check_config_depth(data, config.path)
@@ -618,7 +626,7 @@ def _parse_gemini_settings(config: DiscoveredConfig) -> list[ServerConfig]:
     """
     text = _read_settings_text(config.path)
     try:
-        data = json.loads(_strip_json_comments(text))
+        data = json.loads(strip_json_comments(text))
     except (json.JSONDecodeError, RecursionError) as e:
         raise ValueError(f"Invalid JSON in {config.path}: {e}") from e
     check_config_depth(data, config.path)
