@@ -15,7 +15,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -24,6 +23,7 @@ from platformdirs import user_config_dir
 from pydantic import BaseModel, Field
 
 from mcp_audit import __version__
+from mcp_audit._fs import atomic_write
 from mcp_audit.models import ServerConfig, Severity
 
 _SCANNER_VERSION = __version__
@@ -227,10 +227,8 @@ class BaselineManager:
 
         path = self._safe_baseline_path(name)
         content = baseline.model_dump_json(indent=2).encode("utf-8")
-        # Security: O_CREAT with mode 0o600 — owner read/write only, no race window.
-        fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(content)
+        # Security: owner read/write only, set on every write; atomic.
+        atomic_write(path, content)
 
         return baseline
 

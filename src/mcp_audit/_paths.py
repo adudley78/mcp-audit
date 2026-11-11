@@ -100,3 +100,25 @@ def data_dir() -> Path:
         # PyInstaller sets sys.frozen = True and sys._MEIPASS to the temp dir.
         return Path(sys._MEIPASS) / "mcp_audit" / "data"  # type: ignore[attr-defined]
     return Path(__file__).parent / "data"
+
+
+def find_git_root(start: Path) -> Path | None:
+    """Walk up from *start* to the first directory holding a ``.git`` entry.
+
+    The one implementation (2026-11): ``governance/loader.py``,
+    ``shadow/allowlist.py`` and ``lock/core.py`` each had a copy.
+
+    Args:
+        start: Directory to begin the search from.
+
+    Returns:
+        The directory containing ``.git``, or ``None`` if not found.
+    """
+    current = start.resolve()
+    while True:
+        if (current / ".git").exists():
+            return current
+        parent = current.parent
+        if parent == current:
+            return None
+        current = parent

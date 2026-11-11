@@ -41,6 +41,42 @@ _GIT_PATH_DIALECT: dict[str, str] = {
 }
 
 
+#: Seconds any one git call may take. A hung git (a lock, a network
+#: filesystem) must fail the diff, not hang a CI job for six hours.
+GIT_TIMEOUT_SECONDS = 30
+
+#: Same cap the config parser applies to a file on disk.
+_MAX_GIT_BLOB_BYTES = 4 * 1024 * 1024
+
+# A repository's own .git/config can name an fsmonitor program that git
+# runs on index access. Switched off on every call.
+_GIT_SAFE_CONFIG = ("-c", "core.fsmonitor=false")
+
+
+def _check_git_ref(ref: str) -> None:
+    """Reject a ref git would read as an option (``--output=...``)."""
+    if not ref or ref.startswith("-") or any(c in ref for c in "\x00\n\r"):
+        raise ValueError(f"Not a usable git ref: {ref!r}")
+
+
+def _git(*args: str) -> subprocess.CompletedProcess[bytes]:
+    """Run a read-only git query: list form, bounded, captured, no pager."""
+    try:
+        return subprocess.run(  # noqa: S603  # nosec B603 — list form, shell=False
+            ["git", *_GIT_SAFE_CONFIG, "--no-pager", *args],  # noqa: S607
+            capture_output=True,
+            timeout=GIT_TIMEOUT_SECONDS,
+            check=False,
+            stdin=subprocess.DEVNULL,
+        )
+    except FileNotFoundError as exc:
+        raise ValueError("git is not installed or not on PATH") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError(
+            f"git {args[0]} timed out after {GIT_TIMEOUT_SECONDS}s"
+        ) from exc
+
+
 def _load_from_directory(path: Path) -> list[ServerConfig]:
     """Load all ServerConfigs discovered under *path*."""
     discovered = discover_configs(extra_paths=[path], skip_auto_discovery=True)
@@ -101,7 +137,7 @@ def _load_from_json_file(path: Path) -> list[ServerConfig]:
 def _load_from_git_sha(sha: str) -> list[ServerConfig]:
     """Load ServerConfigs from a git SHA by checking known config locations.
 
-    Uses ``git show <sha>:<path>`` to read each known MCP config path.
+    Uses ``git cat-file blob <sha>:<path>`` to read each known MCP config path.
     Files not present at the given SHA are silently skipped.
 
     Args:
@@ -115,36 +151,29 @@ def _load_from_git_sha(sha: str) -> list[ServerConfig]:
             error for every path and the ref itself is invalid).
     """
     servers: list[ServerConfig] = []
+    _check_git_ref(sha)
 
     # Quick sanity check: does the ref exist?
-    # nosec S603 S607 — git is a well-known system binary; sha is a git ref string
-    probe = subprocess.run(  # noqa: S603
-        ["git", "rev-parse", "--verify", sha],  # noqa: S607
-        capture_output=True,
-        text=True,
-    )
+    probe = _git("rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}")
     if probe.returncode != 0:
-        raise ValueError(
-            f"Git ref {sha!r} could not be resolved: {probe.stderr.strip()}"
-        )
+        raise ValueError(f"Git ref {sha!r} could not be resolved to a commit.")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         for rel_path, root_key in _KNOWN_GIT_RELATIVE_PATHS:
-            try:
-                # nosec S603 S607 — git is well-known; sha validated by rev-parse above
-                result = subprocess.run(  # noqa: S603
-                    ["git", "show", f"{sha}:{rel_path}"],  # noqa: S607
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-            except subprocess.CalledProcessError:
+            # ``cat-file blob`` prints the stored bytes. ``git show`` would
+            # run a textconv driver from the repository's own .git/config,
+            # which a downloaded repository controls (TRUST-006).
+            result = _git("cat-file", "blob", f"{sha}:{rel_path}")
+            if result.returncode != 0:
                 # File didn't exist at this SHA — normal case, not an error.
                 continue
+            if len(result.stdout) > _MAX_GIT_BLOB_BYTES:
+                continue
+            text = result.stdout.decode("utf-8", errors="replace")
 
             safe_name = rel_path.replace("/", "_")
             tmp_path = Path(tmpdir) / safe_name
-            tmp_path.write_text(result.stdout, encoding="utf-8")
+            tmp_path.write_text(text, encoding="utf-8")
 
             discovered = DiscoveredConfig(
                 client_name=f"git:{sha}",
@@ -167,7 +196,7 @@ def load_input(input_str: str) -> list[ServerConfig]:
        found under it (same discovery as ``mcp-audit scan --path``).
     2. If the string resolves to an existing file — treat as a JSON file
        (ScanResult or raw MCP config).
-    3. Otherwise — treat as a git ref and resolve via ``git show``.
+    3. Otherwise — treat as a git ref and read it with ``git cat-file``.
 
     Args:
         input_str: Raw CLI argument (directory path, file path, or git ref).

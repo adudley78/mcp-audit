@@ -274,6 +274,24 @@ own steps, and the `version` input fixes the mcp-audit binary it downloads
 [Version pinning](#version-pinning) section above for the `@v1`
 floating-tag convention that will become available once `v1.0.0` ships.
 
+## Binary provenance
+
+Every release after v0.29.0 carries a GitHub build-provenance attestation for
+each binary and its SBOM, signed by `.github/workflows/release.yml`. The
+setup step checks it on every run (cache hit or not) and fails if the binary
+was not built by that workflow. Releases up to v0.29.0 predate attestations
+and install with a notice instead.
+
+To check a binary you downloaded yourself:
+
+```bash
+gh attestation verify mcp-audit-linux-x86_64 --repo adudley78/mcp-audit \
+  --signer-workflow adudley78/mcp-audit/.github/workflows/release.yml
+```
+
+For the strongest pin, reference the action by commit SHA rather than tag:
+a tag can be moved, a SHA cannot.
+
 ## Example scenarios
 
 ### Basic (visibility only, never fails)
