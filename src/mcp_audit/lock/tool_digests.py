@@ -38,9 +38,12 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-from mcp_audit.advisory.canonical import canonicalize
-from mcp_audit.models import ServerConfig, ToolInfo
+from mcp_audit._jcs import canonicalize
+
+if TYPE_CHECKING:  # pragma: no cover — annotations only; keeps `run` lean
+    from mcp_audit.models import ServerConfig, ToolInfo
 
 TOOLS_KEY = "tools"
 TOOLS_PRODUCER = "mcp-audit"
@@ -73,6 +76,54 @@ def tool_definition(tool: ToolInfo) -> dict:
     return {key: value for key, value in definition.items() if value is not None}
 
 
+#: The ``annotations`` keys the MCP spec defines. ``mcp`` SDK 2.x drops any
+#: other key when it parses a tool (1.x kept them), so a lock written by
+#: ``lock --connect`` under 2.x digests annotations restricted to these.
+SPEC_ANNOTATION_KEYS: tuple[str, ...] = (
+    "title",
+    "readOnlyHint",
+    "destructiveHint",
+    "idempotentHint",
+    "openWorldHint",
+)
+
+
+def wire_definition(wire: dict, *, spec_annotations_only: bool = False) -> dict:
+    """Return the digested definition of one tool as it arrived on the wire.
+
+    The same mapping :func:`mcp_audit.mcp_client._tool_info` applies to the
+    SDK's wire-format dump followed by :func:`tool_definition`, done on the
+    raw ``tools/list`` JSON instead, for ``mcp-audit run`` (which relays the
+    protocol and has no SDK objects). ``tests/test_runtime_tools.py`` pins
+    that both paths give the same digests.
+
+    With *spec_annotations_only*, ``annotations`` keeps only
+    :data:`SPEC_ANNOTATION_KEYS`: the definition a lock written under ``mcp``
+    SDK 2.x recorded. ``mcp-audit run`` accepts a tool that matches either
+    form, since it can't tell which SDK wrote the lock.
+    """
+    schema = wire.get("inputSchema")
+    output_schema = wire.get("outputSchema")
+    annotations = wire.get("annotations")
+    if spec_annotations_only and isinstance(annotations, dict):
+        annotations = {
+            k: v for k, v in annotations.items() if k in SPEC_ANNOTATION_KEYS
+        }
+    title = wire.get("title")
+    description = wire.get("description")
+    definition = {
+        "name": str(wire.get("name", "")),
+        "title": title if isinstance(title, str) else None,
+        "description": description if isinstance(description, str) else None,
+        "inputSchema": dict(schema) if isinstance(schema, dict) else {},
+        "outputSchema": dict(output_schema)
+        if isinstance(output_schema, dict)
+        else None,
+        "annotations": dict(annotations) if isinstance(annotations, dict) else None,
+    }
+    return {key: value for key, value in definition.items() if value is not None}
+
+
 def _contract(definition: dict) -> dict:
     return {k: v for k, v in definition.items() if k not in TEXT_FIELDS}
 
@@ -84,9 +135,14 @@ def tool_digests(tools: list[ToolInfo]) -> dict[str, dict[str, str]]:
     gets one entry digesting all of them in a fixed order, so any change to
     any of them still shows.
     """
+    return digests_of_definitions([tool_definition(tool) for tool in tools])
+
+
+def digests_of_definitions(definitions: list[dict]) -> dict[str, dict[str, str]]:
+    """Return :func:`tool_digests` for already-built tool definitions."""
     grouped: dict[str, list[dict]] = {}
-    for tool in tools:
-        grouped.setdefault(tool.name, []).append(tool_definition(tool))
+    for definition in definitions:
+        grouped.setdefault(definition["name"], []).append(definition)
 
     records: dict[str, dict[str, str]] = {}
     for name, definitions in grouped.items():

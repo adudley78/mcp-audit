@@ -1962,6 +1962,17 @@
       "notes": "mcp-audit run launch gate (EPIC-0009 Story 1.3). The mcp-lock.json that covers the server can't be read, isn't valid, or has a newer lock_version than this mcp-audit reads. Enforce mode fails closed; monitor mode reports it and starts the server."
     },
     {
+      "finding_id": "RUN-003",
+      "finding_title": "No tool record for a launched server",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit run tool check (EPIC-0009 Story 1.4). The lock has no tools record for the running server (it was locked without --connect), so its live tools can't be compared. Enforce mode withholds every tool; monitor mode reports it on stderr."
+    },
+    {
       "finding_id": "PERM-001",
       "finding_title": "Permission rules that Claude Code ignores or never matches",
       "owasp_codes": [
