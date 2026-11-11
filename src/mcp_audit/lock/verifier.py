@@ -33,6 +33,7 @@ from mcp_audit.analyzers.supply_chain import (
 )
 from mcp_audit.lock import guardrail_section, section_digests, tool_digests
 from mcp_audit.lock import tool_text as tool_text_mod
+from mcp_audit.lock.core import index_locked_entries
 from mcp_audit.lock.identity import (
     MatchKey,
     build_identity,
@@ -40,7 +41,6 @@ from mcp_audit.lock.identity import (
     describe_remote_move,
     launch_carries_secret,
     match_key,
-    normalize_config_ref,
 )
 from mcp_audit.lock.model import (
     SECTION_DIGESTS_KEY,
@@ -857,31 +857,9 @@ def _tool_findings(
     return findings
 
 
-def _index_locked_entries(
-    locked_servers: dict,
-) -> dict[MatchKey, tuple[str, dict]]:
-    """Index the lock's entries by their ``(config, name)`` match key (R61).
-
-    Args:
-        locked_servers: The lock's ``servers`` object.
-
-    Returns:
-        A mapping from match key to ``(entry_key, entry)``, where
-        ``entry_key`` is the original ``<client>/<name>`` string — still the
-        entry's id for every message and for the file's own shape. An entry
-        missing either half of the pair keeps its key string as a fallback
-        identity so a malformed lock degrades to the old behaviour for that
-        one entry rather than silently dropping it.
-    """
-    indexed: dict[MatchKey, tuple[str, dict]] = {}
-    for key, entry in locked_servers.items():
-        config = entry.get("config")
-        name = entry.get("name") or key.partition("/")[2]
-        match: MatchKey = (
-            (normalize_config_ref(config), name) if config else (key, name)
-        )
-        indexed[match] = (key, entry)
-    return indexed
+#: Kept under its historical name; the implementation is shared with the
+#: launch gate (:mod:`mcp_audit.lock.core`).
+_index_locked_entries = index_locked_entries
 
 
 def _index_current_servers(
