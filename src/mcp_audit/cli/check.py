@@ -324,7 +324,7 @@ def _write_pdf_report(
 
     Resolves the output path (defaulting to ``mcp-audit-report-<date>.pdf``
     in the current working directory), creates parent directories, and writes
-    the PDF with 0o644 permissions.
+    the PDF owner-only (0o600), atomically.
 
     Args:
         result: Completed scan result.
@@ -352,7 +352,7 @@ def _write_pdf_report(
         console.print(f"[red]PDF generation error:[/red] {exc}")
         raise typer.Exit(2) from None
 
-    atomic_write(output_file, pdf_bytes, mode=0o644)
+    atomic_write(output_file, pdf_bytes)  # owner-only, like reach --report pdf
 
     console.print(f"[green]PDF report written:[/green] {output_file}")
     console.print(f"[dim]Organisation: {org_name}[/dim]")

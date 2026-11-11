@@ -45,8 +45,8 @@ class TestAtomicWrite:
 
     @posix_only
     def test_explicit_mode(self, tmp_path: Path) -> None:
-        atomic_write(tmp_path / "r.pdf", b"%PDF", mode=0o644)
-        assert _mode(tmp_path / "r.pdf") == 0o644
+        atomic_write(tmp_path / "r.pdf", b"%PDF", mode=0o640)
+        assert _mode(tmp_path / "r.pdf") == 0o640
 
     @posix_only
     def test_symlink_at_destination_is_replaced_not_followed(

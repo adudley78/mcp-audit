@@ -366,14 +366,14 @@ def write_atomic(path: Path, data: bytes) -> None:
 
     The lock lives in a repository, so the temporary file is never a fixed
     ``<name>.tmp`` (a repo can plant that as a symlink); see
-    :func:`mcp_audit._fs.atomic_write`. The lock is meant to be committed,
-    so it is written 0o644.
+    :func:`mcp_audit._fs.atomic_write`. Written owner-only (0o600): git
+    records no read bits, so a teammate's checkout gets their own umask.
 
     Args:
         path: Destination file path.
         data: Bytes to write.
     """
-    atomic_write(path, data, mode=0o644)
+    atomic_write(path, data)
 
 
 def write_lock(path: Path, doc: dict) -> None:
