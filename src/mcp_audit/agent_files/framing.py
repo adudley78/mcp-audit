@@ -309,6 +309,36 @@ _STATE_ITEM_VETO_RE: re.Pattern[str] = re.compile(
     re.IGNORECASE,
 )
 
+# The veto list alone fails open: a word it lacks ("is in the README", "the
+# PR description has ...") reads as a condition.  So a state item also needs
+# positive evidence that it states a protective condition (review of #289):
+# either it is negated ("are not mounted into build containers") with nothing
+# that turns the negation back, or it names a protective state ("removed",
+# "rotated", "has a passphrase", "readable only by its owner") and places the
+# file nowhere.
+_STATE_NEGATION_RE: re.Pattern[str] = re.compile(
+    r"\b(?:not|never|nowhere|none)\b|n't\b|n’t\b", re.IGNORECASE
+)
+# Words that turn a negation back into a placement ("is not absent from",
+# "isn't excluded from", "is not only in ... but ...").
+_STATE_NEGATION_UNDO_RE: re.Pattern[str] = re.compile(
+    r"\b(?:absent|missing|without|lack\w*|exclud\w*|omit\w*|redact\w*|strip\w*"
+    r"|remov\w*|delet\w*|only|also|just|merely|but|except|besides|other\s+than"
+    r"|anywhere|everywhere|instead|rather|unless|until|except)\b",
+    re.IGNORECASE,
+)
+_STATE_PROTECTIVE_RE: re.Pattern[str] = re.compile(
+    r"\b(?:removed|rotated|revoked|restricted|encrypted|protected|passphrase\w*"
+    r"|owner|0?[46]00|expire[sd]?|disabled|scoped|least[\s-]privilege)\b",
+    re.IGNORECASE,
+)
+# A place: without a negation, a protective item never puts the file anywhere.
+_STATE_PLACEMENT_RE: re.Pattern[str] = re.compile(
+    r"\b(?:in|into|inside|within|on|at|under|among|alongside|beside|there|here"
+    r"|below|above)\b",
+    re.IGNORECASE,
+)
+
 #: Most words between a clause's start and its negation ("Never ...", "You
 #: must never ...", "The agent should not ..."); a negation deeper in the
 #: clause negates something else ("I want you to know it is not ...").
@@ -666,7 +696,13 @@ class FileFraming:
         text = _TASK_ITEM_RE.sub("", item, count=1)
         if len(text) > _STATE_ITEM_MAX_CHARS or not _STATE_VERB_RE.search(text):
             return False
-        return _STATE_ITEM_VETO_RE.search(text) is None
+        if _STATE_ITEM_VETO_RE.search(text) is not None:
+            return False
+        if _STATE_NEGATION_RE.search(text):
+            return _STATE_NEGATION_UNDO_RE.search(text) is None
+        return bool(_STATE_PROTECTIVE_RE.search(text)) and not (
+            _STATE_PLACEMENT_RE.search(text)
+        )
 
     def _later_order(self, u_start: int, u_end: int, after: int) -> bool:
         """Whether a later sentence of the item opens with an order."""

@@ -1826,7 +1826,12 @@ trust"). Recorded limits:
   list of words that move, run, store or show data, name a place it could
   go, or give an order (`agent_files/framing.py`, `_STATE_ITEM_VETO_RE`);
   the pinned bypasses are in `tests/test_agent_files_framing_bypasses.py`.
-  A verb or place the list lacks would read as a condition. It applies only
+  The word list alone failed open (review of #289: "is in the README",
+  "the PR description has ..."), so the item must also be negated with
+  nothing that turns the negation back, or name a protective state
+  (removed, rotated, passphrase, owner-only, 0600) and place the file
+  nowhere (`_STATE_NEGATION_RE`, `_STATE_PROTECTIVE_RE`,
+  `_STATE_PLACEMENT_RE`). A protective word the list lacks reads as HIGH. It applies only
   to POISON-001/002 (a file name can be a condition's subject; "do not tell
   the user" cannot). Measured on 240 public files from GitHub code search
   holding a task-list item and an SSH or cloud credential path (2026-11-11,
