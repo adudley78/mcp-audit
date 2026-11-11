@@ -32,8 +32,13 @@ on:
         type: boolean
         default: false
 
+# Least privilege by default (2026-11 hardening). Only `release` (creates
+# the GitHub Release) and `tag-major` (pushes @vN) get `contents: write`;
+# `build`, which runs PyInstaller and every locked dependency, gets a
+# read-only token. TanStack (CVE-2026-45321, 2026-05) and the Bitwarden CLI
+# compromise (2026-04) both turned build-time code into a write token.
 permissions:
-  contents: write
+  contents: read
 
 # One run per ref at a time: a tag can never publish twice in parallel.
 concurrency:
@@ -55,6 +60,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Check the tag, the version, and main
         id: decide
@@ -109,6 +115,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # Interpreter, extras, spec, PyInstaller, PYZ inspect, smoke, size:
       # one definition, shared with ci.yml binary-smoke. Do not inline a copy here.
@@ -127,26 +135,67 @@ jobs:
             dist/mcp-audit-${{ matrix.target }}.cdx.json
           if-no-files-found: error
 
+  attest:
+    name: Attest binary provenance
+    # 2026-11 hardening. Signs a SLSA build-provenance statement for each
+    # shipped binary and SBOM with GitHub's Sigstore instance, so anyone can
+    # run `gh attestation verify <file> --repo adudley78/mcp-audit` and
+    # setup-action checks it before it puts a binary on PATH. Its own job:
+    # no checkout and no project code run next to `id-token: write`.
+    needs: [build, gate]
+    if: needs.gate.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Download binary artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: "{darwin,linux,windows}-*"
+          path: dist/
+
+      - name: Attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "dist/*/mcp-audit-*"
+
   release:
     name: Create GitHub Release
-    needs: [build, gate]
+    # `attest` first: no binary is published without its provenance.
+    needs: [build, gate, attest]
     # Only when `gate` says this run publishes (a tag push, or a dispatch
     # with publish=true on a vX.Y.Z tag). A plain dispatch is a dry run.
     if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      # softprops/action-gh-release creates the Release with this token
+      # (its `token` input), not with git credentials.
+      contents: write
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: Download all artifacts
+      - name: Download binary artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          # Only the four binary artifacts (named by target). `python-dist`
+          # from `build-dist` goes to PyPI, not onto the GitHub Release.
+          pattern: "{darwin,linux,windows}-*"
           path: dist/
 
       - name: Install uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "latest"
+          # No Actions cache in a release run: a cache entry is the one
+          # thing a less-trusted run can leave for this one (TanStack,
+          # CVE-2026-45321). Release builds start from nothing.
+          enable-cache: false
 
       - name: Generate wheel CycloneDX SBOM
         # Separate document from the per-binary PYZ SBOMs. Describes a default
@@ -182,12 +231,63 @@ jobs:
           # "Full Changelog" link appended by GitHub's comparison view.
           body_path: ${{ runner.temp }}/release-notes.md
 
+  build-dist:
+    name: Build sdist + wheel for PyPI
+    # Split from `publish-pypi` (2026-11 hardening, PyPA's documented
+    # pattern). `uv build` runs the build backend (hatchling, unpinned on
+    # purpose, see pyproject.toml) and its plugins. That code must never run
+    # in a job that can mint a PyPI OIDC token: TanStack (CVE-2026-45321)
+    # and IronWorm (2026-06) read the token from runner memory and published
+    # with valid provenance. This job has no `id-token` and a read-only
+    # token; `publish-pypi` only downloads these files and uploads them.
+    needs: [build, gate]
+    if: needs.gate.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        # uv is deliberately unpinned. Downstream (CPython 3.12.14, uv.lock,
+        # four-platform PYZ inspect) is pinned and checked; an incompatible
+        # uv fails the build immediately. latest-known was tried 2026-08-22
+        # and resolved uv 0.12.4, which cannot fetch 3.12.14. Do not pin a
+        # uv version — Dependabot does not bump action input strings.
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "latest"
+          enable-cache: false
+
+      - name: Set up Python
+        # Pin must match .github/actions/build-binary/ `python-version`
+        # default. This job cannot call the composite (PyInstaller). The
+        # copy is locked by tests/test_ci_binary_smoke.py.
+        run: uv python install 3.12.14
+
+      - name: Build sdist + wheel
+        # Pure-Python project (hatchling backend), so `uv build` produces a
+        # single platform-agnostic wheel plus an sdist.  No matrix needed.
+        run: |
+          rm -rf dist/
+          uv build
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-dist
+          path: dist/
+          if-no-files-found: error
+
   publish-pypi:
     name: Publish to PyPI
     # Runs independently of the `release` job — a transient PyPI outage must
     # not withhold the GitHub Release binaries, and vice versa.  Both still
     # depend on `build` so a broken build never publishes anywhere.
-    needs: [build, gate]
+    needs: [build, gate, build-dist]
     # Only when `gate` says this run publishes. A plain dispatch is a dry run.
     if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
@@ -211,34 +311,16 @@ jobs:
     permissions:
       # `id-token: write` is required for PyPI Trusted Publishing (OIDC).
       # We deliberately do NOT grant `contents: write` here — this job has
-      # no reason to touch repository content.
+      # no reason to touch repository content. It has no checkout and runs
+      # no project or build code: two pinned actions, nothing else.
       id-token: write
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install uv
-        # uv is deliberately unpinned. Downstream (CPython 3.12.14, uv.lock,
-        # four-platform PYZ inspect) is pinned and checked; an incompatible
-        # uv fails the build immediately. latest-known was tried 2026-08-22
-        # and resolved uv 0.12.4, which cannot fetch 3.12.14. Do not pin a
-        # uv version — Dependabot does not bump action input strings.
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Download distributions
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          version: "latest"
-
-      - name: Set up Python
-        # Pin must match .github/actions/build-binary/ `python-version`
-        # default. This job cannot call the composite (PyInstaller). The
-        # copy is locked by tests/test_ci_binary_smoke.py.
-        run: uv python install 3.12.14
-
-      - name: Build sdist + wheel
-        # Pure-Python project (hatchling backend), so `uv build` produces a
-        # single platform-agnostic wheel plus an sdist.  No matrix needed.
-        run: |
-          rm -rf dist/
-          uv build
+          name: python-dist
+          path: dist/
 
       - name: Publish to PyPI
         # Pinned to the v1.14.2 commit SHA (2026-07-29) for supply-chain
@@ -273,7 +355,7 @@ jobs:
     # the floating `@vN` tag.  A broken PyPI publish must NOT silently upgrade
     # every `@v1` consumer to a release where `pip install mcp-audit-scanner`
     # 404s, and a broken GitHub Release must not advertise missing binaries.
-    needs: [build, gate, release, publish-pypi]
+    needs: [build, gate, attest, release, build-dist, publish-pypi]
     if: needs.gate.outputs.publish == 'true'
     runs-on: ubuntu-latest
 

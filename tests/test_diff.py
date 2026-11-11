@@ -633,11 +633,15 @@ class TestLoaderGitSha:
         probe_result.returncode = 0
         probe_result.stdout = sha
 
-        # All `git show` calls raise CalledProcessError (no MCP configs at SHA)
+        missing = MagicMock()
+        missing.returncode = 128
+        missing.stdout = b""
+
+        # Every `git cat-file` call fails (no MCP configs at SHA).
         def _side_effects(cmd: list[str], **kwargs: object) -> MagicMock:
             if "rev-parse" in cmd:
                 return probe_result
-            raise subprocess.CalledProcessError(128, cmd)
+            return missing
 
         with patch("mcp_audit.diff.loader.subprocess.run", side_effect=_side_effects):
             from mcp_audit.diff.loader import _load_from_git_sha

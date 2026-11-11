@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from mcp_audit._fs import atomic_write, create_exclusive
 from mcp_audit.fixer.strategies.base import BaseFixStrategy
 from mcp_audit.fixer.strategies.credentials import CredentialsFixStrategy
 from mcp_audit.fixer.strategies.pinning import PackagePinningStrategy
@@ -240,32 +241,26 @@ def _finish(
 
     # 1. Write backup of original content first (before any modification).  An
     # earlier backup is never overwritten: the first one is the real original.
-    bak_path = target.with_suffix(target.suffix + ".bak")
+    # Created exclusively: a name already taken, including by a dangling
+    # symlink a repository planted (``Path.exists()`` reports those as
+    # absent), moves on to the next number instead of writing through it.
     n = 0
-    while bak_path.exists():
-        n += 1
-        bak_path = target.with_suffix(f"{target.suffix}.bak.{n}")
-    _write_private(bak_path, original_text, mode)
+    while True:
+        suffix = ".bak" if n == 0 else f".bak.{n}"
+        bak_path = target.with_suffix(target.suffix + suffix)
+        try:
+            create_exclusive(bak_path, original_text, mode=mode)
+            break
+        except FileExistsError:
+            n += 1
     result.backup_path = bak_path
 
-    # 2. Write new content to a temp file.
-    tmp_path = target.with_suffix(target.suffix + ".tmp")
-    _write_private(tmp_path, new_text, mode)
-
-    # 3. Atomic rename: replaces the config in one syscall on POSIX.
-    tmp_path.replace(target)
+    # 2. Write the new content to a fresh, randomly named temp file and
+    # rename it over the config in one step. A fixed ``<name>.tmp`` was a
+    # symlink-clobber primitive in a cloned repository (2026-11 hardening).
+    atomic_write(target, new_text, mode=mode)
 
     return result
-
-
-def _write_private(path: Path, text: str, mode: int) -> None:
-    """Write *text* to *path* with permission bits *mode* (never wider)."""
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(text)
-    finally:
-        os.chmod(path, mode)
 
 
 def run_pins(
