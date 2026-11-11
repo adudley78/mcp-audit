@@ -7,10 +7,10 @@ root of the git repository".  The rule is the command string itself, so a
 command approved with a token, a password or a connection string in it puts
 that secret in a settings file.  GitGuardian (Guillaume Valadon, 2026-11-09)
 counted 31,088 distinct secrets in public ``settings.local.json`` files
-(5,343 valid at detection) and 8,271 in ``settings.json``; Apiiro (via The
-Hacker News, 2026-11-07) found a secret in 1,122 of 104,185 public
-``settings.local.json`` copies, 215 of which neither gitleaks nor TruffleHog
-flagged.
+(5,343 valid at detection) and 8,271 in ``settings.json``; Apiiro (Shmulik
+Cohen and Matan Giladi, via The Hacker News, 2026-11-07) found a secret in
+1,122 of 104,185 public ``settings.local.json`` copies, 215 of which neither
+gitleaks nor TruffleHog flagged.
 
 This module is the pure, per-file part: :func:`rule_secret_hits` finds the
 rules and :func:`rule_secret_finding` builds the finding.  Step 0b of the scan
@@ -302,10 +302,10 @@ def rule_secret_finding(
             f" {git_note} Anyone who can read this file can read the secret."
             " GitGuardian (Guillaume Valadon, 2026-11-09) found 31,088 distinct"
             " secrets in public settings.local.json files, 5,343 still valid,"
-            " and 8,271 in settings.json; Apiiro (via The Hacker News,"
-            " 2026-11-07) found a secret in 1,122 of 104,185 public"
-            " settings.local.json copies, 215 of which neither gitleaks nor"
-            " TruffleHog flagged."
+            " and 8,271 in settings.json; Apiiro (Shmulik Cohen and Matan"
+            " Giladi, via The Hacker News, 2026-11-07) found a secret in 1,122"
+            " of 104,185 public settings.local.json copies, 215 of which"
+            " neither gitleaks nor TruffleHog flagged."
         ),
         evidence=f"{path}: " + "; ".join(quoted),
         remediation=(

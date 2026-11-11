@@ -228,8 +228,13 @@ def test_relock_drops_the_secrets_and_verifies(repo: Path) -> None:
     assert section_digests.check(after).problems == []
     assert guardrail_section.checksum_ok(after["guardrails"])
     # The top-level checksum's scope (ADR-0005 §10) does not include the
-    # guardrails section: it is unchanged.
-    assert after["checksum"] == before["checksum"] == compute_checksum(after)
+    # guardrails section: only generated_by (the running version, which the
+    # 0.29.0 fixture does not have once the version moves on) can change it.
+    assert after["checksum"] == compute_checksum(after)
+    assert (
+        compute_checksum({**before, "generated_by": after["generated_by"]})
+        == (after["checksum"])
+    )
     # Only records holding a newly redacted string changed.
     assert after["servers"] == before["servers"]
     old_files, new_files = before["guardrails"]["files"], after["guardrails"]["files"]

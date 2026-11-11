@@ -43,8 +43,9 @@ the first scan after upgrading reports no GUARD-001/002, `lock --verify` on an o
 LOCK-014 (the lock's checksums and `section_digests` are over its bytes, which `--verify` never
 changes), and the next scan rewrites `guardrails.json` without the values: every entry, including
 tombstones and records of files that scan does not read (another repository's settings). Run `mcp-audit lock`
-again to drop them from a committed lock: only the records that held such a string change, the
-top-level checksum does not (its scope excludes this section), and the new lock verifies. The
+again to drop them from a committed lock: only the records that held such a string change in this
+section, which is outside the top-level checksum (that checksum changes only because
+`generated_by` names the new version, as on any re-lock after an upgrade), and the new lock verifies. The
 digest kept for a list longer than 2,000 entries or with an entry over 512 characters is over the
 older form on purpose, so it does not change on upgrade; it is a SHA-256, never the text. Domain
 lists keep their form. **An older mcp-audit verifying a lock written by this version** compares the
