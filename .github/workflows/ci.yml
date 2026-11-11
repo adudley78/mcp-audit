@@ -95,9 +95,23 @@ jobs:
           cosign-release: v3.0.6
 
       - name: Install minisign
-        # Closes the same silent-skip gap for TestMinisignRoundTrip. Ubuntu's
-        # apt repo ships a current build; no separate installer action exists.
-        run: sudo apt-get update && sudo apt-get install -y minisign
+        # Pinned upstream release (jedisct1/minisign 0.12), checked by SHA-256,
+        # not apt: on 2026-11-11 the runner's Ubuntu mirror stopped resolving
+        # for over an hour and this step failed every run. The digest was taken
+        # from a tarball whose minisig verified against the author's published
+        # key (RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3).
+        # Closes the silent-skip gap for TestMinisignRoundTrip.
+        env:
+          MINISIGN_VERSION: "0.12"
+          MINISIGN_SHA256: 9a599b48ba6eb7b1e80f12f36b94ceca7c00b7a5173c95c3efc88d9822957e73
+        run: |
+          curl -fsSL --retry 3 -o minisign.tar.gz \
+            "https://github.com/jedisct1/minisign/releases/download/${MINISIGN_VERSION}/minisign-${MINISIGN_VERSION}-linux.tar.gz"
+          echo "${MINISIGN_SHA256}  minisign.tar.gz" | sha256sum -c -
+          tar xzf minisign.tar.gz minisign-linux/x86_64/minisign
+          sudo install -m 0755 minisign-linux/x86_64/minisign /usr/local/bin/minisign
+          rm -rf minisign.tar.gz minisign-linux
+          minisign -v
 
       - name: Run tests
         # This is also the only CI leg with cosign, minisign, AND (being

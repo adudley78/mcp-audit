@@ -249,8 +249,17 @@ def test_build_verifies_the_signed_candidate_before_upload() -> None:
 
 
 def test_build_installs_minisign() -> None:
-    run_text = _run_text(_steps(_load()["jobs"]["build"]))
-    assert "install -y minisign" in run_text
+    """minisign comes from its pinned upstream release, checked by SHA-256
+    before install, not from apt (the runner mirror failed every run on
+    2026-11-11)."""
+    steps = _steps(_load()["jobs"]["build"])
+    step = next(s for s in steps if s.get("name") == "Install minisign")
+    run_text = str(step["run"])
+    env = step.get("env", {})
+    assert len(str(env.get("MINISIGN_SHA256", ""))) == 64
+    assert "github.com/jedisct1/minisign/releases/download/" in run_text
+    assert run_text.index("sha256sum -c") < run_text.index("/usr/local/bin/minisign")
+    assert "apt-get" not in _run_text(steps)
 
 
 def test_no_keyless_signing_and_no_secret_outside_the_signing_step() -> None:
