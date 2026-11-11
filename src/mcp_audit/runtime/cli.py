@@ -16,7 +16,7 @@ from pathlib import Path
 from mcp_audit.runtime.relay import mirror_exit, relay
 
 USAGE = (
-    "mcp-audit run [--config FILE --server NAME [--lock FILE] "
+    "mcp-audit run [--config FILE --server NAME [--lock FILE] [--policy FILE] "
     "[--mode monitor|enforce]] -- <server command> [args...]"
 )
 
@@ -57,6 +57,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--lock",
         type=Path,
         help="mcp-lock.json to check against (default: nearest above --config)",
+    )
+    parser.add_argument(
+        "--policy",
+        type=Path,
+        help="governance policy for runtime settings (default: found from --config)",
     )
     parser.add_argument(
         "--mode",
@@ -126,12 +131,16 @@ def _gate(
         lock_path=options.lock.expanduser().resolve() if options.lock else None,
     )
     if result.ok:
+        from mcp_audit.runtime.poison import PoisonCheck
         from mcp_audit.runtime.tools import ToolGuard
 
+        config = options.config.expanduser().resolve()
+        policy = options.policy.expanduser().resolve() if options.policy else None
         guard = ToolGuard(
             options.server,
             result.tools_record,
             enforce=options.mode == "enforce",
+            poison=PoisonCheck(options.server, config, policy).start(),
         )
         return None, guard
     if options.mode == "enforce":

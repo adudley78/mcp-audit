@@ -93,7 +93,9 @@ def _load_from_path(path: Path) -> GovernancePolicy:
         ) from exc
 
 
-def load_policy(path: Path | None = None) -> GovernancePolicy | None:
+def load_policy(
+    path: Path | None = None, *, start: Path | None = None
+) -> GovernancePolicy | None:
     """Load a governance policy, returning ``None`` when no file is found.
 
     Resolution order:
@@ -105,6 +107,9 @@ def load_policy(path: Path | None = None) -> GovernancePolicy | None:
     Args:
         path: Explicit path override.  When provided, the file must exist;
             an error is raised if it cannot be read or fails validation.
+        start: Directory to search instead of the current working directory
+            (``mcp-audit run`` passes the MCP config's directory, since the
+            client decides the server's working directory).
 
     Returns:
         A validated :class:`~mcp_audit.governance.models.GovernancePolicy`,
@@ -126,8 +131,8 @@ def load_policy(path: Path | None = None) -> GovernancePolicy | None:
             raise ValueError(f"Policy file not found: {path}")
         return _load_from_path(path)
 
-    # 2. CWD search.
-    cwd = Path.cwd()
+    # 2. CWD (or *start*) search.
+    cwd = start.resolve() if start is not None else Path.cwd()
     for filename in POLICY_FILENAMES:
         candidate = cwd / filename
         if candidate.exists():

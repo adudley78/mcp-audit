@@ -14,6 +14,9 @@ LOCK-007   HIGH      A tool's schema or annotations changed
 LOCK-008   MEDIUM    Only a tool's description or title changed
 LOCK-009   LOW       A locked tool is gone
 RUN-003    HIGH      The lock has no tool record for this server
+POISON-*   policy    A tool's live text matches a poisoning pattern at or
+                     above ``runtime.poison_threshold`` (default critical;
+                     see :mod:`mcp_audit.runtime.poison`)
 =========  ========  ===============================================
 
 Monitor mode only reports (one stderr line per change). Enforce mode also
@@ -91,6 +94,9 @@ class ToolGuard:
             or ``None`` when the lock has none.
         enforce: Withhold added and changed tools (``--mode enforce``).
         report: Where one-line reports go (stderr by default).
+        poison: A :class:`~mcp_audit.runtime.poison.PoisonCheck` (duck-typed:
+            ``threshold``, ``over_threshold(definitions)``), or ``None`` to
+            skip the POISON-* check.
     """
 
     def __init__(
@@ -100,8 +106,11 @@ class ToolGuard:
         *,
         enforce: bool,
         report: Callable[[str], None] = _say,
+        poison: object | None = None,
     ) -> None:
         self.server_name = server_name
+        self.poison = poison
+        self._poison_severity: dict[str, str] = {}
         self.record = tools_record
         self.enforce = enforce
         self._report = report
@@ -188,6 +197,15 @@ class ToolGuard:
                 page_withheld = dict.fromkeys(diff.added, "LOCK-006")
                 page_withheld.update(dict.fromkeys(diff.contract_changed, "LOCK-007"))
                 page_withheld.update(dict.fromkeys(diff.text_changed, "LOCK-008"))
+        if self.poison is not None:
+            hits = self.poison.over_threshold(  # type: ignore[attr-defined]
+                [d for d in definitions if d["name"] not in page_withheld]
+            )
+            for name, (finding, severity) in hits.items():
+                page_withheld[name] = finding
+                self._poison_severity[name] = severity
+
+        with self._lock:
             self._withheld_now.update(page_withheld)
             page_approved = set(current) - set(page_withheld)
             self._approved_now.update(page_approved)
@@ -229,7 +247,9 @@ class ToolGuard:
             by_finding.setdefault(finding, []).append(name)
         if removed:
             by_finding["LOCK-009"] = removed
-        for finding in ("RUN-003", "LOCK-006", "LOCK-007", "LOCK-008", "LOCK-009"):
+        order = ["RUN-003", "LOCK-006", "LOCK-007", "LOCK-008", "LOCK-009"]
+        order += sorted(f for f in by_finding if f not in order)
+        for finding in order:
             names = sorted(by_finding.get(finding, []))
             if not names:
                 continue
@@ -251,6 +271,17 @@ class ToolGuard:
         if finding == "RUN-003":
             head = f"{finding} server {server}: {_WHY[finding]}"
             fix = _FIX_NO_RECORD
+        elif finding not in _WHY:
+            severities = sorted({self._poison_severity.get(n, "?") for n in names})
+            threshold = getattr(self.poison, "threshold", "?")
+            head = (
+                f"{finding} server {server}: tool(s) {_names(names)}: text matches "
+                f"a {'/'.join(severities)} poisoning pattern (threshold: {threshold})"
+            )
+            fix = (
+                "read the tool's text with `mcp-audit scan --connect`; if it's a "
+                "false positive, raise runtime.poison_threshold in the policy"
+            )
         else:
             head = (
                 f"{finding} server {server}: tool(s) {_names(names)}: {_WHY[finding]}"
@@ -284,7 +315,8 @@ def _denial(msg_id: object, name: object, finding: str | None) -> bytes:
         why = "it hasn't appeared in a tools/list mcp-audit has checked"
         message = f"mcp-audit withheld tool {name!r}: {why}"
     else:
-        message = f"mcp-audit withheld tool {name!r}: {finding}, {_WHY[finding]}"
+        why = _WHY.get(finding, "its text matches a poisoning pattern")
+        message = f"mcp-audit withheld tool {name!r}: {finding}, {why}"
     reply = {
         "jsonrpc": "2.0",
         "id": msg_id,
