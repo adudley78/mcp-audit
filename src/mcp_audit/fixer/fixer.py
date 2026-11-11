@@ -195,6 +195,25 @@ def run_fix(
     return _finish(result, config_path, original_text, current_config, apply)
 
 
+def write_config_change(
+    config_path: Path, original_text: str, new_config: dict, *, apply: bool
+) -> FixResult:
+    """Diff *new_config* against *original_text* and, with *apply*, write it.
+
+    The same backup-then-atomic-write path ``mcp-audit fix`` uses (a ``.bak``
+    that is never overwritten, permissions kept, symlinked configs edited
+    where they live), for other commands that rewrite a JSON MCP config
+    (``mcp-audit wrap``/``unwrap``).
+    """
+    return _finish(
+        FixResult(config_path=config_path),
+        config_path,
+        original_text,
+        new_config,
+        apply,
+    )
+
+
 def _finish(
     result: FixResult,
     config_path: Path,

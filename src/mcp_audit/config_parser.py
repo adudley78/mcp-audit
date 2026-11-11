@@ -15,6 +15,7 @@ from mcp_audit.discovery import (
 )
 from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS, read_gateway_servers
 from mcp_audit.models import ServerConfig, TransportType
+from mcp_audit.runtime.wrapping import inner_launch, wrapper_options
 
 #: ``DiscoveredConfig.dialect`` values (STORY-0110).
 CODEX_DIALECT = "codex"
@@ -224,6 +225,16 @@ def _servers_from_dict(
 
         transport = _detect_transport(server_data)
 
+        command = server_data.get("command")
+        args = server_data.get("args", [])
+        # A server launched through `mcp-audit run` is analysed as the server
+        # it runs (EPIC-0009 Story 1.2); `raw` keeps the entry as written.
+        inner = inner_launch(command, args)
+        wrap_mode = None
+        if inner is not None:
+            wrap_mode = wrapper_options(args).get("mode", "monitor")
+            command, args = inner
+
         raw_headers = server_data.get("headers", {})
         servers.append(
             ServerConfig(
@@ -231,8 +242,10 @@ def _servers_from_dict(
                 client=config.client_name,
                 config_path=config.path,
                 transport=transport,
-                command=server_data.get("command"),
-                args=server_data.get("args", []),
+                command=command,
+                args=args,
+                wrapped=inner is not None,
+                wrap_mode=wrap_mode,
                 env=server_data.get("env", {}),
                 url=server_data.get("url"),
                 # Normalise headers to dict[str, str]; skip non-dict values

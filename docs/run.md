@@ -17,6 +17,62 @@ in place of the server's own command:
 Everything after `--` is the server's original command, passed on verbatim, so
 server flags such as `--help` reach the server rather than mcp-audit.
 
+## Wrapping your clients' servers (Story 1.2)
+
+You don't have to edit configs by hand:
+
+```bash
+mcp-audit wrap                      # dry run: every discovered config, diff + gate decision per server
+mcp-audit wrap --mode enforce       # same, for enforce mode
+mcp-audit wrap --apply              # write (backup next to each file), then restart the client
+mcp-audit unwrap --apply            # put everything back
+```
+
+`--path FILE`, `--client NAME` and `--server NAME` narrow it down. `wrap`
+writes the absolute path of the `mcp-audit` it runs from (GUI clients don't
+inherit your shell's PATH); `--exe` overrides it.
+
+Supported: Claude Code (`~/.claude.json`, `.mcp.json`), Cursor, Claude
+Desktop, VS Code, Windsurf, Copilot CLI and Augment JSON configs, and any JSON
+config named with `--path`. Not rewritten: configs with comments or trailing
+commas, Codex (TOML), Gemini CLI, OpenCode, MCP gateway files, plugin and
+subagent definitions, and remote (URL) servers.
+
+A wrapped entry changes only `command` and `args`:
+
+```json
+"memory": {
+  "command": "/Users/you/.local/bin/mcp-audit",
+  "args": ["run", "--config", "/Users/you/project/.mcp.json", "--server", "memory",
+           "--mode", "monitor", "--original-sha256", "…",
+           "--", "npx", "-y", "@modelcontextprotocol/server-memory"],
+  "env": {"MEMORY_FILE": "…"}
+}
+```
+
+`--original-sha256` is the digest of the entry before wrapping; `unwrap`
+uses it to confirm it restored exactly what was there, and says when the
+entry was edited in between.
+
+Everything else in mcp-audit reads a wrapped entry as the server it runs:
+scans analyse the real package, and `lock`/`lock --verify` record and compare
+the inner command, so wrapping a locked server isn't drift. Only an
+mcp-audit executable named by absolute path or bare name counts as the
+wrapper; a relative `./mcp-audit` in a cloned repository is analysed as the
+command it is.
+
+`check` adds a `Launch gate:` line once any server is wrapped, and a policy
+with `runtime.require_wrap: true` makes `scan` report each unwrapped local
+server as WRAP-001.
+
+### What a refused server looks like in each client
+
+Not yet verified in each client. When enforce mode refuses a server, `run`
+exits 78 after writing one line to stderr, before the MCP handshake, so the
+client sees a server that failed to start. Where each client surfaces that
+(its MCP server list, a log file, or nowhere visible) is being checked client
+by client and will be recorded here.
+
 ## Launch gate (Story 1.3)
 
 Give `run` the server's config file and name, and it checks the launch

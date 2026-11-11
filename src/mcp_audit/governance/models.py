@@ -175,6 +175,9 @@ POISON_THRESHOLDS = ("off", "critical", "high", "medium", "low", "info")
 class RuntimePolicy(BaseModel):
     """What ``mcp-audit run`` does at runtime (EPIC-0009).
 
+    ``require_wrap``: report every local server in a wrappable client config
+    that doesn't launch through ``mcp-audit run`` (WRAP-001, from ``scan``).
+
     ``poison_threshold``: the lowest POISON-* severity on a live tool
     description that ``run`` acts on. Monitor mode reports such a tool;
     enforce mode withholds it like a changed tool. ``off`` turns the check
@@ -185,6 +188,9 @@ class RuntimePolicy(BaseModel):
     """
 
     poison_threshold: str = "critical"
+    # Every local server in a client config ``mcp-audit wrap`` supports must
+    # launch through ``mcp-audit run``; an unwrapped one is WRAP-001.
+    require_wrap: bool = False
 
     @field_validator("poison_threshold", mode="before")
     @classmethod

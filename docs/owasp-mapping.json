@@ -1973,6 +1973,17 @@
       "notes": "mcp-audit run tool check (EPIC-0009 Story 1.4). The lock has no tools record for the running server (it was locked without --connect), so its live tools can't be compared. Enforce mode withholds every tool; monitor mode reports it on stderr."
     },
     {
+      "finding_id": "WRAP-001",
+      "finding_title": "Server not launched through mcp-audit run",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "Governance (EPIC-0009 Story 1.2), only when the policy sets runtime.require_wrap. A local server in a client config mcp-audit wrap supports launches directly, so the lock gate and runtime tool check never see it. HIGH."
+    },
+    {
       "finding_id": "PERM-001",
       "finding_title": "Permission rules that Claude Code ignores or never matches",
       "owasp_codes": [
