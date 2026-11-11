@@ -2269,3 +2269,36 @@ mcp-audit reach --fleet "$HOME/fleet"; echo "exit: $?"
 
 **Expected:** counts per verdict for Claude Code, the machine listed under "Not safe to allow", `b.json` listed as skipped
 ("is not valid JSON"), exit 1.
+
+---
+
+## run (EPIC-0009 Story 1.1)
+
+```bash
+printf 'hello\n' | mcp-audit run -- cat; echo "exit: $?"
+mcp-audit run -- python3 -c 'import sys; sys.exit(3)'; echo "exit: $?"
+mcp-audit run -- no-such-mcp-server; echo "exit: $?"
+mcp-audit run -- python3 -c 'import sys; print(sys.argv[1:])' --help
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}' \
+  | mcp-audit run -- npx -y @modelcontextprotocol/server-memory@2.1.1 | head -c 120; echo
+python scripts/measure_run_overhead.py
+```
+
+**Expected:** `hello` then `exit: 0`; `exit: 3`; `mcp-audit run: command not found: no-such-mcp-server` and
+`exit: 127`; `['--help']` (flags after `--` reach the server, not the wrapper); an `initialize` result from the memory
+server, identical to running it without the wrapper; median direct and wrapped launch times. Ctrl-C while a wrapped
+server runs stops it and leaves no `node` process behind (`pgrep -f server-memory` prints nothing).
+
+```bash
+cd "$(mktemp -d)" && git init -q && printf '{"mcpServers":{"t":{"command":"python3","args":["-c","import sys; sys.exit(7)"]}}}' > .mcp.json
+mcp-audit lock . --offline >/dev/null
+mcp-audit run --config .mcp.json --server t --mode enforce -- python3 -c 'import sys; sys.exit(7)'; echo "exit: $?"
+mcp-audit run --config .mcp.json --server t --mode enforce -- python3 -c 'import sys; sys.exit(8)'; echo "exit: $?"
+mcp-audit run --config .mcp.json --server t -- python3 -c 'import sys; sys.exit(8)'; echo "exit: $?"
+mcp-audit run --config .mcp.json --server nope --mode enforce -- python3 -c 'pass'; echo "exit: $?"
+echo '{ broken' > mcp-lock.json; mcp-audit run --config .mcp.json --server t --mode enforce -- python3 -c 'pass'; echo "exit: $?"
+```
+
+**Expected:** `exit: 7` (locked launch runs); `refused: LOCK-001 … its arguments changed` and `exit: 78`;
+`monitor: LOCK-001 … (enforce mode would refuse to start it)` then `exit: 8`; `refused: LOCK-002` and `exit: 78`;
+`refused: RUN-002` and `exit: 78`.

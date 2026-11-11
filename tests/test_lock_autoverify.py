@@ -344,7 +344,7 @@ class TestOutsideLockRoot:
         # --include-user shape) instead of "outside the lock root". Pin home
         # so this fixture actually exercises the outside-root branch.
         monkeypatch.setattr(
-            "mcp_audit.lock.identity.Path.home",
+            "mcp_audit.lock.core.Path.home",
             lambda *args: tmp_path / "fake-home",
         )
 

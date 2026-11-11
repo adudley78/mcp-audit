@@ -1940,6 +1940,28 @@
       "notes": "mcp-audit lock --verify (STORY-0143): the lock's guardrails section records the repository's own .claude/settings.json, .codex/config.toml and .gemini/settings.json as normalised records; the current file loosens one of them (same rows as GUARD-001). HIGH, fails the exit code. A tightening or neutral change emits nothing; lock --accept re-records. Home files and settings.local.json are never in the section. Non-advisory."
     },
     {
+      "finding_id": "RUN-001",
+      "finding_title": "No lock covers this server",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit run launch gate (EPIC-0009 Story 1.3). No mcp-lock.json covers the config file of the server being launched, so it can't be checked. Enforce mode refuses to start it; monitor mode reports it on stderr and starts it."
+    },
+    {
+      "finding_id": "RUN-002",
+      "finding_title": "Lock unreadable at launch",
+      "owasp_codes": [
+        "MCP04"
+      ],
+      "owasp_names": [
+        "Software Supply Chain Attacks"
+      ],
+      "notes": "mcp-audit run launch gate (EPIC-0009 Story 1.3). The mcp-lock.json that covers the server can't be read, isn't valid, or has a newer lock_version than this mcp-audit reads. Enforce mode fails closed; monitor mode reports it and starts the server."
+    },
+    {
       "finding_id": "PERM-001",
       "finding_title": "Permission rules that Claude Code ignores or never matches",
       "owasp_codes": [
