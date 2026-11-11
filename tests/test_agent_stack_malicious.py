@@ -213,3 +213,25 @@ def test_affected_resolves_the_record_offline() -> None:
     )
     assert ruleset.found
     assert "known-malicious mirror" in ruleset.sources
+
+
+# ── Knostic credit on two @ifasn records (STORY-0152) ────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("name", "rid", "fact"),
+    [
+        ("@ifasn/mmdd-doc-mcp", "MAL-2026-18489", "121.199.24.94"),
+        ("@ifasn/ms-doc-mcp", "MAL-2026-18603", "output/env_audit.txt"),
+    ],
+)
+def test_knostic_markdown_records_credit_the_researcher(
+    name: str, rid: str, fact: str
+) -> None:
+    (rec,) = [r for r in load_known_malicious().lookup("npm", name) if r.id == rid]
+    note = rec.note or ""
+    assert "Tamir Isaschar (Knostic)" in note
+    assert "more-than-markdown-hidden-data-collection" in note
+    assert fact in note
+    raw = {e["id"]: e for e in _shipped()["entries"]}
+    assert raw[rid]["note"] == sync.NOTES[rid]

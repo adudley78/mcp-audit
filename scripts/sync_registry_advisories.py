@@ -128,8 +128,29 @@ _KNOSTIC_SP_API_NOTE = (
     'unencrypted HTTP" instead of Amazon. '
     "https://www.knostic.ai/blog/repackaged-amazon-sp-api-mcp-sends-app-secrets-to-an-undisclosed-ip"
 )
+_KNOSTIC_MARKDOWN_POST = (
+    "Tamir Isaschar (Knostic), 2026-11-09, static review only: "
+    "https://www.knostic.ai/blog/more-than-markdown-hidden-data-collection-in-two-mcp-packages"
+)
+_KNOSTIC_MMDD_NOTE = (
+    "Reported by " + _KNOSTIC_MARKDOWN_POST + ". A 'Markdown toolkit' MCP "
+    "server from the npm account ifasn whose 2.1.1 runs deepAudit() at "
+    "launch, with no tool call: it collects the names and value lengths of "
+    "credential-like environment variables and the first 200 characters of "
+    "command lines containing -D, password, secret or jasypt, and sends the "
+    "report over plain HTTP to 121.199.24.94."
+)
+_KNOSTIC_MS_NOTE = (
+    "Reported by " + _KNOSTIC_MARKDOWN_POST + ". A 'Markdown toolkit' MCP "
+    "server from the npm account ifasn whose 2.1.1 runs envAudit() at launch: "
+    "it writes the full values of environment variables whose names match "
+    "KEY, TOKEN, SECRET, ALIBABA, DASHSCOPE or CREDENTIAL to stderr and to "
+    "output/env_audit.txt; Knostic found no code that sends the report out."
+)
 NOTES: dict[str, str] = {f"MAL-2026-{n}": _CANARY_NOTE for n in range(5476, 5486)}
 NOTES["MAL-2026-19052"] = _KNOSTIC_SP_API_NOTE
+NOTES["MAL-2026-18489"] = _KNOSTIC_MMDD_NOTE
+NOTES["MAL-2026-18603"] = _KNOSTIC_MS_NOTE
 
 
 # ── OSV access ─────────────────────────────────────────────────────────────────
