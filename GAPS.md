@@ -1835,7 +1835,8 @@ trust"). Recorded limits:
   to POISON-001/002 (a file name can be a condition's subject; "do not tell
   the user" cannot). Measured on 240 public files from GitHub code search
   holding a task-list item and an SSH or cloud credential path (2026-11-11,
-  not committed): 6 of 322 SKILL-001 findings moved from HIGH to INFO, all
+  not committed, before the review of #289 tightened the frame, so an upper
+  bound now): 6 of 322 SKILL-001 findings moved from HIGH to INFO, all
   benign checklist items (one of the six files is this repository's own
   head-to-head corpus); 28 checklist-item findings stay HIGH, almost all
   imperative steps ("Check ...", "Cover SSH keys: `**/.ssh/**`") or

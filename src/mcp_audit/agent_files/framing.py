@@ -46,7 +46,10 @@ Described (reported at INFO), only on positive evidence:
   data (send, copy, include, print, log, put, add ...), no word naming
   somewhere it could go (reply, summary, comment, server, remote, endpoint
   ...), no "to / onto / via", no "you" and no agent as its subject
-  (:data:`_STATE_ITEM_VETO_RE`).
+  (:data:`_STATE_ITEM_VETO_RE`); and, since the word list alone fails
+  open, only when it is negated with nothing turning the negation back, or
+  names a protective state (removed, rotated, passphrase, owner, 0600 ...)
+  and places the file nowhere (review of #289).
 * **An item under a detection lead-in** — a list item in the one list right
   after a heading or ``...:`` lead-in that names what to detect (flag,
   detect, look for, watch for, red flags, warning signs, indicators, signs
