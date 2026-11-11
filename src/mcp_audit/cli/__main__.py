@@ -1,6 +1,10 @@
-"""Enable ``python -m mcp_audit.cli``."""
+"""Enable ``python -m mcp_audit.cli`` (and the PyInstaller binaries' entry).
 
-from mcp_audit.cli import main
+Goes through :func:`mcp_audit._entry.main` so ``run`` takes the lean path in
+the frozen binary too.
+"""
+
+from mcp_audit._entry import main
 
 if __name__ == "__main__":
     main()
