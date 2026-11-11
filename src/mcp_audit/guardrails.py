@@ -1648,8 +1648,25 @@ def _drift_findings(
     if status != _drift._UNREADABLE and updates:
         # Never write after a failed read: these updates were computed
         # without the history and would overwrite it.
-        _drift._commit(updates, state_path, errors, _LABEL)
+        _drift._commit(updates, state_path, errors, _LABEL, normalise=_stored_entry)
     return out
+
+
+def _stored_entry(entry: dict) -> dict:
+    """*entry* with its record in this version's stored form (STORY-0151).
+
+    Applied to every entry of ``guardrails.json`` on each write, so a record
+    an older version wrote is re-redacted even when this scan does not track
+    its file (another repository's settings, a tombstone).  Anything that is
+    not a valid record is left as it is.
+    """
+    if not isinstance(entry, dict):
+        return entry
+    record = entry.get("record")
+    if not isinstance(record, dict) or not valid_record(record):
+        return entry
+    stored = stored_form(record)
+    return entry if stored is record else {**entry, "record": stored}
 
 
 def _without_lost(record: dict, diff: Diff) -> dict:

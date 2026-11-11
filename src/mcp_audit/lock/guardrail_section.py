@@ -145,7 +145,9 @@ def current_entries(root: Path, existing: object, errors: list[str]) -> dict[str
             errors.append(f"guardrails: {rel}: {record}")
             kept = previous.get(rel)
             if isinstance(kept, dict) and guardrails.valid_record(kept.get("record")):
-                entries[rel] = kept
+                # In this version's stored form: a record an older version
+                # wrote may hold a secret CRED-004 redacts (STORY-0151).
+                entries[rel] = entry(guardrails.stored_form(kept["record"]))
     return entries
 
 

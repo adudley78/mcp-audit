@@ -41,7 +41,8 @@ This version compares every record in its own stored form: a string an older ver
 redacted the same way first, which gives exactly what this version stores for the same setting. So
 the first scan after upgrading reports no GUARD-001/002, `lock --verify` on an old lock reports no
 LOCK-014 (the lock's checksums and `section_digests` are over its bytes, which `--verify` never
-changes), and the next scan rewrites `guardrails.json` without the values. Run `mcp-audit lock`
+changes), and the next scan rewrites `guardrails.json` without the values: every entry, including
+tombstones and records of files that scan does not read (another repository's settings). Run `mcp-audit lock`
 again to drop them from a committed lock: only the records that held such a string change, the
 top-level checksum does not (its scope excludes this section), and the new lock verifies. The
 digest kept for a list longer than 2,000 entries or with an entry over 512 characters is over the

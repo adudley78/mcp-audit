@@ -326,3 +326,54 @@ def test_domain_lists_keep_their_form() -> None:
 def test_stored_form_leaves_a_malformed_list_alone() -> None:
     record = {"agent": g.CLAUDE, "facts": {"permissions.allow": ["a", 3]}, "hooks": []}
     assert g.stored_form(record) is record
+
+
+# ── Review of #290: records this scan does not touch ─────────────────────────
+
+
+def test_untracked_and_tombstone_records_are_rewritten_redacted(
+    repo: Path, tmp_path: Path
+) -> None:
+    """Every old record is re-redacted on write, not only the scanned files'.
+
+    An entry for another repository's settings file (not tracked by this
+    scan) and an existing tombstone (``absent``: skipped by the compare loop)
+    kept the 0.29.0 strings verbatim before the review fix.
+    """
+    state = tmp_path / "guardrails.json"
+    _old_state(repo, state)
+    doc = json.loads(state.read_text(encoding="utf-8"))
+    claude = next(e for e in doc["files"].values() if e["record"]["agent"] == g.CLAUDE)
+    elsewhere = os.path.normcase(str(tmp_path / "other" / ".claude" / "settings.json"))
+    doc["files"][elsewhere] = claude
+    state.write_text(json.dumps(doc), encoding="utf-8")
+    findings, _ = _scan(repo, state)
+    assert findings == []
+    after = json.loads(state.read_text(encoding="utf-8"))
+    assert _leaks(json.dumps(after)) == []
+    assert after["files"][elsewhere]["record"] == g.stored_form(claude["record"])
+    assert after["files"][elsewhere]["last_seen"] == claude["last_seen"]
+
+    # A tombstone already on disk is skipped by the compare loop.
+    _old_state(repo, state)
+    (repo / ".claude" / "settings.json").unlink()
+    doc = json.loads(state.read_text(encoding="utf-8"))
+    for e in doc["files"].values():
+        if e["record"]["agent"] == g.CLAUDE:
+            e["absent"] = True
+    state.write_text(json.dumps(doc), encoding="utf-8")
+    assert _scan(repo, state)[0] == []
+    assert _leaks(state.read_text(encoding="utf-8")) == []
+
+
+def test_relock_redacts_the_entry_kept_for_an_unreadable_file(repo: Path) -> None:
+    """``lock`` keeps an unreadable file's previous entry; it is stored redacted."""
+    (repo / ".claude" / "settings.json").write_text("{not json", encoding="utf-8")
+    result = runner.invoke(app, ["lock", str(repo), "--offline"])
+    assert result.exit_code == 0, result.stdout
+    after = json.loads((repo / "mcp-lock.json").read_text(encoding="utf-8"))
+    assert _leaks(json.dumps(after)) == []
+    kept = after["guardrails"]["files"][".claude/settings.json"]
+    assert guardrail_section.entry(kept["record"]) == kept
+    assert guardrail_section.checksum_ok(after["guardrails"])
+    assert section_digests.check(after).problems == []
