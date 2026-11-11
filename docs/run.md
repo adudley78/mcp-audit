@@ -59,11 +59,51 @@ How it compares:
 - A credential the lock redacted compares the way `lock --verify` compares
   it, so changing only a credential's value is not drift (see `GAPS.md`).
 - Not checked at launch: environment-variable and header names (the launch
-  doesn't show them), the lock's own checksum (`lock --verify` reports
-  tampering as LOCK-005), and live tool definitions (Story 1.4).
+  doesn't show them) and the lock's top-level checksum (`lock --verify`
+  reports tampering as LOCK-005). Live tool definitions are checked once the
+  server runs (below).
 
 `--mode enforce` without `--config` and `--server` is a usage error (exit 2):
 there is nothing to check the launch against.
+
+## Tool check (Story 1.4)
+
+Once a server passes the gate, every `tools/list` answer it sends is compared
+with the tool digests `mcp-audit lock --connect` recorded for it, the same
+comparison `lock --verify --connect` makes:
+
+| Finding | Meaning | Monitor | `--mode enforce` |
+|---|---|---|---|
+| `LOCK-006` | a tool was added | reported | tool withheld |
+| `LOCK-007` | a tool's schema or annotations changed | reported | tool withheld |
+| `LOCK-008` | only a tool's description or title changed | reported | tool withheld |
+| `LOCK-009` | a locked tool is gone | reported | reported (nothing to withhold) |
+| `RUN-003` | the lock has no tool record for this server | reported | every tool withheld |
+
+"Withheld" means two things in enforce mode:
+
+- The tool is removed from the `tools/list` result the client sees, so the
+  agent never reads its description.
+- A `tools/call` for it is answered by mcp-audit with a JSON-RPC error
+  (`-32602`, `data.finding` names the ID) and never reaches the server. Enforce
+  mode only lets a call through for a tool that matched the lock in a
+  `tools/list` it has already checked, so a call made before the client has
+  listed the tools is answered the same way (`data.finding` is `null`).
+
+Each change is reported once, as one stderr line naming the finding, the
+tools and the fix. Tool text is never quoted. A `tools/list` response is only
+rewritten when something is withheld; otherwise its bytes are relayed exactly,
+and monitor mode never changes a byte. `notifications/tools/list_changed`
+passes through and the client's next `tools/list` is compared afresh, so a
+server that changes back is released again. A paginated list is judged as a
+whole: removed tools only once the last page has arrived.
+
+`lock --connect` needs the `mcp` extra (`pip install 'mcp-audit-scanner[mcp]'`),
+which the standalone binary doesn't include. Without a tool record, enforce
+mode withholds every tool (RUN-003).
+
+A `tools` section that fails its own checksum is RUN-002 at the gate: enforce
+mode refuses to start the server.
 
 ## The relay (Story 1.1)
 
@@ -81,8 +121,7 @@ there is nothing to check the launch against.
 - **Can't start.** A missing command exits 127 and a non-executable one 126,
   with one line on stderr: `mcp-audit run: command not found: <cmd>`.
 
-The runtime tool-list check, pinned launch, event log and sandbox are later
-stories of EPIC-0009.
+Pinned launch, the event log and the sandbox are later stories of EPIC-0009.
 
 On Windows the relay and exit codes work the same; process-group signalling
 is POSIX-only.

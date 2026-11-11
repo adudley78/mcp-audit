@@ -55,11 +55,27 @@ def _write_all(fd: int, data: bytes) -> None:
         view = view[written:]
 
 
-def _pump(src_fd: int, dst_fd: int, on_done: Callable[[], None]) -> None:
+#: Longest line enforce mode will hold back to inspect. MCP stdio messages
+#: are newline-delimited; a line longer than this is relayed uninspected
+#: rather than buffered without bound.
+MAX_LINE = 64 * 1024 * 1024
+
+
+def _pump(
+    src_fd: int,
+    dst_fd: int,
+    on_done: Callable[[], None],
+    *,
+    tap: Callable[[bytes], object] | None = None,
+) -> None:
     """Copy bytes from *src_fd* to *dst_fd* until EOF or a broken pipe.
 
-    *on_done* runs exactly once when copying stops, for any reason.
+    *tap*, when given, is shown every complete line after it has been
+    forwarded (monitor mode); it never changes what is relayed, and an
+    exception in it is ignored. *on_done* runs exactly once when copying
+    stops, for any reason.
     """
+    pending = b""
     try:
         while True:
             try:
@@ -72,6 +88,77 @@ def _pump(src_fd: int, dst_fd: int, on_done: Callable[[], None]) -> None:
                 _write_all(dst_fd, chunk)
             except OSError:
                 break
+            if tap is not None:
+                pending += chunk
+                *lines, pending = pending.split(b"\n")
+                for line in lines:
+                    with contextlib.suppress(Exception):
+                        tap(line + b"\n")
+                if len(pending) > MAX_LINE:
+                    pending = b""
+    finally:
+        on_done()
+
+
+def _line_pump(
+    src_fd: int,
+    dst_fd: int,
+    on_done: Callable[[], None],
+    *,
+    handle: Callable[[bytes], tuple[bytes | None, bytes | None]],
+    out_lock: threading.Lock,
+    reply_fd: int | None = None,
+    dst_is_client: bool = False,
+) -> None:
+    """Relay *src_fd* to *dst_fd* line by line through *handle* (enforce mode).
+
+    *handle* returns ``(forward, reply)``: bytes for *dst_fd* (``None`` to
+    drop the line) and bytes for *reply_fd* (the client) instead. Every write
+    to the client goes through *out_lock*, so a reply never lands inside a
+    server message. A line *handle* fails on is forwarded unchanged, and a
+    line longer than :data:`MAX_LINE` is forwarded uninspected.
+    """
+
+    def _client_write(data: bytes) -> None:
+        with out_lock:
+            _write_all(reply_fd if reply_fd is not None else dst_fd, data)
+
+    def _forward(data: bytes) -> None:
+        if dst_is_client:
+            _client_write(data)
+        else:
+            _write_all(dst_fd, data)
+
+    pending = b""
+    try:
+        while True:
+            try:
+                chunk = os.read(src_fd, CHUNK_SIZE)
+            except OSError:
+                break
+            if not chunk:
+                break
+            pending += chunk
+            *lines, pending = pending.split(b"\n")
+            try:
+                for line in lines:
+                    raw = line + b"\n"
+                    try:
+                        forward, reply = handle(raw)
+                    except Exception:  # noqa: BLE001 — never break the session
+                        forward, reply = raw, None
+                    if forward is not None:
+                        _forward(forward)
+                    if reply is not None and reply_fd is not None:
+                        _client_write(reply)
+                if len(pending) > MAX_LINE:
+                    _forward(pending)
+                    pending = b""
+            except OSError:
+                break
+        if pending:
+            with contextlib.suppress(OSError):
+                _forward(pending)
     finally:
         on_done()
 
@@ -125,6 +212,7 @@ def relay(
     *,
     stdin_fd: int | None = None,
     stdout_fd: int | None = None,
+    guard: object | None = None,
 ) -> int:
     """Run *command* as a child and relay stdio until it exits.
 
@@ -135,6 +223,10 @@ def relay(
             stdin). Injectable for tests.
         stdout_fd: Descriptor the client reads from (default: the wrapper's
             stdout). Injectable for tests.
+        guard: A :class:`~mcp_audit.runtime.tools.ToolGuard` (duck-typed:
+            ``enforce``, ``client_line``, ``server_line``). In monitor mode it
+            only watches a copy of each line and the relay stays byte-exact;
+            in enforce mode the relay goes line by line through it.
 
     Returns:
         The child's return code as :class:`subprocess.Popen` reports it
@@ -193,12 +285,42 @@ def relay(
             with contextlib.suppress(OSError, ValueError):
                 previous[signum] = signal.signal(signum, _forward)
 
-    to_child = threading.Thread(
-        target=_pump, args=(in_fd, child_in, _close_child_stdin), daemon=True
-    )
-    from_child = threading.Thread(
-        target=_pump, args=(child_out, out_fd, _client_gone), daemon=True
-    )
+    if guard is not None and getattr(guard, "enforce", False):
+        out_lock = threading.Lock()
+
+        def _to_server(line: bytes) -> tuple[bytes | None, bytes | None]:
+            return guard.client_line(line)  # type: ignore[attr-defined]
+
+        def _to_client(line: bytes) -> tuple[bytes | None, bytes | None]:
+            return guard.server_line(line), None  # type: ignore[attr-defined]
+
+        to_child = threading.Thread(
+            target=_line_pump,
+            args=(in_fd, child_in, _close_child_stdin),
+            kwargs={"handle": _to_server, "out_lock": out_lock, "reply_fd": out_fd},
+            daemon=True,
+        )
+        from_child = threading.Thread(
+            target=_line_pump,
+            args=(child_out, out_fd, _client_gone),
+            kwargs={"handle": _to_client, "out_lock": out_lock, "dst_is_client": True},
+            daemon=True,
+        )
+    else:
+        client_tap = getattr(guard, "client_line", None)
+        server_tap = getattr(guard, "server_line", None)
+        to_child = threading.Thread(
+            target=_pump,
+            args=(in_fd, child_in, _close_child_stdin),
+            kwargs={"tap": client_tap},
+            daemon=True,
+        )
+        from_child = threading.Thread(
+            target=_pump,
+            args=(child_out, out_fd, _client_gone),
+            kwargs={"tap": server_tap},
+            daemon=True,
+        )
     to_child.start()
     from_child.start()
 

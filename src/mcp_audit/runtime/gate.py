@@ -9,8 +9,9 @@ ID         Meaning
 LOCK-002   The server is not in the lock (never approved).
 LOCK-001   The launch differs from the approved launch (drift).
 RUN-001    No ``mcp-lock.json`` covers the server's config file.
-RUN-002    The lock exists but can't be read, isn't valid, or is a
-           newer ``lock_version`` than this mcp-audit understands.
+RUN-002    The lock exists but can't be read, isn't valid, is a newer
+           ``lock_version`` than this mcp-audit understands, or its
+           ``tools`` section fails its own checksum.
 =========  ==========================================================
 
 It compares what is **actually being launched** (the argv after ``--``),
@@ -39,6 +40,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from mcp_audit.lock import tool_digests
 from mcp_audit.lock.core import (
     find_lock_for,
     index_locked_entries,
@@ -65,6 +67,10 @@ class GateResult:
     finding_id: str | None
     summary: str = ""
     fix: str = ""
+    #: The server's ``tools`` record from the lock (``{"tools": {...}}``), or
+    #: ``None`` when the lock holds none for it (written without
+    #: ``--connect``). Only set on an allowed launch.
+    tools_record: dict | None = None
 
     @property
     def ok(self) -> bool:
@@ -203,10 +209,23 @@ def check_launch(
             "review it, then run `mcp-audit lock` to approve it",
         )
 
-    _entry_key, entry = found
+    entry_key, entry = found
     identity = entry.get("identity")
     if launch_matches(identity, argv):
-        return ALLOWED
+        section = doc.get(tool_digests.TOOLS_KEY)
+        if not tool_digests.is_owned(section):
+            return ALLOWED
+        if not tool_digests.checksum_ok(section):
+            return GateResult(
+                "RUN-002",
+                f"the tools section of {lock.name} fails its checksum "
+                "(lock --verify reports this as LOCK-005)",
+                "restore it from version control or run `mcp-audit lock --connect`",
+            )
+        record = section["servers"].get(entry_key)
+        return GateResult(
+            None, tools_record=record if isinstance(record, dict) else None
+        )
     return GateResult(
         "LOCK-001",
         f"server {server_name!r} drifted from mcp-lock.json: "

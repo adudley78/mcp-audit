@@ -26,7 +26,9 @@ DESCRIPTION = (
     "and signals and the exit code pass through. With --config and --server, "
     "the launch is first checked against mcp-lock.json: monitor mode (the "
     "default) reports a problem on stderr and starts the server anyway; "
-    "enforce mode refuses to start it."
+    "enforce mode refuses to start it. Once it runs, each tools/list answer "
+    "is compared with the tool digests in the lock; enforce mode withholds "
+    "tools that were added or changed."
 )
 
 #: Exit status when enforce mode refuses a launch (sysexits EX_CONFIG).
@@ -96,16 +98,24 @@ def _say(message: str) -> None:
     sys.stderr.flush()
 
 
-def _gate(options: argparse.Namespace, command: list[str]) -> int | None:
-    """Run the launch gate; return an exit status to stop, or ``None`` to go on."""
+def _gate(
+    options: argparse.Namespace, command: list[str]
+) -> tuple[int | None, object | None]:
+    """Run the launch gate.
+
+    Returns:
+        ``(exit status to stop with or None, tool guard or None)``. A guard
+        is returned whenever the server's lock entry was found, so the
+        relay can compare its live tools with the lock (Story 1.4).
+    """
     if options.config is None and options.server is None:
         if options.mode == "enforce":
             _say("--mode enforce needs --config and --server")
-            return EXIT_USAGE
-        return None
+            return EXIT_USAGE, None
+        return None, None
     if options.config is None or options.server is None:
         _say("--config and --server go together")
-        return EXIT_USAGE
+        return EXIT_USAGE, None
 
     from mcp_audit.runtime.gate import check_launch
 
@@ -116,15 +126,22 @@ def _gate(options: argparse.Namespace, command: list[str]) -> int | None:
         lock_path=options.lock.expanduser().resolve() if options.lock else None,
     )
     if result.ok:
-        return None
+        from mcp_audit.runtime.tools import ToolGuard
+
+        guard = ToolGuard(
+            options.server,
+            result.tools_record,
+            enforce=options.mode == "enforce",
+        )
+        return None, guard
     if options.mode == "enforce":
         _say(f"refused: {result.finding_id} {result.summary}. Fix: {result.fix}")
-        return EXIT_REFUSED
+        return EXIT_REFUSED, None
     _say(
         f"monitor: {result.finding_id} {result.summary} "
         f"(enforce mode would refuse to start it). Fix: {result.fix}"
     )
-    return None
+    return None, None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -134,7 +151,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not command:
         sys.stderr.write(f"usage: {USAGE}\n")
         return EXIT_USAGE
-    stop = _gate(options, command)
+    stop, guard = _gate(options, command)
     if stop is not None:
         return stop
-    return mirror_exit(relay(command))
+    return mirror_exit(relay(command, guard=guard))
