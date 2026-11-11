@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
 import typer
 from rich.console import Console
 
+from mcp_audit._fs import atomic_write
 from mcp_audit.cli import app, run_scan
 from mcp_audit.lock.auto_verify import auto_verify as _lock_auto_verify
 from mcp_audit.models import LockStatus, ScanResult, Severity
@@ -324,7 +324,7 @@ def _write_pdf_report(
 
     Resolves the output path (defaulting to ``mcp-audit-report-<date>.pdf``
     in the current working directory), creates parent directories, and writes
-    the PDF with 0o644 permissions.
+    the PDF owner-only (0o600), atomically.
 
     Args:
         result: Completed scan result.
@@ -352,11 +352,7 @@ def _write_pdf_report(
         console.print(f"[red]PDF generation error:[/red] {exc}")
         raise typer.Exit(2) from None
 
-    fd = os.open(str(output_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-    try:
-        os.write(fd, pdf_bytes)
-    finally:
-        os.close(fd)
+    atomic_write(output_file, pdf_bytes)  # owner-only, like reach --report pdf
 
     console.print(f"[green]PDF report written:[/green] {output_file}")
     console.print(f"[dim]Organisation: {org_name}[/dim]")

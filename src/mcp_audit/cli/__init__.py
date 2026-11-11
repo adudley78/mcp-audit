@@ -176,6 +176,7 @@ from mcp_audit.cli import (  # noqa: E402, F401  — side-effect imports registe
     snapshot,
     version,
     vet,
+    wrap,
 )
 
 if __name__ == "__main__":

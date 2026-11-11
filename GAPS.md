@@ -2299,3 +2299,25 @@ a ClawHub-side matter and not checked.
 
 **CRED-004 reads permission rules in Claude Code settings files only (STORY-0149).** It checks `permissions.allow`, `ask` and `deny` strings in the settings files a scan discovers (`~/.claude/settings.json`, `~/.claude.json`, project and local `.claude/settings*.json`, and every such file under `scan --project`). Not read: Gemini CLI's `auto-saved.toml` "Always allow" rules (same shape, gemini-cli#30195), Codex approvals, Cursor allowlists, saved agent chat logs (part of Apiiro's count), and git history (a rule deleted after it was committed is still in history; the remediation says to rotate first). The secret test is the shared command redactor plus `*PASSWORD*`/`*PASSWD*` assignments, npm `_authToken`/`_auth` and npm tokens: a high-entropy value with no recognised prefix and no secret-named flag, header or variable (`mysql -pS3cret`, `docker login -p x`) is not caught, the same evasion class as CRED-001. A value is treated as a reference, not a secret, when its first word is only `$VAR`, `${VAR}`, `$(VAR)`, `%VAR%`, a `${{ … }}` template or `*` wildcards; anything after that word is not examined for that span. Only the first 5,000 rules per list and 4,096 characters per rule are examined (reported in the scan's errors when cut). Measured 2026-11-10 on 360 public `.claude/settings*.json` files from GitHub code search (5,919 rules): 11 rules in 6 files flagged, 10 of them literal credentials (Bearer tokens, connection-string passwords, API-key assignments, a session cookie) and 1 false positive, a `node -e` one-liner whose JavaScript `const key=…` reads as a secret-named assignment; no unflagged rule in the sample held a token-shaped value (the `-p` values were `mkdir -p` paths). The sample is code search's ranking, not a random draw. Severity follows SANDBOX-005's git-state logic and inherits its limits (ignore files, not `.git/index`). Guardrail drift state (`guardrails.json`) and lock `guardrails` records use the same redaction since STORY-0151 (see the guardrail drift section).
 
+
+## `mcp-audit run` tool check (LOCK-006..009 at runtime, RUN-003 — EPIC-0009 Story 1.4)
+
+- **Non-spec annotation keys under `mcp` SDK 2.x.** `lock --connect` digests a
+  tool through the `mcp` SDK. SDK 1.x keeps every key the server sent in
+  `annotations`; SDK 2.x keeps only the five the MCP spec defines (`title`,
+  `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) and
+  drops the rest. A lock written under 2.x therefore can't see a change to a
+  vendor-specific annotation key, in `lock --verify --connect` or in `run`.
+  `run` reads the raw `tools/list` JSON and accepts a tool that matches the
+  lock in either form, so neither SDK's lock reports false drift; a lock
+  written under 1.x does catch vendor-key changes
+  (`tests/test_runtime_tools.py::TestSdkAnnotationForms`). Found when the
+  all-extras CI job (which installs the newest SDK) disagreed with the local
+  1.30 environment.
+- **No tool record means no tools in enforce mode.** A server locked without
+  `--connect` gets RUN-003 and, in enforce mode, every tool withheld.
+  `lock --connect` needs the `mcp` extra, which the standalone binary
+  doesn't ship.
+- **Calls before listing.** Enforce mode denies a `tools/call` for any tool a
+  checked `tools/list` hasn't shown yet. Real clients list first; a client
+  that calls a tool by a remembered name without listing gets an error.

@@ -23,12 +23,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 
 from platformdirs import user_config_dir
 
+from mcp_audit._fs import atomic_write
 from mcp_audit.models import ServerConfig
 
 _DEFAULT_STATE_DIR = Path(user_config_dir("mcp-audit")) / "shadow"
@@ -115,10 +115,9 @@ class ShadowState:
             {k: v.to_dict() for k, v in self._entries.items()},
             indent=2,
         ).encode("utf-8")
-        # Security: O_CREAT with mode 0o600 — owner read/write only.
-        fd = os.open(str(self._path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(payload)
+        # Security: owner read/write only, set on every write; atomic, so a
+        # --continuous daemon killed mid-write keeps its first_seen history.
+        atomic_write(self._path, payload)
 
     # ── Queries ───────────────────────────────────────────────────────────────
 

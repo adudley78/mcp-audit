@@ -28,6 +28,7 @@ from pathlib import Path
 from platformdirs import user_config_dir
 from rich.console import Console
 
+from mcp_audit._fs import atomic_write
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.discovery import AGENT_DEFINITION_CLIENT, DiscoveredConfig
 from mcp_audit.gateways import GATEWAY_UPSTREAM_CLIENTS
@@ -214,11 +215,8 @@ def save_state(state: dict, state_path: Path) -> None:
         state: State dict to serialise.
         state_path: Destination path.
     """
-    state_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     content = json.dumps(state, indent=2).encode("utf-8")
-    fd = os.open(str(state_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "wb") as fh:
-        fh.write(content)
+    atomic_write(state_path, content, dir_mode=0o700)
 
 
 def build_state_entry(server: ServerConfig, first_seen: str | None = None) -> dict:

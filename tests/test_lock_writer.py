@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from mcp_audit.advisory import canonical as canonical_module
+from mcp_audit import _jcs as canonical_module  # what advisory.canonical re-exports
 from mcp_audit.lock import resolve as resolve_module
 from mcp_audit.lock.model import compute_checksum
 from mcp_audit.lock.writer import (
