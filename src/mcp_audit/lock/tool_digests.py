@@ -76,7 +76,19 @@ def tool_definition(tool: ToolInfo) -> dict:
     return {key: value for key, value in definition.items() if value is not None}
 
 
-def wire_definition(wire: dict) -> dict:
+#: The ``annotations`` keys the MCP spec defines. ``mcp`` SDK 2.x drops any
+#: other key when it parses a tool (1.x kept them), so a lock written by
+#: ``lock --connect`` under 2.x digests annotations restricted to these.
+SPEC_ANNOTATION_KEYS: tuple[str, ...] = (
+    "title",
+    "readOnlyHint",
+    "destructiveHint",
+    "idempotentHint",
+    "openWorldHint",
+)
+
+
+def wire_definition(wire: dict, *, spec_annotations_only: bool = False) -> dict:
     """Return the digested definition of one tool as it arrived on the wire.
 
     The same mapping :func:`mcp_audit.mcp_client._tool_info` applies to the
@@ -84,10 +96,19 @@ def wire_definition(wire: dict) -> dict:
     raw ``tools/list`` JSON instead, for ``mcp-audit run`` (which relays the
     protocol and has no SDK objects). ``tests/test_runtime_tools.py`` pins
     that both paths give the same digests.
+
+    With *spec_annotations_only*, ``annotations`` keeps only
+    :data:`SPEC_ANNOTATION_KEYS`: the definition a lock written under ``mcp``
+    SDK 2.x recorded. ``mcp-audit run`` accepts a tool that matches either
+    form, since it can't tell which SDK wrote the lock.
     """
     schema = wire.get("inputSchema")
     output_schema = wire.get("outputSchema")
     annotations = wire.get("annotations")
+    if spec_annotations_only and isinstance(annotations, dict):
+        annotations = {
+            k: v for k, v in annotations.items() if k in SPEC_ANNOTATION_KEYS
+        }
     title = wire.get("title")
     description = wire.get("description")
     definition = {
