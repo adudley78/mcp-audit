@@ -4,8 +4,8 @@
   "tools": {
     "mcp-audit": {
       "status": "ran",
-      "version": "0.27.0",
-      "commit": "59cb49b341dd4f23e84a8b623d4e70a0ed083892",
+      "version": "0.29.0",
+      "commit": "7235856040f7ba0ea61dc3b73fa45355b8e4527c",
       "dirty_src_or_scripts": false,
       "commands": {
         "tool_lists": "POISON-* analyzer over each tool definition (the code `scan --connect` runs; same calls as bench_poisoning.py)",
@@ -238,28 +238,28 @@
         },
         "benign_checklists": {
           "flagged": 2,
-          "high": 2,
+          "high": 0,
           "scored": 4,
           "errors": 0,
           "total": 4,
           "rate": 0.5,
-          "rate_high": 0.5,
+          "rate_high": 0.0,
           "metric": "clean_flag_rate",
           "by_technique": {
             "checklist": {
               "flagged": 2,
-              "high": 2,
+              "high": 0,
               "scored": 4,
               "errors": 0,
               "total": 4,
               "rate": 0.5,
-              "rate_high": 0.5
+              "rate_high": 0.0
             }
           },
           "cases": {
             "ssh-key-hygiene-review": {
               "flagged": true,
-              "high": true
+              "high": false
             },
             "mcp-tool-description-review": {
               "flagged": false,
@@ -267,7 +267,7 @@
             },
             "secrets-in-ci-checklist": {
               "flagged": true,
-              "high": true
+              "high": false
             },
             "incident-triage-notes": {
               "flagged": false,
@@ -276,7 +276,7 @@
           }
         }
       },
-      "date": "2026-11-04"
+      "date": "2026-11-11"
     },
     "skillspector": {
       "status": "not run",
@@ -363,5 +363,5 @@
     "high": "at least one HIGH or CRITICAL finding",
     "errors": "no usable verdict; excluded from rates, never counted as clean"
   },
-  "date": "2026-11-04"
+  "date": "2026-11-11"
 }
