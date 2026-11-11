@@ -120,6 +120,40 @@ jobs:
         # A PR that adds a new finding ID without updating the mapping will fail here.
         run: python scripts/validate_owasp_mapping.py
 
+  runtime:
+    name: Runtime harness (${{ matrix.os }})
+    # EPIC-0009 Story 1.1: launches real, credential-free MCP servers from npm
+    # through `mcp-audit run` and checks the handshake and tool list match a
+    # direct launch (tests/runtime/). Network-dependent, so opt-in via
+    # MCP_AUDIT_RUNTIME_TESTS like demo/lock/run.sh above. GitHub-hosted
+    # ubuntu and macOS images ship Node and npx, so no setup-node step.
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          pip install uv
+          uv pip install -e ".[dev]" --system
+
+      - name: Run runtime harness
+        env:
+          MCP_AUDIT_RUNTIME_TESTS: "1"
+        run: pytest tests/runtime/ -v
+
+      - name: Measure run cold-start overhead
+        run: python scripts/measure_run_overhead.py
+
   wheel-check:
     name: Wheel metadata
     runs-on: ubuntu-latest

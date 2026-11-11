@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`mcp-audit run`: launch an MCP server through mcp-audit.** Point your AI client at `mcp-audit run -- <the server's command>` instead of the server itself. This first step only relays: stdin, stdout and stderr pass through byte for byte, SIGINT, SIGTERM and SIGHUP reach the server's whole process group, the server's exit code (or the signal that killed it) comes back to the client, and anything the server leaves running when it exits (an `npx` → `node` grandchild, for example) is stopped. It is the base for the launch gate, tool-list check and sandbox in EPIC-0009. `run` skips the scanner's imports, so it adds about 45 ms to a launch on the pip install; the one-file binary adds about 600 ms, almost all of it the binary unpacking itself, so install with pip, pipx or uv for wrapped servers (`scripts/measure_run_overhead.py`; see `docs/run.md`). `mcp_audit.__version__` is now looked up on first use, which is most of that saving. A new CI job launches the official everything, filesystem, memory and sequential-thinking servers through `run` on Linux and macOS and checks the handshake and tool list match a direct launch. Story 1.1.
+
 ---
 
 ## [0.29.0] - 2026-11-10
