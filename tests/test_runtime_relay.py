@@ -128,9 +128,7 @@ class TestByteExact:
         assert err == b""
 
     def test_stderr_passes_through(self) -> None:
-        proc = _wrapper(
-            "--", PY, "-c", "import sys; sys.stderr.write('diag line\\n'); sys.exit(0)"
-        )
+        proc = _wrapper("--", PY, "-c", "import os; os.write(2, b'diag line\\n')")
         out, err = proc.communicate(b"", timeout=30)
         assert out == b""
         assert err == b"diag line\n"
@@ -200,8 +198,13 @@ class TestSignals:
         proc.communicate(b"", timeout=30)
         assert proc.returncode == -signal.SIGTERM
 
-    @pytest.mark.parametrize("signum", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP])
-    def test_signal_to_wrapper_reaches_child(self, signum: int, tmp_path: Path) -> None:
+    @pytest.mark.parametrize("signame", ["SIGTERM", "SIGINT", "SIGHUP"])
+    def test_signal_to_wrapper_reaches_child(
+        self, signame: str, tmp_path: Path
+    ) -> None:
+        # Names, not signal.SIGHUP: Windows has no SIGHUP, and the parametrize
+        # list is evaluated at collection even when the class is skipped.
+        signum = getattr(signal, signame)
         marker = tmp_path / "got-signal"
         child = textwrap.dedent(
             f"""
