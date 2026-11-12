@@ -288,7 +288,9 @@ class TestReviewFindings:
         _commit(other, "remove")
         repo = _repo(tmp_path)
         objects = repo / ".git" / "objects"
-        shutil.rmtree(objects)
+        objects.rename(
+            repo / ".git" / "objects-moved"
+        )  # rmtree fails on Windows: git's files are read-only
         try:
             objects.symlink_to(other / ".git" / "objects", target_is_directory=True)
         except OSError:
