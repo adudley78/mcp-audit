@@ -374,6 +374,34 @@ rule by location (`permissions.allow[3]`) with the secret replaced by
 GUARD-001 quote rules through the same redactor. It runs in step 0b with SANDBOX-001..005, in
 every scan that reads a Claude Code settings file.
 
+## Secrets that git history still holds (CRED-005)
+
+Deleting a rule, or the whole file, does not take it out of the repository:
+every clone carries the commit that added it. CRED-005 reads the history.
+
+| ID | Severity | Fires when | Write instead |
+|---|---|---|---|
+| CRED-005 | HIGH | A version of the repository's root `.claude/settings.json` or `.claude/settings.local.json`, in any commit reachable from a branch, tag or `HEAD`, has a `permissions.allow`, `ask` or `deny` string holding a credential that today's file no longer has | Rotate the secret first: a pushed commit has been copied by every clone and fork. Then, only if every copy is under your control, remove the file from history (`git filter-repo --invert-paths --path .claude/settings.local.json`) and force-push |
+
+The secret test is CRED-004's, run on every distinct version of the two files.
+A rule still in today's file is CRED-004's to report, so the two never report
+the same rule. One finding per file names one commit that holds a version
+(and how many others do) and lists each rule with the secret replaced by
+`[REDACTED]`.
+
+mcp-audit reads git's own files (loose objects, pack files and refs) and never
+runs git: the repository may be someone else's, and running git in it is the
+attack TRUST-006/007 describe. It runs in a default `scan`/`check` (the
+repository the working directory is in) and in `scan --project` (the
+project's repository, when that is a different one); never with `--path`.
+Apiiro found that gitleaks and TruffleHog missed 215 of the 1,122 secrets it
+found in public `settings.local.json` copies, which is why these two files are
+read with CRED-004's own rules rather than left to a general history scanner.
+For every other file in history, use a scanner built for it (gitleaks,
+TruffleHog, GitGuardian's ggshield). A shallow clone (a CI checkout with
+`fetch-depth: 1`, the `actions/checkout` default) reads only the history it
+has and says so in the scan's errors; set `fetch-depth: 0` to check it all.
+
 ## Limits
 
 See `GAPS.md`, "PERM-001..007 read rules, not the effective policy" and

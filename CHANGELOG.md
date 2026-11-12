@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **CRED-005: a secret in a permission rule that git history still holds.** Deleting a "don't ask again" rule, or the whole `.claude/settings.local.json`, doesn't take it out of the repository: every clone carries the commit that added it. A default `scan`/`check` (and `scan --project`) now reads every version of the repository's root `.claude/settings.json` and `.claude/settings.local.json` in its git history and reports, as HIGH, each rule that held a credential and is no longer in today's file, with the secret shown as `[REDACTED]`. It reads git's own files and never runs git. A shallow clone (the GitHub Actions checkout default) reads only the history it has and says so. See [docs/permission-rules.md](docs/permission-rules.md).
+
 ---
 
 ## [0.30.0] - 2026-11-11

@@ -221,6 +221,17 @@
       "notes": "HIGH when the Claude Code settings file is committed or headed for git (a project .claude/settings.json in a work tree, or a .claude/settings.local.json no ignore file covers, or whose .claude is a symlink); MEDIUM otherwise (user settings, an ignored or out-of-repo local file, or unknown git state). A permissions.allow/ask/deny string holding a token, key, password or connection string, as Claude Code's \"Yes, and don't ask again\" saves the approved command word for word. Rules are quoted with the secret redacted. CWE-312. Source: code.claude.com/docs/en/permissions; GitGuardian (Guillaume Valadon, 2026-11-09); Apiiro via The Hacker News (2026-11-07). Pipeline step 0b (STORY-0149)."
     },
     {
+      "finding_id": "CRED-005",
+      "finding_title": "Secret in a permission rule in git history",
+      "owasp_codes": [
+        "MCP01"
+      ],
+      "owasp_names": [
+        "Token Mismanagement and Secret Exposure"
+      ],
+      "notes": "HIGH. A permissions.allow/ask/deny string holding a credential in a version of the repository's root .claude/settings.json or .claude/settings.local.json that a commit reachable from a ref or HEAD contains, and that is not in today's file (CRED-004 reports today's). Read from git's object files (loose and packed), never by running git; one finding per file, rules quoted with the secret redacted. CWE-312. Source: Apiiro via The Hacker News (2026-11-07: 215 of 1,122 secrets in public settings.local.json copies missed by gitleaks and TruffleHog); GAPS.md CRED-004 entry. Default scan and scan --project (STORY-0153)."
+    },
+    {
       "finding_id": "TRANSPORT-001",
       "finding_title": "Unencrypted remote endpoint (HTTP)",
       "owasp_codes": [

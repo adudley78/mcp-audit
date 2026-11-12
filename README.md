@@ -379,7 +379,7 @@ Paths, keys and how each file is read: [docs/clients.md](docs/clients.md).
 | Analyzer | Finding IDs | Examples |
 |----------|-------------|---------|
 | Tool poisoning | 19 patterns (POISON-001 – POISON-076) | SSH key exfiltration instructions, XML injection markers (`<IMPORTANT>`), behavioral overrides ("ignore previous instructions"), orders to hide things from the user, skip their approval or switch off permission prompts, zero-width Unicode stealth characters |
-| Credential exposure | CRED-001…004 | AWS access keys, GitHub tokens, OpenAI/Anthropic API keys, Stripe secrets, database connection strings with embedded passwords, in MCP configs and in the permission rules Claude Code saves when you choose "don't ask again" |
+| Credential exposure | CRED-001…005 | AWS access keys, GitHub tokens, OpenAI/Anthropic API keys, Stripe secrets, database connection strings with embedded passwords, in MCP configs and in the permission rules Claude Code saves when you choose "don't ask again", including old versions of those rules that git history still holds |
 | Transport security | TRANSPORT-001…003 | Unencrypted remote SSE connections, elevated privilege execution, runtime package fetching via `npx`/`uvx` without version pinning |
 | Supply chain | SC-001…003 | Typosquatted package names (`@modelcontextprotocol/server-filesytem` vs `server-filesystem`), distance-1 substitutions flagged CRITICAL |
 | Rug-pull | RUGPULL-001…003 | Server configuration entry changed since last scan (HIGH), new server appeared (INFO), previously tracked server removed (INFO). For changed *tool definitions*, see `lock --verify --connect` (LOCK-006…009, [docs/lock.md](docs/lock.md#tool-definitions---connect)) |

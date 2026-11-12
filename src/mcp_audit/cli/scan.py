@@ -1334,6 +1334,29 @@ def _apply_project_scan(
             seen_git.add(git_key)
             result.findings.append(finding)
 
+    # ── CRED-005: secrets in permission rules git history still holds ───────
+    # The default scan read the cwd's repository; --project adds the project's
+    # own repository when it is a different one (STORY-0153). Never raises.
+    from mcp_audit.analyzers import rule_secret_history as _history  # noqa: PLC0415
+
+    seen_history = {
+        (f.id, f.finding_path, f.evidence)
+        for f in result.findings
+        if f.id == _history.FINDING_ID
+    }
+    project_repo = _history.find_repository(project_dir)
+    project_history = (
+        _history.history_rule_secret_findings(*project_repo, result.errors)
+        if project_repo is not None
+        and project_repo != _history.find_repository(Path.cwd())
+        else []
+    )
+    for finding in project_history:
+        history_key = (finding.id, finding.finding_path, finding.evidence)
+        if history_key not in seen_history:
+            seen_history.add(history_key)
+            result.findings.append(finding)
+
     # ── WORKFLOW-001..003: AI agent steps in GitHub Actions workflows ───────
     # The default scan already read <cwd>/.github/workflows; when cwd is the
     # project root the same findings would arrive twice, so keep one copy.
