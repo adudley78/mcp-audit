@@ -140,7 +140,7 @@ class TestHistory:
             _commit(repo, f"c{i}")
         clone = tmp_path / "clone"
         subprocess.run(  # noqa: S603 — git resolved via shutil.which
-            [GIT, "clone", "-q", "--depth", "1", f"file://{repo}", str(clone)],
+            [GIT, "clone", "-q", "--depth", "1", repo.as_uri(), str(clone)],
             check=True,
             capture_output=True,
         )
@@ -289,7 +289,10 @@ class TestReviewFindings:
         repo = _repo(tmp_path)
         objects = repo / ".git" / "objects"
         shutil.rmtree(objects)
-        objects.symlink_to(other / ".git" / "objects")
+        try:
+            objects.symlink_to(other / ".git" / "objects", target_is_directory=True)
+        except OSError:
+            pytest.skip("symlinks not available")
         findings, errors = _scan(repo)
         assert findings == []
         assert any("symlink" in e for e in errors)

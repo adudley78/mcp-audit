@@ -175,6 +175,7 @@ class TestHostileInput:
         repo = _make_repo(tmp_path, commits=3)
         _git(repo, "repack", "-adq")
         idx = next((repo / ".git" / "objects" / "pack").glob("*.idx"))
+        idx.chmod(0o644)  # git writes pack files read-only
         idx.write_bytes(b"\xfftOc\x00\x00\x00\x02" + b"\xff" * 40)
         git_dir = repo / ".git"
         store = ObjectStore(git_dir, git_dir, ReadBudget())
@@ -188,6 +189,7 @@ class TestHostileInput:
         pack = next((repo / ".git" / "objects" / "pack").glob("*.pack"))
         raw = bytearray(pack.read_bytes())
         raw[12:] = b"\x7f" * (len(raw) - 12)
+        pack.chmod(0o644)  # git writes pack files read-only
         pack.write_bytes(bytes(raw))
         git_dir = repo / ".git"
         store = ObjectStore(git_dir, git_dir, ReadBudget())
@@ -205,7 +207,10 @@ class TestHostileInput:
         repo = _make_repo(tmp_path, commits=1)
         outside = tmp_path / "outside"
         outside.write_text("1" * 40 + "\n")
-        (repo / ".git" / "refs" / "heads" / "linked").symlink_to(outside)
+        try:
+            (repo / ".git" / "refs" / "heads" / "linked").symlink_to(outside)
+        except OSError:
+            pytest.skip("symlinks not available")
         git_dir = repo / ".git"
         store = ObjectStore(git_dir, git_dir, ReadBudget())
         assert "1" * 40 not in store.ref_tips()
