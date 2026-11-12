@@ -41,6 +41,9 @@ def _make_repo(tmp_path: Path, commits: int = 30) -> Path:
     _git(repo, "config", "user.email", "t@example.com")
     _git(repo, "config", "user.name", "t")
     _git(repo, "config", "commit.gpgsign", "false")
+    # No background gc/maintenance racing the test (macOS runners).
+    _git(repo, "config", "gc.auto", "0")
+    _git(repo, "config", "maintenance.auto", "false")
     (repo / ".claude").mkdir()
     for i in range(commits):
         # Mostly-shared content makes git store later versions as deltas.

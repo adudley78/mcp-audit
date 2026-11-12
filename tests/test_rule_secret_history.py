@@ -36,6 +36,9 @@ def _repo(tmp_path: Path, name: str = "app") -> Path:
     _git(repo, "config", "user.email", "t@example.com")
     _git(repo, "config", "user.name", "t")
     _git(repo, "config", "commit.gpgsign", "false")
+    # No background gc/maintenance racing the test (macOS runners).
+    _git(repo, "config", "gc.auto", "0")
+    _git(repo, "config", "maintenance.auto", "false")
     (repo / "README.md").write_text("x")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "init")
