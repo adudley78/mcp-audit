@@ -74,7 +74,7 @@ class TestHistory:
         assert f.severity == Severity.HIGH
         assert "GITHUB_TOKEN=[REDACTED]" in f.evidence
         assert GH_TOKEN not in f.model_dump_json()
-        assert f.finding_path.endswith(".claude/settings.local.json")
+        assert Path(f.finding_path).parts[-2:] == (".claude", "settings.local.json")
         assert "1 commit(s)" in f.description
 
     def test_rule_removed_but_file_kept(self, tmp_path: Path) -> None:
@@ -182,7 +182,7 @@ class TestHistory:
         _git(repo, "worktree", "add", "-q", str(wt), "HEAD")
         findings, _ = _scan(wt)
         assert len(findings) == 1
-        assert findings[0].finding_path.startswith(str(wt.resolve()))
+        assert Path(findings[0].finding_path).is_relative_to(wt.resolve())
 
 
 class TestScanWiring:
