@@ -17,9 +17,16 @@ Everything read is attacker-controlled, so every read is bounded:
   its deltas) is refused;
 * inflating stops at the size the object's header declares, so a zlib bomb
   costs at most that size;
-* a delta chain longer than :data:`MAX_DELTA_DEPTH` is refused, and a REF_DELTA
-  that points back into its own chain cannot loop;
-* :class:`ReadBudget` caps the total bytes inflated across one walk.
+* a delta chain longer than :data:`MAX_DELTA_DEPTH`, or holding more than
+  :data:`MAX_CHAIN_BYTES` of deltas, is refused, and REF_DELTA bases are
+  followed at most :data:`MAX_REF_DELTA_HOPS` deep, so a cycle ends in an error;
+* pack indexes are kept as their raw bytes, at most
+  :data:`MAX_TOTAL_INDEX_BYTES` across one store;
+* :class:`ReadBudget` caps the bytes one walk reads: every index, every loose
+  file, every inflated object and every delta result is charged to it.
+
+A symlinked ``objects/``, ``objects/pack/``, ``objects/xx/`` or ``refs/`` is not
+read (it would bring in another repository's history).
 
 A malformed object raises :class:`GitObjectError`; a missing one returns
 ``None``.  Nothing is written and no network is used.
@@ -29,11 +36,11 @@ from __future__ import annotations
 
 import mmap
 import os
+import re
 import stat as stat_module
 import zlib
-from bisect import bisect_left
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 #: Largest object this reader will return, inflated and resolved.
@@ -46,17 +53,22 @@ CACHE_BYTES = 64 * 1024 * 1024
 MAX_REFS = 20_000
 #: Pack index files opened.
 MAX_PACKS = 512
-#: Bytes read from a ref, ``HEAD`` or ``packed-refs`` line file.
+#: Bytes read from ``packed-refs`` (a loose ref or ``HEAD`` is read up to 4 KiB).
 _MAX_REF_FILE_BYTES = 64 * 1024 * 1024
+#: Pack-index bytes held in memory across every pack of one store.
+MAX_TOTAL_INDEX_BYTES = 512 * 1024 * 1024
+#: REF_DELTA bases followed in one read (each may start its own OFS chain).
+MAX_REF_DELTA_HOPS = 64
+#: Delta bytes held while one object's chain is resolved.
+MAX_CHAIN_BYTES = 256 * 1024 * 1024
 _MAX_SYMREF_HOPS = 5
-#: Largest pack index read (about 20 million objects).
-_MAX_INDEX_BYTES = 1024 * 1024 * 1024
 _INFLATE_CHUNK = 64 * 1024
 
 TYPE_NAMES = {1: "commit", 2: "tree", 3: "blob", 4: "tag"}
 _OFS_DELTA = 6
 _REF_DELTA = 7
 _HEX = frozenset("0123456789abcdef")
+_PACK_NAME_RE = re.compile(r"pack-[0-9a-f]{40,64}\.idx")
 
 
 class GitObjectError(Exception):
@@ -201,61 +213,72 @@ def apply_delta(base: bytes, delta: bytes) -> bytes:
 
 @dataclass
 class _Pack:
-    """One ``pack-*.idx`` / ``pack-*.pack`` pair, memory-mapped read-only."""
+    """One ``pack-*.idx`` / ``pack-*.pack`` pair.
+
+    The index stays as its raw bytes and is searched in place, so memory is
+    the index file's size and nothing more.
+    """
 
     idx_path: Path
     pack_path: Path
-    fanout: list[int] = field(default_factory=list)
-    names: list[bytes] = field(default_factory=list)
-    offsets: list[int] = field(default_factory=list)
+    raw: bytes = b""
+    count: int = 0
+    fanout: tuple[int, ...] = ()
+    _names_at: int = 0
+    _off_at: int = 0
+    _big_at: int = 0
     _pack_map: mmap.mmap | None = None
-    _pack_size: int = 0
 
-    def load_index(self) -> None:
-        """Read the index (version 2 only) into memory."""
-        raw = _read_regular(self.idx_path, _MAX_INDEX_BYTES)
+    def load_index(self, limit: int) -> int:
+        """Read the index (version 2 only); return its size in bytes."""
+        raw = _read_regular(self.idx_path, limit)
         if raw is None:
-            raise GitObjectError("pack index is not a regular file")
-        if len(raw) < 8 + 256 * 4 or raw[:4] != b"\xfftOc":
+            raise GitObjectError("pack index is not a regular file or is too large")
+        if len(raw) < 8 + 256 * 4 + 40 or raw[:4] != b"\xfftOc":
             raise GitObjectError("pack index is not version 2")
         if int.from_bytes(raw[4:8], "big") != 2:
             raise GitObjectError("pack index is not version 2")
-        fanout = [
+        fanout = tuple(
             int.from_bytes(raw[8 + 4 * i : 12 + 4 * i], "big") for i in range(256)
-        ]
+        )
         if any(fanout[i] > fanout[i + 1] for i in range(255)):
             raise GitObjectError("pack index fanout is not sorted")
         count = fanout[255]
-        names_at = 8 + 256 * 4
-        crc_at = names_at + 20 * count
-        off_at = crc_at + 4 * count
-        big_at = off_at + 4 * count
-        if len(raw) < big_at + 40:
+        self._names_at = 8 + 256 * 4
+        self._off_at = self._names_at + 24 * count  # names, then CRC32s
+        self._big_at = self._off_at + 4 * count
+        if len(raw) < self._big_at + 40:
             raise GitObjectError("pack index is truncated")
-        names = [raw[names_at + 20 * i : names_at + 20 * i + 20] for i in range(count)]
-        offsets: list[int] = []
-        for i in range(count):
-            value = int.from_bytes(raw[off_at + 4 * i : off_at + 4 * i + 4], "big")
-            if value & 0x80000000:
-                slot = value & 0x7FFFFFFF
-                at = big_at + 8 * slot
-                if at + 8 > len(raw) - 40:
-                    raise GitObjectError("pack index large offset out of range")
-                value = int.from_bytes(raw[at : at + 8], "big")
-            offsets.append(value)
+        self.raw = raw
+        self.count = count
         self.fanout = fanout
-        self.names = names
-        self.offsets = offsets
+        return len(raw)
+
+    def _name(self, i: int) -> bytes:
+        at = self._names_at + 20 * i
+        return self.raw[at : at + 20]
 
     def find(self, oid: bytes) -> int | None:
         """Pack offset of *oid*, or ``None`` when this pack doesn't hold it."""
         first = oid[0]
         lo = self.fanout[first - 1] if first else 0
         hi = self.fanout[first]
-        i = bisect_left(self.names, oid, lo, hi)
-        if i < hi and self.names[i] == oid:
-            return self.offsets[i]
-        return None
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if self._name(mid) < oid:
+                lo = mid + 1
+            else:
+                hi = mid
+        if lo >= self.fanout[first] or self._name(lo) != oid:
+            return None
+        at = self._off_at + 4 * lo
+        value = int.from_bytes(self.raw[at : at + 4], "big")
+        if value & 0x80000000:
+            big = self._big_at + 8 * (value & 0x7FFFFFFF)
+            if big + 8 > len(self.raw) - 40:
+                raise GitObjectError("pack index large offset out of range")
+            value = int.from_bytes(self.raw[big : big + 8], "big")
+        return value
 
     def data(self) -> mmap.mmap:
         """The pack file, mapped on first use."""
@@ -275,7 +298,6 @@ class _Pack:
                 mapped.close()
                 raise GitObjectError("not a version 2 or 3 pack file")
             self._pack_map = mapped
-            self._pack_size = len(mapped)
         return self._pack_map
 
     def close(self) -> None:
@@ -304,8 +326,20 @@ class ObjectStore:
         self.missing = 0
         self.errors: list[str] = []
         self._packs: list[_Pack] | None = None
+        self._packed: dict[str, str] | None = None
         self._cache: OrderedDict[tuple[int, int], tuple[int, bytes]] = OrderedDict()
         self._cache_bytes = 0
+        self._ref_hops = 0
+        # A symlinked objects/ or refs/ would read another repository's history
+        # and report it against this working tree.
+        self._linked = any(
+            p.is_symlink()
+            for p in (self.objects_dir, self.objects_dir / "pack", common_dir / "refs")
+        )
+        if self._linked:
+            self.errors.append(
+                "objects/ or refs/ is a symlink; this repository's history was not read"
+            )
 
     # ── Packs ────────────────────────────────────────────────────────────────
 
@@ -313,14 +347,19 @@ class ObjectStore:
         if self._packs is not None:
             return self._packs
         packs: list[_Pack] = []
+        self._packs = packs
+        if self._linked:
+            return packs
         pack_dir = self.objects_dir / "pack"
         try:
             names = sorted(os.listdir(pack_dir))
         except OSError:
             names = []
+        left = MAX_TOTAL_INDEX_BYTES
         for name in names:
             if not (name.startswith("pack-") and name.endswith(".idx")):
                 continue
+            label = name if _PACK_NAME_RE.fullmatch(name) else "a pack index"
             if len(packs) >= MAX_PACKS:
                 self.errors.append(
                     f"more than {MAX_PACKS} pack files; the rest not read"
@@ -328,12 +367,15 @@ class ObjectStore:
                 break
             pack = _Pack(pack_dir / name, pack_dir / (name[:-4] + ".pack"))
             try:
-                pack.load_index()
+                size = pack.load_index(left)
+                self.budget.charge(size)
+            except BudgetExceededError:
+                raise
             except GitObjectError as exc:
-                self.errors.append(f"pack index {name} not read: {exc}")
+                self.errors.append(f"{label} not read: {exc}")
                 continue
+            left -= size
             packs.append(pack)
-        self._packs = packs
         return packs
 
     def close(self) -> None:
@@ -353,6 +395,9 @@ class ObjectStore:
         size = len(value[1])
         if size > CACHE_BYTES // 4:
             return
+        old = self._cache.pop(key, None)
+        if old is not None:
+            self._cache_bytes -= len(old[1])
         self._cache[key] = value
         self._cache_bytes += size
         while self._cache_bytes > CACHE_BYTES and self._cache:
@@ -362,8 +407,17 @@ class ObjectStore:
     def _read_packed(self, pack_no: int, offset: int, depth: int) -> tuple[int, bytes]:
         """Resolve the object at *offset* in pack *pack_no*, deltas applied."""
         pack = self._load_packs()[pack_no]
-        data = pack.data()
+        view = memoryview(pack.data())
+        try:
+            return self._resolve(pack_no, view, offset, depth)
+        finally:
+            view.release()
+
+    def _resolve(
+        self, pack_no: int, data: memoryview, offset: int, depth: int
+    ) -> tuple[int, bytes]:
         chain: list[tuple[tuple[int, int], bytes]] = []
+        chain_bytes = 0
         at = offset
         base: tuple[int, bytes] | None = None
         seen: set[int] = set()
@@ -407,10 +461,13 @@ class ObjectStore:
                     byte = data[pos]
                     pos += 1
                     rel = ((rel + 1) << 7) | (byte & 0x7F)
-                delta = inflate(data[pos:], size, self.budget)
-                chain.append(((pack_no, at), delta))
                 if rel <= 0 or rel > at:
                     raise GitObjectError("OFS_DELTA base out of range")
+                delta = inflate(data[pos:], size, self.budget)
+                chain_bytes += len(delta)
+                if chain_bytes > MAX_CHAIN_BYTES:
+                    raise GitObjectError("delta chain holds too many bytes")
+                chain.append(((pack_no, at), delta))
                 at -= rel
                 continue
             if kind == _REF_DELTA:
@@ -419,7 +476,13 @@ class ObjectStore:
                 base_oid = bytes(data[pos : pos + 20])
                 delta = inflate(data[pos + 20 :], size, self.budget)
                 chain.append(((pack_no, at), delta))
-                found = self._read_binary(base_oid, depth + len(chain))
+                if self._ref_hops >= MAX_REF_DELTA_HOPS:
+                    raise GitObjectError("too many REF_DELTA bases, or a cycle")
+                self._ref_hops += 1
+                try:
+                    found = self._read_binary(base_oid, depth + len(chain))
+                finally:
+                    self._ref_hops -= 1
                 if found is None:
                     raise GitObjectError("REF_DELTA base is missing")
                 base = found
@@ -428,16 +491,20 @@ class ObjectStore:
         kind, body = base
         for key, delta in reversed(chain):
             body = apply_delta(body, delta)
+            self.budget.charge(len(body))
             self._remember(key, (kind, body))
         return kind, body
 
     # ── Objects ──────────────────────────────────────────────────────────────
 
     def _read_loose(self, hexid: str) -> tuple[int, bytes] | None:
+        if self._linked or (self.objects_dir / hexid[:2]).is_symlink():
+            return None
         path = self.objects_dir / hexid[:2] / hexid[2:]
         raw = _read_regular(path, MAX_OBJECT_BYTES * 2)
         if raw is None:
             return None
+        self.budget.charge(len(raw))
         d = zlib.decompressobj()
         try:
             head = d.decompress(raw, 64)
@@ -511,8 +578,13 @@ class ObjectStore:
         return None
 
     def _packed_refs(self) -> dict[str, str]:
-        raw = _read_regular(self.common_dir / "packed-refs", _MAX_REF_FILE_BYTES)
+        if self._packed is not None:
+            return self._packed
         refs: dict[str, str] = {}
+        self._packed = refs
+        if self._linked:
+            return refs
+        raw = _read_regular(self.common_dir / "packed-refs", _MAX_REF_FILE_BYTES)
         if raw is None:
             return refs
         for line in raw.decode("ascii", "replace").splitlines():
@@ -529,6 +601,8 @@ class ObjectStore:
     def ref_tips(self) -> list[str]:
         """Every object a ref or ``HEAD`` points at, sorted, without repeats."""
         tips: set[str] = set(self._packed_refs().values())
+        if self._linked:
+            return []
         refs_dir = self.common_dir / "refs"
         count = len(tips)
         for dirpath, dirnames, filenames in os.walk(refs_dir, followlinks=False):

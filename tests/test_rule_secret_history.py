@@ -217,3 +217,105 @@ class TestScanWiring:
         monkeypatch.chdir(repo)
         result = run_scan(extra_paths=[cfg])
         assert "CRED-005" not in [f.id for f in result.findings]
+
+
+class TestReviewFindings:
+    def test_rotated_token_in_history_is_reported(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        old = "gh" + "p_" + "b" * 36
+        _write_settings(repo, [f"Bash(GITHUB_TOKEN={old} gh pr list)"])
+        _commit(repo, "old token")
+        _write_settings(repo, [LEAKY])  # same rule, new token
+        _commit(repo, "rotated")
+        findings, _ = _scan(repo)
+        assert len(findings) == 1
+        assert old not in findings[0].model_dump_json()
+        assert "1 permission rule value(s)" in findings[0].description
+
+    def test_cited_commit_holds_the_reported_rule(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        _write_settings(repo, [LEAKY_2], name="settings.json")
+        _commit(repo, "kept secret")
+        for i in range(3):
+            (repo / "README.md").write_text(str(i))
+            _commit(repo, f"c{i}")
+        _write_settings(repo, [LEAKY_2, LEAKY], name="settings.json")
+        _commit(repo, "added")
+        leak_commit = _git(repo, "rev-parse", "HEAD").strip()
+        _write_settings(repo, [LEAKY_2], name="settings.json")
+        _commit(repo, "removed")
+        findings, _ = _scan(repo)
+        assert len(findings) == 1
+        assert f"commit {leak_commit[:12]}" in findings[0].evidence
+        assert "commits in all" not in findings[0].evidence
+
+    def test_bad_version_is_reported_and_the_walk_goes_on(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        (repo / ".claude").mkdir()
+        (repo / ".claude" / "settings.json").write_text("{not json")
+        _commit(repo, "broken")
+        _write_settings(repo, [LEAKY])
+        _commit(repo, "leak")
+        _git(repo, "rm", "-q", "-r", ".claude")
+        _commit(repo, "remove")
+        findings, errors = _scan(repo)
+        assert [f.id for f in findings] == ["CRED-005"]
+        assert any("not valid JSON" in e for e in errors)
+
+    def test_budget_keeps_what_was_found(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        repo = _repo(tmp_path)
+        _write_settings(repo, [LEAKY])
+        _commit(repo, "leak")
+        _git(repo, "rm", "-q", ".claude/settings.local.json")
+        _commit(repo, "remove")
+        for i in range(40):
+            (repo / "README.md").write_text("x" * 2000 + str(i))
+            _commit(repo, f"pad{i}")
+        monkeypatch.setattr(hist, "INFLATE_BUDGET", 10_000_000)
+        assert len(_scan(repo)[0]) == 1
+        monkeypatch.setattr(hist, "INFLATE_BUDGET", 3_000)
+        findings, errors = _scan(repo)
+        assert any("budget ran out" in e for e in errors)
+        assert all(f.id == "CRED-005" for f in findings)
+
+    def test_symlinked_objects_dir_is_not_read(self, tmp_path: Path) -> None:
+        other = _repo(tmp_path, "other")
+        _write_settings(other, [LEAKY])
+        _commit(other, "leak")
+        _git(other, "rm", "-q", ".claude/settings.local.json")
+        _commit(other, "remove")
+        repo = _repo(tmp_path)
+        objects = repo / ".git" / "objects"
+        shutil.rmtree(objects)
+        objects.symlink_to(other / ".git" / "objects")
+        findings, errors = _scan(repo)
+        assert findings == []
+        assert any("symlink" in e for e in errors)
+
+    def test_project_flag_reads_history_with_or_without_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from typer.testing import CliRunner
+
+        from mcp_audit.cli import app
+
+        repo = _repo(tmp_path)
+        _write_settings(repo, [LEAKY])
+        _commit(repo, "leak")
+        _git(repo, "rm", "-q", ".claude/settings.local.json")
+        _commit(repo, "remove")
+        cfg = tmp_path / "x.json"
+        cfg.write_text(json.dumps({"mcpServers": {}}))
+        runner = CliRunner()
+        for cwd in (repo, tmp_path):
+            monkeypatch.chdir(cwd)
+            for extra in ([], ["--path", str(cfg)]):
+                out = runner.invoke(
+                    app,
+                    ["scan", "--project", str(repo), "--format", "json", *extra],
+                )
+                data = json.loads(out.stdout[out.stdout.index("{") :])
+                ids = [f["id"] for f in data["findings"]]
+                assert ids.count("CRED-005") == 1, (cwd, extra)

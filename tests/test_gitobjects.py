@@ -209,3 +209,86 @@ class TestHostileInput:
         git_dir = repo / ".git"
         store = ObjectStore(git_dir, git_dir, ReadBudget())
         assert "1" * 40 not in store.ref_tips()
+
+
+def _handmade_pack(store_dir: Path, entries: list[tuple[bytes, bytes]]) -> None:
+    """Write a pack + index v2 holding raw (name, object bytes) entries."""
+    import hashlib
+    import struct
+
+    pack_dir = store_dir / "objects" / "pack"
+    pack_dir.mkdir(parents=True)
+    pack = bytearray(b"PACK" + struct.pack(">II", 2, len(entries)))
+    offsets = []
+    for _name, body in entries:
+        offsets.append(len(pack))
+        pack += body
+    pack += hashlib.sha1(pack).digest()  # noqa: S324 — git's own pack checksum
+    ordered = sorted(zip((n for n, _ in entries), offsets, strict=True))
+    idx = bytearray(b"\xfftOc" + struct.pack(">I", 2))
+    for f in range(256):
+        idx += struct.pack(">I", sum(1 for n, _ in ordered if n[0] <= f))
+    for n, _ in ordered:
+        idx += n
+    idx += b"\0" * 4 * len(ordered)
+    for _, off in ordered:
+        idx += struct.pack(">I", off)
+    idx += b"\0" * 40
+    (pack_dir / ("pack-" + "0" * 40 + ".pack")).write_bytes(bytes(pack))
+    (pack_dir / ("pack-" + "0" * 40 + ".idx")).write_bytes(bytes(idx))
+    (store_dir / "refs").mkdir()
+
+
+def _obj_header(kind: int, size: int) -> bytes:
+    out = [(kind << 4) | (size & 15)]
+    size >>= 4
+    while size:
+        out[-1] |= 0x80
+        out.append(size & 0x7F)
+        size >>= 7
+    return bytes(out)
+
+
+class TestHandmadePacks:
+    def test_self_referencing_ref_delta_is_an_error_not_recursion(
+        self, tmp_path: Path
+    ) -> None:
+        import hashlib
+
+        name = hashlib.sha1(b"self").digest()  # noqa: S324
+        delta = bytes([5, 5, 0x90, 5])
+        body = _obj_header(7, len(delta)) + name + zlib.compress(delta)
+        _handmade_pack(tmp_path, [(name, body)])
+        store = ObjectStore(tmp_path, tmp_path, ReadBudget())
+        with pytest.raises(GitObjectError):
+            store.read(name.hex())
+
+    def test_delta_output_is_charged_to_the_budget(self, tmp_path: Path) -> None:
+        import hashlib
+
+        size = 4 * 1024 * 1024
+        base = _obj_header(3, size) + zlib.compress(b"\0" * size)
+        # Each delta copies the whole previous object: 8 bytes in, 4 MiB out.
+        copy = bytes([0x80 | 0x40, size >> 16])  # copy size byte 3 only
+        varint = bytes([0x80, 0x80, 0x80, 0x02])  # 4 MiB as a delta-header varint
+        delta = varint + varint + copy
+        entries = [(hashlib.sha1(b"base").digest(), base)]  # noqa: S324
+        at = 12 + len(base)
+        prev = 12
+        for i in range(30):
+            rel = at - prev
+            enc = [rel & 0x7F]
+            rel >>= 7
+            while rel:
+                rel -= 1
+                enc.insert(0, 0x80 | (rel & 0x7F))
+                rel >>= 7
+            obj = _obj_header(6, len(delta)) + bytes(enc) + zlib.compress(delta)
+            entries.append((hashlib.sha1(f"d{i}".encode()).digest(), obj))  # noqa: S324
+            prev = at
+            at += len(obj)
+        _handmade_pack(tmp_path, entries)
+        store = ObjectStore(tmp_path, tmp_path, ReadBudget(limit=64 * 1024 * 1024))
+        top = entries[-1][0].hex()
+        with pytest.raises(BudgetExceededError):
+            store.read(top)

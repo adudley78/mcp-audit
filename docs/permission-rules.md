@@ -391,9 +391,11 @@ the same rule. One finding per file names one commit that holds a version
 
 mcp-audit reads git's own files (loose objects, pack files and refs) and never
 runs git: the repository may be someone else's, and running git in it is the
-attack TRUST-006/007 describe. It runs in a default `scan`/`check` (the
-repository the working directory is in) and in `scan --project` (the
-project's repository, when that is a different one); never with `--path`.
+attack TRUST-006/007 describe. It runs in a default `scan`/`check` with no
+`--path` (the repository the working directory is in) and in `scan --project`
+(the project's repository, read once even when it is also the working
+directory's). Rules are compared as written, so a rule you re-approved with a
+new token still reports the old token's version.
 Apiiro found that gitleaks and TruffleHog missed 215 of the 1,122 secrets it
 found in public `settings.local.json` copies, which is why these two files are
 read with CRED-004's own rules rather than left to a general history scanner.

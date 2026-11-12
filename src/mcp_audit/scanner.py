@@ -631,9 +631,14 @@ def _discover_and_parse(
             result.errors.append(f"git config check error: {type(e).__name__}: {e}")
         # Secrets in permission rules that git history still holds (CRED-005,
         # STORY-0153): reads git's object files, never runs git; never raises.
-        result.findings.extend(
-            _rule_secret_history.scan_repository_history(Path.cwd(), result.errors)
-        )
+        try:
+            cwd = Path.cwd()
+        except OSError:
+            cwd = None
+        if cwd is not None:
+            result.findings.extend(
+                _rule_secret_history.scan_repository_history(cwd, result.errors)
+            )
 
     if include_plugins and not extra_paths:
         from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415

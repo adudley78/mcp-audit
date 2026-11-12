@@ -32,6 +32,7 @@ Nothing is executed and no network is used.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -98,10 +99,14 @@ class RuleSecretHit:
         location: JSON location, e.g. ``permissions.allow[3]``.
         redacted: The rule with each secret replaced by ``[REDACTED]``, cut to
             a quotable length.
+        digest: SHA-256 of the rule as examined, so two rules that redact to
+            the same text (a rotated token) can be told apart without keeping
+            the secret (CRED-005, STORY-0153).
     """
 
     location: str
     redacted: str
+    digest: str = ""
 
 
 @dataclass
@@ -254,7 +259,13 @@ def rule_secret_hits(raw: object) -> RuleSecretScan:
             redacted = redact_rule(text)
             if redacted != text:
                 scan.hits.append(
-                    RuleSecretHit(f"permissions.{list_name}[{index}]", redacted)
+                    RuleSecretHit(
+                        f"permissions.{list_name}[{index}]",
+                        redacted,
+                        hashlib.sha256(
+                            text.encode("utf-8", "surrogatepass")
+                        ).hexdigest(),
+                    )
                 )
     return scan
 

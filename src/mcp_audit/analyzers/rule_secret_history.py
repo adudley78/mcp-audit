@@ -12,7 +12,8 @@ does.
 This module walks every commit reachable from the repository's refs and
 ``HEAD``, reads the two settings files at the root of each commit's tree, and
 runs CRED-004's own detector (:func:`rule_secret_hits`) over every distinct
-version.  A rule that holds a secret in history but not in today's file is
+version.  A rule value that holds a secret in history but not in today's file
+(compared by the SHA-256 of the rule as written, so a rotated token counts) is
 reported once per file as CRED-005 (HIGH: anyone with a clone has it), quoted
 with the secret replaced by ``[REDACTED]``.  A rule still in today's file is
 left to CRED-004.
@@ -68,25 +69,34 @@ INFLATE_BUDGET = 2 * 1024 * 1024 * 1024
 #: Rules quoted per finding.
 _LIST_CAP = 20
 _QUOTE_CHARS = 160
-_BLOB_MODES = (b"100644", b"100755")
+_BLOB_MODES = (b"100644", b"100755", b"100664")
 _TREE_MODE = b"40000"
 
 
 @dataclass
-class _FileHistory:
-    """What the walk found for one settings file name."""
+class _Rule:
+    """One distinct secret-holding rule value seen in history."""
 
-    rules: dict[str, str] = field(default_factory=dict)  # redacted → location
+    redacted: str
+    location: str
     commits: set[str] = field(default_factory=set)
 
 
 @dataclass
 class HistoryScan:
-    """Result of walking one repository's history."""
+    """Result of walking one repository's history.
 
-    files: dict[str, _FileHistory] = field(default_factory=dict)
+    ``files`` maps a settings file name to its rules, keyed by the SHA-256 of
+    the rule as written (so a rotated token is a different rule); the secret
+    itself is never kept.
+    """
+
+    files: dict[str, dict[str, _Rule]] = field(default_factory=dict)
     commits_read: int = 0
     versions_read: int = 0
+    versions_skipped: int = 0
+    unreadable: int = 0
+    stopped: bool = False
     errors: list[str] = field(default_factory=list)
 
 
@@ -139,13 +149,19 @@ def _settings_blobs(store: ObjectStore, tree_id: str) -> dict[str, str]:
     }
 
 
-def _hits_of(store: ObjectStore, blob_id: str) -> list[RuleSecretHit]:
+def _hits_of(
+    store: ObjectStore, blob_id: str, scan: HistoryScan
+) -> list[RuleSecretHit]:
     found = store.read(blob_id)
-    if found is None or found[0] != "blob" or len(found[1]) > MAX_SETTINGS_BYTES:
+    if found is None or found[0] != "blob":
+        return []
+    if len(found[1]) > MAX_SETTINGS_BYTES:
+        scan.versions_skipped += 1
         return []
     try:
         raw = json.loads(found[1].decode("utf-8", errors="replace"))
     except (ValueError, RecursionError):
+        scan.versions_skipped += 1
         return []
     return rule_secret_hits(raw).hits
 
@@ -153,47 +169,105 @@ def _hits_of(store: ObjectStore, blob_id: str) -> list[RuleSecretHit]:
 def walk_history(store: ObjectStore, label: str) -> HistoryScan:
     """Read every reachable version of the two settings files.
 
+    A malformed or unreadable object is counted and skipped; the walk goes on.
+    When the read budget runs out the walk stops and what it found so far is
+    kept (``stopped``).
+
     Args:
         store: The repository's object store.
         label: Repository name for error text (never an absolute path).
     """
     scan = HistoryScan()
-    queue: deque[str] = deque()
-    seen: set[str] = set()
+    try:
+        _walk(store, scan)
+    except BudgetExceededError:
+        scan.stopped = True
+    if scan.stopped:
+        scan.errors.append(
+            f"git history of '{label}' was only partly read for CRED-005: the read"
+            " budget ran out"
+        )
+    if scan.commits_read >= MAX_COMMITS:
+        scan.errors.append(
+            f"git history of '{label}': only the first {MAX_COMMITS} commits were"
+            " read for CRED-005"
+        )
+    if scan.versions_read >= MAX_VERSIONS:
+        scan.errors.append(
+            f"git history of '{label}': only the first {MAX_VERSIONS} versions of"
+            " the settings files were read for CRED-005"
+        )
+    if scan.versions_skipped:
+        scan.errors.append(
+            f"git history of '{label}': {scan.versions_skipped} version(s) of the"
+            f" settings files were over {MAX_SETTINGS_BYTES // (1024 * 1024)} MiB"
+            " or not valid JSON, and were not checked for CRED-005"
+        )
+    if scan.unreadable:
+        scan.errors.append(
+            f"git history of '{label}': {scan.unreadable} object(s) could not be"
+            " read (corrupt or over a size cap) and were skipped for CRED-005"
+        )
+    return scan
+
+
+def _tips(store: ObjectStore, scan: HistoryScan) -> list[str]:
+    starts: list[str] = []
     for tip in store.ref_tips():
         target: str | None = tip
-        for _ in range(10):  # annotated tags may point at tags
-            if target is None:
-                break
-            found = store.read(target)
-            if found is None or found[0] != "tag":
-                break
-            target = parse_tag_target(found[1])
-        if target is not None and target not in seen:
-            seen.add(target)
-            queue.append(target)
+        try:
+            for _ in range(10):  # annotated tags may point at tags
+                if target is None:
+                    break
+                found = store.read(target)
+                if found is None or found[0] != "tag":
+                    break
+                target = parse_tag_target(found[1])
+        except BudgetExceededError:
+            raise
+        except GitObjectError:
+            scan.unreadable += 1
+            continue
+        if target is not None:
+            starts.append(target)
+    return starts
+
+
+def _walk(store: ObjectStore, scan: HistoryScan) -> None:
+    queue: deque[str] = deque()
+    seen: set[str] = set()
+    for start in _tips(store, scan):
+        if start not in seen:
+            seen.add(start)
+            queue.append(start)
     blob_hits: dict[str, list[RuleSecretHit]] = {}
     tree_cache: dict[str, dict[str, str]] = {}
-    while queue:
-        if scan.commits_read >= MAX_COMMITS:
-            scan.errors.append(
-                f"git history of '{label}': only the first {MAX_COMMITS} commits"
-                " were read for CRED-005"
-            )
-            break
+    while queue and scan.commits_read < MAX_COMMITS:
         commit_id = queue.popleft()
-        found = store.read(commit_id)
-        if found is None or found[0] != "commit":
+        try:
+            found = store.read(commit_id)
+            if found is None or found[0] != "commit":
+                continue
+            tree_id, parents = parse_commit(found[1])
+        except BudgetExceededError:
+            raise
+        except GitObjectError:
+            scan.unreadable += 1
             continue
         scan.commits_read += 1
-        tree_id, parents = parse_commit(found[1])
         for parent in parents:
             if parent not in seen:
                 seen.add(parent)
                 queue.append(parent)
         blobs = tree_cache.get(tree_id)
         if blobs is None:
-            blobs = _settings_blobs(store, tree_id)
+            try:
+                blobs = _settings_blobs(store, tree_id)
+            except BudgetExceededError:
+                raise
+            except GitObjectError:
+                scan.unreadable += 1
+                blobs = {}
             tree_cache[tree_id] = blobs
         for name, blob_id in blobs.items():
             hits = blob_hits.get(blob_id)
@@ -201,24 +275,26 @@ def walk_history(store: ObjectStore, label: str) -> HistoryScan:
                 if scan.versions_read >= MAX_VERSIONS:
                     continue
                 scan.versions_read += 1
-                hits = _hits_of(store, blob_id)
+                try:
+                    hits = _hits_of(store, blob_id, scan)
+                except BudgetExceededError:
+                    raise
+                except GitObjectError:
+                    scan.unreadable += 1
+                    hits = []
                 blob_hits[blob_id] = hits
             if not hits:
                 continue
-            history = scan.files.setdefault(name, _FileHistory())
-            history.commits.add(commit_id)
+            rules = scan.files.setdefault(name, {})
             for hit in hits:
-                history.rules.setdefault(hit.redacted, hit.location)
-    if scan.versions_read >= MAX_VERSIONS:
-        scan.errors.append(
-            f"git history of '{label}': only the first {MAX_VERSIONS} versions of"
-            " the settings files were read for CRED-005"
-        )
-    return scan
+                rule = rules.get(hit.digest)
+                if rule is None:
+                    rule = rules[hit.digest] = _Rule(hit.redacted, hit.location)
+                rule.commits.add(commit_id)
 
 
 def _current_rules(worktree: Path, name: str) -> set[str]:
-    """Redacted secret-holding rules in today's file (CRED-004 reports these)."""
+    """Digests of secret-holding rules in today's file (CRED-004 reports these)."""
     path = worktree / ".claude" / name
     try:
         st = os.stat(path, follow_symlinks=False)
@@ -227,7 +303,7 @@ def _current_rules(worktree: Path, name: str) -> set[str]:
         raw = json.loads(path.read_bytes().decode("utf-8", errors="replace"))
     except (OSError, ValueError, RecursionError):
         return set()
-    return {hit.redacted for hit in rule_secret_hits(raw).hits}
+    return {hit.digest for hit in rule_secret_hits(raw).hits}
 
 
 def _quote(text: str) -> str:
@@ -236,14 +312,22 @@ def _quote(text: str) -> str:
     return repr(text)
 
 
-def _finding(
-    worktree: Path, name: str, rules: list[tuple[str, str]], commits: set[str]
-) -> Finding:
+def _finding(worktree: Path, name: str, rules: list[_Rule]) -> Finding:
     path = worktree / ".claude" / name
-    ordered = sorted(commits)
-    quoted = [f"{location}: {_quote(rule)}" for rule, location in rules[:_LIST_CAP]]
-    if len(rules) > _LIST_CAP:
-        quoted.append(f"(+{len(rules) - _LIST_CAP} more)")
+    commits = sorted(set().union(*(rule.commits for rule in rules)))
+    # Rules that redact to the same text (a rotated token) are quoted once.
+    shown: dict[tuple[str, str], int] = {}
+    for rule in rules:
+        key = (rule.location, rule.redacted)
+        shown[key] = shown.get(key, 0) + 1
+    quoted = [
+        f"{location}: {_quote(redacted)}" + (f" ({n} values)" if n > 1 else "")
+        for (location, redacted), n in sorted(shown.items())
+    ]
+    if len(quoted) > _LIST_CAP:
+        quoted = [*quoted[:_LIST_CAP], f"(+{len(quoted) - _LIST_CAP} more)"]
+    first = min(rules, key=lambda r: (r.location, r.redacted))
+    example = min(first.commits)
     return Finding(
         id=FINDING_ID,
         severity=Severity.HIGH,
@@ -252,21 +336,21 @@ def _finding(
         server="(config-level)",
         title=TITLE,
         description=(
-            f"Git history holds {len(rules)} permission rule(s) in"
+            f"Git history holds {len(rules)} permission rule value(s) in"
             f" '.claude/{name}' that contain a credential (a token, key, password"
-            f" or connection string) and are not in the file today. They are in"
-            f" {len(ordered)} commit(s), so anyone with a clone of '{_label(worktree)}'"
-            " can read them: deleting a rule, or the file, does not remove it from"
-            " history. Claude Code saves a rule when you choose \"Yes, and don't"
-            ' ask again", and the rule is the approved command word for word.'
-            " Apiiro (Shmulik Cohen and Matan Giladi, via The Hacker News,"
-            " 2026-11-07) found a secret in 1,122 of 104,185 public"
-            " settings.local.json copies, 215 of which neither gitleaks nor"
-            " TruffleHog flagged."
+            " or connection string) and are not in the file today. They are in"
+            f" {len(commits)} commit(s), so anyone with a clone of"
+            f" '{_label(worktree)}' can read them: deleting a rule, or the file,"
+            " does not remove it from history. Claude Code saves a rule when you"
+            ' choose "Yes, and don\'t ask again", and the rule is the approved'
+            " command word for word. Apiiro (Shmulik Cohen and Matan Giladi, via"
+            " The Hacker News, 2026-11-07) found a secret in 1,122 of 104,185"
+            " public settings.local.json copies, 215 of which neither gitleaks"
+            " nor TruffleHog flagged."
         ),
         evidence=(
-            f"{path} in commit {ordered[0][:12]}"
-            + (f" and {len(ordered) - 1} other(s)" if len(ordered) > 1 else "")
+            f"{path}: {first.location} is in commit {example[:12]}"
+            + (f" ({len(commits)} commits in all)" if len(commits) > 1 else "")
             + ": "
             + "; ".join(quoted)
         ),
@@ -307,17 +391,10 @@ def history_rule_secret_findings(
             return []
         store = ObjectStore(git_dir, common_dir, ReadBudget(limit=INFLATE_BUDGET))
         with store:
-            try:
-                scan = walk_history(store, label)
-            except BudgetExceededError:
-                errors.append(
-                    f"git history of '{label}' was only partly read for CRED-005:"
-                    " the read budget ran out"
-                )
-                return []
+            scan = walk_history(store, label)
             errors.extend(scan.errors)
             errors.extend(f"git history of '{label}': {e}" for e in store.errors)
-            if (common_dir / "shallow").exists():
+            if os.path.lexists(common_dir / "shallow"):
                 errors.append(
                     f"'{label}' is a shallow clone, so CRED-005 read only the git"
                     " history it has (fetch the full history, e.g. fetch-depth: 0,"
@@ -333,9 +410,8 @@ def history_rule_secret_findings(
         errors.append(f"git history of '{label}' was not read for CRED-005: {exc}")
         return []
     except Exception as exc:  # noqa: BLE001 — reported, never fatal
-        errors.append(
-            f"git history check error for '{label}': {type(exc).__name__}: {exc}"
-        )
+        # The type only: an OSError's text carries an absolute path.
+        errors.append(f"git history check error for '{label}': {type(exc).__name__}")
         return []
     findings: list[Finding] = []
     for name in SETTINGS_NAMES:
@@ -343,13 +419,9 @@ def history_rule_secret_findings(
         if history is None:
             continue
         current = _current_rules(worktree, name)
-        rules = sorted(
-            (rule, location)
-            for rule, location in history.rules.items()
-            if rule not in current
-        )
+        rules = [rule for digest, rule in history.items() if digest not in current]
         if rules:
-            findings.append(_finding(worktree, name, rules, history.commits))
+            findings.append(_finding(worktree, name, rules))
     return findings
 
 

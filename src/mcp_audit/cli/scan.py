@@ -1335,8 +1335,7 @@ def _apply_project_scan(
             result.findings.append(finding)
 
     # ── CRED-005: secrets in permission rules git history still holds ───────
-    # The default scan read the cwd's repository; --project adds the project's
-    # own repository when it is a different one (STORY-0153). Never raises.
+    # --project reads the project's own repository (STORY-0153). Never raises.
     from mcp_audit.analyzers import rule_secret_history as _history  # noqa: PLC0415
 
     seen_history = {
@@ -1344,11 +1343,15 @@ def _apply_project_scan(
         for f in result.findings
         if f.id == _history.FINDING_ID
     }
+    # A default scan (no --path) already read the cwd's repository.
+    try:
+        cwd_repo = None if extra_paths else _history.find_repository(Path.cwd())
+    except OSError:
+        cwd_repo = None
     project_repo = _history.find_repository(project_dir)
     project_history = (
         _history.history_rule_secret_findings(*project_repo, result.errors)
-        if project_repo is not None
-        and project_repo != _history.find_repository(Path.cwd())
+        if project_repo is not None and project_repo != cwd_repo
         else []
     )
     for finding in project_history:
