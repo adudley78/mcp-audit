@@ -12,6 +12,7 @@ from mcp_audit import guardrails as _guardrails
 from mcp_audit.agent_files import drift as _drift
 from mcp_audit.agent_files import skill_package as _skill_package
 from mcp_audit.analyzers import git_exec as _git_exec
+from mcp_audit.analyzers import rule_secret_history as _rule_secret_history
 from mcp_audit.analyzers.attack_paths import summarize_attack_paths
 from mcp_audit.analyzers.auth import AuthAnalyzer
 from mcp_audit.analyzers.base import BaseAnalyzer
@@ -628,6 +629,16 @@ def _discover_and_parse(
             result.findings.extend(_git_exec.scan_cwd_repository())
         except Exception as e:  # noqa: BLE001
             result.errors.append(f"git config check error: {type(e).__name__}: {e}")
+        # Secrets in permission rules that git history still holds (CRED-005,
+        # STORY-0153): reads git's object files, never runs git; never raises.
+        try:
+            cwd = Path.cwd()
+        except OSError:
+            cwd = None
+        if cwd is not None:
+            result.findings.extend(
+                _rule_secret_history.scan_repository_history(cwd, result.errors)
+            )
 
     if include_plugins and not extra_paths:
         from mcp_audit.plugins import analyzer as _plugin_analyzer  # noqa: PLC0415
