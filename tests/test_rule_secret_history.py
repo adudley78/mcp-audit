@@ -12,6 +12,7 @@ import pytest
 from mcp_audit.analyzers import rule_secret_history as hist
 from mcp_audit.models import Severity
 
+GIT = shutil.which("git") or "git"
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
 
 # Built from pieces so the repository holds no token-shaped literal.
@@ -23,8 +24,8 @@ CLEAN = "Bash(npm test *)"
 
 
 def _git(repo: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
+    return subprocess.run(  # noqa: S603 — git resolved via shutil.which
+        [GIT, "-C", str(repo), *args], check=True, capture_output=True, text=True
     ).stdout
 
 
@@ -138,8 +139,8 @@ class TestHistory:
             (repo / "README.md").write_text(str(i))
             _commit(repo, f"c{i}")
         clone = tmp_path / "clone"
-        subprocess.run(
-            ["git", "clone", "-q", "--depth", "1", f"file://{repo}", str(clone)],
+        subprocess.run(  # noqa: S603 — git resolved via shutil.which
+            [GIT, "clone", "-q", "--depth", "1", f"file://{repo}", str(clone)],
             check=True,
             capture_output=True,
         )

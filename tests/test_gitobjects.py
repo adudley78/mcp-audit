@@ -21,12 +21,13 @@ from mcp_audit._gitobjects import (
     tree_entries,
 )
 
+GIT = shutil.which("git") or "git"
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
 
 
 def _git(repo: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", "-C", str(repo), *args],
+    return subprocess.run(  # noqa: S603 — git resolved via shutil.which
+        [GIT, "-C", str(repo), *args],
         check=True,
         capture_output=True,
         text=True,
@@ -63,8 +64,8 @@ def _assert_parity(repo: Path) -> int:
     objects = _all_objects(repo)
     with store:
         for oid, kind in objects:
-            want = subprocess.run(
-                ["git", "-C", str(repo), "cat-file", kind, oid],
+            want = subprocess.run(  # noqa: S603 — git resolved via shutil.which
+                [GIT, "-C", str(repo), "cat-file", kind, oid],
                 check=True,
                 capture_output=True,
             ).stdout
@@ -91,9 +92,9 @@ class TestParityWithGit:
         objects = "\n".join(oid for oid, _ in _all_objects(repo)) + "\n"
         pack_dir = repo / ".git" / "objects" / "pack"
         pack_dir.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
+        subprocess.run(  # noqa: S603 — git resolved via shutil.which
             [
-                "git",
+                GIT,
                 "-C",
                 str(repo),
                 "pack-objects",
