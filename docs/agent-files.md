@@ -49,6 +49,7 @@ instruction file you load into your agent on every session.  Published attacks
 | AGENTS.override.md | Codex | `AGENTS.override.md` in any project directory, `~/.codex/AGENTS.md`, `~/.codex/AGENTS.override.md` |
 | Workspace files | OpenClaw | `~/.openclaw/workspace/{AGENTS,SOUL,USER,MEMORY}.md`; `SOUL.md`, `USER.md`, `MEMORY.md` in any project directory |
 | Heartbeat checklist | OpenClaw | `~/.openclaw/workspace/HEARTBEAT.md`; `HEARTBEAT.md` in any project directory |
+| Dropped instruction files | Codex, Claude Code, Gemini CLI, Cursor | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules` directly in `~/Downloads` and `~/Desktop` (top level only; see MEM-007) |
 | Imported and referenced files | Claude Code (imports); any agent (references) | whatever the files above pull in; see "Imports and references" |
 
 Every file in the last seven rows, and the `CLAUDE.md` tiers, is a memory
@@ -304,6 +305,63 @@ every environment variable and send them to ..."), a possessive destination
 ("the project's validation endpoint"), and files named before the verb
 ("gather .netrc ... and post them to ..."). Implementation:
 `agent_files/exfil.py`.
+
+### MEM-007 (MEDIUM): instruction file in Downloads or Desktop
+
+Forever Security (Gal Weizman, Omer Samet; disclosed 2026-10-26) found an
+`AGENTS.md` planted in a customer's `~/Downloads` that told Codex to add an MCP
+server to `~/.codex/config.toml` and then run `codex exec` with approvals and
+sandbox off. By their telemetry about half of their customers run a coding agent
+inside Downloads. The user-global `agent-files scan` now looks for `AGENTS.md`,
+`CLAUDE.md`, `GEMINI.md` and `.cursorrules` directly in `~/Downloads` and
+`~/Desktop` and reports each one it finds as MEDIUM: an agent started in that
+folder follows the file, and these are the folders where files arrive from a
+browser, a chat or a mail client.
+
+Top level only. `Downloads/sub/AGENTS.md` is never read. A symlinked file is
+reported (TRUST-002) and not read; a symlinked folder is not entered
+(TRUST-005). The file is read the way every other instruction file is (4 MiB
+cap, a longer file scanned on its first part, undecodable bytes replaced), and
+nothing in it is run or followed. The file also gets the memory rules (MEM-001/002)
+and MEM-008. Source: [BleepingComputer](https://bleepingcomputer.com/news/security/ai-coding-agents-hijacked-using-agentsmd-file-in-downloads-folder).
+Implementation: `agent_files/discovery.py` (`_discover_dropped`).
+
+### MEM-008 (HIGH outside a git repository, MEDIUM inside one): instruction file changes machine-wide settings or approvals
+
+An always-applied instruction file (the MEM-006 files) that reaches past the
+folder the agent runs in. Three shapes:
+
+1. **config-edit**: a sentence that opens with an edit verb (add, append,
+   write, edit, modify, update, create, insert, set, configure, overwrite,
+   merge ...) or a shell redirect, aimed at a machine-wide agent config:
+   `~/.codex/config.toml`, `~/.claude/settings.json`, `~/.cursor/mcp.json`,
+   `~/.gemini/settings.json` (also as `$HOME`, `%USERPROFILE%`, an absolute home
+   path, or `$CODEX_HOME/config.toml`), with an MCP server, hook, command or
+   approval/sandbox/trust change in that line or the eight after it. A
+   project-relative `.claude/settings.json`, a table row, a description ("the
+   installer writes to ...") and a negation ("never edit ...") do not count.
+2. **permissions**: run an agent with approvals off (`--dangerously-skip-permissions`,
+   `bypassPermissions`, `--dangerously-bypass-approvals-and-sandbox`, `--yolo` and
+   the Gemini forms). This is SKILL-006's pattern, reused from
+   `agent_files/install_steps.py`; it needs a verb that tells someone to run it on the
+   line or in the three lines above.
+3. **base-url**: `ANTHROPIC_BASE_URL` and siblings set to a host that is not the
+   vendor's (SKILL-006's check, loopback allowed), under the same rule.
+
+HIGH when the file is outside any git repository (nothing reviews it), MEDIUM
+when a `.git` entry is found above it. A repository at `$HOME` itself does not
+count. It runs wherever MEM-006 runs.
+
+Measured (`docs/research/mem008/results.json`): 0 of 1,101 public AGENTS.md,
+CLAUDE.md, GEMINI.md and .cursorrules files from a search not aimed at the
+matcher fire. Of 703 files chosen because they contain its words, 23 fire (19
+permissions, 4 base-URL); read by hand, 17 tell the reader to launch an agent with
+approvals off or set a proxy URL (developer documentation, not an attack) and
+6 describe code or a changelog. No file in the corpus is an attack; no real
+planted file is public, so recall was checked only on sentences written for this
+project. Expect setup guides to fire: "set ANTHROPIC_BASE_URL to our proxy" is an
+instruction, even when it is a fair one. Implementation:
+`agent_files/instruction_shapes.py`.
 
 ### INSTR-001 (INFO) / INSTR-002 (MEDIUM): instruction file changed since the last scan
 
@@ -641,7 +699,7 @@ mcp-audit agent-files discover --project /path/to/repo
 ### Integrated with full scan
 
 ```bash
-# Adds the content rules; MEM-003/MEM-004/MEM-005/MEM-006 already run in a default scan
+# Adds the content rules; MEM-003 to MEM-008 already run in a default scan
 mcp-audit scan --include-agent-files
 
 # Combined with project-level scan

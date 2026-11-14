@@ -1911,6 +1911,29 @@ exfiltration sentence, so MEM-006 does not claim to detect them (GAPS.md); they
 are cited for the delivery route, a planted instruction file in a repository.
 Measurement: `docs/research/mem006/results.json`.
 
+## Instruction files in Downloads and Desktop (MEM-007, MEM-008, agent_files/discovery.py, agent_files/instruction_shapes.py)
+
+Original implementation; regexes written for this project, and every fixture
+sentence in `tests/test_agent_files_dropped.py` is written in our own words (no
+text from the report is copied). Source read 2026-11-14:
+
+- **Forever Security (Gal Weizman, Omer Samet), disclosed 2026-10-26**, as
+  reported by BleepingComputer, "AI coding agents hijacked using AGENTS.md file
+  in Downloads folder"
+  (https://bleepingcomputer.com/news/security/ai-coding-agents-hijacked-using-agentsmd-file-in-downloads-folder):
+  an `AGENTS.md` planted in a customer's `~/Downloads` told Codex to add an MCP
+  server to `~/.codex/config.toml` and then run `codex exec` with approvals and
+  sandbox off; per their telemetry about half of their customers run a coding
+  agent inside Downloads. We did not find Forever Security's own write-up by
+  name and cite the press report. The shapes MEM-008 matches (edit a
+  machine-wide agent config, approvals off, a changed base URL) and the folders
+  MEM-007 reads come from it; SKILL-006's patterns (USENIX Security 2026,
+  arXiv 2602.06547; CVE-2026-21852) are reused unchanged apart from not reading
+  `npx -y` as Gemini CLI's `-y`.
+
+Measurement: `docs/research/mem008/results.json` (public GitHub files; contents
+not committed).
+
 ## Policy that's actually enforced: policy sources and editor allowlists (MANAGED-006/007, EXTPOL-001..003, STORY-0144)
 
 Vendor documentation read on 2026-11-04; no code was copied from any scanner. Locations

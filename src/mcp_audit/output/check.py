@@ -483,6 +483,15 @@ _HINTS: dict[str, str] = {
         "Don't run an agent in this folder until the line that sends secrets out is"
         " removed; if one already ran here, rotate what it could read."
     ),
+    # Dropped instruction files (STORY-0155)
+    "MEM-007": (
+        "If you didn't put this file here, delete it, and don't start a coding"
+        " agent in this folder."
+    ),
+    "MEM-008": (
+        "Don't follow the instruction; remove it unless you wrote it. If an agent"
+        " already ran here, check the config file it names for entries you didn't add."
+    ),
     "POISON-043": (
         "Remove the invisible zero-width characters; decoded, they spell text."
     ),
