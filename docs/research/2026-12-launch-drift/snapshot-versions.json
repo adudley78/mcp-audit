@@ -1,0 +1,5363 @@
+{
+ "built": "2026-11-14",
+ "dates": [
+  "2026-10-22",
+  "2026-10-29"
+ ],
+ "packages": [
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "chrome-devtools-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.12.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.12.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.13.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-pdf",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.0.3",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.0.4",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.0.4"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-filesystem",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.0.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.1.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.3.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@wonderwhy-er/desktop-commander",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.3.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.3.3"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@upstash/context7-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.4.4",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "4.4.4",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "4.7.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "agent-device",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.21.31",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.21.34",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.21.37"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-everything",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.0.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.1.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.3.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-memory",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.0.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.0.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.1.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "rea-agents",
+   "versions": {
+    "2026-10-22": {
+     "version": "6.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "6.8.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "6.9.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@pandacss/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.4.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.4.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.5.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@notionhq/notion-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.5.2",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.6.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.6.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "hostinger-api-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.7.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "3.22.3",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "4.0.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "yahoo-finance2",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.0.5",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "4.0.5",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "4.0.6"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@swmansion/argent",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.30.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.31.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.33.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@sentry/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.42.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.42.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.49.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@modelcontextprotocol/server-sequential-thinking",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.0.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.0.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.1.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@hostinger/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.7.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "3.22.3",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "4.0.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "ruvector",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.3",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.3.3",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.3.27"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@supabase/mcp-server-supabase",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.14.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.15.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.17.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@azure/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.0.0-beta.2",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "4.0.0-beta.3",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "4.0.0-beta.7"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "firecrawl-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.34.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "3.36.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "3.40.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "agent-blackboard",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.7.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.7.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "agentdb",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.0.0-alpha.20",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "3.0.0-alpha.20",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "3.10.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "blume",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.2.4",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.2.6",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.2.7"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@zereight/mcp-gitlab",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.3.6",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.3.15",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.3.27"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "next-devtools-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.4.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.4.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "agentation-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.2",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.3.2",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.3.2"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "figma-developer-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.13.2",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.13.2",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.13.2"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "mongodb-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.1.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "3.2.2",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "3.3.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@azure-devops/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.11.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.11.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.11.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@launchdarkly/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.7.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.7.2",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.7.2"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@open-pencil/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.16.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.16.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.16.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@softeria/ms-365-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.171.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.176.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.184.2"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@kubb/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "5.12.4",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "5.15.2",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "5.20.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "xcodebuildmcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.7.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.7.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.7.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "nx-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.25.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.25.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.25.3"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@sap-ux/fiori-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.15.14",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.15.19",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.16.3"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@ui5/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.2",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.3.2",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.3.3"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@mastra/mcp-docs-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.9",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.3.10",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.3.13"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@aikidosec/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.33",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.0.33",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.0.34"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@currents/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.7.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.7.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.7.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "creem",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.13.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.13.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.14.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "scryfall-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.1.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.1.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "kordoc",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.24.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "4.24.21",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "4.24.78"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@tacticlaunch/mcp-linear",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.4.5",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.4.5",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.4.6"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@fanyangmeng/ghost-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@zencoderai/slack-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.0.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.0.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.0.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@coding-solo/godot-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.1.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@bytebase/dbhub",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.5.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.5.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.6.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@metamask/device-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.5.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.6.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.8.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@automattic/mcp-wordpress-remote",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.5.4",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.5.4",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.5.5"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@drawio/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.10.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.10.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.12.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@letoribo/mcp-graphql-enhanced",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.15.4",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "4.15.5",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "4.17.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@cloudbase/cloudbase-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.36.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.36.2",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.37.6"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "gitnexus",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.6.12",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.6.12",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.6.12"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@hubspot/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.4.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.4.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "kubernetes-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.0.68",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.0.69",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.1.3"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@perplexity-ai/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.3.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.3.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "chelaile-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.1.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.1.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@netlify/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.20.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.21.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.22.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@imgly/codesign-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.5.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.5.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.6.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@cap-js/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.0.8",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.1.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.1.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "n8n-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.96.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.99.2",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.102.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "slack-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.3.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.3.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@anyproto/anytype-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.0.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.0.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.0.2"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@brave/brave-search-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.1.4",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.1.4",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.1.4"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@antv/mcp-server-chart",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.9.10",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.9.10",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.9.10"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@vantasdk/vanta-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.2.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.2.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.2.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@eslint/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.15",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.3.15",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.3.16"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "exa-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.4.2",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "3.4.2",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "3.4.3"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@meshy-ai/meshy-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.6.5",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.6.6",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.6.11"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@statelyai/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.20.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.21.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.28.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@serdnaley/metabase-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.4.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.5.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@ericthered926/duckduckgo-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.6.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.6.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.6.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@google-cloud/storage-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.6.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.6.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.6.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@tableau/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.27.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "5.1.5",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "6.0.4"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@paperclipai/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "2026.1012.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2026.1023.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2026.1106.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@shopify/dev-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.17.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.18.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.18.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@apify/actors-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.19.3",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.20.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.21.10"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@larksuiteoapi/lark-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.5.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.5.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.5.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@winor30/mcp-server-datadog",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.8.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "1.8.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "1.8.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@microsoft/powerbi-modeling-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.1"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@browserstack/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.2.5",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "2.4.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.6.8"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@google-cloud/observability-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.3",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.2.3",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.2.3"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@taiga-ai/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.34.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.35.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.37.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@togglhq/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.13.39",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.13.108",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.13.280"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@foldkit/devtools-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.25.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.26.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.26.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@browsermcp/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.1.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "2.5.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@agimon-ai/po-logsink",
+   "versions": {},
+   "latest_now": "0.0.1-alpha.138"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@hasna/todos",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.17.4",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.17.4",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.18.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "argocd-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.9.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.9.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.9.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "opencode-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.0.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "3.1.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "3.1.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@xeroapi/xero-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.0.17",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.0.17",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.0.18"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "freee-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.37.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.37.9",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.38.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@sendinel/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.62",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.91",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.248"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@brightdata/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.1.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "4.1.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "4.8.0"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@next-ai-drawio/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.6",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.4.6",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.4.15"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "mcp-server-kubernetes",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.1.9",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "4.2.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "4.2.3"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "@hypothesi/tauri-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.13.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.13.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.13.2"
+  },
+  {
+   "stratum": "npm",
+   "type": "npm",
+   "package": "replicate-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.9.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.9.0",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.9.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-for-blender",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.2.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.2.6",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.2.9"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-server-fetch",
+   "versions": {
+    "2026-10-22": {
+     "version": "2026.10.19",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2026.10.28",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2026.11.11"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-atlassian",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.23.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.23.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.24.4"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-server-time",
+   "versions": {
+    "2026-10-22": {
+     "version": "2026.10.19",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2026.10.28",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2026.11.11"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "postgres-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "lean-lsp-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.31.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.32.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.33.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-grafana",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.1.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.2.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-aws-api-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.5.6",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.6.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.6.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "ha-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "8.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "9.0.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "9.2.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-server-git",
+   "versions": {
+    "2026-10-22": {
+     "version": "2026.10.19",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2026.10.28",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2026.11.11"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-server-appwrite",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.23",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.2.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.6.2"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "opensearch-mcp-server-py",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.12.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.12.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.12.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-aws-documentation-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.2.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.2.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.2.5"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcpforunityserver",
+   "versions": {
+    "2026-10-22": {
+     "version": "10.3.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "10.3.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "10.3.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "workspace-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.2.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.4.2"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "chroma-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.6",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.6",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.6"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-clickhouse",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.7.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.7.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "excel-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.2.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.2.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.3.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "langsmith-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.1"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-cloudwatch-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.1"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "serena-agent",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.1.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.1.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.1.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-aws-pricing-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.1.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1.1"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "jcodemunch-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.108.393",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.108.402",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.108.444"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "pagerduty-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.1.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.1.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "analytics-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.8.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.8.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "logfire-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.9.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.9.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.9.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "exomem",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.134.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.149.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.179.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "dbt-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.9.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.10.1"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "mcp-google-sheets",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.6.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.6.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.6.3"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "duckduckgo-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.7.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.7.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-billing-cost-management-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.0.42",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.0.43",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.0.45"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-aws-iac-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.26",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.26",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.26"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "markitdown-mcp",
+   "versions": {},
+   "latest_now": "0.0.1a8"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "prometheus-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.6.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.6.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.6.2"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "elevenlabs-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.12.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.12.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.12.2"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "falcon-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.20.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.20.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.20.2"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "serper-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.0.10",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.0.10",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.0.10"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "freecad-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.27",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.28",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.31"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "windows-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.8.8",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.8.8",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.8.9"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "arxiv-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.8.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.8.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.8.2"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "awslabs-redshift-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.3"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "tilt-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.3"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "astro-airflow-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.9.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.9.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.9.1"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "notebooklm-mcp-cli",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.15.6",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.15.8",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.16.4"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "unifi-network-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.39.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.42.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.45.1"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "yandex-cli",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.142.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.142.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.142.0"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "edgescaleai-cube-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.64",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.65",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.65"
+  },
+  {
+   "stratum": "pypi",
+   "type": "pypi",
+   "package": "meilisearch-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.7.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.7.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@playwright/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.0.83",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.0.83",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.0.85"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "browser-use",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.13.11",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.13.14",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.4"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "firebase-tools",
+   "versions": {
+    "2026-10-22": {
+     "version": "15.34.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "15.34.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "15.36.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "fallow",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.35.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.37.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.43.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "seleniumbase",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.56.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "4.56.5",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "4.57.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "mcp-proxy-for-aws",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.7.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.8.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "color-space",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.5.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.5.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.6.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "edgartools",
+   "versions": {
+    "2026-10-22": {
+     "version": "5.62.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "5.62.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "6.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "scrapling",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.5",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.5",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.5.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "e2e",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.21.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.21.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.23.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "snyk",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.1308.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.1308.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1308.4"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "telnyx",
+   "versions": {
+    "2026-10-22": {
+     "version": "7.28.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "7.29.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "7.31.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "llm-sandbox",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.46",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.46",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.46"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "sling",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.6.5",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.6.5",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.6.7"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "truthound",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.2.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.3.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.3.4"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "arxyne",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.10.7",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.10.20",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.13.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "bernstein",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.22.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.23.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.24.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "hol-guard",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.55.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.58.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.59.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "ouroboros-ai",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.59.6",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.59.9",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.60.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "repomix",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.18.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.18.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.19.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@sveltejs/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.27",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.28",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.30"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@cargo-ai/cli",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.121",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.140",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.152"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "skylos",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.50.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "5.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "5.6.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@gitkraken/gk",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.1.77",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.1.77",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.1.77"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "praisonai",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.7.16",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "4.7.21",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "4.7.24"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ruflo",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.59.17",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.64.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.77.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "tooluniverse",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.5.7",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.5.7",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.5.10"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mobilenext/mobile-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.12",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.14",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.17"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@yawlabs/ctxlint",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.28.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.28.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.28.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "endform",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.81.5",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.82.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.83.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "dynoxide",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.4.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.5.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.6.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@cyanheads/mcp-ts-core",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.13.15",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.13.18",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.13.22"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@dynatrace-oss/dynatrace-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.1.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.1.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ssh-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.20.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.22.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.26.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "tavily-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.22",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.2.22",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.2.22"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-gsc",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.4.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.4.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-searxng",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.9.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.10.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "aiterm-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.61.6",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.61.24",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.70.57"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@agentskit/doc-bridge",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.4.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.5.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.6.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "claude-flow",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.59.17",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.64.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.77.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@wirecat/cli-memo",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.88.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.122.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.135.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "dembrandt",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.39.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.39.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.39.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@smartbear/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.42.0",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.42.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.43.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "shinjuku-shield",
+   "versions": {
+    "2026-10-29": {
+     "version": "0.3.127",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.218"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "igniteui-theming",
+   "versions": {
+    "2026-10-22": {
+     "version": "30.0.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "30.0.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "30.2.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@flisk-sh/flisk",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.206",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.4.14",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.4.63"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "tokensafe",
+   "versions": {},
+   "latest_now": "3.1.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "codebase-memory-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.12.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.12.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.12.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@hypequery/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.9.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.11.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.13.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "appium-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.97.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.99.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.99.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "comfyui-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.52.206",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.52.206",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.52.206"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@discourse/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.1",
+     "source": "recorded in the 2026-10-22 corpus"
+    },
+    "2026-10-29": {
+     "version": "0.3.1",
+     "source": "recorded in the 2026-10-29 corpus"
+    }
+   },
+   "latest_now": "0.3.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "codeburn",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.9.27",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.9.27",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.9.28"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ruv-swarm",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.20",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.20",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.0.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@sap/mdk-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.4.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.4.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@alisaitteke/photoshop-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.7.37",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.7.37",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.7.38"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@xgamesfun/solana",
+   "versions": {},
+   "latest_now": "0.28.31"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@unleash/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.5.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.6.4"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@auth0/auth0-mcp-server",
+   "versions": {},
+   "latest_now": "0.1.0-beta.19"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "semiotic",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.13.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.13.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.13.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@growthbook/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.2.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.2.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@muggleai/works",
+   "versions": {
+    "2026-10-22": {
+     "version": "5.23.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "5.27.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "5.37.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@ai-dossier/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.6.5",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.6.5",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.6.6"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "premiere-pro-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.24.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.26.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.30.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@dbx-app/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.127",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.4.134",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.4.143"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "loki-mode",
+   "versions": {
+    "2026-10-22": {
+     "version": "11.54.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "11.87.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "11.140.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@esaio/esa-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.15.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.15.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.15.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ffmpeg-skill",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.10.11",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.20.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.8.12"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "api-anything",
+   "versions": {
+    "2026-10-29": {
+     "version": "0.3.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.4.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "obsidian-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.7.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.7.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.9.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "signoff-cli",
+   "versions": {},
+   "latest_now": "4.8.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@tradecanvas/mcp",
+   "versions": {
+    "2026-10-29": {
+     "version": "1.54.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.7.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "readfirst",
+   "versions": {},
+   "latest_now": "0.32.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@seanhogg/builderforce-memory-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2026.10.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2026.10.35",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2026.10.80"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@wdio/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.0.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "4.0.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "4.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "gdharness",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.9",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.3.48",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.3.110"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@qase/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.0.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.0.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.0.7"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "alterlab-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.9.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.9.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.13.26"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@gaiventures/pilotfish-mcp",
+   "versions": {},
+   "latest_now": "0.1.47"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "podman-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.0.15",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.0.15",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.0.15"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@postman/postman-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.14.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.15.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.15.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "atris",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.72.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.74.23",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.83.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "run402-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "4.126.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "4.136.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "4.154.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-gsheets",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.10.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.11.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.11.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@atlassian-dc-mcp/jira",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.38.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.38.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.43.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@scavio/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.24.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.27.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.55.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "brilliant-directories-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "6.58.612",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "6.58.612",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "6.59.649"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "reddit-mcp-buddy",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.1.14",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.1.14",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.3.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@whisper-security/whisper-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.222.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.222.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.267.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@delorenj/mcp-server-trello",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.8.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.8.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.8.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "bitbucket-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "5.0.6",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "5.0.6",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "5.0.6"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "notion-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.2.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.3.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.4.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@cachly-dev/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.10.214",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.10.218",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.10.253"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@masonator/coolify-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.9.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.9.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.10.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "threejs-devtools-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.5.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.5.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.5.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@sylphx/anymd",
+   "versions": {
+    "2026-10-22": {
+     "version": "8.5.5",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "8.5.5",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "8.5.11"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "emailmd",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.13.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.13.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.13.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@rsdoctor/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.6.4",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.6.4",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.5"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@sync.so/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.4",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.4",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.22"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "bitpull",
+   "versions": {},
+   "latest_now": "0.1.46"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@gitwand/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "3.12.4",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "3.12.4",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.13.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@rootpilot/mcp-ssh-diagnose",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "lean-memory",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "olane-copass-local",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "x64dbg-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.3.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.3.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.3.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "btcmcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mrfentmen/qtscript-mcp",
+   "versions": {},
+   "latest_now": "1.0.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "arc-free-skills",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@chrischall/flightaware-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.3.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.4.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "runbook-ai-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.1.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.1.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@reneturcios/threatcheck",
+   "versions": {},
+   "latest_now": "0.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "quanticdata-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.11.4",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.11.4",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.11.4"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pedrot95dev/twitterapi.mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@cloakedagent/sdk",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "pic-gen",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.3.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.3.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "skilltotal",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.79.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.85.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "hirepulse-tools",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "lookupd",
+   "versions": {},
+   "latest_now": "0.3.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "memorydetective",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.18.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.18.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.18.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@usercall/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.4.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.4.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@readystack/en301549-lint",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.7",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.7",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.7"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@rightnow/forge-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "stellar-agent-search",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@ophirai/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "ecfr-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.1.12",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.1.14",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1.15"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "mcp-okx",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-zenodo",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "japan-company-info-mcp-bridge",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.2.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.2.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.2.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-onedrive",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-web-recon-agent",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.8.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.8.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.8.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "wikimoth-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ai-usage-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.14.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.16.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.16.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mrfentmen/open-canada-mcp",
+   "versions": {},
+   "latest_now": "1.0.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-irail",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "mcp-interminal",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.19",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.19",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.19"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "hacktricks-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.4",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.3.4",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.3.4"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-fjc-judges",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "sup-network",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.8",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.8",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.8"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "perplexity-comet-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.6.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.6.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.6.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "wemo-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.4.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.4.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.4.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "validation-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@muvon/octobrain",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.14.8",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.15.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.15.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "searxng",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@infoinlet/mcp-translate",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@readystack/cra-annex-ii-docs-lint",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.7",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.7",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.7"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-imei",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mrfentmen/glsl-mcp",
+   "versions": {},
+   "latest_now": "1.0.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "ihateposting-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.12.6",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.12.7",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.12.9"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "extra-desktop",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.4",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.6"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-fyyd",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "duduclaw",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.75.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.76.4",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.81.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mukundakatta/agentfit-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "runtime-support-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@yuvlero/mark",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-faa-delays",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@openplan/mcp",
+   "versions": {},
+   "error": "HTTP Error 404: Not Found"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "license-verify-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@tmhs/screencast-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.10.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.47.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.49.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@open-deltat/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@reneturcios/browserdebug",
+   "versions": {},
+   "latest_now": "0.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-globocan",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@geml/geml",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.12.6",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.13.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.13.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@orsf/mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "playcanvas-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.4",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.1.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "vugola-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.3.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.4.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.4.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "bricksentry-mcp",
+   "versions": {},
+   "latest_now": "0.1.21"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "portveil-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.4.4",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.4.4"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "guniweb-sap-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.10.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.10.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.11.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "mcp-redtrack",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "releaseguard-cli",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@ostraagent/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.5",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.12",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.23"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "domain-expertise-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "socialscrape-mcp",
+   "versions": {},
+   "latest_now": "0.1.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "gongio-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.0.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.0.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.0.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "rigor-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.5.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.5.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.5.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "hyperiux-mcp-server",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "f1-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-tradier",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "zitadel-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.0.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.0.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.0.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "aimarket-mcp-packager",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.1.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.1.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@perspectivefi/spectra-mcp",
+   "versions": {},
+   "latest_now": "0.1.6"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "cookie-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.8.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.8.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.9.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "aiapi-pro",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@mrfentmen/nix-mcp",
+   "versions": {},
+   "latest_now": "1.0.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "comparador-luz-gas",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.5",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.5",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.5"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "wikimoth",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.3",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.3"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "taoyuan-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "1.1.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "1.1.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "1.1.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@ryvonetwork/gateway-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.4.2",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.4.2"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "s3eidat-tools-mcp",
+   "versions": {},
+   "latest_now": "0.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "deepseek-search-everywhere-mcp",
+   "versions": {
+    "2026-10-29": {
+     "version": "1.0.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "3.0.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "kemory",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.18.19",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.19.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.19.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@statable/mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.1.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.1.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-startuphub",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "sancho-fetch",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.1",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "mcp-pystub",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "amazon-ads-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.3.31",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.3.31",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.3.33"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "statuz-cli",
+   "versions": {
+    "2026-10-22": {
+     "version": "2.1.3",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "2.2.1",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "2.4.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "pypi",
+   "package": "promptready-mcp",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.4.0",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.4.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.4.0"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@pipeworx/mcp-pacer",
+   "versions": {
+    "2026-10-22": {
+     "version": "0.1.2",
+     "source": "highest stable release published by end of day"
+    },
+    "2026-10-29": {
+     "version": "0.2.0",
+     "source": "highest stable release published by end of day"
+    }
+   },
+   "latest_now": "0.2.1"
+  },
+  {
+   "stratum": "registry",
+   "type": "npm",
+   "package": "@codespar/mcp-c6",
+   "versions": {},
+   "latest_now": "0.1.0-alpha.4"
+  }
+ ]
+}
