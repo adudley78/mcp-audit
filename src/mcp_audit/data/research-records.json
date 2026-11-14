@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-11-04",
-  "entry_count": 4,
+  "last_updated": "2026-11-14",
+  "entry_count": 5,
   "entries": [
     {
       "id": "x_MCPRS-4ad8c07d80d7",
@@ -177,6 +177,52 @@
                 "wsl"
               ],
               "note": "Affected 1.0.137 through 1.18.32 on Windows and WSL only; fixed in 1.18.33, published to npm 2026-09-28 (Pillar Security; npm registry time)."
+            }
+          ],
+          "checks": []
+        }
+      }
+    },
+    {
+      "id": "x_MCPRS-1fec894b3c53",
+      "modified": "2026-11-14T00:00:00Z",
+      "published": "2026-11-09T22:42:03Z",
+      "summary": "Claude Code: a time-of-check to time-of-use race in the Edit tool allowed file writes outside the workspace (CVE-2026-88968)",
+      "details": "As published in GitHub advisory GHSA-5xjx-9qx6-jcrv and OSV (CVE-2026-88968). Claude Code validated Edit tool targets with point-in-time pathname and symlink resolution that was not bound to the underlying directory inodes or file descriptors. On macOS, a process running inside Claude Code's Bash sandbox could atomically swap an in-workspace parent directory for a symlink after validation, so the unsandboxed Edit implementation overwrote an attacker-selected user-writable file outside the workspace. Exploiting it needed the ability to run attacker-controlled code inside the sandbox, for example through a malicious repository or dependency script. OSV lists the Claude Code npm package as affected from the first release up to, not including, 2.1.251 (fixed in 2.1.251); the advisory text describes the exploit on macOS only and does not say other platforms are unaffected, so no platform limit is recorded. Anthropic says standard auto-update users received the fix automatically. Coverage in mcp-audit: no check tests this condition, so `checks` is empty and `affected` answers from the installed Claude Code version alone.",
+      "aliases": [
+        "CVE-2026-88968",
+        "GHSA-5xjx-9qx6-jcrv"
+      ],
+      "credits": [
+        {
+          "name": "Sunder Singh (hackerone.com/mahoraga007)",
+          "type": "FINDER"
+        }
+      ],
+      "references": [
+        {
+          "type": "ADVISORY",
+          "url": "https://github.com/anthropics/claude-code/security/advisories/GHSA-5xjx-9qx6-jcrv"
+        },
+        {
+          "type": "ADVISORY",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-88968"
+        },
+        {
+          "type": "WEB",
+          "url": "https://github.com/anthropics/claude-code/releases/tag/v2.1.251"
+        }
+      ],
+      "database_specific": {
+        "mcp_audit": {
+          "kind": "research",
+          "products": [
+            {
+              "product": "Claude Code",
+              "vendor": "Anthropic",
+              "status": "fixed",
+              "fixed_in": "2.1.251",
+              "note": "Fixed in 2.1.251 per OSV (GHSA-5xjx-9qx6-jcrv); affected from the first release per OSV."
             }
           ],
           "checks": []
