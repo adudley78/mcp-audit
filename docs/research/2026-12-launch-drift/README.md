@@ -58,3 +58,9 @@ M1 compares each server's `tools/list` on 2026-10-22, 2026-10-29 and 2026-11-19.
 | `snapshot-versions.json` | The 10-22 and 10-29 version of each live-pass package, and its source |
 | `snapshot-summary.json` | Per (package, version): connected or not, tool count, digests |
 | `scripts/` | Every step above |
+
+## Snapshot run (2026-11-14)
+
+- 468 (package, version) pairs; 231 connected with no network and no credentials. The failures are classed automatically in `snapshot-summary.json` (`failure_classes`): most servers that fail need a key, a network service or a host app to start, as on 10-29.
+- Servers that connected on both dates: 57 npm, 27 PyPI, 73 registry. The npm figure matches the 10-29 study (61 of 100 connected there, with the same isolation).
+- These are inputs to M1, not results. M1 is computed after the 11-19 snapshot.
