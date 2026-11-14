@@ -1,0 +1,25 @@
+{
+  "check": "MEM-008",
+  "measured": "2026-11-14",
+  "method": "GitHub code search (gh api search/code) over public repositories, raw files fetched from raw.githubusercontent.com, run through agent_files.instruction_shapes.find_instruction_hits. Contents not committed. Only files named exactly AGENTS.md, CLAUDE.md, GEMINI.md or .cursorrules are counted (1,804 files, 1,785 repositories).",
+  "ordinary_sample": {
+    "description": "Not selected on the matcher's terms: filename:AGENTS.md and filename:CLAUDE.md (size 500..3000 and 3000..10000), filename:GEMINI.md, filename:.cursorrules; top search results (up to 3 pages of 100 per query).",
+    "files": 1101,
+    "fires": 0
+  },
+  "targeted_sample": {
+    "description": "Selected to contain the matcher's words: AGENTS.md with 'config.toml'; CLAUDE.md with 'settings.json'; AGENTS.md or CLAUDE.md with 'dangerously-skip-permissions'; AGENTS.md with 'BASE_URL'; CLAUDE.md with 'ANTHROPIC_BASE_URL'.",
+    "files": 703,
+    "fires": 23,
+    "by_shape": {"config-edit": 0, "permissions": 19, "base-url": 4},
+    "read_by_hand": {
+      "directs_the_agent_or_reader_to_run_or_set_it": 17,
+      "describes_code_or_a_changelog_not_an_instruction": 6,
+      "attack": 0
+    }
+  },
+  "first_version": {
+    "note": "Before the config-edit rule required an opening imperative verb, a machine-wide path and an MCP/hook/approval payload, it fired on 28 of 592 targeted config/settings files. 22 were read: all described what a tool or installer writes, or told a user how to set up a tool; none was an instruction to the agent. The frozen rule fires on 0 of them. Partly in-sample for that reason."
+  },
+  "recall": "No real planted file is public. Recall was checked only on sentences written for this project (tests/test_agent_files_dropped.py)."
+}

@@ -122,6 +122,10 @@ class AgentFile:
     #: True when the file was larger than the read cap and only its first
     #: part was read.
     truncated: bool = False
+    #: True for an instruction file found at the top of ``~/Downloads`` or
+    #: ``~/Desktop`` (STORY-0155): a folder where files arrive from outside and
+    #: where people start agents.
+    dropped: bool = False
 
     @property
     def display_name(self) -> str:

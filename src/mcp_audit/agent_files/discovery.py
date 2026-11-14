@@ -35,6 +35,14 @@ Confirmed file surfaces (2026-06-14; skills added 2026-09-08):
   Every Claude Code memory file, and the ``AGENTS.md`` files below, have
   their ``@path`` imports followed (see :mod:`mcp_audit.agent_files.imports`).
 
+**Dropped instruction files** (added 2026-11-14, STORY-0155)
+  - ``AGENTS.md``, ``CLAUDE.md``, ``GEMINI.md``, ``.cursorrules`` directly in
+    ``~/Downloads`` and ``~/Desktop`` (top level only, never a subfolder).
+    An agent started in one of those folders reads the file as its standing
+    instructions; the folders are where files arrive from a browser, a chat
+    attachment or a mail client.  A symlinked file or folder is reported
+    (TRUST-002/TRUST-005) and not read.
+
 **AGENTS.md** (added 2026-10-25, STORY-0098)
   - ``AGENTS.md`` in any directory (agents.md: Codex, Cursor, Copilot,
     Gemini CLI and others; Claude Code 2.1.277+ when there is no CLAUDE.md)
@@ -605,6 +613,49 @@ def _read_agent_file(
 
 # ── User-global discovery ─────────────────────────────────────────────────────
 
+#: Folders where files arrive from outside the machine, and the instruction
+#: files an agent started there reads (STORY-0155).  ``(name, surface, client)``.
+DROPPED_FOLDERS: tuple[str, ...] = ("Downloads", "Desktop")
+DROPPED_FILES: tuple[tuple[str, AgentFileSurface, str], ...] = (
+    ("AGENTS.md", AgentFileSurface.AGENTS_MD, "agents-md"),
+    ("CLAUDE.md", AgentFileSurface.CLAUDE_MEMORY, "claude-code"),
+    ("GEMINI.md", AgentFileSurface.AGENTS_MD, "gemini-cli"),
+    (".cursorrules", AgentFileSurface.AGENTS_MD, "cursor"),
+)
+
+
+def _discover_dropped(
+    skip_findings: list[Finding] | None = None,
+    *,
+    budget: ReadBudget | None = None,
+    errors: list[str] | None = None,
+) -> list[AgentFile]:
+    """Instruction files at the top of ``~/Downloads`` and ``~/Desktop``.
+
+    Top level only.  A symlinked file is reported (TRUST-002, against the
+    folder as the boundary) and not read; a symlinked folder is not entered
+    (TRUST-005).  Reads go through :func:`_read_agent_file`, so the size cap,
+    the budget and the encoding handling are the same as for every other
+    instruction file.
+    """
+    home = Path.home()
+    results: list[AgentFile] = []
+    for folder in DROPPED_FOLDERS:
+        base = home / folder
+        for name, surface, client in DROPPED_FILES:
+            for match in _resolve_relative_pattern(
+                home, f"{folder}/{name}", root=base, skip_findings=skip_findings
+            ):
+                if _is_symlink(match):
+                    continue
+                af = _read_agent_file(
+                    match, surface, client, "user", budget=budget, errors=errors
+                )
+                if af is not None:
+                    af.dropped = True
+                    results.append(af)
+    return results
+
 
 def _read_from_pattern(
     match: Path,
@@ -646,6 +697,7 @@ def _discover_user_global(
             if af is not None:
                 results.append(af)
 
+    results.extend(_discover_dropped(skip_findings, budget=budget, errors=errors))
     return results
 
 

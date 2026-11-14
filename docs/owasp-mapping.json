@@ -2338,6 +2338,32 @@
       "notes": "HIGH in a repository file, MEDIUM in the user's own. An always-applied instruction file (CLAUDE.md tiers, rules, AGENTS.md, OpenClaw files, Cursor rules, Copilot instruction files) has one sentence with a send verb (not negated), a bulk or local secret object (environment variables, .env, ~/.ssh, ~/.aws, id_rsa, .netrc, private keys, all/every ... secrets/tokens/keys) and a destination (URL, IP, email address, a named server/endpoint/webhook). CWE-200. 0 of 486 project instruction files and 0 of 3,083 skill-repository files fire (docs/research/mem006/results.json)."
     },
     {
+      "finding_id": "MEM-007",
+      "finding_title": "Agent instruction file in Downloads or Desktop",
+      "owasp_codes": [
+        "MCP03",
+        "MCP06"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Intent Flow Subversion"
+      ],
+      "notes": "MEDIUM. AGENTS.md, CLAUDE.md, GEMINI.md or .cursorrules directly in ~/Downloads or ~/Desktop (top level only; a subfolder is not read; a symlinked file or folder is reported as TRUST-002/TRUST-005 and not read). An agent started there follows the file, and the folders are where files arrive from outside. Read by the user-global agent-files scan. CWE-426. Research: Forever Security (Gal Weizman, Omer Samet), disclosed 2026-10-26. Analyzer: agent_files (STORY-0155)."
+    },
+    {
+      "finding_id": "MEM-008",
+      "finding_title": "Instruction file changes machine-wide agent settings or approvals",
+      "owasp_codes": [
+        "MCP03",
+        "MCP02"
+      ],
+      "owasp_names": [
+        "Tool Poisoning",
+        "Privilege Escalation via Scope Creep"
+      ],
+      "notes": "HIGH outside a git repository, MEDIUM inside one. An always-applied instruction file (CLAUDE.md tiers, rules, AGENTS.md, OpenClaw files, Cursor rules, Copilot instruction files) opens a sentence with an edit verb aimed at a machine-wide agent config (~/.codex/config.toml, ~/.claude/settings.json, ~/.cursor/mcp.json, ~/.gemini/settings.json) with an MCP server, hook, command or approval/sandbox/trust change near it; or tells the agent to run with approvals off (SKILL-006's pattern); or sets a model base URL to a host that is not the vendor's (SKILL-006's check). CWE-269. 0 of 1,101 ordinary public instruction files fire; 23 of 703 files selected for the matcher's words, none an attack (docs/research/mem008/results.json). Research: Forever Security (Gal Weizman, Omer Samet), disclosed 2026-10-26. Analyzer: agent_files (STORY-0155)."
+    },
+    {
       "finding_id": "GUARD-001",
       "finding_title": "Agent guardrail loosened since the last scan",
       "owasp_codes": [
