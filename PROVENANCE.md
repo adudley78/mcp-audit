@@ -97,6 +97,7 @@ The supply chain analyzer detects typosquatted npm package names by computing Le
 - **OpenSSF malicious-packages** ([GitHub](https://github.com/ossf/malicious-packages)) via **OSV's data dumps** ([OSV docs](https://google.github.io/osv.dev/data/): per-ecosystem `all.zip` in `gs://osv-vulnerabilities`, "including withdrawn records") — the source of `registry/known-malicious.json`. `scripts/sync_registry_advisories.py` keeps non-withdrawn `MAL-*` records whose package name contains `mcp`, that the registry lists, or (STORY-0152, 2026-11-11) that has a token naming a coding agent mcp-audit reads or an agent skill.
 - **Knostic, Tamir Isaschar, "More Than Markdown: Hidden Data Collection in Two MCP Packages"** (2026-11-09, [knostic.ai](https://www.knostic.ai/blog/more-than-markdown-hidden-data-collection-in-two-mcp-packages)), a static review of `@ifasn/mmdd-doc-mcp` and `@ifasn/ms-doc-mcp` 2.1.1 (npm account `ifasn`): the first runs `deepAudit()` at launch and sends the names and value lengths of credential-like environment variables, plus matching command lines, over plain HTTP to 121.199.24.94; the second runs `envAudit()` and writes full credential-like values to stderr and `output/env_audit.txt`, with no external transmission found. The source of the `note` on OSV MAL-2026-18489 and MAL-2026-18603 in `registry/known-malicious.json` (`NOTES` in `scripts/sync_registry_advisories.py`; STORY-0152). The records themselves were already mirrored (STORY-0148).
 - **OSV MAL-2026-18192 (`agentic-awesome-skills`, GHSA-rgwm-3jj9-h563) and MAL-2026-18193 (`opencode-skills-collection`, GHSA-9855-prwc-mfp2)**, both published 2026-10-22 and crediting **Amazon Inspector** as finder ([OSV](https://osv.dev/vulnerability/MAL-2026-18192), [OSV](https://osv.dev/vulnerability/MAL-2026-18193)) — malicious agent-skill collections on npm, the cases that widened the mirror to the agent stack (STORY-0152). The token list (`AGENT_STACK_TOKENS`) is mcp-audit's own, taken from the agents mcp-audit reads (`docs/clients.md`, `docs/agent-files.md`) and measured on OSV's 2026-11-11 export (`docs/supply-chain.md`). The mirror keeps OSV's `id`, `aliases` and `summary`, not its `credits` field, so the finder is credited here; mcp-audit adds no note to these records.
+- **OSV MAL-2026-19148 (`@rfewqa-fes/mnm-doc-mcp`), MAL-2026-19159 (`@go-gost/mcp-darwin-x64`, GHSA-gfpg-48q7-c68h), MAL-2026-19204 (PyPI `my-mcp-server-driving-license-ocr`) and MAL-2026-19235 (`karma365-mcp`, GHSA-72xc-q3v8-7grp)**, published 2026-11-12 and 2026-11-13 ([OSV](https://osv.dev/vulnerability/MAL-2026-19148)), plus MAL-2026-19792 and MAL-2026-19539, two `dowload_ebok_*` npm names that the sync keeps only because they contain the letters `mcp` ("mcphee"). Read from OSV on 2026-11-14 and mirrored by `scripts/sync_registry_advisories.py --write` (STORY-0154); mcp-audit adds no note and states nothing beyond OSV's summary, versions and ranges.
 - **OSV schema, "Evaluation"** ([ossf.github.io/osv-schema](https://ossf.github.io/osv-schema/)) — the range semantics `registry/malicious.py` implements (`introduced` / `fixed` / `last_affected` walked in version order, plus the explicit `versions` list). The one deliberate deviation (a blanket all-versions range is ignored for a registry-listed package when the record also lists explicit versions) is documented in that module and in `docs/supply-chain.md`, with `MAL-2025-191195` (`@browserbasehq/mcp`) as the measured case.
 - **PEP 503** ([peps.python.org](https://peps.python.org/pep-0503/)) — the name folding SC-007 applies to both ecosystems' names before comparing.
 
@@ -1756,6 +1757,29 @@ Read on 2026-10-29; fetched pages are data, quoted only where the record depends
   (`url`, `headers`) entry shapes are from the same verification; the `~/.opencode/bin`
   installer keeps no version file. The platform rule (WSL = a Linux kernel that names
   `microsoft`) uses the kernel's own `osrelease` / `version` text.
+- **MCP Inspector remote code execution, GHSA-q978-78c7-phqw (STORY-0154).** Eilon Cohen,
+  Pillar Security, "Inspecting the Inspector"
+  (https://www.pillar.security/blog/inspecting-the-inspector-rce-in-mcps-official-debugging-tool).
+  The GitHub advisory (`modelcontextprotocol/inspector`, published 2026-10-21, read
+  2026-11-14) gives `@modelcontextprotocol/inspector` >= 2.0.0, <= 2.11.0 as affected and
+  2.12.0 as the patched version, credits reporter `eilonc-pillar`, and carries no CVE of
+  its own. OSV (read 2026-11-14) resolves the GHSA only as an alias of CVE-2026-119025,
+  which VulnCheck filed against the `open` package (7.2.0 before 11.0.0, a dependency of
+  Inspector); that OSV record has no npm Inspector range, so the Inspector range and fix are
+  the GitHub advisory's, not OSV's. In `registry/known-servers.json` the record is a
+  `known_vulns` item with `fixed_in` 2.12.0; the registry shape has no lower bound, so the
+  `>=2.0.0` floor is in its description only.
+- **Claude Code Edit-tool TOCTOU, CVE-2026-88968 / GHSA-5xjx-9qx6-jcrv (STORY-0154).**
+  OSV (read 2026-11-14): `@anthropic-ai/claude-code`, fixed in 2.1.251, finder
+  hackerone.com/mahoraga007 (Sunder Singh), published 2026-11-09. Research record
+  `x_MCPRS-1fec894b3c53`; `introduced` and `platforms` are left unset because OSV lists all
+  releases before the fix and the text does not limit the flaw to one platform.
+- **`@modelcontextprotocol/server-everything` environment-variable leak, GHSA-mvf5-2qqv-rg3c
+  (credit: GitHub user `ehudmelzer`) is not in the registry yet.** The GitHub advisory
+  exists (published 2026-10-25: affected >= 2025.9.24 <= 2026.8.31 and >= 1.0.0 < 2.0.1,
+  fixed 2.0.1, credit `ehudmelzer`), but `api.osv.dev` returned "not found" for the ID on
+  2026-11-14 and the package has no OSV record, so STORY-0154's confirm-in-OSV rule kept
+  it out. It goes in once OSV carries it.
 
 ## `mcp-audit affected` (STORY-0121)
 
