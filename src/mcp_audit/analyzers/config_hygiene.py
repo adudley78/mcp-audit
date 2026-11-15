@@ -58,6 +58,7 @@ from mcp_audit.agent_files.subagents import (
     analyze_agent_definition,
     finalize_findings,
 )
+from mcp_audit.analyzers import hook_runnable as _hook_runnable
 from mcp_audit.analyzers import permissions as _permissions
 from mcp_audit.analyzers.base import BaseAnalyzer
 from mcp_audit.analyzers.credentials import SECRET_PATTERNS, CredentialsAnalyzer
@@ -1306,6 +1307,10 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
 
         # HOOK-001/002: inspect individual hook commands for risky patterns
         findings.extend(self._check_hook_commands(hooks, config_path, client))
+        # HOOK-004 (STORY-0156): a guard hook whose command Windows can't start.
+        findings.extend(
+            _hook_runnable.windows_unsafe_hook_findings(hooks, config_path, client)
+        )
         return findings
 
     def analyze_agent_definition(

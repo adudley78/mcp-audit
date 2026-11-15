@@ -760,6 +760,13 @@ def _discover_and_parse(
                 all_servers, configs, Path.cwd(), result.errors
             )
         )
+        # Guard hooks that will never run (STORY-0156): HOOK-004 in managed
+        # settings (MEDIUM), and Cursor hooks.json files (HOOK-001/002/004/005).
+        # Command strings only; never runs a hook.  Never raises.
+        from mcp_audit.analyzers import hook_runnable as _hook_runnable  # noqa: PLC0415
+
+        result.findings.extend(_hook_runnable.managed_hook_findings(result.errors))
+        result.findings.extend(_hook_runnable.cursor_hook_findings(result.errors))
         # Credential files a Claude Code session can read without asking
         # (STORY-0114, REACH-001..003): stat() and settings JSON only; no
         # credential store is ever opened.  Never raises.

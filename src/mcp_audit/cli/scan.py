@@ -1503,6 +1503,22 @@ def _apply_project_scan(
             seen_managed.add(managed_key)
             result.findings.append(finding)
 
+    # ── Cursor project hooks.json (STORY-0156): HOOK-001/002/004/005 ──────────
+    from mcp_audit.analyzers import hook_runnable as _hook_runnable  # noqa: PLC0415
+
+    seen_hooks = {
+        (f.id, f.finding_path)
+        for f in result.findings
+        if f.id.startswith("HOOK-") and f.client == "cursor"
+    }
+    for hook_finding in _hook_runnable.cursor_hook_findings(
+        result.errors, project=project_dir, user=False
+    ):
+        hook_key = (hook_finding.id, hook_finding.finding_path)
+        if hook_key not in seen_hooks:
+            seen_hooks.add(hook_key)
+            result.findings.append(hook_finding)
+
     # ── TRUST-001: fires for every project-scoped server ───────────────────────
     # Logic is deliberately dumb — origin (is_project_scoped) is the only
     # criterion.  Content-based analysis runs separately below.

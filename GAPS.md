@@ -2346,3 +2346,9 @@ a ClawHub-side matter and not checked.
 - **Calls before listing.** Enforce mode denies a `tools/call` for any tool a
   checked `tools/list` hasn't shown yet. Real clients list first; a client
   that calls a tool by a remembered name without listing gets an error.
+
+## Guard hooks that will never run (HOOK-004/005, analyzers/hook_runnable.py — STORY-0156)
+
+- **Command shapes only.** HOOK-004 matches the shapes anthropics/claude-code#109103 measured (single-backslash paths outside double quotes, an unquoted drive-letter path with a space). An unquoted space in a POSIX-style or `$VAR`-rooted path, `cmd /c`, and other commands Git Bash can't start are not flagged: they have no measurement, and the guesses were noisy on paper. The Windows behaviour is not read from the machine; a hook on macOS or Linux with such a command is still reported.
+- **Cursor.** Only `~/.cursor/hooks.json` and the working directory's `.cursor/hooks.json`; enterprise (MDM) and team hooks and plugin hooks aren't read. Cursor's docs don't say what a malformed file does, so HOOK-005 rests on the staff-confirmed silent skip of an unreadable file. Whether Cursor accepts comments in the file is unknown, so a file with comments is reported as invalid JSON. HARNESS-006 has no Cursor equivalent: `hooks.json` carries no approval setting.
+- **Q-089.** The matcher half is HARNESS-006's `_guards_recursive_delete`: a PreToolUse hook counts as a shell guard only when its matcher is empty, `*`, or names Bash/PowerShell, so a hook matching `Edit|Write` is not credited as a delete guard. The "script falls through to allow" half reads hook scripts, which Q-006 found fragile, and is not built.
