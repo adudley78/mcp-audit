@@ -451,14 +451,13 @@ def _one_cursor_file(
     from mcp_audit.analyzers.config_hygiene import ConfigHygieneAnalyzer  # noqa: PLC0415
 
     entries = _cursor_commands(hooks)
-    nested = {
-        event: [{"hooks": [{"type": "command", "command": e["command"]}]}]
-        for event, e in entries
-    }
-    # One group per event is enough for the command checks, which only flatten.
+    # One group per command, so every command reaches the HOOK-001/002 checks
+    # (several commands can share an event).
     flat: dict[str, list] = {}
-    for event, groups in nested.items():
-        flat.setdefault(event, []).extend(groups)
+    for event, e in entries:
+        flat.setdefault(event, []).append(
+            {"hooks": [{"type": "command", "command": e["command"]}]}
+        )
     findings = ConfigHygieneAnalyzer()._check_hook_commands(flat, path, "cursor")
     seen_events: set[str] = set()
     for event, entry in entries:

