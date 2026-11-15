@@ -326,6 +326,11 @@ nothing in it is run or followed. The file also gets the memory rules (MEM-001/0
 and MEM-008. Source: [BleepingComputer](https://bleepingcomputer.com/news/security/ai-coding-agents-hijacked-using-agentsmd-file-in-downloads-folder).
 Implementation: `agent_files/discovery.py` (`_discover_dropped`).
 
+On macOS, the first `agent-files scan` (or `scan --include-agent-files`) may make
+the system ask whether your terminal can access the Downloads and Desktop folders.
+Allow it for the check to run; if you deny it, mcp-audit cannot read those two folders. A
+default `scan` without `--include-agent-files` does not read either folder.
+
 ### MEM-008 (HIGH outside a git repository, MEDIUM inside one): instruction file changes machine-wide settings or approvals
 
 An always-applied instruction file (the MEM-006 files) that reaches past the
