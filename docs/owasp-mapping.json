@@ -1451,6 +1451,32 @@
       "notes": "Fires when a Claude Code hook command references an MCP/agent config file path (CVE-2026-30615 persistence channel). Severity HIGH. CWE-78. Analyzer: config_hygiene (extends CFHYG-005)."
     },
     {
+      "finding_id": "HOOK-004",
+      "finding_title": "Guard hook command may never run on Windows",
+      "owasp_codes": [
+        "MCP02",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Insufficient Authentication Controls"
+      ],
+      "notes": "Fires when a PreToolUse or UserPromptSubmit hook command in a Claude Code settings file (or a Cursor before* hook in hooks.json) has an unquoted path containing a space or single-backslash path segments, so Git Bash cannot start it, the hook exits 127 and the call proceeds (anthropics/claude-code#109103). LOW; MEDIUM in managed settings. CWE-754. Analyzer: config_hygiene (hook_runnable.py)."
+    },
+    {
+      "finding_id": "HOOK-005",
+      "finding_title": "Cursor hooks file can't be read, so its hooks never run",
+      "owasp_codes": [
+        "MCP02",
+        "MCP07"
+      ],
+      "owasp_names": [
+        "Privilege Escalation via Scope Creep",
+        "Insufficient Authentication Controls"
+      ],
+      "notes": "Fires when ~/.cursor/hooks.json or a project .cursor/hooks.json is unreadable, over 1 MiB, not valid JSON or not a JSON object. Cursor skips such a file silently (forum.cursor.com/t/177989, staff-confirmed). MEDIUM. CWE-754. Analyzer: config_hygiene (hook_runnable.py)."
+    },
+    {
       "finding_id": "HARNESS-001",
       "finding_title": "Claude Code sessions start with permission prompts skipped",
       "owasp_codes": [

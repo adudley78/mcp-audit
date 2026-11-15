@@ -507,6 +507,19 @@ This matches the CVE-2026-30615 persistence pattern: a hook that modifies
 another agent config file can inject new servers or hooks that survive
 user-initiated configuration resets.
 
+### HOOK-004 (LOW / MEDIUM): guard hook whose command may never run on Windows
+
+Fires on a `PreToolUse` or `UserPromptSubmit` hook (a Claude Code settings file) or a Cursor `preToolUse` / `beforeShellExecution` / `beforeMCPExecution` / `beforeReadFile` / `beforeSubmitPrompt` hook whose `command` has
+
+- single-backslash path segments outside double quotes (`C:\Users\me\guard.ps1`, `.\hooks\guard.ps1`), or
+- a drive-letter path with an unquoted space (`C:/Program Files/guard/run.cmd`).
+
+On Windows Claude Code runs a hook `command` through Git Bash. When bash cannot start the command the hook exits 127, Claude Code treats that as a non-blocking error, and the call goes ahead; the failure shows only in the `--debug` log ([anthropics/claude-code#109103](https://github.com/anthropics/claude-code/issues/109103)). A double-quoted path, doubled backslashes, or forward slashes without a space run. LOW in user, project and local settings; MEDIUM in managed settings (`managed-settings.json` and `managed-settings.d/*.json`), where the hook is usually an organization's control. A hook with `"shell": "powershell"` or an `args` list is not run through bash and is skipped; a Cursor hook with `failClosed: true` blocks on failure and is skipped. The check reads the command string only and never runs a hook.
+
+### HOOK-005 (MEDIUM): Cursor hooks file that can't be read
+
+mcp-audit reads `~/.cursor/hooks.json` and the working directory's `.cursor/hooks.json` (also `scan --project <dir>`), the format at [cursor.com/docs/hooks](https://cursor.com/docs/hooks): `{"version": 1, "hooks": {"<event>": [{"command": ..., "matcher": ..., "failClosed": ...}]}}`. Each `command` goes through HOOK-001/002 and HOOK-004. A file that is unreadable, over 1 MiB, not valid JSON or not a JSON object is HOOK-005: Cursor skips it without a message ([forum.cursor.com/t/177989](https://forum.cursor.com/t/177989), confirmed by Cursor staff), so every guard in it is off. Reads are capped, regular files only, and a symlink that leaves the home directory or project root is not followed. Enterprise (MDM) hooks files are not read.
+
 ### HARNESS-001..006: settings that switch human approval off, and what replaced it
 
 Claude Code settings files (`~/.claude/settings.json`, a project's
