@@ -1,24 +1,24 @@
 {
   "kind": "mcp-audit-data-bundle",
   "schema_version": 1,
-  "created_at": "2026-11-08T18:33:24Z",
-  "feed_index_sha256": "a83e530c40be43511115a7da5deadc799bce4ac7b767eb866c4fd215fae73d88",
+  "created_at": "2026-11-15T19:29:31Z",
+  "feed_index_sha256": "26563de4bb8ce62ec6eb08b4a31e0c90e87d6b9b08a462402f66c9cc660f93bf",
   "files": {
     "data/known-servers.json": {
-      "sha256": "e7ba0cf8533e62a7813c1fca952d109d756713de43d131f4a48a50da1be2293e",
-      "bytes": 84967
+      "sha256": "26641f7b4baaf55cf4e0db7461d4a5b1342da48a3b8bcbd6ddd5d1e04e11314d",
+      "bytes": 85683
     },
     "data/known-malicious.json": {
-      "sha256": "0053b960303b1672f0ed5eb9c4a71c284dbaa38485fd2d57786e0647902a6a4d",
-      "bytes": 90825
+      "sha256": "31521274180902aefd9e4ee018514f6593ec6e0cb1b8cac315878de872759d2a",
+      "bytes": 144443
     },
     "data/research-records.json": {
-      "sha256": "0eec0c25ce7b3abf416ff08bbd888f78073cdab5de98eaf961b75c7c8873c579",
-      "bytes": 12373
+      "sha256": "b1afbefbd652348e02c9e12376d1caa04359be04155f0b7091cec64758613be8",
+      "bytes": 14903
     },
     "data/exploit-signals.json": {
-      "sha256": "723ada0c3b4772f71df4c9f9ed295fcf023bfd356b78d38ea5bbbbd9a2f200fc",
-      "bytes": 217429
+      "sha256": "d2bba34ef1db9a3b74a51310d3b5af07633101ad4445d4fe249b27bc47440174",
+      "bytes": 219856
     }
   }
 }
