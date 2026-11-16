@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **mcp-audit is becoming Credenzo.** The project has a new name: Credenzo, the taste test for agent tools. In 16th-century Italy a *credenza* was the act of a servant who tasted a lord's food for poison; Credenzo is the taster. This release adds `credenzo` as a second command name; `mcp-audit` keeps working, and the package name (`mcp-audit-scanner`), finding IDs, `mcp-lock.json`, state files and the advisory feed do not change.
+
 ---
 
 ## [0.32.0] - 2026-11-16
