@@ -122,9 +122,12 @@ class CachedPackage:
 
 
 def _is_real_dir(path: Path) -> bool:
-    """``True`` for a directory that is not a symlink."""
+    """``True`` for a directory that is not a symlink or a Windows junction."""
     try:
-        return stat.S_ISDIR(path.lstat().st_mode)
+        if not stat.S_ISDIR(path.lstat().st_mode):
+            return False
+        is_junction = getattr(path, "is_junction", None)  # Python 3.12+
+        return not (is_junction is not None and is_junction())
     except OSError:
         return False
 
@@ -146,6 +149,12 @@ def _read_manifest(path: Path) -> CachedPackage | None:
     The file must be a regular file reached without a symlink and no larger
     than :data:`MAX_MANIFEST_BYTES`.
     """
+    # Windows has no O_NOFOLLOW, so a link is refused by lstat() first there.
+    try:
+        if not stat.S_ISREG(path.lstat().st_mode):
+            return None
+    except OSError:
+        return None
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     try:
         fd = os.open(path, flags)
