@@ -100,7 +100,7 @@ uv tool install -e ".[mcp]"
 Verify the install on any machine:
 
 ```bash
-Credenzo version
+credenzo version
 ```
 
 ---

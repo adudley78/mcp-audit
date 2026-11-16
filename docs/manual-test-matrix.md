@@ -88,7 +88,7 @@ section below — every subsequent result is unreliable until this line passes.
 ## Section 1 — version / help smoke test
 
 ```bash
-Credenzo version
+credenzo version
 credenzo --help
 credenzo scan --help
 ```
