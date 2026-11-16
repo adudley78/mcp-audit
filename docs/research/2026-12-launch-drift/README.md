@@ -59,8 +59,30 @@ M1 compares each server's `tools/list` on 2026-10-22, 2026-10-29 and 2026-11-19.
 | `snapshot-summary.json` | Per (package, version): connected or not, tool count, digests |
 | `scripts/` | Every step above |
 
-## Snapshot run (2026-11-14)
+## Old-date snapshot run (2026-11-14)
 
 - 468 (package, version) pairs; 231 connected with no network and no credentials. The failures are classed automatically in `snapshot-summary.json` (`failure_classes`): most servers that fail need a key, a network service or a host app to start, as on 10-29.
 - Servers that connected on both dates: 57 npm, 27 PyPI, 73 registry. The npm figure matches the 10-29 study (61 of 100 connected there, with the same isolation).
 - These are inputs to M1, not results. M1 is computed after the 11-19 snapshot.
+
+## Current snapshot and results (2026-11-16)
+
+The current snapshot was taken on 2026-11-16, three days before the planned 11-19 date, on request. `scripts/current_versions.py` resolves each package's version that day (npm `latest`, PyPI `info.version`); `scripts/snapshot_run.py` installs and runs it exactly as for the old dates. 347 pairs, 172 connected. Per-pair digests: `snapshot-summary-2026-11-16.json`.
+
+| # | Result | Files |
+|---|---|---|
+| M1 | **75 of 162 servers (46%) changed their tool definitions at least once in 25 days** (10-22 → 10-29 → 11-16). 98 of 318 date-to-date steps changed: 44 added or removed a tool; 11 changed only descriptions or other text. **Every change came with a version bump** (98 of 98); 60% of version bumps changed the tools. The 154 steps with no version bump were all unchanged, so the offline re-runs are deterministic. | `m134-results.json` (`M1`, `m1_rows`) |
+| M2 | **98% of servers whose README shows a launch command launch whatever is latest** (243 of 248). 1,399 of 1,433 launch snippets (97.6%) carry no exact version. npm top 100: 67 of 67; PyPI: 38 of 38; registry: 138 of 143. | `m2-unpinned.json` |
+| M3 | 510 POISON-* findings on 50 servers, **not yet labelled**. One server accounts for 302 (POISON-030). Precision is reported only after the hand labels, as on 10-29. | counts in `m134-results.json` (`M3_unlabelled`); findings are not committed |
+| M4 | 65 of 172 connected servers (38%) alone hold both ends of TOXIC-001 (file read + network out). **Capability tags come from keyword matches on tool names and descriptions, not from a reading of each tool**, so this is an upper bound until a sample is checked by hand. | `m134-results.json` (`M4`) |
+| M5 | Bundled mirror (`registry/known-malicious.json`, 2026-11-11): 0 hits at the listed versions. Fresh OSV.dev query: 7 of 21,325 packages have a MAL-* record. 6 of them list a version that is not malicious. One, `paidwithtab`, is listed in the official MCP Registry at 3.0.0, the exact version MAL-2026-18521 names. npm has removed 3.0.0, so the listing points at a removed malicious release. The mirror misses it because its name has no "mcp" and the curated registry does not list it. | `m5-malicious.json` |
+
+### What the results say together
+
+Almost half of popular MCP servers changed what they tell the agent within 25 days. Every change arrived with a new version, and 98% of published install snippets launch the newest version with no pin, so the change reaches the agent on the next launch with no review step. Nothing in that path compares the new tools with the approved ones. That is the gap `mcp-audit run` closes.
+
+### Still to do
+
+- M3 hand labels (both reads, as on 10-29), then precision.
+- M4: hand-check a sample of the 65 TOXIC-001 servers to measure how many tags are real.
+- M5: report the `paidwithtab` and `mcp-search-server` listings (malicious releases removed by npm and PyPI, still listed) to the MCP Registry maintainers. The mirror gap is a product follow-up: build the mirror's name list from the official MCP Registry as well.

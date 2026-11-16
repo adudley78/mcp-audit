@@ -1,0 +1,73 @@
+{
+ "built": "2026-11-16",
+ "packages_checked": 21325,
+ "bundled_mirror_last_updated": "2026-11-11",
+ "bundled_records": 335,
+ "osv_batch_errors": 0,
+ "bundled_hits": [],
+ "osv_hits": [
+  {
+   "type": "npm",
+   "package": "@antv/mcp-server-chart",
+   "stratum": "npm",
+   "version": "0.9.10",
+   "ids": [
+    "MAL-2026-4069"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@browserbasehq/mcp-server-browserbase",
+   "stratum": "registry",
+   "version": "2.1.1",
+   "ids": [
+    "MAL-2025-191196"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@mastra/mcp-docs-server",
+   "stratum": "npm",
+   "version": "1.3.13",
+   "ids": [
+    "MAL-2026-5956"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "@postman/postman-mcp-server",
+   "stratum": "registry",
+   "version": "2.15.0",
+   "ids": [
+    "MAL-2025-190909"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "paidwithtab",
+   "stratum": "registry",
+   "version": "3.0.0",
+   "ids": [
+    "MAL-2026-18521"
+   ]
+  },
+  {
+   "type": "npm",
+   "package": "supership-scan",
+   "stratum": "registry",
+   "version": "2.0.2",
+   "ids": [
+    "MAL-2026-4675"
+   ]
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-search-server",
+   "stratum": "registry",
+   "version": "0.1.1",
+   "ids": [
+    "MAL-2026-11198"
+   ]
+  }
+ ]
+}

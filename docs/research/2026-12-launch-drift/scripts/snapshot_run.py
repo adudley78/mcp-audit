@@ -100,7 +100,8 @@ async def one(k):
             shutil.rmtree(prefix, ignore_errors=True)
     rec = {"type": t, "package": n, "version": v, "labels": meta[k]["labels"], "bin": b, "elapsed": round(time.time() - t0, 1),
            "error": en.error, "tools_error": en.tools_error,
-           "definitions": [tool_definition(x) for x in en.tools], "digests": tool_digests(en.tools) if en.tools else {}}
+           "definitions": [tool_definition(x) for x in en.tools], "digests": tool_digests(en.tools) if en.tools else {},
+           "enumeration": en.model_dump(mode="json")}
     f.write_text(json.dumps(rec, indent=1)); print(n, v, "tools", len(en.tools), "err", en.error, flush=True)
 async def main():
     global sem; sem = asyncio.Semaphore(int(os.environ.get("MCP_CONC", "4")))
