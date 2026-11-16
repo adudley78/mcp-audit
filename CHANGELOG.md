@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.32.0] - 2026-11-16
+
 ### Added
 
 - **CRED-006: a Claude Code settings file that a container image or npm package will ship.** `.gitignore` keeps `.claude/settings.local.json` out of git, but not out of an image: Docker does not read `.gitignore`, so `COPY . .` copies the file unless `.dockerignore` excludes it. npm has the same gap: it does not read git's global excludes file or `.git/info/exclude` (where Claude Code records the file), and it ignores `.gitignore` when a `.npmignore` exists. A default `scan`/`check` and `scan --project` now read every Dockerfile (and Compose `build` entry) and every non-private `package.json` in the project, and report each settings file the final image or the package will include: HIGH when it holds a secret in a permission rule, LOW for a `settings.local.json` without one. `.dockerignore` is matched with BuildKit's rules (a `.claude` pattern covers only the folder at the context root; the finding says to use `**/.claude/`), `COPY --exclude` is honoured, and a builder stage only counts when the final image copies the files out of it. Read-only: mcp-audit never runs `docker`, `npm` or `git`. Thanks to Tich Kadandara, who asked for the check, and to GitGuardian (Guillaume Valadon), who found 613 secrets from these files in public Docker Hub images, 99 still valid, with one valid Cloudflare token in 559 tags ([write-up](https://blog.gitguardian.com/claude-code-settings-local-json-secrets-docker-hub/)). See [docs/permission-rules.md](docs/permission-rules.md). STORY-0157.
