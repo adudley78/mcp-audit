@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Examples pointed to an action that does not exist.** `examples/github-actions/diff-pr-comment.yml`, the README and `docs/diff.md` used `adudley78/setup-mcp-audit@v1`; the setup action is `adudley78/mcp-audit/setup-action`. The example workflows are now pinned to v0.33.0 and call `credenzo`. The links to the editor extension repository in `docs/ide-extension.md` pointed to another GitHub account; they now point to `adudley78/mcp-audit-vscode`.
+
 ---
 
 ## [0.33.0] - 2026-11-16
