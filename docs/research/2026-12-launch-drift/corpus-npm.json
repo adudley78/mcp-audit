@@ -1,0 +1,4549 @@
+{
+ "built": "2026-11-14",
+ "source": "registry.npmjs.org search (queries: mcp server, keywords:mcp, mcp-server, model context protocol server, keywords:mcp-server, keywords:modelcontextprotocol), candidates as reported by scripts/npm_search.py, filtered to packages with a bin that describe themselves as MCP servers, ranked by weekly downloads",
+ "rule": "Kept: ships a bin and its npm description says it is (or ships) an MCP server. Excluded: templates and hello-world servers, frameworks and SDKs, clients, inspectors and proxies, installers and config tools, agent harnesses, test fixtures, platform-binary duplicates, and packages whose description does not say MCP server (unless the package name does).",
+ "excluded_manual": {
+  "@lovable.dev/mcp-js": "framework for authoring MCP servers",
+  "@tanstack/ai-mcp": "host-side MCP client",
+  "agentic-flow": "agent harness",
+  "@cyanheads/mcp-ts-core": "framework",
+  "relay-companion": "installer",
+  "mcp-echo-server": "template",
+  "openapi-mcp-generator": "code generator",
+  "@prefecthq/fastmcp-ts": "library",
+  "@yawlabs/ctxlint": "linter",
+  "@kya-os/mcp": "protocol reference impl",
+  "open-computer-use": "launcher",
+  "@hasna/skills": "skills library",
+  "@hasna/connectors": "connector library",
+  "@minecraft/creator-tools": "CLI toolset",
+  "@juspay/neurolink": "provider abstraction layer",
+  "context-mode": "context plugin",
+  "claude-cup": "contest tracker, not described as an MCP server",
+  "agent-install": "installer",
+  "fallow": "code-analysis CLI, not described as an MCP server",
+  "mcp-handler": "framework (HTTP adapter)",
+  "eve": "agent framework",
+  "mcp-remote": "proxy/client",
+  "evmole": "bytecode analyzer, not described as an MCP server",
+  "mcporter": "client runtime",
+  "@copilotkit/aimock": "test mock infrastructure",
+  "pi-mcp-adapter": "adapter extension",
+  "add-mcp": "installer",
+  "codex-multi-profile": "profile router/auditor",
+  "@oh-my-pi/pi-mnemopi": "memory engine, not described as an MCP server",
+  "@raishin/vanguard-frontier-agentic": "marketplace",
+  "@bike4mind/cli": "CLI",
+  "@claude-flow/cli": "agent orchestration CLI",
+  "supergateway": "transport proxy",
+  "ruflo": "agent platform",
+  "cline": "coding agent",
+  "clerk": "CLI",
+  "@nitrostack/cli": "project CLI",
+  "@azure/mcp-linux-x64": "platform binary of @azure/mcp",
+  "@azure/mcp-win32-x64": "platform binary of @azure/mcp",
+  "@azure/mcp-darwin-arm64": "platform binary of @azure/mcp",
+  "@tobilu/qmd": "search tool, not described as an MCP server",
+  "instar": "agent infrastructure",
+  "mcp-framework": "framework",
+  "@gitkraken/gk": "CLI",
+  "@claude-flow/cli-core": "CLI",
+  "mcp-evals": "GitHub Action",
+  "metaharness": "agent harness generator",
+  "ctx7": "CLI",
+  "agent-afk": "agent harness",
+  "mcp-hello-world": "template",
+  "@agents-dev/cli": "config sync tool",
+  "loki-mode": "agent factory",
+  "zames_pro": "coding agent",
+  "mcp-use": "framework",
+  "@tangle-network/agent-app": "framework",
+  "critical": "CSS tool",
+  "veryfront": "app framework",
+  "@mcp-use/inspector": "inspector client",
+  "@mcp-use/cli": "framework CLI",
+  "@adcp/sdk": "SDK",
+  "claude-mem": "memory plugin, not described as an MCP server",
+  "agnix": "linter",
+  "endform": "CLI",
+  "configure": "SDK",
+  "@microsoft/jsts-upgrade-assistant": "upgrade tool",
+  "agent-inspect": "debugger toolkit",
+  "tiny-http-mcp-server": "library/template",
+  "xmcp": "framework",
+  "claude-flow": "agent orchestration",
+  "decocms": "gateway",
+  "ecc-universal": "agent OS",
+  "cotal-ai": "coordination CLI",
+  "extract-design-system": "CLI",
+  "ecc-agentshield": "auditor",
+  "bce-engine": "CLI",
+  "malicious-mcp-server": "deliberately malicious E2E test fixture",
+  "poke": "SDK",
+  "crewly": "orchestration platform",
+  "@hasna/uptime": "monitoring service",
+  "@sleep2agi/agent-network": "orchestration CLI",
+  "frog": "logging tool",
+  "alvin-bot": "agent",
+  "@claude-flow/hooks": "hooks system",
+  "@expo/agent-cli": "CLI",
+  "semiotic": "visualization library",
+  "@muggleai/works": "agent harness",
+  "paqad-ai": "framework",
+  "@tokenizin/mcp-npx-fetch": "fetch CLI",
+  "@cargo-ai/cli": "description does not say MCP server",
+  "dsh-free-search": "description does not say MCP server",
+  "@microsoft/powerbi-modeling-mcp-win32-x64": "platform-binary duplicate of @microsoft/powerbi-modeling-mcp",
+  "@k2b/fibel": "documentation runtime; description does not say MCP server",
+  "@docmd/core": "documentation compiler; description does not say MCP server",
+  "@coinbase/cdp-cli": "API CLI; description does not say MCP server",
+  "dynoxide": "DynamoDB emulator; description does not say MCP server",
+  "@commonlyai/cli": "agent CLI; description does not say MCP server",
+  "@nanonets/graft": "description does not say MCP server",
+  "@mcpjam/cli": "inspector / test tool for MCP servers",
+  "task-master-ai": "description does not say MCP server (ships one as a second bin)",
+  "mockserver-node": "HTTP mock server; description does not say MCP server",
+  "@letterstory/cli": "blog CLI; description does not say MCP server",
+  "@nextscope/mcp": "MCP bridge (proxy)",
+  "ai-rulez": "config tool",
+  "hlims-mcp": "stdio proxy for a remote MCP service"
+ },
+ "excluded_new_2026-11-14": {
+  "@cargo-ai/cli": "description does not say MCP server",
+  "dsh-free-search": "description does not say MCP server",
+  "@microsoft/powerbi-modeling-mcp-win32-x64": "platform-binary duplicate of @microsoft/powerbi-modeling-mcp",
+  "@k2b/fibel": "documentation runtime; description does not say MCP server",
+  "@docmd/core": "documentation compiler; description does not say MCP server",
+  "@coinbase/cdp-cli": "API CLI; description does not say MCP server",
+  "dynoxide": "DynamoDB emulator; description does not say MCP server",
+  "@commonlyai/cli": "agent CLI; description does not say MCP server",
+  "@nanonets/graft": "description does not say MCP server",
+  "@mcpjam/cli": "inspector / test tool for MCP servers",
+  "task-master-ai": "description does not say MCP server (ships one as a second bin)",
+  "mockserver-node": "HTTP mock server; description does not say MCP server",
+  "@letterstory/cli": "blog CLI; description does not say MCP server",
+  "@nextscope/mcp": "MCP bridge (proxy)",
+  "ai-rulez": "config tool",
+  "hlims-mcp": "stdio proxy for a remote MCP service"
+ },
+ "entries": [
+  {
+   "name": "chrome-devtools-mcp",
+   "version": "1.13.0",
+   "description": "MCP server for Chrome DevTools",
+   "keywords": [],
+   "weekly": 2304340,
+   "monthly": 9622831,
+   "links": {
+    "homepage": "https://github.com/ChromeDevTools/chrome-devtools-mcp#readme",
+    "repository": "git+https://github.com/ChromeDevTools/chrome-devtools-mcp.git",
+    "bugs": "https://github.com/ChromeDevTools/chrome-devtools-mcp/issues",
+    "npm": "https://www.npmjs.com/package/chrome-devtools-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-11T12:46:51.192Z",
+   "latest": "1.13.0",
+   "bin": {
+    "chrome-devtools": "out/Default/gen/src/bin/chrome-devtools.js",
+    "chrome-devtools-mcp": "out/Default/gen/src/bin/chrome-devtools-mcp.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/ChromeDevTools/chrome-devtools-mcp.git",
+   "dependencies": [],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-11T12:46:51.192Z",
+   "version_count": 66,
+   "dist_integrity": "sha512-Yf4qhS0+2oo7c+gOySMDHQt4ZL/yKXG2Mxxzjk0gcArINtcQ3tLiQVzAW6g2nsyQzAGhkcLwWWBAtlx3Bg+Spg==",
+   "attestations": true
+  },
+  {
+   "name": "@modelcontextprotocol/server-pdf",
+   "version": "2.0.4",
+   "description": "MCP server for loading and extracting text from PDF files with chunked pagination and interactive viewer",
+   "keywords": [],
+   "weekly": 2184754,
+   "monthly": 6821779,
+   "links": {
+    "homepage": "https://github.com/modelcontextprotocol/ext-apps#readme",
+    "repository": "git+https://github.com/modelcontextprotocol/ext-apps.git",
+    "bugs": "https://github.com/modelcontextprotocol/ext-apps/issues",
+    "npm": "https://www.npmjs.com/package/@modelcontextprotocol/server-pdf"
+   },
+   "publisher": "ochafik-ant",
+   "date": "2026-10-27T07:19:57.133Z",
+   "latest": "2.0.4",
+   "bin": {
+    "mcp-pdf-server": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/modelcontextprotocol/ext-apps.git",
+   "dependencies": [
+    "@cantoo/pdf-lib",
+    "@modelcontextprotocol/client",
+    "@modelcontextprotocol/express",
+    "@modelcontextprotocol/ext-apps",
+    "@modelcontextprotocol/node",
+    "@modelcontextprotocol/server",
+    "cors",
+    "express",
+    "pdfjs-dist",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-10-27T07:19:57.133Z",
+   "version_count": 28,
+   "dist_integrity": "sha512-0pTyYOiBAhB7s00qdp6S8tCtHkDLBfFh+FfVFwNuFNAtKh/Y2Zh3T71PrVbO3MaSdnsHZs07XQB351OrfL6I5Q==",
+   "attestations": true
+  },
+  {
+   "name": "@modelcontextprotocol/server-filesystem",
+   "version": "2.3.0",
+   "description": "MCP server for filesystem access",
+   "keywords": [],
+   "weekly": 1426013,
+   "monthly": 4418395,
+   "links": {
+    "homepage": "https://modelcontextprotocol.io",
+    "repository": "git+https://github.com/modelcontextprotocol/servers.git",
+    "bugs": "https://github.com/modelcontextprotocol/servers/issues",
+    "npm": "https://www.npmjs.com/package/@modelcontextprotocol/server-filesystem"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-11T07:10:38.221Z",
+   "latest": "2.3.0",
+   "bin": {
+    "mcp-server-filesystem": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/modelcontextprotocol/servers.git",
+   "dependencies": [
+    "@modelcontextprotocol/server",
+    "diff",
+    "minimatch",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-11T07:10:38.221Z",
+   "version_count": 25,
+   "dist_integrity": "sha512-dnwDFqYi2Q3VbFDnVOUme4+81CzwHBj3OKeYEgZ6UkBp7rWSm5OKiidemgIF0kkt5AyAi6mHsqx0cfTZBP1DJQ==",
+   "attestations": true
+  },
+  {
+   "name": "@wonderwhy-er/desktop-commander",
+   "version": "0.3.3",
+   "description": "MCP server for terminal operations and file editing",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "terminal",
+    "claude",
+    "ai",
+    "command-line",
+    "process-management",
+    "file-editing",
+    "code-editing",
+    "diff",
+    "patch",
+    "block-editing",
+    "file-system",
+    "text-manipulation",
+    "code-modification",
+    "surgical-edits",
+    "file-operations"
+   ],
+   "weekly": 1287096,
+   "monthly": 3089186,
+   "links": {
+    "homepage": "https://github.com/wonderwhy-er/DesktopCommanderMCP",
+    "repository": "git+https://github.com/wonderwhy-er/DesktopCommanderMCP.git",
+    "bugs": "https://github.com/wonderwhy-er/DesktopCommanderMCP/issues",
+    "npm": "https://www.npmjs.com/package/@wonderwhy-er/desktop-commander"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-12T12:59:49.155Z",
+   "latest": "0.3.3",
+   "bin": {
+    "setup": "dist/setup-claude-server.js",
+    "remove": "dist/uninstall-claude-server.js",
+    "desktop-commander": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/wonderwhy-er/DesktopCommanderMCP.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@opendocsg/pdf2md",
+    "@supabase/supabase-js",
+    "@tiptap/core",
+    "@tiptap/extension-image",
+    "@tiptap/extension-table",
+    "@tiptap/extension-table-cell",
+    "@tiptap/extension-table-header",
+    "@tiptap/extension-table-row",
+    "@tiptap/pm",
+    "@tiptap/starter-kit",
+    "@vscode/ripgrep",
+    "cross-fetch",
+    "exceljs",
+    "fastest-levenshtein",
+    "glob",
+    "highlight.js",
+    "isbinaryfile",
+    "markdown-it",
+    "md-to-pdf",
+    "mqtt",
+    "node-forge",
+    "open",
+    "pdf-lib",
+    "pizzip",
+    "proper-lockfile",
+    "remark",
+    "remark-gfm",
+    "remark-parse",
+    "sharp",
+    "tiptap-markdown",
+    "unbash",
+    "unified",
+    "unpdf",
+    "zod",
+    "zod-to-json-schema"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-12T12:59:49.155Z",
+   "version_count": 130,
+   "dist_integrity": "sha512-htFuEj7ndaQ206P/eQY6mAPx/JEhMoWN5oITlWiwBgXnW8Uw698Mkx0Yydr3O17i6uVMo1pr1mDBusPsThRYBA==",
+   "attestations": true
+  },
+  {
+   "name": "@upstash/context7-mcp",
+   "version": "4.7.0",
+   "description": "MCP server for Context7",
+   "keywords": [
+    "modelcontextprotocol",
+    "mcp",
+    "context7",
+    "vibe-coding",
+    "developer tools",
+    "documentation",
+    "context"
+   ],
+   "weekly": 1108461,
+   "monthly": 3248725,
+   "links": {
+    "homepage": "https://github.com/upstash/context7#readme",
+    "repository": "git+https://github.com/upstash/context7.git",
+    "bugs": "https://github.com/upstash/context7/issues",
+    "npm": "https://www.npmjs.com/package/@upstash/context7-mcp"
+   },
+   "publisher": "fahreddin.ozcan",
+   "date": "2026-11-12T09:04:46.815Z",
+   "latest": "4.7.0",
+   "bin": {
+    "context7-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/upstash/context7.git",
+   "dependencies": [
+    "@modelcontextprotocol/node",
+    "@modelcontextprotocol/server",
+    "@opentelemetry/api",
+    "@opentelemetry/exporter-prometheus",
+    "@opentelemetry/instrumentation-runtime-node",
+    "@opentelemetry/resources",
+    "@opentelemetry/sdk-metrics",
+    "@types/express",
+    "commander",
+    "express",
+    "jose",
+    "undici",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-12T09:04:46.815Z",
+   "version_count": 101,
+   "dist_integrity": "sha512-t3Jqm0hGQtkZvx5mwrBZMEiedqhmltVwhOiFKgnzDBcOXUZNqtVSQShaBLmUNVjsIRoV202THb/BEYlJF5Dajg==",
+   "attestations": false
+  },
+  {
+   "name": "agent-device",
+   "version": "0.21.37",
+   "description": "Open source device layer for AI coding agents: a CLI, MCP server, and typed Node.js API to control mobile, web, TV, and desktop apps on devices and simulators, locally or in the cloud.",
+   "keywords": [
+    "agent",
+    "device",
+    "cli",
+    "automation",
+    "adb",
+    "simctl",
+    "devicectl",
+    "ios",
+    "android",
+    "tvos",
+    "macos",
+    "web",
+    "browser",
+    "react-native",
+    "observability",
+    "diagnostics",
+    "network",
+    "profiling",
+    "performance",
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "ai-agent",
+    "mobile-automation",
+    "ios-simulator",
+    "android-emulator",
+    "xcuitest",
+    "e2e-testing",
+    "cursor",
+    "claude-code",
+    "expo",
+    "mobile-testing",
+    "qa-automation",
+    "ai-testing",
+    "ios-automation",
+    "android-automation",
+    "simulator",
+    "emulator",
+    "appium",
+    "maestro",
+    "detox"
+   ],
+   "weekly": 679798,
+   "monthly": 2251764,
+   "links": {
+    "homepage": "https://agent-device.dev/",
+    "repository": "git+https://github.com/callstack/agent-device.git",
+    "bugs": "https://github.com/callstack/agent-device/issues",
+    "npm": "https://www.npmjs.com/package/agent-device"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-12T21:20:13.829Z",
+   "latest": "0.21.37",
+   "bin": {
+    "agent-device": "bin/agent-device.mjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/callstack/agent-device.git",
+   "dependencies": [],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-12T21:20:13.829Z",
+   "version_count": 224,
+   "dist_integrity": "sha512-IepPH4OtF3rrf51bxAACGCCaHX4Uj7xt5vlbG3sQyNAVzYnSJpOXpn3INQ1gZhZV/tiCIxI3Z+KAIGeiULKc1A==",
+   "attestations": true
+  },
+  {
+   "name": "@modelcontextprotocol/server-everything",
+   "version": "2.3.0",
+   "description": "MCP server that exercises all the features of the MCP protocol",
+   "keywords": [],
+   "weekly": 434400,
+   "monthly": 1270622,
+   "links": {
+    "homepage": "https://modelcontextprotocol.io",
+    "repository": "git+https://github.com/modelcontextprotocol/servers.git",
+    "bugs": "https://github.com/modelcontextprotocol/servers/issues",
+    "npm": "https://www.npmjs.com/package/@modelcontextprotocol/server-everything"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-11T07:10:39.294Z",
+   "latest": "2.3.0",
+   "bin": {
+    "mcp-server-everything": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/modelcontextprotocol/servers.git",
+   "dependencies": [
+    "@modelcontextprotocol/node",
+    "@modelcontextprotocol/server",
+    "@modelcontextprotocol/server-legacy",
+    "cors",
+    "express",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-11T07:10:39.294Z",
+   "version_count": 34,
+   "dist_integrity": "sha512-GrmmVZxdvy2k7zjM4W0ROAs8Dot8+FrBacGHNI83+c5dePgQORErksMLg0g3BZsxiVLZ7qExdu/QOY2wBbD9Rw==",
+   "attestations": true
+  },
+  {
+   "name": "@modelcontextprotocol/server-memory",
+   "version": "2.1.1",
+   "description": "MCP server for enabling memory for Claude through a knowledge graph",
+   "keywords": [],
+   "weekly": 374489,
+   "monthly": 1072032,
+   "links": {
+    "homepage": "https://modelcontextprotocol.io",
+    "repository": "git+https://github.com/modelcontextprotocol/servers.git",
+    "bugs": "https://github.com/modelcontextprotocol/servers/issues",
+    "npm": "https://www.npmjs.com/package/@modelcontextprotocol/server-memory"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-11T07:11:25.576Z",
+   "latest": "2.1.1",
+   "bin": {
+    "mcp-server-memory": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/modelcontextprotocol/servers.git",
+   "dependencies": [
+    "@modelcontextprotocol/server",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-11T07:11:25.576Z",
+   "version_count": 19,
+   "dist_integrity": "sha512-MbjK6Pi+uGU3EwGk9HyCp/1zKwnuB/QMQ/wQOlswaLgHzIeeCuyVdWUTWg0hTGBk+n+3l5la5a4egbt8YuoVAg==",
+   "attestations": true
+  },
+  {
+   "name": "rea-agents",
+   "version": "6.9.0",
+   "description": "Reverse engineer anything from your terminal or agent with one CLI and MCP server.",
+   "keywords": [
+    "reverse-engineering",
+    "binary-analysis",
+    "agents",
+    "agent-skills",
+    "cli",
+    "mcp-server",
+    "model-context-protocol",
+    "static-analysis",
+    "rea",
+    "decompiler",
+    "mcp",
+    "hopper",
+    "electron",
+    "javascript-analysis",
+    "ghidra",
+    "ida"
+   ],
+   "weekly": 362686,
+   "monthly": 1888056,
+   "links": {
+    "homepage": "https://github.com/morluto/rea#readme",
+    "repository": "git+https://github.com/morluto/rea.git",
+    "bugs": "https://github.com/morluto/rea/issues",
+    "npm": "https://www.npmjs.com/package/rea-agents"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-12T09:53:32.539Z",
+   "latest": "6.9.0",
+   "bin": {
+    "rea": "scripts/rea.mjs",
+    "rea-agents": "scripts/rea.mjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/morluto/rea.git",
+   "dependencies": [
+    "@babel/parser",
+    "@babel/types",
+    "@bufbuild/protobuf",
+    "@clack/prompts",
+    "@jridgewell/trace-mapping",
+    "@lydell/node-pty",
+    "@modelcontextprotocol/client",
+    "@modelcontextprotocol/server",
+    "@msgpack/msgpack",
+    "@xmldom/xmldom",
+    "@xterm/addon-serialize",
+    "@xterm/headless",
+    "@zip.js/zip.js",
+    "ajv",
+    "ajv-formats",
+    "canonicalize",
+    "cborg",
+    "cross-spawn",
+    "diff",
+    "evmole",
+    "graphql",
+    "har-schema",
+    "ignore",
+    "incur",
+    "isomorphic-git",
+    "jsonc-parser",
+    "lossless-json",
+    "openpgp",
+    "parse5",
+    "pino",
+    "playwright-core",
+    "plist",
+    "saxes",
+    "semver",
+    "smol-toml",
+    "stream-chain",
+    "stream-json",
+    "tokenx",
+    "write-file-atomic",
+    "ws",
+    "yaml",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-12T09:53:32.539Z",
+   "version_count": 35,
+   "dist_integrity": "sha512-KqDn1UR5BMqHoQ3MGAnPuWiSKwgdFaz1L/uUNgrKt+1W8kPtgYP8AWEOXIF1lDIOBVyPuYIIst2iamo1Wf3r8g==",
+   "attestations": true
+  },
+  {
+   "name": "@pandacss/mcp",
+   "version": "2.5.0",
+   "description": "MCP server for Panda CSS AI assistants",
+   "keywords": [],
+   "weekly": 307829,
+   "monthly": 975200,
+   "links": {
+    "homepage": "https://panda-css.com",
+    "repository": "git+https://github.com/chakra-ui/panda.git",
+    "bugs": "https://github.com/chakra-ui/panda/issues",
+    "npm": "https://www.npmjs.com/package/@pandacss/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-02T22:09:44.763Z",
+   "latest": "2.5.0",
+   "bin": {
+    "panda-mcp": "bin.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/chakra-ui/panda.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@pandacss/compiler",
+    "citty",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-02T22:09:44.763Z",
+   "version_count": 45,
+   "dist_integrity": "sha512-iCBgjzwFBjDKWUhz1bhLz6W/B/LlcCYtpexnmheIDpgPwctgLsu/mmKX6sQBBSmc8fgE4bZkrznD0bXAdJIj2w==",
+   "attestations": true
+  },
+  {
+   "name": "@notionhq/notion-mcp-server",
+   "version": "2.6.1",
+   "description": "Official MCP server for Notion API",
+   "keywords": [
+    "notion",
+    "api",
+    "mcp",
+    "server"
+   ],
+   "weekly": 267614,
+   "monthly": 1051078,
+   "links": {
+    "homepage": "https://github.com/makenotion/notion-mcp-server#readme",
+    "repository": "git+ssh://git@github.com/makenotion/notion-mcp-server.git",
+    "bugs": "https://github.com/makenotion/notion-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@notionhq/notion-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-29T16:13:01.969Z",
+   "latest": "2.6.1",
+   "bin": {
+    "notion-mcp-server": "bin/cli.mjs"
+   },
+   "deprecated": false,
+   "repository": "git+ssh://git@github.com/makenotion/notion-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "axios",
+    "express",
+    "mustache",
+    "node-fetch",
+    "openapi-client-axios",
+    "openapi-schema-validator",
+    "openapi-types",
+    "which",
+    "yargs",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-29T16:13:01.969Z",
+   "version_count": 24,
+   "dist_integrity": "sha512-CJ83Z6o93d85RbQnJWYlKTdY2vplU02yvHCSIRSGcuQppzeV3roaiuj3yM28v85mOUr6aQgsUR9CrxxTvO62jQ==",
+   "attestations": true
+  },
+  {
+   "name": "hostinger-api-mcp",
+   "version": "4.0.1",
+   "description": "MCP server for Hostinger API",
+   "keywords": [
+    "hostinger",
+    "mcp",
+    "server",
+    "rest",
+    "api"
+   ],
+   "weekly": 252445,
+   "monthly": 1000519,
+   "links": {
+    "homepage": "https://github.com/hostinger/api-mcp-server#readme",
+    "repository": "git+https://github.com/hostinger/api-mcp-server.git",
+    "bugs": "https://github.com/hostinger/api-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/hostinger-api-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T13:18:03.922Z",
+   "latest": "4.0.1",
+   "bin": {
+    "mcp": "src/servers/all.js",
+    "hostinger-api-mcp": "src/servers/all.js",
+    "hostinger-dns-mcp": "src/servers/dns.js",
+    "hostinger-gpu-mcp": "src/servers/gpu.js",
+    "hostinger-vps-mcp": "src/servers/vps.js",
+    "hostinger-mail-mcp": "src/servers/mail.js",
+    "hostinger-reach-mcp": "src/servers/reach.js",
+    "hostinger-billing-mcp": "src/servers/billing.js",
+    "hostinger-domains-mcp": "src/servers/domains.js",
+    "hostinger-hosting-mcp": "src/servers/hosting.js",
+    "hostinger-horizons-mcp": "src/servers/horizons.js",
+    "hostinger-ecommerce-mcp": "src/servers/ecommerce.js",
+    "hostinger-wordpress-mcp": "src/servers/wordpress.js",
+    "hostinger-agency-hosting-mcp": "src/servers/agency-hosting.js",
+    "hostinger-agent-readiness-mcp": "src/servers/agent-readiness.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/hostinger/api-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "axios",
+    "cors",
+    "express",
+    "fflate",
+    "minimist",
+    "tus-js-client",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-13T13:18:03.922Z",
+   "version_count": 343,
+   "dist_integrity": "sha512-RurGEbVvA6jxKtnp8Pbm3aVXwt+jFHUva68ct53QShRtPETlFGQJ13jTnpLqzB9PQkv2WDtCGH9lMKE2gRWzjg==",
+   "attestations": true
+  },
+  {
+   "name": "yahoo-finance2",
+   "version": "4.0.6",
+   "description": "JS API for Yahoo Finance",
+   "keywords": [
+    "yahoo",
+    "finance",
+    "financial",
+    "data",
+    "stock",
+    "price",
+    "quote",
+    "historical",
+    "eod",
+    "end-of-day",
+    "client",
+    "library",
+    "agent-skill",
+    "mcp-server"
+   ],
+   "weekly": 245237,
+   "monthly": 891569,
+   "links": {
+    "homepage": "https://github.com/gadicc/yahoo-finance2#readme",
+    "repository": "git+https://github.com/gadicc/yahoo-finance2.git",
+    "bugs": "https://github.com/gadicc/yahoo-finance2/issues",
+    "npm": "https://www.npmjs.com/package/yahoo-finance2"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-08T13:05:08.873Z",
+   "latest": "4.0.6",
+   "bin": {
+    "yahoo-finance": "esm/bin/yahoo-finance.js",
+    "yahoo-finance2": "esm/bin/yahoo-finance.js",
+    "yahoo-finance-mcp": "esm/bin/yahoo-finance-mcp.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/gadicc/yahoo-finance2.git",
+   "dependencies": [
+    "@deno/shim-deno",
+    "@modelcontextprotocol/sdk",
+    "fetch-mock-cache",
+    "json-schema",
+    "tough-cookie",
+    "tough-cookie-file-store",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-08T13:05:08.873Z",
+   "version_count": 153,
+   "dist_integrity": "sha512-9ROdT9AoqN2ZF093+v3L1OPHvKG/OdMfxEB3h04UrgWek+6CCtfPLq8podjRGu0hmgpWN/XhQ4w9bMV7jTYg2w==",
+   "attestations": true
+  },
+  {
+   "name": "@swmansion/argent",
+   "version": "0.33.0",
+   "description": "MCP server for iOS Simulator, Android Emulator, Chromium app and Mac app control",
+   "keywords": [],
+   "weekly": 241922,
+   "monthly": 853881,
+   "links": {
+    "homepage": "https://github.com/software-mansion/argent#readme",
+    "repository": "git+https://github.com/software-mansion/argent.git",
+    "bugs": "https://github.com/software-mansion/argent/issues",
+    "npm": "https://www.npmjs.com/package/@swmansion/argent"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-12T18:39:47.571Z",
+   "latest": "0.33.0",
+   "bin": {
+    "argent": "dist/cli.js",
+    "argent-simulator-server": "bin/argent-simulator-server.cjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/software-mansion/argent.git",
+   "dependencies": [
+    "@fails-components/webtransport",
+    "@fails-components/webtransport-transport-http3-quiche",
+    "@modelcontextprotocol/sdk",
+    "tree-sitter",
+    "tree-sitter-typescript"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-12T18:39:47.571Z",
+   "version_count": 479,
+   "dist_integrity": "sha512-wfi70Gf46UtgWVcAC+uj9k5k5Vxg4kZX2TkCZu8nicVwNJvity3bTCAWb7jX2VaS+yQzbCgdYAgk/fBEM6o3gg==",
+   "attestations": true
+  },
+  {
+   "name": "@sentry/mcp-server",
+   "version": "0.49.0",
+   "description": "Sentry MCP server over stdio: the CLI's `sentry mcp` server, bundled without the rest of the CLI",
+   "keywords": [
+    "sentry",
+    "mcp",
+    "model-context-protocol"
+   ],
+   "weekly": 232354,
+   "monthly": 783945,
+   "links": {
+    "homepage": "https://github.com/getsentry/toolkit",
+    "repository": "git+https://github.com/getsentry/toolkit.git",
+    "bugs": "https://github.com/getsentry/toolkit/issues",
+    "npm": "https://www.npmjs.com/package/@sentry/mcp-server"
+   },
+   "publisher": "sentry-bot",
+   "date": "2026-11-07T02:47:31.678Z",
+   "latest": "0.49.0",
+   "bin": {
+    "sentry-mcp": "dist/sentry-mcp.cjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/getsentry/toolkit.git",
+   "dependencies": [],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-07T02:47:31.678Z",
+   "version_count": 49,
+   "dist_integrity": "sha512-pMMJj+MZMDejiVidD3n/acZJMnVrQf+SVdL0frownGAxLM6z7IfHtO6lWk5oT/toRS2piFGMTu7lTEeNQZeFTg==",
+   "attestations": false
+  },
+  {
+   "name": "@modelcontextprotocol/server-sequential-thinking",
+   "version": "2.1.1",
+   "description": "MCP server for sequential thinking and problem solving",
+   "keywords": [],
+   "weekly": 231725,
+   "monthly": 813560,
+   "links": {
+    "homepage": "https://modelcontextprotocol.io",
+    "repository": "git+https://github.com/modelcontextprotocol/servers.git",
+    "bugs": "https://github.com/modelcontextprotocol/servers/issues",
+    "npm": "https://www.npmjs.com/package/@modelcontextprotocol/server-sequential-thinking"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-04T21:36:54.382Z",
+   "latest": "2.1.1",
+   "bin": {
+    "mcp-server-sequential-thinking": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/modelcontextprotocol/servers.git",
+   "dependencies": [
+    "@modelcontextprotocol/server",
+    "chalk",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-04T21:36:54.382Z",
+   "version_count": 12,
+   "dist_integrity": "sha512-yvj9eotCoXX7BLmyOKdajnCYB5vgeCS3YwtEU0wCIcVgl+xvCdBtjkd0CTA45Ljh2+Iv1538n28VAnrstps1Tg==",
+   "attestations": true
+  },
+  {
+   "name": "@hostinger/mcp",
+   "version": "4.0.1",
+   "description": "MCP server for Hostinger API",
+   "keywords": [
+    "hostinger",
+    "mcp",
+    "server",
+    "rest",
+    "api"
+   ],
+   "weekly": 231206,
+   "monthly": 748627,
+   "links": {
+    "homepage": "https://github.com/hostinger/api-mcp-server#readme",
+    "repository": "git+https://github.com/hostinger/api-mcp-server.git",
+    "bugs": "https://github.com/hostinger/api-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@hostinger/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T13:18:24.347Z",
+   "latest": "4.0.1",
+   "bin": {
+    "mcp": "src/servers/all.js",
+    "hostinger-api-mcp": "src/servers/all.js",
+    "hostinger-dns-mcp": "src/servers/dns.js",
+    "hostinger-gpu-mcp": "src/servers/gpu.js",
+    "hostinger-vps-mcp": "src/servers/vps.js",
+    "hostinger-mail-mcp": "src/servers/mail.js",
+    "hostinger-reach-mcp": "src/servers/reach.js",
+    "hostinger-billing-mcp": "src/servers/billing.js",
+    "hostinger-domains-mcp": "src/servers/domains.js",
+    "hostinger-hosting-mcp": "src/servers/hosting.js",
+    "hostinger-horizons-mcp": "src/servers/horizons.js",
+    "hostinger-ecommerce-mcp": "src/servers/ecommerce.js",
+    "hostinger-wordpress-mcp": "src/servers/wordpress.js",
+    "hostinger-agency-hosting-mcp": "src/servers/agency-hosting.js",
+    "hostinger-agent-readiness-mcp": "src/servers/agent-readiness.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/hostinger/api-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "axios",
+    "cors",
+    "express",
+    "fflate",
+    "minimist",
+    "tus-js-client",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-13T13:18:24.347Z",
+   "version_count": 171,
+   "dist_integrity": "sha512-UqmBYGWUSmFMBa1QGlLd2uZZGqtbYqmHrlgh8N5E6u/r+ycNR/OjNtrporxNdqZbkOavtZ/qNlDQOvqIkaOSwQ==",
+   "attestations": true
+  },
+  {
+   "name": "ruvector",
+   "version": "0.3.27",
+   "description": "Self-learning vector database for Node.js: native HNSW vector search, ONNX embeddings, GNN, attention, SONA routing and an MCP server for agents.",
+   "keywords": [
+    "vector-database",
+    "vector-search",
+    "embeddings",
+    "hnsw",
+    "mcp",
+    "self-learning",
+    "ruvector",
+    "ruvnet",
+    "semantic-search",
+    "ai",
+    "machine-learning",
+    "rag",
+    "rust",
+    "wasm",
+    "attention",
+    "transformer"
+   ],
+   "weekly": 221885,
+   "monthly": 648118,
+   "links": {
+    "homepage": "https://ruv.io",
+    "repository": "git+https://github.com/ruvnet/ruvector.git",
+    "bugs": "https://github.com/ruvnet/ruvector/issues",
+    "npm": "https://www.npmjs.com/package/ruvector"
+   },
+   "publisher": "ruvnet",
+   "date": "2026-11-13T20:03:32.494Z",
+   "latest": "0.3.27",
+   "bin": {
+    "ruvector": "bin/cli.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/ruvnet/ruvector.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@ruvector/attention",
+    "@ruvector/core",
+    "@ruvector/e-means",
+    "@ruvector/gnn",
+    "@ruvector/sona",
+    "@ruvector/weight-space",
+    "chalk",
+    "commander",
+    "ora"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-13T20:03:32.494Z",
+   "version_count": 169,
+   "dist_integrity": "sha512-nf0bhCedrMhj1ElexqWGReGVZxq/4sGKy8pulCyzWU41VMdIL+cQJoyL/uMfpqAxbXTtHxTQdgnxvLTZwjrvIQ==",
+   "attestations": false
+  },
+  {
+   "name": "@supabase/mcp-server-supabase",
+   "version": "0.17.0",
+   "description": "MCP server for interacting with Supabase",
+   "keywords": [],
+   "weekly": 219515,
+   "monthly": 673376,
+   "links": {
+    "homepage": "https://github.com/supabase/mcp#readme",
+    "repository": "git+https://github.com/supabase/mcp.git",
+    "bugs": "https://github.com/supabase/mcp/issues",
+    "npm": "https://www.npmjs.com/package/@supabase/mcp-server-supabase"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T09:46:02.092Z",
+   "latest": "0.17.0",
+   "bin": {
+    "mcp-server-supabase": "dist/cli.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/supabase/mcp.git",
+   "dependencies": [
+    "@mjackson/multipart-parser",
+    "@modelcontextprotocol/node",
+    "@supabase/mcp-utils",
+    "common-tags",
+    "gqlmin",
+    "graphql",
+    "openapi-fetch"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-13T09:46:02.092Z",
+   "version_count": 66,
+   "dist_integrity": "sha512-uGZM3GQx1vcpurkmRD4sW9WOW8aTTOKbn5/d5/Y5NUiXJXGmepe4Sz7AcCMvlXd4zKbf2zzBd7WiWWL4gR1R/g==",
+   "attestations": true
+  },
+  {
+   "name": "@azure/mcp",
+   "version": "4.0.0-beta.7",
+   "description": "Azure MCP Server - Model Context Protocol implementation for Azure",
+   "keywords": [
+    "azure",
+    "mcp",
+    "model-context-protocol"
+   ],
+   "weekly": 209962,
+   "monthly": 703372,
+   "links": {
+    "homepage": "https://github.com/Microsoft/mcp/blob/main/servers/Azure.Mcp.Server#readme",
+    "repository": "git+https://github.com/microsoft/mcp.git",
+    "bugs": "https://github.com/microsoft/mcp/issues",
+    "npm": "https://www.npmjs.com/package/@azure/mcp"
+   },
+   "publisher": "microsoft1es",
+   "date": "2026-11-11T17:18:03.188Z",
+   "latest": "4.0.0-beta.7",
+   "bin": {
+    "azmcp": "index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/microsoft/mcp.git",
+   "dependencies": [
+    "@azure/mcp-darwin-arm64",
+    "@azure/mcp-darwin-x64",
+    "@azure/mcp-linux-arm64",
+    "@azure/mcp-linux-x64",
+    "@azure/mcp-win32-arm64",
+    "@azure/mcp-win32-x64"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-11T17:18:03.188Z",
+   "version_count": 169,
+   "dist_integrity": "sha512-0bvsAd6giuwRIY7Mu9t7touhSy+3S6N5x/WUEX9FDYNW8EYoVmKtK1H4+t8ty9xBwkGyeCTElm/XiQ2dPWvbBQ==",
+   "attestations": false
+  },
+  {
+   "name": "firecrawl-mcp",
+   "version": "3.40.0",
+   "description": "Firecrawl MCP server, the context API for AI agents: search, scrape, parse, crawl, map, and interact with the web, run Agent and Monitor jobs, and search scientific papers (PubMed, bioRxiv, medRxiv, arXiv). Works with Firecrawl cloud or a self-hosted inst",
+   "keywords": [
+    "mcp",
+    "firecrawl",
+    "web-search",
+    "web-data",
+    "web-interaction",
+    "research",
+    "paper-search",
+    "literature-search",
+    "biomedical",
+    "pubmed",
+    "arxiv"
+   ],
+   "weekly": 200147,
+   "monthly": 680952,
+   "links": {
+    "homepage": "https://github.com/firecrawl/firecrawl-mcp-server#readme",
+    "repository": "git+https://github.com/firecrawl/firecrawl-mcp-server.git",
+    "bugs": "https://github.com/firecrawl/firecrawl-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/firecrawl-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-12T03:24:52.205Z",
+   "latest": "3.40.0",
+   "bin": {
+    "firecrawl-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/firecrawl/firecrawl-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/server",
+    "firecrawl",
+    "hono",
+    "xsschema",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-12T03:24:52.205Z",
+   "version_count": 144,
+   "dist_integrity": "sha512-pY6EBl/u/8j0fnuwp1wa9gqp4Vr3uBdDdY1+WWyfM0RQgA2xQgmV5h2Om80cni9OWODSE7S1iAaWyw+C+Aa/vg==",
+   "attestations": true
+  },
+  {
+   "name": "agent-blackboard",
+   "version": "0.7.0",
+   "description": "Client library, CLI, and MCP server for Agent Blackboard session entries.",
+   "keywords": [],
+   "weekly": 191120,
+   "monthly": 439981,
+   "links": {
+    "homepage": "https://github.com/jonathanong/agent-blackboard#readme",
+    "repository": "git+https://github.com/jonathanong/agent-blackboard.git",
+    "bugs": "https://github.com/jonathanong/agent-blackboard/issues",
+    "npm": "https://www.npmjs.com/package/agent-blackboard"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-17T07:46:05.295Z",
+   "latest": "0.7.0",
+   "bin": {
+    "agent-blackboard": "dist/cli/index.mjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/jonathanong/agent-blackboard.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-17T07:46:05.295Z",
+   "version_count": 12,
+   "dist_integrity": "sha512-5bdwJ5Kpg9y1+8MK4ALk+PYP7Uwshk8EC0jVSOKJep13Nh7W2A1tNivp63easQaIF0c1GpcLu4wGKvY9+EA/XQ==",
+   "attestations": true
+  },
+  {
+   "name": "agentdb",
+   "version": "3.10.1",
+   "description": "Agent memory and vector database for AI agents: single-file HNSW search, episodic memory, causal graph, reinforcement learning and MCP tools.",
+   "keywords": [
+    "agent-memory",
+    "vector-database",
+    "ai-agents",
+    "mcp",
+    "self-learning",
+    "rag",
+    "agentdb",
+    "vector-search",
+    "agentic-ai",
+    "reinforcement-learning",
+    "provenance",
+    "hnsw",
+    "embeddings",
+    "semantic-search",
+    "graph-database",
+    "knowledge-graph"
+   ],
+   "weekly": 182027,
+   "monthly": 605962,
+   "links": {
+    "homepage": "https://ruv.io",
+    "repository": "git+https://github.com/ruvnet/agentdb.git",
+    "bugs": "https://github.com/ruvnet/agentdb/issues",
+    "npm": "https://www.npmjs.com/package/agentdb"
+   },
+   "publisher": "ruvnet",
+   "date": "2026-11-11T21:43:07.467Z",
+   "latest": "3.10.1",
+   "bin": {
+    "agentdb": "dist/src/cli/agentdb-cli.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/ruvnet/agentdb.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@opentelemetry/api",
+    "ajv",
+    "chalk",
+    "commander",
+    "ruv-fann",
+    "ruv-fann-wsp",
+    "semver",
+    "sql.js"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-11T21:43:07.467Z",
+   "version_count": 141,
+   "dist_integrity": "sha512-IZoe+uA/mvoCP/DYUTaMbkRCAWy2X6Y5XKimR9IWMKvH/PvkXhxGT8sb6mP57TXAbYJ78PYw/Pl9ExWFqsNGgA==",
+   "attestations": false
+  },
+  {
+   "name": "blume",
+   "version": "2.2.7",
+   "description": "The open-source docs framework for humans and agents.",
+   "keywords": [
+    "agents",
+    "ai",
+    "astro",
+    "docs",
+    "documentation",
+    "documentation-generator",
+    "llms",
+    "markdown",
+    "mcp",
+    "mdx",
+    "vite"
+   ],
+   "weekly": 178975,
+   "monthly": 666576,
+   "links": {
+    "homepage": "https://github.com/haydenbleasel/blume#readme",
+    "repository": "git+https://github.com/haydenbleasel/blume.git",
+    "bugs": "https://github.com/haydenbleasel/blume/issues",
+    "npm": "https://www.npmjs.com/package/blume"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-08T08:17:43.070Z",
+   "latest": "2.2.7",
+   "bin": {
+    "blume": "bin/blume.mjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/haydenbleasel/blume.git",
+   "dependencies": [
+    "@astrojs/check",
+    "@astrojs/markdown-satteri",
+    "@astrojs/mdx",
+    "@astrojs/node",
+    "@astrojs/react",
+    "@astrojs/vercel",
+    "@clack/prompts",
+    "@iconify-json/lucide",
+    "@iconify/types",
+    "@iconify/utils",
+    "@modelcontextprotocol/sdk",
+    "@orama/orama",
+    "@pierre/diffs",
+    "@scalar/astro",
+    "@scalar/openapi-parser",
+    "@scalar/openapi-types",
+    "@shikijs/transformers",
+    "@shikijs/twoslash",
+    "@tailwindcss/typography",
+    "@tailwindcss/vite",
+    "@types/mdast",
+    "@types/node",
+    "@vercel/analytics",
+    "@vitejs/plugin-react",
+    "ai",
+    "astro",
+    "chokidar",
+    "citty",
+    "consola",
+    "cross-spawn",
+    "dompurify",
+    "dotenv",
+    "epub-gen-memory",
+    "es-module-lexer",
+    "fast-xml-parser",
+    "github-slugger",
+    "graphql",
+    "gray-matter",
+    "html-escaper",
+    "jiti",
+    "js-yaml",
+    "jsonpath-rfc9535",
+    "katex",
+    "markdown-table",
+    "marked",
+    "mdast-util-from-markdown",
+    "mdast-util-gfm",
+    "mdast-util-to-string",
+    "medium-zoom",
+    "mermaid",
+    "micromark-extension-gfm",
+    "nanotar",
+    "node-html-parser",
+    "openapi-sampler",
+    "oxc-transform-react",
+    "p-limit",
+    "p-map",
+    "p-retry",
+    "package-manager-detector",
+    "pagefind",
+    "pathe",
+    "perfect-debounce",
+    "picomatch",
+    "react",
+    "react-dom",
+    "robots-parser",
+    "satteri",
+    "semver",
+    "sharp",
+    "shiki",
+    "simple-icons",
+    "string-width",
+    "sucrase",
+    "tailwindcss",
+    "takumi-js",
+    "tinyglobby",
+    "twoslash",
+    "typescript",
+    "ufo",
+    "undici",
+    "write-file-atomic",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-08T08:17:43.070Z",
+   "version_count": 74,
+   "dist_integrity": "sha512-WyYjihRwutaOyWBzhiCjPsDFaJjppPvV7VVvKB+jpHBzb8yglQp5UGMsnQR5/QLpZIQPF5pGvy0THOpX6DwCLQ==",
+   "attestations": true
+  },
+  {
+   "name": "@zereight/mcp-gitlab",
+   "version": "2.3.27",
+   "description": "GitLab MCP server for projects, merge requests, issues, pipelines, wiki, releases, and more",
+   "keywords": [
+    "gitlab",
+    "gitlab-mcp",
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "gitlab-api",
+    "claude",
+    "cursor",
+    "vscode",
+    "copilot",
+    "ai-agent",
+    "merge-requests",
+    "pipelines",
+    "oauth",
+    "stdio",
+    "sse",
+    "streamable-http"
+   ],
+   "weekly": 178560,
+   "monthly": 781799,
+   "links": {
+    "homepage": "https://zereight.github.io/gitlab-mcp/",
+    "repository": "git+https://github.com/zereight/gitlab-mcp.git",
+    "bugs": "https://github.com/zereight/gitlab-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@zereight/mcp-gitlab"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T14:29:56.448Z",
+   "latest": "2.3.27",
+   "bin": {
+    "mcp-gitlab": "build/index.js",
+    "zereight-mcp-gitlab": "build/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/zereight/gitlab-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "diff",
+    "express",
+    "express-rate-limit",
+    "fetch-cookie",
+    "jmespath",
+    "open",
+    "pino",
+    "pino-pretty",
+    "pkce-challenge",
+    "re2js",
+    "socks-proxy-agent",
+    "tldts",
+    "tough-cookie",
+    "undici",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-13T14:29:56.448Z",
+   "version_count": 270,
+   "dist_integrity": "sha512-5JhQsgGtGm+tiH/Q2l+Mcyqko1EqSYbI5G4n6FEXC85pLRYztGwB5HB2umQloit0lejtaVf0pgq1sU/JRG60QQ==",
+   "attestations": true
+  },
+  {
+   "name": "next-devtools-mcp",
+   "version": "0.4.0",
+   "description": "Next.js development tools MCP server with stdio transport",
+   "keywords": [],
+   "weekly": 161522,
+   "monthly": 577767,
+   "links": {
+    "homepage": "https://github.com/vercel/next-devtools-mcp#readme",
+    "repository": "git+https://github.com/vercel/next-devtools-mcp.git",
+    "bugs": "https://github.com/vercel/next-devtools-mcp/issues",
+    "npm": "https://www.npmjs.com/package/next-devtools-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-06-24T22:47:58.059Z",
+   "latest": "0.4.0",
+   "bin": {
+    "next-devtools-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/vercel/next-devtools-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "find-process",
+    "pid-port",
+    "undici",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-06-24T22:47:58.059Z",
+   "version_count": 35,
+   "dist_integrity": "sha512-PTIoi+TihyztSTPkl+YIesL81wU3pRDo6QCg1wgjvLGfBlXv3yamvQyoI8j/I2t7gqDStXoa7jtn/YUdvcBQuw==",
+   "attestations": true
+  },
+  {
+   "name": "agentation-mcp",
+   "version": "1.3.2",
+   "description": "MCP server for Agentation - visual feedback for AI coding agents",
+   "keywords": [],
+   "weekly": 152501,
+   "monthly": 544937,
+   "links": {
+    "npm": "https://www.npmjs.com/package/agentation-mcp"
+   },
+   "publisher": "benjitaylor",
+   "date": "2026-09-22T02:42:22.112Z",
+   "latest": "1.3.2",
+   "bin": {
+    "agentation-mcp": "dist/cli.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "better-sqlite3",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-09-22T02:42:22.112Z",
+   "version_count": 9,
+   "dist_integrity": "sha512-1h3k6kj2ttzahwtMYGyfmrbYZMA3A5/mQwczFmQTfkNb2mgh5DyYG4uUjEbAaAz+a4LCDKahLmC050Gg8uY3tw==",
+   "attestations": false
+  },
+  {
+   "name": "figma-developer-mcp",
+   "version": "0.13.2",
+   "description": "Give your coding agent access to your Figma data. Implement designs in any framework in one-shot.",
+   "keywords": [
+    "figma",
+    "mcp",
+    "typescript"
+   ],
+   "weekly": 145772,
+   "monthly": 530824,
+   "links": {
+    "homepage": "https://www.framelink.ai",
+    "repository": "git+https://github.com/GLips/Figma-Context-MCP.git",
+    "bugs": "https://github.com/GLips/Figma-Context-MCP/issues",
+    "npm": "https://www.npmjs.com/package/figma-developer-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-06-18T16:38:53.910Z",
+   "latest": "0.13.2",
+   "bin": {
+    "figma-developer-mcp": "dist/bin.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/GLips/Figma-Context-MCP.git",
+   "dependencies": [
+    "@figma/rest-api-spec",
+    "@jimp/core",
+    "@jimp/js-gif",
+    "@jimp/js-jpeg",
+    "@jimp/js-png",
+    "@jimp/plugin-crop",
+    "@modelcontextprotocol/sdk",
+    "cleye",
+    "cross-env",
+    "dotenv",
+    "express",
+    "js-yaml",
+    "posthog-node",
+    "remeda",
+    "undici",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-06-18T16:38:53.910Z",
+   "version_count": 51,
+   "dist_integrity": "sha512-7Flx0S/3gI7dIm+9G6BCogwne0o9LdYaCxtDLappiZZUZgqoNiXws/T1kn2R2tqr1iRzFPStqlwf+bPrcscQ0Q==",
+   "attestations": true
+  },
+  {
+   "name": "mongodb-mcp-server",
+   "version": "3.3.0",
+   "description": "MongoDB Model Context Protocol Server",
+   "keywords": [],
+   "weekly": 145421,
+   "monthly": 587232,
+   "links": {
+    "homepage": "https://github.com/mongodb-js/mongodb-mcp-server",
+    "repository": "https://github.com/mongodb-js/mongodb-mcp-server.git",
+    "bugs": "https://github.com/mongodb-js/mongodb-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/mongodb-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-09T11:45:18.434Z",
+   "latest": "3.3.0",
+   "bin": {
+    "mongodb-mcp-server": "dist/esm/index.js"
+   },
+   "deprecated": false,
+   "repository": "https://github.com/mongodb-js/mongodb-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/node",
+    "@mongodb-js/mcp-atlas-api-client",
+    "@mongodb-js/mcp-atlas-telemetry",
+    "@mongodb-js/mcp-cli",
+    "@mongodb-js/mcp-core",
+    "@mongodb-js/mcp-http-runners",
+    "@mongodb-js/mcp-logging",
+    "@mongodb-js/mcp-metrics",
+    "@mongodb-js/mcp-setup",
+    "@mongodb-js/mcp-tools-assistant",
+    "@mongodb-js/mcp-tools-atlas",
+    "@mongodb-js/mcp-tools-atlas-local",
+    "@mongodb-js/mcp-tools-mongodb",
+    "@mongodb-js/mcp-types",
+    "@mongodb-js/mcp-ui",
+    "@mongosh/service-provider-node-driver"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-09T11:45:18.434Z",
+   "version_count": 105,
+   "dist_integrity": "sha512-YweMu82KmPWzocjLnQnLp0dZ1nLLZ540VC5/odPLU0D7INazS2FKAtpNwK9TSj82YLZVFapBMf/ebEJrJrNr1w==",
+   "attestations": true
+  },
+  {
+   "name": "@azure-devops/mcp",
+   "version": "2.11.0",
+   "description": "MCP server for interacting with Azure DevOps",
+   "keywords": [],
+   "weekly": 128669,
+   "monthly": 629317,
+   "links": {
+    "homepage": "https://github.com/microsoft/azure-devops-mcp",
+    "repository": "git+https://github.com/microsoft/azure-devops-mcp.git",
+    "bugs": "https://github.com/microsoft/azure-devops-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@azure-devops/mcp"
+   },
+   "publisher": "antonatms",
+   "date": "2026-10-22T15:57:35.131Z",
+   "latest": "2.11.0",
+   "bin": {
+    "mcp-server-azuredevops": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/microsoft/azure-devops-mcp.git",
+   "dependencies": [
+    "@azure/identity",
+    "@azure/logger",
+    "@azure/msal-node",
+    "@modelcontextprotocol/sdk",
+    "azure-devops-extension-api",
+    "azure-devops-extension-sdk",
+    "azure-devops-node-api",
+    "open",
+    "winston",
+    "yargs",
+    "zod",
+    "zod-to-json-schema"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-22T15:57:35.131Z",
+   "version_count": 472,
+   "dist_integrity": "sha512-sxc62at/r5ur7rvFDsqNC4IP52EqVelY1c0+7kBp+H+I5rrz4Fd8ovnrbmi+lvKfG3Vv9bqdsLGfo+/EejXf7g==",
+   "attestations": false
+  },
+  {
+   "name": "@launchdarkly/mcp-server",
+   "version": "0.7.2",
+   "description": "The local [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for [LaunchDarkly](https://launchdarkly.com/) federal and European Union (EU) environments.",
+   "keywords": [
+    "feature-flags",
+    "feature-toggles",
+    "launchdarkly",
+    "mcp",
+    "modelcontextprotocol"
+   ],
+   "weekly": 113689,
+   "monthly": 304110,
+   "links": {
+    "homepage": "https://github.com/launchdarkly/mcp-server#readme",
+    "repository": "git+https://github.com/launchdarkly/mcp-server.git",
+    "bugs": "https://github.com/launchdarkly/mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@launchdarkly/mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-27T21:39:39.837Z",
+   "latest": "0.7.2",
+   "bin": {
+    "mcp": "bin/mcp-server.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/launchdarkly/mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-27T21:39:39.837Z",
+   "version_count": 17,
+   "dist_integrity": "sha512-MWlYKRZn3De/QuBDSd92YQ9c7DHEA3+eiGp6j6qopCtJAVG7OsWQDgRlO67eFyN8DePzEq494XQxruNKPohUUg==",
+   "attestations": true
+  },
+  {
+   "name": "@open-pencil/mcp",
+   "version": "0.16.0",
+   "description": "Model Context Protocol server for [OpenPencil](https://openpencil.dev). It lets MCP clients such as Claude Code, Cursor, and Windsurf inspect and edit designs through the running app, reusing the same tool definitions as the built-in AI chat.",
+   "keywords": [],
+   "weekly": 112215,
+   "monthly": 192198,
+   "links": {
+    "homepage": "https://github.com/open-pencil/open-pencil#readme",
+    "repository": "git+https://github.com/open-pencil/open-pencil.git",
+    "bugs": "https://github.com/open-pencil/open-pencil/issues",
+    "npm": "https://www.npmjs.com/package/@open-pencil/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-14T12:39:39.558Z",
+   "latest": "0.16.0",
+   "bin": {
+    "openpencil-mcp": "dist/stdio.mjs",
+    "openpencil-mcp-http": "dist/index.mjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/open-pencil/open-pencil.git",
+   "dependencies": [
+    "@hono/node-server",
+    "@modelcontextprotocol/server",
+    "@open-pencil/core",
+    "@open-pencil/scene-graph",
+    "@valibot/to-json-schema",
+    "es-toolkit",
+    "hono",
+    "js-base64",
+    "package-manager-detector",
+    "valibot",
+    "ws"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-10-14T12:39:39.558Z",
+   "version_count": 34,
+   "dist_integrity": "sha512-rKv069v9cprAFlSfit73c+yaz6geptdBKDU/Tvx3JMv8F9XdbsyRxDPTxgYjCg4E7hqJLE8ahQxMcq2sr9DGZw==",
+   "attestations": true
+  },
+  {
+   "name": "@softeria/ms-365-mcp-server",
+   "version": "0.184.2",
+   "description": " A Model Context Protocol (MCP) server for interacting with Microsoft 365 and Office services through the Graph API",
+   "keywords": [
+    "microsoft",
+    "365",
+    "mcp",
+    "server"
+   ],
+   "weekly": 107765,
+   "monthly": 296968,
+   "links": {
+    "homepage": "https://github.com/Softeria/ms-365-mcp-server#readme",
+    "repository": "git+https://github.com/Softeria/ms-365-mcp-server.git",
+    "bugs": "https://github.com/Softeria/ms-365-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@softeria/ms-365-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T08:56:57.362Z",
+   "latest": "0.184.2",
+   "bin": {
+    "ms-365-mcp-server": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/Softeria/ms-365-mcp-server.git",
+   "dependencies": [
+    "@azure/msal-node",
+    "@modelcontextprotocol/sdk",
+    "@toon-format/toon",
+    "commander",
+    "dotenv",
+    "express",
+    "express-rate-limit",
+    "helmet",
+    "js-yaml",
+    "open",
+    "parse5",
+    "winston",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-13T08:56:57.362Z",
+   "version_count": 367,
+   "dist_integrity": "sha512-Fj8Cbrz09MXW+7vB/0739+Vet5YDTjIfXYU5Bv+flVvU726RvF/CjNTkTrqYUzTwWRPEGcVTJbL2TVzl8TRuMA==",
+   "attestations": true
+  },
+  {
+   "name": "@kubb/mcp",
+   "version": "5.20.0",
+   "description": "MCP server for Kubb. Exposes code generation as a tool over the Model Context Protocol so AI assistants like Claude, Cursor, and other MCP-compatible clients can generate TypeScript types, clients, and more.",
+   "keywords": [
+    "ai",
+    "codegen",
+    "kubb",
+    "llm",
+    "mcp",
+    "meta-framework",
+    "model-context-protocol",
+    "typescript"
+   ],
+   "weekly": 103952,
+   "monthly": 359806,
+   "links": {
+    "homepage": "https://kubb.dev",
+    "repository": "git+https://github.com/kubb-labs/kubb.git",
+    "bugs": "https://github.com/kubb-labs/kubb/issues",
+    "npm": "https://www.npmjs.com/package/@kubb/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-14T00:34:20.569Z",
+   "latest": "5.20.0",
+   "bin": {
+    "kubb-mcp": "bin/kubb-mcp.cjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/kubb-labs/kubb.git",
+   "dependencies": [
+    "@kubb/adapter-oas",
+    "@kubb/core",
+    "@tmcp/adapter-valibot",
+    "@tmcp/transport-stdio",
+    "jiti",
+    "tmcp",
+    "valibot"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-14T00:34:20.569Z",
+   "version_count": 1085,
+   "dist_integrity": "sha512-ouDfJpKjf6AyHfkkfKxSlTHKDauxisMmDOTYfCmn4baYMTSPsq4i/Xs6KDJGM0oux2sDqbI5NGueQ+GzMV4ZZA==",
+   "attestations": true
+  },
+  {
+   "name": "xcodebuildmcp",
+   "version": "2.7.0",
+   "description": "XcodeBuildMCP is a Model Context Protocol server that provides tools for Xcode project management, simulator management, and app utilities.",
+   "keywords": [
+    "xcodebuild",
+    "mcp",
+    "modelcontextprotocol",
+    "xcode",
+    "ios",
+    "macos",
+    "simulator"
+   ],
+   "weekly": 101963,
+   "monthly": 432917,
+   "links": {
+    "homepage": "https://www.xcodebuildmcp.com",
+    "repository": "git+https://github.com/getsentry/XcodeBuildMCP.git",
+    "bugs": "https://github.com/getsentry/XcodeBuildMCP/issues",
+    "npm": "https://www.npmjs.com/package/xcodebuildmcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-07-23T14:07:49.017Z",
+   "latest": "2.7.0",
+   "bin": {
+    "xcodebuildmcp": "build/cli.js",
+    "xcodebuildmcp-doctor": "build/doctor-cli.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/getsentry/XcodeBuildMCP.git",
+   "dependencies": [
+    "@clack/prompts",
+    "@modelcontextprotocol/sdk",
+    "@sentry/node",
+    "bplist-parser",
+    "chokidar",
+    "glob",
+    "uuid",
+    "yaml",
+    "yargs",
+    "yargs-parser",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-07-23T14:07:49.017Z",
+   "version_count": 80,
+   "dist_integrity": "sha512-z/QISX3BBg5PluvkOlgSEpWQGOnDQ90jmEHyEFLYiqprSUC6x4b9WRN7DyRmp1OXqhLqv5+omy0LBZi8HzaBJQ==",
+   "attestations": true
+  },
+  {
+   "name": "nx-mcp",
+   "version": "0.25.3",
+   "description": "A Model Context Protocol server implementation for Nx",
+   "keywords": [
+    "nx",
+    "monorepo",
+    "ai",
+    "mcp",
+    "model",
+    "context",
+    "protocol"
+   ],
+   "weekly": 101411,
+   "monthly": 407927,
+   "links": {
+    "homepage": "https://nx.dev",
+    "repository": "git+https://github.com/nrwl/nx-console.git",
+    "bugs": "https://github.com/nrwl/nx-console/issues",
+    "npm": "https://www.npmjs.com/package/nx-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-02T18:22:07.397Z",
+   "latest": "0.25.3",
+   "bin": {
+    "nx-mcp": "main.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/nrwl/nx-console.git",
+   "dependencies": [],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-02T18:22:07.397Z",
+   "version_count": 51,
+   "dist_integrity": "sha512-dMofFlK2VgSc2ME1NqcrkxRRCoqUWnX3BZWEO3W9BgRWP/HJuVuFjjLP3G3bsaAJBptpviaovZSn4V/NNu3X0A==",
+   "attestations": true
+  },
+  {
+   "name": "@sap-ux/fiori-mcp-server",
+   "version": "1.16.3",
+   "description": "SAP Fiori - Model Context Protocol (MCP) server",
+   "keywords": [
+    "SAP Fiori tools",
+    "SAP Fiori elements",
+    "SAP Fiori freestyle",
+    "MCP",
+    "AI"
+   ],
+   "weekly": 96529,
+   "monthly": 408898,
+   "links": {
+    "homepage": "https://github.com/SAP/open-ux-tools#readme",
+    "repository": "https://github.com/SAP/open-ux-tools.git",
+    "bugs": "https://github.com/SAP/open-ux-tools/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3Afiori-mcp-server",
+    "npm": "https://www.npmjs.com/package/@sap-ux/fiori-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T11:41:44.133Z",
+   "latest": "1.16.3",
+   "bin": {
+    "fiori-mcp": "./dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "https://github.com/SAP/open-ux-tools.git",
+   "dependencies": [],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-13T11:41:44.133Z",
+   "version_count": 192,
+   "dist_integrity": "sha512-ggALNzWPvb4eFKx94jhBj2wwO+rUUCzBDuAMECO9s4SSwWSqt2pSSh+WRPMrX/m/UIGmneakMh5h2dCErrabzA==",
+   "attestations": true
+  },
+  {
+   "name": "@ui5/mcp-server",
+   "version": "0.3.3",
+   "description": "MCP server for SAPUI5/OpenUI5 development",
+   "keywords": [
+    "openui5",
+    "sapui5",
+    "ui5",
+    "development",
+    "mcp"
+   ],
+   "weekly": 90011,
+   "monthly": 372321,
+   "links": {
+    "homepage": "https://github.com/UI5/mcp-server#readme",
+    "repository": "git+https://github.com/UI5/mcp-server.git",
+    "bugs": "https://github.com/UI5/mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@ui5/mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-10T14:56:29.668Z",
+   "latest": "0.3.3",
+   "bin": {
+    "ui5mcp": "bin/ui5mcp.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/UI5/mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@ui5/linter",
+    "@ui5/logger",
+    "@ui5/project",
+    "ajv",
+    "ajv-formats",
+    "async-mutex",
+    "ejs",
+    "execa",
+    "fast-xml-parser",
+    "globby",
+    "lockfile",
+    "make-fetch-happen",
+    "semver",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-10T14:56:29.668Z",
+   "version_count": 32,
+   "dist_integrity": "sha512-KbucPKEkPJyQmVzOD6RMgLp1cp8dFLQwDOp62iLuq3WAogaRSbZnBW3l0p7g6gzxZO9GxtBdbYogyF9BgGhEPg==",
+   "attestations": true
+  },
+  {
+   "name": "@mastra/mcp-docs-server",
+   "version": "1.3.13",
+   "description": "MCP server for accessing Mastra.ai documentation, changelogs, and news.",
+   "keywords": [],
+   "weekly": 89602,
+   "monthly": 267265,
+   "links": {
+    "homepage": "https://mastra.ai",
+    "repository": "git+https://github.com/mastra-ai/mastra.git",
+    "bugs": "https://github.com/mastra-ai/mastra/issues",
+    "npm": "https://www.npmjs.com/package/@mastra/mcp-docs-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-12T21:23:18.335Z",
+   "latest": "1.3.13",
+   "bin": {
+    "mcp-docs-server": "dist/stdio.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/mastra-ai/mastra.git",
+   "dependencies": [
+    "@mastra/core",
+    "@mastra/mcp",
+    "@mastra/mcp-legacy",
+    "local-pkg",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-12T21:23:18.335Z",
+   "version_count": 1574,
+   "dist_integrity": "sha512-Fdb9A75ZL77Cs7dH6FNQAyTfOExJYfmAR8o+qngPvxEwyuokQ8ryFNClds1iYNgfaFpdDN2Dq2fTKP4ZubTGAw==",
+   "attestations": true
+  },
+  {
+   "name": "@aikidosec/mcp",
+   "version": "1.0.34",
+   "description": "Aikido MCP server",
+   "keywords": [
+    "aikido",
+    "mcp",
+    "server",
+    "security"
+   ],
+   "weekly": 85220,
+   "monthly": 296539,
+   "links": {
+    "npm": "https://www.npmjs.com/package/@aikidosec/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-05T12:40:32.278Z",
+   "latest": "1.0.34",
+   "bin": {
+    "aikido-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@github/keytar",
+    "@modelcontextprotocol/sdk",
+    "@xhmikosr/decompress",
+    "isomorphic-fetch",
+    "jose",
+    "pino",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-05T12:40:32.278Z",
+   "version_count": 35,
+   "dist_integrity": "sha512-Kcnyf/l4wp8dQNt6T8RBZoJHd/TO2TPbFpY7NaMo4OEG4Vfp38x7dGC25w1GE86YdSvW2TIr+J7KD0wQ/QW6vw==",
+   "attestations": false
+  },
+  {
+   "name": "@currents/mcp",
+   "version": "2.7.0",
+   "description": "Currents MCP server",
+   "keywords": [
+    "currents",
+    "mcp-server",
+    "playwright",
+    "dashboard",
+    "reporting"
+   ],
+   "weekly": 81210,
+   "monthly": 303208,
+   "links": {
+    "homepage": "https://currents.dev",
+    "repository": "git+https://github.com/currents-dev/currents-mcp.git",
+    "bugs": "https://github.com/currents-dev/currents-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@currents/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-14T18:31:14.957Z",
+   "latest": "2.7.0",
+   "bin": {
+    "mcp": "dist/index.mjs",
+    "currents-mcp-http": "dist/http.mjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/currents-dev/currents-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "commander",
+    "pino",
+    "pino-pretty",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-14T18:31:14.957Z",
+   "version_count": 42,
+   "dist_integrity": "sha512-eApILiEkr3QaLs/XPddk/8UTAZiAa5eyLsJ0rKVoVygnpyQUZVwtHxxL87kuoG5uhn9HITF7NIxvZNGs/OsnlQ==",
+   "attestations": true
+  },
+  {
+   "name": "creem",
+   "version": "1.14.0",
+   "description": "Official TypeScript SDK and MCP server for the Creem API",
+   "keywords": [],
+   "weekly": 74474,
+   "monthly": 270327,
+   "links": {
+    "homepage": "https://github.com/armitage-labs/creem/tree/main/packages/sdk",
+    "repository": "git+https://github.com/armitage-labs/creem.git",
+    "bugs": "https://github.com/armitage-labs/creem/issues",
+    "npm": "https://www.npmjs.com/package/creem"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-12T12:18:37.466Z",
+   "latest": "1.14.0",
+   "bin": {
+    "mcp": "bin/mcp-server.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/armitage-labs/creem.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "jsonpath-rfc9535",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-12T12:18:37.466Z",
+   "version_count": 46,
+   "dist_integrity": "sha512-0RIZcCXE040j4usbWHfHWDmpmRE68tq3Oxxfap3j9uZWWH4ux0EGopP0OJIWo6zDU9ZeOvKahfatcgqTzRRQ+Q==",
+   "attestations": true
+  },
+  {
+   "name": "scryfall-mcp-server",
+   "version": "0.1.1",
+   "description": "MCP server for interacting with the Scryfall MTG API",
+   "keywords": [],
+   "weekly": 74282,
+   "monthly": 272153,
+   "links": {
+    "homepage": "https://modelcontextprotocol.io",
+    "bugs": "https://github.com/modelcontextprotocol/servers/issues",
+    "npm": "https://www.npmjs.com/package/scryfall-mcp-server"
+   },
+   "publisher": "dotta",
+   "date": "2025-02-26T20:08:00.502Z",
+   "latest": "0.1.1",
+   "bin": {
+    "scryfall-mcp-server": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "express",
+    "node-fetch",
+    "yargs"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2025-02-26T20:08:00.502Z",
+   "version_count": 2,
+   "dist_integrity": "sha512-nnDI1UIv53pM8SL/j7MGn1Om04hODMEmzUISk5OUDvBcOsuZvlBBWzSJNoplJO0/0BeU0LrbszhGbAlDY1s5Sw==",
+   "attestations": false
+  },
+  {
+   "name": "kordoc",
+   "version": "4.24.78",
+   "description": "Parse Korean documents (HWP3-5, HWPX, HWPML, PDF, XLS(X), DOCX) to Markdown \u2014 CLI + MCP server with lossless patch/roundtrip, form-filler, document diff, print & layout-preserving SVG renderer",
+   "keywords": [
+    "hwp",
+    "hwpx",
+    "hancom",
+    "hangul",
+    "korean",
+    "document",
+    "parser",
+    "pdf",
+    "xls",
+    "xlsx",
+    "biff8",
+    "docx",
+    "markdown",
+    "converter",
+    "ocr",
+    "mcp",
+    "model-context-protocol",
+    "print",
+    "puppeteer",
+    "hwp-to-markdown",
+    "pdf-to-markdown",
+    "rag",
+    "mcp-server"
+   ],
+   "weekly": 71893,
+   "monthly": 240360,
+   "links": {
+    "homepage": "https://github.com/chrisryugj/kordoc#readme",
+    "repository": "git+https://github.com/chrisryugj/kordoc.git",
+    "bugs": "https://github.com/chrisryugj/kordoc/issues",
+    "npm": "https://www.npmjs.com/package/kordoc"
+   },
+   "publisher": "chrisryugj",
+   "date": "2026-11-14T06:34:45.946Z",
+   "latest": "4.24.78",
+   "bin": {
+    "kordoc": "dist/cli.js",
+    "kordoc-mcp": "dist/mcp.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/chrisryugj/kordoc.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "cfb",
+    "commander",
+    "jszip",
+    "markdown-it",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-14T06:34:45.946Z",
+   "version_count": 297,
+   "dist_integrity": "sha512-quEUZpVtIUyvWgWbDBHrUDtiG9HFXPSzC18Yj4Hson6RcPDP+ZH1th/hYSHfi7JybMbLaeBQ1T5dwH2HxB00DA==",
+   "attestations": false
+  },
+  {
+   "name": "@tacticlaunch/mcp-linear",
+   "version": "1.4.6",
+   "description": "A Model Context Protocol (MCP) server implementation for the Linear GraphQL API that enables AI assistants to manage Linear projects and search issues by text, state, and date.",
+   "keywords": [
+    "mcp",
+    "linear",
+    "cursor",
+    "claude",
+    "ai",
+    "model-context-protocol",
+    "project-management"
+   ],
+   "weekly": 71559,
+   "monthly": 223378,
+   "links": {
+    "homepage": "https://github.com/tacticlaunch/mcp-linear#readme",
+    "repository": "git+https://github.com/tacticlaunch/mcp-linear.git",
+    "bugs": "https://github.com/tacticlaunch/mcp-linear/issues",
+    "npm": "https://www.npmjs.com/package/@tacticlaunch/mcp-linear"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T18:46:45.831Z",
+   "latest": "1.4.6",
+   "bin": {
+    "mcp-linear": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/tacticlaunch/mcp-linear.git",
+   "dependencies": [
+    "@linear/sdk",
+    "@modelcontextprotocol/sdk",
+    "@types/cors",
+    "@types/express",
+    "cors",
+    "dotenv",
+    "express",
+    "fs-native-extensions",
+    "graphql",
+    "graphql-request",
+    "helmet",
+    "yargs",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-13T18:46:45.831Z",
+   "version_count": 23,
+   "dist_integrity": "sha512-YrPLwDroTDCgJDbLrUMDtmHPmjmQspSw5+vS3jskaDGw5zZw3zlqExaMlWGs0CVTp5635gKmSA3uj4sM6veGeg==",
+   "attestations": true
+  },
+  {
+   "name": "@fanyangmeng/ghost-mcp",
+   "version": "0.2.0",
+   "description": "MCP server for using the Ghost API",
+   "keywords": [],
+   "weekly": 69319,
+   "monthly": 99574,
+   "links": {
+    "npm": "https://www.npmjs.com/package/@fanyangmeng/ghost-mcp"
+   },
+   "publisher": "fanyangmeng",
+   "date": "2026-04-19T17:13:26.852Z",
+   "latest": "0.2.0",
+   "bin": {
+    "ghost-mcp": "build/server.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@tryghost/admin-api",
+    "axios",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-04-19T17:13:26.852Z",
+   "version_count": 3,
+   "dist_integrity": "sha512-tup3Zk/BS1zxaZ74nfTPj1TV0P3RTJ9YAD3w7oj2Zd4nm5H9dqUs5+t+hExMMgbpuS4MElF+/qKKN0MD3NcVNA==",
+   "attestations": false
+  },
+  {
+   "name": "@zencoderai/slack-mcp-server",
+   "version": "0.0.1",
+   "description": "MCP server for interacting with Slack",
+   "keywords": [],
+   "weekly": 68993,
+   "monthly": 210881,
+   "links": {
+    "homepage": "https://zencoder.ai",
+    "repository": "git+https://github.com/zencoderai/slack-mcp-server.git",
+    "bugs": "https://github.com/zencoderai/slack-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@zencoderai/slack-mcp-server"
+   },
+   "publisher": "zencoderai",
+   "date": "2025-07-16T20:31:57.370Z",
+   "latest": "0.0.1",
+   "bin": {
+    "slack-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/zencoderai/slack-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "express",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2025-07-16T20:31:57.370Z",
+   "version_count": 1,
+   "dist_integrity": "sha512-D+gC+uD1k3mLHkPESvHX9y22IwFhk1pi9m5JT/qy4Bt7QWAXf8iDSKcBF6q5B++IETnRrUzq4RVIgBC2e5k37Q==",
+   "attestations": true
+  },
+  {
+   "name": "@coding-solo/godot-mcp",
+   "version": "0.1.1",
+   "description": "MCP server for interfacing with Godot game engine. Provides tools for launching the editor, running projects, and capturing debug output.",
+   "keywords": [
+    "godot",
+    "mcp",
+    "ai",
+    "claude",
+    "cline"
+   ],
+   "weekly": 68847,
+   "monthly": 143036,
+   "links": {
+    "homepage": "https://github.com/Coding-Solo/godot-mcp",
+    "repository": "git+https://github.com/Coding-Solo/godot-mcp.git",
+    "bugs": "https://github.com/Coding-Solo/godot-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@coding-solo/godot-mcp"
+   },
+   "publisher": "coding-solo",
+   "date": "2026-02-03T17:23:27.236Z",
+   "latest": "0.1.1",
+   "bin": {
+    "godot-mcp": "build/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/Coding-Solo/godot-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "axios",
+    "fs-extra"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-02-03T17:23:27.236Z",
+   "version_count": 1,
+   "dist_integrity": "sha512-tSwmKN5D3JWGfnyPFxijxjdsT+GKIQrf9g6zYNefLvOVYx2UTC9PhyFFHc9vphtjyFrtjYf1n5Vq1zRNN3UXBA==",
+   "attestations": false
+  },
+  {
+   "name": "@bytebase/dbhub",
+   "version": "1.6.1",
+   "description": "Token-efficient database MCP server for PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, SQLite",
+   "keywords": [],
+   "weekly": 67610,
+   "monthly": 176231,
+   "links": {
+    "homepage": "https://github.com/bytebase/dbhub#readme",
+    "repository": "git+https://github.com/bytebase/dbhub.git",
+    "bugs": "https://github.com/bytebase/dbhub/issues",
+    "npm": "https://www.npmjs.com/package/@bytebase/dbhub"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-11T05:48:40.966Z",
+   "latest": "1.6.1",
+   "bin": {
+    "dbhub": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/bytebase/dbhub.git",
+   "dependencies": [
+    "@iarna/toml",
+    "@modelcontextprotocol/node",
+    "@modelcontextprotocol/server",
+    "dotenv",
+    "express",
+    "ssh-config",
+    "ssh2",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-11T05:48:40.966Z",
+   "version_count": 87,
+   "dist_integrity": "sha512-QvpejQR82n7Zs2UEO5wb+CrNdrDMAxS+rlnKSqmrdQ0fMwiUqOoKv92Q/6/Gt+oRIwcW6CBS91fLoJr6Z4cz3A==",
+   "attestations": true
+  },
+  {
+   "name": "@metamask/device-mcp",
+   "version": "0.8.0",
+   "description": "MCP server for mobile device interaction \u2014 iOS (IDB), Android (ADB), and Appium/BrowserStack",
+   "keywords": [],
+   "weekly": 67120,
+   "monthly": 186086,
+   "links": {
+    "homepage": "https://github.com/MetaMask/device-mcp#readme",
+    "repository": "https://github.com/MetaMask/device-mcp.git",
+    "bugs": "https://github.com/MetaMask/device-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@metamask/device-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T11:58:04.853Z",
+   "latest": "0.8.0",
+   "bin": "./dist/cli/device-mcp.mjs",
+   "deprecated": false,
+   "repository": "https://github.com/MetaMask/device-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-13T11:58:04.853Z",
+   "version_count": 13,
+   "dist_integrity": "sha512-MJUpHSf/cb9hgKQtjmpBuUqol3FMGcvYFeyqkwKvckNLzSL1mXFEcatqqtu2m0Qh8uL2NlCos5FP/FFsfeJIZA==",
+   "attestations": true
+  },
+  {
+   "name": "@automattic/mcp-wordpress-remote",
+   "version": "0.5.5",
+   "description": "MCP WordPress Remote proxy server",
+   "keywords": [
+    "mcp",
+    "wordpress",
+    "remote",
+    "proxy"
+   ],
+   "weekly": 64939,
+   "monthly": 142607,
+   "links": {
+    "homepage": "https://github.com/Automattic/mcp-wordpress-remote#readme",
+    "repository": "git+https://github.com/Automattic/mcp-wordpress-remote.git",
+    "bugs": "https://github.com/Automattic/mcp-wordpress-remote/issues",
+    "npm": "https://www.npmjs.com/package/@automattic/mcp-wordpress-remote"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-05T19:56:19.186Z",
+   "latest": "0.5.5",
+   "bin": {
+    "mcp-wordpress-remote": "dist/proxy.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/Automattic/mcp-wordpress-remote.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@tootallnate/quickjs-emscripten",
+    "eventsource-parser",
+    "express",
+    "https-proxy-agent",
+    "node-fetch",
+    "open",
+    "pac-resolver",
+    "proper-lockfile",
+    "socks-proxy-agent"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-05T19:56:19.186Z",
+   "version_count": 42,
+   "dist_integrity": "sha512-dHQIzEldCPtBEoIVh1nrsUOKQGjiOu8qnGjkPYFW6ZqfyYNzUxb2d3Sbe9nnljnZh74qQSwfCIWzqhphKZQASA==",
+   "attestations": true
+  },
+  {
+   "name": "@drawio/mcp",
+   "version": "1.12.0",
+   "description": "Official draw.io MCP server for LLMs - Open diagrams in draw.io editor",
+   "keywords": [
+    "mcp",
+    "drawio",
+    "draw.io",
+    "diagrams",
+    "mermaid",
+    "csv",
+    "xml",
+    "llm",
+    "claude",
+    "anthropic"
+   ],
+   "weekly": 62502,
+   "monthly": 156258,
+   "links": {
+    "homepage": "https://github.com/jgraph/drawio-mcp#readme",
+    "repository": "git+https://github.com/jgraph/drawio-mcp.git",
+    "bugs": "https://github.com/jgraph/drawio-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@drawio/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-10T13:48:01.669Z",
+   "latest": "1.12.0",
+   "bin": {
+    "drawio-mcp": "src/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/jgraph/drawio-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "pako"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-10T13:48:01.669Z",
+   "version_count": 43,
+   "dist_integrity": "sha512-Hpb2YGthL6byaoKHCXiqyS1o9EPmpM9HJJIJQlpPEJbSQKuapv86Cr9MRyGzKwiAsk/nXfDFfa64G1/XaGnrXA==",
+   "attestations": true
+  },
+  {
+   "name": "@letoribo/mcp-graphql-enhanced",
+   "version": "4.17.1",
+   "description": "Enhanced MCP server for GraphQL with dynamic headers and robust variables parsing \u2014 a drop-in replacement for mcp-graphql.",
+   "keywords": [
+    "mcp",
+    "graphql",
+    "llm",
+    "claude-desktop",
+    "enhanced",
+    "tool-calling",
+    "model-context-protocol",
+    "federated-graphql"
+   ],
+   "weekly": 60136,
+   "monthly": 211103,
+   "links": {
+    "homepage": "https://github.com/letoribo/mcp-graphql-enhanced#readme",
+    "repository": "git+https://github.com/letoribo/mcp-graphql-enhanced.git",
+    "bugs": "https://github.com/letoribo/mcp-graphql-enhanced/issues",
+    "npm": "https://www.npmjs.com/package/@letoribo/mcp-graphql-enhanced"
+   },
+   "publisher": "letoribo",
+   "date": "2026-11-09T09:29:42.161Z",
+   "latest": "4.17.1",
+   "bin": {
+    "mcp-graphql-enhanced": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/letoribo/mcp-graphql-enhanced.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "graphql",
+    "yargs",
+    "zod",
+    "zod-to-json-schema"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-09T09:29:42.161Z",
+   "version_count": 86,
+   "dist_integrity": "sha512-kamrThyP2rRXv0X8FkkObYN64M37e5UXCuKi5+jrt/ACHi3zpHc86j1qame/3/O1lRF39cbhAKqePPrJXQ7zZQ==",
+   "attestations": false
+  },
+  {
+   "name": "@cloudbase/cloudbase-mcp",
+   "version": "2.37.6",
+   "description": "CloudBase MCP Server \u2014 operate Tencent CloudBase (database, auth, functions, storage, hosting) from AI coding tools via the Model Context Protocol. Part of CloudBase AI Toolkit.",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "cloudbase",
+    "tencent-cloud"
+   ],
+   "weekly": 60072,
+   "monthly": 195478,
+   "links": {
+    "homepage": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit",
+    "repository": "git+https://github.com/TencentCloudBase/CloudBase-AI-Toolkit.git",
+    "bugs": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/issues",
+    "npm": "https://www.npmjs.com/package/@cloudbase/cloudbase-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-11T08:10:37.441Z",
+   "latest": "2.37.6",
+   "bin": {
+    "cloudbase-mcp": "dist/cli.cjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/TencentCloudBase/CloudBase-AI-Toolkit.git",
+   "dependencies": [],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-11T08:10:37.441Z",
+   "version_count": 198,
+   "dist_integrity": "sha512-9C358nkf+4P8aeg6CJCHS7BvWV1UINCUPi+OKMO3kHRbDGHx9YZqOivF/9EoVdZTT90NFs3MoKTZKwDEC00Pug==",
+   "attestations": true
+  },
+  {
+   "name": "gitnexus",
+   "version": "1.6.12",
+   "description": "Graph-powered code intelligence for AI agents. Index any codebase, query via MCP or CLI.",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "code-intelligence",
+    "knowledge-graph",
+    "cursor",
+    "claude",
+    "codex",
+    "ai-agent",
+    "gitnexus",
+    "static-analysis",
+    "codebase-indexing"
+   ],
+   "weekly": 58824,
+   "monthly": 207624,
+   "links": {
+    "homepage": "https://github.com/abhigyanpatwari/GitNexus#readme",
+    "repository": "git+https://github.com/abhigyanpatwari/GitNexus.git",
+    "bugs": "https://github.com/abhigyanpatwari/GitNexus/issues",
+    "npm": "https://www.npmjs.com/package/gitnexus"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-09-12T21:39:39.080Z",
+   "latest": "1.6.12",
+   "bin": {
+    "gitnexus": "dist/cli/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/abhigyanpatwari/GitNexus.git",
+   "dependencies": [
+    "@ladybugdb/core",
+    "@modelcontextprotocol/sdk",
+    "@scarf/scarf",
+    "busboy",
+    "chokidar",
+    "cli-progress",
+    "commander",
+    "cors",
+    "express",
+    "express-rate-limit",
+    "fast-xml-parser",
+    "glob",
+    "graphology",
+    "graphology-indices",
+    "graphology-utils",
+    "graphql",
+    "ignore",
+    "js-yaml",
+    "jsonc-parser",
+    "mnemonist",
+    "node-addon-api",
+    "node-gyp-build",
+    "onnxruntime-common",
+    "pandemonium",
+    "pino",
+    "pino-pretty",
+    "proxy-addr",
+    "tree-sitter",
+    "tree-sitter-c-sharp",
+    "tree-sitter-cpp",
+    "tree-sitter-go",
+    "tree-sitter-java",
+    "tree-sitter-javascript",
+    "tree-sitter-php",
+    "tree-sitter-python",
+    "tree-sitter-ruby",
+    "tree-sitter-rust",
+    "tree-sitter-typescript",
+    "uuid"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-09-12T21:39:39.080Z",
+   "version_count": 1119,
+   "dist_integrity": "sha512-Wz++hOW73SkluTkQLJbRIT8+IW649Kmf4mI+99ZxzcQg2Nl47sSjlfe89NN/q0uutGTvbVeXaYMHRDSznDsk5g==",
+   "attestations": true
+  },
+  {
+   "name": "@hubspot/mcp-server",
+   "version": "0.4.0",
+   "description": "MCP Server for developers building HubSpot Apps",
+   "keywords": [
+    "mcp",
+    "hubspot"
+   ],
+   "weekly": 58299,
+   "monthly": 190639,
+   "links": {
+    "npm": "https://www.npmjs.com/package/@hubspot/mcp-server"
+   },
+   "publisher": "jedeen-hs",
+   "date": "2025-06-18T16:19:19.753Z",
+   "latest": "0.4.0",
+   "bin": {
+    "mcp-hubspot": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "dotenv",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2025-06-18T16:19:19.753Z",
+   "version_count": 8,
+   "dist_integrity": "sha512-nNNrqysJrCkPb8XWl3wd2d61nTLf8IAnfWOHag4FCSRKRjSXuIE/2h4GVUcPmVhJVaN7RsIq8C43BMFV+EI9GA==",
+   "attestations": false
+  },
+  {
+   "name": "kubernetes-mcp-server",
+   "version": "0.1.3",
+   "description": "Model Context Protocol (MCP) server for Kubernetes and OpenShift",
+   "keywords": [
+    "mcp",
+    "kubernetes",
+    "openshift",
+    "model context protocol",
+    "model",
+    "context",
+    "protocol"
+   ],
+   "weekly": 57992,
+   "monthly": 199511,
+   "links": {
+    "homepage": "https://github.com/containers/kubernetes-mcp-server#readme",
+    "repository": "git+https://github.com/containers/kubernetes-mcp-server.git",
+    "bugs": "https://github.com/containers/kubernetes-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/kubernetes-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T19:29:21.214Z",
+   "latest": "0.1.3",
+   "bin": {
+    "kubernetes-mcp-server": "bin/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/containers/kubernetes-mcp-server.git",
+   "dependencies": [],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-13T19:29:21.214Z",
+   "version_count": 68,
+   "dist_integrity": "sha512-DeB8cKeK2ws/vkr8AV+M2SDmXpmRLPmcXShRXj1MKlgMgEHV/QJWf1jRkv0pm0bSEITyW/YRoQkOCCH2HqwT8w==",
+   "attestations": true
+  },
+  {
+   "name": "@perplexity-ai/mcp-server",
+   "version": "1.3.0",
+   "description": "Real-time web search, reasoning, and research through Perplexity's API",
+   "keywords": [
+    "ai",
+    "perplexity",
+    "mcp",
+    "modelcontextprotocol"
+   ],
+   "weekly": 55781,
+   "monthly": 132575,
+   "links": {
+    "homepage": "https://docs.perplexity.ai/guides/mcp-server",
+    "repository": "git+https://github.com/perplexityai/modelcontextprotocol.git",
+    "bugs": "https://github.com/perplexityai/modelcontextprotocol/issues",
+    "npm": "https://www.npmjs.com/package/@perplexity-ai/mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-09-25T20:18:54.576Z",
+   "latest": "1.3.0",
+   "bin": {
+    "perplexity-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/perplexityai/modelcontextprotocol.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "cors",
+    "express",
+    "undici",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-09-25T20:18:54.576Z",
+   "version_count": 29,
+   "dist_integrity": "sha512-rPeGlp63861F3ZyMUg6joIqBiQgji3acf6wFwMrTFrO2Zd0kKVV8Pwri5pznDjgJIgjiqOo58E1PDliilcmN8w==",
+   "attestations": true
+  },
+  {
+   "name": "chelaile-mcp-server",
+   "version": "1.1.0",
+   "description": "MCP server for Chelaile realtime bus data",
+   "keywords": [],
+   "weekly": 55584,
+   "monthly": 70004,
+   "links": {
+    "npm": "https://www.npmjs.com/package/chelaile-mcp-server"
+   },
+   "publisher": "jan_liu_9527",
+   "date": "2026-05-18T07:05:23.982Z",
+   "latest": "1.1.0",
+   "bin": {
+    "chelaile-mcp-server": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-05-18T07:05:23.982Z",
+   "version_count": 1,
+   "dist_integrity": "sha512-TwoVGIP6uM6nDbpxlfwmRKSrUQ2bhsMX2sFXj/IT6rMyiGCFmAegcKBzHqVeGBj4jVGDYrbr0DupL/FLuoyXGw==",
+   "attestations": false
+  },
+  {
+   "name": "@netlify/mcp",
+   "version": "1.22.1",
+   "description": "[Netlify MCP Server](https://docs.netlify.com/welcome/build-with-ai/netlify-mcp-server/) follows the [Model Context Protocol (MCP)](https://modelcontextprotocol.org) to enable code agents to use the Netlify API and CLI\u2014so they can create new projects, bui",
+   "keywords": [],
+   "weekly": 54767,
+   "monthly": 212403,
+   "links": {
+    "homepage": "https://docs.netlify.com/welcome/build-with-ai/netlify-mcp-server/",
+    "repository": "git+https://github.com/netlify/netlify-mcp.git",
+    "bugs": "https://github.com/netlify/netlify-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@netlify/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T13:11:04.401Z",
+   "latest": "1.22.1",
+   "bin": {
+    "netlify-mcp": "dist/netlify-mcp.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/netlify/netlify-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/core",
+    "@modelcontextprotocol/server",
+    "@netlify/blobs",
+    "@netlify/dev-utils",
+    "@netlify/edge-functions",
+    "@netlify/functions",
+    "archiver",
+    "fetch-to-node",
+    "jose",
+    "zod",
+    "zod-to-json-schema"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-13T13:11:04.401Z",
+   "version_count": 44,
+   "dist_integrity": "sha512-9hASMt5/NodHZ+Ajbahd6aoT1wNP+eAoxPp7q8W/RXYWMEHUDPhjO/ucXNOCpxYgUsjjgqtISFrKRX4SkLq+Wg==",
+   "attestations": true
+  },
+  {
+   "name": "@imgly/codesign-mcp",
+   "version": "0.6.0",
+   "description": "A real design engine for your AI agent: generate designs, print-ready PDFs and videos with audio, over MCP.",
+   "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "ai-agent",
+    "design",
+    "graphic-design",
+    "design-automation",
+    "pdf",
+    "print",
+    "svg",
+    "video",
+    "mp4",
+    "audio",
+    "animation",
+    "cesdk",
+    "imgly"
+   ],
+   "weekly": 54659,
+   "monthly": 168009,
+   "links": {
+    "homepage": "https://codesign.co",
+    "repository": "git+https://github.com/imgly/imgly-codesign.git",
+    "bugs": "https://img.ly/support",
+    "npm": "https://www.npmjs.com/package/@imgly/codesign-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-04T15:46:37.487Z",
+   "latest": "0.6.0",
+   "bin": {
+    "cdsn": "dist/runtime/cli/main.js",
+    "codesign-mcp": "dist/cli.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@agentclientprotocol/sdk",
+    "@cesdk/node",
+    "@cesdk/node-native",
+    "@earendil-works/chord",
+    "@earendil-works/pi-ai",
+    "@earendil-works/pi-durable",
+    "@imgly/codesign-acp",
+    "@imgly/codesign-agent",
+    "@imgly/codesign-router",
+    "@imgly/codesign-sdk",
+    "@imgly/codesign-server",
+    "@imgly/design-lint",
+    "@imgly/html-exporter",
+    "@imgly/idml-exporter",
+    "@imgly/idml-importer",
+    "@imgly/lottie-importer",
+    "@imgly/pdf-importer",
+    "@imgly/pdfx-exporter",
+    "@imgly/pptx-importer",
+    "@imgly/psd",
+    "@imgly/psd-exporter",
+    "@imgly/psd-importer",
+    "@modelcontextprotocol/sdk",
+    "@napi-rs/canvas",
+    "@napi-rs/keyring",
+    "@sentry/core",
+    "@sinclair/typebox",
+    "ag-psd",
+    "express",
+    "fast-xml-parser",
+    "harfbuzzjs",
+    "jpeg-js",
+    "jszip",
+    "linkedom",
+    "opentype.js",
+    "pngjs",
+    "wawoff2",
+    "yaml",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-04T15:46:37.487Z",
+   "version_count": 721,
+   "dist_integrity": "sha512-GLe1/mKPI0F7bpfEAIo0AiDJ1SpY5v4WRFNXhGOhB+XMqRgETwnP1z+fViUgUoABCdd8LUJrrfHyyMMdSIqEPA==",
+   "attestations": false
+  },
+  {
+   "name": "@cap-js/mcp-server",
+   "version": "0.1.0",
+   "description": "Model Context Protocol (MCP) server for AI-assisted development of CAP applications.",
+   "keywords": [],
+   "weekly": 53268,
+   "monthly": 243099,
+   "links": {
+    "homepage": "https://cap.cloud.sap/",
+    "repository": "git+https://github.com/cap-js/mcp-server.git",
+    "bugs": "https://github.com/cap-js/mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@cap-js/mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-26T14:45:17.055Z",
+   "latest": "0.1.0",
+   "bin": {
+    "cds-mcp": "index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/cap-js/mcp-server.git",
+   "dependencies": [
+    "@cap-js/ai",
+    "@cap-js/sqlite",
+    "@huggingface/hub",
+    "@huggingface/tokenizers",
+    "@huggingface/transformers",
+    "@modelcontextprotocol/sdk",
+    "@sap/cds",
+    "onnxruntime-node"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-26T14:45:17.055Z",
+   "version_count": 9,
+   "dist_integrity": "sha512-O8lY3YGSOrepi+QjJkHGsmIP3b0aUG7f6oR1IfCiAIHqUm4EpZAdwzV9u65yyESHagsZk8AfiZzv6FxAeS2pxw==",
+   "attestations": true
+  },
+  {
+   "name": "n8n-mcp",
+   "version": "2.102.0",
+   "description": "Integration between n8n workflow automation and Model Context Protocol (MCP)",
+   "keywords": [
+    "n8n",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "workflow",
+    "automation"
+   ],
+   "weekly": 52905,
+   "monthly": 295282,
+   "links": {
+    "homepage": "https://github.com/czlonkowski/n8n-mcp#readme",
+    "repository": "git+https://github.com/czlonkowski/n8n-mcp.git",
+    "bugs": "https://github.com/czlonkowski/n8n-mcp/issues",
+    "npm": "https://www.npmjs.com/package/n8n-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-09T11:09:12.169Z",
+   "latest": "2.102.0",
+   "bin": {
+    "n8n-mcp": "dist/mcp/stdio-wrapper.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/czlonkowski/n8n-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "acorn",
+    "axios",
+    "dotenv",
+    "express",
+    "express-rate-limit",
+    "form-data",
+    "ipaddr.js",
+    "lru-cache",
+    "sql.js",
+    "tslib",
+    "undici",
+    "uuid"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-09T11:09:12.169Z",
+   "version_count": 319,
+   "dist_integrity": "sha512-ODC0ffkR4RlsQjvViQI+pbY1UknG/gqd0cNb6VqVslQ71Ax28Rvr0WDZEha63MLYvaqDpTq8tqzClV23p7TXNQ==",
+   "attestations": true
+  },
+  {
+   "name": "slack-mcp-server",
+   "version": "1.3.0",
+   "description": "Model Context Protocol (MCP) server for Slack Workspaces. This integration supports both Stdio and SSE transports, proxy settings and does not require any permissions or bots being created or approved by Workspace admins",
+   "keywords": [
+    "mcp",
+    "slack",
+    "slack-api",
+    "model context protocol",
+    "model",
+    "context",
+    "protocol"
+   ],
+   "weekly": 52753,
+   "monthly": 185187,
+   "links": {
+    "homepage": "https://github.com/korotovsky/slack-mcp-server#readme",
+    "repository": "git+https://github.com/korotovsky/slack-mcp-server.git",
+    "bugs": "https://github.com/korotovsky/slack-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/slack-mcp-server"
+   },
+   "publisher": "korotovsky",
+   "date": "2026-05-14T22:55:54.869Z",
+   "latest": "1.3.0",
+   "bin": {
+    "slack-mcp-server": "bin/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/korotovsky/slack-mcp-server.git",
+   "dependencies": [],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-05-14T22:55:54.869Z",
+   "version_count": 31,
+   "dist_integrity": "sha512-YoRGvadhHkN4jwr1uYAxcNidmRPuzDXDM7j8dmnuvclF8zeqzBHefm1IiZE/xGr23Ka0ljNysdDTDUC7PWj21Q==",
+   "attestations": false
+  },
+  {
+   "name": "@anyproto/anytype-mcp",
+   "version": "2.0.2",
+   "description": "Official MCP server for Anytype API",
+   "keywords": [
+    "anytype",
+    "api",
+    "mcp",
+    "server"
+   ],
+   "weekly": 50348,
+   "monthly": 54764,
+   "links": {
+    "homepage": "https://github.com/anyproto/anytype-mcp#readme",
+    "repository": "git+https://github.com/anyproto/anytype-mcp.git",
+    "bugs": "https://github.com/anyproto/anytype-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@anyproto/anytype-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-07T19:04:22.335Z",
+   "latest": "2.0.2",
+   "bin": {
+    "anytype-mcp": "bin/cli.mjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/anyproto/anytype-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "axios",
+    "form-data",
+    "mustache",
+    "node-fetch",
+    "openapi-client-axios",
+    "openapi-schema-validator",
+    "openapi-types",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-07T19:04:22.335Z",
+   "version_count": 25,
+   "dist_integrity": "sha512-9x0BvqrMtDjKkdGuHeq6oxOmm8BlBYHzH5EDrwE5sWut6/vXlfIbtDOrHWi08lmN1qVKC6Ovw4g8BZbsjP3xqw==",
+   "attestations": true
+  },
+  {
+   "name": "@brave/brave-search-mcp-server",
+   "version": "2.1.4",
+   "description": "Brave Search MCP Server: web results, images, videos, rich results, AI summaries, and more.",
+   "keywords": [
+    "api",
+    "brave",
+    "mcp",
+    "search"
+   ],
+   "weekly": 50312,
+   "monthly": 162285,
+   "links": {
+    "homepage": "https://github.com/brave/brave-search-mcp-server",
+    "repository": "git+https://github.com/brave/brave-search-mcp-server.git",
+    "bugs": "https://github.com/brave/brave-search-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@brave/brave-search-mcp-server"
+   },
+   "publisher": "brave.com",
+   "date": "2026-09-17T14:48:15.965Z",
+   "latest": "2.1.4",
+   "bin": {
+    "brave-search-mcp-server": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/brave/brave-search-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "commander",
+    "dotenv",
+    "express",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-09-17T14:48:15.965Z",
+   "version_count": 93,
+   "dist_integrity": "sha512-a34HBs6os4Ilp0yHPV/j3UrgBQH1uTDLsNA9y5IlO30RCYUFm9QPfC0coh2c7WEDxKcHuWjVsrfuXIJNheu9YA==",
+   "attestations": false
+  },
+  {
+   "name": "@antv/mcp-server-chart",
+   "version": "0.9.10",
+   "description": "A Model Context Protocol server for generating charts using AntV. This is a TypeScript-based MCP server that provides chart generation capabilities. It allows you to create various types of charts through MCP tools.",
+   "keywords": [
+    "antv",
+    "mcp",
+    "data-visualization",
+    "chart",
+    "graph",
+    "map"
+   ],
+   "weekly": 49277,
+   "monthly": 59316,
+   "links": {
+    "homepage": "https://github.com/antvis/mcp-server-chart#readme",
+    "repository": "git+https://github.com/antvis/mcp-server-chart.git",
+    "bugs": "https://github.com/antvis/mcp-server-chart/issues",
+    "npm": "https://www.npmjs.com/package/@antv/mcp-server-chart"
+   },
+   "publisher": "atool",
+   "date": "2026-02-25T03:36:04.581Z",
+   "latest": "0.9.10",
+   "bin": {
+    "mcp-server-chart": "build/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/antvis/mcp-server-chart.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "axios",
+    "cors",
+    "express",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-02-25T03:36:04.581Z",
+   "version_count": 44,
+   "dist_integrity": "sha512-km14tIp6xoTw2whXpFvmm9dVlC+8G+W+uORb0xcRan+0zos8GgQl7D2Vxn+D6OEQZmSHd/vNbRP9/4vaXiBfLQ==",
+   "attestations": false
+  },
+  {
+   "name": "@vantasdk/vanta-mcp-server",
+   "version": "1.2.0",
+   "description": "Model Context Protocol server for Vanta's security compliance platform",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "vanta",
+    "security",
+    "compliance"
+   ],
+   "weekly": 44841,
+   "monthly": 156660,
+   "links": {
+    "homepage": "https://github.com/VantaInc/vanta-mcp-server#readme",
+    "repository": "git+https://github.com/VantaInc/vanta-mcp-server.git",
+    "bugs": "https://github.com/VantaInc/vanta-mcp-server/blob/main/SECURITY.md",
+    "npm": "https://www.npmjs.com/package/@vantasdk/vanta-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-02-25T20:09:36.104Z",
+   "latest": "1.2.0",
+   "bin": {
+    "vanta-mcp-server": "build/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/VantaInc/vanta-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-02-25T20:09:36.104Z",
+   "version_count": 3,
+   "dist_integrity": "sha512-ATu/WpMvJqJeRvMMpDiRIfwOn+peXDinX3PBUU/22X+TNxesdeI+WCsqEztZAcCsFux2J5D4mOt5rqCCOW9Haw==",
+   "attestations": true
+  },
+  {
+   "name": "@eslint/mcp",
+   "version": "0.3.16",
+   "description": "MCP server for ESLint",
+   "keywords": [
+    "eslint",
+    "mcp"
+   ],
+   "weekly": 44622,
+   "monthly": 173487,
+   "links": {
+    "homepage": "https://github.com/eslint/rewrite/tree/main/packages/mcp#readme",
+    "repository": "git+https://github.com/eslint/rewrite.git",
+    "bugs": "https://github.com/eslint/rewrite/issues",
+    "npm": "https://www.npmjs.com/package/@eslint/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-30T16:35:35.889Z",
+   "latest": "0.3.16",
+   "bin": {
+    "mcp": "src/mcp-cli.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/eslint/rewrite.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "eslint",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-30T16:35:35.889Z",
+   "version_count": 20,
+   "dist_integrity": "sha512-mGNBEEIJ2FBMdFXE6NW6VB6dxM1vqTjOz9u217UvjXPbT66/hzyY6XpGG6hdHBKHNtfZ26/6zOs0CXNYa22G2g==",
+   "attestations": true
+  },
+  {
+   "name": "exa-mcp-server",
+   "version": "3.4.3",
+   "description": "Connect AI agents to Exa for web search, content fetching, and multi-step research.",
+   "keywords": [
+    "mcp",
+    "search mcp",
+    "model context protocol",
+    "exa",
+    "agent",
+    "search",
+    "websearch",
+    "claude",
+    "ai",
+    "research",
+    "papers",
+    "people"
+   ],
+   "weekly": 44387,
+   "monthly": 164636,
+   "links": {
+    "homepage": "https://github.com/exa-labs/exa-mcp-server#readme",
+    "repository": "git+https://github.com/exa-labs/exa-mcp-server.git",
+    "bugs": "https://github.com/exa-labs/exa-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/exa-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-03T01:19:27.949Z",
+   "latest": "3.4.3",
+   "bin": {
+    "exa-mcp-server": "dist/stdio.cjs"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/exa-labs/exa-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "agnost",
+    "exa-js",
+    "jose",
+    "mcp-handler",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-03T01:19:27.949Z",
+   "version_count": 51,
+   "dist_integrity": "sha512-2tHYSFH5BfrsGwbaGqiMLe1yS9Tbr3M0cr7kJwHISF6rdsbjA9dEXH3N8F9YVOHU4mVdPWOel3Pbhyo5rsaxVg==",
+   "attestations": true
+  },
+  {
+   "name": "@meshy-ai/meshy-mcp-server",
+   "version": "0.6.11",
+   "description": "MCP server for Meshy AI 3D generation platform",
+   "keywords": [
+    "mcp",
+    "meshy",
+    "3d-generation",
+    "ai",
+    "model-context-protocol",
+    "3d-model",
+    "text-to-3d",
+    "image-to-3d"
+   ],
+   "weekly": 43494,
+   "monthly": 100775,
+   "links": {
+    "homepage": "https://github.com/meshy-dev/meshy-mcp-server#readme",
+    "repository": "git+https://github.com/meshy-dev/meshy-mcp-server.git",
+    "bugs": "https://github.com/meshy-dev/meshy-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@meshy-ai/meshy-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-10T23:40:05.209Z",
+   "latest": "0.6.11",
+   "bin": {
+    "meshy-mcp-server": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/meshy-dev/meshy-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "axios",
+    "dotenv",
+    "express",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-10T23:40:05.209Z",
+   "version_count": 18,
+   "dist_integrity": "sha512-0dTkE4SVRxojCqV3103GGPebpVlD/v70DMi8Z4Q4ZpGTFqt3SYalSzpovbWKbpT+DsE8kChG6LJ/wSazcAyIsw==",
+   "attestations": true
+  },
+  {
+   "name": "@statelyai/mcp",
+   "version": "0.28.1",
+   "description": "Reusable Stately MCP server for XState machine tooling.",
+   "keywords": [],
+   "weekly": 42212,
+   "monthly": 123174,
+   "links": {
+    "npm": "https://www.npmjs.com/package/@statelyai/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T05:00:23.005Z",
+   "latest": "0.28.1",
+   "bin": {
+    "stately-mcp": "dist/index.mjs"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@asteasolutions/zod-to-openapi",
+    "@modelcontextprotocol/client",
+    "@modelcontextprotocol/ext-apps",
+    "@modelcontextprotocol/server",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-13T05:00:23.005Z",
+   "version_count": 65,
+   "dist_integrity": "sha512-ly0OvEdFI4nPEhACnmcYg2xR6CljEzu2vPACPSpB0xgIAjtyZK7CCp89aWw3HAKg84XV3+BoX0O/KzE7Ktda4Q==",
+   "attestations": false
+  },
+  {
+   "name": "@serdnaley/metabase-mcp",
+   "version": "0.5.0",
+   "description": "Headless MCP server for Metabase: API-key auth (no OAuth), stdio or HTTP, 178 tools with toolsets, works on every Metabase tier",
+   "keywords": [
+    "metabase",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "dashboards",
+    "metabase-mcp",
+    "mcp-server",
+    "bi",
+    "analytics",
+    "api-key",
+    "headless"
+   ],
+   "weekly": 40557,
+   "monthly": 170791,
+   "links": {
+    "homepage": "https://serdnaley.github.io/metabase-mcp/",
+    "repository": "git+https://github.com/Serdnaley/metabase-mcp.git",
+    "bugs": "https://github.com/Serdnaley/metabase-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@serdnaley/metabase-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-03T09:56:06.977Z",
+   "latest": "0.5.0",
+   "bin": {
+    "metabase-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/Serdnaley/metabase-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "openapi-fetch",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-03T09:56:06.977Z",
+   "version_count": 7,
+   "dist_integrity": "sha512-ABvzocOD6WzshDexPp4PhCSgwRZ+idKh6ZqTSthdHdDtQO4g/SivEMjDQ3XQtcE0cTbTAs8f9FE4NZDiBUyPSg==",
+   "attestations": true
+  },
+  {
+   "name": "@ericthered926/duckduckgo-mcp-server",
+   "version": "0.6.0",
+   "description": "A Model Context Protocol (MCP) server for DuckDuckGo web and news search",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "duckduckgo",
+    "search",
+    "ai",
+    "llm",
+    "openwebui",
+    "mcpo"
+   ],
+   "weekly": 40250,
+   "monthly": 151858,
+   "links": {
+    "homepage": "https://github.com/ericthered926/duckduckgo-mcp-server#readme",
+    "repository": "git+https://github.com/ericthered926/duckduckgo-mcp-server.git",
+    "bugs": "https://github.com/ericthered926/duckduckgo-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@ericthered926/duckduckgo-mcp-server"
+   },
+   "publisher": "ericthered926",
+   "date": "2025-12-18T06:08:25.603Z",
+   "latest": "0.6.0",
+   "bin": {
+    "duckduckgo-mcp-server": "build/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/ericthered926/duckduckgo-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "duck-duck-scrape",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2025-12-18T06:08:25.603Z",
+   "version_count": 3,
+   "dist_integrity": "sha512-KIF3h+WXncB5+H93YWp9YSRzWY9C1qsF2J+SG2F2XXm7SoWKffvtVzQ4P+0D4cgmgCKjoPiVH5HirCc2bWTPEg==",
+   "attestations": false
+  },
+  {
+   "name": "@google-cloud/storage-mcp",
+   "version": "0.6.0",
+   "description": "Model Context Protocol (MCP) Server for interacting with GCS APIs",
+   "keywords": [
+    "storage",
+    "gcp",
+    "google cloud",
+    "mcp",
+    "mcp server"
+   ],
+   "weekly": 40155,
+   "monthly": 220923,
+   "links": {
+    "homepage": "https://github.com/googleapis/gcloud-mcp#readme",
+    "repository": "git+https://github.com/googleapis/gcloud-mcp.git",
+    "bugs": "https://github.com/googleapis/gcloud-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@google-cloud/storage-mcp"
+   },
+   "publisher": "google-wombot",
+   "date": "2026-05-06T23:39:44.180Z",
+   "latest": "0.6.0",
+   "bin": {
+    "storage-mcp": "dist/bundle.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/googleapis/gcloud-mcp.git",
+   "dependencies": [
+    "@google-cloud/bigquery",
+    "@google-cloud/service-usage",
+    "@google-cloud/storage",
+    "@google-cloud/storageinsights",
+    "@modelcontextprotocol/sdk",
+    "@types/yargs",
+    "chardet",
+    "google-auth-library",
+    "googleapis",
+    "iconv-lite",
+    "mime-types",
+    "yargs",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-05-06T23:39:44.180Z",
+   "version_count": 9,
+   "dist_integrity": "sha512-txBCDxbMR4lXPoU3NJBh3fDA33OKdoGDg8PdDcEVxH+jOIYIwxELVD9Tdpf1W88REcELz4EZ+ewvdcLSaaCuIQ==",
+   "attestations": false
+  },
+  {
+   "name": "@tableau/mcp-server",
+   "version": "6.0.4",
+   "description": "Helping agents see and understand data.",
+   "keywords": [
+    "tableau",
+    "mcp"
+   ],
+   "weekly": 39097,
+   "monthly": 97845,
+   "links": {
+    "homepage": "https://github.com/tableau/tableau-mcp",
+    "repository": "git+https://github.com/tableau/tableau-mcp.git",
+    "bugs": "https://github.com/tableau/tableau-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@tableau/mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-09T20:51:16.107Z",
+   "latest": "6.0.4",
+   "bin": {
+    "tableau-mcp-server": "build/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/tableau/tableau-mcp.git",
+   "dependencies": [
+    "@aws-sdk/client-s3",
+    "@aws-sdk/s3-request-presigner",
+    "@mjackson/multipart-parser",
+    "@modelcontextprotocol/ext-apps",
+    "@modelcontextprotocol/sdk",
+    "@xmldom/xmldom",
+    "@zodios/core",
+    "cookie-parser",
+    "cors",
+    "csv-parse",
+    "dotenv",
+    "express",
+    "fast-levenshtein",
+    "jose",
+    "mime-types",
+    "ssrfcheck",
+    "ts-results-es",
+    "uuid",
+    "xpath",
+    "zod",
+    "zod-validation-error"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-09T20:51:16.107Z",
+   "version_count": 59,
+   "dist_integrity": "sha512-fQVT6aCjCLFdhclde8ko0hjs7uc1SKvWwiixpWXFmYcidSouPY7L2DgX+5+6bj88OSBNEfiELh08ECHw8swu9w==",
+   "attestations": true
+  },
+  {
+   "name": "@paperclipai/mcp-server",
+   "version": "2026.1106.0",
+   "description": "Model Context Protocol server for Paperclip.",
+   "keywords": [],
+   "weekly": 36846,
+   "monthly": 111104,
+   "links": {
+    "homepage": "https://github.com/paperclipai/paperclip",
+    "repository": "git+https://github.com/paperclipai/paperclip.git",
+    "bugs": "https://github.com/paperclipai/paperclip/issues",
+    "npm": "https://www.npmjs.com/package/@paperclipai/mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-06T22:22:54.964Z",
+   "latest": "2026.1106.0",
+   "bin": {
+    "paperclip-mcp-server": "dist/stdio.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/paperclipai/paperclip.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@paperclipai/shared",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-06T22:22:54.964Z",
+   "version_count": 2290,
+   "dist_integrity": "sha512-C18c+bru9v919LEwpOtyIwkJkD6Wym/26yuaOMDv93kD2l7l3snRKElo4wEnFLV8J0sMc2mrxYLtBqLMiUegAg==",
+   "attestations": true
+  },
+  {
+   "name": "@shopify/dev-mcp",
+   "version": "1.18.0",
+   "description": "A command line tool for setting up Shopify Dev MCP server",
+   "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "shopify"
+   ],
+   "weekly": 36045,
+   "monthly": 231980,
+   "links": {
+    "npm": "https://www.npmjs.com/package/@shopify/dev-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-27T16:08:30.554Z",
+   "latest": "1.18.0",
+   "bin": {
+    "shopify-dev-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@react-router/dev",
+    "@shopify/app-bridge-react",
+    "@shopify/app-bridge-types",
+    "@shopify/cli",
+    "@shopify/hydrogen",
+    "@shopify/hydrogen-react",
+    "@shopify/polaris-types",
+    "@shopify/theme-check-common",
+    "@shopify/theme-check-docs-updater",
+    "@shopify/theme-check-node",
+    "@types/react",
+    "graphql",
+    "preact",
+    "react-router",
+    "schema-dts",
+    "toml",
+    "type-fest",
+    "typescript",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-27T16:08:30.554Z",
+   "version_count": 145,
+   "dist_integrity": "sha512-XvmIpe1TW3QHjV5gb+hbi9k8ucQuHd7uQhZ0F3T6Q72QG+fqFgpiaQ2N58TnHYNnuoxB0upTL6NsLYSliwQzvg==",
+   "attestations": false
+  },
+  {
+   "name": "@apify/actors-mcp-server",
+   "version": "0.21.10",
+   "description": "Apify MCP Server",
+   "keywords": [
+    "apify",
+    "mcp",
+    "server",
+    "actors",
+    "model context protocol"
+   ],
+   "weekly": 35985,
+   "monthly": 131828,
+   "links": {
+    "homepage": "https://mcp.apify.com",
+    "repository": "https://github.com/apify/apify-mcp-server.git",
+    "bugs": "https://github.com/apify/apify-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@apify/actors-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T16:20:31.881Z",
+   "latest": "0.21.10",
+   "bin": {
+    "actors-mcp-server": "./dist/stdio.js"
+   },
+   "deprecated": false,
+   "repository": "https://github.com/apify/apify-mcp-server.git",
+   "dependencies": [
+    "@apify/utilities",
+    "@modelcontextprotocol/ext-apps",
+    "@modelcontextprotocol/node",
+    "@modelcontextprotocol/sdk",
+    "@modelcontextprotocol/server",
+    "@segment/analytics-node",
+    "@sentry/node",
+    "ajv",
+    "algoliasearch",
+    "apify-client",
+    "axios",
+    "dedent",
+    "dotenv",
+    "express",
+    "proxy-agent",
+    "yargs",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-13T16:20:31.881Z",
+   "version_count": 659,
+   "dist_integrity": "sha512-z54+G7YxFpciLk13p/KXtM/B/82JfPE+XT95Nsszyz2MtoaJcae2R2xsJcee+nDZVoIcWNTSXheHM3Hb8wD6uA==",
+   "attestations": true
+  },
+  {
+   "name": "@larksuiteoapi/lark-mcp",
+   "version": "0.5.1",
+   "description": "Feishu/Lark OpenAPI MCP",
+   "keywords": [
+    "feishu",
+    "lark",
+    "mcp",
+    "open-api",
+    "ai"
+   ],
+   "weekly": 35462,
+   "monthly": 111053,
+   "links": {
+    "homepage": "https://github.com/larksuite/lark-openapi-mcp",
+    "npm": "https://www.npmjs.com/package/@larksuiteoapi/lark-mcp"
+   },
+   "publisher": "chenli.idevlab",
+   "date": "2025-08-06T07:42:24.749Z",
+   "latest": "0.5.1",
+   "bin": {
+    "lark-mcp": "dist/cli.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@larksuiteoapi/node-sdk",
+    "@modelcontextprotocol/sdk",
+    "axios",
+    "commander",
+    "dotenv",
+    "env-paths",
+    "express",
+    "keytar",
+    "open",
+    "proxy-agent"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2025-08-06T07:42:24.749Z",
+   "version_count": 9,
+   "dist_integrity": "sha512-KgSzQIvVFUTHKjmTvAg3sSeyIZJ35CXMZQ3HygwT8/tQzDkuM4RsUSoVK4TVJKVsKCHP3QBOV9sAyBmMCBNc9g==",
+   "attestations": false
+  },
+  {
+   "name": "@winor30/mcp-server-datadog",
+   "version": "1.8.0",
+   "description": "MCP server for interacting with Datadog API",
+   "keywords": [],
+   "weekly": 33859,
+   "monthly": 148758,
+   "links": {
+    "homepage": "https://github.com/winor30/mcp-server-datadog#readme",
+    "repository": "git+https://github.com/winor30/mcp-server-datadog.git",
+    "bugs": "https://github.com/winor30/mcp-server-datadog/issues",
+    "npm": "https://www.npmjs.com/package/@winor30/mcp-server-datadog"
+   },
+   "publisher": "winor30",
+   "date": "2026-06-22T12:19:38.392Z",
+   "latest": "1.8.0",
+   "bin": {
+    "mcp-server-datadog": "build/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/winor30/mcp-server-datadog.git",
+   "dependencies": [
+    "@datadog/datadog-api-client",
+    "@modelcontextprotocol/sdk",
+    "zod",
+    "zod-to-json-schema"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-06-22T12:19:38.392Z",
+   "version_count": 11,
+   "dist_integrity": "sha512-h6HySYW/q2YdzNdrUc7aOaRoaer4oYrDuy0QRQEZkzgfGey+Dmot2IeYI25jYaR4bu0fKoZbIx6UVmfIMF5Pcw==",
+   "attestations": true
+  },
+  {
+   "name": "@microsoft/powerbi-modeling-mcp",
+   "version": "1.0.1",
+   "description": "Power BI Authoring MCP Server - Node.js client packaging to author Power BI semantic models in Power BI Desktop, Microsoft Fabric workspaces, and local PBIP and TMDL files.",
+   "keywords": [
+    "powerbi",
+    "modeling",
+    "mcp",
+    "model-context-protocol",
+    "semantic-model",
+    "tabular",
+    "analysis-services"
+   ],
+   "weekly": 31439,
+   "monthly": 54212,
+   "links": {
+    "homepage": "https://github.com/microsoft/powerbi-modeling-mcp#readme",
+    "repository": "git+https://github.com/microsoft/powerbi-modeling-mcp.git",
+    "bugs": "https://github.com/microsoft/powerbi-modeling-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@microsoft/powerbi-modeling-mcp"
+   },
+   "publisher": "microsoft1es",
+   "date": "2026-11-06T11:54:05.375Z",
+   "latest": "1.0.1",
+   "bin": {
+    "powerbi-modeling-mcp": "index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/microsoft/powerbi-modeling-mcp.git",
+   "dependencies": [
+    "@microsoft/powerbi-modeling-mcp-linux-arm64",
+    "@microsoft/powerbi-modeling-mcp-linux-x64",
+    "@microsoft/powerbi-modeling-mcp-win32-arm64",
+    "@microsoft/powerbi-modeling-mcp-win32-x64"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-06T11:54:05.375Z",
+   "version_count": 17,
+   "dist_integrity": "sha512-X9qFljeih6y2Cydu7Njwczab6Xwlm36xtGShB1/ypSviAyTLVmRr3SFE+tdd48yl06B48b4mDujvEIqJx1avTw==",
+   "attestations": false
+  },
+  {
+   "name": "@browserstack/mcp-server",
+   "version": "2.6.8",
+   "description": "BrowserStack's Official MCP Server",
+   "keywords": [
+    "mcp",
+    "browserstack",
+    "testing",
+    "automation"
+   ],
+   "weekly": 30879,
+   "monthly": 117398,
+   "links": {
+    "homepage": "https://github.com/browserstack/mcp-server#readme",
+    "repository": "git+https://github.com/browserstack/mcp-server.git",
+    "bugs": "https://github.com/browserstack/mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@browserstack/mcp-server"
+   },
+   "publisher": "browserstack-admin",
+   "date": "2026-11-12T13:25:04.639Z",
+   "latest": "2.6.8",
+   "bin": {
+    "browserstack-mcp-server": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/browserstack/mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@types/form-data",
+    "axios",
+    "browserstack-local",
+    "csv-parse",
+    "dotenv",
+    "form-data",
+    "jszip",
+    "pino",
+    "pino-pretty",
+    "sharp",
+    "uuid",
+    "webdriverio",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-12T13:25:04.639Z",
+   "version_count": 198,
+   "dist_integrity": "sha512-os/DJ/2T2+U+k1To0wYKIyHT4o+6TIKyXWCvmaCgmQLkhmB8LioMAW6SwBEgcCECWXbRAOhscv5I4jmklq/Fpw==",
+   "attestations": true
+  },
+  {
+   "name": "@google-cloud/observability-mcp",
+   "version": "0.2.3",
+   "description": "MCP Server for GCP environment for interacting with various Observability APIs.",
+   "keywords": [
+    "gcp",
+    "google cloud",
+    "mcp",
+    "mcp server",
+    "observability"
+   ],
+   "weekly": 29687,
+   "monthly": 270047,
+   "links": {
+    "homepage": "https://github.com/googleapis/gcloud-mcp#readme",
+    "repository": "git+https://github.com/googleapis/gcloud-mcp.git",
+    "bugs": "https://github.com/googleapis/gcloud-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@google-cloud/observability-mcp"
+   },
+   "publisher": "google-wombot",
+   "date": "2026-02-11T15:29:10.936Z",
+   "latest": "0.2.3",
+   "bin": {
+    "observability-mcp": "dist/bundle.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/googleapis/gcloud-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@types/yargs",
+    "google-auth-library",
+    "googleapis",
+    "yargs",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-02-11T15:29:10.936Z",
+   "version_count": 7,
+   "dist_integrity": "sha512-Pn7JNA2PF168jUp196Jj9xwSdTtfcIu43Cqeaxh2O4oLMBAcjjK45K6zWvimWBOMuifJaUvtoSt+cLnZIdYpgw==",
+   "attestations": false
+  },
+  {
+   "name": "@taiga-ai/mcp-server",
+   "version": "0.37.0",
+   "description": "Taiga for AI coding assistants: read products, policies, initiatives and runs, and operate the line, over MCP",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "taiga",
+    "ai",
+    "claude"
+   ],
+   "weekly": 29021,
+   "monthly": 99127,
+   "links": {
+    "homepage": "https://docs.tai.ga",
+    "npm": "https://www.npmjs.com/package/@taiga-ai/mcp-server"
+   },
+   "publisher": "teemu-ijas",
+   "date": "2026-11-02T19:15:41.266Z",
+   "latest": "0.37.0",
+   "bin": {
+    "taiga-mcp-server": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-02T19:15:41.266Z",
+   "version_count": 1161,
+   "dist_integrity": "sha512-LdD/db1uRLRMMkeICjH0csZDl5diQg1PPMJx0S5azKRF9lFse29PtkQv6pWN46HScmYouO6ZUEDWla6m3vGZmQ==",
+   "attestations": false
+  },
+  {
+   "name": "@togglhq/mcp",
+   "version": "1.13.280",
+   "description": "Toggl 2.0 MCP server for Claude Code, Claude Desktop, and other MCP clients.",
+   "keywords": [],
+   "weekly": 28134,
+   "monthly": 85285,
+   "links": {
+    "homepage": "https://github.com/toggl/toggl-mcp#readme",
+    "repository": "git+https://github.com/toggl/toggl-mcp.git",
+    "bugs": "https://github.com/toggl/toggl-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@togglhq/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T19:45:51.017Z",
+   "latest": "1.13.280",
+   "bin": {
+    "mcp": "build/cli.js",
+    "toggl-mcp": "build/cli.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@sentry/node",
+    "date-fns"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-13T19:45:51.017Z",
+   "version_count": 601,
+   "dist_integrity": "sha512-p/Q5LJ0YLnR5jjj1XEJwnBst4K0e6bM8QzqoYF2J3h4ropUbuDPN9RKHbe4Zo8zOLYOLYyqJds22qTBQpthR1g==",
+   "attestations": false
+  },
+  {
+   "name": "@foldkit/devtools-mcp",
+   "version": "0.26.0",
+   "description": "MCP server exposing Foldkit DevTools to AI agents (Claude Code, Cursor, etc.)",
+   "keywords": [
+    "foldkit",
+    "mcp",
+    "model-context-protocol",
+    "devtools",
+    "ai"
+   ],
+   "weekly": 27335,
+   "monthly": 73354,
+   "links": {
+    "homepage": "https://foldkit.dev/ai/mcp",
+    "repository": "git+https://github.com/foldkit/foldkit.git",
+    "bugs": "https://github.com/foldkit/foldkit/issues",
+    "npm": "https://www.npmjs.com/package/@foldkit/devtools-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-29T19:12:30.332Z",
+   "latest": "0.26.0",
+   "bin": {
+    "foldkit-devtools-mcp": "dist/server.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/foldkit/foldkit.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "ws"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-29T19:12:30.332Z",
+   "version_count": 328,
+   "dist_integrity": "sha512-MhIAG28hBsGV43XuXbpschvp+D0UKNTF6YwNCDn7mYHxfaIFx56GONAAvmupuHSxZgEtbEXSmOetMB8vukxSFw==",
+   "attestations": true
+  },
+  {
+   "name": "@browsermcp/mcp",
+   "version": "2.5.0",
+   "description": "MCP server for browser automation using Browser MCP",
+   "keywords": [],
+   "weekly": 25734,
+   "monthly": 128993,
+   "links": {
+    "homepage": "https://browsermcp.io",
+    "repository": "git+https://github.com/BrowserMCP/mcp.git",
+    "bugs": "https://github.com/browsermcp/mcp/issues",
+    "npm": "https://www.npmjs.com/package/@browsermcp/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-12T12:00:52.246Z",
+   "latest": "2.5.0",
+   "bin": {
+    "mcp-server-browsermcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/BrowserMCP/mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "commander",
+    "playwright-core",
+    "ws",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-12T12:00:52.246Z",
+   "version_count": 10,
+   "dist_integrity": "sha512-d1uImDZY26216UiLtmxqc5HVIsTJnlZ/j/pmf6bJ4JgQau5vCK3bylhhxJ/75QrKBF/msZyg0UWQyCBqM9QXOA==",
+   "attestations": false
+  },
+  {
+   "name": "@agimon-ai/po-logsink",
+   "version": "0.0.1-alpha.138",
+   "description": "Log sink MCP server with HTTP ingestion and AI analysis",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "pi-package",
+    "telemetry",
+    "typescript"
+   ],
+   "weekly": 25445,
+   "monthly": 75882,
+   "links": {
+    "homepage": "https://agimon.ai",
+    "npm": "https://www.npmjs.com/package/@agimon-ai/po-logsink"
+   },
+   "publisher": "agiflow-ai",
+   "date": "2026-11-14T03:56:29.347Z",
+   "latest": "0.0.1-alpha.138",
+   "bin": {
+    "po-logsink": "./dist/cli.mjs"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@agimon-ai/foundation-port-registry",
+    "@agimon-ai/foundation-process-registry",
+    "@agimon-ai/foundation-validator",
+    "@hono/node-server",
+    "@hono/zod-validator",
+    "@modelcontextprotocol/server",
+    "@opentelemetry/api",
+    "@opentelemetry/api-logs",
+    "@opentelemetry/exporter-logs-otlp-http",
+    "@opentelemetry/exporter-metrics-otlp-http",
+    "@opentelemetry/exporter-trace-otlp-http",
+    "@opentelemetry/otlp-transformer",
+    "@opentelemetry/resources",
+    "@opentelemetry/sdk-logs",
+    "@opentelemetry/sdk-metrics",
+    "@opentelemetry/sdk-trace-node",
+    "commander",
+    "drizzle-orm",
+    "hono",
+    "hono-rate-limiter",
+    "inversify",
+    "reflect-metadata",
+    "ruvector-onnx-embeddings-wasm",
+    "sqlite-vec",
+    "ulidx",
+    "yaml"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-11-14T03:56:29.347Z",
+   "version_count": 140,
+   "dist_integrity": "sha512-Yy+4eH8nbwnSubE79VJniU43YK+Sv74V+wEIjvH2kQPlEALY3TOTSDI6lJsrh88Ybvfm3iYVWAJIogpzPphwNQ==",
+   "attestations": false
+  },
+  {
+   "name": "@hasna/todos",
+   "version": "0.18.0",
+   "description": "Universal task management for AI coding agents - CLI + MCP server + interactive TUI",
+   "keywords": [
+    "todos",
+    "tasks",
+    "mcp",
+    "ai",
+    "coding-agent",
+    "claude",
+    "codex",
+    "gemini",
+    "tui",
+    "cli",
+    "dashboard"
+   ],
+   "weekly": 24509,
+   "monthly": 80529,
+   "links": {
+    "homepage": "https://github.com/hasna/apps/tree/main/apps/todos#readme",
+    "repository": "git+https://github.com/hasna/apps.git",
+    "bugs": "https://github.com/hasna/apps/issues",
+    "npm": "https://www.npmjs.com/package/@hasna/todos"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-06T00:34:15.589Z",
+   "latest": "0.18.0",
+   "bin": {
+    "todos": "dist/cli/index.js",
+    "todos-mcp": "dist/mcp/index.js",
+    "todos-serve": "dist/server/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/hasna/apps.git",
+   "dependencies": [
+    "@hasna/contracts",
+    "@hasna/events",
+    "@modelcontextprotocol/sdk",
+    "chalk",
+    "commander",
+    "ink",
+    "react",
+    "signal-exit",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-06T00:34:15.589Z",
+   "version_count": 268,
+   "dist_integrity": "sha512-tn6mLA6TYQ0mEjtVOZlRRRhlcKvGIwd/6t+5wAhUGDPhxEx+7fgMMqfnSGjhlW8rSd1GRhXjZWUP1300/3f1Ig==",
+   "attestations": false
+  },
+  {
+   "name": "argocd-mcp",
+   "version": "0.9.0",
+   "description": "Argo CD MCP Server",
+   "keywords": [
+    "mcp",
+    "argocd",
+    "argocd-mcp",
+    "argocd-mcp-server",
+    "argo-cd",
+    "argo-cd-mcp",
+    "argo-cd-mcp-server",
+    "cicd",
+    "cicd-mcp",
+    "cicd-mcp-server",
+    "gitops",
+    "gitops-mcp",
+    "gitops-mcp-server",
+    "kubernetes",
+    "kubernetes-mcp",
+    "kubernetes-mcp-server"
+   ],
+   "weekly": 24148,
+   "monthly": 93693,
+   "links": {
+    "homepage": "https://github.com/argoproj-labs/mcp-for-argocd#readme",
+    "repository": "git+https://github.com/argoproj-labs/mcp-for-argocd.git",
+    "bugs": "https://github.com/argoproj-labs/mcp-for-argocd/issues",
+    "npm": "https://www.npmjs.com/package/argocd-mcp"
+   },
+   "publisher": "alexander-akuity",
+   "date": "2026-08-11T15:33:14.317Z",
+   "latest": "0.9.0",
+   "bin": {
+    "argocd-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/argoproj-labs/mcp-for-argocd.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "dotenv",
+    "express",
+    "pino",
+    "yargs",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-08-11T15:33:14.317Z",
+   "version_count": 15,
+   "dist_integrity": "sha512-5xfz8JB2ZNCcl/fvkJJnX1aH7AdmSD68cZDY/xzwRoBtoedfDXnwEKN3TBcItFkr0IDpMNR4sXwcsEE4R14trw==",
+   "attestations": true
+  },
+  {
+   "name": "opencode-mcp",
+   "version": "3.1.0",
+   "description": "MCP server for OpenCode coding workflows, durable async jobs, project resources, and explicit user input",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "opencode",
+    "ai",
+    "llm",
+    "claude",
+    "cursor",
+    "windsurf",
+    "coding-assistant",
+    "headless",
+    "server",
+    "tools"
+   ],
+   "weekly": 24126,
+   "monthly": 90787,
+   "links": {
+    "homepage": "https://github.com/AlaeddineMessadi/opencode-mcp#readme",
+    "repository": "git+https://github.com/AlaeddineMessadi/opencode-mcp.git",
+    "bugs": "https://github.com/AlaeddineMessadi/opencode-mcp/issues",
+    "npm": "https://www.npmjs.com/package/opencode-mcp"
+   },
+   "publisher": "almessadi",
+   "date": "2026-10-29T01:28:07.457Z",
+   "latest": "3.1.0",
+   "bin": {
+    "opencode-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/AlaeddineMessadi/opencode-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/core",
+    "@modelcontextprotocol/server",
+    "@opencode-ai/sdk",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": false,
+   "time_latest": "2026-10-29T01:28:07.457Z",
+   "version_count": 17,
+   "dist_integrity": "sha512-x4JLxKxh2fgKYiUzyGp+TlvYGBe5u8xXkltftswIFEvUufKW1WXnqJWsfgXmMo+DYweYudjxbeoOCdTBRGoKQA==",
+   "attestations": false
+  },
+  {
+   "name": "@xeroapi/xero-mcp-server",
+   "version": "0.0.18",
+   "description": "MCP server implementation for Xero integration",
+   "keywords": [],
+   "weekly": 24013,
+   "monthly": 140520,
+   "links": {
+    "homepage": "https://github.com/XeroAPI/xero-mcp-server#readme",
+    "repository": "git://github.com/XeroAPI/xero-mcp-server.git",
+    "bugs": "https://github.com/XeroAPI/xero-mcp-server/issues",
+    "npm": "https://www.npmjs.com/package/@xeroapi/xero-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-10T01:29:58.913Z",
+   "latest": "0.0.18",
+   "bin": {
+    "xero-mcp-server": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git://github.com/XeroAPI/xero-mcp-server.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "dotenv",
+    "openid-client",
+    "xero-node",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-10T01:29:58.913Z",
+   "version_count": 18,
+   "dist_integrity": "sha512-wa+WchaKm8LcG6GQ+W5dniZZCUq/9cs7y+R5LopeKrWThOCxvnf9XaR6cCEh+aWuOzseXqIK/GS7Xlfl8iCWJw==",
+   "attestations": true
+  },
+  {
+   "name": "freee-mcp",
+   "version": "0.38.0",
+   "description": "Model Context Protocol (MCP) server for freee API integration",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "freee",
+    "api",
+    "accounting",
+    "claude"
+   ],
+   "weekly": 23644,
+   "monthly": 68938,
+   "links": {
+    "homepage": "https://github.com/freee/freee-mcp#readme",
+    "repository": "git+https://github.com/freee/freee-mcp.git",
+    "bugs": "https://github.com/freee/freee-mcp/issues",
+    "npm": "https://www.npmjs.com/package/freee-mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-12T08:27:34.215Z",
+   "latest": "0.38.0",
+   "bin": {
+    "freee-mcp": "bin/freee-mcp.js",
+    "freee-sign-mcp": "bin/freee-sign-mcp.js",
+    "freee-remote-mcp": "bin/freee-remote-mcp.js",
+    "freee-sign-remote-mcp": "bin/freee-sign-remote-mcp.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/freee/freee-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "@opentelemetry/api",
+    "@opentelemetry/context-async-hooks",
+    "@opentelemetry/core",
+    "@opentelemetry/exporter-metrics-otlp-http",
+    "@opentelemetry/exporter-trace-otlp-http",
+    "@opentelemetry/resources",
+    "@opentelemetry/sdk-metrics",
+    "@opentelemetry/sdk-trace-base",
+    "cors",
+    "express",
+    "express-rate-limit",
+    "helmet",
+    "ioredis",
+    "jose",
+    "open",
+    "pino",
+    "prompts",
+    "rate-limit-redis",
+    "serialize-error",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-12T08:27:34.215Z",
+   "version_count": 89,
+   "dist_integrity": "sha512-h2PHJq9zj0G8Fi9De+NV48kzJhwtwYSkpFM6ZXuHIiCg0SzLeytkxAJcHphVfwApWK8wLB24jMS1w/9l/El3wA==",
+   "attestations": true
+  },
+  {
+   "name": "@sendinel/mcp-server",
+   "version": "1.0.248",
+   "description": "AI-controlled email operations control plane for campaigns, contacts, segments, analytics, and multi-provider sending via MCP.",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "sendinel",
+    "email",
+    "claude",
+    "cursor",
+    "codex"
+   ],
+   "weekly": 23153,
+   "monthly": 40529,
+   "links": {
+    "homepage": "https://sendinel.ai/developer",
+    "repository": "git+https://github.com/kmdesle/sendinel-ai.git",
+    "bugs": "https://github.com/kmdesle/sendinel-ai/issues",
+    "npm": "https://www.npmjs.com/package/@sendinel/mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-14T09:10:59.345Z",
+   "latest": "1.0.248",
+   "bin": {
+    "sendinel-mcp": "build/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/kmdesle/sendinel-ai.git",
+   "dependencies": [
+    "@anthropic-ai/sdk",
+    "@desler/models",
+    "@modelcontextprotocol/sdk",
+    "@sendinel/domain",
+    "@supabase/supabase-js",
+    "dotenv",
+    "express",
+    "fast-xml-parser",
+    "file-type",
+    "jose",
+    "qrcode",
+    "resend",
+    "undici",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-14T09:10:59.345Z",
+   "version_count": 249,
+   "dist_integrity": "sha512-6LrpOcYkrwQ3XQrY+HkThukwT2T+O0jV40kNaSD/1WKTKi4J7/aq/WI+sdlD6XQGbsQguWKBAfUEoHDYSvIAqg==",
+   "attestations": false
+  },
+  {
+   "name": "@brightdata/mcp",
+   "version": "4.8.0",
+   "description": "An MCP interface into the Bright Data toolset",
+   "keywords": [
+    "mcp",
+    "brightdata"
+   ],
+   "weekly": 22736,
+   "monthly": 73322,
+   "links": {
+    "homepage": "https://github.com/brightdata/brightdata-mcp#readme",
+    "repository": "git+https://github.com/brightdata/brightdata-mcp.git",
+    "bugs": "https://github.com/brightdata/brightdata-mcp/issues",
+    "npm": "https://www.npmjs.com/package/@brightdata/mcp"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-10T13:01:24.790Z",
+   "latest": "4.8.0",
+   "bin": {
+    "mcp": "server.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/brightdata/brightdata-mcp.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "axios",
+    "fastmcp",
+    "playwright",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-10T13:01:24.790Z",
+   "version_count": 69,
+   "dist_integrity": "sha512-RmZejd7iitsXOhZt5bMfXzwwKNQMDdgBWySw2UDAU6D/nB4Uc0kgsym4pBFV5Qvob7d25DnLuyuE6Dp4GiLYIA==",
+   "attestations": true
+  },
+  {
+   "name": "@next-ai-drawio/mcp-server",
+   "version": "0.4.15",
+   "description": "draw.io MCP server for Claude Code, Cursor, Codex and VS Code: the AI draws on a live browser canvas you can also edit by hand, with versions and undo",
+   "keywords": [
+    "mcp",
+    "mcp-server",
+    "drawio",
+    "draw.io",
+    "diagrams.net",
+    "diagram",
+    "architecture-diagram",
+    "flowchart",
+    "ai",
+    "claude",
+    "claude-code",
+    "cursor",
+    "codex",
+    "model-context-protocol"
+   ],
+   "weekly": 21817,
+   "monthly": 69881,
+   "links": {
+    "homepage": "https://github.com/DayuanJiang/next-ai-draw-io/tree/main/packages/mcp-server#readme",
+    "repository": "git+https://github.com/DayuanJiang/next-ai-draw-io.git",
+    "bugs": "https://github.com/DayuanJiang/next-ai-draw-io/issues",
+    "npm": "https://www.npmjs.com/package/@next-ai-drawio/mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-14T00:21:11.703Z",
+   "latest": "0.4.15",
+   "bin": {
+    "next-ai-drawio-mcp": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/DayuanJiang/next-ai-draw-io.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "linkedom",
+    "open",
+    "pako",
+    "saxes",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-14T00:21:11.703Z",
+   "version_count": 39,
+   "dist_integrity": "sha512-t0X5MNyNe0598dlh17CQb1vpP4ENGhMmLfzdxJtK9S93dxze7gKw+SZ/tMXgZKGVE6tItavRZDj0f1CuQ6+YMQ==",
+   "attestations": true
+  },
+  {
+   "name": "mcp-server-kubernetes",
+   "version": "4.2.3",
+   "description": "MCP server for interacting with Kubernetes clusters via kubectl",
+   "keywords": [
+    "mcp",
+    "kubernetes",
+    "claude",
+    "anthropic",
+    "kubectl"
+   ],
+   "weekly": 21598,
+   "monthly": 74247,
+   "links": {
+    "homepage": "https://github.com/Flux159/mcp-server-kubernetes#readme",
+    "repository": "git+https://github.com/Flux159/mcp-server-kubernetes.git",
+    "bugs": "https://github.com/Flux159/mcp-server-kubernetes/issues",
+    "npm": "https://www.npmjs.com/package/mcp-server-kubernetes"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-11-13T05:48:20.827Z",
+   "latest": "4.2.3",
+   "bin": {
+    "mcp-server-kubernetes": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/Flux159/mcp-server-kubernetes.git",
+   "dependencies": [
+    "@kubernetes/client-node",
+    "@modelcontextprotocol/sdk",
+    "@opentelemetry/api",
+    "@opentelemetry/auto-instrumentations-node",
+    "@opentelemetry/exporter-trace-otlp-grpc",
+    "@opentelemetry/resources",
+    "@opentelemetry/sdk-node",
+    "@opentelemetry/semantic-conventions",
+    "express",
+    "js-yaml",
+    "yaml",
+    "zod"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-11-13T05:48:20.827Z",
+   "version_count": 105,
+   "dist_integrity": "sha512-jKsGXMghOrn8IVRl7VVZGi/f5P+XVWLq0iZi6JuoogG4ZYI4QT582o2GPxzdYKcyYMkEoA3kpZBQ57wogQ3lnw==",
+   "attestations": true
+  },
+  {
+   "name": "@hypothesi/tauri-mcp-server",
+   "version": "0.13.2",
+   "description": "A Model Context Protocol server for use with Tauri v2 applications",
+   "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "tauri",
+    "automation",
+    "screenshot",
+    "verification",
+    "testing",
+    "debugging",
+    "cursor",
+    "windsurf",
+    "vscode",
+    "claude-code"
+   ],
+   "weekly": 21453,
+   "monthly": 36430,
+   "links": {
+    "homepage": "https://github.com/hypothesi/mcp-server-tauri#readme",
+    "repository": "git+https://github.com/hypothesi/mcp-server-tauri.git",
+    "bugs": "https://github.com/hypothesi/mcp-server-tauri/issues",
+    "npm": "https://www.npmjs.com/package/@hypothesi/tauri-mcp-server"
+   },
+   "publisher": "GitHub Actions",
+   "date": "2026-10-22T19:39:02.669Z",
+   "latest": "0.13.2",
+   "bin": {
+    "mcp-server-tauri": "dist/index.js"
+   },
+   "deprecated": false,
+   "repository": "git+https://github.com/hypothesi/mcp-server-tauri.git",
+   "dependencies": [
+    "@modelcontextprotocol/sdk",
+    "aria-api",
+    "execa",
+    "html2canvas-pro",
+    "ws",
+    "zod",
+    "zod-to-json-schema"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2026-10-22T19:39:02.669Z",
+   "version_count": 32,
+   "dist_integrity": "sha512-N6pMShtFr/YhBxSVD5Vgjcrq7YEaDPrirS04A2upu5tpwj3k5Qive0tIIyAUkmUeqNNy9ZGf7xT5EQBdBB3yPg==",
+   "attestations": true
+  },
+  {
+   "name": "replicate-mcp",
+   "version": "0.9.0",
+   "description": "Official MCP server for Replicate's HTTP API",
+   "keywords": [],
+   "weekly": 21446,
+   "monthly": 93365,
+   "links": {
+    "homepage": "https://replicate.com/docs/reference/mcp",
+    "repository": "git+https://github.com/replicate/replicate-typescript-stainless.git",
+    "npm": "https://www.npmjs.com/package/replicate-mcp"
+   },
+   "publisher": "replicatebot",
+   "date": "2025-06-09T22:09:59.304Z",
+   "latest": "0.9.0",
+   "bin": {
+    "mcp-server": "index.js"
+   },
+   "deprecated": false,
+   "repository": null,
+   "dependencies": [
+    "@cloudflare/cabidela",
+    "@modelcontextprotocol/sdk",
+    "replicate-stainless",
+    "yargs",
+    "zod",
+    "zod-to-json-schema"
+   ],
+   "has_mcp_sdk_dep": true,
+   "time_latest": "2025-06-09T22:09:59.304Z",
+   "version_count": 90,
+   "dist_integrity": "sha512-cGy2b/csNdyxSzRPev1RL4+L5ALDRWuDGWDR178QDzm964vW2LtdSyv3er4i9kumlcoe57dF2iNcCmqtSeVl2w==",
+   "attestations": false
+  }
+ ]
+}

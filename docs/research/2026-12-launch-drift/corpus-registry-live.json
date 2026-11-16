@@ -1,0 +1,1808 @@
+{
+ "built": "2026-11-14",
+ "seed": 20261114,
+ "ranked": [
+  {
+   "type": "npm",
+   "package": "@playwright/mcp",
+   "version": "0.0.85",
+   "server": "io.github.microsoft/playwright-mcp",
+   "transport": "stdio",
+   "downloads": 10759741,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "browser-use",
+   "version": "0.13.11",
+   "server": "com.browser-use/browser-use",
+   "transport": "stdio",
+   "downloads": 7239761,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "npm",
+   "package": "firebase-tools",
+   "version": "14.27.0",
+   "server": "io.github.firebase/firebase-mcp",
+   "transport": "stdio",
+   "downloads": 5010100,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "fallow",
+   "version": "3.43.0",
+   "server": "io.github.fallow-rs/fallow",
+   "transport": "stdio",
+   "downloads": 2441495,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "seleniumbase",
+   "version": "4.57.1",
+   "server": "io.github.seleniumbase/seleniumbase",
+   "transport": "stdio",
+   "downloads": 1698306,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-proxy-for-aws",
+   "version": "1.1.6",
+   "server": "aws.api.us-east-1.ecs-mcp/server",
+   "transport": "stdio",
+   "downloads": 1560583,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "npm",
+   "package": "color-space",
+   "version": "3.5.0",
+   "server": "io.github.colorjs/color-space",
+   "transport": "stdio",
+   "downloads": 1263252,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "edgartools",
+   "version": "6.1.0",
+   "server": "io.github.dgunning/edgartools",
+   "transport": "stdio",
+   "downloads": 1186868,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "pypi",
+   "package": "scrapling",
+   "version": "0.5.1",
+   "server": "io.github.D4Vinci/Scrapling",
+   "transport": "stdio",
+   "downloads": 1134693,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "npm",
+   "package": "e2e",
+   "version": "0.23.1",
+   "server": "io.github.e2e-inc/e2e",
+   "transport": "stdio",
+   "downloads": 849159,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "snyk",
+   "version": "1.1304.2",
+   "server": "io.snyk/mcp",
+   "transport": "stdio",
+   "downloads": 737271,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "telnyx",
+   "version": "6.29.3",
+   "server": "io.github.team-telnyx/telnyx",
+   "transport": "stdio",
+   "downloads": 713158,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "llm-sandbox",
+   "version": "0.3.43",
+   "server": "io.github.vndee/llm-sandbox",
+   "transport": "stdio",
+   "downloads": 442315,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "pypi",
+   "package": "sling",
+   "version": "1.4.23.post1",
+   "server": "io.slingdata/sling-cli",
+   "transport": "stdio",
+   "downloads": 240305,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "pypi",
+   "package": "truthound",
+   "version": "3.3.4",
+   "server": "io.github.seadonggyun4/truthound",
+   "transport": "stdio",
+   "downloads": 177877,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "pypi",
+   "package": "arxyne",
+   "version": "0.13.0",
+   "server": "com.arxyne/solver",
+   "transport": "stdio",
+   "downloads": 174889,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "pypi",
+   "package": "bernstein",
+   "version": "3.24.1",
+   "server": "io.github.sipyourdrink-ltd/bernstein",
+   "transport": "stdio",
+   "downloads": 137830,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "pypi",
+   "package": "hol-guard",
+   "version": "3.59.0",
+   "server": "io.github.hashgraph-online/hol-guard",
+   "transport": "stdio",
+   "downloads": 128264,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "pypi",
+   "package": "ouroboros-ai",
+   "version": "0.51.5",
+   "server": "io.github.Q00/ouroboros",
+   "transport": "stdio",
+   "downloads": 125459,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "npm",
+   "package": "repomix",
+   "version": "1.19.0",
+   "server": "io.github.yamadashy/repomix",
+   "transport": "stdio",
+   "downloads": 124469,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@sveltejs/mcp",
+   "version": "0.1.30",
+   "server": "dev.svelte/mcp",
+   "transport": "stdio",
+   "downloads": 110599,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@cargo-ai/cli",
+   "version": "1.0.152",
+   "server": "io.github.getcargohq/cargo",
+   "transport": "stdio",
+   "downloads": 104961,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "skylos",
+   "version": "3.5.10",
+   "server": "io.github.duriantaco/skylos",
+   "transport": "stdio",
+   "downloads": 102949,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "npm",
+   "package": "@gitkraken/gk",
+   "version": "3.1.77",
+   "server": "com.gitkraken/gk-cli",
+   "transport": "stdio",
+   "downloads": 98412,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "praisonai",
+   "version": "2.3.42",
+   "server": "io.github.MervinPraison/praisonai",
+   "transport": "stdio",
+   "downloads": 82444,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "npm",
+   "package": "ruflo",
+   "version": "3.77.1",
+   "server": "io.github.ruvnet/ruflo",
+   "transport": "stdio",
+   "downloads": 77251,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "tooluniverse",
+   "version": "1.5.10",
+   "server": "io.github.mims-harvard/tooluniverse",
+   "transport": "stdio",
+   "downloads": 71587,
+   "downloads_unit": "pypi 30-day"
+  },
+  {
+   "type": "npm",
+   "package": "@mobilenext/mobile-mcp",
+   "version": "1.0.17",
+   "server": "io.github.mobile-next/mobile-mcp",
+   "transport": "stdio",
+   "downloads": 47652,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@yawlabs/ctxlint",
+   "version": "0.28.2",
+   "server": "io.github.YawLabs/ctxlint",
+   "transport": "stdio",
+   "downloads": 46597,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "endform",
+   "version": "0.83.2",
+   "server": "dev.endform/mcp",
+   "transport": "stdio",
+   "downloads": 35051,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "dynoxide",
+   "version": "1.6.0",
+   "server": "io.github.nubo-db/dynoxide",
+   "transport": "stdio",
+   "downloads": 22818,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@cyanheads/mcp-ts-core",
+   "version": "0.13.22",
+   "server": "io.github.cyanheads/mcp-ts-core",
+   "transport": "stdio",
+   "downloads": 22558,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@dynatrace-oss/dynatrace-mcp-server",
+   "version": "2.1.2",
+   "server": "io.github.dynatrace-oss/Dynatrace-mcp",
+   "transport": "stdio",
+   "downloads": 20275,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "ssh-mcp",
+   "version": "2.26.0",
+   "server": "io.github.tufantunc/ssh-mcp",
+   "transport": "stdio",
+   "downloads": 19563,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "tavily-mcp",
+   "version": "0.2.15",
+   "server": "io.github.tavily-ai/tavily-mcp",
+   "transport": "stdio",
+   "downloads": 19428,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "mcp-gsc",
+   "version": "0.1.7",
+   "server": "io.github.pijusz/mcp-gsc",
+   "transport": "stdio",
+   "downloads": 17280,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "mcp-searxng",
+   "version": "2.10.1",
+   "server": "io.github.ihor-sokoliuk/mcp-searxng",
+   "transport": "stdio",
+   "downloads": 15627,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "aiterm-mcp",
+   "version": "0.24.3",
+   "server": "io.github.kitepon-rgb/aiterm-mcp",
+   "transport": "stdio",
+   "downloads": 15201,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@agentskit/doc-bridge",
+   "version": "2.4.0",
+   "server": "io.github.AgentsKit-io/doc-bridge",
+   "transport": "stdio",
+   "downloads": 15199,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "claude-flow",
+   "version": "2.0.0-alpha.107",
+   "server": "io.github.ruvnet/claude-flow",
+   "transport": "stdio",
+   "downloads": 14888,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@wirecat/cli-memo",
+   "version": "0.135.0",
+   "server": "dev.wirecat/cli-memo",
+   "transport": "stdio",
+   "downloads": 13046,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "dembrandt",
+   "version": "0.39.2",
+   "server": "io.github.dembrandt/dembrandt",
+   "transport": "stdio",
+   "downloads": 12459,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@smartbear/mcp",
+   "version": "0.43.0",
+   "server": "com.smartbear/smartbear-mcp",
+   "transport": "stdio",
+   "downloads": 12105,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "shinjuku-shield",
+   "version": "0.3.218",
+   "server": "io.github.ShinjukuStaition/shinjuku-shield",
+   "transport": "stdio",
+   "downloads": 12060,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "igniteui-theming",
+   "version": "30.2.0",
+   "server": "io.github.IgniteUI/igniteui-theming",
+   "transport": "stdio",
+   "downloads": 11928,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@flisk-sh/flisk",
+   "version": "1.4.56",
+   "server": "io.github.flisk-sh/flisk",
+   "transport": "stdio",
+   "downloads": 11623,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "tokensafe",
+   "version": "3.1.1",
+   "server": "dev.tokensafe/tokensafe",
+   "transport": "stdio",
+   "downloads": 11523,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "codebase-memory-mcp",
+   "version": "0.12.1",
+   "server": "io.github.DeusData/codebase-memory-mcp",
+   "transport": "stdio",
+   "downloads": 11306,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@hypequery/mcp",
+   "version": "0.13.0",
+   "server": "io.github.hypequery/hypequery",
+   "transport": "stdio",
+   "downloads": 11283,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "appium-mcp",
+   "version": "1.99.3",
+   "server": "io.github.appium/appium-mcp",
+   "transport": "stdio",
+   "downloads": 11125,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "comfyui-mcp",
+   "version": "0.52.206",
+   "server": "io.github.artokun/comfyui-mcp",
+   "transport": "stdio",
+   "downloads": 11113,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@discourse/mcp",
+   "version": "0.3.1",
+   "server": "io.github.discourse/mcp",
+   "transport": "stdio",
+   "downloads": 10485,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "codeburn",
+   "version": "0.9.28",
+   "server": "io.github.getagentseal/codeburn",
+   "transport": "stdio",
+   "downloads": 10482,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "ruv-swarm",
+   "version": "1.0.19",
+   "server": "io.github.ruvnet/ruv-swarm",
+   "transport": "stdio",
+   "downloads": 9888,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@sap/mdk-mcp-server",
+   "version": "0.3.7",
+   "server": "io.github.SAP/mdk-mcp-server",
+   "transport": "stdio",
+   "downloads": 9850,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@alisaitteke/photoshop-mcp",
+   "version": "1.7.38",
+   "server": "io.github.alisaitteke/photoshop-mcp",
+   "transport": "stdio",
+   "downloads": 9499,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@xgamesfun/solana",
+   "version": "0.28.31",
+   "server": "io.github.XGamesFun/solana-kit",
+   "transport": "stdio",
+   "downloads": 9252,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@unleash/mcp",
+   "version": "0.6.4",
+   "server": "io.getunleash/unleash-mcp",
+   "transport": "stdio",
+   "downloads": 8868,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@auth0/auth0-mcp-server",
+   "version": "0.1.0-beta.10",
+   "server": "com.auth0/mcp",
+   "transport": "stdio",
+   "downloads": 8816,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "semiotic",
+   "version": "3.13.3",
+   "server": "io.github.nteract/semiotic",
+   "transport": "stdio",
+   "downloads": 8756,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@growthbook/mcp",
+   "version": "2.2.0",
+   "server": "io.github.growthbook/growthbook-mcp",
+   "transport": "stdio",
+   "downloads": 8673,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@muggleai/works",
+   "version": "5.37.0",
+   "server": "io.github.multiplex-ai/muggleai",
+   "transport": "stdio",
+   "downloads": 8585,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@ai-dossier/mcp-server",
+   "version": "1.0.4",
+   "server": "ai.imboard/dossier",
+   "transport": "stdio",
+   "downloads": 8537,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "premiere-pro-mcp",
+   "version": "1.30.0",
+   "server": "io.github.leancoderkavy/premiere-pro",
+   "transport": "stdio",
+   "downloads": 8290,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@dbx-app/mcp-server",
+   "version": "0.1.3",
+   "server": "io.github.t8y2/dbx",
+   "transport": "stdio",
+   "downloads": 8199,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "loki-mode",
+   "version": "10.9.1",
+   "server": "io.github.asklokesh/loki-mode",
+   "transport": "stdio",
+   "downloads": 8171,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@esaio/esa-mcp-server",
+   "version": "0.15.2",
+   "server": "io.github.esaio/esa",
+   "transport": "stdio",
+   "downloads": 7985,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "ffmpeg-skill",
+   "version": "3.8.12",
+   "server": "io.github.kajisho5/ffmpeg-skill",
+   "transport": "stdio",
+   "downloads": 7893,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "api-anything",
+   "version": "0.4.0",
+   "server": "io.github.goodnight000/api-anything",
+   "transport": "stdio",
+   "downloads": 7462,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "obsidian-mcp-server",
+   "version": "3.9.0",
+   "server": "io.github.cyanheads/obsidian-mcp-server",
+   "transport": "stdio",
+   "downloads": 7397,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "signoff-cli",
+   "version": "4.0.2",
+   "server": "io.github.ayuanxx-max/signoff",
+   "transport": "stdio",
+   "downloads": 7389,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@tradecanvas/mcp",
+   "version": "1.61.0",
+   "server": "io.github.bonguynvan/tradecanvas",
+   "transport": "stdio",
+   "downloads": 7388,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "readfirst",
+   "version": "0.32.3",
+   "server": "io.github.jeonghun917/readfirst",
+   "transport": "stdio",
+   "downloads": 7379,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@seanhogg/builderforce-memory-mcp",
+   "version": "2026.10.80",
+   "server": "io.github.SeanHogg/builderforce-memory",
+   "transport": "stdio",
+   "downloads": 7257,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@wdio/mcp",
+   "version": "4.1.0",
+   "server": "io.github.webdriverio/mcp",
+   "transport": "stdio",
+   "downloads": 7121,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "gdharness",
+   "version": "1.3.110",
+   "server": "io.github.Aureliolo/gdharness",
+   "transport": "stdio",
+   "downloads": 7005,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@qase/mcp-server",
+   "version": "3.0.7",
+   "server": "io.qase/mcp-server",
+   "transport": "stdio",
+   "downloads": 6558,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "alterlab-mcp-server",
+   "version": "1.13.26",
+   "server": "io.alterlab/mcp-server",
+   "transport": "stdio",
+   "downloads": 6517,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@gaiventures/pilotfish-mcp",
+   "version": "0.1.47",
+   "server": "io.github.gAI-ventures/pilotfish",
+   "transport": "stdio",
+   "downloads": 6457,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "podman-mcp-server",
+   "version": "0.0.15",
+   "server": "io.github.manusa/podman-mcp-server",
+   "transport": "stdio",
+   "downloads": 6445,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@postman/postman-mcp-server",
+   "version": "2.15.0",
+   "server": "com.postman/postman-mcp-server",
+   "transport": "stdio",
+   "downloads": 6438,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "atris",
+   "version": "3.83.0",
+   "server": "io.github.atrislabs/atris",
+   "transport": "stdio",
+   "downloads": 6429,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "run402-mcp",
+   "version": "4.104.2",
+   "server": "com.run402/mcp",
+   "transport": "stdio",
+   "downloads": 6424,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "mcp-gsheets",
+   "version": "1.11.1",
+   "server": "io.github.freema/mcp-gsheets",
+   "transport": "stdio",
+   "downloads": 6253,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@atlassian-dc-mcp/jira",
+   "version": "0.43.1",
+   "server": "io.github.b1ff/atlassian-dc-mcp-jira",
+   "transport": "stdio",
+   "downloads": 6250,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@scavio/mcp-server",
+   "version": "0.55.1",
+   "server": "io.github.scavio-ai/scavio-mcp",
+   "transport": "stdio",
+   "downloads": 6222,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "brilliant-directories-mcp",
+   "version": "6.59.649",
+   "server": "io.github.brilliantdirectories/brilliant-directories-mcp",
+   "transport": "stdio",
+   "downloads": 6069,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "reddit-mcp-buddy",
+   "version": "1.3.0",
+   "server": "io.github.karanb192/reddit-mcp-buddy",
+   "transport": "stdio",
+   "downloads": 5969,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@whisper-security/whisper-mcp",
+   "version": "0.267.3",
+   "server": "io.github.whisper-sec/whisper",
+   "transport": "stdio",
+   "downloads": 5935,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@delorenj/mcp-server-trello",
+   "version": "1.8.1",
+   "server": "io.github.delorenj/mcp-server-trello",
+   "transport": "stdio",
+   "downloads": 5870,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "bitbucket-mcp",
+   "version": "5.0.5",
+   "server": "io.github.MatanYemini/bitbucket-mcp",
+   "transport": "stdio",
+   "downloads": 5856,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "notion-mcp-server",
+   "version": "3.4.0",
+   "server": "io.github.awkoy/notion-mcp-server",
+   "transport": "stdio",
+   "downloads": 5839,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@cachly-dev/mcp-server",
+   "version": "0.10.253",
+   "server": "io.github.cachly-dev/mcp-server",
+   "transport": "stdio",
+   "downloads": 5814,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@masonator/coolify-mcp",
+   "version": "3.10.1",
+   "server": "io.github.StuMason/coolify",
+   "transport": "stdio",
+   "downloads": 5672,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "threejs-devtools-mcp",
+   "version": "0.2.1",
+   "server": "io.github.DmitriyGolub/threejs-devtools",
+   "transport": "stdio",
+   "downloads": 5466,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@sylphx/anymd",
+   "version": "8.5.11",
+   "server": "io.github.SylphxAI/anymd",
+   "transport": "stdio",
+   "downloads": 5439,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "emailmd",
+   "version": "0.13.3",
+   "server": "dev.emailmd/emailmd",
+   "transport": "stdio",
+   "downloads": 5422,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@rsdoctor/mcp-server",
+   "version": "0.1.2-beta.0",
+   "server": "io.github.yifancong/rsdoctor",
+   "transport": "stdio",
+   "downloads": 5403,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@sync.so/mcp-server",
+   "version": "0.3.22",
+   "server": "io.github.synchronicity-labs/mcp-server",
+   "transport": "stdio",
+   "downloads": 5396,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "bitpull",
+   "version": "0.1.46",
+   "server": "io.github.SamuealPK/bitpull",
+   "transport": "stdio",
+   "downloads": 5386,
+   "downloads_unit": "npm weekly"
+  }
+ ],
+ "random": [
+  {
+   "type": "npm",
+   "package": "@gitwand/mcp",
+   "version": "3.13.1",
+   "server": "io.github.devlint/gitwand",
+   "transport": "stdio",
+   "downloads": 958,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@rootpilot/mcp-ssh-diagnose",
+   "version": "0.1.2",
+   "server": "io.github.Easton-OU/rootpilot-ssh-diagnose",
+   "transport": "stdio",
+   "downloads": 62,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "lean-memory",
+   "version": "0.3.0",
+   "server": "io.github.Wuesteon/lean-memory",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "pypi",
+   "package": "olane-copass-local",
+   "version": "0.3.2",
+   "server": "com.olane/copass-local",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "x64dbg-mcp-server",
+   "version": "2.3.0",
+   "server": "io.github.bromoket/x64dbg",
+   "transport": "stdio",
+   "downloads": 403,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "btcmcp",
+   "version": "0.1.2",
+   "server": "io.github.iworkist/btcmcp",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@mrfentmen/qtscript-mcp",
+   "version": "1.0.0",
+   "server": "io.github.mrfentmen/qtscript-mcp",
+   "transport": "stdio",
+   "downloads": 429,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "arc-free-skills",
+   "version": "1.0.0",
+   "server": "io.github.ArcHelps/arc-free-skills",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@chrischall/flightaware-mcp",
+   "version": "1.4.1",
+   "server": "io.github.chrischall/flightaware-mcp",
+   "transport": "stdio",
+   "downloads": 486,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "runbook-ai-mcp",
+   "version": "1.1.0",
+   "server": "io.github.runbook-ai/browser-agent",
+   "transport": "stdio",
+   "downloads": 79,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@reneturcios/threatcheck",
+   "version": "0.1.0",
+   "server": "io.github.CloudCorpRecords/threatcheck",
+   "transport": "stdio",
+   "downloads": 276,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "quanticdata-mcp",
+   "version": "0.11.4",
+   "server": "io.github.quantumproxies/quanticdata-mcp",
+   "transport": "stdio",
+   "downloads": 65,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@pedrot95dev/twitterapi.mcp",
+   "version": "0.1.2",
+   "server": "io.github.pedrot95dev/twitterapi",
+   "transport": "stdio",
+   "downloads": 40,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@cloakedagent/sdk",
+   "version": "0.2.0",
+   "server": "io.github.CloakedAgent/cloaked",
+   "transport": "stdio",
+   "downloads": 56,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "pic-gen",
+   "version": "1.3.1",
+   "server": "io.github.jqknono/pic-gen",
+   "transport": "stdio",
+   "downloads": 74,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "skilltotal",
+   "version": "1.1.0",
+   "server": "ai.skilltotal/skilltotal",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "pypi",
+   "package": "hirepulse-tools",
+   "version": "0.3.0",
+   "server": "io.github.edtool79-collab/hirepulse-open-source",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "lookupd",
+   "version": "0.1.2",
+   "server": "com.lookupd/lookupd",
+   "transport": "stdio",
+   "downloads": 551,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "memorydetective",
+   "version": "1.18.1",
+   "server": "io.github.carloshpdoc/memorydetective",
+   "transport": "stdio",
+   "downloads": 85,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@usercall/mcp",
+   "version": "0.4.0",
+   "server": "co.usercall/mcp",
+   "transport": "stdio",
+   "downloads": 80,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@readystack/en301549-lint",
+   "version": "0.1.6",
+   "server": "io.github.jmshinhwa/en301549-lint",
+   "transport": "stdio",
+   "downloads": 78,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@rightnow/forge-mcp-server",
+   "version": "1.0.2",
+   "server": "io.github.RightNow-AI/forge-mcp-server",
+   "transport": "stdio",
+   "downloads": 63,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "stellar-agent-search",
+   "version": "0.1.0",
+   "server": "io.github.berkingurcan/stellar-agent-search",
+   "transport": "stdio",
+   "downloads": 51,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@ophirai/mcp-server",
+   "version": "0.2.1",
+   "server": "io.github.Ophir-ai-creator/ophir",
+   "transport": "stdio",
+   "downloads": 57,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "ecfr-mcp",
+   "version": "1.1.15",
+   "server": "com.1102tools/ecfr-mcp",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-okx",
+   "version": "0.1.0",
+   "server": "io.github.aahl/mcp-okx",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-zenodo",
+   "version": "0.2.2",
+   "server": "io.github.pipeworx-io/zenodo",
+   "transport": "stdio",
+   "downloads": 147,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "japan-company-info-mcp-bridge",
+   "version": "1.2.3",
+   "server": "io.github.dqj1998/japan-company-info-mcp-bridge",
+   "transport": "stdio",
+   "downloads": 48,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-onedrive",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/onedrive",
+   "transport": "stdio",
+   "downloads": 101,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "mcp-web-recon-agent",
+   "version": "0.8.1",
+   "server": "io.github.joepangallo/web-recon-agent",
+   "transport": "stdio",
+   "downloads": 36,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "wikimoth-mcp",
+   "version": "0.2.1",
+   "server": "io.github.juliangeymonat-jpg/wikimoth",
+   "transport": "stdio",
+   "downloads": 53,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "ai-usage-mcp",
+   "version": "0.16.1",
+   "server": "io.github.MohitBansal321/ai-usage-mcp",
+   "transport": "stdio",
+   "downloads": 125,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@mrfentmen/open-canada-mcp",
+   "version": "1.0.0",
+   "server": "io.github.mrfentmen/open-canada-mcp",
+   "transport": "stdio",
+   "downloads": 448,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-irail",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/irail",
+   "transport": "stdio",
+   "downloads": 85,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-interminal",
+   "version": "1.0.4",
+   "server": "io.github.QiuwenZheng/interminal",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "hacktricks-mcp-server",
+   "version": "1.3.4",
+   "server": "io.github.Xplo8E/hacktricks-mcp-server",
+   "transport": "stdio",
+   "downloads": 96,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-fjc-judges",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/fjc-judges",
+   "transport": "stdio",
+   "downloads": 86,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "sup-network",
+   "version": "0.1.8",
+   "server": "com.supwire/sup",
+   "transport": "stdio",
+   "downloads": 53,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "perplexity-comet-mcp",
+   "version": "2.5.0",
+   "server": "io.github.RapierCraft/perplexity-comet-mcp",
+   "transport": "stdio",
+   "downloads": 253,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "wemo-mcp-server",
+   "version": "1.4.1",
+   "server": "io.github.apiarya/wemo",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "pypi",
+   "package": "validation-mcp-server",
+   "version": "1.0.0",
+   "server": "io.github.nirholas/validation-mcp-server",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@muvon/octobrain",
+   "version": "0.15.2",
+   "server": "io.github.Muvon/octobrain",
+   "transport": "stdio",
+   "downloads": 446,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "searxng",
+   "version": "0.1.2",
+   "server": "io.github.danchev/searxng",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@infoinlet/mcp-translate",
+   "version": "0.1.1",
+   "server": "io.github.infoinlet-marketplace/mcp-translate",
+   "transport": "stdio",
+   "downloads": 67,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@readystack/cra-annex-ii-docs-lint",
+   "version": "1.0.4",
+   "server": "io.github.jmshinhwa/cra-annex-ii-docs-lint",
+   "transport": "stdio",
+   "downloads": 74,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-imei",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/imei",
+   "transport": "stdio",
+   "downloads": 79,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@mrfentmen/glsl-mcp",
+   "version": "1.0.0",
+   "server": "io.github.mrfentmen/glsl-mcp",
+   "transport": "stdio",
+   "downloads": 296,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "ihateposting-mcp",
+   "version": "0.12.9",
+   "server": "com.ihateposting/mcp",
+   "transport": "stdio",
+   "downloads": 728,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "extra-desktop",
+   "version": "0.2.5",
+   "server": "io.github.AIYantra/extra",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-fyyd",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/fyyd",
+   "transport": "stdio",
+   "downloads": 86,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "duduclaw",
+   "version": "1.74.0",
+   "server": "io.github.zhixuli0406/duduclaw",
+   "transport": "stdio",
+   "downloads": 744,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@mukundakatta/agentfit-mcp",
+   "version": "0.1.0",
+   "server": "io.github.MukundaKatta/agentfit",
+   "transport": "stdio",
+   "downloads": 46,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "runtime-support-mcp",
+   "version": "1.0.1",
+   "server": "io.github.mrfentmen/runtime-support-mcp",
+   "transport": "stdio",
+   "downloads": 108,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@yuvlero/mark",
+   "version": "0.3.1",
+   "server": "io.github.yuvlero/mark",
+   "transport": "stdio",
+   "downloads": 462,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-faa-delays",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/faa-delays",
+   "transport": "stdio",
+   "downloads": 84,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@openplan/mcp",
+   "version": "0.1.22",
+   "server": "io.github.vncsleal/openplan",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "license-verify-mcp",
+   "version": "0.1.3",
+   "server": "io.github.lmaniraruta/license-verify-mcp",
+   "transport": "stdio",
+   "downloads": 62,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@tmhs/screencast-mcp",
+   "version": "0.49.1",
+   "server": "io.github.TMHSDigital/screencast-mcp",
+   "transport": "stdio",
+   "downloads": 1188,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@open-deltat/mcp",
+   "version": "0.2.0",
+   "server": "io.github.open-deltat/deltat",
+   "transport": "stdio",
+   "downloads": 49,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@reneturcios/browserdebug",
+   "version": "0.1.0",
+   "server": "io.github.CloudCorpRecords/browserdebug",
+   "transport": "stdio",
+   "downloads": 83,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-globocan",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/globocan",
+   "transport": "stdio",
+   "downloads": 87,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@geml/geml",
+   "version": "1.13.1",
+   "server": "io.github.geml-spec/geml",
+   "transport": "stdio",
+   "downloads": 663,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@orsf/mcp-server",
+   "version": "0.1.0",
+   "server": "sk.orsf/mcp-server",
+   "transport": "stdio",
+   "downloads": 42,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "playcanvas-mcp",
+   "version": "1.0.1",
+   "server": "io.github.mrfentmen/playcanvas-mcp",
+   "transport": "stdio",
+   "downloads": 81,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "vugola-mcp",
+   "version": "1.3.1",
+   "server": "io.github.VCoder25/vugola-mcp",
+   "transport": "stdio",
+   "downloads": 153,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "bricksentry-mcp",
+   "version": "0.1.21",
+   "server": "io.github.bricksentry/bricksentry",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "portveil-mcp",
+   "version": "0.4.4",
+   "server": "io.github.roybogs/portveil-mcp",
+   "transport": "stdio",
+   "downloads": 65,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "guniweb-sap-mcp",
+   "version": "0.11.0",
+   "server": "io.github.guniweb/guniweb-sap-mcp",
+   "transport": "stdio",
+   "downloads": 272,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "mcp-redtrack",
+   "version": "0.1.4",
+   "server": "io.github.pijusz/mcp-redtrack",
+   "transport": "stdio",
+   "downloads": 75,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "releaseguard-cli",
+   "version": "0.1.2",
+   "server": "io.github.RudrenduPaul/releaseguard",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@ostraagent/mcp",
+   "version": "0.1.22",
+   "server": "io.github.ostraagent/mcp",
+   "transport": "stdio",
+   "downloads": 1060,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "domain-expertise-mcp",
+   "version": "0.1.3",
+   "server": "io.github.mdfifty50-boop/domain-expertise",
+   "transport": "stdio",
+   "downloads": 75,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "socialscrape-mcp",
+   "version": "0.1.3",
+   "server": "dev.socialscrape/socialscrape",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "gongio-mcp",
+   "version": "2.0.0",
+   "server": "io.github.JustinBeckwith/gongio-mcp",
+   "transport": "stdio",
+   "downloads": 4223,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "rigor-mcp",
+   "version": "0.5.0",
+   "server": "io.github.mrnh/rigor-mcp",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "hyperiux-mcp-server",
+   "version": "0.3.0",
+   "server": "io.github.Hyperiux-Immersion-Labs/hyperiux-mcp-server",
+   "transport": "stdio",
+   "downloads": 62,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "f1-mcp",
+   "version": "0.1.0",
+   "server": "io.github.drivenrajat/f1",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-tradier",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/tradier",
+   "transport": "stdio",
+   "downloads": 103,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "zitadel-mcp",
+   "version": "1.0.0",
+   "server": "io.github.mrfentmen/zitadel-mcp",
+   "transport": "stdio",
+   "downloads": 107,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "aimarket-mcp-packager",
+   "version": "2.1.2",
+   "server": "io.github.alexar76/aimarket-plugins",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@perspectivefi/spectra-mcp",
+   "version": "0.1.6",
+   "server": "finance.spectra/mcp",
+   "transport": "stdio",
+   "downloads": 172,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "cookie-mcp",
+   "version": "0.9.0",
+   "server": "io.github.cookiechain/cookie-mcp",
+   "transport": "stdio",
+   "downloads": 237,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "aiapi-pro",
+   "version": "0.1.1",
+   "server": "io.github.vvvvking/novai-python",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@mrfentmen/nix-mcp",
+   "version": "1.0.0",
+   "server": "io.github.mrfentmen/nix-mcp",
+   "transport": "stdio",
+   "downloads": 405,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "comparador-luz-gas",
+   "version": "0.2.5",
+   "server": "io.github.nuncaeslupus/comparador-luz-gas",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "pypi",
+   "package": "wikimoth",
+   "version": "0.2.1",
+   "server": "io.github.juliangeymonat-jpg/wikimoth",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "taoyuan-mcp",
+   "version": "1.1.1",
+   "server": "io.github.JerryYangAI/taoyuan-mcp",
+   "transport": "stdio",
+   "downloads": 56,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@ryvonetwork/gateway-mcp",
+   "version": "0.4.2",
+   "server": "io.github.Ryvonetwork/ryvo-gateway",
+   "transport": "stdio",
+   "downloads": 66,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "s3eidat-tools-mcp",
+   "version": "0.1.0",
+   "server": "io.github.s3eidat/s3eidat-tools-mcp",
+   "transport": "stdio",
+   "downloads": 92,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "deepseek-search-everywhere-mcp",
+   "version": "3.0.0",
+   "server": "io.github.radoxtech/deepseek-search-everywhere-mcp",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "kemory",
+   "version": "0.19.1",
+   "server": "io.github.SeKondBrainAILabs/kemory",
+   "transport": "stdio",
+   "downloads": 495,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@statable/mcp",
+   "version": "0.1.0",
+   "server": "com.statable/analytics",
+   "transport": "stdio",
+   "downloads": 58,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-startuphub",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/startuphub",
+   "transport": "stdio",
+   "downloads": 107,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "sancho-fetch",
+   "version": "0.3.1",
+   "server": "io.github.panth-net/sancho-fetch",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "pypi",
+   "package": "mcp-pystub",
+   "version": "0.1.1",
+   "server": "io.github.KoyoYeager/pystub",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "pypi",
+   "package": "amazon-ads-mcp",
+   "version": "0.2.4",
+   "server": "io.github.tspicer/amazon_ads_mcp",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "statuz-cli",
+   "version": "2.4.0",
+   "server": "app.statuz/statuz",
+   "transport": "stdio",
+   "downloads": 1368,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "pypi",
+   "package": "promptready-mcp",
+   "version": "0.4.0",
+   "server": "io.github.hydrojwh/promptready-mcp",
+   "transport": "stdio",
+   "downloads": null,
+   "downloads_unit": null
+  },
+  {
+   "type": "npm",
+   "package": "@pipeworx/mcp-pacer",
+   "version": "0.2.1",
+   "server": "io.github.pipeworx-io/pacer",
+   "transport": "stdio",
+   "downloads": 111,
+   "downloads_unit": "npm weekly"
+  },
+  {
+   "type": "npm",
+   "package": "@codespar/mcp-c6",
+   "version": "0.1.0-alpha.4",
+   "server": "io.github.codespar/mcp-c6",
+   "transport": "stdio",
+   "downloads": 47,
+   "downloads_unit": "npm weekly"
+  }
+ ]
+}

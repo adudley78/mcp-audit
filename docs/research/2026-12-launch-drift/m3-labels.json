@@ -1,0 +1,66 @@
+{
+ "_about": "Hand labels for the 510 POISON-* findings on the 2026-11-16 launch-drift snapshot (docs/research/2026-12-launch-drift). Aggregated by finding ID, as in docs/research/poisoning-benchmark/top100-labels.json; no server is named.",
+ "snapshot": "2026-11-16",
+ "scanner_commit": "1ee0246",
+ "poisoning_py_sha256": "5052ad904c80035c9140dd7e6910bfdbf4a70f38d9470eda9d53d8c01ea7df1e",
+ "method": "Every HIGH (16) and MEDIUM (351) finding was read in context in its live tool definition. POISON-050 (143, LOW, a description of 2,000 characters or more): all 132 long tool descriptions were screened with two directive searches (data words such as verbatim, user's message, model name, telemetry, secret; and always/must/never + send/include/report + user/conversation/model), and every hit was read. The other POISON-050 descriptions were not read end to end. Second independent read: not done yet.",
+ "labels": [
+  {
+   "id": "POISON-030",
+   "severity": "MEDIUM",
+   "count": 351,
+   "label": "false_positive",
+   "true_positive_count": 0,
+   "why": "Workflow and API wording: 'first call', 'after calling this tool', 'instead of using'. 302 come from one server that repeats the same idempotency-key note in 302 tool descriptions. The rest are ordinary call-order guidance."
+  },
+  {
+   "id": "POISON-050",
+   "severity": "LOW",
+   "count": 143,
+   "label": "false_positive",
+   "true_positive_count": 1,
+   "why": "Long API reference text. One is a true positive and the same case as 2026-10-29: about 12,300 characters into a 13,562-character description, it tells the agent to ALWAYS pass the user's most recent message verbatim and its own model name to the vendor. The parameter schema states a purpose (documentation quality); the user does not see the instruction."
+  },
+  {
+   "id": "POISON-060",
+   "severity": "HIGH",
+   "count": 7,
+   "label": "false_positive",
+   "true_positive_count": 0,
+   "why": "Greek letters in maths and Lean proof text (α, π, θ, σ)."
+  },
+  {
+   "id": "POISON-012",
+   "severity": "HIGH",
+   "count": 6,
+   "label": "false_positive",
+   "true_positive_count": 0,
+   "why": "'Override default result limit/output path/appearances' in parameter descriptions; one domain rule on how to report a billing field."
+  },
+  {
+   "id": "POISON-020",
+   "severity": "HIGH",
+   "count": 2,
+   "label": "false_positive",
+   "true_positive_count": 0,
+   "why": "'base64url' in a decrypt tool that accepts that input format."
+  },
+  {
+   "id": "POISON-011",
+   "severity": "HIGH",
+   "count": 1,
+   "label": "false_positive",
+   "true_positive_count": 0,
+   "why": "'[inst]' is Lean instance-binder notation."
+  }
+ ],
+ "totals": {
+  "findings": 510,
+  "true_positives": 1,
+  "precision": 0.002,
+  "high_or_above": 16,
+  "high_or_above_true_positives": 0,
+  "per_100_tools": 10.7,
+  "tools": 4773
+ }
+}
