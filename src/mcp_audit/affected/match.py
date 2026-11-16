@@ -1,7 +1,7 @@
-"""The per-server decision for ``mcp-audit affected``.
+"""The per-server decision for ``credenzo affected``.
 
 Three outcomes, never collapsed: **AFFECTED**, **NOT AFFECTED** and
-**COULDN'T CHECK**.  A server is NOT AFFECTED only when mcp-audit can show
+**COULDN'T CHECK**.  A server is NOT AFFECTED only when Credenzo can show
 why: it runs a different package than the advisory concerns, or it runs the
 named package at a version the advisory does not cover.  Anything it cannot
 order or evaluate (a floating ``npx -y pkg``, a calendar version against a
@@ -359,7 +359,7 @@ _COMPARE: dict[str, Callable[[Version, Version], bool]] = {
 _NO_VERSION = Decision(
     Status.COULDNT_CHECK,
     "the launch pins no exact version and no lock records one; pin it or run "
-    "`mcp-audit lock`",
+    "`credenzo lock`",
     VERSION_UNKNOWN,
 )
 
@@ -368,7 +368,7 @@ def _unorderable(version: str, other: str) -> Decision:
     return Decision(
         Status.COULDNT_CHECK,
         f"{version} and {other} cannot be ordered offline (one is not a version "
-        "mcp-audit can parse, or they use calendar and semantic numbering)",
+        "Credenzo can parse, or they use calendar and semantic numbering)",
         UNDECIDABLE,
     )
 
@@ -518,7 +518,7 @@ class RecordRule:
         if any(r is None for r in results):
             return Decision(
                 Status.COULDNT_CHECK,
-                f"{record.id} has a range with a version bound mcp-audit cannot parse",
+                f"{record.id} has a range with a version bound Credenzo cannot parse",
                 UNEVALUABLE,
             )
         return Decision(
@@ -660,7 +660,7 @@ def records_from_osv(osv: dict[str, Any]) -> list[MaliciousRecord]:
     """Turn a fetched OSV record into one package record per npm / PyPI package.
 
     Only ``affected[]`` items with an npm or PyPI package and ``SEMVER`` or
-    ``ECOSYSTEM`` ranges are used; ``GIT`` ranges name commits, which mcp-audit
+    ``ECOSYSTEM`` ranges are used; ``GIT`` ranges name commits, which Credenzo
     cannot order, and are skipped.
     """
     out: list[MaliciousRecord] = []
@@ -750,7 +750,7 @@ def decide_server(
         return Row(
             subject,
             Status.COULDNT_CHECK,
-            f"the launch ({how}) names no npm or PyPI package mcp-audit can read",
+            f"the launch ({how}) names no npm or PyPI package Credenzo can read",
             config_path=where,
             reason=NO_PACKAGE,
         )
@@ -764,7 +764,7 @@ def decide_server(
             subject,
             Status.COULDNT_CHECK,
             f"runs {pkg_id} and also installs packages through --with / -p / "
-            "--package, which mcp-audit does not read",
+            "--package, which Credenzo does not read",
             config_path=where,
             package=pkg_id,
             reason=EXTRA_PACKAGES,
@@ -1013,13 +1013,13 @@ def research_rows(
     service_only = all(p.status == "fixed-server-side" for p in record.products)
     if not record.checks and service_only:
         notes.append(
-            "No mcp-audit check tests this condition, so nothing was run. "
+            "No Credenzo check tests this condition, so nothing was run. "
             "Exposure depended on the vendor's service, which no local "
             "configuration or installed version shows."
         )
     elif not record.checks:
         notes.append(
-            "No mcp-audit check tests this condition, so nothing was run. "
+            "No Credenzo check tests this condition, so nothing was run. "
             "Whether a setup is affected depends on how the product behaves, "
             "which a static scan of its configuration does not show."
         )
@@ -1071,7 +1071,7 @@ def research_rows(
         if found and not p.fixed_in and not vendor_service:
             # An install was read, but with no fixed version there is nothing
             # to order it against, and the write-up gives no first affected
-            # version that mcp-audit could use instead (none is invented).
+            # version that Credenzo could use instead (none is invented).
             versions = ", ".join(sorted({_install_label(i) for i in found}))
             why = (
                 f"{p.product} {versions} is installed, but the write-up gives "
@@ -1080,7 +1080,7 @@ def research_rows(
         elif vendor_service:
             why = f"no installed version shows exposure to this ({p.vendor}'s service)"
         else:
-            why = f"mcp-audit does not read which {p.product} version is installed"
+            why = f"Credenzo does not read which {p.product} version is installed"
         rows.append(
             Row(
                 f"{p.product} ({p.vendor})",

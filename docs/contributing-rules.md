@@ -16,11 +16,11 @@ will write the rule and credit you.
 ## What are community rules?
 
 Community rules are YAML files in `rules/community/`. They ship with every
-mcp-audit installation and run automatically on every `mcp-audit scan` — no
+Credenzo installation and run automatically on every `credenzo scan` — no
 flags required. Each rule describes a single attack pattern and produces a
 `Finding` when that pattern is present in an MCP server configuration.
 
-Run `mcp-audit rule list` to see the bundled rules.
+Run `credenzo rule list` to see the bundled rules.
 Every accepted contributor is named in [docs/contributors.md](contributors.md).
 The first 50 contributors whose rules are accepted get additional recognition —
 see [rules/community/BOUNTY.md](../rules/community/BOUNTY.md).
@@ -50,16 +50,16 @@ existing COMM-NNN rule, or rules without a clear security justification.
 
 ## Step 1 — Validate and test the tooling
 
-Make sure `mcp-audit` is installed:
+Make sure `credenzo` is installed:
 
 ```bash
-mcp-audit --version
+credenzo --version
 ```
 
 Check the existing rules so you don't duplicate one:
 
 ```bash
-mcp-audit rule list
+credenzo rule list
 ```
 
 ---
@@ -91,7 +91,7 @@ The key fields:
 | `match` | The detection condition — see below |
 | `message` | Text shown in findings. Use `{server_name}` and `{matched_value}`. |
 | `owasp_mcp_top_10` | One or more codes: `MCP01`–`MCP10`. See the table below. |
-| `author` | Your GitHub handle or name. Shown in `mcp-audit rule list`. |
+| `author` | Your GitHub handle or name. Shown in `credenzo rule list`. |
 
 ### Choosing the right match field
 
@@ -156,7 +156,7 @@ step with it).
 ## Step 4 — Validate the rule
 
 ```bash
-mcp-audit rule validate rules/community/COMM-NNN.yml
+credenzo rule validate rules/community/COMM-NNN.yml
 ```
 
 This must exit 0. It checks that all required fields are present and correctly
@@ -166,10 +166,10 @@ typed. Fix any errors it reports before continuing.
 
 ## Step 5 — Test against a real config
 
-Use `mcp-audit rule test` to see exactly which servers your rule matches:
+Use `credenzo rule test` to see exactly which servers your rule matches:
 
 ```bash
-mcp-audit rule test rules/community/COMM-NNN.yml --against path/to/your-config.json
+credenzo rule test rules/community/COMM-NNN.yml --against path/to/your-config.json
 ```
 
 The output shows every server × rule combination and whether it matched. You
@@ -182,7 +182,7 @@ The demo configs in `demo/configs/` are a useful clean-ish baseline:
 
 ```bash
 # Should produce zero findings from your new rule on clean servers
-mcp-audit scan demo/configs/ --rules-dir rules/community/
+credenzo scan demo/configs/ --rules-dir rules/community/
 ```
 
 If your rule fires on a clean server, revise the pattern to be more specific.
@@ -241,7 +241,7 @@ In the PR description, include:
 - What attack pattern this rule detects
 - The research source (same as your PROVENANCE.md entry)
 - The config you tested against (you can paste the relevant snippet)
-- Output of `mcp-audit rule validate` (should be "✓ Valid")
+- Output of `credenzo rule validate` (should be "✓ Valid")
 - Confirmation that the full `uv run pytest` passed
 
 ---
@@ -251,7 +251,7 @@ In the PR description, include:
 Every contributor whose rule is accepted gets a line in
 [docs/contributors.md](contributors.md). If you add your GitHub handle to
 the `author:` field in the rule YAML, it will also appear in
-`mcp-audit rule list` output for every user.
+`credenzo rule list` output for every user.
 
 For the first 50 accepted contributors, see the full commitment in
 [rules/community/BOUNTY.md](../rules/community/BOUNTY.md).

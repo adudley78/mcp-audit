@@ -1,4 +1,4 @@
-"""``mcp-audit lock`` — write and verify the committable MCP server lock.
+"""``credenzo lock`` — write and verify the committable MCP server lock.
 
 See ``docs/decisions/ADR-0005-mcp-audit-lock.md`` for the design.  This
 command is intentionally a single Typer command with flags
@@ -270,7 +270,7 @@ def lock(
 ) -> None:
     """Write, verify, or re-accept a committable MCP server lock.
 
-    ``mcp-audit lock`` writes ``mcp-lock.json`` at the project root from the
+    ``credenzo lock`` writes ``mcp-lock.json`` at the project root from the
     configs the scanner sees.  ``--verify`` checks it against the current
     state instead (offline by default; ``--resolve`` also asks the registry).
     ``--accept`` re-writes the lock, preserving each surviving entry's
@@ -538,7 +538,7 @@ def _run_verify(
     With ``if_present=True``, a missing lock file is a soft, non-failing
     skip rather than an error — see the ``--if-present`` flag's help text.
     This lets an Action step or pre-commit hook adopt lock verification
-    unconditionally without breaking a repo that has not run `mcp-audit
+    unconditionally without breaking a repo that has not run `Credenzo
     lock` yet.
 
     With ``allow_unverified=True`` (``--allow-unverified``, R56), unresolved
@@ -556,7 +556,7 @@ def _run_verify(
             raise typer.Exit(0)
         con.print(
             f"[red]Error:[/red] No lock file found at {lock_path}. "
-            "Run `mcp-audit lock` first."
+            "Run `credenzo lock` first."
         )
         raise typer.Exit(2)
 
@@ -636,8 +636,8 @@ def _print_verify_terminal(result, lock_path: Path) -> None:  # noqa: ANN001
     if result.unsupported_version is not None:
         console.print(
             f"[red]Error:[/red] {lock_path} declares lock_version "
-            f"{result.unsupported_version}, newer than this mcp-audit can "
-            "verify. Upgrade mcp-audit; nothing was checked."
+            f"{result.unsupported_version}, newer than this Credenzo can "
+            "verify. Upgrade Credenzo; nothing was checked."
         )
         return
 

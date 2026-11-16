@@ -1,6 +1,6 @@
 """One way to write a file safely: a fresh temporary file, then one rename.
 
-Every writer in mcp-audit that persists state or edits a file in place goes
+Every writer in Credenzo that persists state or edits a file in place goes
 through :func:`atomic_write`. Before 2026-11 there were eleven hand-rolled
 copies, and they disagreed on three points that matter:
 
@@ -122,7 +122,7 @@ def read_untrusted_json(
         path: The file to read.
         max_bytes: Largest file read; a bigger one is refused, not cut.
         what: What the file should be, for the "not a JSON object" reason
-            (``"an mcp-audit scan"``).
+            (``"a Credenzo scan"``).
     """
     flags = (
         os.O_RDONLY

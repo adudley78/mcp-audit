@@ -3,7 +3,7 @@
 A Claude Code skill is a folder. `SKILL.md` is the part the agent reads first,
 but the folder can also hold scripts, reference files, archives, a `bin/`
 directory, MCP and hook configurations, and a `.git/` directory. Until
-STORY-0095 mcp-audit judged a skill by its `SKILL.md` (SKILL-001..003) and the
+STORY-0095 Credenzo judged a skill by its `SKILL.md` (SKILL-001..003) and the
 filenames in `scripts/` (SKILL-004). That misses the two shapes the 2026
 skill attacks used:
 
@@ -17,7 +17,7 @@ skill attacks used:
   `.git/` and `build/`, the folders skill scanners skip, and had `SKILL.md`
   unpack them at run time.
 
-mcp-audit now walks the whole skill folder. It reads files as bytes. It never
+Credenzo now walks the whole skill folder. It reads files as bytes. It never
 runs, imports, unpacks or decompresses anything, and it never runs `git`.
 
 ## Where it runs
@@ -130,7 +130,7 @@ directory that holds `.claude-plugin/plugin.json` as a plugin named
 `<name>@skills-dir` ([Skills](https://code.claude.com/docs/en/skills):
 "add a `.claude-plugin/plugin.json` to a personal or project skill folder and
 Claude Code can load it as a plugin … with its own agents, hooks, and MCP
-servers"). mcp-audit reports each component:
+servers"). Credenzo reports each component:
 
 | Component | Severity |
 |---|---|
@@ -152,7 +152,7 @@ your own `~/.claude/skills/` has neither check.
 The plugin's MCP servers also join discovery as client `claude-code-plugin`,
 the same client as marketplace plugin servers, so the per-server checks
 (credentials, transport, supply chain, toxic flow) run on them, and lock
-auto-verify never reports them as LOCK-002. `mcp-audit lock` records a
+auto-verify never reports them as LOCK-002. `credenzo lock` records a
 repository plugin's `.mcp.json` servers (its project walk reads every
 `.mcp.json` in the tree), so `scan` and `check` verify each such server
 against that entry and report drift as LOCK-001, as `lock --verify` does. A
@@ -168,7 +168,7 @@ is listed once, as `claude-code-plugin`, and gets TRUST-001 like any other
 repository server; when the default scan already analysed it (`scan --project
 .` from the repository root), it is not analysed a second time.
 
-With `scan --connect`, mcp-audit starts every discovered server to list its
+With `scan --connect`, Credenzo starts every discovered server to list its
 tools. In a cloned repository that includes the skills-directory plugins' MCP
 servers under the working directory's `.claude/skills/`, exactly as it
 includes the working directory's `.mcp.json` servers. Review a repository
@@ -209,7 +209,7 @@ ZIP, bytes that contradict the file's extension (a `.png` that is an
 executable), a base64 or hex blob of at least 4,096 characters in a text file,
 a text file over the 1 MiB cap, a skill over its budget, and, in `.git/`, a
 binary file outside git's layout or one whose bytes are not the git format
-its name claims. LOW: a plain archive (mcp-audit does not
+its name claims. LOW: a plain archive (Credenzo does not
 unpack archives) and a skipped dependency folder. Images, fonts, audio, video,
 PDFs and office documents whose bytes match their extension are not reported.
 

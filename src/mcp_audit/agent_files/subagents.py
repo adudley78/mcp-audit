@@ -28,7 +28,7 @@ read 2026-10-25:
 * Plugin subagents ignore ``permissionMode``, ``hooks`` and ``mcpServers``, so
   plugin ``agents/`` directories are not read by this module (GAPS.md).
 
-mcp-audit never runs Claude Code, so it cannot tell which version is installed
+Credenzo never runs Claude Code, so it cannot tell which version is installed
 (the epic's "harness version-floor table" is out of scope). Where the version
 changes the risk, a finding uses the severity that holds on current versions and
 states the older-version case in its text.
@@ -43,7 +43,7 @@ its behaviour (no code taken):
   whose value holds YAML syntax characters or ``": "`` are quoted, leading tabs
   become two spaces each, and the whole block is parsed again.
 
-mcp-audit also reads the block ending at the first line that is exactly
+Credenzo also reads the block ending at the first line that is exactly
 ``---`` (the conventional reading), and keeps the findings of both. A
 security-relevant top-level key (``permissionMode``, ``tools``,
 ``disallowedTools``, ``hooks``, ``mcpServers``) that appears more than once is
@@ -73,7 +73,7 @@ from mcp_audit.models import Finding, Severity
 # ── Limits ────────────────────────────────────────────────────────────────────
 
 #: Largest agent definition Claude Code loads (its Markdown loader skips bigger
-#: files); mcp-audit skips them too and says so in the scan's errors.
+#: files); Credenzo skips them too and says so in the scan's errors.
 MAX_AGENT_FILE_BYTES: int = 1024 * 1024
 
 #: Deepest nesting composed. PyYAML recurses per level and fails between 400
@@ -139,7 +139,7 @@ def redact_secrets(text: str) -> str:
 
 
 class _LimitError(Exception):
-    """An mcp-audit parsing limit was reached (not a YAML syntax error)."""
+    """A Credenzo parsing limit was reached (not a YAML syntax error)."""
 
 
 class _Budget:
@@ -405,7 +405,7 @@ def _split_lines(text: str) -> str | None:
 
 @dataclass
 class AgentFrontmatter:
-    """Everything mcp-audit read from one agent definition's frontmatter.
+    """Everything Credenzo read from one agent definition's frontmatter.
 
     Attributes:
         readings: Distinct JSON-compatible frontmatter mappings: Claude Code's
@@ -414,7 +414,7 @@ class AgentFrontmatter:
         body: Text after Claude Code's frontmatter (the subagent's prompt).
         present: ``True`` when the file opens with frontmatter as Claude Code
             reads it.
-        unreadable_keys: Security keys the frontmatter names but mcp-audit
+        unreadable_keys: Security keys the frontmatter names but Credenzo
             could not read (Claude Code may still load them).
         unreadable_reason: Why the frontmatter could not be read.
         repeated_keys: Security key → how many times it appears.
@@ -547,7 +547,7 @@ def read_agent_text(path: Path) -> str | None:
 def _too_large(path: Path) -> str:
     return (
         f"Subagent definition {path} is larger than {MAX_AGENT_FILE_BYTES:,} bytes;"
-        " Claude Code skips files this large, so mcp-audit did too."
+        " Claude Code skips files this large, so Credenzo did too."
     )
 
 
@@ -973,7 +973,7 @@ def _check_permission_mode(
                     " bypassPermissions only when your main session already does,"
                     " so from a default-mode session the setting is ignored. On"
                     " earlier versions the subagent skipped every prompt even when"
-                    " your session asked for them, which is HIGH. mcp-audit does not"
+                    " your session asked for them, which is HIGH. Credenzo does not"
                     " run Claude Code and cannot see which version you have."
                     + ("" if scope == "project" else _THIRD_PARTY_NOTE)
                 ),
@@ -1131,7 +1131,7 @@ def _check_inline_servers(
         ambiguous = _ambiguous_server_name(declared)
         repeat = (
             f" (another server in this file has the same name '{declared}'; Claude"
-            " Code starts both, so mcp-audit scans this one as"
+            " Code starts both, so Credenzo scans this one as"
             f" '{display}')"
             if display != declared
             else ""
@@ -1140,7 +1140,7 @@ def _check_inline_servers(
             f"The subagent '{name}' in {path.name} declares the MCP server"
             f" '{declared}' inline{repeat}. It is not in .mcp.json or a client"
             " config: Claude Code starts it when Claude delegates to this subagent"
-            " and stops it when the subagent finishes. mcp-audit scans it as client"
+            " and stops it when the subagent finishes. Credenzo scans it as client"
             f" {AGENT_DEFINITION_CLIENT}, so its other findings appear under that"
             f" client. Claude Code {INLINE_MCP_POLICY_FIX_VERSION} and later apply"
             " --strict-mcp-config, --bare and managed MCP allow/deny policies to it;"
@@ -1229,7 +1229,7 @@ def _key_severity(key: str, scope: str, path: Path) -> Severity:
 def _check_repeated_and_unreadable(
     definition: AgentFrontmatter, name: str, path: Path, scope: str, client: str
 ) -> list[Finding]:
-    """A security key that appears more than once, or that mcp-audit cannot read."""
+    """A security key that appears more than once, or that Credenzo cannot read."""
     findings: list[Finding] = []
     for key, count in sorted(definition.repeated_keys.items()):
         finding_id, owasp, cwe = _KEY_FINDING[key]
@@ -1244,7 +1244,7 @@ def _check_repeated_and_unreadable(
                 description=(
                     f"'{key}' appears {count} times in the frontmatter of the"
                     f" subagent '{name}' in {path.name}. YAML parsers disagree on"
-                    " which value wins, so mcp-audit checked every value; whichever"
+                    " which value wins, so Credenzo checked every value; whichever"
                     " Claude Code uses, a repeated security key is a way to show a"
                     " reviewer one value and run another."
                 ),
@@ -1292,7 +1292,7 @@ def _unreadable_key_findings(
                 description=(
                     f"The frontmatter of {path.name} names '{key}', but mcp-audit"
                     f" could not read it ({reason}). The key is present but"
-                    " unreadable by mcp-audit; Claude Code may load it, so its"
+                    " unreadable by Credenzo; Claude Code may load it, so its"
                     " effect was not checked."
                 ),
                 evidence=f"{path}: {key} (unreadable: {reason})",

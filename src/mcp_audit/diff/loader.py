@@ -90,7 +90,7 @@ def _load_from_directory(path: Path) -> list[ServerConfig]:
 def _load_from_json_file(path: Path) -> list[ServerConfig]:
     """Load ServerConfigs from a JSON file.
 
-    Accepts either a ``mcp-audit scan --output-file`` ScanResult JSON or a
+    Accepts either a ``credenzo scan --output-file`` ScanResult JSON or a
     raw MCP config JSON (``mcpServers`` / ``servers`` root keys).  A ``.toml``
     file is read as Codex's ``config.toml`` and ``.gemini/settings.json`` as
     Gemini CLI's settings (STORY-0110).
@@ -193,7 +193,7 @@ def load_input(input_str: str) -> list[ServerConfig]:
     Routing logic:
 
     1. If the string resolves to an existing directory — load all MCP configs
-       found under it (same discovery as ``mcp-audit scan --path``).
+       found under it (same discovery as ``credenzo scan --path``).
     2. If the string resolves to an existing file — treat as a JSON file
        (ScanResult or raw MCP config).
     3. Otherwise — treat as a git ref and read it with ``git cat-file``.

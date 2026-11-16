@@ -1,6 +1,6 @@
 """Snapshot output formatters: CycloneDX AI/ML-BOM and native JSON.
 
-Produces the two output shapes for ``mcp-audit snapshot``:
+Produces the two output shapes for ``credenzo snapshot``:
 
 - :func:`format_cyclonedx_aibom` — CycloneDX 1.5 JSON with mcp-audit-specific
   ``properties`` blocks, ``components`` per server, and ``vulnerabilities``
@@ -43,7 +43,7 @@ def _cyclonedx_timestamp(dt: datetime) -> str:
 
 
 def _severity_to_cyclonedx(severity: str) -> str:
-    """Map mcp-audit Severity strings to CycloneDX vulnerability severity labels.
+    """Map Credenzo Severity strings to CycloneDX vulnerability severity labels.
 
     Args:
         severity: One of ``CRITICAL``, ``HIGH``, ``MEDIUM``, ``LOW``, ``INFO``.
@@ -537,7 +537,7 @@ def sign_snapshot(path: Path) -> Path:
     sigstore bundle JSON.  The unsigned snapshot at *path* is **not** modified.
 
     Signing requires:
-    - The ``sigstore`` library (``pip install 'mcp-audit-scanner[attestation]'``).
+    - The ``sigstore`` library (``pip install 'credenzo[attestation]'``).
     - An ambient OIDC credential (GitHub Actions ``id-token``, Google Cloud
       Workload Identity, or an interactive browser flow).
 
@@ -562,7 +562,7 @@ def sign_snapshot(path: Path) -> Path:
     except ImportError as exc:
         raise ImportError(
             "sigstore is not installed. "
-            "Enable signing with: pip install 'mcp-audit-scanner[attestation]'"
+            "Enable signing with: pip install 'credenzo[attestation]'"
         ) from exc
 
     sig_path = Path(str(path) + ".sig")

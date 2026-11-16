@@ -1,10 +1,10 @@
-"""Classification of mcp-audit findings into advisory taxonomy.
+"""Classification of Credenzo findings into advisory taxonomy.
 
 Three orthogonal questions are answered here, one function each:
 
 ``finding_class_for``
     Which vulnerability class does this finding belong to? The three classes that
-    ``mcp-audit fix`` remediates (``hardcoded-secret``, ``excessive-scope``,
+    ``credenzo fix`` remediates (``hardcoded-secret``, ``excessive-scope``,
     ``command-injection``) are named in :mod:`mcp_audit.advisory.schema`; the rest
     of the taxonomy lives here because it exists only to label advisories.
 
@@ -146,7 +146,7 @@ def is_advisable(finding_id: str) -> bool:
 
 # Exact finding IDs whose class is not implied by their prefix. Checked first.
 _CLASS_BY_ID: Final[dict[str, str]] = {
-    # The three classes `mcp-audit fix` remediates.
+    # The three classes `credenzo fix` remediates.
     "CRED-001": "hardcoded-secret",
     "CRED-002": "hardcoded-secret",
     "CRED-003": "hardcoded-secret",
@@ -246,7 +246,7 @@ _FALLBACK_CLASS: Final[str] = "unclassified"
 
 
 def finding_class_for(finding_id: str) -> str:
-    """Return the advisory ``finding_class`` for an mcp-audit finding ID.
+    """Return the advisory ``finding_class`` for a Credenzo finding ID.
 
     Unknown IDs fall back to ``"unclassified"`` rather than raising: a new detection
     rule must never be able to crash advisory generation.
@@ -293,7 +293,7 @@ def owasp_codes_for(codes: list[str]) -> list[str]:
     The advisory feed publishes the same bare ``MCP01``..``MCP10`` codes that
     :mod:`mcp_audit.owasp_mcp` defines and that SARIF output and
     ``docs/owasp-mapping.json`` already use, so a consumer can join a record to the rest
-    of mcp-audit's output without translating between spellings.
+    of Credenzo's output without translating between spellings.
 
     A year-suffixed form (``"MCP01:2025"``) is accepted on input and normalised, because
     OWASP publishes the categories that way and a caller may pass one through.
@@ -317,7 +317,7 @@ def owasp_codes_for(codes: list[str]) -> list[str]:
 #                             every finding in it, so one vector describes them all
 #   "severity-band"           no class template applies, or the template would have
 #                             over-claimed (see `cvss_for`); the vector encodes
-#                             mcp-audit's own severity rubric — see
+#                             Credenzo's own severity rubric — see
 #                             docs/severity-framework.md
 #
 # Consumers that need a rigorous per-instance score should treat these as a starting
@@ -352,7 +352,7 @@ CVSS_BY_SEVERITY: Final[dict[Severity, str]] = {
 CVSS_BASIS_CLASS: Final[str] = "finding-class-template"
 CVSS_BASIS_SEVERITY: Final[str] = "severity-band"
 
-# Highest CVSS 3.1 base score each mcp-audit severity is allowed to publish, using the
+# Highest CVSS 3.1 base score each Credenzo severity is allowed to publish, using the
 # standard qualitative bands (Low 0.1–3.9, Medium 4.0–6.9, High 7.0–8.9, Critical 9.0+).
 _SEVERITY_CEILING: Final[dict[Severity, float]] = {
     Severity.CRITICAL: 10.0,

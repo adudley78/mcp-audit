@@ -3,7 +3,7 @@
 An OpenVEX document says, per product and advisory, whether the product is
 ``affected``, ``not_affected``, ``fixed`` or ``under_investigation``.  Products
 are the npm or PyPI package a server launches, as a package URL (purl), with
-the version when mcp-audit knows it.
+the version when Credenzo knows it.
 
 Only rows where a server really runs the advisory's package become
 statements.  A server on some other package, or with no readable package,

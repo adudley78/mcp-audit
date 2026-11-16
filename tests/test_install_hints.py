@@ -17,15 +17,15 @@ def _render(text: str) -> str:
     return buf.getvalue()
 
 
-def test_connect_hint_names_scanner_mcp_extra() -> None:
-    assert "mcp-audit-scanner[mcp]" in MCP_NOT_INSTALLED
+def test_connect_hint_names_the_mcp_extra() -> None:
+    assert "credenzo[mcp]" in MCP_NOT_INSTALLED
     rendered = _render(MCP_NOT_INSTALLED)
-    assert "mcp-audit-scanner[mcp]" in rendered
+    assert "credenzo[mcp]" in rendered
 
 
 def test_sbom_hint_keeps_bracketed_extra() -> None:
     hint = (
         "The 'sbom' extra is required for CycloneDX output. "
-        "Install it with: pip install 'mcp-audit-scanner[sbom]'"
+        "Install it with: pip install 'credenzo[sbom]'"
     )
-    assert "mcp-audit-scanner[sbom]" in _render(hint)
+    assert "credenzo[sbom]" in _render(hint)

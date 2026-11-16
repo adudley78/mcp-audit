@@ -12,10 +12,10 @@ Each value is the SHA-256 of the RFC 8785 canonical bytes of that top-level
 section's value. Each producer writes only the entries for the sections it
 produced and copies every other entry through verbatim, so any tool can
 recompute any entry and a mismatch means a section changed without its
-producer updating its digest. mcp-audit writes ``servers`` always and
+producer updating its digest. Credenzo writes ``servers`` always and
 ``tools`` when it owns that section; it never writes or recomputes ``trees``.
 
-The map is outside mcp-audit's own ``checksum`` (which keeps covering
+The map is outside Credenzo's own ``checksum`` (which keeps covering
 ``{lock_version, generated_by, servers}``): another producer must be able to
 add its own entry without tripping LOCK-005.
 
@@ -59,16 +59,16 @@ def section_digest(value: object) -> str:
 
 
 def owned_sections(doc: dict) -> list[str]:
-    """Return the sections whose digest mcp-audit writes for *doc*.
+    """Return the sections whose digest Credenzo writes for *doc*.
 
-    ``servers`` always; ``tools`` only when it is mcp-audit's own populated
+    ``servers`` always; ``tools`` only when it is Credenzo's own populated
     section (``None`` holds nothing to digest, and another producer's
     ``tools`` is that producer's to digest).
     """
     names = ["servers"]
     if tool_digests.is_owned(doc.get(tool_digests.TOOLS_KEY)):
         names.append(tool_digests.TOOLS_KEY)
-    # STORY-0143: only when mcp-audit's own guardrails section is present, so a
+    # STORY-0143: only when Credenzo's own guardrails section is present, so a
     # lock without it digests exactly what it did before.
     if guardrail_section.is_owned(doc.get(guardrail_section.GUARDRAILS_KEY)):
         names.append(guardrail_section.GUARDRAILS_KEY)
@@ -78,8 +78,8 @@ def owned_sections(doc: dict) -> list[str]:
 def merge(existing: object, doc: dict) -> dict[str, str]:
     """Return the ``section_digests`` map to write into *doc*.
 
-    Entries for sections mcp-audit decides (``servers``, and ``tools`` when
-    it is ``None`` or mcp-audit's own) are recomputed or dropped; every other
+    Entries for sections Credenzo decides (``servers``, and ``tools`` when
+    it is ``None`` or Credenzo's own) are recomputed or dropped; every other
     entry from *existing* is copied verbatim, including a stale or malformed
     one: it belongs to another producer, and leaving it intact is what lets
     that producer detect a change. Entries naming an envelope key are
@@ -137,8 +137,8 @@ class DigestCheck:
 def check(doc: dict) -> DigestCheck:
     """Check every ``section_digests`` entry of a version-2 *doc*.
 
-    A problem is: the map is missing or not an object; an entry mcp-audit
-    always writes is missing (``servers``, and ``tools`` when mcp-audit owns
+    A problem is: the map is missing or not an object; an entry Credenzo
+    always writes is missing (``servers``, and ``tools`` when Credenzo owns
     it); an entry names an envelope key or a section the document does not
     have; a value is not ``sha256:`` + 64 hex; or a recorded digest does not
     match the section. A section that exceeds the canonicalization bound is
@@ -159,7 +159,7 @@ def check(doc: dict) -> DigestCheck:
     for name in owned_sections(doc):
         if name not in digests:
             problems.append(
-                DigestProblem(name, "no digest recorded for a section mcp-audit wrote")
+                DigestProblem(name, "no digest recorded for a section Credenzo wrote")
             )
 
     for name in sorted(digests):

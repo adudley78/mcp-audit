@@ -5,7 +5,7 @@ managed machine. VS Code, Cursor and Windsurf (now Devin Desktop) can restrict w
 extensions load with the `AllowedExtensions` policy and the matching user setting
 `extensions.allowed`. The policy overrides the setting at every level, so an allowlist
 that lives only in the user's `settings.json` is a default the user can change, not a
-control. mcp-audit tells you which of the two you have.
+control. Credenzo tells you which of the two you have.
 
 The check runs in every default `scan` and `check`, for each of VS Code, Cursor and
 Windsurf whose extension directory or user settings directory exists. It is offline and
@@ -45,7 +45,7 @@ more than "No MCP config files found".
 **Shape** is counted, not interpreted: entries with no dot (publishers), entries with a
 dot (specific extension IDs), entries whose value is a list (version lists), a `"*"`
 entry, and entries set to `false`. How each vendor matches publishers, extension IDs and
-version lists is not stated on its policy page, so mcp-audit does not say what an entry
+version lists is not stated on its policy page, so Credenzo does not say what an entry
 allows or blocks.
 
 ## What it can't tell
@@ -54,4 +54,4 @@ allows or blocks.
   something a file read can prove).
 - A policy delivered through a location the vendor does not document (macOS profiles,
   Cursor on Windows).
-- Anything about extensions already installed; `mcp-audit extensions scan` covers those.
+- Anything about extensions already installed; `credenzo extensions scan` covers those.

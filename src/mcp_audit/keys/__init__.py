@@ -1,4 +1,4 @@
-"""Package marker for the bundled mcp-audit project signing keys.
+"""Package marker for the bundled Credenzo project signing keys.
 
 Holds no code — ``mcp-audit-feed.pub`` is force-included here by
 ``pyproject.toml`` so :func:`importlib.resources.files` can locate it inside

@@ -4,7 +4,7 @@ Shared by both commands (STORY-0070) so the "nearest ancestor lock, grouped,
 merged into one status object" logic is implemented once. Always offline —
 neither ``check`` nor ``scan`` passes ``--resolve``-equivalent network
 resolution here; that stays an explicit, opt-in flag on the standalone
-``mcp-audit lock --verify --resolve`` command (ADR-0005 §8, and this story's
+``credenzo lock --verify --resolve`` command (ADR-0005 §8, and this story's
 own "do not add --resolve to check by default" constraint).
 """
 
@@ -21,7 +21,7 @@ from mcp_audit.lock.verifier import verify as verify_lock
 from mcp_audit.lock.writer import load_existing
 from mcp_audit.models import Finding, LockStatus, ServerConfig
 
-#: Clients ``mcp-audit lock`` never records (it discovers with
+#: Clients ``credenzo lock`` never records (it discovers with
 #: ``include_plugins=False``), so verifying them could only report every one
 #: as unrecorded (LOCK-002) and fail locks that predate their discovery.
 #: ``claude-code-plugin`` includes skills-directory plugin servers, which can
@@ -58,7 +58,7 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
 
     Each group is verified against its own lock file's directory as the lock
     root, which is what makes the ``(config, name)`` match key (R61) resolve
-    to the same pair ``mcp-audit lock`` recorded — the grouping key *is* the
+    to the same pair ``credenzo lock`` recorded — the grouping key *is* the
     root, since :func:`~mcp_audit.lock.discovery.find_lock_for` walks up from
     the config file to find it.
 
@@ -72,7 +72,7 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
         anywhere sees no behavior change at all.
 
     Servers declared inline in a Claude Code subagent definition (client
-    ``claude-code-agent``, STORY-0094) are skipped: ``mcp-audit lock`` never
+    ``claude-code-agent``, STORY-0094) are skipped: ``credenzo lock`` never
     records them, so verifying them would turn every existing lock in a repo
     with a ``.claude/agents/`` server into a LOCK-002 failure. A project-scope
     one under a lock root is listed in ``status.not_covered`` instead (and the
@@ -162,7 +162,7 @@ def auto_verify(servers: list[ServerConfig]) -> tuple[list[Finding], LockStatus]
             newer_locks = True
             unverified_sections.add(
                 f"lock_version {result.unsupported_version} "
-                "(newer than this mcp-audit; upgrade it)"
+                "(newer than this Credenzo; upgrade it)"
             )
         all_findings.extend(result.findings)
         total_checked += result.checked_servers

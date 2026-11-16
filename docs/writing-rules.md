@@ -1,13 +1,13 @@
 # Writing Custom Detection Rules
 
-mcp-audit includes a policy-as-code rule engine that lets security practitioners
+Credenzo includes a policy-as-code rule engine that lets security practitioners
 write custom detection rules in YAML without modifying Python code. Rules produce
 standard `Finding` objects that appear in all output formats (terminal, JSON,
 SARIF, HTML dashboard, Nucleus FlexConnect).
 
 **Bundled community rules run on every scan** for every user. Authoring tools
 (`rule validate`, `rule test`) and custom rule directories (`--rules-dir`,
-`~/.config/mcp-audit/rules/`) are also available to every user — mcp-audit is
+`~/.config/mcp-audit/rules/`) are also available to every user — Credenzo is
 fully open source (Apache 2.0).
 
 ---
@@ -333,7 +333,7 @@ the remaining rules in the file are still loaded.
 ### Validate syntax
 
 ```bash
-mcp-audit rule validate rules/community/COMM-001.yml
+credenzo rule validate rules/community/COMM-001.yml
 ```
 
 Parses the rule file and prints a table of loaded rules. Exits 0 if valid, 1 if
@@ -342,7 +342,7 @@ any errors.
 ### Test against a config
 
 ```bash
-mcp-audit rule test my-rule.yml --against ~/.config/claude/claude_desktop_config.json
+credenzo rule test my-rule.yml --against ~/.config/claude/claude_desktop_config.json
 ```
 
 Shows a table of all rules × all servers with match results:
@@ -361,7 +361,7 @@ Exit code is always 0 — this is a development tool, not a gate.
 ### List all loaded rules
 
 ```bash
-mcp-audit rule list
+credenzo rule list
 ```
 
 Shows all bundled community rules plus user-local rules.
@@ -383,18 +383,18 @@ on every scan. User rules take precedence over community rules on ID conflicts.
 
 ### Temporary scan-time rules
 
-Pass `--rules-dir PATH` to `mcp-audit scan` to load rules for a single scan
+Pass `--rules-dir PATH` to `credenzo scan` to load rules for a single scan
 without installing them globally.
 
 ```bash
-mcp-audit scan --rules-dir ./my-org-rules/
+credenzo scan --rules-dir ./my-org-rules/
 ```
 
 ---
 
 ## Contributing community rules
 
-Community rules in `rules/community/` ship with every mcp-audit installation and
+Community rules in `rules/community/` ship with every Credenzo installation and
 run for every user. Every rule contributed makes the scanner better for everyone.
 
 ### Naming conventions
@@ -432,7 +432,7 @@ The maintainers review PRs for:
 
 1. Fork the repo and create a branch named `rule/COMM-NNN-short-description`.
 2. Add your rule at `rules/community/COMM-NNN.yml`.
-3. Validate: `mcp-audit rule validate rules/community/COMM-NNN.yml`.
+3. Validate: `credenzo rule validate rules/community/COMM-NNN.yml`.
 4. Open a PR with the table output from `rule validate` in the description.
 5. Maintainers review and may request changes to severity, pattern, or message.
 
@@ -440,7 +440,7 @@ The maintainers review PRs for:
 
 ## Availability
 
-Every rule-authoring command is available to every user — mcp-audit is
+Every rule-authoring command is available to every user — Credenzo is
 fully open source (Apache 2.0):
 
 - Bundled community rules run automatically on every scan.

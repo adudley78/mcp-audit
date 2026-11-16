@@ -6,8 +6,8 @@
 > a record yet. Signing is no longer experimental: the published feed is signed with
 > a minisign project key — see "Key custody and rotation" below.
 
-`mcp-audit advise` turns scan findings into signed, OSV-compatible security advisories
-for MCP server packages, and publishes them as a feed on disk. `mcp-audit feed verify`
+`credenzo advise` turns scan findings into signed, OSV-compatible security advisories
+for MCP server packages, and publishes them as a feed on disk. `credenzo feed verify`
 checks one.
 
 There is no CVE/OSV/NVD equivalent for MCP servers. This is the machine-readable
@@ -17,16 +17,16 @@ compatible with it already know how to read it.
 
 ```bash
 # Scan and publish signed advisories to ./feed
-mcp-audit advise ~/Library/Application\ Support/Claude/
+credenzo advise ~/Library/Application\ Support/Claude/
 
 # Verify a feed someone handed you
-mcp-audit feed verify ./feed --identity 'https://github.com/your-org/.*' \
+credenzo feed verify ./feed --identity 'https://github.com/your-org/.*' \
                              --oidc-issuer 'https://token.actions.githubusercontent.com'
 ```
 
 ## Where the published feed lives
 
-mcp-audit publishes its own weekly feed to a dedicated `feed` branch in this
+Credenzo publishes its own weekly feed to a dedicated `feed` branch in this
 repo, over a stable raw URL — no git checkout, no repository access, no
 authentication required:
 
@@ -63,11 +63,11 @@ for p in $(python3 -c "import json; print('\n'.join(a['path'] for a in json.load
 done
 curl -fsSLo index.json.sig https://raw.githubusercontent.com/adudley78/mcp-audit/feed/index.json.sig
 
-mcp-audit feed verify . --key-alt minisign
+credenzo feed verify . --key-alt minisign
 ```
 
 The last command needs no `--public-key`: `feed verify --key-alt minisign` resolves
-to mcp-audit's own bundled project key (`keys/mcp-audit-feed.pub`) by default when
+to Credenzo's own bundled project key (`keys/mcp-audit-feed.pub`) by default when
 neither `--public-key` nor `$MCP_AUDIT_SIGNING_PUBKEY` is given. Pass either
 explicitly to verify against a different key instead — an explicit value always wins
 over the bundled default.
@@ -79,7 +79,7 @@ way from `https://raw.githubusercontent.com/adudley78/mcp-audit/feed/osv/…`
 if you want the osv-scanner-compatible export.
 
 mcp-audit.dev is the intended long-term home for this feed (one origin for
-all mcp-audit data); the `feed` branch is today's destination because the
+all Credenzo data); the `feed` branch is today's destination because the
 site's deploy is manual and its generator lives in a private repo. Moving
 is free by construction — signatures are detached and over JCS canonical
 bytes (see "Signing" below), so the same signed bytes mirror to a new
@@ -131,13 +131,13 @@ OSV reserves for exactly this:
 }
 ```
 
-`verified_patch` is null-valued until a fix lands; `mcp-audit fix` populates it and
+`verified_patch` is null-valued until a fix lands; `credenzo fix` populates it and
 re-signs the record.
 
 ### `observation` — read this before acting on a record
 
 An OSV record is keyed by package, which makes it read as a claim about that package.
-Most mcp-audit findings are not: `CRED-001` fires because *an operator* put a token in
+Most Credenzo findings are not: `CRED-001` fires because *an operator* put a token in
 *their* config, not because the package is defective. Publishing that as "package X is
 vulnerable" would be wrong, so every advisory says which kind it is:
 
@@ -147,7 +147,7 @@ vulnerable" would be wrong, so every advisory says which kind it is:
 | `deployment` | The defect is in how this installation was configured | The operator |
 
 Filter with `--observation package-intrinsic` when publishing a feed about upstream
-packages. Anything mcp-audit cannot confidently classify defaults to `deployment`,
+packages. Anything Credenzo cannot confidently classify defaults to `deployment`,
 because the conservative error is to under-claim.
 
 ### `owasp_mcp` — never invented
@@ -156,7 +156,7 @@ Codes come from `Finding.owasp_mcp_top_10`, which `scripts/validate_owasp_mappin
 holds to `docs/owasp-mapping.json` in CI. The feed publishes the bare `MCP01`..`MCP10`
 form defined in `src/mcp_audit/owasp_mcp.py` — the repo's single definition of this
 taxonomy, and the same spelling used by SARIF output and the mapping file — so a record
-joins to the rest of mcp-audit's output without translation. The advisory package holds
+joins to the rest of Credenzo's output without translation. The advisory package holds
 no copy of the code list; `Advisory` rejects any code `owasp_mcp.py` does not recognise.
 
 A finding with no clean mapping gets `"owasp_mcp": []` and an explicit `owasp_mcp_todo`
@@ -169,7 +169,7 @@ Vectors are *derived*, not independently assessed per record, and `cvss_basis` s
 - `finding-class-template` — the vulnerability class has stable exploitation
   characteristics, so one vector describes every finding in it
 - `severity-band` — no class template applies, or the template would have over-claimed;
-  the vector encodes mcp-audit's own severity rubric (see `docs/severity-framework.md`)
+  the vector encodes Credenzo's own severity rubric (see `docs/severity-framework.md`)
 
 A class template is used only when its CVSS base score fits inside the finding's own
 severity band (Low ≤ 3.9, Medium ≤ 6.9, High ≤ 8.9, Critical ≤ 10.0). Otherwise it is
@@ -195,7 +195,7 @@ follow:
 
 1. **Two hosts observing the same issue mint the same ID.** Nothing host-specific
    enters the basis.
-2. **No filesystem paths or usernames are involved.** mcp-audit is privacy-first, and a
+2. **No filesystem paths or usernames are involved.** Credenzo is privacy-first, and a
    published ID derived from `/Users/<name>/...` would leak.
 3. **Rewriting prose does not fork a record.** Only identity fields participate.
 4. **No timestamp enters the basis either.** An earlier version embedded the
@@ -215,7 +215,7 @@ Given the same findings and the same timestamp, `advise` produces byte-identical
 convention) or `--published-at`:
 
 ```bash
-SOURCE_DATE_EPOCH=1769817600 mcp-audit advise ./configs --out ./feed --no-sign
+SOURCE_DATE_EPOCH=1769817600 credenzo advise ./configs --out ./feed --no-sign
 ```
 
 Anyone can then rebuild the feed from the same inputs and diff it against what you
@@ -248,10 +248,10 @@ the replay being defended against — so it is not reused as freshness.
 
 ### What fails, and what does not
 
-`mcp-audit feed verify` hard-fails on an expired feed. That command exists to answer
+`credenzo feed verify` hard-fails on an expired feed. That command exists to answer
 "is this feed trustworthy." There is no `--allow-expired`.
 
-`mcp-audit scan --advisory-feed DIR` does not fail because the feed expired. It skips
+`credenzo scan --advisory-feed DIR` does not fail because the feed expired. It skips
 advisory correlation, says so, and completes. JSON and SARIF carry a `feed_status`
 object (`state`: `fresh` / `expired` / `absent`, plus `published_at`, `expires`,
 `age_days`) so a CI that genuinely wants to fail on a stale feed can assert on the
@@ -317,14 +317,14 @@ for a feed.
 
 Neither CLI is a hard dependency. When the chosen backend is not on `PATH`, the error
 names the install step and the `--no-sign` escape hatch — the same graceful degradation
-`mcp-audit sast` applies to a missing semgrep. This keeps the crypto out of the 16.6 MB
+`credenzo sast` applies to a missing semgrep. This keeps the crypto out of the 16.6 MB
 standalone binary, for the same reason the `sigstore` stack is excluded from it, while
 offline `feed verify` still works wherever cosign is installed. If a zero-external-tool
 verifier is ever needed, an Ed25519 verify via `cryptography` (already in the
 `[attestation]` extra) drops in as a second backend without changing the artifact format.
 
 Passphrases are read by the signing CLIs from their own environment variables
-(`COSIGN_PASSWORD`, `MINISIGN_PASSWORD`) and are never handled or logged by mcp-audit.
+(`COSIGN_PASSWORD`, `MINISIGN_PASSWORD`) and are never handled or logged by Credenzo.
 
 Key paths can also come from the environment so they stay out of shell history:
 
@@ -403,11 +403,11 @@ this module's CLI reads (`$MCP_AUDIT_SIGNING_KEY`):
     umask 077
     printf '%s' "$MCP_AUDIT_FEED_SIGNING_KEY" > "$KEYFILE"
     chmod 600 "$KEYFILE"
-    mcp-audit advise fixtures/vulnerable-servers --out "${RUNNER_TEMP}/feed" \
+    credenzo advise fixtures/vulnerable-servers --out "${RUNNER_TEMP}/feed" \
       --sign --key-alt minisign --key "$KEYFILE" --previous-index previous_feed/index.json
 ```
 
-`build` then runs `mcp-audit feed verify` against its own signed output, using the
+`build` then runs `credenzo feed verify` against its own signed output, using the
 public key committed in the same checkout, before uploading anything — a feed that
 fails its own verification never reaches `publish`.
 
@@ -470,7 +470,7 @@ secret that reaches one cannot be un-published.
 
 ## CLI reference
 
-### `mcp-audit advise [TARGET]`
+### `credenzo advise [TARGET]`
 
 | Option | Default | Purpose |
 | --- | --- | --- |
@@ -491,12 +491,12 @@ secret that reaches one cannot be un-published.
 
 Exit codes: 0 success, 2 error.
 
-### `mcp-audit feed verify DIRECTORY`
+### `credenzo feed verify DIRECTORY`
 
 | Option | Default | Purpose |
 | --- | --- | --- |
 | `--key-alt` | `cosign` | Backend the feed was signed with |
-| `--public-key` | mcp-audit's bundled `keys/mcp-audit-feed.pub` when `--key-alt minisign` and `$MCP_AUDIT_SIGNING_PUBKEY` is unset; otherwise none | Public key for key-based verification |
+| `--public-key` | Credenzo's bundled `keys/mcp-audit-feed.pub` when `--key-alt minisign` and `$MCP_AUDIT_SIGNING_PUBKEY` is unset; otherwise none | Public key for key-based verification |
 | `--identity` | — | Expected certificate identity regex (keyless) |
 | `--oidc-issuer` | — | Expected OIDC issuer regex (keyless) |
 

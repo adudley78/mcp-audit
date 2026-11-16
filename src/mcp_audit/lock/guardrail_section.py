@@ -1,6 +1,6 @@
 """Guardrail records: the ``guardrails`` section of ``mcp-lock.json``.
 
-STORY-0143. ``mcp-audit lock`` records the *repository's own* agent settings
+STORY-0143. ``credenzo lock`` records the *repository's own* agent settings
 files so ``lock --verify`` can fail CI when one of them gets weaker than what
 was reviewed: the project ``.claude/settings.json``, ``.codex/config.toml`` and
 ``.gemini/settings.json``.  Never ``settings.local.json`` (a person's own,
@@ -23,7 +23,7 @@ The section declares its producer and carries its own checksum, like
 only as SHA-256), ``digest`` the SHA-256 of its RFC 8785 encoding.  The
 top-level ``checksum`` keeps its ADR-0005 §10 scope, so a lock without this
 section has exactly the bytes and checksum it had before, and every older
-mcp-audit sees a populated section it cannot verify (reported honestly as an
+Credenzo sees a populated section it cannot verify (reported honestly as an
 unverified section) instead of reporting LOCK-005.
 
 A lock without a ``guardrails`` section verifies exactly as before: nothing
@@ -50,7 +50,7 @@ _LOCKED_NAMES = frozenset({"settings.json", "config.toml"})
 
 
 def is_owned(section: object) -> bool:
-    """Whether *section* is a ``guardrails`` section this mcp-audit wrote.
+    """Whether *section* is a ``guardrails`` section this Credenzo wrote.
 
     Ownership is declared (ADR-0005 §1): another producer's section, or one
     from a newer schema, is foreign and never touched.

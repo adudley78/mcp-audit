@@ -1,4 +1,4 @@
-# mcp-audit Community Rule Format Specification
+# Credenzo Community Rule Format Specification
 
 **Version:** 1.0  
 **Status:** Stable  
@@ -8,14 +8,14 @@
 
 ## 1. Purpose
 
-This document specifies the YAML schema for mcp-audit community detection rules.
-A rule file conforming to this spec can be validated with `mcp-audit rule validate`
+This document specifies the YAML schema for Credenzo community detection rules.
+A rule file conforming to this spec can be validated with `credenzo rule validate`
 and will produce structured `Finding` objects when matched during an MCP
 configuration scan.
 
 This specification is published as a standalone document so that other tools in
 the MCP security ecosystem can implement the same format and claim compatibility
-with the mcp-audit community rule corpus.
+with the Credenzo community rule corpus.
 
 ---
 
@@ -71,7 +71,7 @@ rules:
 | `exempt_known_servers` | `boolean` | `false` | When `true` and a registry is loaded, the rule is suppressed for servers whose command, args, or name matches a known-legitimate registry entry. |
 | `owasp_mcp_top_10` | `list[string]` | `[]` | OWASP MCP Top 10 category codes (e.g. `["MCP01"]`). Propagated to emitted `Finding` objects and SARIF taxonomies. |
 | `cve` | `list[string]` | `[]` | CVE identifiers (e.g. `["CVE-2026-30623"]`). Propagated to emitted findings. |
-| `author` | `string` | `null` | Contributor identifier (GitHub handle or full name). Shown in `mcp-audit rule list`. |
+| `author` | `string` | `null` | Contributor identifier (GitHub handle or full name). Shown in `credenzo rule list`. |
 | `bounty_accepted` | `string` | `null` | ISO-8601 date string set by maintainers when the rule is accepted into the bounty program (e.g. `"2026-05-17"`). |
 
 ---
@@ -156,7 +156,7 @@ A conforming validator must:
 8. Unknown fields (e.g. `author`, `bounty_accepted`) **must be silently ignored**
    to allow forward-compatible extension.
 
-Reference implementation: `mcp-audit rule validate <file>` (Python, Apache 2.0).
+Reference implementation: `credenzo rule validate <file>` (Python, Apache 2.0).
 
 ---
 
@@ -165,7 +165,7 @@ Reference implementation: `mcp-audit rule validate <file>` (Python, Apache 2.0).
 This specification is licensed **Apache 2.0**.
 
 Any tool that implements this schema can claim compatibility with the mcp-audit
-community rule format. No permission from the mcp-audit maintainers is required.
+community rule format. No permission from the Credenzo maintainers is required.
 We welcome cross-tool adoption — if your scanner implements this format, open an
 issue or PR to add it to the ecosystem compatibility list in `docs/registry.md`.
 
@@ -177,14 +177,14 @@ This specification follows semantic versioning. Breaking changes (removed fields
 changed semantics) increment the major version. Additive changes (new optional
 fields) increment the minor version.
 
-The version is embedded in this document header and in the mcp-audit release
+The version is embedded in this document header and in the Credenzo release
 notes whenever the spec changes.
 
 ---
 
 ## 9. References
 
-- mcp-audit rule engine implementation: `src/mcp_audit/rules/engine.py`
+- Credenzo rule engine implementation: `src/mcp_audit/rules/engine.py`
 - Community rule contribution guide: `docs/contributing-rules.md`
 - Rule authoring reference: `docs/writing-rules.md`
 - Bundled community rules: `rules/community/COMM-001.yml` through `COMM-030.yml`

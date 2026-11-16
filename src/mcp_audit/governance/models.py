@@ -173,10 +173,10 @@ POISON_THRESHOLDS = ("off", "critical", "high", "medium", "low", "info")
 
 
 class RuntimePolicy(BaseModel):
-    """What ``mcp-audit run`` does at runtime (EPIC-0009).
+    """What ``credenzo run`` does at runtime (EPIC-0009).
 
     ``require_wrap``: report every local server in a wrappable client config
-    that doesn't launch through ``mcp-audit run`` (WRAP-001, from ``scan``).
+    that doesn't launch through ``credenzo run`` (WRAP-001, from ``scan``).
 
     ``poison_threshold``: the lowest POISON-* severity on a live tool
     description that ``run`` acts on. Monitor mode reports such a tool;
@@ -188,8 +188,8 @@ class RuntimePolicy(BaseModel):
     """
 
     poison_threshold: str = "critical"
-    # Every local server in a client config ``mcp-audit wrap`` supports must
-    # launch through ``mcp-audit run``; an unwrapped one is WRAP-001.
+    # Every local server in a client config ``credenzo wrap`` supports must
+    # launch through ``credenzo run``; an unwrapped one is WRAP-001.
     require_wrap: bool = False
 
     @field_validator("poison_threshold", mode="before")
@@ -219,7 +219,7 @@ class GovernancePolicy(BaseModel):
     """
 
     version: int = 1
-    name: str = "mcp-audit governance policy"
+    name: str = "Credenzo governance policy"
     approved_servers: ApprovedServers | None = None
     score_threshold: ScoreThreshold | None = None
     transport_policy: TransportPolicy | None = None
@@ -235,5 +235,5 @@ class GovernancePolicy(BaseModel):
     # the nested ``deductions`` and ``positive_signals`` blocks override those
     # constants for this scan.  Absent sub-keys fall back to their defaults.
     scoring: ScoringWeights | None = None
-    # ``mcp-audit run`` behaviour at runtime (EPIC-0009 Story 1.4).
+    # ``credenzo run`` behaviour at runtime (EPIC-0009 Story 1.4).
     runtime: RuntimePolicy | None = None

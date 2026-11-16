@@ -1,20 +1,20 @@
 # Contributing to the Known-Server Registry
 
-The mcp-audit known-server registry (`registry/known-servers.json`) is a
+The Credenzo known-server registry (`registry/known-servers.json`) is a
 community-maintained dataset of legitimate MCP servers. Every entry improves
 typosquatting detection for all users.
 
 **Not listed yet?** Check your current status:
 
 ```bash
-mcp-audit vet @your-scope/your-package
+credenzo vet @your-scope/your-package
 ```
 
 If the output shows `unknown`, your package is not in the registry. Adding it
 takes ~5 minutes (see [How to submit](#how-to-submit) below) and:
-- Turns your `mcp-audit vet` badge from grey to green.
+- Turns your `credenzo vet` badge from grey to green.
 - Protects users from typosquats that mimic your package name.
-- Lets mcp-audit suppress false-positive findings on your server.
+- Lets Credenzo suppress false-positive findings on your server.
 
 See [docs/badge.md](badge.md) for badge documentation.
 
@@ -22,13 +22,13 @@ See [docs/badge.md](badge.md) for badge documentation.
 
 Add a server to the registry if:
 - It is a publicly available MCP server package on npm or PyPI — the two
-  ecosystems `mcp-audit vet` can resolve
+  ecosystems `credenzo vet` can resolve
 - It has a known, identifiable maintainer or organization
 - It is not malicious or abandoned
 
 **Hosted-only servers are out of scope for this registry today.** An MCP
 server that exists only as a remote endpoint (Streamable HTTP / SSE at a URL)
-has no package `mcp-audit vet` can resolve, hash, pin or typosquat-protect, so
+has no package `credenzo vet` can resolve, hash, pin or typosquat-protect, so
 an entry for it would assert nothing a user could check. List those in the
 [official MCP Registry](https://registry.modelcontextprotocol.io/). If your
 server also ships an installable client package on npm or PyPI, submit that
@@ -69,7 +69,7 @@ Use existing tags where possible to keep the registry consistent:
 
 ## How to submit
 
-1. Fork the mcp-audit repository
+1. Fork the Credenzo repository
 2. Add your entry to `registry/known-servers.json`
 3. Update the `entry_count` field at the top of the file
 4. Update `last_updated` to today's date

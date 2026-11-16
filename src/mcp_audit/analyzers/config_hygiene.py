@@ -7,7 +7,7 @@ parsed server contents (credentials.py handles that layer).
 Motivation: on 2026-04-22 supply-chain malware embedded in the Bitwarden
 npm package explicitly targeted ``~/.claude.json``, ``~/.claude/mcp.json``,
 and ``~/.kiro/settings/mcp.json`` as its primary credential-cache targets.
-mcp-audit's ``discover`` command already knows exactly where all 8 supported
+Credenzo's ``discover`` command already knows exactly where all 8 supported
 clients store their configs; this analyzer grades each file's exposure.
 
 **Hook analysis (HOOK-001, HOOK-002)** was added as part of the agent-file
@@ -1454,7 +1454,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     " session in this project then starts with tool-call approval"
                     " skipped, so an instruction injected through a file, a tool"
                     " result or an MCP server runs without a person seeing it."
-                    " mcp-audit does not read which version is installed." + basis
+                    " Credenzo does not read which version is installed." + basis
                 ),
                 evidence=evidence,
                 remediation=(
@@ -1847,7 +1847,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                         f" Foundry resource '{resource}'"
                         f" ({resource}{_FOUNDRY_HOST_SUFFIX}). That host is"
                         " Microsoft's, but anyone can create a Foundry resource in"
-                        " their own Azure subscription, so mcp-audit cannot tell"
+                        " their own Azure subscription, so Credenzo cannot tell"
                         " whether this one belongs to your organisation. Claude"
                         " Code applies project env values once the folder is"
                         " trusted, and at startup in 'claude -p'."
@@ -2003,7 +2003,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     remediation=(
                         "Review and remove the auto-run entry, or move the"
                         " command to an explicit task the developer invokes."
-                        " mcp-audit does not modify this file."
+                        " Credenzo does not modify this file."
                     ),
                     cwe="CWE-829",
                     owasp_mcp_top_10=["MCP05", "MCP09"],
@@ -2077,7 +2077,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     remediation=(
                         "Review and remove the auto-run entry, or move the"
                         " command to an explicit task the developer invokes."
-                        " mcp-audit does not modify this file."
+                        " Credenzo does not modify this file."
                     ),
                     cwe="CWE-829",
                     owasp_mcp_top_10=["MCP05", "MCP09"],
@@ -2159,7 +2159,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                     title="Agent auto-run file is too large to inspect",
                     description=(
                         f"'{_short_path(path)}' is a file the {client} harness loads"
-                        f" automatically, and it is {size} bytes, over mcp-audit's"
+                        f" automatically, and it is {size} bytes, over Credenzo's"
                         f" {_AUTOEXEC_MAX_BYTES}-byte read limit, so its contents"
                         " were not checked. A config file this large is unusual;"
                         " padding is one way to hide what it holds."
@@ -2235,7 +2235,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
             evidence=evidence,
             remediation=(
                 "Read every hook command before trusting the folder, and remove"
-                " hooks you did not expect. mcp-audit does not modify this file."
+                " hooks you did not expect. Credenzo does not modify this file."
             ),
         )
 
@@ -2613,7 +2613,7 @@ class ConfigHygieneAnalyzer(BaseAnalyzer):
                 remediation=(
                     "Read every ${cmd: ...} command before opening the folder"
                     " with MCPHub, and replace each with a ${env:NAME}"
-                    " reference. mcp-audit does not modify this file."
+                    " reference. Credenzo does not modify this file."
                 ),
             )
         ]

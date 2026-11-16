@@ -26,7 +26,7 @@ _DEBOUNCE_SECONDS = 0.5
 
 
 def _known_config_filenames() -> frozenset[str]:
-    """Return the set of config filenames that mcp-audit cares about.
+    """Return the set of config filenames that Credenzo cares about.
 
     Collects filenames from all client specs plus hard-coded project-level
     names that are only discovered relative to CWD at runtime.

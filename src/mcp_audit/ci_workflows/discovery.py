@@ -3,7 +3,7 @@
 GitHub reads workflows from ``.github/workflows/`` at the root of a
 repository, one directory level only (``*.yml`` and ``*.yaml``).  A default
 scan reads that directory under the working directory, which is where the
-mcp-audit GitHub Action runs.  ``scan --project`` reads it under the project
+Credenzo GitHub Action runs.  ``scan --project`` reads it under the project
 root and also under any nested directory that is itself a repository root
 (holds a ``.git`` entry), so a folder of checkouts is covered without
 flagging copies of workflows vendored or kept as test data inside one repo.

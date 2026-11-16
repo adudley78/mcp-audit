@@ -1,6 +1,6 @@
 """Read-only readers for OS-level policy sources (STORY-0144).
 
-Claude Code and the editors mcp-audit knows read administrator policy from
+Claude Code and the editors Credenzo knows read administrator policy from
 places beyond plain files: the Windows registry and macOS managed preferences.
 This module holds the small, injectable readers both
 ``analyzers/managed_policy.py`` and ``extensions/policy.py`` use, so tests run

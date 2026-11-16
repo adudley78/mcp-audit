@@ -14,7 +14,7 @@ MEM-003 and MEM-004 join the scan people already run, with no new flags:
 
 The content rules (MEM-001/002, POISON-041/042) on these files stay where
 agent-file scanning already runs (``scan --include-agent-files``,
-``mcp-audit agent-files scan``).  On these two paths only a symlink that
+``credenzo agent-files scan``).  On these two paths only a symlink that
 leaves the scanned folder is reported (TRUST-002 HIGH); links inside it and
 symlinked directories are left to the agent-file scan, which reports them
 all.  Nothing here raises: problems go to the caller's ``errors`` list.

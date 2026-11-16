@@ -121,7 +121,7 @@ def _analyzer_crash_finding(
         evidence=f"{type(exc).__name__}: {exc}",
         remediation=(
             "Manually inspect this server configuration. Report this error "
-            "to the mcp-audit maintainers if it persists."
+            "to the Credenzo maintainers if it persists."
         ),
         finding_path=str(server.config_path),
     )
@@ -826,7 +826,7 @@ async def run_scan_async(
 
     Requires the ``mcp`` optional dependency when *connect* is ``True``::
 
-        pip install 'mcp-audit-scanner[mcp]'
+        pip install 'credenzo[mcp]'
 
     Args:
         extra_paths: Additional config paths to scan.

@@ -1,4 +1,4 @@
-"""``mcp-audit diff <base> <head>`` — MCP-aware diff for PRs and CI gates.
+"""``credenzo diff <base> <head>`` — MCP-aware diff for PRs and CI gates.
 
 Surfaces what changed in MCP terms (servers, tools, capabilities, env vars,
 endpoints, credentials) between two states, classified by risk.
@@ -6,7 +6,7 @@ endpoints, credentials) between two states, classified by risk.
 Accepted input formats for *base* and *head*:
 
 - Path to a directory of MCP configs (``--path``-style discovery).
-- Path to a ``mcp-audit scan --output-file`` JSON.
+- Path to a ``credenzo scan --output-file`` JSON.
 - A git ref (SHA, branch, ``HEAD~1``, etc.) — resolved via ``git show``.
 """
 

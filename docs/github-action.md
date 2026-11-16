@@ -1,4 +1,4 @@
-# Using mcp-audit as a GitHub Action
+# Using Credenzo as a GitHub Action
 
 Scan your MCP server configurations in CI and surface findings in GitHub Code
 Scanning — no Python install required.
@@ -18,12 +18,12 @@ scanning (e.g. install once in a shared job and run in multiple matrix legs).
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: adudley78/mcp-audit/setup-action@v0.32.0
+- uses: adudley78/mcp-audit/setup-action@v0.33.0
   with:
     version: 'latest'   # or a specific tag: 'v0.10.0'
 ```
 
-After this step `mcp-audit` is on `PATH` for every subsequent step in the job.
+After this step `credenzo` is on `PATH` for every subsequent step in the job.
 
 ### `setup-mcp-audit` inputs
 
@@ -36,7 +36,7 @@ After this step `mcp-audit` is on `PATH` for every subsequent step in the job.
 
 | Output | Description |
 |---|---|
-| `mcp-audit-version` | Version string emitted by `mcp-audit version` after install. |
+| `mcp-audit-version` | Version string emitted by `credenzo version` after install. |
 
 ### Caching
 
@@ -80,7 +80,7 @@ jobs:
       security-events: write   # required for SARIF upload
     steps:
       - uses: actions/checkout@v4
-      - uses: adudley78/mcp-audit@v0.32.0
+      - uses: adudley78/mcp-audit@v0.33.0
 ```
 
 Findings appear in **Security → Code scanning alerts** within ~2 minutes.
@@ -98,7 +98,7 @@ workflow above already covers it: the action scans from the checkout, a scan
 run inside a repository reads its `.claude/settings.json`, and
 the HARNESS findings in committed settings are HIGH, so the default
 `severity-threshold: high` with `fail-on-findings: true` fails the check on that
-pull request. With mcp-audit v0.19.0 or earlier, set
+pull request. With Credenzo v0.19.0 or earlier, set
 `config-paths: .claude/settings.json .mcp.json` to get the same result.
 
 ### Catch agent workflows that hand out secrets
@@ -123,7 +123,7 @@ break reproducibility on release day.
 ## Full example
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.32.0
+- uses: adudley78/mcp-audit@v0.33.0
   with:
     config-paths: 'path/to/claude_desktop_config.json path/to/cursor_config.json'
     severity-threshold: high
@@ -142,7 +142,7 @@ break reproducibility on release day.
 
 ## Diff mode
 
-The action supports a `mode: diff` input that runs `mcp-audit diff` instead of
+The action supports a `mode: diff` input that runs `credenzo diff` instead of
 `scan`. Diff mode is designed for pull request workflows: it compares
 `$GITHUB_BASE_REF` against `$GITHUB_HEAD_REF`, produces MCP-aware risk
 classification of what changed, and posts the result as a PR comment.
@@ -165,7 +165,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # full history so git refs resolve
-      - uses: adudley78/mcp-audit@v0.32.0
+      - uses: adudley78/mcp-audit@v0.33.0
         with:
           mode: diff
           severity-threshold: medium
@@ -185,25 +185,25 @@ See `examples/github-actions/diff-mode.yml` for the full reference workflow and
 | `upload-sarif` | `'true'` | Upload SARIF to GitHub Code Scanning. Requires `security-events: write`. |
 | `check-vulns` | `'false'` | Run the OSV.dev dependency CVE scan (Layer 3). Requires network access. |
 | `verify-signatures` | `'false'` | Run Sigstore signature verification (Layer 2). Requires network access. |
-| `run-sast` | `'false'` | Also run `mcp-audit sast <sast-path>` after the config scan. |
-| `sast-path` | `src/` | Path passed to `mcp-audit sast`. Only used when `run-sast: 'true'`. |
-| `baseline-name` | _(empty)_ | Saved baseline name. When non-empty, runs `mcp-audit baseline compare <name>` and writes the diff to the step summary. |
+| `run-sast` | `'false'` | Also run `credenzo sast <sast-path>` after the config scan. |
+| `sast-path` | `src/` | Path passed to `credenzo sast`. Only used when `run-sast: 'true'`. |
+| `baseline-name` | _(empty)_ | Saved baseline name. When non-empty, runs `credenzo baseline compare <name>` and writes the diff to the step summary. |
 | `fail-on-findings` | `'true'` | Fail the workflow step if the scan finds anything at or above `severity-threshold`. Set to `'false'` for visibility-only mode. |
-| `lock-verify` | `'false'` | Verify `mcp-lock.json` (if present) via `mcp-audit lock --verify --if-present`. Fails on `LOCK-001`/`002`/`004`/`005` regardless of `severity-threshold` (still honours `fail-on-findings`). A repo with no lock file yet gets a warning and a passing step. |
+| `lock-verify` | `'false'` | Verify `mcp-lock.json` (if present) via `credenzo lock --verify --if-present`. Fails on `LOCK-001`/`002`/`004`/`005` regardless of `severity-threshold` (still honours `fail-on-findings`). A repo with no lock file yet gets a warning and a passing step. |
 | `lock-resolve` | `'false'` | With `lock-verify`, also re-resolve floating specs against the registry (network; produces `LOCK-004` on version drift). Ignored when `lock-verify` is `'false'`. |
 | `version` | `latest` | Release tag to install (e.g. `v0.10.1`). The binary is downloaded from GitHub Releases, not PyPI. |
 
 ### Verifying `mcp-lock.json` in CI
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.32.0  # lock-verify needs v0.17.0 or later
+- uses: adudley78/mcp-audit@v0.33.0  # lock-verify needs v0.17.0 or later
   with:
     lock-verify: 'true'
     lock-resolve: 'true'   # optional: also catch a republished package version
 ```
 
 This is additive to the normal scan — enabling it never requires a repo to
-have adopted `mcp-audit lock` first. See [`docs/lock.md`](lock.md) for what
+have adopted `credenzo lock` first. See [`docs/lock.md`](lock.md) for what
 gets locked and verified.
 
 ### Severity threshold behaviour
@@ -232,7 +232,7 @@ Use outputs in downstream steps:
 ```yaml
 - name: Run mcp-audit
   id: mcp
-  uses: adudley78/mcp-audit@v0.32.0
+  uses: adudley78/mcp-audit@v0.33.0
 
 - name: Print results
   run: |
@@ -255,7 +255,7 @@ output files.
 ## Disabling SARIF upload
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.32.0
+- uses: adudley78/mcp-audit@v0.33.0
   with:
     upload-sarif: 'false'
 ```
@@ -263,13 +263,13 @@ output files.
 ## Pinning to a specific version
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.32.0
+- uses: adudley78/mcp-audit@v0.33.0
   with:
-    version: v0.32.0
+    version: v0.33.0
 ```
 
 Pin both for fully reproducible CI runs: the `uses:` tag fixes the action's
-own steps, and the `version` input fixes the mcp-audit binary it downloads
+own steps, and the `version` input fixes the Credenzo binary it downloads
 (it defaults to `latest`). See the
 [Version pinning](#version-pinning) section above for the `@v1`
 floating-tag convention that will become available once `v1.0.0` ships.
@@ -296,12 +296,12 @@ a tag can be moved, a SHA cannot.
 
 ### Basic (visibility only, never fails)
 
-Good when first adopting mcp-audit. Get findings in the Security tab without
+Good when first adopting Credenzo. Get findings in the Security tab without
 blocking any build. Tighten the threshold once you've worked through the
 existing findings.
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.32.0
+- uses: adudley78/mcp-audit@v0.33.0
   with:
     severity-threshold: info
     fail-on-findings: 'false'
@@ -315,7 +315,7 @@ Suitable for security-conscious teams or new projects with no existing
 findings.
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.32.0
+- uses: adudley78/mcp-audit@v0.33.0
   with:
     severity-threshold: medium
     fail-on-findings: 'true'
@@ -325,7 +325,7 @@ Full file: [`examples/github-actions/strict.yml`](../examples/github-actions/str
 
 ### With baseline drift detection
 
-`baseline-name` runs `mcp-audit baseline compare <name>` after the scan and
+`baseline-name` runs `credenzo baseline compare <name>` after the scan and
 writes the drift table to the step summary. Set up the baseline locally and
 commit the exported JSON before enabling this.
 
@@ -333,7 +333,7 @@ Full file: [`examples/github-actions/with-baseline.yml`](../examples/github-acti
 
 ### SAST scanning
 
-`run-sast: 'true'` runs `mcp-audit sast <sast-path>` after the config scan
+`run-sast: 'true'` runs `credenzo sast <sast-path>` after the config scan
 using the 37 bundled MCP-aware Semgrep rules that ship with
 `mcp-audit-scanner`. The action installs the Semgrep CLI automatically
 inside the SAST step (`pip install semgrep --quiet`), so no separate
@@ -341,7 +341,7 @@ install step is required — the dependency is only pulled in when you
 opt in.
 
 ```yaml
-- uses: adudley78/mcp-audit@v0.32.0
+- uses: adudley78/mcp-audit@v0.33.0
   with:
     run-sast: 'true'
     sast-path: src/
@@ -361,7 +361,7 @@ Each finding becomes a code-scanning alert with:
 - **Severity** mapped from CRITICAL/HIGH → `error`, MEDIUM → `warning`,
   LOW/INFO → `note`.
 - **Location** pointing to the MCP config file where the server is defined.
-- **Rule** linking to the mcp-audit documentation.
+- **Rule** linking to the Credenzo documentation.
 - **Fix description** from the finding's remediation field.
 
 Alerts appear in the **Security → Code scanning** tab and as annotations on
@@ -369,7 +369,7 @@ pull-request diffs.
 
 ## Exit code behaviour
 
-`mcp-audit` uses three distinct exit codes:
+`credenzo` uses three distinct exit codes:
 
 | Exit code | Meaning | Action effect |
 |-----------|---------|---------------|

@@ -1,6 +1,6 @@
-# `mcp-audit fix` — Apply Safe Remediations to MCP Configs
+# `credenzo fix` — Apply Safe Remediations to MCP Configs
 
-`mcp-audit fix` closes the loop between scanning and remediation. It reads
+`credenzo fix` closes the loop between scanning and remediation. It reads
 findings from a scan, computes targeted changes to your MCP config files, shows
 you a diff, and (optionally) writes the changes atomically with a backup.
 
@@ -10,16 +10,16 @@ you a diff, and (optionally) writes the changes atomically with a backup.
 
 ```bash
 # Dry run — shows a unified diff, no files touched
-mcp-audit fix
+credenzo fix
 
 # Apply to a specific config file
-mcp-audit fix --path ~/.config/claude/claude_desktop_config.json
+credenzo fix --path ~/.config/claude/claude_desktop_config.json
 
 # Apply and write changes (creates a .bak backup first)
-mcp-audit fix --apply
+credenzo fix --apply
 
 # Apply only credential fixes, skip others
-mcp-audit fix --apply --fix-type credentials
+credenzo fix --apply --fix-type credentials
 ```
 
 ---
@@ -171,10 +171,10 @@ suspiciously close to a known-legitimate MCP package (typosquatting).
 ```
 
 **Registry safety signal:** if the replacement package is not in the
-mcp-audit known-server registry, a warning is printed but the fix proceeds:
+Credenzo known-server registry, a warning is printed but the fix proceeds:
 
 ```
-⚠  Warning: 'some-package' is not in the mcp-audit known-server registry.
+⚠  Warning: 'some-package' is not in the Credenzo known-server registry.
    Pinning to latest version anyway — verify this package is legitimate
    before committing.
 ```
@@ -187,7 +187,7 @@ pinning fix is skipped with a warning and other fix types still apply.
 ### Version pinning (`VULN-UNPINNED`, `LOCK-004`)
 
 `VULN-UNPINNED` fires when a server's package spec floats (no version, or a
-semver range like `^1.2.3`). `LOCK-004` fires when `mcp-audit lock --verify`
+semver range like `^1.2.3`). `LOCK-004` fires when `credenzo lock --verify`
 finds the config's resolved version has drifted from what `mcp-lock.json`
 recorded. Both are fixed the same way: pin to an exact version.
 
@@ -201,7 +201,7 @@ recorded. Both are fixed the same way: pin to an exact version.
 3. Replaces the current spec with `package@version`. A semver range that got
    collapsed to an exact pin is called out explicitly in the fix message; a
    pin sourced from live resolution (not the lock) suggests running
-   `mcp-audit lock` to record it.
+   `credenzo lock` to record it.
 
 **Before (unpinned):**
 ```json
@@ -223,12 +223,12 @@ pins, since no network call is needed either way.
 
 ## Using with an existing scan output
 
-If you already ran `mcp-audit scan --format json --output scan.json`, you can
+If you already ran `credenzo scan --format json --output scan.json`, you can
 pass that file directly to skip re-scanning:
 
 ```bash
-mcp-audit fix --input scan.json
-mcp-audit fix --input scan.json --apply
+credenzo fix --input scan.json
+credenzo fix --input scan.json --apply
 ```
 
 The config file path is resolved from the `servers[0].config_path` field in
@@ -265,11 +265,11 @@ cp ~/.config/claude/claude_desktop_config.json.bak \
 
 ## CI usage
 
-Add `mcp-audit fix` as an auto-remediation step after a failing scan gate:
+Add `credenzo fix` as an auto-remediation step after a failing scan gate:
 
 ```yaml
 - name: Scan MCP configs
-  uses: adudley78/mcp-audit@v0.32.0
+  uses: adudley78/mcp-audit@v0.33.0
   with:
     severity-threshold: high
     fail-on-findings: 'true'
@@ -277,8 +277,8 @@ Add `mcp-audit fix` as an auto-remediation step after a failing scan gate:
 - name: Auto-fix credential and transport findings
   if: failure()
   run: |
-    mcp-audit fix --apply --fix-type credentials --fix-type transport
-    git diff --exit-code || (git add -A && git commit -m "chore: mcp-audit auto-fix")
+    credenzo fix --apply --fix-type credentials --fix-type transport
+    git diff --exit-code || (git add -A && git commit -m "chore: Credenzo auto-fix")
 ```
 
 ---
@@ -289,7 +289,7 @@ The following are intentionally not handled by `fix` in v0.11.0:
 
 - SAST source-code fixes (modifying MCP server source files, not configs)
 - Rug-pull state resets
-- Governance policy auto-patching (use `mcp-audit killchain --patch yaml`)
+- Governance policy auto-patching (use `credenzo killchain --patch yaml`)
 - Interactive mode / per-finding prompts
 - Codex's `config.toml` (TOML) and Gemini CLI `settings.json` files with
   comments: `fix` writes JSON only and refuses them, so you edit them by hand

@@ -36,7 +36,7 @@ def _load_yaml(path: Path) -> object:
 
 
 def _hook_def() -> dict:
-    """Return the first hook definition (id: mcp-audit) from .pre-commit-hooks.yaml."""
+    """Return the first hook definition (id: credenzo) from .pre-commit-hooks.yaml."""
     doc = _load_yaml(_HOOKS_FILE)
     assert isinstance(doc, list) and len(doc) >= 1, (
         ".pre-commit-hooks.yaml must be a non-empty YAML list"
@@ -45,13 +45,13 @@ def _hook_def() -> dict:
 
 
 def _lock_hook_def() -> dict:
-    """Return the `mcp-audit-lock-verify` hook definition (STORY-0070)."""
+    """Return the `credenzo-lock-verify` hook definition (STORY-0070)."""
     doc = _load_yaml(_HOOKS_FILE)
     for hook in doc:
-        if hook.get("id") == "mcp-audit-lock-verify":
+        if hook.get("id") == "credenzo-lock-verify":
             return hook
     raise AssertionError(
-        "mcp-audit-lock-verify hook not found in .pre-commit-hooks.yaml"
+        "credenzo-lock-verify hook not found in .pre-commit-hooks.yaml"
     )
 
 
@@ -133,10 +133,10 @@ class TestHookDefinition:
         hook = _hook_def()
         assert "id" in hook, "Hook must have an 'id' field"
 
-    def test_hook_id_is_mcp_audit(self) -> None:
+    def test_hook_id_is_credenzo(self) -> None:
         hook = _hook_def()
-        assert hook["id"] == "mcp-audit", (
-            f"Hook id must be 'mcp-audit', got {hook['id']!r}"
+        assert hook["id"] == "credenzo", (
+            f"Hook id must be 'credenzo', got {hook['id']!r}"
         )
 
     def test_hook_has_name(self) -> None:
@@ -157,10 +157,10 @@ class TestHookDefinition:
         hook = _hook_def()
         assert "entry" in hook, "Hook must have an 'entry' field"
 
-    def test_hook_entry_is_mcp_audit(self) -> None:
+    def test_hook_entry_is_credenzo(self) -> None:
         hook = _hook_def()
-        assert hook["entry"] == "mcp-audit", (
-            f"Hook entry must be 'mcp-audit', got {hook['entry']!r}"
+        assert hook["entry"] == "credenzo", (
+            f"Hook entry must be 'credenzo', got {hook['entry']!r}"
         )
 
     def test_hook_pass_filenames_is_false(self) -> None:
@@ -196,31 +196,53 @@ class TestHookDefinition:
 class TestLockVerifyHookDefinition:
     def test_hooks_file_has_two_hooks(self) -> None:
         doc = _load_yaml(_HOOKS_FILE)
-        assert len(doc) == 2, (
-            f".pre-commit-hooks.yaml must define mcp-audit and "
-            f"mcp-audit-lock-verify; found {len(doc)} hook(s)"
+        assert [h["id"] for h in doc] == [
+            "credenzo",
+            "credenzo-lock-verify",
+            "mcp-audit",
+            "mcp-audit-lock-verify",
+        ], (
+            ".pre-commit-hooks.yaml must define credenzo, credenzo-lock-verify "
+            f"and the two old ids; found {len(doc)} hook(s)"
         )
+
+    def test_old_hook_ids_run_the_same_checks(self) -> None:
+        """A config that names `mcp-audit` or `mcp-audit-lock-verify` (every
+        config written before the rename) must get the same hook. Only the
+        id, the display name and the command name may differ."""
+        doc = {h["id"]: h for h in _load_yaml(_HOOKS_FILE)}
+        for new_id, old_id in (
+            ("credenzo", "mcp-audit"),
+            ("credenzo-lock-verify", "mcp-audit-lock-verify"),
+        ):
+            new, old = dict(doc[new_id]), dict(doc[old_id])
+            assert old.pop("entry") == "mcp-audit"
+            assert new.pop("entry") == "credenzo"
+            for key in ("id", "name"):
+                new.pop(key)
+                old.pop(key)
+            assert new == old, old_id
 
     def test_first_hook_unaffected(self) -> None:
         """Appending the new hook must not change the original hook at all."""
         hook = _hook_def()
-        assert hook["id"] == "mcp-audit"
+        assert hook["id"] == "credenzo"
         assert hook["args"] == ["scan", "--severity-threshold", "high"]
 
     def test_lock_hook_has_id(self) -> None:
         hook = _lock_hook_def()
-        assert hook["id"] == "mcp-audit-lock-verify"
+        assert hook["id"] == "credenzo-lock-verify"
 
     def test_lock_hook_language_is_python(self) -> None:
         hook = _lock_hook_def()
         assert hook["language"] == "python"
 
-    def test_lock_hook_entry_is_mcp_audit(self) -> None:
-        """Must stay `entry: mcp-audit` / `language: python` — a bash wrapper
+    def test_lock_hook_entry_is_credenzo(self) -> None:
+        """Must stay `entry: credenzo` / `language: python` — a bash wrapper
         with a different `language:` cannot rely on sharing the same
         isolated pre-commit venv/PATH as this hook."""
         hook = _lock_hook_def()
-        assert hook["entry"] == "mcp-audit"
+        assert hook["entry"] == "credenzo"
 
     def test_lock_hook_args_use_if_present(self) -> None:
         hook = _lock_hook_def()
@@ -352,13 +374,13 @@ class TestExampleFiles:
         doc = _load_yaml(self._EXAMPLES_DIR / "basic.yaml")
         assert "repos" in doc
 
-    def test_basic_example_references_mcp_audit_hook(self) -> None:
+    def test_basic_example_references_credenzo_hook(self) -> None:
         doc = _load_yaml(self._EXAMPLES_DIR / "basic.yaml")
         hook_ids = [
             h["id"] for repo in doc.get("repos", []) for h in repo.get("hooks", [])
         ]
-        assert "mcp-audit" in hook_ids, (
-            f"basic.yaml must reference hook id 'mcp-audit'; found: {hook_ids}"
+        assert "credenzo" in hook_ids, (
+            f"basic.yaml must reference hook id 'credenzo'; found: {hook_ids}"
         )
 
     def test_strict_example_exists(self) -> None:
@@ -372,13 +394,13 @@ class TestExampleFiles:
         doc = _load_yaml(self._EXAMPLES_DIR / "strict.yaml")
         assert "repos" in doc
 
-    def test_strict_example_references_mcp_audit_hook(self) -> None:
+    def test_strict_example_references_credenzo_hook(self) -> None:
         doc = _load_yaml(self._EXAMPLES_DIR / "strict.yaml")
         hook_ids = [
             h["id"] for repo in doc.get("repos", []) for h in repo.get("hooks", [])
         ]
-        assert "mcp-audit" in hook_ids, (
-            f"strict.yaml must reference hook id 'mcp-audit'; found: {hook_ids}"
+        assert "credenzo" in hook_ids, (
+            f"strict.yaml must reference hook id 'credenzo'; found: {hook_ids}"
         )
 
     def test_strict_example_overrides_severity_threshold(self) -> None:
@@ -386,10 +408,10 @@ class TestExampleFiles:
         doc = _load_yaml(self._EXAMPLES_DIR / "strict.yaml")
         for repo in doc.get("repos", []):
             for hook in repo.get("hooks", []):
-                if hook.get("id") == "mcp-audit":
+                if hook.get("id") == "credenzo":
                     args = hook.get("args", [])
                     assert "medium" in args, (
                         f"strict.yaml hook args must include 'medium'; got {args!r}"
                     )
                     return
-        raise AssertionError("mcp-audit hook not found in strict.yaml")
+        raise AssertionError("credenzo hook not found in strict.yaml")

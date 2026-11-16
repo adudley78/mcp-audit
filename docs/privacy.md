@@ -1,15 +1,15 @@
 # Privacy Policy — mcp-audit
 
-**Short version:** mcp-audit collects no data by default.
+**Short version:** Credenzo collects no data by default.
 A plain scan runs entirely on your machine and sends nothing anywhere.  Registration (below) is opt-in.  A few commands do use the network, listed under [Commands that use the network](#commands-that-use-the-network); three of them (`fix`, `sbom` and `lock`) look up package versions online by default unless you pass `--offline`.
 
 ---
 
 ## Default behaviour (no registration)
 
-- **No telemetry.** mcp-audit never phones home, sends usage statistics, or contacts any remote server during a normal scan.
+- **No telemetry.** Credenzo never phones home, sends usage statistics, or contacts any remote server during a normal scan.
 - **No crash reports.** Errors are written to your terminal only.
-- **Offline scans.** A plain `mcp-audit scan` makes zero network connections, and so does `mcp-audit check` for a user who has not registered.  The scan flags that touch the network (`--verify-hashes`, `--verify-signatures`, `--check-vulns`, `--connect`) are explicitly opt-in.
+- **Offline scans.** A plain `credenzo scan` makes zero network connections, and so does `credenzo check` for a user who has not registered.  The scan flags that touch the network (`--verify-hashes`, `--verify-signatures`, `--check-vulns`, `--connect`) are explicitly opt-in.
 
 ### Commands that use the network
 
@@ -24,20 +24,20 @@ A plain scan runs entirely on your machine and sends nothing anywhere.  Registra
 | `fix` | npm or PyPI, to look up the latest version to pin (also in its default dry run) | By default; `--offline` skips it |
 | `sbom` | deps.dev, for transitive dependencies (and npm/PyPI to resolve a version range) | By default; `--offline` skips it |
 | `lock` (writing `mcp-lock.json`) | npm or PyPI, to resolve floating versions, and npm to download tarballs it hashes | By default; `--offline` skips it |
-| `lock --verify --resolve` | npm or PyPI, to re-resolve floating versions, and npm to download the tarball it hashes when mcp-audit's registry has no hash for that version | Only with `--resolve`; plain `lock --verify` is offline |
+| `lock --verify --resolve` | npm or PyPI, to re-resolve floating versions, and npm to download the tarball it hashes when Credenzo's registry has no hash for that version | Only with `--resolve`; plain `lock --verify` is offline |
 | `lock --connect` (also with `--verify`) | Each configured MCP server: a local server's own command is started (and may download its package, as `npx -y` does), and a remote server's URL is contacted, with the `--connect-token` bearer token if you pass one. With `--verify`, only servers the lock approves whose launch line has not changed, and none when the lock fails its checksum | Only with `--connect` |
 
 The package-registry lookups send package names and versions taken from your config, never the config itself.
 
 ---
 
-## Opt-in registration (`mcp-audit register`)
+## Opt-in registration (`credenzo register`)
 
-Registration is **opt-in and completely optional**.  Nothing is sent unless you run `mcp-audit register` (or pass `--register` to `mcp-audit check`) and answer its prompts.  An unregistered user has identical functionality to a registered one.
+Registration is **opt-in and completely optional**.  Nothing is sent unless you run `credenzo register` (or pass `--register` to `credenzo check`) and answer its prompts.  An unregistered user has identical functionality to a registered one.
 
 ### What registration does
 
-Running `mcp-audit register` starts an interactive prompt that:
+Running `credenzo register` starts an interactive prompt that:
 
 1. Asks for your name (or handle), org, and email.  Name and org can be left blank.
 2. Asks whether you want a follow-up if your scan grade is C or below.
@@ -59,11 +59,11 @@ The request body is JSON with exactly these fields:
 | `name` | `"Sarah Chen"` | Your answer to the name prompt (may be blank) |
 | `org` | `"IBM Security"` | Your answer to the org prompt (may be blank) |
 | `email` | `"sarah.chen@ibm.com"` | Your answer to the email prompt |
-| `version` | `"0.21.1"` | The installed mcp-audit version |
+| `version` | `"0.21.1"` | The installed credenzo version |
 | `grade` | `"?"` | Always `"?"` in this POST: the registration flow runs no scan of its own, so there is no grade to send |
 | `follow_up_requested` | `true` | Your answer to the follow-up prompt |
 
-**Nothing else is in the body.** The payload is defined in `src/mcp_audit/registration/models.py` as `RegistrationPostPayload`, and you can audit it directly.  The request carries six headers. mcp-audit sets two: `Content-Type: application/json` and `User-Agent: mcp-audit/<version>`. Python's HTTP library adds four standard protocol headers: `Host`, `Content-Length`, `Connection: close` and `Accept-Encoding: identity`. None of them identifies you. Like any HTTPS request, the receiving service can also see the IP address the request comes from.
+**Nothing else is in the body.** The payload is defined in `src/mcp_audit/registration/models.py` as `RegistrationPostPayload`, and you can audit it directly.  The request carries six headers. Credenzo sets two: `Content-Type: application/json` and `User-Agent: mcp-audit/<version>`. Python's HTTP library adds four standard protocol headers: `Host`, `Content-Length`, `Connection: close` and `Accept-Encoding: identity`. None of them identifies you. Like any HTTPS request, the receiving service can also see the IP address the request comes from.
 
 ### What the initial registration POST does NOT send
 
@@ -75,7 +75,7 @@ The request body is JSON with exactly these fields:
 
 ### Subsequent pings (after scan runs)
 
-After you register, every completed `mcp-audit check` run sends a brief ping to the same address (a run that finds no MCP configs at all exits before it).  `mcp-audit scan` and every other command never ping.
+After you register, every completed `credenzo check` run sends a brief ping to the same address (a run that finds no MCP configs at all exits before it).  `credenzo scan` and every other command never ping.
 
 | Field | Example |
 |---|---|
@@ -87,7 +87,7 @@ After you register, every completed `mcp-audit check` run sends a brief ping to 
 
 ### Where the data goes
 
-Both requests go to the `_REGISTER_ENDPOINT` address above and nowhere else.  The code comment beside that constant in `src/mcp_audit/registration/client.py` describes the webhook as routing each request to an email notification and a Google Sheets log.  mcp-audit itself keeps no copy beyond the local `registration.json` described next.
+Both requests go to the `_REGISTER_ENDPOINT` address above and nowhere else.  The code comment beside that constant in `src/mcp_audit/registration/client.py` describes the webhook as routing each request to an email notification and a Google Sheets log.  Credenzo itself keeps no copy beyond the local `registration.json` described next.
 
 ### Local storage
 
@@ -99,32 +99,32 @@ Both requests go to the `_REGISTER_ENDPOINT` address above and nowhere else.  Th
 
 On macOS: `~/Library/Application Support/mcp-audit/registration.json`
 On Linux: `~/.config/mcp-audit/registration.json`
-On Windows: `%LOCALAPPDATA%\mcp-audit\mcp-audit\registration.json` (the directory library mcp-audit uses, `platformdirs`, repeats the app name on Windows)
+On Windows: `%LOCALAPPDATA%\mcp-audit\mcp-audit\registration.json` (the directory library Credenzo uses, `platformdirs`, repeats the app name on Windows)
 
 The file is created with `0o600` permissions (owner read/write only), in a directory created with `0o700` if it does not already exist.
 
 ### Removing your registration
 
 ```bash
-mcp-audit register --clear
+credenzo register --clear
 ```
 
 This deletes the local `registration.json`.  No further pings will be sent.  It does not delete records the webhook has already received.  You can verify the file is gone:
 
 ```bash
-mcp-audit register --status
+credenzo register --status
 # Not registered.
 ```
 
 ### Network failure behaviour
 
-If the registration endpoint is unreachable (you're offline, the address doesn't resolve, or the service is down), the request gives up after 5 seconds and the command completes normally.  A dim one-liner appears at the bottom of `mcp-audit check` output:
+If the registration endpoint is unreachable (you're offline, the address doesn't resolve, or the service is down), the request gives up after 5 seconds and the command completes normally.  A dim one-liner appears at the bottom of `credenzo check` output:
 
 ```
 Registration ping failed (offline?)
 ```
 
-(`mcp-audit register` prints the same line and adds that your local file is saved.)  This is not an error.  Your scan result is unaffected.
+(`credenzo register` prints the same line and adds that your local file is saved.)  This is not an error.  Your scan result is unaffected.
 
 ---
 
@@ -142,13 +142,13 @@ your OS username (e.g. ``/Users/sarah/.cursor/mcp.json``).
 You are looking at your own machine, or you explicitly chose where the JSON
 goes — the real path is the useful part (it's what you'd paste into
 `chmod`, an editor, or a follow-up script), and several integrations
-(the mcp-audit VS Code extension's inline diagnostics, `scan --baseline`
+(the Credenzo VS Code extension's inline diagnostics, `scan --baseline`
 drift comparison) resolve it directly.
 
 **In the four outputs designed to leave the machine — the advisory feed
-(`mcp-audit advise`), SARIF (`scan --format sarif`), Nucleus FlexConnect
+(`credenzo advise`), SARIF (`scan --format sarif`), Nucleus FlexConnect
 (`push-nucleus` / `scan --format nucleus`), and the forensic snapshot export
-(`mcp-audit snapshot`, all formats including `--stream`) — the path is
+(`credenzo snapshot`, all formats including `--stream`) — the path is
 rewritten to a form relative to the current working directory (or, when that
 isn't safely possible, to `~/...`) before it is serialised.** This both
 protects your username and, for SARIF specifically, is what makes GitHub's
@@ -158,7 +158,7 @@ repository at all — it reads the `uri` field literally rather than resolving
 annotate pull requests. See `src/mcp_audit/_redact.py` and
 `docs/github-action.md` for the mechanics.
 
-**PDF reports** (`mcp-audit check --report pdf`) never include a raw file
+**PDF reports** (`credenzo check --report pdf`) never include a raw file
 path or the finding's evidence/remediation text at all — only a canned,
 per-finding-ID remediation hint and a SHA-256 content hash — so there is
 nothing to redact there.
@@ -166,11 +166,11 @@ nothing to redact there.
 ### A stated limit, not a silent one
 
 This redaction protects *this invocation's own* `$HOME` — which is what "does
-mcp-audit leak my username" means for the overwhelming majority of scans,
+Credenzo leak my username" means for the overwhelming majority of scans,
 where you're scanning your own client configs. It does **not** scrub an
 unrelated username that happens to appear in a *different* account's
 directory named in an explicitly-scanned path outside your own `$HOME` — for
-example, running `mcp-audit scan --project /home/someone-else/shared-repo` on
+example, running `credenzo scan --project /home/someone-else/shared-repo` on
 a shared multi-user host still emits `someone-else` in the published output.
 Recognising an arbitrary OS username anywhere in a string is a fundamentally
 different, open-ended problem from redacting the one home directory a
@@ -182,7 +182,7 @@ unredacted.
 
 ## Open source audit
 
-mcp-audit is fully open source (Apache 2.0).  You can verify every privacy claim above by reading the source:
+Credenzo is fully open source (Apache 2.0).  You can verify every privacy claim above by reading the source:
 
 - `src/mcp_audit/registration/models.py` — exact payload schemas
 - `src/mcp_audit/registration/client.py` — what is sent and when

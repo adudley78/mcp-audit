@@ -21,7 +21,7 @@ actlint, which compares a server's labels with what its schema allows, found
 
 A bare ``path`` or ``url`` is never enough: reading a file or a page is what a
 read-only tool does. Annotations only ever *raise* a finding here; a server's
-claim never suppresses anything else mcp-audit reports.
+claim never suppresses anything else Credenzo reports.
 
 Where it runs: ``scan --connect`` (right after DELEG-*, over the tools each
 server listed), and in a default scan over the saved tool text

@@ -1,10 +1,10 @@
 # docs/media/lock-demo.tape
 #
-# Deterministic terminal recording of `mcp-audit lock` -> drift -> `verify` ->
+# Deterministic terminal recording of `credenzo lock` -> drift -> `verify` ->
 # `accept` -> `verify`. Produces docs/media/lock-demo.gif.
 #
-# Run from the mcp-audit repo root, on a scratch branch (this tape's own
-# commands `git add` + `git commit` inside demo/lock, and `mcp-audit lock`
+# Run from the Credenzo repo root, on a scratch branch (this tape's own
+# commands `git add` + `git commit` inside demo/lock, and `credenzo lock`
 # writes demo/lock/mcp-lock.json — neither should land on main):
 #
 #   git switch -c content/lock-demo-recording
@@ -72,7 +72,7 @@ Type "cat demo/lock/.cursor/mcp.json"
 Enter
 Sleep 2.5s
 
-Type "mcp-audit lock demo/lock"
+Type "credenzo lock demo/lock"
 Enter
 Sleep 4s
 
@@ -91,10 +91,10 @@ Type "PY"
 Enter
 Sleep 1.5s
 
-Type "mcp-audit lock --verify demo/lock; echo exit=$?"
+Type "credenzo lock --verify demo/lock; echo exit=$?"
 Enter
 Sleep 5s
 
-Type "mcp-audit lock --accept demo/lock && mcp-audit lock --verify demo/lock; echo exit=$?"
+Type "credenzo lock --accept demo/lock && credenzo lock --verify demo/lock; echo exit=$?"
 Enter
 Sleep 4s

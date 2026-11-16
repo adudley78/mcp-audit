@@ -1,6 +1,6 @@
 ---
 name: Community Rule Submission
-about: Submit a new detection rule to the mcp-audit community ruleset
+about: Submit a new detection rule to the Credenzo community ruleset
 ---
 
 ## Rule submission checklist
@@ -8,9 +8,9 @@ about: Submit a new detection rule to the mcp-audit community ruleset
 - [ ] Rule ID follows the `COMM-NNN` format and does not conflict with an
       existing rule in `rules/community/`
 - [ ] Rule file is named `{RULE-ID}.yml` and placed in `rules/community/`
-- [ ] Rule passes `mcp-audit rule validate rules/community/{RULE-ID}.yml`
+- [ ] Rule passes `credenzo rule validate rules/community/{RULE-ID}.yml`
       with no errors
-- [ ] Rule has been tested with `mcp-audit rule test` against at least one
+- [ ] Rule has been tested with `credenzo rule test` against at least one
       real MCP config
 - [ ] Severity is justified in the PR description (why high vs medium vs low)
 - [ ] Tags are drawn from existing tag vocabulary where possible

@@ -1,6 +1,6 @@
 # Baseline Snapshot and Drift Detection
 
-`mcp-audit` can capture a point-in-time snapshot of your MCP server configuration
+`credenzo` can capture a point-in-time snapshot of your MCP server configuration
 and alert you when future scans diverge from it.  This is useful for:
 
 - **Change management** — enforce a known-good configuration in CI/CD pipelines.
@@ -13,7 +13,7 @@ consecutive runs.  Baselines are explicit, user-named snapshots that you control
 
 ## `pin` vs. `baseline` vs. `lock`
 
-`mcp-audit` has three related-but-distinct state-tracking mechanisms.  All three
+`credenzo` has three related-but-distinct state-tracking mechanisms.  All three
 record server state; they differ in *where* the record lives and *who* can see it:
 
 | | `pin` | `baseline save` | `lock` |
@@ -35,16 +35,16 @@ see [`docs/lock.md`](lock.md).
 ## Workflow overview
 
 ```
-mcp-audit baseline save              # capture current state
-mcp-audit scan --baseline latest     # scan + compare in one step
-mcp-audit baseline compare           # standalone drift report
+credenzo baseline save              # capture current state
+credenzo scan --baseline latest     # scan + compare in one step
+credenzo baseline compare           # standalone drift report
 ```
 
 ---
 
 ## Commands
 
-### `mcp-audit baseline save [NAME]`
+### `credenzo baseline save [NAME]`
 
 Runs discovery, parses all MCP config files, and saves a snapshot to
 `~/.config/mcp-audit/baselines/{NAME}.json`.
@@ -61,7 +61,7 @@ Baseline saved: baseline-20260416-142500 (4 servers captured)
 
 ---
 
-### `mcp-audit baseline list`
+### `credenzo baseline list`
 
 Displays all saved baselines, newest first.
 
@@ -78,7 +78,7 @@ Displays all saved baselines, newest first.
 
 ---
 
-### `mcp-audit baseline compare [NAME]`
+### `credenzo baseline compare [NAME]`
 
 Compares the current live configuration against a saved baseline.
 
@@ -111,7 +111,7 @@ Drift against baseline 'production-2026q1' (created 2026-03-31 09:00 UTC)
 
 ---
 
-### `mcp-audit baseline delete NAME`
+### `credenzo baseline delete NAME`
 
 Prompts for confirmation, then deletes the named baseline file.
 
@@ -122,13 +122,13 @@ Baseline 'production-2026q1' deleted.
 
 ---
 
-### `mcp-audit baseline export NAME`
+### `credenzo baseline export NAME`
 
 Writes the raw JSON of the named baseline to stdout.  No Rich formatting —
 designed for piping to files or other tools.
 
 ```bash
-mcp-audit baseline export production-2026q1 > baseline.json
+credenzo baseline export production-2026q1 > baseline.json
 ```
 
 ---
@@ -141,9 +141,9 @@ as `analyzer="baseline"` findings in all output formats (terminal, JSON, SARIF,
 HTML dashboard).
 
 ```bash
-mcp-audit scan --baseline production-2026q1
-mcp-audit scan --baseline latest
-mcp-audit scan --baseline latest --format json | jq '.findings[] | select(.analyzer=="baseline")'
+credenzo scan --baseline production-2026q1
+credenzo scan --baseline latest
+credenzo scan --baseline latest --format json | jq '.findings[] | select(.analyzer=="baseline")'
 ```
 
 The `--baseline latest` shorthand selects the most recently created baseline
@@ -166,7 +166,7 @@ without needing to remember its auto-generated name.
 
 ## Security: env values are never stored
 
-When capturing a baseline, `mcp-audit` stores environment variable **key names
+When capturing a baseline, `credenzo` stores environment variable **key names
 only** — never their values.  The baseline JSON for a server configured with
 `{"OPENAI_API_KEY": "sk-…", "DEBUG": "true"}` records `{"OPENAI_API_KEY": "",
 "DEBUG": ""}` — empty strings for all values.
@@ -188,15 +188,15 @@ environment.
 
 ```bash
 # At release time (run once, commit the output):
-mcp-audit baseline save release-v1.2.3
-mcp-audit baseline export release-v1.2.3 > .mcp-baseline.json
+credenzo baseline save release-v1.2.3
+credenzo baseline export release-v1.2.3 > .mcp-baseline.json
 
 # In CI (headless environment):
 # 1. Import the baseline from the committed file
 TMPDIR=$(mktemp -d)
 mkdir -p "$TMPDIR/.config/mcp-audit/baselines"
 install -m 0600 .mcp-baseline.json "$TMPDIR/.config/mcp-audit/baselines/release-v1.2.3.json"
-HOME="$TMPDIR" mcp-audit scan --baseline release-v1.2.3 --format json > scan-output.json
+HOME="$TMPDIR" credenzo scan --baseline release-v1.2.3 --format json > scan-output.json
 exit_code=$?
 
 # exit_code 1 = findings (including drift); 0 = clean

@@ -4,7 +4,7 @@ See ``docs/decisions/ADR-0005-mcp-audit-lock.md`` for the full design.  This
 package is intentionally split the same way the ADR is organised:
 
 - :mod:`mcp_audit.lock.model` — pydantic models, the ownership boundary
-  (which top-level sections mcp-audit owns vs. treats as foreign), and the
+  (which top-level sections Credenzo owns vs. treats as foreign), and the
   owned-section checksum.
 - :mod:`mcp_audit.lock.identity` — pure identity canonicalization
   (``canonicalize_url``) plus :func:`~mcp_audit.lock.identity.match_key`

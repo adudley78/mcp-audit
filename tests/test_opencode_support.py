@@ -265,7 +265,7 @@ class TestOpenCodePlatformAndInstaller:
         assert row.status is Status.COULDNT_CHECK
         assert row.reason == m.HARNESS_VERSION
         assert row.evidence.startswith(
-            "mcp-audit does not read which OpenCode version is installed; per the "
+            "Credenzo does not read which OpenCode version is installed; per the "
             "write-up: fixed in 1.18.33"
         )
 

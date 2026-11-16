@@ -8,9 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.33.0] - 2026-11-16
+
 ### Changed
 
-- **mcp-audit is becoming Credenzo.** The project has a new name: Credenzo, the taste test for agent tools. In 16th-century Italy a *credenza* was the act of a servant who tasted a lord's food for poison; Credenzo is the taster. This release adds `credenzo` as a second command name; `mcp-audit` keeps working, and the package name (`mcp-audit-scanner`), finding IDs, `mcp-lock.json`, state files and the advisory feed do not change.
+- **mcp-audit is now Credenzo.** The project has a new name: Credenzo, the taste test for agent tools. In 16th-century Italy a *credenza* was the act of a servant who tasted a lord's food for poison; Credenzo is the taster. The command is `credenzo`. The help text, the reports, the version line (`credenzo 0.33.0`) and the documentation use the new name. `pip install credenzo` installs this release: the `credenzo` package on PyPI holds no code, pins the same version of `mcp-audit-scanner`, and forwards the `mcp`, `sbom` and `attestation` extras.
+- **Everything that used the old name continues to work.** The `mcp-audit` command stays; in a terminal it prints one line on stderr that names the new command, and it prints nothing in CI, in a pipe, or for `mcp-audit run`. `pip install mcp-audit-scanner` installs the same code and both commands. `mcp-audit wrap` and `credenzo wrap` write `credenzo run` into a client config; an entry that an earlier release wrapped with `mcp-audit run` is read, unwrapped and enforced as before. The GitHub Action (`adudley78/mcp-audit`) and the setup action put both `credenzo` and `mcp-audit` on PATH; the setup action has a new `credenzo-version` output and keeps `mcp-audit-version`. The pre-commit hooks have new ids, `credenzo` and `credenzo-lock-verify`; the ids `mcp-audit` and `mcp-audit-lock-verify` stay.
+- **Machine contracts do not change.** Finding IDs, `mcp-lock.json` and its `generated_by` value, the state and config directories, `.mcp-audit-policy.yml`, the SARIF tool name and `mcp-audit/…` property keys, the code-scanning category, the CycloneDX and OpenVEX tool names, the advisory feed and its key, the release binary names (`mcp-audit-<os>-<arch>`), the Python import package (`mcp_audit`) and the `mcp-audit.dev` API keep their names. A file or a query that works with 0.32.0 works with 0.33.0.
+- **`mcp-audit version` output changed.** It printed `mcp-audit <version>`; both commands now print `credenzo <version>`. A script that parses this line must accept the new name.
+- **`setup-action` accepts a binary signed under either repository name.** The repository will be renamed to `adudley78/credenzo`. The build-provenance check now passes for a release built by the release workflow of `adudley78/mcp-audit` or of `adudley78/credenzo`, and for no other repository.
+- **Advisory text names Credenzo.** Advisory `details` end with "Detected by Credenzo rule …". Advisory IDs do not change; each record's `canonical_sha256` changes once, at the first feed publish from this release.
 
 ---
 

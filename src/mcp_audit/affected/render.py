@@ -1,4 +1,4 @@
-"""Output for ``mcp-audit affected``: terminal, JSON and SARIF.
+"""Output for ``credenzo affected``: terminal, JSON and SARIF.
 
 JSON and SARIF leave the machine, so config paths go through the same
 redaction every other published sink uses (:mod:`mcp_audit._redact`).
@@ -63,7 +63,7 @@ def _hidden(row: Row) -> bool:
 
 def render_terminal(report: Report, console: Console, *, show_all: bool) -> None:
     """Print the report: affected first, then couldn't check, then not affected."""
-    console.print(f"[bold]mcp-audit affected[/bold] {escape(report.query.text)}")
+    console.print(f"[bold]credenzo affected[/bold] {escape(report.query.text)}")
     if report.sources:
         console.print(f"[dim]Data: {escape('; '.join(report.sources))}[/dim]")
     if report.live:
@@ -123,7 +123,7 @@ def render_terminal(report: Report, console: Console, *, show_all: bool) -> None
             parts.append(f"{other} run a different package (NOT AFFECTED)")
         if nopkg:
             parts.append(
-                f"{nopkg} launch no package mcp-audit can read (COULDN'T CHECK)"
+                f"{nopkg} launch no package Credenzo can read (COULDN'T CHECK)"
             )
         console.print(
             f"\n[dim]Not listed: {'; '.join(parts)}. Use --all to list.[/dim]"
@@ -142,7 +142,7 @@ def render_terminal(report: Report, console: Console, *, show_all: bool) -> None
     if report.needs_version():
         console.print(
             "[dim]COULDN'T CHECK is not 'not affected'. Pin the version, run "
-            "`mcp-audit lock`, or pass a lock with --lock.[/dim]"
+            "`credenzo lock`, or pass a lock with --lock.[/dim]"
         )
 
 
@@ -172,7 +172,7 @@ def _print_respond(report: Report, console: Console) -> None:
             count, name = item.tool_text
             console.print(
                 f"    saved tool text: {count} tool(s) in {escape(name)}; "
-                "`mcp-audit lock --verify --connect` shows what changed"
+                "`credenzo lock --verify --connect` shows what changed"
             )
 
 

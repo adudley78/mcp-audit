@@ -1,7 +1,7 @@
-# mcp-audit Demo Environment
+# Credenzo Demo Environment
 
 This directory contains intentionally vulnerable MCP server configurations for
-testing `mcp-audit` locally. It simulates a developer machine with three client
+testing `credenzo` locally. It simulates a developer machine with three client
 configs — some clean, some suspicious, some actively malicious.
 
 ## What's in the configs
@@ -43,7 +43,7 @@ shows a real known-bad package, not a constructed one.
 
 ## Setup
 
-The demo uses the installed `mcp-audit` CLI. If you're working inside the
+The demo uses the installed `credenzo` CLI. If you're working inside the
 development environment:
 
 ```bash
@@ -54,7 +54,7 @@ uv sync --all-extras
 Or if installed globally:
 
 ```bash
-pip install mcp-audit-scanner
+pip install credenzo
 ```
 
 ## Run the demo
@@ -78,7 +78,7 @@ The script runs eight commands in sequence:
 
 Generated files land in `demo/output/` (gitignored).
 
-## Try `mcp-audit lock`
+## Try `credenzo lock`
 
 `demo/lock/` is a separate, smaller fixture — two servers
 (`@modelcontextprotocol/server-filesystem`, `@modelcontextprotocol/server-github`)
@@ -101,27 +101,27 @@ for the full `lock` reference.
 
 ```bash
 # Scan all three configs at once
-mcp-audit scan --path demo/configs
+credenzo scan --path demo/configs
 
 # Only show CRITICAL findings
-mcp-audit scan --path demo/configs --severity-threshold CRITICAL
+credenzo scan --path demo/configs --severity-threshold CRITICAL
 
 # Scan a single config
-mcp-audit scan --path demo/configs/cursor_mcp.json
+credenzo scan --path demo/configs/cursor_mcp.json
 
 # Export for GitHub Security tab
-mcp-audit scan --path demo/configs --format sarif -o demo/output/results.sarif
+credenzo scan --path demo/configs --format sarif -o demo/output/results.sarif
 
 # Pin the current state as trusted baseline
-mcp-audit pin --path demo/configs
+credenzo pin --path demo/configs
 
 # Show what changed since last pin
-mcp-audit diff --path demo/configs
+credenzo diff --path demo/configs
 ```
 
 ## Expected finding summary
 
-Counts are for `mcp-audit scan --path demo/configs` (all three configs together).
+Counts are for `credenzo scan --path demo/configs` (all three configs together).
 First-scan numbers include rug-pull INFO findings; second and subsequent scans
 drop rug-pull to 0 once baselines are established.
 

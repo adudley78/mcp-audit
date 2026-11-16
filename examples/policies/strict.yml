@@ -1,14 +1,14 @@
-# mcp-audit governance policy — Strict
+# Credenzo governance policy — Strict
 #
 # Maximum security posture for teams that need full control over which MCP
 # servers developers can use. Every server must be explicitly approved.
 #
 # Usage:
-#   mcp-audit scan --policy examples/policies/strict.yml
-#   mcp-audit policy validate examples/policies/strict.yml
+#   credenzo scan --policy examples/policies/strict.yml
+#   credenzo policy validate examples/policies/strict.yml
 #
 # HOW TO USE THIS POLICY:
-#   1. Run `mcp-audit scan --policy strict.yml` to discover all servers currently
+#   1. Run `credenzo scan --policy strict.yml` to discover all servers currently
 #      in use on this machine.
 #   2. For each server your team approves, add an entry under `entries:` below.
 #   3. Commit this file to your repo — it auto-discovered on every scan.

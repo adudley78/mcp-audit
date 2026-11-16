@@ -10,7 +10,7 @@ by code point), so we sort on the UTF-16BE encoding of each key instead.
 Stdlib only — the advisory subsystem must work in the PyInstaller binary.
 
 Lives outside the ``advisory`` package (which imports the feed and signing
-code on import) so that ``mcp-audit run`` can digest live tool definitions on
+code on import) so that ``credenzo run`` can digest live tool definitions on
 the launch path without loading it. :mod:`mcp_audit.advisory.canonical`
 re-exports this module: there is one implementation.
 

@@ -1,6 +1,6 @@
 # IDE Extension — VS Code / Cursor
 
-mcp-audit ships a companion VS Code extension (`mcp-audit-vscode`) that surfaces
+Credenzo ships a companion VS Code extension (`mcp-audit-vscode`) that surfaces
 scan results as inline diagnostics — the same red/yellow squiggles developers
 already know from ESLint and Pyright.
 
@@ -10,11 +10,11 @@ already know from ESLint and Pyright.
 
 ## Install
 
-1. **Install the mcp-audit binary** (the extension shells out to it — it does
+1. **Install the Credenzo binary** (the extension shells out to it — it does
    not bundle it):
 
    ```bash
-   pip install mcp-audit-scanner
+   pip install credenzo
    # or download a standalone binary from the Releases page
    ```
 
@@ -24,7 +24,7 @@ already know from ESLint and Pyright.
    Marketplace.
 
    - **Cursor, VSCodium and other editors that use Open VSX:** search for
-     `mcp-audit` in the Extensions view, or run
+     `credenzo` in the Extensions view, or run
      `ext install mcp-audit.mcp-audit-vscode` from Quick Open.
    - **VS Code:** download the `.vsix` from the
      [Open VSX page](https://open-vsx.org/extension/mcp-audit/mcp-audit-vscode),
@@ -37,7 +37,7 @@ already know from ESLint and Pyright.
 ## Cursor
 
 Cursor is a VS Code fork. The extension works without modification. Cursor
-installs third-party extensions from Open VSX, so search for `mcp-audit` in its
+installs third-party extensions from Open VSX, so search for `credenzo` in its
 Extensions view, or install the `.vsix` with `Extensions: Install from VSIX…`.
 
 ---
@@ -49,7 +49,7 @@ Extensions view, or install the `.vsix` with `Extensions: Install from VSIX…`.
 | **Squiggles** | Red (CRITICAL/HIGH) or yellow (MEDIUM) underlines on the offending server key |
 | **Hover card** | Finding title, severity, description, evidence, remediation, OWASP tags |
 | **Status bar** | `mcp-audit: B (3 findings)` — click to open Problems panel |
-| **Problems panel** | All findings listed with source `mcp-audit` and code (e.g. `CRED-001`) |
+| **Problems panel** | All findings listed with source `credenzo` and code (e.g. `CRED-001`) |
 
 ---
 
@@ -72,7 +72,7 @@ Extensions view, or install the `.vsix` with `Extensions: Install from VSIX…`.
 |---|---|
 | `mcp-audit: Scan current file` | Manual re-scan of the active file |
 | `mcp-audit: Scan workspace` | Scan all open MCP config files |
-| `mcp-audit: Fix current file` | Run `mcp-audit fix --path <file>` (dry-run diff shown in Output channel) |
+| `mcp-audit: Fix current file` | Run `credenzo fix --path <file>` (dry-run diff shown in Output channel) |
 
 ---
 
@@ -92,7 +92,7 @@ Extensions view, or install the `.vsix` with `Extensions: Install from VSIX…`.
 The extension is a **thin wrapper** — it:
 
 1. Detects MCP config files by name.
-2. Spawns `mcp-audit scan --path <file> --format json` in a subprocess.
+2. Spawns `credenzo scan --path <file> --format json` in a subprocess.
 3. Parses the JSON output into `Finding[]`.
 4. Uses `jsonc-parser` to locate each server key's line in the document.
 5. Converts findings to `vscode.Diagnostic` objects.

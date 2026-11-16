@@ -1,4 +1,4 @@
-"""STORY-0121: ``mcp-audit affected``."""
+"""STORY-0121: ``credenzo affected``."""
 
 from __future__ import annotations
 
@@ -414,7 +414,7 @@ class TestResearchRows:
         rows = m.research_rows(rec, None, notes)
         assert [r.status for r in rows] == [Status.COULDNT_CHECK]
         assert "no installed version shows exposure" in rows[0].evidence
-        assert len(notes) == 1 and "No mcp-audit check tests" in notes[0]
+        assert len(notes) == 1 and "No Credenzo check tests" in notes[0]
 
     def test_high_check_result_is_affected(self) -> None:
         finding = Finding(
@@ -589,7 +589,7 @@ class TestCli:
         out = " ".join(result.output.split())
         assert "COULDN'T CHECK" in out and "Context7 MCP (Upstash)" in out
         assert "fixed in the vendor's service (no client update)" in out
-        assert "No mcp-audit check tests this condition" in out
+        assert "No Credenzo check tests this condition" in out
         # The plugin-directory wording belongs to Plugin4Shell only.
         assert "plugin" not in out.lower()
         assert "AFFECTED" not in out.replace("0 affected", "")
@@ -605,7 +605,7 @@ class TestCli:
         assert "Claude Code (Anthropic)" in row["subject"]
         assert "service" not in row["evidence"]
         out = " ".join(_run(BYPASS_ASK).output.split())
-        assert "No mcp-audit check tests this condition" in out
+        assert "No Credenzo check tests this condition" in out
         assert "vendor's service" not in out and "plugin" not in out.lower()
 
     def test_client_bug_record_with_an_install_is_still_couldnt_check(self) -> None:

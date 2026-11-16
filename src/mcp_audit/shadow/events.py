@@ -1,4 +1,4 @@
-"""Event models and emission for ``mcp-audit shadow``.
+"""Event models and emission for ``credenzo shadow``.
 
 Three event types are emitted during continuous (daemon) mode:
 

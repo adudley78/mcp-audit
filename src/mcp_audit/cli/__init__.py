@@ -1,4 +1,4 @@
-"""mcp-audit CLI — MCP Security Scanner.
+"""Credenzo CLI — MCP Security Scanner.
 
 Package root.  Defines the top-level ``app`` (plus per-feature sub-apps) and
 re-exports module-level attributes that the test suite reaches for through the
@@ -60,7 +60,7 @@ _USER_CONFIG_DIR = Path(user_config_dir("mcp-audit"))
 _REGISTRY_CACHE_PATH = _USER_CONFIG_DIR / "registry" / "known-servers.json"
 
 app = typer.Typer(
-    name="mcp-audit",
+    name="credenzo",
     help="Privacy-first security scanner for MCP server configurations.",
     no_args_is_help=True,
 )
@@ -128,7 +128,7 @@ app.add_typer(plugins_app, name="plugins")
 feed_app = typer.Typer(
     name="feed",
     help=(
-        "Work with the signed MCP advisory feed produced by `mcp-audit advise`. "
+        "Work with the signed MCP advisory feed produced by `credenzo advise`. "
         "EXPERIMENTAL: the record format may change before signing ships."
     ),
     no_args_is_help=True,

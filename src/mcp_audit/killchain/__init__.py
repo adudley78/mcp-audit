@@ -1,6 +1,6 @@
 """Decision engine: opinionated remediation view of the attack-path graph.
 
-``mcp-audit killchain`` identifies the top N configuration changes that cut
+``credenzo killchain`` identifies the top N configuration changes that cut
 the largest blast radius from the attack-path graph already computed by the
 static analysis pipeline.  It wraps the greedy hitting-set algorithm in
 :mod:`mcp_audit.analyzers.attack_paths` with human-readable metadata, a

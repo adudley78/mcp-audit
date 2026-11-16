@@ -1,6 +1,6 @@
 """``reach --fleet``: roll up saved ``reach --format json`` files (STORY-0145).
 
-Each file is the JSON one machine wrote with ``mcp-audit reach --format json``.
+Each file is the JSON one machine wrote with ``credenzo reach --format json``.
 The files are untrusted input, read the way ``affected --fleet`` reads scan
 files: opened without blocking, regular files only, size-capped, a bounded
 number of files, and every failure becomes an entry in ``skipped`` with a

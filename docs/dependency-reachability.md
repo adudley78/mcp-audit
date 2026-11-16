@@ -1,12 +1,12 @@
 # Dependency reachability
 
 Dependabot alerts on `uv.lock` transitives. 32 of those were dismissed in
-August 2026 as `not_used` because mcp-audit never calls the vulnerable
+August 2026 as `not_used` because Credenzo never calls the vulnerable
 function. Those arguments are correct only while the usage described here
 holds. If you change a call site listed below, re-open the matching alerts
 and re-triage — do not assume the dismissal still applies.
 
-`mcp-audit sbom` inventories **scanned MCP servers**, not mcp-audit's own
+`credenzo sbom` inventories **scanned MCP servers**, not Credenzo's own
 dependencies and not the frozen binaries. Use `uv tree` and a PyInstaller
 PYZ listing (`PYZ-00.toc`) for those surfaces.
 
@@ -41,7 +41,7 @@ not change the unused-API argument above.
 ## pyasn1 (`[attestation]` via sigstore)
 
 `sigstore.verify.policy._SingleX509ExtPolicyV2` calls
-`pyasn1.codec.der.decoder.decode`. mcp-audit passes `UnsafeNoOp()`, which
+`pyasn1.codec.der.decoder.decode`. Credenzo passes `UnsafeNoOp()`, which
 never decodes. See `attestation/sigstore_client.py`.
 
 **Invalidated by:** replacing `UnsafeNoOp()` with `Identity` or any
@@ -49,7 +49,7 @@ never decodes. See `attestation/sigstore_client.py`.
 
 ## mcp, starlette, python-multipart, pydantic-settings (`[mcp]` extra)
 
-mcp-audit is an MCP **client** (`ClientSession`, `sse_client`,
+Credenzo is an MCP **client** (`ClientSession`, `sse_client`,
 `stdio_client`). The CVEs are server-side (WebSocket Host/Origin,
 session principal, experimental task handlers, `request.form()`,
 `StaticFiles`, `HTTPEndpoint`, `parse_form`,
@@ -62,7 +62,7 @@ the `[mcp]` extra into the binary without re-triaging those CVEs.
 
 ## setuptools (dev group + PyInstaller)
 
-MANIFEST.in NFC/NFD bypass is sdist packaging. mcp-audit builds with
+MANIFEST.in NFC/NFD bypass is sdist packaging. Credenzo builds with
 hatchling. setuptools never packs a user-facing sdist.
 
 **Invalidated by:** switching the build backend to setuptools, or

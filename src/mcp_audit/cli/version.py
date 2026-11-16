@@ -9,4 +9,4 @@ from mcp_audit.cli import app, console
 @app.command()
 def version() -> None:
     """Show version information."""
-    console.print(f"mcp-audit {__version__}")
+    console.print(f"credenzo {__version__}")

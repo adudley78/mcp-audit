@@ -17,7 +17,7 @@ def _collect_json_paths_from_dir(directory: Path) -> list[Path]:
     """Return all ``*.json`` files under *directory*, recursively.
 
     Silently skips non-JSON files.  Logs a warning and skips files that fail
-    mcp-audit JSON validation so that a single corrupt file does not abort the
+    Credenzo JSON validation so that a single corrupt file does not abort the
     entire merge operation.
     """
     from mcp_audit.fleet.merger import FleetMerger  # noqa: PLC0415
@@ -155,11 +155,11 @@ def merge(
 
     Examples:
 
-        mcp-audit merge results/*.json
+        credenzo merge results/*.json
 
-        mcp-audit merge --dir ./fleet-results/ --format json -o fleet.json
+        credenzo merge --dir ./fleet-results/ --format json -o fleet.json
 
-        mcp-audit merge --dir ./results/ --asset-prefix prod-
+        credenzo merge --dir ./results/ --asset-prefix prod-
     """
     from mcp_audit.fleet.merger import FleetMerger, generate_fleet_html  # noqa: PLC0415
 

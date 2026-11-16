@@ -103,7 +103,7 @@ def check(
         False,
         "--verbose",
         "-v",
-        help="Show full scan output (equivalent to mcp-audit scan).",
+        help="Show full scan output (equivalent to credenzo scan).",
     ),
     json_flag: bool = typer.Option(  # noqa: B008
         False,
@@ -158,7 +158,7 @@ def check(
 
     Runs a full scan internally and presents the result as a concise
     one-page verdict suitable for developers who are not security experts.
-    Use ``mcp-audit scan`` when you need full finding details, OWASP codes,
+    Use ``credenzo scan`` when you need full finding details, OWASP codes,
     attack paths, or SARIF output.
 
     A config file can be supplied either as a positional argument or via
@@ -230,7 +230,7 @@ def check(
             con.print()
         con.print(
             "No MCP config files found on this machine. "
-            "Run [bold]mcp-audit discover[/bold] to see where mcp-audit looks."
+            "Run [bold]credenzo discover[/bold] to see where Credenzo looks."
         )
         raise typer.Exit(0)
 

@@ -83,7 +83,7 @@ def extract_commands_from_matrix(matrix_text: str) -> set[str]:
     names a command first).
     """
     commands: set[str] = set()
-    pattern = re.compile(r"^\s*mcp-audit\s+([a-zA-Z][\w-]*)", re.MULTILINE)
+    pattern = re.compile(r"^\s*credenzo\s+([a-zA-Z][\w-]*)", re.MULTILINE)
     for block in _bash_blocks(matrix_text):
         commands.update(pattern.findall(block))
     return commands

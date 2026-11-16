@@ -1,4 +1,4 @@
-"""``mcp-audit vet <package>`` — pre-install verdict on a public MCP server package.
+"""``credenzo vet <package>`` — pre-install verdict on a public MCP server package.
 
 Offline by default (zero network calls for a plain ``vet``).  Reports facts
 from the bundled known-server registry: verification status, known CVEs,
@@ -417,7 +417,7 @@ def _write_verdict_cache(
 
 
 def _ua_version() -> str:
-    """Return the mcp-audit version string for the User-Agent header."""
+    """Return the Credenzo version string for the User-Agent header."""
     try:
         from mcp_audit import __version__  # noqa: PLC0415
 
@@ -583,7 +583,7 @@ def _print_known_verdict(
             else "yellow"
         )
     )
-    console.print(Panel(t, title="[bold]mcp-audit verdict[/bold]", border_style=border))
+    console.print(Panel(t, title="[bold]Credenzo verdict[/bold]", border_style=border))
 
 
 def _print_typosquat_warning(
@@ -758,7 +758,7 @@ def _print_unknown_verdict(
         style="dim",
     )
     t.append("  After installing and configuring, run:\n")
-    t.append("    mcp-audit scan\n\n", style="bold")
+    t.append("    credenzo scan\n\n", style="bold")
     t.append(
         f"  Help grow the registry: {_REGISTRY_CONTRIBUTION_URL}\n",
         style="dim",
@@ -766,7 +766,7 @@ def _print_unknown_verdict(
     console.print(
         Panel(
             t,
-            title="[bold]mcp-audit verdict — unknown package[/bold]",
+            title="[bold]Credenzo verdict — unknown package[/bold]",
             border_style="dim",
         )
     )
@@ -946,12 +946,12 @@ def vet(
 
     Examples::
 
-        mcp-audit vet @modelcontextprotocol/server-filesystem
-        mcp-audit vet mcp-atlassian --ecosystem pypi
-        mcp-audit vet @azure/mcp --format json
-        mcp-audit vet mcp-remote@0.1.30
-        mcp-audit vet @scope/name --badge
-        mcp-audit vet @scope/name --online
+        credenzo vet @modelcontextprotocol/server-filesystem
+        credenzo vet mcp-atlassian --ecosystem pypi
+        credenzo vet @azure/mcp --format json
+        credenzo vet mcp-remote@0.1.30
+        credenzo vet @scope/name --badge
+        credenzo vet @scope/name --online
     """
     console = Console()
 
@@ -986,7 +986,7 @@ def vet(
             eco, badge_name = _badge_target(pkg_name, offline_registry)
         url = badge_url(eco, badge_name)
         vpage = verdict_page_url(eco, badge_name)
-        sys.stdout.write(f"[![mcp-audit verdict]({url})]({vpage})\n")
+        sys.stdout.write(f"[![Credenzo verdict]({url})]({vpage})\n")
         raise typer.Exit(0)
 
     # ── Load registry ─────────────────────────────────────────────────────────

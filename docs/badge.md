@@ -1,16 +1,16 @@
-# mcp-audit verdict badge
+# Credenzo verdict badge
 
-The mcp-audit badge lets MCP server authors signal registry status and CVE count to
+The Credenzo badge lets MCP server authors signal registry status and CVE count to
 anyone evaluating their package.
 
-[![mcp-audit verdict](https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/npm/at-modelcontextprotocol-server-filesystem.json)](https://mcp-audit.dev/v1/verdicts/npm/at-modelcontextprotocol-server-filesystem.json)
+[![Credenzo verdict](https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/npm/at-modelcontextprotocol-server-filesystem.json)](https://mcp-audit.dev/v1/verdicts/npm/at-modelcontextprotocol-server-filesystem.json)
 
 ---
 
 ## What the badge asserts
 
 The badge surface shows exactly two facts, both sourced directly from the
-[mcp-audit known-server registry](../registry/known-servers.json):
+[Credenzo known-server registry](../registry/known-servers.json):
 
 | Field | What it shows |
 |-------|---------------|
@@ -36,7 +36,7 @@ claim about:
 
 - **Any deployment.** The badge describes the package, not how it is configured on
   your machine. A verified server can still be misconfigured (plaintext credentials,
-  overprivileged tokens, poisoned tool descriptions). Run `mcp-audit scan` to assess
+  overprivileged tokens, poisoned tool descriptions). Run `credenzo scan` to assess
   your actual deployment.
 - **A security grade or endorsement.** `verified` means the maintainer link was
   confirmed — it does not mean the server is safe, well-audited, or recommended. A
@@ -55,21 +55,21 @@ claim about:
 ### Option 1 — CLI (recommended)
 
 ```bash
-mcp-audit vet @your-scope/your-mcp-server --badge
+credenzo vet @your-scope/your-mcp-server --badge
 ```
 
 Output:
 
 ```markdown
-[![mcp-audit verdict](https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/npm/at-your-scope-your-mcp-server.json)](https://mcp-audit.dev/v1/verdicts/npm/at-your-scope-your-mcp-server.json)
+[![Credenzo verdict](https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/npm/at-your-scope-your-mcp-server.json)](https://mcp-audit.dev/v1/verdicts/npm/at-your-scope-your-mcp-server.json)
 ```
 
 Paste this Markdown into your README.
 
 ### Option 2 — Copy from mcp-audit.dev
 
-Visit `https://mcp-audit.dev/servers/<eco>/<slug>/` (e.g.
-`https://mcp-audit.dev/servers/npm/at-modelcontextprotocol-server-filesystem/`) and
+Visit `https://credenzo.io/servers/<eco>/<slug>/` (e.g.
+`https://credenzo.io/servers/npm/at-modelcontextprotocol-server-filesystem/`) and
 copy the badge snippet from the package page.
 
 ### URL structure
@@ -91,7 +91,7 @@ https://img.shields.io/endpoint?url=https://mcp-audit.dev/v1/badge/{eco}/{slug}.
 ## How badge data updates
 
 Badge data is **registry-driven**: the badge JSON served by `mcp-audit.dev` is
-generated from `registry/known-servers.json` at the mcp-audit GitHub repository.
+generated from `registry/known-servers.json` at the Credenzo GitHub repository.
 
 mcp-audit.dev is rebuilt from the registry and deployed by the maintainer; there is
 no scheduled refresh and no automatic deploy on merge. A registry change (a new
@@ -99,8 +99,8 @@ entry, a verification, or a CVE added to `known_vulns` / `known_vulnerabilities`
 reaches the badge on the next site deployment, and Shields.io picks it up when its
 cache expires.
 
-**Local freshness** — `mcp-audit vet --badge` reads the registry from your local
-cache. Run `mcp-audit update-registry` to pull the latest registry before generating
+**Local freshness** — `credenzo vet --badge` reads the registry from your local
+cache. Run `credenzo update-registry` to pull the latest registry before generating
 a badge locally. The badge URL itself (rendered in the browser) always fetches live
 from `mcp-audit.dev`.
 
@@ -108,7 +108,7 @@ from `mcp-audit.dev`.
 
 ## Your package is not in the registry?
 
-`mcp-audit vet --badge` prints a snippet for any package name, but mcp-audit.dev
+`credenzo vet --badge` prints a snippet for any package name, but mcp-audit.dev
 only publishes badge files for registry entries. For a package that is not listed,
 the badge URL returns 404 and Shields.io renders `custom badge: resource not found`.
 Add your package in about 5 minutes:

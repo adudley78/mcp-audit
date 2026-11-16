@@ -654,10 +654,10 @@ def _check_finding_policy(
 
 
 def _check_wrap(servers: list[ServerConfig], policy: GovernancePolicy) -> list[Finding]:
-    """WRAP-001: a local server that doesn't launch through ``mcp-audit run``.
+    """WRAP-001: a local server that doesn't launch through ``credenzo run``.
 
     Only when the policy sets ``runtime.require_wrap``. Covers servers with a
-    command in the client configs ``mcp-audit wrap`` can rewrite
+    command in the client configs ``credenzo wrap`` can rewrite
     (:data:`~mcp_audit.runtime.wrapping.WRAPPABLE_CLIENTS`); remote servers and
     other clients' configs are out of scope (EPIC-0009 Story 1.2).
     """
@@ -677,16 +677,16 @@ def _check_wrap(servers: list[ServerConfig], policy: GovernancePolicy) -> list[F
                 analyzer="governance",
                 client=server.client,
                 server=server.name,
-                title=f"Server not launched through mcp-audit run: {server.name}",
+                title=f"Server not launched through credenzo run: {server.name}",
                 description=(
                     f"The policy requires every local MCP server to launch through "
-                    f"`mcp-audit run` (runtime.require_wrap), and {server.name!r} "
+                    f"`credenzo run` (runtime.require_wrap), and {server.name!r} "
                     "launches directly, so the lock gate and tool check never see it."
                 ),
                 evidence=f"rule=runtime require_wrap=true server={server.name} "
                 "wrapped=false",
                 remediation=(
-                    f"Run `mcp-audit wrap --server {server.name}` (add --apply to "
+                    f"Run `credenzo wrap --server {server.name}` (add --apply to "
                     "write), then restart the client."
                 ),
                 finding_path=str(server.config_path),
@@ -753,7 +753,7 @@ def evaluate_governance(
     if registry is not None and policy.registry_policy is not None:
         findings.extend(_check_registry(servers, policy, registry))
 
-    # ── Launch through mcp-audit run (EPIC-0009 Story 1.2) ────────────────
+    # ── Launch through credenzo run (EPIC-0009 Story 1.2) ────────────────
     findings.extend(_check_wrap(servers, policy))
 
     # ── Finding policy (aggregate, one check across all clients) ──────────

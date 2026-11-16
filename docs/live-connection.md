@@ -1,6 +1,6 @@
 # Live MCP Server Connection (`--connect`)
 
-`mcp-audit scan --connect` performs a live MCP protocol handshake against each
+`credenzo scan --connect` performs a live MCP protocol handshake against each
 discovered server, enumerates the tools/resources/prompts it actually exposes at
 runtime, and runs the poisoning analyzer against that live data.  This surfaces
 prompt-injection payloads hidden inside tool descriptions that look clean in the
@@ -9,7 +9,7 @@ static config file.
 **Requires the optional `mcp` extra:**
 
 ```bash
-pip install 'mcp-audit-scanner[mcp]'
+pip install 'credenzo[mcp]'
 ```
 
 The GitHub Release standalone binary does **not** bundle the MCP SDK — `mcp`
@@ -23,10 +23,10 @@ Use a pip or uv install with the `[mcp]` extra for live analysis.
 
 ```bash
 # Connect to all auto-discovered servers and analyze live tool descriptions.
-mcp-audit scan --connect
+credenzo scan --connect
 
 # Connect to servers in a specific config file only.
-mcp-audit scan --connect --path ~/.config/Claude/claude_desktop_config.json
+credenzo scan --connect --path ~/.config/Claude/claude_desktop_config.json
 ```
 
 ---
@@ -34,7 +34,7 @@ mcp-audit scan --connect --path ~/.config/Claude/claude_desktop_config.json
 ## Stderr suppression
 
 MCP servers often print startup diagnostics, version banners, or debug logs to
-stderr.  Without suppression these messages appear interleaved with mcp-audit's
+stderr.  Without suppression these messages appear interleaved with Credenzo's
 own Rich output, which can alarm users who don't know the output originates from
 the server process.
 
@@ -43,16 +43,16 @@ Use `--verbose` to see what the server wrote:
 
 ```bash
 # Stderr is captured silently — terminal stays clean.
-mcp-audit scan --connect
+credenzo scan --connect
 
 # Print captured server stderr under a "Server output" header.
-mcp-audit scan --connect --verbose
+credenzo scan --connect --verbose
 ```
 
 Captured stderr is also available in JSON output under the `server_logs` array:
 
 ```bash
-mcp-audit scan --connect --format json | jq '.server_logs'
+credenzo scan --connect --format json | jq '.server_logs'
 ```
 
 **When a server fails to start** (STORY-0105), its stderr is still read, and the
@@ -73,7 +73,7 @@ SSE and Streamable-HTTP MCP servers often require an API key or bearer token.
 Pass it with `--connect-token`:
 
 ```bash
-mcp-audit scan --connect --connect-token "$MY_API_TOKEN"
+credenzo scan --connect --connect-token "$MY_API_TOKEN"
 ```
 
 The token is sent as `Authorization: Bearer <token>` on every HTTP request.
@@ -87,7 +87,7 @@ The token is sent as `Authorization: Bearer <token>` on every HTTP request.
 
 ### Error messages
 
-| Situation | mcp-audit output |
+| Situation | Credenzo output |
 |---|---|
 | Server returns `401 Unauthorized` | `Connection to <url> failed: 401 Unauthorized — use --connect-token to provide credentials` |
 | Server returns `403 Forbidden` | `Connection to <url> failed: 403 Forbidden — the provided token may lack the required permissions` |
@@ -111,11 +111,11 @@ The token is sent as `Authorization: Bearer <token>` on every HTTP request.
 
 ```bash
 # No token needed; stderr is captured automatically.
-mcp-audit scan --connect \
+credenzo scan --connect \
   --path ~/.config/Claude/claude_desktop_config.json
 
 # See what the server logged during startup.
-mcp-audit scan --connect --verbose \
+credenzo scan --connect --verbose \
   --path ~/.config/Claude/claude_desktop_config.json
 ```
 
@@ -123,7 +123,7 @@ mcp-audit scan --connect --verbose \
 
 ```bash
 # Pass the token; connection succeeds and tools are enumerated.
-mcp-audit scan --connect \
+credenzo scan --connect \
   --connect-token "$MCP_API_TOKEN" \
   --path my-sse-config.json
 ```
@@ -146,16 +146,16 @@ a bearer token through your identity provider and pass it via `--connect-token`.
 
 ## Troubleshooting
 
-**`MCP SDK not installed`** — Run `pip install 'mcp-audit-scanner[mcp]'`. The standalone
+**`MCP SDK not installed`** — Run `pip install 'credenzo[mcp]'`. The standalone
 binary does not include the SDK; switch to a pip/uv install with the `[mcp]` extra.
 
 **`MCP SDK is not bundled in the standalone binary`** — Same cause, different
 wording: you ran the GitHub Release binary. Live `--connect` needs a pip or
-uv install of mcp-audit-scanner with the mcp extra.
+uv install of credenzo with the mcp extra.
 
 **Connection timed out** — The server did not complete the handshake within the
 default 10 s window.  Check that the server process starts correctly with
-`mcp-audit scan --connect --verbose`.
+`credenzo scan --connect --verbose`.
 
 **`401 Unauthorized`** — Add `--connect-token <token>`.
 

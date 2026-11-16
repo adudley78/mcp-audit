@@ -1,4 +1,4 @@
-"""Governance policy engine for mcp-audit.
+"""Governance policy engine for Credenzo.
 
 Evaluates organizational security requirements (approved server lists,
 score thresholds, transport constraints, registry membership, finding

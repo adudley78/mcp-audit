@@ -1,6 +1,6 @@
 """Tool-definition digests: the ``tools`` section of ``mcp-lock.json``.
 
-STORY-0086, ADR-0005 amendment "mcp-audit owns ``tools``". ``mcp-audit lock
+STORY-0086, ADR-0005 amendment "Credenzo owns ``tools``". ``credenzo lock
 --connect`` asks each server for its tool list and records, per tool, two
 SHA-256 digests of the RFC 8785 canonical JSON of what the server sent:
 
@@ -28,7 +28,7 @@ The section declares its producer and carries its own checksum::
     }
 
 The top-level ``checksum`` keeps its ADR-0005 §10 scope. Folding ``tools``
-into it would make every mcp-audit up to 0.20 report LOCK-005 ("tampered")
+into it would make every Credenzo up to 0.20 report LOCK-005 ("tampered")
 on a lock written with ``--connect``; a section-local checksum lets those
 versions see a populated section they cannot verify instead, which they
 already report honestly (R56).
@@ -93,13 +93,13 @@ def wire_definition(wire: dict, *, spec_annotations_only: bool = False) -> dict:
 
     The same mapping :func:`mcp_audit.mcp_client._tool_info` applies to the
     SDK's wire-format dump followed by :func:`tool_definition`, done on the
-    raw ``tools/list`` JSON instead, for ``mcp-audit run`` (which relays the
+    raw ``tools/list`` JSON instead, for ``credenzo run`` (which relays the
     protocol and has no SDK objects). ``tests/test_runtime_tools.py`` pins
     that both paths give the same digests.
 
     With *spec_annotations_only*, ``annotations`` keeps only
     :data:`SPEC_ANNOTATION_KEYS`: the definition a lock written under ``mcp``
-    SDK 2.x recorded. ``mcp-audit run`` accepts a tool that matches either
+    SDK 2.x recorded. ``credenzo run`` accepts a tool that matches either
     form, since it can't tell which SDK wrote the lock.
     """
     schema = wire.get("inputSchema")
@@ -166,10 +166,10 @@ def server_record(tools: list[ToolInfo]) -> dict:
 
 
 def is_owned(section: object) -> bool:
-    """Whether *section* is a ``tools`` section this version of mcp-audit wrote.
+    """Whether *section* is a ``tools`` section this version of Credenzo wrote.
 
     Ownership is declared, not positional (ADR-0005 §1). A section from any
-    other producer, or from a newer mcp-audit schema this version cannot
+    other producer, or from a newer Credenzo schema this version cannot
     read, is foreign: preserved untouched and never overwritten.
     """
     return (

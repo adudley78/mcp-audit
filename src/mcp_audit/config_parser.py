@@ -227,7 +227,7 @@ def _servers_from_dict(
 
         command = server_data.get("command")
         args = server_data.get("args", [])
-        # A server launched through `mcp-audit run` is analysed as the server
+        # A server launched through `credenzo run` is analysed as the server
         # it runs (EPIC-0009 Story 1.2); `raw` keeps the entry as written.
         inner = inner_launch(command, args)
         wrap_mode = None
@@ -300,7 +300,7 @@ def _read_settings_text(path: Path) -> str:
         raise ValueError(f"Cannot read {path}: {e}") from e
     if size > SETTINGS_MAX_BYTES:
         raise ValueError(
-            f"{path} is {size} bytes, over mcp-audit's {SETTINGS_MAX_BYTES}-byte"
+            f"{path} is {size} bytes, over Credenzo's {SETTINGS_MAX_BYTES}-byte"
             " limit for a settings file; it was not read. Review it by hand."
         )
     try:
@@ -310,7 +310,7 @@ def _read_settings_text(path: Path) -> str:
         raise ValueError(f"Cannot read {path}: {e}") from e
     if len(data) > SETTINGS_MAX_BYTES:
         raise ValueError(
-            f"{path} is over mcp-audit's {SETTINGS_MAX_BYTES}-byte limit for a"
+            f"{path} is over Credenzo's {SETTINGS_MAX_BYTES}-byte limit for a"
             " settings file; it was not read. Review it by hand."
         )
     try:

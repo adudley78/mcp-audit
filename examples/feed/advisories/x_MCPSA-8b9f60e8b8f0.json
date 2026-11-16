@@ -33,7 +33,7 @@
       ]
     }
   ],
-  "details": "Server 'github' exposes an env key suggesting an access token: _TOKEN Evidence: rule:COMM-022; matched: _TOKEN Remediation: Review the rule 'COMM-022' (Env key name suggests access token) and the server configuration for 'github'. Detected by mcp-audit rule COMM-022 (rules analyzer, severity MEDIUM).",
+  "details": "Server 'github' exposes an env key suggesting an access token: _TOKEN Evidence: rule:COMM-022; matched: _TOKEN Remediation: Review the rule 'COMM-022' (Env key name suggests access token) and the server configuration for 'github'. Detected by Credenzo rule COMM-022 (rules analyzer, severity MEDIUM).",
   "id": "x_MCPSA-8b9f60e8b8f0",
   "modified": "2026-01-31T00:00:00Z",
   "published": "2026-01-31T00:00:00Z",

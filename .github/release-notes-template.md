@@ -43,7 +43,7 @@ Cursor, VS Code, Windsurf, and any MCP-compatible host.
 ### Install
 
 ```bash
-pip install --upgrade mcp-audit-scanner   # PyPI — CLI command: mcp-audit
+pip install --upgrade credenzo   # PyPI — CLI command: credenzo
 ```
 
 Or grab a pre-built binary from **Assets** below (no Python required):
@@ -75,7 +75,7 @@ after v1, `@v1` will track the latest 1.x release automatically.
 
 ### Upgrading
 
-`pip install --upgrade mcp-audit-scanner` or download the new binary from
+`pip install --upgrade credenzo` or download the new binary from
 the release assets. Anything you must do for this version is in the
 changelog section above.
 
@@ -93,11 +93,11 @@ changelog section above.
 ### Integrations
 
 - SARIF → GitHub Code Scanning (schema-validated, deduplication-safe)
-- Nucleus Security FlexConnect (`mcp-audit push-nucleus`)
-- Baseline diffing for CI regression gates (`mcp-audit baseline`)
+- Nucleus Security FlexConnect (`credenzo push-nucleus`)
+- Baseline diffing for CI regression gates (`credenzo baseline`)
 - HTML dashboard — self-contained, no CDN dependencies
 - VS Code / Cursor extension — inline squiggles and command palette
-- Signed OSV advisory feed (`mcp-audit advise`) — mcp-audit's own published feed is signed with a
+- Signed OSV advisory feed (`credenzo advise`) — Credenzo's own published feed is signed with a
   real minisign project key (record *format* is still experimental; don't build automation on
   today's exact field layout)
 
@@ -107,7 +107,7 @@ changelog section above.
 - 22-server false-positive benchmark — 0% poisoning FP rate on legitimate server config entries (measured recall and precision on tool descriptions: [`docs/poisoning.md`](docs/poisoning.md))
 - CVSS + OWASP MCP Top 10 severity mappings on every finding ID
 
-**10,387 tests · Apache 2.0 · macOS · Linux · Windows**
+**10,391 tests · Apache 2.0 · macOS · Linux · Windows**
 
 ---
 

@@ -1,4 +1,4 @@
-"""Tests for POISON-* thresholds in ``mcp-audit run`` (EPIC-0009 Story 1.4)."""
+"""Tests for POISON-* thresholds in ``credenzo run`` (EPIC-0009 Story 1.4)."""
 
 from __future__ import annotations
 
@@ -140,7 +140,7 @@ class TestGuardWithPoison:
         assert said == [
             "withheld: POISON-012 server 'srv': tool(s) 'add': text matches a HIGH "
             "poisoning pattern (threshold: high). Fix: read the tool's text with "
-            "`mcp-audit scan --connect`; if it's a false positive, raise "
+            "`credenzo scan --connect`; if it's a false positive, raise "
             "runtime.poison_threshold in the policy"
         ]
 

@@ -1,6 +1,6 @@
 """RFC 8785 JSON Canonicalization Scheme (JCS) — see :mod:`mcp_audit._jcs`.
 
-The implementation lives in :mod:`mcp_audit._jcs` so the ``mcp-audit run``
+The implementation lives in :mod:`mcp_audit._jcs` so the ``credenzo run``
 launch path can use it without importing this package's feed and signing
 code. Every existing ``from mcp_audit.advisory.canonical import ...`` keeps
 working and gets the same objects.

@@ -1,6 +1,6 @@
 # mcp-audit + Snyk Code — parallel CI security scan
 #
-# Runs both Snyk Code (source-layer SAST) and mcp-audit (config-layer scan)
+# Runs both Snyk Code (source-layer SAST) and Credenzo (config-layer scan)
 # on every push and pull request.  Each tool writes a SARIF file; both are
 # uploaded to GitHub Code Scanning under separate category labels so findings
 # are cleanly partitioned in the Security tab.
@@ -76,7 +76,7 @@ jobs:
   # Both jobs run in parallel.  The Security tab will show findings from both
   # tools under their respective category labels:
   #   "snyk-code"  — Snyk Code findings
-  #   "mcp-audit"  — mcp-audit findings (uploaded by the action internally)
+  #   "mcp-audit"  — Credenzo findings (uploaded by the action internally)
   #
   # To add PR comment diffing (shows what MCP config changed in this PR),
   # add a third job using examples/github-actions/diff-pr-comment.yml as

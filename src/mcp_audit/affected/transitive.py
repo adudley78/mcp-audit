@@ -176,7 +176,7 @@ def check_dependencies(
     """Extend per-server *rows* (parallel to *servers*) with dependency answers.
 
     AFFECTED rows, rows with no package (a remote URL) and rows that already
-    stand for packages mcp-audit does not read (``--with`` / ``-p``) are kept
+    stand for packages Credenzo does not read (``--with`` / ``-p``) are kept
     as they are.
     """
     out: list[Row] = []

@@ -21,7 +21,7 @@ from mcp_audit.advisory.sign import (
 def open_bundle(path: Path, public_key: Path | None, con: Console) -> bundle_mod.Bundle:
     """Verify *path*, activate it for the loaders, print its date, and return it.
 
-    Verification is the feed's own, with minisign and mcp-audit's bundled project
+    Verification is the feed's own, with minisign and Credenzo's bundled project
     key unless ``--bundle-key`` or ``$MCP_AUDIT_SIGNING_PUBKEY`` names another.
     Any failure prints every reason and exits 2; nothing falls back to the
     bundled data, because a half-trusted bundle is worse than none.

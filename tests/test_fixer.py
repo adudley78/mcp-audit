@@ -1,4 +1,4 @@
-"""Tests for `mcp-audit fix` — fixer orchestrator, strategies, and CLI command."""
+"""Tests for `credenzo fix` — fixer orchestrator, strategies, and CLI command."""
 
 from __future__ import annotations
 
@@ -473,9 +473,7 @@ class TestPackagePinningStrategy:
             s = PackagePinningStrategy(registry=mock_registry)
             s.apply(config, finding)
 
-        assert any(
-            "not in the mcp-audit known-server registry" in w for w in s.warnings
-        )
+        assert any("not in the Credenzo known-server registry" in w for w in s.warnings)
 
     def test_no_warning_when_replacement_in_registry(self) -> None:
         config = _config_with_typosquat()
@@ -579,7 +577,7 @@ class TestVersionPinningStrategy:
             "-y",
             "some-mcp-server@3.1.0",
         ]
-        assert "run `mcp-audit lock`" in msg
+        assert "run `credenzo lock`" in msg
 
     def test_pypi_uses_at_syntax_not_double_equals(self) -> None:
         """uvx pins use `pkg@version`, matching the existing SC-001/002

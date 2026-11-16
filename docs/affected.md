@@ -1,30 +1,30 @@
-# `mcp-audit affected`
+# `credenzo affected`
 
 *Is this advisory in my agent stack?* One command, one answer per server.
 
 ```bash
-mcp-audit affected CVE-2025-53109                 # an advisory ID
-mcp-audit affected MAL-2026-4068                  # an OSV malicious-package ID
-mcp-audit affected x_MCPRS-4ad8c07d80d7           # a research record (Plugin4Shell)
-mcp-audit affected litellm@==1.107.0              # a package and a version range
-mcp-audit affected '@modelcontextprotocol/server-filesystem@<2025.7.1'
+credenzo affected CVE-2025-53109                 # an advisory ID
+credenzo affected MAL-2026-4068                  # an OSV malicious-package ID
+credenzo affected x_MCPRS-4ad8c07d80d7           # a research record (Plugin4Shell)
+credenzo affected litellm@==1.107.0              # a package and a version range
+credenzo affected '@modelcontextprotocol/server-filesystem@<2025.7.1'
 ```
 
-It reads every MCP server mcp-audit discovers (all supported clients, Codex and Gemini CLI, gateway upstreams, plugin and subagent servers) and prints one of three answers for each:
+It reads every MCP server Credenzo discovers (all supported clients, Codex and Gemini CLI, gateway upstreams, plugin and subagent servers) and prints one of three answers for each:
 
 | Answer | Meaning |
 |---|---|
 | **AFFECTED** | The server runs the package at a version the advisory covers. The row says which version, where it came from, and the fixed version if there is one. |
-| **NOT AFFECTED** | mcp-audit can show why: the server runs the package at a version the advisory does not cover (at or above the fix, or outside the listed range), or it runs a different package. |
-| **COULDN'T CHECK** | mcp-audit cannot tell. The row says why. This is never reported as not affected. |
+| **NOT AFFECTED** | Credenzo can show why: the server runs the package at a version the advisory does not cover (at or above the fix, or outside the listed range), or it runs a different package. |
+| **COULDN'T CHECK** | Credenzo cannot tell. The row says why. This is never reported as not affected. |
 
 Exit code: `0` nothing affected, `1` something affected, `2` error. `--fail-on-unknown` also exits `1` when anything is COULDN'T CHECK, including a remote server or a config file that could not be parsed.
 
 ## Where the version comes from
 
 1. The launch command's exact pin (`npx -y pkg@1.2.3`, `uvx pkg==1.2.3`).
-2. Otherwise the `resolved_version` in `mcp-lock.json` for that server: the nearest lock beside the config, plus any you pass with `--lock PATH` (repeatable). The `mcp-lock.json` of an older commit works the same way; mcp-audit never runs `git` to read history.
-3. Otherwise nothing: `npx -y pkg` with no pin and no lock is **COULDN'T CHECK**, with "pin it or run `mcp-audit lock`". mcp-audit does not guess what an unpinned launch will install.
+2. Otherwise the `resolved_version` in `mcp-lock.json` for that server: the nearest lock beside the config, plus any you pass with `--lock PATH` (repeatable). The `mcp-lock.json` of an older commit works the same way; Credenzo never runs `git` to read history.
+3. Otherwise nothing: `npx -y pkg` with no pin and no lock is **COULDN'T CHECK**, with "pin it or run `credenzo lock`". Credenzo does not guess what an unpinned launch will install.
 
 ## What it checks against
 
@@ -39,7 +39,7 @@ An ID that none of these knows is an error (exit `2`); it does not produce a col
 
 ## Research records
 
-A research record is about products (Claude Code, Codex...), not MCP servers, so the rows are per product. mcp-audit reads which Claude Code, Codex, Gemini CLI and OpenCode versions are installed from files only (it never runs them; see below). A product with a recorded fix and an install found is **AFFECTED** (installed version below the fix, with the path it was read from) or **NOT AFFECTED** (at or above it). With no install found, no recorded fix (Copilot, Gemini CLI), or `--path`, the row is **COULDN'T CHECK**, with what the write-up says about that product's fix. The checks the record names (for Plugin4Shell, PLUGIN-003 and PLUGIN-004) are run too; a HIGH or CRITICAL result is an AFFECTED row, and a milder one is listed as COULDN'T CHECK. Those checks look at Claude Code's plugin directory only, only for installs that kept their `.git`, and are not run with `--path`. The plugin checks themselves never produce NOT AFFECTED; only an installed version at or above the fix does. A record about a client bug with no recorded fix and no checks (`x_MCPRS-c83726dd3047`, Claude Code's `bypassPermissions` hole in PreToolUse `ask` hooks, reported in anthropics/claude-code#103994) is COULDN'T CHECK with `reason: harness-version`: even with an installed version read, there is no fixed version to order it against, and mcp-audit does not turn the reporter's version into an "affected from" floor. A record with no checks (ContextCrush, `x_MCPRS-32fc646f6f96`: the flaw was in Context7's service, fixed server-side) runs nothing and says so; its one product row is COULDN'T CHECK (`reason: vendor-service`) with the write-up's statement. It does not look at your servers, so it does not say whether a config launches `@upstash/context7-mcp`.
+A research record is about products (Claude Code, Codex...), not MCP servers, so the rows are per product. Credenzo reads which Claude Code, Codex, Gemini CLI and OpenCode versions are installed from files only (it never runs them; see below). A product with a recorded fix and an install found is **AFFECTED** (installed version below the fix, with the path it was read from) or **NOT AFFECTED** (at or above it). With no install found, no recorded fix (Copilot, Gemini CLI), or `--path`, the row is **COULDN'T CHECK**, with what the write-up says about that product's fix. The checks the record names (for Plugin4Shell, PLUGIN-003 and PLUGIN-004) are run too; a HIGH or CRITICAL result is an AFFECTED row, and a milder one is listed as COULDN'T CHECK. Those checks look at Claude Code's plugin directory only, only for installs that kept their `.git`, and are not run with `--path`. The plugin checks themselves never produce NOT AFFECTED; only an installed version at or above the fix does. A record about a client bug with no recorded fix and no checks (`x_MCPRS-c83726dd3047`, Claude Code's `bypassPermissions` hole in PreToolUse `ask` hooks, reported in anthropics/claude-code#103994) is COULDN'T CHECK with `reason: harness-version`: even with an installed version read, there is no fixed version to order it against, and Credenzo does not turn the reporter's version into an "affected from" floor. A record with no checks (ContextCrush, `x_MCPRS-32fc646f6f96`: the flaw was in Context7's service, fixed server-side) runs nothing and says so; its one product row is COULDN'T CHECK (`reason: vendor-service`) with the write-up's statement. It does not look at your servers, so it does not say whether a config launches `@upstash/context7-mcp`.
 
 ### Installed harness versions (STORY-0132)
 
@@ -57,7 +57,7 @@ Every install found is listed, one row each. Which one is first on `PATH` cannot
 ## Launches it will not call clean
 
 - A config file that cannot be parsed hides all its servers, so it appears as one COULDN'T CHECK row (and a warning) instead of silence.
-- A launch that installs extra packages (`uvx --with pkg==1.2`, `npx -p pkg`, `--package`) is COULDN'T CHECK when its main package is not the one asked about, because the extra package is installed too and mcp-audit does not read it.
+- A launch that installs extra packages (`uvx --with pkg==1.2`, `npx -p pkg`, `--package`) is COULDN'T CHECK when its main package is not the one asked about, because the extra package is installed too and Credenzo does not read it.
 - A pin with extras (`litellm[proxy]==1.107.0`) is read as a pin.
 - If no discovered server runs the package you named, the output says so (check the spelling) rather than printing a column of NOT AFFECTED.
 - Lock files are read defensively: a regular file only, at most 8 MiB, never blocking on a FIFO or device.
@@ -65,7 +65,7 @@ Every install found is listed, one row each. Which one is first on `PATH` cannot
 
 ## What it lists
 
-By default the terminal output lists AFFECTED, COULDN'T CHECK and the NOT AFFECTED rows that run the package. Servers on other packages, and servers whose launch names no package mcp-audit can read (a remote URL, a local script), are counted in one line; `--all` lists them. A server with no readable package is COULDN'T CHECK and does trip `--fail-on-unknown`; a gate that must ignore remote servers should not use that flag.
+By default the terminal output lists AFFECTED, COULDN'T CHECK and the NOT AFFECTED rows that run the package. Servers on other packages, and servers whose launch names no package Credenzo can read (a remote URL, a local script), are counted in one line; `--all` lists them. A server with no readable package is COULDN'T CHECK and does trip `--fail-on-unknown`; a gate that must ignore remote servers should not use that flag.
 
 ## Output
 
@@ -73,7 +73,7 @@ By default the terminal output lists AFFECTED, COULDN'T CHECK and the NOT AFFECT
 
 ## `--fix` and `--apply`: pin to the advisory's fix (STORY-0127)
 
-`affected <ID> --fix` prints the diff that pins each AFFECTED `npx`/`bunx`/`pnpx`/`uvx`/`pipx` server to a fixed version taken from the advisory itself, so it needs no network. Nothing is written. `--fix --apply` writes each config atomically with a `.bak` beside it, the same contract as `mcp-audit fix`. Re-run `affected` afterwards: the server reads NOT AFFECTED. A pin changes the config, not your lock, so run `mcp-audit lock` to record the new version.
+`affected <ID> --fix` prints the diff that pins each AFFECTED `npx`/`bunx`/`pnpx`/`uvx`/`pipx` server to a fixed version taken from the advisory itself, so it needs no network. Nothing is written. `--fix --apply` writes each config atomically with a `.bak` beside it, the same contract as `credenzo fix`. Re-run `affected` afterwards: the server reads NOT AFFECTED. A pin changes the config, not your lock, so run `credenzo lock` to record the new version.
 
 The version is the **lowest fixed version above the one the server runs** (a release, not a pre-release); when the advisory lists several, the candidates are tried lowest first until the advisory's own rules say the server is clear, so a backport on the server's own line wins over a newer major. A registry advisory records one fix, so a pin can cross a major version; when it does the output says so. A server is **not pinned, with the reason printed**, when the advisory records no fix, none can be ordered (calendar versus semantic numbering, including the `0.x` cases the registry orders specially), no fix is above the current version, the version is unknown and several fixes are listed, the launch uses `--from`/`--with`/`--package`, the launcher is not `npx`/`bunx`/`pnpx`/`uvx`/`pipx` (a full path, `.cmd` and `cmd /c` wrappers are fine), the name is under both `mcpServers` and `servers`, or the config is TOML (Codex) or not plain JSON. One config that cannot be edited never stops the others. The existing style is kept (`pkg==1.0` stays `==`, `pkg@1.0` stays `@`, extras are kept). A config where no pin applies is not rewritten. `--apply` keeps the file's permissions (the backup gets the same), edits a symlinked config where it points, and never overwrites an earlier backup (`.bak`, then `.bak.1`, ...). The exit code still reports what was found, not what was fixed. `--fix` works with the terminal format only. Like `fix`, a rewritten file is re-serialised as indented JSON.
 
@@ -88,7 +88,7 @@ For each AFFECTED server the terminal output (and `--format json`, under `respon
 
 If an affected version ran, treat what it could read as exposed.
 
-`--policy-out FILE` writes `{"deniedMcpServers": [...]}` for the AFFECTED servers, in the shape Claude Code's managed settings read ([Control MCP server access](https://code.claude.com/docs/en/managed-mcp)). Each entry is a `serverCommand`: the exact launch, checked with the evaluator `scan` uses for MANAGED-001..005. The file is deployed to other machines, so a command is written only when every argument is the package itself (name, optionally a version) or a launcher or transport word (`-y`, `run`, `--transport`, `sse`, ...). A URL, a path, a positional value or any other flag might be a secret, so that server gets no entry and a note says so; mcp-audit never writes a `serverName` entry, which would deny every server of that name on every machine. Limits, stated in the output: an entry blocks that exact launch only (not the package launched another way), only Claude Code reads it, and servers that could not be checked are not in it. mcp-audit writes only the file you name, never overwrites an existing file, refuses a path inside the managed-settings directory (case-insensitively) or the same path as `--output`, and writes nothing when no server is AFFECTED. In machine formats the notes go to stderr. Deploying the file is the admin's step.
+`--policy-out FILE` writes `{"deniedMcpServers": [...]}` for the AFFECTED servers, in the shape Claude Code's managed settings read ([Control MCP server access](https://code.claude.com/docs/en/managed-mcp)). Each entry is a `serverCommand`: the exact launch, checked with the evaluator `scan` uses for MANAGED-001..005. The file is deployed to other machines, so a command is written only when every argument is the package itself (name, optionally a version) or a launcher or transport word (`-y`, `run`, `--transport`, `sse`, ...). A URL, a path, a positional value or any other flag might be a secret, so that server gets no entry and a note says so; Credenzo never writes a `serverName` entry, which would deny every server of that name on every machine. Limits, stated in the output: an entry blocks that exact launch only (not the package launched another way), only Claude Code reads it, and servers that could not be checked are not in it. Credenzo writes only the file you name, never overwrites an existing file, refuses a path inside the managed-settings directory (case-insensitively) or the same path as `--output`, and writes nothing when no server is AFFECTED. In machine formats the notes go to stderr. Deploying the file is the admin's step.
 
 ## Transport tags and OpenVEX
 
@@ -113,7 +113,7 @@ A registry advisory can say which transports its vulnerable code runs on (`affec
 
 ## `--fleet`: other machines' scans (STORY-0131)
 
-`affected <ID or range> --fleet a.json --fleet b.json` answers from `mcp-audit scan --format json` files instead of this machine's configs, one row per machine and server. The machine is `machine_info.asset_id`, else `hostname`; two files with the same name are kept apart by file name. The scan JSON already carries each server's launch command and arguments, so no field was added; a version comes from the launch pin. Lock files are not read: a config path in a scan file belongs to another machine, so a floating launch is COULDN'T CHECK. `mcp-audit merge` output keeps findings but not servers, so it is reported as such, with a pointer to the per-machine files. The Respond block, `--policy-out`, `--fix` and `--path` read or change this machine and are refused or skipped with `--fleet`. A research-record ID (`x_MCPRS-…`) is answered from this machine's harness installs, so `--fleet` refuses it (exit 2). `--fleet` combines with `--live --transitive`.
+`affected <ID or range> --fleet a.json --fleet b.json` answers from `credenzo scan --format json` files instead of this machine's configs, one row per machine and server. The machine is `machine_info.asset_id`, else `hostname`; two files with the same name are kept apart by file name. The scan JSON already carries each server's launch command and arguments, so no field was added; a version comes from the launch pin. Lock files are not read: a config path in a scan file belongs to another machine, so a floating launch is COULDN'T CHECK. `credenzo merge` output keeps findings but not servers, so it is reported as such, with a pointer to the per-machine files. The Respond block, `--policy-out`, `--fix` and `--path` read or change this machine and are refused or skipped with `--fleet`. A research-record ID (`x_MCPRS-…`) is answered from this machine's harness installs, so `--fleet` refuses it (exit 2). `--fleet` combines with `--live --transitive`.
 
 The files are untrusted: each is opened without blocking, must be a regular file, is read up to 64 MiB, and is parsed defensively (at most 1,000 files and 10,000 servers per file). An unreadable, oversized, malformed or non-scan file becomes a COULDN'T CHECK row and a warning; a server entry that does not parse is counted and skipped.
 
@@ -125,7 +125,7 @@ The comparison itself is exact (PEP 440 ordering, OSV event order). The error is
 - **Numbering schemes:** a version range or fix that mixes calendar and semantic numbering is COULDN'T CHECK, except where the registry records `semver_resumed_at` for the package.
 - **Malicious mirror:** 217 records; 150 list explicit versions and 99 carry a blanket "every version" range. For a package in the registry, the blanket range is ignored when the record also lists versions (the SC-008 rule).
 - **Coverage:** an advisory the registry, the mirror and the research records do not hold is not answered offline. The registry's CVE history is curated, not NVD; a package missing a CVE here is not evidence that it has none.
-- **Version:** a version mcp-audit cannot parse, or order against the fix, is COULDN'T CHECK. An unpinned launch is COULDN'T CHECK; the floating spec's installed version can differ from a lock's if the lock is stale.
+- **Version:** a version Credenzo cannot parse, or order against the fix, is COULDN'T CHECK. An unpinned launch is COULDN'T CHECK; the floating spec's installed version can differ from a lock's if the lock is stale.
 
 ## Not in this version
 

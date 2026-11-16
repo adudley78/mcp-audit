@@ -1,9 +1,11 @@
 name: Publish the credenzo name to PyPI
 
-# Manual, one job per run. Publishes packaging/credenzo/ (a package with no
-# code that depends on mcp-audit-scanner) so that `pip install credenzo`
-# works and the name belongs to this project. PyPI refuses a version twice,
-# so a second run fails until packaging/credenzo/pyproject.toml is bumped.
+# Manual, one job per run. Run it after each release, when the same version
+# of mcp-audit-scanner is on PyPI. Publishes packaging/credenzo/ (a package
+# with no code that pins mcp-audit-scanner and declares the `credenzo`
+# command) so that `pip install credenzo` installs that release. PyPI refuses
+# a version twice. tests/test_credenzo_package.py keeps the version and the
+# pin equal to the release version.
 # Same split as release.yml: the build never runs next to `id-token: write`.
 on:
   workflow_dispatch:

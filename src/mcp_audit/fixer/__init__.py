@@ -1,1 +1,1 @@
-"""mcp-audit fixer — apply safe remediations back to MCP config files."""
+"""Credenzo fixer — apply safe remediations back to MCP config files."""

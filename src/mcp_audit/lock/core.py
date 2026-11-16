@@ -1,4 +1,4 @@
-"""Stdlib-only lock primitives shared by ``lock --verify`` and ``mcp-audit run``.
+"""Stdlib-only lock primitives shared by ``lock --verify`` and ``credenzo run``.
 
 The launch gate (:mod:`mcp_audit.runtime.gate`) runs on every wrapped
 server's start, so it cannot import :mod:`mcp_audit.lock.model` (pydantic and
@@ -17,12 +17,12 @@ from mcp_audit._paths import find_git_root as _find_git_root
 #: The lock file's name.
 LOCK_FILENAME = "mcp-lock.json"
 
-#: The ``lock_version`` this mcp-audit writes. Version 2 (STORY-0116, the
+#: The ``lock_version`` this Credenzo writes. Version 2 (STORY-0116, the
 #: ADR-0005 R59/R62 set agreed on #88) adds ``section_digests``, a per-entry
 #: ``resolution.resolution_context``, and records a bare spec as ``"*"``.
 LOCK_VERSION = 2
 
-#: Every ``lock_version`` this mcp-audit can verify. A version-1 lock is
+#: Every ``lock_version`` this Credenzo can verify. A version-1 lock is
 #: verified exactly as v0.22 verified it; anything newer is refused.
 SUPPORTED_LOCK_VERSIONS: frozenset[int] = frozenset({1, 2})
 
@@ -37,7 +37,7 @@ def lock_version_of(doc: dict) -> object:
 
 
 def unsupported_version(doc: dict) -> int | None:
-    """Return *doc*'s ``lock_version`` when it is newer than this mcp-audit reads.
+    """Return *doc*'s ``lock_version`` when it is newer than this Credenzo reads.
 
     Only an integer above the highest supported version counts. A missing or
     odd value is read as version 1, exactly as v0.22 (which never looked at

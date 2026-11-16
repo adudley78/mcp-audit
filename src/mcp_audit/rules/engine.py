@@ -1,4 +1,4 @@
-"""Policy-as-code rule engine for mcp-audit.
+"""Policy-as-code rule engine for Credenzo.
 
 Loads YAML rule files and evaluates them against MCP server configurations,
 producing standard Finding objects that flow through all output formatters.
@@ -632,7 +632,7 @@ def _resolve_bundled_community_dir() -> Path:
 
 
 def load_bundled_community_rules() -> list[PolicyRule]:
-    """Load the bundled community rules shipped with mcp-audit.
+    """Load the bundled community rules shipped with Credenzo.
 
     Returns:
         List of valid PolicyRule objects from ``rules/community/``.

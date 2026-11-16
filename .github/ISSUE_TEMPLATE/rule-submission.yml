@@ -13,7 +13,7 @@ body:
 
         Accepted contributors are named in [docs/contributors.md](https://github.com/adudley78/mcp-audit/blob/main/docs/contributors.md); see [BOUNTY.md](https://github.com/adudley78/mcp-audit/blob/main/rules/community/BOUNTY.md) for the first 50.
 
-        **Before you start:** run `mcp-audit rule list` to check that an existing rule doesn't already cover it.
+        **Before you start:** run `credenzo rule list` to check that an existing rule doesn't already cover it.
 
   - type: textarea
     id: pattern
@@ -87,7 +87,7 @@ body:
     id: rule_yaml
     attributes:
       label: Rule YAML (optional)
-      description: If you wrote the rule, paste it here, or open a pull request and link it. `mcp-audit rule validate <file>` should pass.
+      description: If you wrote the rule, paste it here, or open a pull request and link it. `credenzo rule validate <file>` should pass.
       render: yaml
     validations:
       required: false
@@ -107,7 +107,7 @@ body:
       options:
         - label: "The example configs contain no real credentials or private hostnames."
           required: true
-        - label: "I checked `mcp-audit rule list` and no existing rule covers this."
+        - label: "I checked `credenzo rule list` and no existing rule covers this."
           required: true
         - label: "I agree my contribution is licensed under Apache 2.0, like the rest of mcp-audit."
           required: true

@@ -1,6 +1,6 @@
 # Telemetry & Privacy
 
-mcp-audit collects **no telemetry, usage data, or analytics** — not even
+Credenzo collects **no telemetry, usage data, or analytics** — not even
 crash reports.
 
 ## What this means
@@ -8,26 +8,26 @@ crash reports.
 - Every scan runs entirely on your machine.
 - mcp-audit sends no usage data, analytics or crash reports anywhere.
 - No identifiers (machine ID, email) are transmitted, with one opt-in
-  exception: `mcp-audit register` sends the name, org and email you type.
+  exception: `credenzo register` sends the name, org and email you type.
   See [privacy.md](privacy.md) for exactly what is sent and where.
 - A few commands look things up online (package versions, the registry
   file); `fix`, `sbom` and `lock` do so by default unless you pass
   `--offline`. Those requests carry package names and versions, not your
   config. The full list is in
   [privacy.md](privacy.md#commands-that-use-the-network).
-- `mcp-audit watch` continuous monitoring also runs fully locally.
+- `credenzo watch` continuous monitoring also runs fully locally.
 - The HTML dashboard is a self-contained file — no beacons, no fonts loaded
   from external CDNs, no JavaScript that phones home.
 
 ## Why
 
-mcp-audit is a **security tool that reads your MCP configuration files**,
+Credenzo is a **security tool that reads your MCP configuration files**,
 which may contain environment variable names, server command paths, and other
 sensitive context. Transmitting any portion of that data — even anonymised —
 would undermine the tool's core value proposition.
 
 The privacy-first design is also a practical trust signal: corporate security
-teams and regulated-industry users can deploy mcp-audit without a network-policy
+teams and regulated-industry users can deploy Credenzo without a network-policy
 exception or a data-processing agreement.
 
 ## Trade-offs
@@ -40,7 +40,7 @@ publicly.
 ## Future changes
 
 Any future opt-in telemetry (if introduced) would require:
-- Explicit `mcp-audit telemetry enable` command (off by default, always)
+- Explicit `Credenzo telemetry enable` command (off by default, always)
 - Clear documentation of exactly what is sent
 - A public data-retention policy
 - A major version bump with a CHANGELOG entry

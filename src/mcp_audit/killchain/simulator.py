@@ -5,7 +5,7 @@ against a modified server list (with target servers removed) to compute the
 exact blast-radius reduction that applying a set of :class:`KillSwitch` objects
 would achieve.
 
-The math is identical to what ``mcp-audit scan`` produces when those servers
+The math is identical to what ``credenzo scan`` produces when those servers
 are absent from the config — :func:`summarize_attack_paths` is the same pure
 function used in :func:`~mcp_audit.scanner._run_static_pipeline`.
 """
@@ -39,7 +39,7 @@ def simulate(
     toxic-flow findings, then re-runs
     :func:`~mcp_audit.analyzers.attack_paths.summarize_attack_paths`
     — the same function used by the main pipeline.  The result is
-    mathematically identical to what ``mcp-audit scan`` would produce if the
+    mathematically identical to what ``credenzo scan`` would produce if the
     recommended changes were actually applied to the configuration.
 
     Args:

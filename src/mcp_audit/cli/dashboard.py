@@ -25,7 +25,7 @@ def dashboard(
         "--from-json",
         help=(
             "Load scan results from a saved JSON file instead of running a new scan. "
-            "Produce the file with: mcp-audit scan --format json --output results.json"
+            "Produce the file with: credenzo scan --format json --output results.json"
         ),
     ),
     port: int = typer.Option(  # noqa: B008

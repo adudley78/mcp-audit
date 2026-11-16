@@ -3,7 +3,7 @@
 Implements ADR-0005 §8's table: default ``verify()`` is fully offline and
 only ever produces LOCK-001/002/003 (config drift); ``resolve=True`` adds
 LOCK-004 (registry drift) via a real network call per unresolved/floating
-entry. LOCK-005 (mcp-audit's own owned-section checksum mismatch) always
+entry. LOCK-005 (Credenzo's own owned-section checksum mismatch) always
 short-circuits every other check — nothing else is evaluated once it fires.
 
 With ``tool_enumerations`` (``lock --verify --connect``, STORY-0086) it also
@@ -108,7 +108,7 @@ class VerifyResult:
     findings: list[Finding] = field(default_factory=list)
     #: Top-level sections present in the lock that this run did not verify
     #: (e.g. ``["trees"]``) — ADR-0005 §3's generic, not-`trees`-specific rule.
-    #: Includes mcp-audit's own default ``trees``/``tools`` stubs (informational
+    #: Includes Credenzo's own default ``trees``/``tools`` stubs (informational
     #: only — see :attr:`unverified` for the exit-code-affecting subset).
     unverified_sections: list[str] = field(default_factory=list)
     #: Locked server keys whose ``package.source == "unresolved"`` — never
@@ -117,7 +117,7 @@ class VerifyResult:
     unresolved_entries: list[str] = field(default_factory=list)
     #: Per-item detail behind the exit code (R56): one entry per unresolved
     #: package plus one per foreign section that is genuinely populated
-    #: (excludes mcp-audit's own untouched default stubs — ADR-0005 §4's
+    #: (excludes Credenzo's own untouched default stubs — ADR-0005 §4's
     #: "never a reason to fail" MUST still holds for those). Empty when
     #: everything this run could check was fully verified.
     unverified: list[UnverifiedItem] = field(default_factory=list)
@@ -154,7 +154,7 @@ class VerifyResult:
     #: Why a recorded guardrail file could not be compared (unreadable).
     #: Informational: it never changes the exit code.
     guardrail_notes: list[str] = field(default_factory=list)
-    #: The lock's ``lock_version`` when it is newer than this mcp-audit can
+    #: The lock's ``lock_version`` when it is newer than this Credenzo can
     #: verify; nothing else was checked (exit 2).
     unsupported_version: int | None = None
 
@@ -218,12 +218,12 @@ def verify(
 
     Returns:
         A :class:`VerifyResult`. ``exit_code`` is ``2`` when the lock is
-        missing, tampered (LOCK-005), or newer than this mcp-audit reads;
+        missing, tampered (LOCK-005), or newer than this Credenzo reads;
         otherwise ``1`` when any
         LOCK-001/002/004/006/007/008/011 finding exists, **or** (R56, unless
         waived) when :attr:`VerifyResult.unverified` is non-empty — an
         unresolved package version, a genuinely populated foreign section
-        (not mcp-audit's own default ``trees: {}``/``tools: null`` stub —
+        (not Credenzo's own default ``trees: {}``/``tools: null`` stub —
         ADR-0005 §4's "never a reason to fail" MUST still holds for that
         default case), or, with *tool_enumerations*, a server whose tools
         could not be compared. ``0`` otherwise — LOCK-003 or LOCK-009 alone
@@ -234,7 +234,7 @@ def verify(
     if doc is None:
         return VerifyResult(lock_missing=True, exit_code=2)
 
-    # A lock_version this mcp-audit does not know may mean anything; checking
+    # A lock_version this Credenzo does not know may mean anything; checking
     # it as an older format would claim more than was checked.
     newer = unsupported_version(doc)
     if newer is not None:
@@ -244,7 +244,7 @@ def verify(
     try:
         expected_checksum = compute_checksum(doc)
     except CanonicalError as exc:
-        # mcp-audit never writes owned content it cannot encode (too large, or
+        # Credenzo never writes owned content it cannot encode (too large, or
         # a lone surrogate), so such content is an edit: tampered, not a crash.
         finding = _lock_005(
             lock_path,
@@ -386,7 +386,7 @@ def verify(
             UnverifiedItem(
                 kind="guardrail-file",
                 name=path,
-                reason=f"{reason}; a guardrail file mcp-audit could not compare "
+                reason=f"{reason}; a guardrail file Credenzo could not compare "
                 "with the lock is never treated as unchanged",
             )
             for path, reason in compared.unverified
@@ -409,7 +409,7 @@ def verify(
             UnverifiedItem(
                 kind="section",
                 name=section,
-                reason="foreign section mcp-audit did not write and cannot "
+                reason="foreign section Credenzo did not write and cannot "
                 "verify the contents of — see docs/lock.md#trees",
             )
             for section in foreign_sections_with_content(doc)
@@ -496,14 +496,14 @@ def _lock_005(lock_path: Path, *, scope: str, evidence: str) -> Finding:
         title="Lock file tampered or hand-edited",
         description=(
             f"mcp-lock.json's checksum does not match {scope}. This check "
-            "covers mcp-audit's own record only — it never fires on an edit "
+            "covers Credenzo's own record only — it never fires on an edit "
             "inside a foreign section such as `trees`, which is that "
             "section's own producer's responsibility to verify."
         ),
         evidence=evidence,
         remediation=(
             "Inspect the change (`git diff mcp-lock.json`). If it was "
-            "intentional, run `mcp-audit lock --accept` to regenerate a "
+            "intentional, run `credenzo lock --accept` to regenerate a "
             "valid lock rather than hand-editing the file."
         ),
         finding_path=str(lock_path),
@@ -565,15 +565,15 @@ def _check_section_digests(
                     "mcp-lock.json (lock_version 2) records a digest per "
                     "section so that each producer can tell when a section it "
                     "wrote was changed by someone else. "
-                    f"{section}: {problem.reason}. mcp-audit cannot "
+                    f"{section}: {problem.reason}. Credenzo cannot "
                     "say who changed it; for a section another tool produces "
                     "(such as `trees`), that tool's own verifier is the "
                     "authority on its contents."
                 ),
                 evidence=evidence,
                 remediation=(
-                    "Inspect `git diff mcp-lock.json`. If mcp-audit's own "
-                    "section changed, re-run `mcp-audit lock --accept`; if "
+                    "Inspect `git diff mcp-lock.json`. If Credenzo's own "
+                    "section changed, re-run `credenzo lock --accept`; if "
                     "another producer's section changed, re-run that producer "
                     "so it records a fresh digest."
                 ),
@@ -586,7 +586,7 @@ def _check_section_digests(
             UnverifiedItem(
                 kind="section",
                 name=_short(name),
-                reason="too large for mcp-audit to digest, or holds text with no "
+                reason="too large for Credenzo to digest, or holds text with no "
                 "canonical encoding (a lone UTF-16 surrogate), so its recorded "
                 "digest was not checked — see docs/lock.md",
             )
@@ -617,7 +617,7 @@ def _check_section_digests(
                 evidence="not canonical: "
                 + ", ".join(_short(name) for name in reformatted),
                 remediation=(
-                    "Re-run `mcp-audit lock --accept` to rewrite the file "
+                    "Re-run `credenzo lock --accept` to rewrite the file "
                     "canonically, and keep editors and formatters off "
                     "mcp-lock.json (use a git textconv to read diffs — see "
                     "docs/lock.md)."
@@ -631,7 +631,7 @@ def _check_section_digests(
             UnverifiedItem(
                 kind="section",
                 name="<file>",
-                reason="too large for mcp-audit to re-encode, or holds text with "
+                reason="too large for Credenzo to re-encode, or holds text with "
                 "no canonical encoding, so its canonical form was not checked — "
                 "see docs/lock.md",
             )
@@ -647,7 +647,7 @@ def _tool_problem(
     """Say why *key*'s tools cannot be compared this run, or ``None`` if they can."""
     if record is None:
         reason = (
-            "no tool record in the lock — run `mcp-audit lock --connect` to record one"
+            "no tool record in the lock — run `credenzo lock --connect` to record one"
         )
     elif enumeration is None:
         reason = "tools were not listed this run"
@@ -682,7 +682,7 @@ class _ToolDetails:
 
 _SAVE_HINT = (
     "No tool text is saved, so what changed is not shown; "
-    "`mcp-audit lock --accept --connect --save-tool-text` would show it next time."
+    "`credenzo lock --accept --connect --save-tool-text` would show it next time."
 )
 
 
@@ -706,7 +706,7 @@ def _tool_details(
         details.note = (
             f"{tool_text_mod.TOOL_TEXT_FILENAME} is out of step with the lock for "
             f"{key!r} ({_name_list(stale)}); no diff shown. Re-run "
-            "`mcp-audit lock --connect --save-tool-text` to refresh it."
+            "`credenzo lock --connect --save-tool-text` to refresh it."
         )
         return details
     for name in changed:
@@ -747,11 +747,11 @@ def _tool_findings(
     details = details or _ToolDetails()
     findings: list[Finding] = []
     accept = (
-        "If approved, run `mcp-audit lock --accept --connect`; otherwise pin "
+        "If approved, run `credenzo lock --accept --connect`; otherwise pin "
         "the server to the version you approved."
     )
     review = (
-        "`mcp-audit scan --connect` runs the poisoning checks over the "
+        "`credenzo scan --connect` runs the poisoning checks over the "
         "current tool text."
     )
     if diff.added:
@@ -848,7 +848,7 @@ def _tool_findings(
                 evidence=f"removed: {_name_list(diff.removed)}",
                 remediation=(
                     "If the removal was expected, run "
-                    "`mcp-audit lock --accept --connect`."
+                    "`credenzo lock --accept --connect`."
                 ),
                 finding_path=str(server.config_path),
                 owasp_mcp_top_10=_OWASP,
@@ -899,11 +899,11 @@ def _lock_002(key: str, server: ServerConfig) -> Finding:
         server=server.name,
         title=f"Server not in lock: {server.name!r}",
         description=(
-            f"{key!r} is configured but was never approved through `mcp-audit lock`."
+            f"{key!r} is configured but was never approved through `credenzo lock`."
         ),
         evidence=f"config: {server.config_path}",
         remediation=(
-            "Run `mcp-audit lock` to approve it (or `lock --accept` after review)."
+            "Run `credenzo lock` to approve it (or `lock --accept` after review)."
         ),
         finding_path=str(server.config_path),
         owasp_mcp_top_10=_OWASP,
@@ -920,11 +920,10 @@ def _lock_003(key: str, entry: dict) -> Finding:
         server=name,
         title=f"Locked server missing: {name!r}",
         description=(
-            f"{key!r} was approved through `mcp-audit lock` but is no longer "
-            "configured."
+            f"{key!r} was approved through `credenzo lock` but is no longer configured."
         ),
         evidence=f"first_locked: {entry.get('first_locked', 'unknown')}",
-        remediation=("If the removal was intended, run `mcp-audit lock --accept`."),
+        remediation=("If the removal was intended, run `credenzo lock --accept`."),
         finding_path=str(entry.get("config", "")),
         owasp_mcp_top_10=_OWASP,
     )
@@ -940,7 +939,7 @@ def _lock_013(key: str, server: ServerConfig) -> Finding:
         server=server.name,
         title=f"Launch arguments carry a credential: {server.name!r}",
         description=(
-            f"{key!r} passes a credential on its command line. `mcp-audit lock` "
+            f"{key!r} passes a credential on its command line. `credenzo lock` "
             "records the launch with that value replaced by [REDACTED], so it "
             "never reaches the committed lock file, and the lock cannot tell "
             "when only the credential's value changes."
@@ -984,7 +983,7 @@ def _lock_014(item: guardrail_section.Loosened) -> Finding:
         evidence=f"{item.path}: {lines}",
         remediation=(
             "Revert the change (`git diff`), or, if it was intended and"
-            " reviewed, run `mcp-audit lock --accept` to record it."
+            " reviewed, run `credenzo lock --accept` to record it."
         ),
         cwe="CWE-693",
         finding_path=item.path,
@@ -1042,7 +1041,7 @@ def _check_drift(key: str, server: ServerConfig, locked_entry: dict) -> Finding 
         ),
         evidence="; ".join(diffs),
         remediation=(
-            "Review the change. If approved, run `mcp-audit lock --accept`; "
+            "Review the change. If approved, run `credenzo lock --accept`; "
             "otherwise revert the configuration."
         ),
         finding_path=str(server.config_path),
@@ -1089,8 +1088,8 @@ def _check_resolution(
             ),
             evidence=f"locked={locked_version!r} now={fresh_version!r}",
             remediation=(
-                "Review the new version, then run `mcp-audit lock --accept`, "
-                "or pin the config with `mcp-audit fix --fix-type pinning`."
+                "Review the new version, then run `credenzo lock --accept`, "
+                "or pin the config with `credenzo fix --fix-type pinning`."
             ),
             finding_path=str(server.config_path),
             owasp_mcp_top_10=_OWASP,
@@ -1175,7 +1174,7 @@ def _check_context(
         ),
         evidence="; ".join(parts),
         remediation=(
-            "No action needed on its own. Re-lock with `mcp-audit lock "
+            "No action needed on its own. Re-lock with `credenzo lock "
             "--accept` to record the current context."
         ),
         finding_path=str(server.config_path),
@@ -1243,10 +1242,10 @@ def render_pr_comment(result: VerifyResult) -> str:
             result.findings[0].evidence
             if result.tampered
             else f"lock_version {result.unsupported_version} is newer than this "
-            "mcp-audit can verify; nothing was checked."
+            "Credenzo can verify; nothing was checked."
         )
-        return f"## mcp-audit lock\n\n{_fence(_shown(detail))}\n"
-    lines = ["## mcp-audit lock"]
+        return f"## credenzo lock\n\n{_fence(_shown(detail))}\n"
+    lines = ["## credenzo lock"]
     if not result.findings and not result.unverified:
         lines.append(f"\n{result.checked_servers} server(s) verified.")
         return "\n".join(lines) + "\n"

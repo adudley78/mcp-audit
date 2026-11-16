@@ -1,6 +1,6 @@
 # Supply Chain Attestation
 
-mcp-audit provides a layered approach to supply chain security for MCP servers. This document covers Layer 1: hash-based integrity verification.
+Credenzo provides a layered approach to supply chain security for MCP servers. This document covers Layer 1: hash-based integrity verification.
 
 ---
 
@@ -21,7 +21,7 @@ Hash verification answers the question: *did this package change since we approv
 When you run:
 
 ```bash
-mcp-audit scan --verify-hashes
+credenzo scan --verify-hashes
 ```
 
 mcp-audit:
@@ -49,14 +49,14 @@ CRITICAL findings indicate active tampering. Treat them as incidents.
 
 ---
 
-## `mcp-audit verify` Command Reference
+## `credenzo verify` Command Reference
 
 Verify one or more packages interactively without running a full scan.
 
 ### Synopsis
 
 ```
-mcp-audit verify [SERVER_NAME|CONFIG_PATH] [--all] [--registry PATH]
+credenzo verify [SERVER_NAME|CONFIG_PATH] [--all] [--registry PATH]
 ```
 
 ### Arguments
@@ -97,26 +97,26 @@ Server | Version | Expected Hash | Computed Hash | Status
 Verify a specific package by name:
 
 ```bash
-mcp-audit verify @modelcontextprotocol/server-filesystem
+credenzo verify @modelcontextprotocol/server-filesystem
 ```
 
 Verify all servers in a config file:
 
 ```bash
-mcp-audit verify ~/.cursor/mcp.json
-mcp-audit verify demo/configs/claude_desktop_config.json
+credenzo verify ~/.cursor/mcp.json
+credenzo verify demo/configs/claude_desktop_config.json
 ```
 
 Verify all configured servers with pinned hashes (auto-discovers all configs):
 
 ```bash
-mcp-audit verify --all
+credenzo verify --all
 ```
 
 Use a custom registry (e.g. your organisation's fork):
 
 ```bash
-mcp-audit verify --all --registry /path/to/registry.json
+credenzo verify --all --registry /path/to/registry.json
 ```
 
 ---
@@ -168,19 +168,19 @@ Once you have the hash, open `registry/known-servers.json`, find the entry, and 
 }
 ```
 
-Submit a pull request to the mcp-audit repository to contribute hashes for widely-used packages.
+Submit a pull request to the Credenzo repository to contribute hashes for widely-used packages.
 
 ---
 
 ## Known Limitations
 
-- **Version extraction is best-effort.** mcp-audit currently recognises only the `npx package@version` invocation pattern. Servers installed via other mechanisms (pip, docker, system packages) cannot have their versions extracted automatically — an INFO finding is produced instead.
+- **Version extraction is best-effort.** Credenzo currently recognises only the `npx package@version` invocation pattern. Servers installed via other mechanisms (pip, docker, system packages) cannot have their versions extracted automatically — an INFO finding is produced instead.
 
-- **npm hashes are computed by mcp-audit on download**, not sourced from a signed manifest. PyPI publishes authoritative SHA-256 digests; npm's `integrity` field uses SHA-512 SRI format rather than SHA-256. mcp-audit normalises to SHA-256 by downloading and hashing.
+- **npm hashes are computed by Credenzo on download**, not sourced from a signed manifest. PyPI publishes authoritative SHA-256 digests; npm's `integrity` field uses SHA-512 SRI format rather than SHA-256. Credenzo normalises to SHA-256 by downloading and hashing.
 
 - **`--verify-hashes` requires outbound network access.** The scan will not fail if the network is unavailable — INFO findings are produced for packages that could not be verified.
 
-- **Only the exact pinned version is verified.** If the installed version differs from every pinned version, an INFO finding is produced (no hash to compare against). This is intentional — mcp-audit does not block unknown versions, it only confirms known-good ones.
+- **Only the exact pinned version is verified.** If the installed version differs from every pinned version, an INFO finding is produced (no hash to compare against). This is intentional — Credenzo does not block unknown versions, it only confirms known-good ones.
 
 ---
 
@@ -196,8 +196,8 @@ from which CI pipeline?*
 ### Usage
 
 ```bash
-mcp-audit scan --verify-signatures
-mcp-audit scan --verify-signatures --strict-signatures
+credenzo scan --verify-signatures
+credenzo scan --verify-signatures --strict-signatures
 ```
 
 `--verify-signatures` is **free for all tiers** and requires network access
@@ -255,7 +255,7 @@ known CVEs?* — including transitive dependencies.
 ### `--check-vulns`
 
 ```bash
-mcp-audit scan --check-vulns
+credenzo scan --check-vulns
 ```
 
 When this flag is set, mcp-audit:
@@ -315,12 +315,12 @@ A deps.dev graph that carries node errors, an OSV result with a further
 page, and advisory records that could not be fetched are reported in
 `errors` (the affected `VULN-<OSV-ID>` findings say so in their
 description). `VULN-UNRESOLVED` never becomes an advisory-feed record and is
-not listed as a vulnerability in `mcp-audit sbom`.
+not listed as a vulnerability in `credenzo sbom`.
 
 ### `--vuln-registry URL`
 
 ```bash
-mcp-audit scan --check-vulns --vuln-registry https://your-osv-mirror.internal/v1/querybatch
+credenzo scan --check-vulns --vuln-registry https://your-osv-mirror.internal/v1/querybatch
 ```
 
 Override the OSV API endpoint to point at an air-gapped or private mirror (for
@@ -331,14 +331,14 @@ path (`…/v1/querybatch` → `…/v1/vulns/{id}`); otherwise only what the mirr
 querybatch returned is used, and an advisory without a readable severity
 says that the details endpoint is unknown.
 
-### `mcp-audit sbom`
+### `credenzo sbom`
 
 ```bash
-mcp-audit sbom                          # write CycloneDX 1.5 JSON to stdout
-mcp-audit sbom --output sbom.json       # write to file
-mcp-audit sbom --format terminal        # pretty-print dependency tree
-mcp-audit sbom --offline                # top-level packages only (no deps.dev)
-mcp-audit sbom path/to/config.json      # scan a specific config
+credenzo sbom                          # write CycloneDX 1.5 JSON to stdout
+credenzo sbom --output sbom.json       # write to file
+credenzo sbom --format terminal        # pretty-print dependency tree
+credenzo sbom --offline                # top-level packages only (no deps.dev)
+credenzo sbom path/to/config.json      # scan a specific config
 ```
 
 Generates a [CycloneDX 1.5](https://cyclonedx.org) SBOM document listing all
@@ -348,13 +348,13 @@ MCP servers as components and any known VULN findings as CycloneDX
 fields. Compatible with SBOM tooling such as `grype`, `trivy`, and GitHub
 Dependency Review.
 
-`mcp-audit sbom` is **free for all tiers**. Requires `pip install 'mcp-audit-scanner[sbom]'`
+`credenzo sbom` is **free for all tiers**. Requires `pip install 'credenzo[sbom]'`
 (the `cyclonedx-python-lib` dependency is optional and not included in the default install
 or the PyInstaller binary).
 
 #### SBOM staleness
 
-Every SBOM `mcp-audit sbom` writes carries a CycloneDX `metadata.timestamp`
+Every SBOM `credenzo sbom` writes carries a CycloneDX `metadata.timestamp`
 set at generation time, so the document itself states when its dependency
 graph was resolved. What it does not do is expire: an SBOM describes the
 graph as resolved *at generation time*, and nothing re-validates that graph
@@ -386,7 +386,7 @@ failure the advisory feed's `expires` field exists to prevent (see
 `docs/advisory-feed.md`), applied to a document type that currently carries
 no expiry mechanism at all.
 
-This is a caveat, not a fix. `mcp-audit sbom` does not currently carry a TTL
+This is a caveat, not a fix. `credenzo sbom` does not currently carry a TTL
 or any other staleness signal beyond `metadata.timestamp`. Whether it should
 is a separate design question, not addressed here.
 
@@ -408,7 +408,7 @@ this flag, so `--offline` is currently a no-op for the default configuration.
 
 ### Known limitation: the published graph vs. the installed tree
 
-`--check-vulns` and `mcp-audit sbom` answer a specific, narrower question
+`--check-vulns` and `credenzo sbom` answer a specific, narrower question
 than "is this server vulnerable": for the exact `(name, version)` pinned in a
 config, what does deps.dev say the *published* dependency graph looks like,
 and does the OSV.dev batch API report advisories against that graph? They do
@@ -417,7 +417,7 @@ and does the OSV.dev batch API report advisories against that graph? They do
 time (including npm's own `latest`-dist-tag preference over a higher
 satisfying version), lockfile state, and platform-specific optional
 dependencies all live in the gap between "published graph" and "installed
-tree," and mcp-audit models none of them. One measured instance: deps.dev's
+tree," and Credenzo models none of them. One measured instance: deps.dev's
 graph carries `get-intrinsic@1.3.1`, while npm's `latest` tag for that package
 is `1.3.0`, which is what npm picks when a range allows both. Version 1.3.1
 declares three dependencies 1.3.0 does not (`async-function`, `async-generator-function`,
@@ -515,7 +515,7 @@ match — is flagged as a possible typosquat.
 
 ### Python name normalisation (PEP 503)
 
-Before comparing Python package names, mcp-audit applies PEP 503 normalisation:
+Before comparing Python package names, Credenzo applies PEP 503 normalisation:
 collapses runs of `-`, `_`, and `.` into a single `-` and lowercases the result.
 This means `mcp_server_filesystem`, `mcp-server-filesystem`, and
 `MCP.Server.Filesystem` are all treated as the same name.
@@ -594,8 +594,8 @@ FINDING SC-004: Known CVE advisories: mcp-atlassian (30 CVEs)
   Severity: MEDIUM  Analyzer: supply_chain
   Package 'mcp-atlassian' has 30 public CVE advisories recorded in the mcp-audit
   known-server registry: CVE-2026-27826, CVE-2026-73498, ... and 20 more
-  (`mcp-audit vet mcp-atlassian` lists them all). The config does not pin an
-  exact version, so mcp-audit cannot tell offline whether the installed release
+  (`credenzo vet mcp-atlassian` lists them all). The config does not pin an
+  exact version, so Credenzo cannot tell offline whether the installed release
   is affected. Every advisory listed here is fixed in 0.22.0 or later. An
   unpinned launch normally installs a patched release, but npx and uvx can reuse
   a cached older install.
@@ -646,7 +646,7 @@ version and a CVE's `fixed_in` are in different schemes (one has a first number 
 The registry carries no publish dates, so without `semver_resumed_at` an offline scan
 cannot decide the order; `--check-vulns` (OSV.dev, network) can.
 
-**What it still can't do:** mcp-audit never resolves ranges, so a range
+**What it still can't do:** Credenzo never resolves ranges, so a range
 (`pkg@^1.4.0`, `pkg>=0.21`) or no version at all is treated as unpinned and every
 recorded CVE is reported.  Use `scan --check-vulns` for a network lookup against
 OSV.dev.
@@ -811,7 +811,7 @@ can never cause a false positive.
 **The agent stack (STORY-0152).** A package name is split, lower-cased, on every
 character that is not a letter or digit (the npm scope included; two adjacent
 tokens also count, so `gemini-cli` is one). It is kept when a token names a
-coding agent whose configuration mcp-audit reads (`claude`, `cursor`,
+coding agent whose configuration Credenzo reads (`claude`, `cursor`,
 `windsurf`, `copilot`, `augment`, `augmentcode`, `amazon-q`, `amazonq`, `codex`,
 `gemini-cli`, `opencode`, `openclaw`) or an agent artifact (`skill`, `skills`,
 `subagent`, `subagents`): `AGENT_STACK_TOKENS` in the script. The cases were
@@ -836,7 +836,7 @@ and `anthropic` (API SDK typosquats, not agent tooling).
 launches one through `npx`/`uvx` and the other launchers above), `vet <name>`,
 and `affected MAL-…` (found offline; a server is AFFECTED only when it launches
 the package). **Not read:** a skill collection installed by running
-`npx agentic-awesome-skills` in a shell leaves no record mcp-audit reads (it
+`npx agentic-awesome-skills` in a shell leaves no record Credenzo reads (it
 scans the skill files themselves); a Claude Code plugin whose marketplace
 source is `npm` is not checked against the mirror; a skill's install steps
 (SKILL-005) are not matched by package name. See GAPS.md. The file is a mirror,

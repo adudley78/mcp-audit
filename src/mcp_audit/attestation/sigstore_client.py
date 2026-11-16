@@ -17,7 +17,7 @@ errors) so callers can catch a single exception type.
     the rebuilt binary above 22 MB.  Measure a CI ``binary-smoke`` artifact
     (not a local ad-hoc build), and decide
     whether to (a) accept the larger binary, (b) move ``sigstore`` to an
-    optional install group (e.g. ``pip install mcp-audit-scanner[attestation]``), or
+    optional install group (e.g. ``pip install credenzo[attestation]``), or
     (c) replace the sigstore library with a minimal custom TUF + Rekor client.
     Flag for follow-up before the next release cut.
 
@@ -314,7 +314,7 @@ def verify_attestation(
             raise ImportError(
                 "sigstore is not installed. "
                 "Enable Sigstore signature verification with: "
-                "pip install 'mcp-audit-scanner[attestation]'"
+                "pip install 'credenzo[attestation]'"
             ) from _import_err
 
         try:

@@ -1,4 +1,4 @@
-"""mcp-audit advise / feed verify — publish and verify the MCP advisory feed.
+"""credenzo advise / feed verify — publish and verify the MCP advisory feed.
 
 ``advise`` runs a scan, converts the findings into OSV-compatible advisory records,
 writes them to a feed directory, and signs them. ``feed verify`` re-canonicalizes an
@@ -7,7 +7,7 @@ existing feed and checks every signature.
 EXPERIMENTAL: the advisory record **format** is not yet stable — fields may be added,
 renamed, or reshaped, and existing records are not guaranteed to be byte-stable across
 that change. Do not build automation that depends on the exact shape of a record
-today. Signing is no longer experimental: mcp-audit's own published feed is signed
+today. Signing is no longer experimental: Credenzo's own published feed is signed
 with a minisign project key (see ``docs/advisory-feed.md``, "Key custody and
 rotation"), and ``feed verify --key-alt minisign`` resolves the bundled public key
 (``keys/mcp-audit-feed.pub``) by default when neither ``--public-key`` nor
@@ -186,7 +186,7 @@ def advise(
 
     EXPERIMENTAL: the record format is not yet stable. Expect breaking changes before
     this ships as a first-class, byte-stable feed. --sign always requires a key you
-    supply via --key or $MCP_AUDIT_SIGNING_KEY — mcp-audit's own published feed is
+    supply via --key or $MCP_AUDIT_SIGNING_KEY — Credenzo's own published feed is
     signed in CI with a project key that never leaves the `feed-signing` GitHub
     environment; this command has no way to reach it and does not need to.
 
@@ -297,7 +297,7 @@ def _load_scan(
             return ScanResult.model_validate(payload)
         except (json.JSONDecodeError, ValueError) as exc:
             console.print(
-                f"[red]Error:[/red] {input_scan} is not an mcp-audit JSON scan "
+                f"[red]Error:[/red] {input_scan} is not a Credenzo JSON scan "
                 f"result: {exc}"
             )
             raise typer.Exit(2) from None
@@ -417,7 +417,7 @@ def feed_verify(
 
     EXPERIMENTAL: the advisory record *format* this verifies against is not yet
     stable. Expect breaking changes before this ships as a first-class, byte-stable
-    feed. Signing itself is not experimental: mcp-audit's own published feed is signed
+    feed. Signing itself is not experimental: Credenzo's own published feed is signed
     with a minisign project key (docs/advisory-feed.md, "Key custody and rotation").
 
     Verifies the index signature, each advisory's signature, and that each advisory's
@@ -427,9 +427,9 @@ def feed_verify(
     A feed with no signatures at all is checked for integrity only, and the verdict
     says so. A feed that claims to be signed but is not still fails.
 
-    For --key-alt minisign, --public-key defaults to mcp-audit's own bundled project
+    For --key-alt minisign, --public-key defaults to Credenzo's own bundled project
     key (keys/mcp-audit-feed.pub) when neither --public-key nor
-    $MCP_AUDIT_SIGNING_PUBKEY is given — verifying mcp-audit's own published feed then
+    $MCP_AUDIT_SIGNING_PUBKEY is given — verifying Credenzo's own published feed then
     needs no extra flag. An explicit --public-key or $MCP_AUDIT_SIGNING_PUBKEY always
     wins over this default, and it never applies to cosign or keyless verification,
     which pin identity through their own key path or --identity/--oidc-issuer.
@@ -471,7 +471,7 @@ def feed_verify(
 
     if used_bundled_key:
         console.print(
-            f"[dim]No --public-key given; using mcp-audit's bundled project key "
+            f"[dim]No --public-key given; using Credenzo's bundled project key "
             f"({config.public_key}).[/dim]"
         )
 

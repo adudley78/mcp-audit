@@ -1,4 +1,4 @@
-"""Tests for the ``mcp-audit run`` runtime tool-list check (EPIC-0009 Story 1.4).
+"""Tests for the ``credenzo run`` runtime tool-list check (EPIC-0009 Story 1.4).
 
 Three layers:
 
@@ -6,8 +6,8 @@ Three layers:
   code ``lock --connect`` uses.
 * The wire path agrees with the SDK path ``lock --connect`` takes, so a
   server that hasn't changed never reports a change at launch.
-* End to end: a real ``mcp-audit lock --connect`` against a fixture MCP
-  server, then ``mcp-audit run`` in both modes, driven over stdio the way a
+* End to end: a real ``credenzo lock --connect`` against a fixture MCP
+  server, then ``credenzo run`` in both modes, driven over stdio the way a
   client drives it.
 """
 
@@ -150,14 +150,14 @@ class TestChanges:
         assert guard.withheld == {}
         assert said == [
             "LOCK-009 server 'srv': tool(s) 'add': removed since the tools were "
-            "locked. Fix: if intended, run `mcp-audit lock --accept --connect`"
+            "locked. Fix: if intended, run `credenzo lock --accept --connect`"
         ]
 
     def test_no_record_withholds_everything_in_enforce(self) -> None:
         guard, said = _guard(None, True)
         assert _listed(guard, [ECHO, ADD]) == []
         assert set(guard.withheld.values()) == {"RUN-003"}
-        assert "mcp-audit lock --connect" in said[0]
+        assert "credenzo lock --connect" in said[0]
 
     def test_no_record_only_reported_in_monitor(self) -> None:
         guard, said = _guard(None, False)

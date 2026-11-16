@@ -1,9 +1,9 @@
-# mcp-audit diff — PR comment workflow
+# credenzo diff — PR comment workflow
 #
 # On every pull request this workflow:
 #   1. Scans the BASE commit and saves results to base.json.
 #   2. Scans the HEAD commit and saves results to head.json.
-#   3. Runs `mcp-audit diff base.json head.json --format pr-comment` to produce
+#   3. Runs `credenzo diff base.json head.json --format pr-comment` to produce
 #      a concise GitHub-flavored Markdown summary of what changed in MCP terms:
 #      added/removed/changed servers, tools, capabilities, env-var references,
 #      endpoints, and credentials — each with a severity classification.
@@ -24,7 +24,7 @@
 #
 # Alternative: for a one-step setup (no separate scan stages), use
 # `examples/github-actions/diff-mode.yml` which uses `mode: diff` inside the
-# mcp-audit composite action.
+# Credenzo composite action.
 
 name: MCP Diff (PR Comment)
 
@@ -46,7 +46,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Install the mcp-audit binary from GitHub Releases (cached by version+OS).
+      # Install the Credenzo binary from GitHub Releases (cached by version+OS).
       - name: Install mcp-audit
         uses: adudley78/setup-mcp-audit@v1
         with:

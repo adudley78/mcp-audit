@@ -49,7 +49,7 @@ def generate_yaml_patch(
     change_ids = ", ".join(ks.change_id for ks in switches)
 
     lines: list[str] = [
-        "# mcp-audit killchain — governance policy patch",
+        "# credenzo killchain — governance policy patch",
         f"# Generated: {ts}  Covers: {change_ids}",
         "#",
         "# Append this block to your .mcp-audit-policy.yml to block",
@@ -94,9 +94,9 @@ def generate_pr_comment(switches: list[KillSwitch]) -> str:
         return "_No kill-chain recommendations — nothing to document._\n"
 
     lines: list[str] = [
-        "## mcp-audit killchain — recommended changes",
+        "## credenzo killchain — recommended changes",
         "",
-        "The following changes are recommended by `mcp-audit killchain` to reduce",
+        "The following changes are recommended by `credenzo killchain` to reduce",
         "the attack-path blast radius of this MCP server configuration.",
         "",
         "| Change | Server | Paths removed | Severity reduction |",
